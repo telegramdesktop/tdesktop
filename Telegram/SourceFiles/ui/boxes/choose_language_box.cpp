@@ -230,7 +230,7 @@ QString LanguageNameNative(LanguageId id) {
 				|| locale.country() == QLocale::AnyCountry)) {
 		return u"English"_q;
 	} else if (locale.language() == QLocale::Spanish) {
-		return QString::fromUtf8("\x45\x73\x70\x61\xc3\xb1\x6f\x6c");
+		return QStringLiteral("\x45\x73\x70\x61\xc3\xb1\x6f\x6c");
 	} else {
 		const auto name = locale.nativeLanguageName();
 		return name.left(1).toUpper() + name.mid(1);

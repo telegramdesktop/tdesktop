@@ -2469,7 +2469,7 @@ void Panel::refreshTitle() {
 		if (_call->rtmp()) {
 			_titleSeparator.create(
 				widget(),
-				rpl::single(QString::fromUtf8("\xE2\x80\xA2")),
+				rpl::single(QStringLiteral("\xE2\x80\xA2")),
 				st::groupCallTitleLabel);
 			_titleSeparator->show();
 			_titleSeparator->setAttribute(Qt::WA_TransparentForMouseEvents);

@@ -153,8 +153,8 @@ bool MaybeDisabledEmoji::readyInDefaultState() {
 }
 
 [[nodiscard]] std::vector<Data::ReactionId> DefaultSelected() {
-	const auto like = QString::fromUtf8("\xf0\x9f\x91\x8d");
-	const auto dislike = QString::fromUtf8("\xf0\x9f\x91\x8e");
+	const auto like = QStringLiteral("\xf0\x9f\x91\x8d");
+	const auto dislike = QStringLiteral("\xf0\x9f\x91\x8e");
 	return { Data::ReactionId{ like }, Data::ReactionId{ dislike } };
 }
 

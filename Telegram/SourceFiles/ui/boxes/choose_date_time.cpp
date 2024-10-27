@@ -35,7 +35,7 @@ QString DayString(const QDate &date) {
 }
 
 QString TimeString(QTime time) {
-	return QString("%1:%2"
+	return QStringLiteral("%1:%2"
 	).arg(time.hour()
 	).arg(time.minute(), 2, 10, QLatin1Char('0'));
 }

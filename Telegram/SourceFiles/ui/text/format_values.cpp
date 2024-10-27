@@ -152,7 +152,7 @@ QString FillAmountAndCurrency(
 
 	const auto rule = LookupCurrencyRule(currency);
 	const auto prefix = (amount < 0)
-		? QString::fromUtf8("\xe2\x88\x92")
+		? QStringLiteral("\xe2\x88\x92")
 		: QString();
 	const auto value = std::abs(amount) / std::pow(10., rule.exponent);
 	const auto name = (*rule.international)

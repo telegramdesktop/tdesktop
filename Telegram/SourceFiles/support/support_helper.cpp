@@ -541,7 +541,7 @@ Templates &Helper::templates() {
 }
 
 QString ChatOccupiedString(not_null<History*> history) {
-	const auto hand = QString::fromUtf8("\xe2\x9c\x8b\xef\xb8\x8f");
+	const auto hand = QStringLiteral("\xe2\x9c\x8b\xef\xb8\x8f");
 	const auto name = ParseOccupationName(history);
 	return (name.isEmpty() || name.startsWith(u"[rand^"_q))
 		? hand + " chat taken"

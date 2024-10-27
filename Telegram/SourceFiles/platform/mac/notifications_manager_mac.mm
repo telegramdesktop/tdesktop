@@ -612,7 +612,7 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 }
 
 QString Manager::accountNameSeparator() {
-	return QString::fromUtf8(" \xE2\x86\x92 ");
+	return QStringLiteral(" \xE2\x86\x92 ");
 }
 
 bool Manager::doSkipToast() const {

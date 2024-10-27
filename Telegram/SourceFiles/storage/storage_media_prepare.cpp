@@ -347,7 +347,7 @@ void UpdateImageDetails(
 		toWidth,
 		Qt::SmoothTransformation);
 	if (scaled.isNull()) {
-		CrashReports::SetAnnotation("Info", QString("%1x%2:%3*%4->%5;%6x%7"
+		CrashReports::SetAnnotation("Info", QStringLiteral("%1x%2:%3*%4->%5;%6x%7"
 		).arg(preview.width()).arg(preview.height()
 		).arg(previewWidth).arg(style::DevicePixelRatio()
 		).arg(toWidth

@@ -62,14 +62,14 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 #endif // Q_OS_MAC
 
 [[nodiscard]] QString PlaceholderReactionText() {
-	static const auto result = QString::fromUtf8("\xf0\x9f\x92\xad");
+	static const auto result = QStringLiteral("\xf0\x9f\x92\xad");
 	return result;
 }
 
 [[nodiscard]] QString TextWithForwardedChar(
 		const QString &text,
 		bool forwarded) {
-	static const auto result = QString::fromUtf8("\xE2\x9E\xA1\xEF\xB8\x8F");
+	static const auto result = QStringLiteral("\xE2\x9E\xA1\xEF\xB8\x8F");
 	return forwarded ? result + text : text;
 }
 
@@ -1033,7 +1033,7 @@ QString Manager::addTargetAccountName(
 }
 
 QString Manager::accountNameSeparator() {
-	return QString::fromUtf8(" \xE2\x9E\x9C ");
+	return QStringLiteral(" \xE2\x9E\x9C ");
 }
 
 void Manager::notificationActivated(
@@ -1230,7 +1230,7 @@ bool NativeManager::forceHideDetails() const {
 System::~System() = default;
 
 QString WrapFromScheduled(const QString &text) {
-	return QString::fromUtf8("\xF0\x9F\x93\x85 ") + text;
+	return QStringLiteral("\xF0\x9F\x93\x85 ") + text;
 }
 
 } // namespace Notifications

@@ -108,7 +108,7 @@ QString File::PrepareRelativePath(
 		? base::StringViewMid(suggested, position)
 		: QStringView();
 	const auto relativePart = [&](int attempt) {
-		auto result = base + QString(" (%1)").arg(attempt);
+		auto result = base + QStringLiteral(" (%1)").arg(attempt);
 		result.append(extension);
 		return result;
 	};

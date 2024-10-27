@@ -107,7 +107,7 @@ void APIClient::createTokenWithData(
 				const auto code = int(parseError.error);
 				finishWithError({
 					Error::Code::JsonParse,
-					QString("InvalidJson%1").arg(code),
+					QStringLiteral("InvalidJson%1").arg(code),
 					parseError.errorString(),
 				});
 				return;
@@ -128,7 +128,7 @@ void APIClient::createTokenWithData(
 		if (replyError != QNetworkReply::NoError) {
 			finishWithError({
 				Error::Code::Network,
-				QString("RequestError%1").arg(replyError),
+				QStringLiteral("RequestError%1").arg(replyError),
 				replyErrorString,
 			});
 			return;

@@ -1617,7 +1617,7 @@ void TopBarWidget::updateOnlineDisplay() {
 	if (const auto user = peer->asUser()) {
 		if (session().supportMode()
 			&& !session().supportHelper().infoCurrent(user).text.empty()) {
-			text = QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f check info");
+			text = QStringLiteral("\xe2\x9a\xa0\xef\xb8\x8f check info");
 			titlePeerTextOnline = false;
 		} else {
 			text = Data::OnlineText(user, now);

@@ -264,7 +264,7 @@ ValidationState ValidateParsedExpireDate(
 	if ((year / 100) != 20) {
 		return ValidationState::Invalid;
 	}
-	const auto date = QString("%1%2"
+	const auto date = QStringLiteral("%1%2"
 	).arg(month, 2, 10, QChar('0')
 	).arg(year % 100, 2, 10, QChar('0'));
 

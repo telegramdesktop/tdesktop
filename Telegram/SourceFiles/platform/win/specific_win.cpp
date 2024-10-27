@@ -291,10 +291,10 @@ void psDoFixPrevious() {
 		HKEY oldKey2 = nullptr;
 
 		const auto appId = AppId.utf16();
-		const auto newKeyStr1 = QString("Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
-		const auto newKeyStr2 = QString("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
-		const auto oldKeyStr1 = QString("SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
-		const auto oldKeyStr2 = QString("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
+		const auto newKeyStr1 = QStringLiteral("Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
+		const auto newKeyStr2 = QStringLiteral("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
+		const auto oldKeyStr1 = QStringLiteral("SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
+		const auto oldKeyStr2 = QStringLiteral("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId).toStdWString();
 		const auto newKeyRes1 = RegOpenKeyEx(HKEY_CURRENT_USER, newKeyStr1.c_str(), 0, KEY_READ, &newKey1);
 		const auto newKeyRes2 = RegOpenKeyEx(HKEY_CURRENT_USER, newKeyStr2.c_str(), 0, KEY_READ, &newKey2);
 		const auto oldKeyRes1 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, oldKeyStr1.c_str(), 0, KEY_READ, &oldKey1);

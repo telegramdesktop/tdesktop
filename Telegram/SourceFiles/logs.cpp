@@ -67,7 +67,7 @@ QString _logsEntryStart() {
 
 	const auto tm = QDateTime::currentDateTime();
 
-	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz"), QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
+	return QStringLiteral("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz"), QStringLiteral("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
 }
 
 class LogsDataFields {
@@ -242,7 +242,7 @@ NEW LOGGING INSTANCE STARTED!!!\n\
 		part = newPart;
 
 		int32 dayIndex = (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
-		QString postfix = QString("_%4_%5").arg((part * switchEach) / 60, 2, 10, QChar('0')).arg((part * switchEach) % 60, 2, 10, QChar('0'));
+		QString postfix = QStringLiteral("_%4_%5").arg((part * switchEach) / 60, 2, 10, QChar('0')).arg((part * switchEach) % 60, 2, 10, QChar('0'));
 
 		reopen(LogDataDebug, dayIndex, postfix);
 		reopen(LogDataTcp, dayIndex, postfix);
@@ -498,7 +498,7 @@ void writeMain(const QString &v) {
 	struct tm tm;
 	mylocaltime(&tm, &t);
 
-	const auto msg = QString("[%1.%2.%3 %4:%5:%6] %7\n"
+	const auto msg = QStringLiteral("[%1.%2.%3 %4:%5:%6] %7\n"
 	).arg(tm.tm_year + 1900
 	).arg(tm.tm_mon + 1, 2, 10, QChar('0')
 	).arg(tm.tm_mday, 2, 10, QChar('0')
@@ -512,7 +512,7 @@ void writeMain(const QString &v) {
 }
 
 void writeDebug(const QString &v) {
-	const auto msg = QString("%1 %2\n").arg(_logsEntryStart(), v);
+	const auto msg = QStringLiteral("%1 %2\n").arg(_logsEntryStart(), v);
 	_logsWrite(LogDataDebug, msg);
 
 #ifdef Q_OS_WIN
@@ -525,7 +525,7 @@ void writeDebug(const QString &v) {
 }
 
 void writeTcp(const QString &v) {
-	const auto msg = QString("%1 %2\n").arg(_logsEntryStart(), v);
+	const auto msg = QStringLiteral("%1 %2\n").arg(_logsEntryStart(), v);
 	_logsWrite(LogDataTcp, msg);
 }
 

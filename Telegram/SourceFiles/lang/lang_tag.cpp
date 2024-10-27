@@ -941,7 +941,7 @@ ShortenedCount FormatCountToShort(int64 number) {
 }
 
 QString FormatCountDecimal(int64 number) {
-	return QString("%L1").arg(number);
+	return QStringLiteral("%L1").arg(number);
 }
 
 PluralResult Plural(

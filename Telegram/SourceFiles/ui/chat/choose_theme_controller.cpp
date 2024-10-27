@@ -165,7 +165,7 @@ ChooseThemeController::ChooseThemeController(
 , _topShadow(std::make_unique<PlainShadow>(parent))
 , _content(_wrap->add(object_ptr<RpWidget>(_wrap.get())))
 , _inner(CreateChild<RpWidget>(_content.get()))
-, _disabledEmoji(Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\x8c")))
+, _disabledEmoji(Ui::Emoji::Find(QStringLiteral("\xe2\x9d\x8c")))
 , _dark(Window::Theme::IsThemeDarkValue()) {
 	init(parent->sizeValue());
 }

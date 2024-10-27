@@ -119,8 +119,8 @@ void PlaceCounter(
 		PainterHighQualityEnabler hq(p);
 
 		const auto cnt = (count < 100)
-			? QString("%1").arg(count)
-			: QString("..%1").arg(count % 100, 2, 10, QChar('0'));
+			? QStringLiteral("%1").arg(count)
+			: QStringLiteral("..%1").arg(count % 100, 2, 10, QChar('0'));
 		const auto cntSize = cnt.size();
 
 		p.setBrush(bg);

@@ -137,7 +137,7 @@ int writeAlphaKey() {
 	if (!AlphaVersion) {
 		return 0;
 	}
-	QString keyName(QString("talpha_%1_key").arg(AlphaVersion));
+	QString keyName(QStringLiteral("talpha_%1_key").arg(AlphaVersion));
 	QFile key(keyName);
 	if (!key.open(QIODevice::WriteOnly)) {
 		cout << "Can't open '" << keyName.toUtf8().constData() << "' for write..\n";
@@ -495,11 +495,11 @@ int main(int argc, char *argv[])
 	cout << "Signature verified!\n";
 	RSA_free(pbKey);
 #ifdef Q_OS_WIN
-	QString outName((targetwinarm ? QString("tarm64upd%1") : targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
+	QString outName((targetwinarm ? QStringLiteral("tarm64upd%1") : targetwin64 ? QStringLiteral("tx64upd%1") : QStringLiteral("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
-	QString outName((targetarmac ? QString("tarmacupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
+	QString outName((targetarmac ? QStringLiteral("tarmacupd%1") : QStringLiteral("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
 #else
-	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
+	QString outName(QStringLiteral("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
 #endif
 	if (AlphaVersion) {
 		outName += "_" + AlphaSignature;

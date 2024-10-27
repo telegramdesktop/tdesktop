@@ -432,7 +432,7 @@ void PublicForwardsController::appendRow(
 		? tr::lng_stories_no_views(tr::now)
 		: (membersText.isEmpty() || viewsText.isEmpty())
 		? membersText + viewsText
-		: QString("%1, %2").arg(membersText, viewsText);
+		: QStringLiteral("%1, %2").arg(membersText, viewsText);
 	row->setCustomStatus(resultText);
 
 	delegate()->peerListAppendRow(std::move(row));

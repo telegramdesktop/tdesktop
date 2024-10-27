@@ -1100,13 +1100,13 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 	_recent.reserve(list.size());
 	for (const auto &id : list) {
 		if (!id && _mode == Mode::EmojiStatus) {
-			const auto star = QString::fromUtf8("\xe2\xad\x90\xef\xb8\x8f");
+			const auto star = QStringLiteral("\xe2\xad\x90\xef\xb8\x8f");
 			_recent.push_back({ .id = { Ui::Emoji::Find(star) } });
 		} else if (!id
 			&& (_mode == Mode::BackgroundEmoji
 				|| _mode == Mode::ChannelStatus)) {
 			const auto fakeId = DocumentId(5246772116543512028ULL);
-			const auto no = QString::fromUtf8("\xe2\x9b\x94\xef\xb8\x8f");
+			const auto no = QStringLiteral("\xe2\x9b\x94\xef\xb8\x8f");
 			_recent.push_back({
 				.custom = resolveCustomRecent(fakeId),
 				.id = { Ui::Emoji::Find(no) },
@@ -1869,7 +1869,7 @@ void EmojiListWidget::showPicker() {
 		disableScroll(true);
 	};
 	if (const auto button = std::get_if<OverButton>(&_pickerSelected)) {
-		const auto hand = QString::fromUtf8("\xF0\x9F\x91\x8B");
+		const auto hand = QStringLiteral("\xF0\x9F\x91\x8B");
 		const auto emoji = Ui::Emoji::Find(hand);
 		Assert(emoji != nullptr && emoji->hasVariants());
 		_picker->showEmoji(emoji, true);

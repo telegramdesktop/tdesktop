@@ -68,9 +68,9 @@ using namespace details;
 
 [[nodiscard]] QString LogIdsVector(const QVector<MTPlong> &ids) {
 	if (!ids.size()) return "[]";
-	auto idsStr = QString("[%1").arg(ids.cbegin()->v);
+	auto idsStr = QStringLiteral("[%1").arg(ids.cbegin()->v);
 	for (const auto &id : ids) {
-		idsStr += QString(", %2").arg(id.v);
+		idsStr += QStringLiteral(", %2").arg(id.v);
 	}
 	return idsStr + "]";
 }
@@ -1379,7 +1379,7 @@ void SessionPrivate::handleReceived() {
 		auto sfrom = decryptedInts + 4U; // msg_id + seq_no + length + message
 		MTP_LOG(_shiftedDcId, ("Recv: ")
 			+ DumpToText(sfrom, end)
-			+ QString(" (dc:%1,key:%2)"
+			+ QStringLiteral(" (dc:%1,key:%2)"
 			).arg(AbstractConnection::ProtocolDcDebugId(getProtocolDcId())
 			).arg(_encryptionKey->keyId()));
 
@@ -2654,7 +2654,7 @@ bool SessionPrivate::sendSecureRequest(
 	auto from = request->constData() + 4;
 	MTP_LOG(_shiftedDcId, ("Send: ")
 		+ DumpToText(from, from + messageSize)
-		+ QString(" (dc:%1,key:%2)"
+		+ QStringLiteral(" (dc:%1,key:%2)"
 		).arg(AbstractConnection::ProtocolDcDebugId(getProtocolDcId())
 		).arg(_encryptionKey->keyId()));
 

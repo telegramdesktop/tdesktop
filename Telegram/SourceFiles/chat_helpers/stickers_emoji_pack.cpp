@@ -233,17 +233,17 @@ EmojiPtr EmojiPack::chooseInteractionEmoji(
 		}
 	}
 	static const auto kHearts = {
-		QString::fromUtf8("\xf0\x9f\x92\x9b"),
-		QString::fromUtf8("\xf0\x9f\x92\x99"),
-		QString::fromUtf8("\xf0\x9f\x92\x9a"),
-		QString::fromUtf8("\xf0\x9f\x92\x9c"),
-		QString::fromUtf8("\xf0\x9f\xa7\xa1"),
-		QString::fromUtf8("\xf0\x9f\x96\xa4"),
-		QString::fromUtf8("\xf0\x9f\xa4\x8e"),
-		QString::fromUtf8("\xf0\x9f\xa4\x8d"),
+		QStringLiteral("\xf0\x9f\x92\x9b"),
+		QStringLiteral("\xf0\x9f\x92\x99"),
+		QStringLiteral("\xf0\x9f\x92\x9a"),
+		QStringLiteral("\xf0\x9f\x92\x9c"),
+		QStringLiteral("\xf0\x9f\xa7\xa1"),
+		QStringLiteral("\xf0\x9f\x96\xa4"),
+		QStringLiteral("\xf0\x9f\xa4\x8e"),
+		QStringLiteral("\xf0\x9f\xa4\x8d"),
 	};
 	return ranges::contains(kHearts, emoji->id())
-		? Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\xa4"))
+		? Ui::Emoji::Find(QStringLiteral("\xe2\x9d\xa4"))
 		: emoji;
 }
 

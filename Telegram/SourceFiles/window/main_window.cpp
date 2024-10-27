@@ -301,7 +301,7 @@ QImage WithSmallCounter(QImage image, CounterLayerArgs &&args) {
 	const auto count = args.count.value();
 	const auto text = (count < 100)
 		? QString::number(count)
-		: QString("..%1").arg(count % 10, 1, 10, QChar('0'));
+		: QStringLiteral("..%1").arg(count % 10, 1, 10, QChar('0'));
 	const auto textSize = text.size();
 
 	struct Dimensions {

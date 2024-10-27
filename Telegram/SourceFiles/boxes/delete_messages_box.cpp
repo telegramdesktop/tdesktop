@@ -219,7 +219,7 @@ void DeleteMessagesBox::prepare() {
 				return tr::lng_box_delete(tr::now)
 					+ ((total <= 0 || !checked)
 						? QString()
-						: QString(" (%1)").arg(total));
+						: QStringLiteral(" (%1)").arg(total));
 			});
 			search->searchMessages({ .from = _moderateFrom });
 		}

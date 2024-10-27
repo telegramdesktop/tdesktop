@@ -670,7 +670,7 @@ void GiveawayInfoBox(
 		? tr::lng_prizes_you_won(
 			lt_cup,
 			rpl::single(
-				TextWithEntities{ QString::fromUtf8("\xf0\x9f\x8f\x86") }),
+				TextWithEntities{ QStringLiteral("\xf0\x9f\x8f\x86") }),
 			Ui::Text::WithEntities)
 		: (info.credits)
 		? tr::lng_prizes_you_won_credits(
@@ -681,7 +681,7 @@ void GiveawayInfoBox(
 				Ui::Text::Bold),
 			lt_cup,
 			rpl::single(
-				TextWithEntities{ QString::fromUtf8("\xf0\x9f\x8f\x86") }),
+				TextWithEntities{ QStringLiteral("\xf0\x9f\x8f\x86") }),
 			Ui::Text::WithEntities)
 		: (info.state == State::Finished)
 		? tr::lng_prizes_you_didnt(Ui::Text::WithEntities)

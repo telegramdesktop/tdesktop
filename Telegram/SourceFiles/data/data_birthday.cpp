@@ -91,7 +91,7 @@ QString BirthdayText(Birthday date) {
 }
 
 QString BirthdayCake() {
-	return QString::fromUtf8("\xf0\x9f\x8e\x82");
+	return QStringLiteral("\xf0\x9f\x8e\x82");
 }
 
 int BirthdayAge(Birthday date) {

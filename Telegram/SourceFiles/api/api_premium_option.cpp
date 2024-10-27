@@ -27,7 +27,7 @@ Data::PremiumSubscriptionOption CreateSubscriptionOption(
 	return {
 		.duration = Ui::FormatTTL(months * 86400 * 31),
 		.discount = discount
-			? QString::fromUtf8("\xe2\x88\x92%1%").arg(discount)
+			? QStringLiteral("\xe2\x88\x92%1%").arg(discount)
 			: QString(),
 		.costPerMonth = Ui::FillAmountAndCurrency(
 			amount / float64(months),

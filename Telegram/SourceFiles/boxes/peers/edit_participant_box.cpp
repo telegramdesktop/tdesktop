@@ -300,7 +300,7 @@ void EditAdminBox::prepare() {
 				lt_user,
 				rpl::single(_by
 					? Ui::Text::Link(_by->name(), 1)
-					: TextWithEntities{ QString::fromUtf8("\U0001F47B") }),
+					: TextWithEntities{ QStringLiteral("\U0001F47B") }),
 				lt_date,
 				rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
 				Ui::Text::WithEntities));
@@ -836,7 +836,7 @@ void EditRestrictedBox::prepare() {
 					lt_user,
 					rpl::single(_by
 						? Ui::Text::Link(_by->name(), 1)
-						: TextWithEntities{ QString::fromUtf8("\U0001F47B") }),
+						: TextWithEntities{ QStringLiteral("\U0001F47B") }),
 					lt_date,
 					rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
 					Ui::Text::WithEntities));

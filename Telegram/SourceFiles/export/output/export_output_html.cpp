@@ -698,7 +698,7 @@ HtmlWriter::Wrap::Wrap(
 
 	const auto left = path.mid(base.size());
 	const auto nesting = ranges::count(left, '/');
-	_base = QString("../").repeated(nesting).toUtf8();
+	_base = QStringLiteral("../").repeated(nesting).toUtf8();
 
 	_composedStart = composeStart();
 }
@@ -2698,7 +2698,7 @@ Result HtmlWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 		data.firstName = path.toUtf8();
 		block.append(_userpics->pushListEntry(
 			data,
-			(path.isEmpty() ? QString("Photo unavailable") : path).toUtf8(),
+			(path.isEmpty() ? QStringLiteral("Photo unavailable") : path).toUtf8(),
 			status,
 			(userpic.date > 0
 				? Data::FormatDateTime(userpic.date)
@@ -2800,7 +2800,7 @@ Result HtmlWriter::writeStoriesSlice(const Data::StoriesSlice &data) {
 			: QByteArray();
 		block.append(_stories->pushStoriesListEntry(
 			data,
-			(path.isEmpty() ? QString("Story unavailable") : path).toUtf8(),
+			(path.isEmpty() ? QStringLiteral("Story unavailable") : path).toUtf8(),
 			status,
 			info,
 			story.caption,

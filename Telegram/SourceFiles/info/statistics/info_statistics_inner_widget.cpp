@@ -353,7 +353,7 @@ void FillOverview(
 		const auto precision = (percentage == int(percentage)) ? 0 : 1;
 		return {
 			(diff < 0 ? st::menuIconAttentionColor : st::settingsIconBg2)->c,
-			QString("%1%2 (%3%)")
+			QStringLiteral("%1%2 (%3%)")
 				.arg((diff < 0) ? QChar(0x2212) : QChar(0x002B))
 				.arg(diffText)
 				.arg(QString::number(percentage, 'f', precision))
@@ -427,7 +427,7 @@ void FillOverview(
 		: isChannel
 		? Ui::CreateChild<Ui::FlatLabel>(
 			container,
-			QString("%1%").arg(0.01
+			QStringLiteral("%1%").arg(0.01
 				* std::round(channel.enabledNotificationsPercentage * 100.)),
 			st::statisticsOverviewValue)
 		: isMessage

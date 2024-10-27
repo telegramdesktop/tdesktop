@@ -169,7 +169,7 @@ EditDocumentScheme GetDocumentScheme(
 	const auto CityValidate = LimitedValidate(kMaxCitySize, kMinCitySize);
 	const auto PostcodeValidate = FromBoolean([](const QString &value) {
 		static const auto RegExp = QRegularExpression(
-			QString("^[a-zA-Z0-9\\-]{2,%1}$").arg(kMaxPostcodeSize)
+			QStringLiteral("^[a-zA-Z0-9\\-]{2,%1}$").arg(kMaxPostcodeSize)
 		);
 		return RegExp.match(value).hasMatch();
 	});

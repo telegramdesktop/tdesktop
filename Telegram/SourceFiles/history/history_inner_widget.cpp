@@ -3176,7 +3176,7 @@ TextForMimeData HistoryInner::getSelectedText() const {
 			TextForMimeData &&unwrapped) {
 		const auto i = texts.emplace(item->position(), Part{
 			.name = item->author()->name(),
-			.time = QString(", [%1]\n").arg(
+			.time = QStringLiteral(", [%1]\n").arg(
 				QLocale().toString(ItemDateTime(item), QLocale::ShortFormat)),
 			.unwrapped = std::move(unwrapped),
 		}).first;

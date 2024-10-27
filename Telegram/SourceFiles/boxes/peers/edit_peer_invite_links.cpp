@@ -173,7 +173,7 @@ private:
 			link.usageLimit)
 		: tr::lng_group_invite_no_joined(tr::now);
 	const auto add = [&](const QString &text) {
-		result += QString::fromUtf8(" \xE2\x80\xA2 ") + text;
+		result += QStringLiteral(" \xE2\x80\xA2 ") + text;
 	};
 	if (revoked) {
 		return result;

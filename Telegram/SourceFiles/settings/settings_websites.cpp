@@ -96,7 +96,7 @@ private:
 [[nodiscard]] QString LocationAndDate(const EntryData &entry) {
 	return (entry.location.isEmpty() ? entry.ip : entry.location)
 		+ (entry.hash
-			? (QString::fromUtf8(" \xE2\x80\xA2 ") + entry.active)
+			? (QStringLiteral(" \xE2\x80\xA2 ") + entry.active)
 			: QString());
 }
 

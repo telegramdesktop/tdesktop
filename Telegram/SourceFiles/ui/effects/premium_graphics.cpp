@@ -419,12 +419,12 @@ QByteArray ColorizedSvg(const QGradientStops &gradientStops) {
 	auto stops = [&] {
 		auto s = QString();
 		for (const auto &stop : gradientStops) {
-			s += QString("<stop offset='%1' stop-color='%2'/>")
+			s += QStringLiteral("<stop offset='%1' stop-color='%2'/>")
 				.arg(QString::number(stop.first), stop.second.name());
 		}
 		return s;
 	}();
-	const auto color = QString("<linearGradient id='Gradient2' "
+	const auto color = QStringLiteral("<linearGradient id='Gradient2' "
 		"x1='%1' x2='%2' y1='%3' y2='%4'>%5</linearGradient>")
 		.arg(0)
 		.arg(1)

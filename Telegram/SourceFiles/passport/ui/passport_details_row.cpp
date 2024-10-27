@@ -438,21 +438,21 @@ QDate ValidateDate(const QString &value) {
 
 QString GetDay(const QString &value) {
 	if (const auto date = ValidateDate(value); date.isValid()) {
-		return QString("%1").arg(date.day(), 2, 10, QChar('0'));
+		return QStringLiteral("%1").arg(date.day(), 2, 10, QChar('0'));
 	}
 	return QString();
 }
 
 QString GetMonth(const QString &value) {
 	if (const auto date = ValidateDate(value); date.isValid()) {
-		return QString("%1").arg(date.month(), 2, 10, QChar('0'));
+		return QStringLiteral("%1").arg(date.month(), 2, 10, QChar('0'));
 	}
 	return QString();
 }
 
 QString GetYear(const QString &value) {
 	if (const auto date = ValidateDate(value); date.isValid()) {
-		return QString("%1").arg(date.year(), 4, 10, QChar('0'));
+		return QStringLiteral("%1").arg(date.year(), 4, 10, QChar('0'));
 	}
 	return QString();
 }
@@ -549,7 +549,7 @@ DateRow::DateRow(
 	this,
 	object_ptr<FlatLabel>(
 		this,
-		QString(" / "),
+		QStringLiteral(" / "),
 		st::passportDetailsSeparator),
 	st::passportDetailsSeparatorPadding)
 , _month(
@@ -561,7 +561,7 @@ DateRow::DateRow(
 	this,
 	object_ptr<FlatLabel>(
 		this,
-		QString(" / "),
+		QStringLiteral(" / "),
 		st::passportDetailsSeparator),
 	st::passportDetailsSeparatorPadding)
 , _year(
@@ -671,7 +671,7 @@ int DateRow::year() const {
 }
 
 QString DateRow::valueCurrent() const {
-	const auto result = QString("%1.%2.%3"
+	const auto result = QStringLiteral("%1.%2.%3"
 		).arg(day(), 2, 10, QChar('0')
 		).arg(month(), 2, 10, QChar('0')
 		).arg(year(), 4, 10, QChar('0'));

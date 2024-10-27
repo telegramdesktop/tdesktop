@@ -68,7 +68,7 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 	result.activeTime = data.vdate_active().v
 		? data.vdate_active().v
 		: data.vdate_created().v;
-	result.info = QString("%1%2").arg(
+	result.info = QStringLiteral("%1%2").arg(
 		appName,
 		appVer.isEmpty() ? QString() : (' ' + appVer));
 	result.ip = qs(data.vip());

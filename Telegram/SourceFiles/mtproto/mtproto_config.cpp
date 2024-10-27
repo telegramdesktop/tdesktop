@@ -17,7 +17,7 @@ namespace {
 constexpr auto kVersion = 1;
 
 [[nodiscard]] QString ConfigDefaultReactionEmoji() {
-	static const auto result = QString::fromUtf8("\xf0\x9f\x91\x8d");
+	static const auto result = QStringLiteral("\xf0\x9f\x91\x8d");
 	return result;
 }
 

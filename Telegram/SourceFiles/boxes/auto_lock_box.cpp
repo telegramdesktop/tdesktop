@@ -25,7 +25,7 @@ constexpr auto kDefaultCustom = "10:00"_cs;
 auto TimeString(int seconds) {
 	const auto hours = seconds / 3600;
 	const auto minutes = (seconds - hours * 3600) / 60;
-	return QString("%1:%2").arg(hours).arg(minutes, 2, 10, QLatin1Char('0'));
+	return QStringLiteral("%1:%2").arg(hours).arg(minutes, 2, 10, QLatin1Char('0'));
 }
 
 } // namespace

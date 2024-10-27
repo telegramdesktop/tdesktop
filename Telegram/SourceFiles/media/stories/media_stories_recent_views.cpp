@@ -129,9 +129,9 @@ constexpr auto kLoadViewsPages = 2;
 		const QString &date,
 		not_null<Data::Story*> repost) {
 	return date + (repost->repostModified()
-		? (QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now))
+		? (QStringLiteral(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now))
 		: !repost->caption().empty()
-		? (QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_commented(tr::now))
+		? (QStringLiteral(" \xE2\x80\xA2 ") + tr::lng_commented(tr::now))
 		: QString());
 }
 

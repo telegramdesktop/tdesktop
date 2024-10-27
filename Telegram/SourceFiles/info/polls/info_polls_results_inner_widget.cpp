@@ -458,7 +458,7 @@ ListController *CreateAnswerRows(
 			container,
 			rpl::single(
 				TextWithEntities(answer.text)
-					.append(QString::fromUtf8(" \xe2\x80\x94 "))
+					.append(QStringLiteral(" \xe2\x80\x94 "))
 					.append(QString::number(percent))
 					.append('%')),
 			st::boxDividerLabel),

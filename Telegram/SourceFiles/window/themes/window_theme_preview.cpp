@@ -345,7 +345,7 @@ void Generator::generateData() {
 		0,
 		"11:00",
 		{ .text = "We are too smart for this world. "
-			+ QString::fromUtf8("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82") });
+			+ QStringLiteral("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82") });
 	_rows.back().active = true;
 	_rows.back().pinned = true;
 	addRow("Alexandra Smith", 7, "10:00", { .text = "This is amazing!" });
@@ -378,7 +378,7 @@ void Generator::generateData() {
 	_topBarStatus = "online";
 	_topBarStatusActive = true;
 
-	addPhotoBubble(":/gui/art/themeimage.jpg", "To reach a port, we must sail. " + QString::fromUtf8("\xf0\x9f\xa5\xb8"), "7:00", Status::None);
+	addPhotoBubble(":/gui/art/themeimage.jpg", "To reach a port, we must sail. " + QStringLiteral("\xf0\x9f\xa5\xb8"), "7:00", Status::None);
 	int wavedata[] = { 0, 0, 0, 0, 27, 31, 4, 1, 0, 0, 23, 30, 18, 9, 7, 19, 4, 2, 2, 2, 0, 0, 15, 15, 15, 15, 3, 15, 19, 3, 2, 0, 0, 0, 0, 0, 3, 12, 16, 6, 4, 6, 14, 12, 2, 12, 12, 11, 3, 0, 7, 5, 7, 4, 7, 5, 2, 4, 0, 9, 5, 7, 6, 2, 2, 0, 0 };
 	auto waveform = QVector<int>(base::array_size(wavedata));
 	memcpy(waveform.data(), wavedata, sizeof(wavedata));
@@ -386,17 +386,17 @@ void Generator::generateData() {
 	_bubbles.back().outbg = true;
 	_bubbles.back().status = Status::Received;
 	addDateBubble("December 26");
-	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do. " + QString::fromUtf8("\xf0\x9f\xa7\x90"), "10:00", Status::Received);
+	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do. " + QStringLiteral("\xf0\x9f\xa7\x90"), "10:00", Status::Received);
 	_bubbles.back().tail = false;
 	_bubbles.back().outbg = true;
 	_bubbles.back().attachToBottom = true;
-	addTextBubble("Mark Twain said that " + QString::fromUtf8("\xe2\x98\x9d\xef\xb8\x8f"), "10:00", Status::Received);
+	addTextBubble("Mark Twain said that " + QStringLiteral("\xe2\x98\x9d\xef\xb8\x8f"), "10:00", Status::Received);
 	_bubbles.back().outbg = true;
 	_bubbles.back().attachToTop = true;
 	_bubbles.back().tail = true;
-	addTextBubble("We are too smart for this world. " + QString::fromUtf8("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82"), "11:00", Status::None);
+	addTextBubble("We are too smart for this world. " + QStringLiteral("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82"), "11:00", Status::None);
 	_bubbles.back().replyName.setText(st::msgNameStyle, "Alex Cassio", Ui::NameTextOptions());
-	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString::fromUtf8("\xe2\x98\x9d\xef\xb8\x8f"), Ui::DialogTextOptions());
+	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QStringLiteral("\xe2\x98\x9d\xef\xb8\x8f"), Ui::DialogTextOptions());
 }
 
 Generator::Generator(
@@ -1069,7 +1069,7 @@ void Generator::restoreTextPalette() {
 } // namespace
 
 QString CachedThemePath(uint64 documentId) {
-	return QString::fromLatin1("special://cached-%1").arg(documentId);
+	return QStringLiteral("special://cached-%1").arg(documentId);
 }
 
 std::unique_ptr<Preview> PreviewFromFile(

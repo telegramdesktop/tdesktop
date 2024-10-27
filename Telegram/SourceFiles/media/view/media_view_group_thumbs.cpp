@@ -40,24 +40,24 @@ using Key = GroupThumbs::Key;
 
 #if 0
 [[nodiscard]] QString DebugSerializeMsgId(FullMsgId itemId) {
-	return QString("msg%1_%2").arg(itemId.channel.bare).arg(itemId.msg);
+	return QStringLiteral("msg%1_%2").arg(itemId.channel.bare).arg(itemId.msg);
 }
 
 [[nodiscard]] QString DebugSerializePeer(PeerId peerId) {
 	return peerIsUser(peerId)
-		? QString("user%1").arg(peerToUser(peerId).bare)
+		? QStringLiteral("user%1").arg(peerToUser(peerId).bare)
 		: peerIsChat(peerId)
-		? QString("chat%1").arg(peerToChat(peerId).bare)
-		: QString("channel%1").arg(peerToChannel(peerId).bare);
+		? QStringLiteral("chat%1").arg(peerToChat(peerId).bare)
+		: QStringLiteral("channel%1").arg(peerToChannel(peerId).bare);
 }
 
 [[nodiscard]] QString DebugSerializeKey(const Key &key) {
 	return v::match(key, [&](PhotoId photoId) {
-		return QString("photo%1").arg(photoId);
+		return QStringLiteral("photo%1").arg(photoId);
 	}, [](FullMsgId itemId) {
 		return DebugSerializeMsgId(itemId);
 	}, [&](GroupThumbs::CollageKey key) {
-		return QString("collage%1").arg(key.index);
+		return QStringLiteral("collage%1").arg(key.index);
 	});
 }
 
@@ -65,7 +65,7 @@ using Key = GroupThumbs::Key;
 	return v::match(context, [](PeerId peerId) {
 		return DebugSerializePeer(peerId);
 	}, [](MessageGroupId groupId) {
-		return QString("group_%1_%2"
+		return QStringLiteral("group_%1_%2"
 		).arg(DebugSerializePeer(groupId.peer)
 		).arg(groupId.value);
 	}, [](FullMsgId item) {
@@ -535,7 +535,7 @@ void ValidateSlice(
 			}
 			CrashReports::SetAnnotation(
 				"keys",
-				QString("%1:%2-(%3)-%4:"
+				QStringLiteral("%1:%2-(%3)-%4:"
 				).arg(DebugSerializeContext(context)
 				).arg(from
 				).arg(index

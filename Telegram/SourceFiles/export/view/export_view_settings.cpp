@@ -301,7 +301,7 @@ void SettingsWidget::addLocationLabel(
 			: path;
 		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
-			QString("internal:edit_export_path"));
+			QStringLiteral("internal:edit_export_path"));
 	});
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(

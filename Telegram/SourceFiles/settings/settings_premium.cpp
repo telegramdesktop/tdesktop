@@ -145,7 +145,7 @@ struct Data {
 };
 
 [[nodiscard]] QString Serialize(const Data &gift) {
-	return QString("profile_:%1").arg(QString::number(gift.peerId.value));
+	return QStringLiteral("profile_:%1").arg(QString::number(gift.peerId.value));
 }
 
 [[nodiscard]] Data Parse(QStringView data) {

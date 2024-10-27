@@ -29,8 +29,8 @@ QString name() {
 void test(not_null<Ui::RpWindow*> window, not_null<Ui::RpWidget*> body) {
 	auto text = new Ui::Text::String(scale(64));
 
-	const auto like = QString::fromUtf8("\xf0\x9f\x91\x8d");
-	const auto dislike = QString::fromUtf8("\xf0\x9f\x91\x8e");
+	const auto like = QStringLiteral("\xf0\x9f\x91\x8d");
+	const auto dislike = QStringLiteral("\xf0\x9f\x91\x8e");
 	const auto hebrew = QString() + QChar(1506) + QChar(1460) + QChar(1489);
 
 	auto data = TextWithEntities();

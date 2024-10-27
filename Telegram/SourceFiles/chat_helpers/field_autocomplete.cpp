@@ -1304,7 +1304,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 			const auto insertUsername = (botStatus == 0
 				|| botStatus == 2
 				|| _parent->filter().indexOf('@') > 0);
-			const auto commandString = QString("/%1%2").arg(
+			const auto commandString = QStringLiteral("/%1%2").arg(
 				command,
 				insertUsername ? ('@' + PrimaryUsername(user)) : QString());
 			_botCommandChosen.fire({ user, commandString, method });

@@ -246,7 +246,7 @@ struct MadePrivacyBadge {
 	const auto index = data.fullIndex + 1;
 	const auto count = data.fullCount;
 	return count
-		? QString::fromUtf8(" \xE2\x80\xA2 %1/%2").arg(index).arg(count)
+		? QStringLiteral(" \xE2\x80\xA2 %1/%2").arg(index).arg(count)
 		: QString();
 }
 
@@ -254,10 +254,10 @@ struct MadePrivacyBadge {
 	auto result = ComposeTimestamp(data.date, now);
 	if (data.edited) {
 		result.text.append(
-			QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now));
+			QStringLiteral(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now));
 	}
 	if (data.fromPeer || !data.repostFrom.isEmpty()) {
-		result.text = QString::fromUtf8("\xE2\x80\xA2 ")
+		result.text = QStringLiteral("\xE2\x80\xA2 ")
 			+ result.text;
 	}
 	return result;

@@ -311,11 +311,11 @@ void RecordingAction::refreshElapsedText() {
 	const auto text = !_startAt
 		? QString()
 		: (elapsed >= 3600)
-		? QString("%1:%2:%3"
+		? QStringLiteral("%1:%2:%3"
 		).arg(elapsed / 3600
 		).arg((elapsed % 3600) / 60, 2, 10, QChar('0')
 		).arg(elapsed % 60, 2, 10, QChar('0'))
-		: QString("%1:%2"
+		: QStringLiteral("%1:%2"
 		).arg(elapsed / 60
 		).arg(elapsed % 60, 2, 10, QChar('0'));
 	if (_elapsedText != text) {

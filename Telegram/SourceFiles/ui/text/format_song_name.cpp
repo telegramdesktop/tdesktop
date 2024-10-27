@@ -53,7 +53,7 @@ QString FormatSongName::string() const {
 	const auto &[title, performer] = _composedName;
 	const auto dash = (title.isEmpty() || performer.isEmpty())
 		? QString()
-		: QString::fromUtf8(" \xe2\x80\x93 ");
+		: QStringLiteral(" \xe2\x80\x93 ");
 	return performer + dash + title;
 }
 

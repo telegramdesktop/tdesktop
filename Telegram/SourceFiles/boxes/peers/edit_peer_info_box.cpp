@@ -1308,7 +1308,7 @@ void Controller::fillManageSection() {
 					peer
 				) | rpl::map([=](int count) {
 					return QString::number(count)
-						+ QString("/")
+						+ QStringLiteral("/")
 						+ QString::number(int(Data::ListOfRestrictions(
 							{ .isForum = peer->isForum() }).size()));
 				});

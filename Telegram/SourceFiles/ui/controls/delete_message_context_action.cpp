@@ -139,11 +139,11 @@ void ActionWithTimer::refreshAutoDeleteText() {
 		const auto duration = (left >= 86400)
 			? tr::lng_days(tr::now, lt_count, ((left + 43200) / 86400))
 			: (left >= 3600)
-			? QString("%1:%2:%3"
+			? QStringLiteral("%1:%2:%3"
 			).arg(left / 3600
 			).arg((left % 3600) / 60, 2, 10, QChar('0')
 			).arg(left % 60, 2, 10, QChar('0'))
-			: QString("%1:%2"
+			: QStringLiteral("%1:%2"
 			).arg(left / 60
 			).arg(left % 60, 2, 10, QChar('0'));
 		return tr::lng_context_auto_delete_in(

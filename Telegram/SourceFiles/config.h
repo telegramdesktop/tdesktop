@@ -113,6 +113,6 @@ inline const QString &cDataFile() {
 }
 
 inline const QRegularExpression &cRussianLetters() {
-	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));
+	static QRegularExpression regexp(QStringLiteral("[а-яА-ЯёЁ]"));
 	return regexp;
 }

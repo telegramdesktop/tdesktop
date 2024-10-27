@@ -2521,7 +2521,7 @@ TextForMimeData ListWidget::getSelectedText() const {
 	const auto wrapItem = [&](
 			not_null<HistoryItem*> item,
 			TextForMimeData &&unwrapped) {
-		auto time = QString(", [%1]\n").arg(
+		auto time = QStringLiteral(", [%1]\n").arg(
 			QLocale().toString(ItemDateTime(item), QLocale::ShortFormat));
 		auto part = TextForMimeData();
 		auto size = item->author()->name().size()

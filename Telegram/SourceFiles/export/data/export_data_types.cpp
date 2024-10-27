@@ -2400,7 +2400,7 @@ Utf8String FormatDateTime(
 			QTimeZone::StandardTime,
 			QTimeZone::OffsetName)
 		: QString();
-	return (QString("%1") + dateSeparator + "%2" + dateSeparator + "%3"
+	return (QStringLiteral("%1") + dateSeparator + "%2" + dateSeparator + "%3"
 		+ separator + "%4" + timeSeparator + "%5" + timeSeparator + "%6"
 		+ "%7"
 	).arg(value.date().day(), 2, 10, QChar('0')

@@ -1361,7 +1361,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 			const auto count = channel ? channel->membersCount() : 0;
 			if (count > 1) {
 				text.append(
-					QString::fromUtf8(" \xE2\x80\xA2 ")
+					QStringLiteral(" \xE2\x80\xA2 ")
 				).append(tr::lng_chat_status_subscribers(
 					tr::now,
 					lt_count_decimal,

@@ -352,8 +352,8 @@ void MainWindow::updateDockCounter() {
 	const auto string = !counter
 		? QString()
 		: (counter < 1000)
-		? QString("%1").arg(counter)
-		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
+		? QStringLiteral("%1").arg(counter)
+		: QStringLiteral("..%1").arg(counter % 100, 2, 10, QChar('0'));
 	_private->setWindowBadge(string);
 }
 

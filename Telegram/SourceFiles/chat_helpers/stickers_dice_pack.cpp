@@ -19,12 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Stickers {
 
-const QString DicePacks::kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
-const QString DicePacks::kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
-const QString DicePacks::kSlotString = QString::fromUtf8("\xF0\x9F\x8E\xB0");
-const QString DicePacks::kFballString = QString::fromUtf8("\xE2\x9A\xBD");
-const QString DicePacks::kBballString = QString::fromUtf8("\xF0\x9F\x8F\x80");
-const QString DicePacks::kPartyPopper = QString::fromUtf8("\xf0\x9f\x8e\x89");
+const QString DicePacks::kDiceString = QStringLiteral("\xF0\x9F\x8E\xB2");
+const QString DicePacks::kDartString = QStringLiteral("\xF0\x9F\x8E\xAF");
+const QString DicePacks::kSlotString = QStringLiteral("\xF0\x9F\x8E\xB0");
+const QString DicePacks::kFballString = QStringLiteral("\xE2\x9A\xBD");
+const QString DicePacks::kBballString = QStringLiteral("\xF0\x9F\x8F\x80");
+const QString DicePacks::kPartyPopper = QStringLiteral("\xf0\x9f\x8e\x89");
 
 DicePack::DicePack(not_null<Main::Session*> session, const QString &emoji)
 : _session(session)

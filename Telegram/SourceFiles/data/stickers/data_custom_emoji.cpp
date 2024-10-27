@@ -105,7 +105,7 @@ private:
 }
 
 [[nodiscard]] QString InternalPadding(QMargins value) {
-	return value.isNull() ? QString() : QString(",%1,%2,%3,%4"
+	return value.isNull() ? QString() : QStringLiteral(",%1,%2,%3,%4"
 	).arg(value.left()
 	).arg(value.top()
 	).arg(value.right()

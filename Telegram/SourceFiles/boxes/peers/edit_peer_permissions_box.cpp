@@ -1269,7 +1269,7 @@ Fn<void()> AboutGigagroupCallback(
 			box->setTitle(tr::lng_gigagroup_convert_title());
 			const auto addFeature = [&](rpl::producer<QString> text) {
 				using namespace rpl::mappers;
-				const auto prefix = QString::fromUtf8("\xE2\x80\xA2 ");
+				const auto prefix = QStringLiteral("\xE2\x80\xA2 ");
 				box->addRow(
 					object_ptr<Ui::FlatLabel>(
 						box,

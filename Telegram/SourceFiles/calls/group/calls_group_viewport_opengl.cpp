@@ -42,8 +42,8 @@ constexpr auto kValues = kQuadValues + 8; // Blur texture coordinates.
 [[nodiscard]] ShaderPart FragmentBlurTexture(
 		bool vertical,
 		char prefix = 'v') {
-	const auto offsets = (vertical ? QString("0, 1") : QString("1, 0"));
-	const auto name = prefix + QString("_texcoord");
+	const auto offsets = (vertical ? QStringLiteral("0, 1") : QStringLiteral("1, 0"));
+	const auto name = prefix + QStringLiteral("_texcoord");
 	return {
 		.header = R"(
 varying vec2 )" + name + R"(;

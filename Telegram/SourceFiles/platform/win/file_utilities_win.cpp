@@ -405,7 +405,7 @@ bool Get(
 
 	CrashReports::SetAnnotation(
 		"file_dialog",
-		QString("caption:%1;helper:%2;filter:%3;real:%4;select:%5"
+		QStringLiteral("caption:%1;helper:%2;filter:%3;real:%4;select:%5"
 		).arg(caption
 		).arg(helperPath
 		).arg(filter

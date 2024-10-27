@@ -158,7 +158,7 @@ void VerifyBox::setupControls(
 			EntityType::CustomUrl,
 			0,
 			int(link.text.size()),
-			QString("internal:resend") });
+			QStringLiteral("internal:resend") });
 		const auto label = _content->add(
 			object_ptr<Ui::FlatLabel>(
 				_content,
@@ -354,7 +354,7 @@ void PanelEditContact::setupControls(
 
 	_controller->saveErrors(
 	) | rpl::start_with_next([=](const ScopeError &error) {
-		if (error.key == QString("value")) {
+		if (error.key == QStringLiteral("value")) {
 			_field->showError();
 			errorWrap->entity()->setText(error.text);
 			_content->resizeToWidth(width());

@@ -2088,9 +2088,9 @@ ItemPreview MediaInvoice::toPreview(ToPreviewOptions options) const {
 }
 
 QString MediaInvoice::pinnedTextSubstring() const {
-	return QString::fromUtf8("\xC2\xAB")
+	return QStringLiteral("\xC2\xAB")
 		+ _invoice.title
-		+ QString::fromUtf8("\xC2\xBB");
+		+ QStringLiteral("\xC2\xBB");
 }
 
 TextForMimeData MediaInvoice::clipboardText() const {
@@ -2599,9 +2599,9 @@ TextWithEntities MediaGiveawayStart::notificationText() const {
 }
 
 QString MediaGiveawayStart::pinnedTextSubstring() const {
-	return QString::fromUtf8("\xC2\xAB")
+	return QStringLiteral("\xC2\xAB")
 		+ notificationText().text
-		+ QString::fromUtf8("\xC2\xBB");
+		+ QStringLiteral("\xC2\xBB");
 }
 
 TextForMimeData MediaGiveawayStart::clipboardText() const {
@@ -2650,9 +2650,9 @@ TextWithEntities MediaGiveawayResults::notificationText() const {
 }
 
 QString MediaGiveawayResults::pinnedTextSubstring() const {
-	return QString::fromUtf8("\xC2\xAB")
+	return QStringLiteral("\xC2\xAB")
 		+ notificationText().text
-		+ QString::fromUtf8("\xC2\xBB");
+		+ QStringLiteral("\xC2\xBB");
 }
 
 TextForMimeData MediaGiveawayResults::clipboardText() const {

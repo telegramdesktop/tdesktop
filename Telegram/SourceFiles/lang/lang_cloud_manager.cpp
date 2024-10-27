@@ -369,12 +369,12 @@ bool CloudManager::showOfferSwitchBox() {
 	};
 	Ui::show(
 		Ui::MakeConfirmBox({
-			.text = QString("Do you want to switch your language to ")
+			.text = QStringLiteral("Do you want to switch your language to ")
 			+ language.nativeName
-			+ QString("? You can always change your language in Settings."),
+			+ QStringLiteral("? You can always change your language in Settings."),
 			.confirmed = confirm,
 			.cancelled = cancel,
-			.confirmText = QString("Change"),
+			.confirmText = QStringLiteral("Change"),
 		}),
 		Ui::LayerOption::KeepOther);
 	return true;

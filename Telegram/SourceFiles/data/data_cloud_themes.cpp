@@ -121,7 +121,7 @@ CloudTheme CloudTheme::Parse(
 }
 
 QString CloudThemes::Format() {
-	static const auto kResult = QString::fromLatin1("tdesktop");
+	static const auto kResult = QStringLiteral("tdesktop");
 	return kResult;
 }
 

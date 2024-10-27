@@ -886,7 +886,7 @@ void Notification::updateNotifyDisplay() {
 		const auto reminder = _fromScheduled && _history->peer->isSelf();
 		if (!options.hideNameAndPhoto) {
 			if (_fromScheduled) {
-				static const auto emoji = Ui::Emoji::Find(QString::fromUtf8("\xF0\x9F\x93\x85"));
+				static const auto emoji = Ui::Emoji::Find(QStringLiteral("\xF0\x9F\x93\x85"));
 				const auto size = Ui::Emoji::GetSizeNormal()
 					/ style::DevicePixelRatio();
 				const auto top = rectForName.top() + (st::semiboldFont->height - size) / 2;

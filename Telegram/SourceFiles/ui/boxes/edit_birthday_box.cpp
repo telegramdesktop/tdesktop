@@ -84,7 +84,7 @@ void EditBirthdayBox(
 			rect,
 			(index < yearsCount - 1
 				? QString::number(minYear + index)
-				: QString::fromUtf8("\xe2\x80\x94")),
+				: QStringLiteral("\xe2\x80\x94")),
 			style::al_center);
 	};
 	const auto years = picker(yearsCount, yearsStartIndex, yearsPaint);

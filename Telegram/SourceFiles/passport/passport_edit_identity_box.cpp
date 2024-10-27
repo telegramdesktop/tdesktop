@@ -169,7 +169,7 @@ void IdentityBox::prepare() {
 	for (const auto &scan : _files) {
 		_scans.push_back(object_ptr<ScanButton>(
 			this,
-			QString("Scan %1").arg(++index), // #TODO langs
+			QStringLiteral("Scan %1").arg(++index), // #TODO langs
 			scan.status));
 		_scans.back()->setImage(scan.thumb);
 		_scans.back()->resizeToWidth(st::boxWideWidth);
@@ -224,7 +224,7 @@ void IdentityBox::updateScan(ScanInfo &&info) {
 		_files.push_back(std::move(info));
 		_scans.push_back(object_ptr<ScanButton>(
 			this,
-			QString("Scan %1").arg(_files.size()),
+			QStringLiteral("Scan %1").arg(_files.size()),
 			_files.back().status));
 		_scans.back()->setImage(_files.back().thumb);
 		_scans.back()->resizeToWidth(st::boxWideWidth);

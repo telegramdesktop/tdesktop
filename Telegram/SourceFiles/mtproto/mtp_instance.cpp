@@ -1235,7 +1235,7 @@ bool Instance::Private::rpcErrorOccured(
 		error.type(),
 		error.description().isEmpty()
 			? QString()
-			: QString(": %1").arg(error.description())));
+			: QStringLiteral(": %1").arg(error.description())));
 	if (onFail) {
 		const auto guard = QPointer<Instance>(_instance);
 		onFail(error, response);
@@ -1259,7 +1259,7 @@ void Instance::Private::importDone(
 		//
 		//const auto error = Error::Local(
 		//	"AUTH_IMPORT_FAIL",
-		//	QString("did not find import request in requestsByDC, "
+		//	QStringLiteral("did not find import request in requestsByDC, "
 		//		"request %1").arg(requestId));
 		//if (_globalFailHandler && hasAuthorization()) {
 		//	_globalFailHandler(error, response); // auth failed in main dc
@@ -1323,7 +1323,7 @@ void Instance::Private::exportDone(
 		//
 		//const auto error = Error::Local(
 		//	"AUTH_IMPORT_FAIL",
-		//	QString("did not find target dcWithShift, request %1"
+		//	QStringLiteral("did not find target dcWithShift, request %1"
 		//	).arg(requestId));
 		//if (_globalFailHandler && hasAuthorization()) {
 		//	_globalFailHandler(error, response); // auth failed in main dc
@@ -1682,12 +1682,12 @@ not_null<QThread*> Instance::Private::getThreadForDc(
 			index = (index + count / 2) % count;
 		}
 		return EnsureStarted(threads[index], [=] {
-			return QString("MTP %1 Session (%2)").arg(prefix).arg(index);
+			return QStringLiteral("MTP %1 Session (%2)").arg(prefix).arg(index);
 		});
 	};
 	if (shiftedDcId == BareDcId(shiftedDcId)) {
 		return EnsureStarted(_mainSessionThread, [] {
-			return QString("MTP Main Session");
+			return QStringLiteral("MTP Main Session");
 		});
 	} else if (isDownloadDcId(shiftedDcId)) {
 		const auto index = GetDcIdShift(shiftedDcId) - kBaseDownloadDcShift;
@@ -1699,7 +1699,7 @@ not_null<QThread*> Instance::Private::getThreadForDc(
 		return FindOne(_fileSessionThreads, "Upload", composed, true);
 	}
 	return EnsureStarted(_otherSessionsThread, [] {
-		return QString("MTP Other Session");
+		return QStringLiteral("MTP Other Session");
 	});
 }
 
