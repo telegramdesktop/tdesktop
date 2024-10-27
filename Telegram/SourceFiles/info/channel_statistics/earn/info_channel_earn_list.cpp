@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
+#include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "info/channel_statistics/earn/earn_format.h"
@@ -386,6 +387,9 @@ void InnerWidget::load() {
 
 void InnerWidget::fill() {
 	const auto container = this;
+	const auto bot = (peerIsUser(_peer->id) && _peer->asUser()->botInfo)
+		? _peer->asUser()
+		: nullptr;
 	const auto channel = _peer->asChannel();
 	const auto canViewCurrencyEarn = channel
 		? (channel->flags() & ChannelDataFlag::CanViewRevenue)
@@ -393,7 +397,9 @@ void InnerWidget::fill() {
 	const auto &data = canViewCurrencyEarn
 		? _state.currencyEarn
 		: Data::EarnStatistics();
-	const auto &creditsData = _state.creditsEarn;
+	const auto &creditsData = bot
+		? Data::CreditsEarnStatistics()
+		: _state.creditsEarn;
 
 	auto currencyStateValue = rpl::single(
 		data
@@ -403,11 +409,12 @@ void InnerWidget::fill() {
 		})
 	);
 
-	auto creditsStateValue = rpl::single(
-		creditsData
-	) | rpl::then(
-		_stateUpdated.events() | rpl::map([=] { return _state.creditsEarn; })
-	);
+	auto creditsStateValue = bot
+		? rpl::single(Data::CreditsEarnStatistics())
+		: rpl::single(creditsData) | rpl::then(
+			_stateUpdated.events(
+			) | rpl::map([this] { return _state.creditsEarn; })
+		);
 
 	constexpr auto kMinus = QChar(0x2212);
 	//constexpr auto kApproximately = QChar(0x2248);
@@ -419,12 +426,8 @@ void InnerWidget::fill() {
 		return c ? ToUsd(c, creditsMultiplier) : QString();
 	};
 
-	constexpr auto kNonInteractivePeriod = 1717200000;
-	const auto nonInteractive = base::unixtime::now() < kNonInteractivePeriod;
-
 	const auto session = &_peer->session();
-	const auto withdrawalEnabled = WithdrawalEnabled(session)
-		&& !nonInteractive;
+	const auto withdrawalEnabled = WithdrawalEnabled(session);
 	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
 		return Core::MarkedTextContext{
 			.session = session,
@@ -520,7 +523,9 @@ void InnerWidget::fill() {
 					content,
 					object_ptr<Ui::FlatLabel>(
 						content,
-						tr::lng_channel_earn_learn_title(),
+						bot
+							? tr::lng_channel_earn_bot_learn_title()
+							: tr::lng_channel_earn_learn_title(),
 						st::boxTitle)));
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
@@ -566,7 +571,9 @@ void InnerWidget::fill() {
 					};
 					addEntry(
 						tr::lng_channel_earn_learn_in_subtitle(),
-						tr::lng_channel_earn_learn_in_about(),
+						bot
+							? tr::lng_channel_earn_learn_bot_in_about()
+							: tr::lng_channel_earn_learn_in_about(),
 						st::channelEarnLearnChannelIcon);
 					Ui::AddSkip(content);
 					Ui::AddSkip(content);
@@ -662,7 +669,9 @@ void InnerWidget::fill() {
 			st::defaultBoxDividerLabelPadding,
 			RectPart::Top | RectPart::Bottom));
 	};
-	addAboutWithLearn(tr::lng_channel_earn_about);
+	addAboutWithLearn(bot
+		? tr::lng_channel_earn_about_bot
+		: tr::lng_channel_earn_about);
 	{
 		using Type = Statistic::ChartViewType;
 		Ui::AddSkip(container);

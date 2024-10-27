@@ -5507,6 +5507,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_channel_earn_title" = "Monetization";
 "lng_channel_earn_about" = "Telegram shares 50% of the revenue from ads displayed in your channel as rewards. {link}";
+"lng_channel_earn_about_bot" = "Telegram shares 50% of the revenue from ads displayed in your bot. {link}";
 "lng_channel_earn_about_link" = "Learn more {emoji}";
 "lng_channel_earn_overview_title" = "Rewards overview";
 "lng_channel_earn_available" = "Rewards available for collection";
@@ -5539,8 +5540,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_cpm#one" = "{emoji} {count} CPM";
 "lng_channel_earn_cpm#other" = "{emoji} {count} CPM";
 "lng_channel_earn_learn_title" = "Earn From Your Channel";
+"lng_channel_earn_bot_learn_title" = "Earn From Your Bot";
 "lng_channel_earn_learn_in_subtitle" = "Telegram Ads";
 "lng_channel_earn_learn_in_about" = "Telegram can display ads in your channel.";
+"lng_channel_earn_learn_bot_in_about" = "Telegram can display ads in your bot.";
 "lng_channel_earn_learn_split_subtitle" = "50:50 revenue split";
 "lng_channel_earn_learn_split_about" = "You can receive 50% of the ad revenue as rewards in TON.";
 "lng_channel_earn_learn_out_subtitle" = "Flexible withdrawals";

@@ -1950,7 +1950,7 @@ void ActionsFiller::addCurrencyAction(not_null<UserData*> user) {
 		_wrap,
 		tr::lng_manage_peer_bot_balance_currency(),
 		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
-		[=] { controller->showSection(Info::BotEarn::Make(user)); },
+		[=] { controller->showSection(Info::ChannelEarn::Make(user)); },
 		&st::infoIconBotBalance);
 	const auto balance = user->session().credits().balanceCurrency(user->id);
 	if (balance) {
