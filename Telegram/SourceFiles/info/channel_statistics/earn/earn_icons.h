@@ -13,4 +13,6 @@ namespace Ui::Earn {
 	const style::font &font,
 	const QColor &c);
 
+[[nodiscard]] QImage MenuIconCredits();
+
 } // namespace Ui::Earn

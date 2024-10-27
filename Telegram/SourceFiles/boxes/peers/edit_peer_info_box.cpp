@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
@@ -1622,42 +1623,18 @@ void Controller::fillBotBalanceButton() {
 		});
 	}
 	{
-		constexpr auto kSizeShift = 3;
-		constexpr auto kStrokeWidth = 5;
-
 		const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
-		icon->resize(Size(st::menuIconLinks.width() - kSizeShift));
-
-		auto colorized = [&] {
-			auto f = QFile(Ui::Premium::Svg());
-			if (!f.open(QIODevice::ReadOnly)) {
-				return QString();
-			}
-			return QString::fromUtf8(
-				f.readAll()).replace(u"#fff"_q, u"#ffffff00"_q);
-		}();
-		colorized.replace(
-			u"stroke=\"none\""_q,
-			u"stroke=\"%1\""_q.arg(st::menuIconColor->c.name()));
-		colorized.replace(
-			u"stroke-width=\"1\""_q,
-			u"stroke-width=\"%1\""_q.arg(kStrokeWidth));
-		const auto svg = icon->lifetime().make_state<QSvgRenderer>(
-			colorized.toUtf8());
-		svg->setViewBox(svg->viewBox() + Margins(kStrokeWidth));
-
-		const auto starSize = Size(icon->height());
-
-		icon->paintRequest(
-		) | rpl::start_with_next([=] {
+		const auto image = Ui::Earn::MenuIconCredits();
+		icon->resize(image.size() / style::DevicePixelRatio());
+		icon->paintRequest() | rpl::start_with_next([=] {
 			auto p = QPainter(icon);
-			svg->render(&p, Rect(starSize));
+			p.drawImage(0, 0, image);
 		}, icon->lifetime());
 
 		button->sizeValue(
 		) | rpl::start_with_next([=](const QSize &size) {
 			icon->moveToLeft(
-				button->st().iconLeft + kSizeShift / 2.,
+				button->st().iconLeft,
 				(size.height() - icon->height()) / 2);
 		}, icon->lifetime());
 	}

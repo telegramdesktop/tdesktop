@@ -7,8 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/channel_statistics/earn/earn_icons.h"
 
+#include "ui/effects/premium_graphics.h"
 #include "ui/rect.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_widgets.h"
 
+#include <QFile>
 #include <QtSvg/QSvgRenderer>
 
 namespace Ui::Earn {
@@ -54,6 +58,41 @@ QImage IconCurrencyColored(
 	{
 		auto p = QPainter(&image);
 		svg.render(&p, Rect(s));
+	}
+	return image;
+}
+
+QImage MenuIconCredits() {
+	constexpr auto kStrokeWidth = 5;
+	const auto sizeShift = st::lineWidth * 1.5;
+
+	auto colorized = [&] {
+		auto f = QFile(Ui::Premium::Svg());
+		if (!f.open(QIODevice::ReadOnly)) {
+			return QString();
+		}
+		return QString::fromUtf8(f.readAll()).replace(
+			u"#fff"_q,
+			u"#ffffff00"_q);
+	}();
+	colorized.replace(
+		u"stroke=\"none\""_q,
+		u"stroke=\"%1\""_q.arg(st::menuIconColor->c.name()));
+	colorized.replace(
+		u"stroke-width=\"1\""_q,
+		u"stroke-width=\"%1\""_q.arg(kStrokeWidth));
+	auto svg = QSvgRenderer(colorized.toUtf8());
+	svg.setViewBox(svg.viewBox()
+		+ Margins(style::ConvertScale(kStrokeWidth)));
+
+	auto image = QImage(
+		st::menuIconLinks.size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image.fill(Qt::transparent);
+	{
+		auto p = QPainter(&image);
+		svg.render(&p, Rect(st::menuIconLinks.size()) - Margins(sizeShift));
 	}
 	return image;
 }
