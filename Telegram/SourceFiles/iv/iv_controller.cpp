@@ -957,6 +957,8 @@ void Controller::processKey(const QString &key, const QString &modifier) {
 		minimize();
 	} else if (key == u"q"_q && modifier == ctrl) {
 		quit();
+	} else if (key == u"0"_q && modifier == ctrl) {
+		_delegate->ivSetZoom(kDefaultZoom);
 	}
 }
 
