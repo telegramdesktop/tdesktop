@@ -50,11 +50,7 @@ Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : ContentWidget(parent, controller)
-, _inner(setInnerWidget(
-	object_ptr<InnerWidget>(
-		this,
-		controller,
-		controller->statisticsTag().peer))) {
+, _inner(setInnerWidget(object_ptr<InnerWidget>(this, controller))) {
 	_inner->showRequests(
 	) | rpl::start_with_next([=](InnerWidget::ShowRequest request) {
 	}, _inner->lifetime());

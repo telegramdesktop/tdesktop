@@ -60,13 +60,9 @@ void AddHeader(
 
 } // namespace
 
-InnerWidget::InnerWidget(
-	QWidget *parent,
-	not_null<Controller*> controller,
-	not_null<PeerData*> peer)
+InnerWidget::InnerWidget(QWidget *parent, not_null<Controller*> controller)
 : VerticalLayout(parent)
 , _controller(controller)
-, _peer(peer)
 , _show(controller->uiShow()) {
 }
 
@@ -75,7 +71,7 @@ void InnerWidget::load() {
 
 	const auto request = [=](Fn<void(Data::CreditsEarnStatistics)> done) {
 		const auto api = apiLifetime->make_state<Api::CreditsEarnStatistics>(
-			_peer->asUser());
+			peer()->asUser());
 		api->request(
 		) | rpl::start_with_error_done([show = _show](const QString &error) {
 			show->showToast(error);
@@ -92,18 +88,18 @@ void InnerWidget::load() {
 		_showFinished.events());
 
 	_showFinished.events(
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::start_with_next([=, this, peer = peer()] {
 		request([=](Data::CreditsEarnStatistics state) {
 			_state = state;
 			_loaded.fire(true);
 			fill();
 
-			_peer->session().account().mtpUpdates(
+			peer->session().account().mtpUpdates(
 			) | rpl::start_with_next([=](const MTPUpdates &updates) {
 				using TL = MTPDupdateStarsRevenueStatus;
 				Api::PerformForUpdate<TL>(updates, [&](const TL &d) {
 					const auto peerId = peerFromMTP(d.vpeer());
-					if (peerId == _peer->id) {
+					if (peerId == peer->id) {
 						request([=](Data::CreditsEarnStatistics state) {
 							_state = state;
 							_stateUpdated.fire({});
@@ -233,7 +229,7 @@ void InnerWidget::fill() {
 		::Settings::AddWithdrawalWidget(
 			container,
 			_controller->parentController(),
-			_peer,
+			peer(),
 			rpl::single(
 				data.buyAdsUrl
 			) | rpl::then(
@@ -262,7 +258,7 @@ void InnerWidget::fillHistory() {
 
 	const auto sectionIndex = history->lifetime().make_state<int>(0);
 
-	const auto fill = [=, peer = _peer](
+	const auto fill = [=, peer = peer()](
 			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
@@ -395,7 +391,7 @@ void InnerWidget::fillHistory() {
 	const auto apiLifetime = history->lifetime().make_state<rpl::lifetime>();
 	rpl::single(rpl::empty) | rpl::then(
 		_stateUpdated.events()
-	) | rpl::start_with_next([=, peer = _peer] {
+	) | rpl::start_with_next([=, peer = peer()] {
 		using Api = Api::CreditsHistory;
 		const auto apiFull = apiLifetime->make_state<Api>(peer, true, true);
 		const auto apiIn = apiLifetime->make_state<Api>(peer, true, false);
@@ -450,7 +446,7 @@ void InnerWidget::setInnerFocus() {
 }
 
 not_null<PeerData*> InnerWidget::peer() const {
-	return _peer;
+	return _controller->statisticsTag().peer;
 }
 
 } // namespace Info::BotEarn

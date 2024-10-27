@@ -32,10 +32,7 @@ public:
 	struct ShowRequest final {
 	};
 
-	InnerWidget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		not_null<PeerData*> peer);
+	InnerWidget(QWidget *parent, not_null<Controller*> controller);
 
 	[[nodiscard]] not_null<PeerData*> peer() const;
 
@@ -54,7 +51,6 @@ private:
 	void fillHistory();
 
 	not_null<Controller*> _controller;
-	not_null<PeerData*> _peer;
 	std::shared_ptr<Ui::Show> _show;
 
 	Data::CreditsEarnStatistics _state;
