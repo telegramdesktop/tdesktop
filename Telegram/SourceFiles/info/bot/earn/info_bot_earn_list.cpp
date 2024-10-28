@@ -124,7 +124,7 @@ void InnerWidget::fill() {
 			return _state.availableBalance;
 		})
 	);
-	auto valueToString = [](uint64 v) { return QString::number(v); };
+	auto valueToString = [](uint64 v) { return Lang::FormatCountDecimal(v); };
 
 	if (data.revenueGraph.chart) {
 		Ui::AddSkip(container);

@@ -1664,7 +1664,7 @@ void Controller::fillBotCreditsButton() {
 	auto &lifetime = _controls.buttonsLayout->lifetime();
 	const auto state = lifetime.make_state<State>();
 	if (const auto balance = _peer->session().credits().balance(_peer->id)) {
-		state->balance = QString::number(balance);
+		state->balance = Lang::FormatCountDecimal(balance);
 	}
 
 	const auto wrap = _controls.buttonsLayout->add(
@@ -1689,7 +1689,7 @@ void Controller::fillBotCreditsButton() {
 			if (data.balance) {
 				wrap->toggle(true, anim::type::normal);
 			}
-			state->balance = QString::number(data.balance);
+			state->balance = Lang::FormatCountDecimal(data.balance);
 		});
 	}
 	{

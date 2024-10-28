@@ -926,7 +926,7 @@ rpl::producer<uint64> AddCreditsAction(
 		name->setMarkedText(
 			base::duplicate(icon)
 				.append(QChar(' '))
-				.append(QString::number(balance)),
+				.append(Lang::FormatCountDecimal(balance)),
 			Core::MarkedTextContext{
 				.session = &user->session(),
 				.customEmojiRepaint = [=] { name->update(); },
