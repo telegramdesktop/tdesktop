@@ -70,6 +70,9 @@ PlaybackControls::PlaybackControls(
 		fadeUpdated(opacity);
 	});
 
+	_speedToggle->setSpeed(_delegate->playbackControlsCurrentSpeed(false));
+	_speedToggle->setQuality(_delegate->playbackControlsCurrentQuality());
+
 	if (const auto controller = _speedController.get()) {
 		controller->menuToggledValue(
 		) | rpl::start_with_next([=](bool toggled) {

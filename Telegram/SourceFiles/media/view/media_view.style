@@ -351,6 +351,7 @@ mediaviewSpeedMenu: MediaSpeedMenu(mediaPlayerSpeedMenu) {
 mediaviewSpeedButton: MediaSpeedButton(mediaPlayerSpeedButton) {
 	size: size(32px, 32px);
 	padding: margins(0px, 0px, 0px, 0px);
+	font: font(8px bold);
 	fg: mediaviewPlaybackIconFg;
 	overFg: mediaviewPlaybackIconFgOver;
 	activeFg: mediaviewTextLinkFg;

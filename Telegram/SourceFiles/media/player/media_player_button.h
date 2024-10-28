@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
+#include "ui/rect_part.h"
 
 #include <QtGui/QFontMetrics>
 
@@ -119,8 +120,21 @@ private:
 	QPoint prepareRippleStartPosition() const override;
 	QImage prepareRippleMask() const override;
 
+	void onStateChanged(State was, StateChangeSource source) override;
+
+	void paintBadge(
+		QPainter &p,
+		const QString &text,
+		RectPart origin,
+		QColor color);
+	void prepareFrame();
+
 	const style::MediaSpeedButton &_st;
 	Ui::Animations::Simple _activeAnimation;
+	Ui::Animations::Simple _overAnimation;
+	QImage _frameCache;
+	float _speed = 1.;
+	int _quality = 0;
 	bool _isDefaultSpeed = false;
 	bool _active = false;
 
