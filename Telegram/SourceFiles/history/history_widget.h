@@ -531,6 +531,11 @@ private:
 	void setupGroupCallBar();
 	void setupRequestsBar();
 
+	void checkSponsoredMessageBar();
+	[[nodiscard]] bool checkSponsoredMessageBarVisibility() const;
+	void requestSponsoredMessageBar();
+	void createSponsoredMessageBar();
+
 	void sendInlineResult(InlineBots::ResultSelected result);
 
 	void drawField(Painter &p, const QRect &rect);

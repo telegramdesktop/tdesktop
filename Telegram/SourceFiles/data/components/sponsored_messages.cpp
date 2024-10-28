@@ -203,6 +203,13 @@ bool SponsoredMessages::canHaveFor(not_null<History*> history) const {
 	return false;
 }
 
+bool SponsoredMessages::isTopBarFor(not_null<History*> history) const {
+	if (const auto user = history->peer->asUser()) {
+		return user->isBot();
+	}
+	return false;
+}
+
 void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	if (!canHaveFor(history)) {
 		return;
@@ -294,7 +301,7 @@ void SponsoredMessages::fillTopBar(
 		entry.sponsored.from,
 		entry.sponsored.textWithEntities);
 
-	const auto viewLifetime = std::make_shared<rpl::lifetime>();
+	const auto viewLifetime = widget->lifetime().make_state<rpl::lifetime>();
 	widget->shownValue() | rpl::filter(
 		rpl::mappers::_1
 	) | rpl::start_with_next([=, this](bool shown) {

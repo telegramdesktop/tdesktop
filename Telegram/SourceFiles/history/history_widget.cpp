@@ -2509,12 +2509,9 @@ void HistoryWidget::showHistory(
 		unreadCountUpdated(); // set _historyDown badge.
 		showAboutTopPromotion();
 
-		{
+		if (!session().sponsoredMessages().isTopBarFor(_history)) {
 			_scroll->setTrackingContent(false);
-			const auto checkState = crl::guard(this, [=, history = _history] {
-				if (history != _history) {
-					return;
-				}
+			const auto checkState = [=] {
 				using State = Data::SponsoredMessages::State;
 				const auto state = session().sponsoredMessages().state(
 					_history);
@@ -2525,34 +2522,16 @@ void HistoryWidget::showHistory(
 				} else if (state == State::InjectToMiddle) {
 					injectSponsoredMessages();
 				} else if (state == State::AppendToTopBar) {
-					_sponsoredMessageBar
-						= base::make_unique_q<Ui::SlideWrap<>>(
-							this,
-							object_ptr<Ui::RpWidget>(this));
-					auto destruction = [this] {
-						if (_sponsoredMessageBar) {
-							_sponsoredMessageBar->hide(anim::type::normal);
-						}
-					};
-					session().sponsoredMessages().fillTopBar(
-						_history,
-						_sponsoredMessageBar->entity(),
-						std::move(destruction));
-					_sponsoredMessageBarHeight = 0;
-					_sponsoredMessageBar->heightValue(
-					) | rpl::start_with_next([=](int height) {
-						_topDelta = _preserveScrollTop
-							? 0
-							: (height - _sponsoredMessageBarHeight);
-						_sponsoredMessageBarHeight = height;
-						updateHistoryGeometry();
-						updateControlsGeometry();
-						_topDelta = 0;
-					}, _sponsoredMessageBar->lifetime());
-					_sponsoredMessageBar->show(anim::type::normal);
 				}
-			});
-			session().sponsoredMessages().request(_history, checkState);
+			};
+			const auto history = _history;
+			session().sponsoredMessages().request(
+				_history,
+				crl::guard(this, [=, this] {
+					if (history == _history) {
+						checkState();
+					}
+				}));
 			checkState();
 		}
 	} else {
@@ -2961,8 +2940,8 @@ void HistoryWidget::updateControlsVisibility() {
 	if (_pinnedBar) {
 		_pinnedBar->show();
 	}
-	if (_sponsoredMessageBar) {
-		_sponsoredMessageBar->show(anim::type::instant);
+	if (_sponsoredMessageBar && checkSponsoredMessageBarVisibility()) {
+		_sponsoredMessageBar->toggle(true, anim::type::normal);
 	}
 	if (_translateBar) {
 		_translateBar->show();
@@ -4162,7 +4141,7 @@ void HistoryWidget::hideChildWidgets() {
 		_pinnedBar->hide();
 	}
 	if (_sponsoredMessageBar) {
-		_sponsoredMessageBar->hide(anim::type::instant);
+		_sponsoredMessageBar->toggle(false, anim::type::instant);
 	}
 	if (_translateBar) {
 		_translateBar->hide();
@@ -4450,9 +4429,7 @@ void HistoryWidget::showAnimated(
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
-	if (_sponsoredMessageBar) {
-		_sponsoredMessageBar->finishAnimating();
-	}
+	checkSponsoredMessageBar();
 	if (_translateBar) {
 		_translateBar->finishAnimating();
 	}
@@ -4491,9 +4468,6 @@ void HistoryWidget::showFinished() {
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
-	if (_sponsoredMessageBar) {
-		_sponsoredMessageBar->finishAnimating();
-	}
 	if (_translateBar) {
 		_translateBar->finishAnimating();
 	}
@@ -4506,6 +4480,7 @@ void HistoryWidget::showFinished() {
 	_showAnimation = nullptr;
 	doneShow();
 	synteticScrollToY(_scroll->scrollTop());
+	requestSponsoredMessageBar();
 }
 
 void HistoryWidget::doneShow() {
@@ -7603,6 +7578,102 @@ void HistoryWidget::requestMessageData(MsgId msgId) {
 		messageDataReceived(peer, msgId);
 	});
 	session().api().requestMessageData(_peer, msgId, callback);
+}
+
+bool HistoryWidget::checkSponsoredMessageBarVisibility() const {
+	const auto h = _list->height()
+		- (_kbScroll->isHidden() ? 0 : _kbScroll->height());
+	return (h > _scroll->height());
+}
+
+void HistoryWidget::requestSponsoredMessageBar() {
+	if (!_history || !session().sponsoredMessages().isTopBarFor(_history)) {
+		return;
+	}
+	const auto checkState = [=, this] {
+		using State = Data::SponsoredMessages::State;
+		const auto state = session().sponsoredMessages().state(
+			_history);
+		_sponsoredMessagesStateKnown = (state != State::None);
+		if (state == State::AppendToTopBar) {
+			createSponsoredMessageBar();
+			if (checkSponsoredMessageBarVisibility()) {
+				_sponsoredMessageBar->toggle(true, anim::type::normal);
+			} else {
+				auto &lifetime = _sponsoredMessageBar->lifetime();
+				const auto heightLifetime
+					= lifetime.make_state<rpl::lifetime>();
+				_list->heightValue(
+				) | rpl::start_with_next([=, this] {
+					if (_sponsoredMessageBar->toggled()) {
+						heightLifetime->destroy();
+					} else if (checkSponsoredMessageBarVisibility()) {
+						_sponsoredMessageBar->toggle(
+							true,
+							anim::type::normal);
+						heightLifetime->destroy();
+					}
+				}, *heightLifetime);
+			}
+		}
+	};
+	const auto history = _history;
+	session().sponsoredMessages().request(
+		_history,
+		crl::guard(this, [=, this] {
+			if (history == _history) {
+				checkState();
+			}
+		}));
+}
+
+void HistoryWidget::checkSponsoredMessageBar() {
+	if (!_history) {
+		return;
+	}
+	const auto state = session().sponsoredMessages().state(_history);
+	if (state == Data::SponsoredMessages::State::AppendToTopBar) {
+		if (checkSponsoredMessageBarVisibility()) {
+			createSponsoredMessageBar();
+			_sponsoredMessageBar->toggle(true, anim::type::instant);
+		}
+	}
+}
+
+void HistoryWidget::createSponsoredMessageBar() {
+	_sponsoredMessageBar = base::make_unique_q<Ui::SlideWrap<>>(
+		this,
+		object_ptr<Ui::RpWidget>(this));
+
+	_sponsoredMessageBar->entity()->resizeToWidth(_scroll->width());
+	auto destruction = [this] {
+		if (_sponsoredMessageBar) {
+			_sponsoredMessageBar->toggle(false, anim::type::normal);
+			_sponsoredMessageBar->shownValue(
+			) | rpl::start_with_next([=](bool shown) {
+				if (!shown) {
+					_sponsoredMessageBar = nullptr;
+				}
+			}, _sponsoredMessageBar->lifetime());
+		}
+	};
+	session().sponsoredMessages().fillTopBar(
+		_history,
+		_sponsoredMessageBar->entity(),
+		std::move(destruction));
+
+	_sponsoredMessageBarHeight = 0;
+	_sponsoredMessageBar->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		_topDelta = _preserveScrollTop
+			? 0
+			: (height - _sponsoredMessageBarHeight);
+		_sponsoredMessageBarHeight = height;
+		updateHistoryGeometry();
+		updateControlsGeometry();
+		_topDelta = 0;
+	}, _sponsoredMessageBar->lifetime());
+	_sponsoredMessageBar->toggle(false, anim::type::instant);
 }
 
 bool HistoryWidget::sendExistingDocument(
