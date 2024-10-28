@@ -1583,8 +1583,13 @@ rpl::producer<int> Settings::ivZoomValue() const {
 	return _ivZoom.value();
 }
 void Settings::setIvZoom(int value) {
+#ifdef Q_OS_WIN
+	constexpr auto kMin = 25;
+	constexpr auto kMax = 500;
+#else
 	constexpr auto kMin = 30;
 	constexpr auto kMax = 200;
+#endif
 	_ivZoom = std::clamp(value, kMin, kMax);
 }
 

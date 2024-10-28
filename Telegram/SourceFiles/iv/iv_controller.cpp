@@ -369,10 +369,16 @@ Controller::Controller(
 	Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox)
 : _delegate(delegate)
 , _updateStyles([=] {
-	const auto zoom = _delegate->ivZoom();
-	const auto str = Ui::EscapeForScriptString(ComputeStyles(zoom));
 	if (_webview) {
+		const auto webviewZoomController = _webview->zoomController();
+		const auto styleZoom = webviewZoomController
+			? kDefaultZoom
+			: _delegate->ivZoom();
+		const auto str = Ui::EscapeForScriptString(ComputeStyles(styleZoom));
 		_webview->eval("IV.updateStyles('" + str + "');");
+		if (webviewZoomController) {
+			webviewZoomController->setZoom(_delegate->ivZoom());
+		}
 	}
 })
 , _showShareBox(std::move(showShareBox)) {
@@ -634,6 +640,17 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 		});
 	const auto raw = _webview.get();
 
+	if (const auto webviewZoomController = raw->zoomController()) {
+		webviewZoomController->zoomValue(
+		) | rpl::start_with_next([this](int value) {
+			_delegate->ivSetZoom(value);
+		}, lifetime());
+		_delegate->ivZoomValue(
+		) | rpl::start_with_next([=, this](int value) {
+			webviewZoomController->setZoom(value);
+		}, lifetime());
+	}
+
 	window->lifetime().add([=] {
 		_ready = false;
 		base::take(_webview);
@@ -785,8 +802,12 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 				|| index >= _pages.size()) {
 				return Webview::DataResult::Failed;
 			}
+			const auto webviewZoomController = _webview->zoomController();
+			const auto styleZoom = webviewZoomController
+				? kDefaultZoom
+				: _delegate->ivZoom();
 			return finishWith(
-				WrapPage(_pages[index], _delegate->ivZoom()),
+				WrapPage(_pages[index], styleZoom),
 				"text/html; charset=utf-8");
 		} else if (id.starts_with("page") && id.ends_with(".json")) {
 			auto index = 0;
