@@ -81,6 +81,10 @@ namespace Ui::Emoji {
 class SuggestionsController;
 } // namespace Ui::Emoji
 
+namespace Webrtc {
+enum class RecordAvailability : uchar;
+} // namespace Webrtc
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -499,7 +503,6 @@ private:
 	bool replyToPreviousMessage();
 	bool replyToNextMessage();
 	[[nodiscard]] bool showSlowmodeError();
-	void updateRecordMediaState();
 
 	void hideChildWidgets();
 	void hideSelectorControlsAnimated();
@@ -758,8 +761,7 @@ private:
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
 
-	bool _canRecordVideoMessage = false;
-	bool _canRecordAudioMessage = false;
+	Webrtc::RecordAvailability _recordAvailability = {};
 
 	std::unique_ptr<HistoryView::ContactStatus> _contactStatus;
 	std::unique_ptr<HistoryView::BusinessBotStatus> _businessBotStatus;

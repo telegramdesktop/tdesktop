@@ -559,6 +559,14 @@ HistoryWidget::HistoryWidget(
 		Window::ActivateWindow(controller);
 	});
 
+	Core::App().mediaDevices().recordAvailabilityValue(
+	) | rpl::start_with_next([=](Webrtc::RecordAvailability value) {
+		_recordAvailability = value;
+		if (_list) {
+			updateSendButtonType();
+		}
+	}, lifetime());
+
 	session().data().newItemAdded(
 	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		newItemAdded(item);
@@ -1091,11 +1099,12 @@ void HistoryWidget::initVoiceRecordBar() {
 			!Core::App().settings().recordVideoMessages());
 		updateSendButtonType();
 		switch (_send->type()) {
-		case Ui::SendButton::Type::Record:
-			controller()->showToast(_canRecordVideoMessage
+		case Ui::SendButton::Type::Record: {
+			const auto can = Webrtc::RecordAvailability::VideoAndAudio;
+			controller()->showToast((_recordAvailability == can)
 				? tr::lng_record_voice_tip(tr::now)
 				: tr::lng_record_hold_tip(tr::now));
-			break;
+		} break;
 		case Ui::SendButton::Type::Round:
 			controller()->showToast(tr::lng_record_video_tip(tr::now));
 			break;
@@ -2335,7 +2344,7 @@ void HistoryWidget::showHistory(
 	_contactStatus = nullptr;
 	_businessBotStatus = nullptr;
 
-	updateRecordMediaState();
+	Core::App().mediaDevices().refreshRecordAvailability();
 
 	if (peerId) {
 		using namespace HistoryView;
@@ -4305,8 +4314,9 @@ auto HistoryWidget::computeSendButtonType() const {
 	} else if (_isInlineBot) {
 		return Type::Cancel;
 	} else if (showRecordButton()) {
-		return (Core::App().settings().recordVideoMessages()
-			&& _canRecordVideoMessage)
+		const auto both = Webrtc::RecordAvailability::VideoAndAudio;
+		const auto video = Core::App().settings().recordVideoMessages();
+		return (video && _recordAvailability == both)
 			? Type::Round
 			: Type::Record;
 	}
@@ -4938,7 +4948,7 @@ bool HistoryWidget::isSearching() const {
 }
 
 bool HistoryWidget::showRecordButton() const {
-	return _canRecordAudioMessage
+	return (_recordAvailability != Webrtc::RecordAvailability::None)
 		&& !_voiceRecordBar->isListenState()
 		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
@@ -5539,15 +5549,6 @@ void HistoryWidget::inlineBotChanged() {
 		updateFieldSubmitSettings();
 		updateControlsVisibility();
 	}
-}
-
-void HistoryWidget::updateRecordMediaState() {
-	Media::Capture::instance()->check();
-	_canRecordAudioMessage = Media::Capture::instance()->available();
-
-	const auto environment = &Core::App().mediaDevices();
-	const auto type = Webrtc::DeviceType::Camera;
-	_canRecordVideoMessage = !environment->devices(type).empty();
 }
 
 void HistoryWidget::fieldResized() {
