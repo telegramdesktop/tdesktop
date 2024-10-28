@@ -1885,7 +1885,10 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 	}
 	Core::App().updateNonIdle();
 	update(_durationRect);
-	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice });
+	const auto type = _recordingVideo
+		? Api::SendProgressType::RecordRound
+		: Api::SendProgressType::RecordVoice;
+	_sendActionUpdates.fire({ type });
 }
 
 void VoiceRecordBar::stop(bool send) {
@@ -1917,7 +1920,10 @@ void VoiceRecordBar::finish() {
 
 	[[maybe_unused]] const auto s = takeTTLState();
 
-	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
+	const auto type = _recordingVideo
+		? Api::SendProgressType::RecordRound
+		: Api::SendProgressType::RecordVoice;
+	_sendActionUpdates.fire({ type, -1 });
 
 	_data = {};
 }
