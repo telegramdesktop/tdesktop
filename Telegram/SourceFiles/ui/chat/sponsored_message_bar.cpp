@@ -95,7 +95,7 @@ public:
 		int colorIndex) {
 	const auto controller = FindSessionController(widget);
 	if (!controller) {
-		return [] -> Colors {
+		return []() -> Colors {
 			return { st::windowBgActive->c, st::windowActiveTextFg->c };
 		};
 	}
@@ -111,7 +111,7 @@ public:
 		state->theme = std::move(theme);
 	}, widget->lifetime());
 
-	return [=] -> Colors {
+	return [=]() -> Colors {
 		if (!state->theme) {
 			return { st::windowBgActive->c, st::windowActiveTextFg->c };
 		}
@@ -183,10 +183,8 @@ void FillSponsoredMessageBar(
 			.customEmojiRepaint = [=] { widget->update(); },
 		});
 	const auto kLinesForPhoto = 3;
-	const auto rightPhotoSize = titleSt.font->ascent
-		* kLinesForPhoto;
-	const auto rightPhotoPlaceholder = titleSt.font->height
-		* kLinesForPhoto;
+	const auto rightPhotoSize = titleSt.font->ascent * kLinesForPhoto;
+	const auto rightPhotoPlaceholder = titleSt.font->height * kLinesForPhoto;
 	const auto hasRightPhoto = from.photoId > 0;
 	if (hasRightPhoto) {
 		state->rightPhoto = Ui::MakePhotoThumbnail(
@@ -221,9 +219,7 @@ void FillSponsoredMessageBar(
 	});
 	removeButton->show();
 
-	widget->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(widget);
+	const auto draw = [=](QPainter &p) {
 		const auto r = widget->rect();
 		p.fillRect(r, st::historyPinnedBg);
 		widget->paintRipple(p, 0, 0);
@@ -327,6 +323,10 @@ void FillSponsoredMessageBar(
 				topPadding + (rightPhotoPlaceholder - rightPhotoSize) / 2,
 				state->rightPhotoImage);
 		}
+	};
+	widget->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(widget);
+		draw(p);
 	}, widget->lifetime());
 	rpl::combine(
 		state->lastPaintedContentTop.value(),
@@ -348,7 +348,11 @@ void FillSponsoredMessageBar(
 				minHeight,
 				st::sponsoredMessageBarMaxHeight));
 	}, widget->lifetime());
-	container->resize(widget->width(), 1);
+	{ // Calculate a good size for container.
+		auto dummy = QImage(1, 1, QImage::Format_ARGB32);
+		auto p = QPainter(&dummy);
+		draw(p);
+	}
 
 	{
 		const auto top = Ui::CreateChild<PlainShadow>(widget);
