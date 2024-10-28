@@ -932,7 +932,7 @@ void Widget::updateScrollUpVisibility() {
 	}
 
 	startScrollUpButtonAnimation(
-		(_scroll->scrollTop() > st::historyToDownShownAfter)
+		(_scroll->scrollTop() > (st::historyToDownShownAfter / 2))
 		&& (_scroll->scrollTop() < _scroll->scrollTopMax()));
 }
 
@@ -1676,11 +1676,7 @@ QPixmap Widget::grabForFolderSlideAnimation() {
 		_scrollToTop->hide();
 	}
 
-	const auto rect = QRect(
-		0,
-		0,
-		width(),
-		_scroll->y() + _scroll->height());
+	const auto rect = QRect(0, 0, width(), rect::bottom(_scroll));
 	auto result = Ui::GrabWidget(this, rect);
 
 	if (!hidden) {
