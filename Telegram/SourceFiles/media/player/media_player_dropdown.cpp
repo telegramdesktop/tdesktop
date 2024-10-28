@@ -740,9 +740,10 @@ SpeedController::SpeedController(
 			current->otherEnter();
 		}
 	});
-
-	setSpeed(_lookup(false));
-	_speed = _lookup(true);
+	if (const auto lookup = _lookup) {
+		setSpeed(lookup(false));
+		_speed = lookup(true);
+	}
 }
 
 rpl::producer<> SpeedController::saved() const {
@@ -778,7 +779,9 @@ void SpeedController::setSpeed(float64 newSpeed) {
 }
 
 void SpeedController::save() {
-	_change(speed());
+	if (const auto change = _change) {
+		change(speed());
+	}
 	_saved.fire({});
 }
 
@@ -788,26 +791,33 @@ void SpeedController::setQuality(int quality) {
 }
 
 void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
-	FillSpeedMenu(
-		menu->menu(),
-		_st.menu,
-		_speedChanged.events_starting_with(speed()),
-		[=](float64 speed) { setSpeed(speed); save(); },
-		!_qualities.empty());
+	if (_lookup) {
+		FillSpeedMenu(
+			menu->menu(),
+			_st.menu,
+			_speedChanged.events_starting_with(speed()),
+			[=](float64 speed) { setSpeed(speed); save(); },
+			!_qualities.empty());
+	}
 	if (_qualities.empty()) {
 		return;
 	}
 	_quality = _lookupQuality();
 	const auto raw = menu->menu();
 	const auto &st = _st.menu;
-	raw->addSeparator(&st.dropdown.menu.separator);
+	if (_lookup) {
+		raw->addSeparator(&st.dropdown.menu.separator);
+	}
 
 	const auto add = [&](int quality) {
 		const auto text = quality ? u"%1p"_q.arg(quality) : u"Original"_q;
 		auto action = base::make_unique_q<Ui::Menu::Action>(
 			raw,
 			st.qualityMenu,
-			Ui::Menu::CreateAction(raw, text, [=] { _changeQuality(quality); }),
+			Ui::Menu::CreateAction(
+				raw,
+				text,
+				[=] { _changeQuality(quality); }),
 			nullptr,
 			nullptr);
 		const auto raw = action.get();

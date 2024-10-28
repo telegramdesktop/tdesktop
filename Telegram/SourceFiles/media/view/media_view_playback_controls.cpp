@@ -29,13 +29,14 @@ PlaybackControls::PlaybackControls(
 	not_null<Delegate*> delegate)
 : RpWidget(parent)
 , _delegate(delegate)
+, _speedControllable(Media::Audio::SupportsSpeedControl())
+, _qualitiesList(_delegate->playbackControlsQualities())
 , _playPauseResume(this, st::mediaviewPlayButton)
 , _playbackSlider(this, st::mediaviewPlayback)
 , _playbackProgress(std::make_unique<PlaybackProgress>())
 , _volumeToggle(this, st::mediaviewVolumeToggle)
 , _volumeController(this, st::mediaviewPlayback)
-, _speedToggle((Media::Audio::SupportsSpeedControl()
-	|| !_delegate->playbackControlsQualities().empty())
+, _speedToggle((_speedControllable || !_qualitiesList.empty())
 	? object_ptr<Player::SettingsButton>(this, st::mediaviewSpeedButton)
 	: nullptr)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
@@ -48,9 +49,15 @@ PlaybackControls::PlaybackControls(
 		_speedToggle->st(),
 		parent,
 		[=](bool) {},
-		[=](bool lastNonDefault) { return speedLookup(lastNonDefault); },
-		[=](float64 speed) { saveSpeed(speed); },
-		_delegate->playbackControlsQualities(),
+		(_speedControllable
+			? [=](bool lastNonDefault) {
+				return speedLookup(lastNonDefault);
+			}
+			: Fn<float64(bool)>()),
+		(_speedControllable
+			? [=](float64 speed) { saveSpeed(speed); }
+			: Fn<void(float64)>()),
+		_qualitiesList,
 		[=] { return _delegate->playbackControlsCurrentQuality(); },
 		[=](int quality) { saveQuality(quality); })
 	: nullptr)
@@ -63,10 +70,12 @@ PlaybackControls::PlaybackControls(
 		fadeUpdated(opacity);
 	});
 
-	_speedController->menuToggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
-		_speedToggle->setActive(toggled);
-	}, _speedToggle->lifetime());
+	if (const auto controller = _speedController.get()) {
+		controller->menuToggledValue(
+		) | rpl::start_with_next([=](bool toggled) {
+			_speedToggle->setActive(toggled);
+		}, _speedToggle->lifetime());
+	}
 
 	_pictureInPicture->addClickHandler([=] {
 		_delegate->playbackControlsToPictureInPicture();

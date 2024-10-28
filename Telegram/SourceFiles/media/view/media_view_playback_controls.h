@@ -98,6 +98,9 @@ private:
 
 	const not_null<Delegate*> _delegate;
 
+	bool _speedControllable = false;
+	std::vector<int> _qualitiesList;
+
 	bool _inFullScreen = false;
 	bool _showPause = false;
 	bool _childrenHidden = false;
