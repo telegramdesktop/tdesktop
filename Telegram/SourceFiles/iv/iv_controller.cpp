@@ -150,6 +150,18 @@ public:
 		});
 		minus->show();
 
+		{
+			const auto maxWidthText = u"000%"_q;
+			_text.setText(_st.itemStyle, maxWidthText);
+			Ui::Menu::ItemBase::setMinWidth(
+				_text.maxWidth()
+					+ st::ivResetZoomInnerPadding
+					+ resetLabel->width()
+					+ plus->width()
+					+ minus->width()
+					+ _st.itemPadding.right() * 2);
+		}
+
 		_delegate->ivZoomValue(
 		) | rpl::start_with_next([this](int value) {
 			_text.setText(_st.itemStyle, QString::number(value) + '%');
