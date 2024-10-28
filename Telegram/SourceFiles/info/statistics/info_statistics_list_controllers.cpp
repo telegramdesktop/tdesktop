@@ -854,7 +854,12 @@ void CreditsRow::init() {
 	setSkipPeerBadge(true);
 	PeerListRow::setCustomStatus(
 		langDateTime(_entry.date)
-		+ (_entry.refunded
+		+ (_entry.floodSkip
+			? (joiner + tr::lng_credits_box_history_entry_floodskip_about(
+				tr::now,
+				lt_count_decimal,
+				_entry.floodSkip))
+			: _entry.refunded
 			? (joiner + tr::lng_channel_earn_history_return(tr::now))
 			: _entry.pending
 			? (joiner + tr::lng_channel_earn_history_pending(tr::now))
@@ -931,7 +936,7 @@ QSize CreditsRow::rightActionSize() const {
 			_rowHeight);
 	} else if (_subscription || _entry) {
 		return QSize(
-			_rightText.maxWidth() + st::boxRowPadding.right(),
+			_rightText.maxWidth() + st::boxRowPadding.right() / 2,
 			_rowHeight);
 	} else if (!_entry && !_subscription) {
 		return QSize();

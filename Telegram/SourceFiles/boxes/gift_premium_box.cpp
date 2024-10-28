@@ -1262,6 +1262,14 @@ void AddCreditsHistoryEntryTable(
 			std::move(label),
 			st::giveawayGiftCodeValueMargin);
 	}
+	if (entry.floodSkip) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_floodskip_row(),
+			rpl::single(
+				Ui::Text::WithEntities(
+					Lang::FormatCountDecimal(entry.floodSkip))));
+	}
 	if (!entry.date.isNull()) {
 		AddTableRow(
 			table,

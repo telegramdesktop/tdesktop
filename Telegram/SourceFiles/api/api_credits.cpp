@@ -115,6 +115,7 @@ constexpr auto kTransactionsLimit = 100;
 		.convertStars = int(stargift
 			? stargift->data().vconvert_stars().v
 			: 0),
+		.floodSkip = int(tl.data().vfloodskip_number().value_or(0)),
 		.converted = stargift && incoming,
 		.reaction = tl.data().is_reaction(),
 		.refunded = tl.data().is_refund(),

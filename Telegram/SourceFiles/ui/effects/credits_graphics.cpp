@@ -216,6 +216,8 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	}
 	const auto bg = [&]() -> EmptyUserpic::BgColors {
 		switch (entry.peerType) {
+		case Data::CreditsHistoryEntry::PeerType::API:
+			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Peer:
 			return EmptyUserpic::UserpicColor(0);
 		case Data::CreditsHistoryEntry::PeerType::AppStore:
@@ -237,6 +239,62 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 		Unexpected("Unknown peer type.");
 	}();
 	const auto userpic = std::make_shared<EmptyUserpic>(bg, QString());
+	if (entry.peerType == PeerType::API) {
+		const auto svg = std::make_shared<QSvgRenderer>(Ui::Premium::Svg());
+		const auto image = std::make_shared<QImage>();
+		return [=](Painter &p, int x, int y, int outer, int size) mutable {
+			userpic->paintCircle(p, x, y, outer, size);
+			if (image->isNull()) {
+				*image = QImage(
+					Size(size) * style::DevicePixelRatio(),
+					QImage::Format_ARGB32_Premultiplied);
+				image->setDevicePixelRatio(style::DevicePixelRatio());
+				image->fill(Qt::transparent);
+				constexpr auto kSize = 126.;
+				constexpr auto kBubbleRatio = kSize / ((kSize - 70) / 2.);
+				const auto rect = QRectF(0, 0, size, size)
+					- Margins(size / kBubbleRatio);
+
+				auto q = QPainter(image.get());
+				const auto hq = PainterHighQualityEnabler(q);
+				q.setPen(Qt::NoPen);
+				q.setBrush(st::historyPeerUserpicFg);
+				q.drawEllipse(rect);
+				constexpr auto kTailX1 = 4;
+				constexpr auto kTailY1 = 8;
+				constexpr auto kTailX2 = 2;
+				constexpr auto kTailY2 = 0;
+				constexpr auto kTailX3 = 9;
+				constexpr auto kTailY3 = 4;
+				auto path = QPainterPath();
+				path.moveTo(
+					st::lineWidth * kTailX1,
+					rect.height() - st::lineWidth * kTailY1);
+				path.lineTo(
+					st::lineWidth * kTailX2,
+					rect.height() - st::lineWidth * kTailY2);
+				path.lineTo(
+					st::lineWidth * kTailX3,
+					rect.height() - st::lineWidth * kTailY3);
+				path.translate(rect.x(), rect.y());
+				q.strokePath(
+					path,
+					QPen(
+						st::historyPeerUserpicFg,
+						st::lineWidth * 2,
+						Qt::SolidLine,
+						Qt::RoundCap,
+						Qt::RoundJoin));
+				q.fillPath(path, st::historyPeerUserpicFg);
+				q.setCompositionMode(QPainter::CompositionMode_Clear);
+				constexpr auto kStarRatio = kSize / ((kSize - 44) / 2.);
+				svg->render(
+					&q,
+					QRectF(0, 0, size, size) - Margins(size / kStarRatio));
+			}
+			p.drawImage(x, y, *image);
+		};
+	}
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		userpic->paintCircle(p, x, y, outerWidth, size);
 		const auto rect = QRect(x, y, size, size);
@@ -487,7 +545,9 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 }
 
 TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
-	return (entry.reaction
+	return (entry.floodSkip
+		? tr::lng_credits_box_history_entry_api
+		: entry.reaction
 		? tr::lng_credits_box_history_entry_reaction_name
 		: entry.bareGiveawayMsgId
 		? tr::lng_credits_box_history_entry_giveaway_name
