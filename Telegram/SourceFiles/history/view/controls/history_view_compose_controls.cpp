@@ -2431,7 +2431,9 @@ void ComposeControls::initVoiceRecordBar() {
 		updateSendButtonType();
 		switch (_send->type()) {
 		case Ui::SendButton::Type::Record:
-			_show->showToast(tr::lng_record_voice_tip(tr::now));
+			_show->showToast(_canRecordVideoMessage
+				? tr::lng_record_voice_tip(tr::now)
+				: tr::lng_record_hold_tip(tr::now));
 			break;
 		case Ui::SendButton::Type::Round:
 			_show->showToast(tr::lng_record_video_tip(tr::now));

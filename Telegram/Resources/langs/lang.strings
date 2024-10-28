@@ -3267,6 +3267,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_record_listen_cancel_sure" = "Do you want to discard your recorded voice message?";
 "lng_record_listen_cancel_sure_round" = "Do you want to discard your recorded video message?";
 "lng_record_lock_discard" = "Discard";
+"lng_record_hold_tip" = "Please hold the mouse button pressed to record a voice message.";
 "lng_record_voice_tip" = "Hold to record audio. Click to switch to video.";
 "lng_record_video_tip" = "Hold to record video. Click to switch to audio.";
 "lng_record_audio_problem" = "Could not start audio recording. Please check your microphone.";
