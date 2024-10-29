@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_dialogs.h"
 
 namespace Ui {
 namespace {
@@ -180,6 +181,19 @@ void FillSponsoredMessageBar(
 			.session = session,
 			.customEmojiRepaint = [=] { widget->update(); },
 		});
+	const auto hostedClick = [=](ClickHandlerPtr handler) {
+		return [=] {
+			if (const auto controller = FindSessionController(widget)) {
+				ActivateClickHandler(widget, handler, {
+					.other = QVariant::fromValue(ClickHandlerContext{
+						.itemId = fullId,
+						.sessionWindow = base::make_weak(controller),
+						.show = controller->uiShow(),
+					})
+				});
+			}
+		};
+	};
 	const auto kLinesForPhoto = 3;
 	const auto rightPhotoSize = titleSt.font->ascent * kLinesForPhoto;
 	const auto rightPhotoPlaceholder = titleSt.font->height * kLinesForPhoto;
@@ -197,6 +211,19 @@ void FillSponsoredMessageBar(
 		state->rightPhoto->subscribeToUpdates(callback);
 		callback();
 	}
+	const auto rightHide = hasRightPhoto
+		? nullptr
+		: Ui::CreateChild<Ui::IconButton>(
+			container,
+			st::dialogsCancelSearchInPeer);
+	if (rightHide) {
+		container->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			rightHide->moveToRight(st::buttonRadius, st::lineWidth);
+		}, rightHide->lifetime());
+		rightHide->setClickedCallback(
+			hostedClick(HideSponsoredClickHandler()));
+	}
 	const auto badgeButton = Ui::CreateChild<BadgeButton>(
 		widget,
 		from.canReport
@@ -206,20 +233,10 @@ void FillSponsoredMessageBar(
 			widget,
 			fullId,
 			from.colorIndex ? from.colorIndex : 4/*blue*/));
-	const auto handler = from.canReport
-		? AboutSponsoredClickHandler()
-		: HideSponsoredClickHandler();
-	badgeButton->setClickedCallback([=] {
-		if (const auto controller = FindSessionController(widget)) {
-			ActivateClickHandler(widget, handler, {
-				.other = QVariant::fromValue(ClickHandlerContext{
-					.itemId = fullId,
-					.sessionWindow = base::make_weak(controller),
-					.show = controller->uiShow(),
-				})
-			});
-		}
-	});
+	badgeButton->setClickedCallback(
+		hostedClick(from.canReport
+			? AboutSponsoredClickHandler()
+			: HideSponsoredClickHandler()));
 	badgeButton->show();
 
 	const auto draw = [=](QPainter &p) {
@@ -233,7 +250,8 @@ void FillSponsoredMessageBar(
 			- leftPadding
 			- rightPadding;
 		const auto availableWidth = availableWidthNoPhoto
-			- (hasRightPhoto ? (rightPadding + rightPhotoSize) : 0);
+			- (hasRightPhoto ? (rightPadding + rightPhotoSize) : 0)
+			- (rightHide ? rightHide->width() : 0);
 		const auto titleRight = leftPadding
 			+ state->title.maxWidth()
 			+ titleSt.font->spacew * 2;
@@ -258,6 +276,7 @@ void FillSponsoredMessageBar(
 						- (hasRightPhoto
 							? (rightPadding + rightPhotoSize)
 							: 0)
+						- (rightHide ? rightHide->width() : 0)
 						- rightPadding),
 			topPadding
 				+ (titleSt.font->height - badgeButton->height()) / 2);
@@ -298,16 +317,13 @@ void FillSponsoredMessageBar(
 				} else if (diff < 2 * lineHeight) {
 					return {};
 				}
-				if (hasRightPhoto) {
-					line += (hasSecondLineTitle ? 2 : 1);
-					return {
-						.width = (line > kLinesForPhoto)
-							? availableWidthNoPhoto
-							: availableWidth,
-					};
-				} else {
-					return { .width = availableWidth };
-				}
+				line += (hasSecondLineTitle ? 2 : 1)
+					+ (hasRightPhoto ? 0 : 1);
+				return {
+					.width = (line > kLinesForPhoto)
+						? availableWidthNoPhoto
+						: availableWidth,
+				};
 			};
 			state->contentText.draw(p, {
 				.position = QPoint(left, top),
