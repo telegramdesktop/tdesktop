@@ -59,9 +59,9 @@ private:
 
 };
 
-class StoryThumbnail : public DynamicImage {
+class MediaThumbnail : public DynamicImage {
 public:
-	explicit StoryThumbnail(Data::FileOrigin origin, bool forceRound);
+	explicit MediaThumbnail(Data::FileOrigin origin, bool forceRound);
 
 	QImage image(int size) override;
 	void subscribeToUpdates(Fn<void()> callback) override;
@@ -89,7 +89,7 @@ private:
 
 };
 
-class PhotoThumbnail final : public StoryThumbnail {
+class PhotoThumbnail final : public MediaThumbnail {
 public:
 	PhotoThumbnail(
 		not_null<PhotoData*> photo,
@@ -108,7 +108,7 @@ private:
 
 };
 
-class VideoThumbnail final : public StoryThumbnail {
+class VideoThumbnail final : public MediaThumbnail {
 public:
 	VideoThumbnail(
 		not_null<DocumentData*> video,
@@ -304,12 +304,12 @@ void PeerUserpic::processNewPhoto() {
 	}, _subscribed->downloadLifetime);
 }
 
-StoryThumbnail::StoryThumbnail(Data::FileOrigin origin, bool forceRound)
+MediaThumbnail::MediaThumbnail(Data::FileOrigin origin, bool forceRound)
 : _origin(origin)
 , _forceRound(forceRound) {
 }
 
-QImage StoryThumbnail::image(int size) {
+QImage MediaThumbnail::image(int size) {
 	const auto ratio = style::DevicePixelRatio();
 	if (_prepared.width() != size * ratio) {
 		if (_full.isNull()) {
@@ -333,7 +333,7 @@ QImage StoryThumbnail::image(int size) {
 	return _prepared;
 }
 
-void StoryThumbnail::subscribeToUpdates(Fn<void()> callback) {
+void MediaThumbnail::subscribeToUpdates(Fn<void()> callback) {
 	_subscription.destroy();
 	if (!callback) {
 		clear();
@@ -363,11 +363,11 @@ void StoryThumbnail::subscribeToUpdates(Fn<void()> callback) {
 	}
 }
 
-Data::FileOrigin StoryThumbnail::origin() const {
+Data::FileOrigin MediaThumbnail::origin() const {
 	return _origin;
 }
 
-bool StoryThumbnail::forceRound() const {
+bool MediaThumbnail::forceRound() const {
 	return _forceRound;
 }
 
@@ -375,7 +375,7 @@ PhotoThumbnail::PhotoThumbnail(
 	not_null<PhotoData*> photo,
 	Data::FileOrigin origin,
 	bool forceRound)
-: StoryThumbnail(origin, forceRound)
+: MediaThumbnail(origin, forceRound)
 , _photo(photo) {
 }
 
@@ -387,7 +387,7 @@ Main::Session &PhotoThumbnail::session() {
 	return _photo->session();
 }
 
-StoryThumbnail::Thumb PhotoThumbnail::loaded(Data::FileOrigin origin) {
+MediaThumbnail::Thumb PhotoThumbnail::loaded(Data::FileOrigin origin) {
 	if (!_media) {
 		_media = _photo->createMediaView();
 		_media->wanted(Data::PhotoSize::Small, origin);
@@ -406,7 +406,7 @@ VideoThumbnail::VideoThumbnail(
 	not_null<DocumentData*> video,
 	Data::FileOrigin origin,
 	bool forceRound)
-: StoryThumbnail(origin, forceRound)
+: MediaThumbnail(origin, forceRound)
 , _video(video) {
 }
 
@@ -418,7 +418,7 @@ Main::Session &VideoThumbnail::session() {
 	return _video->session();
 }
 
-StoryThumbnail::Thumb VideoThumbnail::loaded(Data::FileOrigin origin) {
+MediaThumbnail::Thumb VideoThumbnail::loaded(Data::FileOrigin origin) {
 	if (!_media) {
 		_media = _video->createMediaView();
 		_media->thumbnailWanted(origin);

@@ -14,6 +14,7 @@ class PhotoData;
 namespace Data {
 class Story;
 class Session;
+struct FileOrigin;
 } // namespace Data
 
 namespace Ui {
@@ -33,7 +34,6 @@ class DynamicImage;
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeEmojiThumbnail(
 	not_null<Data::Session*> owner,
 	const QString &data);
-
 [[nodiscard]] std::shared_ptr<DynamicImage> MakePhotoThumbnail(
 	not_null<PhotoData*> photo,
 	FullMsgId fullId);

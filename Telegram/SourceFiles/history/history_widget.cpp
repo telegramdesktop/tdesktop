@@ -725,16 +725,30 @@ HistoryWidget::HistoryWidget(
 
 	session().data().sentToScheduled(
 	) | rpl::start_with_next([=](const Data::SentToScheduled &value) {
-		if (value.item->history() == _history) {
-			const auto history = value.item->history();
+		const auto history = value.history;
+		if (history == _history) {
 			const auto id = value.scheduledId;
 			crl::on_main(this, [=] {
-				controller->showSection(
-					std::make_shared<HistoryView::ScheduledMemento>(
-						history,
-						id));
+				if (history == _history) {
+					controller->showSection(
+						std::make_shared<HistoryView::ScheduledMemento>(
+							history,
+							id));
+				}
 			});
 			return;
+		}
+	}, lifetime());
+
+	session().data().sentFromScheduled(
+	) | rpl::start_with_next([=](const Data::SentFromScheduled &value) {
+		if (value.item->awaitingVideoProcessing()
+			&& !_sentFromScheduledTip
+			&& HistoryView::ShowScheduledVideoPublished(
+				controller,
+				value,
+				crl::guard(this, [=] { _sentFromScheduledTip = false; }))) {
+			_sentFromScheduledTip = true;
 		}
 	}, lifetime());
 

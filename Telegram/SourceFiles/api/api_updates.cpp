@@ -332,6 +332,15 @@ void Updates::feedUpdateVector(
 	session().data().sendHistoryChangeNotifications();
 }
 
+void Updates::checkForSentToScheduled(const MTPUpdates &updates) {
+	updates.match([&](const MTPDupdates &data) {
+		applyConvertToScheduledOnSend(data.vupdates(), true);
+	}, [&](const MTPDupdatesCombined &data) {
+		applyConvertToScheduledOnSend(data.vupdates(), true);
+	}, [](const auto &) {
+	});
+}
+
 void Updates::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
 	for (const auto &update : updates.v) {
 		if (update.type() == mtpc_updateMessageID) {
@@ -887,23 +896,35 @@ void Updates::mtpUpdateReceived(const MTPUpdates &updates) {
 }
 
 void Updates::applyConvertToScheduledOnSend(
-		const MTPVector<MTPUpdate> &other) {
+		const MTPVector<MTPUpdate> &other,
+		bool skipScheduledCheck) {
 	for (const auto &update : other.v) {
 		update.match([&](const MTPDupdateNewScheduledMessage &data) {
-			const auto id = IdFromMessage(data.vmessage());
+			const auto &message = data.vmessage();
+			const auto id = IdFromMessage(message);
 			const auto scheduledMessages = &_session->scheduledMessages();
 			const auto scheduledId = scheduledMessages->localMessageId(id);
 			for (const auto &updateId : other.v) {
 				updateId.match([&](const MTPDupdateMessageID &dataId) {
 					if (dataId.vid().v == id) {
-						const auto rand = dataId.vrandom_id().v;
 						auto &owner = session().data();
+						if (skipScheduledCheck) {
+							const auto peerId = PeerFromMessage(message);
+							const auto history = owner.historyLoaded(peerId);
+							if (history) {
+								_session->data().sentToScheduled({
+									.history = history,
+									.scheduledId = scheduledId,
+								});
+							}
+							return;
+						}
+						const auto rand = dataId.vrandom_id().v;
 						const auto localId = owner.messageIdByRandomId(rand);
 						if (const auto local = owner.message(localId)) {
 							if (!local->isScheduled()) {
-								using Flag = Data::MessageUpdate::Flag;
 								_session->data().sentToScheduled({
-									.item = local,
+									.history = local->history(),
 									.scheduledId = scheduledId,
 								});
 

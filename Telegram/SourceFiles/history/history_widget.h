@@ -702,6 +702,7 @@ private:
 
 	bool _preserveScrollTop = false;
 	bool _repaintFieldScheduled = false;
+	bool _sentFromScheduledTip = false;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 

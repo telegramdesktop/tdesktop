@@ -3304,6 +3304,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_scheduled_send_now" = "Send message now?";
 "lng_scheduled_send_now_many#one" = "Send {count} message now?";
 "lng_scheduled_send_now_many#other" = "Send {count} messages now?";
+"lng_scheduled_video_tip_title" = "Improving video...";
+"lng_scheduled_video_tip_text" = "The video will be published after it's optimized for the bast viewing experience.";
+"lng_scheduled_video_tip" = "Processing video may take a few minutes.";
+"lng_scheduled_video_published" = "Video Published.";
+"lng_scheduled_video_view" = "View";
 
 "lng_replies_view#one" = "View {count} Reply";
 "lng_replies_view#other" = "View {count} Replies";

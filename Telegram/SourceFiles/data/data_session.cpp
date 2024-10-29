@@ -4821,6 +4821,14 @@ rpl::producer<SentToScheduled> Session::sentToScheduled() const {
 	return _sentToScheduled.events();
 }
 
+void Session::sentFromScheduled(SentFromScheduled value) {
+	_sentFromScheduled.fire(std::move(value));
+}
+
+rpl::producer<SentFromScheduled> Session::sentFromScheduled() const {
+	return _sentFromScheduled.events();
+}
+
 void Session::clearLocalStorage() {
 	_cache->close();
 	_cache->clear();

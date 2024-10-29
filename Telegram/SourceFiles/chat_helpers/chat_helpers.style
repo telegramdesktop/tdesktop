@@ -1519,3 +1519,22 @@ pickLocationChooseOnMap: RoundButton(defaultActiveButton) {
 sendGifBox: Box(defaultBox) {
 	shadowIgnoreBottomSkip: true;
 }
+
+processingVideoTipMaxWidth: 364px;
+processingVideoTipShift: 10px;
+processingVideoToast: Toast(defaultToast) {
+	minWidth: 32px;
+	maxWidth: 380px;
+	padding: margins(19px, 17px, 19px, 16px);
+}
+processingVideoPreviewSkip: 0px;
+processingVideoView: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 68px;
+	textTop: 26px;
+	textFg: mediaviewTextLinkFg;
+	textFgOver: mediaviewTextLinkFg;
+	textBg: transparent;
+	textBgOver: transparent;
+	ripple: emptyRippleAnimation;
+}

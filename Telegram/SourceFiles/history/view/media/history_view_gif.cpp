@@ -1982,10 +1982,12 @@ bool Gif::dataLoaded() const {
 }
 
 bool Gif::needInfoDisplay() const {
-	if (_parent->data()->isFakeAboutView()) {
+	const auto item = _parent->data();
+	if (item->isFakeAboutView()) {
 		return false;
 	}
-	return _parent->data()->isSending()
+	return item->isSending()
+		|| item->awaitingVideoProcessing()
 		|| _data->uploading()
 		|| _parent->isUnderCursor()
 		|| (_parent->delegate()->elementContext() == Context::ChatPreview)
