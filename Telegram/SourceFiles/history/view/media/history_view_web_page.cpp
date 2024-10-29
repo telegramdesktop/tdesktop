@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_sponsored_click_handler.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_sponsored.h"
@@ -140,15 +141,6 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 			} else {
 				HiddenUrlClickHandler::Open(webpage->url, context.other);
 			}
-		}
-	});
-}
-
-[[nodiscard]] ClickHandlerPtr AboutSponsoredClickHandler() {
-	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-		const auto my = context.other.value<ClickHandlerContext>();
-		if (const auto controller = my.sessionWindow.get()) {
-			Menu::ShowSponsoredAbout(controller->uiShow());
 		}
 	});
 }

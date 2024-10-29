@@ -41,11 +41,13 @@ namespace {
 
 void AboutBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<ChatHelpers::Show> show) {
+		std::shared_ptr<ChatHelpers::Show> show,
+		const FullMsgId &fullId) {
 	constexpr auto kUrl = "https://promote.telegram.org"_cs;
 
 	box->setNoContentMargin(true);
 
+	const auto isChannel = peerIsChannel(fullId.peer);
 	const auto session = &show->session();
 
 	const auto content = box->verticalLayout().get();
@@ -131,29 +133,39 @@ void AboutBox(
 		};
 		addEntry(
 			tr::lng_sponsored_revenued_info1_title(),
-			tr::lng_sponsored_revenued_info1_description(
-				Ui::Text::RichLangValue),
+			(isChannel
+				? tr::lng_sponsored_revenued_info1_description
+				: tr::lng_sponsored_revenued_info1_bot_description)(
+					Ui::Text::RichLangValue),
 			st::sponsoredAboutPrivacyIcon);
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 		addEntry(
 			tr::lng_sponsored_revenued_info2_title(),
-			tr::lng_sponsored_revenued_info2_description(
-				Ui::Text::RichLangValue),
+			(isChannel
+				? tr::lng_sponsored_revenued_info2_description
+				: tr::lng_sponsored_revenued_info2_bot_description)(
+					Ui::Text::RichLangValue),
 			st::sponsoredAboutSplitIcon);
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
+		auto link = tr::lng_settings_privacy_premium_link(
+		) | rpl::map([](QString t) {
+			return Ui::Text::Link(std::move(t), u"internal:"_q);
+		});
 		addEntry(
 			tr::lng_sponsored_revenued_info3_title(),
-			tr::lng_sponsored_revenued_info3_description(
-				lt_count,
-				rpl::single(float64(levels)),
-				lt_link,
-				tr::lng_settings_privacy_premium_link(
-				) | rpl::map([=](QString t) {
-					return Ui::Text::Link(std::move(t), u"internal:"_q);
-				}),
-				Ui::Text::RichLangValue),
+			isChannel
+				? tr::lng_sponsored_revenued_info3_description(
+					lt_count,
+					rpl::single(float64(levels)),
+					lt_link,
+					std::move(link),
+					Ui::Text::RichLangValue)
+				: tr::lng_sponsored_revenued_info3_bot_description(
+					lt_link,
+					std::move(link),
+					Ui::Text::RichLangValue),
 			st::sponsoredAboutRemoveIcon)->setClickHandlerFilter([=](
 					const auto &...) {
 				ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
@@ -185,16 +197,18 @@ void AboutBox(
 		box->addRow(
 			Ui::CreateLabelWithCustomEmoji(
 				content,
-				tr::lng_sponsored_revenued_footer_description(
-					lt_link,
-					tr::lng_channel_earn_about_link(
-						lt_emoji,
-						rpl::single(arrow),
-						Ui::Text::RichLangValue
-					) | rpl::map([=](TextWithEntities text) {
-						return Ui::Text::Link(std::move(text), kUrl.utf16());
-					}),
-					Ui::Text::RichLangValue),
+				(isChannel
+					? tr::lng_sponsored_revenued_footer_description
+					: tr::lng_sponsored_revenued_footer_bot_description)(
+						lt_link,
+						tr::lng_channel_earn_about_link(
+							lt_emoji,
+							rpl::single(arrow),
+							Ui::Text::RichLangValue
+						) | rpl::map([=](TextWithEntities t) {
+							return Ui::Text::Link(std::move(t), kUrl.utf16());
+						}),
+						Ui::Text::RichLangValue),
 				{ .session = session },
 				st::channelEarnLearnDescription))->resizeToWidth(available);
 	}
@@ -309,7 +323,7 @@ void FillSponsored(
 	const auto session = &show->session();
 
 	addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
-		show->show(Box(AboutBox, show));
+		show->show(Box(AboutBox, show, fullId));
 	}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
 
 	addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
@@ -352,9 +366,11 @@ void ShowSponsored(
 	menu->popup(QCursor::pos());
 }
 
-void ShowSponsoredAbout(std::shared_ptr<ChatHelpers::Show> show) {
+void ShowSponsoredAbout(
+		std::shared_ptr<ChatHelpers::Show> show,
+		const FullMsgId &fullId) {
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-		AboutBox(box, show);
+		AboutBox(box, show, fullId);
 	}));
 }
 

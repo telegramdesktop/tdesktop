@@ -34,6 +34,8 @@ void ShowSponsored(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const FullMsgId &fullId);
 
-void ShowSponsoredAbout(std::shared_ptr<ChatHelpers::Show> show);
+void ShowSponsoredAbout(
+	std::shared_ptr<ChatHelpers::Show> show,
+	const FullMsgId &fullId);
 
 } // namespace Menu

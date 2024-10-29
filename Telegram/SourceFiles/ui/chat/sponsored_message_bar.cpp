@@ -42,13 +42,14 @@ struct Colors final {
 
 using ColorFactory = Fn<Colors()>;
 
-class RemoveButton final : public Ui::RippleButton {
+class BadgeButton final : public Ui::RippleButton {
 public:
-	RemoveButton(
+	BadgeButton(
 		not_null<Ui::RpWidget*> parent,
+		tr::phrase<> text,
 		ColorFactory cache)
 	: Ui::RippleButton(parent, st::defaultRippleAnimation) {
-		tr::lng_sponsored_top_bar_hide(
+		text(
 		) | rpl::start_with_next([this](const QString &t) {
 			const auto height = st::stickersHeaderBadgeFont->height;
 			resize(
@@ -56,7 +57,7 @@ public:
 				height);
 			update();
 		}, lifetime());
-		paintRequest() | rpl::start_with_next([this, cache] {
+		paintRequest() | rpl::start_with_next([this, cache, text] {
 			auto p = QPainter(this);
 			const auto colors = cache();
 			const auto r = rect();
@@ -70,10 +71,7 @@ public:
 			p.drawRoundedRect(r, r.height() / 2, r.height() / 2);
 			p.setFont(st::stickersHeaderBadgeFont);
 			p.setPen(colors.fg);
-			p.drawText(
-				r,
-				tr::lng_sponsored_top_bar_hide(tr::now),
-				style::al_center);
+			p.drawText(r, text(tr::now), style::al_center);
 		}, lifetime());
 	}
 
@@ -199,14 +197,19 @@ void FillSponsoredMessageBar(
 		state->rightPhoto->subscribeToUpdates(callback);
 		callback();
 	}
-	const auto removeButton = Ui::CreateChild<RemoveButton>(
+	const auto badgeButton = Ui::CreateChild<BadgeButton>(
 		widget,
+		from.canReport
+			? tr::lng_sponsored_message_revenue_button
+			: tr::lng_sponsored_top_bar_hide,
 		GenerateReplyColorCallback(
 			widget,
 			fullId,
 			from.colorIndex ? from.colorIndex : 4/*blue*/));
-	const auto handler = HideSponsoredClickHandler();
-	removeButton->setClickedCallback([=] {
+	const auto handler = from.canReport
+		? AboutSponsoredClickHandler()
+		: HideSponsoredClickHandler();
+	badgeButton->setClickedCallback([=] {
 		if (const auto controller = FindSessionController(widget)) {
 			ActivateClickHandler(widget, handler, {
 				.other = QVariant::fromValue(ClickHandlerContext{
@@ -217,7 +220,7 @@ void FillSponsoredMessageBar(
 			});
 		}
 	});
-	removeButton->show();
+	badgeButton->show();
 
 	const auto draw = [=](QPainter &p) {
 		const auto r = widget->rect();
@@ -237,14 +240,14 @@ void FillSponsoredMessageBar(
 		const auto hasSecondLineTitle = (titleRight
 			> (availableWidth
 				- state->contentTitle.maxWidth()
-				- removeButton->width()));
+				- badgeButton->width()));
 		p.setPen(st::windowActiveTextFg);
 		state->title.draw(p, {
 			.position = QPoint(leftPadding, topPadding),
 			.outerWidth = availableWidth,
 			.availableWidth = availableWidth,
 		});
-		removeButton->moveToLeft(
+		badgeButton->moveToLeft(
 			hasSecondLineTitle
 				? titleRight
 				: std::min(
@@ -257,7 +260,7 @@ void FillSponsoredMessageBar(
 							: 0)
 						- rightPadding),
 			topPadding
-				+ (titleSt.font->height - removeButton->height()) / 2);
+				+ (titleSt.font->height - badgeButton->height()) / 2);
 		p.setPen(st::windowFg);
 		{
 			const auto left = hasSecondLineTitle ? leftPadding : titleRight;

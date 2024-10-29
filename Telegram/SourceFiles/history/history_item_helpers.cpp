@@ -414,6 +414,16 @@ ClickHandlerPtr ReportSponsoredClickHandler(not_null<HistoryItem*> item) {
 	});
 }
 
+ClickHandlerPtr AboutSponsoredClickHandler() {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			Menu::ShowSponsoredAbout(controller->uiShow(), my.itemId);
+		}
+	});
+}
+
+
 MessageFlags FlagsFromMTP(
 		MsgId id,
 		MTPDmessage::Flags flags,
