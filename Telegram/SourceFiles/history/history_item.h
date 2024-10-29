@@ -482,6 +482,7 @@ public:
 	[[nodiscard]] GlobalMsgId globalId() const;
 	[[nodiscard]] Data::MessagePosition position() const;
 	[[nodiscard]] TimeId date() const;
+	[[nodiscard]] bool awaitingVideoProcessing() const;
 
 	[[nodiscard]] Data::Media *media() const {
 		return _media.get();

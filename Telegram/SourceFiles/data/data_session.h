@@ -89,6 +89,11 @@ struct GiftUpdate {
 	Action action = {};
 };
 
+struct SentToScheduled {
+	not_null<HistoryItem*> item;
+	MsgId scheduledId = 0;
+};
+
 class Session final {
 public:
 	using ViewElement = HistoryView::Element;
@@ -791,6 +796,9 @@ public:
 		std::vector<ReactionId> &&was,
 		std::vector<ReactionId> &&now);
 
+	void sentToScheduled(SentToScheduled value);
+	[[nodiscard]] rpl::producer<SentToScheduled> sentToScheduled() const;
+
 	void clearLocalStorage();
 
 private:
@@ -963,6 +971,7 @@ private:
 	rpl::event_stream<ChatListEntryRefresh> _chatListEntryRefreshes;
 	rpl::event_stream<> _unreadBadgeChanges;
 	rpl::event_stream<RepliesReadTillUpdate> _repliesReadTillUpdates;
+	rpl::event_stream<SentToScheduled> _sentToScheduled;
 
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;

@@ -723,6 +723,21 @@ HistoryWidget::HistoryWidget(
 		maybeMarkReactionsRead(update.item);
 	}, lifetime());
 
+	session().data().sentToScheduled(
+	) | rpl::start_with_next([=](const Data::SentToScheduled &value) {
+		if (value.item->history() == _history) {
+			const auto history = value.item->history();
+			const auto id = value.scheduledId;
+			crl::on_main(this, [=] {
+				controller->showSection(
+					std::make_shared<HistoryView::ScheduledMemento>(
+						history,
+						id));
+			});
+			return;
+		}
+	}, lifetime());
+
 	using MediaSwitch = Media::Player::Instance::Switch;
 	Media::Player::instance()->switchToNextEvents(
 	) | rpl::filter([=](const MediaSwitch &pair) {

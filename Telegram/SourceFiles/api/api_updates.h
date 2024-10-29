@@ -131,6 +131,7 @@ private:
 	// Doesn't call sendHistoryChangeNotifications itself.
 	void feedUpdate(const MTPUpdate &update);
 
+	void applyConvertToScheduledOnSend(const MTPVector<MTPUpdate> &other);
 	void applyGroupCallParticipantUpdates(const MTPUpdates &updates);
 
 	bool whenGetDiffChanged(

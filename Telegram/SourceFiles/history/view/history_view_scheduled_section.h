@@ -288,7 +288,9 @@ private:
 
 class ScheduledMemento final : public Window::SectionMemento {
 public:
-	ScheduledMemento(not_null<History*> history);
+	ScheduledMemento(
+		not_null<History*> history,
+		MsgId sentToScheduledId = 0);
 	ScheduledMemento(not_null<Data::ForumTopic*> forumTopic);
 
 	object_ptr<Window::SectionWidget> createWidget(
@@ -309,6 +311,7 @@ private:
 	const not_null<History*> _history;
 	const Data::ForumTopic *_forumTopic;
 	ListMemento _list;
+	MsgId _sentToScheduledId;
 
 };
 

@@ -761,6 +761,10 @@ TimeId HistoryItem::date() const {
 	return _date;
 }
 
+bool HistoryItem::awaitingVideoProcessing() const {
+	return (_flags & MessageFlag::EstimatedDate);
+}
+
 HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 	if (const auto pinned = Get<HistoryServicePinned>()) {
 		return pinned;

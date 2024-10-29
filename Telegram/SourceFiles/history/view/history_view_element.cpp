@@ -264,6 +264,9 @@ QString DateTooltipText(not_null<Element*> view) {
 	const auto format = QLocale::LongFormat;
 	const auto item = view->data();
 	auto dateText = locale.toString(view->dateTime(), format);
+	if (item->awaitingVideoProcessing()) {
+		dateText += '\n' + tr::lng_approximate_about(tr::now);
+	}
 	if (const auto editedDate = view->displayedEditDate()) {
 		dateText += '\n' + tr::lng_edited_date(
 			tr::now,

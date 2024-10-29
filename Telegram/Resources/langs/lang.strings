@@ -2119,8 +2119,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_recommended_message_title" = "Recommended";
 "lng_edited" = "edited";
 "lng_commented" = "commented";
+"lng_approximate" = "appx.";
 "lng_edited_date" = "Edited: {date}";
 "lng_sent_date" = "Sent: {date}";
+"lng_approximate_about" = "Estimated date of video publishing.";
 "lng_views_tooltip#one" = "Views: {count}";
 "lng_views_tooltip#other" = "Views: {count}";
 "lng_forwards_tooltip#one" = "Shares: {count}";

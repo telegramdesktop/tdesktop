@@ -451,7 +451,10 @@ MessageFlags FlagsFromMTP(
 			: Flag())
 		| ((flags & MTP::f_views) ? Flag::HasViews : Flag())
 		| ((flags & MTP::f_noforwards) ? Flag::NoForwards : Flag())
-		| ((flags & MTP::f_invert_media) ? Flag::InvertMedia : Flag());
+		| ((flags & MTP::f_invert_media) ? Flag::InvertMedia : Flag())
+		| ((flags & MTP::f_video_processing_pending)
+			? Flag::EstimatedDate
+			: Flag());
 }
 
 MessageFlags FlagsFromMTP(

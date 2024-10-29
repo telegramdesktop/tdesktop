@@ -316,6 +316,9 @@ void Updates::feedUpdateVector(
 	} else if (policy == SkipUpdatePolicy::SkipExceptGroupCallParticipants) {
 		return;
 	}
+	if (policy == SkipUpdatePolicy::SkipNone) {
+		applyConvertToScheduledOnSend(updates);
+	}
 	for (const auto &entry : std::as_const(list)) {
 		const auto type = entry.type();
 		if ((policy == SkipUpdatePolicy::SkipMessageIds
@@ -432,6 +435,7 @@ void Updates::feedChannelDifference(
 	session().data().processChats(data.vchats());
 
 	_handlingChannelDifference = true;
+	applyConvertToScheduledOnSend(data.vother_updates());
 	feedMessageIds(data.vother_updates());
 	session().data().processMessages(
 		data.vnew_messages(),
@@ -596,6 +600,7 @@ void Updates::feedDifference(
 	Core::App().checkAutoLock();
 	session().data().processUsers(users);
 	session().data().processChats(chats);
+	applyConvertToScheduledOnSend(other);
 	feedMessageIds(other);
 	session().data().processMessages(msgs, NewMessageType::Unread);
 	feedUpdateVector(other, SkipUpdatePolicy::SkipMessageIds);
@@ -878,6 +883,39 @@ void Updates::mtpUpdateReceived(const MTPUpdates &updates) {
 		applyUpdates(updates);
 	} else {
 		applyGroupCallParticipantUpdates(updates);
+	}
+}
+
+void Updates::applyConvertToScheduledOnSend(
+		const MTPVector<MTPUpdate> &other) {
+	for (const auto &update : other.v) {
+		update.match([&](const MTPDupdateNewScheduledMessage &data) {
+			const auto id = IdFromMessage(data.vmessage());
+			const auto scheduledMessages = &_session->scheduledMessages();
+			const auto scheduledId = scheduledMessages->localMessageId(id);
+			for (const auto &updateId : other.v) {
+				updateId.match([&](const MTPDupdateMessageID &dataId) {
+					if (dataId.vid().v == id) {
+						const auto rand = dataId.vrandom_id().v;
+						auto &owner = session().data();
+						const auto localId = owner.messageIdByRandomId(rand);
+						if (const auto local = owner.message(localId)) {
+							if (!local->isScheduled()) {
+								using Flag = Data::MessageUpdate::Flag;
+								_session->data().sentToScheduled({
+									.item = local,
+									.scheduledId = scheduledId,
+								});
+
+								// We've sent a non-scheduled message,
+								// but it was converted to a scheduled.
+								local->destroy();
+							}
+						}
+					}
+				}, [](const auto &) {});
+			}
+		}, [](const auto &) {});
 	}
 }
 

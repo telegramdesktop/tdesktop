@@ -4813,6 +4813,14 @@ void Session::viewTagsChanged(
 	}
 }
 
+void Session::sentToScheduled(SentToScheduled value) {
+	_sentToScheduled.fire(std::move(value));
+}
+
+rpl::producer<SentToScheduled> Session::sentToScheduled() const {
+	return _sentToScheduled.events();
+}
+
 void Session::clearLocalStorage() {
 	_cache->close();
 	_cache->clear();
