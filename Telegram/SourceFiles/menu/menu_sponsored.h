@@ -27,7 +27,8 @@ void FillSponsored(
 	const Ui::Menu::MenuCallback &addAction,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const FullMsgId &fullId,
-	bool mediaViewer);
+	bool mediaViewer,
+	bool skipAbout = false);
 
 void ShowSponsored(
 	not_null<Ui::RpWidget*> parent,

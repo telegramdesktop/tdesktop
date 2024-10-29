@@ -24,12 +24,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
@@ -228,6 +230,58 @@ void AboutBox(
 		box->addButton(std::move(button));
 	}
 
+	if (!isChannel) {
+		const auto top = Ui::CreateChild<Ui::IconButton>(
+			box,
+			st::infoTopBarMenu);
+		box->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			top->raise();
+			top->moveToLeft(
+				width - top->width() - st::defaultScrollArea.width,
+				0);
+		}, top->lifetime());
+		using MenuPtr = base::unique_qptr<Ui::DropdownMenu>;
+		const auto menu = top->lifetime().make_state<MenuPtr>();
+		top->setClickedCallback([=] {
+			if (const auto raw = menu->get()) {
+				raw->hideAnimated();
+				return true;
+			}
+			*menu = base::make_unique_q<Ui::DropdownMenu>(
+				box->window(),
+				st::dropdownMenuWithIcons);
+			const auto raw = menu->get();
+			top->installEventFilter(raw);
+			raw->setHiddenCallback([=] {
+				raw->deleteLater();
+				top->setForceRippled(false);
+			});
+			raw->setShowStartCallback([=] {
+				top->setForceRippled(true);
+			});
+			raw->setHideStartCallback([=] {
+				top->setForceRippled(false);
+			});
+			FillSponsored(
+				top,
+				Ui::Menu::CreateAddActionCallback(menu->get()),
+				show,
+				fullId,
+				false,
+				true);
+			const auto global = box->mapToGlobal(
+				QPoint(
+					st::defaultScrollArea.width - st::lineWidth * 2,
+					top->height() / 2));
+			const auto local = box->window()->mapFromGlobal(global);
+			raw->moveToRight(local.x(), local.y());
+			raw->raise();
+			raw->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+			return true;
+		});
+	}
+
 }
 
 void ShowReportSponsoredBox(
@@ -319,12 +373,15 @@ void FillSponsored(
 		const Ui::Menu::MenuCallback &addAction,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const FullMsgId &fullId,
-		bool mediaViewer) {
+		bool mediaViewer,
+		bool skipAbout) {
 	const auto session = &show->session();
 
-	addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
-		show->show(Box(AboutBox, show, fullId));
-	}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
+	if (!skipAbout) {
+		addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
+			show->show(Box(AboutBox, show, fullId));
+		}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
+	}
 
 	addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
 		ShowReportSponsoredBox(show, fullId);
