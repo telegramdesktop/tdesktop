@@ -364,7 +364,8 @@ class TTLButton final : public Ui::RippleButton {
 public:
 	TTLButton(
 		not_null<Ui::RpWidget*> parent,
-		const style::RecordBar &st);
+		const style::RecordBar &st,
+		bool recordingVideo);
 
 	void clearState() override;
 
@@ -383,7 +384,8 @@ private:
 
 TTLButton::TTLButton(
 	not_null<Ui::RpWidget*> parent,
-	const style::RecordBar &st)
+	const style::RecordBar &st,
+	bool recordingVideo)
 : RippleButton(parent, st.lock.ripple)
 , _st(st)
 , _rippleRect(Rect(Size(st::historyRecordLockTopShadow.width()))
@@ -410,8 +412,10 @@ TTLButton::TTLButton(
 		}
 		auto text = rpl::conditional(
 			Core::App().settings().ttlVoiceClickTooltipHiddenValue(),
-			tr::lng_record_once_active_tooltip(
-				Ui::Text::RichLangValue),
+			(recordingVideo
+				? tr::lng_record_once_active_video
+				: tr::lng_record_once_active_tooltip)(
+					Ui::Text::RichLangValue),
 			tr::lng_record_once_first_tooltip(
 				Ui::Text::RichLangValue));
 		_tooltip.reset(Ui::CreateChild<Ui::ImportantTooltip>(
@@ -1624,7 +1628,8 @@ void VoiceRecordBar::init() {
 			if (!_ttlButton) {
 				_ttlButton = std::make_unique<TTLButton>(
 					_outerContainer,
-					_st);
+					_st,
+					_recordingVideo);
 			}
 			_ttlButton->show();
 		}
@@ -1659,6 +1664,7 @@ void VoiceRecordBar::init() {
 			}
 			_recordingTipRequire = crl::now();
 			_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
+			_ttlButton = nullptr;
 			_lock->setRecordingVideo(_recordingVideo);
 			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {

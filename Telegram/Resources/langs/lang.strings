@@ -3276,6 +3276,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_record_video_problem" = "Could not start video recording. Please check your camera.";
 "lng_record_once_first_tooltip" = "Click to set this message to **Play Once**.";
 "lng_record_once_active_tooltip" = "The recipient will be able to listen only once.";
+"lng_record_once_active_video" = "The recipient will be able to watch only once.";
 "lng_will_be_notified" = "Subscribers will be notified when you post.";
 "lng_wont_be_notified" = "Subscribers will receive a silent notification.";
 "lng_willbe_history" = "Select a chat to start messaging";
