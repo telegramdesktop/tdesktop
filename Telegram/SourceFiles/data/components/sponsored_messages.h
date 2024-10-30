@@ -104,10 +104,10 @@ public:
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
 	void clicked(const FullMsgId &fullId, bool isMedia, bool isFullscreen);
-	void fillTopBar(
+	[[nodiscard]] FullMsgId fillTopBar(
 		not_null<History*> history,
-		not_null<Ui::RpWidget*> widget,
-		Fn<void()> hide);
+		not_null<Ui::RpWidget*> widget);
+	[[nodiscard]] rpl::producer<> itemRemoved(const FullMsgId &);
 
 	[[nodiscard]] AppendResult append(not_null<History*> history);
 	void inject(
@@ -166,6 +166,8 @@ private:
 	base::flat_map<not_null<History*>, List> _data;
 	base::flat_map<not_null<History*>, Request> _requests;
 	base::flat_map<RandomId, Request> _viewRequests;
+
+	rpl::event_stream<FullMsgId> _itemRemoved;
 
 	rpl::lifetime _lifetime;
 

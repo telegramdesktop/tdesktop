@@ -7648,21 +7648,33 @@ void HistoryWidget::createSponsoredMessageBar() {
 		object_ptr<Ui::RpWidget>(this));
 
 	_sponsoredMessageBar->entity()->resizeToWidth(_scroll->width());
-	auto destruction = [this] {
-		if (_sponsoredMessageBar) {
-			_sponsoredMessageBar->toggle(false, anim::type::normal);
-			_sponsoredMessageBar->shownValue(
-			) | rpl::start_with_next([=](bool shown) {
-				if (!shown) {
-					_sponsoredMessageBar = nullptr;
-				}
-			}, _sponsoredMessageBar->lifetime());
-		}
-	};
-	session().sponsoredMessages().fillTopBar(
+	const auto maybeFullId = session().sponsoredMessages().fillTopBar(
 		_history,
-		_sponsoredMessageBar->entity(),
-		std::move(destruction));
+		_sponsoredMessageBar->entity());
+	session().sponsoredMessages().itemRemoved(
+		maybeFullId
+	) | rpl::start_with_next([this] {
+		_sponsoredMessageBar->shownValue() | rpl::filter(
+			!rpl::mappers::_1
+		) | rpl::start_with_next([this] {
+			_sponsoredMessageBar = nullptr;
+		}, _sponsoredMessageBar->lifetime());
+		_sponsoredMessageBar->toggle(false, anim::type::normal);
+	}, _sponsoredMessageBar->lifetime());
+
+	if (maybeFullId) {
+		const auto viewLifetime
+			= _sponsoredMessageBar->lifetime().make_state<rpl::lifetime>();
+		rpl::combine(
+			_sponsoredMessageBar->entity()->heightValue(),
+			_sponsoredMessageBar->heightValue()
+		) | rpl::filter(
+			rpl::mappers::_1 == rpl::mappers::_2
+		) | rpl::start_with_next([=] {
+			session().sponsoredMessages().view(maybeFullId);
+			viewLifetime->destroy();
+		}, *viewLifetime);
+	}
 
 	_sponsoredMessageBarHeight = 0;
 	_sponsoredMessageBar->heightValue(

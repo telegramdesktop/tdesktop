@@ -278,38 +278,52 @@ void SponsoredMessages::parse(
 	});
 }
 
-void SponsoredMessages::fillTopBar(
+FullMsgId SponsoredMessages::fillTopBar(
 		not_null<History*> history,
-		not_null<Ui::RpWidget*> widget,
-		Fn<void()> hide) {
+		not_null<Ui::RpWidget*> widget) {
+	const auto it = _data.find(history);
+	if (it != end(_data)) {
+		auto &list = it->second;
+		if (!list.entries.empty()) {
+			const auto &entry = list.entries.front();
+			const auto fullId = entry.itemFullId;
+			Ui::FillSponsoredMessageBar(
+				widget,
+				_session,
+				fullId,
+				entry.sponsored.from,
+				entry.sponsored.textWithEntities);
+			return fullId;
+		}
+	}
+	return {};
+}
+
+rpl::producer<> SponsoredMessages::itemRemoved(const FullMsgId &fullId) {
+	if (IsServerMsgId(fullId.msg) || !fullId) {
+		return rpl::never<>();
+	}
+	const auto history = _session->data().history(fullId.peer);
 	const auto it = _data.find(history);
 	if (it == end(_data)) {
-		return;
+		return rpl::never<>();
 	}
 	auto &list = it->second;
-	if (list.entries.empty()) {
-		return;
+	const auto entryIt = ranges::find_if(list.entries, [&](const Entry &e) {
+		return e.itemFullId == fullId;
+	});
+	if (entryIt == end(list.entries)) {
+		return rpl::never<>();
 	}
-	auto &entry = list.entries.front();
-	if (!entry.optionalDestructionNotifier) {
-		entry.optionalDestructionNotifier = std::make_unique<rpl::lifetime>();
+	if (!entryIt->optionalDestructionNotifier) {
+		entryIt->optionalDestructionNotifier
+			= std::make_unique<rpl::lifetime>();
+		entryIt->optionalDestructionNotifier->add([this, fullId] {
+			_itemRemoved.fire_copy(fullId);
+		});
 	}
-	const auto fullId = entry.itemFullId;
-	entry.optionalDestructionNotifier->add(std::move(hide));
-	Ui::FillSponsoredMessageBar(
-		widget,
-		_session,
-		fullId,
-		entry.sponsored.from,
-		entry.sponsored.textWithEntities);
-
-	const auto viewLifetime = widget->lifetime().make_state<rpl::lifetime>();
-	widget->shownValue() | rpl::filter(
-		rpl::mappers::_1
-	) | rpl::start_with_next([=, this](bool shown) {
-		view(fullId);
-		viewLifetime->destroy();
-	}, *viewLifetime);
+	return _itemRemoved.events(
+	) | rpl::filter(rpl::mappers::_1 == fullId) | rpl::to_empty;
 }
 
 void SponsoredMessages::append(
