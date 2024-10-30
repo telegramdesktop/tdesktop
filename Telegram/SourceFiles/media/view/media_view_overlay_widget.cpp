@@ -2264,16 +2264,27 @@ OverlayWidget::~OverlayWidget() {
 	_dropdown.destroy();
 }
 
+auto OverlayWidget::resolveQualities() const
+-> const std::vector<not_null<DocumentData*>> & {
+	static const auto empty = std::vector<not_null<DocumentData*>>();
+	const auto video = _document ? _document->video() : nullptr;
+	const auto media = _message ? _message->media() : nullptr;
+	if (!video || !media || media->document() != _document) {
+		return empty;
+	}
+	return media->hasQualitiesList() ? video->qualities : empty;
+}
+
 not_null<DocumentData*> OverlayWidget::chooseQuality() const {
 	Expects(_document != nullptr);
 
-	const auto video = _document->video();
-	if (!video || video->qualities.empty() || _quality == kOriginalQuality) {
+	const auto &list = resolveQualities();
+	if (list.empty() || _quality == kOriginalQuality) {
 		return _document;
 	}
 	auto closest = _document;
 	auto closestAbs = std::abs(_quality - _document->resolveVideoQuality());
-	for (const auto &quality : video->qualities) {
+	for (const auto &quality : list) {
 		const auto abs = std::abs(_quality - quality->resolveVideoQuality());
 		if (abs < closestAbs) {
 			closestAbs = abs;
@@ -4428,20 +4439,20 @@ float64 OverlayWidget::playbackControlsCurrentSpeed(bool lastNonDefault) {
 }
 
 std::vector<int> OverlayWidget::playbackControlsQualities() {
-	const auto video = _document ? _document->video() : nullptr;
-	if (!video || video->qualities.empty()) {
+	const auto &list = resolveQualities();
+	if (list.empty()) {
 		return {};
 	}
 	auto result = std::vector<int>();
-	result.reserve(video->qualities.size());
-	for (const auto &quality : video->qualities) {
+	result.reserve(list.size());
+	for (const auto &quality : list) {
 		result.push_back(quality->resolveVideoQuality());
 	}
 	return result;
 }
 
 int OverlayWidget::playbackControlsCurrentQuality() {
-	return _quality;
+	return _chosenQuality ? _chosenQuality->resolveVideoQuality() : _quality;
 }
 
 void OverlayWidget::playbackControlsQualityChanged(int quality) {

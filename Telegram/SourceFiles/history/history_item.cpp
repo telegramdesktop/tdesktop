@@ -297,12 +297,12 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			return nullptr;
 		}
 		return document->match([&](const MTPDdocument &document) -> Result {
+			const auto list = media.valt_documents();
 			return std::make_unique<Data::MediaFile>(
 				item,
-				item->history()->owner().processDocument(
-					document,
-					media.valt_documents()),
+				item->history()->owner().processDocument(document, list),
 				media.is_nopremium(),
+				list && !list->v.isEmpty(),
 				media.is_spoiler(),
 				media.vttl_seconds().value_or_empty());
 		}, [](const MTPDdocumentEmpty &) -> Result {
@@ -628,11 +628,13 @@ HistoryItem::HistoryItem(
 	createComponentsHelper(std::move(fields));
 
 	const auto skipPremiumEffect = !history->session().premium();
+	const auto video = document->video();
 	const auto spoiler = false;
 	_media = std::make_unique<Data::MediaFile>(
 		this,
 		document,
 		skipPremiumEffect,
+		video && !video->qualities.empty(),
 		spoiler,
 		/*ttlSeconds = */0);
 	setText(caption);
@@ -1789,6 +1791,7 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 			this,
 			document,
 			/*skipPremiumEffect=*/false,
+			/*hasQualitiesList=*/false,
 			spoiler,
 			/*ttlSeconds = */0);
 	}

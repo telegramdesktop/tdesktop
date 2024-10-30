@@ -551,6 +551,10 @@ DocumentData *Media::document() const {
 	return nullptr;
 }
 
+bool Media::hasQualitiesList() const {
+	return false;
+}
+
 PhotoData *Media::photo() const {
 	return nullptr;
 }
@@ -964,12 +968,14 @@ MediaFile::MediaFile(
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> document,
 	bool skipPremiumEffect,
+	bool hasQualitiesList,
 	bool spoiler,
 	crl::time ttlSeconds)
 : Media(parent)
 , _document(document)
 , _emoji(document->sticker() ? document->sticker()->alt : QString())
 , _skipPremiumEffect(skipPremiumEffect)
+, _hasQualitiesList(hasQualitiesList)
 , _spoiler(spoiler)
 , _ttlSeconds(ttlSeconds) {
 	parent->history()->owner().registerDocumentItem(_document, parent);
@@ -999,12 +1005,17 @@ std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
 		parent,
 		_document,
 		!_document->session().premium(),
+		_hasQualitiesList,
 		_spoiler,
 		_ttlSeconds);
 }
 
 DocumentData *MediaFile::document() const {
 	return _document;
+}
+
+bool MediaFile::hasQualitiesList() const {
+	return _hasQualitiesList;
 }
 
 bool MediaFile::uploading() const {

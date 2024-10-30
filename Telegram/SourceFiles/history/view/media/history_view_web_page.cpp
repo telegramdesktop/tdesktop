@@ -74,11 +74,13 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 	const auto spoiler = false;
 	for (const auto &item : data.items) {
 		if (const auto document = std::get_if<DocumentData*>(&item)) {
+			const auto hasQualitiesList = false;
 			const auto skipPremiumEffect = false;
 			result.push_back(std::make_unique<Data::MediaFile>(
 				parent,
 				*document,
 				skipPremiumEffect,
+				hasQualitiesList,
 				spoiler,
 				/*ttlSeconds = */0));
 		} else if (const auto photo = std::get_if<PhotoData*>(&item)) {

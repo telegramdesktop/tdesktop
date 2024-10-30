@@ -295,6 +295,7 @@ void AddViewMediaHandler(
 				state->item,
 				owner->document(item.id),
 				true, // skipPremiumEffect
+				false, // hasQualitiesList
 				false, // spoiler
 				0)); // ttlSeconds
 		}

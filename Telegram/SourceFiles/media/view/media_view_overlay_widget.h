@@ -528,6 +528,8 @@ private:
 	[[nodiscard]] bool canInitStreaming() const;
 	[[nodiscard]] bool saveControlLocked() const;
 	[[nodiscard]] not_null<DocumentData*> chooseQuality() const;
+	[[nodiscard]] auto resolveQualities() const
+		-> const std::vector<not_null<DocumentData*>> &;
 
 	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();
