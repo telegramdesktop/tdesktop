@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_peer_menu.h"
 
-#include "api/api_report.h"
 #include "menu/menu_check_item.h"
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
@@ -38,10 +37,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_contact_box.h"
 #include "calls/calls_instance.h"
 #include "inline_bots/bot_attach_web_view.h" // InlineBots::PeerType.
-#include "ui/boxes/report_box_graphics.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/chat_filters_tabs_strip.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
@@ -2053,7 +2052,39 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	const auto state = [&] {
 		auto controller = std::make_unique<Controller>(session);
 		const auto controllerRaw = controller.get();
-		auto box = Box<ListBox>(std::move(controller), nullptr);
+		auto init = [=](not_null<PeerListBox*> box) {
+			box->setIgnoreHiddenRowsOnSearch(true);
+			auto applyFilter = [=](FilterId id) {
+				box->scrollToY(0);
+				const auto &list = session->data().chatsFilters().list();
+				const auto filter = ranges::find(
+					list,
+					id,
+					&Data::ChatFilter::id);
+				if (filter == list.end()) {
+					return;
+				}
+				box->peerListPartitionRows([&](const PeerListRow &row) {
+					const auto rowPtr = const_cast<PeerListRow*>(&row);
+					if (!filter->id()) {
+						box->peerListSetRowHidden(rowPtr, false);
+					} else {
+						const auto result = filter->contains(
+							session->data().history(row.peer()));
+						box->peerListSetRowHidden(rowPtr, !result);
+					}
+					return false;
+				});
+				box->peerListRefreshRows();
+			};
+			Ui::AddChatFiltersTabsStrip(
+				box,
+				session,
+				box->multiSelectHeightValue(),
+				[=](int height) { box->setAddedTopScrollSkip(height); },
+				std::move(applyFilter));
+		};
+		auto box = Box<ListBox>(std::move(controller), std::move(init));
 		const auto boxRaw = box.data();
 		boxRaw->setForwardOptions({
 			.sendersCount = sendersCount,
