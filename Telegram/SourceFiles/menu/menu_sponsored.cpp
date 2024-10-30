@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -241,28 +240,18 @@ void AboutBox(
 				width - top->width() - st::defaultScrollArea.width,
 				0);
 		}, top->lifetime());
-		using MenuPtr = base::unique_qptr<Ui::DropdownMenu>;
+		using MenuPtr = base::unique_qptr<Ui::PopupMenu>;
 		const auto menu = top->lifetime().make_state<MenuPtr>();
 		top->setClickedCallback([=] {
-			if (const auto raw = menu->get()) {
-				raw->hideAnimated();
-				return true;
-			}
-			*menu = base::make_unique_q<Ui::DropdownMenu>(
+			*menu = base::make_unique_q<Ui::PopupMenu>(
 				box->window(),
-				st::dropdownMenuWithIcons);
+				st::popupMenuWithIcons);
 			const auto raw = menu->get();
-			top->installEventFilter(raw);
-			raw->setHiddenCallback([=] {
-				raw->deleteLater();
-				top->setForceRippled(false);
-			});
-			raw->setShowStartCallback([=] {
-				top->setForceRippled(true);
-			});
-			raw->setHideStartCallback([=] {
-				top->setForceRippled(false);
-			});
+			raw->animatePhaseValue(
+			) | rpl::start_with_next([=](Ui::PopupMenu::AnimatePhase phase) {
+				top->setForceRippled(phase == Ui::PopupMenu::AnimatePhase::Shown
+					|| phase == Ui::PopupMenu::AnimatePhase::StartShow);
+			}, top->lifetime());
 			FillSponsored(
 				top,
 				Ui::Menu::CreateAddActionCallback(menu->get()),
@@ -270,14 +259,13 @@ void AboutBox(
 				fullId,
 				false,
 				true);
-			const auto global = box->mapToGlobal(
+			const auto global = top->mapToGlobal(
+				QPoint(top->width() / 4 * 3, top->height() / 2));
+			raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+			raw->popup(
 				QPoint(
-					st::defaultScrollArea.width - st::lineWidth * 2,
-					top->height() / 2));
-			const auto local = box->window()->mapFromGlobal(global);
-			raw->moveToRight(local.x(), local.y());
-			raw->raise();
-			raw->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+					global.x(),
+					std::max(global.y(), QCursor::pos().y())));
 			return true;
 		});
 	}
