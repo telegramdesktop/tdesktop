@@ -2751,8 +2751,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			? link->copyToClipboardContextItemText()
 			: QString();
 
-		if (item && item->isSponsored()) {
-			FillSponsoredMessagesMenu(controller, item->fullId(), _menu);
+		const auto sponsored = (item && item->isSponsored())
+			? item
+			: (Element::Moused() && Element::Moused()->data()->isSponsored())
+			? Element::Moused()->data()
+			: nullptr;
+		if (sponsored) {
+			FillSponsoredMessagesMenu(controller, sponsored->fullId(), _menu);
 		}
 		if (isUponSelected > 0) {
 			addReplyAction(item);
@@ -2860,7 +2865,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				HistoryView::CopyPostLink(controller, itemId, HistoryView::Context::History);
 			}, &st::menuIconLink);
 		}
-		if (item && item->isSponsored()) {
+		if (sponsored) {
 			if (!_menu->empty()) {
 				_menu->addSeparator(&st::expandedMenuSeparator);
 			}
