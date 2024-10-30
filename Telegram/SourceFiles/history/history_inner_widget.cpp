@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
-#include "api/api_report.h"
 #include "history/view/controls/history_view_draft_options.h"
 #include "boxes/moderate_messages_box.h"
 #include "history/view/media/history_view_sticker.h"
@@ -36,12 +35,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/effects/reaction_fly_animation.h"
-#include "ui/text/text_options.h"
 #include "ui/text/text_isolated_emoji.h"
-#include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_factcheck_box.h"
 #include "ui/boxes/report_box_graphics.h"
-#include "ui/layers/generic_box.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/inactive_press.h"
 #include "ui/painter.h"
@@ -57,7 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
-#include "boxes/premium_preview_box.h"
 #include "boxes/translate_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -72,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "menu/menu_item_download_files.h"
+#include "menu/menu_sponsored.h"
 #include "core/application.h"
 #include "apiwrap.h"
 #include "api/api_attached_stickers.h"
@@ -133,60 +129,6 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 		? Data::CanSendAnything(topic)
 		: (Data::CanSendAnything(peer)
 			&& (!peer->isChannel() || peer->asChannel()->amIn()));
-}
-
-void FillSponsoredMessagesMenu(
-		not_null<Window::SessionController*> controller,
-		FullMsgId itemId,
-		not_null<Ui::PopupMenu*> menu) {
-	const auto &data = controller->session().sponsoredMessages();
-	const auto info = data.lookupDetails(itemId).info;
-	const auto show = controller->uiShow();
-	if (!info.empty()) {
-		auto fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
-			const auto allText = ranges::accumulate(
-				info,
-				TextWithEntities(),
-				[](TextWithEntities a, TextWithEntities b) {
-					return a.text.isEmpty() ? b : a.append('\n').append(b);
-				}).text;
-			const auto callback = [=] {
-				QGuiApplication::clipboard()->setText(allText);
-				show->showToast(tr::lng_text_copied(tr::now));
-			};
-			for (const auto &i : info) {
-				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
-					menu,
-					st::defaultMenu,
-					st::historySponsorInfoItem,
-					st::historyHasCustomEmojiPosition,
-					base::duplicate(i));
-				item->clicks(
-				) | rpl::start_with_next(callback, menu->lifetime());
-				menu->addAction(std::move(item));
-				if (i != info.back()) {
-					menu->addSeparator();
-				}
-			}
-		};
-		using namespace Ui::Menu;
-		CreateAddActionCallback(menu)(MenuCallback::Args{
-			.text = tr::lng_sponsored_info_menu(tr::now),
-			.handler = nullptr,
-			.icon = &st::menuIconChannel,
-			.fillSubmenu = std::move(fillSubmenu),
-		});
-		menu->addSeparator(&st::expandedMenuSeparator);
-	}
-	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
-		if (controller->session().premium()) {
-			using Result = Data::SponsoredReportResult;
-			controller->session().sponsoredMessages().createReportCallback(
-				itemId)(Result::Id("-1"), [](const auto &) {});
-		} else {
-			ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
-		}
-	}, &st::menuIconCancel);
 }
 
 } // namespace
@@ -2757,7 +2699,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			? Element::Moused()->data()
 			: nullptr;
 		if (sponsored) {
-			FillSponsoredMessagesMenu(controller, sponsored->fullId(), _menu);
+			Menu::FillSponsored(
+				this,
+				Ui::Menu::CreateAddActionCallback(_menu),
+				controller->uiShow(),
+				sponsored->fullId(),
+				false);
 		}
 		if (isUponSelected > 0) {
 			addReplyAction(item);
@@ -2866,21 +2813,29 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}, &st::menuIconLink);
 		}
 		if (sponsored) {
-			if (!_menu->empty()) {
-				_menu->addSeparator(&st::expandedMenuSeparator);
+			const auto hasAbout = ranges::any_of(
+				_menu->actions(),
+				[about = tr::lng_sponsored_menu_revenued_about(tr::now)](
+						const QAction *action) {
+					return action->text() == about;
+				});
+			if (!hasAbout) {
+				if (!_menu->empty()) {
+					_menu->addSeparator(&st::expandedMenuSeparator);
+				}
+				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
+					_menu,
+					st::menuWithIcons,
+					st::historyHasCustomEmoji,
+					st::historySponsoredAboutMenuLabelPosition,
+					TextWithEntities{ tr::lng_sponsored_title(tr::now) },
+					&st::menuIconInfo);
+				item->clicks(
+				) | rpl::start_with_next([=] {
+					controller->show(Box(Ui::AboutSponsoredBox));
+				}, item->lifetime());
+				_menu->addAction(std::move(item));
 			}
-			auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
-				_menu,
-				st::menuWithIcons,
-				st::historyHasCustomEmoji,
-				st::historySponsoredAboutMenuLabelPosition,
-				TextWithEntities{ tr::lng_sponsored_title(tr::now) },
-				&st::menuIconInfo);
-			item->clicks(
-			) | rpl::start_with_next([=] {
-				controller->show(Box(Ui::AboutSponsoredBox));
-			}, item->lifetime());
-			_menu->addAction(std::move(item));
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
@@ -364,24 +365,65 @@ void FillSponsored(
 		bool mediaViewer,
 		bool skipAbout) {
 	const auto session = &show->session();
+	const auto details = session->sponsoredMessages().lookupDetails(fullId);
+	const auto &info = details.info;
 
-	if (!skipAbout) {
-		addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
-			show->show(Box(AboutBox, show, fullId));
-		}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
+	if (!mediaViewer && !details.info.empty()) {
+		auto fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
+			const auto allText = ranges::accumulate(
+				details.info,
+				TextWithEntities(),
+				[](TextWithEntities a, TextWithEntities b) {
+					return a.text.isEmpty() ? b : a.append('\n').append(b);
+				}).text;
+			const auto callback = [=] {
+				TextUtilities::SetClipboardText({ allText });
+				show->showToast(tr::lng_text_copied(tr::now));
+			};
+			for (const auto &i : details.info) {
+				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
+					menu,
+					st::defaultMenu,
+					st::historySponsorInfoItem,
+					st::historyHasCustomEmojiPosition,
+					base::duplicate(i));
+				item->clicks(
+				) | rpl::start_with_next(callback, menu->lifetime());
+				menu->addAction(std::move(item));
+				if (i != details.info.back()) {
+					menu->addSeparator();
+				}
+			}
+		};
+		addAction({
+			.text = tr::lng_sponsored_info_menu(tr::now),
+			.handler = nullptr,
+			.icon = &st::menuIconChannel,
+			.fillSubmenu = std::move(fillSubmenu),
+		});
+		addAction({
+			.separatorSt = &st::expandedMenuSeparator,
+			.isSeparator = true,
+		});
 	}
+	if (details.canReport) {
+		if (!skipAbout) {
+			addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
+				show->show(Box(AboutBox, show, fullId));
+			}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
+		}
 
-	addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
-		ShowReportSponsoredBox(show, fullId);
-	}, (mediaViewer ? &st::mediaMenuIconBlock : &st::menuIconBlock));
+		addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
+			ShowReportSponsoredBox(show, fullId);
+		}, (mediaViewer ? &st::mediaMenuIconBlock : &st::menuIconBlock));
 
-	addAction({
-		.separatorSt = (mediaViewer
-			? &st::mediaviewMenuSeparator
-			: &st::expandedMenuSeparator),
-		.isSeparator = true,
-	});
-
+		addAction({
+			.separatorSt = (mediaViewer
+				? &st::mediaviewMenuSeparator
+				: &st::expandedMenuSeparator),
+			.isSeparator = true,
+		});
+	}
 	addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
 		if (session->premium()) {
 			using Result = Data::SponsoredReportResult;
