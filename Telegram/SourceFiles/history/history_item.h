@@ -429,6 +429,7 @@ public:
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool forbidsSaving() const;
 	[[nodiscard]] bool allowsSendNow() const;
+	[[nodiscard]] bool allowsReschedule() const;
 	[[nodiscard]] bool allowsForward() const;
 	[[nodiscard]] bool allowsEdit(TimeId now) const;
 	[[nodiscard]] bool allowsEditMedia() const;

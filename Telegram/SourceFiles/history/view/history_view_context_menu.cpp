@@ -522,7 +522,7 @@ bool AddRescheduleAction(
 	const auto owner = &request.navigation->session().data();
 
 	const auto goodSingle = HasEditMessageAction(request, list)
-		&& request.item->isScheduled();
+		&& request.item->allowsReschedule();
 	const auto goodMany = [&] {
 		if (goodSingle) {
 			return false;
@@ -534,7 +534,7 @@ bool AddRescheduleAction(
 		if (items.size() > kRescheduleLimit) {
 			return false;
 		}
-		return ranges::all_of(items, &SelectedItem::canSendNow);
+		return ranges::all_of(items, &SelectedItem::canReschedule);
 	}();
 	if (!goodSingle && !goodMany) {
 		return false;

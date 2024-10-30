@@ -2212,6 +2212,10 @@ bool HistoryItem::allowsSendNow() const {
 		&& !isEditingMedia();
 }
 
+bool HistoryItem::allowsReschedule() const {
+	return allowsSendNow() && !awaitingVideoProcessing();
+}
+
 bool HistoryItem::allowsForward() const {
 	return !isService()
 		&& isRegular()
@@ -2236,7 +2240,8 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 }
 
 bool HistoryItem::allowsEditMedia() const {
-	return !_media || _media->allowsEditMedia();
+	return !awaitingVideoProcessing()
+		&& (!_media || _media->allowsEditMedia());
 }
 
 bool HistoryItem::canBeEdited() const {

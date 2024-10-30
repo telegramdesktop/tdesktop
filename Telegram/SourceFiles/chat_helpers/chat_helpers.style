@@ -1521,17 +1521,17 @@ sendGifBox: Box(defaultBox) {
 }
 
 processingVideoTipMaxWidth: 364px;
-processingVideoTipShift: 10px;
+processingVideoTipShift: 8px;
 processingVideoToast: Toast(defaultToast) {
 	minWidth: 32px;
 	maxWidth: 380px;
-	padding: margins(19px, 17px, 19px, 16px);
+	padding: margins(19px, 17px, 19px, 17px);
 }
-processingVideoPreviewSkip: 0px;
+processingVideoPreviewSkip: 8px;
 processingVideoView: RoundButton(defaultActiveButton) {
 	width: -24px;
-	height: 68px;
-	textTop: 26px;
+	height: 52px;
+	textTop: 17px;
 	textFg: mediaviewTextLinkFg;
 	textFgOver: mediaviewTextLinkFg;
 	textBg: transparent;

@@ -80,6 +80,7 @@ struct SelectedItem {
 	bool canDelete = false;
 	bool canForward = false;
 	bool canSendNow = false;
+	bool canReschedule = false;
 };
 
 struct MessagesBar {
@@ -232,6 +233,7 @@ struct SelectionData {
 	bool canDelete = false;
 	bool canForward = false;
 	bool canSendNow = false;
+	bool canReschedule = false;
 };
 
 using SelectedMap = base::flat_map<
