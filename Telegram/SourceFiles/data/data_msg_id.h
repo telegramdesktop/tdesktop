@@ -156,6 +156,18 @@ struct FullMsgId {
 	MsgId msg = 0;
 };
 
+#ifdef _DEBUG
+inline QDebug operator<<(QDebug debug, const FullMsgId &fullMsgId) {
+	debug.nospace()
+		<< "FullMsgId(peer: "
+		<< fullMsgId.peer.value
+		<< ", msg: "
+		<< fullMsgId.msg.bare
+		<< ")";
+	return debug;
+}
+#endif // _DEBUG
+
 Q_DECLARE_METATYPE(FullMsgId);
 
 struct FullReplyTo {
