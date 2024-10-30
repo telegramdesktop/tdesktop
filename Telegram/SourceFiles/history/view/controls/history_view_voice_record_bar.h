@@ -208,6 +208,7 @@ private:
 	std::vector<std::unique_ptr<Ui::RoundVideoRecorder>> _videoHiding;
 	rpl::lifetime _videoCapturerLifetime;
 	bool _recordingVideo = false;
+	bool _fullRecord = false;
 
 	const style::font &_cancelFont;
 
