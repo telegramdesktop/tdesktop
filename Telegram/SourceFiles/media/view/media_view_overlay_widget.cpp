@@ -332,6 +332,7 @@ struct OverlayWidget::Streamed {
 	std::unique_ptr<PlaybackControls> controls;
 	std::unique_ptr<base::PowerSaveBlocker> powerSaveBlocker;
 
+	bool ready = false;
 	bool withSound = false;
 	bool pausedBySeek = false;
 	bool resumeOnCallEnd = false;
@@ -1107,7 +1108,9 @@ bool OverlayWidget::showCopyMediaRestriction(bool skipPRemiumCheck) {
 }
 
 bool OverlayWidget::videoShown() const {
-	return _streamed && !_streamed->instance.info().video.cover.isNull();
+	return _streamed
+		&& _streamed->ready
+		&& !_streamed->instance.info().video.cover.isNull();
 }
 
 QSize OverlayWidget::videoSize() const {
@@ -3951,6 +3954,7 @@ void OverlayWidget::initStreamingThumbnail() {
 }
 
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
+	_streamed->ready = true;
 	if (videoShown()) {
 		applyVideoSize();
 		_streamedQualityChangeFrame = QImage();
