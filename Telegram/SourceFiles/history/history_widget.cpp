@@ -4429,7 +4429,6 @@ void HistoryWidget::showAnimated(
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
-	checkSponsoredMessageBar();
 	if (_translateBar) {
 		_translateBar->finishAnimating();
 	}
@@ -4501,6 +4500,7 @@ void HistoryWidget::doneShow() {
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
+	checkSponsoredMessageBar();
 	if (_sponsoredMessageBar) {
 		_sponsoredMessageBar->finishAnimating();
 	}
@@ -7628,13 +7628,15 @@ void HistoryWidget::requestSponsoredMessageBar() {
 }
 
 void HistoryWidget::checkSponsoredMessageBar() {
-	if (!_history) {
+	if (!_history || !session().sponsoredMessages().isTopBarFor(_history)) {
 		return;
 	}
 	const auto state = session().sponsoredMessages().state(_history);
 	if (state == Data::SponsoredMessages::State::AppendToTopBar) {
 		if (checkSponsoredMessageBarVisibility()) {
-			createSponsoredMessageBar();
+			if (!_sponsoredMessageBar) {
+				createSponsoredMessageBar();
+			}
 			_sponsoredMessageBar->toggle(true, anim::type::instant);
 		}
 	}
