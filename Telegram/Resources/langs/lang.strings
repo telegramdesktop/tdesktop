@@ -3961,6 +3961,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_webview_no_use" = "Unfortunately, you can't use payments with current system configuration.";
 "lng_payments_webview_install_edge" = "Please install {link}.";
 "lng_payments_webview_install_webkit" = "Please install WebKitGTK (webkit2gtk-4.1/webkit2gtk-4.0) using your package manager.";
+"lng_payments_webview_enable_opengl" = "Please enable OpenGL in application settings.";
 "lng_payments_webview_update_windows" = "Please update your system to Windows 8.1 or later.";
 "lng_payments_sure_close" = "Are you sure you want to close this payment form? The changes you made will be lost.";
 "lng_payments_receipt_label" = "Receipt";
