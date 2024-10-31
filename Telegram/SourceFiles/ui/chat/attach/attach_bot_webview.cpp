@@ -712,6 +712,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			view->setGeometry(geometry.marginsRemoved({ 0, 0, 0, footer }));
 			crl::on_main(view, [=] {
 				sendViewport();
+				InvokeQueued(view, [=] { sendViewport(); });
 			});
 		}
 	}, _webview->lifetime);
