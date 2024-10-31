@@ -83,7 +83,7 @@ public:
 
 		AbstractButton::setDisabled(true);
 
-		const auto processTooltip = [=, this](not_null<Ui::RpWidget*> w) {
+		const auto processTooltip = [=](not_null<Ui::RpWidget*> w) {
 			w->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 				if (e->type() == QEvent::Enter) {
 					Ui::Tooltip::Show(1000, this);
@@ -171,7 +171,7 @@ public:
 		rpl::combine(
 			sizeValue(),
 			reset->sizeValue()
-		) | rpl::start_with_next([=, this](const QSize &size, const QSize &) {
+		) | rpl::start_with_next([=](const QSize &size, const QSize &) {
 			reset->setFullWidth(0
 				+ resetLabel->width()
 				+ st::ivResetZoomInnerPadding);
@@ -658,7 +658,7 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 			_delegate->ivSetZoom(value);
 		}, lifetime());
 		_delegate->ivZoomValue(
-		) | rpl::start_with_next([=, this](int value) {
+		) | rpl::start_with_next([=](int value) {
 			webviewZoomController->setZoom(value);
 		}, lifetime());
 	}

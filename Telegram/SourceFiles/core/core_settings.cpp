@@ -93,13 +93,15 @@ void LogPosition(const WindowPosition &position, const QString &name) {
 [[nodiscard]] quint32 SerializeVideoQuality(Media::VideoQuality quality) {
 	static_assert(sizeof(Media::VideoQuality) == sizeof(uint32));
 	auto result = uint32();
-	memcpy(&result, &quality, sizeof(quality));
+	const auto data = static_cast<const void*>(&quality);
+	memcpy(&result, data, sizeof(quality));
 	return result;
 }
 
 [[nodiscard]] Media::VideoQuality DeserializeVideoQuality(quint32 value) {
 	auto result = Media::VideoQuality();
-	memcpy(&result, &value, sizeof(result));
+	const auto data = static_cast<void*>(&result);
+	memcpy(data, &value, sizeof(result));
 	return (result.height <= 4320) ? result : Media::VideoQuality();
 }
 

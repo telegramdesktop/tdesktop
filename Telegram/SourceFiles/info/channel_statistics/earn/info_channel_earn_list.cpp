@@ -368,7 +368,7 @@ void InnerWidget::fill() {
 	);
 
 	auto creditsStateValue = bot
-		? rpl::single(Data::CreditsEarnStatistics())
+		? rpl::single(Data::CreditsEarnStatistics()) | rpl::type_erased()
 		: rpl::single(creditsData) | rpl::then(
 			_stateUpdated.events(
 			) | rpl::map([this] { return _state.creditsEarn; })
