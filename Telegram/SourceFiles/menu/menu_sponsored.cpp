@@ -368,10 +368,10 @@ void FillSponsored(
 	const auto details = session->sponsoredMessages().lookupDetails(fullId);
 	const auto &info = details.info;
 
-	if (!mediaViewer && !details.info.empty()) {
+	if (!mediaViewer && !info.empty()) {
 		auto fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
 			const auto allText = ranges::accumulate(
-				details.info,
+				info,
 				TextWithEntities(),
 				[](TextWithEntities a, TextWithEntities b) {
 					return a.text.isEmpty() ? b : a.append('\n').append(b);
@@ -380,7 +380,7 @@ void FillSponsored(
 				TextUtilities::SetClipboardText({ allText });
 				show->showToast(tr::lng_text_copied(tr::now));
 			};
-			for (const auto &i : details.info) {
+			for (const auto &i : info) {
 				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
 					menu,
 					st::defaultMenu,

@@ -2696,7 +2696,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto sponsored = (item && item->isSponsored())
 			? item
 			: (Element::Moused() && Element::Moused()->data()->isSponsored())
-			? Element::Moused()->data()
+			? Element::Moused()->data().get()
 			: nullptr;
 		if (sponsored) {
 			Menu::FillSponsored(
