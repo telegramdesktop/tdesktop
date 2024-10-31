@@ -97,6 +97,7 @@ private:
 	void saveSpeed(float64 speed);
 
 	void saveQuality(int quality);
+	void updateSpeedToggleQuality();
 
 	const not_null<Delegate*> _delegate;
 
