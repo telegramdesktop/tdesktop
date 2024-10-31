@@ -2902,7 +2902,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			HistoryView::EmojiPacksSource::Message,
 			_controller);
 		const auto added = (_menu->actions().size() > wasAmount);
-		if (!added) {
+		if (!added && !_menu->empty()) {
 			_menu->addSeparator();
 		}
 		HistoryView::AddSelectRestrictionAction(
@@ -2916,7 +2916,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			this,
 			leaderOrSelf,
 			_controller);
-	} else {
+	} else if (leaderOrSelf) {
 		HistoryView::MaybeAddWhenEditedAction(_menu, leaderOrSelf);
 	}
 
