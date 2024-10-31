@@ -6,11 +6,17 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#if defined(__has_include) && __has_include(<winres.h>)
-    #include <winres.h>
+#if defined(__MINGW64__) || defined(__MINGW32__)
+	// MinGW-w64, MinGW
+	#if defined(__has_include) && __has_include(<winres.h>)
+		#include <winres.h>
+	#else
+		#include <afxres.h>
+		#include <winresrc.h>
+	#endif
 #else
-    #include <afxres.h>
-    #include <winresrc.h>
+	// MSVC, Windows SDK
+	#include <winres.h>
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
