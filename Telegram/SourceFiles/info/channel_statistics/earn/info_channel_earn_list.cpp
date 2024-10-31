@@ -374,6 +374,7 @@ void InnerWidget::fill() {
 			) | rpl::map([this] { return _state.creditsEarn; })
 		);
 
+	constexpr auto kMinorLength = 3;
 	constexpr auto kMinus = QChar(0x2212);
 	//constexpr auto kApproximately = QChar(0x2248);
 	const auto multiplier = data.usdRate;
@@ -381,7 +382,7 @@ void InnerWidget::fill() {
 	const auto creditsToUsdMap = [=](EarnInt c) {
 		const auto creditsMultiplier = _state.creditsEarn.usdRate
 			* Data::kEarnMultiplier;
-		return c ? ToUsd(c, creditsMultiplier) : QString();
+		return c ? ToUsd(c, creditsMultiplier, 0) : QString();
 	};
 
 	const auto session = &_peer->session();
@@ -715,14 +716,18 @@ void InnerWidget::fill() {
 				{});
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				rpl::duplicate(currencyValue) | rpl::map(MinorPart),
+				rpl::duplicate(currencyValue) | rpl::map([=](EarnInt v) {
+					return MinorPart(v).left(kMinorLength);
+				}),
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				std::move(
 					currencyValue
 				) | rpl::map([=](EarnInt value) {
-					return value ? ToUsd(value, multiplier) : QString();
+					return value
+						? ToUsd(value, multiplier, kMinorLength)
+						: QString();
 				}),
 				st::channelEarnOverviewSubMinorLabel);
 
@@ -883,7 +888,7 @@ void InnerWidget::fill() {
 				container,
 				object_ptr<Ui::FlatLabel>(
 					container,
-					ToUsd(value, multiplier),
+					ToUsd(value, multiplier, 0),
 					st::channelEarnOverviewSubMinorLabel)));
 
 		Ui::AddSkip(container);

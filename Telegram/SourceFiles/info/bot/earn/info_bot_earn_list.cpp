@@ -116,6 +116,7 @@ void InnerWidget::fill() {
 	const auto container = this;
 	const auto &data = _state;
 	const auto multiplier = data.usdRate * Data::kEarnMultiplier;
+	constexpr auto kMinorLength = 3;
 
 	auto availableBalanceValue = rpl::single(
 		data.availableBalance
@@ -166,7 +167,7 @@ void InnerWidget::fill() {
 				std::move(
 					value
 				) | rpl::map([=](uint64 v) {
-					return v ? ToUsd(v, multiplier) : QString();
+					return v ? ToUsd(v, multiplier, kMinorLength) : QString();
 				}),
 				st::channelEarnOverviewSubMinorLabel);
 			rpl::combine(
@@ -243,7 +244,7 @@ void InnerWidget::fill() {
 				return !dt.isNull() || (!_state.isWithdrawalEnabled);
 			}),
 			rpl::duplicate(availableBalanceValue) | rpl::map([=](uint64 v) {
-				return v ? ToUsd(v, multiplier) : QString();
+				return v ? ToUsd(v, multiplier, kMinorLength) : QString();
 			}));
 	}
 
