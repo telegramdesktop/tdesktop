@@ -132,7 +132,7 @@ public:
 		Fn<float64(bool lastNonDefault)> value,
 		Fn<void(float64)> change,
 		std::vector<int> qualities = {},
-		Fn<int()> quality = nullptr,
+		Fn<VideoQuality()> quality = nullptr,
 		Fn<void(int)> changeQuality = nullptr);
 
 	[[nodiscard]] rpl::producer<> saved() const;
@@ -146,7 +146,7 @@ private:
 	[[nodiscard]] float64 lastNonDefaultSpeed() const;
 	void toggleDefault();
 	void setSpeed(float64 newSpeed);
-	void setQuality(int quality);
+	void setQuality(VideoQuality quality);
 	void save();
 
 	const style::MediaSpeedButton &_st;
@@ -158,9 +158,9 @@ private:
 	rpl::event_stream<> _saved;
 
 	std::vector<int> _qualities;
-	Fn<int()> _lookupQuality;
+	Fn<VideoQuality()> _lookupQuality;
 	Fn<void(int)> _changeQuality;
-	rpl::variable<int> _quality;
+	rpl::variable<VideoQuality> _quality;
 
 };
 

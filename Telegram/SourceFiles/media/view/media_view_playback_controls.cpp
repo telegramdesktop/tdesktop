@@ -73,9 +73,10 @@ PlaybackControls::PlaybackControls(
 	_speedToggle->setSpeed(_speedControllable
 		? _delegate->playbackControlsCurrentSpeed(false)
 		: 1.);
-	_speedToggle->setQuality(_qualitiesList.empty()
+	const auto quality = _delegate->playbackControlsCurrentQuality();
+	_speedToggle->setQuality((_qualitiesList.empty() || !quality.manual)
 		? 0
-		: _delegate->playbackControlsCurrentQuality());
+		: quality.height);
 
 	if (const auto controller = _speedController.get()) {
 		controller->menuToggledValue(

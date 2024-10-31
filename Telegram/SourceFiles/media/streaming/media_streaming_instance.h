@@ -35,6 +35,12 @@ public:
 		Data::FileOrigin origin,
 		Fn<void()> waitingCallback);
 	Instance(
+		not_null<DocumentData*> quality,
+		not_null<DocumentData*> original,
+		HistoryItem *context,
+		Data::FileOrigin origin,
+		Fn<void()> waitingCallback);
+	Instance(
 		not_null<PhotoData*> photo,
 		Data::FileOrigin origin,
 		Fn<void()> waitingCallback);
@@ -45,6 +51,7 @@ public:
 
 	[[nodiscard]] const Player &player() const;
 	[[nodiscard]] const Information &info() const;
+	[[nodiscard]] rpl::producer<int> switchQualityRequests() const;
 
 	void play(const PlaybackOptions &options);
 	void pause();

@@ -17,9 +17,6 @@ inline constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 inline constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
 inline constexpr auto kDurationUnavailable = std::numeric_limits<crl::time>::max();
 
-inline constexpr auto kOriginalQuality = 0;
-inline constexpr auto kAutoQuality = -1;
-
 namespace Audio {
 bool SupportsSpeedControl();
 } // namespace Audio
@@ -96,6 +93,11 @@ struct WaitingForData {
 	bool waiting = false;
 };
 
+struct SpeedEstimate {
+	int bytesPerSecond = 0;
+	bool unreliable = false;
+};
+
 struct MutedByOther {
 };
 
@@ -110,6 +112,7 @@ struct Update {
 		PreloadedAudio,
 		UpdateAudio,
 		WaitingForData,
+		SpeedEstimate,
 		MutedByOther,
 		Finished> data;
 };

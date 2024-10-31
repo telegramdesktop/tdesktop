@@ -150,14 +150,15 @@ void ItemSingleMediaPreview::setupStreamedPreview(
 void ItemSingleMediaPreview::handleStreamingUpdate(Update &&update) {
 	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
-	}, [&](const PreloadedVideo &update) {
-	}, [&](const UpdateVideo &update) {
+	}, [](PreloadedVideo) {
+	}, [&](UpdateVideo) {
 		this->update();
-	}, [&](const PreloadedAudio &update) {
-	}, [&](const UpdateAudio &update) {
-	}, [&](const WaitingForData &update) {
-	}, [&](MutedByOther) {
-	}, [&](Finished) {
+	}, [](PreloadedAudio) {
+	}, [](UpdateAudio) {
+	}, [](WaitingForData) {
+	}, [](SpeedEstimate) {
+	}, [](MutedByOther) {
+	}, [](Finished) {
 	});
 }
 

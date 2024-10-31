@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
+#include "media/media_common.h"
 
 namespace Ui {
 class LabelSimple;
@@ -46,7 +47,8 @@ public:
 			bool lastNonDefault) = 0;
 		[[nodiscard]] virtual auto playbackControlsQualities()
 			-> std::vector<int> = 0;
-		[[nodiscard]] virtual int playbackControlsCurrentQuality() = 0;
+		[[nodiscard]] virtual auto playbackControlsCurrentQuality()
+			-> VideoQuality = 0;
 		virtual void playbackControlsQualityChanged(int quality) = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;

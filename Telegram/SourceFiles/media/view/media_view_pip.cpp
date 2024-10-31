@@ -1532,21 +1532,22 @@ void Pip::paintVolumeControllerContent(
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	using namespace Streaming;
 
-	v::match(update.data, [&](Information &update) {
+	v::match(update.data, [&](const Information &update) {
 		_panel.setAspectRatio(
 			FlipSizeByRotation(update.video.size, _rotation));
-	}, [&](const PreloadedVideo &update) {
+	}, [&](PreloadedVideo) {
 		updatePlaybackState();
-	}, [&](const UpdateVideo &update) {
+	}, [&](UpdateVideo) {
 		_panel.update();
 		Core::App().updateNonIdle();
 		updatePlaybackState();
-	}, [&](const PreloadedAudio &update) {
+	}, [&](PreloadedAudio) {
 		updatePlaybackState();
-	}, [&](const UpdateAudio &update) {
+	}, [&](UpdateAudio) {
 		updatePlaybackState();
-	}, [&](WaitingForData) {
-	}, [&](MutedByOther) {
+	}, [](WaitingForData) {
+	}, [](SpeedEstimate) {
+	}, [](MutedByOther) {
 	}, [&](Finished) {
 		updatePlaybackState();
 	});

@@ -534,15 +534,16 @@ void PeerShortInfoCover::handleStreamingUpdate(
 
 	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
-	}, [&](const PreloadedVideo &update) {
-	}, [&](const UpdateVideo &update) {
+	}, [](PreloadedVideo) {
+	}, [&](UpdateVideo update) {
 		_videoPosition = update.position;
 		_widget->update();
-	}, [&](const PreloadedAudio &update) {
-	}, [&](const UpdateAudio &update) {
-	}, [&](const WaitingForData &update) {
-	}, [&](MutedByOther) {
-	}, [&](Finished) {
+	}, [](PreloadedAudio) {
+	}, [](UpdateAudio) {
+	}, [](WaitingForData) {
+	}, [](SpeedEstimate) {
+	}, [](MutedByOther) {
+	}, [](Finished) {
 	});
 }
 

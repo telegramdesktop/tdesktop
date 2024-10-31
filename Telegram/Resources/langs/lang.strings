@@ -3906,6 +3906,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_downloads" = "Downloads";
 "lng_mediaview_playback_speed" = "Playback speed: {speed}";
 "lng_mediaview_rotate_video" = "Rotate video";
+"lng_mediaview_quality_auto" = "Auto";
 
 "lng_theme_preview_title" = "Theme Preview";
 "lng_theme_preview_generating" = "Generating color theme preview...";

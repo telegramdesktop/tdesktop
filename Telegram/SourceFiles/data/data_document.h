@@ -31,10 +31,12 @@ struct Key;
 } // namespace Storage
 
 namespace Media {
-namespace Streaming {
-class Loader;
-} // namespace Streaming
+struct VideoQuality;
 } // namespace Media
+
+namespace Media::Streaming {
+class Loader;
+} // namespace Media::Streaming
 
 namespace Data {
 class Session;
@@ -118,6 +120,11 @@ public:
 	void automaticLoadSettingsChanged();
 	void setVideoQualities(std::vector<not_null<DocumentData*>> qualities);
 	[[nodiscard]] int resolveVideoQuality() const;
+	[[nodiscard]] auto resolveQualities(HistoryItem *context) const
+		-> const std::vector<not_null<DocumentData*>> &;
+	[[nodiscard]] not_null<DocumentData*> chooseQuality(
+		HistoryItem *context,
+		Media::VideoQuality request);
 
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] QString loadingFilePath() const;

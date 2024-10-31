@@ -37,6 +37,21 @@ Instance::Instance(
 }
 
 Instance::Instance(
+	not_null<DocumentData*> quality,
+	not_null<DocumentData*> original,
+	HistoryItem *context,
+	Data::FileOrigin origin,
+	Fn<void()> waitingCallback)
+: Instance(
+	quality->owner().streaming().sharedDocument(
+		quality,
+		original,
+		context,
+		origin),
+	std::move(waitingCallback)) {
+}
+
+Instance::Instance(
 	not_null<PhotoData*> photo,
 	Data::FileOrigin origin,
 	Fn<void()> waitingCallback)
@@ -70,6 +85,10 @@ const Information &Instance::info() const {
 	Expects(_shared != nullptr);
 
 	return _shared->info();
+}
+
+rpl::producer<int> Instance::switchQualityRequests() const {
+	return _shared->switchQualityRequests();
 }
 
 void Instance::play(const PlaybackOptions &options) {

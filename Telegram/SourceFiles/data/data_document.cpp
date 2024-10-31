@@ -576,12 +576,53 @@ void DocumentData::setVideoQualities(
 		--count;
 	}
 	qualities.erase(qualities.begin() + count, qualities.end());
+	if (!qualities.empty()) {
+		if (const auto mine = resolveVideoQuality()) {
+			if (mine > qualities.front()->resolveVideoQuality()) {
+				qualities.insert(begin(qualities), this);
+			}
+		}
+	}
 	data->qualities = std::move(qualities);
 }
 
 int DocumentData::resolveVideoQuality() const {
 	const auto size = isVideoFile() ? dimensions : QSize();
 	return size.isEmpty() ? 0 : std::min(size.width(), size.height());
+}
+
+auto DocumentData::resolveQualities(HistoryItem *context) const
+-> const std::vector<not_null<DocumentData*>> & {
+	static const auto empty = std::vector<not_null<DocumentData*>>();
+	const auto info = video();
+	const auto media = context ? context->media() : nullptr;
+	if (!info || !media || media->document() != this) {
+		return empty;
+	}
+	return media->hasQualitiesList() ? info->qualities : empty;
+}
+
+not_null<DocumentData*> DocumentData::chooseQuality(
+		HistoryItem *context,
+		Media::VideoQuality request) {
+	const auto &list = resolveQualities(context);
+	if (list.empty() || !request.height) {
+		return this;
+	}
+	const auto height = int(request.height);
+	auto closest = this;
+	auto closestAbs = std::abs(height - resolveVideoQuality());
+	auto closestSize = size;
+	for (const auto &quality : list) {
+		const auto abs = std::abs(height - quality->resolveVideoQuality());
+		if (abs < closestAbs
+			|| (abs == closestAbs && quality->size < closestSize)) {
+			closest = quality;
+			closestAbs = abs;
+			closestSize = quality->size;
+		}
+	}
+	return closest;
 }
 
 void DocumentData::validateLottieSticker() {

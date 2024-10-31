@@ -717,7 +717,7 @@ SpeedController::SpeedController(
 	Fn<float64(bool lastNonDefault)> value,
 	Fn<void(float64)> change,
 	std::vector<int> qualities,
-	Fn<int()> quality,
+	Fn<VideoQuality()> quality,
 	Fn<void(int)> changeQuality)
 : WithDropdownController(
 	button,
@@ -785,9 +785,9 @@ void SpeedController::save() {
 	_saved.fire({});
 }
 
-void SpeedController::setQuality(int quality) {
+void SpeedController::setQuality(VideoQuality quality) {
 	_quality = quality;
-	_changeQuality(quality);
+	_changeQuality(quality.manual ? quality.height : 0);
 }
 
 void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
@@ -810,7 +810,8 @@ void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 	}
 
 	const auto add = [&](int quality) {
-		const auto text = quality ? u"%1p"_q.arg(quality) : u"Original"_q;
+		const auto automatic = tr::lng_mediaview_quality_auto(tr::now);
+		const auto text = quality ? u"%1p"_q.arg(quality) : automatic;
 		auto action = base::make_unique_q<Ui::Menu::Action>(
 			raw,
 			st.qualityMenu,
@@ -837,9 +838,15 @@ void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 		}, check->lifetime());
 		check->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_quality.value(
-		) | rpl::start_with_next([=](int now) {
-			const auto chosen = (now == quality);
+		) | rpl::start_with_next([=](VideoQuality now) {
+			const auto chosen = now.manual
+				? (now.height == quality)
+				: !quality;
 			raw->action()->setEnabled(!chosen);
+			if (!quality) {
+				raw->action()->setText(automatic
+					+ (now.manual ? QString() : u"\t%1p"_q.arg(now.height)));
+			}
 			check->setVisible(chosen);
 		}, raw->lifetime());
 		menu->addAction(std::move(action));

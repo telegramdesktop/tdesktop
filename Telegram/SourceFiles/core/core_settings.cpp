@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
+constexpr auto kInitialVideoQuality = 480; // Start with SD.
+
 [[nodiscard]] WindowPosition Deserialize(const QByteArray &data) {
 	QDataStream stream(data);
 	stream.setVersion(QDataStream::Qt_5_1);
@@ -88,6 +90,19 @@ void LogPosition(const WindowPosition &position, const QString &name) {
 	return RecentEmojiDocument{ id, (test == '1') };
 }
 
+[[nodiscard]] quint32 SerializeVideoQuality(Media::VideoQuality quality) {
+	static_assert(sizeof(Media::VideoQuality) == sizeof(uint32));
+	auto result = uint32();
+	memcpy(&result, &quality, sizeof(quality));
+	return result;
+}
+
+[[nodiscard]] Media::VideoQuality DeserializeVideoQuality(quint32 value) {
+	auto result = Media::VideoQuality();
+	memcpy(&result, &value, sizeof(result));
+	return (result.height <= 4320) ? result : Media::VideoQuality();
+}
+
 } // namespace
 
 [[nodiscard]] WindowPosition AdjustToScale(
@@ -124,7 +139,8 @@ Settings::Settings()
 , _floatPlayerColumn(Window::Column::Second)
 , _floatPlayerCorner(RectPart::TopRight)
 , _dialogsWithChatWidthRatio(DefaultDialogsWidthRatio())
-, _dialogsNoChatWidthRatio(DefaultDialogsWidthRatio()) {
+, _dialogsNoChatWidthRatio(DefaultDialogsWidthRatio())
+, _videoQuality({ .height = kInitialVideoQuality }) {
 }
 
 Settings::~Settings() = default;
@@ -381,7 +397,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_ivZoom.current())
 			<< qint32(_skipToastsInFocus ? 1 : 0)
 			<< qint32(_recordVideoMessages ? 1 : 0)
-			<< qint32(_videoQuality);
+			<< SerializeVideoQuality(_videoQuality);
 	}
 
 	Ensures(result.size() == size);
@@ -508,7 +524,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 ivZoom = _ivZoom.current();
 	qint32 skipToastsInFocus = _skipToastsInFocus ? 1 : 0;
 	qint32 recordVideoMessages = _recordVideoMessages ? 1 : 0;
-	qint32 videoQuality = _videoQuality;
+	quint32 videoQuality = SerializeVideoQuality(_videoQuality);
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -1044,9 +1060,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_ivZoom = ivZoom;
 	_skipToastsInFocus = (skipToastsInFocus == 1);
 	_recordVideoMessages = (recordVideoMessages == 1);
-	_videoQuality = (videoQuality >= 0 && videoQuality <= 4320)
-		? videoQuality
-		: 0;
+	_videoQuality = DeserializeVideoQuality(videoQuality);
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1437,7 +1451,7 @@ void Settings::resetOnLastLogout() {
 	_ttlVoiceClickTooltipHidden = false;
 	_ivZoom = 100;
 	_recordVideoMessages = false;
-	_videoQuality = 0;
+	_videoQuality = {};
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();
@@ -1605,11 +1619,11 @@ void Settings::setIvZoom(int value) {
 	_ivZoom = std::clamp(value, kMin, kMax);
 }
 
-int Settings::videoQuality() const {
+Media::VideoQuality Settings::videoQuality() const {
 	return _videoQuality;
 }
 
-void Settings::setVideoQuality(int value) {
+void Settings::setVideoQuality(Media::VideoQuality value) {
 	_videoQuality = value;
 }
 

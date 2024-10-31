@@ -16,9 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_photos.h"
 #include "data/data_web_page.h"
 #include "data/data_cloud_themes.h" // Data::CloudTheme.
+#include "media/stories/media_stories_delegate.h"
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_open_common.h"
-#include "media/stories/media_stories_delegate.h"
+#include "media/media_common.h"
 
 class History;
 
@@ -237,7 +238,7 @@ private:
 	void playbackControlsSpeedChanged(float64 speed) override;
 	float64 playbackControlsCurrentSpeed(bool lastNonDefault) override;
 	std::vector<int> playbackControlsQualities() override;
-	int playbackControlsCurrentQuality() override;
+	VideoQuality playbackControlsCurrentQuality() override;
 	void playbackControlsQualityChanged(int quality) override;
 	void playbackControlsToFullScreen() override;
 	void playbackControlsFromFullScreen() override;
@@ -527,9 +528,7 @@ private:
 	void clearStreaming(bool savePosition = true);
 	[[nodiscard]] bool canInitStreaming() const;
 	[[nodiscard]] bool saveControlLocked() const;
-	[[nodiscard]] not_null<DocumentData*> chooseQuality() const;
-	[[nodiscard]] auto resolveQualities() const
-		-> const std::vector<not_null<DocumentData*>> &;
+	void applyVideoQuality(VideoQuality value);
 
 	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();
@@ -558,7 +557,7 @@ private:
 	PhotoData *_photo = nullptr;
 	DocumentData *_document = nullptr;
 	DocumentData *_chosenQuality = nullptr;
-	int _quality = {};
+	Media::VideoQuality _quality;
 	QString _documentLoadingTo;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;

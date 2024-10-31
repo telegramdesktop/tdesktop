@@ -1303,7 +1303,7 @@ void Instance::handleStreamingUpdate(
 		Streaming::Update &&update) {
 	using namespace Streaming;
 
-	v::match(update.data, [&](Information &update) {
+	v::match(update.data, [&](const Information &update) {
 		if (!update.video.size.isEmpty()) {
 			data->streamed->progress.setValueChangedCallback([=](
 					float64,
@@ -1315,16 +1315,17 @@ void Instance::handleStreamingUpdate(
 			requestRoundVideoResize();
 		}
 		emitUpdate(data->type);
-	}, [&](PreloadedVideo &update) {
+	}, [&](PreloadedVideo) {
 		//emitUpdate(data->type, [](AudioMsgId) { return true; });
-	}, [&](UpdateVideo &update) {
+	}, [&](UpdateVideo) {
 		emitUpdate(data->type);
-	}, [&](PreloadedAudio &update) {
+	}, [&](PreloadedAudio) {
 		//emitUpdate(data->type, [](AudioMsgId) { return true; });
-	}, [&](UpdateAudio &update) {
+	}, [&](UpdateAudio) {
 		emitUpdate(data->type);
-	}, [&](WaitingForData) {
-	}, [&](MutedByOther) {
+	}, [](WaitingForData) {
+	}, [](SpeedEstimate) {
+	}, [](MutedByOther) {
 	}, [&](Finished) {
 		emitUpdate(data->type);
 		if (data->streamed && data->streamed->instance.player().finished()) {
