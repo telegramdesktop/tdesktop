@@ -127,13 +127,14 @@ protected:
 
 	void startRipple(int sectionIndex) override;
 
+	std::vector<float64> countSectionsWidths(int newWidth) const;
+
 private:
 	const style::TextStyle &getLabelStyle() const override;
 	int getAnimationDuration() const override;
 	QImage prepareRippleMask(int sectionIndex, const Section &section);
 
 	void resizeSections(int newWidth);
-	std::vector<float64> countSectionsWidths(int newWidth) const;
 
 	const style::SettingsSlider &_st;
 	std::optional<Ui::RoundRect> _bar;
