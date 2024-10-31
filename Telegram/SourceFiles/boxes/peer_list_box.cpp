@@ -543,6 +543,10 @@ auto PeerListBox::collectSelectedRows()
 	return result;
 }
 
+rpl::producer<int> PeerListBox::multiSelectHeightValue() const {
+	return _select ? _select->heightValue() : rpl::single(0);
+}
+
 PeerListRow::PeerListRow(not_null<PeerData*> peer)
 : PeerListRow(peer, peer->id.value) {
 }

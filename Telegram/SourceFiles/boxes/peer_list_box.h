@@ -1102,6 +1102,7 @@ public:
 
 	[[nodiscard]] std::vector<PeerListRowId> collectSelectedIds();
 	[[nodiscard]] std::vector<not_null<PeerData*>> collectSelectedRows();
+	[[nodiscard]] rpl::producer<int> multiSelectHeightValue() const;
 
 	void peerListSetTitle(rpl::producer<QString> title) override {
 		setTitle(std::move(title));
