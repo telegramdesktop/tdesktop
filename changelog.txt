@@ -1,3 +1,11 @@
+5.7 (31.10.24)
+
+- Sending video messages.
+- New video quality selection in channels.
+- Adding media to sent text messages via Edit.
+- Ads in bots with revenue sharing with bot developers.
+- Chat-specific hashtags.
+
 5.6.4 beta (24.10.24)
 
 - Add recording of video messages in case a camera is available.
