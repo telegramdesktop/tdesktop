@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
+#include "ui/widgets/chat_filters_tabs_strip.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/share_message_phrase_factory.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/data_channel.h"
+#include "data/data_chat_filters.h"
 #include "data/data_game.h"
 #include "data/data_histories.h"
 #include "data/data_user.h"
@@ -85,6 +87,8 @@ public:
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 	rpl::producer<> searchRequests() const;
+
+	void applyChatFilter(FilterId id);
 
 protected:
 	void visibleTopBottomUpdated(
@@ -166,7 +170,9 @@ private:
 	int _upon = -1;
 	int _visibleTop = 0;
 
-	std::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
+	std::unique_ptr<Dialogs::IndexedList> _defaultChatsIndexed;
+	std::unique_ptr<Dialogs::IndexedList> _customChatsIndexed;
+	not_null<Dialogs::IndexedList*> _chatsIndexed;
 	QString _filter;
 	std::vector<not_null<Dialogs::Row*>> _filtered;
 
@@ -337,10 +343,25 @@ void ShareBox::prepare() {
 		{ .suggestCustomEmoji = true });
 
 	_select->raise();
+
+	AddChatFiltersTabsStrip(
+		this,
+		_descriptor.session,
+		_select->heightValue(),
+		[this](int height) {
+			_additionalTopScrollSkip = height;
+			updateScrollSkips();
+			scrollToY(0);
+		},
+		[this](FilterId id) {
+			_inner->applyChatFilter(id);
+			scrollToY(0);
+		});
 }
 
 int ShareBox::getTopScrollSkip() const {
-	return _select->isHidden() ? 0 : _select->height();
+	return (_select->isHidden() ? 0 : _select->height())
+		+ _additionalTopScrollSkip;
 }
 
 int ShareBox::getBottomScrollSkip() const {
@@ -671,9 +692,10 @@ ShareBox::Inner::Inner(
 , _descriptor(descriptor)
 , _show(std::move(show))
 , _st(_descriptor.st ? *_descriptor.st : st::shareBoxList)
-, _chatsIndexed(
+, _defaultChatsIndexed(
 	std::make_unique<Dialogs::IndexedList>(
-		Dialogs::SortMode::Add)) {
+		Dialogs::SortMode::Add))
+, _chatsIndexed(_defaultChatsIndexed.get()) {
 	_rowsTop = st::shareRowsTop;
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -691,7 +713,7 @@ ShareBox::Inner::Inner(
 	const auto self = _descriptor.session->user();
 	const auto selfHistory = self->owner().history(self);
 	if (_descriptor.filterCallback(selfHistory)) {
-		_chatsIndexed->addToEnd(selfHistory);
+		_defaultChatsIndexed->addToEnd(selfHistory);
 	}
 	const auto addList = [&](not_null<Dialogs::IndexedList*> list) {
 		for (const auto &row : list->all()) {
@@ -699,7 +721,7 @@ ShareBox::Inner::Inner(
 				if (!history->peer->isSelf()
 					&& (history->asForum()
 						|| _descriptor.filterCallback(history))) {
-					_chatsIndexed->addToEnd(history);
+					_defaultChatsIndexed->addToEnd(history);
 				}
 			}
 		}
@@ -722,7 +744,7 @@ ShareBox::Inner::Inner(
 
 	_descriptor.session->changes().realtimeNameUpdates(
 	) | rpl::start_with_next([=](const Data::NameUpdate &update) {
-		_chatsIndexed->peerNameChanged(
+		_defaultChatsIndexed->peerNameChanged(
 			update.peer,
 			update.oldFirstLetters);
 	}, lifetime());
@@ -1337,6 +1359,29 @@ rpl::producer<Ui::ScrollToRequest> ShareBox::Inner::scrollToRequests() const {
 
 rpl::producer<> ShareBox::Inner::searchRequests() const {
 	return _searchRequests.events();
+}
+
+void ShareBox::Inner::applyChatFilter(FilterId id) {
+	if (!id) {
+		_chatsIndexed = _defaultChatsIndexed.get();
+	} else {
+		_customChatsIndexed = std::make_unique<Dialogs::IndexedList>(
+			Dialogs::SortMode::Add);
+		_chatsIndexed = _customChatsIndexed.get();
+
+		const auto addList = [&](not_null<Dialogs::IndexedList*> list) {
+			for (const auto &row : list->all()) {
+				if (const auto history = row->history()) {
+					if (_descriptor.filterCallback(history)) {
+						_customChatsIndexed->addToEnd(history);
+					}
+				}
+			}
+		};
+		const auto &data = _descriptor.session->data();
+		addList(data.chatsFilters().chatsList(id)->indexed());
+	}
+	update();
 }
 
 void ShareBox::Inner::peopleReceived(
