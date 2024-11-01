@@ -402,6 +402,7 @@ void SettingsButton::prepareFrame() {
 		_frameCache = QImage(
 			_st.size * ratio,
 			QImage::Format_ARGB32_Premultiplied);
+		_frameCache.setDevicePixelRatio(ratio);
 	}
 	_frameCache.fill(Qt::transparent);
 	auto p = QPainter(&_frameCache);
