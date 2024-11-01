@@ -229,8 +229,12 @@ private:
 	void paintEmpty(Painter &p, not_null<const Ui::ChatStyle*> st);
 	void clearAfterFilterChange();
 	void clearAndRequestLog();
-	void addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events);
-	Element *viewForItem(const HistoryItem *item);
+	void addEvents(
+		Direction direction,
+		const QVector<MTPChannelAdminLogEvent> &events);
+	[[nodiscard]] Element *viewForItem(const HistoryItem *item);
+	[[nodiscard]] bool myView(
+		not_null<const HistoryView::Element*> view) const;
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
