@@ -128,6 +128,7 @@ struct SendingAlbum {
 	uint64 groupId = 0;
 	std::vector<Item> items;
 	Api::SendOptions options;
+	bool sent = false;
 
 };
 
