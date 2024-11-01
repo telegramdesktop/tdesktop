@@ -112,7 +112,9 @@ private:
 	static constexpr auto kValidAfter = kLifeStartDate + kSpecialValueSkip;
 
 	[[nodiscard]] bool valid() const {
-		return !_available || (_value >= kSpecialValueSkip);
+		constexpr auto kMaxSum = uint32(std::numeric_limits<TimeId>::max());
+		return (kMaxSum - _value > uint32(kLifeStartDate))
+			&& (!_available || (_value >= kSpecialValueSkip));
 	}
 
 	LastseenStatus(uint32 value, bool available, bool hiddenByMe)
