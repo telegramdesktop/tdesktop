@@ -3886,6 +3886,7 @@ void OverlayWidget::startStreamingPlayer(
 	const auto &player = _streamed->instance.player();
 	if (player.playing()) {
 		if (!_streamed->withSound) {
+			_streamed->ready = true;
 			return;
 		}
 		_pip = nullptr;
