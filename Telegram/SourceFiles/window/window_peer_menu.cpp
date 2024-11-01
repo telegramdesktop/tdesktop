@@ -2056,7 +2056,40 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			box->setIgnoreHiddenRowsOnSearch(true);
 			auto applyFilter = [=](FilterId id) {
 				box->scrollToY(0);
-				const auto &list = session->data().chatsFilters().list();
+				auto &filters = session->data().chatsFilters();
+				const auto &list = filters.list();
+				if (list.size() <= 1) {
+					return;
+				}
+				const auto pinned = filters.chatsList(id)->pinned()->order();
+				box->peerListSortRows([&](
+						const PeerListRow &r1,
+						const PeerListRow &r2) {
+					const auto it1 = ranges::find_if(pinned, [&](
+							const Dialogs::Key &k) {
+						return k.peer() == r1.peer();
+					});
+					const auto it2 = ranges::find_if(pinned, [&](
+							const Dialogs::Key &k) {
+						return k.peer() == r2.peer();
+					});
+					if (it1 == pinned.end() && it2 != pinned.end()) {
+						return false;
+					} else if (it2 == pinned.end() && it1 != pinned.end()) {
+						return true;
+					} else if (it1 != pinned.end() && it2 != pinned.end()) {
+						return it1 < it2;
+					}
+					const auto history1 = session->data().history(r1.peer());
+					const auto history2 = session->data().history(r2.peer());
+					const auto date1 = history1->lastMessage()
+						? history1->lastMessage()->date()
+						: TimeId(0);
+					const auto date2 = history2->lastMessage()
+						? history2->lastMessage()->date()
+						: TimeId(0);
+					return date1 > date2;
+				});
 				const auto filter = ranges::find(
 					list,
 					id,
