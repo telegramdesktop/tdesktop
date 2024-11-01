@@ -67,6 +67,29 @@ namespace {
 
 constexpr auto kVideoProcessingInfoDuration = 4 * crl::time(1000);
 
+[[nodiscard]] DocumentData *FindVideoFile(not_null<HistoryItem*> item) {
+	const auto fromItem = [](not_null<HistoryItem*> item) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
+				if (document->isVideoFile()) {
+					return document;
+				}
+			}
+		}
+		return (DocumentData*)nullptr;
+	};
+	if (const auto group = item->history()->owner().groups().find(item)) {
+		for (const auto &entry : group->items) {
+			if (const auto result = fromItem(entry)) {
+				return result;
+			}
+		}
+	} else if (const auto result = fromItem(item)) {
+		return result;
+	}
+	return nullptr;
+}
+
 } // namespace
 
 ScheduledMemento::ScheduledMemento(
@@ -1677,9 +1700,8 @@ bool ShowScheduledVideoPublished(
 	if (!controller->widget()->isActive()) {
 		return false;
 	}
-	const auto media = info.item->media();
-	const auto document = media ? media->document() : nullptr;
-	if (!document->isVideoFile()) {
+	const auto document = FindVideoFile(info.item);
+	if (!document) {
 		return false;
 	}
 	const auto history = info.item->history();
