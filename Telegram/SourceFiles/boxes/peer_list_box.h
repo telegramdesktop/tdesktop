@@ -658,6 +658,8 @@ public:
 	PeerListRowId updateFromParentDrag(QPoint globalPosition);
 	void dragLeft();
 
+	void setIgnoreHiddenRowsOnSearch(bool value);
+
 	// Interface for the controller.
 	void appendRow(std::unique_ptr<PeerListRow> row);
 	void appendSearchRow(std::unique_ptr<PeerListRow> row);
@@ -879,6 +881,7 @@ private:
 	int _aboveHeight = 0;
 	int _belowHeight = 0;
 	bool _hideEmpty = false;
+	bool _ignoreHiddenRowsOnSearch = false;
 	object_ptr<Ui::RpWidget> _aboveWidget = { nullptr };
 	object_ptr<Ui::RpWidget> _aboveSearchWidget = { nullptr };
 	object_ptr<Ui::RpWidget> _belowWidget = { nullptr };
@@ -1103,6 +1106,8 @@ public:
 	[[nodiscard]] std::vector<PeerListRowId> collectSelectedIds();
 	[[nodiscard]] std::vector<not_null<PeerData*>> collectSelectedRows();
 	[[nodiscard]] rpl::producer<int> multiSelectHeightValue() const;
+
+	void setIgnoreHiddenRowsOnSearch(bool value);
 
 	void peerListSetTitle(rpl::producer<QString> title) override {
 		setTitle(std::move(title));
