@@ -1212,16 +1212,19 @@ void ReceiptCreditsBox(
 	}
 	if (s) {
 		Ui::AddSkip(content);
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
+		auto label = object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				s.cancelled
-					? tr::lng_credits_subscription_off_about()
-					: tr::lng_credits_subscription_on_about(
-						lt_date,
-						rpl::single(langDayOfMonthFull(s.until.date()))),
-				st::creditsBoxAboutDivider)));
+			s.cancelled
+				? tr::lng_credits_subscription_off_about()
+				: tr::lng_credits_subscription_on_about(
+					lt_date,
+					rpl::single(langDayOfMonthFull(s.until.date()))),
+				st::creditsBoxAboutDivider);
+		if (s.cancelled) {
+			label->setTextColorOverride(st::menuIconAttentionColor->c);
+		}
+		box->addRow(
+			object_ptr<Ui::CenterWrap<>>(box, std::move(label)));
 	}
 
 	Ui::AddSkip(content);
