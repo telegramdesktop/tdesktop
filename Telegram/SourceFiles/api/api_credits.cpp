@@ -73,7 +73,9 @@ constexpr auto kTransactionsLimit = 100;
 		return PeerId(0);
 	}).value;
 	const auto stargift = tl.data().vstargift();
+	const auto reaction = tl.data().is_reaction();
 	const auto incoming = (int64(tl.data().vstars().v) >= 0);
+	const auto saveActorId = (reaction || !extended.empty()) && incoming;
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),
@@ -83,12 +85,13 @@ constexpr auto kTransactionsLimit = 100;
 		.extended = std::move(extended),
 		.credits = tl.data().vstars().v,
 		.bareMsgId = uint64(tl.data().vmsg_id().value_or_empty()),
-		.barePeerId = barePeerId,
+		.barePeerId = saveActorId ? peer->id.value : barePeerId,
 		.bareGiveawayMsgId = uint64(
 			tl.data().vgiveaway_post_id().value_or_empty()),
 		.bareGiftStickerId = (stargift
 			? owner->processDocument(stargift->data().vsticker())->id
 			: 0),
+		.bareActorId = saveActorId ? barePeerId : uint64(0),
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
 			return Data::CreditsHistoryEntry::PeerType::Peer;
 		}, [](const MTPDstarsTransactionPeerPlayMarket &) {

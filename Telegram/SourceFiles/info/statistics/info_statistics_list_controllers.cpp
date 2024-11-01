@@ -1080,7 +1080,10 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 				delegate()->peerListUpdateRow(row);
 			},
 		};
-		if (const auto peerId = PeerId(i.barePeerId + s.barePeerId)) {
+		if (i.bareActorId) {
+			const auto peer = session().data().peer(PeerId(i.bareActorId));
+			return std::make_unique<CreditsRow>(peer, descriptor);
+		} else if (const auto peerId = PeerId(i.barePeerId + s.barePeerId)) {
 			const auto peer = session().data().peer(peerId);
 			return std::make_unique<CreditsRow>(peer, descriptor);
 		} else {

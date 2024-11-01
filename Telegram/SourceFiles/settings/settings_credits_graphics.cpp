@@ -786,6 +786,8 @@ void ReceiptCreditsBox(
 		? session->data().peer(PeerId(s.barePeerId)).get()
 		: (e.peerType == Type::PremiumBot)
 		? nullptr
+		: e.bareActorId
+		? session->data().peer(PeerId(e.bareActorId)).get()
 		: e.barePeerId
 		? session->data().peer(PeerId(e.barePeerId)).get()
 		: nullptr;

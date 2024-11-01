@@ -1168,7 +1168,9 @@ void AddCreditsHistoryEntryTable(
 			});
 			AddTableRow(
 				table,
-				tr::lng_credits_box_history_entry_media(),
+				(entry.reaction
+					? tr::lng_credits_box_history_entry_message
+					: tr::lng_credits_box_history_entry_media)(),
 				std::move(label),
 				st::giveawayGiftCodeValueMargin);
 		}

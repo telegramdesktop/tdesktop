@@ -62,6 +62,7 @@ struct CreditsHistoryEntry final {
 	uint64 barePeerId = 0;
 	uint64 bareGiveawayMsgId = 0;
 	uint64 bareGiftStickerId = 0;
+	uint64 bareActorId = 0;
 	PeerType peerType;
 	QDateTime subscriptionUntil;
 	QDateTime successDate;

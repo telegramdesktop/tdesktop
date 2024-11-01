@@ -2467,6 +2467,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_success_date" = "Transaction date";
 "lng_credits_box_history_entry_success_url" = "Transaction link";
 "lng_credits_box_history_entry_media" = "Media";
+"lng_credits_box_history_entry_message" = "Message";
 "lng_credits_box_history_entry_about" = "You can dispute this transaction {link}.";
 "lng_credits_box_history_entry_about_link" = "here";
 "lng_credits_box_history_entry_reaction_name" = "Star Reaction";
