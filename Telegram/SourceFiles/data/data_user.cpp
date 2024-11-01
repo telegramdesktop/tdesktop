@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_user.h"
 
+#include "api/api_credits.h"
 #include "api/api_sensitive_content.h"
+#include "api/api_statistics.h"
 #include "storage/localstorage.h"
 #include "storage/storage_user_photos.h"
 #include "main/main_session.h"
 #include "data/business/data_business_common.h"
 #include "data/business/data_business_info.h"
+#include "data/components/credits.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
@@ -127,6 +130,17 @@ void UserData::setCommonChatsCount(int count) {
 	if (_commonChatsCount != count) {
 		_commonChatsCount = count;
 		session().changes().peerUpdated(this, UpdateFlag::CommonChats);
+	}
+}
+
+int UserData::peerGiftsCount() const {
+	return _peerGiftsCount;
+}
+
+void UserData::setPeerGiftsCount(int count) {
+	if (_peerGiftsCount != count) {
+		_peerGiftsCount = count;
+		session().changes().peerUpdated(this, UpdateFlag::PeerGifts);
 	}
 }
 
@@ -441,7 +455,7 @@ bool UserData::requirePremiumToWriteKnown() const {
 }
 
 bool UserData::canSendIgnoreRequirePremium() const {
-	return !isInaccessible() && !isRepliesChat();
+	return !isInaccessible() && !isRepliesChat() && !isVerifyCodes();
 }
 
 bool UserData::readDatesPrivate() const {
@@ -450,10 +464,6 @@ bool UserData::readDatesPrivate() const {
 
 bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
-}
-
-bool UserData::canReceiveGifts() const {
-	return flags() & UserDataFlag::CanReceiveGifts;
 }
 
 bool UserData::canShareThisContactFast() const {
@@ -573,14 +583,10 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(user, pinned->v);
 	}
-	const auto canReceiveGifts = (update.vflags().v
-			& MTPDuserFull::Flag::f_premium_gifts)
-		&& update.vpremium_gifts();
 	using Flag = UserDataFlag;
 	const auto mask = Flag::Blocked
 		| Flag::HasPhoneCalls
 		| Flag::PhoneCallsPrivate
-		| Flag::CanReceiveGifts
 		| Flag::CanPinMessages
 		| Flag::VoiceMessagesForbidden
 		| Flag::ReadDatesPrivate
@@ -591,7 +597,6 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			? Flag::PhoneCallsPrivate
 			: Flag())
 		| (update.is_phone_calls_available() ? Flag::HasPhoneCalls : Flag())
-		| (canReceiveGifts ? Flag::CanReceiveGifts : Flag())
 		| (update.is_can_pin_message() ? Flag::CanPinMessages : Flag())
 		| (update.is_blocked() ? Flag::Blocked : Flag())
 		| (update.is_voice_messages_forbidden()
@@ -610,6 +615,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		: UserData::CallsStatus::Disabled);
 	user->setAbout(qs(update.vabout().value_or_empty()));
 	user->setCommonChatsCount(update.vcommon_chats_count().v);
+	user->setPeerGiftsCount(update.vstargifts_count().value_or_empty());
 	user->checkFolder(update.vfolder_id().value_or_empty());
 	user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	user->setTranslationDisabled(update.is_translations_disabled());
@@ -631,6 +637,35 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			user->session().changes().peerUpdated(
 				user,
 				Data::PeerUpdate::Flag::Rights);
+		}
+		if (info->canEditInformation) {
+			const auto id = user->id;
+			const auto weak = base::make_weak(&user->session());
+			const auto creditsLoadLifetime
+				= std::make_shared<rpl::lifetime>();
+			const auto creditsLoad
+				= creditsLoadLifetime->make_state<Api::CreditsStatus>(user);
+			creditsLoad->request({}, [=](Data::CreditsStatusSlice slice) {
+				if (const auto strong = weak.get()) {
+					strong->credits().apply(id, slice.balance);
+					creditsLoadLifetime->destroy();
+				}
+			});
+			const auto currencyLoadLifetime
+				= std::make_shared<rpl::lifetime>();
+			const auto currencyLoad
+				= currencyLoadLifetime->make_state<Api::EarnStatistics>(user);
+			currencyLoad->request(
+			) | rpl::start_with_error_done([=](const QString &error) {
+				currencyLoadLifetime->destroy();
+			}, [=] {
+				if (const auto strong = weak.get()) {
+					strong->credits().applyCurrency(
+						id,
+						currencyLoad->data().currentBalance);
+					currencyLoadLifetime->destroy();
+				}
+			}, *currencyLoadLifetime);
 		}
 	}
 

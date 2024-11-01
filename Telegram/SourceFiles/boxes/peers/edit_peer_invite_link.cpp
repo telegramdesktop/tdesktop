@@ -956,12 +956,11 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 
-		const auto &stUser = st::boostReplaceUserpic;
+		const auto photoSize = st::boostReplaceUserpic.photoSize;
 		const auto session = &row->peer()->session();
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
-			object_ptr<Ui::UserpicButton>(content, channel, stUser))
-		)->setAttribute(Qt::WA_TransparentForMouseEvents);
+			Settings::SubscriptionUserpic(content, channel, photoSize)));
 
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);

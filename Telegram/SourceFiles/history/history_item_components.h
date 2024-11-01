@@ -746,8 +746,7 @@ struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaption
 };
 
 struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryView::Document> {
-	QString name;
-	int namew = 0;
+	Ui::Text::String name;
 };
 
 struct HistoryDocumentVoicePlayback {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_report.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/dragging_scroll_manager.h"
@@ -29,6 +30,7 @@ namespace HistoryView {
 class ElementDelegate;
 class EmojiInteractions;
 struct TextState;
+struct SelectionModeResult;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
@@ -54,7 +56,6 @@ namespace Ui {
 class ChatTheme;
 class ChatStyle;
 class PopupMenu;
-enum class ReportReason;
 struct ChatPaintContext;
 class PathShiftGradient;
 struct PeerUserpicView;
@@ -135,7 +136,7 @@ public:
 	void clearSelected(bool onlyTextSelection = false);
 	[[nodiscard]] MessageIdsList getSelectedItems() const;
 	[[nodiscard]] bool hasSelectedItems() const;
-	[[nodiscard]] bool inSelectionMode() const;
+	[[nodiscard]] HistoryView::SelectionModeResult inSelectionMode() const;
 	[[nodiscard]] bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
@@ -189,7 +190,7 @@ public:
 	int historyTop() const;
 	int historyDrawTop() const;
 
-	void setChooseReportReason(Ui::ReportReason reason);
+	void setChooseReportReason(Data::ReportInput reportInput);
 	void clearChooseReportReason();
 
 	// -1 if should not be visible, -2 if bad history()
@@ -242,6 +243,10 @@ protected:
 private:
 	void onTouchSelect();
 	void onTouchScrollTimer();
+
+	[[nodiscard]] static int SelectionViewOffset(
+		not_null<const HistoryInner*> inner,
+		not_null<const Element*> view);
 
 	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	using VideoUserpic = Dialogs::Ui::VideoUserpic;
@@ -468,7 +473,7 @@ private:
 
 	style::cursor _cursor = style::cur_default;
 	SelectedItems _selected;
-	std::optional<Ui::ReportReason> _chooseForReportReason;
+	std::optional<Data::ReportInput> _chooseForReportReason;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	QPainterPath _highlightPathCache;
@@ -507,6 +512,9 @@ private:
 	Element *_dragSelTo = nullptr;
 	bool _dragSelecting = false;
 	bool _wasSelectedText = false; // was some text selected in current drag action
+
+	mutable bool _lastInSelectionMode = false;
+	mutable Ui::Animations::Simple _inSelectionModeAnimation;
 
 	// scroll by touch support (at least Windows Surface tablets)
 	bool _touchScroll = false;

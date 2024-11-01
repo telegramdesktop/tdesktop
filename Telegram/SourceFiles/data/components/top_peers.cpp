@@ -274,11 +274,13 @@ QByteArray TopPeers::serialize() const {
 
 void TopPeers::applyLocal(QByteArray serialized) {
 	if (_lastReceived) {
+		DEBUG_LOG(("Suggestions: Skipping TopPeers local, got already."));
 		return;
 	}
 	_list.clear();
 	_disabled = false;
 	if (serialized.isEmpty()) {
+		DEBUG_LOG(("Suggestions: Bad TopPeers local, empty."));
 		return;
 	}
 	auto stream = Serialize::ByteArrayReader(serialized);
@@ -287,11 +289,18 @@ void TopPeers::applyLocal(QByteArray serialized) {
 	auto count = quint32();
 	stream >> streamAppVersion >> disabled >> count;
 	if (!stream.ok()) {
+		DEBUG_LOG(("Suggestions: Bad TopPeers local, not ok."));
 		return;
 	}
+	DEBUG_LOG(("Suggestions: "
+		"Start TopPeers read, count: %1, version: %2, disabled: %3."
+		).arg(count
+		).arg(streamAppVersion
+		).arg(disabled));
 	_list.reserve(count);
 	for (auto i = 0; i != int(count); ++i) {
 		auto rating = quint64();
+		const auto streamPosition = stream.underlying().device()->pos();
 		const auto peer = Serialize::readPeer(
 			_session,
 			streamAppVersion,
@@ -303,11 +312,17 @@ void TopPeers::applyLocal(QByteArray serialized) {
 				.rating = DeserializeRating(rating),
 			});
 		} else {
+			DEBUG_LOG(("Suggestions: "
+				"Failed TopPeers reading %1 / %2.").arg(i + 1).arg(count));
+			DEBUG_LOG(("Failed bytes: %1.").arg(
+				QString::fromUtf8(serialized.mid(streamPosition).toHex())));
 			_list.clear();
 			return;
 		}
 	}
 	_disabled = (disabled == 1);
+	DEBUG_LOG(
+		("Suggestions: TopPeers read OK, count: %1").arg(_list.size()));
 }
 
 } // namespace Data

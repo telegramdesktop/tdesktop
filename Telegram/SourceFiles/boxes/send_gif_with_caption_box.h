@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class PeerData;
 class DocumentData;
 
 namespace Api {
@@ -24,6 +25,7 @@ class GenericBox;
 void SendGifWithCaptionBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<DocumentData*> document,
+	not_null<PeerData*> peer,
 	const SendMenu::Details &details,
 	Fn<void(Api::SendOptions, TextWithTags)> done);
 

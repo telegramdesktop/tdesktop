@@ -60,6 +60,7 @@ public:
 	[[nodiscard]] rpl::producer<Update, Error> updates() const;
 	[[nodiscard]] rpl::producer<bool> fullInCache() const;
 
+	[[nodiscard]] int64 fileSize() const;
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] QImage frame(
 		const FrameRequest &request,

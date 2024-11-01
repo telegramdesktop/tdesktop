@@ -893,9 +893,11 @@ bool GroupedMedia::computeNeedBubble() const {
 }
 
 bool GroupedMedia::needInfoDisplay() const {
+	const auto item = _parent->data();
 	return (_mode != Mode::Column)
-		&& (_parent->data()->isSending()
-			|| _parent->data()->hasFailed()
+		&& (item->isSending()
+			|| item->awaitingVideoProcessing()
+			|| item->hasFailed()
 			|| _parent->isUnderCursor()
 			|| (_parent->delegate()->elementContext() == Context::ChatPreview)
 			|| _parent->isLastAndSelfMessage());

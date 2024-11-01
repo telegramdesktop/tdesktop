@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_credits.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -36,13 +37,13 @@ PremiumGift::PremiumGift(
 	not_null<Data::MediaGiftBox*> gift)
 : _parent(parent)
 , _gift(gift)
-, _data(gift->data()) {
+, _data(*gift->gift()) {
 }
 
 PremiumGift::~PremiumGift() = default;
 
 int PremiumGift::top() {
-	return st::msgServiceGiftBoxStickerTop;
+	return starGift() ? 0 : st::msgServiceGiftBoxStickerTop;
 }
 
 QSize PremiumGift::size() {
@@ -52,19 +53,45 @@ QSize PremiumGift::size() {
 }
 
 QString PremiumGift::title() {
-	if (creditsPrize()) {
+	if (starGift()) {
+		return (outgoingGift()
+			? tr::lng_action_gift_sent_subtitle
+			: tr::lng_action_gift_got_subtitle)(
+				tr::now,
+				lt_user,
+				_parent->history()->peer->shortName());
+	} else if (creditsPrize()) {
 		return tr::lng_prize_title(tr::now);
 	} else if (const auto count = credits()) {
 		return tr::lng_gift_stars_title(tr::now, lt_count, count);
 	}
 	return gift()
-		? tr::lng_premium_summary_title(tr::now)
+		? tr::lng_action_gift_premium_months(tr::now, lt_count, _data.count)
 		: _data.unclaimed
 		? tr::lng_prize_unclaimed_title(tr::now)
 		: tr::lng_prize_title(tr::now);
 }
 
 TextWithEntities PremiumGift::subtitle() {
+	if (starGift()) {
+		return !_data.message.empty()
+			? _data.message
+			: outgoingGift()
+			? tr::lng_action_gift_sent_text(
+				tr::now,
+				lt_count,
+				_data.convertStars,
+				lt_user,
+				Ui::Text::Bold(_parent->history()->peer->shortName()),
+				Ui::Text::RichLangValue)
+			: (_data.converted
+				? tr::lng_gift_got_stars
+				: tr::lng_action_gift_got_stars_text)(
+					tr::now,
+					lt_count,
+					_data.convertStars,
+					Ui::Text::RichLangValue);
+	}
 	const auto isCreditsPrize = creditsPrize();
 	if (const auto count = credits(); count && !isCreditsPrize) {
 		return outgoingGift()
@@ -72,10 +99,14 @@ TextWithEntities PremiumGift::subtitle() {
 				tr::now,
 				lt_user,
 				Ui::Text::Bold(_parent->history()->peer->shortName()),
-				Ui::Text::WithEntities)
+				Ui::Text::RichLangValue)
 			: tr::lng_gift_stars_incoming(tr::now, Ui::Text::WithEntities);
 	} else if (gift()) {
-		return { GiftDuration(_data.count) };
+		return !_data.message.empty()
+			? _data.message
+			: tr::lng_action_gift_premium_about(
+				tr::now,
+				Ui::Text::RichLangValue);
 	}
 	const auto name = _data.channel ? _data.channel->name() : "channel";
 	auto result = (_data.unclaimed
@@ -111,42 +142,48 @@ TextWithEntities PremiumGift::subtitle() {
 }
 
 rpl::producer<QString> PremiumGift::button() {
-	return creditsPrize()
+	return (starGift() && outgoingGift())
+		? nullptr
+		: creditsPrize()
 		? tr::lng_view_button_giftcode()
 		: (gift() && (outgoingGift() || !_data.unclaimed))
 		? tr::lng_sticker_premium_view()
 		: tr::lng_prize_open();
 }
 
+bool PremiumGift::buttonMinistars() {
+	return true;
+}
+
 ClickHandlerPtr PremiumGift::createViewLink() {
+	if (starGift() && outgoingGift()) {
+		return nullptr;
+	}
 	const auto from = _gift->from();
+	const auto itemId = _parent->data()->fullId();
 	const auto peer = _parent->history()->peer;
 	const auto date = _parent->data()->date();
-	const auto data = _gift->data();
+	const auto data = *_gift->gift();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto selfId = controller->session().userPeerId();
 			const auto sent = (from->id == selfId);
-			if (creditsPrize()) {
-				using Type = Data::CreditsHistoryEntry::PeerType;
+			if (starGift()) {
+				const auto item = controller->session().data().message(itemId);
+				if (item) {
+					controller->show(Box(
+						Settings::StarGiftViewBox,
+						controller,
+						data,
+						item));
+				}
+			} else if (creditsPrize()) {
 				controller->show(Box(
-					Settings::ReceiptCreditsBox,
+					Settings::CreditsPrizeBox,
 					controller,
-					Data::CreditsHistoryEntry{
-						.id = data.slug,
-						.title = QString(),
-						.description = QString(),
-						.date = base::unixtime::parse(date),
-						.credits = uint64(data.count),
-						.barePeerId = data.channel
-							? data.channel->id.value
-							: 0,
-						.bareGiveawayMsgId = uint64(data.giveawayMsgId),
-						.peerType = Type::Peer,
-						.in = true,
-					},
-					Data::SubscriptionEntry()));
+					data,
+					date));
 			} else if (data.type == Data::GiftType::Credits) {
 				const auto to = sent ? peer : peer->session().user();
 				controller->show(Box(
@@ -181,6 +218,20 @@ void PremiumGift::draw(
 	} else {
 		ensureStickerCreated();
 	}
+}
+
+QString PremiumGift::cornerTagText() {
+	if (const auto count = _data.limitedCount) {
+		return (count == 1)
+			? tr::lng_gift_limited_of_one(tr::now)
+			: tr::lng_gift_limited_of_count(
+				tr::now,
+				lt_amount,
+				((count % 1000)
+					? Lang::FormatCountDecimal(count)
+					: Lang::FormatCountToShort(count).string));
+	}
+	return QString();
 }
 
 bool PremiumGift::hideServiceText() {
@@ -223,6 +274,10 @@ bool PremiumGift::gift() const {
 	return _data.slug.isEmpty() || !_data.channel;
 }
 
+bool PremiumGift::starGift() const {
+	return _data.type == Data::GiftType::StarGift;
+}
+
 bool PremiumGift::creditsPrize() const {
 	return _data.viaGiveaway
 		&& (_data.type == Data::GiftType::Credits)
@@ -236,6 +291,14 @@ int PremiumGift::credits() const {
 void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
+	} else if (const auto document = _data.document) {
+		if (const auto sticker = document->sticker()) {
+			const auto skipPremiumEffect = false;
+			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
+			_sticker->setDiceIndex(sticker->alt, 1);
+			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
+			return;
+		}
 	}
 	const auto &session = _parent->history()->session();
 	auto &packs = session.giftBoxStickersPacks();

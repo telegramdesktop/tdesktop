@@ -109,6 +109,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	Logs::closeMain();
 	CrashReports::Finish();
 
+	int waitStatus = 0;
 	if (justRelaunch) {
 		return GLib::spawn_async(
 			initialWorkingDir().toStdString(),
@@ -129,8 +130,8 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			nullptr,
 			nullptr,
 			nullptr,
-			nullptr,
-			nullptr)) {
+			&waitStatus,
+			nullptr) || !g_spawn_check_exit_status(waitStatus, nullptr)) {
 		return false;
 	}
 	return launchUpdater(UpdaterLaunch::JustRelaunch);

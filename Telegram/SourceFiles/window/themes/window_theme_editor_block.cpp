@@ -134,9 +134,9 @@ void EditorBlock::Row::setValue(QColor value) {
 void EditorBlock::Row::fillValueString() {
 	auto addHex = [=](int code) {
 		if (code >= 0 && code < 10) {
-			_valueString.append('0' + code);
+			_valueString.append(QChar('0' + code));
 		} else if (code >= 10 && code < 16) {
-			_valueString.append('a' + (code - 10));
+			_valueString.append(QChar('a' + (code - 10)));
 		}
 	};
 	auto addCode = [=](int code) {

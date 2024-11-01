@@ -142,14 +142,16 @@ void BlockPeerBoxController::rowClicked(not_null<PeerListRow*> row) {
 
 auto BlockPeerBoxController::createRow(not_null<History*> history)
 -> std::unique_ptr<BlockPeerBoxController::Row> {
-	if (!history->peer->isUser()
-		|| history->peer->isServiceUser()
-		|| history->peer->isSelf()
-		|| history->peer->isRepliesChat()) {
+	const auto peer = history->peer;
+	if (!peer->isUser()
+		|| peer->isServiceUser()
+		|| peer->isSelf()
+		|| peer->isRepliesChat()
+		|| peer->isVerifyCodes()) {
 		return nullptr;
 	}
 	auto row = std::make_unique<Row>(history);
-	updateIsBlocked(row.get(), history->peer);
+	updateIsBlocked(row.get(), peer);
 	return row;
 }
 

@@ -19,6 +19,10 @@ public:
 	[[nodiscard]] QRect ivGeometry() const override;
 	void ivSaveGeometry(not_null<Ui::RpWindow*> window) override;
 
+	[[nodiscard]] int ivZoom() const override;
+	[[nodiscard]] rpl::producer<int> ivZoomValue() const override;
+	void ivSetZoom(int value) override;
+
 private:
 	QPointer<QWidget> _lastSourceWindow;
 

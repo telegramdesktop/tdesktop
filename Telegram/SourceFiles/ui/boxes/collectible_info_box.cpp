@@ -187,12 +187,16 @@ void CollectibleInfoBox(
 			lt_username,
 			Ui::Text::Link(formatted),
 			Ui::Text::WithEntities);
-	const auto copyCallback = [box, type, formatted, text = info.copyText] {
-		QGuiApplication::clipboard()->setText(
-			text.isEmpty() ? formatted : text);
+	const auto copyCallback = [box, type, formatted, text = info.copyText](
+			bool copyLink) {
+		QGuiApplication::clipboard()->setText((text.isEmpty() || !copyLink)
+			? formatted
+			: text);
 		box->uiShow()->showToast((type == CollectibleType::Phone)
-			? tr::lng_text_copied(tr::now)
-			: tr::lng_username_copied(tr::now));
+			? tr::lng_collectible_phone_copied(tr::now)
+			: copyLink
+			? tr::lng_username_copied(tr::now)
+			: tr::lng_username_text_copied(tr::now));
 	};
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -201,7 +205,7 @@ void CollectibleInfoBox(
 			st::collectibleHeader),
 		st::collectibleHeaderPadding
 	)->setClickHandlerFilter([copyCallback](const auto &...) {
-		copyCallback();
+		copyCallback(false);
 		return false;
 	});
 
@@ -242,7 +246,9 @@ void CollectibleInfoBox(
 		st::collectibleCopy);
 	const auto copy = owned.data();
 	copy->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	copy->setClickedCallback(copyCallback);
+	copy->setClickedCallback([copyCallback] {
+		copyCallback(true);
+	});
 	box->addButton(std::move(owned));
 
 	box->setNoContentMargin(true);

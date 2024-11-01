@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class RippleAnimation;
+namespace Premium {
+class ColoredMiniStars;
+} // namespace Premium
 } // namespace Ui
 
 namespace HistoryView {
@@ -28,6 +31,12 @@ public:
 		return top();
 	}
 	[[nodiscard]] virtual rpl::producer<QString> button() = 0;
+	[[nodiscard]] virtual bool buttonMinistars() {
+		return false;
+	}
+	[[nodiscard]] virtual QString cornerTagText() {
+		return {};
+	}
 	virtual void draw(
 		Painter &p,
 		const PaintContext &context,
@@ -78,6 +87,7 @@ public:
 	[[nodiscard]] bool hideServiceText() const override {
 		return _content->hideServiceText();
 	}
+	void hideSpoilers() override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -102,6 +112,8 @@ private:
 
 		ClickHandlerPtr link;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Ui::Premium::ColoredMiniStars> stars;
+		std::unique_ptr<QColor> lastFg;
 
 		mutable QPoint lastPoint;
 	} _button;

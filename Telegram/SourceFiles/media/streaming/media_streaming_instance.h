@@ -27,11 +27,18 @@ class Player;
 
 class Instance {
 public:
+	Instance(const Instance &other);
 	Instance(
 		std::shared_ptr<Document> shared,
 		Fn<void()> waitingCallback);
 	Instance(
 		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		Fn<void()> waitingCallback);
+	Instance(
+		not_null<DocumentData*> quality,
+		not_null<DocumentData*> original,
+		HistoryItem *context,
 		Data::FileOrigin origin,
 		Fn<void()> waitingCallback);
 	Instance(
@@ -45,6 +52,7 @@ public:
 
 	[[nodiscard]] const Player &player() const;
 	[[nodiscard]] const Information &info() const;
+	[[nodiscard]] rpl::producer<int> switchQualityRequests() const;
 
 	void play(const PlaybackOptions &options);
 	void pause();

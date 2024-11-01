@@ -117,4 +117,15 @@ void DelegateImpl::ivSaveGeometry(not_null<Ui::RpWindow*> window) {
 	}
 }
 
+int DelegateImpl::ivZoom() const {
+	return Core::App().settings().ivZoom();
+}
+rpl::producer<int> DelegateImpl::ivZoomValue() const {
+	return Core::App().settings().ivZoomValue();
+}
+void DelegateImpl::ivSetZoom(int value) {
+	Core::App().settings().setIvZoom(value);
+	Core::App().saveSettingsDelayed();
+}
+
 } // namespace Iv

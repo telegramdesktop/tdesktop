@@ -64,6 +64,7 @@ private:
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
 	base::unique_qptr<Ui::SideBarButton> _setup;
 	base::flat_map<FilterId, base::unique_qptr<Ui::SideBarButton>> _filters;
+	rpl::variable<bool> _includeMuted;
 	FilterId _activeFilterId = 0;
 	int _reordering = 0;
 	bool _ignoreRefresh = false;

@@ -40,6 +40,8 @@ public:
 	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
+	void checkForSentToScheduled(const MTPUpdates &updates);
+
 	[[nodiscard]] int32 pts() const;
 
 	void updateOnline(crl::time lastNonIdleTime = 0);
@@ -131,6 +133,9 @@ private:
 	// Doesn't call sendHistoryChangeNotifications itself.
 	void feedUpdate(const MTPUpdate &update);
 
+	void applyConvertToScheduledOnSend(
+		const MTPVector<MTPUpdate> &other,
+		bool skipScheduledCheck = false);
 	void applyGroupCallParticipantUpdates(const MTPUpdates &updates);
 
 	bool whenGetDiffChanged(

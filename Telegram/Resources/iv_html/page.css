@@ -12,6 +12,7 @@ body {
 	margin: 0;
 	background-color: var(--td-window-bg);
 	color: var(--td-window-fg);
+	zoom: var(--td-zoom-percentage);
 }
 
 html.custom_scroll ::-webkit-scrollbar {

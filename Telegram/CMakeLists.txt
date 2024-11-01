@@ -322,6 +322,8 @@ PRIVATE
     boxes/sessions_box.h
     boxes/share_box.cpp
     boxes/share_box.h
+    boxes/star_gift_box.cpp
+    boxes/star_gift_box.h
     boxes/sticker_set_box.cpp
     boxes/sticker_set_box.h
     boxes/stickers_box.cpp
@@ -569,6 +571,8 @@ PRIVATE
     data/data_lastseen_status.h
     data/data_location.cpp
     data/data_location.h
+    data/data_media_preload.cpp
+    data/data_media_preload.h
     data/data_media_rotation.cpp
     data/data_media_rotation.h
     data/data_media_types.cpp
@@ -604,6 +608,7 @@ PRIVATE
     data/data_replies_list.h
     data/data_reply_preview.cpp
     data/data_reply_preview.h
+    data/data_report.h
     data/data_saved_messages.cpp
     data/data_saved_messages.h
     data/data_saved_sublist.cpp
@@ -947,6 +952,10 @@ PRIVATE
     info/media/info_media_widget.h
     info/members/info_members_widget.cpp
     info/members/info_members_widget.h
+    info/peer_gifts/info_peer_gifts_common.cpp
+    info/peer_gifts/info_peer_gifts_common.h
+    info/peer_gifts/info_peer_gifts_widget.cpp
+    info/peer_gifts/info_peer_gifts_widget.h
     info/polls/info_polls_results_inner_widget.cpp
     info/polls/info_polls_results_inner_widget.h
     info/polls/info_polls_results_widget.cpp
@@ -986,6 +995,7 @@ PRIVATE
     info/statistics/info_statistics_list_controllers.h
     info/statistics/info_statistics_recent_message.cpp
     info/statistics/info_statistics_recent_message.h
+    info/statistics/info_statistics_tag.h
     info/statistics/info_statistics_widget.cpp
     info/statistics/info_statistics_widget.h
     info/stories/info_stories_inner_widget.cpp
@@ -1153,6 +1163,8 @@ PRIVATE
     media/streaming/media_streaming_player.h
     media/streaming/media_streaming_reader.cpp
     media/streaming/media_streaming_reader.h
+    media/streaming/media_streaming_round_preview.cpp
+    media/streaming/media_streaming_round_preview.h
     media/streaming/media_streaming_utility.cpp
     media/streaming/media_streaming_utility.h
     media/streaming/media_streaming_video_track.cpp
@@ -1492,6 +1504,8 @@ PRIVATE
     ui/chat/choose_send_as.h
     ui/chat/choose_theme_controller.cpp
     ui/chat/choose_theme_controller.h
+    ui/chat/sponsored_message_bar.cpp
+    ui/chat/sponsored_message_bar.h
     ui/controls/emoji_button_factory.cpp
     ui/controls/emoji_button_factory.h
     ui/controls/location_picker.cpp
@@ -1840,7 +1854,7 @@ endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
-if (WIN32 AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+if (MSVC)
     target_link_libraries(Telegram
     PRIVATE
         delayimp
@@ -1937,7 +1951,7 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
             base/platform/win/base_windows_safe_library.h
         )
         target_include_directories(Updater PRIVATE ${lib_base_loc})
-        if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        if (MSVC)
             target_link_libraries(Updater
             PRIVATE
                 delayimp

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace style {
+struct FlatLabel;
+} // namespace style
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -19,7 +23,9 @@ struct CreditsFormData;
 
 namespace Ui {
 
+class RpWidget;
 class GenericBox;
+class FlatLabel;
 
 void SendCreditsBox(
 	not_null<Ui::GenericBox*> box,
@@ -31,5 +37,24 @@ void SendCreditsBox(
 
 [[nodiscard]] TextWithEntities CreditsEmojiSmall(
 	not_null<Main::Session*> session);
+
+not_null<FlatLabel*> SetButtonMarkedLabel(
+	not_null<RpWidget*> button,
+	rpl::producer<TextWithEntities> text,
+	Fn<std::any(Fn<void()> update)> context,
+	const style::FlatLabel &st,
+	std::optional<QColor> textFg = {});
+
+not_null<FlatLabel*> SetButtonMarkedLabel(
+	not_null<RpWidget*> button,
+	rpl::producer<TextWithEntities> text,
+	not_null<Main::Session*> session,
+	const style::FlatLabel &st,
+	std::optional<QColor> textFg = {});
+
+void SendStarGift(
+	not_null<Main::Session*> session,
+	std::shared_ptr<Payments::CreditsFormData> data,
+	Fn<void(std::optional<QString>)> done);
 
 } // namespace Ui

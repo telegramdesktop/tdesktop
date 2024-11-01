@@ -317,6 +317,7 @@ public:
 		QByteArray result,
 		VoiceWaveform waveform,
 		crl::time duration,
+		bool video,
 		const SendAction &action);
 	void sendFiles(
 		Ui::PreparedList &&list,

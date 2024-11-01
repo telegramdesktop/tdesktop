@@ -86,6 +86,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	}
 	switch (_type) {
 	case Type::Record: paintRecord(p, over); break;
+	case Type::Round: paintRound(p, over); break;
 	case Type::Save: paintSave(p, over); break;
 	case Type::Cancel: paintCancel(p, over); break;
 	case Type::Send: paintSend(p, over); break;
@@ -105,6 +106,20 @@ void SendButton::paintRecord(QPainter &p, bool over) {
 	const auto &icon = (isDisabled() || !over)
 		? _st.record
 		: _st.recordOver;
+	icon.paintInCenter(p, rect());
+}
+
+void SendButton::paintRound(QPainter &p, bool over) {
+	if (!isDisabled()) {
+		paintRipple(
+			p,
+			(width() - _st.inner.rippleAreaSize) / 2,
+			_st.inner.rippleAreaPosition.y());
+	}
+
+	const auto &icon = (isDisabled() || !over)
+		? _st.round
+		: _st.roundOver;
 	icon.paintInCenter(p, rect());
 }
 

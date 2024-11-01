@@ -26,6 +26,8 @@ msgPadding: margins(11px, 8px, 11px, 8px);
 msgMargin: margins(16px, 6px, 56px, 2px);
 msgMarginTopAttached: 0px;
 msgShadow: 2px;
+msgSelectionOffset: 30px;
+msgSelectionBottomSkip: 5px;
 
 historyReplyTop: 2px;
 historyReplyBottom: 2px;
@@ -330,6 +332,7 @@ msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
 msgBotKbPaymentIcon: icon {{ "inline_button_card", msgBotKbIconFg }};
 msgBotKbWebviewIcon: icon {{ "inline_button_web", msgBotKbIconFg }};
+msgBotKbCopyIcon: icon {{ "inline_button_copy", msgBotKbIconFg }};
 msgBotKbButton: BotKeyboardButton {
 	margin: 2px;
 	padding: 10px;
@@ -548,9 +551,7 @@ historyAdminLogCancelSearch: CrossButton {
 
 	duration: 150;
 	loadingPeriod: 1000;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 historyAdminLogSearchTop: 11px;
 historyAdminLogSearchSlideDuration: 150;
@@ -807,6 +808,8 @@ whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
 whoReadReactions: icon{{ "menu/read_reactions", windowBoldFg }};
 whoReadReactionsOver: icon{{ "menu/read_reactions", windowBoldFg }};
 whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
+whenEdited: icon {{ "menu/edited_status", windowBoldFg }};
+whenEditedOver: icon {{ "menu/edited_status", windowBoldFg }};
 
 reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
 reactionsTabAllSelected: icon {{ "menu/read_reactions", activeButtonFg }};
@@ -974,9 +977,7 @@ backgroundSwitchToDark: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 backgroundSwitchToLight: IconButton(backgroundSwitchToDark) {
 	icon: icon {{ "menu/header_mode_day", boxTitleCloseFg }};
@@ -1148,3 +1149,9 @@ factcheckField: InputField(defaultInputField) {
 	style: defaultTextStyle;
 }
 purchasedTagPadding: margins(3px, 2px, 6px, 2px);
+
+msgSelectionCheck: RoundCheckbox(defaultPeerListCheck) {
+	bgActive: boxTextFgGood;
+}
+
+sponsoredMessageBarMaxHeight: 156px;

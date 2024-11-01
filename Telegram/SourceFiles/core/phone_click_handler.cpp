@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/phone_click_handler.h"
 
+#include "boxes/add_contact_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -47,6 +48,9 @@ public:
 	not_null<QAction*> action() const override;
 
 	void handleKeyPress(not_null<QKeyEvent*> e) override;
+
+	[[nodiscard]] QString firstName() const;
+	[[nodiscard]] QString lastName() const;
 
 protected:
 	QPoint prepareRippleStartPosition() const override;
@@ -128,6 +132,18 @@ ResolvePhoneAction::ResolvePhoneAction(
 
 	enableMouseSelecting();
 	prepare();
+}
+
+QString ResolvePhoneAction::firstName() const {
+	const auto peer = _peer.current();
+	const auto user = peer ? peer->asUser() : nullptr;
+	return user ? user->firstName : QString();
+}
+
+QString ResolvePhoneAction::lastName() const {
+	const auto peer = _peer.current();
+	const auto user = peer ? peer->asUser() : nullptr;
+	return user ? user->lastName : QString();
 }
 
 void ResolvePhoneAction::paint(Painter &p) {
@@ -314,14 +330,29 @@ void PhoneClickHandler::onClick(ClickContext context) const {
 			TextForMimeData::Simple(phone.trimmed()));
 	}, &st::menuIconCopy);
 
+	auto resolvePhoneAction = base::make_unique_q<ResolvePhoneAction>(
+		menu,
+		menu->st().menu,
+		phone,
+		controller);
+
+	if (Trim(phone) != Trim(controller->session().user()->phone())) {
+		menu->addAction(
+			tr::lng_info_add_as_contact(tr::now),
+			[=, raw = resolvePhoneAction.get()] {
+				controller->show(
+					Box<AddContactBox>(
+						_session,
+						raw->firstName(),
+						raw->lastName(),
+						Trim(phone)));
+			},
+			&st::menuIconInvite);
+	}
+
 	menu->addSeparator(&st::popupMenuExpandedSeparator.menu.separator);
 
-	menu->addAction(
-		base::make_unique_q<ResolvePhoneAction>(
-			menu,
-			menu->st().menu,
-			phone,
-			controller));
+	menu->addAction(std::move(resolvePhoneAction));
 
 	menu->popup(pos);
 }

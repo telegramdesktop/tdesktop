@@ -57,7 +57,6 @@ namespace {
 
 constexpr auto kCollapsedChannelsCount = 5;
 constexpr auto kProbablyMaxChannels = 1000;
-constexpr auto kProbablyMaxRecommendations = 100;
 constexpr auto kCollapsedAppsCount = 5;
 constexpr auto kProbablyMaxApps = 100;
 
@@ -183,7 +182,7 @@ void FillEntryMenu(
 RecentRow::RecentRow(not_null<PeerData*> peer)
 : PeerListRow(peer)
 , _history(peer->owner().history(peer)) {
-	if (peer->isSelf() || peer->isRepliesChat()) {
+	if (peer->isSelf() || peer->isRepliesChat() || peer->isVerifyCodes()) {
 		setCustomStatus(u" "_q);
 	} else if (const auto chat = peer->asChat()) {
 		if (chat->count > 0) {
@@ -286,7 +285,9 @@ bool RecentRow::rightActionDisabled() const {
 
 const style::PeerListItem &RecentRow::computeSt(
 		const style::PeerListItem &st) const {
-	return (peer()->isSelf() || peer()->isRepliesChat())
+	return (peer()->isSelf()
+		|| peer()->isRepliesChat()
+		|| peer()->isVerifyCodes())
 		? st::recentPeersSpecialName
 		: st;
 }
@@ -789,7 +790,9 @@ void RecentsController::subscribeToEvents() {
 		} else if (update.flags & Flag::Notifications) {
 			refreshed = static_cast<RecentRow*>(row)->refreshBadge();
 		}
-		if (!peer->isRepliesChat() && (update.flags & Flag::OnlineStatus)) {
+		if (!peer->isRepliesChat()
+			&& !peer->isVerifyCodes()
+			&& (update.flags & Flag::OnlineStatus)) {
 			row->clearCustomStatus();
 			refreshed = true;
 		}
@@ -1159,8 +1162,22 @@ void PopularAppsController::fill() {
 			appendRow(bot);
 		}
 	}
+	const auto count = delegate()->peerListFullRowsCount();
+	setCount(count);
+	if (count > 0) {
+		delegate()->peerListSetBelowWidget(object_ptr<Ui::DividerLabel>(
+			(QWidget*)nullptr,
+			object_ptr<Ui::FlatLabel>(
+				(QWidget*)nullptr,
+				tr::lng_bot_apps_which(
+					lt_link,
+					tr::lng_bot_apps_which_link(
+					) | Ui::Text::ToLink(u"internal:about_popular_apps"_q),
+					Ui::Text::WithEntities),
+				st::dialogsPopularAppsAbout),
+			st::dialogsPopularAppsPadding));
+	}
 	delegate()->peerListRefreshRows();
-	setCount(delegate()->peerListFullRowsCount());
 }
 
 void PopularAppsController::appendRow(not_null<UserData*> bot) {
@@ -2320,6 +2337,23 @@ object_ptr<Ui::BoxContent> StarsExamplesBox(
 		}, box->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(initBox));
+}
+
+object_ptr<Ui::BoxContent> PopularAppsAboutBox(
+		not_null<Window::SessionController*> window) {
+	return Ui::MakeInformBox({
+		.text = tr::lng_popular_apps_info_text(
+			lt_bot,
+			rpl::single(Ui::Text::Link(
+				u"@botfather"_q,
+				u"https://t.me/botfather"_q)),
+			lt_link,
+			tr::lng_popular_apps_info_here(
+			) | Ui::Text::ToLink(tr::lng_popular_apps_info_url(tr::now)),
+			Ui::Text::RichLangValue),
+		.confirmText = tr::lng_popular_apps_info_confirm(),
+		.title = tr::lng_popular_apps_info_title(),
+	});
 }
 
 } // namespace Dialogs

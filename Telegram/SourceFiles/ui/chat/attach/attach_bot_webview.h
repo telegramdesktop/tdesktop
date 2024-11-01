@@ -76,6 +76,7 @@ public:
 	Panel(
 		const Webview::StorageId &storageId,
 		rpl::producer<QString> title,
+		object_ptr<Ui::RpWidget> titleBadge,
 		not_null<Delegate*> delegate,
 		MenuButtons menuButtons,
 		bool allowClipboardRead);
@@ -191,6 +192,7 @@ struct Args {
 	QString url;
 	Webview::StorageId storageId;
 	rpl::producer<QString> title;
+	object_ptr<Ui::RpWidget> titleBadge = { nullptr };
 	rpl::producer<QString> bottom;
 	not_null<Delegate*> delegate;
 	MenuButtons menuButtons;

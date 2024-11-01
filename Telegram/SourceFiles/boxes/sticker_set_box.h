@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/box_content.h"
 #include "base/timer.h"
 #include "data/stickers/data_stickers.h"
+#include "ui/rect_part.h"
 
 namespace Window {
 class SessionController;
@@ -32,7 +33,8 @@ class StickerPremiumMark final {
 public:
 	StickerPremiumMark(
 		not_null<Main::Session*> session,
-		const style::icon &lockIcon);
+		const style::icon &lockIcon,
+		RectPart part = RectPart::Bottom);
 
 	void paint(
 		QPainter &p,
@@ -49,6 +51,7 @@ private:
 	const style::icon &_lockIcon;
 	QImage _lockGray;
 	QImage _star;
+	RectPart _part = RectPart::Bottom;
 	bool _premium = false;
 
 	rpl::lifetime _lifetime;

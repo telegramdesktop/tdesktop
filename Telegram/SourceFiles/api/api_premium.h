@@ -67,6 +67,39 @@ struct GiveawayInfo {
 	}
 };
 
+struct GiftOptionData {
+	int64 cost = 0;
+	QString currency;
+	int months = 0;
+};
+
+struct StarGift {
+	uint64 id = 0;
+	int64 stars = 0;
+	int64 convertStars = 0;
+	not_null<DocumentData*> document;
+	int limitedLeft = 0;
+	int limitedCount = 0;
+	TimeId firstSaleDate = 0;
+	TimeId lastSaleDate = 0;
+
+	friend inline bool operator==(
+		const StarGift &,
+		const StarGift &) = default;
+};
+
+struct UserStarGift {
+	StarGift info;
+	TextWithEntities message;
+	int64 convertStars = 0;
+	PeerId fromId = 0;
+	MsgId messageId = 0;
+	TimeId date = 0;
+	bool anonymous = false;
+	bool hidden = false;
+	bool mine = false;
+};
+
 class Premium final {
 public:
 	explicit Premium(not_null<ApiWrap*> api);
@@ -171,6 +204,7 @@ public:
 	PremiumGiftCodeOptions(not_null<PeerData*> peer);
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	[[nodiscard]] std::vector<GiftOptionData> optionsForPeer() const;
 	[[nodiscard]] Data::PremiumSubscriptionOptions options(int amount);
 	[[nodiscard]] const std::vector<int> &availablePresets() const;
 	[[nodiscard]] int monthsFromPreset(int monthsIndex);
@@ -186,6 +220,9 @@ public:
 	[[nodiscard]] int giveawayAddPeersMax() const;
 	[[nodiscard]] int giveawayPeriodMax() const;
 	[[nodiscard]] bool giveawayGiftsPurchaseAvailable() const;
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> requestStarGifts();
+	[[nodiscard]] const std::vector<StarGift> &starGifts() const;
 
 private:
 	struct Token final {
@@ -206,13 +243,16 @@ private:
 	base::flat_map<Amount, PremiumSubscriptionOptions> _subscriptionOptions;
 	struct {
 		std::vector<int> months;
-		std::vector<float64> totalCosts;
+		std::vector<int64> totalCosts;
 		QString currency;
 	} _optionsForOnePerson;
 
 	std::vector<int> _availablePresets;
 
 	base::flat_map<Token, Store> _stores;
+
+	int32 _giftsHash = 0;
+	std::vector<StarGift> _gifts;
 
 	MTP::Sender _api;
 
@@ -241,5 +281,12 @@ enum class RequirePremiumState {
 
 [[nodiscard]] rpl::producer<DocumentData*> RandomHelloStickerValue(
 	not_null<Main::Session*> session);
+
+[[nodiscard]] std::optional<StarGift> FromTL(
+	not_null<Main::Session*> session,
+	const MTPstarGift &gift);
+[[nodiscard]] std::optional<UserStarGift> FromTL(
+	not_null<UserData*> to,
+	const MTPuserStarGift &gift);
 
 } // namespace Api

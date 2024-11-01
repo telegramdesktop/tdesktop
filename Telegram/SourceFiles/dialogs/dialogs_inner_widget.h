@@ -72,13 +72,18 @@ struct ChosenRow {
 	bool newWindow : 1 = false;
 };
 
-enum class SearchRequestType : uchar {
-	FromStart,
-	FromOffset,
-	PeerFromStart,
-	PeerFromOffset,
-	MigratedFromStart,
-	MigratedFromOffset,
+struct SearchRequestType {
+	bool migrated : 1 = false;
+	bool posts : 1 = false;
+	bool start : 1 = false;
+	bool peer : 1 = false;
+
+	friend inline constexpr auto operator<=>(
+		SearchRequestType a,
+		SearchRequestType b) = default;
+	friend inline constexpr bool operator==(
+		SearchRequestType a,
+		SearchRequestType b) = default;
 };
 
 enum class SearchRequestDelay : uchar {
@@ -283,6 +288,7 @@ private:
 	void setHashtagPressed(int pressed);
 	void setFilteredPressed(int pressed, bool pressedTopicJump);
 	void setPeerSearchPressed(int pressed);
+	void setPreviewPressed(int pressed);
 	void setSearchedPressed(int pressed);
 	bool isPressed() const {
 		return (_collapsedPressed >= 0)
@@ -290,7 +296,9 @@ private:
 			|| (_hashtagPressed >= 0)
 			|| (_filteredPressed >= 0)
 			|| (_peerSearchPressed >= 0)
-			|| (_searchedPressed >= 0);
+			|| (_previewPressed >= 0)
+			|| (_searchedPressed >= 0)
+			|| _pressedMorePosts;
 	}
 	bool isSelected() const {
 		return (_collapsedSelected >= 0)
@@ -298,7 +306,9 @@ private:
 			|| (_hashtagSelected >= 0)
 			|| (_filteredSelected >= 0)
 			|| (_peerSearchSelected >= 0)
-			|| (_searchedSelected >= 0);
+			|| (_previewSelected >= 0)
+			|| (_searchedSelected >= 0)
+			|| _selectedMorePosts;
 	}
 	bool uniqueSearchResults() const;
 	bool hasHistoryInResults(not_null<History*> history) const;
@@ -352,6 +362,7 @@ private:
 	[[nodiscard]] int filteredHeight(int till = -1) const;
 	[[nodiscard]] int peerSearchOffset() const;
 	[[nodiscard]] int searchInChatOffset() const;
+	[[nodiscard]] int previewOffset() const;
 	[[nodiscard]] int searchedOffset() const;
 	[[nodiscard]] int searchInChatSkip() const;
 	[[nodiscard]] int hashtagsOffset() const;
@@ -403,14 +414,18 @@ private:
 	//	const Ui::Text::String &text) const;
 	void updateSearchIn();
 	void repaintSearchResult(int index);
+	void repaintPreviewResult(int index);
+
+	[[nodiscard]] bool computeSearchWithPostsPreview() const;
 
 	Ui::VideoUserpic *validateVideoUserpic(not_null<Row*> row);
 	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);
 
 	Row *shownRowByKey(Key key);
 	void clearSearchResults(bool clearPeerSearchResults = true);
+	void clearPreviewResults();
 	void updateSelectedRow(Key key = Key());
-	void trackSearchResultsHistory(not_null<History*> history);
+	void trackResultsHistory(not_null<History*> history);
 
 	[[nodiscard]] QBrush currentBg() const;
 	[[nodiscard]] RowDescriptor computeChatPreviewRow() const;
@@ -449,6 +464,8 @@ private:
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
 	not_null<const style::DialogRow*> _st;
 	mutable std::unique_ptr<Ui::TopicJumpCache> _topicJumpCache;
+	bool _selectedMorePosts = false;
+	bool _pressedMorePosts = false;
 	int _collapsedSelected = -1;
 	int _collapsedPressed = -1;
 	bool _skipTopDialog = false;
@@ -487,14 +504,21 @@ private:
 
 	EmptyState _emptyState = EmptyState::None;
 
+	base::flat_set<not_null<History*>> _trackedHistories;
+	rpl::lifetime _trackedLifetime;
+
 	QString _peerSearchQuery;
 	std::vector<std::unique_ptr<PeerSearchResult>> _peerSearchResults;
 	int _peerSearchSelected = -1;
 	int _peerSearchPressed = -1;
 
+	std::vector<std::unique_ptr<FakeRow>> _previewResults;
+	int _previewCount = 0;
+	int _previewSelected = -1;
+	int _previewPressed = -1;
+	int _morePostsWidth = 0;
+
 	std::vector<std::unique_ptr<FakeRow>> _searchResults;
-	base::flat_set<not_null<History*>> _searchResultsHistories;
-	rpl::lifetime _searchResultsLifetime;
 	int _searchedCount = 0;
 	int _searchedMigratedCount = 0;
 	int _searchedSelected = -1;
@@ -516,6 +540,7 @@ private:
 
 	SearchState _searchState;
 	HashOrCashtag _searchHashOrCashtag = {};
+	bool _searchWithPostsPreview = false;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromShown = nullptr;
 	Ui::Text::String _searchFromUserText;

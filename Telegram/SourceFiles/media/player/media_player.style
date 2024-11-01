@@ -29,6 +29,7 @@ MediaPlayerButton {
 
 MediaSpeedMenu {
 	dropdown: DropdownMenu;
+	qualityMenu: Menu;
 	activeCheck: icon;
 	activeCheckSkip: pixels;
 	sliderStyle: TextStyle;
@@ -165,16 +166,20 @@ mediaPlayerMenu: DropdownMenu(defaultDropdownMenu) {
 }
 mediaPlayerMenuCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
 
+mediaPlayerSpeedMenuInner: Menu(menuWithIcons) {
+	separator: MenuSeparator(defaultMenuSeparator) {
+		padding: margins(0px, 4px, 0px, 4px);
+		width: 6px;
+	}
+	itemPadding: margins(54px, 7px, 54px, 9px);
+	itemFgDisabled: mediaPlayerActiveFg;
+}
 mediaPlayerSpeedMenu: MediaSpeedMenu {
 	dropdown: DropdownMenu(mediaPlayerMenu) {
-		menu: Menu(menuWithIcons) {
-			separator: MenuSeparator(defaultMenuSeparator) {
-				padding: margins(0px, 4px, 0px, 4px);
-				width: 6px;
-			}
-			itemPadding: margins(54px, 7px, 54px, 9px);
-			itemFgDisabled: mediaPlayerActiveFg;
-		}
+		menu: mediaPlayerSpeedMenuInner;
+	}
+	qualityMenu: Menu(mediaPlayerSpeedMenuInner) {
+		itemPadding: margins(17px, 7px, 54px, 9px);
 	}
 	activeCheck: mediaPlayerMenuCheck;
 	activeCheckSkip: 8px;

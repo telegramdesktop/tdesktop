@@ -10,58 +10,66 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "api/api_common.h"
 #include "api/api_sending.h"
+#include "apiwrap.h"
 #include "base/qthelp_url.h"
+#include "base/random.h"
+#include "base/timer_rpl.h"
+#include "boxes/peer_list_controllers.h"
 #include "boxes/share_box.h"
+#include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/local_url_handlers.h"
 #include "core/shortcuts.h"
 #include "data/components/location_pickers.h"
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
-#include "data/data_user.h"
-#include "data/data_file_origin.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer_bot_command.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/data_web_page.h"
-#include "main/main_app_config.h"
-#include "main/main_session.h"
-#include "main/main_domain.h"
-#include "storage/storage_domain.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "info/profile/info_profile_values.h"
 #include "iv/iv_instance.h"
+#include "lang/lang_keys.h"
+#include "main/main_app_config.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
+#include "mainwidget.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
+#include "storage/storage_account.h"
+#include "storage/storage_domain.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/controls/location_picker.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/dropdown_menu.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/widgets/menu/menu_item_base.h"
-#include "ui/text/text_utilities.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/label_with_custom_emoji.h"
+#include "ui/widgets/menu/menu_item_base.h"
+#include "ui/widgets/popup_menu.h"
+#include "webview/webview_interface.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
-#include "webview/webview_interface.h"
-#include "core/application.h"
-#include "core/local_url_handlers.h"
-#include "ui/basic_click_handlers.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "payments/payments_checkout_process.h"
-#include "payments/payments_non_panel_process.h"
-#include "storage/storage_account.h"
-#include "boxes/peer_list_controllers.h"
-#include "lang/lang_keys.h"
-#include "base/random.h"
-#include "base/timer_rpl.h"
-#include "apiwrap.h"
-#include "mainwidget.h"
 #include "styles/style_boxes.h"
+#include "styles/style_channel_earn.h"
+#include "styles/style_chat.h"
+#include "styles/style_info.h" // infoVerifiedCheck.
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_window.h"
 
 #include <QSvgRenderer>
 
@@ -351,6 +359,72 @@ WebViewContext ResolveContext(
 		};
 	}
 	return context;
+}
+
+void FillBotUsepic(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> bot,
+		base::weak_ptr<Window::SessionController> weak) {
+	auto arrow = Ui::Text::SingleCustomEmoji(
+		bot->owner().customEmojiManager().registerInternalEmoji(
+			st::topicButtonArrow,
+			st::channelEarnLearnArrowMargins,
+			false));
+	auto aboutLabel = Ui::CreateLabelWithCustomEmoji(
+		box->verticalLayout(),
+		tr::lng_allow_bot_webview_details(
+			lt_emoji,
+			rpl::single(std::move(arrow)),
+			Ui::Text::RichLangValue
+		) | rpl::map([](TextWithEntities text) {
+			return Ui::Text::Link(std::move(text), u"internal:"_q);
+		}),
+		{ .session = &bot->session() },
+		st::defaultFlatLabel);
+	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+		box->verticalLayout(),
+		bot,
+		st::infoPersonalChannelUserpic);
+	Ui::AddSkip(box->verticalLayout());
+	aboutLabel->setClickHandlerFilter([=](auto &&...) {
+		if (const auto strong = weak.get()) {
+			strong->showPeerHistory(
+				bot->id,
+				Window::SectionShow::Way::Forward);
+			return true;
+		}
+		return false;
+	});
+	const auto title = Ui::CreateChild<Ui::RpWidget>(box->verticalLayout());
+	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(
+		title,
+		rpl::single(bot->name()),
+		box->getDelegate()->style().title);
+	const auto icon = bot->isVerified() ? &st::infoVerifiedCheck : nullptr;
+	title->resize(
+		titleLabel->width() + (icon ? icon->width() : 0),
+		titleLabel->height());
+	title->widthValue(
+	) | rpl::distinct_until_changed() | rpl::start_with_next([=](int w) {
+		titleLabel->resizeToWidth(w
+			- (icon ? icon->width() + st::lineWidth : 0));
+	}, title->lifetime());
+	if (icon) {
+		title->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(title);
+			p.fillRect(title->rect(), Qt::transparent);
+			icon->paint(
+				p,
+				std::min(
+					titleLabel->textMaxWidth() + st::lineWidth,
+					title->width() - st::lineWidth - icon->width()),
+				(title->height() - icon->height()) / 2,
+				title->width());
+		}, title->lifetime());
+	}
+
+	Ui::IconWithTitle(box->verticalLayout(), userpic, title, aboutLabel);
 }
 
 class BotAction final : public Ui::Menu::ItemBase {
@@ -767,15 +841,21 @@ void WebViewInstance::confirmOpen(Fn<void()> done) {
 		botClose();
 		close();
 	};
-	_parentShow->show(Ui::MakeConfirmBox({
-		.text = tr::lng_allow_bot_webview(
-			tr::now,
-			lt_bot_name,
-			Ui::Text::Bold(_bot->name()),
-			Ui::Text::RichLangValue),
-		.confirmed = crl::guard(this, callback),
-		.cancelled = crl::guard(this, cancel),
-		.confirmText = tr::lng_box_ok(),
+
+	_parentShow->show(Box([=](not_null<Ui::GenericBox*> box) {
+		FillBotUsepic(box, _bot, _context.controller);
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_profile_open_app_about(
+				tr::now,
+				lt_terms,
+				Ui::Text::Link(
+					tr::lng_profile_open_app_terms(tr::now),
+					tr::lng_mini_apps_tos_url(tr::now)),
+				Ui::Text::RichLangValue),
+			.confirmed = crl::guard(this, callback),
+			.cancelled = crl::guard(this, cancel),
+			.confirmText = tr::lng_view_button_bot_app(),
+		});
 	}));
 }
 
@@ -792,14 +872,18 @@ void WebViewInstance::confirmAppOpen(
 			botClose();
 			close();
 		};
+		FillBotUsepic(box, _bot, _context.controller);
 		Ui::ConfirmBox(box, {
-			tr::lng_allow_bot_webview(
+			tr::lng_profile_open_app_about(
 				tr::now,
-				lt_bot_name,
-				Ui::Text::Bold(_bot->name()),
+				lt_terms,
+				Ui::Text::Link(
+					tr::lng_profile_open_app_terms(tr::now),
+					tr::lng_mini_apps_tos_url(tr::now)),
 				Ui::Text::RichLangValue),
 			crl::guard(this, callback),
 			crl::guard(this, cancelled),
+			tr::lng_view_button_bot_app(),
 		});
 		if (writeAccess) {
 			(*allowed) = box->addRow(
@@ -1010,6 +1094,17 @@ void WebViewInstance::maybeChooseAndRequestButton(PeerTypes supported) {
 
 void WebViewInstance::show(const QString &url, uint64 queryId) {
 	auto title = Info::Profile::NameValue(_bot);
+	auto titleBadge = _bot->isVerified()
+		? object_ptr<Ui::RpWidget>(_parentShow->toastParent())
+		: nullptr;
+	if (titleBadge) {
+		const auto raw = titleBadge.data();
+		raw->paintRequest() | rpl::start_with_next([=] {
+			auto p = Painter(raw);
+			st::infoVerifiedCheck.paint(p, st::lineWidth, 0, raw->width());
+		}, raw->lifetime());
+		raw->resize(st::infoVerifiedCheck.size() + QSize(0, st::lineWidth));
+	}
 
 	const auto &bots = _session->attachWebView().attachBots();
 
@@ -1040,6 +1135,7 @@ void WebViewInstance::show(const QString &url, uint64 queryId) {
 		.url = url,
 		.storageId = _session->local().resolveStorageIdBots(),
 		.title = std::move(title),
+		.titleBadge = std::move(titleBadge),
 		.bottom = rpl::single('@' + _bot->username()),
 		.delegate = static_cast<Ui::BotWebView::Delegate*>(this),
 		.menuButtons = buttons,

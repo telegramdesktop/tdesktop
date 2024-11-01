@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/field_autocomplete.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -237,7 +238,7 @@ EditCaptionBox::EditCaptionBox(
 	Fn<void()> saved)
 : _controller(controller)
 , _historyItem(item)
-, _isAllowedEditMedia(item->media() && item->media()->allowsEditMedia())
+, _isAllowedEditMedia(item->allowsEditMedia())
 , _albumType(ComputeAlbumType(item))
 , _controls(base::make_unique_q<Ui::VerticalLayout>(this))
 , _scroll(base::make_unique_q<Ui::ScrollArea>(this, st::boxScroll))
@@ -252,8 +253,8 @@ EditCaptionBox::EditCaptionBox(
 , _initialText(std::move(text))
 , _initialList(std::move(list))
 , _saved(std::move(saved)) {
-	Expects(item->media() != nullptr);
-	Expects(item->media()->allowsEditCaption());
+	Expects(!_initialList.files.empty());
+	Expects(!item->media() || item->media()->allowsEditCaption());
 
 	_mediaEditManager.start(item, spoilered, invertCaption);
 
@@ -371,6 +372,14 @@ void EditCaptionBox::StartPhotoEdit(
 	});
 }
 
+void EditCaptionBox::showFinished() {
+	if (const auto raw = _autocomplete.get()) {
+		InvokeQueued(raw, [=] {
+			raw->raise();
+		});
+	}
+}
+
 void EditCaptionBox::prepare() {
 	const auto button = addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
@@ -413,7 +422,8 @@ void EditCaptionBox::prepare() {
 	setInitialText();
 
 	if (!setPreparedList(std::move(_initialList))) {
-		rebuildPreview();
+		crl::on_main(this, [=] { closeBox(); });
+		return;
 	}
 	setupEditEventHandler();
 	SetupShadowsToScrollContent(this, _scroll, _contentHeight.events());
@@ -525,6 +535,7 @@ void EditCaptionBox::setupField() {
 		_field.get(),
 		Window::GifPauseReason::Layer,
 		allow);
+	setupFieldAutocomplete();
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field,
@@ -560,6 +571,55 @@ void EditCaptionBox::setupField() {
 		}
 		Unexpected("Action in MimeData hook.");
 	});
+}
+
+void EditCaptionBox::setupFieldAutocomplete() {
+	const auto parent = getDelegate()->outerContainer();
+	ChatHelpers::InitFieldAutocomplete(_autocomplete, {
+		.parent = parent,
+		.show = _controller->uiShow(),
+		.field = _field.get(),
+		.peer = _historyItem->history()->peer,
+		.features = [=] {
+			auto result = ChatHelpers::ComposeFeatures();
+			result.autocompleteCommands = false;
+			result.suggestStickersByEmoji = false;
+			return result;
+		},
+	});
+	const auto raw = _autocomplete.get();
+	const auto scheduled = std::make_shared<bool>();
+	const auto recountPostponed = [=] {
+		if (*scheduled) {
+			return;
+		}
+		*scheduled = true;
+		Ui::PostponeCall(raw, [=] {
+			*scheduled = false;
+
+			auto field = Ui::MapFrom(parent, this, _field->geometry());
+			_autocomplete->setBoundings(QRect(
+				field.x() - _field->x(),
+				st::defaultBox.margin.top(),
+				width(),
+				(field.y()
+					+ st::defaultComposeFiles.caption.textMargins.top()
+					+ st::defaultComposeFiles.caption.placeholderShift
+					+ st::defaultComposeFiles.caption.placeholderFont->height
+					- st::defaultBox.margin.top())));
+		});
+	};
+	for (auto w = (QWidget*)_field.get(); w; w = w->parentWidget()) {
+		base::install_event_filter(raw, w, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Move || e->type() == QEvent::Resize) {
+				recountPostponed();
+			}
+			return base::EventFilterResult::Continue;
+		});
+		if (w == parent) {
+			break;
+		}
+	}
 }
 
 void EditCaptionBox::setInitialText() {

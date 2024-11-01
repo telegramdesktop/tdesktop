@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace ChatHelpers {
 class TabbedPanel;
+class FieldAutocomplete;
 } // namespace ChatHelpers
 
 namespace Window {
@@ -68,6 +69,8 @@ public:
 		bool invertCaption,
 		Fn<void()> saved);
 
+	void showFinished() override;
+
 protected:
 	void prepare() override;
 	void setInnerFocus() override;
@@ -81,6 +84,7 @@ private:
 	void setupEditEventHandler();
 	void setupPhotoEditorEventHandler();
 	void setupField();
+	void setupFieldAutocomplete();
 	void setupControls();
 	void setInitialText();
 
@@ -114,6 +118,8 @@ private:
 	const base::unique_qptr<Ui::ScrollArea> _scroll;
 	const base::unique_qptr<Ui::InputField> _field;
 	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
+
+	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 
 	base::unique_qptr<Ui::AbstractSinglePreview> _content;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;

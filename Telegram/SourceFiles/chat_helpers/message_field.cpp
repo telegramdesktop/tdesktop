@@ -225,6 +225,9 @@ void EditLinkBox(
 		if (startText.isEmpty()) {
 			text->setFocusFast();
 		} else {
+			if (!url->empty()) {
+				url->selectAll();
+			}
 			url->setFocusFast();
 		}
 	});
@@ -232,12 +235,31 @@ void EditLinkBox(
 	url->customTab(true);
 	text->customTab(true);
 
+	const auto clearFullSelection = [=](not_null<Ui::InputField*> input) {
+		if (input->empty()) {
+			return;
+		}
+		auto cursor = input->rawTextEdit()->textCursor();
+		const auto hasFull = (!cursor.selectionStart()
+			&& (cursor.selectionEnd()
+				== (input->rawTextEdit()->document()->characterCount() - 1)));
+		if (hasFull) {
+			cursor.clearSelection();
+			input->setTextCursor(cursor);
+		}
+	};
+
 	url->tabbed(
 	) | rpl::start_with_next([=] {
+		clearFullSelection(url);
 		text->setFocus();
 	}, url->lifetime());
 	text->tabbed(
 	) | rpl::start_with_next([=] {
+		if (!url->empty()) {
+			url->selectAll();
+		}
+		clearFullSelection(text);
 		url->setFocus();
 	}, text->lifetime());
 }
@@ -401,18 +423,14 @@ Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
 	};
 }
 
-void InitMessageFieldHandlers(
-		not_null<Main::Session*> session,
-		std::shared_ptr<Main::SessionShow> show,
-		not_null<Ui::InputField*> field,
-		Fn<bool()> customEmojiPaused,
-		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji,
-		const style::InputField *fieldStyle) {
-	const auto paused = [customEmojiPaused] {
-		return customEmojiPaused && customEmojiPaused();
+void InitMessageFieldHandlers(MessageFieldHandlersArgs &&args) {
+	const auto paused = [passed = args.customEmojiPaused] {
+		return passed && passed();
 	};
+	const auto field = args.field;
+	const auto session = args.session;
 	field->setTagMimeProcessor(
-		FieldTagMimeProcessor(session, allowPremiumEmoji));
+		FieldTagMimeProcessor(session, args.allowPremiumEmoji));
 	field->setCustomTextContext([=](Fn<void()> repaint) {
 		return std::any(Core::MarkedTextContext{
 			.session = session,
@@ -426,12 +444,14 @@ void InitMessageFieldHandlers(
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
-	field->setMarkdownReplacesEnabled(true);
-	if (show) {
+	field->setMarkdownReplacesEnabled(rpl::single(Ui::MarkdownEnabledState{
+		Ui::MarkdownEnabled{ std::move(args.allowMarkdownTags) }
+	}));
+	if (const auto &show = args.show) {
 		field->setEditLinkCallback(
-			DefaultEditLinkCallback(show, field, fieldStyle));
+			DefaultEditLinkCallback(show, field, args.fieldStyle));
 		field->setEditLanguageCallback(DefaultEditLanguageCallback(show));
-		InitSpellchecker(show, field, fieldStyle != nullptr);
+		InitSpellchecker(show, field, args.fieldStyle != nullptr);
 	}
 	const auto style = field->lifetime().make_state<Ui::ChatStyle>(
 		session->colorIndicesValue());
@@ -531,12 +551,15 @@ void InitMessageFieldHandlers(
 		not_null<Ui::InputField*> field,
 		ChatHelpers::PauseReason pauseReasonLevel,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
-	InitMessageFieldHandlers(
-		&controller->session(),
-		controller->uiShow(),
-		field,
-		[=] { return controller->isGifPausedAtLeastFor(pauseReasonLevel); },
-		allowPremiumEmoji);
+	InitMessageFieldHandlers({
+		.session = &controller->session(),
+		.show = controller->uiShow(),
+		.field = field,
+		.customEmojiPaused = [=] {
+			return controller->isGifPausedAtLeastFor(pauseReasonLevel);
+		},
+		.allowPremiumEmoji = std::move(allowPremiumEmoji),
+	});
 }
 
 void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
@@ -552,14 +575,16 @@ void InitMessageField(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::InputField*> field,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
-	InitMessageFieldHandlers(
-		&show->session(),
-		show,
-		field,
-		[=] { return show->paused(ChatHelpers::PauseReason::Any); },
-		std::move(allowPremiumEmoji));
+	InitMessageFieldHandlers({
+		.session = &show->session(),
+		.show = show,
+		.field = field,
+		.customEmojiPaused = [=] {
+			return show->paused(ChatHelpers::PauseReason::Any);
+		},
+		.allowPremiumEmoji = std::move(allowPremiumEmoji),
+	});
 	InitMessageFieldGeometry(field);
-	field->customTab(true);
 }
 
 void InitMessageField(

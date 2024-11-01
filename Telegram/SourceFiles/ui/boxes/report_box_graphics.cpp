@@ -5,14 +5,16 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "ui/boxes/report_box.h"
+#include "ui/boxes/report_box_graphics.h"
 
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
+#include "styles/style_channel_earn.h"
 #include "styles/style_settings.h"
 
 namespace Ui {
@@ -124,19 +127,10 @@ void ReportDetailsBox(
 		const style::ReportBox &st,
 		Fn<void(QString)> done) {
 	box->setTitle(tr::lng_profile_report());
-	{
-		auto icon = Settings::CreateLottieIcon(
-			box->verticalLayout(),
-			{
-				.name = u"blocked_peers_empty"_q,
-				.sizeOverride = Size(st::changePhoneIconSize),
-			},
-			st::settingsBlockedListIconPadding);
-		box->setShowFinishedCallback([animate = std::move(icon.animate)] {
-			animate(anim::repeat::once);
-		});
-		box->addRow(std::move(icon.widget));
-	}
+	AddReportDetailsIconButton(box);
+	Ui::AddSkip(
+		box->verticalLayout(),
+		st::settingsBlockedListIconPadding.bottom());
 
 	box->addRow(
 		object_ptr<FlatLabel>(
@@ -168,6 +162,62 @@ void ReportDetailsBox(
 	details->submits() | rpl::start_with_next(submit, details->lifetime());
 	box->addButton(tr::lng_report_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+not_null<Ui::AbstractButton*> AddReportOptionButton(
+		not_null<Ui::VerticalLayout*> container,
+		const QString &text,
+		const style::ReportBox *stOverride) {
+	const auto button = container->add(
+		object_ptr<Ui::SettingsButton>(
+			container,
+			rpl::single(QString()),
+			(stOverride ? stOverride : &st::defaultReportBox)->noIconButton));
+	const auto textFg = (stOverride
+		? stOverride->label
+		: st::sponsoredReportLabel).textFg->c;
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		rpl::single(text),
+		st::sponsoredReportLabel);
+	label->setTextColorOverride(textFg);
+	const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
+	icon->resize(st::settingsPremiumArrow.size());
+	icon->paintRequest() | rpl::start_with_next([=, w = icon->width()] {
+		auto p = Painter(icon);
+		st::settingsPremiumArrow.paint(p, 0, 0, w, textFg);
+	}, icon->lifetime());
+	button->sizeValue() | rpl::start_with_next([=](const QSize &size) {
+		const auto left = button->st().padding.left();
+		const auto right = button->st().padding.right();
+		icon->moveToRight(right, (size.height() - icon->height()) / 2);
+		label->resizeToWidth(size.width()
+			- icon->width()
+			- left
+			- st::settingsButtonRightSkip
+			- right);
+		label->moveToLeft(left, (size.height() - label->height()) / 2);
+		button->resize(
+			button->width(),
+			rect::m::sum::v(button->st().padding) + label->height());
+	}, button->lifetime());
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	return button;
+}
+
+void AddReportDetailsIconButton(not_null<GenericBox*> box) {
+	auto icon = Settings::CreateLottieIcon(
+		box->verticalLayout(),
+		{
+			.name = u"blocked_peers_empty"_q,
+			.sizeOverride = Size(st::changePhoneIconSize),
+		},
+		{});
+	box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	});
+	box->addRow(std::move(icon.widget));
 }
 
 } // namespace Ui

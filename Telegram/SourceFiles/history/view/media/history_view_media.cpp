@@ -156,17 +156,23 @@ TextWithEntities AddTimestampLinks(
 		}
 
 		auto &entities = text.entities;
-		const auto i = ranges::lower_bound(
+		auto i = ranges::lower_bound(
 			entities,
 			from,
 			std::less<>(),
 			&EntityInText::offset);
+		while (i != entities.end()
+			&& i->offset() < till
+			&& i->type() == EntityType::Spoiler) {
+			++i;
+		}
 		if (i != entities.end() && i->offset() < till) {
 			continue;
 		}
 
 		const auto intersects = [&](const EntityInText &entity) {
-			return entity.offset() + entity.length() > from;
+			return (entity.offset() + entity.length() > from)
+				&& (entity.type() != EntityType::Spoiler);
 		};
 		auto j = std::make_reverse_iterator(i);
 		const auto e = std::make_reverse_iterator(entities.begin());

@@ -307,17 +307,21 @@ mediaviewTitleMaximizeMacPadding: margins(0px, 4px, 8px, 4px);
 mediaviewShadowTop: icon{{ "mediaview/shadow_top", windowShadowFg }};
 mediaviewShadowBottom: icon{{ "mediaview/shadow_bottom", windowShadowFg }};
 
+mediaviewSpeedMenuInner: Menu(mediaviewMenu) {
+	separator: MenuSeparator(mediaviewMenuSeparator) {
+		fg: groupCallMenuBgOver;
+		padding: margins(0px, 4px, 0px, 4px);
+		width: 6px;
+	}
+	itemPadding: margins(54px, 7px, 54px, 9px);
+	itemFgDisabled: mediaviewTextLinkFg;
+}
 mediaviewSpeedMenu: MediaSpeedMenu(mediaPlayerSpeedMenu) {
 	dropdown: DropdownMenu(mediaviewDropdownMenu) {
-		menu: Menu(mediaviewMenu) {
-			separator: MenuSeparator(mediaviewMenuSeparator) {
-				fg: groupCallMenuBgOver;
-				padding: margins(0px, 4px, 0px, 4px);
-				width: 6px;
-			}
-			itemPadding: margins(54px, 7px, 54px, 9px);
-			itemFgDisabled: mediaviewTextLinkFg;
-		}
+		menu: mediaviewSpeedMenuInner;
+	}
+	qualityMenu: Menu(mediaviewSpeedMenuInner) {
+		itemPadding: margins(17px, 7px, 54px, 9px);
 	}
 	activeCheck: icon {{ "player/player_check", mediaviewTextLinkFg }};
 	slider: MediaSlider(defaultContinuousSlider) {
@@ -347,10 +351,11 @@ mediaviewSpeedMenu: MediaSpeedMenu(mediaPlayerSpeedMenu) {
 mediaviewSpeedButton: MediaSpeedButton(mediaPlayerSpeedButton) {
 	size: size(32px, 32px);
 	padding: margins(0px, 0px, 0px, 0px);
+	font: font(8px bold);
 	fg: mediaviewPlaybackIconFg;
 	overFg: mediaviewPlaybackIconFgOver;
 	activeFg: mediaviewTextLinkFg;
-	icon: icon{{ "player/player_speed", mediaviewPlaybackIconFg }};
+	icon: icon{{ "player/player_settings", mediaviewPlaybackIconFg }};
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: mediaviewPlaybackIconRipple;
 	}
@@ -480,6 +485,8 @@ storiesLike: IconButton(storiesAttach) {
 }
 storiesRecordVoice: icon {{ "chat/input_record", storiesComposeGrayIcon }};
 storiesRecordVoiceOver: icon {{ "chat/input_record", storiesComposeGrayIcon }};
+storiesRecordRound: icon {{ "chat/input_video", storiesComposeGrayIcon }};
+storiesRecordRoundOver: icon {{ "chat/input_video", storiesComposeGrayIcon }};
 storiesRemoveSet: IconButton(stickerPanRemoveSet) {
 	icon: icon {{ "simple_close", storiesComposeGrayIcon }};
 	iconOver: icon {{ "simple_close", storiesComposeGrayIcon }};
@@ -686,6 +693,8 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		}
 		record: storiesRecordVoice;
 		recordOver: storiesRecordVoiceOver;
+		round: storiesRecordRound;
+		roundOver: storiesRecordRoundOver;
 		sendDisabledFg: storiesComposeGrayText;
 	}
 	attach: storiesAttach;
@@ -888,11 +897,21 @@ storiesReportBox: ReportBox(defaultReportBox) {
 		textBgOver: storiesComposeBgOver;
 		ripple: storiesComposeRipple;
 	}
+	noIconButton: SettingsButton(reportReasonButton) {
+		textFg: storiesComposeWhiteText;
+		textFgOver: storiesComposeWhiteText;
+		textBg: storiesComposeBg;
+		textBgOver: storiesComposeBgOver;
+		padding: margins(22px, 7px, 8px, 7px);
+		ripple: storiesComposeRipple;
+	}
 	label: storiesBoxLabel;
 	field: InputField(storiesBoxInputField) {
 		textMargins: margins(1px, 26px, 1px, 4px);
 		heightMax: 116px;
 	}
+	dividerBg: groupCallBg;
+	dividerFg: groupCallVideoSubTextFg;
 	spam: icon {{ "menu/delete", storiesComposeWhiteText }};
 	fake: icon {{ "menu/fake", storiesComposeWhiteText }};
 	violence: icon {{ "menu/violence", storiesComposeWhiteText }};

@@ -215,7 +215,8 @@ void DefaultOverlayWidgetHelper::orderWidgets() {
 }
 
 bool DefaultOverlayWidgetHelper::skipTitleHitTest(QPoint position) {
-	return _controls->controls.geometry().contains(position);
+	using namespace Ui::Platform;
+	return _controls->controls.hitTest(position) != HitTestResult::None;
 }
 
 rpl::producer<> DefaultOverlayWidgetHelper::controlsActivations() {

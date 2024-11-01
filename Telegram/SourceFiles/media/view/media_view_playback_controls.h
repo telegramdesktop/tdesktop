@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
+#include "media/media_common.h"
 
 namespace Ui {
 class LabelSimple;
@@ -21,7 +22,7 @@ class PopupMenu;
 namespace Media {
 namespace Player {
 struct TrackState;
-class SpeedButton;
+class SettingsButton;
 class SpeedController;
 } // namespace Player
 
@@ -44,6 +45,11 @@ public:
 		virtual void playbackControlsSpeedChanged(float64 speed) = 0;
 		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed(
 			bool lastNonDefault) = 0;
+		[[nodiscard]] virtual auto playbackControlsQualities()
+			-> std::vector<int> = 0;
+		[[nodiscard]] virtual auto playbackControlsCurrentQuality()
+			-> VideoQuality = 0;
+		virtual void playbackControlsQualityChanged(int quality) = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
 		virtual void playbackControlsToPictureInPicture() = 0;
@@ -90,7 +96,13 @@ private:
 	[[nodiscard]] float64 speedLookup(bool lastNonDefault) const;
 	void saveSpeed(float64 speed);
 
+	void saveQuality(int quality);
+	void updateSpeedToggleQuality();
+
 	const not_null<Delegate*> _delegate;
+
+	bool _speedControllable = false;
+	std::vector<int> _qualitiesList;
 
 	bool _inFullScreen = false;
 	bool _showPause = false;
@@ -108,7 +120,7 @@ private:
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::MediaSlider> _volumeController;
-	object_ptr<Player::SpeedButton> _speedToggle;
+	object_ptr<Player::SettingsButton> _speedToggle;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;

@@ -92,25 +92,11 @@ Stories::Tab Key::storiesTab() const {
 	return Stories::Tab();
 }
 
-PeerData *Key::statisticsPeer() const {
+Statistics::Tag Key::statisticsTag() const {
 	if (const auto tag = std::get_if<Statistics::Tag>(&_value)) {
-		return tag->peer;
+		return *tag;
 	}
-	return nullptr;
-}
-
-FullMsgId Key::statisticsContextId() const {
-	if (const auto tag = std::get_if<Statistics::Tag>(&_value)) {
-		return tag->contextId;
-	}
-	return {};
-}
-
-FullStoryId Key::statisticsStoryId() const {
-	if (const auto tag = std::get_if<Statistics::Tag>(&_value)) {
-		return tag->storyId;
-	}
-	return {};
+	return Statistics::Tag();
 }
 
 PollData *Key::poll() const {
@@ -292,7 +278,7 @@ bool Controller::validateMementoPeer(
 		&& memento->migratedPeerId() == migratedPeerId()
 		&& memento->settingsSelf() == settingsSelf()
 		&& memento->storiesPeer() == storiesPeer()
-		&& memento->statisticsPeer() == statisticsPeer();
+		&& memento->statisticsTag().peer == statisticsTag().peer;
 }
 
 void Controller::setSection(not_null<ContentMemento*> memento) {

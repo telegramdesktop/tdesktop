@@ -498,6 +498,7 @@ FileLoadTask::FileLoadTask(
 	const QByteArray &voice,
 	crl::time duration,
 	const VoiceWaveform &waveform,
+	bool video,
 	const FileLoadTo &to,
 	const TextWithTags &caption)
 : _id(base::RandomValue<uint64>())
@@ -507,7 +508,7 @@ FileLoadTask::FileLoadTask(
 , _content(voice)
 , _duration(duration)
 , _waveform(waveform)
-, _type(SendMediaType::Audio)
+, _type(video ? SendMediaType::Round : SendMediaType::Audio)
 , _caption(caption) {
 }
 
@@ -696,6 +697,7 @@ void FileLoadTask::process(Args &&args) {
 	auto isSong = false;
 	auto isVideo = false;
 	auto isVoice = (_type == SendMediaType::Audio);
+	auto isRound = (_type == SendMediaType::Round);
 	auto isSticker = false;
 
 	auto fullimage = QImage();
@@ -711,7 +713,7 @@ void FileLoadTask::process(Args &&args) {
 		// Voice sending is supported only from memory for now.
 		// Because for voice we force mime type and don't read MediaInformation.
 		// For a real file we always read mime type and read MediaInformation.
-		Assert(!isVoice);
+		Assert(!isVoice && !isRound);
 
 		filesize = info.size();
 		filename = info.fileName();
@@ -736,6 +738,9 @@ void FileLoadTask::process(Args &&args) {
 		if (isVoice) {
 			filename = filedialogDefaultName(u"audio"_q, u".ogg"_q, QString(), true);
 			filemime = "audio/ogg";
+		} else if (isRound) {
+			filename = filedialogDefaultName(u"round"_q, u".mp4"_q, QString(), true);
+			filemime = "video/mp4";
 		} else {
 			if (_information) {
 				if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
@@ -815,7 +820,41 @@ void FileLoadTask::process(Args &&args) {
 	auto photo = MTP_photoEmpty(MTP_long(0));
 	auto document = MTP_documentEmpty(MTP_long(0));
 
-	if (!isVoice) {
+	if (isRound) {
+		_information = readMediaInformation(u"video/mp4"_q);
+		if (auto video = std::get_if<Ui::PreparedFileInformation::Video>(
+			&_information->media)) {
+			isVideo = true;
+			auto coverWidth = video->thumbnail.width();
+			auto coverHeight = video->thumbnail.height();
+			if (video->isGifv && !_album) {
+				attributes.push_back(MTP_documentAttributeAnimated());
+			}
+			auto flags = MTPDdocumentAttributeVideo::Flags(
+				MTPDdocumentAttributeVideo::Flag::f_round_message);
+			if (video->supportsStreaming) {
+				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+			}
+			const auto realSeconds = video->duration / 1000.;
+			attributes.push_back(MTP_documentAttributeVideo(
+				MTP_flags(flags),
+				MTP_double(realSeconds),
+				MTP_int(coverWidth),
+				MTP_int(coverHeight),
+				MTPint(), // preload_prefix_size
+				MTPdouble(), // video_start_ts
+				MTPstring())); // video_codec
+
+			if (args.generateGoodThumbnail) {
+				goodThumbnail = video->thumbnail;
+				{
+					QBuffer buffer(&goodThumbnailBytes);
+					goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+				}
+			}
+			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
+		}
+	} else if (!isVoice) {
 		if (!_information) {
 			_information = readMediaInformation(filemime);
 			filemime = _information->filemime;
@@ -846,7 +885,8 @@ void FileLoadTask::process(Args &&args) {
 				MTP_int(coverWidth),
 				MTP_int(coverHeight),
 				MTPint(), // preload_prefix_size
-				MTPdouble())); // video_start_ts
+				MTPdouble(), // video_start_ts
+				MTPstring())); // video_codec
 
 			if (args.generateGoodThumbnail) {
 				goodThumbnail = video->thumbnail;
@@ -868,7 +908,7 @@ void FileLoadTask::process(Args &&args) {
 		}
 	}
 
-	if (!fullimage.isNull() && fullimage.width() > 0 && !isSong && !isVideo && !isVoice) {
+	if (!fullimage.isNull() && fullimage.width() > 0 && !isSong && !isVideo && !isVoice && !isRound) {
 		auto w = fullimage.width(), h = fullimage.height();
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
@@ -974,7 +1014,7 @@ void FileLoadTask::process(Args &&args) {
 			MTPVector<MTPVideoSize>(),
 			MTP_int(_dcId),
 			MTP_vector<MTPDocumentAttribute>(attributes));
-		_type = SendMediaType::File;
+		_type = isRound ? SendMediaType::Round : SendMediaType::File;
 	}
 
 	if (_information) {

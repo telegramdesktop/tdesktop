@@ -42,6 +42,9 @@ public:
 	[[nodiscard]] bool isRemoteLoader() const;
 	void setLoaderPriority(int priority);
 
+	[[nodiscard]] int64 size() const;
+	[[nodiscard]] rpl::producer<SpeedEstimate> speedEstimate() const;
+
 	~File();
 
 private:

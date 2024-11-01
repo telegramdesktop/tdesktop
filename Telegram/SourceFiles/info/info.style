@@ -129,9 +129,7 @@ infoTopBarBack: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(6px, 6px);
 	rippleAreaSize: 42px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
@@ -443,22 +441,20 @@ infoProfileSeparatorPadding: margins(
 	infoProfileSkip,
 	0px,
 	infoProfileSkip);
-infoProfileLabeledButtonCopy: IconButton(defaultIconButton) {
+infoProfileLabeledButtonQr: IconButton(defaultIconButton) {
 	width: 34px;
 	height: 34px;
-	icon: icon {{ "menu/copy", windowBgActive }};
-	iconOver: icon {{ "menu/copy", windowBgActive }};
+	icon: icon {{ "menu/qr_code", windowActiveTextFg }};
+	iconOver: icon {{ "menu/qr_code", windowActiveTextFg }};
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 34px;
 	ripple: defaultRippleAnimation;
 }
-infoProfileLabeledButtonQr: IconButton(infoProfileLabeledButtonCopy) {
-	icon: icon {{ "menu/qr_code", windowBgActive }};
-	iconOver: icon {{ "menu/qr_code", windowBgActive }};
-}
+infoProfileLabeledButtonQrRightSkip: 10px;
 
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};
+infoIconBotBalance: icon {{ "menu/earn", infoIconFg, point(5px, 5px) }};
 infoIconNotifications: icon {{ "info/info_notifications", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info/info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info/info_media_video", infoIconFg }};
@@ -473,6 +469,7 @@ infoIconMediaStories: icon {{ "info/info_media_stories", infoIconFg }};
 infoIconMediaSaved: icon {{ "info/info_media_saved", infoIconFg }};
 infoIconMediaStoriesArchive: icon {{ "info/info_stories_archive", infoIconFg }};
 infoIconMediaStoriesRecent: icon {{ "info/info_stories_recent", infoIconFg }};
+infoIconMediaGifts: icon {{ "menu/gift_premium", infoIconFg, point(4px, 4px) }};
 
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
@@ -486,7 +483,10 @@ infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoGroupMembersIconPosition: point(20px, 10px);
-infoChannelMembersIconPosition: point(20px, 19px);
+infoChannelMembersIconPosition: point(20px, 4px);
+infoChannelAdminsIconPosition: point(24px, 7px);
+infoEarnCreditsIconPosition: point(24px, 7px);
+infoEarnCurrencyIconPosition: point(20px, 3px);
 
 infoOpenApp: RoundButton(defaultActiveButton) {
 	textTop: 11px;
@@ -620,9 +620,7 @@ infoMembersCancelSearch: CrossButton {
 
 	duration: 150;
 	loadingPeriod: 1000;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoMembersSearchTop: 15px;
 
@@ -838,9 +836,7 @@ topBarSearch: IconButton {
 
 	rippleAreaPosition: point(0px, 7px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 topBarCloseChoose: IconButton(topBarSearch) {
 	width: 56px;
@@ -1143,9 +1139,7 @@ infoHoursDayLabel: infoHoursState;
 infoHoursOuter: RoundButton(defaultActiveButton) {
 	textBg: transparent;
 	textBgOver: transparent;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoHoursOuterMargin: margins(8px, 4px, 8px, 4px);
 infoHoursDaySkip: 6px;

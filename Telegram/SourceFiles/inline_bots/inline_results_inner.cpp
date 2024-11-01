@@ -346,11 +346,16 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	const auto send = crl::guard(this, [=](Api::SendOptions options) {
 		selectInlineResult(selected, options, false);
 	});
+	const auto show = _controller->uiShow();
+
+	// In case we're adding items after FillSendMenu we have
+	// to pass nullptr for showForEffect and attach selector later.
+	// Otherwise added items widths won't be respected in menu geometry.
 	SendMenu::FillSendMenu(
 		_menu,
-		_controller->uiShow(),
+		nullptr, // showForEffect
 		details,
-		SendMenu::DefaultCallback(_controller->uiShow(), send));
+		SendMenu::DefaultCallback(show, send));
 
 	const auto item = _mosaic.itemAt(_selected);
 	if (const auto previewDocument = item->getPreviewDocument()) {
@@ -365,6 +370,12 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 			_controller->uiShow(),
 			previewDocument);
 	}
+
+	SendMenu::AttachSendMenuEffect(
+		_menu,
+		show,
+		details,
+		SendMenu::DefaultCallback(show, send));
 
 	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "menu/menu_send.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/field_autocomplete.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "editor/photo_editor_layer_widget.h"
@@ -1266,13 +1267,17 @@ void SendFilesBox::setupCaption() {
 			: (_limits & SendFilesAllow::EmojiWithoutPremium);
 	};
 	const auto show = _show;
-	InitMessageFieldHandlers(
-		&show->session(),
-		show,
-		_caption.data(),
-		[=] { return show->paused(Window::GifPauseReason::Layer); },
-		allow,
-		&_st.files.caption);
+	InitMessageFieldHandlers({
+		.session = &show->session(),
+		.show = show,
+		.field = _caption.data(),
+		.customEmojiPaused = [=] {
+			return show->paused(Window::GifPauseReason::Layer);
+		},
+		.allowPremiumEmoji = allow,
+		.fieldStyle = &_st.files.caption,
+	});
+	setupCaptionAutocomplete();
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_caption,
@@ -1330,6 +1335,59 @@ void SendFilesBox::setupCaption() {
 	) | rpl::start_with_next([=] {
 		checkCharsLimitation();
 	}, _caption->lifetime());
+}
+
+void SendFilesBox::setupCaptionAutocomplete() {
+	if (!_captionToPeer || !_caption) {
+		return;
+	}
+	const auto parent = getDelegate()->outerContainer();
+	ChatHelpers::InitFieldAutocomplete(_autocomplete, {
+		.parent = parent,
+		.show = _show,
+		.field = _caption.data(),
+		.peer = _captionToPeer,
+		.features = [=] {
+			auto result = ChatHelpers::ComposeFeatures();
+			result.autocompleteCommands = false;
+			result.suggestStickersByEmoji = false;
+			return result;
+		},
+		.sendMenuDetails = _sendMenuDetails,
+	});
+	const auto raw = _autocomplete.get();
+	const auto scheduled = std::make_shared<bool>();
+	const auto recountPostponed = [=] {
+		if (*scheduled) {
+			return;
+		}
+		*scheduled = true;
+		Ui::PostponeCall(raw, [=] {
+			*scheduled = false;
+
+			auto field = Ui::MapFrom(parent, this, _caption->geometry());
+			_autocomplete->setBoundings(QRect(
+				field.x() - _caption->x(),
+				st::defaultBox.margin.top(),
+				width(),
+				(field.y()
+					+ _st.files.caption.textMargins.top()
+					+ _st.files.caption.placeholderShift
+					+ _st.files.caption.placeholderFont->height
+					- st::defaultBox.margin.top())));
+		});
+	};
+	for (auto w = (QWidget*)_caption.data(); w; w = w->parentWidget()) {
+		base::install_event_filter(raw, w, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Move || e->type() == QEvent::Resize) {
+				recountPostponed();
+			}
+			return base::EventFilterResult::Continue;
+		});
+		if (w == parent) {
+			break;
+		}
+	}
 }
 
 void SendFilesBox::checkCharsLimitation() {
@@ -1645,6 +1703,14 @@ void SendFilesBox::updateControlsGeometry() {
 	}
 	_scroll->resize(width(), bottom - _titleHeight.current());
 	_scroll->move(0, _titleHeight.current());
+}
+
+void SendFilesBox::showFinished() {
+	if (const auto raw = _autocomplete.get()) {
+		InvokeQueued(raw, [=] {
+			raw->raise();
+		});
+	}
 }
 
 void SendFilesBox::setInnerFocus() {

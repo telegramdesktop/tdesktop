@@ -8,23 +8,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_messages_box.h"
 
 #include "api/api_report.h"
+#include "core/application.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "lang/lang_keys.h"
-#include "ui/boxes/report_box.h"
+#include "ui/boxes/report_box_graphics.h"
 #include "ui/layers/generic_box.h"
+#include "ui/rect.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/fields/input_field.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 namespace {
 
 [[nodiscard]] object_ptr<Ui::BoxContent> Report(
 		not_null<PeerData*> peer,
-		std::variant<
-			v::null_t,
-			MessageIdsList,
-			not_null<PhotoData*>,
-			StoryId> data,
+		std::variant<v::null_t, not_null<PhotoData*>> data,
 		const style::ReportBox *stOverride) {
 	const auto source = v::match(data, [](const MessageIdsList &ids) {
 		return Ui::ReportSource::Message;
@@ -62,64 +67,151 @@ namespace {
 
 } // namespace
 
-object_ptr<Ui::BoxContent> ReportItemsBox(
-		not_null<PeerData*> peer,
-		MessageIdsList ids) {
-	return Report(peer, ids, nullptr);
-}
-
 object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
 	return Report(peer, photo, nullptr);
 }
 
-void ShowReportPeerBox(
-		not_null<Window::SessionController*> window,
-		not_null<PeerData*> peer) {
-	struct State {
-		QPointer<Ui::BoxContent> reasonBox;
-		QPointer<Ui::BoxContent> detailsBox;
-		MessageIdsList ids;
-	};
-	const auto state = std::make_shared<State>();
-	const auto chosen = [=](Ui::ReportReason reason) {
-		const auto send = [=](const QString &text) {
-			window->clearChooseReportMessages();
-			Api::SendReport(
-				window->uiShow(),
-				peer,
-				reason,
-				text,
-				std::move(state->ids));
-			if (const auto strong = state->reasonBox.data()) {
-				strong->closeBox();
+void ShowReportMessageBox(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		const std::vector<MsgId> &ids,
+		const std::vector<StoryId> &stories,
+		const style::ReportBox *stOverride) {
+	const auto report = Api::CreateReportMessagesOrStoriesCallback(
+		show,
+		peer);
+
+	auto performRequest = [=](
+			const auto &repeatRequest,
+			Data::ReportInput reportInput) -> void {
+		constexpr auto kToastDuration = crl::time(4000);
+		report(reportInput, [=](const Api::ReportResult &result) {
+			if (!result.error.isEmpty()) {
+				if (result.error == u"MESSAGE_ID_REQUIRED"_q) {
+					const auto widget = show->toastParent();
+					const auto window = Core::App().findWindow(widget);
+					const auto controller = window
+						? window->sessionController()
+						: nullptr;
+					if (controller) {
+						const auto callback = [=](std::vector<MsgId> ids) {
+							auto copy = reportInput;
+							copy.ids = std::move(ids);
+							repeatRequest(repeatRequest, std::move(copy));
+						};
+						controller->showChooseReportMessages(
+							peer,
+							reportInput,
+							std::move(callback));
+					}
+				} else {
+					show->showToast(result.error);
+				}
+				return;
 			}
-			if (const auto strong = state->detailsBox.data()) {
-				strong->closeBox();
+			if (!result.options.empty() || result.commentOption) {
+				show->show(Box([=](not_null<Ui::GenericBox*> box) {
+					box->setTitle(
+						rpl::single(
+							result.title.isEmpty()
+								? reportInput.optionText
+								: result.title));
+
+					for (const auto &option : result.options) {
+						const auto button = Ui::AddReportOptionButton(
+							box->verticalLayout(),
+							option.text,
+							stOverride);
+						button->setClickedCallback([=] {
+							auto copy = reportInput;
+							copy.optionId = option.id;
+							copy.optionText = option.text;
+							repeatRequest(repeatRequest, std::move(copy));
+						});
+					}
+					if (const auto commentOption = result.commentOption) {
+						constexpr auto kReportReasonLengthMax = 512;
+						const auto &st = stOverride
+							? stOverride
+							: &st::defaultReportBox;
+						Ui::AddReportDetailsIconButton(box);
+						Ui::AddSkip(box->verticalLayout());
+						Ui::AddSkip(box->verticalLayout());
+						const auto details = box->addRow(
+							object_ptr<Ui::InputField>(
+								box,
+								st->field,
+								Ui::InputField::Mode::MultiLine,
+								commentOption->optional
+									? tr::lng_report_details_optional()
+									: tr::lng_report_details_non_optional(),
+								QString()));
+						Ui::AddSkip(box->verticalLayout());
+						Ui::AddSkip(box->verticalLayout());
+						{
+							const auto container = box->verticalLayout();
+							auto label = object_ptr<Ui::FlatLabel>(
+								container,
+								tr::lng_report_details_message_about(),
+								st::boxDividerLabel);
+							label->setTextColorOverride(st->dividerFg->c);
+							using namespace Ui;
+							const auto widget = container->add(
+								object_ptr<PaddingWrap<>>(
+									container,
+									std::move(label),
+									st::defaultBoxDividerLabelPadding));
+							const auto background
+								= CreateChild<BoxContentDivider>(
+									widget,
+									st::boxDividerHeight,
+									st->dividerBg,
+									RectPart::Top | RectPart::Bottom);
+							background->lower();
+							widget->sizeValue(
+							) | rpl::start_with_next([=](const QSize &s) {
+								background->resize(s);
+							}, background->lifetime());
+						}
+						details->setMaxLength(kReportReasonLengthMax);
+						box->setFocusCallback([=] {
+							details->setFocusFast();
+						});
+						const auto submit = [=] {
+							if (!commentOption->optional
+								&& details->empty()) {
+								details->showError();
+								details->setFocus();
+								return;
+							}
+							auto copy = reportInput;
+							copy.optionId = commentOption->id;
+							copy.comment = details->getLastText();
+							repeatRequest(repeatRequest, std::move(copy));
+						};
+						details->submits(
+						) | rpl::start_with_next(submit, details->lifetime());
+						box->addButton(tr::lng_report_button(), submit);
+					} else {
+						box->addButton(
+							tr::lng_close(),
+							[=] { show->hideLayer(); });
+					}
+					if (!reportInput.optionId.isNull()) {
+						box->addLeftButton(
+							tr::lng_create_group_back(),
+							[=] { box->closeBox(); });
+					}
+				}));
+			} else if (result.successful) {
+				show->showToast(
+					tr::lng_report_thanks(tr::now),
+					kToastDuration);
+				show->hideLayer();
 			}
-		};
-		if (reason == Ui::ReportReason::Fake
-			|| reason == Ui::ReportReason::Other) {
-			state->ids = {};
-			state->detailsBox = window->show(
-				Box(Ui::ReportDetailsBox, st::defaultReportBox, send));
-			return;
-		}
-		window->showChooseReportMessages(peer, reason, [=](
-				MessageIdsList ids) {
-			state->ids = std::move(ids);
-			state->detailsBox = window->show(
-				Box(Ui::ReportDetailsBox, st::defaultReportBox, send));
 		});
 	};
-	state->reasonBox = window->show(Box(
-		Ui::ReportReasonBox,
-		st::defaultReportBox,
-		(peer->isBroadcast()
-			? Ui::ReportSource::Channel
-			: peer->isUser()
-			? Ui::ReportSource::Bot
-			: Ui::ReportSource::Group),
-		chosen));
+	performRequest(performRequest, { .ids = ids, .stories = stories });
 }

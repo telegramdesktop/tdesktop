@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_sponsored_click_handler.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_sponsored.h"
@@ -73,11 +74,13 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 	const auto spoiler = false;
 	for (const auto &item : data.items) {
 		if (const auto document = std::get_if<DocumentData*>(&item)) {
+			const auto hasQualitiesList = false;
 			const auto skipPremiumEffect = false;
 			result.push_back(std::make_unique<Data::MediaFile>(
 				parent,
 				*document,
 				skipPremiumEffect,
+				hasQualitiesList,
 				spoiler,
 				/*ttlSeconds = */0));
 		} else if (const auto photo = std::get_if<PhotoData*>(&item)) {
@@ -140,15 +143,6 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 			} else {
 				HiddenUrlClickHandler::Open(webpage->url, context.other);
 			}
-		}
-	});
-}
-
-[[nodiscard]] ClickHandlerPtr AboutSponsoredClickHandler() {
-	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-		const auto my = context.other.value<ClickHandlerContext>();
-		if (const auto controller = my.sessionWindow.get()) {
-			Menu::ShowSponsoredAbout(controller->uiShow());
 		}
 	});
 }
@@ -297,9 +291,10 @@ void WebPage::setupAdditionalData() {
 	if (_flags & MediaWebPageFlag::Sponsored) {
 		_additionalData = std::make_unique<AdditionalData>(SponsoredData());
 		const auto raw = sponsoredData();
-		const auto &session = _parent->data()->history()->session();
-		const auto details = session.sponsoredMessages().lookupDetails(
-			_parent->data()->fullId());
+		const auto session = &_data->session();
+		const auto id = _parent->data()->fullId();
+		const auto details = session->sponsoredMessages().lookupDetails(id);
+		const auto link = details.link;
 		raw->buttonText = details.buttonText;
 		raw->isLinkInternal = details.isLinkInternal ? 1 : 0;
 		raw->backgroundEmojiId = details.backgroundEmojiId;
@@ -308,12 +303,16 @@ void WebPage::setupAdditionalData() {
 		raw->hasMedia = (details.mediaPhotoId || details.mediaDocumentId)
 			? 1
 			: 0;
+		raw->link = std::make_shared<LambdaClickHandler>([=] {
+			session->sponsoredMessages().clicked(id, false, false);
+			UrlClickHandler::Open(link);
+		});
 		if (!_attach) {
 			const auto maybePhoto = details.mediaPhotoId
-				? _data->session().data().photo(details.mediaPhotoId).get()
+				? session->data().photo(details.mediaPhotoId).get()
 				: nullptr;
 			const auto maybeDocument = details.mediaDocumentId
-				? _data->session().data().document(
+				? session->data().document(
 					details.mediaDocumentId).get()
 				: nullptr;
 			_attach = CreateAttach(
@@ -322,6 +321,25 @@ void WebPage::setupAdditionalData() {
 				maybePhoto,
 				_collage,
 				_data->url);
+		}
+		if (_attach) {
+			if (_attach->getPhoto()) {
+				raw->mediaLink = std::make_shared<LambdaClickHandler>([=] {
+					session->sponsoredMessages().clicked(id, true, false);
+					UrlClickHandler::Open(link);
+				});
+			} else if (const auto document = _attach->getDocument()) {
+				const auto delegate = _parent->delegate();
+				raw->mediaLink = document->isVideoFile()
+					? std::make_shared<LambdaClickHandler>([=] {
+						session->sponsoredMessages().clicked(id, true, false);
+						delegate->elementOpenDocument(document, id, true);
+					})
+					: std::make_shared<LambdaClickHandler>([=] {
+						session->sponsoredMessages().clicked(id, true, false);
+						UrlClickHandler::Open(link);
+					});
+			}
 		}
 	} else if (_data->stickerSet) {
 		_additionalData = std::make_unique<AdditionalData>(StickerSetData());
@@ -1339,6 +1357,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 		}
 		tshift += descriptionHeight;
 	}
+	auto isWithinSponsoredMedia = false;
 	if (inThumb) {
 		result.link = _openl;
 	} else if (_attach) {
@@ -1373,6 +1392,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 				point - QPoint(attachLeft, attachTop),
 				request);
 			if (hasSponsoredMedia) {
+				isWithinSponsoredMedia = true;
 			} else if (result.cursor == CursorState::Enlarge) {
 				result.cursor = CursorState::None;
 			} else {
@@ -1383,8 +1403,12 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			tshift += _attach->height();
 		}
 	}
-	if ((!result.link || (sponsored && !hasSponsoredMedia))
-		&& outer.contains(point)) {
+	if (isWithinSponsoredMedia) {
+		result.link = sponsored->mediaLink;
+	} else if (sponsored && outer.contains(point)) {
+		result.link = sponsored->link;
+	}
+	if (!result.link && outer.contains(point)) {
 		result.link = _openl;
 	}
 	if (const auto hint = hintData()) {

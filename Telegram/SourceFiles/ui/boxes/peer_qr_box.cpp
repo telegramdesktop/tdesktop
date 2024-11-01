@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "qr/qr_generate.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/effects/animations.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
@@ -57,7 +59,18 @@ using Colors = std::vector<QColor>;
 		st::profileQrBackgroundMargins.bottom());
 }
 
-[[nodiscard]] QImage TelegramQr(const Qr::Data &data, int pixel, int max) {
+[[nodiscard]] style::font CreateFont(int size, int scale) {
+	return style::font(
+		style::ConvertScale(size, scale),
+		st::profileQrFont->flags(),
+		st::profileQrFont->family());
+}
+
+[[nodiscard]] QImage TelegramQr(
+		const Qr::Data &data,
+		int pixel,
+		int max,
+		bool hasWhiteBackground) {
 	Expects(data.size > 0);
 
 	constexpr auto kCenterRatio = 0.175;
@@ -68,8 +81,8 @@ using Colors = std::vector<QColor>;
 	auto qr = Qr::Generate(
 		data,
 		pixel * style::DevicePixelRatio(),
-		Qt::transparent,
-		Qt::white);
+		hasWhiteBackground ? Qt::transparent : Qt::black,
+		hasWhiteBackground ? Qt::white : Qt::transparent);
 	{
 		auto p = QPainter(&qr);
 		auto hq = PainterHighQualityEnabler(p);
@@ -79,10 +92,16 @@ using Colors = std::vector<QColor>;
 			- Margins((size.width() - (size.width() * kCenterRatio)) / 2);
 		p.setPen(Qt::NoPen);
 		p.setBrush(Qt::white);
-		p.setCompositionMode(QPainter::CompositionMode_Clear);
-		p.drawEllipse(centerRect);
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		svg.render(&p, centerRect);
+		if (hasWhiteBackground) {
+			p.setCompositionMode(QPainter::CompositionMode_Clear);
+			p.drawEllipse(centerRect);
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			svg.render(&p, centerRect);
+		} else {
+			p.drawEllipse(centerRect);
+			p.setCompositionMode(QPainter::CompositionMode_Clear);
+			svg.render(&p, centerRect);
+		}
 	}
 	return qr;
 }
@@ -110,10 +129,11 @@ void Paint(
 		int qrPixel,
 		int radius,
 		int textMaxHeight,
-		int photoSize) {
+		int photoSize,
+		bool hasWhiteBackground) {
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
-	p.setBrush(Qt::white);
+	p.setBrush(hasWhiteBackground ? Qt::white : Qt::transparent);
 	const auto roundedRect = qrRect
 		+ RoundedMargins(backgroundMargins, photoSize, textMaxHeight);
 	p.drawRoundedRect(roundedRect, radius, radius);
@@ -130,7 +150,9 @@ void Paint(
 			backgroundColors,
 			gradientRotation,
 			1. - (gradientRotationAdd / 45.));
-		p.drawImage(qrRect, back);
+		if (hasWhiteBackground) {
+			p.drawImage(qrRect, back);
+		}
 		const auto coloredSize = QSize(back.width(), textMaxHeight);
 		auto colored = QImage(
 			coloredSize * style::DevicePixelRatio(),
@@ -149,7 +171,17 @@ void Paint(
 			p.setCompositionMode(QPainter::CompositionMode_SourceIn);
 			p.drawImage(0, -back.height() + textMaxHeight, back);
 		}
-		p.drawImage(qrRect, qrImage);
+		if (!hasWhiteBackground) {
+			auto copy = qrImage;
+			{
+				auto p = QPainter(&copy);
+				p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+				p.drawImage(Rect(copy.size()), back);
+			}
+			p.drawImage(qrRect, copy);
+		} else {
+			p.drawImage(qrRect, qrImage);
+		}
 		if (textMaxHeight) {
 			p.drawImage(
 				qrRect.x() - textAdditionalWidth / 2,
@@ -164,8 +196,9 @@ void Paint(
 not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Ui::RpWidget*> topWidget,
-		const style::font &font,
+		rpl::producer<int> fontSizeValue,
 		rpl::producer<bool> userpicToggled,
+		rpl::producer<bool> backgroundToggled,
 		rpl::producer<QString> username,
 		rpl::producer<QString> links,
 		rpl::producer<Colors> bgs,
@@ -178,6 +211,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		}
 
 		Ui::Animations::Basic updating;
+		style::font font;
 		QImage qrImage;
 		Colors backgroundColors;
 		QString text;
@@ -185,6 +219,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		int textWidth = 0;
 		int textMaxHeight = 0;
 		int photoSize = 0;
+		bool backgroundToggled = false;
 	};
 	const auto result = Ui::CreateChild<Ui::RpWidget>(divider);
 	topWidget->setParent(result);
@@ -198,19 +233,25 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		divider,
 		st::creditsBoxAboutDivider);
 	rpl::combine(
+		std::move(fontSizeValue),
 		std::move(userpicToggled),
+		std::move(backgroundToggled),
 		std::move(username),
 		std::move(bgs),
 		std::move(links),
 		std::move(about),
 		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
 	) | rpl::start_with_next([=](
+			int fontSize,
 			bool userpicToggled,
+			bool backgroundToggled,
 			const QString &username,
 			const Colors &backgroundColors,
 			const QString &link,
 			const QString &about,
 			const auto &) {
+		state->font = CreateFont(fontSize, style::Scale());
+		state->backgroundToggled = backgroundToggled;
 		state->backgroundMargins = userpicToggled
 			? st::profileQrBackgroundMargins
 			: NoPhotoBackgroundMargins();
@@ -219,7 +260,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			: 0;
 		state->backgroundColors = backgroundColors;
 		state->text = username.toUpper();
-		state->textWidth = font->width(state->text);
+		state->textWidth = state->font->width(state->text);
 		{
 			const auto remainder = qrMaxSize % st::introQrPixel;
 			const auto downTo = remainder
@@ -228,7 +269,8 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			state->qrImage = TelegramQr(
 				Qr::Encode(link.toUtf8(), Qr::Redundancy::Default),
 				st::introQrPixel,
-				downTo).scaled(
+				downTo,
+				backgroundToggled).scaled(
 					Size(qrMaxSize * style::DevicePixelRatio()),
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
@@ -242,7 +284,9 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		const auto textMaxWidth = state->backgroundMargins.left()
 			+ (state->qrImage.width() / style::DevicePixelRatio());
 		const auto lines = int(state->textWidth / textMaxWidth) + 1;
-		state->textMaxHeight = state->textWidth ? (font->height * lines) : 0;
+		state->textMaxHeight = state->textWidth
+			? (state->font->height * lines)
+			: 0;
 		const auto whiteMargins = RoundedMargins(
 			state->backgroundMargins,
 			state->photoSize,
@@ -281,7 +325,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			st::profileQrBackgroundPadding.top() + state->photoSize / 2);
 		Paint(
 			p,
-			font,
+			state->font,
 			state->text,
 			state->backgroundColors,
 			state->backgroundMargins,
@@ -291,7 +335,8 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			st::introQrPixel,
 			st::profileQrBackgroundRadius,
 			state->textMaxHeight,
-			state->photoSize);
+			state->photoSize,
+			state->backgroundToggled);
 		if (!state->photoSize) {
 			return;
 		}
@@ -360,7 +405,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			if (index == i) {
 				const auto x = ((g.width() - bigDot->width()) * i)
 					/ float64(count - 1);
-				bigDot->move(g.x() + std::ceil(x), bigTop);
+				bigDot->move(g.x() + std::round(x), bigTop);
 			} else {
 				const auto k = (i < index) ? i : i - 1;
 				const auto w = smallDots[k]->width();
@@ -393,22 +438,15 @@ void FillPeerQrBox(
 		Ui::RpWidget* saveButton = nullptr;
 		rpl::variable<bool> saveButtonBusy = false;
 		rpl::variable<bool> userpicToggled = true;
+		rpl::variable<bool> backgroundToggled = true;
 		rpl::variable<Colors> bgs;
 		Ui::Animations::Simple animation;
 		rpl::variable<int> chosen = 0;
 		rpl::variable<int> scaleValue = 0;
-
-		style::font font;
+		rpl::variable<int> fontSizeValue = 28;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	state->userpicToggled = !(customLink || !peer);
-	const auto createFont = [=](int scale) {
-		return style::font(
-			style::ConvertScale(30, scale),
-			st::profileQrFont->flags(),
-			st::profileQrFont->family());
-	};
-	state->font = createFont(style::Scale());
 
 	const auto usernameValue = [=] {
 		return (customLink || !peer)
@@ -425,16 +463,25 @@ void FillPeerQrBox(
 			: (rpl::single(QString()) | rpl::type_erased());
 	};
 
-	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-		box,
-		peer ? peer : controller->session().user().get(),
-		st::defaultUserpicButton);
+	const auto userpic = Ui::CreateChild<Ui::RpWidget>(box);
+	const auto userpicSize = st::defaultUserpicButton.photoSize;
+	userpic->resize(Size(userpicSize));
+	const auto userpicMedia = Ui::MakeUserpicThumbnail(peer
+		? peer
+		: controller->session().user().get());
+	userpicMedia->subscribeToUpdates([=] { userpic->update(); });
+	userpic->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(userpic);
+		p.drawImage(0, 0, userpicMedia->image(userpicSize));
+	}, userpic->lifetime());
+
 	userpic->setVisible(peer != nullptr);
 	PrepareQrWidget(
 		box->verticalLayout(),
 		userpic,
-		state->font,
+		state->fontSizeValue.value(),
 		state->userpicToggled.value(),
+		state->backgroundToggled.value(),
 		usernameValue(),
 		linkValue(),
 		state->bgs.value(),
@@ -593,10 +640,12 @@ void FillPeerQrBox(
 					auto pen = st::activeLineFg->p;
 					pen.setWidth(st::defaultInputField.borderActive);
 					p.setPen(pen);
+					const auto r = st::roundRadiusLarge
+						+ activewidth * 2.1 * style::DevicePixelRatio();
 					p.drawRoundedRect(
 						widget->rect() - Margins(pen.width()),
-						st::roundRadiusLarge + activewidth * 4.2,
-						st::roundRadiusLarge + activewidth * 4.2);
+						r,
+						r);
 				}
 			}, widget->lifetime());
 			counter++;
@@ -700,6 +749,53 @@ void FillPeerQrBox(
 			},
 			[](int) {});
 	}
+	{
+		Ui::AddSkip(box->verticalLayout());
+		Ui::AddSkip(box->verticalLayout());
+		Ui::AddSubsectionTitle(
+			box->verticalLayout(),
+			tr::lng_qr_box_font_size());
+		Ui::AddSkip(box->verticalLayout());
+		const auto seekSize = st::settingsScale.seekSize.height();
+
+		const auto slider = box->verticalLayout()->add(
+			object_ptr<Ui::MediaSliderWheelless>(
+				box->verticalLayout(),
+				st::settingsScale),
+			st::boxRowPadding);
+		slider->resize(slider->width(), seekSize);
+		const auto kSizeAmount = 8;
+		const auto kMinSize = 20;
+		const auto kMaxSize = 36;
+		const auto kStep = (kMaxSize - kMinSize) / (kSizeAmount - 1);
+		const auto updateGeometry = AddDotsToSlider(
+			slider,
+			st::settingsScale,
+			kSizeAmount);
+		const auto fontSizeToIndex = [=](int fontSize) {
+			return (fontSize - kMinSize) / kStep;
+		};
+		const auto indexToFontSize = [=](int index) {
+			return kMinSize + index * kStep;
+		};
+		slider->geometryValue(
+		) | rpl::start_with_next([=](const QRect &rect) {
+			updateGeometry(fontSizeToIndex(state->fontSizeValue.current()));
+		}, box->lifetime());
+
+		box->setShowFinishedCallback([=] {
+			updateGeometry(fontSizeToIndex(state->fontSizeValue.current()));
+		});
+		slider->setPseudoDiscrete(
+			kSizeAmount,
+			[=](int index) { return indexToFontSize(index); },
+			state->fontSizeValue.current(),
+			[=](int fontSize) {
+				state->fontSizeValue = fontSize;
+				updateGeometry(fontSizeToIndex(fontSize));
+			},
+			[](int) {});
+	}
 	Ui::AddSkip(box->verticalLayout());
 	Ui::AddSkip(box->verticalLayout());
 	if (peer) {
@@ -715,6 +811,19 @@ void FillPeerQrBox(
 		userpicToggle->toggleOn(state->userpicToggled.value(), true);
 		userpicToggle->setClickedCallback([=] {
 			state->userpicToggled = !state->userpicToggled.current();
+		});
+	}
+	{
+		const auto backgroundToggle = box->verticalLayout()->add(
+			object_ptr<Ui::SettingsButton>(
+				box->verticalLayout(),
+				tr::lng_qr_box_transparent_background(),
+				st::settingsButtonNoIcon));
+		backgroundToggle->toggleOn(
+			state->backgroundToggled.value() | rpl::map(!rpl::mappers::_1),
+			true);
+		backgroundToggle->setClickedCallback([=] {
+			state->backgroundToggled = !state->backgroundToggled.current();
 		});
 	}
 	Ui::AddSkip(box->verticalLayout());
@@ -738,6 +847,7 @@ void FillPeerQrBox(
 		}
 
 		const auto userpicToggled = state->userpicToggled.current();
+		const auto backgroundToggled = state->backgroundToggled.current();
 		const auto scale = style::kScaleDefault
 			* (kMaxQualities + int(state->scaleValue.current() * 2));
 		const auto divider = std::max(1, style::Scale())
@@ -774,15 +884,14 @@ void FillPeerQrBox(
 				scale)
 			: 0;
 
-		const auto font = createFont(scale);
+		const auto font = CreateFont(state->fontSizeValue.current(), scale);
 		const auto username = rpl::variable<QString>(
 			usernameValue()).current().toUpper();
 		const auto link = rpl::variable<QString>(linkValue());
 		const auto textWidth = font->width(username);
-		const auto top = Ui::GrabWidget(
-			userpic,
-			{},
-			Qt::transparent);
+		const auto top = photoSize
+			? userpicMedia->image(photoSize)
+			: QImage();
 		const auto weak = Ui::MakeWeak(box);
 
 		crl::async([=] {
@@ -791,7 +900,8 @@ void FillPeerQrBox(
 					link.current().toUtf8(),
 					Qr::Redundancy::Default),
 				introQrPixel,
-				qrMaxSize);
+				qrMaxSize,
+				backgroundToggled);
 			const auto textMaxWidth = backgroundMargins.left()
 				+ (qrImage.width() / style::DevicePixelRatio());
 			const auto lines = int(textWidth / textMaxWidth) + 1;
@@ -832,16 +942,11 @@ void FillPeerQrBox(
 					introQrPixel,
 					profileQrBackgroundRadius,
 					textMaxHeight,
-					photoSize);
+					photoSize,
+					backgroundToggled);
 
 				if (userpicToggled) {
-					p.drawPixmap(
-						(resultSize.width() - photoSize) / 2,
-						0,
-						top.scaled(
-							Size(photoSize * style::DevicePixelRatio()),
-							Qt::IgnoreAspectRatio,
-							Qt::SmoothTransformation));
+					p.drawImage((resultSize.width() - photoSize) / 2, 0, top);
 				}
 			}
 			crl::on_main(weak, [=] {

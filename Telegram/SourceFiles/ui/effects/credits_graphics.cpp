@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "history/view/media/history_view_sticker_player.h"
+#include "info/userpic/info_userpic_emoji_builder_preview.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/effects/premium_graphics.h"
@@ -214,6 +216,8 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	}
 	const auto bg = [&]() -> EmptyUserpic::BgColors {
 		switch (entry.peerType) {
+		case Data::CreditsHistoryEntry::PeerType::API:
+			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Peer:
 			return EmptyUserpic::UserpicColor(0);
 		case Data::CreditsHistoryEntry::PeerType::AppStore:
@@ -235,6 +239,62 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 		Unexpected("Unknown peer type.");
 	}();
 	const auto userpic = std::make_shared<EmptyUserpic>(bg, QString());
+	if (entry.peerType == PeerType::API) {
+		const auto svg = std::make_shared<QSvgRenderer>(Ui::Premium::Svg());
+		const auto image = std::make_shared<QImage>();
+		return [=](Painter &p, int x, int y, int outer, int size) mutable {
+			userpic->paintCircle(p, x, y, outer, size);
+			if (image->isNull()) {
+				*image = QImage(
+					Size(size) * style::DevicePixelRatio(),
+					QImage::Format_ARGB32_Premultiplied);
+				image->setDevicePixelRatio(style::DevicePixelRatio());
+				image->fill(Qt::transparent);
+				constexpr auto kSize = 126.;
+				constexpr auto kBubbleRatio = kSize / ((kSize - 70) / 2.);
+				const auto rect = QRectF(0, 0, size, size)
+					- Margins(size / kBubbleRatio);
+
+				auto q = QPainter(image.get());
+				const auto hq = PainterHighQualityEnabler(q);
+				q.setPen(Qt::NoPen);
+				q.setBrush(st::historyPeerUserpicFg);
+				q.drawEllipse(rect);
+				constexpr auto kTailX1 = 4;
+				constexpr auto kTailY1 = 8;
+				constexpr auto kTailX2 = 2;
+				constexpr auto kTailY2 = 0;
+				constexpr auto kTailX3 = 9;
+				constexpr auto kTailY3 = 4;
+				auto path = QPainterPath();
+				path.moveTo(
+					st::lineWidth * kTailX1,
+					rect.height() - st::lineWidth * kTailY1);
+				path.lineTo(
+					st::lineWidth * kTailX2,
+					rect.height() - st::lineWidth * kTailY2);
+				path.lineTo(
+					st::lineWidth * kTailX3,
+					rect.height() - st::lineWidth * kTailY3);
+				path.translate(rect.x(), rect.y());
+				q.strokePath(
+					path,
+					QPen(
+						st::historyPeerUserpicFg,
+						st::lineWidth * 2,
+						Qt::SolidLine,
+						Qt::RoundCap,
+						Qt::RoundJoin));
+				q.fillPath(path, st::historyPeerUserpicFg);
+				q.setCompositionMode(QPainter::CompositionMode_Clear);
+				constexpr auto kStarRatio = kSize / ((kSize - 44) / 2.);
+				svg->render(
+					&q,
+					QRectF(0, 0, size, size) - Margins(size / kStarRatio));
+			}
+			p.drawImage(x, y, *image);
+		};
+	}
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		userpic->paintCircle(p, x, y, outerWidth, size);
 		const auto rect = QRect(x, y, size, size);
@@ -436,6 +496,32 @@ PaintRoundImageCallback GeneratePaidMediaPaintCallback(
 		totalCount);
 }
 
+PaintRoundImageCallback GenerateGiftStickerUserpicCallback(
+		not_null<Main::Session*> session,
+		uint64 stickerId,
+		Fn<void()> update) {
+	struct State {
+		std::optional<UserpicBuilder::PreviewPainter> painter;
+		int size = 0;
+	};
+	const auto state = std::make_shared<State>();
+	//const auto document = session->data().document(stickerId);
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		if (state->size != size || !state->painter) {
+			state->size = size;
+			state->painter.emplace(size * M_SQRT2);
+			state->painter->setDocument(
+				session->data().document(stickerId),
+				update);
+		}
+		const auto skip = int(base::SafeRound((size * (M_SQRT2 - 1.)) / 2.));
+		auto hq = PainterHighQualityEnabler(p);
+		p.translate(x - skip, y - skip);
+		state->painter->paintForeground(p);
+		p.translate(skip - x, skip - y);
+	};
+}
+
 Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &entry) {
@@ -459,10 +545,16 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 }
 
 TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
-	return (entry.reaction
+	return (entry.floodSkip
+		? tr::lng_credits_box_history_entry_api
+		: entry.reaction
 		? tr::lng_credits_box_history_entry_reaction_name
 		: entry.bareGiveawayMsgId
 		? tr::lng_credits_box_history_entry_giveaway_name
+		: entry.converted
+		? tr::lng_credits_box_history_entry_gift_converted
+		: entry.convertStars
+		? tr::lng_credits_box_history_entry_gift_sent
 		: entry.gift
 		? tr::lng_credits_box_history_entry_gift_name
 		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)

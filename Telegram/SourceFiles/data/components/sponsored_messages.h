@@ -18,7 +18,13 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class RpWidget;
+} // namespace Ui
+
 namespace Data {
+
+class MediaPreload;
 
 struct SponsoredReportResult final {
 	using Id = QByteArray;
@@ -65,10 +71,16 @@ struct SponsoredMessage {
 
 class SponsoredMessages final {
 public:
+	enum class AppendResult {
+		None,
+		Appended,
+		MediaLoading,
+	};
 	enum class State {
 		None,
 		AppendToEnd,
 		InjectToMiddle,
+		AppendToTopBar,
 	};
 	struct Details {
 		std::vector<TextWithEntities> info;
@@ -87,12 +99,17 @@ public:
 	~SponsoredMessages();
 
 	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
+	[[nodiscard]] bool isTopBarFor(not_null<History*> history) const;
 	void request(not_null<History*> history, Fn<void()> done);
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
-	void clicked(const FullMsgId &fullId);
+	void clicked(const FullMsgId &fullId, bool isMedia, bool isFullscreen);
+	[[nodiscard]] FullMsgId fillTopBar(
+		not_null<History*> history,
+		not_null<Ui::RpWidget*> widget);
+	[[nodiscard]] rpl::producer<> itemRemoved(const FullMsgId &);
 
-	[[nodiscard]] bool append(not_null<History*> history);
+	[[nodiscard]] AppendResult append(not_null<History*> history);
 	void inject(
 		not_null<History*> history,
 		MsgId injectAfterMsgId,
@@ -114,6 +131,8 @@ private:
 		OwnedItem item;
 		FullMsgId itemFullId;
 		SponsoredMessage sponsored;
+		std::unique_ptr<MediaPreload> preload;
+		std::unique_ptr<rpl::lifetime> optionalDestructionNotifier;
 	};
 	struct List {
 		std::vector<Entry> entries;
@@ -147,6 +166,8 @@ private:
 	base::flat_map<not_null<History*>, List> _data;
 	base::flat_map<not_null<History*>, Request> _requests;
 	base::flat_map<RandomId, Request> _viewRequests;
+
+	rpl::event_stream<FullMsgId> _itemRemoved;
 
 	rpl::lifetime _lifetime;
 

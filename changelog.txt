@@ -1,3 +1,70 @@
+5.7 (31.10.24)
+
+- Sending video messages.
+- New video quality selection in channels.
+- Adding media to sent text messages via Edit.
+- Ads in bots with revenue sharing with bot developers.
+- Chat-specific hashtags.
+
+5.6.4 beta (24.10.24)
+
+- Add recording of video messages in case a camera is available.
+- Add "Respect the Focus settings" for custom notifications on Windows.
+
+5.6.3 (15.10.24)
+
+- Add ability to change page scale in Instant View pages.
+- Fix unnecessary timestamp jump to a new line.
+- Fix secondary button positioning in miniapps.
+- Fix a crash in QR code copy for a chat without a photo.
+- Fix a crash in share options menu showing.
+- Fix a crash on monitor disconnect.
+
+5.6.2 (14.10.24)
+
+- Message selection marks.
+- Better copy username / public link / ID menu in profiles.
+- Keyboard navigation (Up/Down/PageUp/PageDown) in chat preview.
+- Improved QR options for profile links.
+- Fix calls color problems on Windows.
+- Fix scroll problems on Linux.
+
+5.6.1 (07.10.24)
+
+- Fix media viewer sometimes blocking the app after launch.
+
+5.6 (05.10.24)
+
+- Gifts for Telegram Stars.
+- Mention / hashtag autocomplete in media caption field.
+- Resizing the window used for web apps and games.
+- "Include muted chats in folder counters" notifications setting.
+- Emoji from Unicode 15.1.
+
+5.5.8 beta (03.10.24)
+
+- Allow drag-to-scroll in reply quote edit box.
+- Add bot verified badge to web app title.
+- Fix crash when opening some channels.
+- Fix some visual glitches.
+
+5.5.7 beta (01.10.24)
+
+- Add ability to share QR code of bots.
+- Add mention/hashtag autocomplete to Saved GIF caption.
+- Fixed display of working hours in profiles.
+- Respect the maximum reply quote length.
+
+5.5.6 beta (19.09.24)
+
+- Allow resizing the window used for web apps and games.
+- Add mention / hashtag autocomplete in media caption field.
+- Add "Include muted chats in folder counters" notifications setting.
+- Auto-select URL suggested from clipboard when creating a custom link.
+- Update emoji to Unicode 15.1.
+- Fix replying with a quote from media album caption.
+- Fix viewing custom emoji packs from media album caption.
+
 5.5.5 (13.09.24)
 
 - Suggest URL from clipboard when creating a custom link.

@@ -402,24 +402,30 @@ base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 		// inline results don't have effects
 		copyDetails.effectAllowed = false;
 	}
+
+	// In case we're adding items after FillSendMenu we have
+	// to pass nullptr for showForEffect and attach selector later.
+	// Otherwise added items widths won't be respected in menu geometry.
 	SendMenu::FillSendMenu(
 		menu,
-		_show,
+		nullptr, // showForMenu
 		copyDetails,
 		SendMenu::DefaultCallback(_show, send),
 		icons);
 
-	if (!isInlineResult) {
+	if (!isInlineResult && _inlineQueryPeer) {
 		auto done = crl::guard(this, [=](
 				Api::SendOptions options,
 				TextWithTags text) {
 			selectInlineResult(selected, options, true, std::move(text));
 		});
 		const auto show = _show;
+		const auto peer = _inlineQueryPeer;
 		menu->addAction(tr::lng_send_gif_with_caption(tr::now), [=] {
 			show->show(Box(
 				Ui::SendGifWithCaptionBox,
 				item->getDocument(),
+				peer,
 				copyDetails,
 				std::move(done)));
 		}, &st::menuIconEdit);
@@ -439,6 +445,13 @@ base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 			AddGifAction(std::move(callback), _show, document, icons);
 		}
 	}
+
+	SendMenu::AttachSendMenuEffect(
+		menu,
+		_show,
+		copyDetails,
+		SendMenu::DefaultCallback(_show, send));
+
 	return menu;
 }
 

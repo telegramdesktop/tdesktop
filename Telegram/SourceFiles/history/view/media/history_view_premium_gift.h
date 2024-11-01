@@ -29,6 +29,8 @@ public:
 	QString title() override;
 	TextWithEntities subtitle() override;
 	rpl::producer<QString> button() override;
+	bool buttonMinistars() override;
+	QString cornerTagText() override;
 	int buttonSkip() override;
 	void draw(
 		Painter &p,
@@ -48,6 +50,7 @@ public:
 private:
 	[[nodiscard]] bool incomingGift() const;
 	[[nodiscard]] bool outgoingGift() const;
+	[[nodiscard]] bool starGift() const;
 	[[nodiscard]] bool gift() const;
 	[[nodiscard]] bool creditsPrize() const;
 	[[nodiscard]] int credits() const;

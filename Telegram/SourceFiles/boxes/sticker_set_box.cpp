@@ -82,7 +82,8 @@ using TLStickerSet = MTPmessages_StickerSet;
 
 [[nodiscard]] std::optional<QColor> ComputeImageColor(
 		const style::icon &lockIcon,
-		const QImage &frame) {
+		const QImage &frame,
+		RectPart part) {
 	if (frame.isNull()
 		|| frame.format() != QImage::Format_ARGB32_Premultiplied) {
 		return {};
@@ -91,13 +92,29 @@ using TLStickerSet = MTPmessages_StickerSet;
 	auto sg = int64();
 	auto sb = int64();
 	auto sa = int64();
-	const auto factor = frame.devicePixelRatio();
+	const auto factor = style::DevicePixelRatio();
 	const auto size = lockIcon.size() * factor;
 	const auto width = std::min(frame.width(), size.width());
 	const auto height = std::min(frame.height(), size.height());
-	const auto skipx = (frame.width() - width) / 2;
 	const auto radius = st::roundRadiusSmall;
-	const auto skipy = std::max(frame.height() - height - radius, 0);
+	const auto skipx = (part == RectPart::TopLeft
+		|| part == RectPart::Left
+		|| part == RectPart::BottomLeft)
+		? 0
+		: (part == RectPart::Top
+			|| part == RectPart::Center
+			|| part == RectPart::Bottom)
+		? (frame.width() - width) / 2
+		: std::max(frame.width() - width - radius, 0);
+	const auto skipy = (part == RectPart::TopLeft
+		|| part == RectPart::Top
+		|| part == RectPart::TopRight)
+		? 0
+		: (part == RectPart::Left
+			|| part == RectPart::Center
+			|| part == RectPart::Right)
+		? (frame.height() - height) / 2
+		: std::max(frame.height() - height - radius, 0);
 	const auto perline = frame.bytesPerLine();
 	const auto addperline = perline - (width * 4);
 	auto bits = static_cast<const uchar*>(frame.bits())
@@ -121,17 +138,20 @@ using TLStickerSet = MTPmessages_StickerSet;
 
 [[nodiscard]] QColor ComputeLockColor(
 		const style::icon &lockIcon,
-		const QImage &frame) {
+		const QImage &frame,
+		RectPart part) {
 	return ComputeImageColor(
 		lockIcon,
-		frame
+		frame,
+		part
 	).value_or(st::windowSubTextFg->c);
 }
 
 void ValidatePremiumLockBg(
 		const style::icon &lockIcon,
 		QImage &image,
-		const QImage &frame) {
+		const QImage &frame,
+		RectPart part) {
 	if (!image.isNull()) {
 		return;
 	}
@@ -142,7 +162,7 @@ void ValidatePremiumLockBg(
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(factor);
 	auto p = QPainter(&image);
-	const auto color = ComputeLockColor(lockIcon, frame);
+	const auto color = ComputeLockColor(lockIcon, frame, part);
 	p.fillRect(
 		QRect(QPoint(), size),
 		anim::color(color, st::windowSubTextFg, kGrayLockOpacity));
@@ -195,8 +215,10 @@ void ValidatePremiumStarFg(const style::icon &lockIcon, QImage &image) {
 
 StickerPremiumMark::StickerPremiumMark(
 	not_null<Main::Session*> session,
-	const style::icon &lockIcon)
-: _lockIcon(lockIcon) {
+	const style::icon &lockIcon,
+	RectPart part)
+: _lockIcon(lockIcon)
+, _part(part) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_lockGray = QImage();
@@ -221,11 +243,15 @@ void StickerPremiumMark::paint(
 	const auto &bg = frame.isNull() ? _lockGray : backCache;
 	const auto factor = style::DevicePixelRatio();
 	const auto radius = st::roundRadiusSmall;
-	const auto point = position + QPoint(
-		(singleSize.width() - (bg.width() / factor) - radius),
-		singleSize.height() - (bg.height() / factor) - radius);
+	const auto shiftx = (_part == RectPart::Center)
+		? (singleSize.width() - (bg.width() / factor)) / 2
+		: (singleSize.width() - (bg.width() / factor) - radius);
+	const auto shifty = (_part == RectPart::Center)
+		? (singleSize.height() - (bg.height() / factor)) / 2
+		: (singleSize.height() - (bg.height() / factor) - radius);
+	const auto point = position + QPoint(shiftx, shifty);
 	p.drawImage(point, bg);
-	if (_premium) {
+	if (_premium && _part != RectPart::Center) {
 		validateStar();
 		p.drawImage(point, _star);
 	} else {
@@ -237,7 +263,7 @@ void StickerPremiumMark::validateLock(
 		const QImage &frame,
 		QImage &backCache) {
 	auto &image = frame.isNull() ? _lockGray : backCache;
-	ValidatePremiumLockBg(_lockIcon, image, frame);
+	ValidatePremiumLockBg(_lockIcon, image, frame, _part);
 }
 
 void StickerPremiumMark::validateStar() {
@@ -1402,9 +1428,13 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 		const auto send = crl::guard(this, [=](Api::SendOptions options) {
 			chosen(index, document, options);
 		});
+
+		// In case we're adding items after FillSendMenu we have
+		// to pass nullptr for showForEffect and attach selector later.
+		// Otherwise added items widths won't be respected in menu geometry.
 		SendMenu::FillSendMenu(
 			_menu.get(),
-			_show,
+			nullptr, // showForEffect
 			details,
 			SendMenu::DefaultCallback(_show, send));
 
@@ -1438,6 +1468,12 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 				.isAttention = true,
 			});
 		}
+
+		SendMenu::AttachSendMenuEffect(
+			_menu.get(),
+			_show,
+			details,
+			SendMenu::DefaultCallback(_show, send));
 	}
 	if (_menu->empty()) {
 		_menu = nullptr;

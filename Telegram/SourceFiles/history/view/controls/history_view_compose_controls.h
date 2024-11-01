@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class DocumentData;
-class FieldAutocomplete;
 class Image;
 
 namespace style {
@@ -39,6 +38,7 @@ struct FileChosen;
 struct PhotoChosen;
 class Show;
 enum class PauseReason;
+class FieldAutocomplete;
 } // namespace ChatHelpers
 
 namespace Data {
@@ -68,9 +68,17 @@ class DropdownMenu;
 struct PreparedList;
 } // namespace Ui
 
+namespace Ui::Emoji {
+class SuggestionsController;
+} // namespace Ui::Emoji
+
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Webrtc {
+enum class RecordAvailability : uchar;
+} // namespace Webrtc
 
 namespace Window {
 struct SectionShow;
@@ -259,6 +267,7 @@ private:
 
 	void init();
 	void initField();
+	void initFieldAutocomplete();
 	void initTabbedSelector();
 	void initSendButton();
 	void initSendAsButton(not_null<PeerData*> peer);
@@ -266,7 +275,6 @@ private:
 	void initForwardProcess();
 	void initWriteRestriction();
 	void initVoiceRecordBar();
-	void initAutocomplete();
 	void initKeyHandler();
 	void updateSubmitSettings();
 	void updateSendButtonType();
@@ -290,15 +298,12 @@ private:
 		SendRequestType requestType = SendRequestType::Text) const;
 
 	void orderControls();
-	void checkAutocomplete();
-	bool updateStickersByEmoji();
 	void updateFieldPlaceholder();
 	void updateSilentBroadcast();
 	void editMessage(not_null<HistoryItem*> item);
 
 	void escape();
 	void fieldChanged();
-	void fieldTabbed();
 	void toggleTabbedSelectorMode();
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
@@ -391,7 +396,8 @@ private:
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
 	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
-	std::unique_ptr<FieldAutocomplete> _autocomplete;
+	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
+	std::unique_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions;
 
 	friend class FieldHeader;
 	const std::unique_ptr<FieldHeader> _header;
@@ -434,14 +440,14 @@ private:
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
 	bool _likeShown = false;
+	Webrtc::RecordAvailability _recordAvailability = {};
 
 	FullMsgId _editingId;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;
+	bool _canAddMedia = false;
 
 	std::unique_ptr<Controls::WebpageProcessor> _preview;
-
-	Fn<void()> _raiseEmojiSuggestions;
 
 	rpl::lifetime _historyLifetime;
 	rpl::lifetime _uploaderSubscriptions;

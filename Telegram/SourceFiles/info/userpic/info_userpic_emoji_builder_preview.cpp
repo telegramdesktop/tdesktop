@@ -185,11 +185,14 @@ void EmojiUserpic::result(int size, Fn<void(UserpicBuilder::Result)> done) {
 		auto background = GenerateGradient(Size(size), _colors, false);
 
 		{
+			constexpr auto kAttemptsToDrawFirstFrame = 3000;
+			auto attempts = 0;
 			auto p = QPainter(&background);
-			while (true) {
+			while (attempts < kAttemptsToDrawFirstFrame) {
 				if (painter->paintForeground(p)) {
 					break;
 				}
+				attempts++;
 			}
 		}
 		if (*_playOnce && document) {

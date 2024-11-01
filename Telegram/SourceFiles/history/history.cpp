@@ -175,6 +175,15 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 		&& unreadCount() > 0) {
 		setUnreadCount(unreadCount() - 1);
 	}
+	if (const auto media = item->media()) {
+		if (const auto gift = media->gift()) {
+			using GiftAction = Data::GiftUpdate::Action;
+			owner().notifyGiftUpdate({
+				.itemId = item->fullId(),
+				.action = GiftAction::Delete,
+			});
+		}
+	}
 }
 
 void History::takeLocalDraft(not_null<History*> from) {

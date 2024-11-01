@@ -65,6 +65,13 @@ struct MessageReaction {
 [[nodiscard]] std::vector<ReactionId> SearchTagsFromQuery(
 	const QString &query);
 
+struct HashtagWithUsername {
+	QString hashtag;
+	QString username;
+};
+[[nodiscard]] HashtagWithUsername HashtagWithUsernameFromQuery(
+	QStringView query);
+
 [[nodiscard]] QString ReactionEntityData(const ReactionId &id);
 
 [[nodiscard]] ReactionId ReactionFromMTP(const MTPReaction &reaction);

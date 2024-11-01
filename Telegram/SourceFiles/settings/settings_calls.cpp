@@ -679,7 +679,7 @@ object_ptr<Ui::GenericBox> ChooseCameraDeviceBox(
 		const style::Radio *radioSt) {
 	return Box(
 		ChooseMediaDeviceBox,
-		tr::lng_settings_call_device_default(),
+		tr::lng_settings_call_camera(),
 		Core::App().mediaDevices().devicesValue(DeviceType::Camera),
 		std::move(currentId),
 		std::move(chosen),

@@ -148,6 +148,12 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 					qs(data.vtext()),
 					data.vurl().v
 				});
+			}, [&](const MTPDkeyboardButtonCopy &data) {
+				row.push_back({
+					Type::CopyText,
+					qs(data.vtext()),
+					data.vcopy_text().v,
+				});
 			}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
 			});
 		}
@@ -181,6 +187,7 @@ QByteArray HistoryMessageMarkupButton::TypeToString(
 	case Type::UserProfile: return "user_profile";
 	case Type::WebView: return "web_view";
 	case Type::SimpleWebView: return "simple_web_view";
+	case Type::CopyText: return "copy_text";
 	}
 	Unexpected("Type in HistoryMessageMarkupButton::Type.");
 }
@@ -316,6 +323,84 @@ std::vector<TextPart> ParseText(
 	}
 	addTextPart(size);
 	return result;
+}
+
+Utf8String Reaction::TypeToString(const Reaction &reaction) {
+	switch (reaction.type) {
+		case Reaction::Type::Empty: return "empty";
+		case Reaction::Type::Emoji: return "emoji";
+		case Reaction::Type::CustomEmoji: return "custom_emoji";
+		case Reaction::Type::Paid: return "paid";
+	}
+	Unexpected("Type in Reaction::Type.");
+}
+
+Utf8String Reaction::Id(const Reaction &reaction) {
+	auto id = Utf8String();
+	switch (reaction.type) {
+	case Reaction::Type::Emoji:
+		id = reaction.emoji.toUtf8();
+		break;
+	case Reaction::Type::CustomEmoji:
+		id = reaction.documentId;
+		break;
+	}
+	return Reaction::TypeToString(reaction) + id;
+}
+
+Reaction ParseReaction(const MTPReaction& reaction) {
+	auto result = Reaction();
+	reaction.match([&](const MTPDreactionEmoji &data) {
+		result.type = Reaction::Type::Emoji;
+		result.emoji = qs(data.vemoticon());
+	}, [&](const MTPDreactionCustomEmoji &data) {
+		result.type = Reaction::Type::CustomEmoji;
+		result.documentId = NumberToString(data.vdocument_id().v);
+	}, [&](const MTPDreactionPaid &data) {
+		result.type = Reaction::Type::Paid;
+	}, [&](const MTPDreactionEmpty &data) {
+		result.type = Reaction::Type::Empty;
+	});
+	return result;
+}
+
+std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
+	auto reactionsMap = std::map<QString, Reaction>();
+	auto reactionsOrder = std::vector<Utf8String>();
+	for (const auto &single : data.data().vresults().v) {
+		auto reaction = ParseReaction(single.data().vreaction());
+		reaction.count = single.data().vcount().v;
+		const auto id = Reaction::Id(reaction);
+		auto const &[_, inserted] = reactionsMap.try_emplace(
+			id,
+			std::move(reaction));
+		if (inserted) {
+			reactionsOrder.push_back(id);
+		}
+	}
+	if (data.data().vrecent_reactions().has_value()) {
+		if (const auto list = data.data().vrecent_reactions()) {
+			for (const auto &single : list->v) {
+				auto reaction = ParseReaction(single.data().vreaction());
+				const auto id = Reaction::Id(reaction);
+				auto const &[it, inserted] = reactionsMap.try_emplace(
+					id,
+					std::move(reaction));
+				if (inserted) {
+					reactionsOrder.push_back(id);
+				}
+				it->second.recent.push_back({
+					.peerId = ParsePeerId(single.data().vpeer_id()),
+					.date = single.data().vdate().v,
+				});
+			}
+		}
+	}
+	return ranges::views::all(
+		reactionsOrder
+	) | ranges::views::transform([&](const Utf8String &id) {
+		return reactionsMap.at(id);
+	}) | ranges::to_vector;
 }
 
 Utf8String FillLeft(const Utf8String &data, int length, char filler) {
@@ -1001,6 +1086,10 @@ User ParseUser(const MTPUser &data) {
 		}
 		if (data.is_self()) {
 			result.isSelf = true;
+		} else if (data.vid().v == 1271266957) {
+			result.isReplies = true;
+		} else if (data.vid().v == 489000) {
+			result.isVerifyCodes = true;
 		}
 		result.input = MTP_inputUser(
 			data.vid(),
@@ -1573,6 +1662,19 @@ ServiceAction ParseServiceAction(
 			.giveawayMsgId = data.vgiveaway_msg_id().v,
 			.isUnclaimed = data.is_unclaimed(),
 		};
+	}, [&](const MTPDmessageActionStarGift &data) {
+		const auto &gift = data.vgift().data();
+		result.content = ActionStarGift{
+			.giftId = uint64(gift.vid().v),
+			.stars = int64(gift.vstars().v),
+			.text = (data.vmessage()
+				? ParseText(
+					data.vmessage()->data().vtext(),
+					data.vmessage()->data().ventities().v)
+				: std::vector<TextPart>()),
+			.anonymous = data.is_name_hidden(),
+			.limited = gift.is_limited(),
+		};
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
@@ -1732,6 +1834,9 @@ Message ParseMessage(
 		result.text = ParseText(
 			data.vmessage(),
 			data.ventities().value_or_empty());
+			if (data.vreactions().has_value()) {
+				result.reactions = ParseReactions(*data.vreactions());
+			}
 	}, [&](const MTPDmessageService &data) {
 		result.action = ParseServiceAction(
 			context,
@@ -1979,6 +2084,8 @@ DialogInfo::Type DialogTypeFromUser(const User &user) {
 		? DialogInfo::Type::Self
 		: user.isReplies
 		? DialogInfo::Type::Replies
+		: user.isVerifyCodes
+		? DialogInfo::Type::VerifyCodes
 		: user.isBot
 		? DialogInfo::Type::Bot
 		: DialogInfo::Type::Personal;

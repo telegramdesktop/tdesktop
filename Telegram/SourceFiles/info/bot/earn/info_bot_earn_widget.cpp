@@ -16,11 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::BotEarn {
 
 Memento::Memento(not_null<Controller*> controller)
-: ContentMemento(Info::Statistics::Tag{
-	controller->statisticsPeer(),
-	{},
-	{},
-}) {
+: ContentMemento(controller->statisticsTag()) {
 }
 
 Memento::Memento(not_null<PeerData*> peer)
@@ -54,11 +50,7 @@ Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : ContentWidget(parent, controller)
-, _inner(setInnerWidget(
-	object_ptr<InnerWidget>(
-		this,
-		controller,
-		controller->statisticsPeer()))) {
+, _inner(setInnerWidget(object_ptr<InnerWidget>(this, controller))) {
 	_inner->showRequests(
 	) | rpl::start_with_next([=](InnerWidget::ShowRequest request) {
 	}, _inner->lifetime());
@@ -73,7 +65,7 @@ not_null<PeerData*> Widget::peer() const {
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
-	return (memento->statisticsPeer() == peer());
+	return (memento->statisticsTag().peer == peer());
 }
 
 rpl::producer<QString> Widget::title() {

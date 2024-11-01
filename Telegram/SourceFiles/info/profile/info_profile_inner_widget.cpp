@@ -113,8 +113,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	if (_topic) {
 		return result;
 	}
-	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
-		result->add(std::move(members));
+	{
+		auto buttons = SetupChannelMembersAndManage(
+			_controller,
+			result.data(),
+			_peer);
+		if (buttons) {
+			result->add(std::move(buttons));
+		}
 	}
 	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
 		result->add(object_ptr<Ui::BoxContentDivider>(result));
@@ -231,9 +237,25 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			icon,
 			st::infoSharedMediaButtonIconPosition);
 	};
+	auto addPeerGiftsButton = [&](
+			not_null<UserData*> user,
+			const style::icon &icon) {
+		auto result = Media::AddPeerGiftsButton(
+			content,
+			_controller,
+			user,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
 
 	if (!_topic) {
 		addStoriesButton(_peer, st::infoIconMediaStories);
+		if (const auto user = _peer->asUser()) {
+			addPeerGiftsButton(user, st::infoIconMediaGifts);
+		}
 		addSavedSublistButton(_peer, st::infoIconMediaSaved);
 	}
 	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);

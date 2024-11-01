@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_list.h"
 #include "dialogs/dialogs_three_state_icon.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
@@ -48,7 +49,10 @@ namespace {
 const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 [[nodiscard]] bool ShowUserBotIcon(not_null<UserData*> user) {
-	return user->isBot() && !user->isSupport() && !user->isRepliesChat();
+	return user->isBot()
+		&& !user->isSupport()
+		&& !user->isRepliesChat()
+		&& !user->isVerifyCodes();
 }
 
 [[nodiscard]] bool ShowSendActionInDialogs(Data::Thread *thread) {
@@ -244,10 +248,11 @@ void PaintFolderEntryText(
 enum class Flag {
 	SavedMessages    = 0x008,
 	RepliesMessages  = 0x010,
-	AllowUserOnline  = 0x020,
-	TopicJumpRipple  = 0x040,
-	HiddenAuthor     = 0x080,
-	MyNotes          = 0x100,
+	VerifyCodes      = 0x020,
+	AllowUserOnline  = 0x040,
+	TopicJumpRipple  = 0x080,
+	HiddenAuthor     = 0x100,
+	MyNotes          = 0x200,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -468,7 +473,7 @@ void PaintRow(
 					: tr::lng_dialogs_text_with_from(
 						tr::now,
 						lt_from_part,
-						draftWrapped,
+						std::move(draftWrapped),
 						lt_message,
 						DialogsPreviewText({
 							.text = draft->textWithTags.text,
@@ -476,13 +481,22 @@ void PaintRow(
 								draft->textWithTags.tags),
 						}),
 						Text::WithEntities);
+				if (draft && draft->reply) {
+					auto &data = thread->owner().customEmojiManager();
+					draftText = Ui::Text::Colorized(
+						Ui::Text::SingleCustomEmoji(
+							data.registerInternalEmoji(
+								st::dialogsMiniReplyIcon,
+								{},
+								true))).append(std::move(draftText));
+				}
 				const auto context = Core::MarkedTextContext{
 					.session = &thread->session(),
 					.customEmojiRepaint = customEmojiRepaint,
 				};
 				cache.setMarkedText(
 					st::dialogsTextStyle,
-					draftText,
+					std::move(draftText),
 					DialogTextOptions(),
 					context);
 			}
@@ -605,12 +619,15 @@ void PaintRow(
 	if (flags
 		& (Flag::SavedMessages
 			| Flag::RepliesMessages
+			| Flag::VerifyCodes
 			| Flag::HiddenAuthor
 			| Flag::MyNotes)) {
 		auto text = (flags & Flag::SavedMessages)
 			? tr::lng_saved_messages(tr::now)
 			: (flags & Flag::RepliesMessages)
 			? tr::lng_replies_messages(tr::now)
+			: (flags & Flag::VerifyCodes)
+			? tr::lng_verification_codes(tr::now)
 			: (flags & Flag::MyNotes)
 			? tr::lng_my_notes(tr::now)
 			: tr::lng_hidden_author_messages(tr::now);
@@ -796,6 +813,9 @@ void RowPainter::Paint(
 		| ((from && from->isRepliesChat())
 			? Flag::RepliesMessages
 			: Flag(0))
+		| ((from && from->isVerifyCodes())
+			? Flag::VerifyCodes
+			: Flag(0))
 		| ((sublist && from->isSavedHiddenAuthor())
 			? Flag::HiddenAuthor
 			: Flag(0))
@@ -952,8 +972,12 @@ void RowPainter::Paint(
 	const auto showRepliesMessages = history
 		&& history->peer->isRepliesChat()
 		&& !row->searchInChat();
+	const auto showVerifyCodes = history
+		&& history->peer->isVerifyCodes()
+		&& !row->searchInChat();
 	const auto flags = (showSavedMessages ? Flag::SavedMessages : Flag(0))
-		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0));
+		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0))
+		| (showVerifyCodes ? Flag::VerifyCodes : Flag(0));
 	PaintRow(
 		p,
 		row,

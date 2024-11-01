@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_spoiler.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
+#include "core/core_settings.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/chat_style.h"
 #include "ui/image/image.h"
@@ -109,8 +110,10 @@ constexpr auto kMaxInlineArea = 1920 * 1080;
 
 struct Gif::Streamed {
 	Streamed(
+		not_null<DocumentData*> chosen,
 		std::shared_ptr<::Media::Streaming::Document> shared,
 		Fn<void()> waitingCallback);
+	const not_null<DocumentData*> chosen;
 	::Media::Streaming::Instance instance;
 	::Media::Streaming::FrameRequest frozenRequest;
 	QImage frozenFrame;
@@ -118,9 +121,11 @@ struct Gif::Streamed {
 };
 
 Gif::Streamed::Streamed(
+	not_null<DocumentData*> chosen,
 	std::shared_ptr<::Media::Streaming::Document> shared,
 	Fn<void()> waitingCallback)
-: instance(std::move(shared), std::move(waitingCallback)) {
+: chosen(chosen)
+, instance(std::move(shared), std::move(waitingCallback)) {
 }
 
 [[nodiscard]] bool IsHiddenRoundMessage(not_null<Element*> parent) {
@@ -388,6 +393,9 @@ bool Gif::downloadInCorner() const {
 }
 
 bool Gif::autoplayEnabled() const {
+	if (_realParent->isSponsored()) {
+		return true;
+	}
 	return Data::AutoDownload::ShouldAutoPlay(
 		_data->session().settings().autoDownload(),
 		_realParent->history()->peer,
@@ -689,7 +697,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (!unwrapped && !skipDrawingSurrounding) {
-		if (!isRound || !inWebPage) {
+		const auto sponsoredSkip = !_data->isVideoFile()
+			&& _realParent->isSponsored();
+		if ((!isRound || !inWebPage) && !sponsoredSkip) {
 			drawCornerStatus(p, context, QPoint());
 		}
 	} else if (!skipDrawingSurrounding) {
@@ -796,7 +806,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				p,
 				context,
 				fullRight,
-				fullBottom,
+				fullBottom - st::msgDateImgDelta,
 				2 * paintx + paintw,
 				(unwrapped
 					? InfoDisplayType::Background
@@ -1843,13 +1853,21 @@ void Gif::playAnimation(bool autoplay) {
 }
 
 void Gif::createStreamedPlayer() {
+	const auto quality = Core::App().settings().videoQuality();
+	const auto chosen = _data->chooseQuality(_realParent, quality);
+	if (_streamed && _streamed->chosen == chosen) {
+		return;
+	}
 	auto shared = _data->owner().streaming().sharedDocument(
+		chosen,
 		_data,
+		_realParent,
 		_realParent->fullId());
 	if (!shared) {
 		return;
 	}
 	setStreamed(std::make_unique<Streamed>(
+		chosen,
 		std::move(shared),
 		[=] { repaintStreamedContent(); }));
 
@@ -1858,6 +1876,20 @@ void Gif::createStreamedPlayer() {
 		handleStreamingUpdate(std::move(update));
 	}, [=](::Media::Streaming::Error &&error) {
 		handleStreamingError(std::move(error));
+	}, _streamed->instance.lifetime());
+
+	_streamed->instance.switchQualityRequests(
+	) | rpl::start_with_next([=](int quality) {
+		auto now = Core::App().settings().videoQuality();
+		if (now.manual || now.height == quality) {
+			return;
+		}
+		Core::App().settings().setVideoQuality({
+			.manual = 0,
+			.height = uint32(quality),
+		});
+		Core::App().saveSettingsDelayed();
+		createStreamedPlayer();
 	}, _streamed->instance.lifetime());
 
 	if (_streamed->instance.ready()) {
@@ -1907,14 +1939,15 @@ void Gif::handleStreamingUpdate(::Media::Streaming::Update &&update) {
 
 	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
-	}, [&](const PreloadedVideo &update) {
-	}, [&](const UpdateVideo &update) {
+	}, [](PreloadedVideo) {
+	}, [&](UpdateVideo) {
 		repaintStreamedContent();
-	}, [&](const PreloadedAudio &update) {
-	}, [&](const UpdateAudio &update) {
-	}, [&](const WaitingForData &update) {
-	}, [&](MutedByOther) {
-	}, [&](Finished) {
+	}, [](PreloadedAudio) {
+	}, [](UpdateAudio) {
+	}, [](WaitingForData) {
+	}, [](SpeedEstimate) {
+	}, [](MutedByOther) {
+	}, [](Finished) {
 	});
 }
 
@@ -1977,10 +2010,12 @@ bool Gif::dataLoaded() const {
 }
 
 bool Gif::needInfoDisplay() const {
-	if (_parent->data()->isFakeAboutView()) {
+	const auto item = _parent->data();
+	if (item->isFakeAboutView()) {
 		return false;
 	}
-	return _parent->data()->isSending()
+	return item->isSending()
+		|| item->awaitingVideoProcessing()
 		|| _data->uploading()
 		|| _parent->isUnderCursor()
 		|| (_parent->delegate()->elementContext() == Context::ChatPreview)

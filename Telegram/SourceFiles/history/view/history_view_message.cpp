@@ -238,6 +238,7 @@ void KeyboardStyle::paintButtonIcon(
 		case Type::SwitchInline: return &st->msgBotKbSwitchPmIcon();
 		case Type::WebView:
 		case Type::SimpleWebView: return &st->msgBotKbWebviewIcon();
+		case Type::CopyText: return &st->msgBotKbCopyIcon();
 		}
 		return nullptr;
 	}();
@@ -334,6 +335,7 @@ int KeyboardStyle::minButtonWidth(
 	case Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
 	case Type::WebView:
 	case Type::SimpleWebView: iconWidth = st::msgBotKbWebviewIcon.width(); break;
+	case Type::CopyText: return st::msgBotKbCopyIcon.width(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
@@ -1098,6 +1100,14 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	if (hasGesture) {
 		p.translate(context.gestureHorizontal.translation, 0);
 	}
+	const auto selectionModeResult = delegate()->elementInSelectionMode();
+	const auto selectionTranslation = (selectionModeResult.progress > 0)
+		? (selectionModeResult.progress
+			* AdditionalSpaceForSelectionCheckbox(this, g))
+		: 0;
+	if (selectionTranslation) {
+		p.translate(selectionTranslation, 0);
+	}
 
 	if (item->hasUnrequestedFactcheck()) {
 		item->history()->session().factchecks().requestFor(item);
@@ -1183,10 +1193,18 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
-	if (customHighlight) {
-		media->drawHighlight(p, context, localMediaTop);
-	} else {
-		paintHighlight(p, context, fullGeometry.height());
+	{
+		if (selectionTranslation) {
+			p.translate(-selectionTranslation, 0);
+		}
+		if (customHighlight) {
+			media->drawHighlight(p, context, localMediaTop);
+		} else {
+			paintHighlight(p, context, fullGeometry.height());
+		}
+		if (selectionTranslation) {
+			p.translate(selectionTranslation, 0);
+		}
 	}
 
 	const auto roll = media ? media->bubbleRoll() : Media::BubbleRoll();
@@ -1447,7 +1465,14 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto fastShareTop = data()->isSponsored()
 				? g.top() + fastShareSkip
 				: g.top() + g.height() - fastShareSkip - size->height();
+			const auto o = p.opacity();
+			if (selectionModeResult.progress > 0) {
+				p.setOpacity(1. - selectionModeResult.progress);
+			}
 			drawRightAction(p, context, fastShareLeft, fastShareTop, width());
+			if (selectionModeResult.progress > 0) {
+				p.setOpacity(o);
+			}
 		}
 
 		if (media) {
@@ -1567,6 +1592,57 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 		p.restore();
+	}
+	if (selectionTranslation) {
+		p.translate(-selectionTranslation, 0);
+	}
+	if (selectionModeResult.progress) {
+		const auto progress = selectionModeResult.progress;
+		if (progress <= 1.) {
+			if (context.selected()) {
+				if (!_selectionRoundCheckbox) {
+					_selectionRoundCheckbox
+						= std::make_unique<Ui::RoundCheckbox>(
+							st::msgSelectionCheck,
+							[this] { repaint(); });
+				}
+			}
+			if (_selectionRoundCheckbox) {
+				_selectionRoundCheckbox->setChecked(
+					context.selected(),
+					anim::type::normal);
+			}
+			const auto o = ScopedPainterOpacity(p, progress);
+			const auto &st = st::msgSelectionCheck;
+			const auto right = delegate()->elementIsChatWide()
+				? std::min(
+					int(_bubbleWidthLimit
+						+ st::msgPhotoSkip
+						+ st::msgSelectionOffset
+						+ st::msgPadding.left()
+						+ st.size),
+					width())
+				: width();
+			const auto pos = QPoint(
+				(right
+					- (st::msgSelectionOffset * progress - st.size) / 2
+					- st::msgPadding.right() / 2
+					- st.size),
+				rect::bottom(g) - st.size - st::msgSelectionBottomSkip);
+			{
+				p.setPen(QPen(st.border, st.width));
+				p.setBrush(context.st->msgServiceBg());
+				auto hq = PainterHighQualityEnabler(p);
+				p.drawEllipse(QRect(pos, Size(st.size)));
+			}
+			if (_selectionRoundCheckbox) {
+				_selectionRoundCheckbox->paint(p, pos.x(), pos.y(), width());
+			}
+		} else {
+			_selectionRoundCheckbox = nullptr;
+		}
+	} else {
+		_selectionRoundCheckbox = nullptr;
 	}
 }
 
@@ -2365,15 +2441,20 @@ bool Message::hasFromPhoto() const {
 	case Context::SavedSublist:
 	case Context::ScheduledTopic: {
 		const auto item = data();
-		if (item->isPostHidingAuthor()) {
+		if (item->isSponsored()) {
+			return false;
+		} else if (item->isPostHidingAuthor()) {
 			return false;
 		} else if (item->isPost()) {
 			return true;
 		} else if (item->isEmpty()
+			|| item->isFakeAboutView()
 			|| (context() == Context::Replies && item->isDiscussionPost())) {
 			return false;
 		} else if (delegate()->elementIsChatWide()) {
 			return true;
+		} else if (item->history()->peer->isVerifyCodes()) {
+			return !hasOutLayout();
 		} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			const auto peer = item->history()->peer;
 			if (peer->isSelf() || peer->isRepliesChat()) {
@@ -2396,8 +2477,10 @@ TextState Message::textState(
 	const auto media = this->media();
 
 	auto result = TextState(item);
+	const auto visibleMediaTextLen = visibleMediaTextLength();
+	const auto visibleTextLen = visibleTextLength();
 	const auto minSymbol = (_invertMedia && request.onlyMessageText)
-		? visibleMediaTextLength()
+		? visibleMediaTextLen
 		: 0;
 	result.symbol = minSymbol;
 
@@ -2424,6 +2507,7 @@ TextState Message::textState(
 		g.setHeight(g.height() - reactionsHeight);
 		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
 		if (_reactions->getState(point - reactionsPosition, &result)) {
+			result.symbol += visibleMediaTextLen + visibleTextLen;
 			return result;
 		}
 	}
@@ -2439,6 +2523,7 @@ TextState Message::textState(
 
 		auto inner = g;
 		if (getStateCommentsButton(point, inner, &result)) {
+			result.symbol += visibleMediaTextLen + visibleTextLen;
 			return result;
 		}
 		auto trect = inner.marginsRemoved(st::msgPadding);
@@ -2456,6 +2541,7 @@ TextState Message::textState(
 			trect.setHeight(trect.height() - reactionsHeight);
 			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + reactionsTop);
 			if (_reactions->getState(point - reactionsPosition, &result)) {
+				result.symbol += visibleMediaTextLen + visibleTextLen;
 				return result;
 			}
 		}
@@ -2471,6 +2557,7 @@ TextState Message::textState(
 						? inner
 						: inner - heightMargins),
 					&result)) {
+				result.symbol += visibleMediaTextLen + visibleTextLen;
 				return result;
 			}
 			if (belowInfo) {
@@ -2548,7 +2635,11 @@ TextState Message::textState(
 				result = bottomInfoResult;
 			}
 		};
-		if (result.symbol <= minSymbol && inBubble) {
+		if (!inBubble) {
+			if (point.y() >= g.y() + g.height()) {
+				result.symbol += visibleTextLen + visibleMediaTextLen;
+			}
+		} else if (result.symbol <= minSymbol) {
 			const auto mediaHeight = mediaDisplayed ? media->height() : 0;
 			const auto mediaLeft = trect.x() - st::msgPadding.left();
 			const auto mediaTop = (!mediaDisplayed || _invertMedia)
@@ -2571,22 +2662,21 @@ TextState Message::textState(
 						result.cursor = CursorState::None;
 					}
 				} else if (request.onlyMessageText) {
-					result.symbol = visibleTextLength();
+					result.symbol = visibleTextLen;
 					result.afterSymbol = false;
 					result.cursor = CursorState::None;
 				} else {
-					result.symbol += visibleTextLength();
+					result.symbol += visibleTextLen;
 				}
 			} else if (getStateText(point, trect, &result, request)) {
 				if (_invertMedia) {
-					result.symbol += visibleMediaTextLength();
+					result.symbol += visibleMediaTextLen;
 				}
 				result.overMessageText = true;
 				checkBottomInfoState();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {
-				result.symbol = visibleTextLength()
-					+ visibleMediaTextLength();
+				result.symbol = visibleTextLen + visibleMediaTextLen;
 			}
 		}
 		checkBottomInfoState();
@@ -2943,7 +3033,9 @@ bool Message::getStateText(
 void Message::updatePressed(QPoint point) {
 	const auto item = data();
 	const auto media = this->media();
-	if (!media) return;
+	if (!media) {
+		return;
+	}
 
 	auto g = countGeometry();
 	auto keyboard = item->inlineReplyKeyboard();
@@ -3054,7 +3146,8 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 }
 
 SelectedQuote Message::selectedQuote(TextSelection selection) const {
-	const auto item = data();
+	const auto textItem = this->textItem();
+	const auto item = textItem ? textItem : data().get();
 	const auto &translated = item->translatedText();
 	const auto &original = item->originalText();
 	if (&translated != &original
@@ -3068,7 +3161,7 @@ SelectedQuote Message::selectedQuote(TextSelection selection) const {
 		const auto textSelection = mediaBefore
 			? media->skipSelection(selection)
 			: selection;
-		return FindSelectedQuote(text(), textSelection, data());
+		return FindSelectedQuote(text(), textSelection, item);
 	} else if (const auto media = this->media()) {
 		if (media->isDisplayed() || isHiddenByGroup()) {
 			return media->selectedQuote(selection);
@@ -3775,7 +3868,7 @@ bool Message::displayFastReply() const {
 	return hasFastReply()
 		&& data()->isRegular()
 		&& canSendAnything()
-		&& !delegate()->elementInSelectionMode();
+		&& !delegate()->elementInSelectionMode().inSelectionMode;
 }
 
 bool Message::displayRightActionComments() const {
@@ -3939,6 +4032,9 @@ void Message::drawRightAction(
 
 ClickHandlerPtr Message::rightActionLink(
 		std::optional<QPoint> pressPoint) const {
+	if (delegate()->elementInSelectionMode().progress > 0) {
+		return nullptr;
+	}
 	ensureRightAction();
 	if (!_rightAction->link) {
 		_rightAction->link = prepareRightActionLink();

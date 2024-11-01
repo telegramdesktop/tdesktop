@@ -393,6 +393,9 @@ public:
 	[[nodiscard]] const style::icon &msgBotKbWebviewIcon() const {
 		return _msgBotKbWebviewIcon;
 	}
+	[[nodiscard]] const style::icon &msgBotKbCopyIcon() const {
+		return _msgBotKbCopyIcon;
+	}
 	[[nodiscard]] const style::icon &historyFastCommentsIcon() const {
 		return _historyFastCommentsIcon;
 	}
@@ -535,6 +538,7 @@ private:
 	style::icon _msgBotKbPaymentIcon = { Qt::Uninitialized };
 	style::icon _msgBotKbSwitchPmIcon = { Qt::Uninitialized };
 	style::icon _msgBotKbWebviewIcon = { Qt::Uninitialized };
+	style::icon _msgBotKbCopyIcon = { Qt::Uninitialized };
 	style::icon _historyFastCommentsIcon = { Qt::Uninitialized };
 	style::icon _historyFastShareIcon = { Qt::Uninitialized };
 	style::icon _historyFastMoreIcon = { Qt::Uninitialized };

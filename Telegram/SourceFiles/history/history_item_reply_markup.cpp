@@ -209,6 +209,11 @@ void HistoryMessageMarkupData::fillRows(
 						Type::SimpleWebView,
 						qs(data.vtext()),
 						data.vurl().v);
+				}, [&](const MTPDkeyboardButtonCopy &data) {
+					row.emplace_back(
+						Type::CopyText,
+						qs(data.vtext()),
+						data.vcopy_text().v);
 				}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
 					LOG(("API Error: inputKeyboardButtonRequestPeer."));
 					// Should not get those for the users.

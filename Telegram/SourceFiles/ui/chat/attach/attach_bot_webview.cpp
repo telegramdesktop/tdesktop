@@ -366,6 +366,7 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 Panel::Panel(
 	const Webview::StorageId &storageId,
 	rpl::producer<QString> title,
+	object_ptr<Ui::RpWidget> titleBadge,
 	not_null<Delegate*> delegate,
 	MenuButtons menuButtons,
 	bool allowClipboardRead)
@@ -375,7 +376,7 @@ Panel::Panel(
 , _widget(std::make_unique<SeparatePanel>())
 , _allowClipboardRead(allowClipboardRead) {
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
-	_widget->setInnerSize(st::botWebViewPanelSize);
+	_widget->setInnerSize(st::botWebViewPanelSize, true);
 
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
@@ -412,6 +413,7 @@ Panel::Panel(
 	}, _widget->lifetime());
 
 	setTitle(std::move(title));
+	_widget->setTitleBadge(std::move(titleBadge));
 }
 
 Panel::~Panel() {
@@ -590,7 +592,7 @@ bool Panel::showWebview(
 			callback(tr::lng_bot_terms(tr::now), [=] {
 				File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
 			}, &st::menuIconGroupLog);
-			callback(tr::lng_profile_bot_privacy(tr::now), [=] {
+			callback(tr::lng_bot_privacy(tr::now), [=] {
 				_delegate->botOpenPrivacyPolicy();
 			}, &st::menuIconAntispam);
 		}
@@ -708,6 +710,10 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	) | rpl::start_with_next([=](QRect geometry, int footer) {
 		if (const auto view = raw->widget()) {
 			view->setGeometry(geometry.marginsRemoved({ 0, 0, 0, footer }));
+			crl::on_main(view, [=] {
+				sendViewport();
+				InvokeQueued(view, [=] { sendViewport(); });
+			});
 		}
 	}, _webview->lifetime);
 
@@ -1258,7 +1264,11 @@ void Panel::processButtonMessage(
 		.text = args["text"].toString(),
 	});
 	if (button.get() == _secondaryButton.get()) {
-		_secondaryPosition = ParsePosition(args["position"].toString());
+		const auto position = ParsePosition(args["position"].toString());
+		if (_secondaryPosition != position) {
+			_secondaryPosition = position;
+			layoutButtons();
+		}
 	}
 }
 
@@ -1594,6 +1604,10 @@ TextWithEntities ErrorText(const Webview::Available &info) {
 			Ui::Text::WithEntities);
 	case Error::NoWebKitGTK:
 		return { tr::lng_payments_webview_install_webkit(tr::now) };
+	case Error::NoOpenGL:
+		return { tr::lng_payments_webview_enable_opengl(tr::now) };
+	case Error::NonX11:
+		return { tr::lng_payments_webview_switch_x11(tr::now) };
 	case Error::OldWindows:
 		return { tr::lng_payments_webview_update_windows(tr::now) };
 	default:
@@ -1617,6 +1631,7 @@ std::unique_ptr<Panel> Show(Args &&args) {
 	auto result = std::make_unique<Panel>(
 		args.storageId,
 		std::move(args.title),
+		std::move(args.titleBadge),
 		args.delegate,
 		args.menuButtons,
 		args.allowClipboardRead);

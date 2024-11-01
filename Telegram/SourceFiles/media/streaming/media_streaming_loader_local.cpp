@@ -84,6 +84,10 @@ rpl::producer<LoadedPart> LoaderLocal::parts() const {
 	return _parts.events();
 }
 
+rpl::producer<SpeedEstimate> LoaderLocal::speedEstimate() const {
+	return rpl::never<SpeedEstimate>();
+}
+
 void LoaderLocal::attachDownloader(
 		not_null<Storage::StreamedFileDownloader*> downloader) {
 	Unexpected("Downloader attached to a local streaming loader.");

@@ -220,6 +220,9 @@ public:
 	[[nodiscard]] bool nativeNotifications() const;
 	void setNativeNotifications(bool value);
 
+	[[nodiscard]] bool skipToastsInFocus() const;
+	void setSkipToastsInFocus(bool value);
+
 	[[nodiscard]] int notificationsCount() const {
 		return _notificationsCount;
 	}
@@ -237,6 +240,12 @@ public:
 	}
 	void setIncludeMutedCounter(bool value) {
 		_includeMutedCounter = value;
+	}
+	[[nodiscard]] bool includeMutedCounterFolders() const {
+		return _includeMutedCounterFolders;
+	}
+	void setIncludeMutedCounterFolders(bool value) {
+		_includeMutedCounterFolders = value;
 	}
 	[[nodiscard]] bool countUnreadMessages() const {
 		return _countUnreadMessages;
@@ -619,6 +628,13 @@ public:
 		return _floatPlayerCorner;
 	}
 
+	[[nodiscard]] bool recordVideoMessages() const {
+		return _recordVideoMessages;
+	}
+	void setRecordVideoMessages(bool value) {
+		_recordVideoMessages = value;
+	}
+
 	void updateDialogsWidthRatio(float64 ratio, bool nochat);
 	[[nodiscard]] float64 dialogsWidthRatio(bool nochat) const;
 
@@ -909,6 +925,13 @@ public:
 		_tonsiteStorageToken = value;
 	}
 
+	[[nodiscard]] int ivZoom() const;
+	[[nodiscard]] rpl::producer<int> ivZoomValue() const;
+	void setIvZoom(int value);
+
+	[[nodiscard]] Media::VideoQuality videoQuality() const;
+	void setVideoQuality(Media::VideoQuality quality);
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 
@@ -948,9 +971,11 @@ private:
 	bool _flashBounceNotify = true;
 	NotifyView _notifyView = NotifyView::ShowPreview;
 	std::optional<bool> _nativeNotifications;
+	bool _skipToastsInFocus = false;
 	int _notificationsCount = 3;
 	ScreenCorner _notificationsCorner = ScreenCorner::BottomRight;
 	bool _includeMutedCounter = true;
+	bool _includeMutedCounterFolders = true;
 	bool _countUnreadMessages = true;
 	rpl::variable<bool> _notifyAboutPinned = true;
 	int _autoLock = 3600;
@@ -1043,6 +1068,8 @@ private:
 	bool _systemUnlockEnabled = false;
 	std::optional<bool> _weatherInCelsius;
 	QByteArray _tonsiteStorageToken;
+	rpl::variable<int> _ivZoom = 100;
+	Media::VideoQuality _videoQuality;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window
@@ -1052,6 +1079,8 @@ private:
 	bool _rememberedSoundNotifyFromTray = false;
 	bool _rememberedFlashBounceNotifyFromTray = false;
 	bool _dialogsWidthSetToZeroWithoutChat = false;
+
+	bool _recordVideoMessages = false;
 
 	QByteArray _photoEditorBrush;
 

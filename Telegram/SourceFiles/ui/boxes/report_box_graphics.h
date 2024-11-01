@@ -13,7 +13,9 @@ struct ReportBox;
 
 namespace Ui {
 
+class AbstractButton;
 class GenericBox;
+class VerticalLayout;
 
 enum class ReportSource {
 	Message,
@@ -51,5 +53,12 @@ void ReportDetailsBox(
 	not_null<GenericBox*> box,
 	const style::ReportBox &st,
 	Fn<void(QString)> done);
+
+[[nodiscard]] not_null<Ui::AbstractButton*> AddReportOptionButton(
+	not_null<Ui::VerticalLayout*> container,
+	const QString &text,
+	const style::ReportBox *stOverride);
+
+void AddReportDetailsIconButton(not_null<GenericBox*> box);
 
 } // namespace Ui

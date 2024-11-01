@@ -1091,11 +1091,10 @@ void Notification::showReplyField() {
 	_replyArea->setFocus();
 	_replyArea->setMaxLength(MaxMessageSize);
 	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-	InitMessageFieldHandlers(
-		&_item->history()->session(),
-		nullptr,
-		_replyArea.data(),
-		nullptr);
+	InitMessageFieldHandlers({
+		.session = &_item->history()->session(),
+		.field = _replyArea.data(),
+	});
 
 	// Catch mouse press event to activate the window.
 	QCoreApplication::instance()->installEventFilter(this);

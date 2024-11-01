@@ -121,7 +121,8 @@ public:
 	MediaGenericTextPart(
 		TextWithEntities text,
 		QMargins margins,
-		const base::flat_map<uint16, ClickHandlerPtr> &links = {});
+		const base::flat_map<uint16, ClickHandlerPtr> &links = {},
+		const std::any &context = {});
 
 	void draw(
 		Painter &p,

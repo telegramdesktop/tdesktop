@@ -404,6 +404,9 @@ void FillOverview(
 					- st::statisticsOverviewSubtext.style.font->height
 					+ g.y()
 					+ diffBetweenHeaders);
+			if (container->height() < rect::bottom(sub)) {
+				container->resize(container->width(), rect::bottom(sub));
+			}
 		}, primary->lifetime());
 	};
 
@@ -535,8 +538,7 @@ void FillOverview(
 		}
 	}
 	container->showChildren();
-	container->resize(container->width(), topLeftLabel->height() * 5);
-	container->sizeValue(
+	container->sizeValue() | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](const QSize &s) {
 		const auto halfWidth = s.width() / 2;
 		{

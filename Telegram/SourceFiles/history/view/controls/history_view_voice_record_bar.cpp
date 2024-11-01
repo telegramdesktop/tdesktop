@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "ui/boxes/confirm_box.h"
+#include "calls/calls_instance.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
 #include "data/data_document.h"
@@ -27,26 +28,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_round_preview.h"
+#include "storage/storage_account.h"
+#include "ui/controls/round_video_recorder.h"
 #include "ui/controls/send_button.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+#include "webrtc/webrtc_video_track.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
 
+#include <tgcalls/VideoCaptureInterface.h>
+
 namespace HistoryView::Controls {
 namespace {
-
-using SendActionUpdate = VoiceRecordBar::SendActionUpdate;
-using VoiceToSend = VoiceRecordBar::VoiceToSend;
 
 constexpr auto kAudioVoiceUpdateView = crl::time(200);
 constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
@@ -69,16 +75,67 @@ enum class FilterType {
 	Cancel,
 };
 
+class SoundedPreview final : public Ui::DynamicImage {
+public:
+	SoundedPreview(
+		not_null<DocumentData*> document,
+		rpl::producer<> repaints);
+	std::shared_ptr<DynamicImage> clone() override;
+	QImage image(int size) override;
+	void subscribeToUpdates(Fn<void()> callback) override;
+
+private:
+	const not_null<DocumentData*> _document;
+	QImage _roundingMask;
+	Fn<void()> _repaint;
+	rpl::lifetime _lifetime;
+
+};
+
+SoundedPreview::SoundedPreview(
+	not_null<DocumentData*> document,
+	rpl::producer<> repaints)
+: _document(document) {
+	std::move(repaints) | rpl::start_with_next([=] {
+		if (const auto onstack = _repaint) {
+			onstack();
+		}
+	}, _lifetime);
+}
+
+std::shared_ptr<Ui::DynamicImage> SoundedPreview::clone() {
+	Unexpected("ListenWrap::videoPreview::clone.");
+}
+
+QImage SoundedPreview::image(int size) {
+	const auto player = ::Media::Player::instance();
+	const auto streamed = player->roundVideoPreview(_document);
+	if (!streamed) {
+		return {};
+	}
+
+	const auto full = QSize(size, size) * style::DevicePixelRatio();
+	if (_roundingMask.size() != full) {
+		_roundingMask = Images::EllipseMask(full);
+	}
+	const auto frame = streamed->frameWithInfo({
+		.resize = full,
+		.outer = full,
+		.mask = _roundingMask,
+	});
+	return frame.image;
+}
+
+void SoundedPreview::subscribeToUpdates(Fn<void()> callback) {
+	_repaint = std::move(callback);
+}
+
 [[nodiscard]] auto InactiveColor(const QColor &c) {
 	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
 }
 
 [[nodiscard]] auto Progress(int low, int high) {
 	return std::clamp(float64(low) / high, 0., 1.);
-}
-
-[[nodiscard]] crl::time Duration(int samples) {
-	return samples * crl::time(1000) / ::Media::Player::kDefaultFrequency;
 }
 
 [[nodiscard]] auto FormatVoiceDuration(int samples) {
@@ -201,6 +258,44 @@ void PaintWaveform(
 	}
 }
 
+void FillWithMinithumbs(
+		QPainter &p,
+		not_null<const Ui::RoundVideoResult*> data,
+		QRect rect,
+		float64 progress) {
+	if (!data->minithumbsCount || !data->minithumbSize || rect.isEmpty()) {
+		return;
+	}
+	const auto size = rect.height();
+	const auto single = data->minithumbSize;
+	const auto perrow = data->minithumbs.width() / single;
+	const auto thumbs = (rect.width() + size - 1) / size;
+	if (!thumbs || !perrow) {
+		return;
+	}
+	for (auto i = 0; i != thumbs - 1; ++i) {
+		const auto index = (i * data->minithumbsCount) / thumbs;
+		p.drawImage(
+			QRect(rect.x() + i * size, rect.y(), size, size),
+			data->minithumbs,
+			QRect(
+				(index % perrow) * single,
+				(index / perrow) * single,
+				single,
+				single));
+	}
+	const auto last = rect.width() - (thumbs - 1) * size;
+	const auto index = ((thumbs - 1) * data->minithumbsCount) / thumbs;
+	p.drawImage(
+		QRect(rect.x() + (thumbs - 1) * size, rect.y(), last, size),
+		data->minithumbs,
+		QRect(
+			(index % perrow) * single,
+			(index / perrow) * single,
+			(last * single) / size,
+			single));
+}
+
 [[nodiscard]] QRect DrawLockCircle(
 		QPainter &p,
 		const QRect &widgetRect,
@@ -269,7 +364,8 @@ class TTLButton final : public Ui::RippleButton {
 public:
 	TTLButton(
 		not_null<Ui::RpWidget*> parent,
-		const style::RecordBar &st);
+		const style::RecordBar &st,
+		bool recordingVideo);
 
 	void clearState() override;
 
@@ -288,7 +384,8 @@ private:
 
 TTLButton::TTLButton(
 	not_null<Ui::RpWidget*> parent,
-	const style::RecordBar &st)
+	const style::RecordBar &st,
+	bool recordingVideo)
 : RippleButton(parent, st.lock.ripple)
 , _st(st)
 , _rippleRect(Rect(Size(st::historyRecordLockTopShadow.width()))
@@ -315,8 +412,10 @@ TTLButton::TTLButton(
 		}
 		auto text = rpl::conditional(
 			Core::App().settings().ttlVoiceClickTooltipHiddenValue(),
-			tr::lng_record_once_active_tooltip(
-				Ui::Text::RichLangValue),
+			(recordingVideo
+				? tr::lng_record_once_active_video
+				: tr::lng_record_once_active_tooltip)(
+					Ui::Text::RichLangValue),
 			tr::lng_record_once_first_tooltip(
 				Ui::Text::RichLangValue));
 		_tooltip.reset(Ui::CreateChild<Ui::ImportantTooltip>(
@@ -426,35 +525,37 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		const style::RecordBar &st,
 		not_null<Main::Session*> session,
-		::Media::Capture::Result *data,
+		not_null<Ui::RoundVideoResult*> data,
 		const style::font &font);
 
 	void requestPaintProgress(float64 progress);
-	rpl::producer<> stopRequests() const;
+	[[nodiscard]] rpl::producer<> stopRequests() const;
 
 	void playPause();
+	[[nodiscard]] std::shared_ptr<Ui::DynamicImage> videoPreview();
 
-	rpl::lifetime &lifetime();
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	void init();
 	void initPlayButton();
 	void initPlayProgress();
 
-	bool isInPlayer(const ::Media::Player::TrackState &state) const;
-	bool isInPlayer() const;
+	[[nodiscard]] bool isInPlayer(
+		const ::Media::Player::TrackState &state) const;
+	[[nodiscard]] bool isInPlayer() const;
 
-	int computeTopMargin(int height) const;
-	QRect computeWaveformRect(const QRect &centerRect) const;
+	[[nodiscard]] int computeTopMargin(int height) const;
+	[[nodiscard]] QRect computeWaveformRect(const QRect &centerRect) const;
 
-	not_null<Ui::RpWidget*> _parent;
+	const not_null<Ui::RpWidget*> _parent;
 
 	const style::RecordBar &_st;
 	const not_null<Main::Session*> _session;
 	const not_null<DocumentData*> _document;
 	const std::unique_ptr<VoiceData> _voiceData;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
-	const not_null<::Media::Capture::Result*> _data;
+	const not_null<Ui::RoundVideoResult*> _data;
 	const base::unique_qptr<Ui::IconButton> _delete;
 	const style::font &_durationFont;
 	const QString _duration;
@@ -475,6 +576,7 @@ private:
 	anim::value _playProgress;
 
 	rpl::variable<float64> _showProgress = 0.;
+	rpl::event_stream<> _videoRepaints;
 
 	rpl::lifetime _lifetime;
 
@@ -484,7 +586,7 @@ ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
 	const style::RecordBar &st,
 	not_null<Main::Session*> session,
-	::Media::Capture::Result *data,
+	not_null<Ui::RoundVideoResult*> data,
 	const style::font &font)
 : _parent(parent)
 , _st(st)
@@ -495,8 +597,7 @@ ListenWrap::ListenWrap(
 , _data(data)
 , _delete(base::make_unique_q<Ui::IconButton>(parent, _st.remove))
 , _durationFont(font)
-, _duration(Ui::FormatDurationText(
-	float64(_data->samples) / ::Media::Player::kDefaultFrequency))
+, _duration(Ui::FormatDurationText(_data->duration / 1000))
 , _durationWidth(_durationFont->width(_duration))
 , _playPauseSt(st::mediaPlayerButton)
 , _playPauseButton(base::make_unique_q<Ui::AbstractButton>(parent))
@@ -603,20 +704,27 @@ void ListenWrap::init() {
 			}
 
 			// Waveform paint.
-			{
-				const auto rect = (progress == 1.)
-					? _waveformFgRect
-					: computeWaveformRect(bgCenterRect);
-				if (rect.width() > 0) {
-					p.translate(rect.topLeft());
+			const auto waveformRect = (progress == 1.)
+				? _waveformFgRect
+				: computeWaveformRect(bgCenterRect);
+			if (!waveformRect.isEmpty()) {
+				const auto playProgress = _playProgress.current();
+				if (_data->minithumbs.isNull()) {
+					p.translate(waveformRect.topLeft());
 					PaintWaveform(
 						p,
 						_voiceData.get(),
-						rect.width(),
+						waveformRect.width(),
 						_activeWaveformBar,
 						_inactiveWaveformBar,
-						_playProgress.current());
+						playProgress);
 					p.resetTransform();
+				} else {
+					FillWithMinithumbs(
+						p,
+						_data,
+						waveformRect,
+						playProgress);
 				}
 			}
 		}
@@ -630,9 +738,11 @@ void ListenWrap::initPlayButton() {
 	using namespace ::Media::Player;
 	using State = TrackState;
 
-	_mediaView->setBytes(_data->bytes);
-	_document->size = _data->bytes.size();
-	_document->type = VoiceDocument;
+	_mediaView->setBytes(_data->content);
+	_document->size = _data->content.size();
+	_document->type = _data->minithumbs.isNull()
+		? VoiceDocument
+		: RoundVideoDocument;
 
 	const auto &play = _playPauseSt.playOuter;
 	const auto &width = _waveformBgFinalCenterRect.height();
@@ -668,6 +778,9 @@ void ListenWrap::initPlayButton() {
 	) | rpl::start_with_next([=](const State &state) {
 		if (isInPlayer(state)) {
 			*showPause = ShowPauseIcon(state.state);
+			if (!_data->minithumbs.isNull()) {
+				_videoRepaints.fire({});
+			}
 		} else if (showPause->current()) {
 			*showPause = false;
 		}
@@ -678,6 +791,13 @@ void ListenWrap::initPlayButton() {
 	) | rpl::start_with_next([=] {
 		*showPause = false;
 	}, _lifetime);
+
+	_lifetime.add([=] {
+		const auto current = instance()->current(AudioMsgId::Type::Voice);
+		if (current.audio() == _document) {
+			instance()->stop(AudioMsgId::Type::Voice, true);
+		}
+	});
 }
 
 void ListenWrap::initPlayProgress() {
@@ -817,6 +937,12 @@ rpl::producer<> ListenWrap::stopRequests() const {
 	return _delete->clicks() | rpl::to_empty;
 }
 
+std::shared_ptr<Ui::DynamicImage> ListenWrap::videoPreview() {
+	return std::make_shared<SoundedPreview>(
+		_document,
+		_videoRepaints.events());
+}
+
 rpl::lifetime &ListenWrap::lifetime() {
 	return _lifetime;
 }
@@ -831,6 +957,7 @@ public:
 	void requestPaintLockToStopProgress(float64 progress);
 	void requestPaintPauseToInputProgress(float64 progress);
 	void setVisibleTopPart(int part);
+	void setRecordingVideo(bool value);
 
 	[[nodiscard]] rpl::producer<> locks() const;
 	[[nodiscard]] bool isLocked() const;
@@ -859,6 +986,7 @@ private:
 	float64 _pauseToInputProgress = 0.;
 	rpl::variable<float64> _progress = 0.;
 	int _visibleTopPart = -1;
+	bool _recordingVideo = false;
 
 };
 
@@ -880,6 +1008,10 @@ RecordLock::RecordLock(
 
 void RecordLock::setVisibleTopPart(int part) {
 	_visibleTopPart = part;
+}
+
+void RecordLock::setRecordingVideo(bool value) {
+	_recordingVideo = value;
 }
 
 void RecordLock::init() {
@@ -972,9 +1104,10 @@ void RecordLock::drawProgress(QPainter &p) {
 			p.setBrush(_st.fg);
 			if (_pauseToInputProgress > 0.) {
 				p.setOpacity(_pauseToInputProgress);
-				st::historyRecordLockInput.paintInCenter(
-					p,
-					blockRect.toRect());
+				const auto &icon = _recordingVideo
+					? st::historyRecordLockRound
+					: st::historyRecordLockInput;
+				icon.paintInCenter(p, blockRect.toRect());
 				p.setOpacity(1. - _pauseToInputProgress);
 			}
 			p.drawRoundedRect(
@@ -1244,7 +1377,7 @@ VoiceRecordBar::VoiceRecordBar(
 }
 
 VoiceRecordBar::~VoiceRecordBar() {
-	if (isRecording()) {
+	if (isActive()) {
 		stopRecording(StopType::Cancel);
 	}
 }
@@ -1298,7 +1431,12 @@ void VoiceRecordBar::updateTTLGeometry(
 	const auto parent = parentWidget();
 	const auto me = Ui::MapFrom(_outerContainer, parent, geometry());
 	const auto anyTop = me.y() - st::historyRecordLockPosition.y();
-	const auto ttlFrom = anyTop - _ttlButton->height() * 2;
+	const auto lockHiddenProgress = (_lockShowing.current() || !_fullRecord)
+		? 0.
+		: (1. - _showLockAnimation.value(0.));
+	const auto ttlFrom = anyTop
+		- _ttlButton->height()
+		- (_ttlButton->height() * (1. - lockHiddenProgress));
 	if (type == TTLAnimationType::RightLeft) {
 		const auto finalRight = _outerContainer->width()
 			- rect::right(me)
@@ -1418,6 +1556,9 @@ void VoiceRecordBar::init() {
 			} else if (value == 1. && show) {
 				computeAndSetLockProgress(QCursor::pos());
 			}
+			if (_fullRecord && !show) {
+				updateTTLGeometry(TTLAnimationType::RightLeft, 1.);
+			}
 		};
 		_showLockAnimation.start(std::move(callback), from, to, duration);
 	}, lifetime());
@@ -1473,7 +1614,6 @@ void VoiceRecordBar::init() {
 		if (!paused) {
 			return;
 		}
-		// _lockShowing = false;
 
 		const auto to = 1.;
 		auto callback = [=](float64 value) {
@@ -1496,7 +1636,8 @@ void VoiceRecordBar::init() {
 			if (!_ttlButton) {
 				_ttlButton = std::make_unique<TTLButton>(
 					_outerContainer,
-					_st);
+					_st,
+					_recordingVideo);
 			}
 			_ttlButton->show();
 		}
@@ -1529,12 +1670,14 @@ void VoiceRecordBar::init() {
 			if (_startRecordingFilter && _startRecordingFilter()) {
 				return;
 			}
-			_recordingTipRequired = true;
+			_recordingTipRequire = crl::now();
+			_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
+			_fullRecord = false;
+			_ttlButton = nullptr;
+			_lock->setRecordingVideo(_recordingVideo);
 			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
-			if (base::take(_recordingTipRequired)) {
-				_recordingTipRequests.fire({});
-			}
+			checkTipRequired();
 			_startTimer.cancel();
 		}
 	}, lifetime());
@@ -1579,6 +1722,11 @@ void VoiceRecordBar::activeAnimate(bool active) {
 }
 
 void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
+	if (_send->type() == Ui::SendButton::Type::Round) {
+		_level->setType(VoiceRecordButton::Type::Round);
+	} else {
+		_level->setType(VoiceRecordButton::Type::Record);
+	}
 	const auto to = show ? 1. : 0.;
 	const auto from = show ? 0. : 1.;
 	auto animationCallback = [=, callback = std::move(callback)](auto value) {
@@ -1652,6 +1800,10 @@ void VoiceRecordBar::startRecording() {
 		}
 
 		using namespace ::Media::Capture;
+		if (_recordingVideo && !createVideoRecorder()) {
+			stop(false);
+			return;
+		}
 		if (!instance()->available()) {
 			stop(false);
 			return;
@@ -1664,16 +1816,36 @@ void VoiceRecordBar::startRecording() {
 		if (_paused.current()) {
 			_paused = false;
 			instance()->pause(false, nullptr);
+			if (_videoRecorder) {
+				_videoRecorder->resume({
+					.video = std::move(_data),
+				});
+			}
 		} else {
-			instance()->start();
+			instance()->start(_videoRecorder
+				? _videoRecorder->audioChunkProcessor()
+				: nullptr);
 		}
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
-			_recordingTipRequired = (update.samples < kMinSamples);
 			recordUpdated(update.level, update.samples);
 		}, [=] {
 			stop(false);
 		}, _recordingLifetime);
+		if (_videoRecorder) {
+			_videoRecorder->updated(
+			) | rpl::start_with_next_error([=](const Update &update) {
+				recordUpdated(update.level, update.samples);
+				if (update.finished) {
+					_fullRecord = true;
+					stopRecording(StopType::Listen);
+					_lockShowing = false;
+				}
+			}, [=](Error error) {
+				stop(false);
+				_errors.fire_copy(error);
+			}, _recordingLifetime);
+		}
 		_recordingLifetime.add([=] {
 			_recording = false;
 		});
@@ -1705,12 +1877,20 @@ void VoiceRecordBar::startRecording() {
 			}
 			computeAndSetLockProgress(mouse->globalPos());
 		} else if (type == QEvent::MouseButtonRelease) {
-			if (base::take(_recordingTipRequired)) {
-				_recordingTipRequests.fire({});
-			}
+			checkTipRequired();
 			stop(_inField.current());
 		}
 	}, _recordingLifetime);
+}
+
+void VoiceRecordBar::checkTipRequired() {
+	const auto require = base::take(_recordingTipRequire);
+	const auto duration = st::universalDuration
+		+ (kMinSamples * crl::time(1000)
+			/ ::Media::Player::kDefaultFrequency);
+	if (require && (require + duration > crl::now())) {
+		_recordingTipRequests.fire({});
+	}
 }
 
 void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
@@ -1721,7 +1901,10 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 	}
 	Core::App().updateNonIdle();
 	update(_durationRect);
-	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice });
+	const auto type = _recordingVideo
+		? Api::SendProgressType::RecordRound
+		: Api::SendProgressType::RecordVoice;
+	_sendActionUpdates.fire({ type });
 }
 
 void VoiceRecordBar::stop(bool send) {
@@ -1735,7 +1918,6 @@ void VoiceRecordBar::stop(bool send) {
 		const auto type = send ? StopType::Send : StopType::Cancel;
 		stopRecording(type, ttlBeforeHide);
 	};
-	// _lockShowing = false;
 	visibilityAnimate(false, std::move(disappearanceCallback));
 }
 
@@ -1754,7 +1936,10 @@ void VoiceRecordBar::finish() {
 
 	[[maybe_unused]] const auto s = takeTTLState();
 
-	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
+	const auto type = _recordingVideo
+		? Api::SendProgressType::RecordRound
+		: Api::SendProgressType::RecordVoice;
+	_sendActionUpdates.fire({ type, -1 });
 
 	_data = {};
 }
@@ -1769,39 +1954,99 @@ void VoiceRecordBar::hideFast() {
 void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 	using namespace ::Media::Capture;
 	if (type == StopType::Cancel) {
+		if (_videoRecorder) {
+			_videoRecorder->hide();
+		}
 		instance()->stop(crl::guard(this, [=](Result &&data) {
 			_cancelRequests.fire({});
 		}));
 	} else if (type == StopType::Listen) {
-		instance()->pause(true, crl::guard(this, [=](Result &&data) {
-			if (data.bytes.isEmpty()) {
-				// Close everything.
-				stop(false);
-				return;
-			}
-			_paused = true;
-			_data = std::move(data);
+		if (const auto recorder = _videoRecorder.get()) {
+			const auto weak = base::make_weak(recorder);
+			recorder->pause([=](Ui::RoundVideoResult data) {
+				crl::on_main(weak, [=, data = std::move(data)]() mutable {
+					window()->raise();
+					window()->activateWindow();
 
-			window()->raise();
-			window()->activateWindow();
-			_listen = std::make_unique<ListenWrap>(
-				this,
-				_st,
-				&_show->session(),
-				&_data,
-				_cancelFont);
-			_listenChanges.fire({});
+					_paused = true;
+					_data = std::move(data);
+					_listen = std::make_unique<ListenWrap>(
+						this,
+						_st,
+						&_show->session(),
+						&_data,
+						_cancelFont);
+					_listenChanges.fire({});
 
-			// _lockShowing = false;
-		}));
+					using SilentPreview = ::Media::Streaming::RoundPreview;
+					recorder->showPreview(
+						std::make_shared<SilentPreview>(
+							_data.content,
+							recorder->previewSize()),
+						_listen->videoPreview());
+				});
+			});
+			instance()->pause(true);
+		} else {
+			instance()->pause(true, crl::guard(this, [=](Result &&data) {
+				if (data.bytes.isEmpty()) {
+					// Close everything.
+					stop(false);
+					return;
+				}
+				_paused = true;
+				_data = Ui::RoundVideoResult{
+					.content = std::move(data.bytes),
+					.waveform = std::move(data.waveform),
+					.duration = data.duration,
+				};
+
+				window()->raise();
+				window()->activateWindow();
+				_listen = std::make_unique<ListenWrap>(
+					this,
+					_st,
+					&_show->session(),
+					&_data,
+					_cancelFont);
+				_listenChanges.fire({});
+			}));
+		}
 	} else if (type == StopType::Send) {
+		if (_videoRecorder) {
+			const auto weak = Ui::MakeWeak(this);
+			_videoRecorder->hide([=](Ui::RoundVideoResult data) {
+				crl::on_main([=, data = std::move(data)]() mutable {
+					if (weak) {
+						window()->raise();
+						window()->activateWindow();
+						const auto options = Api::SendOptions{
+							.ttlSeconds = (ttlBeforeHide
+								? std::numeric_limits<int>::max()
+								: 0),
+						};
+						_sendVoiceRequests.fire({
+							.bytes = data.content,
+							//.waveform = {},
+							.duration = data.duration,
+							.options = options,
+							.video = true,
+						});
+					}
+				});
+			});
+		}
 		instance()->stop(crl::guard(this, [=](Result &&data) {
 			if (data.bytes.isEmpty()) {
 				// Close everything.
 				stop(false);
 				return;
 			}
-			_data = std::move(data);
+			_data = Ui::RoundVideoResult{
+				.content = std::move(data.bytes),
+				.waveform = std::move(data.waveform),
+				.duration = data.duration,
+			};
 
 			window()->raise();
 			window()->activateWindow();
@@ -1811,10 +2056,10 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 					: 0),
 			};
 			_sendVoiceRequests.fire({
-				_data.bytes,
-				_data.waveform,
-				Duration(_data.samples),
-				options,
+				.bytes = _data.content,
+				.waveform = _data.waveform,
+				.duration = _data.duration,
+				.options = options,
 			});
 		}));
 	}
@@ -1878,10 +2123,11 @@ void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 			options.ttlSeconds = std::numeric_limits<int>::max();
 		}
 		_sendVoiceRequests.fire({
-			_data.bytes,
-			_data.waveform,
-			Duration(_data.samples),
-			options,
+			.bytes = _data.content,
+			.waveform = _data.waveform,
+			.duration = _data.duration,
+			.options = options,
+			.video = !_data.minithumbs.isNull(),
 		});
 	}
 }
@@ -1954,6 +2200,10 @@ rpl::producer<> VoiceRecordBar::recordingTipRequests() const {
 	return _recordingTipRequests.events();
 }
 
+auto VoiceRecordBar::errors() const -> rpl::producer<Error> {
+	return _errors.events();
+}
+
 bool VoiceRecordBar::isLockPresent() const {
 	return _lockShowing.current();
 }
@@ -1963,7 +2213,8 @@ bool VoiceRecordBar::isListenState() const {
 }
 
 bool VoiceRecordBar::isTypeRecord() const {
-	return (_send->type() == Ui::SendButton::Type::Record);
+	return (_send->type() == Ui::SendButton::Type::Record)
+		|| (_send->type() == Ui::SendButton::Type::Round);
 }
 
 bool VoiceRecordBar::isRecordingByAnotherBar() const {
@@ -2085,13 +2336,65 @@ void VoiceRecordBar::showDiscardBox(
 	};
 	_show->showBox(Ui::MakeConfirmBox({
 		.text = (isListenState()
-			? tr::lng_record_listen_cancel_sure
-			: tr::lng_record_lock_cancel_sure)(),
+			? (_recordingVideo
+				? tr::lng_record_listen_cancel_sure_round
+				: tr::lng_record_listen_cancel_sure)
+			: (_recordingVideo
+				? tr::lng_record_lock_cancel_sure_round
+				: tr::lng_record_lock_cancel_sure))(),
 		.confirmed = std::move(sure),
 		.confirmText = tr::lng_record_lock_discard(),
 		.confirmStyle = &st::attentionBoxButton,
 	}));
 	_warningShown = true;
+}
+
+bool VoiceRecordBar::createVideoRecorder() {
+	if (_videoRecorder) {
+		return true;
+	}
+	const auto hiding = [=](not_null<Ui::RoundVideoRecorder*> which) {
+		if (_videoRecorder.get() == which) {
+			_videoHiding.push_back(base::take(_videoRecorder));
+		}
+	};
+	const auto hidden = [=](not_null<Ui::RoundVideoRecorder*> which) {
+		if (_videoRecorder.get() == which) {
+			_videoRecorder = nullptr;
+		}
+		_videoHiding.erase(
+			ranges::remove(
+				_videoHiding,
+				which.get(),
+				&std::unique_ptr<Ui::RoundVideoRecorder>::get),
+			end(_videoHiding));
+	};
+	auto capturer = Core::App().calls().getVideoCapture();
+	auto track = std::make_shared<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Active);
+	capturer->setOutput(track->sink());
+	capturer->setPreferredAspectRatio(1.);
+	_videoCapturerLifetime = track->stateValue(
+	) | rpl::start_with_next([=](Webrtc::VideoState state) {
+		capturer->setState((state == Webrtc::VideoState::Active)
+			? tgcalls::VideoState::Active
+			: tgcalls::VideoState::Inactive);
+	});
+	_videoRecorder = std::make_unique<Ui::RoundVideoRecorder>(
+		Ui::RoundVideoRecorderDescriptor{
+			.container = _outerContainer,
+			.hiding = hiding,
+			.hidden = hidden,
+			.capturer = std::move(capturer),
+			.track = std::move(track),
+			.placeholder = _show->session().local().readRoundPlaceholder(),
+		});
+	_videoRecorder->placeholderUpdates(
+	) | rpl::start_with_next([=](QImage &&placeholder) {
+		_show->session().local().writeRoundPlaceholder(placeholder);
+	}, _videoCapturerLifetime);
+
+	return true;
 }
 
 } // namespace HistoryView::Controls

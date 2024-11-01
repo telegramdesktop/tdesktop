@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_history_hider.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
+#include "window/window_session_controller_link_info.h"
 #include "window/themes/window_theme.h"
 #include "chat_helpers/bot_command.h"
 #include "chat_helpers/tabbed_selector.h" // TabbedSelector::refreshStickers
@@ -422,7 +423,7 @@ MainWidget::MainWidget(
 
 	cSetOtherOnline(0);
 
-	_history->start();
+	session().data().stickers().notifySavedGifsUpdated();
 }
 
 MainWidget::~MainWidget() = default;
@@ -744,6 +745,15 @@ void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
 }
 
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
+	const auto complex = Data::HashtagWithUsernameFromQuery(query);
+	if (!complex.username.isEmpty()) {
+		_controller->showPeerByLink(Window::PeerByLinkInfo{
+			.usernameOrId = complex.username,
+			.text = complex.hashtag,
+			.resolveType = Window::ResolveType::HashtagSearch,
+		});
+		return;
+	}
 	auto tags = Data::SearchTagsFromQuery(query);
 	if (_dialogs) {
 		auto state = Dialogs::SearchState{
@@ -1218,9 +1228,9 @@ void MainWidget::setInnerFocus() {
 
 void MainWidget::showChooseReportMessages(
 		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done) {
-	_history->setChooseReportMessagesDetails(reason, std::move(done));
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> done) {
+	_history->setChooseReportMessagesDetails(reportInput, std::move(done));
 	_controller->showPeerHistory(
 		peer,
 		SectionShow::Way::Forward,
@@ -1538,7 +1548,7 @@ void MainWidget::showForum(
 	_dialogs->showForum(forum, params);
 
 	if (params.activation != anim::activation::background) {
-		_controller->hideLayer();
+		_controller->window().hideSettingsAndLayer();
 	}
 }
 

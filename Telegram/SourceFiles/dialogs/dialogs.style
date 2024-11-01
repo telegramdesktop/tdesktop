@@ -222,9 +222,7 @@ dialogsMenuToggle: IconButton {
 
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 dialogsMenuToggleUnread: icon {
 	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
@@ -430,6 +428,11 @@ dialogsUpdateButton: FlatButton {
 }
 dialogsInstallUpdate: icon {{ "install_update", activeButtonFg }};
 dialogsInstallUpdateOver: icon {{ "install_update", activeButtonFgOver }};
+dialogsInstallUpdateIconSkip: 7px;
+dialogsInstallUpdateIconSize: 20px;
+dialogsInstallUpdateIconInnerMargin: 5px;
+dialogsInstallUpdateIconSide1: 5px;
+dialogsInstallUpdateIconSide2: 3px;
 
 dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
 	color: lightButtonFg;
@@ -442,6 +445,8 @@ dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
 
 	height: 36px;
 	textTop: 9px;
+	font: semiboldFont;
+	overFont: semiboldFont;
 }
 dialogsLoadMore: icon {{ "install_update-flip_vertical", lightButtonFg }};
 dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
@@ -495,6 +500,8 @@ dialogsMiniForward: DialogsMiniIcon {
 	skipText: 1px;
 	skipMedia: 2px;
 }
+
+dialogsMiniReplyIcon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg, point(0px, 2px) }};
 
 dialogsMiniReplyStory: DialogsMiniIcon {
 	icon: ThreeStateIcon {
@@ -736,3 +743,7 @@ dialogsSearchTagPromoLeft: 6px;
 dialogsSearchTagPromoRight: 1px;
 dialogsSearchTagPromoSkip: 6px;
 
+dialogsPopularAppsPadding: margins(10px, 8px, 10px, 12px);
+dialogsPopularAppsAbout: FlatLabel(boxDividerLabel) {
+	minWidth: 128px;
+}

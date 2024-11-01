@@ -851,7 +851,7 @@ void Poll::paintBottom(
 			p.setOpacity(st::historyPollRippleOpacity);
 			_linkRipple->paint(
 				p,
-				left - st::msgPadding.left(),
+				left - st::msgPadding.left() - _linkRippleShift,
 				height() - linkHeight,
 				width(),
 				&stm->msgWaveformInactive->c);

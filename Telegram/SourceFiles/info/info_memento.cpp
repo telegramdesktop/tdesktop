@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/saved/info_saved_sublists_widget.h"
 #include "info/settings/info_settings_widget.h"
 #include "info/similar_channels/info_similar_channels_widget.h"
+#include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/polls/info_polls_results_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
@@ -148,6 +149,8 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 	case Section::Type::SimilarChannels:
 		return std::make_shared<SimilarChannels::Memento>(
 			peer->asChannel());
+	case Section::Type::PeerGifts:
+		return std::make_shared<PeerGifts::Memento>(peer->asUser());
 	case Section::Type::SavedSublists:
 		return std::make_shared<Saved::SublistsMemento>(&peer->session());
 	case Section::Type::Members:

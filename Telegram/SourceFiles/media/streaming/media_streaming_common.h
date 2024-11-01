@@ -93,6 +93,11 @@ struct WaitingForData {
 	bool waiting = false;
 };
 
+struct SpeedEstimate {
+	int bytesPerSecond = 0;
+	bool unreliable = false;
+};
+
 struct MutedByOther {
 };
 
@@ -107,6 +112,7 @@ struct Update {
 		PreloadedAudio,
 		UpdateAudio,
 		WaitingForData,
+		SpeedEstimate,
 		MutedByOther,
 		Finished> data;
 };

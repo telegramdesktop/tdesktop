@@ -715,6 +715,10 @@ void Player::start() {
 	_stage = Stage::Started;
 	const auto guard = base::make_weak(&_sessionGuard);
 
+	_file->speedEstimate() | rpl::start_with_next([=](SpeedEstimate value) {
+		_updates.fire({ value });
+	}, _sessionLifetime);
+
 	rpl::merge(
 		_audio ? _audio->waitingForData() : nullptr,
 		_video ? _video->waitingForData() : nullptr
@@ -881,6 +885,10 @@ rpl::producer<bool> Player::fullInCache() const {
 	return _fullInCache.events();
 }
 
+int64 Player::fileSize() const {
+	return _file->size();
+}
+
 QSize Player::videoSize() const {
 	return _information.video.size;
 }
@@ -958,7 +966,9 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 		if (duration > 0) {
 			result.length = duration;
 		} else {
-			result.length = std::max(crl::time(result.position), crl::time(0));
+			result.length = std::max(
+				crl::time(result.position),
+				crl::time(0));
 		}
 	}
 	return result;

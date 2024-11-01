@@ -200,6 +200,9 @@ public:
 	void setIsRepliesMessagesChat(bool isRepliesMessagesChat) {
 		_isRepliesMessagesChat = isRepliesMessagesChat;
 	}
+	void setIsVerifyCodesChat(bool isVerifyCodesChat) {
+		_isVerifyCodesChat = isVerifyCodesChat;
+	}
 
 	template <typename UpdateCallback>
 	void setChecked(
@@ -251,6 +254,10 @@ public:
 		return _nameFirstLetters;
 	}
 
+	void setSkipPeerBadge(bool skip) {
+		_skipPeerBadge = skip;
+	}
+
 	virtual void lazyInitialize(const style::PeerListItem &st);
 	virtual void paintStatusText(
 		Painter &p,
@@ -288,7 +295,7 @@ private:
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Ui::Text::String _name;
 	Ui::Text::String _status;
-	Ui::PeerBadge _bagde;
+	Ui::PeerBadge _badge;
 	StatusType _statusType = StatusType::Online;
 	crl::time _statusValidTill = 0;
 	base::flat_set<QChar> _nameFirstLetters;
@@ -299,6 +306,8 @@ private:
 	bool _initialized : 1 = false;
 	bool _isSearchResult : 1 = false;
 	bool _isRepliesMessagesChat : 1 = false;
+	bool _isVerifyCodesChat : 1 = false;
+	bool _skipPeerBadge : 1 = false;
 
 };
 
@@ -347,6 +356,8 @@ public:
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
+
+	virtual void peerListSelectSkip(int direction) = 0;
 
 	virtual void peerListPressLeftToContextMenu(bool shown) = 0;
 	virtual bool peerListTrackRowPressFromGlobal(QPoint globalPosition) = 0;
@@ -562,6 +573,13 @@ public:
 	}
 	[[nodiscard]] virtual Fn<QImage()> customRowRippleMaskGenerator() {
 		Unexpected("PeerListController::customRowRippleMaskGenerator.");
+	}
+
+	virtual bool overrideKeyboardNavigation(
+			int direction,
+			int fromIndex,
+			int toIndex) {
+		return false;
 	}
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
@@ -1006,6 +1024,10 @@ public:
 		not_null<PeerListRow*> row,
 		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override;
+
+	void peerListSelectSkip(int direction) override {
+		_content->selectSkip(direction);
+	}
 
 	void peerListPressLeftToContextMenu(bool shown) override {
 		_content->pressLeftToContextMenu(shown);

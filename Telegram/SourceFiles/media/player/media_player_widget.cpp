@@ -73,10 +73,17 @@ Widget::Widget(
 , _speedController(
 	std::make_unique<SpeedController>(
 		_speedToggle.data(),
+		_speedToggle->st(),
 		dropdownsParent,
 		[=](bool over) { markOver(over); },
 		[=](bool lastNonDefault) { return speedLookup(lastNonDefault); },
 		[=](float64 speed) { saveSpeed(speed); })) {
+	_speedController->realtimeValue(
+	) | rpl::start_with_next([=](float64 speed) {
+		_speedToggle->setSpeed(speed);
+	}, _speedToggle->lifetime());
+	_speedToggle->finishAnimating();
+
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -717,6 +724,8 @@ void Widget::handleSongChange() {
 				0,
 				name.size(),
 				QString()));
+		} else if (document->isVideoMessage()) {
+			textWithEntities.text = tr::lng_media_round(tr::now);
 		} else {
 			textWithEntities.text = tr::lng_media_audio(tr::now);
 		}

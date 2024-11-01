@@ -609,6 +609,67 @@ Fn<void(Action, Details)> DefaultCallback(
 	};
 }
 
+FillMenuResult AttachSendMenuEffect(
+		not_null<Ui::PopupMenu*> menu,
+		std::shared_ptr<ChatHelpers::Show> show,
+		Details details,
+		Fn<void(Action, Details)> action,
+		std::optional<QPoint> desiredPositionOverride) {
+	Expects(show != nullptr);
+
+	using namespace HistoryView::Reactions;
+	const auto effect = std::make_shared<QPointer<EffectPreview>>();
+	const auto position = desiredPositionOverride.value_or(QCursor::pos());
+	const auto selector = (show && details.effectAllowed)
+		? AttachSelectorToMenu(
+			menu,
+			position,
+			st::reactPanelEmojiPan,
+			show,
+			LookupPossibleEffects(&show->session()),
+			{ tr::lng_effect_add_title(tr::now) },
+			nullptr, // iconFactory
+			[=] { return (*effect) != nullptr; }) // paused
+		: base::make_unexpected(AttachSelectorResult::Skipped);
+	if (!selector) {
+		if (selector.error() == AttachSelectorResult::Failed) {
+			return FillMenuResult::Failed;
+		}
+		menu->prepareGeometryFor(position);
+		return FillMenuResult::Prepared;
+	}
+
+	(*selector)->chosen(
+	) | rpl::start_with_next([=](ChosenReaction chosen) {
+		const auto &reactions = show->session().data().reactions();
+		const auto &effects = reactions.list(Data::Reactions::Type::Effects);
+		const auto i = ranges::find(effects, chosen.id, &Data::Reaction::id);
+		if (i != end(effects)) {
+			if (const auto strong = effect->data()) {
+				strong->hideAnimated();
+			}
+			const auto weak = Ui::MakeWeak(menu);
+			const auto done = [=] {
+				delete effect->data();
+				if (const auto strong = weak.data()) {
+					strong->hideMenu(true);
+				}
+			};
+			*effect = Ui::CreateChild<EffectPreview>(
+				menu,
+				show,
+				details,
+				menu->mapFromGlobal(chosen.globalGeometry.center()),
+				*i,
+				action,
+				crl::guard(menu, done));
+			(*effect)->show();
+		}
+	}, menu->lifetime());
+
+	return FillMenuResult::Prepared;
+}
+
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
 		std::shared_ptr<ChatHelpers::Show> showForEffect,
@@ -691,56 +752,16 @@ FillMenuResult FillSendMenu(
 			&icons.menuPrice);
 	}
 
-	using namespace HistoryView::Reactions;
-	const auto effect = std::make_shared<QPointer<EffectPreview>>();
-	const auto position = desiredPositionOverride.value_or(QCursor::pos());
-	const auto selector = (showForEffect && details.effectAllowed)
-		? AttachSelectorToMenu(
+	if (showForEffect) {
+		return AttachSendMenuEffect(
 			menu,
-			position,
-			st::reactPanelEmojiPan,
 			showForEffect,
-			LookupPossibleEffects(&showForEffect->session()),
-			{ tr::lng_effect_add_title(tr::now) },
-			nullptr, // iconFactory
-			[=] { return (*effect) != nullptr; }) // paused
-		: base::make_unexpected(AttachSelectorResult::Skipped);
-	if (!selector) {
-		if (selector.error() == AttachSelectorResult::Failed) {
-			return FillMenuResult::Failed;
-		}
-		menu->prepareGeometryFor(position);
-		return FillMenuResult::Prepared;
+			details,
+			action,
+			desiredPositionOverride);
 	}
-
-	(*selector)->chosen(
-	) | rpl::start_with_next([=](ChosenReaction chosen) {
-		const auto &reactions = showForEffect->session().data().reactions();
-		const auto &effects = reactions.list(Data::Reactions::Type::Effects);
-		const auto i = ranges::find(effects, chosen.id, &Data::Reaction::id);
-		if (i != end(effects)) {
-			if (const auto strong = effect->data()) {
-				strong->hideAnimated();
-			}
-			const auto weak = Ui::MakeWeak(menu);
-			const auto done = [=] {
-				delete effect->data();
-				if (const auto strong = weak.data()) {
-					strong->hideMenu(true);
-				}
-			};
-			*effect = Ui::CreateChild<EffectPreview>(
-				menu,
-				showForEffect,
-				details,
-				menu->mapFromGlobal(chosen.globalGeometry.center()),
-				*i,
-				action,
-				crl::guard(menu, done));
-			(*effect)->show();
-		}
-	}, menu->lifetime());
-
+	const auto position = desiredPositionOverride.value_or(QCursor::pos());
+	menu->prepareGeometryFor(position);
 	return FillMenuResult::Prepared;
 }
 

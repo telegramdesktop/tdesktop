@@ -122,6 +122,8 @@ private:
 		std::vector<std::unique_ptr<Sticker>> views;
 	};
 	struct SponsoredData {
+		ClickHandlerPtr link;
+		ClickHandlerPtr mediaLink;
 		QString buttonText;
 
 		uint64 backgroundEmojiId = 0;

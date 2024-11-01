@@ -32,6 +32,7 @@ class Thread;
 class WallPaper;
 struct ForwardDraft;
 class Forum;
+struct ReportInput;
 } // namespace Data
 
 namespace Dialogs {
@@ -61,7 +62,6 @@ namespace Ui {
 class ChatTheme;
 class ResizeArea;
 class PlainShadow;
-enum class ReportReason;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -179,8 +179,8 @@ public:
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done);
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> done);
 	void clearChooseReportMessages();
 
 	void toggleChooseChatTheme(

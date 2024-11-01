@@ -343,10 +343,20 @@ void ScheduledMessages::apply(
 	if (i == end(_data)) {
 		return;
 	}
-	for (const auto &id : update.vmessages().v) {
+	const auto sent = update.vsent_messages();
+	const auto &ids = update.vmessages().v;
+	for (auto k = 0, count = int(ids.size()); k != count; ++k) {
+		const auto id = ids[k].v;
 		const auto &list = i->second;
-		const auto j = list.itemById.find(id.v);
+		const auto j = list.itemById.find(id);
 		if (j != end(list.itemById)) {
+			if (sent && k < sent->v.size()) {
+				const auto &sentId = sent->v[k];
+				_session->data().sentFromScheduled({
+					.item = j->second,
+					.sentId = sentId.v,
+				});
+			}
 			j->second->destroy();
 			i = _data.find(history);
 			if (i == end(_data)) {

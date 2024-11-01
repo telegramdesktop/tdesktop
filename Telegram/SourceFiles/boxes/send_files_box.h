@@ -28,6 +28,7 @@ enum class SendType;
 namespace ChatHelpers {
 class TabbedPanel;
 class Show;
+class FieldAutocomplete;
 } // namespace ChatHelpers
 
 namespace Ui {
@@ -126,6 +127,8 @@ public:
 		_cancelledCallback = std::move(callback);
 	}
 
+	void showFinished() override;
+
 	~SendFilesBox();
 
 protected:
@@ -206,6 +209,7 @@ private:
 	void refreshControls(bool initial = false);
 	void setupSendWayControls();
 	void setupCaption();
+	void setupCaptionAutocomplete();
 
 	void setupEmojiPanel();
 	void updateSendWayControls();
@@ -257,6 +261,7 @@ private:
 	SendFilesLimits _limits = {};
 	Fn<MenuDetails()> _sendMenuDetails;
 	Fn<void(MenuAction, MenuDetails)> _sendMenuCallback;
+
 	PeerData *_captionToPeer = nullptr;
 	SendFilesCheck _check;
 	SendFilesConfirmed _confirmedCallback;
@@ -268,6 +273,7 @@ private:
 	bool _invertCaption = false;
 
 	object_ptr<Ui::InputField> _caption = { nullptr };
+	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 	TextWithTags _prefilledCaptionText;
 	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;

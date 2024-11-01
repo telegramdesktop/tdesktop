@@ -983,19 +983,26 @@ int BusinessBotStatus::Bar::resizeGetHeight(int newWidth) {
 	const auto &st = st::defaultPeerList.item;
 	_settings->moveToRight(0, 0, newWidth);
 	if (_userpic) {
-		_userpic->moveToLeft(st.photoPosition.x(), st.photoPosition.y());
+		_userpic->moveToLeft(
+			st.photoPosition.x(),
+			st.photoPosition.y(),
+			newWidth);
 	}
 	auto available = newWidth - _settings->width() - st.namePosition.x();
 	if (!_togglePaused->isHidden()) {
 		_togglePaused->moveToRight(
 			_settings->width(),
-			(st.height - _togglePaused->height()) / 2);
+			(st.height - _togglePaused->height()) / 2,
+			newWidth);
 		available -= _togglePaused->width();
 	}
 	_name->resizeToWidth(available);
-	_name->moveToLeft(st.namePosition.x(), st.namePosition.y());
+	_name->moveToLeft(st.namePosition.x(), st.namePosition.y(), newWidth);
 	_status->resizeToWidth(available);
-	_status->moveToLeft(st.statusPosition.x(), st.statusPosition.y());
+	_status->moveToLeft(
+		st.statusPosition.x(),
+		st.statusPosition.y(),
+		newWidth);
 	return st.height;
 }
 

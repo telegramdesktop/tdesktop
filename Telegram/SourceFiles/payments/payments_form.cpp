@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "apiwrap.h"
+#include "api/api_text_entities.h"
 #include "core/core_cloud_password.h"
 #include "window/themes/window_theme.h"
 #include "webview/webview_interface.h"
@@ -120,6 +121,8 @@ not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
 		return slug->session;
 	} else if (const auto slug = std::get_if<InvoiceCredits>(&id.value)) {
 		return slug->session;
+	} else if (const auto gift = std::get_if<InvoiceStarGift>(&id.value)) {
+		return &gift->user->session();
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(id.value);
 	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
@@ -376,6 +379,19 @@ MTPInputInvoice Form::inputInvoice() const {
 				MTP_long(credits->credits),
 				MTP_string(credits->currency),
 				MTP_long(credits->amount)));
+	} else if (const auto gift = std::get_if<InvoiceStarGift>(&_id.value)) {
+		using Flag = MTPDinputInvoiceStarGift::Flag;
+		return MTP_inputInvoiceStarGift(
+			MTP_flags((gift->anonymous ? Flag::f_hide_name : Flag(0))
+				| (gift->message.empty() ? Flag(0) : Flag::f_message)),
+			gift->user->inputUser,
+			MTP_long(gift->giftId),
+			MTP_textWithEntities(
+				MTP_string(gift->message.text),
+				Api::EntitiesToMTP(
+					&gift->user->session(),
+					gift->message.entities,
+					Api::ConvertOption::SkipLocal)));
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
 	if (giftCode.creditsAmount) {
@@ -399,7 +415,8 @@ MTPInputInvoice Form::inputInvoice() const {
 		using Flag = MTPDinputStorePaymentPremiumGiftCode::Flag;
 		return MTP_inputInvoicePremiumGiftCode(
 			MTP_inputStorePaymentPremiumGiftCode(
-				MTP_flags(users->boostPeer ? Flag::f_boost_peer : Flag()),
+				MTP_flags((users->boostPeer ? Flag::f_boost_peer : Flag())
+					| (users->message.empty() ? Flag(0) : Flag::f_message)),
 				MTP_vector_from_range(ranges::views::all(
 					users->users
 				) | ranges::views::transform([](not_null<UserData*> user) {
@@ -407,7 +424,13 @@ MTPInputInvoice Form::inputInvoice() const {
 				})),
 				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
 				MTP_string(giftCode.currency),
-				MTP_long(giftCode.amount)),
+				MTP_long(giftCode.amount),
+				MTP_textWithEntities(
+					MTP_string(users->message.text),
+					Api::EntitiesToMTP(
+						&users->users.front()->session(),
+						users->message.entities,
+						Api::ConvertOption::SkipLocal))),
 			option);
 	} else {
 		return MTP_inputInvoicePremiumGiftCode(
@@ -458,6 +481,34 @@ void Form::requestForm() {
 					: nullptr,
 				.invoice = invoice,
 				.inputInvoice = inputInvoice(),
+			};
+			_updates.fire(CreditsPaymentStarted{ .data = formData });
+		}, [&](const MTPDpayments_paymentFormStarGift &data) {
+			const auto currency = qs(data.vinvoice().data().vcurrency());
+			const auto &tlPrices = data.vinvoice().data().vprices().v;
+			const auto amount = tlPrices.empty()
+				? 0
+				: tlPrices.front().data().vamount().v;
+			if (currency != ::Ui::kCreditsCurrency || !amount) {
+				using Type = Error::Type;
+				_updates.fire(Error{ Type::Form, u"Bad Stars Form."_q });
+				return;
+			}
+			const auto invoice = InvoiceCredits{
+				.session = _session,
+				.randomId = 0,
+				.credits = amount,
+				.currency = currency,
+				.amount = amount,
+			};
+			const auto gift = std::get_if<InvoiceStarGift>(&_id.value);
+			const auto formData = CreditsFormData{
+				.id = _id,
+				.formId = data.vform_id().v,
+				.invoice = invoice,
+				.inputInvoice = inputInvoice(),
+				.starGiftLimitedCount = gift ? gift->limitedCount : 0,
+				.starGiftForm = true,
 			};
 			_updates.fire(CreditsPaymentStarted{ .data = formData });
 		});

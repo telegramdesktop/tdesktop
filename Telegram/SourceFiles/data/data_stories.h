@@ -19,7 +19,6 @@ class Session;
 
 namespace Ui {
 class Show;
-enum class ReportReason;
 } // namespace Ui
 
 namespace Data {
@@ -216,11 +215,6 @@ public:
 		bool pin) const;
 	[[nodiscard]] int maxPinnedCount() const;
 	void togglePinnedList(const std::vector<FullStoryId> &ids, bool pin);
-	void report(
-		std::shared_ptr<Ui::Show> show,
-		FullStoryId id,
-		Ui::ReportReason reason,
-		QString text);
 
 	void incrementPreloadingMainSources();
 	void decrementPreloadingMainSources();

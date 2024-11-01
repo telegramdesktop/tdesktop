@@ -108,9 +108,7 @@ passportContactErrorMargin: margins(0px, 0px, 0px, 14px);
 passportRowPadding: margins(22px, 8px, 25px, 8px);
 passportRowIconSkip: 10px;
 passportRowSkip: 2px;
-passportRowRipple: RippleAnimation(defaultRippleAnimation) {
-	color: windowBgOver;
-}
+passportRowRipple: defaultRippleAnimationBgOver;
 passportRowReadyIcon: icon {{ "passport_ready", windowActiveTextFg }};
 passportRowEmptyIcon: icon {{ "passport_empty", menuIconFgOver }};
 passportRowTitleFg: windowFg;

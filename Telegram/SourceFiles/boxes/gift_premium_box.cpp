@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
+#include "boxes/star_gift_box.h" // ShowStarGiftBox.
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -64,11 +65,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kUserpicsMax = size_t(3);
-
-using GiftOption = Data::PremiumSubscriptionOption;
-using GiftOptions = Data::PremiumSubscriptionOptions;
-
 [[nodiscard]] QString CreateMessageLink(
 		not_null<Main::Session*> session,
 		PeerId peerId,
@@ -86,638 +82,6 @@ using GiftOptions = Data::PremiumSubscriptionOptions;
 	}
 	return QString();
 };
-
-GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
-	auto result = GiftOptions();
-	const auto gifts = data.vpremium_gifts();
-	if (!gifts) {
-		return result;
-	}
-	result = Api::PremiumSubscriptionOptionsFromTL(gifts->v);
-	for (auto &option : result) {
-		option.costPerMonth = tr::lng_premium_gift_per(
-			tr::now,
-			lt_cost,
-			option.costPerMonth);
-	}
-	return result;
-}
-
-[[nodiscard]] Fn<TextWithEntities(TextWithEntities)> BoostsForGiftText(
-		const std::vector<not_null<UserData*>> users) {
-	Expects(!users.empty());
-
-	const auto session = &users.front()->session();
-	const auto emoji = Ui::Text::SingleCustomEmoji(
-		session->data().customEmojiManager().registerInternalEmoji(
-			st::premiumGiftsBoostIcon,
-			QMargins(0, st::premiumGiftsUserpicBadgeInner, 0, 0),
-			false));
-
-	return [=, count = users.size()](TextWithEntities text) {
-		text.append('\n');
-		text.append('\n');
-		text.append(tr::lng_premium_gifts_about_reward(
-			tr::now,
-			lt_count,
-			count * BoostsForGift(session),
-			lt_emoji,
-			emoji,
-			Ui::Text::RichLangValue));
-		return text;
-	};
-}
-
-using TagUser1 = lngtag_user;
-using TagUser2 = lngtag_second_user;
-using TagUser3 = lngtag_name;
-[[nodiscard]] rpl::producer<TextWithEntities> ComplexAboutLabel(
-		const std::vector<not_null<UserData*>> &users,
-		tr::phrase<TagUser1> phrase1,
-		tr::phrase<TagUser1, TagUser2> phrase2,
-		tr::phrase<TagUser1, TagUser2, TagUser3> phrase3,
-		tr::phrase<lngtag_count, TagUser1, TagUser2, TagUser3> phraseMore) {
-	Expects(!users.empty());
-
-	const auto count = users.size();
-	const auto nameValue = [&](not_null<UserData*> user) {
-		return user->session().changes().peerFlagsValue(
-			user,
-			Data::PeerUpdate::Flag::Name
-		) | rpl::map([=] { return TextWithEntities{ user->firstName }; });
-	};
-	if (count == 1) {
-		return phrase1(
-			lt_user,
-			nameValue(users.front()),
-			Ui::Text::RichLangValue);
-	} else if (count == 2) {
-		return phrase2(
-			lt_user,
-			nameValue(users.front()),
-			lt_second_user,
-			nameValue(users[1]),
-			Ui::Text::RichLangValue);
-	} else if (count == 3) {
-		return phrase3(
-			lt_user,
-			nameValue(users.front()),
-			lt_second_user,
-			nameValue(users[1]),
-			lt_name,
-			nameValue(users[2]),
-			Ui::Text::RichLangValue);
-	} else {
-		return phraseMore(
-			lt_count,
-			rpl::single(count - kUserpicsMax) | tr::to_count(),
-			lt_user,
-			nameValue(users.front()),
-			lt_second_user,
-			nameValue(users[1]),
-			lt_name,
-			nameValue(users[2]),
-			Ui::Text::RichLangValue);
-	}
-}
-
-[[nodiscard]] not_null<Ui::RpWidget*> CircleBadge(
-		not_null<Ui::RpWidget*> parent,
-		const QString &text) {
-	const auto widget = Ui::CreateChild<Ui::RpWidget>(parent.get());
-
-	const auto full = Rect(st::premiumGiftsUserpicBadgeSize);
-	const auto inner = full - Margins(st::premiumGiftsUserpicBadgeInner);
-	auto gradient = QLinearGradient(
-		QPointF(0, full.height()),
-		QPointF(full.width(), 0));
-	gradient.setStops(Ui::Premium::GiftGradientStops());
-
-	widget->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(widget);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::boxBg);
-		p.drawEllipse(full);
-		p.setPen(Qt::NoPen);
-		p.setBrush(gradient);
-		p.drawEllipse(inner);
-		p.setFont(st::premiumGiftsUserpicBadgeFont);
-		p.setPen(st::premiumButtonFg);
-		p.drawText(full, text, style::al_center);
-	}, widget->lifetime());
-	widget->resize(full.size());
-	return widget;
-}
-
-[[nodiscard]] not_null<Ui::RpWidget*> UserpicsContainer(
-		not_null<Ui::RpWidget*> parent,
-		std::vector<not_null<UserData*>> users) {
-	Expects(!users.empty());
-
-	if (users.size() == 1) {
-		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-			parent.get(),
-			users.front(),
-			st::defaultUserpicButton);
-		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-		return userpic;
-	}
-
-	const auto &singleSize = st::defaultUserpicButton.size;
-
-	const auto container = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	const auto single = singleSize.width();
-	const auto shift = single - st::boostReplaceUserpicsShift;
-	const auto maxWidth = users.size() * (single - shift) + shift;
-	container->resize(maxWidth, singleSize.height());
-	container->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	const auto diff = (single - st::premiumGiftsUserpicButton.size.width())
-		/ 2;
-	for (auto i = 0; i < users.size(); i++) {
-		const auto bg = Ui::CreateChild<Ui::RpWidget>(container);
-		bg->resize(singleSize);
-		bg->paintRequest(
-		) | rpl::start_with_next([=] {
-			auto p = QPainter(bg);
-			auto hq = PainterHighQualityEnabler(p);
-			p.setPen(Qt::NoPen);
-			p.setBrush(st::boxBg);
-			p.drawEllipse(bg->rect());
-		}, bg->lifetime());
-		bg->moveToLeft(std::max(0, i * (single - shift)), 0);
-
-		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-			bg,
-			users[i],
-			st::premiumGiftsUserpicButton);
-		userpic->moveToLeft(diff, diff);
-	}
-
-	return container;
-}
-
-void GiftBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> user,
-		GiftOptions options) {
-	const auto boxWidth = st::boxWideWidth;
-	box->setWidth(boxWidth);
-	box->setNoContentMargin(true);
-	const auto buttonsParent = box->verticalLayout().get();
-
-	struct State {
-		rpl::event_stream<QString> buttonText;
-	};
-	const auto state = box->lifetime().make_state<State>();
-
-	const auto userpicPadding = st::premiumGiftUserpicPadding;
-	const auto top = box->addRow(object_ptr<Ui::FixedHeightWidget>(
-		buttonsParent,
-		userpicPadding.top()
-			+ userpicPadding.bottom()
-			+ st::defaultUserpicButton.size.height()));
-
-	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
-	const auto stars = box->lifetime().make_state<ColoredMiniStars>(
-		top,
-		true);
-
-	const auto userpic = UserpicsContainer(top, { user });
-	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-	top->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		userpic->moveToLeft(
-			(width - userpic->width()) / 2,
-			userpicPadding.top());
-
-		const auto center = top->rect().center();
-		const auto size = QSize(
-			userpic->width() * Ui::Premium::MiniStars::kSizeFactor,
-			userpic->height());
-		const auto ministarsRect = QRect(
-			QPoint(center.x() - size.width(), center.y() - size.height()),
-			QPoint(center.x() + size.width(), center.y() + size.height()));
-		stars->setPosition(ministarsRect.topLeft());
-		stars->setSize(ministarsRect.size());
-	}, userpic->lifetime());
-
-	top->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		auto p = QPainter(top);
-
-		p.fillRect(r, Qt::transparent);
-		stars->paint(p);
-	}, top->lifetime());
-
-	const auto close = Ui::CreateChild<Ui::IconButton>(
-		buttonsParent,
-		st::infoTopBarClose);
-	close->setClickedCallback([=] { box->closeBox(); });
-
-	buttonsParent->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		close->moveToRight(0, 0, width);
-	}, close->lifetime());
-
-	// Header.
-	const auto &padding = st::premiumGiftAboutPadding;
-	const auto available = boxWidth - padding.left() - padding.right();
-	const auto &stTitle = st::premiumPreviewAboutTitle;
-	auto titleLabel = object_ptr<Ui::FlatLabel>(
-		box,
-		tr::lng_premium_gift_title(),
-		stTitle);
-	titleLabel->resizeToWidth(available);
-	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
-			box,
-			std::move(titleLabel)),
-		st::premiumGiftTitlePadding);
-
-	auto textLabel = Ui::CreateLabelWithCustomEmoji(
-		box,
-		tr::lng_premium_gift_about(
-			lt_user,
-			user->session().changes().peerFlagsValue(
-				user,
-				Data::PeerUpdate::Flag::Name
-			) | rpl::map([=] { return TextWithEntities{ user->firstName }; }),
-			Ui::Text::RichLangValue
-		) | rpl::map(
-			BoostsForGiftText({ user })
-		),
-		{ .session = &user->session() },
-		st::premiumPreviewAbout);
-	textLabel->setTextColorOverride(stTitle.textFg->c);
-	textLabel->resizeToWidth(available);
-	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(textLabel)),
-		padding);
-
-	// List.
-	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
-	const auto groupValueChangedCallback = [=](int value) {
-		Expects(value < options.size() && value >= 0);
-		auto text = tr::lng_premium_gift_button(
-			tr::now,
-			lt_cost,
-			options[value].costTotal);
-		state->buttonText.fire(std::move(text));
-	};
-	group->setChangedCallback(groupValueChangedCallback);
-	Ui::Premium::AddGiftOptions(
-		buttonsParent,
-		group,
-		options,
-		st::premiumGiftOption);
-
-	// Footer.
-	auto terms = object_ptr<Ui::FlatLabel>(
-		box,
-		tr::lng_premium_gift_terms(
-			lt_link,
-			tr::lng_premium_gift_terms_link(
-			) | rpl::map([=](const QString &t) {
-				return Ui::Text::Link(t, 1);
-			}),
-			Ui::Text::WithEntities),
-		st::premiumGiftTerms);
-	terms->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-		box->closeBox();
-		Settings::ShowPremium(&user->session(), QString());
-	}));
-	terms->resizeToWidth(available);
-	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(terms)),
-		st::premiumGiftTermsPadding);
-
-	// Button.
-	const auto &stButton = st::premiumGiftBox;
-	box->setStyle(stButton);
-	auto raw = Settings::CreateSubscribeButton({
-		controller,
-		box,
-		[] { return u"gift"_q; },
-		state->buttonText.events(),
-		Ui::Premium::GiftGradientStops(),
-		[=] {
-			const auto value = group->current();
-			return (value < options.size() && value >= 0)
-				? options[value].botUrl
-				: QString();
-		},
-	});
-	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
-	button->resizeToWidth(boxWidth - rect::m::sum::h(stButton.buttonPadding));
-	box->setShowFinishedCallback([raw = button.data()] {
-		raw->startGlareAnimation();
-	});
-	box->addButton(std::move(button));
-
-	groupValueChangedCallback(0);
-
-	Data::PeerPremiumValue(
-		user
-	) | rpl::skip(1) | rpl::start_with_next([=] {
-		box->closeBox();
-	}, box->lifetime());
-}
-
-void GiftsBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
-		std::vector<not_null<UserData*>> users,
-		not_null<Api::PremiumGiftCodeOptions*> api,
-		const QString &ref) {
-	Expects(!users.empty());
-
-	const auto boxWidth = st::boxWideWidth;
-	box->setWidth(boxWidth);
-	box->setNoContentMargin(true);
-	const auto buttonsParent = box->verticalLayout().get();
-	const auto session = &users.front()->session();
-
-	struct State {
-		rpl::event_stream<QString> buttonText;
-		rpl::variable<bool> confirmButtonBusy = false;
-		rpl::variable<bool> isPaymentComplete = false;
-	};
-	const auto state = box->lifetime().make_state<State>();
-
-	const auto userpicPadding = st::premiumGiftUserpicPadding;
-	const auto top = box->addRow(object_ptr<Ui::FixedHeightWidget>(
-		buttonsParent,
-		userpicPadding.top()
-			+ userpicPadding.bottom()
-			+ st::defaultUserpicButton.size.height()));
-
-	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
-	const auto stars = box->lifetime().make_state<ColoredMiniStars>(
-		top,
-		true);
-
-	const auto maxWithUserpic = std::min(users.size(), kUserpicsMax);
-	const auto userpics = UserpicsContainer(
-		top,
-		{ users.begin(), users.begin() + maxWithUserpic });
-	top->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		userpics->moveToLeft(
-			(width - userpics->width()) / 2,
-			userpicPadding.top());
-
-		const auto center = top->rect().center();
-		const auto size = QSize(
-			userpics->width() * Ui::Premium::MiniStars::kSizeFactor,
-			userpics->height());
-		const auto ministarsRect = QRect(
-			QPoint(center.x() - size.width(), center.y() - size.height()),
-			QPoint(center.x() + size.width(), center.y() + size.height()));
-		stars->setPosition(ministarsRect.topLeft());
-		stars->setSize(ministarsRect.size());
-	}, userpics->lifetime());
-	if (const auto rest = users.size() - maxWithUserpic; rest > 0) {
-		const auto badge = CircleBadge(
-			userpics,
-			QChar('+') + QString::number(rest));
-		badge->moveToRight(0, userpics->height() - badge->height());
-	}
-
-	top->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		auto p = QPainter(top);
-
-		p.fillRect(r, Qt::transparent);
-		stars->paint(p);
-	}, top->lifetime());
-
-	const auto close = Ui::CreateChild<Ui::IconButton>(
-		buttonsParent,
-		st::infoTopBarClose);
-	close->setClickedCallback([=] { box->closeBox(); });
-
-	buttonsParent->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		close->moveToRight(0, 0, width);
-	}, close->lifetime());
-
-	// Header.
-	const auto &padding = st::premiumGiftAboutPadding;
-	const auto available = boxWidth - padding.left() - padding.right();
-	const auto &stTitle = st::premiumPreviewAboutTitle;
-	auto titleLabel = object_ptr<Ui::FlatLabel>(
-		box,
-		rpl::conditional(
-			state->isPaymentComplete.value(),
-			tr::lng_premium_gifts_about_paid_title(),
-			tr::lng_premium_gift_title()),
-		stTitle);
-	titleLabel->resizeToWidth(available);
-	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
-			box,
-			std::move(titleLabel)),
-		st::premiumGiftTitlePadding);
-
-	// About.
-	{
-		auto text = rpl::conditional(
-			state->isPaymentComplete.value(),
-			ComplexAboutLabel(
-				users,
-				tr::lng_premium_gifts_about_paid1,
-				tr::lng_premium_gifts_about_paid2,
-				tr::lng_premium_gifts_about_paid3,
-				tr::lng_premium_gifts_about_paid_more
-			) | rpl::map([count = users.size()](TextWithEntities text) {
-				text.append('\n');
-				text.append('\n');
-				text.append(tr::lng_premium_gifts_about_paid_below(
-					tr::now,
-					lt_count,
-					float64(count),
-					Ui::Text::RichLangValue));
-				return text;
-			}),
-			ComplexAboutLabel(
-				users,
-				tr::lng_premium_gifts_about_user1,
-				tr::lng_premium_gifts_about_user2,
-				tr::lng_premium_gifts_about_user3,
-				tr::lng_premium_gifts_about_user_more
-			) | rpl::map(BoostsForGiftText(users))
-		);
-		const auto label = box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
-				box,
-				Ui::CreateLabelWithCustomEmoji(
-					box,
-					std::move(text),
-					{ .session = session },
-					st::premiumPreviewAbout)),
-			padding)->entity();
-		label->setTextColorOverride(stTitle.textFg->c);
-		label->resizeToWidth(available);
-	}
-
-	// List.
-	const auto optionsContainer = buttonsParent->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			buttonsParent,
-			object_ptr<Ui::VerticalLayout>(buttonsParent)));
-	const auto options = api->options(users.size());
-	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
-	const auto groupValueChangedCallback = [=](int value) {
-		Expects(value < options.size() && value >= 0);
-		auto text = tr::lng_premium_gift_button(
-			tr::now,
-			lt_cost,
-			options[value].costTotal);
-		state->buttonText.fire(std::move(text));
-	};
-	group->setChangedCallback(groupValueChangedCallback);
-	Ui::Premium::AddGiftOptions(
-		optionsContainer->entity(),
-		group,
-		options,
-		st::premiumGiftOption);
-	optionsContainer->toggleOn(
-		state->isPaymentComplete.value() | rpl::map(!rpl::mappers::_1),
-		anim::type::instant);
-
-	// Summary.
-	{
-		{
-			// Will be hidden after payment.
-			const auto content = optionsContainer->entity();
-			Ui::AddSkip(content);
-			Ui::AddDivider(content);
-			Ui::AddSkip(content);
-			Ui::AddSubsectionTitle(
-				content,
-				tr::lng_premium_gifts_summary_subtitle());
-		}
-		const auto content = box->addRow(
-			object_ptr<Ui::VerticalLayout>(box),
-			{});
-		auto buttonCallback = [=](PremiumFeature section) {
-			stars->setPaused(true);
-			const auto previewBoxShown = [=](
-					not_null<Ui::BoxContent*> previewBox) {
-				previewBox->boxClosing(
-				) | rpl::start_with_next(crl::guard(box, [=] {
-					stars->setPaused(false);
-				}), previewBox->lifetime());
-			};
-
-			ShowPremiumPreviewBox(
-				controller->uiShow(),
-				section,
-				previewBoxShown,
-				true);
-		};
-		Settings::AddSummaryPremium(
-			content,
-			controller,
-			ref,
-			std::move(buttonCallback));
-	}
-
-	// Footer.
-	{
-		box->addRow(
-			object_ptr<Ui::DividerLabel>(
-				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_premium_gifts_terms(
-						lt_link,
-						tr::lng_payments_terms_link(
-						) | rpl::map([](const QString &t) {
-							using namespace Ui::Text;
-							return Link(t, u"https://telegram.org/tos"_q);
-						}),
-						lt_policy,
-						tr::lng_premium_gifts_terms_policy(
-						) | rpl::map([](const QString &t) {
-							using namespace Ui::Text;
-							return Link(t, u"https://telegram.org/privacy"_q);
-						}),
-						Ui::Text::RichLangValue),
-					st::premiumGiftTerms),
-				st::defaultBoxDividerLabelPadding),
-			{});
-	}
-
-	// Button.
-	const auto &stButton = st::premiumGiftBox;
-	box->setStyle(stButton);
-	auto raw = Settings::CreateSubscribeButton({
-		controller,
-		box,
-		[=] { return ref; },
-		rpl::combine(
-			state->buttonText.events(),
-			state->confirmButtonBusy.value(),
-			state->isPaymentComplete.value()
-		) | rpl::map([](const QString &text, bool busy, bool paid) {
-			return busy
-				? QString()
-				: paid
-				? tr::lng_close(tr::now)
-				: text;
-		}),
-		Ui::Premium::GiftGradientStops(),
-	});
-	raw->setClickedCallback([=] {
-		if (state->confirmButtonBusy.current()) {
-			return;
-		}
-		if (state->isPaymentComplete.current()) {
-			return box->closeBox();
-		}
-		auto invoice = api->invoice(
-			users.size(),
-			api->monthsFromPreset(group->current()));
-		invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{ users };
-
-		state->confirmButtonBusy = true;
-		const auto show = box->uiShow();
-		const auto weak = Ui::MakeWeak(box.get());
-		const auto done = [=](Payments::CheckoutResult result) {
-			if (const auto strong = weak.data()) {
-				strong->window()->setFocus();
-				state->confirmButtonBusy = false;
-				if (result == Payments::CheckoutResult::Paid) {
-					state->isPaymentComplete = true;
-					Ui::StartFireworks(box->parentWidget());
-				}
-			}
-		};
-
-		Payments::CheckoutProcess::Start(std::move(invoice), done);
-	});
-	{
-		using namespace Info::Statistics;
-		const auto loadingAnimation = InfiniteRadialAnimationWidget(
-			raw,
-			raw->height() / 2);
-		AddChildToWidgetCenter(raw, loadingAnimation);
-		loadingAnimation->showOn(state->confirmButtonBusy.value());
-	}
-	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
-	button->resizeToWidth(boxWidth - rect::m::sum::h(stButton.buttonPadding));
-	box->setShowFinishedCallback([raw = button.data()] {
-		raw->startGlareAnimation();
-	});
-	box->addButton(std::move(button));
-
-	groupValueChangedCallback(0);
-}
 
 [[nodiscard]] Data::GiftCodeLink MakeGiftCodeLink(
 		not_null<Main::Session*> session,
@@ -760,7 +124,8 @@ void GiftsBox(
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerTableValue(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionNavigation*> controller,
-		PeerId id) {
+		PeerId id,
+		bool withSendGiftButton = false) {
 	auto result = object_ptr<Ui::AbstractButton>(parent);
 	const auto raw = result.data();
 
@@ -771,15 +136,40 @@ void GiftsBox(
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(raw, peer, st);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		peer->name(),
+		withSendGiftButton ? peer->shortName() : peer->name(),
 		st::giveawayGiftCodeValue);
-	raw->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	const auto send = withSendGiftButton
+		? Ui::CreateChild<Ui::RoundButton>(
+			raw,
+			tr::lng_gift_send_small(),
+			st::starGiftSmallButton)
+		: nullptr;
+	if (send) {
+		send->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		send->setClickedCallback([=] {
+			Ui::ShowStarGiftBox(controller->parentController(), peer);
+		});
+	}
+	rpl::combine(
+		raw->widthValue(),
+		send ? send->widthValue() : rpl::single(0)
+	) | rpl::start_with_next([=](int width, int sendWidth) {
 		const auto position = st::giveawayGiftCodeNamePosition;
-		label->resizeToNaturalWidth(width - position.x());
+		const auto sendSkip = sendWidth
+			? (st::normalFont->spacew + sendWidth)
+			: 0;
+		label->resizeToNaturalWidth(width - position.x() - sendSkip);
 		label->moveToLeft(position.x(), position.y(), width);
 		const auto top = (raw->height() - userpic->height()) / 2;
 		userpic->moveToLeft(0, top, width);
+		if (send) {
+			send->moveToLeft(
+				position.x() + label->width() + st::normalFont->spacew,
+				(position.y()
+					+ st::giveawayGiftCodeValue.style.font->ascent
+					- st::starGiftSmallButton.style.font->ascent),
+				width);
+		}
 	}, label->lifetime());
 
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -793,29 +183,136 @@ void GiftsBox(
 	return result;
 }
 
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeHiddenPeerTableValue(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionNavigation*> controller) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	const auto &st = st::giveawayGiftCodeUserpic;
+	raw->resize(raw->width(), st.photoSize);
+
+	const auto userpic = Ui::CreateChild<Ui::RpWidget>(raw);
+	const auto usize = st.photoSize;
+	userpic->resize(usize, usize);
+	userpic->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(userpic);
+		Ui::EmptyUserpic::PaintHiddenAuthor(p, 0, 0, usize, usize);
+	}, userpic->lifetime());
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		tr::lng_gift_from_hidden(),
+		st::giveawayGiftCodeValue);
+	raw->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto position = st::giveawayGiftCodeNamePosition;
+		label->resizeToNaturalWidth(width - position.x());
+		label->moveToLeft(position.x(), position.y(), width);
+		const auto top = (raw->height() - userpic->height()) / 2;
+		userpic->moveToLeft(0, top, width);
+	}, label->lifetime());
+
+	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setTextColorOverride(st::windowFg->c);
+
+	return result;
+}
+
 void AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
 		object_ptr<Ui::RpWidget> value,
 		style::margins valueMargins) {
 	table->addRow(
-		object_ptr<Ui::FlatLabel>(
-			table,
-			std::move(label),
-			st::giveawayGiftCodeLabel),
+		(label
+			? object_ptr<Ui::FlatLabel>(
+				table,
+				std::move(label),
+				st::giveawayGiftCodeLabel)
+			: object_ptr<Ui::FlatLabel>(nullptr)),
 		std::move(value),
 		st::giveawayGiftCodeLabelMargin,
 		valueMargins);
 }
 
+object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionNavigation*> controller,
+		const Data::CreditsHistoryEntry &entry,
+		Fn<void()> convertToStars) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	const auto session = &controller->session();
+	const auto makeContext = [session](Fn<void()> update) {
+		return Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = std::move(update),
+		};
+	};
+	auto star = session->data().customEmojiManager().creditsEmoji();
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		rpl::single(
+			star.append(' ' + Lang::FormatCountDecimal(entry.credits))),
+		st::giveawayGiftCodeValue,
+		st::defaultPopupMenu,
+		std::move(makeContext));
+
+	const auto convert = convertToStars
+		? Ui::CreateChild<Ui::RoundButton>(
+			raw,
+			tr::lng_gift_sell_small(
+				lt_count_decimal,
+				rpl::single(entry.convertStars * 1.)),
+			st::starGiftSmallButton)
+		: nullptr;
+	if (convert) {
+		convert->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		convert->setClickedCallback(std::move(convertToStars));
+	}
+	rpl::combine(
+		raw->widthValue(),
+		convert ? convert->widthValue() : rpl::single(0)
+	) | rpl::start_with_next([=](int width, int convertWidth) {
+		const auto convertSkip = convertWidth
+			? (st::normalFont->spacew + convertWidth)
+			: 0;
+		label->resizeToNaturalWidth(width - convertSkip);
+		label->moveToLeft(0, 0, width);
+		if (convert) {
+			convert->moveToLeft(
+				label->width() + st::normalFont->spacew,
+				(st::giveawayGiftCodeValue.style.font->ascent
+					- st::starGiftSmallButton.style.font->ascent),
+				width);
+		}
+	}, label->lifetime());
+
+	label->heightValue() | rpl::start_with_next([=](int height) {
+		raw->resize(
+			raw->width(),
+			height + st::giveawayGiftCodeValueMargin.bottom());
+	}, raw->lifetime());
+
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	return result;
+}
+
 not_null<Ui::FlatLabel*> AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
-		rpl::producer<TextWithEntities> value) {
+		rpl::producer<TextWithEntities> value,
+		const Fn<std::any(Fn<void()>)> &makeContext = nullptr) {
 	auto widget = object_ptr<Ui::FlatLabel>(
 		table,
 		std::move(value),
-		st::giveawayGiftCodeValue);
+		st::giveawayGiftCodeValue,
+		st::defaultPopupMenu,
+		std::move(makeContext));
 	const auto result = widget.data();
 	AddTableRow(
 		table,
@@ -956,180 +453,6 @@ void ShowAlreadyPremiumToast(
 }
 
 } // namespace
-
-GiftPremiumValidator::GiftPremiumValidator(
-	not_null<Window::SessionController*> controller)
-: _controller(controller)
-, _api(&_controller->session().mtp()) {
-}
-
-void GiftPremiumValidator::cancel() {
-	_requestId = 0;
-}
-
-void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
-	if (_manyGiftsLifetime) {
-		return;
-	}
-	using namespace Api;
-	const auto api = _manyGiftsLifetime.make_state<PremiumGiftCodeOptions>(
-		_controller->session().user());
-	const auto show = _controller->uiShow();
-	api->request(
-	) | rpl::start_with_error_done([=](const QString &error) {
-		show->showToast(error);
-	}, [=] {
-		const auto maxAmount = *ranges::max_element(api->availablePresets());
-
-		class Controller final : public ContactsBoxController {
-		public:
-			Controller(
-				not_null<Main::Session*> session,
-				Fn<bool(int)> checkErrorCallback)
-			: ContactsBoxController(session)
-			, _checkErrorCallback(std::move(checkErrorCallback)) {
-			}
-
-		protected:
-			std::unique_ptr<PeerListRow> createRow(
-					not_null<UserData*> user) override {
-				if (user->isSelf()
-					|| user->isBot()
-					|| user->isServiceUser()
-					|| user->isInaccessible()) {
-					return nullptr;
-				}
-				return ContactsBoxController::createRow(user);
-			}
-
-			void rowClicked(not_null<PeerListRow*> row) override {
-				const auto checked = !row->checked();
-				if (checked
-					&& _checkErrorCallback
-					&& _checkErrorCallback(
-						delegate()->peerListSelectedRowsCount())) {
-					return;
-				}
-				delegate()->peerListSetRowChecked(row, checked);
-			}
-
-		private:
-			const Fn<bool(int)> _checkErrorCallback;
-
-		};
-		auto initBox = [=](not_null<PeerListBox*> peersBox) {
-			const auto ignoreClose = peersBox->lifetime().make_state<bool>(0);
-
-			auto process = [=] {
-				const auto selected = peersBox->collectSelectedRows();
-				const auto users = ranges::views::all(
-					selected
-				) | ranges::views::transform([](not_null<PeerData*> p) {
-					return p->asUser();
-				}) | ranges::views::filter([](UserData *u) -> bool {
-					return u;
-				}) | ranges::to<std::vector<not_null<UserData*>>>();
-				if (users.empty()) {
-					show->showToast(
-						tr::lng_settings_gift_premium_choose(tr::now));
-					return;
-				}
-				const auto giftBox = show->show(
-					Box(GiftsBox, _controller, users, api, ref));
-				giftBox->boxClosing(
-				) | rpl::start_with_next([=] {
-					_manyGiftsLifetime.destroy();
-				}, giftBox->lifetime());
-				(*ignoreClose) = true;
-				peersBox->closeBox();
-			};
-
-			peersBox->setTitle(tr::lng_premium_gift_title());
-			peersBox->addButton(
-				tr::lng_settings_gift_premium_users_confirm(),
-				std::move(process));
-			peersBox->addButton(tr::lng_cancel(), [=] {
-				peersBox->closeBox();
-			});
-			peersBox->boxClosing(
-			) | rpl::start_with_next([=] {
-				if (!(*ignoreClose)) {
-					_manyGiftsLifetime.destroy();
-				}
-			}, peersBox->lifetime());
-		};
-
-		auto listController = std::make_unique<Controller>(
-			&_controller->session(),
-			[=](int count) {
-				if (count <= maxAmount) {
-					return false;
-				}
-				show->showToast(tr::lng_settings_gift_premium_users_error(
-					tr::now,
-					lt_count,
-					maxAmount));
-				return true;
-			});
-		show->showBox(
-			Box<PeerListBox>(
-				std::move(listController),
-				std::move(initBox)),
-			Ui::LayerOption::KeepOther);
-
-	}, _manyGiftsLifetime);
-}
-
-void GiftPremiumValidator::showChosenPeerBox(
-		not_null<UserData*> user,
-		const QString &ref) {
-	if (_manyGiftsLifetime) {
-		return;
-	}
-	using namespace Api;
-	const auto api = _manyGiftsLifetime.make_state<PremiumGiftCodeOptions>(
-		_controller->session().user());
-	const auto show = _controller->uiShow();
-	api->request(
-	) | rpl::start_with_error_done([=](const QString &error) {
-		show->showToast(error);
-	}, [=] {
-		const auto users = std::vector<not_null<UserData*>>{ user };
-		const auto giftBox = show->show(
-			Box(GiftsBox, _controller, users, api, ref));
-		giftBox->boxClosing(
-		) | rpl::start_with_next([=] {
-			_manyGiftsLifetime.destroy();
-		}, giftBox->lifetime());
-	}, _manyGiftsLifetime);
-}
-
-void GiftPremiumValidator::showBox(not_null<UserData*> user) {
-	if (_requestId) {
-		return;
-	}
-	_requestId = _api.request(MTPusers_GetFullUser(
-		user->inputUser
-	)).done([=](const MTPusers_UserFull &result) {
-		if (!_requestId) {
-			// Canceled.
-			return;
-		}
-		_requestId = 0;
-//		_controller->api().processFullPeer(peer, result);
-		_controller->session().data().processUsers(result.data().vusers());
-		_controller->session().data().processChats(result.data().vchats());
-
-		const auto &fullUser = result.data().vfull_user().data();
-		auto options = GiftOptionFromTL(fullUser);
-		if (!options.empty()) {
-			_controller->show(
-				Box(GiftBox, _controller, user, std::move(options)));
-		}
-	}).fail([=] {
-		_requestId = 0;
-	}).send();
-}
 
 rpl::producer<QString> GiftDurationValue(int months) {
 	return GiftDurationPhrase(months)(
@@ -1708,6 +1031,106 @@ void ResolveGiveawayInfo(
 		crl::guard(controller, show));
 }
 
+void AddStarGiftTable(
+		not_null<Window::SessionNavigation*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		const Data::CreditsHistoryEntry &entry,
+		Fn<void()> convertToStars) {
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	const auto peerId = PeerId(entry.barePeerId);
+	const auto session = &controller->session();
+	if (peerId) {
+		const auto withSendButton = entry.in;
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer_in(),
+			MakePeerTableValue(table, controller, peerId, withSendButton),
+			st::giveawayGiftCodePeerMargin);
+	} else if (!entry.soldOutInfo) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer_in(),
+			MakeHiddenPeerTableValue(table, controller),
+			st::giveawayGiftCodePeerMargin);
+	}
+	if (!entry.firstSaleDate.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_first_sale(),
+			rpl::single(Ui::Text::WithEntities(
+				langDateTime(entry.firstSaleDate))));
+	}
+	if (!entry.lastSaleDate.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_last_sale(),
+			rpl::single(Ui::Text::WithEntities(
+				langDateTime(entry.lastSaleDate))));
+	}
+	{
+		const auto margin = st::giveawayGiftCodeValueMargin
+			- QMargins(0, 0, 0, st::giveawayGiftCodeValueMargin.bottom());
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_value(),
+			MakeStarGiftStarsValue(
+				table,
+				controller,
+				entry,
+				std::move(convertToStars)),
+			margin);
+	}
+	if (!entry.date.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
+	if (entry.limitedCount > 0) {
+		auto amount = rpl::single(TextWithEntities{
+			Lang::FormatCountDecimal(entry.limitedCount)
+		});
+		AddTableRow(
+			table,
+			tr::lng_gift_availability(),
+			((entry.limitedLeft > 0)
+				? tr::lng_gift_availability_left(
+					lt_count_decimal,
+					rpl::single(entry.limitedLeft * 1.),
+					lt_amount,
+					std::move(amount),
+					Ui::Text::WithEntities)
+				: tr::lng_gift_availability_none(
+					lt_amount,
+					std::move(amount),
+					Ui::Text::WithEntities)));
+	}
+	if (!entry.description.empty()) {
+		const auto makeContext = [=](Fn<void()> update) {
+			return Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = std::move(update),
+			};
+		};
+		auto label = object_ptr<Ui::FlatLabel>(
+			table,
+			rpl::single(entry.description),
+			st::giveawayGiftMessage,
+			st::defaultPopupMenu,
+			makeContext);
+		label->setSelectable(true);
+		table->addRow(
+			nullptr,
+			std::move(label),
+			st::giveawayGiftCodeLabelMargin,
+			st::giveawayGiftCodeValueMargin);
+	}
+}
+
 void AddCreditsHistoryEntryTable(
 		not_null<Window::SessionNavigation*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -1839,6 +1262,14 @@ void AddCreditsHistoryEntryTable(
 			std::move(label),
 			st::giveawayGiftCodeValueMargin);
 	}
+	if (entry.floodSkip) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_floodskip_row(),
+			rpl::single(
+				Ui::Text::WithEntities(
+					Lang::FormatCountDecimal(entry.floodSkip))));
+	}
 	if (!entry.date.isNull()) {
 		AddTableRow(
 			table,
@@ -1879,6 +1310,16 @@ void AddSubscriptionEntryTable(
 		controller,
 		peerId);
 	if (!s.until.isNull()) {
+		if (s.subscription.period > 0) {
+			const auto subscribed = s.until.addSecs(-s.subscription.period);
+			if (subscribed.isValid()) {
+				AddTableRow(
+					table,
+					tr::lng_group_invite_joined_row_date(),
+					rpl::single(
+						Ui::Text::WithEntities(langDateTime(subscribed))));
+			}
+		}
 		AddTableRow(
 			table,
 			s.expired

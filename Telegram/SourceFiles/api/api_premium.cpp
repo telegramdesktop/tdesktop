@@ -550,6 +550,24 @@ Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 	};
 }
 
+std::vector<GiftOptionData> PremiumGiftCodeOptions::optionsForPeer() const {
+	auto result = std::vector<GiftOptionData>();
+
+	if (!_optionsForOnePerson.currency.isEmpty()) {
+		const auto count = int(_optionsForOnePerson.months.size());
+		result.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			Assert(i < _optionsForOnePerson.totalCosts.size());
+			result.push_back({
+				.cost = _optionsForOnePerson.totalCosts[i],
+				.currency = _optionsForOnePerson.currency,
+				.months = _optionsForOnePerson.months[i],
+			});
+		}
+	}
+	return result;
+}
+
 Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 	const auto it = _subscriptionOptions.find(amount);
 	if (it != end(_subscriptionOptions)) {
@@ -569,6 +587,41 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
 		return _subscriptionOptions[amount];
 	}
+}
+
+auto PremiumGiftCodeOptions::requestStarGifts()
+-> rpl::producer<rpl::no_value, QString> {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		_api.request(MTPpayments_GetStarGifts(
+			MTP_int(0)
+		)).done([=](const MTPpayments_StarGifts &result) {
+			result.match([&](const MTPDpayments_starGifts &data) {
+				_giftsHash = data.vhash().v;
+				const auto &list = data.vgifts().v;
+				const auto session = &_peer->session();
+				auto gifts = std::vector<StarGift>();
+				gifts.reserve(list.size());
+				for (const auto &gift : list) {
+					if (auto parsed = FromTL(session, gift)) {
+						gifts.push_back(std::move(*parsed));
+					}
+				}
+				_gifts = std::move(gifts);
+			}, [&](const MTPDpayments_starGiftsNotModified &) {
+			});
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+const std::vector<StarGift> &PremiumGiftCodeOptions::starGifts() const {
+	return _gifts;
 }
 
 int PremiumGiftCodeOptions::giveawayBoostsPerPremium() const {
@@ -703,6 +756,60 @@ rpl::producer<DocumentData*> RandomHelloStickerValue(
 	) | rpl::filter([=] {
 		return !premium->helloStickers().empty();
 	}) | rpl::take(1) | rpl::map(random));
+}
+
+std::optional<StarGift> FromTL(
+		not_null<Main::Session*> session,
+		const MTPstarGift &gift) {
+	const auto &data = gift.data();
+	const auto document = session->data().processDocument(
+		data.vsticker());
+	const auto remaining = data.vavailability_remains();
+	const auto total = data.vavailability_total();
+	if (!document->sticker()) {
+		return {};
+	}
+	return StarGift{
+		.id = uint64(data.vid().v),
+		.stars = int64(data.vstars().v),
+		.convertStars = int64(data.vconvert_stars().v),
+		.document = document,
+		.limitedLeft = remaining.value_or_empty(),
+		.limitedCount = total.value_or_empty(),
+		.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
+		.lastSaleDate = data.vlast_sale_date().value_or_empty(),
+	};
+}
+
+std::optional<UserStarGift> FromTL(
+		not_null<UserData*> to,
+		const MTPuserStarGift &gift) {
+	const auto session = &to->session();
+	const auto &data = gift.data();
+	auto parsed = FromTL(session, data.vgift());
+	if (!parsed) {
+		return {};
+	}
+	return UserStarGift{
+		.info = std::move(*parsed),
+		.message = (data.vmessage()
+			? TextWithEntities{
+				.text = qs(data.vmessage()->data().vtext()),
+				.entities = Api::EntitiesFromMTP(
+					session,
+					data.vmessage()->data().ventities().v),
+			}
+			: TextWithEntities()),
+		.convertStars = int64(data.vconvert_stars().value_or_empty()),
+		.fromId = (data.vfrom_id()
+			? peerFromUser(data.vfrom_id()->v)
+			: PeerId()),
+		.messageId = data.vmsg_id().value_or_empty(),
+		.date = data.vdate().v,
+		.anonymous = data.is_name_hidden(),
+		.hidden = data.is_unsaved(),
+		.mine = to->isSelf(),
+	};
 }
 
 } // namespace Api

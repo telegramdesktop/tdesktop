@@ -517,7 +517,7 @@ TextWithEntities ThemeDocumentBox::subtitle() {
 }
 
 rpl::producer<QString> ThemeDocumentBox::button() {
-	if (_parent->data()->out()) {
+	if (_parent->data()->out() || _parent->history()->peer->isChannel()) {
 		return {};
 	}
 	return rpl::conditional(

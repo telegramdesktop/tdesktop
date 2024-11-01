@@ -94,7 +94,7 @@ public:
 	HistoryView::Context elementContext() override;
 	bool elementUnderCursor(
 		not_null<const HistoryView::Element*> view) override;
-	bool elementInSelectionMode() override;
+	HistoryView::SelectionModeResult elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const HistoryView::Element*> view,
 		int from,

@@ -64,6 +64,7 @@ Version **1.8.15** was the last that supports older systems
 * QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
 * CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
 * Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
+* Ada ([Apache License 2.0](https://github.com/ada-url/ada/blob/main/LICENSE-APACHE))
 
 ## Build instructions
 

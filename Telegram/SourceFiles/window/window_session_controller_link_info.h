@@ -19,6 +19,7 @@ enum class ResolveType {
 	BotStart,
 	AddToGroup,
 	AddToChannel,
+	HashtagSearch,
 	ShareGame,
 	Mention,
 	Boost,

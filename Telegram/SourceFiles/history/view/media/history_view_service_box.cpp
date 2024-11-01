@@ -6,14 +6,22 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_service_box.h"
-//
-#include "history/view/history_view_cursor_state.h"
+
+#include "core/ui_integration.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
+#include "history/view/history_view_text_helper.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/animation_value.h"
+#include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/power_saving.h"
 #include "styles/style_chat.h"
 #include "styles/style_premium.h"
 #include "styles/style_layers.h"
@@ -48,9 +56,15 @@ ServiceBox::ServiceBox(
 			EntityType::StrikeOut,
 			EntityType::Underline,
 			EntityType::Italic,
+			EntityType::Spoiler,
+			EntityType::CustomEmoji,
 		}),
 	kMarkupTextOptions,
-	_maxWidth)
+	_maxWidth,
+	Core::MarkedTextContext{
+		.session = &parent->history()->session(),
+		.customEmojiRepaint = [parent] { parent->customEmojiRepaint(); },
+	})
 , _size(
 	_content->width(),
 	(st::msgServiceGiftBoxTopSkip
@@ -67,6 +81,7 @@ ServiceBox::ServiceBox(
 			: (_content->buttonSkip() + st::msgServiceGiftBoxButtonHeight))
 		+ st::msgServiceGiftBoxButtonMargins.bottom()))
 , _innerSize(_size - QSize(0, st::msgServiceGiftBoxTopSkip)) {
+	InitElementTextPart(_parent, _subtitle);
 	if (auto text = _content->button()) {
 		_button.repaint = [=] { repaint(); };
 		std::move(text) | rpl::start_with_next([=](QString value) {
@@ -84,6 +99,12 @@ ServiceBox::ServiceBox(
 				repaint();
 			}
 		}, _lifetime);
+	}
+	if (_content->buttonMinistars()) {
+		_button.stars = std::make_unique<Ui::Premium::ColoredMiniStars>(
+			[=](const QRect &) { repaint(); },
+			Ui::Premium::MiniStars::Type::SlowStars);
+		_button.lastFg = std::make_unique<QColor>();
 	}
 }
 
@@ -104,7 +125,21 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 	const auto radius = st::msgServiceGiftBoxRadius;
 	p.setPen(Qt::NoPen);
 	p.setBrush(context.st->msgServiceBg());
-	p.drawRoundedRect(QRect(QPoint(), _innerSize), radius, radius);
+	p.drawRoundedRect(Rect(_innerSize), radius, radius);
+
+	if (_button.stars) {
+		const auto &c = context.st->msgServiceFg()->c;
+		if ((*_button.lastFg) != c) {
+			_button.lastFg->setRgb(c.red(), c.green(), c.blue());
+			const auto padding = _button.size.height() / 2;
+			_button.stars->setColorOverride(QGradientStops{
+				{ 0., anim::with_alpha(c, .3) },
+				{ 1., c },
+			});
+			_button.stars->setCenter(
+				Rect(_button.size) - QMargins(padding, 0, padding, 0));
+		}
+	}
 
 	const auto content = contentRect();
 	auto top = content.top() + content.height();
@@ -116,7 +151,17 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 			_title.draw(p, st::msgPadding.left(), top, _maxWidth, style::al_top);
 			top += _title.countHeight(_maxWidth) + padding.bottom();
 		}
-		_subtitle.draw(p, st::msgPadding.left(), top, _maxWidth, style::al_top);
+		_parent->prepareCustomEmojiPaint(p, context, _subtitle);
+		_subtitle.draw(p, {
+			.position = QPoint(st::msgPadding.left(), top),
+			.availableWidth = _maxWidth,
+			.align = style::al_top,
+			.palette = &context.st->serviceTextPalette(),
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
+		});
 		top += _subtitle.countHeight(_maxWidth) + padding.bottom();
 	}
 
@@ -151,13 +196,59 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 
 	_content->draw(p, context, content);
 
+	if (const auto tag = _content->cornerTagText(); !tag.isEmpty()) {
+		const auto font = st::semiboldFont;
+		p.setFont(font);
+		p.setPen(Qt::NoPen);
+		const auto twidth = font->width(tag);
+		const auto pos = QPoint(_innerSize.width() - twidth, font->height);
+		const auto add = style::ConvertScale(2);
+		p.save();
+		p.setClipRect(
+			-add,
+			-add,
+			_innerSize.width() + 2 * add,
+			_innerSize.height() + 2 * add);
+		p.translate(pos);
+		p.rotate(45.);
+		p.translate(-pos);
+		p.setPen(Qt::NoPen);
+		p.setBrush(context.st->msgServiceBg()); // ?
+		p.drawRect(-5 * twidth, 0, twidth * 12, font->height);
+		p.setPen(context.st->msgServiceFg());
+		p.drawText(pos - QPoint(0, font->descent), tag);
+		p.restore();
+	}
+
 	p.translate(0, -st::msgServiceGiftBoxTopSkip);
 }
 
 TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
+	const auto content = contentRect();
+	const auto lookupSubtitleLink = [&] {
+		auto top = st::msgServiceGiftBoxTopSkip
+			+ content.top()
+			+ content.height();
+		const auto &padding = st::msgServiceGiftBoxTitlePadding;
+		top += padding.top();
+		if (!_title.isEmpty()) {
+			top += _title.countHeight(_maxWidth) + padding.bottom();
+		}
+		auto subtitleRequest = request.forText();
+		subtitleRequest.align = style::al_top;
+		const auto state = _subtitle.getState(
+			point - QPoint(st::msgPadding.left(), top),
+			_maxWidth,
+			subtitleRequest);
+		if (state.link) {
+			result.link = state.link;
+		}
+	};
 	if (_button.empty()) {
-		if (QRect(QPoint(), _innerSize).contains(point)) {
+		if (!_button.link) {
+			lookupSubtitleLink();
+		} else if (QRect(QPoint(), _innerSize).contains(point)) {
 			result.link = _button.link;
 		}
 	} else {
@@ -165,11 +256,13 @@ TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 		if (rect.contains(point)) {
 			result.link = _button.link;
 			_button.lastPoint = point - rect.topLeft();
-		} else if (contentRect().contains(point)) {
+		} else if (content.contains(point)) {
 			if (!_contentLink) {
 				_contentLink = _content->createViewLink();
 			}
 			result.link = _contentLink;
+		} else {
+			lookupSubtitleLink();
 		}
 	}
 	return result;
@@ -212,6 +305,10 @@ bool ServiceBox::needsBubble() const {
 
 bool ServiceBox::customInfoLayout() const {
 	return false;
+}
+
+void ServiceBox::hideSpoilers() {
+	_subtitle.setSpoilerRevealed(false, anim::type::instant);
 }
 
 bool ServiceBox::hasHeavyPart() const {
@@ -265,7 +362,15 @@ bool ServiceBox::Button::empty() const {
 
 void ServiceBox::Button::drawBg(QPainter &p) const {
 	const auto radius = size.height() / 2.;
-	p.drawRoundedRect(0, 0, size.width(), size.height(), radius, radius);
+	const auto r = Rect(size);
+	p.drawRoundedRect(r, radius, radius);
+	if (stars) {
+		auto clipPath = QPainterPath();
+		clipPath.addRoundedRect(r, radius, radius);
+		p.setClipPath(clipPath);
+		stars->paint(p);
+		p.setClipping(false);
+	}
 }
 
 } // namespace HistoryView

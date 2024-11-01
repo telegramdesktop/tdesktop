@@ -43,7 +43,7 @@ void ChartRulersView::setChartData(
 			return FormatF(value / float64(Data::kEarnMultiplier));
 		};
 		_rightCustomCaption = [=, rate = chartData.currencyRate](float64 v) {
-			return Info::ChannelEarn::ToUsd(v, rate);
+			return Info::ChannelEarn::ToUsd(v, rate, 0);
 		};
 		_rightPen = QPen(st::windowSubTextFg);
 	}

@@ -67,7 +67,7 @@ enum class UserDataFlag : uint32 {
 	DiscardMinPhoto = (1 << 12),
 	Self = (1 << 13),
 	Premium = (1 << 14),
-	CanReceiveGifts = (1 << 15),
+	//CanReceiveGifts = (1 << 15),
 	VoiceMessagesForbidden = (1 << 16),
 	PersonalPhoto = (1 << 17),
 	StoriesHidden = (1 << 18),
@@ -146,8 +146,6 @@ public:
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
 
-	[[nodiscard]] bool canReceiveGifts() const;
-
 	// In Data::Session::processUsers() we check only that.
 	// When actually trying to share contact we perform
 	// a full check by canShareThisContact() call.
@@ -185,8 +183,11 @@ public:
 	void setBirthday(Data::Birthday value);
 	void setBirthday(const tl::conditional<MTPBirthday> &value);
 
-	int commonChatsCount() const;
+	[[nodiscard]] int commonChatsCount() const;
 	void setCommonChatsCount(int count);
+
+	[[nodiscard]] int peerGiftsCount() const;
+	void setPeerGiftsCount(int count);
 
 	[[nodiscard]] bool hasPrivateForwardName() const;
 	[[nodiscard]] QString privateForwardName() const;
@@ -222,6 +223,7 @@ private:
 	Data::LastseenStatus _lastseen;
 	Data::Birthday _birthday;
 	int _commonChatsCount = 0;
+	int _peerGiftsCount = 0;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 

@@ -337,12 +337,13 @@ PaintRoundImageCallback ChatRow::generatePaintUserpicCallback(
 			int y,
 			int outerWidth,
 			int size) mutable {
+		using namespace Ui;
 		if (forceRound && peer->isForum()) {
 			ForceRoundUserpicCallback(peer)(p, x, y, outerWidth, size);
 		} else if (saved) {
-			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+			EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 		} else if (replies) {
-			Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
+			EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
 		} else {
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}

@@ -1162,7 +1162,14 @@ bool Application::openCustomUrl(
 		|| passcodeLocked()) {
 		return false;
 	}
-	const auto command = base::StringViewMid(urlTrimmed, protocol.size(), 8192);
+	static const auto kTagExp = QRegularExpression(
+		u"^\\~[a-zA-Z0-9_\\-]+\\~:"_q);
+	auto skip = protocol.size();
+	const auto match = kTagExp.match(base::StringViewMid(urlTrimmed, skip));
+	if (match.hasMatch()) {
+		skip += match.capturedLength();
+	}
+	const auto command = base::StringViewMid(urlTrimmed, skip, 8192);
 	const auto my = context.value<ClickHandlerContext>();
 	const auto controller = my.sessionWindow.get()
 		? my.sessionWindow.get()

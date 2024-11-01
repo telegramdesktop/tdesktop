@@ -713,11 +713,13 @@ void SuggestionsWidget::leaveEventHook(QEvent *e) {
 }
 
 SuggestionsController::SuggestionsController(
+	not_null<QWidget*> parent,
 	not_null<QWidget*> outer,
 	not_null<QTextEdit*> field,
 	not_null<Main::Session*> session,
 	const Options &options)
-: _st(options.st ? *options.st : st::defaultEmojiSuggestions)
+: QObject(parent)
+, _st(options.st ? *options.st : st::defaultEmojiSuggestions)
 , _field(field)
 , _session(session)
 , _showExactTimer([=] { showWithQuery(getEmojiQuery()); })

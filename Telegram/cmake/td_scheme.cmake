@@ -34,13 +34,6 @@ PUBLIC
     desktop-app::lib_tl
 )
 
-if (WIN32 AND NOT build_win64 AND NOT build_winarm)
-    target_compile_options(td_scheme
-    PRIVATE
-        /bigobj # scheme.cpp has too many sections.
-    )
-endif()
-
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "mips64")
     # Sometimes final linking may fail with error "relocation truncated to fit"
     # due to large scheme size.

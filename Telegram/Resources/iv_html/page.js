@@ -72,6 +72,9 @@ var IV = {
 		}
 	},
 	frameKeyDown: function (e) {
+		const key0 = (e.key === '0')
+			|| (e.code === 'Key0')
+			|| (e.keyCode === 48);
 		const keyW = (e.key === 'w')
 			|| (e.code === 'KeyW')
 			|| (e.keyCode === 87);
@@ -81,12 +84,12 @@ var IV = {
 		const keyM = (e.key === 'm')
 			|| (e.code === 'KeyM')
 			|| (e.keyCode === 77);
-		if ((e.metaKey || e.ctrlKey) && (keyW || keyQ || keyM)) {
+		if ((e.metaKey || e.ctrlKey) && (keyW || keyQ || keyM || key0)) {
 			e.preventDefault();
 			IV.notify({
 				event: 'keydown',
 				modifier: e.ctrlKey ? 'ctrl' : 'cmd',
-				key: keyW ? 'w' : keyQ ? 'q' : 'm',
+				key: key0 ? '0' : keyW ? 'w' : keyQ ? 'q' : 'm',
 			});
 		} else if (e.key === 'Escape' || e.keyCode === 27) {
 			e.preventDefault();

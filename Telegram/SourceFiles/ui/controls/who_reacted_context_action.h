@@ -36,6 +36,7 @@ enum class WhoReadType {
 	Listened,
 	Watched,
 	Reacted,
+	Edited,
 };
 
 enum class WhoReadState : uchar {
@@ -65,7 +66,7 @@ struct WhoReadContent {
 [[nodiscard]] base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
 	not_null<PopupMenu*> menu,
 	rpl::producer<WhoReadContent> content,
-	Fn<void()> showOrPremium);
+	Fn<void()> showOrPremium = nullptr);
 
 enum class WhoReactedType : uchar {
 	Viewed,

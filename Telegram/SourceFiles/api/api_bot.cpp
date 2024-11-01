@@ -39,6 +39,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace Api {
 namespace {
 
@@ -503,9 +506,17 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			bot->session().attachWebView().open({
 				.bot = bot,
 				.context = { .controller = controller },
-				.button = {.text = button->text, .url = button->data },
+				.button = { .text = button->text, .url = button->data },
 				.source = InlineBots::WebViewSourceButton{ .simple = true },
 			});
+		}
+	} break;
+
+	case ButtonType::CopyText: {
+		const auto text = QString::fromUtf8(button->data);
+		if (!text.isEmpty()) {
+			QGuiApplication::clipboard()->setText(text);
+			controller->showToast(tr::lng_text_copied(tr::now));
 		}
 	} break;
 	}

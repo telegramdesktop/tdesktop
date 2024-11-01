@@ -181,6 +181,30 @@ void CheckoutProcess::Start(
 	j->second->requestActivate();
 }
 
+void CheckoutProcess::Start(
+		InvoiceStarGift giftInvoice,
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess) {
+	const auto randomId = giftInvoice.randomId;
+	auto id = InvoiceId{ std::move(giftInvoice) };
+	auto &processes = LookupSessionProcesses(SessionFromId(id));
+	const auto i = processes.byRandomId.find(randomId);
+	if (i != end(processes.byRandomId)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->setNonPanelPaymentFormProcess(
+			std::move(nonPanelPaymentFormProcess));
+		return;
+	}
+	processes.byRandomId.emplace(
+		randomId,
+		std::make_unique<CheckoutProcess>(
+			std::move(id),
+			Mode::Payment,
+			std::move(reactivate),
+			std::move(nonPanelPaymentFormProcess),
+			PrivateTag{}));
+}
+
 std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 		not_null<const HistoryItem*> item) {
 	const auto session = &item->history()->session();

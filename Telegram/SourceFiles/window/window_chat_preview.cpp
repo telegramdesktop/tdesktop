@@ -64,7 +64,8 @@ bool ChatPreviewManager::show(
 			if (const auto thread = weakThread.get()) {
 				const auto itemId = action.openItemId;
 				const auto owner = &thread->owner();
-				if (action.markRead) {
+				if (action.cancel) {
+				} else if (action.markRead) {
 					MarkAsReadThread(thread);
 				} else if (action.markUnread) {
 					if (const auto history = thread->asHistory()) {

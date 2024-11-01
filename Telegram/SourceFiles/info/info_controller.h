@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_search_controller.h"
+#include "info/statistics/info_statistics_tag.h"
 #include "window/window_session_controller.h"
 
 namespace Data {
@@ -55,25 +56,6 @@ struct Tag {
 
 } // namespace Info::Stories
 
-namespace Info::Statistics {
-
-struct Tag {
-	explicit Tag(
-		not_null<PeerData*> peer,
-		FullMsgId contextId,
-		FullStoryId storyId)
-	: peer(peer)
-	, contextId(contextId)
-	, storyId(storyId) {
-	}
-
-	not_null<PeerData*> peer;
-	FullMsgId contextId;
-	FullStoryId storyId;
-};
-
-} // namespace Info::Statistics
-
 namespace Info {
 
 class Key {
@@ -92,9 +74,7 @@ public:
 	bool isDownloads() const;
 	PeerData *storiesPeer() const;
 	Stories::Tab storiesTab() const;
-	PeerData *statisticsPeer() const;
-	FullMsgId statisticsContextId() const;
-	FullStoryId statisticsStoryId() const;
+	Statistics::Tag statisticsTag() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
 
@@ -127,6 +107,7 @@ public:
 		CommonGroups,
 		SimilarChannels,
 		SavedSublists,
+		PeerGifts,
 		Members,
 		Settings,
 		Downloads,
@@ -198,14 +179,8 @@ public:
 	[[nodiscard]] Stories::Tab storiesTab() const {
 		return key().storiesTab();
 	}
-	[[nodiscard]] PeerData *statisticsPeer() const {
-		return key().statisticsPeer();
-	}
-	[[nodiscard]] FullMsgId statisticsContextId() const {
-		return key().statisticsContextId();
-	}
-	[[nodiscard]] FullStoryId statisticsStoryId() const {
-		return key().statisticsStoryId();
+	[[nodiscard]] Statistics::Tag statisticsTag() const {
+		return key().statisticsTag();
 	}
 	[[nodiscard]] PollData *poll() const;
 	[[nodiscard]] FullMsgId pollContextId() const {

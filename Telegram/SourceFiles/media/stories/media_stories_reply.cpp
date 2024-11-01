@@ -244,6 +244,7 @@ void ReplyArea::sendVoice(VoiceToSend &&data) {
 		data.bytes,
 		data.waveform,
 		data.duration,
+		data.video,
 		std::move(action));
 
 	_controls->clearListenState();

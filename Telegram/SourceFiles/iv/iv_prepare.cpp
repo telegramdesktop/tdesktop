@@ -389,11 +389,17 @@ QByteArray Parser::block(const MTPDpageBlockUnsupported &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockTitle &data) {
-	return tag("h1", { { "class", "title" } }, rich(data.vtext()));
+	return tag("h1", {
+		{ "class", "title" },
+		{ "dir", "auto" },
+	}, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockSubtitle &data) {
-	return tag("h2", { { "class", "subtitle" } }, rich(data.vtext()));
+	return tag("h2", {
+		{ "class", "subtitle" },
+		{ "dir", "auto" },
+	}, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockAuthorDate &data) {
@@ -401,23 +407,29 @@ QByteArray Parser::block(const MTPDpageBlockAuthorDate &data) {
 	if (const auto date = data.vpublished_date().v) {
 		inner += " \xE2\x80\xA2 " + tag("time", Date(date));
 	}
-	return tag("address", inner);
+	return tag("address", { { "dir", "auto" } }, inner);
 }
 
 QByteArray Parser::block(const MTPDpageBlockHeader &data) {
-	return tag("h3", { { "class", "header" } }, rich(data.vtext()));
+	return tag("h3", {
+		{ "class", "header" },
+		{ "dir", "auto" },
+	}, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockSubheader &data) {
-	return tag("h4", { { "class", "subheader" } }, rich(data.vtext()));
+	return tag("h4", {
+		{ "class", "subheader" },
+		{ "dir", "auto" },
+	}, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockParagraph &data) {
-	return tag("p", rich(data.vtext()));
+	return tag("p", { { "dir", "auto" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockPreformatted &data) {
-	auto list = Attributes();
+	auto list = Attributes{ { "dir", "auto" } };
 	const auto language = utf(data.vlanguage());
 	if (!language.isEmpty()) {
 		list.push_back({ "data-language", language });
@@ -428,7 +440,10 @@ QByteArray Parser::block(const MTPDpageBlockPreformatted &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockFooter &data) {
-	return tag("footer", { { "class", "footer" } }, rich(data.vtext()));
+	return tag("footer", {
+		{ "class", "footer" },
+		{ "dir", "auto" },
+	}, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockDivider &data) {
@@ -447,19 +462,21 @@ QByteArray Parser::block(const MTPDpageBlockBlockquote &data) {
 	const auto caption = rich(data.vcaption());
 	const auto cite = caption.isEmpty()
 		? QByteArray()
-		: tag("cite", caption);
-	return tag("blockquote", rich(data.vtext()) + cite);
+		: tag("cite", { { "dir", "auto" } }, caption);
+	return tag("blockquote", {
+		{ "dir", "auto" }
+	}, rich(data.vtext()) + cite);
 }
 
 QByteArray Parser::block(const MTPDpageBlockPullquote &data) {
 	const auto caption = rich(data.vcaption());
 	const auto cite = caption.isEmpty()
 		? QByteArray()
-		: tag("cite", caption);
-	return tag(
-		"div",
-		{ { "class", "pullquote" } },
-		rich(data.vtext()) + cite);
+		: tag("cite", { { "dir", "auto" } }, caption);
+	return tag("div", {
+		{ "class", "pullquote" },
+		{ "dir", "auto" },
+	}, rich(data.vtext()) + cite);
 }
 
 QByteArray Parser::block(
@@ -763,7 +780,10 @@ QByteArray Parser::block(const MTPDpageBlockAudio &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockKicker &data) {
-	return tag("h5", { { "class", "kicker" } }, rich(data.vtext()));
+	return tag("h5", {
+		{ "class", "kicker" },
+		{ "dir", "auto" },
+	}, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockTable &data) {
@@ -780,7 +800,7 @@ QByteArray Parser::block(const MTPDpageBlockTable &data) {
 	}
 	auto title = rich(data.vtitle());
 	if (!title.isEmpty()) {
-		title = tag("caption", title);
+		title = tag("caption", { { "dir", "auto" } }, title);
 	}
 	auto result = tag("table", attibutes, title + list(data.vrows()));
 	result = tag("figure", { { "class", "table" } }, result);
@@ -800,7 +820,8 @@ QByteArray Parser::block(const MTPDpageBlockDetails &data) {
 	return tag(
 		"details",
 		attributes,
-		tag("summary", rich(data.vtitle())) + list(data.vblocks()));
+		(tag("summary", { { "dir", "auto" } }, rich(data.vtitle()))
+			+ list(data.vblocks())));
 }
 
 QByteArray Parser::block(const MTPDpageBlockRelatedArticles &data) {
@@ -810,7 +831,10 @@ QByteArray Parser::block(const MTPDpageBlockRelatedArticles &data) {
 	}
 	auto title = rich(data.vtitle());
 	if (!title.isEmpty()) {
-		title = tag("h4", { { "class", "related-title" } }, title);
+		title = tag("h4", {
+			{ "class", "related-title" },
+			{ "dir", "auto" },
+		}, title);
 	}
 	return tag("section", { { "class", "related" } }, title + result);
 }
@@ -899,7 +923,7 @@ QByteArray Parser::block(const MTPDpageTableCell &data) {
 	} else {
 		style += "vertical-align:top;";
 	}
-	auto attributes = Attributes{ { "style", style } };
+	auto attributes = Attributes{ { "style", style }, { "dir", "auto" } };
 	if (const auto cs = data.vcolspan()) {
 		attributes.push_back({ "colspan", Number(cs->v) });
 	}
@@ -910,7 +934,7 @@ QByteArray Parser::block(const MTPDpageTableCell &data) {
 }
 
 QByteArray Parser::block(const MTPDpageListItemText &data) {
-	return tag("li", rich(data.vtext()));
+	return tag("li", { { "dir", "auto" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageListItemBlocks &data) {
@@ -920,7 +944,7 @@ QByteArray Parser::block(const MTPDpageListItemBlocks &data) {
 QByteArray Parser::block(const MTPDpageListOrderedItemText &data) {
 	return tag(
 		"li",
-		{ { "value", utf(data.vnum()) } },
+		{ { "value", utf(data.vnum()) }, { "dir", "auto" } },
 		rich(data.vtext()));
 }
 
@@ -1073,11 +1097,11 @@ QByteArray Parser::caption(const MTPPageCaption &caption) {
 	auto text = rich(caption.data().vtext());
 	const auto credit = rich(caption.data().vcredit());
 	if (!credit.isEmpty()) {
-		text += tag("cite", credit);
+		text += tag("cite", { { "dir", "auto" } }, credit);
 	} else if (text.isEmpty()) {
 		return QByteArray();
 	}
-	return tag("figcaption", text);
+	return tag("figcaption", { { "dir", "auto" } }, text);
 }
 
 Photo Parser::parse(const MTPPhoto &photo) {
