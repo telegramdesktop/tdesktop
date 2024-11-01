@@ -734,7 +734,7 @@ SpeedController::SpeedController(
 	Expects(_qualities.empty() || (_lookupQuality && _changeQuality));
 
 	button->setClickedCallback([=] {
-		if (_lookup && _qualities.empty()) {
+		if (_lookup && !_lookupQuality && !_changeQuality) {
 			toggleDefault();
 			save();
 			if (const auto current = menu()) {
