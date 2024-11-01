@@ -143,7 +143,9 @@ void AboutBox(
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 		addEntry(
-			tr::lng_sponsored_revenued_info2_title(),
+			(isChannel
+				? tr::lng_sponsored_revenued_info2_title
+				: tr::lng_sponsored_revenued_info2_bot_title)(),
 			(isChannel
 				? tr::lng_sponsored_revenued_info2_description
 				: tr::lng_sponsored_revenued_info2_bot_description)(
