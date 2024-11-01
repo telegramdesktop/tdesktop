@@ -240,7 +240,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_customFontFamily)
 		+ sizeof(qint32) * 3
 		+ Serialize::bytearraySize(_tonsiteStorageToken)
-		+ sizeof(qint32) * 5;
+		+ sizeof(qint32) * 6;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -396,10 +396,11 @@ QByteArray Settings::serialize() const {
 			<< qint32(!_weatherInCelsius ? 0 : *_weatherInCelsius ? 1 : 2)
 			<< _tonsiteStorageToken
 			<< qint32(_includeMutedCounterFolders ? 1 : 0)
-			<< qint32(_ivZoom.current())
+			<< qint32(0) // Old IV zoom
 			<< qint32(_skipToastsInFocus ? 1 : 0)
 			<< qint32(_recordVideoMessages ? 1 : 0)
-			<< SerializeVideoQuality(_videoQuality);
+			<< SerializeVideoQuality(_videoQuality)
+			<< qint32(_ivZoom.current());
 	}
 
 	Ensures(result.size() == size);
@@ -837,7 +838,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> includeMutedCounterFolders;
 	}
 	if (!stream.atEnd()) {
-		stream >> ivZoom;
+		qint32 oldIvZoom = 0;
+		stream >> oldIvZoom;
 	}
 	if (!stream.atEnd()) {
 		stream >> skipToastsInFocus;
@@ -847,6 +849,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> videoQuality;
+	}
+	if (!stream.atEnd()) {
+		stream >> ivZoom;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "

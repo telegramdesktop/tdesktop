@@ -655,7 +655,9 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 	if (const auto webviewZoomController = raw->zoomController()) {
 		webviewZoomController->zoomValue(
 		) | rpl::start_with_next([this](int value) {
-			_delegate->ivSetZoom(value);
+			if (value > 0) {
+				_delegate->ivSetZoom(value);
+			}
 		}, lifetime());
 		_delegate->ivZoomValue(
 		) | rpl::start_with_next([=](int value) {
