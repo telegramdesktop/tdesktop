@@ -27,6 +27,7 @@ class Player;
 
 class Instance {
 public:
+	Instance(const Instance &other);
 	Instance(
 		std::shared_ptr<Document> shared,
 		Fn<void()> waitingCallback);
