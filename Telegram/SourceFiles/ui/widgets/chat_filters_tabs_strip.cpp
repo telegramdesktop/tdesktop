@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/chat_filters_tabs_slider.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_dialogs.h" // dialogsSearchTabs
@@ -26,28 +26,6 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		rpl::producer<int> multiSelectHeightValue,
 		Fn<void(int)> setAddedTopScrollSkip,
 		Fn<void(FilterId)> choose) {
-	class Slider final : public Ui::SettingsSlider {
-	public:
-		using Ui::SettingsSlider::SettingsSlider;
-
-		[[nodiscard]] int centerOfSection(int section) const {
-			const auto widths = Ui::SettingsSlider::countSectionsWidths(0);
-			auto result = 0;
-			if (section >= 0 && section < widths.size()) {
-				for (auto i = 0; i < section; i++) {
-					result += widths[i];
-				}
-				result += widths[section] / 2;
-			}
-			return result;
-		}
-
-		void fitWidthToSections() {
-			const auto widths = Ui::SettingsSlider::countSectionsWidths(0);
-			resizeToWidth(ranges::accumulate(widths, .0));
-		}
-	};
-
 	struct State final {
 		Ui::Animations::Simple animation;
 		std::optional<FilterId> lastFilterId = std::nullopt;
@@ -61,9 +39,9 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(container, scrollSt);
 	const auto sliderPadding = st::dialogsSearchTabsPadding;
 	const auto slider = scroll->setOwnedWidget(
-		object_ptr<Ui::PaddingWrap<Slider>>(
+		object_ptr<Ui::PaddingWrap<Ui::ChatsFiltersTabs>>(
 			parent,
-			object_ptr<Slider>(parent, st::dialogsSearchTabs),
+			object_ptr<Ui::ChatsFiltersTabs>(parent, st::dialogsSearchTabs),
 			QMargins(sliderPadding, 0, sliderPadding, 0)))->entity();
 	const auto state = wrap->lifetime().make_state<State>();
 	wrap->toggle(false, anim::type::instant);
