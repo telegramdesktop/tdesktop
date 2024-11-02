@@ -367,7 +367,7 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 	if (id) {
 		addAction(
 			tr::lng_filters_context_edit(tr::now),
-			[=] { showEditBox(id); },
+			[=] { EditExistingFilter(_session, id); },
 			&st::menuIconEdit);
 
 		auto filteredChats = [=] {
@@ -380,7 +380,7 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 
 		addAction(
 			tr::lng_filters_context_remove(tr::now),
-			[=] { showRemoveBox(id); },
+			[=] { _removeApi.request(Ui::MakeWeak(&_outer), _session, id); },
 			&st::menuIconDelete);
 	} else {
 		auto customUnreadState = [=] {
@@ -405,105 +405,6 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 		return;
 	}
 	_popupMenu->popup(position);
-}
-
-void FiltersMenu::showEditBox(FilterId id) {
-	EditExistingFilter(_session, id);
-}
-
-void FiltersMenu::showRemoveBox(FilterId id) {
-	const auto session = &_session->session();
-	const auto &list = session->data().chatsFilters().list();
-	const auto i = ranges::find(list, id, &Data::ChatFilter::id);
-	const auto filter = (i != end(list)) ? *i : Data::ChatFilter();
-	const auto has = filter.hasMyLinks();
-	const auto confirm = [=](Fn<void()> action, bool onlyWhenHas = false) {
-		if (!has && onlyWhenHas) {
-			action();
-			return;
-		}
-		_session->window().show(Ui::MakeConfirmBox({
-			.text = (has
-				? tr::lng_filters_delete_sure()
-				: tr::lng_filters_remove_sure()),
-			.confirmed = [=](Fn<void()> &&close) { close(); action(); },
-			.confirmText = (has
-				? tr::lng_box_delete()
-				: tr::lng_filters_remove_yes()),
-			.confirmStyle = &st::attentionBoxButton,
-		}));
-	};
-	const auto simple = [=] {
-		confirm([=] { remove(id); });
-	};
-	const auto suggestRemoving = Api::ExtractSuggestRemoving(filter);
-	if (suggestRemoving.empty()) {
-		simple();
-		return;
-	} else if (_removingRequestId) {
-		if (_removingId == id) {
-			return;
-		}
-		session->api().request(_removingRequestId).cancel();
-	}
-	_removingId = id;
-	_removingRequestId = session->api().request(
-		MTPchatlists_GetLeaveChatlistSuggestions(
-			MTP_inputChatlistDialogFilter(
-				MTP_int(id)))
-	).done(crl::guard(&_outer, [=](const MTPVector<MTPPeer> &result) {
-		_removingRequestId = 0;
-		const auto suggestRemovePeers = ranges::views::all(
-			result.v
-		) | ranges::views::transform([=](const MTPPeer &peer) {
-			return session->data().peer(peerFromMTP(peer));
-		}) | ranges::to_vector;
-		const auto chosen = crl::guard(&_outer, [=](
-				std::vector<not_null<PeerData*>> peers) {
-			remove(id, std::move(peers));
-		});
-		confirm(crl::guard(&_outer, [=] {
-			Api::ProcessFilterRemove(
-				_session,
-				filter.title(),
-				filter.iconEmoji(),
-				suggestRemoving,
-				suggestRemovePeers,
-				chosen);
-		}), true);
-	})).fail(crl::guard(&_outer, [=] {
-		_removingRequestId = 0;
-		simple();
-	})).send();
-}
-
-void FiltersMenu::remove(
-		FilterId id,
-		std::vector<not_null<PeerData*>> leave) {
-	const auto session = &_session->session();
-	const auto api = &session->api();
-	session->data().chatsFilters().apply(MTP_updateDialogFilter(
-		MTP_flags(MTPDupdateDialogFilter::Flag(0)),
-		MTP_int(id),
-		MTPDialogFilter()));
-	if (leave.empty()) {
-		api->request(MTPmessages_UpdateDialogFilter(
-			MTP_flags(MTPmessages_UpdateDialogFilter::Flag(0)),
-			MTP_int(id),
-			MTPDialogFilter()
-		)).send();
-	} else {
-		api->request(MTPchatlists_LeaveChatlist(
-			MTP_inputChatlistDialogFilter(MTP_int(id)),
-			MTP_vector<MTPInputPeer>(ranges::views::all(
-				leave
-			) | ranges::views::transform([](not_null<PeerData*> peer) {
-				return MTPInputPeer(peer->input);
-			}) | ranges::to<QVector<MTPInputPeer>>())
-		)).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result);
-		}).send();
-	}
 }
 
 void FiltersMenu::applyReorder(

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_chat_filters_remove_manager.h"
 #include "base/timer.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/side_bar_button.h"
@@ -48,9 +49,6 @@ private:
 		bool toBeginning = false);
 	void setupMainMenuIcon();
 	void showMenu(QPoint position, FilterId id);
-	void showEditBox(FilterId id);
-	void showRemoveBox(FilterId id);
-	void remove(FilterId id, std::vector<not_null<PeerData*>> leave = {});
 	void scrollToButton(not_null<Ui::RpWidget*> widget);
 	void openFiltersSettings();
 
@@ -69,6 +67,8 @@ private:
 	int _reordering = 0;
 	bool _ignoreRefresh = false;
 	bool _waitingSuggested = false;
+
+	Api::RemoveComplexChatFilter _removeApi;
 
 	FilterId _removingId = 0;
 	mtpRequestId _removingRequestId = 0;
