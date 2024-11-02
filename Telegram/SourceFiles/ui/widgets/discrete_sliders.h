@@ -44,6 +44,8 @@ public:
 	void setActiveSectionFast(int index);
 	void finishAnimating();
 
+	void setAdditionalContentWidthToSection(int index, int width);
+
 	[[nodiscard]] rpl::producer<int> sectionActivated() const {
 		return _sectionActivated.events();
 	}
@@ -63,10 +65,11 @@ protected:
 			const style::TextStyle &st,
 			const std::any &context);
 
-		int left = 0;
-		int width = 0;
 		Ui::Text::String label;
 		std::unique_ptr<RippleAnimation> ripple;
+		int left = 0;
+		int width = 0;
+		int contentWidth = 0;
 	};
 	struct Range {
 		int left = 0;

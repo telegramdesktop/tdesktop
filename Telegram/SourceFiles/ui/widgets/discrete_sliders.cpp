@@ -57,6 +57,13 @@ void DiscreteSlider::finishAnimating() {
 	}
 }
 
+void DiscreteSlider::setAdditionalContentWidthToSection(int index, int w) {
+	if (index >= 0 && index < _sections.size()) {
+		auto &section = _sections[index];
+		section.contentWidth = section.label.maxWidth() + w;
+	}
+}
+
 void DiscreteSlider::setSelectOnPress(bool selectOnPress) {
 	_selectOnPress = selectOnPress;
 }
@@ -112,7 +119,7 @@ DiscreteSlider::Range DiscreteSlider::getFinalActiveRange() const {
 		return { 0, 0 };
 	}
 	const auto width = _snapToLabel
-		? std::min(raw->width, raw->label.maxWidth())
+		? std::min(raw->width, raw->contentWidth)
 		: raw->width;
 	return { raw->left + ((raw->width - width) / 2), width };
 }
@@ -207,7 +214,8 @@ int DiscreteSlider::getIndexFromPosition(QPoint pos) {
 DiscreteSlider::Section::Section(
 	const QString &label,
 	const style::TextStyle &st)
-: label(st, label) {
+: label(st, label)
+, contentWidth(Section::label.maxWidth()) {
 }
 
 DiscreteSlider::Section::Section(
@@ -215,6 +223,7 @@ DiscreteSlider::Section::Section(
 		const style::TextStyle &st,
 		const std::any &context) {
 	this->label.setMarkedText(st, label, kMarkupTextOptions, context);
+	contentWidth = Section::label.maxWidth();
 }
 
 SettingsSlider::SettingsSlider(
@@ -274,8 +283,8 @@ std::vector<float64> SettingsSlider::countSectionsWidths(int newWidth) const {
 	auto labelsWidth = 0;
 	auto commonWidth = true;
 	enumerateSections([&](const Section &section) {
-		labelsWidth += section.label.maxWidth();
-		if (section.label.maxWidth() >= sectionWidth) {
+		labelsWidth += section.contentWidth;
+		if (section.contentWidth >= sectionWidth) {
 			commonWidth = false;
 		}
 		return true;
@@ -289,7 +298,7 @@ std::vector<float64> SettingsSlider::countSectionsWidths(int newWidth) const {
 		enumerateSections([&](const Section &section) {
 			Expects(currentWidth != result.end());
 
-			*currentWidth = padding + section.label.maxWidth() + padding;
+			*currentWidth = padding + section.contentWidth + padding;
 			++currentWidth;
 			return true;
 		});
@@ -370,7 +379,7 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 	};
 	enumerateSections([&](Section &section) {
 		const auto activeWidth = _st.barSnapToLabel
-			? section.label.maxWidth()
+			? section.contentWidth
 			: section.width;
 		const auto activeLeft = section.left
 			+ (section.width - activeWidth) / 2;
@@ -415,11 +424,11 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 			}
 		}
 		const auto labelLeft = section.left
-			+ (section.width - section.label.maxWidth()) / 2;
+			+ (section.width - section.contentWidth) / 2;
 		const auto rect = myrtlrect(
 			labelLeft,
 			_st.labelTop,
-			section.label.maxWidth(),
+			section.contentWidth,
 			_st.labelStyle.font->height);
 		if (rect.intersects(clip)) {
 			p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
