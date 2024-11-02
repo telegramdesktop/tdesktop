@@ -396,7 +396,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(!_weatherInCelsius ? 0 : *_weatherInCelsius ? 1 : 2)
 			<< _tonsiteStorageToken
 			<< qint32(_includeMutedCounterFolders ? 1 : 0)
-			<< qint32(0) // Old IV zoom
+			<< qint32(_chatFiltersHorizontal.current() ? 1 : 0)
 			<< qint32(_skipToastsInFocus ? 1 : 0)
 			<< qint32(_recordVideoMessages ? 1 : 0)
 			<< SerializeVideoQuality(_videoQuality)
@@ -528,6 +528,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 skipToastsInFocus = _skipToastsInFocus ? 1 : 0;
 	qint32 recordVideoMessages = _recordVideoMessages ? 1 : 0;
 	quint32 videoQuality = SerializeVideoQuality(_videoQuality);
+	quint32 chatFiltersHorizontal = _chatFiltersHorizontal.current() ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -838,8 +839,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> includeMutedCounterFolders;
 	}
 	if (!stream.atEnd()) {
-		qint32 oldIvZoom = 0;
-		stream >> oldIvZoom;
+		stream >> chatFiltersHorizontal;
 	}
 	if (!stream.atEnd()) {
 		stream >> skipToastsInFocus;
@@ -1068,6 +1068,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_skipToastsInFocus = (skipToastsInFocus == 1);
 	_recordVideoMessages = (recordVideoMessages == 1);
 	_videoQuality = DeserializeVideoQuality(videoQuality);
+	_chatFiltersHorizontal = (chatFiltersHorizontal == 1);
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1459,6 +1460,7 @@ void Settings::resetOnLastLogout() {
 	_ivZoom = 100;
 	_recordVideoMessages = false;
 	_videoQuality = {};
+	_chatFiltersHorizontal = false;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();
@@ -1632,6 +1634,18 @@ Media::VideoQuality Settings::videoQuality() const {
 
 void Settings::setVideoQuality(Media::VideoQuality value) {
 	_videoQuality = value;
+}
+
+bool Settings::chatFiltersHorizontal() const {
+	return _chatFiltersHorizontal.current();
+}
+
+rpl::producer<bool> Settings::chatFiltersHorizontalValue() const {
+	return _chatFiltersHorizontal.value();
+}
+
+void Settings::setChatFiltersHorizontal(bool value) {
+	_chatFiltersHorizontal = value;
 }
 
 } // namespace Core
