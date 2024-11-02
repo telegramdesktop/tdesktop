@@ -29,8 +29,12 @@ public:
 	void fitWidthToSections();
 	void setUnreadCount(int index, int unreadCount);
 
+	[[nodiscard]] rpl::producer<int> contextMenuRequested() const;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	[[nodiscard]] QImage cacheUnreadCount(int count) const;
@@ -49,6 +53,8 @@ private:
 	int _cachedBadgeHeight = 0;
 	std::optional<Ui::RoundRect> _bar;
 	std::optional<Ui::RoundRect> _barActive;
+
+	rpl::event_stream<int> _contextMenuRequested;
 
 };
 

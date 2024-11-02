@@ -185,4 +185,33 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void ChatsFiltersTabs::mousePressEvent(QMouseEvent *e) {
+	const auto mouseButton = e->button();
+	if (mouseButton == Qt::MouseButton::LeftButton) {
+		Ui::SettingsSlider::mousePressEvent(e);
+	} else {
+		Ui::RpWidget::mousePressEvent(e);
+	}
+}
+
+void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
+	const auto pos = e->pos();
+	auto left = 0;
+	auto index = 0;
+	enumerateSections([&](const Section &section) {
+		const auto currentRight = section.left + section.width;
+		if (pos.x() > left && pos.x() < currentRight) {
+			return false;
+		}
+		left = currentRight;
+		index++;
+		return true;
+	});
+	_contextMenuRequested.fire_copy(index);
+}
+
+rpl::producer<int> ChatsFiltersTabs::contextMenuRequested() const {
+	return _contextMenuRequested.events();
+}
+
 } // namespace Ui
