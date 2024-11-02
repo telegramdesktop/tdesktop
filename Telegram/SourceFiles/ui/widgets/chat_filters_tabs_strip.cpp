@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_chat_filters.h"
 #include "data/data_session.h"
+#include "data/data_unread_value.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/widgets/chat_filters_tabs_slider.h"
@@ -29,6 +30,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	struct State final {
 		Ui::Animations::Simple animation;
 		std::optional<FilterId> lastFilterId = std::nullopt;
+		rpl::lifetime unreadLifetime;
 	};
 
 	const auto &scrollSt = st::defaultScrollArea;
@@ -104,6 +106,24 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		}) | ranges::to_vector;
 		slider->setSections(std::move(sections));
 		slider->fitWidthToSections();
+		{
+			auto includeMuted = Data::IncludeMutedCounterFoldersValue();
+			state->unreadLifetime.destroy();
+			for (auto i = 0; i < list.size(); i++) {
+				rpl::combine(
+					Data::UnreadStateValue(session, list[i].id()),
+					rpl::duplicate(includeMuted)
+				) | rpl::start_with_next([=](
+						const Dialogs::UnreadState &state,
+						bool includeMuted) {
+					const auto muted = (state.chatsMuted + state.marksMuted);
+					const auto count = (state.chats + state.marks)
+						- (includeMuted ? 0 : muted);
+					slider->setUnreadCount(i, count);
+					slider->fitWidthToSections();
+				}, state->unreadLifetime);
+			}
+		}
 		[&] {
 			const auto lookingId = state->lastFilterId.value_or(list[0].id());
 			for (auto i = 0; i < list.size(); i++) {
