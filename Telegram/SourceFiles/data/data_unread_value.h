@@ -25,4 +25,6 @@ namespace Data {
 	not_null<Main::Session*> session,
 	FilterId filterId);
 
+[[nodiscard]] rpl::producer<bool> IncludeMutedCounterFoldersValue();
+
 } // namespace Data

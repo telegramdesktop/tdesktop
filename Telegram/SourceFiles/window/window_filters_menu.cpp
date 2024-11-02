@@ -13,12 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
-#include "core/application.h"
-#include "core/core_settings.h"
-#include "window/notifications_manager.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
-#include "data/data_folder.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
@@ -53,14 +49,7 @@ FiltersMenu::FiltersMenu(
 , _scroll(&_outer)
 , _container(
 	_scroll.setOwnedWidget(
-		object_ptr<Ui::VerticalLayout>(&_scroll)))
-, _includeMuted(Core::App().settings().includeMutedCounterFolders()) {
-	Core::App().notifications().settingsChanged(
-	) | rpl::filter(
-		rpl::mappers::_1 == Window::Notifications::ChangeType::IncludeMuted
-	) | rpl::start_with_next([=] {
-		_includeMuted = Core::App().settings().includeMutedCounterFolders();
-	}, _outer.lifetime());
+		object_ptr<Ui::VerticalLayout>(&_scroll))) {
 
 	_drag.timer.setCallback([=] {
 		if (_drag.filterId >= 0) {
@@ -276,7 +265,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	if (id >= 0) {
 		rpl::combine(
 			Data::UnreadStateValue(&_session->session(), id),
-			_includeMuted.value()
+			Data::IncludeMutedCounterFoldersValue()
 		) | rpl::start_with_next([=](
 				const Dialogs::UnreadState &state,
 				bool includeMuted) {

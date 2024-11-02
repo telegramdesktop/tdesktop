@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_unread_value.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "window/notifications_manager.h"
 
 namespace Data {
 namespace {
@@ -47,6 +50,18 @@ rpl::producer<Dialogs::UnreadState> UnreadStateValue(
 		session->data().chatsList()
 	) | rpl::map([=](const Dialogs::UnreadState &state) {
 		return MainListMapUnreadState(session, state);
+	});
+}
+
+rpl::producer<bool> IncludeMutedCounterFoldersValue() {
+	using namespace Window::Notifications;
+	return rpl::single(rpl::empty_value()) | rpl::then(
+		Core::App().notifications().settingsChanged(
+		) | rpl::filter(
+			rpl::mappers::_1 == ChangeType::IncludeMuted
+		) | rpl::to_empty
+	) | rpl::map([] {
+		return Core::App().settings().includeMutedCounterFolders();
 	});
 }
 
