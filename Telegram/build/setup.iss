@@ -42,8 +42,8 @@ SignTool=sha256
   #define ArchModulesFolder "arm64"
   AppVerName={#MyAppName} {#MyAppVersion} arm64
 #elif MyBuildTarget == "win64"
-  ArchitecturesAllowed="x64 arm64"
-  ArchitecturesInstallIn64BitMode="x64 arm64"
+  ArchitecturesAllowed="x64compatible"
+  ArchitecturesInstallIn64BitMode="x64compatible"
   OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
   #define ArchModulesFolder "x64"
   AppVerName={#MyAppName} {#MyAppVersion} 64bit
