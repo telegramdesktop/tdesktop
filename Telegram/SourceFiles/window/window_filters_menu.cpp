@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
+#include "data/data_unread_value.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout.h"
@@ -41,42 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 namespace Window {
-namespace {
-
-[[nodiscard]] Dialogs::UnreadState MainListMapUnreadState(
-		not_null<Main::Session*> session,
-		const Dialogs::UnreadState &state) {
-	const auto folderId = Data::Folder::kId;
-	if (const auto folder = session->data().folderLoaded(folderId)) {
-		return state - folder->chatsList()->unreadState();
-	}
-	return state;
-}
-
-[[nodiscard]] rpl::producer<Dialogs::UnreadState> MainListUnreadState(
-		not_null<Dialogs::MainList*> list) {
-	return rpl::single(rpl::empty) | rpl::then(
-		list->unreadStateChanges() | rpl::to_empty
-	) | rpl::map([=] {
-		return list->unreadState();
-	});
-}
-
-[[nodiscard]] rpl::producer<Dialogs::UnreadState> UnreadStateValue(
-		not_null<Main::Session*> session,
-		FilterId filterId) {
-	if (filterId > 0) {
-		const auto filters = &session->data().chatsFilters();
-		return MainListUnreadState(filters->chatsList(filterId));
-	}
-	return MainListUnreadState(
-		session->data().chatsList()
-	) | rpl::map([=](const Dialogs::UnreadState &state) {
-		return MainListMapUnreadState(session, state);
-	});
-}
-
-} // namespace
 
 FiltersMenu::FiltersMenu(
 	not_null<Ui::RpWidget*> parent,
@@ -310,7 +275,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	raw->setIconOverride(icons.normal, icons.active);
 	if (id >= 0) {
 		rpl::combine(
-			UnreadStateValue(&_session->session(), id),
+			Data::UnreadStateValue(&_session->session(), id),
 			_includeMuted.value()
 		) | rpl::start_with_next([=](
 				const Dialogs::UnreadState &state,
@@ -431,7 +396,7 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 	} else {
 		auto customUnreadState = [=] {
 			const auto session = &_session->session();
-			return MainListMapUnreadState(
+			return Data::MainListMapUnreadState(
 				session,
 				session->data().chatsList()->unreadState());
 		};
