@@ -10,7 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "ui/effects/animations.h"
-#include "styles/style_widgets.h"
+
+namespace style {
+struct TextStyle;
+struct SettingsSlider;
+} // namespace style
+
+namespace st {
+extern const style::SettingsSlider &defaultSettingsSlider;
+} // namespace st
 
 namespace Ui {
 
@@ -72,11 +80,8 @@ protected:
 		return _sections.size();
 	}
 
-	template <typename Lambda>
-	void enumerateSections(Lambda callback);
-
-	template <typename Lambda>
-	void enumerateSections(Lambda callback) const;
+	void enumerateSections(Fn<bool(Section&)> callback);
+	void enumerateSections(Fn<bool(const Section&)> callback) const;
 
 	virtual void startRipple(int sectionIndex) {
 	}
@@ -116,7 +121,9 @@ private:
 
 class SettingsSlider : public DiscreteSlider {
 public:
-	SettingsSlider(QWidget *parent, const style::SettingsSlider &st = st::defaultSettingsSlider);
+	SettingsSlider(
+		QWidget *parent,
+		const style::SettingsSlider &st = st::defaultSettingsSlider);
 
 	void setRippleTopRoundRadius(int radius);
 

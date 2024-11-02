@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 
 #include "ui/effects/ripple_animation.h"
-#include "ui/painter.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 
@@ -125,8 +125,7 @@ DiscreteSlider::Range DiscreteSlider::getCurrentActiveRange() const {
 	};
 }
 
-template <typename Lambda>
-void DiscreteSlider::enumerateSections(Lambda callback) {
+void DiscreteSlider::enumerateSections(Fn<bool(Section&)> callback) {
 	for (auto &section : _sections) {
 		if (!callback(section)) {
 			return;
@@ -134,9 +133,9 @@ void DiscreteSlider::enumerateSections(Lambda callback) {
 	}
 }
 
-template <typename Lambda>
-void DiscreteSlider::enumerateSections(Lambda callback) const {
-	for (auto &section : _sections) {
+void DiscreteSlider::enumerateSections(
+		Fn<bool(const Section&)> callback) const {
+	for (const auto &section : _sections) {
 		if (!callback(section)) {
 			return;
 		}
@@ -144,7 +143,7 @@ void DiscreteSlider::enumerateSections(Lambda callback) const {
 }
 
 void DiscreteSlider::mousePressEvent(QMouseEvent *e) {
-	auto index = getIndexFromPosition(e->pos());
+	const auto index = getIndexFromPosition(e->pos());
 	if (_selectOnPress) {
 		setSelectedSection(index);
 	}
@@ -153,17 +152,21 @@ void DiscreteSlider::mousePressEvent(QMouseEvent *e) {
 }
 
 void DiscreteSlider::mouseMoveEvent(QMouseEvent *e) {
-	if (_pressed < 0) return;
+	if (_pressed < 0) {
+		return;
+	}
 	if (_selectOnPress) {
 		setSelectedSection(getIndexFromPosition(e->pos()));
 	}
 }
 
 void DiscreteSlider::mouseReleaseEvent(QMouseEvent *e) {
-	auto pressed = std::exchange(_pressed, -1);
-	if (pressed < 0) return;
+	const auto pressed = std::exchange(_pressed, -1);
+	if (pressed < 0) {
+		return;
+	}
 
-	auto index = getIndexFromPosition(e->pos());
+	const auto index = getIndexFromPosition(e->pos());
 	if (pressed < _sections.size()) {
 		if (_sections[pressed].ripple) {
 			_sections[pressed].ripple->lastStop();
@@ -175,14 +178,16 @@ void DiscreteSlider::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void DiscreteSlider::setSelectedSection(int index) {
-	if (index < 0 || index >= _sections.size()) return;
+	if (index < 0 || index >= _sections.size()) {
+		return;
+	}
 
 	if (_selected != index) {
 		const auto from = getFinalActiveRange();
 		_selected = index;
 		const auto to = getFinalActiveRange();
 		const auto duration = getAnimationDuration();
-		const auto updater = [=] { update(); };
+		const auto updater = [this] { update(); };
 		_a_left.start(updater, from.left, to.left, duration);
 		_a_width.start(updater, from.width, to.width, duration);
 		_callbackAfterMs = crl::now() + duration;
@@ -190,8 +195,8 @@ void DiscreteSlider::setSelectedSection(int index) {
 }
 
 int DiscreteSlider::getIndexFromPosition(QPoint pos) {
-	int count = _sections.size();
-	for (int i = 0; i != count; ++i) {
+	const auto count = _sections.size();
+	for (auto i = 0; i != count; ++i) {
 		if (_sections[i].left + _sections[i].width > pos.x()) {
 			return i;
 		}
@@ -237,10 +242,12 @@ int SettingsSlider::getAnimationDuration() const {
 }
 
 void SettingsSlider::resizeSections(int newWidth) {
-	auto count = getSectionsCount();
-	if (!count) return;
+	const auto count = getSectionsCount();
+	if (!count) {
+		return;
+	}
 
-	auto sectionWidths = countSectionsWidths(newWidth);
+	const auto sectionWidths = countSectionsWidths(newWidth);
 
 	auto skip = 0;
 	auto x = 0.;
@@ -258,11 +265,10 @@ void SettingsSlider::resizeSections(int newWidth) {
 	stopAnimation();
 }
 
-std::vector<float64> SettingsSlider::countSectionsWidths(
-		int newWidth) const {
-	auto count = getSectionsCount();
-	auto sectionsWidth = newWidth - (count - 1) * _st.barSkip;
-	auto sectionWidth = sectionsWidth / float64(count);
+std::vector<float64> SettingsSlider::countSectionsWidths(int newWidth) const {
+	const auto count = getSectionsCount();
+	const auto sectionsWidth = newWidth - (count - 1) * _st.barSkip;
+	const auto sectionWidth = sectionsWidth / float64(count);
 
 	auto result = std::vector<float64>(count, sectionWidth);
 	auto labelsWidth = 0;
@@ -297,7 +303,9 @@ int SettingsSlider::resizeGetHeight(int newWidth) {
 }
 
 void SettingsSlider::startRipple(int sectionIndex) {
-	if (!_st.ripple.showDuration) return;
+	if (!_st.ripple.showDuration) {
+		return;
+	}
 	auto index = 0;
 	enumerateSections([this, &index, sectionIndex](Section &section) {
 		if (index++ == sectionIndex) {
@@ -319,13 +327,13 @@ void SettingsSlider::startRipple(int sectionIndex) {
 QImage SettingsSlider::prepareRippleMask(
 		int sectionIndex,
 		const Section &section) {
-	auto size = QSize(section.width, height() - _st.rippleBottomSkip);
+	const auto size = QSize(section.width, height() - _st.rippleBottomSkip);
 	if (!_rippleTopRoundRadius
 		|| (sectionIndex > 0 && sectionIndex + 1 < getSectionsCount())) {
 		return RippleAnimation::RectMask(size);
 	}
 	return RippleAnimation::MaskByDrawer(size, false, [&](QPainter &p) {
-		auto plusRadius = _rippleTopRoundRadius + 1;
+		const auto plusRadius = _rippleTopRoundRadius + 1;
 		p.drawRoundedRect(
 			0,
 			0,
@@ -347,10 +355,10 @@ QImage SettingsSlider::prepareRippleMask(
 }
 
 void SettingsSlider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
-	auto clip = e->rect();
-	auto range = getCurrentActiveRange();
+	const auto clip = e->rect();
+	const auto range = DiscreteSlider::getCurrentActiveRange();
 
 	const auto drawRect = [&](QRect rect, bool active = false) {
 		const auto &bar = active ? _barActive : _bar;
@@ -366,28 +374,35 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 			: section.width;
 		const auto activeLeft = section.left
 			+ (section.width - activeWidth) / 2;
-		auto active = 1.
+		const auto active = 1.
 			- std::clamp(
-				qAbs(range.left - activeLeft) / float64(range.width),
+				std::abs(range.left - activeLeft) / float64(range.width),
 				0.,
 				1.);
 		if (section.ripple) {
-			auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
+			const auto color = anim::color(
+				_st.rippleBg,
+				_st.rippleBgActive,
+				active);
 			section.ripple->paint(p, section.left, 0, width(), &color);
 			if (section.ripple->empty()) {
 				section.ripple.reset();
 			}
 		}
 		if (!_st.barSnapToLabel) {
-			auto from = activeLeft, tofill = activeWidth;
+			auto from = activeLeft;
+			auto tofill = activeWidth;
 			if (range.left > from) {
-				auto fill = qMin(tofill, range.left - from);
+				const auto fill = std::min(tofill, range.left - from);
 				drawRect(myrtlrect(from, _st.barTop, fill, _st.barStroke));
 				from += fill;
 				tofill -= fill;
 			}
 			if (range.left + activeWidth > from) {
-				if (auto fill = qMin(tofill, range.left + activeWidth - from)) {
+				const auto fill = std::min(
+					tofill,
+					range.left + activeWidth - from);
+				if (fill) {
 					drawRect(
 						myrtlrect(from, _st.barTop, fill, _st.barStroke),
 						true);
@@ -399,15 +414,20 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 				drawRect(myrtlrect(from, _st.barTop, tofill, _st.barStroke));
 			}
 		}
-		const auto labelLeft = section.left + (section.width - section.label.maxWidth()) / 2;
-		if (myrtlrect(labelLeft, _st.labelTop, section.label.maxWidth(), _st.labelStyle.font->height).intersects(clip)) {
+		const auto labelLeft = section.left
+			+ (section.width - section.label.maxWidth()) / 2;
+		const auto rect = myrtlrect(
+			labelLeft,
+			_st.labelTop,
+			section.label.maxWidth(),
+			_st.labelStyle.font->height);
+		if (rect.intersects(clip)) {
 			p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
-			section.label.drawLeft(
-				p,
-				labelLeft,
-				_st.labelTop,
-				section.label.maxWidth(),
-				width());
+			section.label.draw(p, {
+				.position = QPoint(labelLeft, _st.labelTop),
+				.outerWidth = width(),
+				.availableWidth = section.label.maxWidth(),
+			});
 		}
 		return true;
 	});
@@ -416,7 +436,9 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 		const auto from = std::max(range.left - add, 0);
 		const auto till = std::min(range.left + range.width + add, width());
 		if (from < till) {
-			drawRect(myrtlrect(from, _st.barTop, till - from, _st.barStroke), true);
+			drawRect(
+				myrtlrect(from, _st.barTop, till - from, _st.barStroke),
+				true);
 		}
 	}
 }
