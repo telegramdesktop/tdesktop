@@ -421,6 +421,8 @@ PRIVATE
     ui/widgets/fields/time_part_input_with_placeholder.cpp
     ui/widgets/fields/time_part_input_with_placeholder.h
 
+    ui/widgets/chat_filters_tabs_slider.cpp
+    ui/widgets/chat_filters_tabs_slider.h
     ui/widgets/color_editor.cpp
     ui/widgets/color_editor.h
     ui/widgets/continuous_sliders.cpp
