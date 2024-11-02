@@ -7,19 +7,118 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/chat_filters_tabs_strip.h"
 
+#include "api/api_chat_filters_remove_manager.h"
+#include "boxes/filters/edit_filter_box.h"
+#include "core/application.h"
 #include "data/data_chat_filters.h"
 #include "data/data_session.h"
 #include "data/data_unread_value.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_folders.h"
 #include "ui/widgets/chat_filters_tabs_slider.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
+#include "window/window_controller.h"
+#include "window/window_peer_menu.h"
+#include "window/window_session_controller.h"
 #include "styles/style_dialogs.h" // dialogsSearchTabs
+#include "styles/style_menu_icons.h"
 
 #include <QScrollBar>
 
 namespace Ui {
+namespace {
+
+struct State final {
+	Ui::Animations::Simple animation;
+	std::optional<FilterId> lastFilterId = std::nullopt;
+	rpl::lifetime unreadLifetime;
+	base::unique_qptr<Ui::PopupMenu> menu;
+
+	Api::RemoveComplexChatFilter removeApi;
+	bool waitingSuggested = false;
+};
+
+void ShowMenu(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<State*> state,
+		int index) {
+	const auto session = &controller->session();
+
+	auto id = FilterId(0);
+	{
+		const auto &list = session->data().chatsFilters().list();
+		if (index < 0 || index >= list.size()) {
+			return;
+		}
+		id = list[index].id();
+	}
+	state->menu = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(
+		state->menu.get());
+
+	if (id) {
+		addAction(
+			tr::lng_filters_context_edit(tr::now),
+			[=] { EditExistingFilter(controller, id); },
+			&st::menuIconEdit);
+
+		Window::MenuAddMarkAsReadChatListAction(
+			controller,
+			[=] { return session->data().chatsFilters().chatsList(id); },
+			addAction);
+
+		auto showRemoveBox = [=] {
+			state->removeApi.request(Ui::MakeWeak(parent), controller, id);
+		};
+		addAction(
+			tr::lng_filters_context_remove(tr::now),
+			std::move(showRemoveBox),
+			&st::menuIconDelete);
+	} else {
+		auto customUnreadState = [=] {
+			return Data::MainListMapUnreadState(
+				session,
+				session->data().chatsList()->unreadState());
+		};
+		Window::MenuAddMarkAsReadChatListAction(
+			controller,
+			[=] { return session->data().chatsList(); },
+			addAction,
+			std::move(customUnreadState));
+
+		auto openFiltersSettings = [=] {
+			const auto filters = &session->data().chatsFilters();
+			if (filters->suggestedLoaded()) {
+				controller->showSettings(Settings::Folders::Id());
+			} else if (!state->waitingSuggested) {
+				state->waitingSuggested = true;
+				filters->requestSuggested();
+				filters->suggestedUpdated(
+				) | rpl::take(1) | rpl::start_with_next([=] {
+					controller->showSettings(Settings::Folders::Id());
+				}, parent->lifetime());
+			}
+		};
+		addAction(
+			tr::lng_filters_setup_menu(tr::now),
+			std::move(openFiltersSettings),
+			&st::menuIconEdit);
+	}
+	if (state->menu->empty()) {
+		state->menu = nullptr;
+		return;
+	}
+	state->menu->popup(QCursor::pos());
+}
+
+} // namespace
 
 not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		not_null<Ui::RpWidget*> parent,
@@ -27,16 +126,16 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		rpl::producer<int> multiSelectHeightValue,
 		Fn<void(int)> setAddedTopScrollSkip,
 		Fn<void(FilterId)> choose) {
-	struct State final {
-		Ui::Animations::Simple animation;
-		std::optional<FilterId> lastFilterId = std::nullopt;
-		rpl::lifetime unreadLifetime;
-	};
+	const auto window = Core::App().findWindow(parent);
+	const auto controller = window ? window->sessionController() : nullptr;
 
 	const auto &scrollSt = st::defaultScrollArea;
 	const auto wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		parent,
 		object_ptr<Ui::RpWidget>(parent));
+	if (!controller) {
+		return wrap;
+	}
 	const auto container = wrap->entity();
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(container, scrollSt);
 	const auto sliderPadding = st::dialogsSearchTabsPadding;
@@ -154,6 +253,9 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			scrollToIndex(index, anim::type::normal);
 			applyFilter(filter);
 		}, wrap->lifetime());
+		slider->contextMenuRequested() | rpl::start_with_next([=](int index) {
+			ShowMenu(wrap, controller, state, index);
+		}, slider->lifetime());
 		wrap->toggle((list.size() > 1), anim::type::instant);
 	};
 	session->data().chatsFilters().changed(
