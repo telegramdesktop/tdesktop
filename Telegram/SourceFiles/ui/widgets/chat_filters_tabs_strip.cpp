@@ -9,10 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_filters_remove_manager.h"
 #include "boxes/filters/edit_filter_box.h"
+#include "boxes/premium_limits_box.h"
 #include "core/application.h"
 #include "data/data_chat_filters.h"
+#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_unread_value.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_folders.h"
@@ -205,6 +208,18 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		}) | ranges::to_vector;
 		slider->setSections(std::move(sections));
 		slider->fitWidthToSections();
+		{
+			const auto reorderAll = session->user()->isPremium();
+			const auto maxLimit = (reorderAll ? 1 : 0)
+				+ Data::PremiumLimits(session).dialogFiltersCurrent();
+			const auto premiumFrom = (reorderAll ? 0 : 1) + maxLimit;
+			slider->setLockedFrom((premiumFrom >= list.size())
+				? 0
+				: premiumFrom);
+			slider->lockedClicked() | rpl::start_with_next([=] {
+				controller->show(Box(FiltersLimitBox, session, std::nullopt));
+			}, slider->lifetime());
+		}
 		{
 			auto includeMuted = Data::IncludeMutedCounterFoldersValue();
 			state->unreadLifetime.destroy();

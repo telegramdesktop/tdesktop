@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/chat_filters_tabs_slider.h"
 
 #include "ui/effects/ripple_animation.h"
+#include "ui/widgets/side_bar_button.h"
 #include "styles/style_widgets.h"
 
 #include <QScrollBar>
@@ -57,6 +58,7 @@ int ChatsFiltersTabs::centerOfSection(int section) const {
 void ChatsFiltersTabs::fitWidthToSections() {
 	const auto widths = countSectionsWidths(0);
 	resizeToWidth(ranges::accumulate(widths, .0));
+	_lockedFromX = calculateLockedFromX();
 }
 
 void ChatsFiltersTabs::setUnreadCount(int index, int unreadCount) {
@@ -88,6 +90,37 @@ void ChatsFiltersTabs::setUnreadCount(int index, int unreadCount) {
 	} else {
 		setAdditionalContentWidthToSection(index, 0);
 	}
+}
+
+int ChatsFiltersTabs::calculateLockedFromX() const {
+	if (!_lockedFrom) {
+		return std::numeric_limits<int>::max();
+	}
+	auto left = 0;
+	auto index = 0;
+	enumerateSections([&](const Section &section) {
+		const auto currentRight = section.left + section.width;
+		if (index == _lockedFrom) {
+			return false;
+		}
+		left = currentRight;
+		index++;
+		return true;
+	});
+	return left ? left : std::numeric_limits<int>::max();
+}
+
+void ChatsFiltersTabs::setLockedFrom(int index) {
+	_lockedFrom = index;
+	_lockedFromX = calculateLockedFromX();
+	if (!index) {
+		_paletteLifetime.destroy();
+		return;
+	}
+	_paletteLifetime = style::PaletteChanged(
+	) | rpl::start_with_next([this] {
+		_lockCache.emplace(Ui::SideBarLockIcon(_st.labelFg));
+	});
 }
 
 QImage ChatsFiltersTabs::cacheUnreadCount(int count) const {
@@ -144,6 +177,11 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 			section.contentWidth,
 			_st.labelStyle.font->height);
 		if (rect.intersects(clip)) {
+			const auto locked = (_lockedFrom && (index >= _lockedFrom));
+			if (locked) {
+				constexpr auto kPremiumLockedOpacity = 0.6;
+				p.setOpacity(kPremiumLockedOpacity);
+			}
 			p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
 			section.label.draw(p, {
 				.position = QPoint(labelLeft, _st.labelTop),
@@ -160,6 +198,18 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 						_st.labelTop,
 						it->second.cache);
 				}
+			}
+			if (locked) {
+				if (!_lockCache) {
+					_lockCache.emplace(Ui::SideBarLockIcon(_st.labelFg));
+				}
+				const auto size = _lockCache->size()
+					/ style::DevicePixelRatio();
+				p.drawImage(
+					labelLeft + (section.label.maxWidth() - size.width()) / 2,
+					height() - size.height() - st::lineWidth,
+					*_lockCache);
+				p.setOpacity(1.0);
 			}
 		}
 		index++;
@@ -188,14 +238,36 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 void ChatsFiltersTabs::mousePressEvent(QMouseEvent *e) {
 	const auto mouseButton = e->button();
 	if (mouseButton == Qt::MouseButton::LeftButton) {
-		Ui::SettingsSlider::mousePressEvent(e);
+		_lockedPressed = (e->pos().x() >= _lockedFromX);
+		if (_lockedPressed) {
+			Ui::RpWidget::mousePressEvent(e);
+		} else {
+			Ui::SettingsSlider::mousePressEvent(e);
+		}
 	} else {
 		Ui::RpWidget::mousePressEvent(e);
 	}
 }
 
+void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
+	const auto mouseButton = e->button();
+	if (mouseButton == Qt::MouseButton::LeftButton) {
+		if (base::take(_lockedPressed)) {
+			_lockedPressed = false;
+			_lockedClicked.fire({});
+		} else {
+			Ui::SettingsSlider::mouseReleaseEvent(e);
+		}
+	} else {
+		Ui::RpWidget::mouseReleaseEvent(e);
+	}
+}
+
 void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
 	const auto pos = e->pos();
+	if (pos.x() >= _lockedFromX) {
+		return;
+	}
 	auto left = 0;
 	auto index = 0;
 	enumerateSections([&](const Section &section) {
@@ -212,6 +284,10 @@ void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
 
 rpl::producer<int> ChatsFiltersTabs::contextMenuRequested() const {
 	return _contextMenuRequested.events();
+}
+
+rpl::producer<> ChatsFiltersTabs::lockedClicked() const {
+	return _lockedClicked.events();
 }
 
 } // namespace Ui

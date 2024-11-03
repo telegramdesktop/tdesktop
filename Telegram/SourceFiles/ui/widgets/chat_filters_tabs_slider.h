@@ -28,16 +28,20 @@ public:
 	[[nodiscard]] int centerOfSection(int section) const;
 	void fitWidthToSections();
 	void setUnreadCount(int index, int unreadCount);
+	void setLockedFrom(int index);
 
 	[[nodiscard]] rpl::producer<int> contextMenuRequested() const;
+	[[nodiscard]] rpl::producer<> lockedClicked() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	[[nodiscard]] QImage cacheUnreadCount(int count) const;
+	[[nodiscard]] int calculateLockedFromX() const;
 
 	using Index = int;
 	struct Unread final {
@@ -51,10 +55,16 @@ private:
 	const int _unreadSkip;
 	std::vector<int> _cachedBadgeWidths;
 	int _cachedBadgeHeight = 0;
+	int _lockedFrom = 0;
+	int _lockedFromX = 0;
+	bool _lockedPressed = false;
 	std::optional<Ui::RoundRect> _bar;
 	std::optional<Ui::RoundRect> _barActive;
+	std::optional<QImage> _lockCache;
 
+	rpl::lifetime _paletteLifetime;
 	rpl::event_stream<int> _contextMenuRequested;
+	rpl::event_stream<> _lockedClicked;
 
 };
 
