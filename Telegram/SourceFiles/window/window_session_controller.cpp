@@ -1314,7 +1314,14 @@ SessionController::SessionController(
 		closeFolder();
 	}, lifetime());
 
-	session->data().chatsFilters().changed(
+	rpl::merge(
+		session->data().chatsFilters().changed() | rpl::filter([=] {
+			return session->data().chatsFilters().loaded();
+		}) | rpl::map([] {
+			return Core::App().settings().chatFiltersHorizontalValue(
+			) | rpl::to_empty;
+		}) | rpl::flatten_latest(),
+		session->data().chatsFilters().changed()
 	) | rpl::start_with_next([=] {
 		checkOpenedFilter();
 		crl::on_main(this, [=] {
@@ -1550,7 +1557,8 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 }
 
 void SessionController::refreshFiltersMenu() {
-	toggleFiltersMenu(session().data().chatsFilters().has());
+	toggleFiltersMenu(session().data().chatsFilters().has()
+		&& !Core::App().settings().chatFiltersHorizontal());
 }
 
 rpl::producer<> SessionController::filtersMenuChanged() const {
