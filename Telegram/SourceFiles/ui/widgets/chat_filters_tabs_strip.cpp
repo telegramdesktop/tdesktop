@@ -130,7 +130,8 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		rpl::producer<int> multiSelectHeightValue,
 		Fn<void(int)> setAddedTopScrollSkip,
 		Fn<void(FilterId)> choose,
-		rpl::producer<bool> additionalToggleOn) {
+		rpl::producer<bool> additionalToggleOn,
+		bool trackActiveChatsFilter) {
 	const auto window = Core::App().findWindow(parent);
 	const auto controller = window ? window->sessionController() : nullptr;
 
@@ -265,7 +266,21 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				applyFilter(filter);
 			}
 		}();
-		slider->sectionActivated() | rpl::start_with_next([=](int index) {
+		if (trackActiveChatsFilter) {
+			controller->activeChatsFilter(
+			) | rpl::start_with_next([=](FilterId id) {
+				const auto &list = session->data().chatsFilters().list();
+				for (auto i = 0; i < list.size(); ++i) {
+					if (list[i].id() == id) {
+						slider->setActiveSection(i);
+						scrollToIndex(i, anim::type::normal);
+						break;
+					}
+				}
+			}, slider->lifetime());
+		}
+		slider->sectionActivated() | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](int index) {
 			const auto &filter = filterByIndex(index);
 			state->lastFilterId = filter.id();
 			scrollToIndex(index, anim::type::normal);

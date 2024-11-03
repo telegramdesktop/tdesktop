@@ -667,7 +667,8 @@ Widget::Widget(
 				rpl::single(0),
 				[=](int h) { updateControlsGeometry(); },
 				[=](FilterId id) { controller->setActiveChatsFilter(id); },
-				Core::App().settings().chatFiltersHorizontalValue());
+				Core::App().settings().chatFiltersHorizontalValue(),
+				true);
 			_chatFilters->stackUnder(_scroll);
 			_chatFilters->resizeToWidth(width());
 			updateControlsGeometry();
