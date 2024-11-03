@@ -390,6 +390,8 @@ private:
 
 	QPixmap _widthAnimationCache;
 
+	Ui::RpWidget *_chatFilters = nullptr;
+
 	int _topDelta = 0;
 
 	std::unique_ptr<Widget> _childList;

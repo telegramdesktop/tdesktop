@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_key.h"
-#include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_top_bar_widget.h"
@@ -26,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/chat_filters_tabs_strip.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/fade_wrap.h"
@@ -46,14 +46,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "api/api_chat_filters.h"
 #include "apiwrap.h"
-#include "base/event_filter.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
-#include "boxes/peer_list_box.h"
-#include "boxes/peers/edit_participants_box.h"
-#include "window/window_adaptive.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
@@ -655,6 +651,41 @@ Widget::Widget(
 		setupMoreChatsBar();
 		setupDownloadBar();
 	}
+
+	session().data().chatsFilters().changed(
+	) | rpl::start_with_next([=] {
+		if (!session().data().chatsFilters().loaded()) {
+			return;
+		}
+		if (session().data().chatsFilters().has()) {
+			if (_chatFilters) {
+				return;
+			}
+			_chatFilters = Ui::AddChatFiltersTabsStrip(
+				this,
+				&session(),
+				rpl::single(0),
+				[=](int h) { updateControlsGeometry(); },
+				[=](FilterId id) { controller->setActiveChatsFilter(id); },
+				Core::App().settings().chatFiltersHorizontalValue());
+			_chatFilters->stackUnder(_scroll);
+			_chatFilters->resizeToWidth(width());
+			updateControlsGeometry();
+			const auto shadow = Ui::CreateChild<Ui::PlainShadow>(
+				_chatFilters);
+			shadow->show();
+			_chatFilters->sizeValue(
+			) | rpl::start_with_next([=](const QSize &size) {
+				shadow->setGeometry(
+					0,
+					size.height() - shadow->height(),
+					size.width(),
+					shadow->height());
+			}, lifetime());
+		} else {
+			_chatFilters = nullptr;
+		}
+	}, lifetime());
 }
 
 void Widget::chosenRow(const ChosenRow &row) {
@@ -1226,6 +1257,9 @@ void Widget::updateControlsVisibility(bool fast) {
 	_searchControls->setVisible(!_openedFolder && !_openedForum);
 	if (_moreChatsBar) {
 		_moreChatsBar->show();
+	}
+	if (_chatFilters) {
+		_chatFilters->show();
 	}
 	if (_openedFolder || _openedForum) {
 		_subsectionTopBar->show();
@@ -1845,6 +1879,12 @@ void Widget::scrollToDefault(bool verytop) {
 			this,
 			QPoint(),
 			QRect(0, top, wideGeometry.width(), skip));
+		if (_chatFilters) {
+			Ui::RenderWidget(
+				p,
+				_chatFilters,
+				QPoint(0, skip - _chatFilters->height()));
+		}
 		Ui::RenderWidget(p, _scroll, QPoint(0, skip));
 	}
 	if (scrollGeometry != wideGeometry) {
@@ -1860,6 +1900,9 @@ void Widget::startWidthAnimation() {
 	}
 	_widthAnimationCache = grabNonNarrowScrollFrame();
 	_scroll->hide();
+	if (_chatFilters) {
+		_chatFilters->hide();
+	}
 	updateStoriesVisibility();
 }
 
@@ -1867,6 +1910,9 @@ void Widget::stopWidthAnimation() {
 	_widthAnimationCache = QPixmap();
 	if (!_showAnimation) {
 		_scroll->setVisible(!_suggestions);
+		if (_chatFilters) {
+			_chatFilters->setVisible(!_suggestions);
+		}
 	}
 	updateStoriesVisibility();
 	update();
@@ -1960,6 +2006,9 @@ void Widget::startSlideAnimation(
 	}
 	if (_moreChatsBar) {
 		_moreChatsBar->hide();
+	}
+	if (_chatFilters) {
+		_chatFilters->hide();
 	}
 	if (_forumTopShadow) {
 		_forumTopShadow->hide();
@@ -3507,6 +3556,9 @@ void Widget::updateControlsGeometry() {
 	if (_forumRequestsBar) {
 		_forumRequestsBar->resizeToWidth(barw);
 	}
+	if (_chatFilters) {
+		_chatFilters->resizeToWidth(barw);
+	}
 	_updateScrollGeometryCached = [=] {
 		const auto moreChatsBarTop = expandedStoriesTop
 			+ ((!_stories || _stories->isHidden()) ? 0 : _aboveScrollAdded);
@@ -3528,8 +3580,15 @@ void Widget::updateControlsGeometry() {
 		if (_forumReportBar) {
 			_forumReportBar->bar().move(0, forumReportTop);
 		}
-		const auto scrollTop = forumReportTop
+		const auto chatFiltersTop = forumReportTop
 			+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
+		if (_chatFilters) {
+			_chatFilters->move(0, chatFiltersTop);
+		}
+		const auto scrollTop = chatFiltersTop
+			+ (_chatFilters
+				? (_chatFilters->height() * (1. - narrowRatio))
+				: 0);
 		const auto scrollHeight = height() - scrollTop - bottomSkip;
 		const auto wasScrollHeight = _scroll->height();
 		_scroll->setGeometry(0, scrollTop, scrollWidth, scrollHeight);
