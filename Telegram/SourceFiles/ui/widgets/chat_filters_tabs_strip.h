@@ -22,6 +22,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	not_null<Main::Session*> session,
 	rpl::producer<int> multiSelectHeightValue,
 	Fn<void(int)> setAddedTopScrollSkip,
-	Fn<void(FilterId)> choose);
+	Fn<void(FilterId)> choose,
+	rpl::producer<bool> additionalToggleOn = rpl::single(true));
 
 } // namespace Ui
