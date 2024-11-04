@@ -126,8 +126,6 @@ void ShowMenu(
 not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Main::Session*> session,
-		rpl::producer<int> multiSelectHeightValue,
-		Fn<void(int)> setAddedTopScrollSkip,
 		Fn<void(FilterId)> choose,
 		bool trackActiveChatsFilter) {
 	const auto window = Core::App().findWindow(parent);
@@ -150,15 +148,6 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			QMargins(sliderPadding, 0, sliderPadding, 0)))->entity();
 	const auto state = wrap->lifetime().make_state<State>();
 	wrap->toggle(false, anim::type::instant);
-	container->sizeValue() | rpl::start_with_next([=](const QSize &s) {
-		scroll->resize(s + QSize(0, scrollSt.deltax * 4));
-	}, scroll->lifetime());
-	rpl::combine(
-		parent->widthValue(),
-		slider->heightValue()
-	) | rpl::start_with_next([=](int w, int h) {
-		container->resize(w, h);
-	}, wrap->lifetime());
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();
@@ -305,19 +294,14 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		}
 	}, wrap->lifetime());
 
-	{
-		std::move(
-			multiSelectHeightValue
-		) | rpl::start_with_next([=](int height) {
-			wrap->moveToLeft(0, height);
-		}, wrap->lifetime());
-		wrap->heightValue() | rpl::start_with_next([=](int height) {
-			setAddedTopScrollSkip(height);
-		}, wrap->lifetime());
-		parent->widthValue() | rpl::start_with_next([=](int w) {
-			wrap->resizeToWidth(w);
-		}, wrap->lifetime());
-	}
+	rpl::combine(
+		parent->widthValue() | rpl::filter(rpl::mappers::_1 > 0),
+		slider->heightValue() | rpl::filter(rpl::mappers::_1 > 0)
+	) | rpl::start_with_next([=](int w, int h) {
+		scroll->resize(w, h + scrollSt.deltax * 4);
+		container->resize(w, h);
+		wrap->resize(w, h);
+	}, wrap->lifetime());
 
 	return wrap;
 }

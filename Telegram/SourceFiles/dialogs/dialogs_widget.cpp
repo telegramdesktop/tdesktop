@@ -1309,8 +1309,6 @@ void Widget::toggleFiltersMenu(bool enabled) {
 		const auto inner = Ui::AddChatFiltersTabsStrip(
 			_chatFilters.get(),
 			&session(),
-			rpl::single(0),
-			[this](int h) { updateControlsGeometry(); },
 			[this](FilterId id) {
 				if (controller()->activeChatsFilterCurrent() != id) {
 					controller()->setActiveChatsFilter(id);
@@ -1322,13 +1320,14 @@ void Widget::toggleFiltersMenu(bool enabled) {
 		raw->resizeToWidth(width());
 		const auto shadow = Ui::CreateChild<Ui::PlainShadow>(raw);
 		shadow->show();
-		inner->sizeValue() | rpl::start_with_next([=](const QSize &s) {
+		inner->sizeValue() | rpl::start_with_next([=, this](const QSize &s) {
 			raw->resize(s);
 			shadow->setGeometry(
 				0,
 				s.height() - shadow->height(),
 				s.width(),
 				shadow->height());
+			updateControlsGeometry();
 		}, _chatFilters->lifetime());
 		updateControlsGeometry();
 	} else {

@@ -2110,12 +2110,16 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 				});
 				box->peerListRefreshRows();
 			};
-			Ui::AddChatFiltersTabsStrip(
+			const auto chatsFilters = Ui::AddChatFiltersTabsStrip(
 				box,
 				session,
-				box->multiSelectHeightValue(),
-				[=](int height) { box->setAddedTopScrollSkip(height); },
 				std::move(applyFilter));
+			chatsFilters->heightValue() | rpl::start_with_next([box](int h) {
+				box->setAddedTopScrollSkip(h);
+			}, box->lifetime());
+			box->multiSelectHeightValue() | rpl::start_with_next([=](int h) {
+				chatsFilters->moveToLeft(0, h);
+			}, chatsFilters->lifetime());
 		};
 		auto box = Box<ListBox>(std::move(controller), std::move(init));
 		const auto boxRaw = box.data();

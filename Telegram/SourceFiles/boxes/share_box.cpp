@@ -344,19 +344,23 @@ void ShareBox::prepare() {
 
 	_select->raise();
 
-	AddChatFiltersTabsStrip(
-		this,
-		_descriptor.session,
-		_select->heightValue(),
-		[this](int height) {
-			_additionalTopScrollSkip = height;
+	{
+		const auto chatsFilters = AddChatFiltersTabsStrip(
+			this,
+			_descriptor.session,
+			[this](FilterId id) {
+				_inner->applyChatFilter(id);
+				scrollToY(0);
+			});
+		chatsFilters->heightValue() | rpl::start_with_next([this](int h) {
+			_additionalTopScrollSkip = h;
 			updateScrollSkips();
 			scrollToY(0);
-		},
-		[this](FilterId id) {
-			_inner->applyChatFilter(id);
-			scrollToY(0);
-		});
+		}, lifetime());
+		_select->heightValue() | rpl::start_with_next([=](int h) {
+			chatsFilters->moveToLeft(0, h);
+		}, chatsFilters->lifetime());
+	}
 }
 
 int ShareBox::getTopScrollSkip() const {
