@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_text.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
+#include "history/view/reactions/history_view_reactions.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "history/view/history_view_context_menu.h"
@@ -2788,10 +2789,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: _overElement
 		? _overElement->data().get()
 		: nullptr;
-	const auto clickedReaction = link
-		? link->property(
-			kReactionsCountEmojiProperty).value<Data::ReactionId>()
-		: Data::ReactionId();
+	const auto clickedReaction = Reactions::ReactionIdOfLink(link);
 	_whoReactedMenuLifetime.destroy();
 	if (!clickedReaction.empty()
 		&& overItem

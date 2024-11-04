@@ -22,6 +22,7 @@ constexpr auto kTagReplacementSize = 4;
 struct ShortenedCount {
 	int64 number = 0;
 	QString string;
+	bool shortened = false;
 };
 [[nodiscard]] ShortenedCount FormatCountToShort(int64 number);
 [[nodiscard]] QString FormatCountDecimal(int64 number);

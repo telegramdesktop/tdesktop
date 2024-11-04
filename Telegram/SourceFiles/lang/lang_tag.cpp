@@ -929,6 +929,7 @@ ShortenedCount FormatCountToShort(int64 number) {
 		// Update given number.
 		// E.g. 12345 will be 12000.
 		result.number = rounded * divider;
+		result.shortened = true;
 	};
 	if (abs >= 1'000'000) {
 		shorten(1'000'000, 'M');

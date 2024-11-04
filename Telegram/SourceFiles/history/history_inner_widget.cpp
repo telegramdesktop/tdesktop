@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/moderate_messages_box.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
+#include "history/view/reactions/history_view_reactions.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "history/view/history_view_about_view.h"
@@ -2197,10 +2198,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	const auto leaderOrSelf = groupLeaderOrSelf(_dragStateItem);
 	const auto hasWhoReactedItem = leaderOrSelf
 		&& Api::WhoReactedExists(leaderOrSelf, Api::WhoReactedList::All);
-	const auto clickedReaction = link
-		? link->property(
-			kReactionsCountEmojiProperty).value<Data::ReactionId>()
-		: Data::ReactionId();
+	using namespace HistoryView::Reactions;
+	const auto clickedReaction = ReactionIdOfLink(link);
 	_whoReactedMenuLifetime.destroy();
 	if (!clickedReaction.empty()
 		&& leaderOrSelf
@@ -4655,6 +4654,11 @@ QString HistoryInner::tooltipText() const {
 			}
 		}
 	} else if (const auto lnk = ClickHandler::getActive()) {
+		using namespace HistoryView::Reactions;
+		const auto count = ReactionCountOfLink(_dragStateItem, lnk);
+		if (count.count && count.shortened) {
+			return Lang::FormatCountDecimal(count.count);
+		}
 		return lnk->tooltip();
 	} else if (const auto view = Element::Moused()) {
 		StateRequest request;

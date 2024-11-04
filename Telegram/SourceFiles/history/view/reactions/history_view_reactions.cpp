@@ -844,4 +844,30 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	return result;
 }
 
-} // namespace HistoryView
+ReactionId ReactionIdOfLink(const ClickHandlerPtr &link) {
+	return link
+		? link->property(kReactionsCountEmojiProperty).value<ReactionId>()
+		: ReactionId();
+}
+
+ReactionCount ReactionCountOfLink(
+		HistoryItem *item,
+		const ClickHandlerPtr &link) {
+	const auto id = ReactionIdOfLink(link);
+	if (!item || !id) {
+		return {};
+	}
+	const auto groups = &item->history()->owner().groups();
+	if (const auto group = groups->find(item)) {
+		item = group->items.front();
+	}
+	const auto &list = item->reactions();
+	const auto i = ranges::find(list, id, &Data::MessageReaction::id);
+	if (i == end(list) || !i->count) {
+		return {};
+	}
+	const auto formatted = Lang::FormatCountToShort(i->count);
+	return { .count = i->count, .shortened = formatted.shortened };
+}
+
+} // namespace HistoryView::Reactions
