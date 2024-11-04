@@ -776,6 +776,10 @@ void PeerShortInfoBox::prepareRows() {
 		return result;
 	};
 	addInfoOneLine(
+		tr::lng_settings_channel_label(),
+		channelValue(),
+		tr::lng_context_copy_link(tr::now));
+	addInfoOneLine(
 		tr::lng_info_link_label(),
 		linkValue(),
 		tr::lng_context_copy_link(tr::now));
@@ -833,6 +837,13 @@ rpl::producer<QString> PeerShortInfoBox::nameValue() const {
 	return _fields.value(
 	) | rpl::map([](const PeerShortInfoFields &fields) {
 		return fields.name;
+	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<TextWithEntities> PeerShortInfoBox::channelValue() const {
+	return _fields.value(
+	) | rpl::map([](const PeerShortInfoFields &fields) {
+		return Ui::Text::Link(fields.channelName, fields.channelLink);
 	}) | rpl::distinct_until_changed();
 }
 
