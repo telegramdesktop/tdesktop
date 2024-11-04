@@ -1449,9 +1449,9 @@ void Filler::fillHistoryActions() {
 	addInfo();
     addEncryptButton();
 	addViewAsTopics();
+	addManageChat();
 	addStoryArchive();
 	addSupportInfo();
-	addManageChat();
 	addBoostChat();
 	addCreatePoll();
 	addThemeEdit();
