@@ -1175,14 +1175,17 @@ void SessionNavigation::showPollResults(
 	showSection(std::make_shared<Info::Memento>(poll, contextId), params);
 }
 
-void SessionNavigation::searchInChat(Dialogs::Key inChat) {
-	searchMessages(QString(), inChat);
+void SessionNavigation::searchInChat(
+		Dialogs::Key inChat,
+		PeerData *searchFrom) {
+	searchMessages(QString(), inChat, searchFrom);
 }
 
 void SessionNavigation::searchMessages(
 		const QString &query,
-		Dialogs::Key inChat) {
-	parentController()->content()->searchMessages(query, inChat);
+		Dialogs::Key inChat,
+		PeerData *searchFrom) {
+	parentController()->content()->searchMessages(query, inChat, searchFrom);
 }
 
 auto SessionNavigation::showToast(Ui::Toast::Config &&config)

@@ -2204,6 +2204,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	const auto linkPhoneNumber = link
 		? link->property(kPhoneNumberLinkProperty).toString()
 		: QString();
+	const auto linkUserpicPeerId = (link && _dragStateUserpic)
+		? link->property(kPeerLinkPeerIdProperty).toULongLong()
+		: 0;
 	const auto session = &this->session();
 	_whoReactedMenuLifetime.destroy();
 	if (!clickedReaction.empty()
@@ -2227,6 +2230,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	if (linkUserpicPeerId) {
+		_widget->fillSenderUserpicMenu(
+			_menu.get(),
+			session->data().peer(PeerId(linkUserpicPeerId)));
+		_menu->popup(e->globalPos());
+		e->accept();
+		return;
+	}
 	const auto controller = _controller;
 	const auto addItemActions = [&](
 			HistoryItem *item,
@@ -3938,6 +3949,7 @@ void HistoryInner::mouseActionUpdate() {
 
 	TextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
+	auto dragStateUserpic = false;
 	auto selectingText = (item == _mouseActionItem)
 		&& (view == Element::Hovered())
 		&& !_selected.empty()
@@ -4033,6 +4045,7 @@ void HistoryInner::mouseActionUpdate() {
 						// stop enumeration if we've found a userpic under the cursor
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
 							dragState = TextState(nullptr, view->fromPhotoLink());
+							dragStateUserpic = true;
 							_dragStateItem = nullptr;
 							lnkhost = view;
 							return false;
@@ -4044,6 +4057,7 @@ void HistoryInner::mouseActionUpdate() {
 		}
 	}
 	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
+	_dragStateUserpic = dragStateUserpic;
 	if (lnkChanged || dragState.cursor != _mouseCursorState) {
 		Ui::Tooltip::Hide();
 	}
