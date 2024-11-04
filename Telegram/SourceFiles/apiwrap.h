@@ -164,7 +164,8 @@ public:
 	void requestMessageData(PeerData *peer, MsgId msgId, Fn<void()> done);
 	QString exportDirectMessageLink(
 		not_null<HistoryItem*> item,
-		bool inRepliesContext);
+		bool inRepliesContext,
+		bool forceNonPublicLink = false);
 	QString exportDirectStoryLink(not_null<Data::Story*> item);
 
 	void requestContacts();
