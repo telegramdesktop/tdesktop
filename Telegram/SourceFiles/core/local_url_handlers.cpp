@@ -175,6 +175,34 @@ auto PersonalChannelController::chosen() const
 	return _chosen.events();
 }
 
+Window::SessionController *ApplyAccountIndex(
+		not_null<Window::SessionController*> controller,
+		int accountIndex) {
+	if (accountIndex <= 0) {
+		return nullptr;
+	}
+	const auto list = Core::App().domain().orderedAccounts();
+	if (accountIndex > int(list.size())) {
+		return nullptr;
+	}
+	const auto account = list[accountIndex - 1];
+	if (account == &controller->session().account()) {
+		return controller;
+	} else if (const auto window = Core::App().windowFor({ account })) {
+		if (&window->account() != account) {
+			Core::App().domain().maybeActivate(account);
+			if (&window->account() != account) {
+				return nullptr;
+			}
+		}
+		const auto session = window->sessionController();
+		if (session) {
+			return session;
+		}
+	}
+	return nullptr;
+}
+
 void SavePersonalChannel(
 		not_null<Window::SessionController*> window,
 		ChannelData *channel) {
@@ -471,6 +499,20 @@ bool ResolveUsernameOrPhone(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
+
+	if (params.contains(u"acc"_q)) {
+		const auto switched = ApplyAccountIndex(
+			controller,
+			params.value(u"acc"_q).toInt());
+		if (switched) {
+			controller = switched;
+		} else {
+			controller->showToast(u"Could not activate account %1."_q.arg(
+				params.value(u"acc"_q)));
+			return false;
+		}
+	}
+
 	const auto domainParam = params.value(u"domain"_q);
 	const auto appnameParam = params.value(u"appname"_q);
 	const auto myContext = context.value<ClickHandlerContext>();
