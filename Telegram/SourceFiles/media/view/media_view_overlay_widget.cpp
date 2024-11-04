@@ -1806,7 +1806,10 @@ void OverlayWidget::fillContextMenuActions(
 			}, &st::mediaMenuIconStats);
 		}
 	}
-	if (_stories && _stories->allowStealthMode()) {
+	if (_stories
+		&& _stories->allowStealthMode()
+		&& story
+		&& story->peer()->isUser()) {
 		const auto now = base::unixtime::now();
 		const auto stealth = _session->data().stories().stealthMode();
 		addAction(tr::lng_stealth_mode_menu_item(tr::now), [=] {
