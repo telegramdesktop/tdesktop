@@ -16,6 +16,7 @@ constexpr auto kDocumentLinkMediaProperty = 0x03;
 constexpr auto kSendReactionEmojiProperty = 0x04;
 constexpr auto kReactionsCountEmojiProperty = 0x05;
 constexpr auto kDocumentFilenameTooltipProperty = 0x06;
+constexpr auto kPhoneNumberLinkProperty = 0x07;
 
 namespace Ui {
 class Show;

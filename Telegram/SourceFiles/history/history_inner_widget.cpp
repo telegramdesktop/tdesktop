@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
+#include "core/phone_click_handler.h"
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
@@ -2200,6 +2201,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		&& Api::WhoReactedExists(leaderOrSelf, Api::WhoReactedList::All);
 	using namespace HistoryView::Reactions;
 	const auto clickedReaction = ReactionIdOfLink(link);
+	const auto linkPhoneNumber = link
+		? link->property(kPhoneNumberLinkProperty).toString()
+		: QString();
+	const auto session = &this->session();
 	_whoReactedMenuLifetime.destroy();
 	if (!clickedReaction.empty()
 		&& leaderOrSelf
@@ -2214,9 +2219,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_whoReactedMenuLifetime);
 		e->accept();
 		return;
+	} else if (!linkPhoneNumber.isEmpty()) {
+		PhoneClickHandler(session, linkPhoneNumber).onClick(
+			prepareClickContext(
+				Qt::LeftButton,
+				_dragStateItem ? _dragStateItem->fullId() : FullMsgId()));
+		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
-	const auto session = &this->session();
 	const auto controller = _controller;
 	const auto addItemActions = [&](
 			HistoryItem *item,
