@@ -41,12 +41,12 @@ struct ReportResult final {
 	bool successful = false;
 };
 
-void SendReport(
+void SendPhotoReport(
 	std::shared_ptr<Ui::Show> show,
 	not_null<PeerData*> peer,
 	Ui::ReportReason reason,
 	const QString &comment,
-	std::variant<v::null_t, not_null<PhotoData*>> data);
+	not_null<PhotoData*> photo);
 
 [[nodiscard]] auto CreateReportMessagesOrStoriesCallback(
 	std::shared_ptr<Ui::Show> show,
