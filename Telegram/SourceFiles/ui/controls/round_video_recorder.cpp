@@ -107,9 +107,15 @@ private:
 		std::array<int64, kMaxStreams> lastDts = { 0 };
 	};
 
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+	static int Write(void *opaque, const uint8_t *_buf, int buf_size) {
+		uint8_t *buf = const_cast<uint8_t *>(_buf);
+#else
 	static int Write(void *opaque, uint8_t *buf, int buf_size) {
+#endif
 		return static_cast<Private*>(opaque)->write(buf, buf_size);
 	}
+
 	static int64_t Seek(void *opaque, int64_t offset, int whence) {
 		return static_cast<Private*>(opaque)->seek(offset, whence);
 	}
@@ -388,7 +394,6 @@ bool RoundVideoRecorder::Private::initAudio() {
 	_audioCodec->sample_rate = kAudioFrequency;
 #if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_audioCodec->ch_layout = AV_CHANNEL_LAYOUT_MONO;
-	_audioCodec->channels = _audioCodec->ch_layout.nb_channels;
 #else
 	_audioCodec->channel_layout = AV_CH_LAYOUT_MONO;
 	_audioCodec->channels = _audioChannels;
