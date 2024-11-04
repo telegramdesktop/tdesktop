@@ -148,7 +148,10 @@ public:
 			MsgId messageId) {
 		return false;
 	}
-	virtual bool searchInChatEmbedded(Dialogs::Key chat, QString query) {
+	virtual bool searchInChatEmbedded(
+			QString query,
+			Dialogs::Key chat,
+			PeerData *searchFrom = nullptr) {
 		return false;
 	}
 

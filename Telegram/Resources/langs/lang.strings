@@ -3623,6 +3623,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_make_paid" = "Make This Content Paid";
 "lng_context_change_price" = "Change Price";
 
+"lng_context_mention" = "Mention";
+"lng_context_search_from" = "Search messages";
+
 "lng_factcheck_title" = "Fact Check";
 "lng_factcheck_placeholder" = "Add Facts or Context";
 "lng_factcheck_whats_this" = "what's this?";

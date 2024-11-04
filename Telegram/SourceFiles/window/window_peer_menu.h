@@ -34,6 +34,7 @@ namespace Dialogs {
 class MainList;
 struct EntryState;
 struct UnreadState;
+class Key;
 } // namespace Dialogs
 
 namespace ChatHelpers {
@@ -62,6 +63,13 @@ void FillDialogsEntryMenu(
 bool FillVideoChatMenu(
 	not_null<SessionController*> controller,
 	Dialogs::EntryState request,
+	const PeerMenuCallback &addAction);
+
+void FillSenderUserpicMenu(
+	not_null<SessionController*> controller,
+	not_null<PeerData*> peer,
+	Ui::InputField *fieldForMention,
+	Dialogs::Key searchInEntry,
 	const PeerMenuCallback &addAction);
 
 void MenuAddMarkAsReadAllChatsAction(

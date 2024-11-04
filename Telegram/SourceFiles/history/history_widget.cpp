@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/choose_theme_controller.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/dropdown_menu.h"
@@ -5413,7 +5414,10 @@ bool HistoryWidget::updateCmdStartShown() {
 	return commandsChanged || buttonChanged || textChanged;
 }
 
-bool HistoryWidget::searchInChatEmbedded(Dialogs::Key chat, QString query) {
+bool HistoryWidget::searchInChatEmbedded(
+		QString query,
+		Dialogs::Key chat,
+		PeerData *searchFrom) {
 	const auto peer = chat.peer(); // windows todo
 	if (!peer || Window::SeparateId(peer) != controller()->windowId()) {
 		return false;
@@ -8402,6 +8406,18 @@ void HistoryWidget::editMessage(
 	saveDraft();
 
 	setInnerFocus();
+}
+
+void HistoryWidget::fillSenderUserpicMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<PeerData*> peer) {
+	const auto inGroup = _peer && (_peer->isChat() || _peer->isMegagroup());
+	Window::FillSenderUserpicMenu(
+		controller(),
+		peer,
+		(inGroup && _canSendTexts) ? _field.data() : nullptr,
+		inGroup ? _peer->owner().history(_peer) : Dialogs::Key(),
+		Ui::Menu::CreateAddActionCallback(menu));
 }
 
 void HistoryWidget::hidePinnedMessage() {
