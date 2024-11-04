@@ -27,13 +27,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-[[nodiscard]] object_ptr<Ui::BoxContent> Report(
+[[nodiscard]] object_ptr<Ui::BoxContent> ReportPhoto(
 		not_null<PeerData*> peer,
-		std::variant<v::null_t, not_null<PhotoData*>> data,
+		not_null<PhotoData*> photo,
 		const style::ReportBox *stOverride) {
-	const auto source = v::match(data, [](const MessageIdsList &ids) {
-		return Ui::ReportSource::Message;
-	}, [&](not_null<PhotoData*> photo) {
+	const auto source = [&] {
 		return peer->isUser()
 			? (photo->hasVideo()
 				? Ui::ReportSource::ProfileVideo
@@ -45,19 +43,14 @@ namespace {
 			: (photo->hasVideo()
 				? Ui::ReportSource::ChannelVideo
 				: Ui::ReportSource::ChannelPhoto);
-	}, [&](StoryId id) {
-		return Ui::ReportSource::Story;
-	}, [](v::null_t) {
-		Unexpected("Bad source report.");
-		return Ui::ReportSource::Bot;
-	});
+	}();
 	const auto st = stOverride ? stOverride : &st::defaultReportBox;
 	return Box([=](not_null<Ui::GenericBox*> box) {
 		const auto show = box->uiShow();
 		Ui::ReportReasonBox(box, *st, source, [=](Ui::ReportReason reason) {
 			show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				Ui::ReportDetailsBox(box, *st, [=](const QString &text) {
-					Api::SendReport(show, peer, reason, text, data);
+					Api::SendPhotoReport(show, peer, reason, text, photo);
 					show->hideLayer();
 				});
 			}));
@@ -70,7 +63,7 @@ namespace {
 object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
-	return Report(peer, photo, nullptr);
+	return ReportPhoto(peer, photo, nullptr);
 }
 
 void ShowReportMessageBox(
