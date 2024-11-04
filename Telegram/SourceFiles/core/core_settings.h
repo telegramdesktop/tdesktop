@@ -930,7 +930,7 @@ public:
 	void setIvZoom(int value);
 
 	[[nodiscard]] bool chatFiltersHorizontal() const;
-	[[nodiscard]] rpl::producer<bool> chatFiltersHorizontalValue() const;
+	[[nodiscard]] rpl::producer<bool> chatFiltersHorizontalChanges() const;
 	void setChatFiltersHorizontal(bool value);
 
 	[[nodiscard]] Media::VideoQuality videoQuality() const;

@@ -1098,6 +1098,12 @@ void MainWidget::dialogsCancelled() {
 	_history->activate();
 }
 
+void MainWidget::toggleFiltersMenu(bool value) const {
+	if (_dialogs) {
+		_dialogs->toggleFiltersMenu(value);
+	}
+}
+
 void MainWidget::setChatBackground(
 		const Data::WallPaper &background,
 		QImage &&image) {

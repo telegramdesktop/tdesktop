@@ -213,6 +213,7 @@ public:
 	void showNonPremiumLimitToast(bool download);
 
 	void dialogsCancelled();
+	void toggleFiltersMenu(bool value) const;
 
 private:
 	void paintEvent(QPaintEvent *e) override;

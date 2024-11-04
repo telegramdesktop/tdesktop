@@ -1640,8 +1640,8 @@ bool Settings::chatFiltersHorizontal() const {
 	return _chatFiltersHorizontal.current();
 }
 
-rpl::producer<bool> Settings::chatFiltersHorizontalValue() const {
-	return _chatFiltersHorizontal.value();
+rpl::producer<bool> Settings::chatFiltersHorizontalChanges() const {
+	return _chatFiltersHorizontal.changes();
 }
 
 void Settings::setChatFiltersHorizontal(bool value) {

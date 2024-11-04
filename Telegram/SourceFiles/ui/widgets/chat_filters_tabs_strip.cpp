@@ -40,7 +40,6 @@ struct State final {
 	std::optional<FilterId> lastFilterId = std::nullopt;
 	rpl::lifetime unreadLifetime;
 	base::unique_qptr<Ui::PopupMenu> menu;
-	rpl::variable<bool> additionalToggleOn;
 
 	Api::RemoveComplexChatFilter removeApi;
 	bool waitingSuggested = false;
@@ -130,7 +129,6 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		rpl::producer<int> multiSelectHeightValue,
 		Fn<void(int)> setAddedTopScrollSkip,
 		Fn<void(FilterId)> choose,
-		rpl::producer<bool> additionalToggleOn,
 		bool trackActiveChatsFilter) {
 	const auto window = Core::App().findWindow(parent);
 	const auto controller = window ? window->sessionController() : nullptr;
@@ -151,7 +149,6 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			object_ptr<Ui::ChatsFiltersTabs>(parent, st::dialogsSearchTabs),
 			QMargins(sliderPadding, 0, sliderPadding, 0)))->entity();
 	const auto state = wrap->lifetime().make_state<State>();
-	state->additionalToggleOn = std::move(additionalToggleOn);
 	wrap->toggle(false, anim::type::instant);
 	container->sizeValue() | rpl::start_with_next([=](const QSize &s) {
 		scroll->resize(s + QSize(0, scrollSt.deltax * 4));
@@ -289,10 +286,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		slider->contextMenuRequested() | rpl::start_with_next([=](int index) {
 			ShowMenu(wrap, controller, state, index);
 		}, slider->lifetime());
-		state->additionalToggleOn.value(
-		) | rpl::start_with_next([=](bool enabled) {
-			wrap->toggle(enabled && (list.size() > 1), anim::type::instant);
-		}, wrap->lifetime());
+		wrap->toggle((list.size() > 1), anim::type::instant);
 	};
 	session->data().chatsFilters().changed(
 	) | rpl::start_with_next(rebuild, wrap->lifetime());

@@ -652,41 +652,10 @@ Widget::Widget(
 		setupDownloadBar();
 	}
 
-	session().data().chatsFilters().changed(
-	) | rpl::start_with_next([=] {
-		if (!session().data().chatsFilters().loaded()) {
-			return;
-		}
-		if (session().data().chatsFilters().has()) {
-			if (_chatFilters) {
-				return;
-			}
-			_chatFilters = Ui::AddChatFiltersTabsStrip(
-				this,
-				&session(),
-				rpl::single(0),
-				[=](int h) { updateControlsGeometry(); },
-				[=](FilterId id) { controller->setActiveChatsFilter(id); },
-				Core::App().settings().chatFiltersHorizontalValue(),
-				true);
-			_chatFilters->stackUnder(_scroll);
-			_chatFilters->resizeToWidth(width());
-			updateControlsGeometry();
-			const auto shadow = Ui::CreateChild<Ui::PlainShadow>(
-				_chatFilters);
-			shadow->show();
-			_chatFilters->sizeValue(
-			) | rpl::start_with_next([=](const QSize &size) {
-				shadow->setGeometry(
-					0,
-					size.height() - shadow->height(),
-					size.width(),
-					shadow->height());
-			}, lifetime());
-		} else {
-			_chatFilters = nullptr;
-		}
-	}, lifetime());
+	if (session().settings().dialogsFiltersEnabled()
+		&& Core::App().settings().chatFiltersHorizontal()) {
+		toggleFiltersMenu(true);
+	}
 }
 
 void Widget::chosenRow(const ChosenRow &row) {
@@ -1328,6 +1297,42 @@ void Widget::updateHasFocus(not_null<QWidget*> focused) {
 			// synchronously, because it may lead to a crash.
 			crl::on_main(this, [=] { processSearchFocusChange(); });
 		}
+	}
+}
+
+void Widget::toggleFiltersMenu(bool enabled) {
+	if (!enabled == !_chatFilters) {
+		return;
+	} else if (enabled) {
+		_chatFilters = base::make_unique_q<Ui::RpWidget>(this);
+		const auto raw = _chatFilters.get();
+		const auto inner = Ui::AddChatFiltersTabsStrip(
+			_chatFilters.get(),
+			&session(),
+			rpl::single(0),
+			[this](int h) { updateControlsGeometry(); },
+			[this](FilterId id) {
+				if (controller()->activeChatsFilterCurrent() != id) {
+					controller()->setActiveChatsFilter(id);
+				}
+			},
+			true);
+		raw->show();
+		raw->stackUnder(_scroll);
+		raw->resizeToWidth(width());
+		const auto shadow = Ui::CreateChild<Ui::PlainShadow>(raw);
+		shadow->show();
+		inner->sizeValue() | rpl::start_with_next([=](const QSize &s) {
+			raw->resize(s);
+			shadow->setGeometry(
+				0,
+				s.height() - shadow->height(),
+				s.width(),
+				shadow->height());
+		}, _chatFilters->lifetime());
+		updateControlsGeometry();
+	} else {
+		_chatFilters = nullptr;
 	}
 }
 
