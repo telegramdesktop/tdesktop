@@ -708,7 +708,8 @@ void ApiWrap::finalizeMessageDataRequest(
 
 QString ApiWrap::exportDirectMessageLink(
 		not_null<HistoryItem*> item,
-		bool inRepliesContext) {
+		bool inRepliesContext,
+		bool forceNonPublicLink) {
 	Expects(item->history()->peer->isChannel());
 
 	const auto itemId = item->fullId();
@@ -731,7 +732,7 @@ QString ApiWrap::exportDirectMessageLink(
 				const auto sender = root
 					? root->discussionPostOriginalSender()
 					: nullptr;
-				if (sender && sender->hasUsername()) {
+				if (sender && sender->hasUsername() && !forceNonPublicLink) {
 					// Comment to a public channel.
 					const auto forwarded = root->Get<HistoryMessageForwarded>();
 					linkItemId = forwarded->savedFromMsgId;
@@ -747,7 +748,7 @@ QString ApiWrap::exportDirectMessageLink(
 				}
 			}
 		}
-		const auto base = linkChannel->hasUsername()
+		const auto base = (linkChannel->hasUsername() && !forceNonPublicLink)
 			? linkChannel->username()
 			: "c/" + QString::number(peerToChannel(linkChannel->id).bare);
 		const auto post = QString::number(linkItemId.bare);
@@ -761,6 +762,7 @@ QString ApiWrap::exportDirectMessageLink(
 				? (QString::number(linkThreadId.bare) + '/' + post)
 				: post);
 		if (linkChannel->hasUsername()
+			&& !forceNonPublicLink
 			&& !linkChannel->isMegagroup()
 			&& !linkCommentId
 			&& !linkThreadId) {
@@ -774,6 +776,9 @@ QString ApiWrap::exportDirectMessageLink(
 		}
 		return session().createInternalLinkFull(query);
 	};
+	if (forceNonPublicLink) {
+		return fallback();
+	}
 	const auto i = _unlikelyMessageLinks.find(itemId);
 	const auto current = (i != end(_unlikelyMessageLinks))
 		? i->second
