@@ -21,6 +21,6 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Main::Session*> session,
 	Fn<void(FilterId)> choose,
-	bool trackActiveChatsFilter = false);
+	bool trackActiveFilterAndUnreadAndReorder = false);
 
 } // namespace Ui
