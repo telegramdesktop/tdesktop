@@ -1,3 +1,8 @@
+5.7.2 (05.11.24)
+
+- Fix recompressed video playback cutoff.
+- Fix video message recroding on macOS.
+
 5.7.1 (01.11.24)
 
 - Fix occasional redundant newlines before message timestamp.
