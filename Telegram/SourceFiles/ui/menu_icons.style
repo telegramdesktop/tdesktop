@@ -159,6 +159,8 @@ menuIconWinHello: icon {{ "menu/passcode_winhello", menuIconColor }};
 menuIconTouchID: icon {{ "menu/passcode_finger", menuIconColor }};
 menuIconAppleWatch: icon {{ "menu/passcode_watch", menuIconColor }};
 menuIconSystemPwd: menuIconPermissions;
+menuIconPlayerFullScreen: icon {{ "player/player_fullscreen", menuIconColor }};
+menuIconPlayerWindowed: icon {{ "player/player_minimize", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

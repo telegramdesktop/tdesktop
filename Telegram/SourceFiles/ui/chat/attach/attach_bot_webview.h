@@ -147,6 +147,7 @@ private:
 	void scheduleCloseWithConfirmation();
 	void closeWithConfirmation();
 	void sendViewport();
+	void sendSafeArea();
 
 	using EventData = std::variant<QString, QJsonObject>;
 	void postEvent(const QString &event);
@@ -179,6 +180,7 @@ private:
 	std::optional<QColor> _bottomBarColor;
 	rpl::lifetime _headerColorLifetime;
 	rpl::lifetime _bottomBarColorLifetime;
+	rpl::variable<bool> _fullscreen = false;
 	bool _webviewProgress = false;
 	bool _themeUpdateScheduled = false;
 	bool _hiddenForPayment = false;

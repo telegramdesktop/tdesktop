@@ -378,6 +378,13 @@ Panel::Panel(
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	_widget->setInnerSize(st::botWebViewPanelSize, true);
 
+	_fullscreen.value(
+	) | rpl::start_with_next([=](bool fullscreen) {
+		_widget->toggleFullScreen(fullscreen);
+		layoutButtons();
+		sendSafeArea();
+	}, _widget->lifetime());
+
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
 		if (_closeNeedConfirmation) {
@@ -612,6 +619,15 @@ bool Panel::showWebview(
 				.isAttention = true,
 			});
 		}
+		if (_widget->isFullScreen()) {
+			callback(u"Close Full Screen"_q, [=] {
+				_fullscreen = false;
+			}, &st::menuIconPlayerWindowed);
+		} else {
+			callback(u"Show Full Screen"_q, [=] {
+				_fullscreen = true;
+			}, &st::menuIconPlayerFullScreen);
+		}
 	});
 	return true;
 }
@@ -619,7 +635,7 @@ bool Panel::showWebview(
 void Panel::createWebviewBottom() {
 	_webviewBottom = std::make_unique<RpWidget>(_widget.get());
 	const auto bottom = _webviewBottom.get();
-	bottom->show();
+	bottom->setVisible(!_fullscreen.current());
 
 	const auto &padding = st::paymentsPanelPadding;
 	const auto label = CreateChild<FlatLabel>(
@@ -744,6 +760,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			_themeUpdateForced.fire({});
 		} else if (command == "web_app_request_viewport") {
 			sendViewport();
+		} else if (command == "web_app_request_safe_area") {
+			sendSafeArea();
 		} else if (command == "web_app_open_tg_link") {
 			openTgLink(arguments);
 		} else if (command == "web_app_open_link") {
@@ -826,6 +844,11 @@ void Panel::sendViewport() {
 		"height: window.innerHeight, "
 		"is_state_stable: true, "
 		"is_expanded: true }");
+}
+
+void Panel::sendSafeArea() {
+	postEvent("safe_area_changed",
+		"{ top: 0, right: 0, bottom: 0, left: 0 }");
 }
 
 void Panel::setTitle(rpl::producer<QString> title) {
@@ -1362,12 +1385,15 @@ void Panel::createButton(std::unique_ptr<Button> &button) {
 }
 
 void Panel::layoutButtons() {
+	if (!_webviewBottom) {
+		return;
+	}
 	const auto inner = _widget->innerGeometry();
 	const auto shown = [](std::unique_ptr<Button> &button) {
 		return button && !button->isHidden();
 	};
 	const auto any = shown(_mainButton) || shown(_secondaryButton);
-	_webviewBottom->setVisible(!any);
+	_webviewBottom->setVisible(!any && !_fullscreen.current());
 	if (any) {
 		_bottomButtonsBg->show();
 
@@ -1437,6 +1463,8 @@ void Panel::layoutButtons() {
 	}
 	_footerHeight = any
 		? _bottomButtonsBg->height()
+		: _fullscreen.current()
+		? 0
 		: _webviewBottom->height();
 }
 
@@ -1461,7 +1489,7 @@ void Panel::showBox(
 					&& widget->isHidden()
 					&& _webview->lastHidingBox == raw) {
 					widget->show();
-					_webviewBottom->show();
+					_webviewBottom->setVisible(!_fullscreen.current());
 				}
 			}, _webview->lifetime);
 			if (hideNow) {
