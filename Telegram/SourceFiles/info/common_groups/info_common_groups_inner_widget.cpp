@@ -177,9 +177,15 @@ void ListController::restoreState(
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
-	_controller->parentController()->showPeerHistory(
-		row->peer(),
-		Window::SectionShow::Way::Forward);
+	const auto peer = row->peer();
+	const auto controller = _controller->parentController();
+	if (const auto forum = peer->forum()) {
+		controller->showForum(forum);
+	} else {
+		controller->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::Forward);
+	}
 }
 
 } // namespace
