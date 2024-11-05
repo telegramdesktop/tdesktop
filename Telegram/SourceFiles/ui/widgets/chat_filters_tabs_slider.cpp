@@ -411,4 +411,8 @@ int ChatsFiltersTabs::reordering() const {
 	return _reordering;
 }
 
+void ChatsFiltersTabs::stopAnimation() {
+	Ui::DiscreteSlider::stopAnimation();
+}
+
 } // namespace Ui

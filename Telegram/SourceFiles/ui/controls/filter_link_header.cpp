@@ -8,11 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/filter_link_header.h"
 
 #include "lang/lang_keys.h"
+#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
-#include "ui/image/image_prepare.h"
+#include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/chat_filters_tabs_slider.h"
 #include "ui/widgets/labels.h"
+#include "styles/style_chat_helpers.h" // defaultEmojiSuggestions
+#include "styles/style_dialogs.h" // dialogsSearchTabs
 #include "styles/style_filter_icons.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -68,12 +72,53 @@ private:
 
 	QString _folderTitle;
 	not_null<const style::icon*> _folderIcon;
+	bool _horizontalFilters = false;
 
 	int _maxHeight = 0;
 
 	rpl::event_stream<not_null<QWheelEvent*>> _wheelEvents;
 
 };
+
+[[nodiscard]] QImage GeneratePreview(
+		not_null<Ui::RpWidget*> parent,
+		const QString &title,
+		int badge) {
+	using Tabs = Ui::ChatsFiltersTabs;
+	auto owned = parent->lifetime().make_state<base::unique_qptr<Tabs>>(
+		base::make_unique_q<Tabs>(parent, st::dialogsSearchTabs));
+	const auto raw = owned->get();
+	raw->setSections({
+		tr::lng_filters_name_people(tr::now),
+		title,
+		tr::lng_filters_name_unread(tr::now),
+	});
+	raw->fitWidthToSections();
+	raw->setActiveSectionFast(1);
+	raw->stopAnimation();
+
+	auto result = QImage(
+		raw->size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.fill(st::windowBg->c);
+	{
+		auto p = QPainter(&result);
+		Ui::RenderWidget(p, raw, QPoint(), raw->rect());
+
+		const auto &r = st::defaultEmojiSuggestions.fadeRight;
+		const auto &l = st::defaultEmojiSuggestions.fadeLeft;
+		const auto padding = st::filterLinkSubsectionTitlePadding.top();
+		const auto w = raw->width();
+		const auto h = raw->height();
+		r.fill(p, QRect(w - r.width() - padding, 0, r.width(), h));
+		l.fill(p, QRect(padding, 0, l.width(), h));
+		p.fillRect(0, 0, padding, h, st::windowBg);
+		p.fillRect(w - padding, 0, padding, raw->height(), st::windowBg);
+	}
+	owned->reset();
+	return result;
+}
 
 [[nodiscard]] QImage GeneratePreview(
 		const QString &title,
@@ -199,17 +244,18 @@ Widget::Widget(
 , _titleFont(st::boxTitle.style.font)
 , _titlePadding(st::filterLinkTitlePadding)
 , _folderTitle(descriptor.folderTitle)
-, _folderIcon(descriptor.folderIcon) {
+, _folderIcon(descriptor.folderIcon)
+, _horizontalFilters(descriptor.horizontalFilters) {
 	setMinimumHeight(st::boxTitleHeight);
 	refreshTitleText();
 	setTitlePosition(st::boxTitlePosition.x(), st::boxTitlePosition.y());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([this] {
 		_preview = QImage();
 	}, lifetime());
 
-	_badge.changes() | rpl::start_with_next([=] {
+	_badge.changes() | rpl::start_with_next([this] {
 		_preview = QImage();
 		update();
 	}, lifetime());
@@ -242,7 +288,9 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	_about->resizeToWidth(availableWidth);
 
 	const auto minHeight = minimumHeight();
-	const auto maxHeight = st::filterLinkAboutTop
+	const auto maxHeight = (_horizontalFilters
+			? (st::filterLinkAboutTop * 0.8)
+			: st::filterLinkAboutTop)
 		+ _about->height()
 		+ st::filterLinkAboutBottom;
 	if (maxHeight <= minHeight) {
@@ -283,12 +331,22 @@ void Widget::resizeEvent(QResizeEvent *e) {
 QRectF Widget::previewRect(
 		float64 topProgress,
 		float64 sizeProgress) const {
-	const auto size = st::filterLinkPreview * sizeProgress;
-	return QRectF(
-		(width() - size) / 2.,
-		st::filterLinkPreviewTop * topProgress,
-		size,
-		size);
+	if (_horizontalFilters) {
+		const auto size = (_preview.size() / style::DevicePixelRatio())
+			* sizeProgress;
+		return QRectF(
+			(width() - size.width()) / 2.,
+			st::filterLinkPreviewTop * 1.5 * topProgress,
+			size.width(),
+			size.height());
+	} else {
+		const auto size = st::filterLinkPreview * sizeProgress;
+		return QRectF(
+			(width() - size) / 2.,
+			st::filterLinkPreviewTop * topProgress,
+			size,
+			size);
+	}
 };
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -298,10 +356,13 @@ void Widget::paintEvent(QPaintEvent *e) {
 	if (_progress.top) {
 		auto hq = PainterHighQualityEnabler(p);
 		if (_preview.isNull()) {
-			_preview = GeneratePreview(
-				_folderTitle,
-				_folderIcon,
-				_badge.current());
+			const auto badge = _badge.current();
+			if (_horizontalFilters) {
+				_preview = GeneratePreview(this, _folderTitle, badge);
+				Widget::resizeEvent(nullptr);
+			} else {
+				_preview = GeneratePreview(_folderTitle, _folderIcon, badge);
+			}
 		}
 		p.drawImage(_previewRect, _preview);
 	}

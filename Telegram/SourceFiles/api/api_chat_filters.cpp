@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_chat_filters.h"
@@ -152,6 +153,7 @@ void InitFilterLinkHeader(
 		.badge = (type == Ui::FilterLinkHeaderType::AddingChats
 			? std::move(count)
 			: rpl::single(0)),
+		.horizontalFilters = Core::App().settings().chatFiltersHorizontal(),
 	});
 	const auto widget = header.widget;
 	widget->resizeToWidth(st::boxWideWidth);

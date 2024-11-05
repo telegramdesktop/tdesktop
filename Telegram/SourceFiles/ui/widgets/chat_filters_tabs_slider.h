@@ -43,6 +43,8 @@ public:
 	void setReordering(int value);
 	[[nodiscard]] int reordering() const;
 
+	void stopAnimation();
+
 protected:
 	struct ShiftedSection {
 		not_null<Ui::DiscreteSlider::Section*> section;
