@@ -97,6 +97,8 @@ protected:
 
 	void setSelectOnPress(bool selectOnPress);
 
+	std::vector<Section> &sectionsRef();
+
 private:
 	void activateCallback();
 	virtual const style::TextStyle &getLabelStyle() const = 0;

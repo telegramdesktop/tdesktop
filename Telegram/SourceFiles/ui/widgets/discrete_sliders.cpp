@@ -68,6 +68,10 @@ void DiscreteSlider::setSelectOnPress(bool selectOnPress) {
 	_selectOnPress = selectOnPress;
 }
 
+std::vector<DiscreteSlider::Section> &DiscreteSlider::sectionsRef() {
+	return _sections;
+}
+
 void DiscreteSlider::addSection(const QString &label) {
 	_sections.push_back(Section(label, getLabelStyle()));
 	resizeToWidth(width());
