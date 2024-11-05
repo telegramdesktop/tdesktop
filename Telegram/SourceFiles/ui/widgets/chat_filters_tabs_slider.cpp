@@ -41,6 +41,7 @@ ChatsFiltersTabs::ChatsFiltersTabs(
 		};
 		_cachedBadgeHeight = one.height();
 	}
+	Ui::DiscreteSlider::setSelectOnPress(false);
 }
 
 int ChatsFiltersTabs::centerOfSection(int section) const {
@@ -59,6 +60,14 @@ void ChatsFiltersTabs::fitWidthToSections() {
 	const auto widths = countSectionsWidths(0);
 	resizeToWidth(ranges::accumulate(widths, .0));
 	_lockedFromX = calculateLockedFromX();
+
+	{
+		_sections.clear();
+		enumerateSections([&](Section &section) {
+			_sections.emplace_back(not_null{ &section }, 0, false);
+			return true;
+		});
+	}
 }
 
 void ChatsFiltersTabs::setUnreadCount(int index, int unreadCount) {
@@ -146,30 +155,44 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 
 	const auto clip = e->rect();
 	const auto range = getCurrentActiveRange();
+	const auto activeIndex = activeSection();
 
 	auto index = 0;
-	enumerateSections([&](Section &section) {
-		const auto activeWidth = _st.barSnapToLabel
-			? section.contentWidth
-			: section.width;
-		const auto activeLeft = section.left
-			+ (section.width - activeWidth) / 2;
-		const auto active = 1.
-			- std::clamp(
-				std::abs(range.left - activeLeft) / float64(range.width),
-				0.,
-				1.);
+	auto raisedIndex = -1;
+	auto activeHorizontalShift = 0;
+	const auto drawSection = [&](Section &section) {
+		// const auto activeWidth = _st.barSnapToLabel
+		// 	? section.contentWidth
+		// 	: section.width;
+
+		const auto horizontalShift = _sections[index].horizontalShift;
+		const auto shiftedLeft = section.left + horizontalShift;
+		if (_sections[index].raise) {
+			raisedIndex = index;
+		}
+		if (index == activeIndex) {
+			activeHorizontalShift = horizontalShift;
+		}
+
+		// const auto activeLeft = shiftedLeft
+		// 	+ (section.width - activeWidth) / 2;
+		// const auto active = 1.
+		// 	- std::clamp(
+		// 		std::abs(range.left - activeLeft) / float64(range.width),
+		// 		0.,
+		// 		1.);
+		const auto active = (index == activeIndex) ? 1. : 0.;
 		if (section.ripple) {
 			const auto color = anim::color(
 				_st.rippleBg,
 				_st.rippleBgActive,
 				active);
-			section.ripple->paint(p, section.left, 0, width(), &color);
+			section.ripple->paint(p, shiftedLeft, 0, width(), &color);
 			if (section.ripple->empty()) {
 				section.ripple.reset();
 			}
 		}
-		const auto labelLeft = section.left
+		const auto labelLeft = shiftedLeft
 			+ (section.width - section.contentWidth) / 2;
 		const auto rect = myrtlrect(
 			labelLeft,
@@ -214,7 +237,12 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 		}
 		index++;
 		return true;
-	});
+	};
+	enumerateSections(drawSection);
+	if (raisedIndex >= 0) {
+		index = raisedIndex;
+		drawSection(*_sections[raisedIndex].section);
+	}
 	if (_st.barSnapToLabel) {
 		const auto drawRect = [&](QRect rect, bool active) {
 			const auto &bar = active ? _barActive : _bar;
@@ -229,7 +257,11 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 		const auto till = std::min(range.left + range.width + add, width());
 		if (from < till) {
 			drawRect(
-				myrtlrect(from, _st.barTop, till - from, _st.barStroke),
+				myrtlrect(
+					from,
+					_st.barTop,
+					till - from,
+					_st.barStroke).translated(activeHorizontalShift, 0),
 				true);
 		}
 	}
@@ -249,6 +281,14 @@ void ChatsFiltersTabs::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
+void ChatsFiltersTabs::mouseMoveEvent(QMouseEvent *e) {
+	if (_reordering) {
+		Ui::RpWidget::mouseMoveEvent(e);
+	} else {
+		Ui::SettingsSlider::mouseMoveEvent(e);
+	}
+}
+
 void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
 	const auto mouseButton = e->button();
 	if (mouseButton == Qt::MouseButton::LeftButton) {
@@ -256,7 +296,15 @@ void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
 			_lockedPressed = false;
 			_lockedClicked.fire({});
 		} else {
-			Ui::SettingsSlider::mouseReleaseEvent(e);
+			if (_reordering) {
+				for (const auto &section : _sections) {
+					if (section.section->ripple) {
+						section.section->ripple->lastStop();
+					}
+				}
+			} else {
+				Ui::SettingsSlider::mouseReleaseEvent(e);
+			}
 		}
 	} else {
 		Ui::RpWidget::mouseReleaseEvent(e);
@@ -288,6 +336,79 @@ rpl::producer<int> ChatsFiltersTabs::contextMenuRequested() const {
 
 rpl::producer<> ChatsFiltersTabs::lockedClicked() const {
 	return _lockedClicked.events();
+}
+
+int ChatsFiltersTabs::count() const {
+	return _sections.size();
+}
+
+void ChatsFiltersTabs::setHorizontalShift(int index, int shift) {
+	Expects(index >= 0 && index < _sections.size());
+
+	auto &section = _sections[index];
+	if (const auto delta = shift - section.horizontalShift) {
+		section.horizontalShift = shift;
+		update();
+	}
+}
+
+void ChatsFiltersTabs::setRaised(int index) {
+	_sections[index].raise = true;
+	update();
+}
+
+void ChatsFiltersTabs::reorderSections(int oldIndex, int newIndex) {
+	Expects(oldIndex >= 0 && oldIndex < _sections.size());
+	Expects(newIndex >= 0 && newIndex < _sections.size());
+	// Expects(!_inResize);
+	auto lefts = std::vector<int>();
+	enumerateSections([&](Section &section) {
+		lefts.emplace_back(section.left);
+		return true;
+	});
+	const auto wasActive = activeSection();
+
+	{
+		auto unreadCounts = base::flat_map<Index, Unread>();
+		for (auto &[index, unread] : _unreadCounts) {
+			unreadCounts.emplace(
+				base::reorder_index(index, oldIndex, newIndex),
+				std::move(unread));
+		}
+		_unreadCounts = std::move(unreadCounts);
+	}
+
+	base::reorder(sectionsRef(), oldIndex, newIndex);
+	Ui::DiscreteSlider::setActiveSectionFast(
+		base::reorder_index(wasActive, oldIndex, newIndex));
+	Ui::DiscreteSlider::stopAnimation();
+
+	{
+		_sections.clear();
+		auto left = 0;
+		enumerateSections([&](Section &section) {
+			_sections.emplace_back(not_null{ &section }, 0, false);
+			section.left = left;
+			left += section.width;
+			return true;
+		});
+	}
+	update();
+}
+
+not_null<Ui::DiscreteSlider::Section*> ChatsFiltersTabs::widgetAt(
+		int index) const {
+	Expects(index >= 0 && index < count());
+
+	return _sections[index].section;
+}
+
+void ChatsFiltersTabs::setReordering(int value) {
+	_reordering = value;
+}
+
+int ChatsFiltersTabs::reordering() const {
+	return _reordering;
 }
 
 } // namespace Ui

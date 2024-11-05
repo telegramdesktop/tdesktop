@@ -220,7 +220,7 @@ void FiltersMenu::setupList() {
 	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list, &_scroll);
 
 	_reorder->updates(
-		) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {
+	) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {
 		using State = Ui::VerticalLayoutReorder::State;
 		if (data.state == State::Started) {
 			++_reordering;

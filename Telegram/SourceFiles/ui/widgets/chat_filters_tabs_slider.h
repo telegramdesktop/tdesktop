@@ -19,6 +19,8 @@ namespace Ui {
 class RpWidget;
 class SettingsSlider;
 
+class ChatsFiltersTabsReorder;
+
 class ChatsFiltersTabs final : public Ui::SettingsSlider {
 public:
 	ChatsFiltersTabs(
@@ -33,11 +35,29 @@ public:
 	[[nodiscard]] rpl::producer<int> contextMenuRequested() const;
 	[[nodiscard]] rpl::producer<> lockedClicked() const;
 
+	void setHorizontalShift(int index, int shift);
+	void setRaised(int index);
+	[[nodiscard]] int count() const;
+	void reorderSections(int oldIndex, int newIndex);
+	[[nodiscard]] not_null<DiscreteSlider::Section*> widgetAt(int i) const;
+	void setReordering(int value);
+	[[nodiscard]] int reordering() const;
+
 protected:
+	struct ShiftedSection {
+		not_null<Ui::DiscreteSlider::Section*> section;
+		int horizontalShift = 0;
+		bool raise = false;
+	};
+	friend class ChatsFiltersTabsReorder;
+
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+
+	std::vector<ShiftedSection> _sections;
 
 private:
 	[[nodiscard]] QImage cacheUnreadCount(int count) const;
@@ -61,6 +81,8 @@ private:
 	std::optional<Ui::RoundRect> _bar;
 	std::optional<Ui::RoundRect> _barActive;
 	std::optional<QImage> _lockCache;
+
+	int _reordering = 0;
 
 	rpl::lifetime _paletteLifetime;
 	rpl::event_stream<int> _contextMenuRequested;
