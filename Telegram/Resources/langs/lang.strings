@@ -5607,6 +5607,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_credits_out_minimal" = "You cannot withdraw less than {link}.";
 "lng_bot_earn_credits_out_minimal_link#one" = "{count} star";
 "lng_bot_earn_credits_out_minimal_link#other" = "{count} stars";
+"lng_bot_copy_text_tooltip" = "Copy to Clipboard: {text}";
 
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "Message";

@@ -651,6 +651,14 @@ QString ReplyMarkupClickHandler::buttonText() const {
 }
 
 QString ReplyMarkupClickHandler::tooltip() const {
+	if (const auto button = getButton()) {
+		if (button->type == HistoryMessageMarkupButton::Type::CopyText) {
+			return tr::lng_bot_copy_text_tooltip(
+				tr::now,
+				lt_text,
+				st::wrap_rtl(QString::fromUtf8(button->data)));
+		}
+	}
 	const auto button = getUrlButton();
 	const auto url = button ? QString::fromUtf8(button->data) : QString();
 	const auto text = _fullDisplayed ? QString() : buttonText();
