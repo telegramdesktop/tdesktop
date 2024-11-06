@@ -63,6 +63,7 @@ class PhotoMedia;
 class Stickers;
 class GroupCall;
 class NotifySettings;
+class EncryptSettings;
 class CustomEmojiManager;
 class Stories;
 class SavedMessages;
@@ -158,6 +159,9 @@ public:
 	[[nodiscard]] NotifySettings &notifySettings() const {
 		return *_notifySettings;
 	}
+    [[nodiscard]] EncryptSettings &encryptSettings() const {
+        return *_encryptSettings;
+    }
 	[[nodiscard]] CustomEmojiManager &customEmojiManager() const {
 		return *_customEmojiManager;
 	}
@@ -1127,6 +1131,7 @@ private:
 	const std::unique_ptr<EmojiStatuses> _emojiStatuses;
 	const std::unique_ptr<ForumIcons> _forumIcons;
 	const std::unique_ptr<NotifySettings> _notifySettings;
+    const std::unique_ptr<EncryptSettings> _encryptSettings;
 	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
 	const std::unique_ptr<Stories> _stories;
 	const std::unique_ptr<SavedMessages> _savedMessages;
