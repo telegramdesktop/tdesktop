@@ -19,7 +19,7 @@ namespace Data {
     public:
         explicit EncryptSettings(not_null<Session*> owner);
 
-        std::string requestKey(PeerId peer);
+        std::optional<std::string> requestKey(PeerId peer);
 
         void storeKey(PeerId peer, const std::string &key);
     };

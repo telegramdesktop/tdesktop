@@ -49,9 +49,12 @@ namespace Data {
         inputFile.close();
     }
 
-    std::string EncryptSettings::requestKey(PeerId peer) {
+    std::optional<std::string> EncryptSettings::requestKey(PeerId peer) {
         loadFile();
-        return secrets[peer];
+        if (auto it = secrets.find(peer); it != secrets.end()) {
+            return {it->second};
+        }
+        return std::nullopt;
     }
 
     void EncryptSettings::storeKey(PeerId peer, const std::string &key) {
