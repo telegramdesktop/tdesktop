@@ -497,6 +497,7 @@ PRIVATE
     data/components/sponsored_messages.h
     data/components/top_peers.cpp
     data/components/top_peers.h
+    data/encrypt/data_encrypt_settings.cpp
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
