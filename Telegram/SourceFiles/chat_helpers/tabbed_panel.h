@@ -25,6 +25,7 @@ namespace ChatHelpers {
 class TabbedSelector;
 
 extern const char kOptionTabbedPanelShowOnClick[];
+[[nodiscard]] bool ShowPanelOnClick();
 
 struct TabbedPanelDescriptor {
 	Window::SessionController *regularWindow = nullptr;
