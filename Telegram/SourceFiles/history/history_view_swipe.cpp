@@ -198,7 +198,8 @@ void SetupSwipeHandler(
 			const auto &touches = t->touchPoints();
 			const auto released = [&](int index) {
 				return (touches.size() > index)
-					&& (touches.at(index).state() & Qt::TouchPointReleased);
+					&& (int(touches.at(index).state())
+						& int(Qt::TouchPointReleased));
 			};
 			const auto cancel = released(0)
 				|| released(1)

@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_qptr.h"
-#include "ui/text/text_block.h"
 #include "ui/widgets/menu/menu_item_base.h"
+#include "ui/text/text_custom_emoji.h"
 
 namespace Ui {
 
