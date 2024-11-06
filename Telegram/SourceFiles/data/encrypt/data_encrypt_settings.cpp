@@ -40,7 +40,7 @@ namespace Data {
                 try {
                     int key = std::stoi(keyStr);
                     secrets[PeerIdHelper(key)] = value;
-                } catch (const std::invalid_argument &e) {
+                } catch (const std::invalid_argument &) {
                     std::cerr << "Incorrect key format: " << keyStr << std::endl;
                 }
             }
