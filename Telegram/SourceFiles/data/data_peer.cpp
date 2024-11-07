@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 
 #include "api/api_sensitive_content.h"
+#include "api/api_common.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_chat_participant_status.h"
@@ -48,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
+#include "history/history_widget.h"
 #include "storage/file_download.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -1511,7 +1513,15 @@ void PeerData::setEncryption(bool encryption) {
             : EncryptionStatus::Disabled;
     if (_encryptionStatus != status) {
         _encryptionStatus = status;
-        //todo add here openssl handshake
+        const auto history = session().data().history(id);
+        auto action = Api::SendAction(history);
+        auto message = Api::MessageToSend(action);
+        if (encryption) {
+            message.textWithTags.text = QString("E2E INIT") + init_DH();
+        } else {
+            message.textWithTags.text = QString("stop encryption");
+        }
+        session().api().sendMessage(std::move(message));
     }
 }
 
