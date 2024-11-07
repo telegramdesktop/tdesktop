@@ -3139,6 +3139,9 @@ bool Widget::applySearchState(SearchState state) {
 	const auto tagsChanged = (_searchState.tags != state.tags);
 	const auto queryChanged = (_searchState.query != state.query);
 	const auto tabChanged = (_searchState.tab != state.tab);
+	const auto queryEmptyChanged = queryChanged
+		? (_searchState.query.isEmpty() != state.query.isEmpty())
+		: false;
 
 	if (forum) {
 		if (_openedForum == forum) {
@@ -3174,6 +3177,10 @@ bool Widget::applySearchState(SearchState state) {
 		? peer->owner().history(migrateFrom).get()
 		: nullptr;
 	_searchState = state;
+	if (_chatFilters && queryEmptyChanged) {
+		_chatFilters->setVisible(_searchState.query.isEmpty());
+		updateControlsGeometry();
+	}
 	_searchWithPostsPreview = computeSearchWithPostsPreview();
 	if (queryChanged) {
 		updateLockUnlockVisibility(anim::type::normal);
@@ -3591,7 +3598,7 @@ void Widget::updateControlsGeometry() {
 			_chatFilters->move(0, chatFiltersTop);
 		}
 		const auto scrollTop = chatFiltersTop
-			+ (_chatFilters
+			+ ((_chatFilters && _searchState.query.isEmpty())
 				? (_chatFilters->height() * (1. - narrowRatio))
 				: 0);
 		const auto scrollHeight = height() - scrollTop - bottomSkip;
