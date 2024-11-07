@@ -4437,6 +4437,17 @@ std::string decryptText(const char *encryptedText, DES_cblock* key) {
     return res;
 }
 
+std::string decryptTextByPeer(Data::EncryptSettings &keys, PeerId peerId, const std::string &hexedText){
+    auto keyOpt = keys.requestKey(peerId);
+    if (keyOpt.has_value()) {
+        auto key = keyOpt.value();
+        auto raw_key = hexToBytes(key, key.size());
+        return decryptText(hexedText.c_str(), reinterpret_cast<DES_cblock*>(raw_key));
+    } else {
+        return {};
+    }
+}
+
 std::string encryptText(const char *text, DES_cblock* key) {
     char * fixed_text = new char[MAX_DATA_SIZE];
     memcpy(fixed_text, text, strlen(text));
@@ -6727,27 +6738,34 @@ void HistoryWidget::startItemRevealAnimations() {
             auto init_prefix = std::string("E2E INIT ");
             auto answer_prefix = std::string("E2E INIT_ANSWER ");
             auto message_prefix = std::string("E2E MESSAGE ");
+            
+            auto keys = session().data().encryptSettings();
+            auto peer = view->history()->peer->id;
             if (!view->isSelfMessage()) {
                 if (view->textItem()->originalText().text.startsWith(QString::fromStdString( init_prefix))) {
                     std::string text = view->textItem()->originalText().text.mid(init_prefix.size()).toStdString();
                     char * init_answer = recvDH(text.c_str());
+                    keys.storeKey(peer, bytesToHex(reinterpret_cast<char*>(des_key2), sizeof(DES_cblock)));
+                    
                     view->textItem()->setText(TextWithEntities::Simple("RECV" + view->textItem()->originalText().text));
                     view->textItem()->setText(TextWithEntities::Simple("Init encrypting"));
                     this->customSend({}, answer_prefix + init_answer);
                 } else if (view->textItem()->originalText().text.startsWith(QString::fromStdString( answer_prefix))) {
                     std::string text = view->textItem()->originalText().text.mid(answer_prefix.size()).toStdString();
                     finishDH(text.c_str());
-                    view->textItem()->setText(TextWithEntities::Simple("Chat encrypted!"));
+                    keys.storeKey(peer, bytesToHex(reinterpret_cast<char*>(des_key1), sizeof(DES_cblock)));
+                    
+                    view->textItem()->setText(TextWithEntities::Simple("Чат зашифрован ✅"));
                 }
             }
             if (view->textItem()->originalText().text.startsWith(QString::fromStdString( message_prefix))) {
                 std::string text = view->textItem()->originalText().text.mid(message_prefix.size()).toStdString();
-                auto keys = session().data().encryptSettings();
-                auto peer = view->history()->peer;
-                if (des_key1 != nullptr) {
-                    view->textItem()->setText(TextWithEntities::Simple(QString("DEC: ") + QString::fromStdString( decryptText(text.c_str(), des_key1))));
-                } else if (des_key2 != nullptr) {
-                    view->textItem()->setText(TextWithEntities::Simple(QString("DEC: ") + QString::fromStdString(decryptText(text.c_str(), des_key2))));
+                
+                auto keyOpt = keys.requestKey(peer);
+                if (keyOpt.has_value()) {
+                    auto key = keyOpt.value();
+                    auto raw_key = hexToBytes(key, key.size());
+                    view->textItem()->setText(TextWithEntities::Simple(QString("🔒: ") + QString::fromStdString( decryptText(text.c_str(), reinterpret_cast<DES_cblock*>(raw_key)))));
                 } else {
                     view->textItem()->setText(TextWithEntities::Simple("DECRYPTION FAIL " + view->textItem()->originalText().text));
                 }

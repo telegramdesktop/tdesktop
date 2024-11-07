@@ -58,6 +58,7 @@ namespace Data {
     }
 
     void EncryptSettings::storeKey(PeerId peer, const std::string &key) {
+        loadFile();
         secrets[peer] = key;
         saveToFile();
     }
