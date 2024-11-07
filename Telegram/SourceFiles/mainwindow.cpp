@@ -181,18 +181,10 @@ void MainWindow::setupPasscodeLock() {
 	updateControlsGeometry();
 
 	ui_hideSettingsAndLayer(anim::type::instant);
-	if (_main) {
-		_main->hide();
-	}
-	if (_intro) {
-		_intro->hide();
-	}
-	if (animated) {
-		_passcodeLock->showAnimated(std::move(oldContentCache));
-	} else {
-		_passcodeLock->showFinished();
-		setInnerFocus();
-	}
+
+    _passcodeLock->showFinished();
+    setInnerFocus();
+
 	if (const auto sessionController = controller().sessionController()) {
 		sessionController->session().attachWebView().closeAll();
 	}
