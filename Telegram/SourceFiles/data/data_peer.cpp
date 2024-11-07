@@ -1505,6 +1505,16 @@ void PeerData::setStoriesState(StoriesState state) {
 	}
 }
 
+void PeerData::setEncryption(bool encryption) {
+    const auto status = encryption
+            ? EncryptionStatus::Enabled
+            : EncryptionStatus::Disabled;
+    if (_encryptionStatus != status) {
+        _encryptionStatus = status;
+        //todo add here openssl handshake
+    }
+}
+
 void PeerData::setIsBlocked(bool is) {
 	const auto status = is
 		? BlockStatus::Blocked

@@ -427,6 +427,17 @@ public:
 		Blocked,
 		NotBlocked,
 	};
+    enum class EncryptionStatus : char {
+        Disabled,
+        Enabled,
+    };
+    [[nodiscard]] EncryptionStatus encryptionStatus() const {
+        return _encryptionStatus;
+    }
+    [[nodiscard]] bool isEcnrypted() const {
+        return encryptionStatus() == EncryptionStatus::Enabled;
+    }
+    void setEncryption(bool encryption);
 	[[nodiscard]] BlockStatus blockStatus() const {
 		return _blockStatus;
 	}
@@ -534,6 +545,7 @@ private:
 	BarSettings _barSettings = PeerBarSettings(PeerBarSetting::Unknown);
 	std::unique_ptr<PeerBarDetails> _barDetails;
 
+    EncryptionStatus _encryptionStatus = EncryptionStatus::Disabled;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 	TranslationFlag _translationFlag = TranslationFlag::Unknown;
