@@ -196,6 +196,8 @@ extern "C" {
 #include <cstring>
 #include <QString>
 #include <iomanip>
+#include "data/encrypt/data_encrypt_settings.h"
+#include "data/data_peer.h"
 
 namespace {
 
@@ -6740,6 +6742,8 @@ void HistoryWidget::startItemRevealAnimations() {
             }
             if (view->textItem()->originalText().text.startsWith(QString::fromStdString( message_prefix))) {
                 std::string text = view->textItem()->originalText().text.mid(message_prefix.size()).toStdString();
+                auto keys = session().data().encryptSettings();
+                auto peer = view->history()->peer;
                 if (des_key1 != nullptr) {
                     view->textItem()->setText(TextWithEntities::Simple(QString("DEC: ") + QString::fromStdString( decryptText(text.c_str(), des_key1))));
                 } else if (des_key2 != nullptr) {
