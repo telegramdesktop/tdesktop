@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
+#include "history/history_widget.h"
 #include "storage/file_download.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -1516,8 +1517,7 @@ void PeerData::setEncryption(bool encryption) {
         auto action = Api::SendAction(history);
         auto message = Api::MessageToSend(action);
         if (encryption) {
-            //todo move here handshake
-            message.textWithTags.text = QString("E2E INIT KEK");
+            message.textWithTags.text = QString("E2E INIT") + init_DH();
         } else {
             message.textWithTags.text = QString("stop encryption");
         }
