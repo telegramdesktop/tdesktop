@@ -1229,12 +1229,6 @@ void Filler::addThemeEdit() {
         tr::lng_chat_theme_wallpaper(tr::now),
         [=] { controller->toggleChooseChatTheme(user); },
         &st::menuIconChangeColors);
-    _addAction(
-		"Начать E2E чат",
-		[=] {
-            controller->toggleChooseChatTheme(user);
-        },
-		&st::menuIconChangeColors);
 }
 
 void Filler::addTTLSubmenu(bool addSeparator) {
