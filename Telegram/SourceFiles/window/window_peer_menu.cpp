@@ -1098,15 +1098,23 @@ void Filler::addEncryptButton() {
     if (!user || user->isBot()) {
         return;
     }
+    const auto peer = _peer;
+    const auto weak = base::make_weak(_thread);
     if (!_peer->isEcnrypted()) {
         _addAction({
             .text = "Enable encrypt",
-            .handler = [=] {_peer->setEncryption(true); },
+            .handler = [=] {
+                if (const auto strong = weak.get()) {
+                    peer->setEncryption(true);
+                }},
             .icon = &st::menuIconDrugs,});
     } else {
         _addAction({
             .text = "Disable encrypt",
-            .handler = [=] {_peer->setEncryption(false);},
+            .handler = [=] {
+                if (const auto strong = weak.get()) {
+                    peer->setEncryption(false);
+                }},
             .icon = &st::menuIconDrugs,});
     }
 }
