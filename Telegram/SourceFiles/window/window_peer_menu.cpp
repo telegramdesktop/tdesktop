@@ -1107,7 +1107,7 @@ void Filler::addEncryptButton() {
                 if (const auto strong = weak.get()) {
                     peer->setEncryption(true);
                 }},
-            .icon = &st::menuIconDrugs,});
+            .icon = &st::menuIconLock,});
     } else {
         _addAction({
             .text = "Disable encrypt",
@@ -1115,7 +1115,7 @@ void Filler::addEncryptButton() {
                 if (const auto strong = weak.get()) {
                     peer->setEncryption(false);
                 }},
-            .icon = &st::menuIconDrugs,});
+            .icon = &st::menuIconLock,});
     }
 }
 
