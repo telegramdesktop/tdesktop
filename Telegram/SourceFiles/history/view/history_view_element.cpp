@@ -654,13 +654,20 @@ bool Element::isUnderCursor() const {
 }
 
 bool Element::isLastAndSelfMessage() const {
+    if (!hasOutLayout() || data()->_history->peer->isSelf()) {
+        return false;
+    }
+    if (const auto last = data()->_history->lastMessage()) {
+        return last == data();
+    }
+    return false;
+}
+
+bool Element::isSelfMessage() const {
 	if (!hasOutLayout() || data()->_history->peer->isSelf()) {
 		return false;
 	}
-	if (const auto last = data()->_history->lastMessage()) {
-		return last == data();
-	}
-	return false;
+	return true;
 }
 
 void Element::setPendingResize() {

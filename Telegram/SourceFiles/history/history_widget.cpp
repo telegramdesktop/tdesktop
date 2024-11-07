@@ -176,6 +176,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
 
+extern "C" {
+#include <openssl/bn.h>
+#include <openssl/sha.h>
+#include <openssl/aes.h>
+#include <openssl/modes.h>
+#include <openssl/crypto.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
+
+#include <openssl/des.h>
+#include <openssl/err.h>
+} // extern "C"
+
+#include <string>
+#include <cstring>
+#include <QString>
+#include <iomanip>
+#include "data/encrypt/data_encrypt_settings.h"
+#include "data/data_peer.h"
+
 namespace {
 
 constexpr auto kMessagesPerPageFirst = 30;
@@ -4236,6 +4259,257 @@ Api::SendAction HistoryWidget::prepareSendAction(
 	return result;
 }
 
+#define GENERATOR "02"
+
+inline static DH* dh1;
+inline static const BIGNUM *p1 = BN_new(), *q1 = BN_new(), *g1 = BN_new();
+inline static const BIGNUM *bn1;
+unsigned char* key2 = nullptr;
+DES_cblock *des_key2 = nullptr;
+
+char * init_DH() {
+    dh1 = DH_new();
+    
+    // Генерация параметров ДХ
+    if (DH_generate_parameters_ex(dh1, 1024, DH_GENERATOR_2, 0) != 1);
+    // Проверка корректности параметров ДХ (p должно быть простым)
+    if (DH_check_ex(dh1) != 1);
+    // Достаем параметры ДХ из контекста первого клиента
+    //const BIGNUM *p1, *q1, *g1;
+    DH_get0_pqg(dh1, &p1, &q1, &g1);
+    
+    char * s1 = BN_bn2hex(p1); // fixme leak
+//    char * s2 = BN_bn2hex(q1);
+    char * s2 = "";
+    char * s3 = BN_bn2hex(g1);
+    
+    DH_generate_key(dh1);
+    bn1 = DH_get0_pub_key(dh1);
+    
+    return strdup((std::string(s1) + "|"
+                   + std::string(s2) + "|"
+                   + std::string(s3) + "|"
+                   + std::string(BN_bn2hex(bn1))).c_str());
+}
+
+char * recvDH(const char * context) {
+    //todo split vars
+    std::string ctx(context);
+    
+    auto delim1 = ctx.find('|');
+    if (delim1 == -1){
+        return "";
+    }
+    char *s_p2 = new char[delim1 + 1]{};
+    memcpy(s_p2, context, delim1);
+    
+    BIGNUM *p2 = BN_new();
+    BN_hex2bn(&p2, s_p2);
+
+    auto delim2 = ctx.find('|', delim1 + 1);
+    char *s_q2 = new char[delim2 - delim1]{};
+    memcpy(s_q2, context + delim1 + 1, delim2 - delim1 - 1);
+    
+    BIGNUM *q2 = BN_new();
+    BN_hex2bn(&q2, s_q2);
+
+    auto delim3 = ctx.find('|', delim2 + 1);
+    char *s_g2 = new char[delim3 - delim2]{};
+    memcpy(s_g2, context + delim2 + 1, delim3 - delim2 - 1);
+    
+    BIGNUM *g2 = BN_new();
+    BN_hex2bn(&g2, s_g2);
+
+    char *s_bn1 = new char[ctx.size() - delim3 + 1]{};
+    memcpy(s_bn1, context + delim3 + 1, ctx.size() - delim3 - 1);
+    
+    BIGNUM *bn1 = BN_new();
+    BN_hex2bn(&bn1, s_bn1);
+    
+    
+    // Создание контекста второго клиента
+    DH* dh2 = DH_new();
+    // Выставляем параметры, идентичные первому клиенту
+    DH_set0_pqg(dh2, p2, NULL, g2);
+    if (DH_check_ex(dh2) != 1);
+    
+    DH_generate_key(dh2);
+    const BIGNUM *bn2 = DH_get0_pub_key(dh2);
+    
+    key2 = new unsigned char[DH_size(dh2)];
+    if (DH_compute_key(key2, bn1, dh2) == -1);
+    des_key2 = static_cast<DES_cblock *>(malloc(sizeof(DES_cblock)));
+    strncpy((char *)des_key2, (char *)key2, sizeof(DES_cblock));
+    
+    char * res = BN_bn2hex(bn2);
+    //DH_free(dh2);
+    
+    // TODO store key
+    return res;
+}
+
+
+static inline unsigned char* key1 = nullptr;
+static inline DES_cblock *des_key1;
+
+void finishDH(const char * context) {
+    BIGNUM *bn2 = BN_new();
+    BN_hex2bn(&bn2, context);
+    
+    unsigned char* key1 = new unsigned char[DH_size(dh1)];
+    if (DH_compute_key(key1, bn2, dh1) == -1);
+    des_key1 = static_cast<DES_cblock *>(malloc(sizeof(DES_cblock)));
+    strncpy((char *)des_key1, (char *)key1, sizeof(DES_cblock));
+    
+    //DH_free(dh1);
+    
+    // TODO store key
+}
+
+#define MAX_DATA_SIZE 256
+
+int DES_crypto(const char* str, char* enc_str, DES_cblock* key, int encrypt)
+{
+    if (key == NULL)
+    {
+        strcpy(enc_str, str);
+        return 0;
+    }
+
+    DES_key_schedule schedule;
+    DES_set_key_unchecked(key, &schedule);
+
+    for (int i = 0; i < MAX_DATA_SIZE / 8; i++)
+    {
+        const char *current_block = str + i * 8;
+        char *dest_block = enc_str + i * 8;
+        DES_ecb_encrypt((const_DES_cblock *)current_block, (DES_cblock *)dest_block, &schedule, encrypt);
+    }
+    return 0;
+}
+
+
+int char2int(char input)
+{
+  if(input >= '0' && input <= '9')
+    return input - '0';
+  if(input >= 'A' && input <= 'F')
+    return input - 'A' + 10;
+  if(input >= 'a' && input <= 'f')
+    return input - 'a' + 10;
+  throw std::invalid_argument("Invalid input string");
+}
+
+void hex2bin(const char* src, char* target)
+{
+  while(*src && src[1])
+  {
+    *(target++) = char2int(*src)*16 + char2int(src[1]);
+    src += 2;
+  }
+}
+
+
+std::string bytesToHex(const char* bytes, size_t size) {
+    std::stringstream ss;
+    for (size_t i = 0; i < size; ++i) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)bytes[i];
+    }
+    return ss.str();
+}
+
+char* hexToBytes(const std::string& hex, size_t size) {
+    size = size / 2;
+    char* bytes = new char[size];
+    for (size_t i = 0; i < size; ++i) {
+        std::string byteString = hex.substr(i * 2, 2);
+        bytes[i] = (char)std::strtol(byteString.c_str(), nullptr, 16);
+    }
+    return bytes;
+}
+
+std::string decryptText(const char *encryptedText, DES_cblock* key) {
+    char * raw_input = hexToBytes(std::string(encryptedText), MAX_DATA_SIZE);
+    
+    char * res = new char[MAX_DATA_SIZE]{}; // fixme
+    DES_crypto(raw_input, res, key, DES_DECRYPT);
+    
+    return res;
+}
+
+std::string encryptText(const char *text, DES_cblock* key) {
+    char * fixed_text = new char[MAX_DATA_SIZE];
+    memcpy(fixed_text, text, strlen(text));
+    
+    char * res = new char[MAX_DATA_SIZE]; // fixme
+    DES_crypto(fixed_text, res, key, DES_ENCRYPT);
+    
+    return bytesToHex(res, MAX_DATA_SIZE);
+}
+
+void HistoryWidget::customSend(Api::SendOptions options, std::string text) {
+    if (!_history) {
+        return;
+    } else if (_editMsgId) {
+        saveEditMsg();
+        return;
+    } else if (!options.scheduled && showSlowmodeError()) {
+        return;
+    }
+
+    if (_voiceRecordBar->isListenState()) {
+        _voiceRecordBar->requestToSendWithOptions(options);
+        return;
+    }
+
+    if (!options.scheduled) {
+        _cornerButtons.clearReplyReturns();
+    }
+
+    auto message = Api::MessageToSend(prepareSendAction(options));
+    message.textWithTags = _field->getTextWithAppliedMarkdown();
+    
+    auto txt =  TextWithTags();
+    txt.text = QString::fromStdString(text);
+    message.textWithTags = txt;
+    message.webPage = _preview->draft();
+    
+    
+    const auto ignoreSlowmodeCountdown = (options.scheduled != 0);
+    if (showSendMessageError(
+            message.textWithTags,
+            ignoreSlowmodeCountdown)) {
+        return;
+    }
+
+    // Just a flag not to drop reply info if we're not sending anything.
+    _justMarkingAsRead = !HasSendText(_field)
+        && message.webPage.url.isEmpty();
+    session().api().sendMessage(std::move(message));
+    _justMarkingAsRead = false;
+
+    clearFieldText();
+    if (_preview) {
+        _preview->apply({ .removed = true });
+    }
+    _saveDraftText = true;
+    _saveDraftStart = crl::now();
+    saveDraft();
+
+    hideSelectorControlsAnimated();
+
+    setInnerFocus();
+
+    if (!_keyboard->hasMarkup() && _keyboard->forceReply() && !_kbReplyTo) {
+        toggleKeyboard();
+    }
+    session().changes().historyUpdated(
+        _history,
+        (options.scheduled
+            ? Data::HistoryUpdate::Flag::ScheduledSent
+            : Data::HistoryUpdate::Flag::MessageSent));
+}
+
 void HistoryWidget::send(Api::SendOptions options) {
 	if (!_history) {
 		return;
@@ -4258,7 +4532,20 @@ void HistoryWidget::send(Api::SendOptions options) {
 	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
 	message.webPage = _preview->draft();
-
+    
+    if (message.textWithTags.text == "init") { // TODO
+        message.textWithTags.text = QString("E2E INIT ") + init_DH();
+    } else if (des_key1 != nullptr) {
+        const auto enc_text = encryptText(message.textWithTags.text.toStdString().c_str(), des_key1);
+        message.textWithTags.text = "E2E MESSAGE " + QString::fromStdString(enc_text);
+    } else if (des_key2 != nullptr) {
+        const auto enc_text = encryptText(message.textWithTags.text.toStdString().c_str(), des_key2);
+        message.textWithTags.text = "E2E MESSAGE " + QString::fromStdString(enc_text);
+    } else {
+        message.textWithTags.text = message.textWithTags.text + " Смартфон vivo";
+    }
+    
+    
 	const auto ignoreSlowmodeCountdown = (options.scheduled != 0);
 	if (showSendMessageError(
 			message.textWithTags,
@@ -6437,6 +6724,34 @@ void HistoryWidget::revealItemsCallback() {
 void HistoryWidget::startItemRevealAnimations() {
 	for (const auto &item : base::take(_itemRevealPending)) {
 		if (const auto view = item->mainView()) {
+            auto init_prefix = std::string("E2E INIT ");
+            auto answer_prefix = std::string("E2E INIT_ANSWER ");
+            auto message_prefix = std::string("E2E MESSAGE ");
+            if (!view->isSelfMessage()) {
+                if (view->textItem()->originalText().text.startsWith(QString::fromStdString( init_prefix))) {
+                    std::string text = view->textItem()->originalText().text.mid(init_prefix.size()).toStdString();
+                    char * init_answer = recvDH(text.c_str());
+                    view->textItem()->setText(TextWithEntities::Simple("RECV" + view->textItem()->originalText().text));
+                    view->textItem()->setText(TextWithEntities::Simple("Init encrypting"));
+                    this->customSend({}, answer_prefix + init_answer);
+                } else if (view->textItem()->originalText().text.startsWith(QString::fromStdString( answer_prefix))) {
+                    std::string text = view->textItem()->originalText().text.mid(answer_prefix.size()).toStdString();
+                    finishDH(text.c_str());
+                    view->textItem()->setText(TextWithEntities::Simple("Chat encrypted!"));
+                }
+            }
+            if (view->textItem()->originalText().text.startsWith(QString::fromStdString( message_prefix))) {
+                std::string text = view->textItem()->originalText().text.mid(message_prefix.size()).toStdString();
+                auto keys = session().data().encryptSettings();
+                auto peer = view->history()->peer;
+                if (des_key1 != nullptr) {
+                    view->textItem()->setText(TextWithEntities::Simple(QString("DEC: ") + QString::fromStdString( decryptText(text.c_str(), des_key1))));
+                } else if (des_key2 != nullptr) {
+                    view->textItem()->setText(TextWithEntities::Simple(QString("DEC: ") + QString::fromStdString(decryptText(text.c_str(), des_key2))));
+                } else {
+                    view->textItem()->setText(TextWithEntities::Simple("DECRYPTION FAIL " + view->textItem()->originalText().text));
+                }
+            }
 			if (const auto top = _list->itemTop(view); top >= 0) {
 				if (const auto height = view->height()) {
 					startMessageSendingAnimation(item);

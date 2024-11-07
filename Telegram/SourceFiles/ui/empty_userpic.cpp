@@ -77,14 +77,14 @@ void PaintSavedMessagesInner(
 		// X                X
 		// X                X
 
-		pen.setJoinStyle(Qt::RoundJoin);
-		p.setPen(pen);
-		QPainterPath path;
-		path.moveTo(left, half);
-		path.lineTo(left, top);
-		path.lineTo(right, top);
-		path.lineTo(right, half);
-		p.drawPath(path);
+//		pen.setJoinStyle(Qt::RoundJoin);
+//		p.setPen(pen);
+//		QPainterPath path;
+//		path.moveTo(left, half);
+//		path.lineTo(left, top);
+//		path.lineTo(right, top);
+//		path.lineTo(right, half);
+//		p.drawPath(path);
 	}
 	{
 		// X                X
