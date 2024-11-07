@@ -305,6 +305,7 @@ private:
 	void addVideoChat();
 	void addViewStatistics();
 	void addBoostChat();
+    void addEncryptButton();
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -1082,6 +1083,24 @@ void Filler::addBoostChat() {
 	}
 }
 
+void Filler::addEncryptButton() {
+    const auto user = _peer->asUser();
+    if (!user || user->isBot()) {
+        return;
+    }
+    if (!_peer->isEcnrypted()) {
+        _addAction({
+            .text = "Enable encrypt",
+            .handler = [=] {_peer->setEncryption(true); },
+            .icon = &st::menuIconDrugs,});
+    } else {
+        _addAction({
+            .text = "Disable encrypt",
+            .handler = [=] {_peer->setEncryption(false);},
+            .icon = &st::menuIconDrugs,});
+    }
+}
+
 void Filler::addViewStatistics() {
 	if (const auto channel = _peer->asChannel()) {
 		const auto controller = _controller;
@@ -1410,6 +1429,7 @@ void Filler::fillContextMenuActions() {
 void Filler::fillHistoryActions() {
 	addToggleMuteSubmenu(true);
 	addInfo();
+    addEncryptButton();
 	addViewAsTopics();
 	addStoryArchive();
 	addSupportInfo();
