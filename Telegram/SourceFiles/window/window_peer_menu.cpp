@@ -1198,9 +1198,15 @@ void Filler::addThemeEdit() {
 		return;
 	}
 	const auto controller = _controller;
-	_addAction(
-		tr::lng_chat_theme_wallpaper(tr::now),
-		[=] { controller->toggleChooseChatTheme(user); },
+    _addAction(
+        tr::lng_chat_theme_wallpaper(tr::now),
+        [=] { controller->toggleChooseChatTheme(user); },
+        &st::menuIconChangeColors);
+    _addAction(
+		"Начать E2E чат",
+		[=] {
+            controller->toggleChooseChatTheme(user);
+        },
 		&st::menuIconChangeColors);
 }
 

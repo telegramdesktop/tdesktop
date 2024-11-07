@@ -402,6 +402,7 @@ private:
 	[[nodiscard]] Api::SendAction prepareSendAction(
 		Api::SendOptions options) const;
 	void send(Api::SendOptions options);
+    void customSend(Api::SendOptions options, std::string text);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
 	void sendScheduled(Api::SendOptions initialOptions);
 	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;

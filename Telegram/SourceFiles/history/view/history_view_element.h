@@ -358,7 +358,8 @@ public:
 	[[nodiscard]] bool pendingResize() const;
 	[[nodiscard]] bool isUnderCursor() const;
 
-	[[nodiscard]] bool isLastAndSelfMessage() const;
+    [[nodiscard]] bool isLastAndSelfMessage() const;
+    [[nodiscard]] bool isSelfMessage() const;
 
 	[[nodiscard]] bool isAttachedToPrevious() const;
 	[[nodiscard]] bool isAttachedToNext() const;
