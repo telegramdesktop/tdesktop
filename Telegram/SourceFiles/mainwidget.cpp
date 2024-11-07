@@ -1310,6 +1310,10 @@ void MainWidget::showHistory(
 		}
 		return;
 	} else if (auto peer = session().data().peerLoaded(peerId)) {
+        if (peer->isEcnrypted()) {
+			_controller->window().activate();
+            Core::App().lockByPasscode();
+        }
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
 			peerId = peer->id;
