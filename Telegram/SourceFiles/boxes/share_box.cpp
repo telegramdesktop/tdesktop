@@ -83,6 +83,7 @@ public:
 	void activateSkipColumn(int direction);
 	void activateSkipPage(int pageHeight, int direction);
 	void updateFilter(QString filter = QString());
+	[[nodiscard]] bool isFilterEmpty() const;
 	void selectActive();
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
@@ -288,6 +289,10 @@ void ShareBox::prepare() {
 
 	_select->setQueryChangedCallback([=](const QString &query) {
 		applyFilterUpdate(query);
+		if (_chatsFilters) {
+			updateScrollSkips();
+			scrollToY(0);
+		}
 	});
 	_select->setItemRemovedCallback([=](uint64 itemId) {
 		if (const auto peer = _descriptor.session->data().peerLoaded(PeerId(itemId))) {
@@ -352,20 +357,23 @@ void ShareBox::prepare() {
 				_inner->applyChatFilter(id);
 				scrollToY(0);
 			});
+		chatsFilters->lower();
 		chatsFilters->heightValue() | rpl::start_with_next([this](int h) {
-			_additionalTopScrollSkip = h;
 			updateScrollSkips();
 			scrollToY(0);
 		}, lifetime());
 		_select->heightValue() | rpl::start_with_next([=](int h) {
 			chatsFilters->moveToLeft(0, h);
 		}, chatsFilters->lifetime());
+		_chatsFilters = chatsFilters;
 	}
 }
 
 int ShareBox::getTopScrollSkip() const {
 	return (_select->isHidden() ? 0 : _select->height())
-		+ _additionalTopScrollSkip;
+		+ ((_chatsFilters && _inner && _inner->isFilterEmpty())
+			? _chatsFilters->height()
+			: 0);
 }
 
 int ShareBox::getBottomScrollSkip() const {
@@ -1355,6 +1363,10 @@ void ShareBox::Inner::updateFilter(QString filter) {
 		loadProfilePhotos();
 		update();
 	}
+}
+
+bool ShareBox::Inner::isFilterEmpty() const {
+	return _filter.isEmpty();
 }
 
 rpl::producer<Ui::ScrollToRequest> ShareBox::Inner::scrollToRequests() const {
