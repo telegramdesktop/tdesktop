@@ -2053,7 +2053,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		auto controller = std::make_unique<Controller>(session);
 		const auto controllerRaw = controller.get();
 		auto init = [=](not_null<PeerListBox*> box) {
-			box->setIgnoreHiddenRowsOnSearch(true);
+			box->setSpecialTabMode(true);
 			auto applyFilter = [=](FilterId id) {
 				box->scrollToY(0);
 				auto &filters = session->data().chatsFilters();
@@ -2114,6 +2114,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 				box,
 				session,
 				std::move(applyFilter));
+			chatsFilters->lower();
 			chatsFilters->heightValue() | rpl::start_with_next([box](int h) {
 				box->setAddedTopScrollSkip(h);
 			}, box->lifetime());

@@ -206,7 +206,9 @@ void PeerListBox::keyPressEvent(QKeyEvent *e) {
 		content()->selectSkipPage(height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
 		content()->selectSkipPage(height(), -1);
-	} else if (e->key() == Qt::Key_Escape && _select && !_select->entity()->getQuery().isEmpty()) {
+	} else if (e->key() == Qt::Key_Escape
+			&& _select
+			&& !_select->entity()->getQuery().isEmpty()) {
 		_select->entity()->clearQuery();
 	} else {
 		BoxContent::keyPressEvent(e);
@@ -215,7 +217,16 @@ void PeerListBox::keyPressEvent(QKeyEvent *e) {
 
 void PeerListBox::searchQueryChanged(const QString &query) {
 	scrollToY(0);
-	content()->searchQueryChanged(query);
+	const auto isEmpty = content()->searchQueryChanged(query);
+	if (_specialTabsMode.enabled) {
+		_specialTabsMode.searchIsActive = !isEmpty;
+		if (_specialTabsMode.searchIsActive) {
+			_specialTabsMode.topSkip = _addedTopScrollSkip;
+			setAddedTopScrollSkip(0);
+		} else {
+			setAddedTopScrollSkip(_specialTabsMode.topSkip);
+		}
+	}
 }
 
 void PeerListBox::resizeEvent(QResizeEvent *e) {
@@ -547,8 +558,13 @@ rpl::producer<int> PeerListBox::multiSelectHeightValue() const {
 	return _select ? _select->heightValue() : rpl::single(0);
 }
 
-void PeerListBox::setIgnoreHiddenRowsOnSearch(bool value) {
+void PeerListBox::setSpecialTabMode(bool value) {
 	content()->setIgnoreHiddenRowsOnSearch(value);
+	if (value) {
+		_specialTabsMode.enabled = true;
+	} else {
+		_specialTabsMode = {};
+	}
 }
 
 PeerListRow::PeerListRow(not_null<PeerData*> peer)
@@ -2060,7 +2076,7 @@ void PeerListContent::checkScrollForPreload() {
 	}
 }
 
-void PeerListContent::searchQueryChanged(QString query) {
+PeerListContent::IsEmpty PeerListContent::searchQueryChanged(QString query) {
 	const auto searchWordsList = TextUtilities::PrepareSearchWords(query);
 	const auto normalizedQuery = searchWordsList.join(' ');
 	if (_ignoreHiddenRowsOnSearch && !normalizedQuery.isEmpty()) {
@@ -2117,6 +2133,7 @@ void PeerListContent::searchQueryChanged(QString query) {
 		}
 		refreshRows();
 	}
+	return _normalizedSearchQuery.isEmpty();
 }
 
 std::unique_ptr<PeerListState> PeerListContent::saveState() const {
