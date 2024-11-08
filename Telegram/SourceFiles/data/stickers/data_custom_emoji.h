@@ -66,8 +66,8 @@ public:
 	void resolve(DocumentId documentId, not_null<Listener*> listener);
 	void unregisterListener(not_null<Listener*> listener);
 
-	[[nodiscard]] rpl::producer<not_null<DocumentData*>> resolve(
-		DocumentId documentId);
+	[[nodiscard]] auto resolve(DocumentId documentId)
+		-> rpl::producer<not_null<DocumentData*>, rpl::empty_error>;
 
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,

@@ -263,6 +263,8 @@ private:
 	void botSharePhone(Fn<void(bool shared)> callback) override;
 	void botInvokeCustomMethod(
 		Ui::BotWebView::CustomMethodRequest request) override;
+	void botSetEmojiStatus(
+		Ui::BotWebView::SetEmojiStatusRequest request) override;
 	void botOpenPrivacyPolicy() override;
 	void botClose() override;
 
@@ -282,6 +284,8 @@ private:
 
 	QString _panelUrl;
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
+
+	rpl::lifetime _lifetime;
 
 	static base::weak_ptr<WebViewInstance> PendingActivation;
 

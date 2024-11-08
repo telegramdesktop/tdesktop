@@ -652,22 +652,27 @@ void CustomEmojiManager::unregisterListener(not_null<Listener*> listener) {
 	}
 }
 
-rpl::producer<not_null<DocumentData*>> CustomEmojiManager::resolve(
-		DocumentId documentId) {
+auto CustomEmojiManager::resolve(DocumentId documentId)
+-> rpl::producer<not_null<DocumentData*>, rpl::empty_error> {
 	return [=](auto consumer) {
 		auto result = rpl::lifetime();
-		const auto put = [=](not_null<DocumentData*> document) {
+		const auto put = [=](
+				not_null<DocumentData*> document,
+				bool resolved = true) {
 			if (!document->sticker()) {
+				if (resolved) {
+					consumer.put_error({});
+				}
 				return false;
 			}
 			consumer.put_next_copy(document);
 			return true;
 		};
-		if (!put(owner().document(documentId))) {
-			const auto listener = new CallbackListener(put);
+		if (!put(owner().document(documentId), false)) {
+			const auto listener = result.make_state<CallbackListener>(put);
+			resolve(documentId, listener);
 			result.add([=] {
 				unregisterListener(listener);
-				delete listener;
 			});
 		}
 		return result;
@@ -763,6 +768,9 @@ void CustomEmojiManager::request() {
 		requestFinished();
 	}).fail([=] {
 		LOG(("API Error: Failed to get documents for emoji."));
+		for (const auto &id : ids) {
+			processListeners(_owner->document(id.v));
+		}
 		requestFinished();
 	}).send();
 }
@@ -792,7 +800,8 @@ void CustomEmojiManager::processLoaders(not_null<DocumentData*> document) {
 	}
 }
 
-void CustomEmojiManager::processListeners(not_null<DocumentData*> document) {
+void CustomEmojiManager::processListeners(
+		not_null<DocumentData*> document) {
 	const auto id = document->id;
 	if (const auto listeners = _resolvers.take(id)) {
 		for (const auto &listener : *listeners) {

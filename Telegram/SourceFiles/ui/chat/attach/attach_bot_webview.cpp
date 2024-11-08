@@ -824,6 +824,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			processHeaderColor(arguments);
 		} else if (command == "web_app_set_bottom_bar_color") {
 			processBottomBarColor(arguments);
+		} else if (command == "web_app_set_emoji_status") {
+			processEmojiStatusRequest(arguments);
 		} else if (command == "share_score") {
 			_delegate->botHandleMenuButton(MenuButton::ShareGame);
 		}
@@ -961,6 +963,41 @@ void Panel::switchInlineQueryMessage(const QJsonObject &args) {
 		}
 	}
 	_delegate->botSwitchInlineQuery(types, query);
+}
+
+void Panel::processEmojiStatusRequest(const QJsonObject &args) {
+	if (args.isEmpty()) {
+		_delegate->botClose();
+		return;
+	}
+	const auto emojiId = args["custom_emoji_id"].toString().toULongLong();
+	const auto expirationDate = TimeId(base::SafeRound(
+		args["expiration_date"].toDouble()));
+	if (!emojiId) {
+		postEvent(
+			"emoji_status_failed",
+			"{ error: \"SUGGESTED_EMOJI_INVALID\" }");
+		return;
+	} else if (expirationDate < 0) {
+		postEvent(
+			"emoji_status_failed",
+			"{ error: \"EXPIRATION_DATE_INVALID\" }");
+		return;
+	}
+	auto callback = crl::guard(this, [=](QString error) {
+		if (error.isEmpty()) {
+			postEvent("emoji_status_set");
+		} else {
+			postEvent(
+				"emoji_status_failed",
+				u"{ error: \"%1\" }"_q.arg(error));
+		}
+	});
+	_delegate->botSetEmojiStatus({
+		.customEmojiId = emojiId,
+		.expirationDate = expirationDate,
+		.callback = std::move(callback),
+	});
 }
 
 void Panel::openTgLink(const QJsonObject &args) {

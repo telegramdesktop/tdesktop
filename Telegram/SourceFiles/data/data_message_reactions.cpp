@@ -1225,6 +1225,9 @@ not_null<CustomEmojiManager::Listener*> Reactions::resolveListener() {
 }
 
 void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
+	if (!document->sticker()) {
+		return;
+	}
 	const auto id = ReactionId{ { document->id } };
 	const auto favorite = (_unresolvedFavoriteId == id);
 	const auto i = _unresolvedTop.find(id);

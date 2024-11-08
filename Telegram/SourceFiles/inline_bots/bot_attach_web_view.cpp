@@ -26,12 +26,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer_bot_command.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_web_page.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "info/profile/info_profile_values.h"
@@ -43,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_non_panel_process.h"
+#include "settings/settings_premium.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "ui/basic_click_handlers.h"
@@ -426,6 +429,124 @@ void FillBotUsepic(
 	}
 
 	Ui::IconWithTitle(box->verticalLayout(), userpic, title, aboutLabel);
+}
+
+std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
+		not_null<QWidget*> parent,
+		not_null<PeerData*> peer,
+		not_null<DocumentData*> document) {
+	auto result = std::make_unique<Ui::RpWidget>(parent);
+
+	const auto size = st::chatGiveawayPeerSize;
+	const auto padding = st::chatGiveawayPeerPadding;
+
+	const auto raw = result.get();
+
+	const auto width = raw->lifetime().make_state<int>();
+	const auto name = raw->lifetime().make_state<Ui::FlatLabel>(
+		raw,
+		rpl::single(peer->name()),
+		st::botEmojiStatusName);
+	auto emojiText = TextWithEntities();
+	const auto emoji = raw->lifetime().make_state<Ui::FlatLabel>(
+		raw,
+		rpl::single(emojiText),
+		st::botEmojiStatusName);
+	const auto userpic = raw->lifetime().make_state<Ui::UserpicButton>(
+		raw,
+		peer,
+		st::botEmojiStatusUserpic);
+
+	raw->resize(size, size);
+	raw->sizeValue() | rpl::start_with_next([=](QSize outer) {
+		const auto full = outer.width();
+		const auto decorations = size
+			+ padding.left()
+			+ padding.right()
+			+ emoji->width()
+			+ st::normalFont->spacew;
+		const auto inner = full - decorations;
+		const auto use = std::min(inner, name->textMaxWidth());
+		*width = use + decorations;
+		const auto left = (full - *width) / 2;
+		if (inner > 0) {
+			userpic->moveToLeft(left, 0, outer.width());
+			emoji->moveToLeft(
+				left + *width - padding.right() - emoji->width(),
+				padding.top(),
+				outer.width());
+			name->resizeToWidth(use);
+			name->moveToLeft(
+				left + size + padding.left(),
+				padding.top(),
+				outer.width());
+		}
+	}, raw->lifetime());
+	raw->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		const auto left = (raw->width() - *width) / 2;
+		const auto skip = size / 2;
+		p.setClipRect(left + skip, 0, *width - skip, size);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(left, 0, *width, size, skip, skip);
+	}, raw->lifetime());
+
+	return result;
+}
+
+void ConfirmEmojiStatusBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<UserData*> bot,
+		not_null<DocumentData*> document,
+		TimeId until,
+		Fn<void(bool)> done) {
+	box->setNoContentMargin(true);
+
+	auto owned = Settings::MakeEmojiStatusPreview(box, document);
+	const auto preview = box->addRow(
+		object_ptr<Ui::RpWidget>::fromRaw(owned.release()));
+	preview->resize(preview->width(), st::botEmojiStatusPreviewHeight);
+
+	const auto set = box->lifetime().make_state<bool>();
+
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_bot_emoji_status_title(),
+		st::botEmojiStatusTitle));
+	AddSkip(box->verticalLayout());
+
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_bot_emoji_status_text(
+			lt_bot,
+			rpl::single(Ui::Text::Bold(bot->name())),
+			Ui::Text::RichLangValue),
+		st::botEmojiStatusText));
+
+	AddSkip(box->verticalLayout());
+
+	auto ownedSet = MakeEmojiSetStatusPreview(
+		box,
+		document->session().user(),
+		document);
+	box->addRow(
+		object_ptr<Ui::RpWidget>::fromRaw(ownedSet.release()));
+
+	box->addButton(tr::lng_bot_emoji_status_confirm(), [=] {
+		document->owner().emojiStatuses().set(document->id, until);
+		*set = true;
+		box->closeBox();
+		done(true);
+	});
+	box->addButton(tr::lng_cancel(), [=] {
+		const auto was = *set;
+		box->closeBox();
+		if (!was) {
+			done(false);
+		}
+	});
 }
 
 class BotAction final : public Ui::Menu::ItemBase {
@@ -1512,6 +1633,32 @@ void WebViewInstance::botInvokeCustomMethod(
 	}).fail([=](const MTP::Error &error) {
 		callback(base::make_unexpected(error.type()));
 	}).send();
+}
+
+void WebViewInstance::botSetEmojiStatus(
+		Ui::BotWebView::SetEmojiStatusRequest request) {
+	const auto bot = _bot;
+	const auto panel = _panel.get();
+	const auto callback = request.callback;
+	const auto until = request.expirationDate;
+	if (!panel) {
+		callback(u"UNKNOWN_ERROR"_q);
+		return;
+	}
+	_session->data().customEmojiManager().resolve(
+		request.customEmojiId
+	) | rpl::start_with_next_error([=](not_null<DocumentData*> document) {
+		const auto sticker = document->sticker();
+		if (!sticker || sticker->setType != Data::StickersType::Emoji) {
+			callback(u"SUGGESTED_EMOJI_INVALID"_q);
+			return;
+		}
+		const auto done = [=](bool success) {
+			callback(success ? QString() : u"USER_DECLINED"_q);
+		};
+		panel->showBox(
+			Box(ConfirmEmojiStatusBox, bot, document, until, done));
+	}, [=] { callback(u"SUGGESTED_EMOJI_INVALID"_q); }, panel->lifetime());
 }
 
 void WebViewInstance::botOpenPrivacyPolicy() {

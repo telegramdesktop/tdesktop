@@ -162,7 +162,7 @@ void TopicIconView::setupPlayer(not_null<Data::ForumTopic*> topic) {
 			id
 		) | rpl::map([=](not_null<DocumentData*> document) {
 			return document.get();
-		});
+		}) | rpl::map_error_to_done();
 	}) | rpl::flatten_latest(
 	) | rpl::map([=](DocumentData *document)
 	-> rpl::producer<std::shared_ptr<StickerPlayer>> {

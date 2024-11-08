@@ -98,7 +98,7 @@ namespace {
 				text.size(),
 				Data::SerializeCustomEmojiId(document)) },
 		};
-	});
+	}) | rpl::map_error_to_done();
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> PeerCustomStatus(
