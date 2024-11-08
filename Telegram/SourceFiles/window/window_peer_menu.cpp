@@ -1881,8 +1881,8 @@ void BlockSenderFromRepliesBox(
 		Window::ClearReply{ id });
 }
 
-QPointer<Ui::BoxContent> ShowChooseRecipientBox(
-		not_null<Window::SessionNavigation*> navigation,
+object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
+		not_null<Main::Session*> session,
 		FnMut<bool(not_null<Data::Thread*>)> &&chosen,
 		rpl::producer<QString> titleOverride,
 		FnMut<void()> &&successCallback,
@@ -1927,15 +1927,30 @@ QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 			box->setTitle(std::move(titleOverride));
 		}
 	};
-	*weak = navigation->parentController()->show(Box<PeerListBox>(
+	auto result = Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(ChooseRecipientArgs{
-			.session = &navigation->session(),
+			.session = session,
 			.callback = std::move(callback),
 			.filter = std::move(filter),
 			.premiumRequiredError = WritePremiumRequiredError,
 		}),
-		std::move(initBox)));
-	return weak->data();
+		std::move(initBox));
+	*weak = result.data();
+	return result;
+}
+
+QPointer<Ui::BoxContent> ShowChooseRecipientBox(
+		not_null<Window::SessionNavigation*> navigation,
+		FnMut<bool(not_null<Data::Thread*>)> &&chosen,
+		rpl::producer<QString> titleOverride,
+		FnMut<void()> &&successCallback,
+		InlineBots::PeerTypes typesRestriction) {
+	return navigation->parentController()->show(PrepareChooseRecipientBox(
+		&navigation->session(),
+		std::move(chosen),
+		std::move(titleOverride),
+		std::move(successCallback),
+		typesRestriction));
 }
 
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(

@@ -3425,6 +3425,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_emoji_status_text" = "Do you want to set this emoji status suggested by {bot}?";
 "lng_bot_emoji_status_access_text" = "{bot} requests access to set your **emoji status**. You will be able to revoke this access in the profile page of {name}.";
 "lng_bot_emoji_status_access_allow" = "Allow";
+"lng_bot_share_prepared_title" = "Share Message";
+"lng_bot_share_prepared_about" = "{bot} mini app suggests you to send this message to a chat you select.";
+"lng_bot_share_prepared_button" = "Share With...";
 
 "lng_bot_status_users#one" = "{count} monthly user";
 "lng_bot_status_users#other" = "{count} monthly users";

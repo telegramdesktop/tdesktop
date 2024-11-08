@@ -265,6 +265,8 @@ private:
 	void botSharePhone(Fn<void(bool shared)> callback) override;
 	void botInvokeCustomMethod(
 		Ui::BotWebView::CustomMethodRequest request) override;
+	void botSendPreparedMessage(
+		Ui::BotWebView::SendPreparedMessageRequest request) override;
 	void botSetEmojiStatus(
 		Ui::BotWebView::SetEmojiStatusRequest request) override;
 	void botOpenPrivacyPolicy() override;

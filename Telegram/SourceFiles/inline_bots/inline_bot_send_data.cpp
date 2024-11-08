@@ -28,7 +28,7 @@ QString SendData::getLayoutDescription(const Result *owner) const {
 	return owner->_description;
 }
 
-void SendDataCommon::addToHistory(
+not_null<HistoryItem*> SendDataCommon::makeMessage(
 		const Result *owner,
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const {
@@ -36,7 +36,7 @@ void SendDataCommon::addToHistory(
 	if (fields.replyTo) {
 		fields.flags |= MessageFlag::HasReplyInfo;
 	}
-	history->addNewLocalMessage(
+	return history->makeMessage(
 		std::move(fields),
 		std::move(distinct.text),
 		std::move(distinct.media));
@@ -96,14 +96,14 @@ QString SendContact::getLayoutDescription(const Result *owner) const {
 	return result;
 }
 
-void SendPhoto::addToHistory(
+not_null<HistoryItem*> SendPhoto::makeMessage(
 		const Result *owner,
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const {
-	history->addNewLocalMessage(
+	return history->makeMessage(
 		std::move(fields),
 		_photo,
-		{ _message, _entities });
+		TextWithEntities{ _message, _entities });
 }
 
 QString SendPhoto::getErrorOnSend(
@@ -113,14 +113,14 @@ QString SendPhoto::getErrorOnSend(
 	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
-void SendFile::addToHistory(
+not_null<HistoryItem*> SendFile::makeMessage(
 		const Result *owner,
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const {
-	history->addNewLocalMessage(
+	return history->makeMessage(
 		std::move(fields),
 		_document,
-		{ _message, _entities });
+		TextWithEntities{ _message, _entities });
 }
 
 QString SendFile::getErrorOnSend(
@@ -130,11 +130,11 @@ QString SendFile::getErrorOnSend(
 	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
-void SendGame::addToHistory(
+not_null<HistoryItem*> SendGame::makeMessage(
 		const Result *owner,
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const {
-	history->addNewLocalMessage(std::move(fields), _game);
+	return history->addNewLocalMessage(std::move(fields), _game);
 }
 
 QString SendGame::getErrorOnSend(

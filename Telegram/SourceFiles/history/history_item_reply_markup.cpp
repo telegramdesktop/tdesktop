@@ -14,28 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-[[nodiscard]] InlineBots::PeerTypes PeerTypesFromMTP(
-		const MTPvector<MTPInlineQueryPeerType> &types) {
-	using namespace InlineBots;
-	auto result = PeerTypes(0);
-	for (const auto &type : types.v) {
-		result |= type.match([&](const MTPDinlineQueryPeerTypePM &data) {
-			return PeerType::User;
-		}, [&](const MTPDinlineQueryPeerTypeChat &data) {
-			return PeerType::Group;
-		}, [&](const MTPDinlineQueryPeerTypeMegagroup &data) {
-			return PeerType::Group;
-		}, [&](const MTPDinlineQueryPeerTypeBroadcast &data) {
-			return PeerType::Broadcast;
-		}, [&](const MTPDinlineQueryPeerTypeBotPM &data) {
-			return PeerType::Bot;
-		}, [&](const MTPDinlineQueryPeerTypeSameBotPM &data) {
-			return PeerType();
-		});
-	}
-	return result;
-}
-
 [[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
 		const MTPDkeyboardButtonRequestPeer &query) {
 	using Type = RequestPeerQuery::Type;
@@ -75,6 +53,28 @@ namespace {
 }
 
 } // namespace
+
+InlineBots::PeerTypes PeerTypesFromMTP(
+		const MTPvector<MTPInlineQueryPeerType> &types) {
+	using namespace InlineBots;
+	auto result = PeerTypes(0);
+	for (const auto &type : types.v) {
+		result |= type.match([&](const MTPDinlineQueryPeerTypePM &data) {
+			return PeerType::User;
+		}, [&](const MTPDinlineQueryPeerTypeChat &data) {
+			return PeerType::Group;
+		}, [&](const MTPDinlineQueryPeerTypeMegagroup &data) {
+			return PeerType::Group;
+		}, [&](const MTPDinlineQueryPeerTypeBroadcast &data) {
+			return PeerType::Broadcast;
+		}, [&](const MTPDinlineQueryPeerTypeBotPM &data) {
+			return PeerType::Bot;
+		}, [&](const MTPDinlineQueryPeerTypeSameBotPM &data) {
+			return PeerType();
+		});
+	}
+	return result;
+}
 
 HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 	Type type,

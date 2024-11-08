@@ -361,7 +361,8 @@ public:
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
 		const SendAction &action,
-		std::optional<MsgId> localMessageId);
+		std::optional<MsgId> localMessageId,
+		Fn<void(bool)> done = nullptr);
 	void sendMessageFail(
 		const MTP::Error &error,
 		not_null<PeerData*> peer,

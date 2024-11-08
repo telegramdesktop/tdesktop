@@ -183,7 +183,8 @@ struct Panel::WebviewWithLifetime {
 		Webview::WindowConfig config = Webview::WindowConfig());
 
 	Webview::Window window;
-	QPointer<RpWidget> lastHidingBox;
+	std::vector<QPointer<RpWidget>> boxes;
+	rpl::lifetime boxesLifetime;
 	rpl::lifetime lifetime;
 };
 
@@ -824,6 +825,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			processHeaderColor(arguments);
 		} else if (command == "web_app_set_bottom_bar_color") {
 			processBottomBarColor(arguments);
+		} else if (command == "web_app_send_prepared_message") {
+			processSendMessageRequest(arguments);
 		} else if (command == "web_app_set_emoji_status") {
 			processEmojiStatusRequest(arguments);
 		} else if (command == "web_app_request_emoji_status_access") {
@@ -965,6 +968,27 @@ void Panel::switchInlineQueryMessage(const QJsonObject &args) {
 		}
 	}
 	_delegate->botSwitchInlineQuery(types, query);
+}
+
+void Panel::processSendMessageRequest(const QJsonObject &args) {
+	if (args.isEmpty()) {
+		_delegate->botClose();
+		return;
+	}
+	const auto id = args["id"].toString();
+	auto callback = crl::guard(this, [=](QString error) {
+		if (error.isEmpty()) {
+			postEvent("prepared_message_sent");
+		} else {
+			postEvent(
+				"prepared_message_failed",
+				u"{ error: \"%1\" }"_q.arg(error));
+		}
+	});
+	_delegate->botSendPreparedMessage({
+		.id = id,
+		.callback = std::move(callback),
+	});
 }
 
 void Panel::processEmojiStatusRequest(const QJsonObject &args) {
@@ -1502,9 +1526,11 @@ void Panel::layoutButtons() {
 		return button && !button->isHidden();
 	};
 	const auto any = shown(_mainButton) || shown(_secondaryButton);
-	_webviewBottom->setVisible(!any && !_fullscreen.current());
+	_webviewBottom->setVisible(!any
+		&& !_fullscreen.current()
+		&& !_layerShown);
 	if (any) {
-		_bottomButtonsBg->show();
+		_bottomButtonsBg->setVisible(!_layerShown);
 
 		const auto one = shown(_mainButton)
 			? _mainButton.get()
@@ -1570,7 +1596,9 @@ void Panel::layoutButtons() {
 	} else if (_bottomButtonsBg) {
 		_bottomButtonsBg->hide();
 	}
-	_footerHeight = any
+	_footerHeight = _layerShown
+		? 0
+		: any
 		? _bottomButtonsBg->height()
 		: _fullscreen.current()
 		? 0
@@ -1586,25 +1614,34 @@ void Panel::showBox(
 		LayerOptions options,
 		anim::type animated) {
 	if (const auto widget = _webview ? _webview->window.widget() : nullptr) {
+		_layerShown = true;
 		const auto hideNow = !widget->isHidden();
-		if (hideNow || _webview->lastHidingBox) {
-			const auto raw = _webview->lastHidingBox = box.data();
-			box->boxClosing(
-			) | rpl::start_with_next([=] {
+		const auto raw = box.data();
+		_webview->boxes.push_back(raw);
+		raw->boxClosing(
+		) | rpl::filter([=] {
+			return _webview != nullptr;
+		}) | rpl::start_with_next([=] {
+			auto &list = _webview->boxes;
+			list.erase(ranges::remove_if(list, [&](QPointer<RpWidget> b) {
+				return !b || (b == raw);
+			}), end(list));
+			if (list.empty()) {
+				_webview->boxesLifetime.destroy();
+				_layerShown = false;
 				const auto widget = _webview
 					? _webview->window.widget()
 					: nullptr;
-				if (widget
-					&& widget->isHidden()
-					&& _webview->lastHidingBox == raw) {
+				if (widget && widget->isHidden()) {
 					widget->show();
-					_webviewBottom->setVisible(!_fullscreen.current());
+					layoutButtons();
 				}
-			}, _webview->lifetime);
-			if (hideNow) {
-				widget->hide();
-				_webviewBottom->hide();
 			}
+		}, _webview->boxesLifetime);
+
+		if (hideNow) {
+			widget->hide();
+			layoutButtons();
 		}
 	}
 	const auto raw = box.data();

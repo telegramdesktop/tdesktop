@@ -712,6 +712,14 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		true);
 }
 
+not_null<HistoryItem*> History::addNewLocalMessage(
+		not_null<HistoryItem*> item) {
+	Expects(item->history() == this);
+	Expects(item->isLocal());
+
+	return addNewItem(item, true);
+}
+
 not_null<HistoryItem*> History::addSponsoredMessage(
 		MsgId id,
 		Data::SponsoredFrom from,

@@ -19,6 +19,9 @@ enum class PeerType : uint8;
 using PeerTypes = base::flags<PeerType>;
 } // namespace InlineBots
 
+[[nodiscard]] InlineBots::PeerTypes PeerTypesFromMTP(
+	const MTPvector<MTPInlineQueryPeerType> &types);
+
 enum class ReplyMarkupFlag : uint32 {
 	None                  = (1U << 0),
 	ForceReply            = (1U << 1),

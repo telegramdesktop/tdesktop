@@ -57,6 +57,11 @@ struct SetEmojiStatusRequest {
 	Fn<void(QString)> callback;
 };
 
+struct SendPreparedMessageRequest {
+	QString id = 0;
+	Fn<void(QString)> callback;
+};
+
 class Delegate {
 public:
 	virtual Webview::ThemeParams botThemeParams() = 0;
@@ -76,6 +81,8 @@ public:
 	virtual void botSharePhone(Fn<void(bool shared)> callback) = 0;
 	virtual void botInvokeCustomMethod(CustomMethodRequest request) = 0;
 	virtual void botSetEmojiStatus(SetEmojiStatusRequest request) = 0;
+	virtual void botSendPreparedMessage(
+		SendPreparedMessageRequest request) = 0;
 	virtual void botOpenPrivacyPolicy() = 0;
 	virtual void botClose() = 0;
 };
@@ -132,6 +139,7 @@ private:
 	void setTitle(rpl::producer<QString> title);
 	void sendDataMessage(const QJsonObject &args);
 	void switchInlineQueryMessage(const QJsonObject &args);
+	void processSendMessageRequest(const QJsonObject &args);
 	void processEmojiStatusRequest(const QJsonObject &args);
 	void processEmojiStatusAccessRequest();
 	void processButtonMessage(
@@ -195,6 +203,7 @@ private:
 	rpl::lifetime _headerColorLifetime;
 	rpl::lifetime _bottomBarColorLifetime;
 	rpl::variable<bool> _fullscreen = false;
+	bool _layerShown = false;
 	bool _webviewProgress = false;
 	bool _themeUpdateScheduled = false;
 	bool _hiddenForPayment = false;

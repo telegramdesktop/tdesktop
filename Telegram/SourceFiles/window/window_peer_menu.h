@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "base/object_ptr.h"
 #include "menu/menu_send.h"
 #include "data/data_poll.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
@@ -138,6 +139,12 @@ Fn<void()> DeleteAndLeaveHandler(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
 
+object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
+	not_null<Main::Session*> session,
+	FnMut<bool(not_null<Data::Thread*>)> &&chosen,
+	rpl::producer<QString> titleOverride = nullptr,
+	FnMut<void()> &&successCallback = nullptr,
+	InlineBots::PeerTypes typesRestriction = 0);
 QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 	not_null<Window::SessionNavigation*> navigation,
 	FnMut<bool(not_null<Data::Thread*>)> &&chosen,

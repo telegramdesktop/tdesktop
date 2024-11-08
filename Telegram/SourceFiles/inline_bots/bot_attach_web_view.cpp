@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
+#include "base/unixtime.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/share_box.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -38,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "info/profile/info_profile_values.h"
+#include "inline_bots/inline_bot_result.h"
+#include "inline_bots/inline_bot_confirm_prepared.h"
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
@@ -1727,6 +1730,88 @@ void WebViewInstance::botInvokeCustomMethod(
 		callback(result.data().vdata().v);
 	}).fail([=](const MTP::Error &error) {
 		callback(base::make_unexpected(error.type()));
+	}).send();
+}
+
+void WebViewInstance::botSendPreparedMessage(
+		Ui::BotWebView::SendPreparedMessageRequest request) {
+	const auto bot = _bot;
+	const auto id = request.id;
+	const auto panel = _panel.get();
+	const auto weak = base::make_weak(panel);
+	const auto callback = request.callback;
+	if (!panel) {
+		callback(u"UNKNOWN_ERROR"_q);
+		return;
+	}
+	_session->api().request(MTPmessages_GetPreparedInlineMessage(
+		bot->inputUser,
+		MTP_string(request.id)
+	)).done([=](const MTPmessages_PreparedInlineMessage &result) {
+		const auto panel = weak.get();
+		const auto &data = result.data();
+		bot->owner().processUsers(data.vusers());
+		const auto parsed = std::shared_ptr<Result>(Result::Create(
+			&bot->session(),
+			data.vquery_id().v,
+			data.vresult()));
+		if (!parsed || !panel) {
+			callback(u"UNKNOWN_ERROR"_q);
+			return;
+		}
+		const auto types = PeerTypesFromMTP(data.vpeer_types());
+		const auto history = bot->owner().history(bot->session().user());
+		const auto item = parsed->makeMessage(history, {
+			.id = bot->owner().nextNonHistoryEntryId(),
+			.flags = MessageFlag::FakeHistoryItem,
+			.from = bot->session().userPeerId(),
+			.date = base::unixtime::now(),
+			.viaBotId = peerToUser(bot->id),
+		});
+		struct State {
+			QPointer<Ui::BoxContent> preview;
+			bool sent = false;
+		};
+		const auto state = std::make_shared<State>();
+		auto box = Box(PreparedPreviewBox, item, [=] {
+			const auto chosen = [=](not_null<Data::Thread*> thread) {
+				auto action = Api::SendAction(thread);
+				const auto done = [=](bool success) {
+					if (success) {
+						callback(QString());
+					} else {
+						callback(u"MESSAGE_SEND_FAILED"_q);
+					}
+				};
+				bot->session().api().sendInlineResult(
+					bot,
+					parsed.get(),
+					action,
+					std::nullopt,
+					done);
+				state->sent = true;
+				if (const auto strong = state->preview.data()) {
+					strong->closeBox();
+				}
+				return true;
+			};
+			auto box = Window::PrepareChooseRecipientBox(
+				&bot->session(),
+				chosen,
+				tr::lng_inline_switch_choose(),
+				nullptr,
+				types);
+			panel->showBox(std::move(box));
+		});
+		box->boxClosing() | rpl::start_with_next([=] {
+			if (!state->sent) {
+				callback("USER_DECLINED");
+			}
+		}, box->lifetime());
+		state->preview = box.data();
+		panel->showBox(std::move(box));
+	}).fail([=] {
+		callback(u"MESSAGE_EXPIRED"_q);
 	}).send();
 }
 
