@@ -260,6 +260,8 @@ private:
 		QString query) override;
 	void botCheckWriteAccess(Fn<void(bool allowed)> callback) override;
 	void botAllowWriteAccess(Fn<void(bool allowed)> callback) override;
+	void botRequestEmojiStatusAccess(
+		Fn<void(bool allowed)> callback) override;
 	void botSharePhone(Fn<void(bool shared)> callback) override;
 	void botInvokeCustomMethod(
 		Ui::BotWebView::CustomMethodRequest request) override;

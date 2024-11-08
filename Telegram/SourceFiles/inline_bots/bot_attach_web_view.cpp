@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/share_box.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -447,11 +448,21 @@ std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
 		raw,
 		rpl::single(peer->name()),
 		st::botEmojiStatusName);
-	auto emojiText = TextWithEntities();
+	const auto makeContext = [=](Fn<void()> update) {
+		return Core::MarkedTextContext{
+			.session = &peer->session(),
+			.customEmojiRepaint = update,
+		};
+	};
 	const auto emoji = raw->lifetime().make_state<Ui::FlatLabel>(
 		raw,
-		rpl::single(emojiText),
-		st::botEmojiStatusName);
+		rpl::single(
+			Ui::Text::SingleCustomEmoji(
+				Data::SerializeCustomEmojiId(document->id),
+				document->sticker() ? document->sticker()->alt : QString())),
+		st::botEmojiStatusEmoji,
+		st::defaultPopupMenu,
+		makeContext);
 	const auto userpic = raw->lifetime().make_state<Ui::UserpicButton>(
 		raw,
 		peer,
@@ -496,6 +507,59 @@ std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
 	return result;
 }
 
+void ConfirmEmojiStatusAccessBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<UserData*> bot,
+		Fn<void(bool)> done) {
+	box->setNoContentMargin(true);
+
+	const auto set = box->lifetime().make_state<bool>();
+
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
+	AddSkip(box->verticalLayout(), 4 * st::defaultVerticalListSkip);
+
+	const auto statusIcon = ChatHelpers::GenerateLocalTgsSticker(
+		&bot->session(),
+		u"hello_status"_q);
+	statusIcon->overrideEmojiUsesTextColor(true);
+
+	auto ownedSet = MakeEmojiSetStatusPreview(
+		box,
+		bot->session().user(),
+		statusIcon);
+	box->addRow(
+		object_ptr<Ui::RpWidget>::fromRaw(ownedSet.release()));
+
+	AddSkip(box->verticalLayout(), 2 * st::defaultVerticalListSkip);
+
+	auto name = Ui::Text::Bold(bot->name());
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_bot_emoji_status_access_text(
+			lt_bot,
+			rpl::single(name),
+			lt_name,
+			rpl::single(name),
+			Ui::Text::RichLangValue),
+		st::botEmojiStatusText));
+
+	box->addButton(tr::lng_bot_emoji_status_access_allow(), [=] {
+		*set = true;
+		box->closeBox();
+		done(true);
+	});
+	box->addButton(tr::lng_cancel(), [=] {
+		const auto was = *set;
+		box->closeBox();
+		if (!was) {
+			done(false);
+		}
+	});
+}
+
 void ConfirmEmojiStatusBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<UserData*> bot,
@@ -511,6 +575,10 @@ void ConfirmEmojiStatusBox(
 
 	const auto set = box->lifetime().make_state<bool>();
 
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
 		tr::lng_bot_emoji_status_title(),
@@ -525,7 +593,7 @@ void ConfirmEmojiStatusBox(
 			Ui::Text::RichLangValue),
 		st::botEmojiStatusText));
 
-	AddSkip(box->verticalLayout());
+	AddSkip(box->verticalLayout(), 2 * st::defaultVerticalListSkip);
 
 	auto ownedSet = MakeEmojiSetStatusPreview(
 		box,
@@ -1598,6 +1666,33 @@ void WebViewInstance::botAllowWriteAccess(Fn<void(bool allowed)> callback) {
 	}).fail([=] {
 		callback(false);
 	}).send();
+}
+
+void WebViewInstance::botRequestEmojiStatusAccess(
+		Fn<void(bool allowed)> callback) {
+	if (_bot->botInfo->canManageEmojiStatus) {
+		callback(true);
+	} else if (const auto panel = _panel.get()) {
+		const auto bot = _bot;
+		panel->showBox(Box(ConfirmEmojiStatusAccessBox, bot, [=](bool ok) {
+			if (!ok) {
+				callback(false);
+				return;
+			}
+			const auto session = &bot->session();
+			bot->botInfo->canManageEmojiStatus = true;
+			session->api().request(MTPbots_ToggleUserEmojiStatusPermission(
+				bot->inputUser,
+				MTP_bool(true)
+			)).done([=] {
+				callback(true);
+			}).fail([=] {
+				callback(false);
+			}).send();
+		}));
+	} else {
+		callback(false);
+	}
 }
 
 void WebViewInstance::botSharePhone(Fn<void(bool shared)> callback) {

@@ -2435,6 +2435,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (const auto sticker = emojiStickers->stickerForEmoji(
 						isolated)) {
 					addDocumentActions(sticker.document, item);
+				} else if (v::is<QString>(isolated.items.front())
+					&& v::is_null(isolated.items[1])) {
+					const auto id = v::get<QString>(isolated.items.front());
+					const auto docId = id.toULongLong();
+					const auto document = session->data().document(docId);
+					if (document->sticker()) {
+						addDocumentActions(document, item);
+					}
 				}
 			}
 		}

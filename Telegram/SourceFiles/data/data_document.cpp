@@ -745,6 +745,14 @@ bool DocumentData::emojiUsesTextColor() const {
 	return (_flags & Flag::UseTextColor);
 }
 
+void DocumentData::overrideEmojiUsesTextColor(bool value) {
+	if (value) {
+		_flags |= Flag::UseTextColor;
+	} else {
+		_flags &= ~Flag::UseTextColor;
+	}
+}
+
 bool DocumentData::hasThumbnail() const {
 	return _thumbnail.location.valid()
 		&& !thumbnailFailed()

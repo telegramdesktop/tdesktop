@@ -774,7 +774,7 @@ void TopBarUser::updateTitle(
 		{ EntityType::CustomEmoji, 0, 1, entityEmojiData },
 		Ui::Text::Link(text, linkIndex).entities.front(),
 	};
-	auto title = (setId == coloredId)
+	auto title = (setId != coloredId)
 		? tr::lng_premium_emoji_status_title_colored(
 			tr::now,
 			lt_user,

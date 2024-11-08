@@ -71,6 +71,8 @@ public:
 		QString query) = 0;
 	virtual void botCheckWriteAccess(Fn<void(bool allowed)> callback) = 0;
 	virtual void botAllowWriteAccess(Fn<void(bool allowed)> callback) = 0;
+	virtual void botRequestEmojiStatusAccess(
+		Fn<void(bool allowed)> callback) = 0;
 	virtual void botSharePhone(Fn<void(bool shared)> callback) = 0;
 	virtual void botInvokeCustomMethod(CustomMethodRequest request) = 0;
 	virtual void botSetEmojiStatus(SetEmojiStatusRequest request) = 0;

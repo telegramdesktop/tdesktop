@@ -580,6 +580,9 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	} else {
 		user->setBotInfoVersion(-1);
 	}
+	if (const auto info = user->botInfo.get()) {
+		info->canManageEmojiStatus = update.is_bot_can_manage_emoji_status();
+	}
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(user, pinned->v);
 	}

@@ -1461,6 +1461,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_open_app" = "Open App";
 "lng_profile_open_app_about" = "By launching this mini app, you agree to the {terms}.";
 "lng_profile_open_app_terms" = "Terms of Service for Mini Apps";
+"lng_profile_bot_permissions_title" = "Allow access to";
+"lng_profile_bot_emoji_status_access" = "Emoji Status";
 "lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_suggest_photo" = "Suggest Profile Photo";
@@ -3421,6 +3423,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_emoji_status_confirm" = "Confirm";
 "lng_bot_emoji_status_title" = "Set Emoji Status";
 "lng_bot_emoji_status_text" = "Do you want to set this emoji status suggested by {bot}?";
+"lng_bot_emoji_status_access_text" = "{bot} requests access to set your **emoji status**. You will be able to revoke this access in the profile page of {name}.";
+"lng_bot_emoji_status_access_allow" = "Allow";
 
 "lng_bot_status_users#one" = "{count} monthly user";
 "lng_bot_status_users#other" = "{count} monthly users";

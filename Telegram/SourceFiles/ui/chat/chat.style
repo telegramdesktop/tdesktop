@@ -1178,3 +1178,6 @@ botEmojiStatusUserpic: UserpicButton(defaultUserpicButton) {
 }
 botEmojiStatusName: FlatLabel(defaultFlatLabel) {
 }
+botEmojiStatusEmoji: FlatLabel(botEmojiStatusName) {
+	textFg: profileVerifiedCheckBg;
+}

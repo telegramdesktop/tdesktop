@@ -28,6 +28,7 @@
     <file alias="collectible_phone.tgs">../../animations/collectible_phone.tgs</file>
     <file alias="search.tgs">../../animations/search.tgs</file>
     <file alias="noresults.tgs">../../animations/noresults.tgs</file>
+    <file alias="hello_status.tgs">../../animations/hello_status.tgs</file>
 
     <file alias="dice_idle.tgs">../../animations/dice/dice_idle.tgs</file>
     <file alias="dart_idle.tgs">../../animations/dice/dart_idle.tgs</file>

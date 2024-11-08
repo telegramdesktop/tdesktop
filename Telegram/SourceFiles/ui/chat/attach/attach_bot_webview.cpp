@@ -826,6 +826,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			processBottomBarColor(arguments);
 		} else if (command == "web_app_set_emoji_status") {
 			processEmojiStatusRequest(arguments);
+		} else if (command == "web_app_request_emoji_status_access") {
+			processEmojiStatusAccessRequest();
 		} else if (command == "share_score") {
 			_delegate->botHandleMenuButton(MenuButton::ShareGame);
 		}
@@ -998,6 +1000,15 @@ void Panel::processEmojiStatusRequest(const QJsonObject &args) {
 		.expirationDate = expirationDate,
 		.callback = std::move(callback),
 	});
+}
+
+void Panel::processEmojiStatusAccessRequest() {
+	auto callback = crl::guard(this, [=](bool allowed) {
+		postEvent("emoji_status_access_requested", allowed
+			? "{ status: \"allowed\" }"
+			: "{ status: \"cancelled\" }");
+	});
+	_delegate->botRequestEmojiStatusAccess(std::move(callback));
 }
 
 void Panel::openTgLink(const QJsonObject &args) {

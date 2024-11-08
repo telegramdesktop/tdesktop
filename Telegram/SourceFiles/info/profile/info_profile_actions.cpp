@@ -958,6 +958,7 @@ private:
 	object_ptr<Ui::RpWidget> setupInfo();
 	object_ptr<Ui::RpWidget> setupMuteToggle();
 	void setupMainApp();
+	void setupBotPermissions();
 	void setupMainButtons();
 	Ui::MultiSlideTracker fillTopicButtons();
 	Ui::MultiSlideTracker fillUserButtons(
@@ -1865,6 +1866,37 @@ void DetailsFiller::setupMainApp() {
 	Ui::AddSkip(_wrap);
 }
 
+void DetailsFiller::setupBotPermissions() {
+	AddSkip(_wrap);
+	AddSubsectionTitle(_wrap, tr::lng_profile_bot_permissions_title());
+	const auto emoji = _wrap->add(
+		object_ptr<Ui::SettingsButton>(
+			_wrap,
+			tr::lng_profile_bot_emoji_status_access(),
+			st::infoSharedMediaButton));
+	object_ptr<Profile::FloatingIcon>(
+		emoji,
+		st::infoIconEmojiStatusAccess,
+		st::infoSharedMediaButtonIconPosition);
+
+	const auto user = _peer->asUser();
+	emoji->toggleOn(
+		rpl::single(bool(user->botInfo->canManageEmojiStatus))
+	)->toggledValue() | rpl::filter([=](bool allowed) {
+		return allowed != user->botInfo->canManageEmojiStatus;
+	}) | rpl::start_with_next([=](bool allowed) {
+		user->botInfo->canManageEmojiStatus = allowed;
+		const auto session = &user->session();
+		session->api().request(MTPbots_ToggleUserEmojiStatusPermission(
+			user->inputUser,
+			MTP_bool(allowed)
+		)).send();
+	}, emoji->lifetime());
+	AddSkip(_wrap);
+	AddDivider(_wrap);
+	AddSkip(_wrap);
+}
+
 void DetailsFiller::setupMainButtons() {
 	auto wrapButtons = [=](auto &&callback) {
 		auto topSkip = _wrap->add(CreateSlideSkipWidget(_wrap));
@@ -2058,6 +2090,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 		if (const auto info = user->botInfo.get()) {
 			if (info->hasMainApp) {
 				setupMainApp();
+			}
+			if (info->canManageEmojiStatus) {
+				setupBotPermissions();
 			}
 		}
 	}
