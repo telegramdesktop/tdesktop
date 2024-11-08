@@ -79,6 +79,7 @@ public:
 		object_ptr<Ui::RpWidget> titleBadge,
 		not_null<Delegate*> delegate,
 		MenuButtons menuButtons,
+		bool fullscreen,
 		bool allowClipboardRead);
 	~Panel();
 
@@ -148,6 +149,8 @@ private:
 	void closeWithConfirmation();
 	void sendViewport();
 	void sendSafeArea();
+	void sendContentSafeArea();
+	void sendFullScreen();
 
 	using EventData = std::variant<QString, QJsonObject>;
 	void postEvent(const QString &event);
@@ -198,6 +201,7 @@ struct Args {
 	rpl::producer<QString> bottom;
 	not_null<Delegate*> delegate;
 	MenuButtons menuButtons;
+	bool fullscreen = false;
 	bool allowClipboardRead = false;
 };
 [[nodiscard]] std::unique_ptr<Panel> Show(Args &&args);

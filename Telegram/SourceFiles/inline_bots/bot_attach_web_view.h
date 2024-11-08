@@ -187,6 +187,7 @@ struct WebViewContext {
 	base::weak_ptr<Window::SessionController> controller;
 	Dialogs::EntryState dialogsEntryState;
 	std::optional<Api::SendAction> action;
+	bool fullscreen = false;
 	bool maySkipConfirmation = false;
 };
 
@@ -234,7 +235,12 @@ private:
 	void confirmOpen(Fn<void()> done);
 	void confirmAppOpen(bool writeAccess, Fn<void(bool allowWrite)> done);
 
-	void show(const QString &url, uint64 queryId = 0);
+	struct ShowArgs {
+		QString url;
+		uint64 queryId = 0;
+		bool fullscreen = false;
+	};
+	void show(ShowArgs &&args);
 	void showGame();
 	void started(uint64 queryId);
 
@@ -291,7 +297,8 @@ public:
 		not_null<Window::SessionController*> controller,
 		const Api::SendAction &action,
 		const QString &botUsername,
-		const QString &startCommand);
+		const QString &startCommand,
+		bool fullscreen);
 
 	void cancel();
 
@@ -360,6 +367,7 @@ private:
 
 	QString _botUsername;
 	QString _startCommand;
+	bool _fullScreenRequested = false;
 
 	mtpRequestId _requestId = 0;
 

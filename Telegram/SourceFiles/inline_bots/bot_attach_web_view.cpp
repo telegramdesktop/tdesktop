@@ -914,6 +914,7 @@ void WebViewInstance::requestButton() {
 	using Flag = MTPmessages_RequestWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestWebView(
 		MTP_flags(Flag::f_theme_params
+			| (_context.fullscreen ? Flag::f_fullscreen : Flag(0))
 			| (_button.url.isEmpty() ? Flag(0) : Flag::f_url)
 			| (_button.startCommand.isEmpty()
 				? Flag(0)
@@ -936,7 +937,11 @@ void WebViewInstance::requestButton() {
 			: MTP_inputPeerEmpty())
 	)).done([=](const MTPWebViewResult &result) {
 		const auto &data = result.data();
-		show(qs(data.vurl()), data.vquery_id().value_or_empty());
+		show({
+			.url = qs(data.vurl()),
+			.queryId = data.vquery_id().value_or_empty(),
+			.fullscreen = data.is_fullscreen(),
+		});
 	}).fail([=](const MTP::Error &error) {
 		_parentShow->showToast(error.type());
 		if (error.type() == u"BOT_INVALID"_q) {
@@ -950,6 +955,7 @@ void WebViewInstance::requestSimple() {
 	using Flag = MTPmessages_RequestSimpleWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestSimpleWebView(
 		MTP_flags(Flag::f_theme_params
+			| (_context.fullscreen ? Flag::f_fullscreen : Flag(0))
 			| (v::is<WebViewSourceSwitch>(_source)
 				? (Flag::f_url | Flag::f_from_switch_webview)
 				: v::is<WebViewSourceMainMenu>(_source)
@@ -964,7 +970,11 @@ void WebViewInstance::requestSimple() {
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
 		MTP_string("tdesktop")
 	)).done([=](const MTPWebViewResult &result) {
-		show(qs(result.data().vurl()));
+		const auto &data = result.data();
+		show({
+			.url = qs(data.vurl()),
+			.fullscreen = data.is_fullscreen(),
+		});
 	}).fail([=](const MTP::Error &error) {
 		_parentShow->showToast(error.type());
 		close();
@@ -975,6 +985,7 @@ void WebViewInstance::requestMain() {
 	using Flag = MTPmessages_RequestMainWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestMainWebView(
 		MTP_flags(Flag::f_theme_params
+			| (_context.fullscreen ? Flag::f_fullscreen : Flag(0))
 			| (_button.startCommand.isEmpty()
 						? Flag()
 						: Flag::f_start_param)
@@ -989,7 +1000,11 @@ void WebViewInstance::requestMain() {
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
 		MTP_string("tdesktop")
 	)).done([=](const MTPWebViewResult &result) {
-		show(qs(result.data().vurl()));
+		const auto &data = result.data();
+		show({
+			.url = qs(data.vurl()),
+			.fullscreen = data.is_fullscreen(),
+		});
 	}).fail([=](const MTP::Error &error) {
 		_parentShow->showToast(error.type());
 		close();
@@ -1003,6 +1018,7 @@ void WebViewInstance::requestApp(bool allowWrite) {
 	using Flag = MTPmessages_RequestAppWebView::Flag;
 	const auto app = _app;
 	const auto flags = Flag::f_theme_params
+		| (_context.fullscreen ? Flag::f_fullscreen : Flag(0))
 		| (_appStartParam.isEmpty() ? Flag(0) : Flag::f_start_param)
 		| (allowWrite ? Flag::f_write_allowed : Flag(0));
 	_requestId = _session->api().request(MTPmessages_RequestAppWebView(
@@ -1014,7 +1030,11 @@ void WebViewInstance::requestApp(bool allowWrite) {
 		MTP_string("tdesktop")
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
-		show(qs(result.data().vurl()));
+		const auto &data = result.data();
+		show({
+			.url = qs(data.vurl()),
+			.fullscreen = data.is_fullscreen(),
+		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.type() == u"BOT_INVALID"_q) {
@@ -1093,7 +1113,7 @@ void WebViewInstance::maybeChooseAndRequestButton(PeerTypes supported) {
 	close();
 }
 
-void WebViewInstance::show(const QString &url, uint64 queryId) {
+void WebViewInstance::show(ShowArgs &&args) {
 	auto title = Info::Profile::NameValue(_bot);
 	auto titleBadge = _bot->isVerified()
 		? object_ptr<Ui::RpWidget>(_parentShow->toastParent())
@@ -1131,18 +1151,19 @@ void WebViewInstance::show(const QString &url, uint64 queryId) {
 		|| v::is<WebViewSourceAttachMenu>(_source)
 		|| (attached != end(bots)
 			&& (attached->inAttachMenu || attached->inMainMenu));
-	_panelUrl = url;
+	_panelUrl = args.url;
 	_panel = Ui::BotWebView::Show({
-		.url = url,
+		.url = args.url,
 		.storageId = _session->local().resolveStorageIdBots(),
 		.title = std::move(title),
 		.titleBadge = std::move(titleBadge),
 		.bottom = rpl::single('@' + _bot->username()),
 		.delegate = static_cast<Ui::BotWebView::Delegate*>(this),
 		.menuButtons = buttons,
+		.fullscreen = args.fullscreen,
 		.allowClipboardRead = allowClipboardRead,
 	});
-	started(queryId);
+	started(args.queryId);
 
 	if (const auto strong = PendingActivation.get()) {
 		if (strong == this) {
@@ -1618,20 +1639,25 @@ void AttachWebView::openByUsername(
 		not_null<Window::SessionController*> controller,
 		const Api::SendAction &action,
 		const QString &botUsername,
-		const QString &startCommand) {
+		const QString &startCommand,
+		bool fullscreen) {
 	if (botUsername.isEmpty()
-		|| (_botUsername == botUsername && _startCommand == startCommand)) {
+		|| (_botUsername == botUsername
+			&& _startCommand == startCommand
+			&& _fullScreenRequested == fullscreen)) {
 		return;
 	}
 	cancel();
 
 	_botUsername = botUsername;
 	_startCommand = startCommand;
+	_fullScreenRequested = fullscreen;
 	const auto weak = base::make_weak(controller);
 	const auto show = controller->uiShow();
 	resolveUsername(show, crl::guard(weak, [=](not_null<PeerData*> peer) {
 		_botUsername = QString();
 		const auto token = base::take(_startCommand);
+		const auto fullscreen = base::take(_fullScreenRequested);
 
 		const auto bot = peer->asUser();
 		if (!bot || !bot->isBot()) {
@@ -1646,6 +1672,7 @@ void AttachWebView::openByUsername(
 			.context = {
 				.controller = controller,
 				.action = action,
+				.fullscreen = fullscreen,
 			},
 			.button = { .startCommand = token },
 			.source = InlineBots::WebViewSourceLinkAttachMenu{},

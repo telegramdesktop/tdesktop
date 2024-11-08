@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 #include <QtGui/QWindow>
+#include <QtGui/QScreen>
+#include <QtGui/qpa/qplatformscreen.h>
 
 namespace Ui::BotWebView {
 namespace {
@@ -369,11 +371,13 @@ Panel::Panel(
 	object_ptr<Ui::RpWidget> titleBadge,
 	not_null<Delegate*> delegate,
 	MenuButtons menuButtons,
+	bool fullscreen,
 	bool allowClipboardRead)
 : _storageId(storageId)
 , _delegate(delegate)
 , _menuButtons(menuButtons)
 , _widget(std::make_unique<SeparatePanel>())
+, _fullscreen(fullscreen)
 , _allowClipboardRead(allowClipboardRead) {
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	_widget->setInnerSize(st::botWebViewPanelSize, true);
@@ -382,7 +386,9 @@ Panel::Panel(
 	) | rpl::start_with_next([=](bool fullscreen) {
 		_widget->toggleFullScreen(fullscreen);
 		layoutButtons();
+		sendFullScreen();
 		sendSafeArea();
+		sendContentSafeArea();
 	}, _widget->lifetime());
 
 	_widget->closeRequests(
@@ -762,6 +768,36 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			sendViewport();
 		} else if (command == "web_app_request_safe_area") {
 			sendSafeArea();
+		} else if (command == "web_app_request_content_safe_area") {
+			sendContentSafeArea();
+		} else if (command == "web_app_request_fullscreen") {
+			if (!_fullscreen.current()) {
+				_fullscreen = true;
+			} else {
+				sendFullScreen();
+			}
+		} else if (command == "web_app_exit_fullscreen") {
+			if (_fullscreen.current()) {
+				_fullscreen = false;
+			} else {
+				sendFullScreen();
+			}
+		} else if (command == "web_app_check_home_screen") {
+			postEvent("home_screen_checked", "{ status: \"unsupported\" }");
+		} else if (command == "web_app_start_accelerometer") {
+			postEvent("accelerometer_failed", "{ error: \"UNSUPPORTED\" }");
+		} else if (command == "web_app_start_device_orientation") {
+			postEvent(
+				"device_orientation_failed",
+				"{ error: \"UNSUPPORTED\" }");
+		} else if (command == "web_app_start_gyroscope") {
+			postEvent("gyroscope_failed", "{ error: \"UNSUPPORTED\" }");
+		} else if (command == "web_app_check_location") {
+			postEvent("location_checked", "{ available: false }");
+		} else if (command == "web_app_request_location") {
+			postEvent("location_requested", "{ available: false }");
+		} else if (command == "web_app_biometry_get_info") {
+			postEvent("biometry_info_received", "{ available: false }");
 		} else if (command == "web_app_open_tg_link") {
 			openTgLink(arguments);
 		} else if (command == "web_app_open_link") {
@@ -846,9 +882,34 @@ void Panel::sendViewport() {
 		"is_expanded: true }");
 }
 
+void Panel::sendFullScreen() {
+	postEvent("fullscreen_changed", _fullscreen.current()
+		? "{ is_fullscreen: true }"
+		: "{ is_fullscreen: false }");
+}
+
 void Panel::sendSafeArea() {
 	postEvent("safe_area_changed",
 		"{ top: 0, right: 0, bottom: 0, left: 0 }");
+}
+
+void Panel::sendContentSafeArea() {
+	const auto shift = st::separatePanelClose.rippleAreaPosition.y();
+	const auto top = _fullscreen.current()
+		? (shift + st::fullScreenPanelClose.height + (shift / 2))
+		: 0;
+	const auto scaled = top * style::DevicePixelRatio();
+	auto report = 0;
+	if (const auto screen = QGuiApplication::primaryScreen()) {
+		const auto dpi = screen->logicalDotsPerInch();
+		const auto ratio = screen->devicePixelRatio();
+		const auto basePair = screen->handle()->logicalBaseDpi();
+		const auto base = (basePair.first + basePair.second) * 0.5;
+		const auto systemScreenScale = dpi * ratio / base;
+		report = int(base::SafeRound(scaled / systemScreenScale));
+	}
+	postEvent("content_safe_area_changed",
+		u"{ top: %1, right: 0, bottom: 0, left: 0 }"_q.arg(report));
 }
 
 void Panel::setTitle(rpl::producer<QString> title) {
@@ -1662,6 +1723,7 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		std::move(args.titleBadge),
 		args.delegate,
 		args.menuButtons,
+		args.fullscreen,
 		args.allowClipboardRead);
 	const auto params = args.delegate->botThemeParams();
 	if (!result->showWebview(args.url, params, std::move(args.bottom))) {

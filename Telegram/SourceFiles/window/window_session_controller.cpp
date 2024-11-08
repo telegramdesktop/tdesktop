@@ -637,6 +637,7 @@ void SessionNavigation::showPeerByLinkResolved(
 				.context = {
 					.controller = parentController(),
 					.action = action,
+					.fullscreen = info.botAppFullScreen,
 					.maySkipConfirmation = !info.botAppForceConfirmation,
 				},
 				.button = { .startCommand = info.startToken },
@@ -697,14 +698,18 @@ void SessionNavigation::showPeerByLinkResolved(
 					parentController(),
 					Api::SendAction(history),
 					attachBotUsername,
-					info.attachBotToggleCommand.value_or(QString()));
+					info.attachBotToggleCommand.value_or(QString()),
+					info.botAppFullScreen);
 			});
 		} else if (bot && info.attachBotMainOpen) {
 			const auto startCommand = info.attachBotToggleCommand.value_or(
 				QString());
 			bot->session().attachWebView().open({
 				.bot = bot,
-				.context = { .controller = parentController() },
+				.context = {
+					.controller = parentController(),
+					.fullscreen = info.botAppFullScreen,
+				},
 				.button = { .startCommand = startCommand },
 				.source = InlineBots::WebViewSourceLinkBotProfile{
 					.token = startCommand,
@@ -728,6 +733,7 @@ void SessionNavigation::showPeerByLinkResolved(
 						? Api::SendAction(
 							contextUser->owner().history(contextUser))
 						: std::optional<Api::SendAction>()),
+					.fullscreen = info.botAppFullScreen,
 				},
 				.button = { .startCommand = *info.attachBotToggleCommand },
 				.source = InlineBots::WebViewSourceLinkAttachMenu{

@@ -618,6 +618,7 @@ bool ResolveUsernameOrPhone(
 		.startAutoSubmit = myContext.botStartAutoSubmit,
 		.botAppName = (appname.isEmpty() ? postParam : appname),
 		.botAppForceConfirmation = myContext.mayShowConfirmation,
+		.botAppFullScreen = (params.value(u"mode"_q) == u"fullscreen"_q),
 		.attachBotUsername = params.value(u"attach"_q),
 		.attachBotToggleCommand = (params.contains(u"startattach"_q)
 			? params.value(u"startattach"_q)
