@@ -155,7 +155,11 @@ public:
 			not_null<const Element*> view) override {
 		return (Element::Moused() == view);
 	}
-	HistoryView::SelectionModeResult elementInSelectionMode() override {
+	HistoryView::SelectionModeResult elementInSelectionMode(
+			const Element *view) override {
+		if (view && view->data()->isSponsored()) {
+			return HistoryView::SelectionModeResult();
+		}
 		return _widget
 			? _widget->inSelectionMode()
 			: HistoryView::SelectionModeResult();

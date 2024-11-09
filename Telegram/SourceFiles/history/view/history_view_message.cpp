@@ -1100,7 +1100,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	if (hasGesture) {
 		p.translate(context.gestureHorizontal.translation, 0);
 	}
-	const auto selectionModeResult = delegate()->elementInSelectionMode();
+	const auto selectionModeResult = delegate()->elementInSelectionMode(this);
 	const auto selectionTranslation = (selectionModeResult.progress > 0)
 		? (selectionModeResult.progress
 			* AdditionalSpaceForSelectionCheckbox(this, g))
@@ -3868,7 +3868,7 @@ bool Message::displayFastReply() const {
 	return hasFastReply()
 		&& data()->isRegular()
 		&& canSendAnything()
-		&& !delegate()->elementInSelectionMode().inSelectionMode;
+		&& !delegate()->elementInSelectionMode(this).inSelectionMode;
 }
 
 bool Message::displayRightActionComments() const {
@@ -4032,7 +4032,7 @@ void Message::drawRightAction(
 
 ClickHandlerPtr Message::rightActionLink(
 		std::optional<QPoint> pressPoint) const {
-	if (delegate()->elementInSelectionMode().progress > 0) {
+	if (delegate()->elementInSelectionMode(this).progress > 0) {
 		return nullptr;
 	}
 	ensureRightAction();

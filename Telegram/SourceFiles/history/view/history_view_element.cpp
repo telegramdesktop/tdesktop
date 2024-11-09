@@ -111,7 +111,8 @@ bool DefaultElementDelegate::elementUnderCursor(
 	return false;
 }
 
-SelectionModeResult DefaultElementDelegate::elementInSelectionMode() {
+SelectionModeResult DefaultElementDelegate::elementInSelectionMode(
+		const Element *view) {
 	return {};
 }
 

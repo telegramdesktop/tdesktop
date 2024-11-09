@@ -898,7 +898,7 @@ void RepliesWidget::setupSwipeReply() {
 		}
 	}, [=, show = controller()->uiShow()](int cursorTop) {
 		auto result = HistoryView::SwipeHandlerFinishData();
-		if (_inner->elementInSelectionMode().inSelectionMode) {
+		if (_inner->elementInSelectionMode(nullptr).inSelectionMode) {
 			return result;
 		}
 		const auto view = _inner->lookupItemByY(cursorTop);

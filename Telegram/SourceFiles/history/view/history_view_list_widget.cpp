@@ -1782,7 +1782,11 @@ bool ListWidget::elementUnderCursor(
 	return (_overElement == view);
 }
 
-SelectionModeResult ListWidget::elementInSelectionMode() {
+SelectionModeResult ListWidget::elementInSelectionMode(
+		const HistoryView::Element *view) {
+	if (view && !_delegate->listIsItemGoodForSelection(view->data())) {
+		return {};
+	}
 	return inSelectionMode();
 }
 

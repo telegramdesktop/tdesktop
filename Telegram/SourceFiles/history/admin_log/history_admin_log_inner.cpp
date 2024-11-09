@@ -666,7 +666,8 @@ bool InnerWidget::elementUnderCursor(
 	return (Element::Hovered() == view);
 }
 
-HistoryView::SelectionModeResult InnerWidget::elementInSelectionMode() {
+HistoryView::SelectionModeResult InnerWidget::elementInSelectionMode(
+		const HistoryView::Element *) {
 	return {};
 }
 

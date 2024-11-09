@@ -391,7 +391,7 @@ public:
 	// ElementDelegate interface.
 	Context elementContext() override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	SelectionModeResult elementInSelectionMode() override;
+	SelectionModeResult elementInSelectionMode(const Element *view) override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
