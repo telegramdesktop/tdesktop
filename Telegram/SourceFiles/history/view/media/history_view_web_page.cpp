@@ -1512,7 +1512,7 @@ void WebPage::clickHandlerPressedChanged(
 		}
 		return;
 	}
-	if (p == _openl) {
+	if ((p == _openl) || (sponsoredData() && sponsoredData()->link == p)) {
 		if (pressed) {
 			if (!_ripple) {
 				const auto full = Rect(currentSize());
