@@ -663,8 +663,8 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	const auto stickerSet = stickerSetData();
 	const auto factcheck = factcheckData();
 	const auto sponsored = sponsoredData();
-	const auto specialRightPix = ((sponsored && !sponsored->hasMedia)
-		|| stickerSet);
+	const auto specialRightPix = (stickerSet
+		|| (sponsored && !sponsored->hasMedia && _data->photo));
 	const auto lineHeight = UnitedLineHeight();
 	const auto factcheckMetrics = factcheck
 		? computeFactcheckMetrics(_description.countHeight(innerWidth))
@@ -678,7 +678,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	}
 	const auto linesMax = factcheck
 		? (factcheckMetrics.lines + 1)
-		: (specialRightPix || isLogEntryOriginal())
+		: (sponsored || isLogEntryOriginal())
 		? kMaxOriginalEntryLines
 		: 5;
 	const auto siteNameHeight = _siteNameLines ? lineHeight : 0;
@@ -711,7 +711,9 @@ QSize WebPage::countCurrentSize(int newWidth) {
 				newHeight += _titleLines * lineHeight;
 			}
 
-			const auto descriptionHeight = _description.countHeight(wleft);
+			const auto descriptionHeight = _description.countHeight(sponsored
+				? innerWidth
+				: wleft);
 			const auto restLines = (linesMax - _siteNameLines - _titleLines);
 			if (descriptionHeight < restLines * descriptionLineHeight) {
 				// We have height for all the lines.
