@@ -74,6 +74,9 @@ void SponsoredMessages::clearOldRequests() {
 
 SponsoredMessages::AppendResult SponsoredMessages::append(
 		not_null<History*> history) {
+	if (isTopBarFor(history)) {
+		return SponsoredMessages::AppendResult::None;
+	}
 	const auto it = _data.find(history);
 	if (it == end(_data)) {
 		return SponsoredMessages::AppendResult::None;

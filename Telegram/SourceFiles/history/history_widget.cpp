@@ -2582,6 +2582,8 @@ void HistoryWidget::showHistory(
 					}
 				}));
 			checkState();
+		} else {
+			requestSponsoredMessageBar();
 		}
 	} else {
 		_chooseForReport = nullptr;
@@ -4531,7 +4533,6 @@ void HistoryWidget::showFinished() {
 	_showAnimation = nullptr;
 	doneShow();
 	synteticScrollToY(_scroll->scrollTop());
-	requestSponsoredMessageBar();
 }
 
 void HistoryWidget::doneShow() {
