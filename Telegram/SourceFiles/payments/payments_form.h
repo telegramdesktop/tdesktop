@@ -170,6 +170,7 @@ struct InvoiceCredits {
 	uint64 amount = 0;
 	bool extended = false;
 	PeerId giftPeerId = PeerId(0);
+	int subscriptionPeriod = 0;
 };
 
 struct InvoiceStarGift {
