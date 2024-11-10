@@ -156,3 +156,5 @@ giftListAbout: FlatLabel(defaultFlatLabel) {
 giftListAboutMargin: margins(12px, 24px, 12px, 24px);
 giftBoxEmojiToggleTop: 7px;
 giftBoxLimitTop: 28px;
+
+subscriptionCreditsBadgePadding: margins(10px, 1px, 8px, 3px);

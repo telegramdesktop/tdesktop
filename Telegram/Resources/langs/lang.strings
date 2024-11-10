@@ -2445,6 +2445,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_out_media#other" = "Do you want to unlock {media} in {chat} for **{count} Stars**?";
 "lng_credits_box_out_media_user#one" = "Do you want to unlock {media} from {user} for **{count} Star**?";
 "lng_credits_box_out_media_user#other" = "Do you want to unlock {media} from {user} for **{count} Stars**?";
+"lng_credits_box_out_subscription#one" = "Do you want to subscribe to **{title}** in **{bot}** for **{count}** star per month?";
+"lng_credits_box_out_subscription#other" = "Do you want to subscribe to **{title}** in **{bot}** for **{count}** stars per month?";
+"lng_credits_box_out_subscription_confirm#one" = "Subscribe for {emoji} {count} / month";
+"lng_credits_box_out_subscription_confirm#other" = "Subscribe for {emoji} {count} / month";
 "lng_credits_box_out_photo" = "a photo";
 "lng_credits_box_out_photos#one" = "{count} photo";
 "lng_credits_box_out_photos#other" = "{count} photos";
