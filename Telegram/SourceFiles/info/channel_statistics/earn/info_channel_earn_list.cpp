@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/label_with_custom_emoji.h"
+#include "ui/widgets/peer_bubble.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/slider_natural_width.h"
 #include "ui/wrap/slide_wrap.h"
@@ -1199,58 +1200,10 @@ void InnerWidget::fill() {
 						AddRecipient(box, recipient);
 					}
 					if (isIn) {
-						const auto peerBubble = box->addRow(
+						box->addRow(
 							object_ptr<Ui::CenterWrap<>>(
 								box,
-								object_ptr<Ui::RpWidget>(box)))->entity();
-						peerBubble->setAttribute(
-							Qt::WA_TransparentForMouseEvents);
-						const auto left = Ui::CreateChild<Ui::UserpicButton>(
-							peerBubble,
-							peer,
-							st::uploadUserpicButton);
-						const auto right = Ui::CreateChild<Ui::FlatLabel>(
-							peerBubble,
-							Info::Profile::NameValue(peer),
-							st::channelEarnSemiboldLabel);
-						rpl::combine(
-							left->sizeValue(),
-							right->sizeValue()
-						) | rpl::start_with_next([=](
-								const QSize &leftSize,
-								const QSize &rightSize) {
-							const auto padding = QMargins(
-								st::chatGiveawayPeerPadding.left() * 2,
-								st::chatGiveawayPeerPadding.top(),
-								st::chatGiveawayPeerPadding.right(),
-								st::chatGiveawayPeerPadding.bottom());
-							peerBubble->resize(
-								leftSize.width()
-									+ rightSize.width()
-									+ rect::m::sum::h(padding),
-								leftSize.height());
-							left->moveToLeft(0, 0);
-							right->moveToRight(
-								padding.right(),
-								padding.top());
-							const auto maxRightSize = box->width()
-								- rect::m::sum::h(st::boxRowPadding)
-								- rect::m::sum::h(padding)
-								- leftSize.width();
-							if (rightSize.width() > maxRightSize) {
-								right->resizeToWidth(maxRightSize);
-							}
-						}, peerBubble->lifetime());
-						peerBubble->paintRequest(
-						) | rpl::start_with_next([=] {
-							auto p = QPainter(peerBubble);
-							auto hq = PainterHighQualityEnabler(p);
-							p.setPen(Qt::NoPen);
-							p.setBrush(st::windowBgOver);
-							const auto rect = peerBubble->rect();
-							const auto radius = rect.height() / 2;
-							p.drawRoundedRect(rect, radius, radius);
-						}, peerBubble->lifetime());
+								Ui::CreatePeerBubble(box, peer)));
 					}
 					const auto closeBox = [=] { box->closeBox(); };
 					{
