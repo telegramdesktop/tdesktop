@@ -550,7 +550,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
-			.opaqueBg = params.opaqueBg,
+			.opaqueBg = params.bodyBg,
 			.storageId = _delegate->panelWebviewStorageId(),
 		});
 
@@ -919,7 +919,7 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 		return;
 	}
 	_webview->window.updateTheme(
-		params.opaqueBg,
+		params.bodyBg,
 		params.scrollBg,
 		params.scrollBgOver,
 		params.scrollBarBg,

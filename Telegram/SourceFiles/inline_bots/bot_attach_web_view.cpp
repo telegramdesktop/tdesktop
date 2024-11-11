@@ -1423,7 +1423,23 @@ void WebViewInstance::started(uint64 queryId) {
 }
 
 Webview::ThemeParams WebViewInstance::botThemeParams() {
-	return Window::Theme::WebViewParams();
+	auto result = Window::Theme::WebViewParams();
+	if (const auto info = _bot->botInfo.get()) {
+		const auto night = Window::Theme::IsNightMode();
+		const auto &title = night
+			? info->botAppColorTitleNight
+			: info->botAppColorTitleDay;
+		const auto &body = night
+			? info->botAppColorBodyNight
+			: info->botAppColorBodyDay;
+		if (title.alpha() == 255) {
+			result.titleBg = title;
+		}
+		if (body.alpha() == 255) {
+			result.bodyBg = body;
+		}
+	}
+	return result;
 }
 
 bool WebViewInstance::botHandleLocalUri(QString uri, bool keepOpen) {

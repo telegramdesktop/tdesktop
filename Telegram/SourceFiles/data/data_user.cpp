@@ -345,6 +345,24 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		const auto privacyChanged = (botInfo->privacyPolicyUrl != privacy);
 		botInfo->privacyPolicyUrl = privacy;
 
+		if (const auto settings = d.vapp_settings()) {
+			const auto &data = settings->data();
+			botInfo->botAppColorTitleDay = Ui::MaybeColorFromSerialized(
+				data.vheader_color()).value_or(QColor(0, 0, 0, 0));
+			botInfo->botAppColorTitleNight = Ui::MaybeColorFromSerialized(
+				data.vheader_dark_color()).value_or(QColor(0, 0, 0, 0));
+			botInfo->botAppColorBodyDay = Ui::MaybeColorFromSerialized(
+				data.vbackground_color()).value_or(QColor(0, 0, 0, 0));
+			botInfo->botAppColorBodyNight = Ui::MaybeColorFromSerialized(
+				data.vbackground_dark_color()).value_or(QColor(0, 0, 0, 0));
+		} else {
+			botInfo->botAppColorTitleDay
+				= botInfo->botAppColorTitleNight
+				= botInfo->botAppColorBodyDay
+				= botInfo->botAppColorBodyNight
+				= QColor(0, 0, 0, 0);
+		}
+
 		if (changedCommands || changedButton || privacyChanged) {
 			owner().botCommandsChanged(this);
 		}

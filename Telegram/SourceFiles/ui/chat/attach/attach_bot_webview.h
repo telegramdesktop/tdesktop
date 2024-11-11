@@ -87,16 +87,21 @@ public:
 	virtual void botClose() = 0;
 };
 
+struct Args {
+	QString url;
+	Webview::StorageId storageId;
+	rpl::producer<QString> title;
+	object_ptr<Ui::RpWidget> titleBadge = { nullptr };
+	rpl::producer<QString> bottom;
+	not_null<Delegate*> delegate;
+	MenuButtons menuButtons;
+	bool fullscreen = false;
+	bool allowClipboardRead = false;
+};
+
 class Panel final : public base::has_weak_ptr {
 public:
-	Panel(
-		const Webview::StorageId &storageId,
-		rpl::producer<QString> title,
-		object_ptr<Ui::RpWidget> titleBadge,
-		not_null<Delegate*> delegate,
-		MenuButtons menuButtons,
-		bool fullscreen,
-		bool allowClipboardRead);
+	explicit Panel(Args &&args);
 	~Panel();
 
 	void requestActivate();
@@ -148,6 +153,7 @@ private:
 	void processBackButtonMessage(const QJsonObject &args);
 	void processSettingsButtonMessage(const QJsonObject &args);
 	void processHeaderColor(const QJsonObject &args);
+	void processBackgroundColor(const QJsonObject &args);
 	void processBottomBarColor(const QJsonObject &args);
 	void openTgLink(const QJsonObject &args);
 	void openExternalLink(const QJsonObject &args);
@@ -170,6 +176,8 @@ private:
 	void sendSafeArea();
 	void sendContentSafeArea();
 	void sendFullScreen();
+
+	void updateColorOverrides(const Webview::ThemeParams &params);
 
 	using EventData = std::variant<QString, QJsonObject>;
 	void postEvent(const QString &event);
@@ -201,29 +209,22 @@ private:
 	rpl::event_stream<> _themeUpdateForced;
 	std::optional<QColor> _bottomBarColor;
 	rpl::lifetime _headerColorLifetime;
+	rpl::lifetime _bodyColorLifetime;
 	rpl::lifetime _bottomBarColorLifetime;
 	rpl::variable<bool> _fullscreen = false;
-	bool _layerShown = false;
-	bool _webviewProgress = false;
-	bool _themeUpdateScheduled = false;
-	bool _hiddenForPayment = false;
-	bool _closeWithConfirmationScheduled = false;
-	bool _allowClipboardRead = false;
-	bool _inBlockingRequest = false;
+	bool _layerShown : 1 = false;
+	bool _webviewProgress : 1 = false;
+	bool _themeUpdateScheduled : 1 = false;
+	bool _hiddenForPayment : 1 = false;
+	bool _closeWithConfirmationScheduled : 1 = false;
+	bool _allowClipboardRead : 1 = false;
+	bool _inBlockingRequest : 1 = false;
+	bool _headerColorReceived : 1 = false;
+	bool _bodyColorReceived : 1 = false;
+	bool _bottomColorReceived : 1 = false;
 
 };
 
-struct Args {
-	QString url;
-	Webview::StorageId storageId;
-	rpl::producer<QString> title;
-	object_ptr<Ui::RpWidget> titleBadge = { nullptr };
-	rpl::producer<QString> bottom;
-	not_null<Delegate*> delegate;
-	MenuButtons menuButtons;
-	bool fullscreen = false;
-	bool allowClipboardRead = false;
-};
 [[nodiscard]] std::unique_ptr<Panel> Show(Args &&args);
 
 } // namespace Ui::BotWebView

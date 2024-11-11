@@ -366,22 +366,18 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 	st::paymentsLoading) {
 }
 
-Panel::Panel(
-	const Webview::StorageId &storageId,
-	rpl::producer<QString> title,
-	object_ptr<Ui::RpWidget> titleBadge,
-	not_null<Delegate*> delegate,
-	MenuButtons menuButtons,
-	bool fullscreen,
-	bool allowClipboardRead)
-: _storageId(storageId)
-, _delegate(delegate)
-, _menuButtons(menuButtons)
+Panel::Panel(Args &&args)
+: _storageId(args.storageId)
+, _delegate(args.delegate)
+, _menuButtons(args.menuButtons)
 , _widget(std::make_unique<SeparatePanel>())
-, _fullscreen(fullscreen)
-, _allowClipboardRead(allowClipboardRead) {
+, _fullscreen(args.fullscreen)
+, _allowClipboardRead(args.allowClipboardRead) {
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	_widget->setInnerSize(st::botWebViewPanelSize, true);
+
+	const auto params = _delegate->botThemeParams();
+	updateColorOverrides(params);
 
 	_fullscreen.value(
 	) | rpl::start_with_next([=](bool fullscreen) {
@@ -426,8 +422,17 @@ Panel::Panel(
 		});
 	}, _widget->lifetime());
 
-	setTitle(std::move(title));
-	_widget->setTitleBadge(std::move(titleBadge));
+	setTitle(std::move(args.title));
+	_widget->setTitleBadge(std::move(args.titleBadge));
+
+	if (!showWebview(args.url, params, std::move(args.bottom))) {
+		const auto available = Webview::Availability();
+		if (available.error != Webview::Available::Error::None) {
+			showWebviewError(tr::lng_bot_no_webview(tr::now), available);
+		} else {
+			showCriticalError({ "Error: Could not initialize WebView." });
+		}
+	}
 }
 
 Panel::~Panel() {
@@ -679,13 +684,17 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	_widget->showInner(std::move(outer));
 	_webviewParent = container;
 
+	_headerColorReceived = false;
+	_bodyColorReceived = false;
+	_bottomColorReceived = false;
+	updateColorOverrides(params);
 	createWebviewBottom();
 
 	container->show();
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
-			.opaqueBg = params.opaqueBg,
+			.opaqueBg = params.bodyBg,
 			.storageId = _storageId,
 		});
 	const auto raw = &_webview->window;
@@ -823,6 +832,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			requestClipboardText(arguments);
 		} else if (command == "web_app_set_header_color") {
 			processHeaderColor(arguments);
+		} else if (command == "web_app_set_background_color") {
+			processBackgroundColor(arguments);
 		} else if (command == "web_app_set_bottom_bar_color") {
 			processBottomBarColor(arguments);
 		} else if (command == "web_app_send_prepared_message") {
@@ -1437,6 +1448,7 @@ void Panel::processSettingsButtonMessage(const QJsonObject &args) {
 }
 
 void Panel::processHeaderColor(const QJsonObject &args) {
+	_headerColorReceived = true;
 	if (const auto color = ParseColor(args["color"].toString())) {
 		_widget->overrideTitleColor(color);
 		_headerColorLifetime.destroy();
@@ -1453,7 +1465,32 @@ void Panel::processHeaderColor(const QJsonObject &args) {
 	}
 }
 
+void Panel::processBackgroundColor(const QJsonObject &args) {
+	_bodyColorReceived = true;
+	if (const auto color = ParseColor(args["color"].toString())) {
+		_widget->overrideBodyColor(color);
+		_bodyColorLifetime.destroy();
+	} else if (const auto color = LookupNamedColor(
+			args["color_key"].toString())) {
+		_widget->overrideBodyColor((*color)->c);
+		_bodyColorLifetime = style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_widget->overrideBodyColor((*color)->c);
+		});
+	} else {
+		_widget->overrideBodyColor(std::nullopt);
+		_bodyColorLifetime.destroy();
+	}
+	if (const auto raw = _bottomButtonsBg.get()) {
+		raw->update();
+	}
+	if (const auto raw = _webviewBottom.get()) {
+		raw->update();
+	}
+}
+
 void Panel::processBottomBarColor(const QJsonObject &args) {
+	_bottomColorReceived = true;
 	if (const auto color = ParseColor(args["color"].toString())) {
 		_widget->overrideBottomBarColor(color);
 		_bottomBarColor = color;
@@ -1462,7 +1499,7 @@ void Panel::processBottomBarColor(const QJsonObject &args) {
 			args["color_key"].toString())) {
 		_widget->overrideBottomBarColor((*color)->c);
 		_bottomBarColor = (*color)->c;
-		_headerColorLifetime = style::PaletteChanged(
+		_bottomBarColorLifetime = style::PaletteChanged(
 		) | rpl::start_with_next([=] {
 			_widget->overrideBottomBarColor((*color)->c);
 			_bottomBarColor = (*color)->c;
@@ -1470,7 +1507,7 @@ void Panel::processBottomBarColor(const QJsonObject &args) {
 	} else {
 		_widget->overrideBottomBarColor(std::nullopt);
 		_bottomBarColor = std::nullopt;
-		_headerColorLifetime.destroy();
+		_bottomBarColorLifetime.destroy();
 	}
 	if (const auto raw = _bottomButtonsBg.get()) {
 		raw->update();
@@ -1596,13 +1633,15 @@ void Panel::layoutButtons() {
 	} else if (_bottomButtonsBg) {
 		_bottomButtonsBg->hide();
 	}
-	_footerHeight = _layerShown
+	const auto footer = _layerShown
 		? 0
 		: any
 		? _bottomButtonsBg->height()
 		: _fullscreen.current()
 		? 0
 		: _webviewBottom->height();
+	_widget->setBottomBarHeight((!_layerShown && any) ? footer : 0);
+	_footerHeight = footer;
 }
 
 void Panel::showBox(object_ptr<BoxContent> box) {
@@ -1707,16 +1746,26 @@ void Panel::showCriticalError(const TextWithEntities &text) {
 }
 
 void Panel::updateThemeParams(const Webview::ThemeParams &params) {
+	updateColorOverrides(params);
 	if (!_webview || !_webview->window.widget()) {
 		return;
 	}
 	_webview->window.updateTheme(
-		params.opaqueBg,
+		params.bodyBg,
 		params.scrollBg,
 		params.scrollBgOver,
 		params.scrollBarBg,
 		params.scrollBarBgOver);
 	postEvent("theme_changed", "{\"theme_params\": " + params.json + "}");
+}
+
+void Panel::updateColorOverrides(const Webview::ThemeParams &params) {
+	if (!_headerColorReceived && params.titleBg.alpha() == 255) {
+		_widget->overrideTitleColor(params.titleBg);
+	}
+	if (!_bodyColorReceived && params.bodyBg.alpha() == 255) {
+		_widget->overrideBodyColor(params.bodyBg);
+	}
 }
 
 void Panel::invoiceClosed(const QString &slug, const QString &status) {
@@ -1802,27 +1851,7 @@ rpl::lifetime &Panel::lifetime() {
 }
 
 std::unique_ptr<Panel> Show(Args &&args) {
-	auto result = std::make_unique<Panel>(
-		args.storageId,
-		std::move(args.title),
-		std::move(args.titleBadge),
-		args.delegate,
-		args.menuButtons,
-		args.fullscreen,
-		args.allowClipboardRead);
-	const auto params = args.delegate->botThemeParams();
-	if (!result->showWebview(args.url, params, std::move(args.bottom))) {
-		const auto available = Webview::Availability();
-		if (available.error != Webview::Available::Error::None) {
-			result->showWebviewError(
-				tr::lng_bot_no_webview(tr::now),
-				available);
-		} else {
-			result->showCriticalError({
-				"Error: Could not initialize WebView." });
-		}
-	}
-	return result;
+	return std::make_unique<Panel>(std::move(args));
 }
 
 } // namespace Ui::BotWebView
