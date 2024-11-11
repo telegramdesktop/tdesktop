@@ -1855,44 +1855,48 @@ void AddWithdrawalWidget(
 	}, label->lifetime());
 
 	const auto lockedColor = anim::with_alpha(stButton.textFg->c, .5);
-	const auto lockedLabelTop = Ui::CreateChild<Ui::FlatLabel>(
-		button,
-		tr::lng_bot_earn_balance_button_locked(),
-		st::botEarnLockedButtonLabel);
-	lockedLabelTop->setTextColorOverride(lockedColor);
-	lockedLabelTop->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto lockedLabelBottom = Ui::CreateChild<Ui::FlatLabel>(
-		button,
-		QString(),
-		st::botEarnLockedButtonLabel);
-	lockedLabelBottom->setTextColorOverride(lockedColor);
-	lockedLabelBottom->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto lockedLabel = Ui::CreateChild<Ui::RpWidget>(button);
+	lockedLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	struct LockedState final {
+		Ui::Text::String text;
+		bool locked = false;
+		bool dateIsNull = false;
+		rpl::lifetime dateUpdateLifetime;
+	};
+	const auto state = lockedLabel->lifetime().make_state<LockedState>();
 	rpl::combine(
 		rpl::duplicate(lockedValue),
-		button->sizeValue(),
-		lockedLabelTop->sizeValue(),
-		lockedLabelBottom->sizeValue()
-	) | rpl::start_with_next([=](
-			bool locked,
-			const QSize &b,
-			const QSize &top,
-			const QSize &bottom) {
-		const auto factor = locked ? 1 : -10;
-		const auto sumHeight = top.height() + bottom.height();
-		lockedLabelTop->moveToLeft(
-			(b.width() - top.width()) / 2,
-			factor * (b.height() - sumHeight) / 2);
-		lockedLabelBottom->moveToLeft(
-			(b.width() - bottom.width()) / 2,
-			factor * ((b.height() - sumHeight) / 2 + top.height()));
-	}, lockedLabelTop->lifetime());
+		button->sizeValue()
+	) | rpl::start_with_next([=](bool locked, const QSize &s) {
+		state->locked = locked;
+		lockedLabel->resize(s);
+	}, lockedLabel->lifetime());
+	lockedLabel->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(lockedLabel);
+		p.setPen(state->locked ? QPen(lockedColor) : stButton.textFg->p);
+		if (state->dateIsNull) {
+			p.setFont(st::channelEarnSemiboldLabel.style.font);
+			p.drawText(
+				lockedLabel->rect(),
+				style::al_center,
+				tr::lng_bot_earn_balance_button_locked(tr::now));
+			return;
+		}
+		state->text.draw(p, {
+			.position = QPoint(
+				0,
+				(lockedLabel->height() - state->text.minHeight()) / 2),
+			.outerWidth = lockedLabel->width(),
+			.availableWidth = lockedLabel->width(),
+			.align = style::al_center,
+		});
+	}, lockedLabel->lifetime());
 
-	const auto dateUpdateLifetime
-		= lockedLabelBottom->lifetime().make_state<rpl::lifetime>();
 	std::move(
 		dateValue
 	) | rpl::start_with_next([=](const QDateTime &dt) {
-		dateUpdateLifetime->destroy();
+		state->dateUpdateLifetime.destroy();
+		state->dateIsNull = dt.isNull();
 		if (dt.isNull()) {
 			return;
 		}
@@ -1901,7 +1905,7 @@ void AddWithdrawalWidget(
 
 		const auto context = Core::MarkedTextContext{
 			.session = session,
-			.customEmojiRepaint = [=] { lockedLabelBottom->update(); },
+			.customEmojiRepaint = [=] { lockedLabel->update(); },
 		};
 		const auto emoji = Ui::Text::SingleCustomEmoji(
 			session->data().customEmojiManager().registerInternalEmoji(
@@ -1929,11 +1933,18 @@ void AddWithdrawalWidget(
 				: (u"%1:%2"_q)
 					.arg(minutes, 2, 10, kZero)
 					.arg(seconds, 2, 10, kZero);
-			lockedLabelBottom->setMarkedText(
-				base::duplicate(emoji).append(formatted),
+			state->text.setMarkedText(
+				st::botEarnLockedButtonLabel.style,
+				TextWithEntities()
+					.append(tr::lng_bot_earn_balance_button_locked(tr::now))
+					.append('\n')
+					.append(emoji)
+					.append(formatted),
+				kMarkupTextOptions,
 				context);
-		}, *dateUpdateLifetime);
-	}, lockedLabelBottom->lifetime());
+			lockedLabel->update();
+		}, state->dateUpdateLifetime);
+	}, lockedLabel->lifetime());
 
 	Api::HandleWithdrawalButton(
 		Api::RewardReceiver{
