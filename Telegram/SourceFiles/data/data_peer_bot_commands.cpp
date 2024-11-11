@@ -17,12 +17,15 @@ ChatBotCommands::Changed ChatBotCommands::update(
 		clear();
 	} else {
 		for (const auto &commands : list) {
-			auto &value = operator[](commands.userId);
 			if (commands.commands.empty()) {
 				changed |= remove(commands.userId);
 			} else {
-				changed |= !ranges::equal(value, commands.commands);
-				value = commands.commands;
+				auto &value = operator[](commands.userId);
+				const auto isEqual = ranges::equal(value, commands.commands);
+				changed |= !isEqual;
+				if (!isEqual) {
+					value = commands.commands;
+				}
 			}
 		}
 	}
