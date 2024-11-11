@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_dialogs.h" // dialogsSearchTabs
+#include "styles/style_media_player.h" // mediaPlayerMenuCheck
 #include "styles/style_menu_icons.h"
 
 #include <QScrollBar>
@@ -118,6 +119,47 @@ void ShowMenu(
 			std::move(openFiltersSettings),
 			&st::menuIconEdit);
 	}
+	if (state->menu->empty()) {
+		state->menu = nullptr;
+		return;
+	}
+	state->menu->popup(QCursor::pos());
+}
+
+void ShowFiltersListMenu(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Main::Session*> session,
+		not_null<State*> state,
+		int active,
+		Fn<void(int)> changeActive) {
+	const auto &list = session->data().chatsFilters().list();
+
+	state->menu = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+
+	const auto reorderAll = session->user()->isPremium();
+	const auto maxLimit = (reorderAll ? 1 : 0)
+		+ Data::PremiumLimits(session).dialogFiltersCurrent();
+	const auto premiumFrom = (reorderAll ? 0 : 1) + maxLimit;
+
+	for (auto i = 0; i < list.size(); ++i) {
+		const auto &filter = list[i];
+		auto text = filter.title().isEmpty()
+			? tr::lng_filters_all(tr::now)
+			: filter.title();
+
+		const auto action = state->menu->addAction(std::move(text), [=] {
+			if (i != active) {
+				changeActive(i);
+			}
+		}, (i == active) ? &st::mediaPlayerMenuCheck : nullptr);
+		action->setEnabled(i < premiumFrom);
+	}
+	session->data().chatsFilters().changed() | rpl::start_with_next([=] {
+		state->menu->hideMenu();
+	}, state->menu->lifetime());
+
 	if (state->menu->empty()) {
 		state->menu = nullptr;
 		return;
@@ -342,7 +384,16 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			applyFilter(filter);
 		}, wrap->lifetime());
 		slider->contextMenuRequested() | rpl::start_with_next([=](int index) {
-			ShowMenu(wrap, controller, state, index);
+			if (trackActiveFilterAndUnreadAndReorder) {
+				ShowMenu(wrap, controller, state, index);
+			} else {
+				ShowFiltersListMenu(
+					wrap,
+					session,
+					state,
+					slider->activeSection(),
+					[=](int i) { slider->setActiveSection(i); });
+			}
 		}, slider->lifetime());
 		wrap->toggle((list.size() > 1), anim::type::instant);
 
