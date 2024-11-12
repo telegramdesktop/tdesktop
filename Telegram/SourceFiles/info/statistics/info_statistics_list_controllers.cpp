@@ -68,6 +68,17 @@ void AddSubtitle(
 		{ 0, -subtitlePadding.top(), 0, -subtitlePadding.bottom() });
 }
 
+[[nodiscard]] object_ptr<Ui::SettingsButton> CreateShowMoreButton(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<QString> title) {
+	auto owned = object_ptr<Ui::SettingsButton>(
+		parent,
+		std::move(title),
+		st::statisticsShowMoreButton);
+	Ui::AddToggleUpDownArrowToMoreButton(owned.data());
+	return owned;
+}
+
 [[nodiscard]] QString FormatText(
 		int value1, tr::phrase<lngtag_count> phrase1,
 		int value2, tr::phrase<lngtag_count> phrase2,
@@ -1256,9 +1267,10 @@ void AddCreditsHistoryList(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
 
-	const auto wrap = AddShowMoreButton(
-		container,
-		tr::lng_stories_show_more());
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			CreateShowMoreButton(container, tr::lng_stories_show_more())));
 
 	const auto showMore = [=] {
 		if (!state->controller.skipRequest()) {
@@ -1275,16 +1287,11 @@ void AddCreditsHistoryList(
 not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddShowMoreButton(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> title) {
-	const auto wrap = container->add(
+	return container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			object_ptr<Ui::SettingsButton>(
-				container,
-				std::move(title),
-				st::statisticsShowMoreButton)),
+			CreateShowMoreButton(container, std::move(title))),
 		{ 0, -st::settingsButton.padding.top(), 0, 0 });
-	Ui::AddToggleUpDownArrowToMoreButton(wrap->entity());
-	return wrap;
 }
 
 } // namespace Info::Statistics
