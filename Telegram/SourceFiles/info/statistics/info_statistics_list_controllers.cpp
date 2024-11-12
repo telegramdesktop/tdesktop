@@ -784,6 +784,9 @@ public:
 		int outer,
 		bool selected) override;
 
+	const style::PeerListItem &computeSt(
+		const style::PeerListItem &st) const override;
+
 private:
 	void init();
 
@@ -1048,6 +1051,13 @@ void CreditsRow::paintStatusText(
 		.availableWidth = available,
 		.elisionLines = 1,
 	});
+}
+
+const style::PeerListItem &CreditsRow::computeSt(
+		const style::PeerListItem &st) const {
+	return (!_subscription || !_subscription.title.isEmpty())
+		? st
+		: st::boostsListBox.item;
 }
 
 class CreditsController final : public PeerListController {
