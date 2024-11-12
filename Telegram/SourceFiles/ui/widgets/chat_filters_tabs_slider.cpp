@@ -64,7 +64,7 @@ void ChatsFiltersTabs::fitWidthToSections() {
 	{
 		_sections.clear();
 		enumerateSections([&](Section &section) {
-			_sections.emplace_back(not_null{ &section }, 0, false);
+			_sections.push_back({ not_null{ &section }, 0, false });
 			return true;
 		});
 	}
@@ -387,7 +387,7 @@ void ChatsFiltersTabs::reorderSections(int oldIndex, int newIndex) {
 		_sections.clear();
 		auto left = 0;
 		enumerateSections([&](Section &section) {
-			_sections.emplace_back(not_null{ &section }, 0, false);
+			_sections.push_back({ not_null{ &section }, 0, false });
 			section.left = left;
 			left += section.width;
 			return true;
