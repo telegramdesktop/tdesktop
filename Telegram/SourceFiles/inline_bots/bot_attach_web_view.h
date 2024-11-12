@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "base/flags.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "dialogs/dialogs_key.h"
-#include "api/api_common.h"
 #include "mtproto/sender.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/rp_widget.h"
@@ -51,6 +51,7 @@ enum class CheckoutResult;
 namespace InlineBots {
 
 class WebViewInstance;
+class Downloads;
 
 enum class PeerType : uint8 {
 	SameBot   = 0x01,
@@ -269,6 +270,8 @@ private:
 		Ui::BotWebView::SendPreparedMessageRequest request) override;
 	void botSetEmojiStatus(
 		Ui::BotWebView::SetEmojiStatusRequest request) override;
+	void botDownloadFile(
+		Ui::BotWebView::DownloadFileRequest request) override;
 	void botOpenPrivacyPolicy() override;
 	void botClose() override;
 
@@ -282,6 +285,7 @@ private:
 	BotAppData *_app = nullptr;
 	QString _appStartParam;
 	bool _dataSent = false;
+	bool _confirmingDownload = false;
 
 	mtpRequestId _requestId = 0;
 	mtpRequestId _prolongId = 0;
@@ -299,6 +303,10 @@ class AttachWebView final : public base::has_weak_ptr {
 public:
 	explicit AttachWebView(not_null<Main::Session*> session);
 	~AttachWebView();
+
+	[[nodiscard]] Downloads &downloads() const {
+		return *_downloads;
+	}
 
 	void open(WebViewDescriptor &&descriptor);
 	void openByUsername(
@@ -370,6 +378,7 @@ private:
 		Fn<void(bool added)> callback = nullptr);
 
 	const not_null<Main::Session*> _session;
+	const std::unique_ptr<Downloads> _downloads;
 
 	base::Timer _refreshTimer;
 

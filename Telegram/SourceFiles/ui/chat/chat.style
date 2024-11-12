@@ -1181,3 +1181,5 @@ botEmojiStatusName: FlatLabel(defaultFlatLabel) {
 botEmojiStatusEmoji: FlatLabel(botEmojiStatusName) {
 	textFg: profileVerifiedCheckBg;
 }
+
+botDownloadLabel: boxLabel;

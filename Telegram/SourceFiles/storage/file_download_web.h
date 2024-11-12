@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class WebLoadManager;
 
+enum class WebRequestType {
+	FullLoad,
+	OnlySize,
+};
+
 class webFileLoader final : public FileLoader {
 public:
 	webFileLoader(
@@ -20,9 +25,16 @@ public:
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
+	webFileLoader(
+		not_null<Main::Session*> session,
+		const QString &url,
+		const QString &path,
+		WebRequestType type);
 	~webFileLoader();
 
 	[[nodiscard]] QString url() const;
+	[[nodiscard]] WebRequestType requestType() const;
+	[[nodiscard]] bool streamLoading() const;
 
 	int64 currentOffset() const override;
 
@@ -33,12 +45,17 @@ private:
 	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 
-	void loadProgress(qint64 ready, qint64 size);
+	void loadProgress(
+		qint64 ready,
+		qint64 size,
+		const QByteArray &streamed);
 	void loadFinished(const QByteArray &data);
 	void loadFailed();
 
 	const QString _url;
 	int64 _ready = 0;
+	int64 _streamedOffset = 0;
+	WebRequestType _requestType = {};
 
 	std::shared_ptr<WebLoadManager> _manager;
 	rpl::lifetime _managerLifetime;

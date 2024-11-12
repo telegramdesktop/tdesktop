@@ -1042,6 +1042,8 @@ PRIVATE
     inline_bots/bot_attach_web_view.h
     inline_bots/inline_bot_confirm_prepared.cpp
     inline_bots/inline_bot_confirm_prepared.h
+    inline_bots/inline_bot_downloads.cpp
+    inline_bots/inline_bot_downloads.h
     inline_bots/inline_bot_layout_internal.cpp
     inline_bots/inline_bot_layout_internal.h
     inline_bots/inline_bot_layout_item.cpp

@@ -95,6 +95,7 @@ enum { // Local Storage Keys
 	lskSearchSuggestions = 0x18, // no data
 	lskWebviewTokens = 0x19, // data: QByteArray bots, QByteArray other
 	lskRoundPlaceholder = 0x1a, // no data
+	lskInlineBotsDownloads = 0x1b, // no data
 };
 
 auto EmptyMessageDraftSources()
@@ -222,6 +223,7 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_archivedCustomEmojiKey,
 		_searchSuggestionsKey,
 		_roundPlaceholderKey,
+		_inlineBotsDownloadsKey,
 	};
 	auto result = base::flat_set<QString>{
 		"map0",
@@ -309,6 +311,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, exportSettingsKey = 0;
 	quint64 searchSuggestionsKey = 0;
 	quint64 roundPlaceholderKey = 0;
+	quint64 inlineBotsDownloadsKey = 0;
 	QByteArray webviewStorageTokenBots, webviewStorageTokenOther;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
@@ -421,6 +424,9 @@ Account::ReadMapResult Account::readMapWith(
 		case lskRoundPlaceholder: {
 			map.stream >> roundPlaceholderKey;
 		} break;
+		case lskInlineBotsDownloads: {
+			map.stream >> inlineBotsDownloadsKey;
+		} break;
 		case lskWebviewTokens: {
 			map.stream
 				>> webviewStorageTokenBots
@@ -463,6 +469,7 @@ Account::ReadMapResult Account::readMapWith(
 	_exportSettingsKey = exportSettingsKey;
 	_searchSuggestionsKey = searchSuggestionsKey;
 	_roundPlaceholderKey = roundPlaceholderKey;
+	_inlineBotsDownloadsKey = inlineBotsDownloadsKey;
 	_oldMapVersion = mapData.version;
 	_webviewStorageIdBots.token = webviewStorageTokenBots;
 	_webviewStorageIdOther.token = webviewStorageTokenOther;
@@ -578,6 +585,7 @@ void Account::writeMap() {
 			+ Serialize::bytearraySize(_webviewStorageIdOther.token);
 	}
 	if (_roundPlaceholderKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (_inlineBotsDownloadsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 
 	EncryptedDescriptor mapData(mapSize);
 	if (!self.isEmpty()) {
@@ -652,6 +660,10 @@ void Account::writeMap() {
 		mapData.stream << quint32(lskRoundPlaceholder);
 		mapData.stream << quint64(_roundPlaceholderKey);
 	}
+	if (_inlineBotsDownloadsKey) {
+		mapData.stream << quint32(lskInlineBotsDownloads);
+		mapData.stream << quint64(_inlineBotsDownloadsKey);
+	}
 	map.writeEncrypted(mapData, _localKey);
 
 	_mapChanged = false;
@@ -682,6 +694,7 @@ void Account::reset() {
 	_settingsKey = _recentHashtagsAndBotsKey = _exportSettingsKey = 0;
 	_searchSuggestionsKey = 0;
 	_roundPlaceholderKey = 0;
+	_inlineBotsDownloadsKey = 0;
 	_oldMapVersion = 0;
 	_fileLocations.clear();
 	_fileLocationPairs.clear();
@@ -3236,6 +3249,44 @@ void Account::writeRoundPlaceholder(const QImage &placeholder) {
 	EncryptedDescriptor data(size);
 	data.stream << bytes;
 	FileWriteDescriptor file(_roundPlaceholderKey, _basePath);
+	file.writeEncrypted(data, _localKey);
+}
+
+QByteArray Account::readInlineBotsDownloads() {
+	if (_inlineBotsDownloadsRead) {
+		return QByteArray();
+	}
+	_inlineBotsDownloadsRead = true;
+	if (!_inlineBotsDownloadsKey) {
+		return QByteArray();
+	}
+
+	FileReadDescriptor inlineBotsDownloads;
+	if (!ReadEncryptedFile(
+			inlineBotsDownloads,
+			_inlineBotsDownloadsKey,
+			_basePath,
+			_localKey)) {
+		ClearKey(_inlineBotsDownloadsKey, _basePath);
+		_inlineBotsDownloadsKey = 0;
+		writeMapDelayed();
+		return QByteArray();
+	}
+
+	auto bytes = QByteArray();
+	inlineBotsDownloads.stream >> bytes;
+	return bytes;
+}
+
+void Account::writeInlineBotsDownloads(const QByteArray &bytes) {
+	if (!_inlineBotsDownloadsKey) {
+		_inlineBotsDownloadsKey = GenerateKey(_basePath);
+		writeMapQueued();
+	}
+	quint32 size = Serialize::bytearraySize(bytes);
+	EncryptedDescriptor data(size);
+	data.stream << bytes;
+	FileWriteDescriptor file(_inlineBotsDownloadsKey, _basePath);
 	file.writeEncrypted(data, _localKey);
 }
 

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
+#include "base/base_file_utilities.h"
 #include "base/qthelp_url.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
@@ -42,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_confirm_prepared.h"
+#include "inline_bots/inline_bot_downloads.h"
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
@@ -569,7 +571,7 @@ void ConfirmEmojiStatusBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<UserData*> bot,
 		not_null<DocumentData*> document,
-		TimeId until,
+		TimeId duration,
 		Fn<void(bool)> done) {
 	box->setNoContentMargin(true);
 
@@ -608,7 +610,9 @@ void ConfirmEmojiStatusBox(
 		object_ptr<Ui::RpWidget>::fromRaw(ownedSet.release()));
 
 	box->addButton(tr::lng_bot_emoji_status_confirm(), [=] {
-		document->owner().emojiStatuses().set(document->id, until);
+		document->owner().emojiStatuses().set(
+			document->id,
+			duration ? (base::unixtime::now() + duration) : 0);
 		*set = true;
 		box->closeBox();
 		done(true);
@@ -1345,6 +1349,7 @@ void WebViewInstance::show(ShowArgs &&args) {
 		|| v::is<WebViewSourceAttachMenu>(_source)
 		|| (attached != end(bots)
 			&& (attached->inAttachMenu || attached->inMainMenu));
+	const auto downloads = &_session->attachWebView().downloads();
 	_panelUrl = args.url;
 	_panel = Ui::BotWebView::Show({
 		.url = args.url,
@@ -1356,6 +1361,7 @@ void WebViewInstance::show(ShowArgs &&args) {
 		.menuButtons = buttons,
 		.fullscreen = args.fullscreen,
 		.allowClipboardRead = allowClipboardRead,
+		.downloadsProgress = downloads->downloadsProgress(_bot),
 	});
 	started(args.queryId);
 
@@ -1862,7 +1868,7 @@ void WebViewInstance::botSetEmojiStatus(
 	const auto bot = _bot;
 	const auto panel = _panel.get();
 	const auto callback = request.callback;
-	const auto until = request.expirationDate;
+	const auto duration = request.duration;
 	if (!panel) {
 		callback(u"UNKNOWN_ERROR"_q);
 		return;
@@ -1879,8 +1885,38 @@ void WebViewInstance::botSetEmojiStatus(
 			callback(success ? QString() : u"USER_DECLINED"_q);
 		};
 		panel->showBox(
-			Box(ConfirmEmojiStatusBox, bot, document, until, done));
+			Box(ConfirmEmojiStatusBox, bot, document, duration, done));
 	}, [=] { callback(u"SUGGESTED_EMOJI_INVALID"_q); }, panel->lifetime());
+}
+
+void WebViewInstance::botDownloadFile(
+		Ui::BotWebView::DownloadFileRequest request) {
+	const auto callback = request.callback;
+	if (_confirmingDownload || !_panel) {
+		callback(false);
+		return;
+	}
+	_confirmingDownload = true;
+	const auto done = [=](QString path) {
+		_confirmingDownload = false;
+		if (path.isEmpty()) {
+			callback(false);
+			return;
+		}
+		_bot->session().attachWebView().downloads().start({
+			.bot = _bot,
+			.url = request.url,
+			.path = path,
+		});
+		callback(true);
+	};
+	_panel->showBox(Box(DownloadFileBox, DownloadBoxArgs{
+		.session = &_bot->session(),
+		.bot = _bot->name(),
+		.name = base::FileNameFromUserString(request.name),
+		.url = request.url,
+		.done = done,
+	}));
 }
 
 void WebViewInstance::botOpenPrivacyPolicy() {
@@ -1995,6 +2031,7 @@ std::shared_ptr<Main::SessionShow> WebViewInstance::uiShow() {
 
 AttachWebView::AttachWebView(not_null<Main::Session*> session)
 : _session(session)
+, _downloads(std::make_unique<Downloads>(session))
 , _refreshTimer([=] { requestBots(); }) {
 	_refreshTimer.callEach(kRefreshBotsTimeout);
 }

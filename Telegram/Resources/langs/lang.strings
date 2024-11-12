@@ -3428,6 +3428,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_share_prepared_title" = "Share Message";
 "lng_bot_share_prepared_about" = "{bot} mini app suggests you to send this message to a chat you select.";
 "lng_bot_share_prepared_button" = "Share With...";
+"lng_bot_download_file" = "Download File";
+"lng_bot_download_file_sure" = "{bot} suggests you download the following file:";
+"lng_bot_download_file_button" = "Download";
 
 "lng_bot_status_users#one" = "{count} monthly user";
 "lng_bot_status_users#other" = "{count} monthly users";

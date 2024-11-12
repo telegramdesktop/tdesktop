@@ -11,6 +11,10 @@ namespace Data {
 class Thread;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class GenericBox;
 } // namespace Ui

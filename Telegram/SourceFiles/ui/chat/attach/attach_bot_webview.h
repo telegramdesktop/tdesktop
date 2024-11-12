@@ -53,8 +53,23 @@ struct CustomMethodRequest {
 
 struct SetEmojiStatusRequest {
 	uint64 customEmojiId = 0;
-	TimeId expirationDate = 0;
+	TimeId duration = 0;
 	Fn<void(QString)> callback;
+};
+
+struct DownloadFileRequest {
+	QString url;
+	QString name;
+	Fn<void(bool)> callback;
+};
+
+struct DownloadsProgress {
+	uint64 ready = 0;
+	uint64 total = 0;
+
+	friend inline bool operator==(
+		const DownloadsProgress &a,
+		const DownloadsProgress &b) = default;
 };
 
 struct SendPreparedMessageRequest {
@@ -81,6 +96,7 @@ public:
 	virtual void botSharePhone(Fn<void(bool shared)> callback) = 0;
 	virtual void botInvokeCustomMethod(CustomMethodRequest request) = 0;
 	virtual void botSetEmojiStatus(SetEmojiStatusRequest request) = 0;
+	virtual void botDownloadFile(DownloadFileRequest request) = 0;
 	virtual void botSendPreparedMessage(
 		SendPreparedMessageRequest request) = 0;
 	virtual void botOpenPrivacyPolicy() = 0;
@@ -97,6 +113,7 @@ struct Args {
 	MenuButtons menuButtons;
 	bool fullscreen = false;
 	bool allowClipboardRead = false;
+	rpl::producer<DownloadsProgress> downloadsProgress;
 };
 
 class Panel final : public base::has_weak_ptr {
@@ -155,6 +172,7 @@ private:
 	void processHeaderColor(const QJsonObject &args);
 	void processBackgroundColor(const QJsonObject &args);
 	void processBottomBarColor(const QJsonObject &args);
+	void processDownloadRequest(const QJsonObject &args);
 	void openTgLink(const QJsonObject &args);
 	void openExternalLink(const QJsonObject &args);
 	void openInvoice(const QJsonObject &args);

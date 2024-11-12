@@ -786,6 +786,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			} else {
 				sendFullScreen();
 			}
+		} else if (command == "web_app_request_file_download") {
+			processDownloadRequest(arguments);
 		} else if (command == "web_app_exit_fullscreen") {
 			if (_fullscreen.current()) {
 				_fullscreen = false;
@@ -1008,17 +1010,17 @@ void Panel::processEmojiStatusRequest(const QJsonObject &args) {
 		return;
 	}
 	const auto emojiId = args["custom_emoji_id"].toString().toULongLong();
-	const auto expirationDate = TimeId(base::SafeRound(
-		args["expiration_date"].toDouble()));
+	const auto duration = TimeId(base::SafeRound(
+		args["duration"].toDouble()));
 	if (!emojiId) {
 		postEvent(
 			"emoji_status_failed",
 			"{ error: \"SUGGESTED_EMOJI_INVALID\" }");
 		return;
-	} else if (expirationDate < 0) {
+	} else if (duration < 0) {
 		postEvent(
 			"emoji_status_failed",
-			"{ error: \"EXPIRATION_DATE_INVALID\" }");
+			"{ error: \"DURATION_INVALID\" }");
 		return;
 	}
 	auto callback = crl::guard(this, [=](QString error) {
@@ -1032,7 +1034,7 @@ void Panel::processEmojiStatusRequest(const QJsonObject &args) {
 	});
 	_delegate->botSetEmojiStatus({
 		.customEmojiId = emojiId,
-		.expirationDate = expirationDate,
+		.duration = duration,
 		.callback = std::move(callback),
 	});
 }
@@ -1512,6 +1514,34 @@ void Panel::processBottomBarColor(const QJsonObject &args) {
 	if (const auto raw = _bottomButtonsBg.get()) {
 		raw->update();
 	}
+}
+
+void Panel::processDownloadRequest(const QJsonObject &args) {
+	if (args.isEmpty()) {
+		_delegate->botClose();
+		return;
+	}
+	const auto url = args["url"].toString();
+	const auto name = args["file_name"].toString();
+	if (url.isEmpty()) {
+		LOG(("BotWebView Error: Bad 'url' in download request."));
+		_delegate->botClose();
+		return;
+	} else if (name.isEmpty()) {
+		LOG(("BotWebView Error: Bad 'file_name' in download request."));
+		_delegate->botClose();
+		return;
+	}
+	const auto done = crl::guard(this, [=](bool started) {
+		postEvent("file_download_requested", started
+			? "{ status: \"downloading\" }"
+			: "{ status: \"cancelled\" }");
+	});
+	_delegate->botDownloadFile({
+		.url = url,
+		.name = name,
+		.callback = done,
+	});
 }
 
 void Panel::createButton(std::unique_ptr<Button> &button) {
