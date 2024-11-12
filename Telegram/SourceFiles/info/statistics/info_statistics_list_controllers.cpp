@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "api/api_statistics.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/peer_list_widgets.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_channel.h"
@@ -1274,29 +1275,36 @@ void AddCreditsHistoryList(
 		not_null<PeerData*> bot,
 		bool in,
 		bool out,
-		bool subscription) {
+		bool subs) {
 	struct State final {
-		State(
-			CreditsDescriptor d,
-			std::shared_ptr<Main::SessionShow> show)
-		: delegate(std::move(show))
-		, controller(std::move(d)) {
+		State(CreditsDescriptor d) : controller(std::move(d)) {
 		}
-		PeerListContentDelegateShow delegate;
+		std::optional<PeerListContentDelegateShow> creditsDelegate;
+		std::optional<PeerListWidgetsDelegate> subscriptionDelegate;
 		CreditsController controller;
 	};
 	const auto state = container->lifetime().make_state<State>(
-		CreditsDescriptor{ firstSlice, callback, bot, in, out, subscription },
-		show);
-
-	state->delegate.setContent(container->add(
-		object_ptr<PeerListContent>(container, &state->controller)));
-	state->controller.setDelegate(&state->delegate);
+		CreditsDescriptor{ firstSlice, callback, bot, in, out, subs });
+	if (subs) {
+		state->subscriptionDelegate.emplace();
+		state->subscriptionDelegate->setUiShow(show);
+		state->subscriptionDelegate->setContent(container->add(
+			object_ptr<PeerListWidgets>(container, &state->controller)));
+		state->controller.setDelegate(&(*state->subscriptionDelegate));
+	} else {
+		state->creditsDelegate.emplace(show);
+		state->creditsDelegate->setContent(container->add(
+			object_ptr<PeerListContent>(container, &state->controller)));
+		state->controller.setDelegate(&(*state->creditsDelegate));
+	}
 
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			CreateShowMoreButton(container, tr::lng_stories_show_more())));
+			CreateShowMoreButton(container, tr::lng_stories_show_more())),
+		subs
+			? QMargins()
+			: QMargins(0, -st::settingsButton.padding.top(), 0, 0));
 
 	const auto showMore = [=] {
 		if (!state->controller.skipRequest()) {
