@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/session/session_show.h"
 #include "settings/settings_credits_graphics.h" // PaintSubscriptionRightLabelCallback
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/outline_segments.h" // Ui::UnreadStoryOutlineGradient.
 #include "ui/effects/toggle_arrow.h"
@@ -798,6 +800,9 @@ private:
 	Ui::Text::String _description;
 	Ui::Text::String _rightText;
 
+	std::shared_ptr<Ui::DynamicImage> _descriptionThumbnail;
+	QImage _descriptionThumbnailCache;
+
 	base::has_weak_ptr _guard;
 };
 
@@ -842,13 +847,19 @@ void CreditsRow::init() {
 	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
-	_name = _entry.title.isEmpty() ? name : _entry.title;
+	_name = _entry.title.isEmpty()
+		? name
+		: (!_entry.subscriptionUntil.isNull() && !isSpecial)
+		? name
+		: _entry.title;
 	setSkipPeerBadge(true);
 	const auto description = _entry.floodSkip
 		? tr::lng_credits_box_history_entry_floodskip_about(
 			tr::now,
 			lt_count_decimal,
 			_entry.floodSkip)
+		: (!_entry.subscriptionUntil.isNull() && !_entry.title.isEmpty())
+		? _entry.title
 		: _entry.refunded
 		? tr::lng_channel_earn_history_return(tr::now)
 		: _entry.pending
@@ -876,6 +887,24 @@ void CreditsRow::init() {
 				tr::now,
 				lt_date,
 				langDayOfMonthFull(_subscription.until.date())));
+		_description.setText(st::defaultTextStyle, _subscription.title);
+	}
+	const auto descriptionPhotoId = (!_entry.subscriptionUntil.isNull())
+		? _entry.photoId
+		: _subscription.photoId;
+	if (descriptionPhotoId) {
+		_descriptionThumbnail = Ui::MakePhotoThumbnail(
+			_context.session->data().photo(descriptionPhotoId),
+			{});
+		_descriptionThumbnail->subscribeToUpdates([this] {
+			const auto thumbnailSide = st::defaultTextStyle.font->height;
+			_descriptionThumbnailCache = Images::Round(
+				_descriptionThumbnail->image(thumbnailSide),
+				ImageRoundRadius::Large);
+			if (_context.customEmojiRepaint) {
+				_context.customEmojiRepaint();
+			}
+		});
 	}
 	auto &manager = _context.session->data().customEmojiManager();
 	if (_entry) {
@@ -912,7 +941,11 @@ const Data::SubscriptionEntry &CreditsRow::subscription() const {
 }
 
 QString CreditsRow::generateName() {
-	return _entry.title.isEmpty() ? _name : _entry.title;
+	return (!_entry.title.isEmpty() && !_entry.subscriptionUntil.isNull())
+		? _name
+		: _entry.title.isEmpty()
+		? _name
+		: _entry.title;
 }
 
 PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {
@@ -997,8 +1030,20 @@ void CreditsRow::paintStatusText(
 		bool selected) {
 	PeerListRow::paintStatusText(p, st, x, y, available, outer, selected);
 	p.setPen(st.nameFg);
+	if (!_descriptionThumbnailCache.isNull()) {
+		const auto thumbnailSide = _descriptionThumbnailCache.width()
+			/ style::DevicePixelRatio();
+		const auto thumbnailSpace = st::lineWidth * 4 + thumbnailSide;
+		p.drawImage(
+			x,
+			y - thumbnailSide,
+			_descriptionThumbnailCache);
+		x += thumbnailSpace;
+		outer -= thumbnailSpace;
+		available -= thumbnailSpace;
+	}
 	_description.draw(p, {
-		.position = QPoint(x, y - _description.minHeight() - st::lineWidth),
+		.position = QPoint(x, y - _description.minHeight()),
 		.outerWidth = outer,
 		.availableWidth = available,
 		.elisionLines = 1,

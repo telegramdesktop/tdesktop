@@ -533,7 +533,7 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 				extended,
 				std::move(update));
 		};
-	} else if (entry.photoId) {
+	} else if (entry.photoId && entry.subscriptionUntil.isNull()) {
 		const auto photo = session->data().photo(entry.photoId);
 		return [=](Fn<void()> update) {
 			return GenerateCreditsPaintEntryCallback(
