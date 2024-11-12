@@ -157,4 +157,19 @@ giftListAboutMargin: margins(12px, 24px, 12px, 24px);
 giftBoxEmojiToggleTop: 7px;
 giftBoxLimitTop: 28px;
 
+creditsHistoryEntriesList: PeerList(defaultPeerList) {
+	padding: margins(
+		0px,
+		7px,
+		0px,
+		7px);
+	item: PeerListItem(defaultPeerListItem) {
+		height: 66px;
+		photoPosition: point(18px, 6px);
+		namePosition: point(70px, 6px);
+		statusPosition: point(70px, 43px);
+		photoSize: 42px;
+	}
+}
+
 subscriptionCreditsBadgePadding: margins(10px, 1px, 8px, 3px);

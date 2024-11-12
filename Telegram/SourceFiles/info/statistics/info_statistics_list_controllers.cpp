@@ -772,6 +772,15 @@ public:
 		bool selected,
 		bool actionSelected) override;
 
+	void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int available,
+		int outer,
+		bool selected) override;
+
 private:
 	void init();
 
@@ -785,6 +794,7 @@ private:
 	QString _title;
 	QString _name;
 
+	Ui::Text::String _description;
 	Ui::Text::String _rightText;
 
 	base::has_weak_ptr _guard;
@@ -831,33 +841,31 @@ void CreditsRow::init() {
 	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
-	_name = (_entry.reaction || _entry.stargift || _entry.bareGiveawayMsgId)
-		? Ui::GenerateEntryName(_entry).text
-		: _entry.title.isEmpty()
-		? name
-		: _entry.title;
-	const auto joiner = QString(QChar(' ')) + QChar(8212) + QChar(' ');
+	_name = _entry.title.isEmpty() ? name : _entry.title;
 	setSkipPeerBadge(true);
-	PeerListRow::setCustomStatus(
-		langDateTime(_entry.date)
-		+ (_entry.floodSkip
-			? (joiner + tr::lng_credits_box_history_entry_floodskip_about(
-				tr::now,
-				lt_count_decimal,
-				_entry.floodSkip))
-			: _entry.refunded
-			? (joiner + tr::lng_channel_earn_history_return(tr::now))
-			: _entry.pending
-			? (joiner + tr::lng_channel_earn_history_pending(tr::now))
-			: _entry.failed
-			? (joiner + tr::lng_channel_earn_history_failed(tr::now))
-			: !_entry.subscriptionUntil.isNull()
-			? (joiner
-				+ tr::lng_credits_box_history_entry_subscription(tr::now))
-			: QString())
-		+ ((_entry.gift && isSpecial)
-			? (joiner + tr::lng_credits_box_history_entry_anonymous(tr::now))
-			: ((_name == name) ? QString() : (joiner + name))));
+	const auto description = _entry.floodSkip
+		? tr::lng_credits_box_history_entry_floodskip_about(
+			tr::now,
+			lt_count_decimal,
+			_entry.floodSkip)
+		: _entry.refunded
+		? tr::lng_channel_earn_history_return(tr::now)
+		: _entry.pending
+		? tr::lng_channel_earn_history_pending(tr::now)
+		: _entry.failed
+		? tr::lng_channel_earn_history_failed(tr::now)
+		: !_entry.subscriptionUntil.isNull()
+		? tr::lng_credits_box_history_entry_subscription(tr::now)
+		: (_entry.peerType
+			== Data::CreditsHistoryEntry::PeerType::PremiumBot)
+		? tr::lng_credits_box_history_entry_via_premium_bot(tr::now)
+		: (_entry.gift && isSpecial)
+		? tr::lng_credits_box_history_entry_anonymous(tr::now)
+		: (_name == name)
+		? Ui::GenerateEntryName(_entry).text
+		: name;
+	_description.setText(st::defaultTextStyle, description);
+	PeerListRow::setCustomStatus(langDateTime(_entry.date));
 	if (_subscription) {
 		PeerListRow::setCustomStatus((_subscription.expired
 			? tr::lng_credits_subscription_status_none
@@ -978,6 +986,24 @@ void CreditsRow::rightActionPaint(
 	});
 }
 
+void CreditsRow::paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int available,
+		int outer,
+		bool selected) {
+	PeerListRow::paintStatusText(p, st, x, y, available, outer, selected);
+	p.setPen(st.nameFg);
+	_description.draw(p, {
+		.position = QPoint(x, y - _description.minHeight() - st::lineWidth),
+		.outerWidth = outer,
+		.availableWidth = available,
+		.elisionLines = 1,
+	});
+}
+
 class CreditsController final : public PeerListController {
 public:
 	explicit CreditsController(CreditsDescriptor d);
@@ -1019,7 +1045,7 @@ CreditsController::CreditsController(CreditsDescriptor d)
 	.session = _session,
 	.customEmojiRepaint = [] {},
 }) {
-	PeerListController::setStyleOverrides(&st::boostsListBox);
+	PeerListController::setStyleOverrides(&st::creditsHistoryEntriesList);
 }
 
 Main::Session &CreditsController::session() const {
