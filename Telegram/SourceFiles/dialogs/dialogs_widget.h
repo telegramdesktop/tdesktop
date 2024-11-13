@@ -296,7 +296,7 @@ private:
 	bool _dragForward = false;
 	base::Timer _chooseByDragTimer;
 
-	Layout _layout = Layout::Main;
+	const Layout _layout = Layout::Main;
 	int _narrowWidth = 0;
 	object_ptr<Ui::RpWidget> _searchControls;
 	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr };

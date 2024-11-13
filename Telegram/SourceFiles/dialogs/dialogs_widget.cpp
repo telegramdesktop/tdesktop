@@ -1301,6 +1301,9 @@ void Widget::updateHasFocus(not_null<QWidget*> focused) {
 }
 
 void Widget::toggleFiltersMenu(bool enabled) {
+	if (_layout == Layout::Child) {
+		enabled = false;
+	}
 	if (!enabled == !_chatFilters) {
 		return;
 	} else if (enabled) {
