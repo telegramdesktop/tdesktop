@@ -330,7 +330,8 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 					const auto muted = (state.chatsMuted + state.marksMuted);
 					const auto count = (state.chats + state.marks)
 						- (includeMuted ? 0 : muted);
-					slider->setUnreadCount(i, count);
+					const auto isMuted = includeMuted && (count == muted);
+					slider->setUnreadCount(i, count, isMuted);
 					slider->fitWidthToSections();
 				}, state->unreadLifetime);
 			}
