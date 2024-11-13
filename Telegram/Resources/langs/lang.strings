@@ -2509,6 +2509,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_subscriber_subtitle" = "appx. {total} per month";
 
 "lng_credits_subscription_row_to" = "Subscription";
+"lng_credits_subscription_row_to_bot" = "Bot";
 "lng_credits_subscription_row_from" = "Subscribed";
 
 "lng_credits_subscription_row_next_on" = "Renews";

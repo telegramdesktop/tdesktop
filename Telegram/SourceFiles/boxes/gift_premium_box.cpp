@@ -1247,6 +1247,13 @@ void AddCreditsHistoryEntryTable(
 				}));
 		}
 	}
+	if (!entry.subscriptionUntil.isNull() && !entry.title.isEmpty()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_reason(),
+			tr::lng_credits_box_history_entry_subscription(
+				Ui::Text::WithEntities));
+	}
 	if (!entry.id.isEmpty()) {
 		constexpr auto kOneLineCount = 22;
 		const auto oneLine = entry.id.size() <= kOneLineCount;
@@ -1326,9 +1333,17 @@ void AddSubscriptionEntryTable(
 	const auto peerId = PeerId(s.barePeerId);
 	AddTableRow(
 		table,
-		tr::lng_credits_subscription_row_to(),
+		(!s.title.isEmpty() && peerIsUser(peerId))
+			? tr::lng_credits_subscription_row_to_bot()
+			: tr::lng_credits_subscription_row_to(),
 		controller,
 		peerId);
+	if (!s.title.isEmpty()) {
+		AddTableRow(
+			table,
+			tr::lng_credits_subscription_row_to(),
+			rpl::single(Ui::Text::WithEntities(s.title)));
+	}
 	if (!s.until.isNull()) {
 		if (s.subscription.period > 0) {
 			const auto subscribed = s.until.addSecs(-s.subscription.period);

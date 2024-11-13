@@ -852,6 +852,16 @@ void ReceiptCreditsBox(
 			content,
 			GenericEntryPhoto(content, callback, stUser.photoSize)));
 		AddViewMediaHandler(thumb->entity(), controller, e);
+	} else if (s.photoId || (e.photoId && !e.subscriptionUntil.isNull())) {
+		const auto photoId = s.photoId ? s.photoId : e.photoId;
+		const auto callback = [=](Fn<void()> update) {
+			return Ui::GenerateCreditsPaintEntryCallback(
+				session->data().photo(photoId),
+				std::move(update));
+		};
+		content->add(object_ptr<Ui::CenterWrap<>>(
+			content,
+			GenericEntryPhoto(content, callback, stUser.photoSize)));
 	} else if (peer && !e.gift) {
 		if (e.subscriptionUntil.isNull() && s.until.isNull()) {
 			content->add(object_ptr<Ui::CenterWrap<>>(
@@ -951,11 +961,13 @@ void ReceiptCreditsBox(
 		box,
 		object_ptr<Ui::FlatLabel>(
 			box,
-			rpl::single(!s.until.isNull()
+			rpl::single(!s.title.isEmpty()
+				? s.title
+				: !s.until.isNull()
 				? tr::lng_credits_box_subscription_title(tr::now)
 				: isPrize
 				? tr::lng_credits_box_history_entry_giveaway_name(tr::now)
-				: !e.subscriptionUntil.isNull()
+				: (!e.subscriptionUntil.isNull() && e.title.isEmpty())
 				? tr::lng_credits_box_history_entry_subscription(tr::now)
 				: !e.title.isEmpty()
 				? e.title
