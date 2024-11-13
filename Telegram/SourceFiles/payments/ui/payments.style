@@ -150,3 +150,7 @@ botWebViewBottomButton: RoundButton(paymentsPanelSubmit) {
 	}
 	textTop: 11px;
 }
+botWebViewRadialStroke: 3px;
+botWebViewMenu: PopupMenu(popupMenuWithIcons) {
+	maxHeight: 360px;
+}

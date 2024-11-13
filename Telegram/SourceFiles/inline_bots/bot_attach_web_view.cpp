@@ -1361,7 +1361,7 @@ void WebViewInstance::show(ShowArgs &&args) {
 		.menuButtons = buttons,
 		.fullscreen = args.fullscreen,
 		.allowClipboardRead = allowClipboardRead,
-		.downloadsProgress = downloads->downloadsProgress(_bot),
+		.downloadsProgress = downloads->progress(_bot),
 	});
 	started(args.queryId);
 
@@ -1448,6 +1448,17 @@ Webview::ThemeParams WebViewInstance::botThemeParams() {
 		}
 	}
 	return result;
+}
+
+auto WebViewInstance::botDownloads(bool forceCheck)
+-> const std::vector<Ui::BotWebView::DownloadsEntry> & {
+	return _session->attachWebView().downloads().list(_bot, forceCheck);
+}
+
+void WebViewInstance::botDownloadsAction(
+		uint32 id,
+		Ui::BotWebView::DownloadsAction type) {
+	_session->attachWebView().downloads().action(_bot, id, type);
 }
 
 bool WebViewInstance::botHandleLocalUri(QString uri, bool keepOpen) {

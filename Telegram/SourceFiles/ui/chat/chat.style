@@ -1183,3 +1183,21 @@ botEmojiStatusEmoji: FlatLabel(botEmojiStatusName) {
 }
 
 botDownloadLabel: boxLabel;
+botDownloadProgress: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: ttlItemTimerFont;
+	}
+}
+botDownloadCancel: IconButton {
+	width: 20px;
+	height: 20px;
+
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 20px;
+	ripple: defaultRippleAnimationBgOver;
+}

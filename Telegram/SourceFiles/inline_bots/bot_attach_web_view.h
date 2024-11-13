@@ -28,6 +28,7 @@ class DropdownMenu;
 
 namespace Ui::BotWebView {
 class Panel;
+struct DownloadsEntry;
 } // namespace Ui::BotWebView
 
 namespace Main {
@@ -250,6 +251,11 @@ private:
 	-> Fn<void(Payments::NonPanelPaymentForm)>;
 
 	Webview::ThemeParams botThemeParams() override;
+	auto botDownloads(bool forceCheck = false)
+		-> const std::vector<Ui::BotWebView::DownloadsEntry> & override;
+	void botDownloadsAction(
+		uint32 id,
+		Ui::BotWebView::DownloadsAction type) override;
 	bool botHandleLocalUri(QString uri, bool keepOpen) override;
 	void botHandleInvoice(QString slug) override;
 	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;

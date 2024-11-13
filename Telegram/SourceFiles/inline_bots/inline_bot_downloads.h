@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/chat/attach/attach_bot_webview.h"
+
 class webFileLoader;
 
 namespace Main {
@@ -17,23 +19,13 @@ namespace Ui {
 class GenericBox;
 } // namespace Ui
 
-namespace Ui::BotWebView {
-struct DownloadsProgress;
-} // namespace Ui::BotWebView
-
 namespace InlineBots {
 
 using DownloadId = uint32;
 
 using ::Ui::BotWebView::DownloadsProgress;
-
-struct DownloadsEntry {
-	DownloadId id = 0;
-	QString url;
-	QString path;
-	uint64 ready = 0;
-	uint64 total = 0;
-};
+using ::Ui::BotWebView::DownloadsEntry;
+using ::Ui::BotWebView::DownloadsAction;
 
 class Downloads final {
 public:
@@ -47,15 +39,20 @@ public:
 	};
 	uint32 start(StartArgs &&args); // Returns download id.
 
-	void cancel(DownloadId id);
+	void action(
+		not_null<UserData*> bot,
+		DownloadId id,
+		DownloadsAction type);
 
-	[[nodiscard]] auto downloadsProgress(not_null<UserData*> bot)
-		-> rpl::producer<DownloadsProgress>;
+	[[nodiscard]] rpl::producer<DownloadsProgress> progress(
+		not_null<UserData*> bot);
+	[[nodiscard]] const std::vector<DownloadsEntry> &list(
+		not_null<UserData*> bot,
+		bool check = false);
 
 private:
 	struct List {
 		std::vector<DownloadsEntry> list;
-		bool checked = false;
 	};
 	struct Loader {
 		std::unique_ptr<webFileLoader> loader;
@@ -65,12 +62,21 @@ private:
 	void read();
 	void write();
 
+	void load(
+		PeerId botId,
+		DownloadId id,
+		DownloadsEntry &entry);
 	void progress(PeerId botId, DownloadId id);
-	void fail(PeerId botId, DownloadId id);
+	void fail(PeerId botId, DownloadId id, bool cancel = false);
 	void done(PeerId botId, DownloadId id);
 	void applyProgress(
 		PeerId botId,
 		DownloadId id,
+		int64 total,
+		int64 ready);
+	void applyProgress(
+		PeerId botId,
+		DownloadsEntry &entry,
 		int64 total,
 		int64 ready);
 

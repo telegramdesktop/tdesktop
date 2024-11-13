@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_downloads.h"
 
+#include "core/file_utilities.h"
 #include "data/data_document.h"
 #include "data/data_peer_id.h"
 #include "data/data_user.h"
@@ -15,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download_web.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
-#include "ui/chat/attach/attach_bot_webview.h"
+#include "ui/chat/attach/attach_bot_downloads.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
@@ -23,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QBuffer>
 #include <QtCore/QDataStream>
+
+#include "base/call_delayed.h"
 
 namespace InlineBots {
 namespace {
@@ -37,7 +40,10 @@ Downloads::Downloads(not_null<Main::Session*> session)
 : _session(session) {
 }
 
-Downloads::~Downloads() = default;
+Downloads::~Downloads() {
+	base::take(_loaders);
+	base::take(_lists);
+}
 
 DownloadId Downloads::start(StartArgs &&args) {
 	read();
@@ -50,14 +56,28 @@ DownloadId Downloads::start(StartArgs &&args) {
 		.url = std::move(args.url),
 		.path = std::move(args.path),
 	});
-	auto &entry = list.back();
+	load(botId, id, list.back());
+	return id;
+}
+
+void Downloads::load(
+		PeerId botId,
+		DownloadId id,
+		DownloadsEntry &entry) {
+	entry.loading = 1;
+	entry.failed = 0;
+
 	auto &loader = _loaders[id];
+	Assert(!loader.loader);
 	loader.botId = botId;
 	loader.loader = std::make_unique<webFileLoader>(
 		_session,
 		entry.url,
 		entry.path,
 		WebRequestType::FullLoad);
+
+	applyProgress(botId, id, 0, 0);
+
 	loader.loader->updates(
 	) | rpl::start_with_next_error_done([=] {
 		progress(botId, id);
@@ -66,9 +86,8 @@ DownloadId Downloads::start(StartArgs &&args) {
 	}, [=] {
 		done(botId, id);
 	}, loader.loader->lifetime());
-	loader.loader->start();
 
-	return id;
+	loader.loader->start();
 }
 
 void Downloads::progress(PeerId botId, DownloadId id) {
@@ -87,22 +106,18 @@ void Downloads::progress(PeerId botId, DownloadId id) {
 		&DownloadsEntry::id);
 	Assert(j != end(list));
 
-	if (total < 0
-		|| ready > total
-		|| (j->total && j->total != total)) {
-		fail(botId, id);
-		return;
-	} else if (ready > total) {
+	if (total < 0 || ready > total) {
 		fail(botId, id);
 		return;
 	} else if (ready == total) {
 		// Wait for 'done' signal.
 		return;
 	}
+
 	applyProgress(botId, id, total, ready);
 }
 
-void Downloads::fail(PeerId botId, DownloadId id) {
+void Downloads::fail(PeerId botId, DownloadId id, bool cancel) {
 	const auto i = _loaders.find(id);
 	if (i == end(_loaders)) {
 		return;
@@ -117,7 +132,16 @@ void Downloads::fail(PeerId botId, DownloadId id) {
 		id,
 		&DownloadsEntry::id);
 	Assert(k != end(list));
-	k->ready = -1;
+	k->loading = 0;
+	k->failed = 1;
+
+	if (cancel) {
+		auto copy = *k;
+		list.erase(k);
+		applyProgress(botId, copy, 0, 0);
+	} else {
+		applyProgress(botId, *k, 0, 0);
+	}
 }
 
 void Downloads::done(PeerId botId, DownloadId id) {
@@ -125,19 +149,20 @@ void Downloads::done(PeerId botId, DownloadId id) {
 	if (i == end(_loaders)) {
 		return;
 	}
+	const auto total = i->second.loader->fullSize();
+	if (total <= 0) {
+		fail(botId, id);
+		return;
+	}
+	_loaders.erase(i);
+
 	auto &list = _lists[botId].list;
 	const auto j = ranges::find(
 		list,
 		id,
 		&DownloadsEntry::id);
 	Assert(j != end(list));
-
-	const auto total = i->second.loader->fullSize();
-	if (total <= 0 || (j->total && j->total != total)) {
-		fail(botId, id);
-		return;
-	}
-	_loaders.erase(i);
+	j->loading = 0;
 
 	applyProgress(botId, id, total, total);
 }
@@ -147,7 +172,7 @@ void Downloads::applyProgress(
 		DownloadId id,
 		int64 total,
 		int64 ready) {
-	Expects(total > 0);
+	Expects(total >= 0);
 	Expects(ready >= 0 && ready <= total);
 
 	auto &list = _lists[botId].list;
@@ -157,50 +182,115 @@ void Downloads::applyProgress(
 		&DownloadsEntry::id);
 	Assert(j != end(list));
 
+	applyProgress(botId, *j, total, ready);
+}
+
+void Downloads::applyProgress(
+		PeerId botId,
+		DownloadsEntry &entry,
+		int64 total,
+		int64 ready) {
 	auto &progress = _progressView[botId];
 	auto current = progress.current();
-	if (!j->total) {
-		j->total = total;
-		current.total += total;
+	auto subtract = int64(0);
+	if (current.ready == current.total) {
+		subtract = current.ready;
 	}
-	if (j->ready != ready) {
-		const auto delta = ready - j->ready;
-		j->ready = ready;
+	if (entry.total != total) {
+		const auto delta = total - entry.total;
+		entry.total = total;
+		current.total += delta;
+	}
+	if (entry.ready != ready) {
+		const auto delta = ready - entry.ready;
+		entry.ready = ready;
 		current.ready += delta;
 	}
+	if (subtract > 0
+		&& current.ready >= subtract
+		&& current.total >= subtract) {
+		current.ready -= subtract;
+		current.total -= subtract;
+	}
+	if (entry.loading || current.ready < current.total) {
+		current.loading = 1;
+	} else {
+		current.loading = 0;
+	}
 
-	if (total == ready) {
+	if (total > 0 && total == ready) {
 		write();
 	}
 
 	progress = current;
-	if (current.ready == current.total) {
-		progress = DownloadsProgress();
+}
+
+void Downloads::action(
+		not_null<UserData*> bot,
+		DownloadId id,
+		DownloadsAction type) {
+	switch (type) {
+	case DownloadsAction::Open: {
+		const auto i = ranges::find(
+			_lists[bot->id].list,
+			id,
+			&DownloadsEntry::id);
+		if (i == end(_lists[bot->id].list)) {
+			return;
+		}
+		File::ShowInFolder(i->path);
+	} break;
+	case DownloadsAction::Cancel: {
+		const auto i = _loaders.find(id);
+		if (i == end(_loaders)) {
+			return;
+		}
+		const auto botId = i->second.botId;
+		fail(botId, id, true);
+	} break;
+	case DownloadsAction::Retry: {
+		const auto i = ranges::find(
+			_lists[bot->id].list,
+			id,
+			&DownloadsEntry::id);
+		if (i == end(_lists[bot->id].list)) {
+			return;
+		}
+		load(bot->id, id, *i);
+	} break;
 	}
 }
 
-void Downloads::cancel(DownloadId id) {
-	const auto i = _loaders.find(id);
-	if (i == end(_loaders)) {
-		return;
-	}
-	const auto botId = i->second.botId;
-	fail(botId, id);
-
-	auto &list = _lists[botId].list;
-	list.erase(
-		ranges::remove(list, id, &DownloadsEntry::id),
-		end(list));
-
-	auto &progress = _progressView[botId];
-	progress.force_assign(progress.current());
-}
-
-[[nodiscard]] auto Downloads::downloadsProgress(not_null<UserData*> bot)
+[[nodiscard]] auto Downloads::progress(not_null<UserData*> bot)
 ->rpl::producer<DownloadsProgress> {
 	read();
 
 	return _progressView[bot->id].value();
+}
+
+const std::vector<DownloadsEntry> &Downloads::list(
+		not_null<UserData*> bot,
+		bool forceCheck) {
+	read();
+
+	auto &entry = _lists[bot->id];
+	if (forceCheck) {
+		const auto was = int(entry.list.size());
+		for (auto i = begin(entry.list); i != end(entry.list);) {
+			if (i->loading || i->failed) {
+				++i;
+			} else if (auto info = QFileInfo(i->path)
+				; !info.exists() || info.size() != i->total) {
+				i = entry.list.erase(i);
+			} else {
+				++i;
+			}
+		}
+		if (int(entry.list.size()) != was) {
+			write();
+		}
+	}
+	return entry.list;
 }
 
 void Downloads::read() {
@@ -239,8 +329,9 @@ void Downloads::read() {
 		list.list.reserve(count);
 		for (auto j = 0; j != count; ++j) {
 			auto entry = DownloadsEntry();
-			stream >> entry.url >> entry.path >> entry.total;
-			entry.ready = entry.total;
+			auto size = int64();
+			stream >> entry.url >> entry.path >> size;
+			entry.total = entry.ready = size;
 			entry.id = ++_autoIncrementId;
 			list.list.push_back(std::move(entry));
 		}
@@ -259,7 +350,7 @@ void Downloads::write() {
 			if (entry.total > 0 && entry.ready == entry.total) {
 				size += Serialize::stringSize(entry.url)
 					+ Serialize::stringSize(entry.path)
-					+ sizeof(quint64); // total
+					+ sizeof(quint64); // size
 			}
 		}
 	}

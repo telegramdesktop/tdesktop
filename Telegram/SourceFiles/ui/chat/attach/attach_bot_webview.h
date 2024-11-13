@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
 #include "base/flags.h"
+#include "ui/chat/attach/attach_bot_downloads.h"
 #include "ui/rect_part.h"
 #include "ui/round_rect.h"
 #include "webview/webview_common.h"
@@ -22,6 +23,7 @@ namespace Ui {
 class BoxContent;
 class RpWidget;
 class SeparatePanel;
+class IconButton;
 enum class LayerOption;
 using LayerOptions = base::flags<LayerOption>;
 } // namespace Ui
@@ -63,15 +65,6 @@ struct DownloadFileRequest {
 	Fn<void(bool)> callback;
 };
 
-struct DownloadsProgress {
-	uint64 ready = 0;
-	uint64 total = 0;
-
-	friend inline bool operator==(
-		const DownloadsProgress &a,
-		const DownloadsProgress &b) = default;
-};
-
 struct SendPreparedMessageRequest {
 	QString id = 0;
 	Fn<void(QString)> callback;
@@ -79,7 +72,12 @@ struct SendPreparedMessageRequest {
 
 class Delegate {
 public:
-	virtual Webview::ThemeParams botThemeParams() = 0;
+	[[nodiscard]] virtual Webview::ThemeParams botThemeParams() = 0;
+	[[nodiscard]] virtual auto botDownloads(bool forceCheck = false)
+		-> const std::vector<DownloadsEntry> & = 0;
+	virtual void botDownloadsAction(
+		uint32 id,
+		Ui::BotWebView::DownloadsAction type) = 0;
 	virtual bool botHandleLocalUri(QString uri, bool keepOpen) = 0;
 	virtual void botHandleInvoice(QString slug) = 0;
 	virtual void botHandleMenuButton(MenuButton button) = 0;
@@ -158,6 +156,7 @@ private:
 	void createWebviewBottom();
 	void showWebviewProgress();
 	void hideWebviewProgress();
+	void setupDownloadsProgress(rpl::producer<DownloadsProgress> progress);
 	void setTitle(rpl::producer<QString> title);
 	void sendDataMessage(const QJsonObject &args);
 	void switchInlineQueryMessage(const QJsonObject &args);
@@ -214,6 +213,7 @@ private:
 	bool _hasSettingsButton = false;
 	MenuButtons _menuButtons = {};
 	std::unique_ptr<SeparatePanel> _widget;
+	QPointer<IconButton> _menuToggle;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
 	rpl::variable<QString> _bottomText;
@@ -229,6 +229,8 @@ private:
 	rpl::lifetime _headerColorLifetime;
 	rpl::lifetime _bodyColorLifetime;
 	rpl::lifetime _bottomBarColorLifetime;
+	DownloadsProgress _downloadsProgress;
+	rpl::event_stream<> _downloadsUpdated;
 	rpl::variable<bool> _fullscreen = false;
 	bool _layerShown : 1 = false;
 	bool _webviewProgress : 1 = false;

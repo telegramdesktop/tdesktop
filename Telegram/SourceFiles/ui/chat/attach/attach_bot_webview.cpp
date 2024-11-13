@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_bot_webview.h"
 
 #include "core/file_utilities.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/box_content.h"
+#include "ui/style/style_core_palette.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/widgets/buttons.h"
@@ -28,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/debug_log.h"
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
+#include "styles/style_chat.h"
 #include "styles/style_payments.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -370,7 +373,9 @@ Panel::Panel(Args &&args)
 : _storageId(args.storageId)
 , _delegate(args.delegate)
 , _menuButtons(args.menuButtons)
-, _widget(std::make_unique<SeparatePanel>())
+, _widget(std::make_unique<SeparatePanel>(Ui::SeparatePanelArgs{
+	.menuSt = &st::botWebViewMenu,
+}))
 , _fullscreen(args.fullscreen)
 , _allowClipboardRead(args.allowClipboardRead) {
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
@@ -425,7 +430,9 @@ Panel::Panel(Args &&args)
 	setTitle(std::move(args.title));
 	_widget->setTitleBadge(std::move(args.titleBadge));
 
-	if (!showWebview(args.url, params, std::move(args.bottom))) {
+	if (showWebview(args.url, params, std::move(args.bottom))) {
+		setupDownloadsProgress(rpl::duplicate(args.downloadsProgress));
+	} else {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
 			showWebviewError(tr::lng_bot_no_webview(tr::now), available);
@@ -439,6 +446,97 @@ Panel::~Panel() {
 	base::take(_webview);
 	_progress = nullptr;
 	_widget = nullptr;
+}
+
+void Panel::setupDownloadsProgress(rpl::producer<DownloadsProgress> progress) {
+	Expects(_menuToggle != nullptr);
+
+	const auto widget = Ui::CreateChild<RpWidget>(_menuToggle.data());
+	widget->show();
+	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	_menuToggle->sizeValue() | rpl::start_with_next([=](QSize size) {
+		widget->setGeometry(QRect(QPoint(), size));
+	}, widget->lifetime());
+
+	struct State {
+		State(QWidget *parent, Fn<float64()> progress)
+		: animation([=](crl::time now) {
+			const auto updated = animation.update(progress(), false, now);
+			if (!anim::Disabled() || updated) {
+				parent->update();
+			}
+		}) {
+		}
+
+		RadialAnimation animation;
+		Animations::Simple fade;
+		bool shown = false;
+	};
+	const auto state = widget->lifetime().make_state<State>(widget, [=] {
+		const auto total = _downloadsProgress.total;
+		return total ? (_downloadsProgress.ready / float64(total)) : 0.;
+	});
+	std::move(
+		progress
+	) | rpl::start_with_next([=](DownloadsProgress progress) {
+		const auto toggle = [&](bool shown) {
+			if (state->shown == shown) {
+				return;
+			}
+			state->shown = shown;
+			if (shown && !state->fade.animating()) {
+				return;
+			}
+			state->fade.start([=] {
+				widget->update();
+				if (!state->shown
+					&& !state->fade.animating()
+					&& (!_downloadsProgress.total
+						|| (_downloadsProgress.ready
+							== _downloadsProgress.total))) {
+					state->animation.stop();
+				}
+			}, shown ? 0. : 2., shown ? 2. : 0., st::radialDuration * 2);
+		};
+		if (!state->shown && progress.loading) {
+			if (!state->animation.animating()) {
+				state->animation.start(0.);
+			}
+			toggle(true);
+		} else if ((_downloadsProgress.total && !progress.total)
+			|| (_downloadsProgress.ready < _downloadsProgress.total
+				&& progress.ready == progress.total)) {
+			state->animation.update(1., false, crl::now());
+			toggle(false);
+		}
+		_downloadsProgress = progress;
+		_downloadsUpdated.fire({});
+	}, widget->lifetime());
+
+	widget->paintRequest() | rpl::start_with_next([=] {
+		const auto opacity = std::clamp(
+			state->fade.value(state->shown ? 2. : 0.) - 1.,
+			0.,
+			1.);
+		if (!opacity) {
+			return;
+		}
+		auto p = QPainter(widget);
+		p.setOpacity(opacity);
+		const auto palette = _widget->titleOverridePalette();
+		const auto color = palette
+			? palette->boxTitleCloseFg()
+			: st::paymentsLoading.color;
+		const auto &st = st::separatePanelMenu;
+		const auto size = st.rippleAreaSize;
+		const auto rect = QRect(st.rippleAreaPosition, QSize(size, size));
+		const auto stroke = st::botWebViewRadialStroke;
+		const auto shift = stroke * 1.5;
+		const auto inner = QRectF(rect).marginsRemoved(
+			QMarginsF{ shift, shift, shift, shift });
+		state->animation.draw(p, inner, stroke, color);
+	}, widget->lifetime());
 }
 
 void Panel::requestActivate() {
@@ -582,7 +680,32 @@ bool Panel::showWebview(
 	updateThemeParams(params);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
-	_widget->setMenuAllowed([=](const Ui::Menu::MenuCallback &callback) {
+
+	_menuToggle = _widget->setMenuAllowed([=](
+			const Ui::Menu::MenuCallback &callback) {
+		auto list = _delegate->botDownloads(true);
+		if (!list.empty()) {
+			auto value = rpl::single(
+				std::move(list)
+			) | rpl::then(_downloadsUpdated.events(
+			) | rpl::map([=] {
+				return _delegate->botDownloads();
+			}));
+			const auto action = [=](uint32 id, DownloadsAction type) {
+				_delegate->botDownloadsAction(id, type);
+			};
+			callback(Ui::Menu::MenuCallback::Args{
+				.text = tr::lng_downloads_section(tr::now),
+				.icon = &st::menuIconDownload,
+				.fillSubmenu = FillAttachBotDownloadsSubmenu(
+					std::move(value),
+					action),
+			});
+			callback({
+				.separatorSt = &st::expandedMenuSeparator,
+				.isSeparator = true,
+			});
+		}
 		if (_webview && _webview->window.widget() && _hasSettingsButton) {
 			callback(tr::lng_bot_settings(tr::now), [=] {
 				postEvent("settings_button_pressed");

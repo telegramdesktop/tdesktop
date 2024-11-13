@@ -321,7 +321,7 @@ void WebLoadManager::progress(
 			).arg(status));
 		failed(id, reply);
 	} else {
-		notify(id, reply, ready, total);
+		notify(id, reply, ready, std::max(ready, total));
 	}
 }
 
