@@ -833,7 +833,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 	}
 #ifndef _DEBUG
-	if (!channel->amCreator()) {
+	if (channel && !channel->amCreator()) {
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		return;
@@ -1346,8 +1346,8 @@ void InnerWidget::fill() {
 			handleSlice(firstSlice);
 			if (!firstSlice.allLoaded) {
 				struct ShowMoreState final {
-					ShowMoreState(not_null<ChannelData*> channel)
-					: api(channel) {
+					ShowMoreState(not_null<PeerData*> peer)
+					: api(peer) {
 					}
 					Api::EarnStatistics api;
 					bool loading = false;
@@ -1355,7 +1355,7 @@ void InnerWidget::fill() {
 					rpl::variable<int> showed = 0;
 				};
 				const auto state
-					= lifetime().make_state<ShowMoreState>(channel);
+					= lifetime().make_state<ShowMoreState>(_peer);
 				state->token = firstSlice.token;
 				state->showed = firstSlice.list.size();
 				const auto max = firstSlice.total;
