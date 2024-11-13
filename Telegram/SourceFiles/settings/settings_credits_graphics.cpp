@@ -346,6 +346,37 @@ void AddViewMediaHandler(
 	}, thumb->lifetime());
 }
 
+void AddMiniStars(
+		not_null<Ui::VerticalLayout*> content,
+		not_null<Ui::RpWidget*> widget,
+		const style::UserpicButton &stUser,
+		int boxWidth,
+		float64 heightRatio) {
+	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
+	const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
+		widget,
+		false,
+		Ui::Premium::MiniStars::Type::BiStars);
+	stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
+	widget->resize(
+		boxWidth - stUser.photoSize,
+		stUser.photoSize * heightRatio);
+	content->sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		widget->moveToLeft(stUser.photoSize / 2, 0);
+		const auto starsRect = Rect(widget->size());
+		stars->setPosition(starsRect.topLeft());
+		stars->setSize(starsRect.size());
+		widget->lower();
+	}, widget->lifetime());
+	widget->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		auto p = QPainter(widget);
+		p.fillRect(r, Qt::transparent);
+		stars->paint(p);
+	}, widget->lifetime());
+}
+
 } // namespace
 
 SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
@@ -664,31 +695,12 @@ void BoostCreditsBox(
 	{
 		const auto &stUser = st::premiumGiftsUserpicButton;
 		const auto widget = content->add(object_ptr<Ui::RpWidget>(content));
-		using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
-		const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
-			widget,
-			false,
-			Ui::Premium::MiniStars::Type::BiStars);
-		stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
-		widget->resize(
-			st::boxWidth - stUser.photoSize,
-			stUser.photoSize * 1.3);
+		AddMiniStars(content, widget, stUser, st::boxWidth, 1.3);
 		const auto svg = std::make_shared<QSvgRenderer>(
 			Ui::Premium::ColorizedSvg(
 				Ui::Premium::CreditsIconGradientStops()));
-		content->sizeValue(
-		) | rpl::start_with_next([=](const QSize &size) {
-			widget->moveToLeft(stUser.photoSize / 2, 0);
-			const auto starsRect = Rect(widget->size());
-			stars->setPosition(starsRect.topLeft());
-			stars->setSize(starsRect.size());
-			widget->lower();
-		}, widget->lifetime());
-		widget->paintRequest(
-		) | rpl::start_with_next([=](const QRect &r) {
+		widget->paintRequest() | rpl::start_with_next([=](const QRect &r) {
 			auto p = QPainter(widget);
-			p.fillRect(r, Qt::transparent);
-			stars->paint(p);
 			svg->render(
 				&p,
 				QRectF(
@@ -853,6 +865,10 @@ void ReceiptCreditsBox(
 			GenericEntryPhoto(content, callback, stUser.photoSize)));
 		AddViewMediaHandler(thumb->entity(), controller, e);
 	} else if (s.photoId || (e.photoId && !e.subscriptionUntil.isNull())) {
+		if (!(s.cancelled || s.expired || s.cancelledByBot)) {
+			const auto widget = Ui::CreateChild<Ui::RpWidget>(content);
+			AddMiniStars(content, widget, stUser, st::boxWideWidth, 1.5);
+		}
 		const auto photoId = s.photoId ? s.photoId : e.photoId;
 		const auto callback = [=](Fn<void()> update) {
 			return Ui::GenerateCreditsPaintEntryCallback(
@@ -1337,29 +1353,7 @@ void ReceiptCreditsBox(
 
 	if (e.peerType == Data::CreditsHistoryEntry::PeerType::PremiumBot) {
 		const auto widget = Ui::CreateChild<Ui::RpWidget>(content);
-		using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
-		const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
-			widget,
-			false,
-			Ui::Premium::MiniStars::Type::BiStars);
-		stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
-		widget->resize(
-			st::boxWideWidth - stUser.photoSize,
-			stUser.photoSize * 2);
-		content->sizeValue(
-		) | rpl::start_with_next([=](const QSize &size) {
-			widget->moveToLeft(stUser.photoSize / 2, 0);
-			const auto starsRect = Rect(widget->size());
-			stars->setPosition(starsRect.topLeft());
-			stars->setSize(starsRect.size());
-			widget->lower();
-		}, widget->lifetime());
-		widget->paintRequest(
-		) | rpl::start_with_next([=](const QRect &r) {
-			auto p = QPainter(widget);
-			p.fillRect(r, Qt::transparent);
-			stars->paint(p);
-		}, widget->lifetime());
+		AddMiniStars(content, widget, stUser, st::boxWideWidth, 2);
 	}
 
 	const auto toRenew = (s.cancelled || s.expired)
