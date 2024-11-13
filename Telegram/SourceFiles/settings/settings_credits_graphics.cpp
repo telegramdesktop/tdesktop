@@ -820,6 +820,7 @@ void ReceiptCreditsBox(
 	const auto nonConvertible = (gotStarGift && !e.starsConverted);
 
 	box->setStyle(st::giveawayGiftCodeBox);
+	box->setWidth(st::boxWideWidth);
 	box->setNoContentMargin(true);
 
 	const auto content = box->verticalLayout();
@@ -1303,7 +1304,7 @@ void ReceiptCreditsBox(
 			Ui::Premium::MiniStars::Type::BiStars);
 		stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
 		widget->resize(
-			st::boxWidth - stUser.photoSize,
+			st::boxWideWidth - stUser.photoSize,
 			stUser.photoSize * 2);
 		content->sizeValue(
 		) | rpl::start_with_next([=](const QSize &size) {
@@ -1430,7 +1431,7 @@ void ReceiptCreditsBox(
 		AddChildToWidgetCenter(button, loadingAnimation);
 		loadingAnimation->showOn(state->confirmButtonBusy.value());
 	}
-	const auto buttonWidth = st::boxWidth
+	const auto buttonWidth = st::boxWideWidth
 		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
 
 	button->widthValue() | rpl::filter([=] {
