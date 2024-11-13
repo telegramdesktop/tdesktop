@@ -1307,7 +1307,21 @@ void Widget::toggleFiltersMenu(bool enabled) {
 	if (!enabled == !_chatFilters) {
 		return;
 	} else if (enabled) {
-		_chatFilters = base::make_unique_q<Ui::RpWidget>(this);
+		class NoScrollPropagationWidget final : public Ui::RpWidget {
+		public:
+			using Ui::RpWidget::RpWidget;
+
+		protected:
+			void touchEvent(QTouchEvent *e) {
+				e->accept();
+			}
+			void wheelEvent(QWheelEvent *e) override final {
+				e->accept();
+			}
+
+		};
+
+		_chatFilters = base::make_unique_q<NoScrollPropagationWidget>(this);
 		const auto raw = _chatFilters.get();
 		const auto inner = Ui::AddChatFiltersTabsStrip(
 			_chatFilters.get(),
