@@ -1910,13 +1910,21 @@ void WebViewInstance::botDownloadFile(
 		});
 		callback(true);
 	};
-	_panel->showBox(Box(DownloadFileBox, DownloadBoxArgs{
-		.session = &_bot->session(),
-		.bot = _bot->name(),
-		.name = base::FileNameFromUserString(request.name),
-		.url = request.url,
-		.done = done,
-	}));
+	_bot->session().api().request(MTPbots_CheckDownloadFileParams(
+		_bot->inputUser,
+		MTP_string(request.name),
+		MTP_string(request.url)
+	)).done([=] {
+		_panel->showBox(Box(DownloadFileBox, DownloadBoxArgs{
+			.session = &_bot->session(),
+			.bot = _bot->name(),
+			.name = base::FileNameFromUserString(request.name),
+			.url = request.url,
+			.done = done,
+		}));
+	}).fail([=] {
+		done(QString());
+	}).send();
 }
 
 void WebViewInstance::botOpenPrivacyPolicy() {
