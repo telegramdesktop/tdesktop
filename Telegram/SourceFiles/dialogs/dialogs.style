@@ -692,6 +692,10 @@ dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
 }
 dialogsSearchTabsPadding: 8px;
 
+chatsFiltersTabs: SettingsSlider(dialogsSearchTabs) {
+	rippleBottomSkip: 0px;
+}
+
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
 	full: dialogsStoriesFull;
