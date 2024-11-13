@@ -3383,6 +3383,10 @@ Fn<void()> ComposeControls::restoreTextCallback(
 	});
 }
 
+Ui::InputField *ComposeControls::fieldForMention() const {
+	return _writeRestriction.current() ? nullptr : _field.get();
+}
+
 TextWithEntities ComposeControls::prepareTextForEditMsg() const {
 	if (!_history) {
 		return {};

@@ -249,6 +249,8 @@ public:
 
 	Fn<void()> restoreTextCallback(const QString &insertTextOnCancel) const;
 
+	[[nodiscard]] Ui::InputField *fieldForMention() const;
+
 private:
 	enum class TextUpdateEvent {
 		SaveDraft = (1 << 0),

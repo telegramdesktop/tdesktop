@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_swipe.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
@@ -2703,6 +2704,23 @@ Ui::ChatPaintContext RepliesWidget::listPreparePaintContext(
 		std::move(args));
 	context.gestureHorizontal = _gestureHorizontal;
 	return context;
+}
+
+base::unique_qptr<Ui::PopupMenu> RepliesWidget::listFillSenderUserpicMenu(
+		PeerId userpicPeerId) {
+	const auto searchInEntry = _topic
+		? Dialogs::Key(_topic)
+		: Dialogs::Key(_history);
+	auto menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	Window::FillSenderUserpicMenu(
+		controller(),
+		_history->owner().peer(userpicPeerId),
+		_composeControls->fieldForMention(),
+		searchInEntry,
+		Ui::Menu::CreateAddActionCallback(menu.get()));
+	return menu->empty() ? nullptr : std::move(menu);
 }
 
 void RepliesWidget::setupEmptyPainter() {
