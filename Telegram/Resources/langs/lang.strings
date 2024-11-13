@@ -5045,6 +5045,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_outdated_now" = "So Telegram Desktop can update to newer versions.";
 
 "lng_filters_all" = "All chats";
+"lng_filters_all_short" = "All";
 "lng_filters_setup" = "Edit";
 "lng_filters_title" = "Folders";
 "lng_filters_subtitle" = "My folders";

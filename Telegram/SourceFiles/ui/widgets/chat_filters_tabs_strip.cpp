@@ -146,7 +146,7 @@ void ShowFiltersListMenu(
 	for (auto i = 0; i < list.size(); ++i) {
 		const auto &filter = list[i];
 		auto text = filter.title().isEmpty()
-			? tr::lng_filters_all(tr::now)
+			? tr::lng_filters_all_short(tr::now)
 			: filter.title();
 
 		const auto action = state->menu->addAction(std::move(text), [=] {
@@ -291,7 +291,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			list
 		) | ranges::views::transform([](const Data::ChatFilter &filter) {
 			return filter.title().isEmpty()
-				? tr::lng_filters_all(tr::now)
+				? tr::lng_filters_all_short(tr::now)
 				: filter.title();
 		}) | ranges::to_vector;
 		slider->setSections(std::move(sections));
