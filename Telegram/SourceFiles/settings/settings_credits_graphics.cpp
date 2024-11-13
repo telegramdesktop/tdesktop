@@ -1270,10 +1270,16 @@ void ReceiptCreditsBox(
 				st::creditsBoxAboutDivider)));
 	}
 	if (s) {
+		const auto user = peer ? peer->asUser() : nullptr;
+		const auto bot = (user && !user->isSelf()) ? user : nullptr;
 		Ui::AddSkip(content);
 		auto label = object_ptr<Ui::FlatLabel>(
 			box,
-			s.cancelled
+			(s.cancelledByBot && bot)
+				? tr::lng_credits_subscription_off_by_bot_about(
+					lt_bot,
+					rpl::single(bot->name()))
+				: s.cancelled
 				? tr::lng_credits_subscription_off_about()
 				: tr::lng_credits_subscription_on_about(
 					lt_date,

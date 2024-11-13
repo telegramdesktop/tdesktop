@@ -955,16 +955,29 @@ PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {
 	return _paintUserpicCallback;
 }
 
+[[nodiscard]] QString RightActionText(const Data::SubscriptionEntry &s) {
+	return s.cancelledByBot
+		? tr::lng_credits_subscription_status_off_by_bot_right(tr::now)
+		: s.cancelled
+		? tr::lng_credits_subscription_status_off_right(tr::now)
+		: s.expired
+		? tr::lng_credits_subscription_status_none_right(tr::now)
+		: QString();
+}
+
 QSize CreditsRow::rightActionSize() const {
 	if (_rightLabel) {
 		return _rightLabel->size;
-	} else if (_subscription.cancelled || _subscription.expired) {
-		const auto text = _subscription.cancelled
-			? tr::lng_credits_subscription_status_off_right(tr::now)
-			: tr::lng_credits_subscription_status_none_right(tr::now);
-		return QSize(
-			st::contactsStatusFont->width(text) + st::boxRowPadding.right(),
-			_rowHeight);
+	} else if (const auto t = RightActionText(_subscription); !t.isEmpty()) {
+		const auto lines = t.split('\n');
+		auto maxWidth = 0;
+		for (const auto &line : lines) {
+			const auto width = st::contactsStatusFont->width(line);
+			if (width > maxWidth) {
+				maxWidth = width;
+			}
+		}
+		return QSize(maxWidth + st::boxRowPadding.right(), _rowHeight);
 	} else if (_subscription || _entry) {
 		return QSize(
 			_rightText.maxWidth() + st::boxRowPadding.right() / 2,
@@ -994,18 +1007,31 @@ void CreditsRow::rightActionPaint(
 	const auto rightSkip = st::boxRowPadding.right();
 	if (_rightLabel) {
 		return _rightLabel->draw(p, x, y, _rowHeight);
-	} else if (_subscription.cancelled || _subscription.expired) {
+	} else if (const auto t = RightActionText(_subscription); !t.isEmpty()) {
 		const auto &statusFont = st::contactsStatusFont;
 		y += _rowHeight / 2;
 		p.setFont(statusFont);
 		p.setPen(st::attentionButtonFg);
-		p.drawTextRight(
-			rightSkip,
-			y - statusFont->height / 2,
-			outerWidth,
-			_subscription.expired
-				? tr::lng_credits_subscription_status_none_right(tr::now)
-				: tr::lng_credits_subscription_status_off_right(tr::now));
+
+		const auto lines = t.split('\n');
+		if (lines.size() > 1) {
+			const auto rect = QRect(x, 0, outerWidth - x, _rowHeight);
+			const auto lineHeight = statusFont->height;
+			const auto totalHeight = lines.size() * lineHeight;
+			auto startY = rect.top()
+				+ (rect.height() - totalHeight) / 2
+				+ statusFont->ascent;
+
+			for (const auto &line : lines) {
+				const auto lineWidth = statusFont->width(line);
+				const auto startX = rect.left()
+					+ (rect.width() - lineWidth) / 2;
+				p.drawText(startX, startY, line);
+				startY += lineHeight;
+			}
+			return;
+		}
+		p.drawTextRight(rightSkip, y - statusFont->height / 2, outerWidth, t);
 		return;
 	}
 	y += _rowHeight / 2;
@@ -1143,7 +1169,9 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 			.entry = i,
 			.subscription = s,
 			.context = _context,
-			.rowHeight = computeListSt().item.height,
+			.rowHeight = ((!s || !s.title.isEmpty())
+				? computeListSt().item
+				: st::boostsListBox.item).height,
 			.updateCallback = [=](not_null<PeerListRow*> row) {
 				delegate()->peerListUpdateRow(row);
 			},

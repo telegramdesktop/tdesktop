@@ -2520,12 +2520,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_credits_subscription_off_button" = "Renew Subscription";
 "lng_credits_subscription_off_about" = "You have canceled your subscription.";
+"lng_credits_subscription_off_by_bot_about" = "{bot} has canceled your subscription.";
 
 "lng_credits_subscription_status_on" = "renews on {date}";
 "lng_credits_subscription_status_off" = "expires on {date}";
 "lng_credits_subscription_status_none" = "expired on {date}";
 "lng_credits_subscription_status_off_right" = "canceled";
 "lng_credits_subscription_status_none_right" = "expired";
+"lng_credits_subscription_status_off_by_bot_right" = "canceled\nby bot";
 
 "lng_credits_small_balance_title#one" = "{count} Star Needed";
 "lng_credits_small_balance_title#other" = "{count} Stars Needed";
