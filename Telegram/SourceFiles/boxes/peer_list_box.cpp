@@ -219,12 +219,15 @@ void PeerListBox::searchQueryChanged(const QString &query) {
 	scrollToY(0);
 	const auto isEmpty = content()->searchQueryChanged(query);
 	if (_specialTabsMode.enabled) {
+		const auto was = _specialTabsMode.searchIsActive;
 		_specialTabsMode.searchIsActive = !isEmpty;
-		if (_specialTabsMode.searchIsActive) {
-			_specialTabsMode.topSkip = _addedTopScrollSkip;
-			setAddedTopScrollSkip(0);
-		} else {
-			setAddedTopScrollSkip(_specialTabsMode.topSkip);
+		if (was != _specialTabsMode.searchIsActive) {
+			if (_specialTabsMode.searchIsActive) {
+				_specialTabsMode.topSkip = _addedTopScrollSkip;
+				setAddedTopScrollSkip(0);
+			} else {
+				setAddedTopScrollSkip(_specialTabsMode.topSkip);
+			}
 		}
 	}
 }
