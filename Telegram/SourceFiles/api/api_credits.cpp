@@ -472,4 +472,20 @@ Data::CreditsGiveawayOptions CreditsGiveawayOptions::options() const {
 	return _options;
 }
 
+void EditCreditsSubscription(
+		not_null<Main::Session*> session,
+		const QString &id,
+		bool cancel,
+		Fn<void()> done,
+		Fn<void(QString)> fail) {
+	using Flag = MTPpayments_ChangeStarsSubscription::Flag;
+	session->api().request(
+		MTPpayments_ChangeStarsSubscription(
+			MTP_flags(Flag::f_canceled),
+			MTP_inputPeerSelf(),
+			MTP_string(id),
+			MTP_bool(cancel)
+	)).done(done).fail([=](const MTP::Error &e) { fail(e.type()); }).send();
+}
+
 } // namespace Api

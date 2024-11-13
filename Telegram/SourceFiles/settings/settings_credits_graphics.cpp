@@ -1285,6 +1285,10 @@ void ReceiptCreditsBox(
 	if (s) {
 		const auto user = peer ? peer->asUser() : nullptr;
 		const auto bot = (user && !user->isSelf()) ? user : nullptr;
+		const auto toCancel = !s.expired && !s.cancelled && !s.cancelledByBot;
+		if (toCancel) {
+			Ui::AddSkip(content);
+		}
 		Ui::AddSkip(content);
 		auto label = object_ptr<Ui::FlatLabel>(
 			box,
@@ -1292,13 +1296,37 @@ void ReceiptCreditsBox(
 				? tr::lng_credits_subscription_off_by_bot_about(
 					lt_bot,
 					rpl::single(bot->name()))
+				: toCancel
+				? tr::lng_credits_subscription_on_button()
 				: s.cancelled
 				? tr::lng_credits_subscription_off_about()
 				: tr::lng_credits_subscription_on_about(
 					lt_date,
 					rpl::single(langDayOfMonthFull(s.until.date()))),
 				st::creditsBoxAboutDivider);
-		if (s.cancelled) {
+		if (toCancel) {
+			label->setClickHandlerFilter([=](
+					const auto &,
+					Qt::MouseButton button) {
+				if (button != Qt::LeftButton) {
+					return false;
+				}
+				const auto done = [=, weak = Ui::MakeWeak(box)] {
+					if (const auto strong = weak.data()) {
+						strong->closeBox();
+					}
+				};
+				const auto fail = [=, s = box->uiShow()](const QString &e) {
+					s->showToast(e);
+				};
+				Api::EditCreditsSubscription(session, s.id, true, done, fail);
+				return true;
+			});
+			label->setMarkedText(
+				Ui::Text::Link(
+					tr::lng_credits_subscription_on_button(tr::now),
+					u"internal:"_q));
+		} else if (s.cancelled || s.cancelledByBot) {
 			label->setTextColorOverride(st::menuIconAttentionColor->c);
 		}
 		box->addRow(
@@ -1335,15 +1363,14 @@ void ReceiptCreditsBox(
 	}
 
 	const auto toRenew = (s.cancelled || s.expired)
-		&& !s.inviteHash.isEmpty();
-	const auto toCancel = !toRenew && s;
+		&& (!s.inviteHash.isEmpty()
+			|| (base::unixtime::serialize(s.until) > base::unixtime::now()))
+		&& !s.cancelledByBot;
 	auto confirmText = rpl::conditional(
 		state->confirmButtonBusy.value(),
 		rpl::single(QString()),
 		(toRenew
 			? tr::lng_credits_subscription_off_button()
-			: toCancel
-			? tr::lng_credits_subscription_on_button()
 			: (canConvert || couldConvert || nonConvertible)
 			? (e.savedToProfile
 				? tr::lng_gift_display_on_page_hide()
@@ -1398,23 +1425,18 @@ void ReceiptCreditsBox(
 				}
 			});
 		} else {
-			using Flag = MTPpayments_ChangeStarsSubscription::Flag;
-			session->api().request(
-				MTPpayments_ChangeStarsSubscription(
-					MTP_flags(Flag::f_canceled),
-					MTP_inputPeerSelf(),
-					MTP_string(s.id),
-					MTP_bool(toCancel)
-			)).done([=] {
+			const auto done = [=] {
 				if (const auto strong = weak.data()) {
 					strong->closeBox();
 				}
-			}).fail([=, show = box->uiShow()](const MTP::Error &error) {
+			};
+			const auto fail = [=, show = box->uiShow()](const QString &e) {
 				if (const auto strong = weak.data()) {
 					state->confirmButtonBusy = false;
 				}
-				show->showToast(error.type());
-			}).send();
+				show->showToast(e);
+			};
+			Api::EditCreditsSubscription(session, s.id, false, done, fail);
 		}
 	};
 
@@ -1423,13 +1445,12 @@ void ReceiptCreditsBox(
 			|| state->convertButtonBusy.current()) {
 			return;
 		}
-		state->confirmButtonBusy = true;
 		if (peer
 			&& (toRenew
-				|| toCancel
 				|| canConvert
 				|| couldConvert
 				|| nonConvertible)) {
+			state->confirmButtonBusy = true;
 			send();
 		} else {
 			box->closeBox();
