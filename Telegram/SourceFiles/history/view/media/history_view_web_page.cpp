@@ -560,7 +560,9 @@ QSize WebPage::countOptimalSize() {
 	}
 
 	// init dimensions
-	const auto skipBlockWidth = _parent->skipBlockWidth();
+	const auto skipBlockWidth = (sponsored && sponsored->hasMedia)
+		? 0
+		: _parent->skipBlockWidth();
 	auto maxWidth = skipBlockWidth;
 	auto minHeight = 0;
 
@@ -628,8 +630,10 @@ QSize WebPage::countOptimalSize() {
 		_durationWidth = st::msgDateFont->width(_duration);
 	}
 	if (!_openButton.isEmpty()) {
-		maxWidth += rect::m::sum::h(st::historyPageButtonPadding)
-			+ _openButton.maxWidth();
+		accumulate_max(
+			maxWidth,
+			rect::m::sum::h(st::historyPageButtonPadding)
+				+ _openButton.maxWidth());
 	}
 	maxWidth += rect::m::sum::h(padding);
 	minHeight += rect::m::sum::v(padding);
