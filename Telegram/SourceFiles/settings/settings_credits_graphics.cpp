@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
+#include "payments/payments_non_panel_process.h"
 #include "settings/settings_common_session.h"
 #include "settings/settings_credits.h"
 #include "statistics/widgets/chart_header_widget.h"
@@ -1376,15 +1377,23 @@ void ReceiptCreditsBox(
 		AddMiniStars(content, widget, stUser, st::boxWideWidth, 2);
 	}
 
+	const auto rejoinByApi = base::unixtime::serialize(s.until)
+		> base::unixtime::now();
+	const auto rejoinByInvite = !s.inviteHash.isEmpty();
+	const auto rejoinBySlug = !s.slug.isEmpty();
 	const auto toRenew = (s.cancelled || s.expired)
-		&& (!s.inviteHash.isEmpty()
-			|| (base::unixtime::serialize(s.until) > base::unixtime::now()))
+		&& (rejoinByApi || rejoinByInvite)
+		&& !s.cancelledByBot;
+	const auto toRejoin = (s.cancelled || s.expired)
+		&& rejoinBySlug
 		&& !s.cancelledByBot;
 	auto confirmText = rpl::conditional(
 		state->confirmButtonBusy.value(),
 		rpl::single(QString()),
 		(toRenew
 			? tr::lng_credits_subscription_off_button()
+			: toRejoin
+			? tr::lng_credits_subscription_off_rejoin_button()
 			: (canConvert || couldConvert || nonConvertible)
 			? (e.savedToProfile
 				? tr::lng_gift_display_on_page_hide()
@@ -1432,6 +1441,19 @@ void ReceiptCreditsBox(
 					save,
 					done);
 			}
+		} else if (toRejoin) {
+			if (const auto window = weakWindow.get()) {
+				const auto finish = [=](Payments::CheckoutResult&&) {
+					ProcessReceivedSubscriptions(weak, session);
+				};
+				Payments::CheckoutProcess::Start(
+					&window->session(),
+					s.slug,
+					[](auto) {},
+					Payments::ProcessNonPanelPaymentFormFactory(
+						window,
+						finish));
+			}
 		} else if (toRenew && s.expired) {
 			Api::CheckChatInvite(controller, s.inviteHash, nullptr, [=] {
 				ProcessReceivedSubscriptions(weak, session);
@@ -1450,7 +1472,10 @@ void ReceiptCreditsBox(
 		}
 	};
 
-	if ((toRenew || canConvert || couldConvert || nonConvertible) && peer) {
+	const auto willBusy = toRejoin
+		|| (peer
+			&& (toRenew || canConvert || couldConvert || nonConvertible));
+	if (willBusy) {
 		const auto close = Ui::CreateChild<Ui::IconButton>(
 			content,
 			st::boxTitleClose);
@@ -1465,11 +1490,7 @@ void ReceiptCreditsBox(
 			|| state->convertButtonBusy.current()) {
 			return;
 		}
-		if (peer
-			&& (toRenew
-				|| canConvert
-				|| couldConvert
-				|| nonConvertible)) {
+		if (willBusy) {
 			state->confirmButtonBusy = true;
 			send();
 		} else {

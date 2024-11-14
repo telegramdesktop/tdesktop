@@ -94,14 +94,14 @@ void ProcessCreditsPayment(
 			Ui::SendCreditsBox,
 			form,
 			[=] {
-			*unsuccessful = false;
-			if (const auto widget = fireworks.data()) {
-				Ui::StartFireworks(widget);
-			}
-			if (const auto onstack = maybeReturnToBot) {
-				onstack(CheckoutResult::Paid);
-			}
-		}));
+				*unsuccessful = false;
+				if (const auto widget = fireworks.data()) {
+					Ui::StartFireworks(widget);
+				}
+				if (const auto onstack = maybeReturnToBot) {
+					onstack(CheckoutResult::Paid);
+				}
+			}));
 		box->boxClosing() | rpl::start_with_next([=] {
 			crl::on_main([=] {
 				if (*unsuccessful) {
