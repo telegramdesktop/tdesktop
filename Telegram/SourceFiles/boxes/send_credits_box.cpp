@@ -473,15 +473,11 @@ void SendCreditsBox(
 
 	{
 		const auto close = Ui::CreateChild<Ui::IconButton>(
-			box.get(),
+			content,
 			st::boxTitleClose);
-		close->setClickedCallback([=] {
-			box->closeBox();
-		});
-		box->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		close->setClickedCallback([=] { box->closeBox(); });
+		content->widthValue() | rpl::start_with_next([=](int) {
 			close->moveToRight(0, 0);
-			close->raise();
 		}, close->lifetime());
 	}
 

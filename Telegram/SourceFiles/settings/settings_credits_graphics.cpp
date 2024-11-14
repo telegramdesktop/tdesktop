@@ -1434,6 +1434,16 @@ void ReceiptCreditsBox(
 		}
 	};
 
+	if ((toRenew || canConvert || couldConvert || nonConvertible) && peer) {
+		const auto close = Ui::CreateChild<Ui::IconButton>(
+			content,
+			st::boxTitleClose);
+		close->setClickedCallback([=] { box->closeBox(); });
+		content->widthValue() | rpl::start_with_next([=](int) {
+			close->moveToRight(0, 0);
+		}, content->lifetime());
+	}
+
 	const auto button = box->addButton(std::move(confirmText), [=] {
 		if (state->confirmButtonBusy.current()
 			|| state->convertButtonBusy.current()) {
