@@ -77,7 +77,7 @@ bool operator==(const Descriptor &a, const Descriptor &b) {
 struct Preload {
 	Descriptor descriptor;
 	std::shared_ptr<Data::DocumentMedia> media;
-	std::weak_ptr<ChatHelpers::Show> show;
+	std::weak_ptr<Main::SessionShow> show;
 };
 
 [[nodiscard]] std::vector<Preload> &Preloads() {

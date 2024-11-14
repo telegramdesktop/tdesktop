@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/share_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -514,6 +515,20 @@ std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
 	return result;
 }
 
+bool CheckEmojiStatusPremium(not_null<UserData*> bot) {
+	if (bot->session().premium()) {
+		return true;
+	}
+	const auto window = ChatHelpers::ResolveWindowDefault()(
+		&bot->session(),
+		ChatHelpers::WindowUsage::PremiumPromo);
+	if (window) {
+		ShowPremiumPreviewBox(window, PremiumFeature::EmojiStatus);
+		window->window().activate();
+	}
+	return false;
+}
+
 void ConfirmEmojiStatusAccessBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<UserData*> bot,
@@ -554,6 +569,9 @@ void ConfirmEmojiStatusAccessBox(
 		st::botEmojiStatusText));
 
 	box->addButton(tr::lng_bot_emoji_status_access_allow(), [=] {
+		if (!CheckEmojiStatusPremium(bot)) {
+			return;
+		}
 		*set = true;
 		box->closeBox();
 		done(true);
@@ -610,6 +628,9 @@ void ConfirmEmojiStatusBox(
 		object_ptr<Ui::RpWidget>::fromRaw(ownedSet.release()));
 
 	box->addButton(tr::lng_bot_emoji_status_confirm(), [=] {
+		if (!CheckEmojiStatusPremium(bot)) {
+			return;
+		}
 		document->owner().emojiStatuses().set(
 			document->id,
 			duration ? (base::unixtime::now() + duration) : 0);
