@@ -194,12 +194,14 @@ void AddTerms(
 
 	const auto bot = session->data().user(form->botId);
 	if (form->invoice.subscriptionPeriod) {
-		return tr::lng_credits_box_out_subscription(
+		return (bot->botInfo
+				? tr::lng_credits_box_out_subscription_bot
+				: tr::lng_credits_box_out_subscription_business)(
 			lt_count,
 			rpl::single(form->invoice.amount) | tr::to_count(),
 			lt_title,
 			rpl::single(TextWithEntities{ form->title }),
-			lt_bot,
+			lt_recipient,
 			rpl::single(TextWithEntities{ bot->name() }),
 			Ui::Text::RichLangValue);
 	}

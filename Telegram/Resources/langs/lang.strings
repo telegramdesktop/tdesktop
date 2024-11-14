@@ -2445,8 +2445,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_out_media#other" = "Do you want to unlock {media} in {chat} for **{count} Stars**?";
 "lng_credits_box_out_media_user#one" = "Do you want to unlock {media} from {user} for **{count} Star**?";
 "lng_credits_box_out_media_user#other" = "Do you want to unlock {media} from {user} for **{count} Stars**?";
-"lng_credits_box_out_subscription#one" = "Do you want to subscribe to **{title}** in **{bot}** for **{count}** star per month?";
-"lng_credits_box_out_subscription#other" = "Do you want to subscribe to **{title}** in **{bot}** for **{count}** stars per month?";
+"lng_credits_box_out_subscription_bot#one" = "Do you want to subscribe to **{title}** in **{recipient}** for **{count}** star per month?";
+"lng_credits_box_out_subscription_bot#other" = "Do you want to subscribe to **{title}** in **{recipient}** for **{count}** stars per month?";
+"lng_credits_box_out_subscription_business#one" = "Do you want to subscribe to **{title}** from **{recipient}** for **{count}** star per month?";
+"lng_credits_box_out_subscription_business#other" = "Do you want to subscribe to **{title}** from **{recipient}** for **{count}** stars per month?";
 "lng_credits_box_out_subscription_confirm#one" = "Subscribe for {emoji} {count} / month";
 "lng_credits_box_out_subscription_confirm#other" = "Subscribe for {emoji} {count} / month";
 "lng_credits_box_out_photo" = "a photo";
@@ -2510,6 +2512,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_credits_subscription_row_to" = "Subscription";
 "lng_credits_subscription_row_to_bot" = "Bot";
+"lng_credits_subscription_row_to_business" = "Business";
 "lng_credits_subscription_row_from" = "Subscribed";
 
 "lng_credits_subscription_row_next_on" = "Renews";

@@ -1331,10 +1331,15 @@ void AddSubscriptionEntryTable(
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(s.barePeerId);
+	const auto user = peerIsUser(peerId)
+		? controller->session().data().peer(peerId)->asUser()
+		: nullptr;
 	AddTableRow(
 		table,
-		(!s.title.isEmpty() && peerIsUser(peerId))
+		(!s.title.isEmpty() && user && user->botInfo)
 			? tr::lng_credits_subscription_row_to_bot()
+			: (!s.title.isEmpty() && user && !user->botInfo)
+			? tr::lng_credits_subscription_row_to_business()
 			: tr::lng_credits_subscription_row_to(),
 		controller,
 		peerId);
