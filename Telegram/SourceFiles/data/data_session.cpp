@@ -1957,6 +1957,19 @@ rpl::producer<> Session::pinnedDialogsOrderUpdated() const {
 	return _pinnedDialogsOrderUpdated.events();
 }
 
+Session::CreditsSubsRebuilderPtr Session::createCreditsSubsRebuilder() {
+	if (auto result = activeCreditsSubsRebuilder()) {
+		return result;
+	}
+	auto result = std::make_shared<CreditsSubsRebuilder>();
+	_creditsSubsRebuilder = result;
+	return result;
+}
+
+Session::CreditsSubsRebuilderPtr Session::activeCreditsSubsRebuilder() const {
+	return _creditsSubsRebuilder.lock();
+}
+
 void Session::registerHeavyViewPart(not_null<ViewElement*> view) {
 	_heavyViewParts.emplace(view);
 }
