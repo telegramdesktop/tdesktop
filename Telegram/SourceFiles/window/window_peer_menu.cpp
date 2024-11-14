@@ -1999,6 +1999,10 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		}) {
 		}
 
+		void setSearchNoResultsText(const QString &text) {
+			PeerListController::setSearchNoResultsText(text);
+		}
+
 		void rowClicked(not_null<PeerListRow*> row) override final {
 			const auto count = delegate()->peerListSelectedRowsCount();
 			if (showLockedError(row) || (count && row->peer()->isForum())) {
@@ -2053,6 +2057,8 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		auto controller = std::make_unique<Controller>(session);
 		const auto controllerRaw = controller.get();
 		auto init = [=](not_null<PeerListBox*> box) {
+			controllerRaw->setSearchNoResultsText(
+				tr::lng_bot_chats_not_found(tr::now));
 			box->setSpecialTabMode(true);
 			auto applyFilter = [=](FilterId id) {
 				box->scrollToY(0);
