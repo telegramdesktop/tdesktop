@@ -210,7 +210,7 @@ void ProcessFullPhoto(
 	) | rpl::map([=] {
 		const auto user = peer->asUser();
 		const auto username = peer->username();
-		const auto channelId = user->personalChannelId();
+		const auto channelId = user ? user->personalChannelId() : 0;
 		const auto channel = channelId
 			? user->owner().channel(channelId).get()
 			: nullptr;
