@@ -72,10 +72,8 @@ namespace {
 
 constexpr auto kEmojiInteractionSeenDuration = 3 * crl::time(1000);
 
-inline bool HasGroupCallMenu(const not_null<PeerData*> &peer) {
-	return !peer->groupCall()
-		&& ((peer->isChannel() && peer->asChannel()->amCreator())
-			|| (peer->isChat() && peer->asChat()->amCreator()));
+[[nodiscard]] inline bool HasGroupCallMenu(not_null<PeerData*> peer) {
+	return !peer->groupCall() && peer->canManageGroupCall();
 }
 
 QString TopBarNameText(

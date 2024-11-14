@@ -2798,9 +2798,6 @@ bool FillVideoChatMenu(
 	const auto livestream = !peer->isMegagroup() && peer->isChannel();
 	const auto has = (peer->groupCall() != nullptr);
 	const auto manager = peer->canManageGroupCall();
-	const auto creator = peer->isChat()
-		? peer->asChat()->amCreator()
-		: peer->asChannel()->amCreator();
 	if (has) {
 		addAction(
 			tr::lng_menu_start_group_call_join(tr::now),
@@ -2812,9 +2809,9 @@ bool FillVideoChatMenu(
 				? tr::lng_menu_start_group_call_channel
 				: tr::lng_menu_start_group_call)(tr::now),
 			[=] { callback({}); },
-			creator ? &st::menuIconStartStream : &st::menuIconVideoChat);
+			&st::menuIconStartStream);
 	}
-	if (!has && creator) {
+	if (!has && manager) {
 		addAction(
 			(livestream
 				? tr::lng_menu_start_group_call_scheduled_channel
