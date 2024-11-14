@@ -1050,7 +1050,7 @@ void CreditsController::requestNext() {
 		_requesting = false;
 		applySlice(s);
 	};
-	if (!_firstSlice.subscriptions.empty()) {
+	if (_subscription) {
 		return _api.requestSubscriptions(_apiToken, done);
 	}
 	_api.request(_apiToken, done);

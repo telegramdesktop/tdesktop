@@ -174,7 +174,8 @@ constexpr auto kTransactionsLimit = 100;
 		.balance = status.data().vbalance().v,
 		.subscriptionsMissingBalance
 			= status.data().vsubscriptions_missing_balance().value_or_empty(),
-		.allLoaded = !status.data().vnext_offset().has_value(),
+		.allLoaded = !status.data().vnext_offset().has_value()
+			&& !status.data().vsubscriptions_next_offset().has_value(),
 		.token = qs(status.data().vnext_offset().value_or_empty()),
 		.tokenSubscriptions = qs(
 			status.data().vsubscriptions_next_offset().value_or_empty()),
