@@ -392,6 +392,7 @@ void DownloadFileBox(not_null<Ui::GenericBox*> box, DownloadBoxArgs args) {
 	const auto done = std::move(args.done);
 	const auto name = args.name;
 	const auto session = args.session;
+	const auto chosen = std::make_shared<bool>();
 	box->addButton(tr::lng_bot_download_file_button(), [=] {
 		const auto path = FileNameForSave(
 			session,
@@ -402,14 +403,19 @@ void DownloadFileBox(not_null<Ui::GenericBox*> box, DownloadBoxArgs args) {
 			false,
 			QDir());
 		if (!path.isEmpty()) {
+			*chosen = true;
 			box->closeBox();
 			done(path);
 		}
 	});
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
-		done(QString());
 	});
+	box->boxClosing() | rpl::start_with_next([=] {
+		if (!*chosen) {
+			done(QString());
+		}
+	}, box->lifetime());
 }
 
 } // namespace InlineBots

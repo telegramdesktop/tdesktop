@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
 #include "base/flags.h"
-#include "ui/chat/attach/attach_bot_downloads.h"
 #include "ui/rect_part.h"
 #include "ui/round_rect.h"
 #include "webview/webview_common.h"
@@ -33,6 +32,10 @@ struct Available;
 } // namespace Webview
 
 namespace Ui::BotWebView {
+
+struct DownloadsProgress;
+struct DownloadsEntry;
+enum class DownloadsAction;
 
 [[nodiscard]] TextWithEntities ErrorText(const Webview::Available &info);
 
@@ -75,9 +78,7 @@ public:
 	[[nodiscard]] virtual Webview::ThemeParams botThemeParams() = 0;
 	[[nodiscard]] virtual auto botDownloads(bool forceCheck = false)
 		-> const std::vector<DownloadsEntry> & = 0;
-	virtual void botDownloadsAction(
-		uint32 id,
-		Ui::BotWebView::DownloadsAction type) = 0;
+	virtual void botDownloadsAction(uint32 id, DownloadsAction type) = 0;
 	virtual bool botHandleLocalUri(QString uri, bool keepOpen) = 0;
 	virtual void botHandleInvoice(QString slug) = 0;
 	virtual void botHandleMenuButton(MenuButton button) = 0;
@@ -122,11 +123,6 @@ public:
 	void requestActivate();
 	void toggleProgress(bool shown);
 
-	bool showWebview(
-		const QString &url,
-		const Webview::ThemeParams &params,
-		rpl::producer<QString> bottomText);
-
 	void showBox(object_ptr<BoxContent> box);
 	void showBox(
 		object_ptr<BoxContent> box,
@@ -152,11 +148,16 @@ private:
 	struct Progress;
 	struct WebviewWithLifetime;
 
+	bool showWebview(Args &&args, const Webview::ThemeParams &params);
+
 	bool createWebview(const Webview::ThemeParams &params);
 	void createWebviewBottom();
 	void showWebviewProgress();
 	void hideWebviewProgress();
-	void setupDownloadsProgress(rpl::producer<DownloadsProgress> progress);
+	void setupDownloadsProgress(
+		not_null<RpWidget*> button,
+		rpl::producer<DownloadsProgress> progress,
+		bool fullscreen);
 	void setTitle(rpl::producer<QString> title);
 	void sendDataMessage(const QJsonObject &args);
 	void switchInlineQueryMessage(const QJsonObject &args);
@@ -213,7 +214,6 @@ private:
 	bool _hasSettingsButton = false;
 	MenuButtons _menuButtons = {};
 	std::unique_ptr<SeparatePanel> _widget;
-	QPointer<IconButton> _menuToggle;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
 	rpl::variable<QString> _bottomText;
@@ -229,7 +229,6 @@ private:
 	rpl::lifetime _headerColorLifetime;
 	rpl::lifetime _bodyColorLifetime;
 	rpl::lifetime _bottomBarColorLifetime;
-	DownloadsProgress _downloadsProgress;
 	rpl::event_stream<> _downloadsUpdated;
 	rpl::variable<bool> _fullscreen = false;
 	bool _layerShown : 1 = false;

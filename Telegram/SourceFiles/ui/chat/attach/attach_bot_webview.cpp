@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/file_utilities.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/chat/attach/attach_bot_downloads.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/box_content.h"
@@ -430,9 +431,7 @@ Panel::Panel(Args &&args)
 	setTitle(std::move(args.title));
 	_widget->setTitleBadge(std::move(args.titleBadge));
 
-	if (showWebview(args.url, params, std::move(args.bottom))) {
-		setupDownloadsProgress(rpl::duplicate(args.downloadsProgress));
-	} else {
+	if (!showWebview(std::move(args), params)) {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
 			showWebviewError(tr::lng_bot_no_webview(tr::now), available);
@@ -448,35 +447,38 @@ Panel::~Panel() {
 	_widget = nullptr;
 }
 
-void Panel::setupDownloadsProgress(rpl::producer<DownloadsProgress> progress) {
-	Expects(_menuToggle != nullptr);
-
-	const auto widget = Ui::CreateChild<RpWidget>(_menuToggle.data());
+void Panel::setupDownloadsProgress(
+		not_null<RpWidget*> button,
+		rpl::producer<DownloadsProgress> progress,
+		bool fullscreen) {
+	const auto widget = Ui::CreateChild<RpWidget>(button.get());
 	widget->show();
 	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_menuToggle->sizeValue() | rpl::start_with_next([=](QSize size) {
+	button->sizeValue() | rpl::start_with_next([=](QSize size) {
 		widget->setGeometry(QRect(QPoint(), size));
 	}, widget->lifetime());
 
 	struct State {
-		State(QWidget *parent, Fn<float64()> progress)
+		State(QWidget *parent)
 		: animation([=](crl::time now) {
-			const auto updated = animation.update(progress(), false, now);
+			const auto total = progress.total;
+			const auto current = total
+				? (progress.ready / float64(total))
+				: 0.;
+			const auto updated = animation.update(current, false, now);
 			if (!anim::Disabled() || updated) {
 				parent->update();
 			}
 		}) {
 		}
 
+		DownloadsProgress progress;
 		RadialAnimation animation;
 		Animations::Simple fade;
 		bool shown = false;
 	};
-	const auto state = widget->lifetime().make_state<State>(widget, [=] {
-		const auto total = _downloadsProgress.total;
-		return total ? (_downloadsProgress.ready / float64(total)) : 0.;
-	});
+	const auto state = widget->lifetime().make_state<State>(widget);
 	std::move(
 		progress
 	) | rpl::start_with_next([=](DownloadsProgress progress) {
@@ -492,9 +494,9 @@ void Panel::setupDownloadsProgress(rpl::producer<DownloadsProgress> progress) {
 				widget->update();
 				if (!state->shown
 					&& !state->fade.animating()
-					&& (!_downloadsProgress.total
-						|| (_downloadsProgress.ready
-							== _downloadsProgress.total))) {
+					&& (!state->progress.total
+						|| (state->progress.ready
+							== state->progress.total))) {
 					state->animation.stop();
 				}
 			}, shown ? 0. : 2., shown ? 2. : 0., st::radialDuration * 2);
@@ -504,14 +506,13 @@ void Panel::setupDownloadsProgress(rpl::producer<DownloadsProgress> progress) {
 				state->animation.start(0.);
 			}
 			toggle(true);
-		} else if ((_downloadsProgress.total && !progress.total)
-			|| (_downloadsProgress.ready < _downloadsProgress.total
+		} else if ((state->progress.total && !progress.total)
+			|| (state->progress.ready < state->progress.total
 				&& progress.ready == progress.total)) {
 			state->animation.update(1., false, crl::now());
 			toggle(false);
 		}
-		_downloadsProgress = progress;
-		_downloadsUpdated.fire({});
+		state->progress = progress;
 	}, widget->lifetime());
 
 	widget->paintRequest() | rpl::start_with_next([=] {
@@ -525,10 +526,14 @@ void Panel::setupDownloadsProgress(rpl::producer<DownloadsProgress> progress) {
 		auto p = QPainter(widget);
 		p.setOpacity(opacity);
 		const auto palette = _widget->titleOverridePalette();
-		const auto color = palette
+		const auto color = fullscreen
+			? st::radialFg
+			: palette
 			? palette->boxTitleCloseFg()
 			: st::paymentsLoading.color;
-		const auto &st = st::separatePanelMenu;
+		const auto &st = fullscreen
+			? st::fullScreenPanelMenu
+			: st::separatePanelMenu;
 		const auto size = st.rippleAreaSize;
 		const auto rect = QRect(st.rippleAreaPosition, QSize(size, size));
 		const auto stroke = st::botWebViewRadialStroke;
@@ -666,11 +671,8 @@ void Panel::hideWebviewProgress() {
 	toggleProgress(false);
 }
 
-bool Panel::showWebview(
-		const QString &url,
-		const Webview::ThemeParams &params,
-		rpl::producer<QString> bottomText) {
-	_bottomText = std::move(bottomText);
+bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
+	_bottomText = std::move(args.bottom);
 	if (!_webview && !createWebview(params)) {
 		return false;
 	}
@@ -678,10 +680,15 @@ bool Panel::showWebview(
 	showWebviewProgress();
 	_widget->hideLayer(anim::type::instant);
 	updateThemeParams(params);
+	const auto url = args.url;
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 
-	_menuToggle = _widget->setMenuAllowed([=](
+	rpl::duplicate(args.downloadsProgress) | rpl::start_with_next([=] {
+		_downloadsUpdated.fire({});
+	}, lifetime());
+
+	_widget->setMenuAllowed([=](
 			const Ui::Menu::MenuCallback &callback) {
 		auto list = _delegate->botDownloads(true);
 		if (!list.empty()) {
@@ -754,16 +761,15 @@ bool Panel::showWebview(
 				.isAttention = true,
 			});
 		}
-		if (_widget->isFullScreen()) {
-			callback(u"Close Full Screen"_q, [=] {
-				_fullscreen = false;
-			}, &st::menuIconPlayerWindowed);
-		} else {
-			callback(u"Show Full Screen"_q, [=] {
-				_fullscreen = true;
-			}, &st::menuIconPlayerFullScreen);
-		}
+	}, [=, progress = std::move(args.downloadsProgress)](
+			not_null<RpWidget*> button,
+			bool fullscreen) {
+		setupDownloadsProgress(
+			button,
+			rpl::duplicate(progress),
+			fullscreen);
 	});
+
 	return true;
 }
 
