@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "api/api_sending.h"
 #include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "base/qthelp_url.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
@@ -60,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/dropdown_menu.h"
@@ -1786,29 +1788,23 @@ void WebViewInstance::botSendPreparedMessage(
 		});
 		struct State {
 			QPointer<Ui::BoxContent> preview;
+			rpl::event_stream<not_null<Data::Thread*>> recipient;
 			bool sent = false;
 		};
 		const auto state = std::make_shared<State>();
-		auto box = Box(PreparedPreviewBox, item, [=] {
+		auto recipient = state->recipient.events();
+		auto box = Box(PreparedPreviewBox, item, std::move(recipient), [=] {
+			if (state->sent) {
+				return;
+			}
 			const auto chosen = [=](not_null<Data::Thread*> thread) {
-				auto action = Api::SendAction(thread);
-				const auto done = [=](bool success) {
-					if (success) {
-						callback(QString());
-					} else {
-						callback(u"MESSAGE_SEND_FAILED"_q);
-					}
-				};
-				bot->session().api().sendInlineResult(
-					bot,
-					parsed.get(),
-					action,
-					std::nullopt,
-					done);
-				state->sent = true;
-				if (const auto strong = state->preview.data()) {
-					strong->closeBox();
+				if (!Data::CanSend(thread, ChatRestriction::SendInline)) {
+					panel->showToast({
+						tr::lng_restricted_send_inline_all(tr::now),
+					});
+					return false;
 				}
+				state->recipient.fire_copy(thread);
 				return true;
 			};
 			auto box = Window::PrepareChooseRecipientBox(
@@ -1818,6 +1814,36 @@ void WebViewInstance::botSendPreparedMessage(
 				nullptr,
 				types);
 			panel->showBox(std::move(box));
+		}, [=](not_null<Data::Thread*> thread) {
+			if (state->sent) {
+				return;
+			}
+			state->sent = true;
+			const auto weak = state->preview;
+			const auto done = [=](bool success) {
+				if (success) {
+					if (const auto strong = weak.data()) {
+						strong->showToast({ tr::lng_share_done(tr::now) });
+					}
+					base::call_delayed(Ui::Toast::kDefaultDuration, [weak] {
+						if (const auto strong = weak.data()) {
+							strong->closeBox();
+						}
+					});
+					callback(QString());
+				} else {
+					if (const auto strong = weak.data()) {
+						strong->closeBox();
+					}
+					callback(u"MESSAGE_SEND_FAILED"_q);
+				}
+			};
+			bot->session().api().sendInlineResult(
+				bot,
+				parsed.get(),
+				Api::SendAction(thread),
+				std::nullopt,
+				done);
 		});
 		box->boxClosing() | rpl::start_with_next([=] {
 			if (!state->sent) {

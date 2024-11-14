@@ -335,6 +335,9 @@ public:
 	void loadMoreRows() override;
 	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
 
+	[[nodiscard]] static std::unique_ptr<PeerListRow> MakeRow(
+		not_null<Data::ForumTopic*> topic);
+
 private:
 	class Row final : public PeerListRow {
 	public:

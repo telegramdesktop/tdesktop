@@ -12,12 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "boxes/share_box.h"
 #include "core/application.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/components/credits.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -51,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_credits.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h" // st::boxDividerLabel.
@@ -264,8 +267,9 @@ private:
 class SingleRowController final : public PeerListController {
 public:
 	SingleRowController(
-		not_null<PeerData*> peer,
-		rpl::producer<QString> status);
+		not_null<Data::Thread*> thread,
+		rpl::producer<QString> status,
+		Fn<void()> clicked);
 
 	void prepare() override;
 	void loadMoreRows() override;
@@ -273,8 +277,10 @@ public:
 	Main::Session &session() const override;
 
 private:
-	const not_null<PeerData*> _peer;
+	const not_null<Main::Session*> _session;
+	const base::weak_ptr<Data::Thread> _thread;
 	rpl::producer<QString> _status;
+	Fn<void()> _clicked;
 	rpl::lifetime _lifetime;
 
 };
@@ -1144,36 +1150,59 @@ int Controller::descriptionTopSkipMin() const {
 }
 
 SingleRowController::SingleRowController(
-	not_null<PeerData*> peer,
-	rpl::producer<QString> status)
-: _peer(peer)
-, _status(std::move(status)) {
+	not_null<Data::Thread*> thread,
+	rpl::producer<QString> status,
+	Fn<void()> clicked)
+: _session(&thread->session())
+, _thread(thread)
+, _status(std::move(status))
+, _clicked(std::move(clicked)) {
 }
 
 void SingleRowController::prepare() {
-	auto row = std::make_unique<PeerListRow>(_peer);
-
+	const auto strong = _thread.get();
+	if (!strong) {
+		return;
+	}
+	const auto topic = strong->asTopic();
+	auto row = topic
+		? ChooseTopicBoxController::MakeRow(topic)
+		: std::make_unique<PeerListRow>(strong->peer());
 	const auto raw = row.get();
-	std::move(
-		_status
-	) | rpl::start_with_next([=](const QString &status) {
-		raw->setCustomStatus(status);
-		delegate()->peerListUpdateRow(raw);
-	}, _lifetime);
-
+	if (_status) {
+		std::move(
+			_status
+		) | rpl::start_with_next([=](const QString &status) {
+			raw->setCustomStatus(status);
+			delegate()->peerListUpdateRow(raw);
+		}, _lifetime);
+	}
 	delegate()->peerListAppendRow(std::move(row));
 	delegate()->peerListRefreshRows();
+
+	if (topic) {
+		topic->destroyed() | rpl::start_with_next([=] {
+			while (delegate()->peerListFullRowsCount()) {
+				delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
+			}
+			delegate()->peerListRefreshRows();
+		}, _lifetime);
+	}
 }
 
 void SingleRowController::loadMoreRows() {
 }
 
 void SingleRowController::rowClicked(not_null<PeerListRow*> row) {
-	ShowPeerInfoSync(row->peer());
+	if (const auto onstack = _clicked) {
+		onstack();
+	} else {
+		ShowPeerInfoSync(row->peer());
+	}
 }
 
 Main::Session &SingleRowController::session() const {
-	return _peer->session();
+	return *_session;
 }
 
 } // namespace
@@ -1186,14 +1215,29 @@ bool IsExpiredLink(const Api::InviteLink &data, TimeId now) {
 void AddSinglePeerRow(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
-		rpl::producer<QString> status) {
+		rpl::producer<QString> status,
+		Fn<void()> clicked) {
+	AddSinglePeerRow(
+		container,
+		peer->owner().history(peer),
+		std::move(status),
+		std::move(clicked));
+}
+
+void AddSinglePeerRow(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Data::Thread*> thread,
+		rpl::producer<QString> status,
+		Fn<void()> clicked) {
 	const auto delegate = container->lifetime().make_state<
 		PeerListContentDelegateSimple
 	>();
 	const auto controller = container->lifetime().make_state<
 		SingleRowController
-	>(peer, std::move(status));
-	controller->setStyleOverrides(&st::peerListSingleRow);
+	>(thread, std::move(status), std::move(clicked));
+	controller->setStyleOverrides(thread->asTopic()
+		? &st::chooseTopicList
+		: &st::peerListSingleRow);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
 		controller));

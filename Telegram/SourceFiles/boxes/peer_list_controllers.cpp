@@ -1065,6 +1065,11 @@ std::unique_ptr<PeerListRow> ChooseTopicBoxController::createSearchRow(
 	return nullptr;
 }
 
+std::unique_ptr<PeerListRow> ChooseTopicBoxController::MakeRow(
+		not_null<Data::ForumTopic*> topic) {
+	return std::make_unique<Row>(topic);
+}
+
 auto ChooseTopicBoxController::createRow(not_null<Data::ForumTopic*> topic)
 -> std::unique_ptr<Row> {
 	const auto skip = _filter && !_filter(topic);
