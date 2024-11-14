@@ -186,16 +186,12 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	}
 	const auto container = wrap->entity();
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(container, scrollSt);
-	const auto sliderPadding = st::dialogsSearchTabsPadding;
 	const auto slider = scroll->setOwnedWidget(
-		object_ptr<Ui::PaddingWrap<Ui::ChatsFiltersTabs>>(
+		object_ptr<Ui::ChatsFiltersTabs>(
 			parent,
-			object_ptr<Ui::ChatsFiltersTabs>(
-				parent,
-				trackActiveFilterAndUnreadAndReorder
-					? st::dialogsSearchTabs
-					: st::chatsFiltersTabs),
-			QMargins(sliderPadding, 0, sliderPadding, 0)))->entity();
+			trackActiveFilterAndUnreadAndReorder
+				? st::dialogsSearchTabs
+				: st::chatsFiltersTabs));
 	const auto state = wrap->lifetime().make_state<State>();
 	if (trackActiveFilterAndUnreadAndReorder) {
 		using Reorder = Ui::ChatsFiltersTabsReorder;

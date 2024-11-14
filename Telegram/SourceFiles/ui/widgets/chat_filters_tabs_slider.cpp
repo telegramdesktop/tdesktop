@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/side_bar_button.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 
 #include <QScrollBar>
@@ -58,7 +59,8 @@ int ChatsFiltersTabs::centerOfSection(int section) const {
 
 void ChatsFiltersTabs::fitWidthToSections() {
 	const auto widths = countSectionsWidths(0);
-	resizeToWidth(ranges::accumulate(widths, .0));
+	const auto sliderPadding = st::dialogsSearchTabsPadding;
+	resizeToWidth(ranges::accumulate(widths, .0) + sliderPadding * 2);
 	_lockedFromX = calculateLockedFromX();
 
 	{
@@ -162,6 +164,8 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 	const auto clip = e->rect();
 	const auto range = getCurrentActiveRange();
 	const auto activeIndex = activeSection();
+
+	p.translate(st::dialogsSearchTabsPadding, 0);
 
 	auto index = 0;
 	auto raisedIndex = -1;
