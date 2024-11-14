@@ -802,6 +802,28 @@ void BoostCreditsBox(
 	}, button->lifetime());
 }
 
+void ProcessReceivedSubscriptions(
+		QPointer<Ui::GenericBox> weak,
+		not_null<Main::Session*> session) {
+	const auto rebuilder = session->data().activeCreditsSubsRebuilder();
+	if (const auto strong = weak.data()) {
+		if (!rebuilder) {
+			return strong->closeBox();
+		}
+		const auto api
+			= strong->lifetime().make_state<Api::CreditsHistory>(
+				session->user(),
+				true,
+				true);
+		api->requestSubscriptions({}, [=](Data::CreditsStatusSlice first) {
+			rebuilder->fire(std::move(first));
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		});
+	}
+}
+
 void ReceiptCreditsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -1328,9 +1350,7 @@ void ReceiptCreditsBox(
 					return false;
 				}
 				const auto done = [=, weak = Ui::MakeWeak(box)] {
-					if (const auto strong = weak.data()) {
-						strong->closeBox();
-					}
+					ProcessReceivedSubscriptions(weak, session);
 				};
 				const auto fail = [=, s = box->uiShow()](const QString &e) {
 					s->showToast(e);
@@ -1414,15 +1434,11 @@ void ReceiptCreditsBox(
 			}
 		} else if (toRenew && s.expired) {
 			Api::CheckChatInvite(controller, s.inviteHash, nullptr, [=] {
-				if (const auto strong = weak.data()) {
-					strong->closeBox();
-				}
+				ProcessReceivedSubscriptions(weak, session);
 			});
 		} else {
 			const auto done = [=] {
-				if (const auto strong = weak.data()) {
-					strong->closeBox();
-				}
+				ProcessReceivedSubscriptions(weak, session);
 			};
 			const auto fail = [=, show = box->uiShow()](const QString &e) {
 				if (const auto strong = weak.data()) {

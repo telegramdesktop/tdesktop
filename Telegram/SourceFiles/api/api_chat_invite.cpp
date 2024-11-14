@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 
 #include "apiwrap.h"
+#include "api/api_credits.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
 #include "data/components/credits.h"
@@ -295,20 +296,39 @@ void ConfirmSubscriptionBox(
 		const auto buttonWidth = state->saveButton
 			? state->saveButton->width()
 			: 0;
+		const auto finish = [=] {
+			state->api = std::nullopt;
+			state->loading.force_assign(false);
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		};
 		state->api->request(
 			MTPpayments_SendStarsForm(
 				MTP_long(formId),
 				MTP_inputInvoiceChatInviteSubscription(MTP_string(hash)))
 		).done([=](const MTPpayments_PaymentResult &result) {
-			state->api = std::nullopt;
-			state->loading.force_assign(false);
 			result.match([&](const MTPDpayments_paymentResult &data) {
 				session->api().applyUpdates(data.vupdates());
 			}, [](const MTPDpayments_paymentVerificationNeeded &data) {
 			});
-			if (weak) {
-				box->closeBox();
+			const auto refill = session->data().activeCreditsSubsRebuilder();
+			const auto strong = weak.data();
+			if (!strong) {
+				return;
 			}
+			if (!refill) {
+				return finish();
+			}
+			const auto api
+				= strong->lifetime().make_state<Api::CreditsHistory>(
+					session->user(),
+					true,
+					true);
+			api->requestSubscriptions({}, [=](Data::CreditsStatusSlice d) {
+				refill->fire(std::move(d));
+				finish();
+			});
 		}).fail([=](const MTP::Error &error) {
 			const auto id = error.type();
 			if (weak) {

@@ -191,6 +191,19 @@ void Credits::setupSubscriptions(not_null<Ui::VerticalLayout*> container) {
 			fill(std::move(d));
 		});
 	}
+	{
+		using Rebuilder = Data::Session::CreditsSubsRebuilder;
+		using RebuilderPtr = std::shared_ptr<Rebuilder>;
+		const auto rebuilder = content->lifetime().make_state<RebuilderPtr>(
+			self->owner().createCreditsSubsRebuilder());
+		rebuilder->get()->events(
+		) | rpl::start_with_next([=](Data::CreditsStatusSlice slice) {
+			while (content->count()) {
+				delete content->widgetAt(0);
+			}
+			fill(std::move(slice));
+		}, content->lifetime());
+	}
 }
 
 void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
