@@ -61,6 +61,10 @@ public:
 			Exception exception) const {
 		return false;
 	}
+	[[nodiscard]] virtual bool allowMiniAppsToggle(
+			Exception exception) const {
+		return false;
+	}
 	virtual void handleExceptionsChange(
 		Exception exception,
 		rpl::producer<int> value) {

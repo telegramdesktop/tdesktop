@@ -69,6 +69,9 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		if (rule.always.premiums && (rule.option != Option::Everyone)) {
 			result.push_back(MTP_inputPrivacyValueAllowPremium());
 		}
+		if (rule.always.miniapps && (rule.option != Option::Everyone)) {
+			result.push_back(MTP_inputPrivacyValueAllowBots());
+		}
 	}
 	if (!rule.ignoreNever) {
 		const auto users = collectInputUsers(rule.never);
@@ -82,6 +85,9 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 			result.push_back(
 				MTP_inputPrivacyValueDisallowChatParticipants(
 					MTP_vector<MTPlong>(chats)));
+		}
+		if (rule.never.miniapps && (rule.option != Option::Nobody)) {
+			result.push_back(MTP_inputPrivacyValueDisallowBots());
 		}
 	}
 	result.push_back([&] {
@@ -124,6 +130,10 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 			setOption(Option::CloseFriends);
 		}, [&](const MTPDprivacyValueAllowPremium &) {
 			result.always.premiums = true;
+		}, [&](const MTPDprivacyValueAllowBots &) {
+			result.always.miniapps = true;
+		}, [&](const MTPDprivacyValueDisallowBots &) {
+			result.never.miniapps = true;
 		}, [&](const MTPDprivacyValueAllowUsers &data) {
 			const auto &users = data.vusers().v;
 			always.reserve(always.size() + users.size());
@@ -199,6 +209,7 @@ MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 	case Key::Voices: return MTP_inputPrivacyKeyVoiceMessages();
 	case Key::About: return MTP_inputPrivacyKeyAbout();
 	case Key::Birthday: return MTP_inputPrivacyKeyBirthday();
+	case Key::GiftsAutoSave: return MTP_inputPrivacyKeyStarGiftsAutoSave();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -228,6 +239,8 @@ std::optional<UserPrivacy::Key> TLToKey(mtpTypeId type) {
 	case mtpc_inputPrivacyKeyAbout: return Key::About;
 	case mtpc_privacyKeyBirthday:
 	case mtpc_inputPrivacyKeyBirthday: return Key::Birthday;
+	case mtpc_privacyKeyStarGiftsAutoSave:
+	case mtpc_inputPrivacyKeyStarGiftsAutoSave: return Key::GiftsAutoSave;
 	}
 	return std::nullopt;
 }

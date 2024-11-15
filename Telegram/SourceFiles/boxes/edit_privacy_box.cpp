@@ -36,12 +36,63 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_window.h"
 
 namespace {
 
 constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
+constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
 
 using Exceptions = Api::UserPrivacy::Exceptions;
+
+enum class SpecialRowType {
+	Premiums,
+	MiniApps,
+};
+
+[[nodiscard]] PaintRoundImageCallback GeneratePremiumsUserpicCallback(
+		bool forceRound) {
+	return [=](QPainter &p, int x, int y, int outerWidth, int size) {
+		auto gradient = QLinearGradient(
+			QPointF(x, y),
+			QPointF(x + size, y + size));
+		gradient.setStops(Ui::Premium::ButtonGradientStops());
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(gradient);
+		if (forceRound) {
+			p.drawEllipse(x, y, size, size);
+		} else {
+			const auto radius = size * Ui::ForumUserpicRadiusMultiplier();
+			p.drawRoundedRect(x, y, size, size, radius, radius);
+		}
+		st::settingsPrivacyPremium.paintInCenter(p, QRect(x, y, size, size));
+	};
+}
+
+[[nodiscard]] PaintRoundImageCallback GenerateMiniAppsUserpicCallback(
+		bool forceRound) {
+	return [=](QPainter &p, int x, int y, int outerWidth, int size) {
+		const auto &color1 = st::historyPeer6UserpicBg;
+		const auto &color2 = st::historyPeer6UserpicBg2;
+
+		const auto rect = style::rtlrect(x, y, size, size, outerWidth);
+		auto hq = PainterHighQualityEnabler(p);
+		auto gradient = QLinearGradient(x, y, x, y + size);
+		gradient.setStops({ { 0., color1->c }, { 1., color2->c } });
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(gradient);
+		if (forceRound) {
+			p.drawEllipse(x, y, size, size);
+		} else {
+			const auto radius = size * Ui::ForumUserpicRadiusMultiplier();
+			p.drawRoundedRect(x, y, size, size, radius, radius);
+		}
+		st::windowFilterTypeBots.paintInCenter(p, QRect(x, y, size, size));
+	};
+}
 
 void CreateRadiobuttonLock(
 		not_null<Ui::RpWidget*> widget,
@@ -102,7 +153,7 @@ public:
 		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		const Exceptions &selected,
-		bool allowChoosePremiums);
+		std::optional<SpecialRowType> allowChooseSpecial);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -110,18 +161,20 @@ public:
 	bool handleDeselectForeignRow(PeerListRowId itemId) override;
 
 	[[nodiscard]] bool premiumsSelected() const;
+	[[nodiscard]] bool miniAppsSelected() const;
 
 protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
 private:
-	[[nodiscard]] object_ptr<Ui::RpWidget> preparePremiumsRowList();
+	[[nodiscard]] object_ptr<Ui::RpWidget> prepareSpecialRowList(
+		SpecialRowType type);
 
 	const not_null<Main::Session*> _session;
 	rpl::producer<QString> _title;
 	Exceptions _selected;
-	bool _allowChoosePremiums = false;
+	std::optional<SpecialRowType> _allowChooseSpecial;
 
 	PeerListContentDelegate *_typesDelegate = nullptr;
 	Fn<void(PeerListRowId)> _deselectOption;
@@ -133,9 +186,9 @@ struct RowSelectionChange {
 	bool checked = false;
 };
 
-class PremiumsRow final : public PeerListRow {
+class SpecialRow final : public PeerListRow {
 public:
-	PremiumsRow();
+	explicit SpecialRow(SpecialRowType type);
 
 	QString generateName() override;
 	QString generateShortName() override;
@@ -143,70 +196,68 @@ public:
 		bool forceRound) override;
 	bool useForumLikeUserpic() const override;
 
+private:
+	const SpecialRowType _type = SpecialRowType::Premiums;
+
 };
 
 class TypesController final : public PeerListController {
 public:
-	TypesController(not_null<Main::Session*> session, bool premiums);
+	TypesController(not_null<Main::Session*> session, SpecialRowType type);
 
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	[[nodiscard]] bool premiumsSelected() const;
-	[[nodiscard]] rpl::producer<bool> premiumsChanges() const;
+	[[nodiscard]] bool specialSelected() const;
+	[[nodiscard]] rpl::producer<bool> specialChanges() const;
 	[[nodiscard]] auto rowSelectionChanges() const
 		-> rpl::producer<RowSelectionChange>;
 
 private:
 	const not_null<Main::Session*> _session;
+	const SpecialRowType _type;
 
 	rpl::event_stream<> _selectionChanged;
 	rpl::event_stream<RowSelectionChange> _rowSelectionChanges;
 
 };
 
-PremiumsRow::PremiumsRow() : PeerListRow(kPremiumsRowId) {
-	setCustomStatus(tr::lng_edit_privacy_premium_status(tr::now));
+SpecialRow::SpecialRow(SpecialRowType type)
+: PeerListRow((type == SpecialRowType::Premiums)
+	? kPremiumsRowId
+	: kMiniAppsRowId) {
+	setCustomStatus((id() == kPremiumsRowId)
+		? tr::lng_edit_privacy_premium_status(tr::now)
+		: tr::lng_edit_privacy_miniapps_status(tr::now));
 }
 
-QString PremiumsRow::generateName() {
-	return tr::lng_edit_privacy_premium(tr::now);
+QString SpecialRow::generateName() {
+	return (id() == kPremiumsRowId)
+		? tr::lng_edit_privacy_premium(tr::now)
+		: tr::lng_edit_privacy_miniapps(tr::now);
 }
 
-QString PremiumsRow::generateShortName() {
+QString SpecialRow::generateShortName() {
 	return generateName();
 }
 
-PaintRoundImageCallback PremiumsRow::generatePaintUserpicCallback(
+PaintRoundImageCallback SpecialRow::generatePaintUserpicCallback(
 		bool forceRound) {
-	return [=](QPainter &p, int x, int y, int outerWidth, int size) {
-		auto gradient = QLinearGradient(
-			QPointF(x, y),
-			QPointF(x + size, y + size));
-		gradient.setStops(Ui::Premium::ButtonGradientStops());
-
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(gradient);
-		if (forceRound) {
-			p.drawEllipse(x, y, size, size);
-		} else {
-			const auto radius = size * Ui::ForumUserpicRadiusMultiplier();
-			p.drawRoundedRect(x, y, size, size, radius, radius);
-		}
-		st::settingsPrivacyPremium.paintInCenter(p, QRect(x, y, size, size));
-	};
+	return (id() == kPremiumsRowId)
+		? GeneratePremiumsUserpicCallback(forceRound)
+		: GenerateMiniAppsUserpicCallback(forceRound);
 }
 
-bool PremiumsRow::useForumLikeUserpic() const {
+bool SpecialRow::useForumLikeUserpic() const {
 	return true;
 }
 
 TypesController::TypesController(
 	not_null<Main::Session*> session,
-	bool premiums)
-: _session(session) {
+	SpecialRowType type)
+: _session(session)
+, _type(type) {
 }
 
 Main::Session &TypesController::session() const {
@@ -214,12 +265,15 @@ Main::Session &TypesController::session() const {
 }
 
 void TypesController::prepare() {
-	delegate()->peerListAppendRow(std::make_unique<PremiumsRow>());
+	delegate()->peerListAppendRow(std::make_unique<SpecialRow>(_type));
 	delegate()->peerListRefreshRows();
 }
 
-bool TypesController::premiumsSelected() const {
-	const auto row = delegate()->peerListFindRow(kPremiumsRowId);
+bool TypesController::specialSelected() const {
+	const auto premiums = (_type == SpecialRowType::Premiums);
+	const auto row = delegate()->peerListFindRow(premiums
+		? kPremiumsRowId
+		: kMiniAppsRowId);
 	Assert(row != nullptr);
 
 	return row->checked();
@@ -231,10 +285,10 @@ void TypesController::rowClicked(not_null<PeerListRow*> row) {
 	_rowSelectionChanges.fire({ row, checked });
 }
 
-rpl::producer<bool> TypesController::premiumsChanges() const {
+rpl::producer<bool> TypesController::specialChanges() const {
 	return _rowSelectionChanges.events(
 	) | rpl::map([=] {
-		return premiumsSelected();
+		return specialSelected();
 	});
 }
 
@@ -247,12 +301,12 @@ PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(
 	not_null<Main::Session*> session,
 	rpl::producer<QString> title,
 	const Exceptions &selected,
-	bool allowChoosePremiums)
+	std::optional<SpecialRowType> allowChooseSpecial)
 : ChatsListBoxController(session)
 , _session(session)
 , _title(std::move(title))
 , _selected(selected)
-, _allowChoosePremiums(allowChoosePremiums) {
+, _allowChooseSpecial(allowChooseSpecial) {
 }
 
 Main::Session &PrivacyExceptionsBoxController::session() const {
@@ -261,14 +315,18 @@ Main::Session &PrivacyExceptionsBoxController::session() const {
 
 void PrivacyExceptionsBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(std::move(_title));
-	if (_allowChoosePremiums || _selected.premiums) {
-		delegate()->peerListSetAboveWidget(preparePremiumsRowList());
+	if (_allowChooseSpecial || _selected.premiums || _selected.miniapps) {
+		delegate()->peerListSetAboveWidget(prepareSpecialRowList(
+			_allowChooseSpecial.value_or(_selected.premiums
+				? SpecialRowType::Premiums
+				: SpecialRowType::MiniApps)));
 	}
 	delegate()->peerListAddSelectedPeers(_selected.peers);
 }
 
 bool PrivacyExceptionsBoxController::isForeignRow(PeerListRowId itemId) {
-	return (itemId == kPremiumsRowId);
+	return (itemId == kPremiumsRowId)
+		|| (itemId == kMiniAppsRowId);
 }
 
 bool PrivacyExceptionsBoxController::handleDeselectForeignRow(
@@ -280,7 +338,8 @@ bool PrivacyExceptionsBoxController::handleDeselectForeignRow(
 	return false;
 }
 
-auto PrivacyExceptionsBoxController::preparePremiumsRowList()
+auto PrivacyExceptionsBoxController::prepareSpecialRowList(
+	SpecialRowType type)
 -> object_ptr<Ui::RpWidget> {
 	auto result = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
 	const auto container = result.data();
@@ -291,30 +350,39 @@ auto PrivacyExceptionsBoxController::preparePremiumsRowList()
 	_typesDelegate = lifetime.make_state<PeerListContentDelegateSimple>();
 	const auto controller = lifetime.make_state<TypesController>(
 		&session(),
-		_selected.premiums);
+		type);
 	const auto content = result->add(object_ptr<PeerListContent>(
 		container,
 		controller));
 	_typesDelegate->setContent(content);
 	controller->setDelegate(_typesDelegate);
 
+	const auto selectType = [&](PeerListRowId id) {
+		const auto row = _typesDelegate->peerListFindRow(id);
+		if (row) {
+			content->changeCheckState(row, true, anim::type::instant);
+			this->delegate()->peerListSetForeignRowChecked(
+				row,
+				true,
+				anim::type::instant);
+		}
+	};
 	if (_selected.premiums) {
-		const auto row = _typesDelegate->peerListFindRow(kPremiumsRowId);
-		Assert(row != nullptr);
-
-		content->changeCheckState(row, true, anim::type::instant);
-		this->delegate()->peerListSetForeignRowChecked(
-			row,
-			true,
-			anim::type::instant);
+		selectType(kPremiumsRowId);
+	} else if (_selected.miniapps) {
+		selectType(kMiniAppsRowId);
 	}
 	container->add(CreatePeerListSectionSubtitle(
 		container,
 		tr::lng_edit_privacy_users_and_groups()));
 
-	controller->premiumsChanges(
-	) | rpl::start_with_next([=](bool premiums) {
-		_selected.premiums = premiums;
+	controller->specialChanges(
+	) | rpl::start_with_next([=](bool chosen) {
+		if (type == SpecialRowType::Premiums) {
+			_selected.premiums = chosen;
+		} else {
+			_selected.miniapps = chosen;
+		}
 	}, lifetime);
 
 	controller->rowSelectionChanges(
@@ -329,6 +397,8 @@ auto PrivacyExceptionsBoxController::preparePremiumsRowList()
 		if (const auto row = _typesDelegate->peerListFindRow(itemId)) {
 			if (itemId == kPremiumsRowId) {
 				_selected.premiums = false;
+			} else if (itemId == kMiniAppsRowId) {
+				_selected.miniapps = false;
 			}
 			_typesDelegate->peerListSetRowChecked(row, false);
 		}
@@ -337,8 +407,12 @@ auto PrivacyExceptionsBoxController::preparePremiumsRowList()
 	return result;
 }
 
-[[nodiscard]] bool PrivacyExceptionsBoxController::premiumsSelected() const {
+bool PrivacyExceptionsBoxController::premiumsSelected() const {
 	return _selected.premiums;
+}
+
+bool PrivacyExceptionsBoxController::miniAppsSelected() const {
+	return _selected.miniapps;
 }
 
 void PrivacyExceptionsBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -412,6 +486,11 @@ EditPrivacyBox::EditPrivacyBox(
 		// If we switch from Everyone to Contacts or Nobody suggest Premiums.
 		_value.always.premiums = true;
 	}
+	if (_controller->allowMiniAppsToggle(Exception::Always)
+		&& _value.option == Option::Everyone) {
+		// If we switch from Everyone to Contacts or Nobody suggest MiniApps.
+		_value.always.miniapps = true;
+	}
 }
 
 void EditPrivacyBox::prepare() {
@@ -427,12 +506,18 @@ void EditPrivacyBox::editExceptions(
 		&_window->session(),
 		_controller->exceptionBoxTitle(exception),
 		exceptions(exception),
-		_controller->allowPremiumsToggle(exception));
+		(_controller->allowPremiumsToggle(exception)
+			? SpecialRowType::Premiums
+			: _controller->allowMiniAppsToggle(exception)
+			? SpecialRowType::MiniApps
+			: std::optional<SpecialRowType>()));
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_settings_save(), crl::guard(this, [=] {
-			exceptions(exception).peers = box->collectSelectedRows();
-			exceptions(exception).premiums = controller->premiumsSelected();
+			auto &setTo = exceptions(exception);
+			setTo.peers = box->collectSelectedRows();
+			setTo.premiums = controller->premiumsSelected();
+			setTo.miniapps = controller->miniAppsSelected();
 			const auto type = [&] {
 				switch (exception) {
 				case Exception::Always: return Exception::Never;
@@ -440,11 +525,17 @@ void EditPrivacyBox::editExceptions(
 				}
 				Unexpected("Invalid exception value.");
 			}();
-			auto &removeFrom = exceptions(type).peers;
+			auto &removeFrom = exceptions(type);
 			for (const auto peer : exceptions(exception).peers) {
-				removeFrom.erase(
-					ranges::remove(removeFrom, peer),
-					end(removeFrom));
+				removeFrom.peers.erase(
+					ranges::remove(removeFrom.peers, peer),
+					end(removeFrom.peers));
+			}
+			if (setTo.premiums) {
+				removeFrom.premiums = false;
+			}
+			if (setTo.miniapps) {
+				removeFrom.miniapps = false;
 			}
 			done();
 			box->closeBox();
@@ -566,14 +657,21 @@ void EditPrivacyBox::setupContent() {
 					lt_count,
 					count)
 				: tr::lng_edit_privacy_exceptions_add(tr::now);
-			return !value.premiums
-				? users
-				: !count
-				? tr::lng_edit_privacy_premium(tr::now)
-				: tr::lng_edit_privacy_exceptions_premium_and(
-					tr::now,
-					lt_users,
-					users);
+			return value.premiums
+				? (!count
+					? tr::lng_edit_privacy_premium(tr::now)
+					: tr::lng_edit_privacy_exceptions_premium_and(
+						tr::now,
+						lt_users,
+						users))
+				: value.miniapps
+				? (!count
+					? tr::lng_edit_privacy_miniapps(tr::now)
+					: tr::lng_edit_privacy_exceptions_miniapps_and(
+						tr::now,
+						lt_users,
+						users))
+				: users;
 		});
 		_controller->handleExceptionsChange(
 			exception,
