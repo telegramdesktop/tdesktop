@@ -1,3 +1,16 @@
+5.7.4 beta (15.11.24)
+
+- Enable auto night mode by default.
+- Use muted chats folder badge in horizontal strip.
+- Fix custom userpic context menu in comments and topics.
+- Fix scrolling of chats folders together with the list.
+- Fix chats folders list disappearing in some cases.
+- Fix topic groups in share box with chats folders.
+- Fix bot commands list in some groups.
+- Fix crash in channel short info box display.
+- Fix crash in bot monetization section opening.
+- Fix crash in bot sponsored messages destruction.
+
 5.7.3 beta (13.11.24)
 
 - Option to show folders above the chats list.
