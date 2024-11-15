@@ -797,7 +797,7 @@ void ReceiptCreditsBox(
 		const Data::SubscriptionEntry &s) {
 	const auto item = controller->session().data().message(
 		PeerId(e.barePeerId), MsgId(e.bareMsgId));
-	const auto isStarGift = (e.convertStars > 0) || e.soldOutInfo;
+	const auto isStarGift = e.stargift || e.soldOutInfo;
 	const auto creditsHistoryStarGift = isStarGift && !e.id.isEmpty();
 	const auto sentStarGift = creditsHistoryStarGift && !e.in;
 	const auto convertedStarGift = creditsHistoryStarGift && e.converted;
@@ -811,9 +811,13 @@ void ReceiptCreditsBox(
 		+ controller->session().appConfig().stargiftConvertPeriodMax();
 	const auto timeLeft = int64(convertLast) - int64(base::unixtime::now());
 	const auto timeExceeded = (timeLeft <= 0);
-	const auto forConvert = gotStarGift && !e.converted && starGiftSender;
+	const auto forConvert = gotStarGift
+		&& e.starsConverted
+		&& !e.converted
+		&& starGiftSender;
 	const auto canConvert = forConvert && !timeExceeded;
 	const auto couldConvert = forConvert && timeExceeded;
+	const auto nonConvertible = (gotStarGift && !e.starsConverted);
 
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -1108,15 +1112,17 @@ void ReceiptCreditsBox(
 				box,
 				object_ptr<Ui::FlatLabel>(
 					box,
-					(couldConvert
-						? tr::lng_action_gift_got_gift_text(
-							Ui::Text::WithEntities)
+					((couldConvert || nonConvertible)
+						? (e.savedToProfile
+							? tr::lng_action_gift_can_remove_text
+							: tr::lng_action_gift_got_gift_text)(
+								Ui::Text::WithEntities)
 						: rpl::combine(
 							(canConvert
 								? tr::lng_action_gift_got_stars_text
 								: tr::lng_gift_got_stars)(
 									lt_count,
-									rpl::single(e.convertStars * 1.),
+									rpl::single(e.starsConverted * 1.),
 									Ui::Text::RichLangValue),
 							tr::lng_paid_about_link()
 						) | rpl::map([](
@@ -1180,7 +1186,7 @@ void ReceiptCreditsBox(
 
 	if (isStarGift && e.id.isEmpty()) {
 		const auto convert = [=, weak = Ui::MakeWeak(box)] {
-			const auto stars = e.convertStars;
+			const auto stars = e.starsConverted;
 			const auto days = canConvert ? ((timeLeft + 86399) / 86400) : 0;
 			const auto name = starGiftSender->shortName();
 			ConfirmConvertStarGift(box->uiShow(), name, stars, days, [=] {
@@ -1319,13 +1325,13 @@ void ReceiptCreditsBox(
 			? tr::lng_credits_subscription_off_button()
 			: toCancel
 			? tr::lng_credits_subscription_on_button()
-			: (canConvert || couldConvert)
+			: (canConvert || couldConvert || nonConvertible)
 			? (e.savedToProfile
 				? tr::lng_gift_display_on_page_hide()
 				: tr::lng_gift_display_on_page())
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
-		if (canConvert || couldConvert) {
+		if (canConvert || couldConvert || nonConvertible) {
 			const auto save = !e.savedToProfile;
 			const auto window = weakWindow.get();
 			const auto showSection = !e.fromGiftsList;
@@ -1399,7 +1405,12 @@ void ReceiptCreditsBox(
 			return;
 		}
 		state->confirmButtonBusy = true;
-		if ((toRenew || toCancel || canConvert || couldConvert) && peer) {
+		if (peer
+			&& (toRenew
+				|| toCancel
+				|| canConvert
+				|| couldConvert
+				|| nonConvertible)) {
 			send();
 		} else {
 			box->closeBox();
@@ -1491,9 +1502,10 @@ void UserStarGiftBox(
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.info.limitedCount,
 			.limitedLeft = data.info.limitedLeft,
-			.convertStars = int(data.info.convertStars),
+			.starsConverted = int(data.info.starsConverted),
 			.converted = false,
 			.anonymous = data.anonymous,
+			.stargift = true,
 			.savedToProfile = !data.hidden,
 			.fromGiftsList = true,
 			.in = data.mine,
@@ -1521,9 +1533,10 @@ void StarGiftViewBox(
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.limitedCount,
 			.limitedLeft = data.limitedLeft,
-			.convertStars = data.convertStars,
+			.starsConverted = data.starsConverted,
 			.converted = data.converted,
 			.anonymous = data.anonymous,
+			.stargift = true,
 			.savedToProfile = data.saved,
 			.in = true,
 			.gift = true,

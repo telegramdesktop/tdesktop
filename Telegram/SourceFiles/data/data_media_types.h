@@ -139,7 +139,7 @@ struct GiftCode {
 	TextWithEntities message;
 	ChannelData *channel = nullptr;
 	MsgId giveawayMsgId = 0;
-	int convertStars = 0;
+	int starsConverted = 0;
 	int limitedCount = 0;
 	int limitedLeft = 0;
 	int count = 0;

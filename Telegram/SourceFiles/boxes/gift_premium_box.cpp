@@ -266,7 +266,7 @@ object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
 			raw,
 			tr::lng_gift_sell_small(
 				lt_count_decimal,
-				rpl::single(entry.convertStars * 1.)),
+				rpl::single(entry.starsConverted * 1.)),
 			st::starGiftSmallButton)
 		: nullptr;
 	if (convert) {
@@ -1044,7 +1044,8 @@ void AddStarGiftTable(
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto session = &controller->session();
 	if (peerId) {
-		const auto withSendButton = entry.in;
+		const auto user = session->data().peer(peerId)->asUser();
+		const auto withSendButton = entry.in && user && !user->isBot();
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer_in(),
@@ -1144,12 +1145,17 @@ void AddCreditsHistoryEntryTable(
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
+	const auto actorId = PeerId(entry.bareActorId);
 	const auto session = &controller->session();
-	if (peerId) {
+	if (actorId || peerId) {
 		auto text = entry.in
 			? tr::lng_credits_box_history_entry_peer_in()
 			: tr::lng_credits_box_history_entry_peer();
-		AddTableRow(table, std::move(text), controller, peerId);
+		AddTableRow(
+			table,
+			std::move(text),
+			controller,
+			actorId ? actorId : peerId);
 	}
 	if (const auto msgId = MsgId(peerId ? entry.bareMsgId : 0)) {
 		const auto peer = session->data().peer(peerId);

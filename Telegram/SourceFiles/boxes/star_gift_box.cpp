@@ -216,7 +216,7 @@ auto GenerateGiftMedia(
 			return tr::lng_action_gift_got_stars_text(
 				tr::now,
 				lt_count,
-				gift.info.convertStars,
+				gift.info.starsConverted,
 				Ui::Text::RichLangValue);
 		});
 		auto description = data.text.empty()

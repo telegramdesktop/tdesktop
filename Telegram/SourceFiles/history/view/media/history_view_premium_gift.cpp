@@ -80,7 +80,7 @@ TextWithEntities PremiumGift::subtitle() {
 			? tr::lng_action_gift_sent_text(
 				tr::now,
 				lt_count,
-				_data.convertStars,
+				_data.starsConverted,
 				lt_user,
 				Ui::Text::Bold(_parent->history()->peer->shortName()),
 				Ui::Text::RichLangValue)
@@ -89,7 +89,7 @@ TextWithEntities PremiumGift::subtitle() {
 				: tr::lng_action_gift_got_stars_text)(
 					tr::now,
 					lt_count,
-					_data.convertStars,
+					_data.starsConverted,
 					Ui::Text::RichLangValue);
 	}
 	const auto isCreditsPrize = creditsPrize();

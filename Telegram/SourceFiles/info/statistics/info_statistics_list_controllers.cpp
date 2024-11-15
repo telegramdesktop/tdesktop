@@ -822,9 +822,7 @@ void CreditsRow::init() {
 	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
-	_name = (_entry.reaction
-		|| _entry.bareGiveawayMsgId
-		|| _entry.convertStars)
+	_name = (_entry.reaction || _entry.stargift || _entry.bareGiveawayMsgId)
 		? Ui::GenerateEntryName(_entry).text
 		: _entry.title.isEmpty()
 		? name
@@ -876,7 +874,7 @@ void CreditsRow::init() {
 			_context);
 	}
 	if (!_paintUserpicCallback) {
-		_paintUserpicCallback = _entry.convertStars
+		_paintUserpicCallback = _entry.stargift
 			? Ui::GenerateGiftStickerUserpicCallback(
 				_context.session,
 				_entry.bareGiftStickerId,

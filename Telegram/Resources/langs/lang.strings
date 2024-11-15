@@ -1879,6 +1879,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_got_stars_text#one" = "Display this gift on your page or convert it to **{count}** Star.";
 "lng_action_gift_got_stars_text#other" = "Display this gift on your page or convert it to **{count}** Stars.";
 "lng_action_gift_got_gift_text" = "You can keep this gift on your page.";
+"lng_action_gift_can_remove_text" = "You can remove this gift from your page.";
 "lng_action_gift_sent_subtitle" = "Gift for {user}";
 "lng_action_gift_sent_text#one" = "{user} can display this gift on their page or convert it to {count} Star.";
 "lng_action_gift_sent_text#other" = "{user} can display this gift on their page or convert it to {count} Stars.";

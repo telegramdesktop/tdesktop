@@ -69,19 +69,20 @@ struct CreditsHistoryEntry final {
 	QString successLink;
 	int limitedCount = 0;
 	int limitedLeft = 0;
-	int convertStars = 0;
+	int starsConverted = 0;
 	int floodSkip = 0;
-	bool converted = false;
-	bool anonymous = false;
-	bool savedToProfile = false;
-	bool fromGiftsList = false;
-	bool soldOutInfo = false;
-	bool reaction = false;
-	bool refunded = false;
-	bool pending = false;
-	bool failed = false;
-	bool in = false;
-	bool gift = false;
+	bool converted : 1 = false;
+	bool anonymous : 1 = false;
+	bool stargift : 1 = false;
+	bool savedToProfile : 1 = false;
+	bool fromGiftsList : 1 = false;
+	bool soldOutInfo : 1 = false;
+	bool reaction : 1 = false;
+	bool refunded : 1 = false;
+	bool pending : 1 = false;
+	bool failed : 1 = false;
+	bool in : 1 = false;
+	bool gift : 1 = false;
 };
 
 struct CreditsStatusSlice final {

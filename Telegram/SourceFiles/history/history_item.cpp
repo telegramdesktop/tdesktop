@@ -5530,7 +5530,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 						data.vmessage()->data().ventities().v),
 				}
 				: TextWithEntities()),
-			.convertStars = int(data.vconvert_stars().value_or_empty()),
+			.starsConverted = int(data.vconvert_stars().value_or_empty()),
 			.limitedCount = gift.vavailability_total().value_or_empty(),
 			.limitedLeft = gift.vavailability_remains().value_or_empty(),
 			.count = int(gift.vstars().v),

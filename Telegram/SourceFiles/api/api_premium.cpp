@@ -772,7 +772,7 @@ std::optional<StarGift> FromTL(
 	return StarGift{
 		.id = uint64(data.vid().v),
 		.stars = int64(data.vstars().v),
-		.convertStars = int64(data.vconvert_stars().v),
+		.starsConverted = int64(data.vconvert_stars().v),
 		.document = document,
 		.limitedLeft = remaining.value_or_empty(),
 		.limitedCount = total.value_or_empty(),
@@ -800,7 +800,7 @@ std::optional<UserStarGift> FromTL(
 					data.vmessage()->data().ventities().v),
 			}
 			: TextWithEntities()),
-		.convertStars = int64(data.vconvert_stars().value_or_empty()),
+		.starsConverted = int64(data.vconvert_stars().value_or_empty()),
 		.fromId = (data.vfrom_id()
 			? peerFromUser(data.vfrom_id()->v)
 			: PeerId()),

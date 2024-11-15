@@ -76,7 +76,7 @@ struct GiftOptionData {
 struct StarGift {
 	uint64 id = 0;
 	int64 stars = 0;
-	int64 convertStars = 0;
+	int64 starsConverted = 0;
 	not_null<DocumentData*> document;
 	int limitedLeft = 0;
 	int limitedCount = 0;
@@ -91,7 +91,7 @@ struct StarGift {
 struct UserStarGift {
 	StarGift info;
 	TextWithEntities message;
-	int64 convertStars = 0;
+	int64 starsConverted = 0;
 	PeerId fromId = 0;
 	MsgId messageId = 0;
 	TimeId date = 0;

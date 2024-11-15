@@ -553,7 +553,7 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 		? tr::lng_credits_box_history_entry_giveaway_name
 		: entry.converted
 		? tr::lng_credits_box_history_entry_gift_converted
-		: entry.convertStars
+		: entry.starsConverted
 		? tr::lng_credits_box_history_entry_gift_sent
 		: entry.gift
 		? tr::lng_credits_box_history_entry_gift_name
