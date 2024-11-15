@@ -15,6 +15,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QScrollBar>
 
 namespace Ui {
+namespace {
+
+[[nodiscard]] QMouseEvent TranslatedMouseEvent(QMouseEvent *e) {
+	return QMouseEvent(
+		e->type(),
+		e->pos() + QPoint(-st::dialogsSearchTabsPadding, 0),
+		e->button(),
+		e->buttons(),
+		e->modifiers());
+}
+
+} // namespace
 
 ChatsFiltersTabs::ChatsFiltersTabs(
 	not_null<Ui::RpWidget*> parent,
@@ -278,29 +290,32 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 }
 
 void ChatsFiltersTabs::mousePressEvent(QMouseEvent *e) {
-	const auto mouseButton = e->button();
+	auto m = TranslatedMouseEvent(e);
+	const auto mouseButton = m.button();
 	if (mouseButton == Qt::MouseButton::LeftButton) {
-		_lockedPressed = (e->pos().x() >= _lockedFromX);
+		_lockedPressed = (m.pos().x() >= _lockedFromX);
 		if (_lockedPressed) {
-			Ui::RpWidget::mousePressEvent(e);
+			Ui::RpWidget::mousePressEvent(&m);
 		} else {
-			Ui::SettingsSlider::mousePressEvent(e);
+			Ui::SettingsSlider::mousePressEvent(&m);
 		}
 	} else {
-		Ui::RpWidget::mousePressEvent(e);
+		Ui::RpWidget::mousePressEvent(&m);
 	}
 }
 
 void ChatsFiltersTabs::mouseMoveEvent(QMouseEvent *e) {
+	auto m = TranslatedMouseEvent(e);
 	if (_reordering) {
-		Ui::RpWidget::mouseMoveEvent(e);
+		Ui::RpWidget::mouseMoveEvent(&m);
 	} else {
-		Ui::SettingsSlider::mouseMoveEvent(e);
+		Ui::SettingsSlider::mouseMoveEvent(&m);
 	}
 }
 
 void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
-	const auto mouseButton = e->button();
+	auto m = TranslatedMouseEvent(e);
+	const auto mouseButton = m.button();
 	if (mouseButton == Qt::MouseButton::LeftButton) {
 		if (base::take(_lockedPressed)) {
 			_lockedPressed = false;
@@ -313,16 +328,16 @@ void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
 					}
 				}
 			} else {
-				Ui::SettingsSlider::mouseReleaseEvent(e);
+				Ui::SettingsSlider::mouseReleaseEvent(&m);
 			}
 		}
 	} else {
-		Ui::RpWidget::mouseReleaseEvent(e);
+		Ui::RpWidget::mouseReleaseEvent(&m);
 	}
 }
 
 void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
-	const auto pos = e->pos();
+	const auto pos = e->pos() + QPoint(-st::dialogsSearchTabsPadding, 0);
 	if (pos.x() >= _lockedFromX) {
 		return;
 	}
