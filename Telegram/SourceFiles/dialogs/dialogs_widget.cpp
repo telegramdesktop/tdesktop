@@ -1331,6 +1331,7 @@ void Widget::toggleFiltersMenu(bool enabled) {
 					controller()->setActiveChatsFilter(id);
 				}
 			},
+			controller(),
 			true);
 		raw->show();
 		raw->stackUnder(_scroll);

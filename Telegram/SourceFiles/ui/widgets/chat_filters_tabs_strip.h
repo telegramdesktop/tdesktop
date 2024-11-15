@@ -15,12 +15,17 @@ namespace Ui {
 class RpWidget;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Ui {
 
 not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Main::Session*> session,
 	Fn<void(FilterId)> choose,
+	Window::SessionController *controller = nullptr,
 	bool trackActiveFilterAndUnreadAndReorder = false);
 
 } // namespace Ui

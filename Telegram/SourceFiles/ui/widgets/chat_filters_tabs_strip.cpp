@@ -173,16 +173,19 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Main::Session*> session,
 		Fn<void(FilterId)> choose,
+		Window::SessionController *controller,
 		bool trackActiveFilterAndUnreadAndReorder) {
-	const auto window = Core::App().findWindow(parent);
-	const auto controller = window ? window->sessionController() : nullptr;
 
 	const auto &scrollSt = st::defaultScrollArea;
 	const auto wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		parent,
 		object_ptr<Ui::RpWidget>(parent));
 	if (!controller) {
-		return wrap;
+		const auto window = Core::App().findWindow(parent);
+		controller = window ? window->sessionController() : nullptr;
+		if (!controller) {
+			return wrap;
+		}
 	}
 	const auto container = wrap->entity();
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(container, scrollSt);
