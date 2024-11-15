@@ -778,6 +778,7 @@ std::optional<StarGift> FromTL(
 		.limitedCount = total.value_or_empty(),
 		.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
 		.lastSaleDate = data.vlast_sale_date().value_or_empty(),
+		.birthday = data.is_birthday(),
 	};
 }
 

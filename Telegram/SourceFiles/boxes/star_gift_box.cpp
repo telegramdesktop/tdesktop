@@ -139,6 +139,23 @@ private:
 
 };
 
+[[nodiscard]] bool SortForBirthday(not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	if (!user) {
+		return false;
+	}
+	const auto birthday = user->birthday();
+	if (!birthday) {
+		return false;
+	}
+	const auto is = [&](const QDate &date) {
+		return (date.day() == birthday.day())
+			&& (date.month() == birthday.month());
+	};
+	const auto now = QDate::currentDate();
+	return is(now) || is(now.addDays(1)) || is(now.addDays(-1));
+}
+
 PreviewDelegate::PreviewDelegate(
 	not_null<QWidget*> parent,
 	not_null<Ui::ChatStyle*> st,
@@ -1068,10 +1085,23 @@ void SendGiftBox(
 		const auto padding = st::giftBoxPadding;
 		const auto available = width - padding.left() - padding.right();
 		const auto perRow = available / single.width();
+		const auto count = int(gifts.list.size());
+
+		auto order = ranges::views::ints
+			| ranges::views::take(count)
+			| ranges::to_vector;
+
+		if (SortForBirthday(peer)) {
+			ranges::stable_partition(order, [&](int i) {
+				const auto &gift = gifts.list[i];
+				const auto stars = std::get_if<GiftTypeStars>(&gift);
+				return stars && stars->info.birthday;
+			});
+		}
 
 		auto x = padding.left();
 		auto y = padding.top();
-		state->buttons.resize(gifts.list.size());
+		state->buttons.resize(count);
 		for (auto &button : state->buttons) {
 			if (!button) {
 				button = std::make_unique<GiftButton>(raw, &state->delegate);
@@ -1079,9 +1109,9 @@ void SendGiftBox(
 			}
 		}
 		const auto api = gifts.api;
-		for (auto i = 0, count = int(gifts.list.size()); i != count; ++i) {
+		for (auto i = 0; i != count; ++i) {
 			const auto button = state->buttons[i].get();
-			const auto &descriptor = gifts.list[i];
+			const auto &descriptor = gifts.list[order[i]];
 			button->setDescriptor(descriptor);
 
 			const auto last = !((i + 1) % perRow);
@@ -1108,12 +1138,12 @@ void SendGiftBox(
 				}
 			});
 		}
-		if (gifts.list.size() % perRow) {
+		if (count % perRow) {
 			y += padding.bottom() + single.height();
 		} else {
 			y += padding.bottom() - st::giftBoxGiftSkip.y();
 		}
-		raw->resize(raw->width(), gifts.list.empty() ? 0 : y);
+		raw->resize(raw->width(), count ? y : 0);
 	}, raw->lifetime());
 
 	return result;

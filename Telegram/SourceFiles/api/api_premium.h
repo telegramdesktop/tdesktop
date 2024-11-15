@@ -82,6 +82,7 @@ struct StarGift {
 	int limitedCount = 0;
 	TimeId firstSaleDate = 0;
 	TimeId lastSaleDate = 0;
+	bool birthday = false;
 
 	friend inline bool operator==(
 		const StarGift &,
