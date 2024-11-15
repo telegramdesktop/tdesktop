@@ -1826,11 +1826,56 @@ void WebViewInstance::botSendPreparedMessage(
 		});
 		struct State {
 			QPointer<Ui::BoxContent> preview;
+			QPointer<Ui::BoxContent> choose;
 			rpl::event_stream<not_null<Data::Thread*>> recipient;
 			bool sent = false;
 		};
 		const auto state = std::make_shared<State>();
 		auto recipient = state->recipient.events();
+		const auto send = [=](std::vector<not_null<Data::Thread*>> list) {
+			if (state->sent) {
+				return;
+			}
+			state->sent = true;
+			const auto failed = std::make_shared<int>();
+			const auto count = int(list.size());
+			const auto weak1 = state->preview;
+			const auto weak2 = state->choose;
+			const auto close = [=] {
+				if (const auto strong = weak1.data()) {
+					strong->closeBox();
+				}
+				if (const auto strong = weak2.data()) {
+					strong->closeBox();
+				}
+			};
+			const auto done = [=](bool success) {
+				if (*failed < 0) {
+					return;
+				}
+				if (success) {
+					*failed = -1;
+					if (const auto strong2 = weak2.data()) {
+						strong2->showToast({ tr::lng_share_done(tr::now) });
+					} else if (const auto strong1 = weak1.data()) {
+						strong1->showToast({ tr::lng_share_done(tr::now) });
+					}
+					base::call_delayed(Ui::Toast::kDefaultDuration, close);
+					callback(QString());
+				} else if (++*failed == count) {
+					close();
+					callback(u"MESSAGE_SEND_FAILED"_q);
+				}
+			};
+			for (const auto &thread : list) {
+				bot->session().api().sendInlineResult(
+					bot,
+					parsed.get(),
+					Api::SendAction(thread),
+					std::nullopt,
+					done);
+			}
+		};
 		auto box = Box(PreparedPreviewBox, item, std::move(recipient), [=] {
 			if (state->sent) {
 				return;
@@ -1850,38 +1895,12 @@ void WebViewInstance::botSendPreparedMessage(
 				chosen,
 				tr::lng_inline_switch_choose(),
 				nullptr,
-				types);
+				types,
+				send);
+			state->choose = box.data();
 			panel->showBox(std::move(box));
 		}, [=](not_null<Data::Thread*> thread) {
-			if (state->sent) {
-				return;
-			}
-			state->sent = true;
-			const auto weak = state->preview;
-			const auto done = [=](bool success) {
-				if (success) {
-					if (const auto strong = weak.data()) {
-						strong->showToast({ tr::lng_share_done(tr::now) });
-					}
-					base::call_delayed(Ui::Toast::kDefaultDuration, [weak] {
-						if (const auto strong = weak.data()) {
-							strong->closeBox();
-						}
-					});
-					callback(QString());
-				} else {
-					if (const auto strong = weak.data()) {
-						strong->closeBox();
-					}
-					callback(u"MESSAGE_SEND_FAILED"_q);
-				}
-			};
-			bot->session().api().sendInlineResult(
-				bot,
-				parsed.get(),
-				Api::SendAction(thread),
-				std::nullopt,
-				done);
+			send({ thread });
 		});
 		box->boxClosing() | rpl::start_with_next([=] {
 			if (!state->sent) {

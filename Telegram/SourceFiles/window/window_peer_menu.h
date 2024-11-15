@@ -144,7 +144,8 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 	FnMut<bool(not_null<Data::Thread*>)> &&chosen,
 	rpl::producer<QString> titleOverride = nullptr,
 	FnMut<void()> &&successCallback = nullptr,
-	InlineBots::PeerTypes typesRestriction = 0);
+	InlineBots::PeerTypes typesRestriction = 0,
+	Fn<void(std::vector<not_null<Data::Thread*>>)> sendMany = nullptr);
 QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 	not_null<Window::SessionNavigation*> navigation,
 	FnMut<bool(not_null<Data::Thread*>)> &&chosen,
