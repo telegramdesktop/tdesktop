@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
 #include "data/data_chat_filters.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_unread_value.h"
@@ -312,6 +313,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			}, slider->lifetime());
 			if (state->reorder) {
 				state->reorder->cancel();
+				state->reorder->clearPinnedIntervals();
 				if (!reorderAll) {
 					state->reorder->addPinnedInterval(0, 1);
 				}
@@ -405,7 +407,9 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			state->reorder->start();
 		}
 	};
-	session->data().chatsFilters().changed(
+	rpl::combine(
+		session->data().chatsFilters().changed(),
+		Data::AmPremiumValue(session) | rpl::to_empty
 	) | rpl::start_with_next(rebuild, wrap->lifetime());
 	rebuild();
 
