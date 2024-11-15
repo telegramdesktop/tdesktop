@@ -1388,7 +1388,8 @@ void ShareBox::Inner::applyChatFilter(FilterId id) {
 		const auto addList = [&](not_null<Dialogs::IndexedList*> list) {
 			for (const auto &row : list->all()) {
 				if (const auto history = row->history()) {
-					if (_descriptor.filterCallback(history)) {
+					if (history->asForum()
+							|| _descriptor.filterCallback(history)) {
 						_customChatsIndexed->addToEnd(history);
 					}
 				}
