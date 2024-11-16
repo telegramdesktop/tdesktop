@@ -96,6 +96,10 @@ giveawayGiftCodeValue: FlatLabel(defaultFlatLabel) {
 giveawayGiftCodeValueMultiline: FlatLabel(giveawayGiftCodeValue) {
 	minWidth: 128px;
 	maxHeight: 100px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px);
+		linkUnderline: kLinkUnderlineNever;
+	}
 }
 giveawayGiftMessage: FlatLabel(giveawayGiftCodeValue) {
 	minWidth: 128px;
