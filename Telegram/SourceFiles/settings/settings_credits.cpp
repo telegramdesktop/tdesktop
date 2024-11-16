@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
@@ -101,6 +102,13 @@ Credits::Credits(
 , _star(Ui::GenerateStars(st::creditsTopupButton.height, 1))
 , _balanceStar(Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
 	setupContent();
+
+	_controller->session().premiumPossibleValue(
+	) | rpl::start_with_next([=](bool premiumPossible) {
+		if (!premiumPossible) {
+			_showBack.fire({});
+		}
+	}, lifetime());
 }
 
 rpl::producer<QString> Credits::title() {
@@ -387,34 +395,76 @@ void Credits::setupContent() {
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 
+	struct State final {
+		rpl::variable<bool> confirmButtonBusy = false;
+		std::optional<Api::CreditsTopupOptions> api;
+	};
+	const auto state = content->lifetime().make_state<State>();
+
 	const auto button = content->add(
 		object_ptr<Ui::RoundButton>(
 			content,
-			tr::lng_credits_buy_button(),
+			rpl::conditional(
+				state->confirmButtonBusy.value(),
+				rpl::single(QString()),
+				tr::lng_credits_buy_button()),
 			st::creditsSettingsBigBalanceButton),
 		st::boxRowPadding);
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	button->setClickedCallback([=, show = _controller->uiShow()] {
-		show->show(Box([=](not_null<Ui::GenericBox*> box) {
-			box->setStyle(st::giveawayGiftCodeBox);
-			box->setWidth(st::boxWideWidth);
-			box->setTitle(tr::lng_credits_summary_options_subtitle());
-			const auto inner = box->verticalLayout();
-			const auto self = show->session().user();
-			FillCreditOptions(show, inner, self, 0, paid, nullptr);
+	const auto show = _controller->uiShow();
+	const auto optionsBox = [=](not_null<Ui::GenericBox*> box) {
+		box->setStyle(st::giveawayGiftCodeBox);
+		box->setWidth(st::boxWideWidth);
+		box->setTitle(tr::lng_credits_summary_options_subtitle());
+		const auto inner = box->verticalLayout();
+		const auto self = show->session().user();
+		const auto options = state->api
+			? state->api->options()
+			: Data::CreditTopupOptions();
+		FillCreditOptions(show, inner, self, 0, paid, nullptr, options);
 
-			const auto button = box->addButton(tr::lng_close(), [=] {
-				box->closeBox();
-			});
-			const auto buttonWidth = st::boxWideWidth
-				- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-			button->widthValue() | rpl::filter([=] {
-				return (button->widthNoMargins() != buttonWidth);
-			}) | rpl::start_with_next([=] {
-				button->resizeToWidth(buttonWidth);
-			}, button->lifetime());
-		}));
+		const auto button = box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+		const auto buttonWidth = st::boxWideWidth
+			- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+		button->widthValue() | rpl::filter([=] {
+			return (button->widthNoMargins() != buttonWidth);
+		}) | rpl::start_with_next([=] {
+			button->resizeToWidth(buttonWidth);
+		}, button->lifetime());
+	};
+	button->setClickedCallback([=] {
+		if (state->api && !state->api->options().empty()) {
+			state->confirmButtonBusy = false;
+			show->show(Box(optionsBox));
+		} else {
+			state->confirmButtonBusy = true;
+			state->api.emplace(show->session().user());
+			state->api->request(
+			) | rpl::start_with_error_done([=](const QString &error) {
+				state->confirmButtonBusy = false;
+				show->showToast(error);
+			}, [=] {
+				state->confirmButtonBusy = false;
+				show->show(Box(optionsBox));
+			}, content->lifetime());
+		}
 	});
+	{
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			button,
+			button->height() / 2);
+		AddChildToWidgetCenter(button, loadingAnimation);
+		loadingAnimation->showOn(state->confirmButtonBusy.value());
+	}
+	const auto paddings = rect::m::sum::h(st::boxRowPadding);
+	button->widthValue() | rpl::filter([=] {
+		return (button->widthNoMargins() != (content->width() - paddings));
+	}) | rpl::start_with_next([=] {
+		button->resizeToWidth(content->width() - paddings);
+	}, button->lifetime());
 
 	Ui::AddSkip(content);
 

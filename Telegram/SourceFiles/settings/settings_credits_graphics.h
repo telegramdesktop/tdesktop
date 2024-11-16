@@ -21,6 +21,7 @@ struct Boost;
 struct CreditsHistoryEntry;
 struct SubscriptionEntry;
 struct GiftCode;
+struct CreditTopupOption;
 } // namespace Data
 
 namespace Main {
@@ -59,7 +60,8 @@ void FillCreditOptions(
 	not_null<PeerData*> peer,
 	int minCredits,
 	Fn<void()> paid,
-	rpl::producer<QString> subtitle);
+	rpl::producer<QString> subtitle,
+	std::vector<Data::CreditTopupOption> preloadedTopupOptions);
 
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
 	not_null<Ui::RpWidget*> parent,

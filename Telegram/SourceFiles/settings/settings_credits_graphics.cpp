@@ -399,7 +399,8 @@ void FillCreditOptions(
 		not_null<PeerData*> peer,
 		int minimumCredits,
 		Fn<void()> paid,
-		rpl::producer<QString> subtitle) {
+		rpl::producer<QString> subtitle,
+		std::vector<Data::CreditTopupOption> preloadedTopupOptions) {
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
@@ -552,12 +553,16 @@ void FillCreditOptions(
 	const auto apiCredits = content->lifetime().make_state<ApiOptions>(peer);
 
 	if (show->session().premiumPossible()) {
-		apiCredits->request(
-		) | rpl::start_with_error_done([=](const QString &error) {
-			show->showToast(error);
-		}, [=] {
-			fill(apiCredits->options());
-		}, content->lifetime());
+		if (preloadedTopupOptions.empty()) {
+			apiCredits->request(
+			) | rpl::start_with_error_done([=](const QString &error) {
+				show->showToast(error);
+			}, [=] {
+				fill(apiCredits->options());
+			}, content->lifetime());
+		} else {
+			fill(std::move(preloadedTopupOptions));
+		}
 	}
 
 	show->session().premiumPossibleValue(
@@ -1711,7 +1716,8 @@ void SmallBalanceBox(
 		show->session().user(),
 		credits - show->session().credits().balance(),
 		[=] { show->session().credits().load(true); },
-		tr::lng_credits_summary_options_subtitle());
+		tr::lng_credits_summary_options_subtitle(),
+		{});
 
 	content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
