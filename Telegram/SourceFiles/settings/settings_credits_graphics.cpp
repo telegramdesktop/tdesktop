@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/premium_top_bar.h"
+#include "ui/effects/toggle_arrow.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
@@ -417,6 +418,23 @@ void FillCreditOptions(
 		Ui::AddSubsectionTitle(
 			content,
 			tr::lng_credits_summary_options_subtitle());
+
+		const auto buttons = content->add(
+			object_ptr<Ui::VerticalLayout>(content));
+
+		const auto showMoreWrap = content->add(
+			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+				content,
+				object_ptr<Ui::SettingsButton>(
+					content,
+					tr::lng_credits_more_options(),
+					st::statisticsShowMoreButton)));
+		const auto showMore = showMoreWrap->entity();
+		showMore->setClickedCallback([=] {
+			showMoreWrap->toggle(false, anim::type::instant);
+		});
+		Ui::AddToggleUpDownArrowToMoreButton(showMore);
+
 		const auto &st = st::creditsTopupButton;
 		const auto diffBetweenTextAndStar = st.padding.left()
 			- st.iconLeft
@@ -431,10 +449,24 @@ void FillCreditOptions(
 			if (option.credits < minCredits) {
 				continue;
 			}
-			const auto button = content->add(object_ptr<Ui::SettingsButton>(
-				content,
-				rpl::never<QString>(),
-				st));
+			const auto button = [&] {
+				auto owned = object_ptr<Ui::SettingsButton>(
+					buttons,
+					rpl::never<QString>(),
+					st);
+				if (!option.extended) {
+					return buttons->add(std::move(owned));
+				}
+				const auto wrap = buttons->add(
+					object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+						buttons,
+						std::move(owned)));
+				wrap->toggle(false, anim::type::instant);
+				showMore->clicks() | rpl::start_with_next([=] {
+					wrap->toggle(true, anim::type::normal);
+				}, wrap->lifetime());
+				return wrap->entity();
+			}();
 			const auto text = button->lifetime().make_state<Ui::Text::String>(
 				st.style,
 				tr::lng_credits_summary_options_credits(
