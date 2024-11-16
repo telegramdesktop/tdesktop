@@ -288,7 +288,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 
 	const auto rebuild = [=] {
 		const auto &list = session->data().chatsFilters().list();
-		if ((list.size() <= 1) || state->ignoreRefresh) {
+		if ((list.size() <= 1 && !slider->width()) || state->ignoreRefresh) {
 			return;
 		}
 		auto sections = ranges::views::all(
