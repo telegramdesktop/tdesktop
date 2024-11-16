@@ -638,6 +638,8 @@ private:
 	bool _streamedQualityChangeFinished = false;
 	bool _showAsPip = false;
 
+	Qt::Orientations _flip;
+
 	std::unique_ptr<Stories::View> _stories;
 	std::shared_ptr<Show> _cachedShow;
 	rpl::event_stream<> _storiesChanged;
