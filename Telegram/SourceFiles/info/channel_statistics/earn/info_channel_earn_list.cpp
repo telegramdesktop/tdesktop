@@ -119,27 +119,6 @@ void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
 	});
 }
 
-void AddArrow(not_null<Ui::RpWidget*> parent) {
-	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	arrow->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		auto p = QPainter(arrow);
-
-		const auto path = Ui::ToggleUpDownArrowPath(
-			st::statisticsShowMoreButtonArrowSize,
-			st::statisticsShowMoreButtonArrowSize,
-			st::statisticsShowMoreButtonArrowSize,
-			st::mainMenuToggleFourStrokes,
-			0.);
-
-		auto hq = PainterHighQualityEnabler(p);
-		p.fillPath(path, st::lightButtonFg);
-	}, arrow->lifetime());
-	arrow->resize(Size(st::statisticsShowMoreButtonArrowSize * 2));
-	arrow->move(st::statisticsShowMoreButtonArrowPosition);
-	arrow->show();
-}
-
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
 		tr::phrase<> text) {
@@ -1372,7 +1351,7 @@ void InnerWidget::fill() {
 								) | tr::to_count()),
 							st::statisticsShowMoreButton)));
 				const auto button = wrap->entity();
-				AddArrow(button);
+				Ui::AddToggleUpDownArrowToMoreButton(button);
 
 				wrap->toggle(true, anim::type::instant);
 				const auto handleReceived = [=](

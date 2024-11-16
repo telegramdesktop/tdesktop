@@ -60,27 +60,6 @@ constexpr auto kColorIndexPending = int(4);
 		+ (entry.in ? '1' : '0'));
 }
 
-void AddArrow(not_null<Ui::RpWidget*> parent) {
-	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	arrow->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		auto p = QPainter(arrow);
-
-		const auto path = Ui::ToggleUpDownArrowPath(
-			st::statisticsShowMoreButtonArrowSize,
-			st::statisticsShowMoreButtonArrowSize,
-			st::statisticsShowMoreButtonArrowSize,
-			st::mainMenuToggleFourStrokes,
-			0.);
-
-		auto hq = PainterHighQualityEnabler(p);
-		p.fillPath(path, st::lightButtonFg);
-	}, arrow->lifetime());
-	arrow->resize(Size(st::statisticsShowMoreButtonArrowSize * 2));
-	arrow->move(st::statisticsShowMoreButtonArrowPosition);
-	arrow->show();
-}
-
 void AddSubtitle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> title) {
@@ -1308,7 +1287,7 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddShowMoreButton(
 				std::move(title),
 				st::statisticsShowMoreButton)),
 		{ 0, -st::settingsButton.padding.top(), 0, 0 });
-	AddArrow(wrap->entity());
+	Ui::AddToggleUpDownArrowToMoreButton(wrap->entity());
 	return wrap;
 }
 

@@ -7,6 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/toggle_arrow.h"
 
+#include "ui/rp_widget.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "styles/style_statistics.h"
+#include "styles/style_window.h"
+
 #include <QtCore/QtMath>
 
 namespace Ui {
@@ -48,6 +54,26 @@ namespace Ui {
 	path.lineTo(points.front());
 
 	return path;
+}
+
+void AddToggleUpDownArrowToMoreButton(not_null<Ui::RpWidget*> parent) {
+	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	arrow->paintRequest() | rpl::start_with_next([=](const QRect &r) {
+		auto p = QPainter(arrow);
+
+		const auto path = ToggleUpDownArrowPath(
+			st::statisticsShowMoreButtonArrowSize,
+			st::statisticsShowMoreButtonArrowSize,
+			st::statisticsShowMoreButtonArrowSize,
+			st::mainMenuToggleFourStrokes,
+			0.);
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.fillPath(path, st::lightButtonFg);
+	}, arrow->lifetime());
+	arrow->resize(Size(st::statisticsShowMoreButtonArrowSize * 2));
+	arrow->move(st::statisticsShowMoreButtonArrowPosition);
+	arrow->show();
 }
 
 } // namespace Ui
