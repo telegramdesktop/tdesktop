@@ -106,6 +106,7 @@ public:
 		Media,
 		CommonGroups,
 		SimilarChannels,
+		RequestsList,
 		SavedSublists,
 		PeerGifts,
 		Members,

@@ -296,6 +296,7 @@ void Controller::updateSearchControllers(
 		: Section::MediaType::kCount;
 	const auto hasMediaSearch = isMedia
 		&& SharedMediaAllowSearch(mediaType);
+	const auto hasRequestsListSearch = (type == Type::RequestsList);
 	const auto hasCommonGroupsSearch = (type == Type::CommonGroups);
 	const auto hasDownloadsSearch = (type == Type::Downloads);
 	const auto hasMembersSearch = (type == Type::Members)
@@ -312,6 +313,7 @@ void Controller::updateSearchControllers(
 		_searchController = nullptr;
 	}
 	if (hasMediaSearch
+		|| hasRequestsListSearch
 		|| hasCommonGroupsSearch
 		|| hasDownloadsSearch
 		|| hasMembersSearch) {
