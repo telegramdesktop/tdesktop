@@ -398,7 +398,8 @@ void FillCreditOptions(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		int minimumCredits,
-		Fn<void()> paid) {
+		Fn<void()> paid,
+		rpl::producer<QString> subtitle) {
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
@@ -415,9 +416,9 @@ void FillCreditOptions(
 		while (content->count()) {
 			delete content->widgetAt(0);
 		}
-		Ui::AddSubsectionTitle(
-			content,
-			tr::lng_credits_summary_options_subtitle());
+		if (subtitle) {
+			Ui::AddSubsectionTitle(content, std::move(subtitle));
+		}
 
 		const auto buttons = content->add(
 			object_ptr<Ui::VerticalLayout>(content));
@@ -570,29 +571,41 @@ void FillCreditOptions(
 not_null<Ui::RpWidget*> AddBalanceWidget(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<uint64> balanceValue,
-		bool rightAlign) {
+		bool rightAlign,
+		rpl::producer<float64> opacityValue) {
+	struct State final {
+		QImage star;
+		float64 opacity = 1.0;
+		Ui::Text::String label;
+		Ui::Text::String count;
+	};
 	const auto balance = Ui::CreateChild<Balance>(parent);
-	const auto balanceStar = balance->lifetime().make_state<QImage>(
-		Ui::GenerateStars(st::creditsBalanceStarHeight, 1));
-	const auto starSize = balanceStar->size() / style::DevicePixelRatio();
-	const auto label = balance->lifetime().make_state<Ui::Text::String>(
+	const auto state = balance->lifetime().make_state<State>();
+	state->star = QImage(Ui::GenerateStars(st::creditsBalanceStarHeight, 1));
+	const auto starSize = state->star.size() / style::DevicePixelRatio();
+	state->label = Ui::Text::String(
 		st::defaultTextStyle,
 		tr::lng_credits_summary_balance(tr::now));
-	const auto count = balance->lifetime().make_state<Ui::Text::String>(
+	state->count = Ui::Text::String(
 		st::semiboldTextStyle,
 		tr::lng_contacts_loading(tr::now));
-	const auto diffBetweenStarAndCount = count->style()->font->spacew;
+	if (opacityValue) {
+		std::move(opacityValue) | rpl::start_with_next([=](float64 value) {
+			state->opacity = value;
+		}, balance->lifetime());
+	}
+	const auto diffBetweenStarAndCount = state->count.style()->font->spacew;
 	const auto resize = [=] {
 		balance->resize(
 			std::max(
-				label->maxWidth(),
-				count->maxWidth()
+				state->label.maxWidth(),
+				state->count.maxWidth()
 					+ starSize.width()
 					+ diffBetweenStarAndCount),
-			label->style()->font->height + starSize.height());
+			state->label.style()->font->height + starSize.height());
 	};
 	std::move(balanceValue) | rpl::start_with_next([=](uint64 value) {
-		count->setText(
+		state->count.setText(
 			st::semiboldTextStyle,
 			Lang::FormatCountToShort(value).string);
 		balance->setBalance(value);
@@ -602,32 +615,33 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(balance);
 
+		p.setOpacity(state->opacity);
 		p.setPen(st::boxTextFg);
 
-		label->draw(p, {
+		state->label.draw(p, {
 			.position = QPoint(
-				rightAlign ? (balance->width() - label->maxWidth()) : 0,
+				rightAlign ? (balance->width() - state->label.maxWidth()) : 0,
 				0),
 			.availableWidth = balance->width(),
 		});
-		count->draw(p, {
+		state->count.draw(p, {
 			.position = QPoint(
 				(rightAlign
-					? (balance->width() - count->maxWidth())
+					? (balance->width() - state->count.maxWidth())
 					: (starSize.width() + diffBetweenStarAndCount)),
-				label->minHeight()
-					+ (starSize.height() - count->minHeight()) / 2),
+				state->label.minHeight()
+					+ (starSize.height() - state->count.minHeight()) / 2),
 			.availableWidth = balance->width(),
 		});
 		p.drawImage(
 			(rightAlign
 				? (balance->width()
-					- count->maxWidth()
+					- state->count.maxWidth()
 					- starSize.width()
 					- diffBetweenStarAndCount)
 				: 0),
-			label->minHeight(),
-			*balanceStar);
+			state->label.minHeight(),
+			state->star);
 	}, balance->lifetime());
 	return balance;
 }
@@ -1696,7 +1710,8 @@ void SmallBalanceBox(
 		box->verticalLayout(),
 		show->session().user(),
 		credits - show->session().credits().balance(),
-		[=] { show->session().credits().load(true); });
+		[=] { show->session().credits().load(true); },
+		tr::lng_credits_summary_options_subtitle());
 
 	content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);

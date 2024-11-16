@@ -58,12 +58,14 @@ void FillCreditOptions(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	int minCredits,
-	Fn<void()> paid);
+	Fn<void()> paid,
+	rpl::producer<QString> subtitle);
 
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<uint64> balanceValue,
-	bool rightAlign);
+	bool rightAlign,
+	rpl::producer<float64> opacityValue = nullptr);
 
 void AddWithdrawalWidget(
 	not_null<Ui::VerticalLayout*> container,

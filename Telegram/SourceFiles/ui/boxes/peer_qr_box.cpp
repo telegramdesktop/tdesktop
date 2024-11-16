@@ -302,7 +302,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		divider->resize(container->width(), result->height());
 		result->moveToLeft((container->width() - result->width()) / 2, 0);
 		topWidget->setVisible(userpicToggled);
-		topWidget->moveToLeft(0, -std::numeric_limits<int>::min());
+		topWidget->moveToLeft(0, std::numeric_limits<int>::min());
 		topWidget->raise();
 
 		aboutLabel->raise();

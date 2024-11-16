@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_credits.h"
+#include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
@@ -350,20 +351,87 @@ void Credits::setupContent() {
 			Ui::StartFireworks(_parent);
 		}
 	};
-	const auto self = _controller->session().user();
-	FillCreditOptions(_controller->uiShow(), content, self, 0, paid);
-	{
-		Ui::AddSkip(content);
-		const auto giftButton = AddButtonWithIcon(
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	const auto balanceLine = content->add(
+		object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::RpWidget>(content)))->entity();
+	const auto balanceIcon = CreateSingleStarWidget(
+		balanceLine,
+		st::creditsSettingsBigBalance.style.font->height);
+	const auto balanceAmount = Ui::CreateChild<Ui::FlatLabel>(
+		balanceLine,
+		_controller->session().credits().balanceValue(
+		) | rpl::map(Lang::FormatCountDecimal),
+		st::creditsSettingsBigBalance);
+	balanceAmount->sizeValue() | rpl::start_with_next([=] {
+		balanceLine->resize(
+			balanceIcon->width()
+				+ st::creditsSettingsBigBalanceSkip
+				+ balanceAmount->textMaxWidth(),
+			balanceIcon->height());
+	}, balanceLine->lifetime());
+	balanceLine->widthValue() | rpl::start_with_next([=] {
+		balanceAmount->moveToRight(0, 0);
+	}, balanceLine->lifetime());
+	Ui::AddSkip(content);
+	content->add(
+		object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_credits_balance_me(),
+				st::infoTopBar.subtitle)));
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	const auto button = content->add(
+		object_ptr<Ui::RoundButton>(
+			content,
+			tr::lng_credits_buy_button(),
+			st::creditsSettingsBigBalanceButton),
+		st::boxRowPadding);
+	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	button->setClickedCallback([=, show = _controller->uiShow()] {
+		show->show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setStyle(st::giveawayGiftCodeBox);
+			box->setWidth(st::boxWideWidth);
+			box->setTitle(tr::lng_credits_summary_options_subtitle());
+			const auto inner = box->verticalLayout();
+			const auto self = show->session().user();
+			FillCreditOptions(show, inner, self, 0, paid, nullptr);
+
+			const auto button = box->addButton(tr::lng_close(), [=] {
+				box->closeBox();
+			});
+			const auto buttonWidth = st::boxWideWidth
+				- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+			button->widthValue() | rpl::filter([=] {
+				return (button->widthNoMargins() != buttonWidth);
+			}) | rpl::start_with_next([=] {
+				button->resizeToWidth(buttonWidth);
+			}, button->lifetime());
+		}));
+	});
+
+	Ui::AddSkip(content);
+
+	const auto gift = content->add(
+		object_ptr<Ui::RoundButton>(
 			content,
 			tr::lng_credits_gift_button(),
-			st::settingsButtonLightNoIcon);
-		Ui::AddSkip(content);
-		Ui::AddDivider(content);
-		giftButton->setClickedCallback([=] {
-			Ui::ShowGiftCreditsBox(_controller, paid);
-		});
-	}
+			st::creditsSettingsBigBalanceButtonGift),
+		st::boxRowPadding);
+	gift->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	gift->setClickedCallback([=, controller = _controller] {
+		Ui::ShowGiftCreditsBox(controller, paid);
+	});
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddDivider(content);
 
 	setupSubscriptions(content);
 	setupHistory(content);
@@ -422,7 +490,12 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 		const auto balance = AddBalanceWidget(
 			content,
 			_controller->session().credits().balanceValue(),
-			true);
+			true,
+			content->heightValue() | rpl::map([=](int height) {
+				const auto ratio = float64(height - content->minimumHeight())
+					/ (content->maximumHeight() - content->minimumHeight());
+				return (1. - ratio / 0.35);
+			}));
 		_controller->session().credits().load(true);
 		rpl::combine(
 			balance->sizeValue(),

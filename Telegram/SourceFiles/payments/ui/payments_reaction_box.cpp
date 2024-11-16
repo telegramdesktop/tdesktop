@@ -30,7 +30,8 @@ namespace Settings {
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<uint64> balanceValue,
-	bool rightAlign);
+	bool rightAlign,
+	rpl::producer<float64> opacityValue = nullptr);
 } // namespace Settings
 
 namespace Ui {

@@ -11,6 +11,23 @@ using "ui/widgets/widgets.style";
 using "ui/effects/premium.style";
 using "settings/settings.style";
 
+creditsSettingsBigBalance: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(24px semibold);
+	}
+}
+creditsSettingsBigBalanceSkip: 4px;
+creditsSettingsBigBalanceButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+creditsSettingsBigBalanceButtonGift: RoundButton(defaultLightButton) {
+	height: 42px;
+	textTop: 12px;
+	style: defaultTextStyle;
+}
+
 creditsPremiumCover: PremiumCover(defaultPremiumCover) {
 	about: FlatLabel(userPremiumCoverAbout) {
 		textFg: boxTitleFg;
