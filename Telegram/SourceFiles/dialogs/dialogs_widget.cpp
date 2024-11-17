@@ -653,7 +653,8 @@ Widget::Widget(
 	}
 
 	if (session().settings().dialogsFiltersEnabled()
-		&& Core::App().settings().chatFiltersHorizontal()) {
+		&& (Core::App().settings().chatFiltersHorizontal()
+			|| !controller->enoughSpaceForFilters())) {
 		toggleFiltersMenu(true);
 	}
 }
