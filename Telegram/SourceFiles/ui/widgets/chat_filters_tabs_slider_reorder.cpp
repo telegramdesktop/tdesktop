@@ -180,6 +180,9 @@ void ChatsFiltersTabsReorder::mousePress(
 		}
 	}
 	cancelCurrent();
+	if (!widget) {
+		return;
+	}
 	_currentWidget = widget->section;
 	_currentShiftedWidget = widget;
 	_currentStart = globalPosition.x();
