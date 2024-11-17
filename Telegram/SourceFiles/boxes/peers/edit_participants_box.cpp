@@ -30,10 +30,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "base/unixtime.h"
 #include "ui/effects/outline_segments.h"
+#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/text/text_utilities.h"
 #include "info/profile/info_profile_values.h"
 #include "window/window_session_controller.h"
 #include "history/history.h"
+#include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
 namespace {
@@ -1645,6 +1648,51 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
+	const auto addToEnd = gsl::finally([&] {
+		const auto addInfoAction = [&](
+				not_null<PeerData*> by,
+				tr::phrase<lngtag_user, lngtag_date> phrase,
+				TimeId since) {
+			auto text = phrase(
+				tr::now,
+				lt_user,
+				Ui::Text::Bold(by->name()),
+				lt_date,
+				Ui::Text::Bold(
+					langDateTimeFull(base::unixtime::parse(since))),
+				Ui::Text::WithEntities);
+			auto button = base::make_unique_q<Ui::Menu::MultilineAction>(
+				result->menu(),
+				result->st().menu,
+				st::historyHasCustomEmoji,
+				st::historyHasCustomEmojiPosition,
+				std::move(text));
+			if (const auto n = _navigation) {
+				button->setClickedCallback([=] {
+					n->parentController()->show(PrepareShortInfoBox(by, n));
+				});
+			}
+			result->addSeparator();
+			result->addAction(std::move(button));
+		};
+
+		if (const auto by = _additional.restrictedBy(participant)) {
+			if (const auto since = _additional.restrictedSince(participant)) {
+				addInfoAction(
+					by,
+					_additional.isKicked(participant)
+						? tr::lng_rights_chat_banned_by
+						: tr::lng_rights_chat_restricted_by,
+					since);
+			}
+		} else if (user) {
+			if (const auto by = _additional.adminPromotedBy(user)) {
+				if (const auto since = _additional.adminPromotedSince(user)) {
+					addInfoAction(by, tr::lng_rights_about_by, since);
+				}
+			}
+		}
+	});
 	if (_navigation) {
 		result->addAction(
 			(participant->isUser()
@@ -1657,33 +1705,6 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 			(participant->isUser()
 				? &st::menuIconProfile
 				: &st::menuIconInfo));
-	}
-	if (const auto by = _additional.restrictedBy(participant)) {
-		result->addAction(
-			(_role == Role::Kicked
-				? tr::lng_channel_banned_status_removed_by
-				: tr::lng_channel_banned_status_restricted_by)(
-					tr::now,
-					lt_user,
-					by->name()),
-			crl::guard(this, [=] {
-				_navigation->parentController()->show(
-					PrepareShortInfoBox(by, _navigation));
-			}),
-			&st::menuIconAdmin);
-	} else if (user) {
-		if (const auto by = _additional.adminPromotedBy(user)) {
-			result->addAction(
-				tr::lng_channel_admin_status_promoted_by(
-					tr::now,
-					lt_user,
-					by->name()),
-				crl::guard(this, [=] {
-					_navigation->parentController()->show(
-						PrepareShortInfoBox(by, _navigation));
-				}),
-				&st::menuIconAdmin);
-		}
 	}
 	if (_role == Role::Kicked) {
 		if (_peer->isMegagroup()

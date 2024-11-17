@@ -4359,7 +4359,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_edit_admin_rank_about" = "A title that members will see instead of '{title}'.";
 "lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with equal or fewer rights.";
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
-"lng_rights_about_by" = "This admin promoted by {user} at {date}.";
+"lng_rights_about_by" = "This admin promoted by {user} on {date}.";
 
 "lng_rights_about_admin_cant_edit" = "You can't edit the rights of this admin.";
 "lng_rights_about_restriction_cant_edit" = "You cannot change the restrictions for this user.";
@@ -4438,8 +4438,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_chat_files" = "Files";
 "lng_rights_chat_voice_messages" = "Voice messages";
 "lng_rights_chat_video_messages" = "Video messages";
-"lng_rights_chat_restricted_by" = "Restricted by {user} at {date}.";
-"lng_rights_chat_banned_by" = "Banned by {user} at {date}.";
+"lng_rights_chat_restricted_by" = "Restricted by {user} on {date}.";
+"lng_rights_chat_banned_by" = "Banned by {user} on {date}.";
 "lng_rights_chat_banned_until_header" = "Restricted until";
 "lng_rights_chat_banned_forever" = "Forever";
 "lng_rights_chat_banned_day#one" = "For {count} day";
