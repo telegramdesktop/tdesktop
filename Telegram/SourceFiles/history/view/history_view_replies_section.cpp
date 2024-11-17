@@ -916,8 +916,9 @@ void RepliesWidget::setupSwipeReply() {
 		result.callback = [=, itemId = view->data()->fullId()] {
 			const auto still = show->session().data().message(itemId);
 			const auto view = _inner->viewByPosition(still->position());
-			const auto selected = view->selectedQuote(
-				_inner->getSelectedTextRange(still));
+			const auto selected = view
+				? view->selectedQuote(_inner->getSelectedTextRange(still))
+				: SelectedQuote();
 			const auto replyToItemId = (selected.item
 				? selected.item
 				: still)->fullId();
