@@ -1315,6 +1315,7 @@ SessionController::SessionController(
 	}, lifetime());
 
 	rpl::merge(
+		enoughSpaceForFiltersValue() | rpl::skip(1) | rpl::to_empty,
 		Core::App().settings().chatFiltersHorizontalChanges() | rpl::to_empty,
 		session->data().chatsFilters().changed()
 	) | rpl::start_with_next([=] {
@@ -1322,7 +1323,8 @@ SessionController::SessionController(
 		crl::on_main(this, [this] {
 			if (SessionNavigation::session().data().chatsFilters().has()) {
 				const auto isHorizontal
-					= Core::App().settings().chatFiltersHorizontal();
+					= Core::App().settings().chatFiltersHorizontal()
+						|| !enoughSpaceForFilters();
 				content()->toggleFiltersMenu(isHorizontal);
 				toggleFiltersMenu(!isHorizontal);
 			} else {
@@ -2586,6 +2588,16 @@ not_null<MainWidget*> SessionController::content() const {
 
 int SessionController::filtersWidth() const {
 	return _filters ? st::windowFiltersWidth : 0;
+}
+
+bool SessionController::enoughSpaceForFilters() const {
+	return widget()->width() >= widget()->minimumWidth() + st::windowFiltersWidth;
+}
+
+rpl::producer<bool> SessionController::enoughSpaceForFiltersValue() const {
+	return widget()->widthValue() | rpl::map([=] {
+		return enoughSpaceForFilters();
+	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<FilterId> SessionController::activeChatsFilter() const {

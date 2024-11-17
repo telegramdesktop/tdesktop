@@ -844,7 +844,16 @@ void SetupTopContent(
 
 }
 
-void SetupView(not_null<Ui::VerticalLayout*> content) {
+void SetupView(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> content) {
+	const auto wrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content)));
+	wrap->toggleOn(controller->enoughSpaceForFiltersValue());
+	content = wrap->entity();
+
 	Ui::AddDivider(content);
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_filters_view_subtitle());
@@ -900,7 +909,7 @@ void Folders::setupContent(not_null<Window::SessionController*> controller) {
 
 	_save = SetupFoldersContent(controller, content);
 
-	SetupView(content);
+	SetupView(controller, content);
 
 	Ui::ResizeFitChild(this, content);
 }

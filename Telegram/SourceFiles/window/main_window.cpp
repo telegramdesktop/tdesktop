@@ -566,11 +566,6 @@ void MainWindow::updatePalette() {
 
 int MainWindow::computeMinWidth() const {
 	auto result = st::windowMinWidth;
-	if (const auto session = _controller->sessionController()) {
-		if (const auto add = session->filtersWidth()) {
-			result += add;
-		}
-	}
 	if (_rightColumn) {
 		result += _rightColumn->width();
 	}
