@@ -478,7 +478,6 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 notifyFromAll = _notifyFromAll ? 1 : 0;
 	qint32 nativeWindowFrame = _nativeWindowFrame.current() ? 1 : 0;
 	qint32 systemDarkModeEnabled = _systemDarkModeEnabled.current() ? 1 : 0;
-	qint32 legacySystemDarkModeEnabled = 0;
 	qint32 ipRevealWarning = _ipRevealWarning ? 1 : 0;
 	qint32 groupCallPushToTalk = _groupCallPushToTalk ? 1 : 0;
 	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
@@ -612,7 +611,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> nativeWindowFrame;
 	}
 	if (!stream.atEnd()) {
-		stream >> legacySystemDarkModeEnabled;
+		// Read over this one below, if was in the file.
+		stream >> systemDarkModeEnabled;
 	}
 	if (!stream.atEnd()) {
 		stream >> cameraDeviceId;
