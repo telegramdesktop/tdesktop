@@ -77,7 +77,6 @@ enum class SpecialRowType {
 		const auto &color1 = st::historyPeer6UserpicBg;
 		const auto &color2 = st::historyPeer6UserpicBg2;
 
-		const auto rect = style::rtlrect(x, y, size, size, outerWidth);
 		auto hq = PainterHighQualityEnabler(p);
 		auto gradient = QLinearGradient(x, y, x, y + size);
 		gradient.setStops({ { 0., color1->c }, { 1., color2->c } });
@@ -195,9 +194,6 @@ public:
 	PaintRoundImageCallback generatePaintUserpicCallback(
 		bool forceRound) override;
 	bool useForumLikeUserpic() const override;
-
-private:
-	const SpecialRowType _type = SpecialRowType::Premiums;
 
 };
 

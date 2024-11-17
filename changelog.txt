@@ -1,3 +1,9 @@
+5.8 (17.11.24)
+
+- Updates in Mini Apps platform.
+- Chat folders in forward and share boxes.
+- Horizontal strip mode for chat folders.
+
 5.7.4 beta (15.11.24)
 
 - Enable auto night mode by default.
