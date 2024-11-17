@@ -50,6 +50,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
+
 namespace Ui {
 namespace {
 
@@ -274,43 +277,45 @@ void UserpicButton::choosePhotoLocally() {
 			_chosenImages.fire({ std::move(image), type });
 		};
 	};
-	const auto chooseFile = [=](ChosenType type = ChosenType::Set) {
+	const auto editorData = [=](ChosenType type) {
+		const auto user = _peer ? _peer->asUser() : nullptr;
+		const auto name = (user && !user->firstName.isEmpty())
+			? user->firstName
+			: _peer
+			? _peer->name()
+			: QString();
+		const auto phrase = (type == ChosenType::Suggest)
+			? &tr::lng_profile_suggest_sure
+			: (user && EditPeerInfoBox::Available(user))
+			? nullptr
+			: (user && !user->isSelf())
+			? &tr::lng_profile_set_personal_sure
+			: nullptr;
+		return Editor::EditorData{
+			.about = (phrase
+				? (*phrase)(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold(name),
+					Ui::Text::WithEntities)
+				: TextWithEntities()),
+			.confirm = ((type == ChosenType::Suggest)
+				? tr::lng_profile_suggest_button(tr::now)
+				: tr::lng_profile_set_photo_button(tr::now)),
+			.cropType = (useForumShape()
+				? Editor::EditorData::CropType::RoundedRect
+				: Editor::EditorData::CropType::Ellipse),
+			.keepAspectRatio = true,
+		};
+	};
+	const auto chooseFile = [=](ChosenType type) {
 		base::call_delayed(
 			_st.changeButton.ripple.hideDuration,
 			crl::guard(this, [=] {
-				using namespace Editor;
-				const auto user = _peer ? _peer->asUser() : nullptr;
-				const auto name = (user && !user->firstName.isEmpty())
-					? user->firstName
-					: _peer
-					? _peer->name()
-					: QString();
-				const auto phrase = (type == ChosenType::Suggest)
-					? &tr::lng_profile_suggest_sure
-					: (user && EditPeerInfoBox::Available(user))
-					? nullptr
-					: (user && !user->isSelf())
-					? &tr::lng_profile_set_personal_sure
-					: nullptr;
 				PrepareProfilePhotoFromFile(
 					this,
 					_window,
-					{
-						.about = (phrase
-							? (*phrase)(
-								tr::now,
-								lt_user,
-								Ui::Text::Bold(name),
-								Ui::Text::WithEntities)
-							: TextWithEntities()),
-						.confirm = ((type == ChosenType::Suggest)
-							? tr::lng_profile_suggest_button(tr::now)
-							: tr::lng_profile_set_photo_button(tr::now)),
-						.cropType = (useForumShape()
-							? EditorData::CropType::RoundedRect
-							: EditorData::CropType::Ellipse),
-						.keepAspectRatio = true,
-					},
+					editorData(type),
 					callback(type));
 			}));
 	};
@@ -334,19 +339,43 @@ void UserpicButton::choosePhotoLocally() {
 			done,
 			_peer ? _peer->isForum() : false);
 	};
+	const auto addFromClipboard = [=](ChosenType type, tr::phrase<> text) {
+		if (const auto data = QGuiApplication::clipboard()->mimeData()) {
+			if (data->hasImage()) {
+				auto openEditor = crl::guard(this, [=, this] {
+					Editor::PrepareProfilePhoto(
+						this,
+						_window,
+						editorData(ChosenType::Set),
+						callback(ChosenType::Set),
+						qvariant_cast<QImage>(data->imageData()));
+				});
+				_menu->addAction(
+					std::move(text)(tr::now),
+					std::move(openEditor),
+					&st::menuIconPhoto);
+			}
+		}
+	};
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
 	if (user && !user->isSelf()) {
 		_menu->addAction(
 			tr::lng_profile_set_photo_for(tr::now),
-			[=] { chooseFile(); },
+			[=] { chooseFile(ChosenType::Set); },
 			&st::menuIconPhotoSet);
+		addFromClipboard(
+			ChosenType::Set,
+			tr::lng_profile_set_photo_for_from_clipboard);
 		if (canSuggestPhoto(user)) {
 			_menu->addAction(
 				tr::lng_profile_suggest_photo(tr::now),
 				[=] { chooseFile(ChosenType::Suggest); },
 				&st::menuIconPhotoSuggest);
+			addFromClipboard(
+				ChosenType::Suggest,
+				tr::lng_profile_suggest_photo_from_clipboard);
 		}
 		addUserpicBuilder(ChosenType::Set);
 		if (hasPersonalPhotoLocally()) {
@@ -357,7 +386,7 @@ void UserpicButton::choosePhotoLocally() {
 		const auto hasCamera = IsCameraAvailable();
 		if (hasCamera || _controller) {
 			_menu->addAction(tr::lng_attach_file(tr::now), [=] {
-				chooseFile();
+				chooseFile(ChosenType::Set);
 			}, &st::menuIconPhoto);
 			if (hasCamera) {
 				_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
@@ -369,9 +398,12 @@ void UserpicButton::choosePhotoLocally() {
 						callback(ChosenType::Set)));
 				}, &st::menuIconPhotoSet);
 			}
+			addFromClipboard(
+				ChosenType::Set,
+				tr::lng_profile_photo_from_clipboard);
 			addUserpicBuilder(ChosenType::Set);
 		} else {
-			chooseFile();
+			chooseFile(ChosenType::Set);
 		}
 	}
 	_menu->popup(QCursor::pos());

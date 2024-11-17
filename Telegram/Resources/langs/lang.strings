@@ -1464,8 +1464,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_suggest_photo" = "Suggest Profile Photo";
+"lng_profile_suggest_photo_from_clipboard" = "Suggest From Clipboard";
 "lng_profile_set_photo_for" = "Set Profile Photo";
+"lng_profile_set_photo_for_from_clipboard" = "Set From Clipboard";
 "lng_profile_photo_reset" = "Reset to Original";
+"lng_profile_photo_from_clipboard" = "From clipboard";
 "lng_profile_suggest_sure" = "You can suggest {user} to set this photo for their Telegram profile.";
 "lng_profile_suggest_button" = "Suggest";
 "lng_profile_set_personal_sure" = "Only you will see this photo and it will replace any photo {user} sets for themselves.";
