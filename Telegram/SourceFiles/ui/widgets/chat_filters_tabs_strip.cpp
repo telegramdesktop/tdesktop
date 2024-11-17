@@ -381,14 +381,18 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				state->reorder->finishReordering();
 			}, slider->lifetime());
 		}
-		slider->sectionActivated() | rpl::distinct_until_changed(
-		) | rpl::start_with_next([=](int index) {
+		rpl::single(-1) | rpl::then(
+			slider->sectionActivated()
+		) | rpl::combine_previous(
+		) | rpl::start_with_next([=](int was, int index) {
 			if (slider->reordering()) {
 				return;
 			}
 			const auto &filter = filterByIndex(index);
-			state->lastFilterId = filter.id();
-			scrollToIndex(index, anim::type::normal);
+			if (was != index) {
+				state->lastFilterId = filter.id();
+				scrollToIndex(index, anim::type::normal);
+			}
 			applyFilter(filter);
 		}, wrap->lifetime());
 		slider->contextMenuRequested() | rpl::start_with_next([=](int index) {

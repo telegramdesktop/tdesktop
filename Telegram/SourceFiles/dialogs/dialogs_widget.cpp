@@ -1328,6 +1328,7 @@ void Widget::toggleFiltersMenu(bool enabled) {
 			_chatFilters.get(),
 			&session(),
 			[this](FilterId id) {
+				_scroll->scrollToY(0);
 				if (controller()->activeChatsFilterCurrent() != id) {
 					controller()->setActiveChatsFilter(id);
 				}
