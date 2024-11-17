@@ -4028,13 +4028,17 @@ void ApiWrap::sendInlineResult(
 		history->finishSavingCloudDraft(
 			topicRootId,
 			UnixtimeFromMsgId(response.outerMsgId));
-		done(true);
+		if (done) {
+			done(true);
+		}
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		sendMessageFail(error, peer, randomId, newId);
 		history->finishSavingCloudDraft(
 			topicRootId,
 			UnixtimeFromMsgId(response.outerMsgId));
-		done(false);
+		if (done) {
+			done(false);
+		}
 	});
 	finishForwarding(action);
 }
