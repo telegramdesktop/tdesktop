@@ -86,10 +86,12 @@ void ShowMenu(
 		auto showRemoveBox = [=] {
 			state->removeApi.request(Ui::MakeWeak(parent), controller, id);
 		};
-		addAction(
-			tr::lng_filters_context_remove(tr::now),
-			std::move(showRemoveBox),
-			&st::menuIconDelete);
+		addAction({
+			.text = tr::lng_filters_context_remove(tr::now),
+			.handler = std::move(showRemoveBox),
+			.icon = &st::menuIconDeleteAttention,
+			.isAttention = true,
+		});
 	} else {
 		auto customUnreadState = [=] {
 			return Data::MainListMapUnreadState(
