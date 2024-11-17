@@ -7,9 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_message_reaction_id.h"
 #include "data/data_search_controller.h"
 #include "info/statistics/info_statistics_tag.h"
 #include "window/window_session_controller.h"
+
+namespace Api {
+struct WhoReadList;
+} // namespace Api
 
 namespace Data {
 class ForumTopic;
@@ -67,6 +72,10 @@ public:
 	Key(Stories::Tag stories);
 	Key(Statistics::Tag statistics);
 	Key(not_null<PollData*> poll, FullMsgId contextId);
+	Key(
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		Data::ReactionId selected,
+		FullMsgId contextId);
 
 	PeerData *peer() const;
 	Data::ForumTopic *topic() const;
@@ -77,10 +86,18 @@ public:
 	Statistics::Tag statisticsTag() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
+	std::shared_ptr<Api::WhoReadList> reactionsWhoReadIds() const;
+	Data::ReactionId reactionsSelected() const;
+	FullMsgId reactionsContextId() const;
 
 private:
 	struct PollKey {
 		not_null<PollData*> poll;
+		FullMsgId contextId;
+	};
+	struct ReactionsKey {
+		std::shared_ptr<Api::WhoReadList> whoReadIds;
+		Data::ReactionId selected;
 		FullMsgId contextId;
 	};
 	std::variant<
@@ -90,7 +107,8 @@ private:
 		Downloads::Tag,
 		Stories::Tag,
 		Statistics::Tag,
-		PollKey> _value;
+		PollKey,
+		ReactionsKey> _value;
 
 };
 
@@ -107,6 +125,7 @@ public:
 		CommonGroups,
 		SimilarChannels,
 		RequestsList,
+		ReactionsList,
 		SavedSublists,
 		PeerGifts,
 		Members,
@@ -187,6 +206,10 @@ public:
 	[[nodiscard]] FullMsgId pollContextId() const {
 		return key().pollContextId();
 	}
+	[[nodiscard]] auto reactionsWhoReadIds() const
+		-> std::shared_ptr<Api::WhoReadList>;
+	[[nodiscard]] Data::ReactionId reactionsSelected() const;
+	[[nodiscard]] FullMsgId reactionsContextId() const;
 
 	virtual void setSearchEnabledByContent(bool enabled) {
 	}

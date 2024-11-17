@@ -5,18 +5,22 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/requests_list/info_requests_list_widget.h"
+#include "info/reactions_list/info_reactions_list_widget.h"
 
-#include "boxes/peers/edit_peer_requests_box.h"
+#include "api/api_who_reacted.h"
+#include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
+#include "history/view/reactions/history_view_reactions_list.h"
+#include "history/view/reactions/history_view_reactions_tabs.h"
 #include "info/info_controller.h"
+#include "ui/controls/who_reacted_context_action.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 
-namespace Info::RequestsList {
+namespace Info::ReactionsList {
 namespace {
 
 } // namespace
@@ -28,11 +32,13 @@ public:
 	InnerWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
-		not_null<ChannelData*> channel);
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		FullMsgId contextId,
+		Data::ReactionId selected);
 
-	[[nodiscard]] not_null<ChannelData*> channel() const {
-		return _channel;
-	}
+	[[nodiscard]] std::shared_ptr<Api::WhoReadList> whoReadIds() const;
+	[[nodiscard]] FullMsgId contextId() const;
+	[[nodiscard]] Data::ReactionId selected() const;
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 
@@ -63,12 +69,14 @@ private:
 
 	object_ptr<ListWidget> setupList(
 		RpWidget *parent,
-		not_null<RequestsBoxController*> controller);
+		not_null<PeerListController*> controller);
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	not_null<Controller*> _controller;
-	const not_null<ChannelData*> _channel;
-	std::unique_ptr<RequestsBoxController> _listController;
+	Data::ReactionId _selected;
+	not_null<HistoryView::Reactions::Tabs*> _tabs;
+	rpl::variable<int> _tabsHeight;
+	HistoryView::Reactions::PreparedFullList _full;
 	object_ptr<ListWidget> _list;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
@@ -77,23 +85,45 @@ private:
 InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<ChannelData*> channel)
+	std::shared_ptr<Api::WhoReadList> whoReadIds,
+	FullMsgId contextId,
+	Data::ReactionId selected)
 : RpWidget(parent)
 , _show(controller->uiShow())
 , _controller(controller)
-, _channel(channel)
-, _listController(std::make_unique<RequestsBoxController>(
+, _selected(selected)
+, _tabs(HistoryView::Reactions::CreateReactionsTabs(
+	this,
 	controller,
-	_channel))
-, _list(setupList(this, _listController.get())) {
+	controller->reactionsContextId(),
+	_selected,
+	controller->reactionsWhoReadIds()))
+, _tabsHeight(_tabs->heightValue())
+, _full(HistoryView::Reactions::FullListController(
+	controller,
+	controller->reactionsContextId(),
+	_selected,
+	controller->reactionsWhoReadIds()))
+, _list(setupList(this, _full.controller.get())) {
 	setContent(_list.data());
-	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
+	_full.controller->setDelegate(static_cast<PeerListDelegate*>(this));
+	_tabs->changes(
+	) | rpl::start_with_next([=](Data::ReactionId reaction) {
+		_selected = reaction;
+		_full.switchTab(reaction);
+	}, _list->lifetime());
+}
 
-	controller->searchFieldController()->queryValue(
-	) | rpl::start_with_next([this](QString &&query) {
-		peerListScrollToTop();
-		content()->searchQueryChanged(std::move(query));
-	}, lifetime());
+std::shared_ptr<Api::WhoReadList> InnerWidget::whoReadIds() const {
+	return _controller->reactionsWhoReadIds();
+}
+
+FullMsgId InnerWidget::contextId() const {
+	return _controller->reactionsContextId();
+}
+
+Data::ReactionId InnerWidget::selected() const {
+	return _selected;
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -103,11 +133,11 @@ void InnerWidget::visibleTopBottomUpdated(
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
-	memento->setListState(_listController->saveState());
+	memento->setListState(_full.controller->saveState());
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
-	_listController->restoreState(memento->listState());
+	_full.controller->restoreState(memento->listState());
 }
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
@@ -122,26 +152,38 @@ int InnerWidget::desiredHeight() const {
 
 object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 		RpWidget *parent,
-		not_null<RequestsBoxController*> controller) {
+		not_null<PeerListController*> controller) {
 	auto result = object_ptr<ListWidget>(parent, controller);
-	result->scrollToRequests(
+	const auto raw = result.data();
+
+	raw->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		auto addmin = (request.ymin < 0) ? 0 : st::infoCommonGroupsMargin.top();
-		auto addmax = (request.ymax < 0) ? 0 : st::infoCommonGroupsMargin.top();
+		const auto skip = _tabsHeight.current()
+			+ st::infoCommonGroupsMargin.top();
+		auto addmin = (request.ymin < 0) ? 0 : skip;
+		auto addmax = (request.ymax < 0) ? 0 : skip;
 		_scrollToRequests.fire({
 			request.ymin + addmin,
 			request.ymax + addmax });
-	}, result->lifetime());
-	result->moveToLeft(0, st::infoCommonGroupsMargin.top());
+	}, raw->lifetime());
+
+	_tabs->move(0, 0);
+	_tabsHeight.value() | rpl::start_with_next([=](int tabs) {
+		raw->moveToLeft(0, tabs + st::infoCommonGroupsMargin.top());
+	}, raw->lifetime());
 
 	parent->widthValue(
-	) | rpl::start_with_next([list = result.data()](int newWidth) {
-		list->resizeToWidth(newWidth);
-	}, result->lifetime());
+	) | rpl::start_with_next([=](int newWidth) {
+		_tabs->resizeToWidth(newWidth);
+		raw->resizeToWidth(newWidth);
+	}, raw->lifetime());
 
-	result->heightValue(
-	) | rpl::start_with_next([parent](int listHeight) {
-		auto newHeight = st::infoCommonGroupsMargin.top()
+	rpl::combine(
+		_tabsHeight.value(),
+		raw->heightValue()
+	) | rpl::start_with_next([parent](int tabsHeight, int listHeight) {
+		const auto newHeight = tabsHeight
+			+ st::infoCommonGroupsMargin.top()
 			+ listHeight
 			+ st::infoCommonGroupsMargin.bottom();
 		parent->resize(parent->width(), newHeight);
@@ -188,23 +230,39 @@ std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
 	return _show;
 }
 
-Memento::Memento(not_null<ChannelData*> channel)
-: ContentMemento(channel, nullptr, PeerId()) {
+Memento::Memento(
+	std::shared_ptr<Api::WhoReadList> whoReadIds,
+	FullMsgId contextId,
+	Data::ReactionId selected)
+: ContentMemento(std::move(whoReadIds), contextId, selected) {
 }
 
 Section Memento::section() const {
-	return Section(Section::Type::RequestsList);
+	return Section(Section::Type::ReactionsList);
 }
 
-not_null<ChannelData*> Memento::channel() const {
-	return peer()->asChannel();
+std::shared_ptr<Api::WhoReadList> Memento::whoReadIds() const {
+	return reactionsWhoReadIds();
+}
+
+FullMsgId Memento::contextId() const {
+	return reactionsContextId();
+}
+
+Data::ReactionId Memento::selected() const {
+	return reactionsSelected();
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller, channel());
+	auto result = object_ptr<Widget>(
+		parent,
+		controller,
+		whoReadIds(),
+		contextId(),
+		selected());
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -222,33 +280,45 @@ Memento::~Memento() = default;
 Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<ChannelData*> channel)
+	std::shared_ptr<Api::WhoReadList> whoReadIds,
+	FullMsgId contextId,
+	Data::ReactionId selected)
 : ContentWidget(parent, controller) {
-	controller->setSearchEnabledByContent(true);
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
-		channel));
+		std::move(whoReadIds),
+		contextId,
+		selected));
 }
 
 rpl::producer<QString> Widget::title() {
-	return tr::lng_manage_peer_requests();
+	const auto ids = whoReadIds();
+	const auto count = ids ? int(ids->list.size()) : 0;
+	return !count
+		? tr::lng_manage_peer_reactions()
+		: (ids->type == Ui::WhoReadType::Seen)
+		? tr::lng_context_seen_text(lt_count, rpl::single(1. * count))
+		: (ids->type == Ui::WhoReadType::Listened)
+		? tr::lng_context_seen_listened(lt_count, rpl::single(1. * count))
+		: (ids->type == Ui::WhoReadType::Watched)
+		? tr::lng_context_seen_watched(lt_count, rpl::single(1. * count))
+		: tr::lng_manage_peer_reactions();
 }
 
-not_null<ChannelData*> Widget::channel() const {
-	return _inner->channel();
+std::shared_ptr<Api::WhoReadList> Widget::whoReadIds() const {
+	return _inner->whoReadIds();
+}
+
+FullMsgId Widget::contextId() const {
+	return _inner->contextId();
+}
+
+Data::ReactionId Widget::selected() const {
+	return _inner->selected();
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
-	if (!controller()->validateMementoPeer(memento)) {
-		return false;
-	}
-	if (auto requestsMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (requestsMemento->channel() == channel()) {
-			restoreState(requestsMemento);
-			return true;
-		}
-	}
 	return false;
 }
 
@@ -261,7 +331,10 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(channel());
+	auto result = std::make_shared<Memento>(
+		whoReadIds(),
+		contextId(),
+		selected());
 	saveState(result.get());
 	return result;
 }
@@ -276,4 +349,4 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
-} // namespace Info::RequestsList
+} // namespace Info::ReactionsList

@@ -7,27 +7,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_content_widget.h"
 
-#include "window/window_session_controller.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/fields/input_field.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/search_field_controller.h"
-#include "ui/ui_utility.h"
-#include "lang/lang_keys.h"
-#include "info/profile/info_profile_widget.h"
-#include "info/media/info_media_widget.h"
-#include "info/common_groups/info_common_groups_widget.h"
-#include "info/info_layer_widget.h"
-#include "info/info_section_widget.h"
-#include "info/info_controller.h"
+#include "api/api_who_reacted.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
+#include "info/profile/info_profile_widget.h"
+#include "info/media/info_media_widget.h"
+#include "info/common_groups/info_common_groups_widget.h"
+#include "info/info_layer_widget.h"
+#include "info/info_section_widget.h"
+#include "info/info_controller.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/search_field_controller.h"
+#include "ui/ui_utility.h"
 #include "window/window_peer_menu.h"
+#include "window/window_session_controller.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 #include "styles/style_layers.h"
@@ -377,6 +378,8 @@ Key ContentMemento::key() const {
 		return Stories::Tag{ peer, storiesTab() };
 	} else if (const auto peer = statisticsTag().peer) {
 		return statisticsTag();
+	} else if (const auto who = reactionsWhoReadIds()) {
+		return Key(who, _reactionsSelected, _pollReactionsContextId);
 	} else {
 		return Downloads::Tag();
 	}
@@ -415,6 +418,17 @@ ContentMemento::ContentMemento(Stories::Tag stories)
 
 ContentMemento::ContentMemento(Statistics::Tag statistics)
 : _statisticsTag(statistics) {
+}
+
+ContentMemento::ContentMemento(
+	std::shared_ptr<Api::WhoReadList> whoReadIds,
+	FullMsgId contextId,
+	Data::ReactionId selected)
+: _reactionsWhoReadIds(whoReadIds
+	? whoReadIds
+	: std::make_shared<Api::WhoReadList>())
+, _reactionsSelected(selected)
+, _pollReactionsContextId(contextId) {
 }
 
 } // namespace Info

@@ -50,6 +50,13 @@ Key::Key(not_null<PollData*> poll, FullMsgId contextId)
 : _value(PollKey{ poll, contextId }) {
 }
 
+Key::Key(
+	std::shared_ptr<Api::WhoReadList> whoReadIds,
+	Data::ReactionId selected,
+	FullMsgId contextId)
+: _value(ReactionsKey{ whoReadIds, selected, contextId }) {
+}
+
 PeerData *Key::peer() const {
 	if (const auto peer = std::get_if<not_null<PeerData*>>(&_value)) {
 		return *peer;
@@ -108,6 +115,27 @@ PollData *Key::poll() const {
 
 FullMsgId Key::pollContextId() const {
 	if (const auto data = std::get_if<PollKey>(&_value)) {
+		return data->contextId;
+	}
+	return FullMsgId();
+}
+
+std::shared_ptr<Api::WhoReadList> Key::reactionsWhoReadIds() const {
+	if (const auto data = std::get_if<ReactionsKey>(&_value)) {
+		return data->whoReadIds;
+	}
+	return nullptr;
+}
+
+Data::ReactionId Key::reactionsSelected() const {
+	if (const auto data = std::get_if<ReactionsKey>(&_value)) {
+		return data->selected;
+	}
+	return Data::ReactionId();
+}
+
+FullMsgId Key::reactionsContextId() const {
+	if (const auto data = std::get_if<ReactionsKey>(&_value)) {
 		return data->contextId;
 	}
 	return FullMsgId();
@@ -181,6 +209,19 @@ PollData *AbstractController::poll() const {
 		}
 	}
 	return nullptr;
+}
+
+auto AbstractController::reactionsWhoReadIds() const
+-> std::shared_ptr<Api::WhoReadList> {
+	return key().reactionsWhoReadIds();
+}
+
+Data::ReactionId AbstractController::reactionsSelected() const {
+	return key().reactionsSelected();
+}
+
+FullMsgId AbstractController::reactionsContextId() const {
+	return key().reactionsContextId();
 }
 
 void AbstractController::showSection(

@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h"
 #include "info/statistics/info_statistics_tag.h"
 
+namespace Api {
+struct WhoReadList;
+} // namespace Api
+
 namespace Dialogs::Stories {
 struct Content;
 } // namespace Dialogs::Stories
@@ -189,8 +193,12 @@ public:
 	explicit ContentMemento(Statistics::Tag statistics);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
-	, _pollContextId(contextId) {
+	, _pollReactionsContextId(contextId) {
 	}
+	ContentMemento(
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		FullMsgId contextId,
+		Data::ReactionId selected);
 
 	virtual object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -222,7 +230,16 @@ public:
 		return _poll;
 	}
 	FullMsgId pollContextId() const {
-		return _pollContextId;
+		return _poll ? _pollReactionsContextId : FullMsgId();
+	}
+	std::shared_ptr<Api::WhoReadList> reactionsWhoReadIds() const {
+		return _reactionsWhoReadIds;
+	}
+	Data::ReactionId reactionsSelected() const {
+		return _reactionsSelected;
+	}
+	FullMsgId reactionsContextId() const {
+		return _reactionsWhoReadIds ? _pollReactionsContextId : FullMsgId();
 	}
 	Key key() const;
 
@@ -264,7 +281,9 @@ private:
 	Stories::Tab _storiesTab = {};
 	Statistics::Tag _statisticsTag;
 	PollData * const _poll = nullptr;
-	const FullMsgId _pollContextId;
+	std::shared_ptr<Api::WhoReadList> _reactionsWhoReadIds;
+	Data::ReactionId _reactionsSelected;
+	const FullMsgId _pollReactionsContextId;
 
 	int _scrollTop = 0;
 	QString _searchFieldQuery;

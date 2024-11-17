@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 
 class HistoryItem;
+class PeerListController;
 
 namespace Data {
 struct ReactionId;
@@ -21,6 +22,7 @@ struct WhoReadList;
 
 namespace Window {
 class SessionController;
+class SessionNavigation;
 } // namespace Window
 
 namespace Ui {
@@ -29,9 +31,30 @@ class BoxContent;
 
 namespace HistoryView::Reactions {
 
-object_ptr<Ui::BoxContent> FullListBox(
-	not_null<Window::SessionController*> window,
+[[nodiscard]] Data::ReactionId DefaultSelectedTab(
 	not_null<HistoryItem*> item,
+	std::shared_ptr<Api::WhoReadList> whoReadIds);
+
+[[nodiscard]] Data::ReactionId DefaultSelectedTab(
+	not_null<HistoryItem*> item,
+	Data::ReactionId selected,
+	std::shared_ptr<Api::WhoReadList> whoReadIds = nullptr);
+
+struct Tabs;
+[[nodiscard]] not_null<Tabs*> CreateReactionsTabs(
+	not_null<QWidget*> parent,
+	not_null<Window::SessionNavigation*> window,
+	FullMsgId itemId,
+	Data::ReactionId selected,
+	std::shared_ptr<Api::WhoReadList> whoReadIds);
+
+struct PreparedFullList {
+	std::unique_ptr<PeerListController> controller;
+	Fn<void(Data::ReactionId)> switchTab;
+};
+[[nodiscard]] PreparedFullList FullListController(
+	not_null<Window::SessionNavigation*> window,
+	FullMsgId itemId,
 	Data::ReactionId selected,
 	std::shared_ptr<Api::WhoReadList> whoReadIds = nullptr);
 

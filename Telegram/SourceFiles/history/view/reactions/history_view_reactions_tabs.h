@@ -27,7 +27,7 @@ struct Tabs {
 	Fn<rpl::producer<int>()> heightValue;
 };
 
-not_null<Tabs*> CreateTabs(
+[[nodiscard]] not_null<Tabs*> CreateTabs(
 	not_null<QWidget*> parent,
 	Ui::Text::CustomEmojiFactory factory,
 	Fn<bool()> paused,

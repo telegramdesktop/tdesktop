@@ -59,8 +59,6 @@ private:
 		UserData *offsetUser = nullptr;
 		bool allLoaded = false;
 		bool wasLoading = false;
-		rpl::lifetime lifetime;
-
 	};
 
 	static std::unique_ptr<PeerListSearchController> CreateSearchController(

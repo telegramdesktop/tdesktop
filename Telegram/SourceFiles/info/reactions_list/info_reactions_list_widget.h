@@ -12,13 +12,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ChannelData;
 struct PeerListState;
 
-namespace Info::RequestsList {
+namespace Api {
+struct WhoReadList;
+} // namespace Api
+
+namespace Info::ReactionsList {
 
 class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	explicit Memento(not_null<ChannelData*> channel);
+	Memento(
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		FullMsgId contextId,
+		Data::ReactionId selected);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -27,7 +34,9 @@ public:
 
 	Section section() const override;
 
-	[[nodiscard]] not_null<ChannelData*> channel() const;
+	[[nodiscard]] std::shared_ptr<Api::WhoReadList> whoReadIds() const;
+	[[nodiscard]] FullMsgId contextId() const;
+	[[nodiscard]] Data::ReactionId selected() const;
 
 	void setListState(std::unique_ptr<PeerListState> state);
 	std::unique_ptr<PeerListState> listState();
@@ -44,9 +53,13 @@ public:
 	Widget(
 		QWidget *parent,
 		not_null<Controller*> controller,
-		not_null<ChannelData*> channel);
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		FullMsgId contextId,
+		Data::ReactionId selected);
 
-	[[nodiscard]] not_null<ChannelData*> channel() const;
+	[[nodiscard]] std::shared_ptr<Api::WhoReadList> whoReadIds() const;
+	[[nodiscard]] FullMsgId contextId() const;
+	[[nodiscard]] Data::ReactionId selected() const;
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
@@ -66,4 +79,4 @@ private:
 	InnerWidget *_inner = nullptr;
 };
 
-} // namespace Info::RequestsList
+} // namespace Info::ReactionsList

@@ -24,8 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
 
-namespace Info {
-namespace Polls {
+namespace Info::Polls {
 namespace {
 
 constexpr auto kFirstPage = 15;
@@ -659,6 +658,4 @@ auto InnerWidget::showPeerInfoRequests() const
 	return _showPeerInfoRequests.events();
 }
 
-} // namespace Polls
-} // namespace Info
-
+} // namespace Info::Polls

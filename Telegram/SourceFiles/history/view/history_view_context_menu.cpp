@@ -1510,11 +1510,13 @@ void AddWhoReactedAction(
 			strong->hideMenu();
 		}
 		if (const auto item = controller->session().data().message(itemId)) {
-			controller->window().show(Reactions::FullListBox(
-				controller,
-				item,
-				{},
-				whoReadIds));
+			controller->showSection(
+				std::make_shared<Info::Memento>(
+					whoReadIds,
+					itemId,
+					HistoryView::Reactions::DefaultSelectedTab(
+						item,
+						whoReadIds)));
 		}
 	};
 	if (!menu->empty()) {
@@ -1685,10 +1687,10 @@ void ShowWhoReactedMenu(
 	};
 	const auto showAllChosen = [=, itemId = item->fullId()]{
 		if (const auto item = controller->session().data().message(itemId)) {
-			controller->window().show(Reactions::FullListBox(
-				controller,
-				item,
-				id));
+			controller->showSection(std::make_shared<Info::Memento>(
+				nullptr,
+				itemId,
+				HistoryView::Reactions::DefaultSelectedTab(item, id)));
 		}
 	};
 	const auto owner = &controller->session().data();
