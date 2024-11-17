@@ -96,6 +96,9 @@ void ChangeFilterById(
 						Ui::Text::WithEntities));
 			}
 		}).fail([=](const MTP::Error &error) {
+			LOG(("API Error: failed to %1 a dialog to a folder. %2")
+				.arg(add ? u"add"_q : u"remove"_q)
+				.arg(error.type()));
 			// Revert filter on fail.
 			history->owner().chatsFilters().set(was);
 		}).send();
