@@ -1700,8 +1700,10 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				: participant->isBroadcast()
 				? tr::lng_context_view_channel
 				: tr::lng_context_view_group)(tr::now),
-			crl::guard(this, [=] {
-				_navigation->showPeerInfo(participant); }),
+			crl::guard(this, [=, this] {
+				_navigation->parentController()->show(
+					PrepareShortInfoBox(participant, _navigation));
+			}),
 			(participant->isUser()
 				? &st::menuIconProfile
 				: &st::menuIconInfo));
