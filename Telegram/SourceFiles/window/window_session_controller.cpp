@@ -572,7 +572,8 @@ void SessionNavigation::showPeerByLinkResolved(
 		const auto controller = parentController();
 		if (const auto forum = peer->forum()) {
 			if (controller->windowId().hasChatsList()
-				&& !controller->adaptive().isOneColumn()) {
+				&& !controller->adaptive().isOneColumn()
+				&& controller->shownForum().current() != forum) {
 				controller->showForum(forum);
 			}
 		}
