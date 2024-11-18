@@ -375,7 +375,9 @@ bool Get(
 		dialog.setFileMode(QFileDialog::AnyFile);
 		dialog.setAcceptMode(QFileDialog::AcceptSave);
 	}
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	dialog.show();
+#endif // Qt < 6.0.0
 
 	auto realLastPath = [=] {
 		// If we're given some non empty path containing a folder - use it.
