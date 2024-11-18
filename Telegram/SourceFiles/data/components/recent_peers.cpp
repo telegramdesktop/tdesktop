@@ -126,7 +126,6 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 				).arg(count));
 			DEBUG_LOG(("Failed bytes: %1.").arg(
 				QString::fromUtf8(serialized.mid(streamPosition).toHex())));
-			_list.clear();
 			return;
 		}
 	}

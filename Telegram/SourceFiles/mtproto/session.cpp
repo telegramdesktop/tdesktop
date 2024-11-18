@@ -399,12 +399,10 @@ int32 Session::getState() const {
 
 	if (_private) {
 		const auto s = _private->getState();
-		if (s == ConnectedState) {
+		if (s == ConnectedState
+			|| s == ConnectingState
+			|| s == DisconnectedState) {
 			return s;
-		} else if (s == ConnectingState || s == DisconnectedState) {
-			if (result < 0) {
-				return s;
-			}
 		} else if (s < 0) {
 			if (result < 0 && s > result) {
 				result = s;

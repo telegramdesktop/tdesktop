@@ -206,22 +206,20 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	auto &sets = setsRef();
 	auto it = sets.find(Data::Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
-		if (it == sets.cend()) {
-			it = sets.emplace(
+		it = sets.emplace(
+			Data::Stickers::CloudRecentSetId,
+			std::make_unique<Data::StickersSet>(
+				&session().data(),
 				Data::Stickers::CloudRecentSetId,
-				std::make_unique<Data::StickersSet>(
-					&session().data(),
-					Data::Stickers::CloudRecentSetId,
-					uint64(0), // accessHash
-					uint64(0), // hash
-					tr::lng_recent_stickers(tr::now),
-					QString(),
-					0, // count
-					SetFlag::Special,
-					TimeId(0))).first;
-		} else {
-			it->second->title = tr::lng_recent_stickers(tr::now);
-		}
+				uint64(0), // accessHash
+				uint64(0), // hash
+				tr::lng_recent_stickers(tr::now),
+				QString(),
+				0, // count
+				SetFlag::Special,
+				TimeId(0))).first;
+	} else {
+		it->second->title = tr::lng_recent_stickers(tr::now);
 	}
 	const auto set = it->second.get();
 	auto removedFromEmoji = std::vector<not_null<EmojiPtr>>();

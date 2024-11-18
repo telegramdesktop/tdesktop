@@ -474,7 +474,7 @@ TTLButton::TTLButton(
 		) | rpl::start_with_next([=](bool toHide) {
 			const auto isFirstTooltip
 				= !Core::App().settings().ttlVoiceClickTooltipHidden();
-			if (isFirstTooltip || (!isFirstTooltip && toHide)) {
+			if (isFirstTooltip || toHide) {
 				_tooltip->toggleAnimated(!toHide);
 			}
 		}, _tooltip->lifetime());

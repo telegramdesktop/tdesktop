@@ -117,8 +117,7 @@ void ShowOrPremiumBox(
 			tr::lng_lastseen_shown_toast(tr::now),
 			&st::showOrIconLastSeen,
 		}
-		: (type == ShowOrPremium::ReadTime)
-		? Skin{
+		: Skin{
 			tr::lng_readtime_show_title(),
 			tr::lng_readtime_show_about(
 				lt_user,
@@ -134,8 +133,7 @@ void ShowOrPremiumBox(
 			tr::lng_readtime_premium_button(),
 			tr::lng_readtime_shown_toast(tr::now),
 			&st::showOrIconReadTime,
-		}
-		: Skin();
+		};
 
 	box->setStyle(st::showOrBox);
 	box->setWidth(st::boxWideWidth);

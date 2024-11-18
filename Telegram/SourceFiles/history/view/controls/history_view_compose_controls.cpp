@@ -381,7 +381,7 @@ void FieldHeader::init() {
 			return;
 		}
 		const auto e = static_cast<QMouseEvent*>(event.get());
-		const auto pos = e ? e->pos() : mapFromGlobal(QCursor::pos());
+		const auto pos = e->pos();
 		const auto inPreviewRect = _clickableRect.contains(pos);
 		const auto inPhotoEdit = _shownMessageHasPreview
 			&& _photoEditAllowed
@@ -1191,9 +1191,7 @@ void ComposeControls::showStarted() {
 	if (_attachBotsMenu) {
 		_attachBotsMenu->hideFast();
 	}
-	if (_voiceRecordBar) {
-		_voiceRecordBar->hideFast();
-	}
+	_voiceRecordBar->hideFast();
 	if (_autocomplete) {
 		_autocomplete->hideFast();
 	}
@@ -1213,9 +1211,7 @@ void ComposeControls::showFinished() {
 	if (_attachBotsMenu) {
 		_attachBotsMenu->hideFast();
 	}
-	if (_voiceRecordBar) {
-		_voiceRecordBar->hideFast();
-	}
+	_voiceRecordBar->hideFast();
 	if (_autocomplete) {
 		_autocomplete->hideFast();
 	}

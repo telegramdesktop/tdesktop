@@ -240,7 +240,8 @@ int LocalStorageBox::Row::resizeGetHeight(int newWidth) {
 }
 
 void LocalStorageBox::Row::paintEvent(QPaintEvent *e) {
-	if (!_progress || true) {
+#if 0 // not used
+	if (!_progress) {
 		return;
 	}
 	auto p = QPainter(this);
@@ -254,6 +255,7 @@ void LocalStorageBox::Row::paintEvent(QPaintEvent *e) {
 			st::proxyCheckingPosition.y() + bottom
 		},
 		width());
+#endif
 }
 
 QString LocalStorageBox::Row::titleText(const Database::TaggedSummary &data) const {

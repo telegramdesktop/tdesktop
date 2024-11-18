@@ -806,10 +806,9 @@ void Mixer::externalSoundProgress(const AudioMsgId &audio) {
 }
 
 bool Mixer::checkCurrentALError(AudioMsgId::Type type) {
-	if (!Audio::PlaybackErrorHappened()) return true;
-
-	const auto data = trackForType(type);
-	if (!data) {
+	if (!Audio::PlaybackErrorHappened()) {
+		return true;
+	} else if (const auto data = trackForType(type)) {
 		setStoppedState(data, State::StoppedAtError);
 		onError(data->state.id);
 	}

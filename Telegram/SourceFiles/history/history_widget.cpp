@@ -869,7 +869,7 @@ HistoryWidget::HistoryWidget(
 		}
 		if (flags & PeerUpdateFlag::FullInfo) {
 			fullInfoUpdated();
-			if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
+			if (const auto channel = _peer->asChannel()) {
 				if (channel->allowedReactions().paidEnabled) {
 					session().credits().load();
 				}
@@ -3440,7 +3440,7 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 		closeCurrent();
 		const auto wasAccount = not_null(&was->account());
 		if (const auto primary = Core::App().windowFor(wasAccount)) {
-			primary->showToast((was && was->isMegagroup())
+			primary->showToast(was->isMegagroup()
 				? tr::lng_group_not_accessible(tr::now)
 				: tr::lng_channel_not_accessible(tr::now));
 		}
@@ -5111,7 +5111,7 @@ bool HistoryWidget::updateCmdStartShown() {
 	const auto textSmall = _fieldCharsCountManager.count() > kSmallMenuAfter;
 	const auto textChanged = _botMenu.button
 		&& ((_botMenu.text != bot->botInfo->botMenuButtonText)
-		|| (_botMenu.small != textSmall));
+			|| (_botMenu.small != textSmall));
 	if (textChanged) {
 		_botMenu.text = bot->botInfo->botMenuButtonText;
 		if ((_botMenu.small = textSmall)) {

@@ -40,6 +40,7 @@ void HandleWithdrawalButton(
 		std::shared_ptr<Ui::Show> show) {
 	Expects(receiver.currencyReceiver
 		|| (receiver.creditsReceiver && receiver.creditsAmount));
+
 	struct State {
 		rpl::lifetime lifetime;
 		bool loading = false;
@@ -58,8 +59,7 @@ void HandleWithdrawalButton(
 	const auto processOut = [=] {
 		if (state->loading) {
 			return;
-		}
-		if (peer && !receiver.creditsAmount()) {
+		} else if (peer && !receiver.creditsAmount()) {
 			return;
 		}
 		state->loading = true;
