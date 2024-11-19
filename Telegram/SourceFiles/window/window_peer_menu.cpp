@@ -2157,6 +2157,163 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<Controller*> controller;
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
+
+	const auto applyFilter = [=](not_null<PeerListBox*> box, FilterId id) {
+		box->scrollToY(0);
+		auto &filters = session->data().chatsFilters();
+		const auto &list = filters.list();
+		if (list.size() <= 1) {
+			return;
+		}
+		const auto pinnedList = [&](
+				not_null<Dialogs::MainList*> list,
+				bool foundSelf) {
+			const auto pinned = list->pinned()->order();
+			auto peers = std::vector<not_null<PeerData*>>();
+			peers.reserve(pinned.size());
+			for (const auto &pin : pinned) {
+				if (!foundSelf && pin.peer()->isSelf()) {
+					peers.insert(peers.begin(), pin.peer());
+					foundSelf = true;
+				} else {
+					peers.push_back(pin.peer());
+				}
+			}
+			if (!foundSelf) {
+				peers.insert(peers.begin(), session->user());
+			}
+			return peers;
+		};
+		const auto folder = session->data().folderLoaded(
+			Data::Folder::kId);
+		const auto pinned = pinnedList(
+			id
+				? filters.chatsList(id)
+				: session->data().chatsList(nullptr),
+			!!id);
+		const auto pinnedInFolder = (!id && folder)
+			? pinnedList(folder->chatsList(), true)
+			: std::vector<not_null<PeerData*>>();
+		box->peerListSortRows([&](
+				const PeerListRow &r1,
+				const PeerListRow &r2) {
+			{ // Pinned to top.
+				auto it1 = pinned.end();
+				auto it2 = pinned.end();
+				for (auto it = pinned.begin(); it != pinned.end(); ++it) {
+					if ((*it) == r1.peer()) {
+						it1 = it;
+					}
+					if ((*it) == r2.peer()) {
+						it2 = it;
+					}
+					if (it1 != pinned.end() && it2 != pinned.end()) {
+						break;
+					}
+				}
+				if (it1 == pinned.end() && it2 != pinned.end()) {
+					return false;
+				} else if (it2 == pinned.end() && it1 != pinned.end()) {
+					return true;
+				} else if (it1 != pinned.end() && it2 != pinned.end()) {
+					return it1 < it2;
+				}
+			}
+			{ // Pinned to bottom.
+				const auto &indexed = session->data().contactsNoChatsList();
+				auto it1 = indexed->end();
+				auto it2 = indexed->end();
+				for (auto it = indexed->begin(); it != indexed->end(); ++it) {
+					if (it->get()->key().peer() == r1.peer()) {
+						it1 = it;
+					}
+					if (it->get()->key().peer() == r2.peer()) {
+						it2 = it;
+					}
+					if (it1 != indexed->end() && it2 != indexed->end()) {
+						break;
+					}
+				}
+				if (it1 == indexed->end() && it2 != indexed->end()) {
+					return true;
+				} else if (it2 == indexed->end() && it1 != indexed->end()) {
+					return false;
+				} else if (it1 != indexed->end() && it2 != indexed->end()) {
+					return it1 > it2;
+				}
+			}
+			if (folder) {
+				const auto pinned1 = ranges::find(pinnedInFolder, r1.peer());
+				const auto pinned2 = ranges::find(pinnedInFolder, r2.peer());
+				const auto isPinned1 = pinned1 != pinnedInFolder.end();
+				const auto isPinned2 = pinned2 != pinnedInFolder.end();
+				if (isPinned1 && isPinned2) {
+					return pinned1 < pinned2;
+				}
+
+				const auto &indexed = folder->chatsList()->indexed();
+				auto it1 = indexed->end();
+				auto it2 = indexed->end();
+				for (auto it = indexed->begin(); it != indexed->end(); ++it) {
+					if (it->get()->key().peer() == r1.peer()) {
+						it1 = it;
+					}
+					if (it->get()->key().peer() == r2.peer()) {
+						it2 = it;
+					}
+					if (it1 != indexed->end() && it2 != indexed->end()) {
+						break;
+					}
+				}
+				const auto isFoldered1 = it1 != indexed->end();
+				const auto isFoldered2 = it2 != indexed->end();
+				if (isPinned1 && !isPinned2) {
+					return isFoldered2;
+				}
+				if (isPinned2 && !isPinned1) {
+					return !isFoldered1;
+				}
+				if (!isPinned1 && !isPinned2) {
+					if (!isFoldered1 && isFoldered2) {
+						return true;
+					} else if (!isFoldered2 && isFoldered1) {
+						return false;
+					} else if (isFoldered1 && isFoldered2) {
+						return it1 < it2;
+					}
+				}
+			}
+			const auto history1 = session->data().history(r1.peer());
+			const auto history2 = session->data().history(r2.peer());
+			const auto date1 = history1->lastMessage()
+				? history1->lastMessage()->date()
+				: TimeId(0);
+			const auto date2 = history2->lastMessage()
+				? history2->lastMessage()->date()
+				: TimeId(0);
+			return date1 > date2;
+		});
+		const auto filter = ranges::find(
+			list,
+			id,
+			&Data::ChatFilter::id);
+		if (filter == list.end()) {
+			return;
+		}
+		box->peerListPartitionRows([&](const PeerListRow &row) {
+			const auto rowPtr = const_cast<PeerListRow*>(&row);
+			if (!filter->id()) {
+				box->peerListSetRowHidden(rowPtr, false);
+			} else {
+				const auto result = filter->contains(
+					session->data().history(row.peer()));
+				box->peerListSetRowHidden(rowPtr, !result);
+			}
+			return false;
+		});
+		box->peerListRefreshRows();
+	};
+
 	const auto state = [&] {
 		auto controller = std::make_unique<Controller>(session);
 		const auto controllerRaw = controller.get();
@@ -2164,80 +2321,10 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			controllerRaw->setSearchNoResultsText(
 				tr::lng_bot_chats_not_found(tr::now));
 			box->setSpecialTabMode(true);
-			auto applyFilter = [=](FilterId id) {
-				box->scrollToY(0);
-				auto &filters = session->data().chatsFilters();
-				const auto &list = filters.list();
-				if (list.size() <= 1) {
-					return;
-				}
-				const auto pinned = [&] {
-					const auto &list = id
-						? filters.chatsList(id)
-						: session->data().chatsList(nullptr);
-					const auto pinned = list->pinned()->order();
-					auto peers = std::vector<not_null<PeerData*>>();
-					peers.reserve(pinned.size());
-					auto foundSelf = !!id;
-					for (const auto &pin : pinned) {
-						if (!foundSelf && pin.peer()->isSelf()) {
-							peers.insert(peers.begin(), pin.peer());
-							foundSelf = true;
-						} else {
-							peers.push_back(pin.peer());
-						}
-					}
-					if (!foundSelf) {
-						peers.insert(peers.begin(), session->user());
-					}
-					return peers;
-				}();
-				box->peerListSortRows([&](
-						const PeerListRow &r1,
-						const PeerListRow &r2) {
-					const auto it1 = ranges::find(pinned, r1.peer());
-					const auto it2 = ranges::find(pinned, r2.peer());
-					if (it1 == pinned.end() && it2 != pinned.end()) {
-						return false;
-					} else if (it2 == pinned.end() && it1 != pinned.end()) {
-						return true;
-					} else if (it1 != pinned.end() && it2 != pinned.end()) {
-						return it1 < it2;
-					}
-					const auto history1 = session->data().history(r1.peer());
-					const auto history2 = session->data().history(r2.peer());
-					const auto date1 = history1->lastMessage()
-						? history1->lastMessage()->date()
-						: TimeId(0);
-					const auto date2 = history2->lastMessage()
-						? history2->lastMessage()->date()
-						: TimeId(0);
-					return date1 > date2;
-				});
-				const auto filter = ranges::find(
-					list,
-					id,
-					&Data::ChatFilter::id);
-				if (filter == list.end()) {
-					return;
-				}
-				box->peerListPartitionRows([&](const PeerListRow &row) {
-					const auto rowPtr = const_cast<PeerListRow*>(&row);
-					if (!filter->id()) {
-						box->peerListSetRowHidden(rowPtr, false);
-					} else {
-						const auto result = filter->contains(
-							session->data().history(row.peer()));
-						box->peerListSetRowHidden(rowPtr, !result);
-					}
-					return false;
-				});
-				box->peerListRefreshRows();
-			};
 			const auto chatsFilters = Ui::AddChatFiltersTabsStrip(
 				box,
 				session,
-				std::move(applyFilter));
+				[=](FilterId id) { applyFilter(box, id); });
 			chatsFilters->lower();
 			chatsFilters->heightValue() | rpl::start_with_next([box](int h) {
 				box->setAddedTopScrollSkip(h);
