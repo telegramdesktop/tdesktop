@@ -857,6 +857,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	if (!raw->widget()) {
 		return false;
 	}
+
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+	_widget->allowChildFullScreenControls(
+		!raw->widget()->inherits("QWindowContainer"));
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
 	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
 		const auto parent = _webviewParent.data();
 		if (!_webview
@@ -1613,14 +1619,6 @@ void Panel::overrideBodyColor(std::optional<QColor> color) {
 		raw->setTextColorOverride(std::nullopt);
 		return;
 	}
-	const auto set = [](const style::color &color, QColor value) {
-		color.set(
-			uchar(value.red()),
-			uchar(value.green()),
-			uchar(value.blue()),
-			uchar(value.alpha()));
-	};
-
 	const auto contrast = 2.5;
 	const auto luminance = 0.2126 * color->redF()
 		+ 0.7152 * color->greenF()
