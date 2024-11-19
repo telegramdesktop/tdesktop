@@ -394,6 +394,11 @@ Panel::Panel(Args &&args)
 		sendContentSafeArea();
 	}, _widget->lifetime());
 
+	_widget->fullScreenValue(
+	) | rpl::start_with_next([=](bool fullscreen) {
+		_fullscreen = fullscreen;
+	}, _widget->lifetime());
+
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
 		if (_closeNeedConfirmation) {
