@@ -344,7 +344,7 @@ void PaintRow(
 		row->paintUserpic(p, entry, from, videoUserpic, context);
 	}
 
-	auto nameleft = context.st->nameLeft;
+	const auto nameleft = context.st->nameLeft;
 	if (context.topicsExpanded > 0.) {
 		PaintExpandedTopicsBar(p, context.topicsExpanded);
 	}
@@ -711,6 +711,15 @@ void PaintRow(
 			.availableWidth = rectForName.width(),
 			.elisionLines = 1,
 		});
+	}
+
+	if (const auto tags = context.chatsFilterTags) {
+		auto left = nameleft;
+		for (const auto &tag : *tags) {
+			p.drawImage(left, context.st->tagTop, *tag);
+			left += st::dialogRowFilterTagSkip
+				+ (tag->width() / style::DevicePixelRatio());
+		}
 	}
 }
 

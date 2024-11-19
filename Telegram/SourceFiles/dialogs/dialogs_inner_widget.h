@@ -448,6 +448,8 @@ private:
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
 
+	[[nodiscard]] QImage *cacheChatsFilterTag(FilterId filterId, ushort more);
+
 	const not_null<Window::SessionController*> _controller;
 
 	not_null<IndexedList*> _shownList;
@@ -554,6 +556,7 @@ private:
 
 	base::flat_map<FilterId, int> _chatsFilterScrollStates;
 
+	std::unordered_map<FilterId, QImage> _chatsFilterTags;
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
 	rpl::event_stream<> _listBottomReached;

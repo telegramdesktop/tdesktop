@@ -53,6 +53,7 @@ struct TopicJumpCache {
 };
 
 struct PaintContext {
+	std::vector<QImage*> *chatsFilterTags = nullptr;
 	not_null<const style::DialogRow*> st;
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;

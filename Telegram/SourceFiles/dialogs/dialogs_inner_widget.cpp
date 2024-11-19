@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_chat_helpers.h"
+#include "styles/style_color_indices.h"
 #include "styles/style_window.h"
 #include "styles/style_menu_icons.h"
 
@@ -702,6 +703,62 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			&& (key.history()->peer->id == childListShown.peerId);
 
 		context.st = (forum ? &st::forumDialogRow : _st.get());
+
+		auto chatsFilterTags = std::vector<QImage*>();
+		if (context.narrow) {
+			context.chatsFilterTags = nullptr;
+		} else if (row->entry()->hasChatsFilterTags(context.filter)) {
+			context.st = forum
+				? &st::taggedForumDialogRow
+				: &st::taggedDialogRow;
+			auto availableWidth = context.width
+				- context.st->padding.right()
+				- st::dialogsUnreadPadding
+				- context.st->nameLeft;
+			auto more = ushort(0);
+			const auto &list = session().data().chatsFilters().list();
+			for (const auto &filter : list) {
+				if (!row->entry()->inChatList(filter.id())
+					|| (filter.id() == context.filter)) {
+					continue;
+				}
+				if (const auto tag = cacheChatsFilterTag(filter.id(), 0)) {
+					if (more) {
+						more++;
+						continue;
+					}
+					const auto tagWidth = tag->width()
+						/ style::DevicePixelRatio();
+					if (availableWidth < tagWidth) {
+						more++;
+					} else {
+						chatsFilterTags.push_back(tag);
+						availableWidth -= tagWidth
+							+ st::dialogRowFilterTagSkip;
+					}
+				}
+			}
+			if (more) {
+				if (const auto tag = cacheChatsFilterTag(0, more)) {
+					const auto tagWidth = tag->width()
+						/ style::DevicePixelRatio();
+					if (availableWidth < tagWidth) {
+						more++;
+						if (const auto tag = cacheChatsFilterTag(0, more)) {
+							if (!chatsFilterTags.empty()) {
+								chatsFilterTags.back() = tag;
+							}
+						}
+					} else {
+						chatsFilterTags.push_back(tag);
+					}
+				}
+			}
+			context.chatsFilterTags = &chatsFilterTags;
+		} else {
+			context.chatsFilterTags = nullptr;
+		}
+
 		context.topicsExpanded = (expanding && !active)
 			? childListShown.shown
 			: 0.;
@@ -3941,6 +3998,62 @@ void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
 	if (it != end(_chatsFilterScrollStates)) {
 		_mustScrollTo.fire({ std::max(it->second, 0), -1 });
 	}
+}
+
+QImage *InnerWidget::cacheChatsFilterTag(FilterId filterId, ushort more) {
+	if (!filterId && !more) {
+		return nullptr;
+	}
+	const auto key = filterId ? filterId : -more;
+	{
+		const auto it = _chatsFilterTags.find(key);
+		if (it != end(_chatsFilterTags)) {
+			return &it->second;
+		}
+	}
+	auto roundedText = QString();
+	auto colorIndex = -1;
+	if (filterId) {
+		const auto &list = session().data().chatsFilters().list();
+		const auto it = ranges::find(list, filterId, &Data::ChatFilter::id);
+		if (it != end(list)) {
+			roundedText = it->title().toUpper();
+			if (it->colorIndex()) {
+				colorIndex = *it->colorIndex();
+			}
+		}
+	} else if (more > 0) {
+		roundedText = QChar('+') + QString::number(more);
+		colorIndex = st::colorIndexBlue;
+	}
+	if (roundedText.isEmpty() || colorIndex < 0) {
+		return nullptr;
+	}
+	const auto &roundedFont = st::dialogRowFilterTagFont;
+	const auto roundedWidth = roundedFont->width(roundedText)
+		+ roundedFont->spacew * 3;
+	const auto rect = QRect(0, 0, roundedWidth, roundedFont->height);
+	auto cache = QImage(
+		rect.size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	cache.setDevicePixelRatio(style::DevicePixelRatio());
+	cache.fill(Qt::transparent);
+	{
+		auto p = QPainter(&cache);
+		const auto pen = QPen(
+			Ui::EmptyUserpic::UserpicColor(colorIndex).color2);
+		p.setPen(Qt::NoPen);
+		p.setBrush(anim::with_alpha(pen.color(), .15));
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			const auto radius = roundedFont->height / 3.;
+			p.drawRoundedRect(rect, radius, radius);
+		}
+		p.setPen(pen);
+		p.setFont(roundedFont);
+		p.drawText(rect, roundedText, style::al_center);
+	}
+	return &_chatsFilterTags.emplace(key, std::move(cache)).first->second;
 }
 
 bool InnerWidget::chooseHashtag() {
