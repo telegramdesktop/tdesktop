@@ -94,7 +94,7 @@ public:
 
 		return _height;
 	}
-	void recountHeight(float64 narrowRatio);
+	void recountHeight(float64 narrowRatio, FilterId filterId);
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,

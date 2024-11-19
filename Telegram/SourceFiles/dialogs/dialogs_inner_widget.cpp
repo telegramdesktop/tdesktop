@@ -408,7 +408,7 @@ bool InnerWidget::updateEntryHeight(not_null<Entry*> entry) {
 			result.top = top;
 		}
 		if (result.row->key().entry() == entry) {
-			result.row->recountHeight(_narrowRatio);
+			result.row->recountHeight(_narrowRatio, _filterId);
 			changing = true;
 			top = result.top;
 		}
@@ -2812,7 +2812,7 @@ void InnerWidget::applySearchState(SearchState state) {
 					end(results));
 				for (const auto e = end(_filterResults); i != e; ++i) {
 					i->top = top;
-					i->row->recountHeight(_narrowRatio);
+					i->row->recountHeight(_narrowRatio, _filterId);
 					top += i->row->height();
 				}
 			};
@@ -2885,7 +2885,7 @@ void InnerWidget::appendToFiltered(Key key) {
 		}
 	}
 	auto row = std::make_unique<Row>(key, 0, 0);
-	row->recountHeight(_narrowRatio);
+	row->recountHeight(_narrowRatio, _filterId);
 	const auto &[i, ok] = _filterResultsGlobal.emplace(key, std::move(row));
 	const auto height = filteredHeight();
 	_filterResults.emplace_back(i->second.get());

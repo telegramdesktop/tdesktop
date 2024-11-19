@@ -316,11 +316,19 @@ Row::~Row() {
 	clearTopicJumpRipple();
 }
 
-void Row::recountHeight(float64 narrowRatio) {
+void Row::recountHeight(float64 narrowRatio, FilterId filterId) {
 	if (const auto history = _id.history()) {
+		const auto hasTags = _id.entry()->hasChatsFilterTags(filterId);
 		_height = history->isForum()
 			? anim::interpolate(
-				st::forumDialogRow.height,
+				hasTags
+					? st::taggedForumDialogRow.height
+					: st::forumDialogRow.height,
+				st::defaultDialogRow.height,
+				narrowRatio)
+			: hasTags
+			? anim::interpolate(
+				st::taggedDialogRow.height,
 				st::defaultDialogRow.height,
 				narrowRatio)
 			: st::defaultDialogRow.height;
