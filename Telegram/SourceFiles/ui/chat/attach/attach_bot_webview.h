@@ -19,6 +19,7 @@ class QJsonObject;
 class QJsonValue;
 
 namespace Ui {
+class FlatLabel;
 class BoxContent;
 class RpWidget;
 class SeparatePanel;
@@ -196,6 +197,7 @@ private:
 	void sendFullScreen();
 
 	void updateColorOverrides(const Webview::ThemeParams &params);
+	void overrideBodyColor(std::optional<QColor> color);
 
 	using EventData = std::variant<QString, QJsonObject>;
 	void postEvent(const QString &event);
@@ -216,6 +218,7 @@ private:
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
+	QPointer<FlatLabel> _webviewBottomLabel;
 	rpl::variable<QString> _bottomText;
 	QPointer<RpWidget> _webviewParent;
 	std::unique_ptr<RpWidget> _bottomButtonsBg;

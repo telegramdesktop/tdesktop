@@ -783,6 +783,8 @@ void Panel::createWebviewBottom() {
 		_webviewBottom.get(),
 		_bottomText.value(),
 		st::paymentsWebviewBottom);
+	_webviewBottomLabel = label;
+
 	const auto height = padding.top()
 		+ label->heightNoMargins()
 		+ padding.bottom();
@@ -840,6 +842,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			}
 		}
 		if (_webviewBottom.get() == bottom) {
+			_webviewBottomLabel = nullptr;
 			_webviewBottom = nullptr;
 			_secondaryButton = nullptr;
 			_mainButton = nullptr;
@@ -1596,20 +1599,53 @@ void Panel::processHeaderColor(const QJsonObject &args) {
 	}
 }
 
+void Panel::overrideBodyColor(std::optional<QColor> color) {
+	_widget->overrideBodyColor(color);
+	const auto raw = _webviewBottomLabel.data();
+	if (!raw) {
+		return;
+	} else if (!color) {
+		raw->setTextColorOverride(std::nullopt);
+		return;
+	}
+	const auto set = [](const style::color &color, QColor value) {
+		color.set(
+			uchar(value.red()),
+			uchar(value.green()),
+			uchar(value.blue()),
+			uchar(value.alpha()));
+	};
+
+	const auto contrast = 2.5;
+	const auto luminance = 0.2126 * color->redF()
+		+ 0.7152 * color->greenF()
+		+ 0.0722 * color->blueF();
+	const auto textColor = (luminance > 0.5)
+		? QColor(0, 0, 0)
+		: QColor(255, 255, 255);
+	const auto textLuminance = (luminance > 0.5) ? 0 : 1;
+	const auto adaptiveOpacity = (luminance - textLuminance + contrast)
+		/ contrast;
+	const auto opacity = std::clamp(adaptiveOpacity, 0.5, 0.64);
+	auto buttonColor = textColor;
+	buttonColor.setAlphaF(opacity);
+	raw->setTextColorOverride(buttonColor);
+}
+
 void Panel::processBackgroundColor(const QJsonObject &args) {
 	_bodyColorReceived = true;
 	if (const auto color = ParseColor(args["color"].toString())) {
-		_widget->overrideBodyColor(color);
+		overrideBodyColor(*color);
 		_bodyColorLifetime.destroy();
 	} else if (const auto color = LookupNamedColor(
 			args["color_key"].toString())) {
-		_widget->overrideBodyColor((*color)->c);
+		overrideBodyColor((*color)->c);
 		_bodyColorLifetime = style::PaletteChanged(
 		) | rpl::start_with_next([=] {
-			_widget->overrideBodyColor((*color)->c);
+			overrideBodyColor((*color)->c);
 		});
 	} else {
-		_widget->overrideBodyColor(std::nullopt);
+		overrideBodyColor(std::nullopt);
 		_bodyColorLifetime.destroy();
 	}
 	if (const auto raw = _bottomButtonsBg.get()) {
@@ -1923,7 +1959,7 @@ void Panel::updateColorOverrides(const Webview::ThemeParams &params) {
 		_widget->overrideTitleColor(params.titleBg);
 	}
 	if (!_bodyColorReceived && params.bodyBg.alpha() == 255) {
-		_widget->overrideBodyColor(params.bodyBg);
+		overrideBodyColor(params.bodyBg);
 	}
 }
 
