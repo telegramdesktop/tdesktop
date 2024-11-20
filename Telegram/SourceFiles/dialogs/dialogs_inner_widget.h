@@ -99,6 +99,8 @@ enum class WidgetState {
 
 class InnerWidget final : public Ui::RpWidget {
 public:
+	using ChatsFilterTagsKey = int64;
+
 	struct ChildListShown {
 		PeerId peerId = 0;
 		float64 shown = 0.;
@@ -448,7 +450,7 @@ private:
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
 
-	[[nodiscard]] QImage *cacheChatsFilterTag(FilterId filterId, ushort more);
+	[[nodiscard]] QImage *cacheChatsFilterTag(FilterId, uint8, bool);
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -556,7 +558,7 @@ private:
 
 	base::flat_map<FilterId, int> _chatsFilterScrollStates;
 
-	std::unordered_map<FilterId, QImage> _chatsFilterTags;
+	std::unordered_map<ChatsFilterTagsKey, QImage> _chatsFilterTags;
 	bool _waitingAllChatListEntryRefreshesForTags = false;
 	rpl::lifetime _handleChatListEntryTagRefreshesLifetime;
 

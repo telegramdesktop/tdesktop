@@ -87,6 +87,15 @@ constexpr auto kStartReorderThreshold = 30;
 constexpr auto kQueryPreviewLimit = 32;
 constexpr auto kPreviewPostsLimit = 3;
 
+[[nodiscard]] InnerWidget::ChatsFilterTagsKey SerializeFilterTagsKey(
+		FilterId filterId,
+		uint8 more,
+		bool active) {
+	return (filterId & 0xFFFFFFFF)
+		| (static_cast<int64_t>(more) << 32)
+		| (static_cast<int64_t>(active) << 40);
+}
+
 [[nodiscard]] int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
 	for (const auto &row : *list) {
@@ -221,6 +230,7 @@ InnerWidget::InnerWidget(
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_topicJumpCache = nullptr;
+		_chatsFilterTags.clear();
 	}, lifetime());
 
 	session().downloaderTaskFinished(
@@ -331,20 +341,27 @@ InnerWidget::InnerWidget(
 		session().data().chatsFilters().tagColorChanged(
 		) | rpl::start_with_next([=](Data::TagColorChanged data) {
 			const auto filterId = data.filterId;
-			const auto it = _chatsFilterTags.find(filterId);
-			if (it != _chatsFilterTags.end()) {
-				_chatsFilterTags.erase(it);
+			const auto key = SerializeFilterTagsKey(filterId, 0, false);
+			const auto activeKey = SerializeFilterTagsKey(filterId, 0, true);
+			{
+				auto &tags = _chatsFilterTags;
+				if (const auto it = tags.find(key); it != tags.end()) {
+					tags.erase(it);
+				}
+				if (const auto it = tags.find(activeKey); it != tags.end()) {
+					tags.erase(it);
+				}
 			}
 			if (data.colorExistenceChanged) {
-				for (const auto &f : session().data().chatsFilters().list()) {
-					if (f.id() != filterId) {
+				auto &filters = session().data().chatsFilters();
+				for (const auto &filter : filters.list()) {
+					if (filter.id() != filterId) {
 						continue;
 					}
-					const auto color = f.colorIndex();
-					const auto list = session().data().chatsFilters().chatsList(
-						filterId);
+					const auto c = filter.colorIndex();
+					const auto list = filters.chatsList(filterId);
 					for (const auto &row : list->indexed()->all()) {
-						row->entry()->setColorIndexForFilterId(filterId, color);
+						row->entry()->setColorIndexForFilterId(filterId, c);
 					}
 				}
 				if (_shownList->updateHeights(_narrowRatio)) {
@@ -771,6 +788,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (context.narrow) {
 			context.chatsFilterTags = nullptr;
 		} else if (row->entry()->hasChatsFilterTags(context.filter)) {
+			const auto a = active;
 			context.st = forum
 				? &st::taggedForumDialogRow
 				: &st::taggedDialogRow;
@@ -778,14 +796,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				- context.st->padding.right()
 				- st::dialogsUnreadPadding
 				- context.st->nameLeft;
-			auto more = ushort(0);
+			auto more = uint8(0);
 			const auto &list = session().data().chatsFilters().list();
 			for (const auto &filter : list) {
 				if (!row->entry()->inChatList(filter.id())
 					|| (filter.id() == context.filter)) {
 					continue;
 				}
-				if (const auto tag = cacheChatsFilterTag(filter.id(), 0)) {
+				if (const auto tag = cacheChatsFilterTag(filter.id(), 0, a)) {
 					if (more) {
 						more++;
 						continue;
@@ -802,13 +820,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 			}
 			if (more) {
-				if (const auto tag = cacheChatsFilterTag(0, more)) {
+				if (const auto tag = cacheChatsFilterTag(0, more, a)) {
 					const auto tagWidth = tag->width()
 						/ style::DevicePixelRatio();
 					if (availableWidth < tagWidth) {
 						more++;
-						if (const auto tag = cacheChatsFilterTag(0, more)) {
-							if (!chatsFilterTags.empty()) {
+						if (!chatsFilterTags.empty()) {
+							const auto tag = cacheChatsFilterTag(0, more, a);
+							if (tag) {
 								chatsFilterTags.back() = tag;
 							}
 						}
@@ -4063,11 +4082,14 @@ void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
 	}
 }
 
-QImage *InnerWidget::cacheChatsFilterTag(FilterId filterId, ushort more) {
+QImage *InnerWidget::cacheChatsFilterTag(
+		FilterId filterId,
+		uint8 more,
+		bool active) {
 	if (!filterId && !more) {
 		return nullptr;
 	}
-	const auto key = filterId ? filterId : -more;
+	const auto key = SerializeFilterTagsKey(filterId, more, active);
 	{
 		const auto it = _chatsFilterTags.find(key);
 		if (it != end(_chatsFilterTags)) {
@@ -4103,10 +4125,13 @@ QImage *InnerWidget::cacheChatsFilterTag(FilterId filterId, ushort more) {
 	cache.fill(Qt::transparent);
 	{
 		auto p = QPainter(&cache);
-		const auto pen = QPen(
-			Ui::EmptyUserpic::UserpicColor(colorIndex).color2);
+		const auto pen = QPen(active
+			? st::dialogsBgActive
+			: Ui::EmptyUserpic::UserpicColor(colorIndex).color2);
 		p.setPen(Qt::NoPen);
-		p.setBrush(anim::with_alpha(pen.color(), .15));
+		p.setBrush(active
+			? st::dialogsTextFgActive->c
+			: anim::with_alpha(pen.color(), .15));
 		{
 			auto hq = PainterHighQualityEnabler(p);
 			const auto radius = roundedFont->height / 3.;
