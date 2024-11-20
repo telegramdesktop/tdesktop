@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_boxes.h"
+#include "styles/style_color_indices.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h" // dialogsStoriesFull.
 #include "styles/style_layers.h" // boxRowPadding.
@@ -47,9 +48,6 @@ namespace Info::Statistics {
 namespace {
 
 using BoostCallback = Fn<void(const Data::Boost &)>;
-constexpr auto kColorIndexCredits = int(1);
-constexpr auto kColorIndexUnclaimed = int(3);
-constexpr auto kColorIndexPending = int(4);
 
 [[nodiscard]] PeerListRowId UniqueRowIdFromEntry(
 		const Data::CreditsHistoryEntry &entry) {
@@ -475,10 +473,10 @@ BoostRow::BoostRow(const Data::Boost &boost)
 , _boost(boost)
 , _userpic(
 	Ui::EmptyUserpic::UserpicColor(boost.credits
-		? kColorIndexCredits
+		? st::colorIndexOrange
 		: boost.isUnclaimed
-		? kColorIndexUnclaimed
-		: kColorIndexPending),
+		? st::colorIndexSea
+		: st::colorIndexBlue),
 	QString()) {
 	init();
 }

@@ -18,6 +18,7 @@ set(style_files
     ui/chat/chat.style
     ui/effects/credits.style
     ui/effects/premium.style
+    ui/color_indices.style
     boxes/boxes.style
     dialogs/dialogs.style
     chat_helpers/chat_helpers.style

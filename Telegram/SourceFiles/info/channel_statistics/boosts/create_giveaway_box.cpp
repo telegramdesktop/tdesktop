@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
+#include "styles/style_color_indices.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
@@ -59,7 +60,6 @@ namespace {
 
 constexpr auto kDoneTooltipDuration = 5 * crl::time(1000);
 constexpr auto kAdditionalPrizeLengthMax = 128;
-constexpr auto kColorIndexCredits = int(1);
 
 [[nodiscard]] QDateTime ThreeDaysAfterToday() {
 	auto dateNow = QDateTime::currentDateTime();
@@ -370,7 +370,7 @@ void CreateGiveawayBox(
 				prepaid->credits
 					? GiveawayType::PrepaidCredits
 					: GiveawayType::Prepaid,
-				prepaid->credits ? kColorIndexCredits : prepaid->id,
+				prepaid->credits ? st::colorIndexOrange : prepaid->id,
 				tr::lng_boosts_prepaid_giveaway_single(),
 				prepaid->credits
 					? tr::lng_boosts_prepaid_giveaway_credits_status(
@@ -508,7 +508,7 @@ void CreateGiveawayBox(
 			object_ptr<Giveaway::GiveawayTypeRow>(
 				box,
 				GiveawayType::Credits,
-				kColorIndexCredits,
+				st::colorIndexOrange,
 				tr::lng_credits_summary_title(),
 				tr::lng_giveaway_create_subtitle(),
 				std::move(badge)));

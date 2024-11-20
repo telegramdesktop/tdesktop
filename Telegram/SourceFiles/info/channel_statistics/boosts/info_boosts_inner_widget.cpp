@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/slider_natural_width.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
+#include "styles/style_color_indices.h"
 #include "styles/style_dialogs.h" // dialogsSearchTabs
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
@@ -339,7 +340,6 @@ void InnerWidget::fill() {
 	Ui::AddSkip(inner);
 
 	if (!status.prepaidGiveaway.empty()) {
-		constexpr auto kColorIndexCredits = int(1);
 		const auto multiplier = Api::PremiumGiftCodeOptions(_peer)
 			.giveawayBoostsPerPremium();
 		Ui::AddSkip(inner);
@@ -352,7 +352,7 @@ void InnerWidget::fill() {
 				g.credits
 					? GiveawayTypeRow::Type::PrepaidCredits
 					: GiveawayTypeRow::Type::Prepaid,
-				g.credits ? kColorIndexCredits : g.id,
+				g.credits ? st::colorIndexOrange : g.id,
 				g.credits
 					? tr::lng_boosts_prepaid_giveaway_single()
 					: tr::lng_boosts_prepaid_giveaway_quantity(

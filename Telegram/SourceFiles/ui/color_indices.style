@@ -1,0 +1,16 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+
+colorIndexRed: 0;
+colorIndexOrange: 1;
+colorIndexGreen: 2;
+colorIndexSea: 3;
+colorIndexBlue: 4;
+colorIndexPurple: 5;
+colorIndexPink: 6;
+colorIndexYellow: 7;

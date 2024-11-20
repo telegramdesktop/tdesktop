@@ -16,13 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_color_indices.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_statistics.h"
 
 namespace Giveaway {
-
-constexpr auto kColorIndexSpecific = int(4);
-constexpr auto kColorIndexRandom = int(2);
 
 GiveawayTypeRow::GiveawayTypeRow(
 	not_null<Ui::RpWidget*> parent,
@@ -32,7 +30,7 @@ GiveawayTypeRow::GiveawayTypeRow(
 : GiveawayTypeRow(
 	parent,
 	type,
-	(type == Type::SpecificUsers) ? kColorIndexSpecific : kColorIndexRandom,
+	(type == Type::SpecificUsers) ? st::colorIndexBlue : st::colorIndexGreen,
 	(type == Type::SpecificUsers)
 		? tr::lng_giveaway_award_option()
 		: (type == Type::Random)
