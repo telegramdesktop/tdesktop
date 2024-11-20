@@ -338,6 +338,17 @@ not_null<Row*> Entry::addToChatList(
 	if (const auto main = maybeMainChatListLink(filterId)) {
 		return main;
 	}
+	if (filterId) {
+		const auto &list = owner().chatsFilters().list();
+		const auto it = ranges::find(list, filterId, &Data::ChatFilter::id);
+		if (it != end(list) && it->colorIndex()) {
+			_tagColors[filterId] = *(it->colorIndex());
+		} else {
+			if (it != end(list)) {
+			}
+			_tagColors.remove(filterId);
+		}
+	}
 	return _chatListLinks.emplace(
 		filterId,
 		list->addEntry(this)
@@ -349,6 +360,12 @@ void Entry::removeFromChatList(
 		not_null<MainList*> list) {
 	if (isPinnedDialog(filterId)) {
 		owner().setChatPinned(this, filterId, false);
+	}
+	if (filterId) {
+		const auto it = _tagColors.find(filterId);
+		if (it != end(_tagColors)) {
+			_tagColors.erase(it);
+		}
 	}
 
 	const auto i = _chatListLinks.find(filterId);
@@ -395,6 +412,17 @@ void Entry::updateChatListEntryPostponed() {
 
 void Entry::updateChatListEntryHeight() {
 	session().changes().entryUpdated(this, Data::EntryUpdate::Flag::Height);
+}
+
+[[nodiscard]] bool Entry::hasChatsFilterTags(FilterId exclude) const {
+	if (exclude) {
+		if (_tagColors.size() == 1) {
+			if (_tagColors.begin()->first == exclude) {
+				return false;
+			}
+		}
+	}
+	return !_tagColors.empty();
 }
 
 } // namespace Dialogs
