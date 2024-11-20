@@ -5160,6 +5160,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_enable_tags" = "Show Folder Tags";
 "lng_filters_enable_tags_about" = "Display folder names for each chat in the chat list.";
 "lng_filters_enable_tags_about_premium" = "Subscribe to **{link}** to display folder names for each chat in the chat list.";
+"lng_filters_tag_color_subtitle" = "Folder color in chat list";
+"lng_filters_tag_color_about" = "Choose a color for the tag of this folder.";
+"lng_filters_tag_color_no" = "No Tag";
 
 "lng_filters_delete_sure" = "Are you sure you want to delete this folder? This will also deactivate all the invite links created to share this folder.";
 "lng_filters_link" = "Share Folder";

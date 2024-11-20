@@ -219,6 +219,7 @@ void FilterRowButton::updateData(const Data::ChatFilter &filter) {
 
 	_title.setText(st::contactsNameStyle, filter.title());
 	_icon = Ui::ComputeFilterIcon(filter);
+	_colorIndex = filter.colorIndex();
 	updateCount(filter);
 }
 

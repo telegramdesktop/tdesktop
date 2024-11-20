@@ -168,6 +168,12 @@ ChatFilter ChatFilter::withTitle(const QString &title) const {
 	return result;
 }
 
+ChatFilter ChatFilter::withColorIndex(std::optional<uint8> c) const {
+	auto result = *this;
+	result._colorIndex = c;
+	return result;
+}
+
 ChatFilter ChatFilter::withChatlist(bool chatlist, bool hasMyLinks) const {
 	auto result = *this;
 	result._flags &= Flag::RulesMask;

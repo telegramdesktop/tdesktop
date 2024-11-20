@@ -60,6 +60,7 @@ public:
 
 	[[nodiscard]] ChatFilter withId(FilterId id) const;
 	[[nodiscard]] ChatFilter withTitle(const QString &title) const;
+	[[nodiscard]] ChatFilter withColorIndex(std::optional<uint8>) const;
 	[[nodiscard]] ChatFilter withChatlist(
 		bool chatlist,
 		bool hasMyLinks) const;
