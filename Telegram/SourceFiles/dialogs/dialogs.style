@@ -22,6 +22,7 @@ DialogRow {
 	topicsSkipBig: pixels;
 	topicsHeight: pixels;
 	unreadMarkDiameter: pixels;
+	tagTop: pixels;
 }
 
 ThreeStateIcon {
@@ -89,6 +90,11 @@ defaultDialogRow: DialogRow {
 	textLeft: 68px;
 	textTop: 34px;
 }
+taggedDialogRow: DialogRow(defaultDialogRow) {
+	height: 72px;
+	textTop: 30px;
+	tagTop: 52px;
+}
 forumDialogRow: DialogRow(defaultDialogRow) {
 	height: 80px;
 	textTop: 32px;
@@ -96,6 +102,12 @@ forumDialogRow: DialogRow(defaultDialogRow) {
 	topicsSkipBig: 14px;
 	topicsHeight: 21px;
 }
+taggedForumDialogRow: DialogRow(forumDialogRow) {
+	height: 96px;
+	tagTop: 77px;
+}
+dialogRowFilterTagSkip : 4px;
+dialogRowFilterTagFont : font(10px);
 
 forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
 forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};
