@@ -624,8 +624,14 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	}
 	const auto wasFilter = std::move(filter);
 	filter = std::move(updated);
+	auto entryToRefreshHeight = (Dialogs::Entry*)(nullptr);
 	if (rulesChanged) {
 		const auto filterList = _owner->chatsFilters().chatsList(id);
+		const auto tagsExistence = [&](not_null<Dialogs::Row*> row) {
+			return entryToRefreshHeight
+				? false
+				: row->entry()->hasChatsFilterTags(0);
+		};
 		const auto feedHistory = [&](not_null<History*> history) {
 			const auto now = filter.contains(history);
 			const auto was = wasFilter.contains(history);
@@ -640,7 +646,11 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		const auto feedList = [&](not_null<const Dialogs::MainList*> list) {
 			for (const auto &entry : *list->indexed()) {
 				if (const auto history = entry->history()) {
+					const auto wasTags = tagsExistence(entry);
 					feedHistory(history);
+					if (wasTags != tagsExistence(entry)) {
+						entryToRefreshHeight = entry->entry();
+					}
 				}
 			}
 		};
@@ -661,6 +671,10 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	}
 	if (chatlistChanged) {
 		_isChatlistChanged.fire_copy(id);
+	}
+	if (entryToRefreshHeight) {
+		// Trigger a full refresh of height for the main list.
+		entryToRefreshHeight->updateChatListEntryHeight();
 	}
 	return listUpdated;
 }
