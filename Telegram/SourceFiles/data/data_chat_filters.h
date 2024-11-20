@@ -188,6 +188,7 @@ public:
 
 	[[nodiscard]] bool tagsEnabled() const;
 	[[nodiscard]] rpl::producer<bool> tagsEnabledValue() const;
+	void requestToggleTags(bool value, Fn<void()> fail);
 
 private:
 	struct MoreChatsData {
@@ -217,6 +218,7 @@ private:
 	mtpRequestId _loadRequestId = 0;
 	mtpRequestId _saveOrderRequestId = 0;
 	mtpRequestId _saveOrderAfterId = 0;
+	mtpRequestId _toggleTagsRequestId = 0;
 	bool _loaded = false;
 	bool _reloading = false;
 

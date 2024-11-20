@@ -7,34 +7,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_folders.h"
 
-#include "apiwrap.h"
 #include "api/api_chat_filters.h" // ProcessFilterRemove.
-#include "boxes/premium_limits_box.h"
+#include "apiwrap.h"
 #include "boxes/filters/edit_filter_box.h"
+#include "boxes/premium_limits_box.h"
+#include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
-#include "data/data_session.h"
 #include "data/data_premium_limits.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "settings/settings_premium.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/empty_userpic.h"
 #include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
-#include "ui/vertical_list.h"
+#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
+#include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/ui_utility.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
@@ -67,6 +71,8 @@ public:
 	[[nodiscard]] rpl::producer<> restoreRequests() const;
 	[[nodiscard]] rpl::producer<> addRequests() const;
 
+	void setColorIndexProgress(float64 progress);
+
 private:
 	enum class State {
 		Suggested,
@@ -96,6 +102,8 @@ private:
 	Ui::Text::String _title;
 	QString _status;
 	Ui::FilterIcon _icon = Ui::FilterIcon();
+	std::optional<uint8> _colorIndex;
+	float64 _colorIndexProgress = 1.;
 
 	State _state = State::Normal;
 
@@ -238,11 +246,11 @@ void FilterRowButton::setup(
 	_title.setText(st::contactsNameStyle, filter.title());
 	_status = status;
 	_icon = Ui::ComputeFilterIcon(filter);
+	_colorIndex = filter.colorIndex();
 
 	setState(_state, true);
 
-	sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	sizeValue() | rpl::start_with_next([=](QSize size) {
 		const auto right = st::contactsPadding.right()
 			+ st::contactsCheckPosition.x();
 		const auto width = size.width();
@@ -272,6 +280,13 @@ rpl::producer<> FilterRowButton::addRequests() const {
 	return _add.clicks() | rpl::to_empty;
 }
 
+void FilterRowButton::setColorIndexProgress(float64 progress) {
+	_colorIndexProgress = progress;
+	if (_colorIndex) {
+		update();
+	}
+}
+
 void FilterRowButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 
@@ -281,6 +296,19 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			p.fillRect(e->rect(), st::windowBgOver);
 		}
 		RippleButton::paintRipple(p, 0, 0);
+
+		if (_colorIndex) {
+			p.setPen(Qt::NoPen);
+			p.setBrush(Ui::EmptyUserpic::UserpicColor(*_colorIndex).color2);
+			const auto w = height() / 3;
+			const auto rect = QRect(
+				_remove.x() - w - st::contactsCheckPosition.x(),
+				(height() - w) / 2,
+				w,
+				w);
+			auto hq = PainterHighQualityEnabler(p);
+			p.drawEllipse(rect - Margins((1. - _colorIndexProgress) * w / 2));
+		}
 	} else if (_state == State::Removed) {
 		p.setOpacity(st::stickersRowDisabledOpacity);
 	}
@@ -335,7 +363,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 [[nodiscard]] Fn<void()> SetupFoldersContent(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
+		not_null<Ui::VerticalLayout*> container,
+		not_null<rpl::event_stream<bool>*> tagsButtonEnabled) {
 	auto &lifetime = container->lifetime();
 
 	const auto weak = Ui::MakeWeak(container);
@@ -351,6 +380,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		rpl::variable<int> count;
 		rpl::variable<int> suggested;
 		Fn<void(const FilterRowButton*, Fn<void(Data::ChatFilter)>)> save;
+		Ui::Animations::Simple tagsEnabledAnimation;
 	};
 
 	const auto state = lifetime.make_state<State>();
@@ -582,6 +612,22 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	Ui::AddDivider(aboutRows);
 	Ui::AddSkip(aboutRows);
 	Ui::AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
+
+	const auto setTagsProgress = [=](float64 value) {
+		for (const auto &row : state->rows) {
+			row.button->setColorIndexProgress(value);
+		}
+	};
+	tagsButtonEnabled->events() | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool value) {
+		state->tagsEnabledAnimation.stop();
+		state->tagsEnabledAnimation.start(
+			setTagsProgress,
+			value ? .0 : 1.,
+			value ? 1. : .0,
+			st::universalDuration);
+	}, lifetime);
+	setTagsProgress(session->data().chatsFilters().tagsEnabled());
 
 	rpl::single(rpl::empty) | rpl::then(
 		session->data().chatsFilters().suggestedUpdated()
@@ -844,9 +890,101 @@ void SetupTopContent(
 
 }
 
+void SetupTagContent(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> content,
+		not_null<rpl::event_stream<bool>*> tagsButtonEnabled) {
+	Ui::AddDivider(content);
+	Ui::AddSkip(content);
+
+	const auto session = &controller->session();
+
+	struct State final {
+		rpl::event_stream<bool> tagsTurnOff;
+		base::Timer requestTimer;
+		Fn<void()> sendCallback;
+	};
+
+	auto premium = Data::AmPremiumValue(session);
+	const auto tagsButton = content->add(
+		object_ptr<Ui::SettingsButton>(
+			content,
+			tr::lng_filters_enable_tags(),
+			st::settingsButtonNoIconLocked));
+	const auto state = tagsButton->lifetime().make_state<State>();
+	tagsButton->toggleOn(rpl::merge(
+		rpl::combine(
+			session->data().chatsFilters().tagsEnabledValue(),
+			rpl::duplicate(premium),
+			rpl::mappers::_1 && rpl::mappers::_2),
+		state->tagsTurnOff.events()));
+	rpl::duplicate(premium) | rpl::start_with_next([=](bool value) {
+		tagsButton->setToggleLocked(!value);
+	}, tagsButton->lifetime());
+
+	const auto send = [=, weak = Ui::MakeWeak(tagsButton)](bool checked) {
+		session->data().chatsFilters().requestToggleTags(checked, [=] {
+			if (const auto strong = weak.data()) {
+				state->tagsTurnOff.fire(!checked);
+			}
+		});
+	};
+
+	tagsButton->toggledValue(
+	) | rpl::filter([=](bool checked) {
+		const auto premium = session->premium();
+		if (checked && !premium) {
+			ShowPremiumPreviewToBuy(controller, PremiumFeature::FilterTags);
+			state->tagsTurnOff.fire(false);
+		}
+		if (!premium) {
+			tagsButtonEnabled->fire(false);
+		} else {
+			tagsButtonEnabled->fire_copy(checked);
+		}
+		const auto proceed = premium
+			&& (checked != session->data().chatsFilters().tagsEnabled());
+		if (!proceed) {
+			state->requestTimer.cancel();
+		}
+		return proceed;
+	}) | rpl::start_with_next([=](bool v) {
+		state->sendCallback = [=] { send(v); };
+		state->requestTimer.cancel();
+		state->requestTimer.setCallback([=] { send(v); });
+		state->requestTimer.callOnce(500);
+	}, tagsButton->lifetime());
+
+	tagsButton->lifetime().add([=] {
+		if (state->requestTimer.isActive()) {
+			if (state->sendCallback) {
+				state->sendCallback();
+			}
+		}
+	});
+
+	Ui::AddSkip(content);
+	const auto about = Ui::AddDividerText(
+		content,
+		rpl::conditional(
+			rpl::duplicate(premium),
+			tr::lng_filters_enable_tags_about(Ui::Text::RichLangValue),
+			tr::lng_filters_enable_tags_about_premium(
+				lt_link,
+				tr::lng_effect_premium_link() | rpl::map([](QString t) {
+					return Ui::Text::Link(std::move(t), u"internal:"_q);
+				}),
+				Ui::Text::RichLangValue)));
+	about->setClickHandlerFilter([=](const auto &...) {
+		Settings::ShowPremium(controller, u"folder_tags"_q);
+		return true;
+	});
+}
+
 void SetupView(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> content) {
+		not_null<Ui::VerticalLayout*> content,
+		bool dividerNeeded) {
 	const auto wrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			content,
@@ -854,7 +992,9 @@ void SetupView(
 	wrap->toggleOn(controller->enoughSpaceForFiltersValue());
 	content = wrap->entity();
 
-	Ui::AddDivider(content);
+	if (dividerNeeded) {
+		Ui::AddDivider(content);
+	}
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_filters_view_subtitle());
 
@@ -904,12 +1044,20 @@ void Folders::setupContent(not_null<Window::SessionController*> controller) {
 	controller->session().data().chatsFilters().requestSuggested();
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	const auto tagsButtonEnabled
+		= content->lifetime().make_state<rpl::event_stream<bool>>();
 
 	SetupTopContent(content, _showFinished.events());
 
-	_save = SetupFoldersContent(controller, content);
+	_save = SetupFoldersContent(controller, content, tagsButtonEnabled);
 
-	SetupView(controller, content);
+	auto dividerNeeded = true;
+	if (controller->session().premiumPossible()) {
+		SetupTagContent(controller, content, tagsButtonEnabled);
+		dividerNeeded = false;
+	}
+
+	SetupView(controller, content, dividerNeeded);
 
 	Ui::ResizeFitChild(this, content);
 }

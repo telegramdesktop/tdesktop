@@ -397,6 +397,23 @@ rpl::producer<bool> ChatFilters::tagsEnabledValue() const {
 	return _tagsEnabled.value();
 }
 
+void ChatFilters::requestToggleTags(bool value, Fn<void()> fail) {
+	if (_toggleTagsRequestId) {
+		return;
+	}
+	_toggleTagsRequestId = _owner->session().api().request(
+		MTPmessages_ToggleDialogFilterTags(MTP_bool(value))
+	).done([=](const MTPBool &result) {
+		_tagsEnabled = value;
+		_toggleTagsRequestId = 0;
+	}).fail([=](const MTP::Error &error) {
+		const auto message = error.type();
+		_toggleTagsRequestId = 0;
+		LOG(("API Error: Toggle Tags - %1").arg(message));
+		fail();
+	}).send();
+}
+
 void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 	auto position = 0;
 	auto changed = false;

@@ -133,6 +133,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_business();
 	case PremiumFeature::Effects:
 		return tr::lng_premium_summary_subtitle_effects();
+	case PremiumFeature::FilterTags:
+		return tr::lng_premium_summary_subtitle_filter_tags();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_subtitle_location();
@@ -196,6 +198,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_business();
 	case PremiumFeature::Effects:
 		return tr::lng_premium_summary_about_effects();
+	case PremiumFeature::FilterTags:
+		return tr::lng_premium_summary_about_filter_tags();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_about_location();
@@ -534,6 +538,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::LastSeen: return "last_seen";
 		case PremiumFeature::MessagePrivacy: return "message_privacy";
 		case PremiumFeature::Effects: return "effects";
+		case PremiumFeature::FilterTags: return "folder_tags";
 
 		case PremiumFeature::BusinessLocation: return "business_location";
 		case PremiumFeature::BusinessHours: return "business_hours";

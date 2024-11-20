@@ -2300,6 +2300,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_business" = "Upgrade your account with business features such as location, opening hours and quick replies.";
 "lng_premium_summary_subtitle_effects" = "Message Effects";
 "lng_premium_summary_about_effects" = "Add over 500 animated effects to private messages.";
+"lng_premium_summary_subtitle_filter_tags" = "Tag Your Chats";
+"lng_premium_summary_about_filter_tags" = "Display folder names for each chat in the chat list.";
 "lng_premium_summary_bottom_subtitle" = "About Telegram Premium";
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
@@ -5155,6 +5157,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_view_subtitle" = "Tabs view";
 "lng_filters_vertical" = "Tabs on the left";
 "lng_filters_horizontal" = "Tabs at the top";
+"lng_filters_enable_tags" = "Show Folder Tags";
+"lng_filters_enable_tags_about" = "Display folder names for each chat in the chat list.";
+"lng_filters_enable_tags_about_premium" = "Subscribe to **{link}** to display folder names for each chat in the chat list.";
 
 "lng_filters_delete_sure" = "Are you sure you want to delete this folder? This will also deactivate all the invite links created to share this folder.";
 "lng_filters_link" = "Share Folder";
