@@ -377,6 +377,7 @@ void ChatFilters::load(bool force) {
 	api.request(_loadRequestId).cancel();
 	_loadRequestId = api.request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPmessages_DialogFilters &result) {
+		_tagsEnabled = result.data().is_tags_enabled();
 		received(result.data().vfilters().v);
 		_loadRequestId = 0;
 	}).fail([=] {
@@ -386,6 +387,14 @@ void ChatFilters::load(bool force) {
 			_listChanged.fire({});
 		}
 	}).send();
+}
+
+bool ChatFilters::tagsEnabled() const {
+	return _tagsEnabled.current();
+}
+
+rpl::producer<bool> ChatFilters::tagsEnabledValue() const {
+	return _tagsEnabled.value();
 }
 
 void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
@@ -619,7 +628,8 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		|| pinnedChanged
 		|| (filter.title() != updated.title())
 		|| (filter.iconEmoji() != updated.iconEmoji());
-	if (!listUpdated && !chatlistChanged) {
+	const auto colorChanged = filter.colorIndex() != updated.colorIndex();
+	if (!listUpdated && !chatlistChanged && !colorChanged) {
 		return false;
 	}
 	const auto wasFilter = std::move(filter);
@@ -627,8 +637,9 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	auto entryToRefreshHeight = (Dialogs::Entry*)(nullptr);
 	if (rulesChanged) {
 		const auto filterList = _owner->chatsFilters().chatsList(id);
+		const auto areTagsEnabled = tagsEnabled();
 		const auto tagsExistence = [&](not_null<Dialogs::Row*> row) {
-			return entryToRefreshHeight
+			return (!areTagsEnabled || entryToRefreshHeight)
 				? false
 				: row->entry()->hasChatsFilterTags(0);
 		};
@@ -671,6 +682,9 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	}
 	if (chatlistChanged) {
 		_isChatlistChanged.fire_copy(id);
+	}
+	if (colorChanged) {
+		_tagColorChanged.fire_copy(id);
 	}
 	if (entryToRefreshHeight) {
 		// Trigger a full refresh of height for the main list.
@@ -816,6 +830,10 @@ rpl::producer<> ChatFilters::changed() const {
 
 rpl::producer<FilterId> ChatFilters::isChatlistChanged() const {
 	return _isChatlistChanged.events();
+}
+
+rpl::producer<FilterId> ChatFilters::tagColorChanged() const {
+	return _tagColorChanged.events();
 }
 
 bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {

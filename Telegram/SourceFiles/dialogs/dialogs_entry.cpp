@@ -415,6 +415,9 @@ void Entry::updateChatListEntryHeight() {
 }
 
 [[nodiscard]] bool Entry::hasChatsFilterTags(FilterId exclude) const {
+	if (!owner().chatsFilters().tagsEnabled()) {
+		return false;
+	}
 	if (exclude) {
 		if (_tagColors.size() == 1) {
 			if (_tagColors.begin()->first == exclude) {

@@ -558,6 +558,7 @@ private:
 
 	std::unordered_map<FilterId, QImage> _chatsFilterTags;
 	bool _waitingAllChatListEntryRefreshesForTags = false;
+	rpl::lifetime _handleChatListEntryTagRefreshesLifetime;
 
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;

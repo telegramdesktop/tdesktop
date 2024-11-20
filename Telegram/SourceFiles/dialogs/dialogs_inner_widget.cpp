@@ -297,6 +297,47 @@ InnerWidget::InnerWidget(
 		refreshWithCollapsedRows();
 	}, lifetime());
 
+	session().data().chatsFilters().tagsEnabledValue(
+	) | rpl::distinct_until_changed() | rpl::start_with_next([=](bool tags) {
+		_handleChatListEntryTagRefreshesLifetime.destroy();
+		if (_shownList->updateHeights(_narrowRatio)) {
+			refresh();
+		}
+		if (!tags) {
+			return;
+		}
+		using Event = Data::Session::ChatListEntryRefresh;
+		session().data().chatListEntryRefreshes(
+		) | rpl::filter([=](const Event &event) {
+			if (_waitingAllChatListEntryRefreshesForTags) {
+				return false;
+			}
+			if (event.existenceChanged) {
+				if (event.key.entry()->inChatList(_filterId)) {
+					_waitingAllChatListEntryRefreshesForTags = true;
+					return true;
+				}
+			}
+			return false;
+		}) | rpl::start_with_next([=](const Event &event) {
+			Ui::PostponeCall(crl::guard(this, [=] {
+				_waitingAllChatListEntryRefreshesForTags = false;
+				if (_shownList->updateHeights(_narrowRatio)) {
+					refresh();
+				}
+			}));
+		}, _handleChatListEntryTagRefreshesLifetime);
+
+		session().data().chatsFilters().tagColorChanged(
+		) | rpl::start_with_next([=](FilterId filterId) {
+			const auto it = _chatsFilterTags.find(filterId);
+			if (it != _chatsFilterTags.end()) {
+				_chatsFilterTags.erase(it);
+				update();
+			}
+		}, _handleChatListEntryTagRefreshesLifetime);
+	}, lifetime());
+
 	session().settings().archiveInMainMenuChanges(
 	) | rpl::start_with_next([=] {
 		refresh();
@@ -2259,27 +2300,6 @@ void InnerWidget::handleChatListEntryRefreshes() {
 				width(),
 				std::abs(from - to) + event.moved.height);
 		}
-	}, lifetime());
-
-	session().data().chatListEntryRefreshes(
-	) | rpl::filter([=](const Event &event) {
-		if (_waitingAllChatListEntryRefreshesForTags) {
-			return false;
-		}
-		if (event.existenceChanged) {
-			if (event.key.entry()->inChatList(_filterId)) {
-				_waitingAllChatListEntryRefreshesForTags = true;
-				return true;
-			}
-		}
-		return false;
-	}) | rpl::start_with_next([=](const Event &event) {
-		Ui::PostponeCall(crl::guard(this, [=] {
-			_waitingAllChatListEntryRefreshesForTags = false;
-			if (_shownList->updateHeights(_narrowRatio)) {
-				refresh();
-			}
-		}));
 	}, lifetime());
 }
 
