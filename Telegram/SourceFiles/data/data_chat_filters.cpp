@@ -393,7 +393,8 @@ void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 	auto changed = false;
 	for (const auto &filter : list) {
 		auto parsed = ChatFilter::FromTL(filter, _owner);
-		const auto b = begin(_list) + position, e = end(_list);
+		const auto b = begin(_list) + position;
+		const auto e = end(_list);
 		const auto i = ranges::find(b, e, parsed.id(), &ChatFilter::id);
 		if (i == e) {
 			applyInsert(std::move(parsed), position);
@@ -621,11 +622,13 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	if (!listUpdated && !chatlistChanged) {
 		return false;
 	}
+	const auto wasFilter = std::move(filter);
+	filter = std::move(updated);
 	if (rulesChanged) {
 		const auto filterList = _owner->chatsFilters().chatsList(id);
 		const auto feedHistory = [&](not_null<History*> history) {
-			const auto now = updated.contains(history);
-			const auto was = filter.contains(history);
+			const auto now = filter.contains(history);
+			const auto was = wasFilter.contains(history);
 			if (now != was) {
 				if (now) {
 					history->addToChatList(id, filterList);
@@ -645,17 +648,16 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		if (const auto folder = _owner->folderLoaded(Data::Folder::kId)) {
 			feedList(folder->chatsList());
 		}
-		if (exceptionsChanged && !updated.always().empty()) {
+		if (exceptionsChanged && !filter.always().empty()) {
 			_exceptionsToLoad.push_back(id);
 			Ui::PostponeCall(&_owner->session(), [=] {
 				_owner->session().api().requestMoreDialogsIfNeeded();
 			});
 		}
 	}
-	filter = std::move(updated);
 	if (pinnedChanged) {
 		const auto filterList = _owner->chatsFilters().chatsList(id);
-		filterList->pinned()->applyList(filter.pinned());
+		filterList->pinned()->applyList(wasFilter.pinned());
 	}
 	if (chatlistChanged) {
 		_isChatlistChanged.fire_copy(id);
