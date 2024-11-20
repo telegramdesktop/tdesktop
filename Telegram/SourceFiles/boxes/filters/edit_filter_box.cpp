@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/empty_userpic.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 #include "styles/style_chat.h"
@@ -339,6 +341,7 @@ void EditFilterBox(
 			Fn<void(Data::ChatFilter)> next)> saveAnd) {
 	using namespace rpl::mappers;
 	constexpr auto kColorsCount = 8;
+	constexpr auto kNoTag = kColorsCount - 1;
 
 	struct State {
 		rpl::variable<Data::ChatFilter> rules;
@@ -354,7 +357,7 @@ void EditFilterBox(
 		.chatlist = filter.chatlist(),
 		.creating = filter.title().isEmpty(),
 	});
-	state->colorIndex = filter.colorIndex().value_or(kColorsCount - 1);
+	state->colorIndex = filter.colorIndex().value_or(kNoTag);
 	state->links = owner->chatsFilters().chatlistLinks(filter.id()),
 	state->hasLinks = state->links.value() | rpl::map([=](const auto &v) {
 		return !v.empty();
@@ -528,7 +531,59 @@ void EditFilterBox(
 			anim::type::instant);
 
 		const auto isPremium = session->premium();
-		Ui::AddSubsectionTitle(colors, tr::lng_filters_tag_color_subtitle());
+		const auto title = Ui::AddSubsectionTitle(
+			colors,
+			tr::lng_filters_tag_color_subtitle());
+		const auto preview = Ui::CreateChild<Ui::RpWidget>(colors);
+		title->geometryValue(
+		) | rpl::start_with_next([=](const QRect &r) {
+			const auto h = st::normalFont->height;
+			preview->setGeometry(
+				colors->x(),
+				r.y() + (r.height() - h) / 2 + st::lineWidth,
+				colors->width(),
+				h);
+		}, preview->lifetime());
+		const auto previewColor = preview->lifetime().make_state<QColor>();
+		const auto previewAlpha = preview->lifetime().make_state<float64>(1);
+		preview->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(preview);
+			p.fillRect(preview->rect(), Qt::transparent);
+			const auto &font = st::dialogRowFilterTagFont;
+			const auto text = name->getLastText().toUpper();
+			p.setFont(font);
+			p.setOpacity(*previewAlpha);
+			const auto roundedWidth = font->width(text) + font->spacew * 3;
+			const auto rect = QRect(
+				preview->width() - roundedWidth - st::boxRowPadding.right(),
+				(st::normalFont->height - font->height) / 2,
+				roundedWidth,
+				font->height);
+			const auto pen = QPen(*previewColor);
+			p.setPen(Qt::NoPen);
+			p.setBrush(anim::with_alpha(pen.color(), .15));
+			{
+				auto hq = PainterHighQualityEnabler(p);
+				const auto radius = font->height / 3.;
+				p.drawRoundedRect(rect, radius, radius);
+			}
+			p.setPen(pen);
+			p.drawText(rect, text, style::al_center);
+			if (p.opacity() < 1) {
+				p.setOpacity(1. - p.opacity());
+				p.setFont(st::normalFont);
+				p.setPen(st::windowSubTextFg);
+				p.drawText(
+					preview->rect() - st::boxRowPadding,
+					tr::lng_filters_tag_color_no(tr::now),
+					style::al_right);
+			}
+		}, preview->lifetime());
+
+		name->changes() | rpl::start_with_next([=] {
+			preview->update();
+		}, preview->lifetime());
+
 		const auto side = st::userpicBuilderEmojiAccentColorSize;
 		const auto line = colors->add(
 			Ui::CreateSkipWidget(colors, side),
@@ -536,15 +591,25 @@ void EditFilterBox(
 		auto buttons = std::vector<not_null<UserpicBuilder::CircleButton*>>();
 		const auto animation
 			= line->lifetime().make_state<Ui::Animations::Simple>();
+		const auto palette = [](int i) {
+			return Ui::EmptyUserpic::UserpicColor(i).color2;
+		};
 		for (auto i = 0; i < kColorsCount; ++i) {
 			const auto button = Ui::CreateChild<UserpicBuilder::CircleButton>(
 				line);
 			button->resize(side, side);
-			button->setIndex(i);
-			button->setSelectedProgress(isPremium
+			const auto progress = isPremium
 				? (state->colorIndex.current() == i)
-				: (i == (kColorsCount - 1)));
-			button->setBrush(Ui::EmptyUserpic::UserpicColor(i).color2);
+				: (i == kNoTag);
+			button->setSelectedProgress(progress);
+			const auto color = palette(i);
+			button->setBrush(color);
+			if (progress == 1) {
+				*previewColor = color->c;
+				if (i == kNoTag) {
+					*previewAlpha = 0.;
+				}
+			}
 			buttons.push_back(button);
 		}
 		for (auto i = 0; i < kColorsCount; ++i) {
@@ -553,12 +618,19 @@ void EditFilterBox(
 				const auto was = state->colorIndex.current();
 				const auto now = i;
 				if (was != now) {
+					const auto c1 = palette(was);
+					const auto c2 = palette(now);
+					const auto a1 = (was == kNoTag) ? 0. : 1.;
+					const auto a2 = (now == kNoTag) ? 0. : 1.;
 					animation->stop();
 					animation->start([=](float64 progress) {
 						if (was >= 0) {
 							buttons[was]->setSelectedProgress(1. - progress);
 						}
 						buttons[now]->setSelectedProgress(progress);
+						*previewColor = anim::color(c1, c2, progress);
+						*previewAlpha = anim::interpolateF(a1, a2, progress);
+						preview->update();
 					}, 0., 1., st::universalDuration);
 				}
 				state->colorIndex = now;
@@ -619,7 +691,7 @@ void EditFilterBox(
 			return {};
 		}
 		const auto rawColorIndex = state->colorIndex.current();
-		const auto colorIndex = (rawColorIndex >= (kColorsCount - 1)
+		const auto colorIndex = (rawColorIndex >= kNoTag
 			? std::nullopt
 			: std::make_optional(rawColorIndex));
 		return rules.withTitle(title).withColorIndex(colorIndex);
