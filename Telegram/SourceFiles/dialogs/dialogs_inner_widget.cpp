@@ -287,9 +287,13 @@ InnerWidget::InnerWidget(
 	}, lifetime());
 
 	rpl::merge(
-		session().settings().archiveCollapsedChanges() | rpl::to_empty,
-		session().data().chatsFilters().changed()
-	) | rpl::start_with_next([=] {
+		session().settings().archiveCollapsedChanges() | rpl::map_to(false),
+		session().data().chatsFilters().changed() | rpl::map_to(true)
+	) | rpl::start_with_next([=](bool refreshHeight) {
+		if (refreshHeight && _filterId) {
+			// Height of the main list will be refreshed in other way.
+			_shownList->updateHeights(_narrowRatio);
+		}
 		refreshWithCollapsedRows();
 	}, lifetime());
 
