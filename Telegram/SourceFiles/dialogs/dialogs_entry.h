@@ -189,6 +189,7 @@ public:
 	not_null<Row*> addToChatList(
 		FilterId filterId,
 		not_null<MainList*> list);
+	void setColorIndexForFilterId(FilterId, std::optional<uint8>);
 	void removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list);

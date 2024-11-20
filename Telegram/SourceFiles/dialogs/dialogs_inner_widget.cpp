@@ -329,10 +329,28 @@ InnerWidget::InnerWidget(
 		}, _handleChatListEntryTagRefreshesLifetime);
 
 		session().data().chatsFilters().tagColorChanged(
-		) | rpl::start_with_next([=](FilterId filterId) {
+		) | rpl::start_with_next([=](Data::TagColorChanged data) {
+			const auto filterId = data.filterId;
 			const auto it = _chatsFilterTags.find(filterId);
 			if (it != _chatsFilterTags.end()) {
 				_chatsFilterTags.erase(it);
+			}
+			if (data.colorExistenceChanged) {
+				for (const auto &f : session().data().chatsFilters().list()) {
+					if (f.id() != filterId) {
+						continue;
+					}
+					const auto color = f.colorIndex();
+					const auto list = session().data().chatsFilters().chatsList(
+						filterId);
+					for (const auto &row : list->indexed()->all()) {
+						row->entry()->setColorIndexForFilterId(filterId, color);
+					}
+				}
+				if (_shownList->updateHeights(_narrowRatio)) {
+					refresh();
+				}
+			} else {
 				update();
 			}
 		}, _handleChatListEntryTagRefreshesLifetime);

@@ -124,6 +124,11 @@ struct SuggestedFilter {
 	QString description;
 };
 
+struct TagColorChanged final {
+	FilterId filterId = 0;
+	bool colorExistenceChanged = false;
+};
+
 class ChatFilters final {
 public:
 	explicit ChatFilters(not_null<Session*> owner);
@@ -140,7 +145,7 @@ public:
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
 	[[nodiscard]] rpl::producer<> changed() const;
 	[[nodiscard]] rpl::producer<FilterId> isChatlistChanged() const;
-	[[nodiscard]] rpl::producer<FilterId> tagColorChanged() const;
+	[[nodiscard]] rpl::producer<TagColorChanged> tagColorChanged() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool has() const;
 
@@ -215,7 +220,7 @@ private:
 	base::flat_map<FilterId, std::unique_ptr<Dialogs::MainList>> _chatsLists;
 	rpl::event_stream<> _listChanged;
 	rpl::event_stream<FilterId> _isChatlistChanged;
-	rpl::event_stream<FilterId> _tagColorChanged;
+	rpl::event_stream<TagColorChanged> _tagColorChanged;
 	mtpRequestId _loadRequestId = 0;
 	mtpRequestId _saveOrderRequestId = 0;
 	mtpRequestId _saveOrderAfterId = 0;

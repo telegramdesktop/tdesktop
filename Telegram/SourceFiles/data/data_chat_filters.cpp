@@ -652,6 +652,8 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		|| (filter.title() != updated.title())
 		|| (filter.iconEmoji() != updated.iconEmoji());
 	const auto colorChanged = filter.colorIndex() != updated.colorIndex();
+	const auto colorExistenceChanged = (!filter.colorIndex())
+		!= (!updated.colorIndex());
 	if (!listUpdated && !chatlistChanged && !colorChanged) {
 		return false;
 	}
@@ -707,7 +709,10 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		_isChatlistChanged.fire_copy(id);
 	}
 	if (colorChanged) {
-		_tagColorChanged.fire_copy(id);
+		_tagColorChanged.fire_copy(TagColorChanged{
+			.filterId = id,
+			.colorExistenceChanged = colorExistenceChanged,
+		});
 	}
 	if (entryToRefreshHeight) {
 		// Trigger a full refresh of height for the main list.
@@ -855,7 +860,7 @@ rpl::producer<FilterId> ChatFilters::isChatlistChanged() const {
 	return _isChatlistChanged.events();
 }
 
-rpl::producer<FilterId> ChatFilters::tagColorChanged() const {
+rpl::producer<TagColorChanged> ChatFilters::tagColorChanged() const {
 	return _tagColorChanged.events();
 }
 

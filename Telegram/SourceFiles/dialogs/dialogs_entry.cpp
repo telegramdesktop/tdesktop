@@ -332,22 +332,31 @@ int Entry::posInChatList(FilterId filterId) const {
 	return mainChatListLink(filterId)->index();
 }
 
+void Entry::setColorIndexForFilterId(
+		FilterId filterId,
+		std::optional<uint8> colorIndex) {
+	if (!filterId) {
+		return;
+	}
+	if (colorIndex) {
+		_tagColors[filterId] = *colorIndex;
+	} else {
+		_tagColors.remove(filterId);
+	}
+}
+
 not_null<Row*> Entry::addToChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
-	if (const auto main = maybeMainChatListLink(filterId)) {
-		return main;
-	}
 	if (filterId) {
 		const auto &list = owner().chatsFilters().list();
 		const auto it = ranges::find(list, filterId, &Data::ChatFilter::id);
-		if (it != end(list) && it->colorIndex()) {
-			_tagColors[filterId] = *(it->colorIndex());
-		} else {
-			if (it != end(list)) {
-			}
-			_tagColors.remove(filterId);
+		if (it != end(list)) {
+			setColorIndexForFilterId(filterId, it->colorIndex());
 		}
+	}
+	if (const auto main = maybeMainChatListLink(filterId)) {
+		return main;
 	}
 	return _chatListLinks.emplace(
 		filterId,
