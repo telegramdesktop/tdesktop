@@ -557,6 +557,8 @@ private:
 	base::flat_map<FilterId, int> _chatsFilterScrollStates;
 
 	std::unordered_map<FilterId, QImage> _chatsFilterTags;
+	bool _waitingAllChatListEntryRefreshesForTags = false;
+
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
 	rpl::event_stream<> _listBottomReached;

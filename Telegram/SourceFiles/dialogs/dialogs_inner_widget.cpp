@@ -2260,6 +2260,27 @@ void InnerWidget::handleChatListEntryRefreshes() {
 				std::abs(from - to) + event.moved.height);
 		}
 	}, lifetime());
+
+	session().data().chatListEntryRefreshes(
+	) | rpl::filter([=](const Event &event) {
+		if (_waitingAllChatListEntryRefreshesForTags) {
+			return false;
+		}
+		if (event.existenceChanged) {
+			if (event.key.entry()->inChatList(_filterId)) {
+				_waitingAllChatListEntryRefreshesForTags = true;
+				return true;
+			}
+		}
+		return false;
+	}) | rpl::start_with_next([=](const Event &event) {
+		Ui::PostponeCall(crl::guard(this, [=] {
+			_waitingAllChatListEntryRefreshesForTags = false;
+			if (_shownList->updateHeights(_narrowRatio)) {
+				refresh();
+			}
+		}));
+	}, lifetime());
 }
 
 void InnerWidget::repaintCollapsedFolderRow(not_null<Data::Folder*> folder) {
