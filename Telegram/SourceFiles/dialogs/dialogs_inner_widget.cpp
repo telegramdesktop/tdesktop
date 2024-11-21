@@ -803,6 +803,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					|| (filter.id() == context.filter)) {
 					continue;
 				}
+				if (active
+					&& (filter.flags() & Data::ChatFilter::Flag::NoRead)
+					&& !filter.contains(key.history(), true)) {
+					// Hack for History::fakeUnreadWhileOpened().
+					continue;
+				}
 				if (const auto tag = cacheChatsFilterTag(filter.id(), 0, a)) {
 					if (more) {
 						more++;

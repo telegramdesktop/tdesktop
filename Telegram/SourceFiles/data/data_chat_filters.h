@@ -81,7 +81,9 @@ public:
 	[[nodiscard]] const std::vector<not_null<History*>> &pinned() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &never() const;
 
-	[[nodiscard]] bool contains(not_null<History*> history) const;
+	[[nodiscard]] bool contains(
+		not_null<History*> history,
+		bool ignoreFakeUnread = false) const;
 
 private:
 	FilterId _id = 0;

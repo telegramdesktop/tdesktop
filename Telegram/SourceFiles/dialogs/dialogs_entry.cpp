@@ -254,7 +254,31 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 			return state.messages || state.marks || state.mentions;
 		};
 		if (isForFilters(wasState) != isForFilters(nowState)) {
+			const auto wasTags = _tagColors.size();
 			owner().chatsFilters().refreshHistory(history);
+
+			// Hack for History::fakeUnreadWhileOpened().
+			if (!isForFilters(nowState)
+				&& (wasTags > 0)
+				&& (wasTags == _tagColors.size())) {
+				auto updateRequested = false;
+				for (const auto &filter : filters.list()) {
+					if (!(filter.flags() & Data::ChatFilter::Flag::NoRead)
+						|| !_chatListLinks.contains(filter.id())
+						|| filter.contains(history, true)) {
+						continue;
+					}
+					const auto wasTagsCount = _tagColors.size();
+					setColorIndexForFilterId(filter.id(), std::nullopt);
+					updateRequested |= (wasTagsCount != _tagColors.size());
+				}
+				if (updateRequested) {
+					updateChatListEntryHeight();
+					session().changes().peerUpdated(
+						history->peer,
+						Data::PeerUpdate::Flag::Name);
+				}
+			}
 		}
 	}
 	updateChatListEntryPostponed();

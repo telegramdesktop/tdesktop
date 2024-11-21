@@ -283,7 +283,9 @@ const base::flat_set<not_null<History*>> &ChatFilter::never() const {
 	return _never;
 }
 
-bool ChatFilter::contains(not_null<History*> history) const {
+bool ChatFilter::contains(
+		not_null<History*> history,
+		bool ignoreFakeUnread) const {
 	const auto flag = [&] {
 		const auto peer = history->peer;
 		if (const auto user = peer->asUser()) {
@@ -320,7 +322,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 			&& (!(_flags & Flag::NoRead)
 				|| state.unread
 				|| state.mention
-				|| history->fakeUnreadWhileOpened())
+				|| (!ignoreFakeUnread && history->fakeUnreadWhileOpened()))
 			&& (!(_flags & Flag::NoArchived)
 				|| (history->folderKnown() && !history->folder())))
 		|| _always.contains(history);
