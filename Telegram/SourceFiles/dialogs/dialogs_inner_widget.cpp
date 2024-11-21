@@ -809,7 +809,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					// Hack for History::fakeUnreadWhileOpened().
 					continue;
 				}
-				if (const auto tag = cacheChatsFilterTag(filter.id(), 0, a)) {
+				if (const auto tag = cacheChatsFilterTag(filter, 0, a)) {
 					if (more) {
 						more++;
 						continue;
@@ -826,13 +826,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 			}
 			if (more) {
-				if (const auto tag = cacheChatsFilterTag(0, more, a)) {
+				if (const auto tag = cacheChatsFilterTag({}, more, a)) {
 					const auto tagWidth = tag->width()
 						/ style::DevicePixelRatio();
 					if (availableWidth < tagWidth) {
 						more++;
 						if (!chatsFilterTags.empty()) {
-							const auto tag = cacheChatsFilterTag(0, more, a);
+							const auto tag = cacheChatsFilterTag({}, more, a);
 							if (tag) {
 								chatsFilterTags.back() = tag;
 							}
@@ -4089,13 +4089,13 @@ void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
 }
 
 QImage *InnerWidget::cacheChatsFilterTag(
-		FilterId filterId,
+		const Data::ChatFilter &filter,
 		uint8 more,
 		bool active) {
-	if (!filterId && !more) {
+	if (!filter.id() && !more) {
 		return nullptr;
 	}
-	const auto key = SerializeFilterTagsKey(filterId, more, active);
+	const auto key = SerializeFilterTagsKey(filter.id(), more, active);
 	{
 		const auto it = _chatsFilterTags.find(key);
 		if (it != end(_chatsFilterTags)) {
@@ -4104,14 +4104,10 @@ QImage *InnerWidget::cacheChatsFilterTag(
 	}
 	auto roundedText = QString();
 	auto colorIndex = -1;
-	if (filterId) {
-		const auto &list = session().data().chatsFilters().list();
-		const auto it = ranges::find(list, filterId, &Data::ChatFilter::id);
-		if (it != end(list)) {
-			roundedText = it->title().toUpper();
-			if (it->colorIndex()) {
-				colorIndex = *it->colorIndex();
-			}
+	if (filter.id()) {
+		roundedText = filter.title().toUpper();
+		if (filter.colorIndex()) {
+			colorIndex = *(filter.colorIndex());
 		}
 	} else if (more > 0) {
 		roundedText = QChar('+') + QString::number(more);

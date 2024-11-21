@@ -41,6 +41,7 @@ class SessionController;
 } // namespace Window
 
 namespace Data {
+class ChatFilter;
 class Thread;
 class Folder;
 class Forum;
@@ -450,7 +451,10 @@ private:
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
 
-	[[nodiscard]] QImage *cacheChatsFilterTag(FilterId, uint8, bool);
+	[[nodiscard]] QImage *cacheChatsFilterTag(
+		const Data::ChatFilter &filter,
+		uint8 more,
+		bool active);
 
 	const not_null<Window::SessionController*> _controller;
 
