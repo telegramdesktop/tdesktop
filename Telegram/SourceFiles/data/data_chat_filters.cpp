@@ -358,8 +358,11 @@ void ChatFilters::clear() {
 	_list.clear();
 }
 
-void ChatFilters::setPreloaded(const QVector<MTPDialogFilter> &result) {
+void ChatFilters::setPreloaded(
+		const QVector<MTPDialogFilter> &result,
+		bool tagsEnabled) {
 	_loadRequestId = -1;
+	_tagsEnabled = tagsEnabled;
 	received(result);
 	crl::on_main(&_owner->session(), [=] {
 		if (_loadRequestId == -1) {

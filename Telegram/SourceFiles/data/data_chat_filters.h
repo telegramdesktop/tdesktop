@@ -136,7 +136,9 @@ public:
 	explicit ChatFilters(not_null<Session*> owner);
 	~ChatFilters();
 
-	void setPreloaded(const QVector<MTPDialogFilter> &result);
+	void setPreloaded(
+		const QVector<MTPDialogFilter> &result,
+		bool tagsEnabled);
 
 	void load();
 	void reload();

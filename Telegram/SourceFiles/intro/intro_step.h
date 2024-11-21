@@ -116,7 +116,8 @@ protected:
 	void createSession(
 		const MTPUser &user,
 		QImage photo,
-		const QVector<MTPDialogFilter> &filters);
+		const QVector<MTPDialogFilter> &filters,
+		bool tagsEnabled);
 
 	void goBack();
 
