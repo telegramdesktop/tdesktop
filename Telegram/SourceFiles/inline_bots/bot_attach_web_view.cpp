@@ -2346,7 +2346,9 @@ void AttachWebView::resolveUsername(
 	}
 	_session->api().request(base::take(_requestId)).cancel();
 	_requestId = _session->api().request(MTPcontacts_ResolveUsername(
-		MTP_string(_botUsername)
+		MTP_flags(0),
+		MTP_string(_botUsername),
+		MTP_string()
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		_requestId = 0;
 		result.match([&](const MTPDcontacts_resolvedPeer &data) {

@@ -17,30 +17,32 @@ class Session;
 
 namespace Data {
 
+[[nodiscard]] StarsAmount FromTL(const MTPStarsAmount &value);
+
 class Credits final {
 public:
 	explicit Credits(not_null<Main::Session*> session);
 	~Credits();
 
 	void load(bool force = false);
-	void apply(uint64 balance);
-	void apply(PeerId peerId, uint64 balance);
+	void apply(StarsAmount balance);
+	void apply(PeerId peerId, StarsAmount balance);
 
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] rpl::producer<bool> loadedValue() const;
 
-	[[nodiscard]] uint64 balance() const;
-	[[nodiscard]] uint64 balance(PeerId peerId) const;
-	[[nodiscard]] rpl::producer<uint64> balanceValue() const;
+	[[nodiscard]] StarsAmount balance() const;
+	[[nodiscard]] StarsAmount balance(PeerId peerId) const;
+	[[nodiscard]] rpl::producer<StarsAmount> balanceValue() const;
 	[[nodiscard]] rpl::producer<float64> rateValue(
 		not_null<PeerData*> ownedBotOrChannel);
 
 	void applyCurrency(PeerId peerId, uint64 balance);
 	[[nodiscard]] uint64 balanceCurrency(PeerId peerId) const;
 
-	void lock(int count);
-	void unlock(int count);
-	void withdrawLocked(int count);
+	void lock(StarsAmount count);
+	void unlock(StarsAmount count);
+	void withdrawLocked(StarsAmount count);
 	void invalidate();
 
 	void apply(const MTPDupdateStarsBalance &data);
@@ -52,12 +54,12 @@ private:
 
 	std::unique_ptr<Api::CreditsStatus> _loader;
 
-	base::flat_map<PeerId, uint64> _cachedPeerBalances;
+	base::flat_map<PeerId, StarsAmount> _cachedPeerBalances;
 	base::flat_map<PeerId, uint64> _cachedPeerCurrencyBalances;
 
-	uint64 _balance = 0;
-	uint64 _locked = 0;
-	rpl::variable<uint64> _nonLockedBalance;
+	StarsAmount _balance;
+	StarsAmount _locked;
+	rpl::variable<StarsAmount> _nonLockedBalance;
 	rpl::event_stream<> _loadedChanges;
 	crl::time _lastLoaded = 0;
 	float64 _rate = 0.;

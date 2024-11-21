@@ -2220,7 +2220,7 @@ void MessageReactions::scheduleSendPaid(
 		_paid->scheduledPrivacySet = anonymous.has_value();
 	}
 	if (count > 0) {
-		_item->history()->session().credits().lock(count);
+		_item->history()->session().credits().lock(StarsAmount(count));
 	}
 	_item->history()->owner().reactions().schedulePaid(_item);
 }
@@ -2233,7 +2233,8 @@ void MessageReactions::cancelScheduledPaid() {
 	if (_paid) {
 		if (_paid->scheduledFlag) {
 			if (const auto amount = int(_paid->scheduled)) {
-				_item->history()->session().credits().unlock(amount);
+				_item->history()->session().credits().unlock(
+					StarsAmount(amount));
 			}
 			_paid->scheduled = 0;
 			_paid->scheduledFlag = 0;
@@ -2296,9 +2297,9 @@ void MessageReactions::finishPaidSending(
 	if (const auto amount = send.count) {
 		const auto credits = &_item->history()->session().credits();
 		if (success) {
-			credits->withdrawLocked(amount);
+			credits->withdrawLocked(StarsAmount(amount));
 		} else {
-			credits->unlock(amount);
+			credits->unlock(StarsAmount(amount));
 		}
 	}
 }

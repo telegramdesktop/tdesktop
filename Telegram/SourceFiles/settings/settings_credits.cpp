@@ -380,7 +380,7 @@ void Credits::setupContent() {
 	const auto balanceAmount = Ui::CreateChild<Ui::FlatLabel>(
 		balanceLine,
 		_controller->session().credits().balanceValue(
-		) | rpl::map(Lang::FormatCountDecimal),
+		) | rpl::map(Lang::FormatStarsAmountDecimal),
 		st::creditsSettingsBigBalance);
 	balanceAmount->sizeValue() | rpl::start_with_next([=] {
 		balanceLine->resize(
@@ -430,7 +430,8 @@ void Credits::setupContent() {
 		const auto options = state->api
 			? state->api->options()
 			: Data::CreditTopupOptions();
-		FillCreditOptions(show, inner, self, 0, paid, nullptr, options);
+		const auto amount = StarsAmount();
+		FillCreditOptions(show, inner, self, amount, paid, nullptr, options);
 
 		const auto button = box->addButton(tr::lng_close(), [=] {
 			box->closeBox();

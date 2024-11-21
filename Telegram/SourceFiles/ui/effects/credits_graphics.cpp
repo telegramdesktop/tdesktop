@@ -162,23 +162,23 @@ not_null<RpWidget*> CreateSingleStarWidget(
 
 not_null<MaskedInputField*> AddInputFieldForCredits(
 		not_null<VerticalLayout*> container,
-		rpl::producer<uint64> value) {
+		rpl::producer<StarsAmount> value) {
 	const auto &st = st::botEarnInputField;
 	const auto inputContainer = container->add(
 		CreateSkipWidget(container, st.heightMin));
-	const auto currentValue = rpl::variable<uint64>(
+	const auto currentValue = rpl::variable<StarsAmount>(
 		rpl::duplicate(value));
 	const auto input = CreateChild<NumberInput>(
 		inputContainer,
 		st,
 		tr::lng_bot_earn_out_ph(),
-		QString::number(currentValue.current()),
-		currentValue.current());
+		QString::number(currentValue.current().whole()),
+		currentValue.current().whole());
 	rpl::duplicate(
 		value
-	) | rpl::start_with_next([=](uint64 v) {
-		input->changeLimit(v);
-		input->setText(QString::number(v));
+	) | rpl::start_with_next([=](StarsAmount v) {
+		input->changeLimit(v.whole());
+		input->setText(QString::number(v.whole()));
 	}, input->lifetime());
 	const auto icon = CreateSingleStarWidget(
 		inputContainer,

@@ -50,12 +50,16 @@ QString ToUsd(
 		Data::EarnInt value,
 		float64 rate,
 		int afterFloat) {
+	return ToUsd(StarsAmount(value), rate, afterFloat);
+}
+
+QString ToUsd(
+		StarsAmount value,
+		float64 rate,
+		int afterFloat) {
 	constexpr auto kApproximately = QChar(0x2248);
 
-	const auto result = value
-		/ float64(Data::kEarnMultiplier)
-		* rate
-		* Data::kEarnMultiplier;
+	const auto result = int64(base::SafeRound(value.value() * rate));
 	return QString(kApproximately)
 		+ QChar('$')
 		+ MajorPart(result)

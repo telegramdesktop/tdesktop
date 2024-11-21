@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
+#include "data/components/credits.h"
 #include "data/data_channel.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -252,10 +253,9 @@ void InnerWidget::load() {
 				}
 				const auto &data = d.vstatus().data();
 				auto &e = _state.creditsEarn;
-				e.currentBalance = data.vcurrent_balance().v;
-				e.availableBalance = data.vavailable_balance().v;
-				e.overallRevenue = data.voverall_revenue().v;
-				e.overallRevenue = data.voverall_revenue().v;
+				e.currentBalance = Data::FromTL(data.vcurrent_balance());
+				e.availableBalance = Data::FromTL(data.vavailable_balance());
+				e.overallRevenue = Data::FromTL(data.voverall_revenue());
 				e.isWithdrawalEnabled = data.is_withdrawal_enabled();
 				e.nextWithdrawalAt = data.vnext_withdrawal_at()
 					? base::unixtime::parse(
@@ -359,7 +359,7 @@ void InnerWidget::fill() {
 	//constexpr auto kApproximately = QChar(0x2248);
 	const auto multiplier = data.usdRate;
 
-	const auto creditsToUsdMap = [=](EarnInt c) {
+	const auto creditsToUsdMap = [=](StarsAmount c) {
 		const auto creditsMultiplier = _state.creditsEarn.usdRate
 			* Data::kEarnMultiplier;
 		return c ? ToUsd(c, creditsMultiplier, 0) : QString();
@@ -679,7 +679,7 @@ void InnerWidget::fill() {
 
 		const auto addOverview = [&](
 				rpl::producer<EarnInt> currencyValue,
-				rpl::producer<EarnInt> creditsValue,
+				rpl::producer<StarsAmount> creditsValue,
 				const tr::phrase<> &text,
 				bool showCurrency,
 				bool showCredits) {
@@ -713,8 +713,8 @@ void InnerWidget::fill() {
 
 			const auto creditsLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				rpl::duplicate(creditsValue) | rpl::map([](EarnInt value) {
-					return QString::number(value);
+				rpl::duplicate(creditsValue) | rpl::map([](StarsAmount value) {
+					return Lang::FormatStarsAmountDecimal(value);
 				}),
 				st::channelEarnOverviewMajorLabel);
 			const auto icon = Ui::CreateSingleStarWidget(
@@ -733,7 +733,7 @@ void InnerWidget::fill() {
 					int available,
 					const QSize &size,
 					const QSize &creditsSize,
-					EarnInt credits) {
+					StarsAmount credits) {
 				const auto skip = st::channelEarnOverviewSubMinorLabelPos.x();
 				line->resize(line->width(), size.height());
 				minorLabel->moveToLeft(
@@ -922,7 +922,7 @@ void InnerWidget::fill() {
 			: tr::lng_channel_earn_balance_about_temp);
 		Ui::AddSkip(container);
 	}
-	if (creditsData.availableBalance > 0) {
+	if (creditsData.availableBalance.value() > 0) {
 		AddHeader(container, tr::lng_bot_earn_balance_title);
 		auto availableBalanceValue = rpl::single(
 			creditsData.availableBalance

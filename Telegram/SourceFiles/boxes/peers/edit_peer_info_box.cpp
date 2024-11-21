@@ -1664,7 +1664,7 @@ void Controller::fillBotCreditsButton() {
 	auto &lifetime = _controls.buttonsLayout->lifetime();
 	const auto state = lifetime.make_state<State>();
 	if (const auto balance = _peer->session().credits().balance(_peer->id)) {
-		state->balance = Lang::FormatCountDecimal(balance);
+		state->balance = Lang::FormatStarsAmountDecimal(balance);
 	}
 
 	const auto wrap = _controls.buttonsLayout->add(
@@ -1689,7 +1689,7 @@ void Controller::fillBotCreditsButton() {
 			if (data.balance) {
 				wrap->toggle(true, anim::type::normal);
 			}
-			state->balance = Lang::FormatCountDecimal(data.balance);
+			state->balance = Lang::FormatStarsAmountDecimal(data.balance);
 		});
 	}
 	{
@@ -2227,7 +2227,9 @@ void Controller::saveHistoryVisibility() {
 void Controller::toggleBotManager(const QString &command) {
 	const auto controller = _navigation->parentController();
 	_api.request(MTPcontacts_ResolveUsername(
-		MTP_string(kBotManagerUsername.utf16())
+		MTP_flags(0),
+		MTP_string(kBotManagerUsername.utf16()),
+		MTP_string()
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		_peer->owner().processUsers(result.data().vusers());
 		_peer->owner().processChats(result.data().vchats());

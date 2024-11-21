@@ -34,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/flat_set.h"
 
+#include "core/stars_amount.h"
+
 #include "ui/arc_angles.h"
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"

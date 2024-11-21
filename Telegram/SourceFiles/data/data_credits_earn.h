@@ -13,16 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
-using CreditsEarnInt = uint64;
-
 struct CreditsEarnStatistics final {
 	explicit operator bool() const {
 		return !!usdRate;
 	}
 	Data::StatisticalGraph revenueGraph;
-	CreditsEarnInt currentBalance = 0;
-	CreditsEarnInt availableBalance = 0;
-	CreditsEarnInt overallRevenue = 0;
+	StarsAmount currentBalance;
+	StarsAmount availableBalance;
+	StarsAmount overallRevenue;
 	float64 usdRate = 0.;
 	bool isWithdrawalEnabled = false;
 	QDateTime nextWithdrawalAt;

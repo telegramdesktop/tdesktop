@@ -125,7 +125,9 @@ void InnerWidget::fill() {
 			return _state.availableBalance;
 		})
 	);
-	auto valueToString = [](uint64 v) { return Lang::FormatCountDecimal(v); };
+	auto valueToString = [](StarsAmount v) {
+		return Lang::FormatStarsAmountDecimal(v);
+	};
 
 	if (data.revenueGraph.chart) {
 		Ui::AddSkip(container);
@@ -149,7 +151,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
 		const auto addOverview = [&](
-				rpl::producer<uint64> value,
+				rpl::producer<StarsAmount> value,
 				const tr::phrase<> &text) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
@@ -165,7 +167,7 @@ void InnerWidget::fill() {
 				line,
 				std::move(
 					value
-				) | rpl::map([=](uint64 v) {
+				) | rpl::map([=](StarsAmount v) {
 					return v ? ToUsd(v, multiplier, kMinorLength) : QString();
 				}),
 				st::channelEarnOverviewSubMinorLabel);
@@ -242,7 +244,9 @@ void InnerWidget::fill() {
 			rpl::duplicate(dateValue) | rpl::map([=](const QDateTime &dt) {
 				return !dt.isNull() || (!_state.isWithdrawalEnabled);
 			}),
-			rpl::duplicate(availableBalanceValue) | rpl::map([=](uint64 v) {
+			rpl::duplicate(
+				availableBalanceValue
+			) | rpl::map([=](StarsAmount v) {
 				return v ? ToUsd(v, multiplier, kMinorLength) : QString();
 			}));
 	}

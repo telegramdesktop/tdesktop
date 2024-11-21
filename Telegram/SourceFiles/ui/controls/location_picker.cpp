@@ -1155,7 +1155,9 @@ void LocationPicker::venuesRequest(
 	}
 	const auto username = _session->serverConfig().venueSearchUsername;
 	_venuesBotRequestId = _api.request(MTPcontacts_ResolveUsername(
-		MTP_string(username)
+		MTP_flags(0),
+		MTP_string(username),
+		MTP_string()
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		auto &data = result.data();
 		_session->data().processUsers(data.vusers());

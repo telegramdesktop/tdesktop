@@ -17,5 +17,9 @@ namespace Info::ChannelEarn {
 	Data::EarnInt value,
 	float64 rate,
 	int afterFloat);
+[[nodiscard]] QString ToUsd(
+	StarsAmount value,
+	float64 rate,
+	int afterFloat);
 
 } // namespace Info::ChannelEarn

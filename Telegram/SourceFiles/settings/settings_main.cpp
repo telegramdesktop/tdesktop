@@ -515,8 +515,10 @@ void SetupPremium(
 				container,
 				tr::lng_settings_credits(),
 				controller->session().credits().balanceValue(
-				) | rpl::map([=](uint64 c) {
-					return c ? Lang::FormatCountToShort(c).string : QString{};
+				) | rpl::map([=](StarsAmount c) {
+					return c
+						? Lang::FormatStarsAmountToShort(c).string
+						: QString();
 				}),
 				st::settingsButton),
 			true

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "lang/lang_tag.h"
 
+#include "core/stars_amount.h"
 #include "lang/lang_keys.h"
 #include "ui/text/text.h"
 #include "base/qt/qt_common_adapters.h"
@@ -943,6 +944,21 @@ ShortenedCount FormatCountToShort(int64 number) {
 
 QString FormatCountDecimal(int64 number) {
 	return QString("%L1").arg(number);
+}
+
+QString FormatExactCountDecimal(float64 number) {
+	return QString("%L1").arg(number);
+}
+
+ShortenedCount FormatStarsAmountToShort(StarsAmount amount) {
+	const auto attempt = FormatCountToShort(amount.whole());
+	return attempt.shortened ? attempt : ShortenedCount{
+		.string = FormatStarsAmountDecimal(amount),
+	};
+}
+
+QString FormatStarsAmountDecimal(StarsAmount amount) {
+	return FormatExactCountDecimal(amount.value());
 }
 
 PluralResult Plural(

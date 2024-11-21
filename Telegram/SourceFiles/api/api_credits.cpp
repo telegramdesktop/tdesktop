@@ -74,7 +74,8 @@ constexpr auto kTransactionsLimit = 100;
 	}).value;
 	const auto stargift = tl.data().vstargift();
 	const auto reaction = tl.data().is_reaction();
-	const auto incoming = (int64(tl.data().vstars().v) >= 0);
+	const auto amount = Data::FromTL(tl.data().vstars());
+	const auto incoming = (amount >= StarsAmount());
 	const auto saveActorId = (reaction || !extended.empty()) && incoming;
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
@@ -83,7 +84,7 @@ constexpr auto kTransactionsLimit = 100;
 		.date = base::unixtime::parse(tl.data().vdate().v),
 		.photoId = photo ? photo->id : 0,
 		.extended = std::move(extended),
-		.credits = tl.data().vstars().v,
+		.credits = Data::FromTL(tl.data().vstars()),
 		.bareMsgId = uint64(tl.data().vmsg_id().value_or_empty()),
 		.barePeerId = saveActorId ? peer->id.value : barePeerId,
 		.bareGiveawayMsgId = uint64(
@@ -181,7 +182,7 @@ constexpr auto kTransactionsLimit = 100;
 	return Data::CreditsStatusSlice{
 		.list = std::move(entries),
 		.subscriptions = std::move(subscriptions),
-		.balance = status.data().vbalance().v,
+		.balance = Data::FromTL(status.data().vbalance()),
 		.subscriptionsMissingBalance
 			= status.data().vsubscriptions_missing_balance().value_or_empty(),
 		.allLoaded = !status.data().vnext_offset().has_value()
@@ -268,8 +269,8 @@ void CreditsStatus::request(
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
-		const auto balance = result.data().vbalance().v;
-		_peer->session().credits().apply(_peer->id, balance);
+		const auto &balance = result.data().vbalance();
+		_peer->session().credits().apply(_peer->id, Data::FromTL(balance));
 		if (const auto onstack = done) {
 			onstack(StatusFromTL(result, _peer));
 		}
@@ -348,7 +349,9 @@ rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 		const auto api = lifetime.make_state<MTP::Sender>(&session->mtp());
 
 		api->request(MTPcontacts_ResolveUsername(
-			MTP_string(username)
+			MTP_flags(0),
+			MTP_string(username),
+			MTP_string()
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {
 			session->data().processUsers(result.data().vusers());
 			session->data().processChats(result.data().vchats());
@@ -380,12 +383,13 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 			)).done([=](const MTPpayments_StarsRevenueStats &result) {
 				const auto &data = result.data();
 				const auto &status = data.vstatus().data();
+				using Data::FromTL;
 				_data = Data::CreditsEarnStatistics{
 					.revenueGraph = StatisticalGraphFromTL(
 						data.vrevenue_graph()),
-					.currentBalance = status.vcurrent_balance().v,
-					.availableBalance = status.vavailable_balance().v,
-					.overallRevenue = status.voverall_revenue().v,
+					.currentBalance = FromTL(status.vcurrent_balance()),
+					.availableBalance = FromTL(status.vavailable_balance()),
+					.overallRevenue = FromTL(status.voverall_revenue()),
 					.usdRate = data.vusd_rate().v,
 					.isWithdrawalEnabled = status.is_withdrawal_enabled(),
 					.nextWithdrawalAt = status.vnext_withdrawal_at()

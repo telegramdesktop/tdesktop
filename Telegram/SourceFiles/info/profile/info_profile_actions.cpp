@@ -866,19 +866,19 @@ rpl::producer<uint64> AddCurrencyAction(
 	return state->balance.value();
 }
 
-rpl::producer<uint64> AddCreditsAction(
+rpl::producer<StarsAmount> AddCreditsAction(
 		not_null<UserData*> user,
 		not_null<Ui::VerticalLayout*> wrap,
 		not_null<Controller*> controller) {
 	struct State final {
-		rpl::variable<uint64> balance;
+		rpl::variable<StarsAmount> balance;
 	};
 	const auto state = wrap->lifetime().make_state<State>();
 	const auto parentController = controller->parentController();
 	const auto wrapButton = AddActionButton(
 		wrap,
 		tr::lng_manage_peer_bot_balance_credits(),
-		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
+		state->balance.value() | rpl::map(rpl::mappers::_1 > StarsAmount(0)),
 		[=] { parentController->showSection(Info::BotEarn::Make(user)); },
 		nullptr);
 	{
@@ -918,7 +918,7 @@ rpl::producer<uint64> AddCreditsAction(
 	) | rpl::start_with_next([=, &st](
 			int width,
 			const QString &button,
-			uint64 balance) {
+			StarsAmount balance) {
 		const auto available = width
 			- rect::m::sum::h(st.padding)
 			- st.style.font->width(button)
@@ -926,7 +926,7 @@ rpl::producer<uint64> AddCreditsAction(
 		name->setMarkedText(
 			base::duplicate(icon)
 				.append(QChar(' '))
-				.append(Lang::FormatCountDecimal(balance)),
+				.append(Lang::FormatStarsAmountDecimal(balance)),
 			Core::MarkedTextContext{
 				.session = &user->session(),
 				.customEmojiRepaint = [=] { name->update(); },
@@ -2130,7 +2130,8 @@ void ActionsFiller::addBalanceActions(not_null<UserData*> user) {
 		rpl::combine(
 			std::move(currencyBalance),
 			std::move(creditsBalance)
-		) | rpl::map((rpl::mappers::_1 + rpl::mappers::_2) > 0));
+		) | rpl::map((rpl::mappers::_1 > 0)
+			|| (rpl::mappers::_2 > StarsAmount(0))));
 }
 
 void ActionsFiller::addInviteToGroupAction(not_null<UserData*> user) {

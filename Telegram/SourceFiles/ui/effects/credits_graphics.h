@@ -40,7 +40,7 @@ using PaintRoundImageCallback = Fn<void(
 
 [[nodiscard]] not_null<Ui::MaskedInputField*> AddInputFieldForCredits(
 	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<uint64> value);
+	rpl::producer<StarsAmount> value);
 
 PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	const Data::CreditsHistoryEntry &entry);

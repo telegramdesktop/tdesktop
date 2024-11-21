@@ -181,7 +181,9 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByUsername(
 		ready();
 	};
 	_requestId = _session->api().request(MTPcontacts_ResolveUsername(
-		MTP_string(username)
+		MTP_flags(0),
+		MTP_string(username),
+		MTP_string()
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		result.match([&](const MTPDcontacts_resolvedPeer &data) {
 			_session->data().processUsers(data.vusers());

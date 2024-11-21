@@ -241,7 +241,9 @@ void Shown::fillChannelJoinedValues(const Prepared &result) {
 		const auto channel = _session->data().channel(channelId);
 		if (!channel->isLoaded() && !channel->username().isEmpty()) {
 			channel->session().api().request(MTPcontacts_ResolveUsername(
-				MTP_string(channel->username())
+				MTP_flags(0),
+				MTP_string(channel->username()),
+				MTP_string()
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
 				channel->owner().processUsers(result.data().vusers());
 				channel->owner().processChats(result.data().vchats());

@@ -416,10 +416,11 @@ void ResolveChannel(
 			).arg(QString::number(error.code()) + ':' + error.type()));
 		fail();
 	};
-	mtp->send(
-		MTPcontacts_ResolveUsername(MTP_string(username)),
-		doneHandler,
-		failHandler);
+	mtp->send(MTPcontacts_ResolveUsername(
+		MTP_flags(0),
+		MTP_string(username),
+		MTP_string()
+	), doneHandler, failHandler);
 }
 
 std::optional<MTPMessage> GetMessagesElement(

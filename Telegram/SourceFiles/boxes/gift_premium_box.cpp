@@ -255,8 +255,8 @@ object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
 	auto star = session->data().customEmojiManager().creditsEmoji();
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		rpl::single(
-			star.append(' ' + Lang::FormatCountDecimal(entry.credits))),
+		rpl::single(star.append(
+			' ' + Lang::FormatStarsAmountDecimal(entry.credits))),
 		st::giveawayGiftCodeValue,
 		st::defaultPopupMenu,
 		std::move(makeContext));
@@ -1229,7 +1229,7 @@ void AddCreditsHistoryEntryTable(
 			tr::lng_gift_link_label_gift(),
 			tr::lng_gift_stars_title(
 				lt_count,
-				rpl::single(float64(entry.credits)),
+				rpl::single(entry.credits.value()),
 				Ui::Text::RichLangValue));
 	}
 	{

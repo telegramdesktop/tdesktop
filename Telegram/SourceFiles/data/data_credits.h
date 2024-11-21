@@ -57,7 +57,7 @@ struct CreditsHistoryEntry final {
 	QDateTime lastSaleDate;
 	PhotoId photoId = 0;
 	std::vector<CreditsHistoryMedia> extended;
-	uint64 credits = 0;
+	StarsAmount credits;
 	uint64 bareMsgId = 0;
 	uint64 barePeerId = 0;
 	uint64 bareGiveawayMsgId = 0;
@@ -89,7 +89,7 @@ struct CreditsStatusSlice final {
 	using OffsetToken = QString;
 	std::vector<CreditsHistoryEntry> list;
 	std::vector<SubscriptionEntry> subscriptions;
-	uint64 balance = 0;
+	StarsAmount balance;
 	uint64 subscriptionsMissingBalance = 0;
 	bool allLoaded = false;
 	OffsetToken token;

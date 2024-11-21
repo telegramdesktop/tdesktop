@@ -611,7 +611,7 @@ void Form::processReceipt(const MTPDpayments_paymentReceiptStars &data) {
 				ImageLocation())
 			: nullptr,
 		.peerId = peerFromUser(data.vbot_id().v),
-		.credits = data.vtotal_amount().v,
+		.credits = StarsAmount(data.vtotal_amount().v),
 		.date = data.vdate().v,
 	};
 	_updates.fire(CreditsReceiptReady{ .data = receiptData });

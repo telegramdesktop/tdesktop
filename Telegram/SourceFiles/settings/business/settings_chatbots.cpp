@@ -272,7 +272,9 @@ Main::Session &PreviewController::session() const {
 
 			const auto requestId = result.make_state<mtpRequestId>();
 			*requestId = session->api().request(MTPcontacts_ResolveUsername(
-				MTP_string(extracted)
+				MTP_flags(0),
+				MTP_string(extracted),
+				MTP_string()
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
 				const auto &data = result.data();
 				session->data().processUsers(data.vusers());
