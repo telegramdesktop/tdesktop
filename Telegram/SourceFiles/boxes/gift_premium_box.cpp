@@ -1255,24 +1255,12 @@ void AddCreditsHistoryEntryTable(
 				Ui::Text::WithEntities));
 	}
 	if (!entry.id.isEmpty()) {
-		constexpr auto kOneLineCount = 22;
-		const auto oneLine = entry.id.size() <= kOneLineCount;
-		auto multiLine = QString();
-		if (!oneLine) {
-			for (auto i = 0; i < entry.id.size(); ++i) {
-				multiLine.append(entry.id[i]);
-				if ((i + 1) % kOneLineCount == 0) {
-					multiLine.append('\n');
-				}
-			}
-		}
+		constexpr auto kOneLineCount = 24;
+		const auto oneLine = entry.id.length() <= kOneLineCount;
 		auto label = object_ptr<Ui::FlatLabel>(
 			table,
 			rpl::single(
-				Ui::Text::Wrapped(
-					{ oneLine ? entry.id : std::move(multiLine) },
-					EntityType::Code,
-					{})),
+				Ui::Text::Wrapped({ entry.id }, EntityType::Code, {})),
 			oneLine
 				? st::giveawayGiftCodeValue
 				: st::giveawayGiftCodeValueMultiline);
