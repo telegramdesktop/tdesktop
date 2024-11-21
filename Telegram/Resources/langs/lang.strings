@@ -1862,6 +1862,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_payment_init_recurring_for" = "You successfully transferred {amount} to {user} for {invoice} and allowed future recurring payments";
 "lng_action_payment_init_recurring" = "You successfully transferred {amount} to {user} and allowed future recurring payments";
 "lng_action_payment_used_recurring" = "You were charged {amount} via recurring payment";
+"lng_action_payment_bot_done" = "Bot connected to this account received {amount}";
+"lng_action_payment_bot_recurring" = "Bot connected to this account received {amount} via recurring payment";
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
 "lng_action_bot_allowed_from_domain" = "You allowed this bot to message you when you logged in on {domain}.";

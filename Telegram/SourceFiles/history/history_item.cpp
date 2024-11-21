@@ -4558,6 +4558,21 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return preparePaymentSentText();
 	};
 
+	auto preparePaymentSentMe = [&](const MTPDmessageActionPaymentSentMe &data) {
+		auto result = PreparedServiceText();
+		result.text = (data.is_recurring_used()
+			? tr::lng_action_payment_bot_recurring
+			: tr::lng_action_payment_bot_done)(
+				tr::now,
+				lt_amount,
+				AmountAndStarCurrency(
+					&_history->session(),
+					data.vtotal_amount().v,
+					qs(data.vcurrency())),
+				Ui::Text::WithEntities);
+		return result;
+	};
+
 	auto prepareScreenshotTaken = [this](const MTPDmessageActionScreenshotTaken &) {
 		auto result = PreparedServiceText();
 		if (out()) {
@@ -5361,7 +5376,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareSecureValuesSent,
 		prepareContactSignUp,
 		prepareProximityReached,
-		PrepareErrorText<MTPDmessageActionPaymentSentMe>,
+		preparePaymentSentMe,
 		PrepareErrorText<MTPDmessageActionSecureValuesSentMe>,
 		prepareGroupCall,
 		prepareInviteToGroupCall,
