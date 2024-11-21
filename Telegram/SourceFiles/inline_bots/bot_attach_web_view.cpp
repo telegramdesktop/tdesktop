@@ -639,12 +639,13 @@ void ConfirmEmojiStatusBox(
 		done(true);
 	});
 	box->addButton(tr::lng_cancel(), [=] {
-		const auto was = *set;
 		box->closeBox();
-		if (!was) {
+	});
+	box->boxClosing() | rpl::start_with_next([=] {
+		if (!*set) {
 			done(false);
 		}
-	});
+	}, box->lifetime());
 }
 
 class BotAction final : public Ui::Menu::ItemBase {
