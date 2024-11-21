@@ -51,7 +51,6 @@ crl::time PeerListWidgets::paintRow(
 		? std::max(refreshStatusAt - now, crl::time(1))
 		: 0;
 
-	const auto peer = row->special() ? nullptr : row->peer().get();
 	row->paintUserpic(
 		p,
 		st,
