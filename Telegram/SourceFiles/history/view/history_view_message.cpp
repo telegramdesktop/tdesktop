@@ -1627,7 +1627,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				(right
 					- (st::msgSelectionOffset * progress - st.size) / 2
 					- st::msgPadding.right() / 2
-					- st.size),
+					- st.size
+					- st::historyScroll.deltax),
 				rect::bottom(g) - st.size - st::msgSelectionBottomSkip);
 			{
 				p.setPen(QPen(st.border, st.width));
