@@ -946,7 +946,12 @@ void WebViewInstance::resolve() {
 			requestSimple();
 		});
 	}, [&](WebViewSourceLinkApp data) {
-		resolveApp(data.appname, data.token, !_context.maySkipConfirmation);
+		resolveApp(
+			data.appname,
+			data.token,
+			(_context.maySkipConfirmation
+				? ConfirmType::None
+				: ConfirmType::Always));
 	}, [&](WebViewSourceLinkBotProfile) {
 		confirmOpen([=] {
 			requestMain();
@@ -994,14 +999,14 @@ bool WebViewInstance::openAppFromBotMenuLink() {
 	if (appname.isEmpty()) {
 		return false;
 	}
-	resolveApp(appname, params.value(u"startapp"_q), true);
+	resolveApp(appname, params.value(u"startapp"_q), ConfirmType::Once);
 	return true;
 }
 
 void WebViewInstance::resolveApp(
 		const QString &appname,
 		const QString &startparam,
-		bool forceConfirmation) {
+		ConfirmType confirmType) {
 	const auto already = _session->data().findBotApp(_bot->id, appname);
 	_requestId = _session->api().request(MTPmessages_GetBotApp(
 		MTP_inputBotAppShortName(
@@ -1021,8 +1026,11 @@ void WebViewInstance::resolveApp(
 			close();
 			return;
 		}
-		const auto confirm = data.is_inactive() || forceConfirmation;
+		const auto confirm = data.is_inactive()
+			|| (confirmType != ConfirmType::None);
 		const auto writeAccess = result.data().is_request_write_access();
+		const auto forceConfirmation = data.is_inactive()
+			|| (confirmType == ConfirmType::Always);
 
 		// Check if this app can be added to main menu.
 		// On fail it'll still be opened.
@@ -1035,7 +1043,7 @@ void WebViewInstance::resolveApp(
 			} else if (confirm) {
 				confirmAppOpen(writeAccess, [=](bool allowWrite) {
 					requestApp(allowWrite);
-				});
+				}, forceConfirmation);
 			} else {
 				requestApp(false);
 			}
@@ -1082,10 +1090,18 @@ void WebViewInstance::confirmOpen(Fn<void()> done) {
 
 void WebViewInstance::confirmAppOpen(
 		bool writeAccess,
-		Fn<void(bool allowWrite)> done) {
+		Fn<void(bool allowWrite)> done,
+		bool forceConfirmation) {
+	if (!forceConfirmation
+		&& (_bot->isVerified()
+			|| _session->local().isBotTrustedOpenWebView(_bot->id))) {
+		done(writeAccess);
+		return;
+	}
 	_parentShow->show(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto allowed = std::make_shared<Ui::Checkbox*>();
 		const auto callback = [=](Fn<void()> close) {
+			_session->local().markBotTrustedOpenWebView(_bot->id);
 			done((*allowed) && (*allowed)->checked());
 			close();
 		};

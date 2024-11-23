@@ -230,12 +230,20 @@ private:
 	void requestWithMenuAdd();
 	void maybeChooseAndRequestButton(PeerTypes supported);
 
+	enum class ConfirmType : uchar {
+		Always,
+		Once,
+		None,
+	};
 	void resolveApp(
 		const QString &appname,
 		const QString &startparam,
-		bool forceConfirmation);
+		ConfirmType confirmType);
 	void confirmOpen(Fn<void()> done);
-	void confirmAppOpen(bool writeAccess, Fn<void(bool allowWrite)> done);
+	void confirmAppOpen(
+		bool writeAccess,
+		Fn<void(bool allowWrite)> done,
+		bool forceConfirmation);
 
 	struct ShowArgs {
 		QString url;
