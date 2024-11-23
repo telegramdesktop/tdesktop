@@ -7884,7 +7884,15 @@ void HistoryWidget::clearFieldText(
 
 void HistoryWidget::replyToMessage(FullReplyTo id) {
 	if (const auto item = session().data().message(id.messageId)) {
-		replyToMessage(item, id.quote, id.quoteOffset);
+		if (CanSendReply(item) && !base::IsCtrlPressed()) {
+			replyToMessage(item, id.quote, id.quoteOffset);
+		} else if (item->allowsForward()) {
+			const auto show = controller()->uiShow();
+			HistoryView::Controls::ShowReplyToChatBox(show, id);
+		} else {
+			controller()->showToast(
+				tr::lng_error_cant_reply_other(tr::now));
+		}
 	}
 }
 

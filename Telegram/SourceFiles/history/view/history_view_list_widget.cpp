@@ -1879,7 +1879,7 @@ not_null<Ui::PathShiftGradient*> ListWidget::elementPathShiftGradient() {
 }
 
 void ListWidget::elementReplyTo(const FullReplyTo &to) {
-	replyToMessageRequestNotify(to);
+	replyToMessageRequestNotify(to, base::IsCtrlPressed());
 }
 
 void ListWidget::elementStartInteraction(not_null<const Element*> view) {

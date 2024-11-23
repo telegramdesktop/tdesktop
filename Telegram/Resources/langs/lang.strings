@@ -290,6 +290,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_error_cant_add_admin_invite" = "You can't add this user as an admin because they are not a member of this group and you are not allowed to add them.";
 "lng_error_cant_add_admin_unban" = "Sorry, you can't add this user as an admin because they are in the Removed Users list and you can't unban them.";
 "lng_error_cant_ban_admin" = "You can't ban this user because they are an admin in this group and you are not allowed to demote them.";
+"lng_error_cant_reply_other" = "This message can't be replied in another chat.";
 "lng_error_admin_limit" = "Sorry, you've reached the maximum number of admins for this group.";
 "lng_error_admin_limit_channel" = "Sorry, you've reached the maximum number of admins for this channel.";
 "lng_error_post_link_invalid" = "Unfortunately, you can't access this message. You aren't a member of the chat where it was posted.";
