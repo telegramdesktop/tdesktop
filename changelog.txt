@@ -1,3 +1,10 @@
+5.8.3 (23.11.24)
+
+- Ctrl+Click on Reply in groups to reply in another chat.
+- Fix freeze on forward messages box opening.
+- Improve phrases in bot subscriptions.
+- Several bugfixes.
+
 5.8.2 (19.11.24)
 
 - Improve bottom label color in mini apps.
