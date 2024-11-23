@@ -27,6 +27,8 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		const style::SettingsSlider &st);
 
+	bool setSectionsAndCheckChanged(std::vector<QString> &&sections);
+
 	[[nodiscard]] int centerOfSection(int section) const;
 	void fitWidthToSections();
 	void setUnreadCount(int index, int unreadCount, bool muted);

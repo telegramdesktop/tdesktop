@@ -293,15 +293,18 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		if ((list.size() <= 1 && !slider->width()) || state->ignoreRefresh) {
 			return;
 		}
+		const auto sectionsChanged = slider->setSectionsAndCheckChanged(
+			ranges::views::all(
+				list
+			) | ranges::views::transform([](const Data::ChatFilter &filter) {
+				return filter.title().isEmpty()
+					? tr::lng_filters_all_short(tr::now)
+					: filter.title();
+			}) | ranges::to_vector);
+		if (!sectionsChanged) {
+			return;
+		}
 		state->rebuildLifetime.destroy();
-		auto sections = ranges::views::all(
-			list
-		) | ranges::views::transform([](const Data::ChatFilter &filter) {
-			return filter.title().isEmpty()
-				? tr::lng_filters_all_short(tr::now)
-				: filter.title();
-		}) | ranges::to_vector;
-		slider->setSections(std::move(sections));
 		slider->fitWidthToSections();
 		{
 			const auto reorderAll = session->user()->isPremium();

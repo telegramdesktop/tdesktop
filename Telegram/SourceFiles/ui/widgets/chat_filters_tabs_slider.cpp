@@ -57,6 +57,26 @@ ChatsFiltersTabs::ChatsFiltersTabs(
 	Ui::DiscreteSlider::setSelectOnPress(false);
 }
 
+bool ChatsFiltersTabs::setSectionsAndCheckChanged(
+		std::vector<QString> &&sections) {
+	const auto &was = sectionsRef();
+	const auto changed = [&] {
+		if (was.size() != sections.size()) {
+			return true;
+		}
+		for (auto i = 0; i < sections.size(); i++) {
+			if (was[i].label.toString() != sections[i]) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (changed) {
+		Ui::DiscreteSlider::setSections(std::move(sections));
+	}
+	return changed;
+}
+
 int ChatsFiltersTabs::centerOfSection(int section) const {
 	const auto widths = countSectionsWidths(0);
 	auto result = 0;
