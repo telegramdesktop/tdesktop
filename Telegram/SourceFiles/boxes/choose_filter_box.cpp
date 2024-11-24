@@ -126,9 +126,7 @@ bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {
-		const auto &filter = *i;
-		return filter.contains(_history)
-			&& ((filter.always().size() > 1) || filter.flags());
+		return Data::CanRemoveFromChatFilter(*i, _history);
 	}
 	return false;
 }

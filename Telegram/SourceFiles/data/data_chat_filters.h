@@ -252,4 +252,8 @@ private:
 
 };
 
+[[nodiscard]] bool CanRemoveFromChatFilter(
+	const ChatFilter &filter,
+	not_null<History*> history);
+
 } // namespace Data

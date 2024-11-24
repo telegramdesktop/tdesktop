@@ -1086,4 +1086,14 @@ void ChatFilters::checkLoadMoreChatsLists() {
 	}
 }
 
+bool CanRemoveFromChatFilter(
+		const ChatFilter &filter,
+		not_null<History*> history) {
+	using Flag = ChatFilter::Flag;
+	const auto flagsWithoutNoReadNoArchivedNoMuted = filter.flags()
+		& ~(Flag::NoRead | Flag::NoArchived | Flag::NoMuted);
+	return (filter.always().size() > 1 || flagsWithoutNoReadNoArchivedNoMuted)
+		&& filter.contains(history);
+}
+
 } // namespace Data
