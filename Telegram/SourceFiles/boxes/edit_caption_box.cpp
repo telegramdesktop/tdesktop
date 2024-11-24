@@ -254,7 +254,7 @@ EditCaptionBox::EditCaptionBox(
 , _initialList(std::move(list))
 , _saved(std::move(saved)) {
 	Expects(!_initialList.files.empty());
-	Expects(!item->media() || item->media()->allowsEditCaption());
+	Expects(item->allowsEditMedia());
 
 	_mediaEditManager.start(item, spoilered, invertCaption);
 

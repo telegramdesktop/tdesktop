@@ -8555,7 +8555,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 			_mediaEditManager.start(_replyEditMsg);
 		}
 		_canReplaceMedia = _editMsgId && _replyEditMsg->allowsEditMedia();
-		if (editMedia) {
+		if (editMedia && editMedia->allowsEditMedia()) {
 			_canAddMedia = false;
 		} else {
 			_canAddMedia = base::take(_canReplaceMedia);

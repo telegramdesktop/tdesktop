@@ -1960,7 +1960,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			if (const auto item = _history->owner().message(editingId)) {
 				const auto media = item->media();
 				_canReplaceMedia = item->allowsEditMedia();
-				if (media) {
+				if (media && media->allowsEditMedia()) {
 					_canAddMedia = false;
 				} else {
 					_canAddMedia = base::take(_canReplaceMedia);
