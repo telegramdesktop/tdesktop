@@ -553,6 +553,8 @@ public:
 	[[nodiscard]] bool canUpdateDate() const;
 	void customEmojiRepaint();
 
+	[[nodiscard]] bool needsUpdateForVideoQualities(const MTPMessage &data);
+
 	[[nodiscard]] TimeId ttlDestroyAt() const {
 		return _ttlDestroyAt;
 	}

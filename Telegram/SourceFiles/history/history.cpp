@@ -451,6 +451,9 @@ not_null<HistoryItem*> History::createItem(
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
+		if (result->needsUpdateForVideoQualities(message)) {
+			owner().updateEditedMessage(message);
+		}
 		return result;
 	}
 	const auto result = message.match([&](const auto &data) {
