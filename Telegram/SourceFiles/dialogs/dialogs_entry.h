@@ -29,6 +29,7 @@ class SavedSublist;
 } // namespace Data
 
 namespace Ui {
+class RippleAnimation;
 struct PeerUserpicView;
 } // namespace Ui
 
@@ -42,6 +43,14 @@ namespace Dialogs {
 class Row;
 class IndexedList;
 class MainList;
+
+struct RightButton final {
+	QImage bg;
+	QImage selectedBg;
+	QImage activeBg;
+	Ui::Text::String text;
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+};
 
 struct RowsByLetter {
 	not_null<Row*> main;

@@ -29,6 +29,7 @@ namespace Dialogs {
 class Row;
 class FakeRow;
 class BasicRow;
+struct RightButton;
 } // namespace Dialogs
 
 namespace Dialogs::Ui {
@@ -53,6 +54,7 @@ struct TopicJumpCache {
 };
 
 struct PaintContext {
+	RightButton *rightButton = nullptr;
 	std::vector<QImage*> *chatsFilterTags = nullptr;
 	not_null<const style::DialogRow*> st;
 	TopicJumpCache *topicJumpCache = nullptr;

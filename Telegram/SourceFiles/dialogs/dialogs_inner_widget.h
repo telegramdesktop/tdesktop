@@ -64,6 +64,7 @@ class SearchTags;
 class SearchEmpty;
 class ChatSearchIn;
 enum class HashOrCashtag : uchar;
+struct RightButton;
 
 struct ChosenRow {
 	Key key;
@@ -200,6 +201,8 @@ public:
 		return _touchCancelRequests.events();
 	}
 
+	[[nodiscard]] rpl::producer<UserId> openBotMainAppRequests() const;
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -286,7 +289,7 @@ private:
 	void scrollToItem(int top, int height);
 	void scrollToDefaultSelected();
 	void setCollapsedPressed(int pressed);
-	void setPressed(Row *pressed, bool pressedTopicJump);
+	void setPressed(Row *pressed, bool pressedTopicJump, bool pressedBotApp);
 	void clearPressed();
 	void setHashtagPressed(int pressed);
 	void setFilteredPressed(int pressed, bool pressedTopicJump);
@@ -451,6 +454,11 @@ private:
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
 
+	[[nodiscard]] bool lookupIsInBotAppButton(
+		Row *row,
+		QPoint localPosition);
+	[[nodiscard]] RightButton *maybeCacheRightButton(Row *row);
+
 	[[nodiscard]] QImage *cacheChatsFilterTag(
 		const Data::ChatFilter &filter,
 		uint8 more,
@@ -482,6 +490,10 @@ private:
 	MsgId _pressedTopicJumpRootId;
 	bool _selectedTopicJump = false;
 	bool _pressedTopicJump = false;
+
+	RightButton *_pressedBotAppData = nullptr;
+	bool _selectedBotApp = false;
+	bool _pressedBotApp = false;
 
 	Row *_dragging = nullptr;
 	int _draggingIndex = -1;
@@ -566,6 +578,8 @@ private:
 	bool _waitingAllChatListEntryRefreshesForTags = false;
 	rpl::lifetime _handleChatListEntryTagRefreshesLifetime;
 
+	std::unordered_map<PeerId, RightButton> _rightButtons;
+
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
 	rpl::event_stream<> _listBottomReached;
@@ -577,6 +591,7 @@ private:
 	rpl::event_stream<SearchRequestDelay> _searchRequests;
 	rpl::event_stream<QString> _completeHashtagRequests;
 	rpl::event_stream<> _refreshHashtagsRequests;
+	rpl::event_stream<UserId> _openBotMainAppRequests;
 
 	RowDescriptor _chatPreviewRow;
 	bool _chatPreviewScheduled = false;

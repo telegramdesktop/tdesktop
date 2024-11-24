@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "data/data_drafts.h"
 #include "data/data_folder.h"
@@ -62,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/effects/loading_element.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -120,6 +122,19 @@ constexpr auto kPreviewPostsLimit = 3;
 		++result;
 	}
 	return result;
+}
+
+[[nodiscard]] UserData *MaybeBotWithApp(Row *row) {
+	if (row) {
+		if (const auto history = row->key().history()) {
+			if (const auto user = history->peer->asUser()) {
+				if (user->botInfo && user->botInfo->hasMainApp) {
+					return user;
+				}
+			}
+		}
+	}
+	return nullptr;
 }
 
 [[nodiscard]] object_ptr<SearchEmpty> MakeSearchEmpty(
@@ -773,7 +788,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			not_null<Row*> row,
 			bool selected,
 			bool mayBeActive) {
-		const auto key = row->key();
+		const auto &key = row->key();
 		const auto active = mayBeActive && isRowActive(row, activeEntry);
 		const auto forum = key.history() && key.history()->isForum();
 		if (forum && !_topicJumpCache) {
@@ -781,6 +796,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 		const auto expanding = forum
 			&& (key.history()->peer->id == childListShown.peerId);
+		context.rightButton = maybeCacheRightButton(row);
 
 		context.st = (forum ? &st::forumDialogRow : _st.get());
 
@@ -1195,6 +1211,47 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+[[nodiscard]] RightButton *InnerWidget::maybeCacheRightButton(Row *row) {
+	if (const auto user = MaybeBotWithApp(row)) {
+		const auto it = _rightButtons.find(user->id);
+		if (it == _rightButtons.end()) {
+			auto rightButton = RightButton();
+			const auto text
+				= tr::lng_profile_open_app_short(tr::now).toUpper();
+			rightButton.text.setText(st::dialogRowOpenBotTextStyle, text);
+			const auto size = QSize(
+				rightButton.text.maxWidth()
+					+ rightButton.text.minHeight(),
+				st::dialogRowOpenBotHeight);
+			const auto generateBg = [&](const style::color &c) {
+				auto bg = QImage(
+					style::DevicePixelRatio() * size,
+					QImage::Format_ARGB32_Premultiplied);
+				bg.setDevicePixelRatio(style::DevicePixelRatio());
+				bg.fill(Qt::transparent);
+				{
+					auto p = QPainter(&bg);
+					auto hq = PainterHighQualityEnabler(p);
+					p.setPen(Qt::NoPen);
+					p.setBrush(c);
+					const auto r = size.height() / 2;
+					p.drawRoundedRect(Rect(size), r, r);
+				}
+				return bg;
+			};
+			rightButton.bg = generateBg(st::activeButtonBg);
+			rightButton.selectedBg = generateBg(st::activeButtonBgOver);
+			rightButton.activeBg = generateBg(st::activeButtonFg);
+			return &(_rightButtons.emplace(
+				user->id,
+				std::move(rightButton)).first->second);
+		} else {
+			return &(it->second);
+		}
+	}
+	return nullptr;
+}
+
 Ui::VideoUserpic *InnerWidget::validateVideoUserpic(not_null<Row*> row) {
 	const auto history = row->history();
 	return history ? validateVideoUserpic(history) : nullptr;
@@ -1554,6 +1611,26 @@ void InnerWidget::clearIrrelevantState() {
 	}
 }
 
+bool InnerWidget::lookupIsInBotAppButton(
+		Row *row,
+		QPoint localPosition) {
+	if (const auto user = MaybeBotWithApp(row)) {
+		const auto it = _rightButtons.find(user->id);
+		if (it != _rightButtons.end()) {
+			const auto s = it->second.bg.size() / style::DevicePixelRatio();
+			const auto r = QRect(
+				width() - s.width() - st::dialogRowOpenBotRight,
+				st::dialogRowOpenBotTop,
+				s.width(),
+				s.height());
+			if (r.contains(localPosition)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void InnerWidget::selectByMouse(QPoint globalPosition) {
 	const auto local = mapFromGlobal(globalPosition);
 	if (updateReorderPinned(local)) {
@@ -1594,16 +1671,19 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 			: (mouseY >= offset)
 			? _shownList->rowAtY(mouseY - offset)
 			: nullptr;
+		const auto mappedY = selected ? mouseY - offset - selected->top() : 0;
 		const auto selectedTopicJump = selected
-			&& selected->lookupIsInTopicJump(
-				local.x(),
-				mouseY - offset - selected->top());
+			&& selected->lookupIsInTopicJump(local.x(), mappedY);
+		const auto selectedBotApp = selected
+			&& lookupIsInBotAppButton(selected, QPoint(local.x(), mappedY));
 		if (_collapsedSelected != collapsedSelected
 			|| _selected != selected
-			|| _selectedTopicJump != selectedTopicJump) {
+			|| _selectedTopicJump != selectedTopicJump
+			|| _selectedBotApp != selectedBotApp) {
 			updateSelectedRow();
 			_selected = selected;
 			_selectedTopicJump = selectedTopicJump;
+			_selectedBotApp = selectedBotApp;
 			_collapsedSelected = collapsedSelected;
 			updateSelectedRow();
 			setCursor((_selected || _collapsedSelected >= 0)
@@ -1729,7 +1809,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	selectByMouse(e->globalPos());
 
 	_pressButton = e->button();
-	setPressed(_selected, _selectedTopicJump);
+	setPressed(_selected, _selectedTopicJump, _selectedBotApp);
 	setCollapsedPressed(_collapsedSelected);
 	setHashtagPressed(_hashtagSelected);
 	_hashtagDeletePressed = _hashtagDeleteSelected;
@@ -1762,7 +1842,22 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		};
 		const auto origin = e->pos()
 			- QPoint(0, dialogsOffset() + _pressed->top());
-		if (_pressedTopicJump) {
+		if (_pressedBotApp && _pressedBotAppData) {
+			const auto size = _pressedBotAppData->bg.size()
+				/ style::DevicePixelRatio();
+			if (!_pressedBotAppData->ripple) {
+				const auto r = size.height() / 2;
+				_pressedBotAppData->ripple
+					= std::make_unique<Ui::RippleAnimation>(
+						st::defaultRippleAnimation,
+						Ui::RippleAnimation::RoundRectMask(size, r),
+						updateCallback);
+			}
+			const auto shift = QPoint(
+				width() - size.width() - st::dialogRowOpenBotRight,
+				st::dialogRowOpenBotTop);
+			_pressedBotAppData->ripple->add(origin - shift);
+		} else if (_pressedTopicJump) {
 			row->addTopicJumpRipple(
 				origin,
 				_topicJumpCache.get(),
@@ -2094,6 +2189,7 @@ void InnerWidget::mousePressReleased(
 	setCollapsedPressed(-1);
 	const auto pressedTopicRootId = _pressedTopicJumpRootId;
 	const auto pressedTopicJump = _pressedTopicJump;
+	const auto pressedBotApp = _pressedBotApp;
 	auto pressed = _pressed;
 	clearPressed();
 	auto hashtagPressed = _hashtagPressed;
@@ -2113,12 +2209,16 @@ void InnerWidget::mousePressReleased(
 	if (wasDragging) {
 		selectByMouse(globalPosition);
 	}
+	if (_pressedBotAppData && _pressedBotAppData->ripple) {
+		_pressedBotAppData->ripple->lastStop();
+	}
 	updateSelectedRow();
 	if (!wasDragging && button == Qt::LeftButton) {
 		if ((collapsedPressed >= 0 && collapsedPressed == _collapsedSelected)
 			|| (pressed
 				&& pressed == _selected
-				&& pressedTopicJump == _selectedTopicJump)
+				&& pressedTopicJump == _selectedTopicJump
+				&& pressedBotApp == _selectedBotApp)
 			|| (hashtagPressed >= 0
 				&& hashtagPressed == _hashtagSelected
 				&& hashtagDeletePressed == _hashtagDeleteSelected)
@@ -2131,7 +2231,13 @@ void InnerWidget::mousePressReleased(
 				&& searchedPressed == _searchedSelected)
 			|| (pressedMorePosts
 				&& pressedMorePosts == _selectedMorePosts)) {
-			chooseRow(modifiers, pressedTopicRootId);
+			if (pressedBotApp) {
+				if (const auto user = MaybeBotWithApp(pressed)) {
+					_openBotMainAppRequests.fire(peerToUser(user->id));
+				}
+			} else {
+				chooseRow(modifiers, pressedTopicRootId);
+			}
 		}
 	}
 	if (auto activated = ClickHandler::unpressed()) {
@@ -2152,14 +2258,31 @@ void InnerWidget::setCollapsedPressed(int pressed) {
 	}
 }
 
-void InnerWidget::setPressed(Row *pressed, bool pressedTopicJump) {
-	if (_pressed != pressed || (pressed && _pressedTopicJump != pressedTopicJump)) {
+void InnerWidget::setPressed(
+		Row *pressed,
+		bool pressedTopicJump,
+		bool pressedBotApp) {
+	if ((_pressed != pressed)
+		|| (pressed && _pressedTopicJump != pressedTopicJump)
+		|| (pressed && _pressedBotApp != pressedBotApp)) {
 		if (_pressed) {
 			_pressed->stopLastRipple();
 		}
+		if (_pressedBotAppData && _pressedBotAppData->ripple) {
+			_pressedBotAppData->ripple->lastStop();
+		}
 		_pressed = pressed;
-		if (pressed || !pressedTopicJump) {
+		if (pressed || !pressedTopicJump || !pressedBotApp) {
 			_pressedTopicJump = pressedTopicJump;
+			_pressedBotApp = pressedBotApp;
+			if (pressedBotApp) {
+				if (const auto user = MaybeBotWithApp(pressed)) {
+					const auto it = _rightButtons.find(user->id);
+					if (it != _rightButtons.end()) {
+						_pressedBotAppData = &(it->second);
+					}
+				}
+			}
 			const auto history = pressedTopicJump
 				? pressed->history()
 				: nullptr;
@@ -2170,7 +2293,7 @@ void InnerWidget::setPressed(Row *pressed, bool pressedTopicJump) {
 }
 
 void InnerWidget::clearPressed() {
-	setPressed(nullptr, false);
+	setPressed(nullptr, false, false);
 }
 
 void InnerWidget::setHashtagPressed(int pressed) {
@@ -2265,7 +2388,7 @@ void InnerWidget::dialogRowReplaced(
 		_selected = newRow;
 	}
 	if (_pressed == oldRow) {
-		setPressed(newRow, _pressedTopicJump);
+		setPressed(newRow, _pressedTopicJump, _pressedBotApp);
 	}
 	if (_dragging == oldRow) {
 		if (newRow) {
@@ -4820,6 +4943,10 @@ bool InnerWidget::jumpToDialogRow(RowDescriptor to) {
 		to.fullId = FullMsgId();
 	}
 	return _controller->jumpToChatListEntry(to);
+}
+
+rpl::producer<UserId> InnerWidget::openBotMainAppRequests() const {
+	return _openBotMainAppRequests.events();
 }
 
 } // namespace Dialogs

@@ -478,6 +478,12 @@ Widget::Widget(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
 		chosenRow(row);
 	}, lifetime());
+	_inner->openBotMainAppRequests(
+	) | rpl::start_with_next([=](UserId userId) {
+		if (const auto user = session().data().user(userId)) {
+			openBotMainApp(user);
+		}
+	}, lifetime());
 
 	_scroll->geometryChanged(
 	) | rpl::start_with_next(crl::guard(_inner, [=] {
