@@ -64,6 +64,7 @@ public:
 	[[nodiscard]] ChatFilter withChatlist(
 		bool chatlist,
 		bool hasMyLinks) const;
+	[[nodiscard]] ChatFilter withoutAlways(not_null<History*>) const;
 
 	[[nodiscard]] static ChatFilter FromTL(
 		const MTPDialogFilter &data,

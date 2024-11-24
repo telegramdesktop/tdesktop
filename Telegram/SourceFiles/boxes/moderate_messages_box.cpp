@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_chat_filters.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
@@ -512,6 +513,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	const auto container = box->verticalLayout();
 
 	const auto maybeUser = peer->asUser();
+	const auto isBot = maybeUser && maybeUser->isBot();
 
 	Ui::AddSkip(container);
 	Ui::AddSkip(container);
@@ -595,7 +597,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	}();
 
 	const auto maybeBotCheckbox = [&]() -> Ui::Checkbox* {
-		if (!maybeUser || !maybeUser->isBot()) {
+		if (!isBot) {
 			return nullptr;
 		}
 		Ui::AddSkip(container);
@@ -604,6 +606,40 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			object_ptr<Ui::Checkbox>(
 				container,
 				tr::lng_profile_block_bot(tr::now, Ui::Text::WithEntities),
+				false,
+				st::defaultBoxCheckbox));
+	}();
+
+	const auto removeFromChatsFilters = [=](
+			not_null<History*> history) -> std::vector<FilterId> {
+		auto result = std::vector<FilterId>();
+		for (const auto &filter : peer->owner().chatsFilters().list()) {
+			if (filter.withoutAlways(history) != filter) {
+				result.push_back(filter.id());
+			}
+		}
+		return result;
+	};
+
+	const auto maybeChatsFiltersCheckbox = [&]() -> Ui::Checkbox* {
+		const auto history = (isBot || !maybeUser)
+			? peer->owner().history(peer).get()
+			: nullptr;
+		if (!history || removeFromChatsFilters(history).empty()) {
+			return nullptr;
+		}
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		return box->addRow(
+			object_ptr<Ui::Checkbox>(
+				container,
+				(maybeBotCheckbox
+					? tr::lng_filters_checkbox_remove_bot
+					: (peer->isChannel() && !peer->isMegagroup())
+					? tr::lng_filters_checkbox_remove_channel
+					: tr::lng_filters_checkbox_remove_group)(
+						tr::now,
+						Ui::Text::WithEntities),
 				false,
 				st::defaultBoxCheckbox));
 	}();
@@ -622,9 +658,34 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	box->addButton(std::move(buttonText), [=] {
 		const auto revoke = maybeCheckbox && maybeCheckbox->checked();
 		const auto stopBot = maybeBotCheckbox && maybeBotCheckbox->checked();
+		const auto removeFromChats = maybeChatsFiltersCheckbox
+			&& maybeChatsFiltersCheckbox->checked();
 		Core::App().closeChatFromWindows(peer);
 		if (stopBot) {
 			peer->session().api().blockedPeers().block(peer);
+		}
+		if (removeFromChats) {
+			const auto history = peer->owner().history(peer).get();
+			const auto removeFrom = removeFromChatsFilters(history);
+			for (const auto &filter : peer->owner().chatsFilters().list()) {
+				if (!ranges::contains(removeFrom, filter.id())) {
+					continue;
+				}
+				const auto result = filter.withoutAlways(history);
+				if (result == filter) {
+					continue;
+				}
+				const auto tl = result.tl();
+				peer->owner().chatsFilters().apply(MTP_updateDialogFilter(
+					MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
+					MTP_int(filter.id()),
+					tl));
+				peer->session().api().request(MTPmessages_UpdateDialogFilter(
+					MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
+					MTP_int(filter.id()),
+					tl
+				)).send();
+			}
 		}
 		// Don't delete old history by default,
 		// because Android app doesn't.

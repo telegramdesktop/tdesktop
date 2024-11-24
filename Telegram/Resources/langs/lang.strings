@@ -5168,6 +5168,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_link" = "Share Folder";
 "lng_filters_link_has" = "Invite links";
 
+"lng_filters_checkbox_remove_bot" = "Remove bot from all folders";
+"lng_filters_checkbox_remove_group" = "Remove group from all folders";
+"lng_filters_checkbox_remove_channel" = "Remove channel from all folders";
+
 "lng_filters_link_create" = "Create an Invite Link";
 "lng_filters_link_cant" = "You can’t share folders which include or exclude specific chat types like 'Groups', 'Contacts', etc.";
 "lng_filters_link_about" = "Share access to some of this folder's groups and channels with others.";

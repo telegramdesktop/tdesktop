@@ -188,6 +188,14 @@ ChatFilter ChatFilter::withChatlist(bool chatlist, bool hasMyLinks) const {
 	return result;
 }
 
+ChatFilter ChatFilter::withoutAlways(not_null<History*> history) const {
+	auto result = *this;
+	if (CanRemoveFromChatFilter(result, history)) {
+		result._always.remove(history);
+	}
+	return result;
+}
+
 MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	auto always = _always;
 	auto pinned = QVector<MTPInputPeer>();
