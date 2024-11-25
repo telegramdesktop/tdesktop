@@ -292,7 +292,10 @@ private:
 	void setPressed(Row *pressed, bool pressedTopicJump, bool pressedBotApp);
 	void clearPressed();
 	void setHashtagPressed(int pressed);
-	void setFilteredPressed(int pressed, bool pressedTopicJump);
+	void setFilteredPressed(
+		int pressed,
+		bool pressedTopicJump,
+		bool pressedBotApp);
 	void setPeerSearchPressed(int pressed);
 	void setPreviewPressed(int pressed);
 	void setSearchedPressed(int pressed);
@@ -325,6 +328,8 @@ private:
 
 	void updateRowCornerStatusShown(not_null<History*> history);
 	void repaintDialogRowCornerStatus(not_null<History*> history);
+
+	bool addBotAppRipple(QPoint origin, Fn<void()> updateCallback);
 
 	void setupShortcuts();
 	RowDescriptor computeJump(

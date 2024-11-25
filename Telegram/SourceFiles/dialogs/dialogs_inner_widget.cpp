@@ -1596,7 +1596,7 @@ void InnerWidget::clearIrrelevantState() {
 		setHashtagPressed(-1);
 		_hashtagDeleteSelected = _hashtagDeletePressed = false;
 		_filteredSelected = -1;
-		setFilteredPressed(-1, false);
+		setFilteredPressed(-1, false, false);
 		_peerSearchSelected = -1;
 		setPeerSearchPressed(-1);
 		_previewSelected = -1;
@@ -1716,15 +1716,24 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 			if (filteredSelected < 0 || filteredSelected >= _filterResults.size()) {
 				filteredSelected = -1;
 			}
+			const auto mappedY = (filteredSelected >= 0)
+				? mouseY - skip - _filterResults[filteredSelected].top
+				: 0;
 			const auto selectedTopicJump = (filteredSelected >= 0)
 				&& _filterResults[filteredSelected].row->lookupIsInTopicJump(
 					local.x(),
-					mouseY - skip - _filterResults[filteredSelected].top);
+					mappedY);
+			const auto selectedBotApp = (filteredSelected >= 0)
+				&& lookupIsInBotAppButton(
+					_filterResults[filteredSelected].row,
+					QPoint(local.x(), mappedY));
 			if (_filteredSelected != filteredSelected
-				|| _selectedTopicJump != selectedTopicJump) {
+				|| _selectedTopicJump != selectedTopicJump
+				|| _selectedBotApp != selectedBotApp) {
 				updateSelectedRow();
 				_filteredSelected = filteredSelected;
 				_selectedTopicJump = selectedTopicJump;
+				_selectedBotApp = selectedBotApp;
 				updateSelectedRow();
 			}
 		}
@@ -1813,7 +1822,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	setCollapsedPressed(_collapsedSelected);
 	setHashtagPressed(_hashtagSelected);
 	_hashtagDeletePressed = _hashtagDeleteSelected;
-	setFilteredPressed(_filteredSelected, _selectedTopicJump);
+	setFilteredPressed(_filteredSelected, _selectedTopicJump, _selectedBotApp);
 	setPeerSearchPressed(_peerSearchSelected);
 	setPreviewPressed(_previewSelected);
 	setSearchedPressed(_searchedSelected);
@@ -1842,21 +1851,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		};
 		const auto origin = e->pos()
 			- QPoint(0, dialogsOffset() + _pressed->top());
-		if (_pressedBotApp && _pressedBotAppData) {
-			const auto size = _pressedBotAppData->bg.size()
-				/ style::DevicePixelRatio();
-			if (!_pressedBotAppData->ripple) {
-				const auto r = size.height() / 2;
-				_pressedBotAppData->ripple
-					= std::make_unique<Ui::RippleAnimation>(
-						st::defaultRippleAnimation,
-						Ui::RippleAnimation::RoundRectMask(size, r),
-						updateCallback);
-			}
-			const auto shift = QPoint(
-				width() - size.width() - st::dialogRowOpenBotRight,
-				st::dialogRowOpenBotTop);
-			_pressedBotAppData->ripple->add(origin - shift);
+		if (addBotAppRipple(origin, updateCallback)) {
 		} else if (_pressedTopicJump) {
 			row->addTopicJumpRipple(
 				origin,
@@ -1883,7 +1878,8 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		const auto origin = e->pos()
 			- QPoint(0, filteredOffset() + result.top);
 		const auto updateCallback = [=] { repaintDialogRow(filterId, row); };
-		if (_pressedTopicJump) {
+		if (addBotAppRipple(origin, updateCallback)) {
+		} else if (_pressedTopicJump) {
 			row->addTopicJumpRipple(
 				origin,
 				_topicJumpCache.get(),
@@ -1915,6 +1911,25 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		&& (!_pressed || !_pressed->entry()->isPinnedDialog(_filterId))) {
 		mousePressReleased(e->globalPos(), e->button(), e->modifiers());
 	}
+}
+
+bool InnerWidget::addBotAppRipple(QPoint origin, Fn<void()> updateCallback) {
+	if (!(_pressedBotApp && _pressedBotAppData)) {
+		return false;
+	}
+	const auto size = _pressedBotAppData->bg.size()
+		/ style::DevicePixelRatio();
+	if (!_pressedBotAppData->ripple) {
+		_pressedBotAppData->ripple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			Ui::RippleAnimation::RoundRectMask(size, size.height() / 2),
+			updateCallback);
+	}
+	const auto shift = QPoint(
+		width() - size.width() - st::dialogRowOpenBotRight,
+		st::dialogRowOpenBotTop);
+	_pressedBotAppData->ripple->add(origin - shift);
+	return true;
 }
 
 const std::vector<Key> &InnerWidget::pinnedChatsOrder() const {
@@ -2197,7 +2212,7 @@ void InnerWidget::mousePressReleased(
 	auto hashtagDeletePressed = _hashtagDeletePressed;
 	_hashtagDeletePressed = false;
 	auto filteredPressed = _filteredPressed;
-	setFilteredPressed(-1, false);
+	setFilteredPressed(-1, false, false);
 	auto peerSearchPressed = _peerSearchPressed;
 	setPeerSearchPressed(-1);
 	auto previewPressed = _previewPressed;
@@ -2231,8 +2246,11 @@ void InnerWidget::mousePressReleased(
 				&& searchedPressed == _searchedSelected)
 			|| (pressedMorePosts
 				&& pressedMorePosts == _selectedMorePosts)) {
-			if (pressedBotApp) {
-				if (const auto user = MaybeBotWithApp(pressed)) {
+			if (pressedBotApp && (pressed || filteredPressed >= 0)) {
+				const auto &row = pressed
+					? pressed
+					: _filterResults[filteredPressed].row.get();
+				if (const auto user = MaybeBotWithApp(row)) {
 					_openBotMainAppRequests.fire(peerToUser(user->id));
 				}
 			} else {
@@ -2303,15 +2321,32 @@ void InnerWidget::setHashtagPressed(int pressed) {
 	_hashtagPressed = pressed;
 }
 
-void InnerWidget::setFilteredPressed(int pressed, bool pressedTopicJump) {
+void InnerWidget::setFilteredPressed(
+		int pressed,
+		bool pressedTopicJump,
+		bool pressedBotApp) {
 	if (_filteredPressed != pressed
-		|| (pressed >= 0 && _pressedTopicJump != pressedTopicJump)) {
+		|| (pressed >= 0 && _pressedTopicJump != pressedTopicJump)
+		|| (pressed >= 0 && _pressedBotApp != pressedBotApp)) {
 		if (base::in_range(_filteredPressed, 0, _filterResults.size())) {
 			_filterResults[_filteredPressed].row->stopLastRipple();
 		}
+		if (_pressedBotAppData && _pressedBotAppData->ripple) {
+			_pressedBotAppData->ripple->lastStop();
+		}
 		_filteredPressed = pressed;
-		if (pressed >= 0 || !pressedTopicJump) {
+		if (pressed >= 0 || !pressedTopicJump || !pressedBotApp) {
 			_pressedTopicJump = pressedTopicJump;
+			_pressedBotApp = pressedBotApp;
+			if (pressed >= 0 && pressedBotApp) {
+				const auto &row = _filterResults[pressed].row;
+				if (const auto history = row->history()) {
+					const auto it = _rightButtons.find(history->peer->id);
+					if (it != _rightButtons.end()) {
+						_pressedBotAppData = &(it->second);
+					}
+				}
+			}
 			const auto history = pressedTopicJump
 				? _filterResults[pressed].row->history()
 				: nullptr;
