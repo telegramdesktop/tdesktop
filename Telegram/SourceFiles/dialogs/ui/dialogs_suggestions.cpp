@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
@@ -76,12 +77,18 @@ public:
 		bool selected,
 		bool actionSelected) override;
 	bool rightActionDisabled() const override;
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
 
 	const style::PeerListItem &computeSt(
 		const style::PeerListItem &st) const override;
 
 private:
 	const not_null<History*> _history;
+	std::unique_ptr<Ui::Text::String> _mainAppText;
+	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 	QString _badgeString;
 	QSize _badgeSize;
 	uint32 _counter : 30 = 0;
@@ -181,7 +188,17 @@ void FillEntryMenu(
 
 RecentRow::RecentRow(not_null<PeerData*> peer)
 : PeerListRow(peer)
-, _history(peer->owner().history(peer)) {
+, _history(peer->owner().history(peer))
+, _mainAppText([&]() -> std::unique_ptr<Ui::Text::String> {
+	if (const auto user = peer->asUser()) {
+		if (user->botInfo && user->botInfo->hasMainApp) {
+			return std::make_unique<Ui::Text::String>(
+				st::dialogRowOpenBotTextStyle,
+				tr::lng_profile_open_app_short(tr::now).toUpper());
+		}
+	}
+	return nullptr;
+}()) {
 	if (peer->isSelf() || peer->isRepliesChat() || peer->isVerifyCodes()) {
 		setCustomStatus(u" "_q);
 	} else if (const auto chat = peer->asChat()) {
@@ -244,10 +261,23 @@ bool RecentRow::refreshBadge() {
 }
 
 QSize RecentRow::rightActionSize() const {
+	if (_mainAppText) {
+		const auto &font = st::dialogRowOpenBotTextStyle.font;
+		return QSize(
+			_mainAppText->maxWidth() + _mainAppText->minHeight(),
+			st::dialogRowOpenBotHeight);
+	}
 	return _badgeSize;
 }
 
 QMargins RecentRow::rightActionMargins() const {
+	if (_mainAppText) {
+		return QMargins(
+			0,
+			st::dialogRowOpenBotRecentTop,
+			st::dialogRowOpenBotRight,
+			0);
+	}
 	if (_badgeSize.isEmpty()) {
 		return {};
 	}
@@ -263,6 +293,32 @@ void RecentRow::rightActionPaint(
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
+	if (_mainAppText) {
+		const auto size = RecentRow::rightActionSize();
+		p.setPen(Qt::NoPen);
+		p.setBrush(actionSelected
+			? st::activeButtonBgOver
+			: st::activeButtonBg);
+		const auto radius = size.height() / 2;
+		p.drawRoundedRect(QRect(QPoint(x, y), size), radius, radius);
+		if (_actionRipple) {
+			_actionRipple->paint(p, x, y, outerWidth);
+			if (_actionRipple->empty()) {
+				_actionRipple.reset();
+			}
+		}
+		p.setPen(actionSelected
+			? st::activeButtonFgOver
+			: st::activeButtonFg);
+		const auto top = 0
+			+ (st::dialogRowOpenBotHeight - _mainAppText->minHeight()) / 2;
+		_mainAppText->draw(p, {
+			.position = QPoint(x + size.height() / 2, y + top),
+			.availableWidth = outerWidth,
+			.outerWidth = outerWidth,
+			.elisionLines = 1,
+		});
+	}
 	if (!_counter && !_unread) {
 		return;
 	} else if (_badgeString.isEmpty()) {
@@ -280,7 +336,31 @@ void RecentRow::rightActionPaint(
 }
 
 bool RecentRow::rightActionDisabled() const {
-	return true;
+	return !_mainAppText;
+}
+
+void RecentRow::rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) {
+	if (!_mainAppText) {
+		return;
+	}
+	if (!_actionRipple) {
+		const auto size = rightActionSize();
+		const auto radius = size.height() / 2;
+		auto mask = Ui::RippleAnimation::RoundRectMask(size, radius);
+		_actionRipple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultActiveButton.ripple,
+			std::move(mask),
+			std::move(updateCallback));
+	}
+	_actionRipple->add(point);
+}
+
+void RecentRow::rightActionStopLastRipple() {
+	if (_actionRipple) {
+		_actionRipple->lastStop();
+	}
 }
 
 const style::PeerListItem &RecentRow::computeSt(
@@ -357,14 +437,18 @@ private:
 
 class RecentsController final : public Suggestions::ObjectListController {
 public:
+	using RightActionCallback = Fn<void(not_null<PeerData*>)>;
+
 	RecentsController(
 		not_null<Window::SessionController*> window,
-		RecentPeersList list);
+		RecentPeersList list,
+		RightActionCallback rightActionCallback);
 
 	void prepare() override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 
 	QString savedMessagesChatStatus() const override;
 
@@ -374,6 +458,7 @@ private:
 	[[nodiscard]] Fn<void()> removeAllCallback();
 
 	RecentPeersList _recent;
+	RightActionCallback _rightActionCallback;
 	rpl::lifetime _lifetime;
 
 };
@@ -671,9 +756,11 @@ void Suggestions::ObjectListController::setupExpandDivider(
 
 RecentsController::RecentsController(
 	not_null<Window::SessionController*> window,
-	RecentPeersList list)
+	RecentPeersList list,
+	RightActionCallback rightActionCallback)
 : ObjectListController(window)
-, _recent(std::move(list)) {
+, _recent(std::move(list))
+, _rightActionCallback(std::move(rightActionCallback)) {
 }
 
 void RecentsController::prepare() {
@@ -733,6 +820,14 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		.removeAll = removeAllCallback(),
 	});
 	return result;
+}
+
+void RecentsController::rowRightActionClicked(not_null<PeerListRow*> row) {
+	if (_rightActionCallback) {
+		if (const auto peer = row->peer()) {
+			_rightActionCallback(peer);
+		}
+	}
 }
 
 QString RecentsController::savedMessagesChatStatus() const {
@@ -1785,7 +1880,8 @@ auto Suggestions::setupRecentPeers(RecentPeersList recentPeers)
 -> std::unique_ptr<ObjectList> {
 	const auto controller = lifetime().make_state<RecentsController>(
 		_controller,
-		std::move(recentPeers));
+		std::move(recentPeers),
+		[=](not_null<PeerData*> p) { _openBotMainAppRequests.fire_copy(p); });
 
 	const auto addToScroll = [=] {
 		return _topPeersWrap->toggled() ? _topPeers->height() : 0;

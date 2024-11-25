@@ -112,6 +112,7 @@ dialogRowOpenBotTextStyle: semiboldTextStyle;
 dialogRowOpenBotHeight: 20px;
 dialogRowOpenBotRight: 10px;
 dialogRowOpenBotTop: 32px;
+dialogRowOpenBotRecentTop: 28px;
 
 forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
 forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};

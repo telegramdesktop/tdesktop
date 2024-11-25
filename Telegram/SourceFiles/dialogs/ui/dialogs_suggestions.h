@@ -88,6 +88,10 @@ public:
 	-> rpl::producer<not_null<PeerData*>> {
 		return _popularApps->chosen.events();
 	}
+	[[nodiscard]] auto openBotMainAppRequests() const
+	-> rpl::producer<not_null<PeerData*>> {
+		return _openBotMainAppRequests.events();
+	}
 
 	class ObjectListController;
 
@@ -174,6 +178,7 @@ private:
 	const not_null<Ui::SlideWrap<TopPeersStrip>*> _topPeersWrap;
 	const not_null<TopPeersStrip*> _topPeers;
 	rpl::event_stream<not_null<PeerData*>> _topPeerChosen;
+	rpl::event_stream<not_null<PeerData*>> _openBotMainAppRequests;
 
 	const std::unique_ptr<ObjectList> _recent;
 
