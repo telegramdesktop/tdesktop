@@ -337,8 +337,11 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				) | rpl::start_with_next([=](
 						const Dialogs::UnreadState &state,
 						bool includeMuted) {
+					const auto chats = state.chatsTopic
+						? (state.chats - state.chatsTopic + 1)
+						: state.chats;
 					const auto muted = (state.chatsMuted + state.marksMuted);
-					const auto count = (state.chats + state.marks)
+					const auto count = (chats + state.marks)
 						- (includeMuted ? 0 : muted);
 					const auto isMuted = includeMuted && (count == muted);
 					slider->setUnreadCount(i, count, isMuted);

@@ -65,6 +65,7 @@ struct UnreadState {
 	int messagesMuted = 0;
 	int chats = 0;
 	int chatsMuted = 0;
+	int chatsTopic = 0;
 	int marks = 0;
 	int marksMuted = 0;
 	int reactions = 0;
@@ -77,6 +78,7 @@ struct UnreadState {
 		messagesMuted += other.messagesMuted;
 		chats += other.chats;
 		chatsMuted += other.chatsMuted;
+		chatsTopic += other.chatsTopic;
 		marks += other.marks;
 		marksMuted += other.marksMuted;
 		reactions += other.reactions;
@@ -89,6 +91,7 @@ struct UnreadState {
 		messagesMuted -= other.messagesMuted;
 		chats -= other.chats;
 		chatsMuted -= other.chatsMuted;
+		chatsTopic -= other.chatsTopic;
 		marks -= other.marks;
 		marksMuted -= other.marksMuted;
 		reactions -= other.reactions;
