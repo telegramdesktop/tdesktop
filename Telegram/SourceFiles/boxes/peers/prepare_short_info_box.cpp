@@ -7,26 +7,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/prepare_short_info_box.h"
 
+#include "base/unixtime.h"
 #include "boxes/peers/peer_short_info_box.h"
+#include "core/application.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
+#include "data/data_peer_values.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
-#include "data/data_streaming.h"
-#include "data/data_file_origin.h"
-#include "data/data_user.h"
-#include "data/data_chat.h"
-#include "data/data_channel.h"
-#include "data/data_peer_values.h"
-#include "data/data_user_photos.h"
-#include "data/data_changes.h"
 #include "data/data_session.h"
-#include "main/main_session.h"
-#include "window/window_session_controller.h"
+#include "data/data_streaming.h"
+#include "data/data_user.h"
+#include "data/data_user_photos.h"
 #include "info/profile/info_profile_values.h"
-#include "ui/text/format_values.h"
-#include "base/unixtime.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/delayed_activation.h" // PreventDelayedActivation
+#include "ui/text/format_values.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "window/window_session_controller.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -446,6 +450,7 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
 		Fn<void()> open,
 		Fn<bool()> videoPaused,
+		Fn<void(Ui::Menu::MenuCallback)> menuFiller,
 		const style::ShortInfoBox *stOverride) {
 	const auto type = peer->isSelf()
 		? PeerShortInfoType::Self
@@ -462,6 +467,13 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		std::move(userpic.value),
 		std::move(videoPaused),
 		stOverride);
+
+	if (menuFiller) {
+		result->fillMenuRequests(
+		) | rpl::start_with_next([=](Ui::Menu::MenuCallback callback) {
+			menuFiller(std::move(callback));
+		}, result->lifetime());
+	}
 
 	result->openRequests(
 	) | rpl::start_with_next(open, result->lifetime());
@@ -481,10 +493,21 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		return navigation->parentController()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 	};
+	auto menuFiller = [=](Ui::Menu::MenuCallback addAction) {
+		const auto controller = navigation->parentController();
+		const auto peerSeparateId = Window::SeparateId(peer);
+		if (controller->windowId() != peerSeparateId) {
+			addAction(tr::lng_context_new_window(tr::now), [=] {
+				Ui::PreventDelayedActivation();
+				controller->showInNewWindow(peer);
+			}, &st::menuIconNewWindow);
+		}
+	};
 	return PrepareShortInfoBox(
 		peer,
 		open,
 		videoIsPaused,
+		std::move(menuFiller),
 		stOverride);
 }
 

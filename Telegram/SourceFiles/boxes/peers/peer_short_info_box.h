@@ -15,6 +15,10 @@ struct ShortInfoCover;
 struct ShortInfoBox;
 } // namespace style
 
+namespace Ui::Menu {
+struct MenuCallback;
+} // namespace Ui::Menu
+
 namespace Media::Streaming {
 class Document;
 class Instance;
@@ -160,6 +164,11 @@ public:
 
 	[[nodiscard]] rpl::producer<> openRequests() const;
 	[[nodiscard]] rpl::producer<int> moveRequests() const;
+	[[nodiscard]] auto fillMenuRequests() const
+	-> rpl::producer<Ui::Menu::MenuCallback>;
+
+protected:
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	void prepare() override;
@@ -191,6 +200,9 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	not_null<Ui::VerticalLayout*> _rows;
 	PeerShortInfoCover _cover;
+
+	base::unique_qptr<Ui::RpWidget> _menuHolder;
+	rpl::event_stream<Ui::Menu::MenuCallback> _fillMenuRequests;
 
 	rpl::event_stream<> _openRequests;
 
