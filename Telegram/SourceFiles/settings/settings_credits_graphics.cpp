@@ -2021,7 +2021,7 @@ void AddWithdrawalWidget(
 	lockedLabel->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(lockedLabel);
 		p.setPen(state->locked ? QPen(lockedColor) : stButton.textFg->p);
-		if (state->dateIsNull) {
+		if (state->dateIsNull && state->locked) {
 			p.setFont(st::channelEarnSemiboldLabel.style.font);
 			p.drawText(
 				lockedLabel->rect(),
