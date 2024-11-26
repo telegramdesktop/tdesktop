@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/choose_filter_box.h"
 
 #include "apiwrap.h"
+#include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h" // primaryWindow
 #include "data/data_chat_filters.h"
+#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
@@ -21,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
+#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -162,7 +165,8 @@ void FillChooseFilterMenu(
 		not_null<History*> history) {
 	const auto weak = base::make_weak(controller);
 	const auto validator = ChooseFilterValidator(history);
-	for (const auto &filter : history->owner().chatsFilters().list()) {
+	const auto &list = history->owner().chatsFilters().list();
+	for (const auto &filter : list) {
 		const auto id = filter.id();
 		if (!id) {
 			continue;
@@ -191,6 +195,37 @@ void FillChooseFilterMenu(
 			? validator.canRemove(id)
 			: validator.canAdd());
 	}
+
+	const auto limit = [session = &controller->session()] {
+		return Data::PremiumLimits(session).dialogFiltersCurrent();
+	};
+	if ((list.size() - 1) < limit()) {
+		menu->addAction(tr::lng_filters_create(tr::now), [=] {
+			const auto strong = weak.get();
+			if (!strong) {
+				return;
+			}
+			const auto session = &strong->session();
+			const auto count = session->data().chatsFilters().list().size();
+			if ((count - 1) >= limit()) {
+				return;
+			}
+			auto filter =
+				Data::ChatFilter({}, {}, {}, {}, {}, { history }, {}, {});
+			const auto send = [=](const Data::ChatFilter &filter) {
+				session->api().request(MTPmessages_UpdateDialogFilter(
+					MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
+					MTP_int(count),
+					filter.tl()
+				)).done([=] {
+					session->data().chatsFilters().reload();
+				}).send();
+			};
+			strong->uiShow()->show(
+				Box(EditFilterBox, strong, std::move(filter), send, nullptr));
+		}, &st::menuIconShowInFolder);
+	}
+
 	history->owner().chatsFilters().changed(
 	) | rpl::start_with_next([=] {
 		menu->hideMenu();
