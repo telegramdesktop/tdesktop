@@ -635,12 +635,12 @@ bool AddReplyToMessageAction(
 	}
 
 	const auto &quote = request.quote;
-	auto text = quote.text.empty()
-		? tr::lng_context_reply_msg(tr::now)
-		: tr::lng_context_quote_and_reply(tr::now);
-	text.replace('&', u"&&"_q);
-	const auto itemId = item->fullId();
-	menu->addAction(text, [=] {
+	auto text = (quote.text.empty()
+		? tr::lng_context_reply_msg
+		: tr::lng_context_quote_and_reply)(
+			tr::now,
+			Ui::Text::FixAmpersandInAction);
+	menu->addAction(std::move(text), [=, itemId = item->fullId()] {
 		list->replyToMessageRequestNotify({
 			.messageId = itemId,
 			.quote = quote.text,

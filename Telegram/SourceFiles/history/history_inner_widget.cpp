@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/text/text_isolated_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "ui/boxes/edit_factcheck_box.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/controls/delete_message_context_action.h"
@@ -2549,15 +2550,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto canReply = canSendReply || item->allowsForward();
 		if (canReply) {
 			const auto selected = selectedQuote(item);
-			auto text = selected
-				? tr::lng_context_quote_and_reply(tr::now)
-				: tr::lng_context_reply_msg(tr::now);
+			auto text = (selected
+				? tr::lng_context_quote_and_reply
+				: tr::lng_context_reply_msg)(
+					tr::now,
+					Ui::Text::FixAmpersandInAction);
 			const auto replyToItem = selected.item ? selected.item : item;
 			const auto itemId = replyToItem->fullId();
 			const auto quote = selected.text;
 			const auto quoteOffset = selected.offset;
-			text.replace('&', u"&&"_q);
-			_menu->addAction(text, [=] {
+			_menu->addAction(std::move(text), [=] {
 				_widget->replyToMessage({
 					.messageId = itemId,
 					.quote = quote,

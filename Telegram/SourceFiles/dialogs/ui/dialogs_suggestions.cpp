@@ -1402,7 +1402,8 @@ void Suggestions::setupChats() {
 			.removeOneText = tr::lng_recent_remove(tr::now),
 			.removeOne = removeOne,
 			.removeAllText = tr::lng_recent_hide_top(
-				tr::now).replace('&', u"&&"_q),
+				tr::now,
+				Ui::Text::FixAmpersandInAction),
 			.removeAllConfirm = tr::lng_recent_hide_sure(tr::now),
 			.removeAll = removeAll,
 		});

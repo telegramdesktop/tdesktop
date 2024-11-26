@@ -18,8 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
-#include "window/window_session_controller.h"
+#include "ui/text/text_utilities.h"
 #include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "platform/mac/touchbar/mac_touchbar_manager.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
@@ -519,7 +520,9 @@ void MainWindow::createGlobalMenu() {
 
 	edit->addSeparator();
 	edit->addAction(
-		tr::lng_mac_menu_emoji_and_symbols(tr::now).replace('&', "&&"),
+		tr::lng_mac_menu_emoji_and_symbols(
+			tr::now,
+			Ui::Text::FixAmpersandInAction),
 		this,
 		[] { [NSApp orderFrontCharacterPalette:nil]; },
 		QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space)
