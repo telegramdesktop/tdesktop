@@ -87,19 +87,35 @@ ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
 	return result;
 }
 
-[[nodiscard]] rpl::producer<int> MessagesCountValue(
+[[nodiscard]] rpl::producer<base::flat_map<PeerId, int>> MessagesCountValue(
 		not_null<History*> history,
-		not_null<PeerData*> from) {
+		std::vector<not_null<PeerData*>> from) {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
-		auto search = lifetime.make_state<Api::MessagesSearch>(history);
-		consumer.put_next(0);
-
-		search->messagesFounds(
-		) | rpl::start_with_next([=](const Api::FoundMessages &found) {
-			consumer.put_next_copy(found.total);
-		}, lifetime);
-		search->searchMessages({ .from = from });
+		struct State final {
+			base::flat_map<PeerId, int> messagesCounts;
+			int index = 0;
+			rpl::lifetime apiLifetime;
+		};
+		const auto search = lifetime.make_state<Api::MessagesSearch>(history);
+		const auto state = lifetime.make_state<State>();
+		const auto send = [=](auto repeat) -> void {
+			if (state->index >= from.size()) {
+				consumer.put_next_copy(state->messagesCounts);
+				return;
+			}
+			const auto peer = from[state->index];
+			const auto peerId = peer->id;
+			state->apiLifetime = search->messagesFounds(
+			) | rpl::start_with_next([=](const Api::FoundMessages &found) {
+				state->messagesCounts[peerId] = found.total;
+				state->index++;
+				repeat(repeat);
+			});
+			search->searchMessages({ .from = peer });
+		};
+		consumer.put_next({});
+		send(send);
 
 		return lifetime;
 	};
@@ -274,15 +290,50 @@ void CreateModerateMessagesBox(
 				false,
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
-		if (isSingle) {
-			const auto history = items.front()->history();
+		const auto history = items.front()->history();
+		auto messagesCounts = MessagesCountValue(history, participants);
+
+		const auto controller = box->lifetime().make_state<Controller>(
+			Controller::Data{
+				.messagesCounts = rpl::duplicate(messagesCounts),
+				.participants = participants,
+			});
+		Ui::AddExpandablePeerList(deleteAll, controller, inner);
+		{
 			tr::lng_selected_delete_sure(
 				lt_count,
 				rpl::combine(
-					MessagesCountValue(history, participants.front()),
-					deleteAll->checkedValue()
-				) | rpl::map([s = items.size()](int all, bool checked) {
-					return float64((checked && all) ? all : s);
+					std::move(messagesCounts),
+					isSingle
+						? deleteAll->checkedValue()
+						: rpl::merge(
+							controller->toggleRequestsFromInner.events(),
+							controller->checkAllRequests.events())
+				) | rpl::map([=, s = items.size()](const auto &map, bool c) {
+					const auto checked = (isSingle && !c)
+						? Participants()
+						: controller->collectRequests
+						? controller->collectRequests()
+						: Participants();
+					auto result = 0;
+					for (const auto &[peerId, count] : map) {
+						for (const auto &peer : checked) {
+							if (peer->id == peerId) {
+								result += count;
+								break;
+							}
+						}
+					}
+					for (const auto &item : items) {
+						for (const auto &peer : checked) {
+							if (peer->id == item->from()->id) {
+								result--;
+								break;
+							}
+						}
+						result++;
+					}
+					return float64(result);
 				})
 			) | rpl::start_with_next([=](const QString &text) {
 				title->setText(text);
@@ -290,10 +341,6 @@ void CreateModerateMessagesBox(
 					- rect::m::sum::h(st::boxRowPadding));
 			}, title->lifetime());
 		}
-
-		const auto controller = box->lifetime().make_state<Controller>(
-			Controller::Data{ .participants = participants });
-		Ui::AddExpandablePeerList(deleteAll, controller, inner);
 		handleSubmition(deleteAll);
 
 		handleConfirmation(deleteAll, controller, [=](

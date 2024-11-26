@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/expandable_peer_list.h"
 
 #include "data/data_peer.h"
+#include "info/profile/info_profile_values.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
@@ -148,19 +149,35 @@ void AddExpandablePeerList(
 			const auto &st = st::moderateBoxUserpic;
 			line->resize(line->width(), st.size.height());
 
-			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-				line,
-				peer,
-				st);
+			using namespace Info::Profile;
+			auto name = controller->data.bold
+				? NameValue(peer) | rpl::map(Ui::Text::Bold)
+				: NameValue(peer) | rpl::map(Ui::Text::WithEntities);
+			const auto userpic
+				= Ui::CreateChild<Ui::UserpicButton>(line, peer, st);
 			const auto checkbox = Ui::CreateChild<Ui::Checkbox>(
 				line,
-				controller->data.bold
-					? Ui::Text::Bold(peer->name())
-					: TextWithEntities{ .text = peer->name() },
-				ranges::contains(controller->data.checked, peer->id),
-				st::defaultBoxCheckbox);
-			line->widthValue(
-			) | rpl::start_with_next([=](int width) {
+				controller->data.messagesCounts
+				? rpl::combine(
+					std::move(name),
+					rpl::duplicate(controller->data.messagesCounts)
+				) | rpl::map([=](const auto &richName, const auto &map) {
+					const auto it = map.find(peer->id);
+					return (it == map.end() || !it->second)
+						? richName
+						: TextWithEntities(
+							(u"(%1) "_q).arg(it->second)).append(richName);
+				})
+				: std::move(name),
+				st::defaultBoxCheckbox,
+				std::make_unique<Ui::CheckView>(
+					st::defaultCheck,
+					ranges::contains(controller->data.checked, peer->id)));
+			checkbox->setCheckAlignment(style::al_left);
+			rpl::combine(
+				line->widthValue(),
+				checkbox->widthValue()
+			) | rpl::start_with_next([=](int width, int) {
 				userpic->moveToLeft(
 					st::boxRowPadding.left()
 						+ checkbox->checkRect().width()
