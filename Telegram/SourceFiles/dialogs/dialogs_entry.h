@@ -75,10 +75,13 @@ struct UnreadState {
 	int chats = 0;
 	int chatsMuted = 0;
 	int chatsTopic = 0;
+	int chatsTopicMuted = 0;
 	int marks = 0;
 	int marksMuted = 0;
 	int reactions = 0;
 	int reactionsMuted = 0;
+	int forums = 0;
+	int forumsMuted = 0;
 	int mentions = 0;
 	bool known = false;
 
@@ -88,10 +91,13 @@ struct UnreadState {
 		chats += other.chats;
 		chatsMuted += other.chatsMuted;
 		chatsTopic += other.chatsTopic;
+		chatsTopicMuted += other.chatsTopicMuted;
 		marks += other.marks;
 		marksMuted += other.marksMuted;
 		reactions += other.reactions;
 		reactionsMuted += other.reactionsMuted;
+		forums += other.forums;
+		forumsMuted += other.forumsMuted;
 		mentions += other.mentions;
 		return *this;
 	}
@@ -101,10 +107,13 @@ struct UnreadState {
 		chats -= other.chats;
 		chatsMuted -= other.chatsMuted;
 		chatsTopic -= other.chatsTopic;
+		chatsTopicMuted -= other.chatsTopicMuted;
 		marks -= other.marks;
 		marksMuted -= other.marksMuted;
 		reactions -= other.reactions;
 		reactionsMuted -= other.reactionsMuted;
+		forums -= other.forums;
+		forumsMuted -= other.forumsMuted;
 		mentions -= other.mentions;
 		return *this;
 	}

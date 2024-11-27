@@ -81,6 +81,17 @@ using UpdateFlag = Data::HistoryUpdate::Flag;
 	return fields;
 }
 
+[[nodiscard]] Dialogs::UnreadState AdjustedForumUnreadState(
+		Dialogs::UnreadState state) {
+	if (state.chatsTopic) {
+		state.forums = 1;
+		if (state.chatsTopic == state.chatsTopicMuted) {
+			state.forumsMuted = 1;
+		}
+	}
+	return state;
+}
+
 } // namespace
 
 History::History(not_null<Data::Session*> owner, PeerId peerId)
@@ -2195,7 +2206,7 @@ History *History::migrateSibling() const {
 
 Dialogs::UnreadState History::chatListUnreadState() const {
 	if (const auto forum = peer->forum()) {
-		return forum->topicsList()->unreadState();
+		return AdjustedForumUnreadState(forum->topicsList()->unreadState());
 	}
 	return computeUnreadState();
 }
@@ -2204,7 +2215,7 @@ Dialogs::BadgesState History::chatListBadgesState() const {
 	if (const auto forum = peer->forum()) {
 		return adjustBadgesStateByFolder(
 			Dialogs::BadgesForUnread(
-				forum->topicsList()->unreadState(),
+				AdjustedForumUnreadState(forum->topicsList()->unreadState()),
 				Dialogs::CountInBadge::Chats,
 				Dialogs::IncludeInBadge::UnmutedOrAll));
 	}
@@ -3068,7 +3079,7 @@ const Data::Thread *History::threadFor(MsgId topicRootId) const {
 void History::forumChanged(Data::Forum *old) {
 	if (inChatList()) {
 		notifyUnreadStateChange(old
-			? old->topicsList()->unreadState()
+			? AdjustedForumUnreadState(old->topicsList()->unreadState())
 			: computeUnreadState());
 	}
 
@@ -3078,7 +3089,8 @@ void History::forumChanged(Data::Forum *old) {
 		forum->topicsList()->unreadStateChanges(
 		) | rpl::filter([=] {
 			return (_flags & Flag::IsForum) && inChatList();
-		}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
+		}) | rpl::map(AdjustedForumUnreadState
+		) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 			notifyUnreadStateChange(old);
 		}, forum->lifetime());
 
