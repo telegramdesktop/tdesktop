@@ -140,8 +140,9 @@ int PaintBadges(
 		BadgesState badgesState,
 		int right,
 		int top,
-		bool displayPinnedIcon = false,
-		int pinnedIconTop = 0) {
+		bool displayPinnedIcon,
+		int pinnedIconTop,
+		bool narrow) {
 	auto initial = right;
 	if (const auto used = PaintRightButton(p, context)) {
 		return used - st::dialogsUnreadPadding;
@@ -175,9 +176,16 @@ int PaintBadges(
 		st.active = context.active;
 		st.selected = context.selected;
 		st.muted = badgesState.unreadMuted;
-		const auto counter = (badgesState.unreadCounter > 0)
+		const auto counter = (badgesState.unreadCounter <= 0)
+			? QString()
+			: !narrow
 			? QString::number(badgesState.unreadCounter)
-			: QString();
+			: ((badgesState.mention || badgesState.reaction)
+				&& (badgesState.unreadCounter > 999))
+			? (u"99+"_q)
+			: (badgesState.unreadCounter > 999999)
+			? (u"99999+"_q)
+			: QString::number(badgesState.unreadCounter);
 		const auto badge = PaintUnreadBadge(p, counter, right, top, st);
 		right -= badge.width() + st.padding;
 	} else if (displayPinnedIcon) {
@@ -241,7 +249,10 @@ void PaintNarrowCounter(
 		context,
 		badgesState,
 		context.st->padding.left() + context.st->photoSize,
-		top);
+		top,
+		false,
+		0,
+		true);
 }
 
 int PaintWideCounter(
@@ -262,7 +273,8 @@ int PaintWideCounter(
 		context.width - context.st->padding.right(),
 		top,
 		displayPinnedIcon,
-		texttop);
+		texttop,
+		false);
 	return availableWidth - used;
 }
 
