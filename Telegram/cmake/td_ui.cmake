@@ -95,6 +95,7 @@ PRIVATE
     data/data_statistics_chart.h
     data/data_subscriptions.h
 
+    dialogs/dialogs_common.h
     dialogs/dialogs_three_state_icon.h
     dialogs/ui/chat_search_empty.cpp
     dialogs/ui/chat_search_empty.h
