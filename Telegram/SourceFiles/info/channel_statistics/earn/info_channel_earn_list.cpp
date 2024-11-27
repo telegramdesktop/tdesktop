@@ -1014,7 +1014,6 @@ void InnerWidget::fill() {
 					listsContainer,
 					tr::lng_channel_earn_credits_history);
 				slider->entity()->setActiveSectionFast(1);
-				AddSkip(listsContainer);
 			}
 		} else {
 			slider->entity()->setActiveSectionFast(*sectionIndex);

@@ -37,6 +37,7 @@ channelEarnSemiboldLabel: FlatLabel(channelEarnOverviewMajorLabel) {
 channelEarnHeaderLabel: FlatLabel(channelEarnOverviewMajorLabel) {
 	style: TextStyle(statisticsHeaderTitleTextStyle) {
 	}
+	textFg: windowActiveTextFg;
 }
 channelEarnHistorySubLabel: FlatLabel(channelEarnOverviewSubMinorLabel) {
 	style: TextStyle(defaultTextStyle) {

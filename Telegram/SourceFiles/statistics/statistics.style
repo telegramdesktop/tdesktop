@@ -59,7 +59,7 @@ statisticsPieChartPartOffset: 8px;
 statisticsChartHeaderHeight: 36px;
 statisticsChartHeaderPadding: margins(2px, 0px, 0px, 10px);
 statisticsHeaderTitleTextStyle: TextStyle(defaultTextStyle) {
-	font: font(13px);
+	font: font(boxFontSize semibold);
 }
 statisticsHeaderDatesTextStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);

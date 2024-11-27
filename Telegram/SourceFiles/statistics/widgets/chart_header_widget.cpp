@@ -43,7 +43,7 @@ void Header::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(rect(), st::boxBg);
 
-	p.setPen(st::boxTextFg);
+	p.setPen(st::windowActiveTextFg);
 	_title.drawLeftElided(p, 0, 0, width(), width());
 
 	p.setPen(st::windowSubTextFg);

@@ -143,7 +143,6 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 		Ui::AddDivider(container);
 		Ui::AddSkip(container);
-		Ui::AddSkip(container);
 	}
 	{
 		AddHeader(container, tr::lng_bot_earn_overview_title);
@@ -279,7 +278,6 @@ void InnerWidget::fillHistory() {
 		const auto outTabText = tr::lng_credits_summary_history_tab_out(
 			tr::now);
 		if (hasOneTab) {
-			Ui::AddSkip(inner);
 			const auto header = inner->add(
 				object_ptr<Statistic::Header>(inner),
 				st::statisticsLayerMargins
