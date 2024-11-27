@@ -302,7 +302,8 @@ void BasicRow::paintUserpic(
 		not_null<Entry*> entry,
 		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		const Ui::PaintContext &context) const {
+		const Ui::PaintContext &context,
+		bool hasUnreadBadgesAbove) const {
 	PaintUserpic(p, entry, peer, videoUserpic, _userpic, context);
 }
 
@@ -371,12 +372,15 @@ void Row::setCornerBadgeShown(
 
 void Row::updateCornerBadgeShown(
 		not_null<PeerData*> peer,
-		Fn<void()> updateCallback) const {
+		Fn<void()> updateCallback,
+		bool hasUnreadBadgesAbove) const {
 	const auto user = peer->asUser();
 	const auto now = user ? base::unixtime::now() : TimeId();
 	const auto channel = user ? nullptr : peer->asChannel();
 	const auto nextLayer = [&] {
-		if (user && Data::IsUserOnline(user, now)) {
+		if (hasUnreadBadgesAbove) {
+			return kNoneLayer;
+		} else if (user && Data::IsUserOnline(user, now)) {
 			return kTopLayer;
 		} else if (channel
 			&& (Data::ChannelHasActiveCall(channel)
@@ -533,9 +537,10 @@ void Row::paintUserpic(
 		not_null<Entry*> entry,
 		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		const Ui::PaintContext &context) const {
+		const Ui::PaintContext &context,
+		bool hasUnreadBadgesAbove) const {
 	if (peer) {
-		updateCornerBadgeShown(peer);
+		updateCornerBadgeShown(peer, nullptr, hasUnreadBadgesAbove);
 	}
 
 	const auto cornerBadgeShown = !_cornerBadgeUserpic
@@ -551,7 +556,7 @@ void Row::paintUserpic(
 		? storiesFolder->storiesCount()
 		: false;
 	if (!cornerBadgeShown && !storiesHas) {
-		BasicRow::paintUserpic(p, entry, peer, videoUserpic, context);
+		BasicRow::paintUserpic(p, entry, peer, videoUserpic, context, false);
 		if (!peer || !_cornerBadgeShown) {
 			_cornerBadgeUserpic = nullptr;
 		}

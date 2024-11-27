@@ -405,7 +405,17 @@ void PaintRow(
 			row->userpicView(),
 			context);
 	} else {
-		row->paintUserpic(p, entry, from, videoUserpic, context);
+		row->paintUserpic(
+			p,
+			entry,
+			from,
+			videoUserpic,
+			context,
+			context.narrow
+				&& !badgesState.empty()
+				&& !draft
+				&& item
+				&& !item->isEmpty());
 	}
 
 	const auto nameleft = context.st->nameLeft;

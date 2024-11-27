@@ -51,7 +51,8 @@ public:
 		not_null<Entry*> entry,
 		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		const Ui::PaintContext &context) const;
+		const Ui::PaintContext &context,
+		bool hasUnreadBadgesAbove) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	virtual void stopLastRipple();
@@ -98,13 +99,15 @@ public:
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,
-		Fn<void()> updateCallback = nullptr) const;
+		Fn<void()> updateCallback = nullptr,
+		bool hasUnreadBadgesAbove = false) const;
 	void paintUserpic(
 		Painter &p,
 		not_null<Entry*> entry,
 		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		const Ui::PaintContext &context) const final override;
+		const Ui::PaintContext &context,
+		bool hasUnreadBadgesAbove) const final override;
 
 	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
 	void stopLastRipple() override;
