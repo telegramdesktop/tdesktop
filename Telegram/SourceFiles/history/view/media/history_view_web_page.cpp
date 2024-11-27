@@ -1077,7 +1077,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			? _parent->skipBlockWidth()
 			: 0;
 		const auto titleWidth = sponsored
-			? (paintw - _pixh - st::webPagePhotoDelta)
+			? (paintw - (_pixh ? (_pixh - st::webPagePhotoDelta) : 0))
 			: paintw;
 		_title.drawLeftElided(
 			p,
