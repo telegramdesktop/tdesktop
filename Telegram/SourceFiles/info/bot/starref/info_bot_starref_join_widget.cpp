@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
@@ -318,7 +320,7 @@ void ListController::showLink(not_null<PeerData*> peer, RowState state) {
 
 		box->addButton(tr::lng_star_ref_link_copy(), [=] {
 			QApplication::clipboard()->setText(state.link);
-			window->showToast(u"Link copied to clipboard."_q);
+			window->showToast(tr::lng_username_copied(tr::now));
 		});
 		box->addButton(tr::lng_cancel(), [=] {
 			box->closeBox();
@@ -398,14 +400,17 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
-	result->addAction(tr::lng_star_ref_list_my_open(tr::now), [=] {
+	const auto addAction = Ui::Menu::CreateAddActionCallback(result.get());
+
+	addAction(tr::lng_star_ref_list_my_open(tr::now), [=] {
 		_controller->parentController()->showPeerHistory(peer);
-	}, &st::menuIconBotCommands);
-	result->addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
+	}, &st::menuIconBot);
+	addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
 		QApplication::clipboard()->setText(state.link);
-		_controller->parentController()->showToast(u"Link copied to clipboard."_q);
+		_controller->parentController()->showToast(
+			tr::lng_username_copied(tr::now));
 	}, &st::menuIconLinks);
-	result->addAction(tr::lng_star_ref_list_my_leave(tr::now), [=] {
+	const auto revoke = [=] {
 		session().api().request(MTPpayments_EditConnectedStarRefBot(
 			MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
 			_peer->input,
@@ -415,7 +420,13 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 		}).fail([=](const MTP::Error &error) {
 			_controller->parentController()->showToast(u"Failed: "_q + error.type());
 		}).send();
-	}, &st::menuIconLeaveAttention);
+	};
+	addAction({
+		.text = tr::lng_star_ref_list_my_leave(tr::now),
+		.handler = revoke,
+		.icon = &st::menuIconLeaveAttention,
+		.isAttention = true,
+	});
 	return result;
 }
 
@@ -477,12 +488,12 @@ void InnerWidget::setupInfo() {
 	_container->add(infoRow(
 		tr::lng_star_ref_transparent_title(),
 		tr::lng_star_ref_transparent_about(),
-		&st::menuIconShowInChat));
+		&st::menuIconTransparent));
 
 	_container->add(infoRow(
 		tr::lng_star_ref_simple_title(),
 		tr::lng_star_ref_simple_about(),
-		&st::menuIconBoosts));
+		&st::menuIconLike));
 }
 
 void InnerWidget::setupMy() {

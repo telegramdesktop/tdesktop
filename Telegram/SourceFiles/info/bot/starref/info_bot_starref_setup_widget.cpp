@@ -135,7 +135,7 @@ void InnerWidget::setupInfo() {
 	_container->add(infoRow(
 		tr::lng_star_ref_share_title(),
 		tr::lng_star_ref_share_about(),
-		&st::menuIconPremium));
+		&st::menuIconStarRefShare));
 
 	_container->add(infoRow(
 		tr::lng_star_ref_launch_title(),
@@ -650,7 +650,7 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 	}, dummy->lifetime());
 
 	::Settings::AddButtonIcon(dummy, st::settingsButton, {
-		.icon = &st::settingsPremiumIconStar,
+		.icon = &st::settingsStarRefEarnStars,
 		.backgroundBrush = st::premiumIconBg3,
 	});
 
