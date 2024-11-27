@@ -104,6 +104,126 @@ private:
 	};
 }
 
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeSliderWithTopTag(
+		QWidget *parent,
+		not_null<const style::MediaSlider*> sliderStyle,
+		not_null<const style::FlatLabel*> labelStyle,
+		int valuesCount,
+		Fn<int(int)> valueByIndex,
+		int value,
+		Fn<void(int)> valueProgress,
+		Fn<void(int)> valueFinished,
+		Fn<QString(int)> textByValue) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	const auto raw = result.data();
+
+	const auto labels = raw->add(object_ptr<Ui::RpWidget>(raw));
+	const auto min = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		textByValue(valueByIndex(0)),
+		*labelStyle);
+	const auto max = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		textByValue(valueByIndex(valuesCount - 1)),
+		*labelStyle);
+	const auto current = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		textByValue(value),
+		*labelStyle);
+	const auto slider = raw->add(object_ptr<Ui::MediaSliderWheelless>(
+		raw,
+		*sliderStyle));
+	labels->resize(labels->width(), current->height());
+	struct State {
+		int index = 0;
+	};
+	const auto state = raw->lifetime().make_state<State>(State{ 0 });
+	const auto updatePalette = [=] {
+		min->setTextColorOverride(!state->index
+			? st::windowActiveTextFg->c
+			: st::windowSubTextFg->c);
+		max->setTextColorOverride((state->index == valuesCount - 1)
+			? st::windowActiveTextFg->c
+			: st::windowSubTextFg->c);
+		current->setTextColorOverride(st::windowActiveTextFg->c);
+	};
+	const auto updateByIndex = [=] {
+		updatePalette();
+
+		current->setVisible(state->index > 0
+			&& state->index < valuesCount - 1);
+		const auto outer = labels->width();
+		const auto minWidth = min->width();
+		const auto maxWidth = max->width();
+		const auto currentWidth = current->width();
+		if (minWidth + maxWidth + currentWidth > outer) {
+			return;
+		}
+
+		min->moveToLeft(0, 0, outer);
+		max->moveToRight(0, 0, outer);
+
+		const auto sliderSkip = sliderStyle->seekSize.width();
+		const auto availableForCurrent = outer - sliderSkip;
+		const auto ratio = state->index / float64(valuesCount - 1);
+		const auto desiredLeft = (sliderSkip / 2)
+			+ availableForCurrent * ratio
+			- (currentWidth / 2);
+		const auto minLeft = minWidth;
+		const auto maxLeft = outer - maxWidth - currentWidth;
+		current->moveToLeft(
+			std::clamp(int(base::SafeRound(desiredLeft)), minLeft, maxLeft),
+			0,
+			outer);
+	};
+	const auto updateByValue = [=](int value) {
+		current->setText(textByValue(value));
+
+		state->index = 0;
+		auto maxIndex = valuesCount - 1;
+		while (state->index < maxIndex) {
+			const auto mid = (state->index + maxIndex) / 2;
+			const auto midValue = valueByIndex(mid);
+			if (midValue == value) {
+				state->index = mid;
+				break;
+			} else if (midValue < value) {
+				state->index = mid + 1;
+			} else {
+				maxIndex = mid - 1;
+			}
+		}
+		updateByIndex();
+	};
+	const auto progress = [=](int value) {
+		updateByValue(value);
+		valueProgress(value);
+	};
+	const auto finished = [=](int value) {
+		updateByValue(value);
+		valueFinished(value);
+	};
+	style::PaletteChanged() | rpl::start_with_next([=] {
+		updatePalette();
+	}, raw->lifetime());
+	updateByValue(value);
+
+	slider->setPseudoDiscrete(
+		valuesCount,
+		valueByIndex,
+		value,
+		progress,
+		finished);
+	slider->resize(slider->width(), sliderStyle->seekSize.height());
+
+	raw->widthValue() | rpl::start_with_next([=](int width) {
+		labels->resizeToWidth(width);
+		updateByIndex();
+	}, slider->lifetime());
+
+	return result;
+}
+
 InnerWidget::InnerWidget(QWidget *parent, not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
@@ -165,36 +285,21 @@ void InnerWidget::setupCommission() {
 		}
 	}
 	const auto valuesCount = int(values.size());
-
-	auto sliderWithLabel = ::Settings::MakeSliderWithLabel(
-		_container,
-		st::settingsScale,
-		st::settingsScaleLabel,
-		st::normalFont->spacew * 2,
-		st::settingsScaleLabel.style.font->width("89.9%"),
-		true);
-	_container->add(
-		std::move(sliderWithLabel.widget),
-		st::settingsBigScalePadding);
-	const auto slider = sliderWithLabel.slider;
-	const auto label = sliderWithLabel.label;
-
-	const auto updateLabel = [=](int value) {
-		const auto labelText = QString::number(value / 10.) + '%';
-		label->setText(labelText);
-	};
 	const auto setCommission = [=](int value) {
 		_state.program.commission = value;
-		updateLabel(value);
 	};
-	updateLabel(commission);
-
-	slider->setPseudoDiscrete(
-		valuesCount,
-		[=](int index) { return values[index]; },
-		commission,
-		setCommission,
-		setCommission);
+	_container->add(
+		MakeSliderWithTopTag(
+			_container,
+			&st::settingsScale,
+			&st::settingsScaleLabel,
+			valuesCount,
+			[=](int index) { return values[index]; },
+			commission,
+			setCommission,
+			setCommission,
+			[=](int value) { return QString::number(value / 10.) + '%'; }),
+		st::boxRowPadding);
 
 	Ui::AddSkip(_container);
 	Ui::AddDividerText(_container, tr::lng_star_ref_commission_about());
@@ -233,7 +338,7 @@ void InnerWidget::setupDuration() {
 		_state.program.durationMonths = (value == kDurationForeverValue)
 			? 0
 			: value;
-		updateLabel(durationMonths);
+		updateLabel(value);
 	};
 	updateLabel(durationMonths);
 
