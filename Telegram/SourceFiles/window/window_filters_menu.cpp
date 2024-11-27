@@ -283,7 +283,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				- (includeMuted ? 0 : muted);
 			const auto string = !count
 				? QString()
-				: (count > 99)
+				: (count > 999)
 				? "99+"
 				: QString::number(count);
 			raw->setBadge(string, includeMuted && (count == muted));

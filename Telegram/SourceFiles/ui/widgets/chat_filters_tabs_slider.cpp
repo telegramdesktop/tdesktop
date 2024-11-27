@@ -174,7 +174,7 @@ QImage ChatsFiltersTabs::cacheUnreadCount(int count, bool muted) const {
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
-	const auto string = (count > 99)
+	const auto string = (count > 999)
 		? _unreadMaxString
 		: QString::number(count);
 	{
