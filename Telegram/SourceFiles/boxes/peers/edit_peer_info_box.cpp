@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
+#include "info/bot/starref/info_bot_starref_widget.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
@@ -358,6 +359,7 @@ private:
 	void fillBotUsernamesButton();
 	void fillBotCurrencyButton();
 	void fillBotCreditsButton();
+	void fillBotAffiliateProgram();
 	void fillBotEditIntroButton();
 	void fillBotEditCommandsButton();
 	void fillBotEditSettingsButton();
@@ -1181,6 +1183,7 @@ void Controller::fillManageSection() {
 		fillBotUsernamesButton();
 		fillBotCurrencyButton();
 		fillBotCreditsButton();
+		fillBotAffiliateProgram();
 		fillBotEditIntroButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
@@ -1709,6 +1712,31 @@ void Controller::fillBotCreditsButton() {
 		}, icon->lifetime());
 	}
 
+}
+
+void Controller::fillBotAffiliateProgram() {
+	Expects(_isBot);
+
+	const auto user = _peer->asUser();
+	auto label = user->session().changes().peerFlagsValue(
+		user,
+		Data::PeerUpdate::Flag::StarRefProgram
+	) | rpl::map([=] {
+		const auto commission = user->botInfo
+			? user->botInfo->starRefProgram.commission
+			: 0;
+		return commission
+			? u"%1%"_q.arg(commission)
+			: tr::lng_manage_peer_bot_star_ref_off(tr::now);
+	});
+	AddButtonWithCount(
+		_controls.buttonsLayout,
+		tr::lng_manage_peer_bot_star_ref(),
+		std::move(label),
+		[controller = _navigation->parentController(), user] {
+			controller->showSection(Info::BotStarRef::Make(user));
+		},
+		{ &st::menuIconSharing });
 }
 
 void Controller::fillBotEditIntroButton() {

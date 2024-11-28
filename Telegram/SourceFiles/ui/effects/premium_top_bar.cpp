@@ -138,6 +138,10 @@ TopBar::TopBar(
 			_dollar = ScaleTo(QImage(u":/gui/art/business_logo.png"_q));
 			_ministars.setColorOverride(
 				QGradientStops{{ 0, st::premiumButtonFg->c }});
+		} else if (_logo == u"affiliate"_q) {
+			_dollar = ScaleTo(QImage(u":/gui/art/affiliate_logo.png"_q));
+			_ministars.setColorOverride(
+				QGradientStops{{ 0, st::premiumButtonFg->c }});
 		} else if (!_light && !TopBarAbstract::isDark()) {
 			_star.load(Svg());
 			_ministars.setColorOverride(

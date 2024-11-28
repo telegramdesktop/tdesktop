@@ -374,10 +374,12 @@ Key ContentMemento::key() const {
 		return Key(poll, pollContextId());
 	} else if (const auto self = settingsSelf()) {
 		return Settings::Tag{ self };
-	} else if (const auto peer = storiesPeer()) {
-		return Stories::Tag{ peer, storiesTab() };
-	} else if (const auto peer = statisticsTag().peer) {
+	} else if (const auto stories = storiesPeer()) {
+		return Stories::Tag{ stories, storiesTab() };
+	} else if (statisticsTag().peer) {
 		return statisticsTag();
+	} else if (const auto starref = starrefPeer()) {
+		return BotStarRef::Tag(starref);
 	} else if (const auto who = reactionsWhoReadIds()) {
 		return Key(who, _reactionsSelected, _pollReactionsContextId);
 	} else {
@@ -418,6 +420,10 @@ ContentMemento::ContentMemento(Stories::Tag stories)
 
 ContentMemento::ContentMemento(Statistics::Tag statistics)
 : _statisticsTag(statistics) {
+}
+
+ContentMemento::ContentMemento(BotStarRef::Tag starref)
+: _starrefPeer(starref.peer) {
 }
 
 ContentMemento::ContentMemento(

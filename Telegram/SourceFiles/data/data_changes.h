@@ -92,27 +92,28 @@ struct PeerUpdate {
 		BusinessDetails     = (1ULL << 30),
 		Birthday            = (1ULL << 31),
 		PersonalChannel     = (1ULL << 32),
+		StarRefProgram      = (1ULL << 33),
 
 		// For chats and channels
-		InviteLinks         = (1ULL << 33),
-		Members             = (1ULL << 34),
-		Admins              = (1ULL << 35),
-		BannedUsers         = (1ULL << 36),
-		Rights              = (1ULL << 37),
-		PendingRequests     = (1ULL << 38),
-		Reactions           = (1ULL << 39),
+		InviteLinks         = (1ULL << 34),
+		Members             = (1ULL << 35),
+		Admins              = (1ULL << 36),
+		BannedUsers         = (1ULL << 37),
+		Rights              = (1ULL << 38),
+		PendingRequests     = (1ULL << 39),
+		Reactions           = (1ULL << 40),
 
 		// For channels
-		ChannelAmIn         = (1ULL << 40),
-		StickersSet         = (1ULL << 41),
-		EmojiSet            = (1ULL << 42),
-		ChannelLinkedChat   = (1ULL << 43),
-		ChannelLocation     = (1ULL << 44),
-		Slowmode            = (1ULL << 45),
-		GroupCall           = (1ULL << 46),
+		ChannelAmIn         = (1ULL << 41),
+		StickersSet         = (1ULL << 42),
+		EmojiSet            = (1ULL << 43),
+		ChannelLinkedChat   = (1ULL << 44),
+		ChannelLocation     = (1ULL << 45),
+		Slowmode            = (1ULL << 46),
+		GroupCall           = (1ULL << 47),
 
 		// For iteration
-		LastUsedBit         = (1ULL << 46),
+		LastUsedBit         = (1ULL << 47),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

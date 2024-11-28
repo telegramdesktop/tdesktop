@@ -600,6 +600,20 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	}
 	if (const auto info = user->botInfo.get()) {
 		info->canManageEmojiStatus = update.is_bot_can_manage_emoji_status();
+		auto starRefProgram = StarRefProgram();
+		if (const auto program = update.vstarref_program()) {
+			const auto &data = program->data();
+			starRefProgram.commission = data.vcommission_permille().v;
+			starRefProgram.durationMonths
+				= data.vduration_months().value_or_empty();
+			starRefProgram.endDate = data.vend_date().value_or_empty();
+		}
+		if (info->starRefProgram != starRefProgram) {
+			info->starRefProgram = starRefProgram;
+			user->session().changes().peerUpdated(
+				user,
+				Data::PeerUpdate::Flag::StarRefProgram);
+		}
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(user, pinned->v);

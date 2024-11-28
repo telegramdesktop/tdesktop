@@ -19,6 +19,16 @@ struct BotCommand;
 struct BusinessDetails;
 } // namespace Data
 
+struct StarRefProgram {
+	TimeId endDate = 0;
+	ushort commission = 0;
+	uint8 durationMonths = 0;
+
+	friend inline constexpr bool operator==(
+		StarRefProgram,
+		StarRefProgram) = default;
+};
+
 struct BotInfo {
 	BotInfo();
 
@@ -43,6 +53,8 @@ struct BotInfo {
 
 	ChatAdminRights groupAdminRights;
 	ChatAdminRights channelAdminRights;
+
+	StarRefProgram starRefProgram;
 
 	int version = 0;
 	int descriptionVersion = 0;

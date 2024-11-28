@@ -42,6 +42,7 @@ menuIconRemove: icon {{ "menu/remove", menuIconColor }};
 menuIconRetractVote: icon {{ "menu/retract_vote", menuIconColor }};
 menuIconPermissions: icon {{ "menu/permissions", menuIconColor }};
 menuIconShare: icon {{ "menu/share", menuIconColor }};
+menuIconSharing: icon {{ "menu/share2", menuIconColor }};
 menuIconArchive: icon {{ "menu/archive", menuIconColor }};
 menuIconUnarchive: icon {{ "menu/unarchive", menuIconColor }};
 menuIconMarkRead: icon {{ "menu/read", menuIconColor }};
@@ -161,6 +162,7 @@ menuIconAppleWatch: icon {{ "menu/passcode_watch", menuIconColor }};
 menuIconSystemPwd: menuIconPermissions;
 menuIconPlayerFullScreen: icon {{ "player/player_fullscreen", menuIconColor }};
 menuIconPlayerWindowed: icon {{ "player/player_minimize", menuIconColor }};
+menuIconStarRefLink: icon{{ "settings/premium/features/feature_links2", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
