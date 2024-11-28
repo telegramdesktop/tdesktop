@@ -716,7 +716,7 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	}
 	if (pinnedChanged) {
 		const auto filterList = _owner->chatsFilters().chatsList(id);
-		filterList->pinned()->applyList(wasFilter.pinned());
+		filterList->pinned()->applyList(filter.pinned());
 	}
 	if (chatlistChanged) {
 		_isChatlistChanged.fire_copy(id);
