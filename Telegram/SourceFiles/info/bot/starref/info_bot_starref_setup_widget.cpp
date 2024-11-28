@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/bot/starref/info_bot_starref_widget.h"
+#include "info/bot/starref/info_bot_starref_setup_widget.h"
 
 #include "apiwrap.h"
 #include "base/timer_rpl.h"
@@ -33,11 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
 
-namespace Info::BotStarRef {
+namespace Info::BotStarRef::Setup {
 namespace {
 
 constexpr auto kDurationForeverValue = 999;
-constexpr auto kCommissionDefault = 20;
+constexpr auto kCommissionDefault = 200;
 constexpr auto kDurationDefault = 12;
 
 } // namespace
@@ -126,9 +126,6 @@ void InnerWidget::prepare() {
 	setupDuration();
 	Ui::AddSkip(_container);
 	setupViewExisting();
-	Ui::AddSkip(_container);
-	Ui::AddDivider(_container);
-	Ui::AddSkip(_container);
 	setupEnd();
 }
 
@@ -155,9 +152,17 @@ void InnerWidget::setupCommission() {
 	Ui::AddSkip(_container);
 	Ui::AddSubsectionTitle(_container, tr::lng_star_ref_commission_title());
 
+	const auto commission = ValueForCommission(_state);
+
 	auto values = std::vector<int>();
+	if (commission > 0 && commission < 10) {
+		values.push_back(commission);
+	}
 	for (auto i = 1; i != 91; ++i) {
-		values.push_back(i);
+		values.push_back(i * 10);
+		if (i * 10 < commission && (i == 90 || (i + 1) * 10 > commission)) {
+			values.push_back(commission);
+		}
 	}
 	const auto valuesCount = int(values.size());
 
@@ -166,7 +171,7 @@ void InnerWidget::setupCommission() {
 		st::settingsScale,
 		st::settingsScaleLabel,
 		st::normalFont->spacew * 2,
-		st::settingsScaleLabel.style.font->width("90%"),
+		st::settingsScaleLabel.style.font->width("89.9%"),
 		true);
 	_container->add(
 		std::move(sliderWithLabel.widget),
@@ -175,10 +180,9 @@ void InnerWidget::setupCommission() {
 	const auto label = sliderWithLabel.label;
 
 	const auto updateLabel = [=](int value) {
-		const auto labelText = QString::number(value) + '%';
+		const auto labelText = QString::number(value / 10.) + '%';
 		label->setText(labelText);
 	};
-	const auto commission = ValueForCommission(_state);
 	const auto setCommission = [=](int value) {
 		_state.program.commission = value;
 		updateLabel(value);
@@ -245,91 +249,17 @@ void InnerWidget::setupDuration() {
 }
 
 void InnerWidget::setupViewExisting() {
-	const auto &stLabel = st::defaultFlatLabel;
-	const auto iconSize = st::settingsPremiumIconDouble.size();
-	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
-	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
-
-	const auto content = _container;
-	const auto labelAscent = stLabel.style.font->ascent;
-	const auto button = Ui::CreateChild<Ui::SettingsButton>(
-		content.get(),
-		rpl::single(QString()));
-
-	const auto label = content->add(
-		object_ptr<Ui::FlatLabel>(
-			content,
-			tr::lng_star_ref_existing_title() | Ui::Text::ToBold(),
-			stLabel),
-		titlePadding);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto description = content->add(
-		object_ptr<Ui::FlatLabel>(
-			content,
-			tr::lng_star_ref_existing_about(),
-			st::boxDividerLabel),
-		descriptionPadding);
-	description->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content.get());
-	dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	content->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		dummy->resize(s.width(), iconSize.height());
-	}, dummy->lifetime());
-
-	label->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
-		dummy->moveToLeft(0, r.y() + (r.height() - labelAscent));
-	}, dummy->lifetime());
-
-	::Settings::AddButtonIcon(dummy, st::settingsButton, {
-		.icon = &st::settingsPremiumIconStar,
-		.backgroundBrush = st::premiumIconBg3,
-	});
-
-	rpl::combine(
-		content->widthValue(),
-		label->heightValue(),
-		description->heightValue()
-	) | rpl::start_with_next([=,
-		topPadding = titlePadding,
-		bottomPadding = descriptionPadding](
-			int width,
-			int topHeight,
-			int bottomHeight) {
-		button->resize(
-			width,
-			topPadding.top()
-			+ topHeight
-			+ topPadding.bottom()
-			+ bottomPadding.top()
-			+ bottomHeight
-			+ bottomPadding.bottom());
-	}, button->lifetime());
-	label->topValue(
-	) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
-		button->moveToLeft(0, top - padding);
-	}, button->lifetime());
-	const auto arrow = Ui::CreateChild<Ui::IconButton>(
-		button,
-		st::backButton);
-	arrow->setIconOverride(
-		&st::settingsPremiumArrow,
-		&st::settingsPremiumArrowOver);
-	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
-	button->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		const auto &point = st::settingsPremiumArrowShift;
-		arrow->moveToRight(
-			-point.x(),
-			point.y() + (s.height() - arrow->height()) / 2);
-	}, arrow->lifetime());
-
+	const auto button = AddViewListButton(
+		_container,
+		tr::lng_star_ref_existing_title(),
+		tr::lng_star_ref_existing_about());
 	button->setClickedCallback([=] {
 		_controller->showToast(u"List or smth.."_q);
 	});
+
+	Ui::AddSkip(_container);
+	Ui::AddDivider(_container);
+	Ui::AddSkip(_container);
 }
 
 void InnerWidget::setupEnd() {
@@ -361,6 +291,8 @@ void InnerWidget::setupEnd() {
 			_controller->showToast("Remove failed!");
 		})).send();
 	});
+	Ui::AddSkip(_container);
+	Ui::AddDivider(_container);
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::infoRow(
@@ -411,11 +343,11 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 }
 
 Memento::Memento(not_null<Controller*> controller)
-: ContentMemento(Tag(controller->starrefPeer())) {
+: ContentMemento(Tag(controller->starrefPeer(), controller->starrefType())) {
 }
 
 Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(Tag(peer)) {
+: ContentMemento(Tag(peer, Type::Setup)) {
 }
 
 Memento::~Memento() = default;
@@ -509,7 +441,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	};
 	auto result = std::make_unique<Ui::Premium::TopBar>(
 		this,
-		st::userPremiumCover,
+		st::starrefCover,
 		Ui::Premium::TopBarDescriptor{
 			.clickContextOther = clickContextOther,
 			.logo = u"affiliate"_q,
@@ -524,16 +456,15 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 		raw->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, raw->lifetime());
 
-	const auto calculateMaximumHeight = [=] {
-		return st::settingsPremiumTopHeight;
-	};
+	const auto baseHeight = st::starrefCoverHeight;
+	raw->resize(width(), baseHeight);
 
-	raw->setMaximumHeight(st::settingsPremiumTopHeight);
-	raw->setMinimumHeight(st::settingsPremiumTopHeight);
-
-	raw->resize(width(), raw->maximumHeight());
-
-	setPaintPadding({ 0, st::settingsPremiumTopHeight, 0, 0 });
+	raw->additionalHeight(
+	) | rpl::start_with_next([=](int additionalHeight) {
+		raw->setMaximumHeight(baseHeight + additionalHeight);
+		raw->setMinimumHeight(baseHeight + additionalHeight);
+		setPaintPadding({ 0, raw->height(), 0, 0 });
+	}, raw->lifetime());
 
 	controller->wrapValue(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
@@ -566,7 +497,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 		} else {
 			_close = base::make_unique_q<Ui::IconButton>(
 				raw,
-				st::settingsPremiumTopBarClose);
+				st::infoTopBarClose);
 			_close->addClickHandler([=] {
 				controller->parentController()->hideLayer();
 				controller->parentController()->hideSpecialLayer();
@@ -677,5 +608,92 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 			std::make_shared<Memento>(peer)));
 }
 
-} // namespace Info::BotStarRef
+not_null<Ui::AbstractButton*> AddViewListButton(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> title,
+		rpl::producer<QString> subtitle) {
+	const auto &stLabel = st::defaultFlatLabel;
+	const auto iconSize = st::settingsPremiumIconDouble.size();
+	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
+	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
+
+	const auto button = Ui::CreateChild<Ui::SettingsButton>(
+		parent,
+		rpl::single(QString()));
+
+	const auto label = parent->add(
+		object_ptr<Ui::FlatLabel>(
+			parent,
+			std::move(title) | Ui::Text::ToBold(),
+			stLabel),
+		titlePadding);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto description = parent->add(
+		object_ptr<Ui::FlatLabel>(
+			parent,
+			std::move(subtitle),
+			st::boxDividerLabel),
+		descriptionPadding);
+	description->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto dummy = Ui::CreateChild<Ui::AbstractButton>(parent);
+	dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	parent->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		dummy->resize(s.width(), iconSize.height());
+	}, dummy->lifetime());
+
+	button->geometryValue(
+	) | rpl::start_with_next([=](const QRect &r) {
+		dummy->moveToLeft(0, r.y() + (r.height() - iconSize.height()) / 2);
+	}, dummy->lifetime());
+
+	::Settings::AddButtonIcon(dummy, st::settingsButton, {
+		.icon = &st::settingsPremiumIconStar,
+		.backgroundBrush = st::premiumIconBg3,
+	});
+
+	rpl::combine(
+		parent->widthValue(),
+		label->heightValue(),
+		description->heightValue()
+	) | rpl::start_with_next([=,
+		topPadding = titlePadding,
+		bottomPadding = descriptionPadding](
+			int width,
+			int topHeight,
+			int bottomHeight) {
+		button->resize(
+			width,
+			topPadding.top()
+			+ topHeight
+			+ topPadding.bottom()
+			+ bottomPadding.top()
+			+ bottomHeight
+			+ bottomPadding.bottom());
+	}, button->lifetime());
+	label->topValue(
+	) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
+		button->moveToLeft(0, top - padding);
+	}, button->lifetime());
+	const auto arrow = Ui::CreateChild<Ui::IconButton>(
+		button,
+		st::backButton);
+	arrow->setIconOverride(
+		&st::settingsPremiumArrow,
+		&st::settingsPremiumArrowOver);
+	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	button->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		const auto &point = st::settingsPremiumArrowShift;
+		arrow->moveToRight(
+			-point.x(),
+			point.y() + (s.height() - arrow->height()) / 2);
+	}, arrow->lifetime());
+
+	return button;
+}
+
+} // namespace Info::BotStarRef::Setup
 

@@ -24,6 +24,7 @@ enum class ResolveType {
 	Mention,
 	Boost,
 	Profile,
+	StarRef,
 };
 
 struct CommentId {

@@ -292,6 +292,7 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 			|| key().isDownloads()
 			|| key().reactionsContextId()
 			|| key().poll()
+			|| key().starrefPeer()
 			|| key().statisticsTag().peer) {
 		return Dialogs::RowDescriptor();
 	}

@@ -379,7 +379,7 @@ Key ContentMemento::key() const {
 	} else if (statisticsTag().peer) {
 		return statisticsTag();
 	} else if (const auto starref = starrefPeer()) {
-		return BotStarRef::Tag(starref);
+		return BotStarRef::Tag(starref, starrefType());
 	} else if (const auto who = reactionsWhoReadIds()) {
 		return Key(who, _reactionsSelected, _pollReactionsContextId);
 	} else {
@@ -423,7 +423,8 @@ ContentMemento::ContentMemento(Statistics::Tag statistics)
 }
 
 ContentMemento::ContentMemento(BotStarRef::Tag starref)
-: _starrefPeer(starref.peer) {
+: _starrefPeer(starref.peer)
+, _starrefType(starref.type) {
 }
 
 ContentMemento::ContentMemento(

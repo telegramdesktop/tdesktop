@@ -280,7 +280,8 @@ private:
 		Fn<void(not_null<PeerData*> peer, TextWithEntities draft)> done);
 	void resolveUsername(
 		const QString &username,
-		Fn<void(not_null<PeerData*>)> done);
+		Fn<void(not_null<PeerData*>)> done,
+		const QString &starref = QString());
 	void resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done);

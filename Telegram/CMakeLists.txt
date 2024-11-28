@@ -918,8 +918,10 @@ PRIVATE
     info/bot/earn/info_bot_earn_list.h
     info/bot/earn/info_bot_earn_widget.cpp
     info/bot/earn/info_bot_earn_widget.h
-    info/bot/starref/info_bot_starref_widget.cpp
-    info/bot/starref/info_bot_starref_widget.h
+    info/bot/starref/info_bot_starref_join_widget.cpp
+    info/bot/starref/info_bot_starref_join_widget.h
+    info/bot/starref/info_bot_starref_setup_widget.cpp
+    info/bot/starref/info_bot_starref_setup_widget.h
     info/channel_statistics/boosts/create_giveaway_box.cpp
     info/channel_statistics/boosts/create_giveaway_box.h
     info/channel_statistics/boosts/giveaway/giveaway_list_controllers.cpp

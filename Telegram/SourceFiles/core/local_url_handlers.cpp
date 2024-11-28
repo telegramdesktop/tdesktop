@@ -555,8 +555,13 @@ bool ResolveUsernameOrPhone(
 	auto resolveType = params.contains(u"profile"_q)
 		? ResolveType::Profile
 		: ResolveType::Default;
+	auto starref = params.value(u"ref"_q);
 	auto startToken = params.value(u"start"_q);
-	if (!startToken.isEmpty()) {
+	const auto kTgRefPrefix = u"_tgref_"_q;
+	if (startToken.startsWith(kTgRefPrefix)) {
+		startToken = startToken.mid(kTgRefPrefix.size());
+		resolveType = ResolveType::StarRef;
+	} else if (!startToken.isEmpty()) {
 		resolveType = ResolveType::BotStart;
 	} else if (params.contains(u"startgroup"_q)) {
 		resolveType = ResolveType::AddToGroup;
@@ -565,6 +570,8 @@ bool ResolveUsernameOrPhone(
 		resolveType = ResolveType::AddToChannel;
 	} else if (params.contains(u"boost"_q)) {
 		resolveType = ResolveType::Boost;
+	} else if (!starref.isEmpty()) {
+		resolveType = ResolveType::StarRef;
 	}
 	auto post = ShowAtUnreadMsgId;
 	auto adminRights = ChatAdminRights();

@@ -381,6 +381,9 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 			showPeerByLinkResolved(peer, info);
 		});
 	} else if (const auto name = std::get_if<QString>(&info.usernameOrId)) {
+		const auto starref = (info.resolveType == ResolveType::StarRef)
+			? info.startToken
+			: QString();
 		resolveUsername(*name, [=](not_null<PeerData*> peer) {
 			if (info.startAutoSubmit) {
 				peer->session().api().blockedPeers().unblock(
@@ -392,7 +395,7 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 			} else {
 				showPeerByLinkResolved(peer, info);
 			}
-		});
+		}, starref);
 	} else if (const auto id = std::get_if<ChannelId>(&info.usernameOrId)) {
 		resolveChannelById(*id, [=](not_null<ChannelData*> channel) {
 			showPeerByLinkResolved(channel, info);
@@ -454,16 +457,20 @@ void SessionNavigation::resolveChatLink(
 
 void SessionNavigation::resolveUsername(
 		const QString &username,
-		Fn<void(not_null<PeerData*>)> done) {
-	if (const auto peer = _session->data().peerByUsername(username)) {
-		done(peer);
-		return;
+		Fn<void(not_null<PeerData*>)> done,
+		const QString &starref) {
+	if (starref.isEmpty()) {
+		if (const auto peer = _session->data().peerByUsername(username)) {
+			done(peer);
+			return;
+		}
 	}
 	_api.request(base::take(_resolveRequestId)).cancel();
+	using Flag = MTPcontacts_ResolveUsername::Flag;
 	_resolveRequestId = _api.request(MTPcontacts_ResolveUsername(
-		MTP_flags(0),
+		MTP_flags(starref.isEmpty() ? Flag() : Flag::f_referer),
 		MTP_string(username),
-		MTP_string()
+		MTP_string(starref)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		resolveDone(result, done);
 	}).fail([=](const MTP::Error &error) {
@@ -678,6 +685,8 @@ void SessionNavigation::showPeerByLinkResolved(
 		}
 	} else if (resolveType == ResolveType::Boost && peer->isChannel()) {
 		resolveBoostState(peer->asChannel());
+	} else if (resolveType == ResolveType::StarRef) {
+		showPeerHistory(peer, params);
 	} else {
 		// Show specific posts only in channels / supergroups.
 		const auto msgId = peer->isChannel()

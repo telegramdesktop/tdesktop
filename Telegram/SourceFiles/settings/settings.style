@@ -484,8 +484,8 @@ settingsPremiumArrow: icon{{ "settings/premium/arrow", menuIconFg }};
 settingsPremiumArrowOver: icon{{ "settings/premium/arrow", menuIconFgOver }};
 
 settingsPremiumOptionsPadding: margins(0px, 9px, 0px, 2px);
-settingsPremiumTopHeight: 220px;
-settingsPremiumUserHeight: 223px;
+settingsPremiumTopHeight: 202px;
+settingsPremiumUserHeight: 205px;
 settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
 settingsPremiumUserTitle: FlatLabel(boxTitle) {
 	style: TextStyle(defaultTextStyle) {

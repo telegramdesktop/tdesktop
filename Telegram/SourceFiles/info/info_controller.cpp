@@ -116,6 +116,13 @@ PeerData *Key::starrefPeer() const {
 	return nullptr;
 }
 
+BotStarRef::Type Key::starrefType() const {
+	if (const auto tag = std::get_if<BotStarRef::Tag>(&_value)) {
+		return tag->type;
+	}
+	return BotStarRef::Type();
+}
+
 PollData *Key::poll() const {
 	if (const auto data = std::get_if<PollKey>(&_value)) {
 		return data->poll;
@@ -330,7 +337,8 @@ bool Controller::validateMementoPeer(
 		&& memento->settingsSelf() == settingsSelf()
 		&& memento->storiesPeer() == storiesPeer()
 		&& memento->statisticsTag().peer == statisticsTag().peer
-		&& memento->starrefPeer() == starrefPeer();
+		&& memento->starrefPeer() == starrefPeer()
+		&& memento->starrefType() == starrefType();
 }
 
 void Controller::setSection(not_null<ContentMemento*> memento) {

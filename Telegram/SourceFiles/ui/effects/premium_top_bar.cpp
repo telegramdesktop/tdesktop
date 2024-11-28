@@ -140,8 +140,7 @@ TopBar::TopBar(
 				QGradientStops{{ 0, st::premiumButtonFg->c }});
 		} else if (_logo == u"affiliate"_q) {
 			_dollar = ScaleTo(QImage(u":/gui/art/affiliate_logo.png"_q));
-			_ministars.setColorOverride(
-				QGradientStops{{ 0, st::premiumButtonFg->c }});
+			_ministars.setColorOverride(descriptor.gradientStops);
 		} else if (!_light && !TopBarAbstract::isDark()) {
 			_star.load(Svg());
 			_ministars.setColorOverride(
@@ -184,7 +183,7 @@ void TopBar::setTextPosition(int x, int y) {
 rpl::producer<int> TopBar::additionalHeight() const {
 	return _about->heightValue(
 	) | rpl::map([l = st().about.style.lineHeight](int height) {
-		return std::max(height - l * 2, 0);
+		return std::max(height - l, 0);
 	});
 }
 
@@ -222,8 +221,6 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 
 void TopBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
-
-	p.fillRect(e->rect(), Qt::transparent);
 
 	const auto r = rect();
 

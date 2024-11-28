@@ -37,7 +37,7 @@ creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
 	starSize: size(64px, 62px);
 	starTopSkip: 30px;
 }
-creditsLowBalancePremiumCoverHeight: 180px;
+creditsLowBalancePremiumCoverHeight: 162px;
 creditsTopupButton: SettingsButton(settingsButton) {
 	style: semiboldTextStyle;
 }

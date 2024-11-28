@@ -612,23 +612,10 @@ QPointer<Ui::RpWidget> Business::createPinnedToTop(
 		content->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, content->lifetime());
 
-	const auto calculateMaximumHeight = [=] {
-		return st::settingsPremiumTopHeight;
-	};
-
-	content->setMaximumHeight(calculateMaximumHeight());
-	content->setMinimumHeight(st::settingsPremiumTopHeight);// st::infoLayerTopBarHeight);
+	content->setMaximumHeight(st::settingsPremiumTopHeight);
+	content->setMinimumHeight(st::settingsPremiumTopHeight);
 
 	content->resize(content->width(), content->maximumHeight());
-	//content->additionalHeight(
-	//) | rpl::start_with_next([=](int additionalHeight) {
-	//	const auto wasMax = (content->height() == content->maximumHeight());
-	//	content->setMaximumHeight(calculateMaximumHeight()
-	//		+ additionalHeight);
-	//	if (wasMax) {
-	//		content->resize(content->width(), content->maximumHeight());
-	//	}
-	//}, content->lifetime());
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {

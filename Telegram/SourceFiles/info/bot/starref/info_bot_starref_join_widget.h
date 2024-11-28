@@ -17,11 +17,12 @@ namespace Ui {
 template <typename Widget>
 class FadeWrap;
 class IconButton;
+class AbstractButton;
+class VerticalLayout;
 } // namespace Ui
 
-namespace Info::BotStarRef {
+namespace Info::BotStarRef::Join {
 
-struct State;
 class InnerWidget;
 
 class Memento final : public ContentMemento {
@@ -61,22 +62,18 @@ private:
 	void restoreState(not_null<Memento*> memento);
 
 	[[nodiscard]] std::unique_ptr<Ui::Premium::TopBarAbstract> setupTop();
-	[[nodiscard]] std::unique_ptr<Ui::RpWidget> setupBottom();
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	const not_null<InnerWidget*> _inner;
-	const not_null<State*> _state;
 
 	std::unique_ptr<Ui::Premium::TopBarAbstract> _top;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	base::unique_qptr<Ui::IconButton> _close;
 	rpl::variable<bool> _backEnabled;
 
-	std::unique_ptr<Ui::RpWidget> _bottom;
-
 };
 
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
 
-} // namespace Info::BotStarRef
+} // namespace Info::BotStarRef::Join

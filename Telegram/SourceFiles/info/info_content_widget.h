@@ -53,6 +53,7 @@ struct Tag;
 } // namespace Info::Statistics
 
 namespace Info::BotStarRef {
+enum class Type : uchar;
 struct Tag;
 } // namespace Info::BotStarRef
 
@@ -234,6 +235,9 @@ public:
 	PeerData *starrefPeer() const {
 		return _starrefPeer;
 	}
+	BotStarRef::Type starrefType() const {
+		return _starrefType;
+	}
 	PollData *poll() const {
 		return _poll;
 	}
@@ -289,6 +293,7 @@ private:
 	Stories::Tab _storiesTab = {};
 	Statistics::Tag _statisticsTag;
 	PeerData * const _starrefPeer = nullptr;
+	BotStarRef::Type _starrefType = {};
 	PollData * const _poll = nullptr;
 	std::shared_ptr<Api::WhoReadList> _reactionsWhoReadIds;
 	Data::ReactionId _reactionsSelected;

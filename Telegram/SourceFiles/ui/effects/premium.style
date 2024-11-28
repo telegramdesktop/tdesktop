@@ -75,6 +75,12 @@ userPremiumCoverAbout: FlatLabel(boxDividerLabel) {
 userPremiumCover: PremiumCover(defaultPremiumCover) {
 	about: userPremiumCoverAbout;
 }
+starrefCover: PremiumCover(userPremiumCover) {
+	bg: windowBgOver;
+	starTopSkip: 24px;
+	titlePadding: margins(0px, 12px, 0px, 11px);
+}
+starrefCoverHeight: 180px;
 
 defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;

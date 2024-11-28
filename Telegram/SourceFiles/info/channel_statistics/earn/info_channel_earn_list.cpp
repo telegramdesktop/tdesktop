@@ -25,10 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/view/controls/history_view_webpage_processor.h"
+#include "info/bot/starref/info_bot_starref_join_widget.h"
+#include "info/bot/starref/info_bot_starref_setup_widget.h"
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/channel_statistics/earn/info_channel_earn_widget.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "info/statistics/info_statistics_list_controllers.h"
@@ -959,6 +962,17 @@ void InnerWidget::fill() {
 				availableBalanceValue
 			) | rpl::map(creditsToUsdMap));
 	}
+
+	const auto button = Info::BotStarRef::Setup::AddViewListButton(
+		container,
+		tr::lng_credits_summary_earn_title(),
+		tr::lng_credits_summary_earn_about());
+	button->setClickedCallback([=] {
+		_controller->showSection(Info::BotStarRef::Join::Make(_peer));
+	});
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	const auto sectionIndex = container->lifetime().make_state<int>(0);
 	const auto rebuildLists = [=](
