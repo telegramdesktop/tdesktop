@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "styles/style_info.h"
@@ -39,6 +40,7 @@ namespace {
 constexpr auto kDurationForeverValue = 999;
 constexpr auto kCommissionDefault = 200;
 constexpr auto kDurationDefault = 12;
+constexpr auto kDisabledFade = 0.3;
 
 } // namespace
 
@@ -113,7 +115,8 @@ private:
 		int value,
 		Fn<void(int)> valueProgress,
 		Fn<void(int)> valueFinished,
-		Fn<QString(int)> textByValue) {
+		Fn<QString(int)> textByValue,
+		bool forbidLessThanValue) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	const auto raw = result.data();
 
@@ -133,14 +136,23 @@ private:
 	const auto slider = raw->add(object_ptr<Ui::MediaSliderWheelless>(
 		raw,
 		*sliderStyle));
-	labels->resize(labels->width(), current->height());
+	labels->resize(
+		labels->width(),
+		current->height() + st::defaultVerticalListSkip);
 	struct State {
+		int indexMin = 0;
 		int index = 0;
 	};
-	const auto state = raw->lifetime().make_state<State>(State{ 0 });
+	const auto state = raw->lifetime().make_state<State>();
 	const auto updatePalette = [=] {
+		const auto disabled = anim::color(
+			st::windowSubTextFg,
+			st::windowBg,
+			kDisabledFade);
 		min->setTextColorOverride(!state->index
 			? st::windowActiveTextFg->c
+			: (state->indexMin > 0)
+			? disabled
 			: st::windowSubTextFg->c);
 		max->setTextColorOverride((state->index == valuesCount - 1)
 			? st::windowActiveTextFg->c
@@ -207,14 +219,199 @@ private:
 		updatePalette();
 	}, raw->lifetime());
 	updateByValue(value);
+	state->indexMin = forbidLessThanValue ? state->index : 0;
 
 	slider->setPseudoDiscrete(
 		valuesCount,
 		valueByIndex,
 		value,
 		progress,
-		finished);
+		finished,
+		state->indexMin);
 	slider->resize(slider->width(), sliderStyle->seekSize.height());
+
+	if (state->indexMin > 0) {
+		const auto overlay = Ui::CreateChild<Ui::RpWidget>(slider);
+		overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+		slider->sizeValue() | rpl::start_with_next([=](QSize size) {
+			overlay->setGeometry(0, 0, size.width(), size.height());
+		}, slider->lifetime());
+		overlay->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(overlay);
+			const auto sections = valuesCount - 1;
+			const auto shift = sliderStyle->seekSize.width();
+			const auto skip = shift / 2.;
+			const auto available = overlay->width() - shift;
+			const auto till = state->indexMin / float64(sections);
+			const auto now = state->index / float64(sections);
+			const auto edge = available * now;
+			const auto right = int(base::SafeRound(
+				std::min(skip + available * till, edge)));
+			if (right > 0) {
+				p.setOpacity(kDisabledFade);
+				p.fillRect(0, 0, right, overlay->height(), st::windowBg);
+			}
+		}, overlay->lifetime());
+	}
+
+	raw->widthValue() | rpl::start_with_next([=](int width) {
+		labels->resizeToWidth(width);
+		updateByIndex();
+	}, slider->lifetime());
+
+	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeSliderWithTopLabels(
+		QWidget *parent,
+		not_null<const style::MediaSlider*> sliderStyle,
+		not_null<const style::FlatLabel*> labelStyle,
+		int valuesCount,
+		Fn<int(int)> valueByIndex,
+		int value,
+		Fn<void(int)> valueProgress,
+		Fn<void(int)> valueFinished,
+		Fn<QString(int)> textByValue,
+		bool forbidLessThanValue) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	const auto raw = result.data();
+
+	const auto labels = raw->add(object_ptr<Ui::RpWidget>(raw));
+	const auto slider = raw->add(object_ptr<Ui::MediaSliderWheelless>(
+		raw,
+		*sliderStyle));
+
+	struct State {
+		std::vector<not_null<Ui::FlatLabel*>> labels;
+		int indexMin = 0;
+		int index = 0;
+	};
+	const auto state = raw->lifetime().make_state<State>();
+
+	for (auto i = 0; i != valuesCount; ++i) {
+		state->labels.push_back(Ui::CreateChild<Ui::FlatLabel>(
+			labels,
+			textByValue(valueByIndex(i)),
+			*labelStyle));
+	}
+	labels->widthValue() | rpl::start_with_next([=](int outer) {
+		const auto shift = sliderStyle->seekSize.width() / 2;
+		const auto available = outer - sliderStyle->seekSize.width();
+		for (auto i = 0; i != state->labels.size(); ++i) {
+			const auto label = state->labels[i];
+			const auto width = label->width();
+			const auto half = width / 2;
+			const auto progress = (i / float64(valuesCount - 1));
+			const auto left = int(base::SafeRound(progress * available));
+			label->moveToLeft(
+				std::max(std::min(shift + left - half, outer - width), 0),
+				0,
+				outer);
+		}
+	}, slider->lifetime());
+	labels->resize(
+		labels->width(),
+		state->labels.back()->height() + st::defaultVerticalListSkip);
+
+	const auto updatePalette = [=] {
+		const auto disabled = anim::color(
+			st::windowSubTextFg,
+			st::windowBg,
+			kDisabledFade);
+		for (auto i = 0; i != state->labels.size(); ++i) {
+			state->labels[i]->setTextColorOverride((state->index == i)
+				? st::windowActiveTextFg->c
+				: (state->index < state->indexMin)
+				? disabled
+				: st::windowSubTextFg->c);
+		}
+	};
+	const auto updateByIndex = [=] {
+		updatePalette();
+	};
+	const auto updateByValue = [=](int value) {
+		state->index = 0;
+		auto maxIndex = valuesCount - 1;
+		while (state->index < maxIndex) {
+			const auto mid = (state->index + maxIndex) / 2;
+			const auto midValue = valueByIndex(mid);
+			if (midValue == value) {
+				state->index = mid;
+				break;
+			} else if (midValue < value) {
+				state->index = mid + 1;
+			} else {
+				maxIndex = mid - 1;
+			}
+		}
+		updateByIndex();
+	};
+	const auto progress = [=](int value) {
+		updateByValue(value);
+		valueProgress(value);
+	};
+	const auto finished = [=](int value) {
+		updateByValue(value);
+		valueFinished(value);
+	};
+	style::PaletteChanged() | rpl::start_with_next([=] {
+		updatePalette();
+	}, raw->lifetime());
+	updateByValue(value);
+	state->indexMin = forbidLessThanValue ? state->index : 0;
+
+	slider->setPseudoDiscrete(
+		valuesCount,
+		valueByIndex,
+		value,
+		progress,
+		finished,
+		state->indexMin);
+	slider->resize(slider->width(), sliderStyle->seekSize.height());
+
+	if (state->indexMin > 0) {
+		const auto overlay = Ui::CreateChild<Ui::RpWidget>(slider);
+		overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+		slider->sizeValue() | rpl::start_with_next([=](QSize size) {
+			overlay->setGeometry(0, 0, size.width(), size.height());
+		}, slider->lifetime());
+		overlay->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(overlay);
+
+			const auto sections = valuesCount - 1;
+			const auto shift = sliderStyle->seekSize.width();
+			const auto skip = shift / 2.;
+			const auto available = overlay->width() - shift;
+			auto hq = PainterHighQualityEnabler(p);
+			const auto stroke = style::ConvertScale(3);
+			p.setPen(QPen(st::windowBg, stroke));
+			const auto diameter = shift - stroke;
+			const auto radius = diameter / 2.;
+			const auto top = (sliderStyle->seekSize.height() / 2.) - radius;
+			for (auto i = 0; i != valuesCount; ++i) {
+				if (i < state->index) {
+					p.setBrush(st::sliderBgActive);
+				} else if (i > state->index) {
+					p.setBrush(st::sliderBgInactive);
+				} else {
+					continue;
+				}
+				const auto progress = i / float64(sections);
+				const auto position = skip + available * progress;
+				p.drawEllipse(position - radius, top, diameter, diameter);
+			}
+
+			const auto till = state->indexMin / float64(sections);
+			const auto now = state->index / float64(sections);
+			const auto edge = available * now;
+			const auto right = int(base::SafeRound(
+				std::min(skip + available * till + radius, edge)));
+			if (right > 0) {
+				p.setOpacity(kDisabledFade);
+				p.fillRect(0, 0, right, overlay->height(), st::windowBg);
+			}
+		}, overlay->lifetime());
+	}
 
 	raw->widthValue() | rpl::start_with_next([=](int width) {
 		labels->resizeToWidth(width);
@@ -298,10 +495,11 @@ void InnerWidget::setupCommission() {
 			commission,
 			setCommission,
 			setCommission,
-			[=](int value) { return QString::number(value / 10.) + '%'; }),
+			[=](int value) { return QString::number(value / 10.) + '%'; },
+			_state.exists),
 		st::boxRowPadding);
 
-	Ui::AddSkip(_container);
+	Ui::AddSkip(_container, st::defaultVerticalListSkip * 2);
 	Ui::AddDividerText(_container, tr::lng_star_ref_commission_about());
 }
 
@@ -309,47 +507,41 @@ void InnerWidget::setupDuration() {
 	Ui::AddSkip(_container);
 	Ui::AddSubsectionTitle(_container, tr::lng_star_ref_duration_title());
 
-	auto values = std::vector<int>{ 1, 3, 6, 12, 24, 36, 999 };
-	const auto valuesCount = int(values.size());
-
-	auto sliderWithLabel = ::Settings::MakeSliderWithLabel(
-		_container,
-		st::settingsScale,
-		st::settingsScaleLabel,
-		st::normalFont->spacew * 2,
-		st::settingsScaleLabel.style.font->width("3y"),
-		true);
-	_container->add(
-		std::move(sliderWithLabel.widget),
-		st::settingsBigScalePadding);
-	const auto slider = sliderWithLabel.slider;
-	const auto label = sliderWithLabel.label;
-
-	const auto updateLabel = [=](int value) {
-		const auto labelText = (value < 12)
-			? (QString::number(value) + 'm')
-			: (value < 999)
-			? (QString::number(value / 12) + 'y')
-			: u"inf"_q;
-		label->setText(labelText);
-	};
 	const auto durationMonths = ValueForDurationMonths(_state);
+
+	auto values = std::vector<int>{ 1, 3, 6, 12, 24, 36, 999 };
+	if (!ranges::contains(values, durationMonths)) {
+		values.push_back(durationMonths);
+		ranges::sort(values);
+	}
+	const auto valuesCount = int(values.size());
 	const auto setDurationMonths = [=](int value) {
 		_state.program.durationMonths = (value == kDurationForeverValue)
 			? 0
 			: value;
-		updateLabel(value);
 	};
-	updateLabel(durationMonths);
+	const auto label = [=](int value) {
+		return (value < 12)
+			? (QString::number(value) + 'm')
+			: (value < 999)
+			? (QString::number(value / 12) + 'y')
+			: QString::fromUtf8("\xE2\x88\x9E"); // utf-8 infinity
+	};
+	_container->add(
+		MakeSliderWithTopLabels(
+			_container,
+			&st::settingsScale,
+			&st::settingsScaleLabel,
+			valuesCount,
+			[=](int index) { return values[index]; },
+			durationMonths,
+			setDurationMonths,
+			setDurationMonths,
+			label,
+			_state.exists),
+		st::boxRowPadding);
 
-	slider->setPseudoDiscrete(
-		valuesCount,
-		[=](int index) { return values[index]; },
-		durationMonths,
-		setDurationMonths,
-		setDurationMonths);
-
-	Ui::AddSkip(_container);
+	Ui::AddSkip(_container, st::defaultVerticalListSkip * 2);
 	Ui::AddDividerText(_container, tr::lng_star_ref_duration_about());
 }
 
