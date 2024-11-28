@@ -165,10 +165,11 @@ void AddExpandablePeerList(
 					const auto it = map.find(peer->id);
 					return (it == map.end() || !it->second)
 						? richName
-						: TextWithEntities(
-							(u"(%1) "_q).arg(it->second)).append(richName);
+						: TextWithEntities{
+							(u"(%1) "_q).arg(it->second)
+						}.append(richName);
 				})
-				: std::move(name),
+				: std::move(name) | rpl::type_erased(),
 				st::defaultBoxCheckbox,
 				std::make_unique<Ui::CheckView>(
 					st::defaultCheck,
