@@ -76,4 +76,6 @@ private:
 
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
 
+[[nodiscard]] QString FormatStarRefCommission(ushort commission);
+
 } // namespace Info::BotStarRef::Join

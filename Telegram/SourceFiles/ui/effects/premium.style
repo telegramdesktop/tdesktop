@@ -81,6 +81,24 @@ starrefCover: PremiumCover(userPremiumCover) {
 	titlePadding: margins(0px, 12px, 0px, 11px);
 }
 starrefCoverHeight: 180px;
+starrefFooterBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 54px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+	shadowIgnoreTopSkip: true;
+}
+starrefJoinIcon: icon{{ "payments/small_star", premiumButtonFg }};
+starrefJoinUserpicsPadding: margins(0px, 32px, 0px, 10px);
+starrefJoinTitlePadding: margins(0px, 0px, 0px, 12px);
+starrefJoinFooter: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	minWidth: 240px;
+}
 
 defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;

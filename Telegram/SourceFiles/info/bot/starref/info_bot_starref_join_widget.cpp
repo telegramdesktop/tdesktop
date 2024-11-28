@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
+#include "boxes/peers/replace_boost_box.h" // CreateUserpicsTransfer.
 #include "boxes/peer_list_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_session.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
@@ -53,6 +55,19 @@ enum class JoinType {
 	Suggested,
 };
 
+struct ConnectedBotState {
+	StarRefProgram program;
+	QString link;
+	TimeId date = 0;
+	int users = 0;
+	bool revoked = false;
+};
+struct ConnectedBot {
+	not_null<UserData*> bot;
+	ConnectedBotState state;
+};
+using ConnectedBots = std::vector<ConnectedBot>;
+
 class ListController final : public PeerListController {
 public:
 	ListController(
@@ -71,36 +86,17 @@ public:
 
 	[[nodiscard]] rpl::producer<int> rowCountValue() const;
 
-	//std::unique_ptr<PeerListRow> createRestoredRow(
-	//		not_null<PeerData*> peer) override {
-	//	return createRow(peer);
-	//}
-
-	//std::unique_ptr<PeerListState> saveState() const override;
-	//void restoreState(std::unique_ptr<PeerListState> state) override;
-
 	void setContentWidget(not_null<Ui::RpWidget*> widget);
 	[[nodiscard]] rpl::producer<int> unlockHeightValue() const;
 
 private:
-	struct RowState {
-		StarRefProgram program;
-		QString link;
-		int users = 0;
-	};
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(ConnectedBot bot);
 
-	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
-		not_null<PeerData*> peer,
-		RowState state);
-	void showLink(not_null<PeerData*> peer, RowState state);
-
-	struct SavedState : SavedStateBase {
-	};
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;
 	const JoinType _type = {};
 
-	base::flat_map<not_null<PeerData*>, RowState> _states;
+	base::flat_map<not_null<PeerData*>, ConnectedBotState> _states;
 
 	mtpRequestId _requestId = 0;
 	TimeId _offsetDate = 0;
@@ -110,6 +106,246 @@ private:
 	rpl::variable<int> _rowCount = 0;
 
 };
+
+[[nodiscard]] ConnectedBots Parse(
+		not_null<Main::Session*> session,
+		const MTPpayments_ConnectedStarRefBots &bots) {
+	const auto &data = bots.data();
+	session->data().processUsers(data.vusers());
+	const auto &list = data.vconnected_bots().v;
+	auto result = ConnectedBots();
+	for (const auto &bot : list) {
+		const auto &data = bot.data();
+		const auto botId = UserId(data.vbot_id());
+		const auto link = qs(data.vurl());
+		const auto date = data.vdate().v;
+		const auto commission = data.vcommission_permille().v;
+		const auto durationMonths
+			= data.vduration_months().value_or_empty();
+		const auto users = int(data.vparticipants().v);
+		const auto revoked = data.is_revoked();
+		result.push_back({
+			.bot = session->data().user(botId),
+			.state = {
+				.program = {
+					.commission = ushort(commission),
+					.durationMonths = uchar(durationMonths),
+				},
+				.link = link,
+				.date = date,
+				.users = users,
+				.revoked = revoked,
+			},
+		});
+	}
+	return result;
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> FormatProgramDuration(
+		StarRefProgram program) {
+	return !program.durationMonths
+		? tr::lng_star_ref_one_about_for_forever(Ui::Text::RichLangValue)
+		: (program.durationMonths < 12)
+		? tr::lng_star_ref_one_about_for_months(
+			lt_count,
+			rpl::single(program.durationMonths * 1.),
+			Ui::Text::RichLangValue)
+		: tr::lng_star_ref_one_about_for_years(
+			lt_count,
+			rpl::single((program.durationMonths / 12) * 1.),
+			Ui::Text::RichLangValue);
+}
+
+[[nodiscard]] not_null<Ui::RoundButton*> AddFullWidthButton(
+		not_null<Ui::BoxContent*> box,
+		rpl::producer<QString> text,
+		Fn<void()> callback = nullptr) {
+	const auto &boxSt = box->getDelegate()->style();
+	const auto result = box->addButton(std::move(text), std::move(callback));
+	rpl::combine(
+		box->widthValue(),
+		result->widthValue()
+	) | rpl::start_with_next([=](int width, int buttonWidth) {
+		const auto correct = width
+			- boxSt.buttonPadding.left()
+			- boxSt.buttonPadding.right();
+		if (correct > 0 && buttonWidth != correct) {
+			result->resizeToWidth(correct);
+			result->moveToLeft(
+				boxSt.buttonPadding.left(),
+				boxSt.buttonPadding.top(),
+				width);
+		}
+	}, result->lifetime());
+	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::BoxContent> StarRefLinkBox(
+		ConnectedBot row,
+		not_null<PeerData*> peer) {
+	return Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_star_ref_link_title());
+
+		const auto bot = row.bot;
+		const auto program = row.state.program;
+		auto duration = !program.durationMonths
+			? tr::lng_star_ref_one_about_for_forever(Ui::Text::RichLangValue)
+			: (program.durationMonths < 12)
+			? tr::lng_star_ref_one_about_for_months(
+				lt_count,
+				rpl::single(program.durationMonths * 1.),
+				Ui::Text::RichLangValue)
+			: tr::lng_star_ref_one_about_for_years(
+				lt_count,
+				rpl::single((program.durationMonths / 12) * 1.),
+				Ui::Text::RichLangValue);
+		auto text = tr::lng_star_ref_link_about_channel(
+			lt_amount,
+			rpl::single(Ui::Text::Bold(FormatStarRefCommission(program.commission))),
+			lt_app,
+			rpl::single(Ui::Text::Bold(bot->name())),
+			lt_duration,
+			std::move(duration),
+			Ui::Text::WithEntities);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(box, std::move(text), st::boxLabel));
+		Ui::AddSkip(box->verticalLayout());
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(row.state.link) | Ui::Text::ToLink(),
+				st::boxLabel));
+		Ui::AddSkip(box->verticalLayout());
+		if (row.state.users > 0) {
+			box->addRow(
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_star_ref_link_copy_users(
+						lt_count,
+						rpl::single(row.state.users * 1.),
+						lt_app,
+						rpl::single(bot->name())),
+					st::boxLabel));
+		} else {
+			box->addRow(
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_star_ref_link_copy_none(
+						lt_app,
+						rpl::single(bot->name())),
+					st::boxLabel));
+		}
+
+		box->addButton(tr::lng_star_ref_link_copy(), [=] {
+			QApplication::clipboard()->setText(row.state.link);
+			box->uiShow()->showToast(tr::lng_username_copied(tr::now));
+		});
+		box->addButton(tr::lng_cancel(), [=] {
+			box->closeBox();
+		});
+	});
+}
+
+[[nodiscard]] object_ptr<Ui::BoxContent> JoinStarRefBox(
+		ConnectedBot row,
+		not_null<PeerData*> peer) {
+	Expects(row.bot->isUser());
+
+	return Box([=](not_null<Ui::GenericBox*> box) {
+		const auto show = box->uiShow();
+
+		const auto bot = row.bot;
+		const auto program = row.state.program;
+
+		box->setStyle(st::starrefFooterBox);
+		box->setNoContentMargin(true);
+		box->addTopButton(st::boxTitleClose, [=] {
+			box->closeBox();
+		});
+
+		box->addRow(
+			CreateUserpicsTransfer(
+				box,
+				rpl::single(std::vector{ not_null<PeerData*>(bot) }),
+				peer,
+				UserpicsTransferType::StarRefJoin),
+			st::boxRowPadding + st::starrefJoinUserpicsPadding);
+		box->addRow(
+			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+				box,
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_star_ref_title(),
+					st::boxTitle)),
+			st::boxRowPadding + st::starrefJoinTitlePadding);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_star_ref_one_about(
+					lt_app,
+					rpl::single(Ui::Text::Bold(bot->name())),
+					lt_amount,
+					rpl::single(Ui::Text::Bold(
+						FormatStarRefCommission(program.commission))),
+					lt_duration,
+					FormatProgramDuration(program),
+					Ui::Text::WithEntities),
+				st::boxLabel),
+			st::boxRowPadding);
+		struct State {
+			QPointer<Ui::GenericBox> weak;
+			bool sent = false;
+		};
+		const auto state = std::make_shared<State>();
+		state->weak = box;
+
+		const auto send = [=] {
+			if (state->sent) {
+				return;
+			}
+			state->sent = true;
+			bot->session().api().request(MTPpayments_ConnectStarRefBot(
+				peer->input,
+				bot->asUser()->inputUser
+			)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
+				const auto parsed = Parse(&bot->session(), result);
+				if (parsed.empty()) {
+					state->sent = false;
+					show->showToast(u"Failed."_q);
+				} else {
+					show->show(StarRefLinkBox(parsed.front(), peer));
+					if (const auto strong = state->weak.data()) {
+						strong->closeBox();
+					}
+				}
+			}).fail([=](const MTP::Error &error) {
+				state->sent = false;
+				show->showToast(u"Failed: "_q + error.type());
+			}).send();
+		};
+		const auto button = AddFullWidthButton(
+			box,
+			tr::lng_star_ref_one_join(),
+			send);
+		const auto footer = Ui::CreateChild<Ui::FlatLabel>(
+			button->parentWidget(),
+			tr::lng_star_ref_one_join_text(
+				lt_terms,
+				tr::lng_star_ref_button_link(
+				) | Ui::Text::ToLink(tr::lng_star_ref_tos_url(tr::now)),
+				Ui::Text::WithEntities),
+			st::starrefJoinFooter);
+		button->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+			footer->resizeToWidth(geometry.width());
+			const auto &st = box->getDelegate()->style();
+			const auto top = geometry.y() + geometry.height();
+			const auto available = st.buttonPadding.bottom();
+			footer->moveToLeft(
+				geometry.left(),
+				top + (available - footer->height()) / 2);
+		}, footer->lifetime());
+	});
+}
 
 ListController::ListController(
 	not_null<Controller*> controller,
@@ -131,20 +367,22 @@ Main::Session &ListController::session() const {
 	return _peer->session();
 }
 
-std::unique_ptr<PeerListRow> ListController::createRow(
-		not_null<PeerData*> peer,
-		RowState state) {
-	_states.emplace(peer, state);
-	auto result = std::make_unique<PeerListRow>(peer);
-	const auto program = state.program;
+std::unique_ptr<PeerListRow> ListController::createRow(ConnectedBot bot) {
+	_states.emplace(bot.bot, bot.state);
+	auto result = std::make_unique<PeerListRow>(bot.bot);
+	const auto program = bot.state.program;
 	const auto duration = !program.durationMonths
 		? tr::lng_star_ref_duration_forever(tr::now)
 		: (program.durationMonths < 12)
 		? tr::lng_months(tr::now, lt_count, program.durationMonths)
 		: tr::lng_years(tr::now, lt_count, program.durationMonths / 12);
-	result->setCustomStatus(u"+%1%, %2"_q.arg(
-		QString::number(program.commission / 10.),
-		duration));
+	if (bot.state.revoked) {
+		result->setCustomStatus(u"Revoked"_q);
+	} else {
+		result->setCustomStatus(u"+%1%, %2"_q.arg(
+			QString::number(program.commission / 10.),
+			duration));
+	}
 	return result;
 }
 
@@ -170,32 +408,12 @@ void ListController::loadMoreRows() {
 			MTP_string(_offsetThing),
 			MTP_int(kPerPage)
 		)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
-			const auto &data = result.data();
-			session().data().processUsers(data.vusers());
-			const auto &list = data.vconnected_bots().v;
-			if (list.empty()) {
+			const auto parsed = Parse(&session(), result);
+			if (parsed.empty()) {
 				_allLoaded = true;
 			} else {
-				for (const auto &bot : list) {
-					const auto &data = bot.data();
-					const auto botId = UserId(data.vbot_id());
-					_offsetThing = qs(data.vurl());
-					_offsetDate = data.vdate().v;
-					const auto commission = data.vcommission_permille().v;
-					const auto durationMonths
-						= data.vduration_months().value_or_empty();
-					const auto user = session().data().user(botId);
-					if (data.is_revoked()) {
-						continue;
-					}
-					delegate()->peerListAppendRow(createRow(user, {
-						.program = {
-							.commission = ushort(commission),
-							.durationMonths = uchar(durationMonths),
-						},
-						.link = _offsetThing,
-						.users = int(data.vparticipants().v),
-					}));
+				for (const auto &bot : parsed) {
+					delegate()->peerListAppendRow(createRow(bot));
 				}
 				delegate()->peerListRefreshRows();
 				_rowCount = delegate()->peerListFullRowsCount();
@@ -226,10 +444,13 @@ void ListController::loadMoreRows() {
 				const auto durationMonths
 					= data.vduration_months().value_or_empty();
 				const auto user = session().data().user(botId);
-				delegate()->peerListAppendRow(createRow(user, {
-					.program = {
-						.commission = ushort(commission),
-						.durationMonths = uchar(durationMonths),
+				delegate()->peerListAppendRow(createRow({
+					.bot = user,
+					.state = {
+						.program = {
+							.commission = ushort(commission),
+							.durationMonths = uchar(durationMonths),
+						},
 					},
 				}));
 			}
@@ -246,152 +467,25 @@ void ListController::loadMoreRows() {
 rpl::producer<int> ListController::rowCountValue() const {
 	return _rowCount.value();
 }
-//
-//std::unique_ptr<PeerListState> ListController::saveState() const {
-//	auto result = PeerListController::saveState();
-//	auto my = std::make_unique<SavedState>();
-//	result->controllerState = std::move(my);
-//	return result;
-//}
-//
-//void ListController::restoreState(
-//		std::unique_ptr<PeerListState> state) {
-//	auto typeErasedState = state
-//		? state->controllerState.get()
-//		: nullptr;
-//	if (dynamic_cast<SavedState*>(typeErasedState)) {
-//		PeerListController::restoreState(std::move(state));
-//	}
-//}
-
-void ListController::showLink(not_null<PeerData*> peer, RowState state) {
-	const auto window = _controller->parentController();
-	window->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(tr::lng_star_ref_link_title());
-
-		const auto program = state.program;
-		auto duration = !program.durationMonths
-			? tr::lng_star_ref_one_about_for_forever(Ui::Text::RichLangValue)
-			: (program.durationMonths < 12)
-			? tr::lng_star_ref_one_about_for_months(
-				lt_count,
-				rpl::single(program.durationMonths * 1.),
-				Ui::Text::RichLangValue)
-			: tr::lng_star_ref_one_about_for_years(
-				lt_count,
-				rpl::single((program.durationMonths / 12) * 1.),
-				Ui::Text::RichLangValue);
-		auto text = tr::lng_star_ref_link_about_channel(
-			lt_amount,
-			rpl::single(Ui::Text::Bold(QString::number(program.commission / 10.) + '%')),
-			lt_app,
-			rpl::single(Ui::Text::Bold(peer->name())),
-			lt_duration,
-			std::move(duration),
-			Ui::Text::WithEntities);
-		box->addRow(
-			object_ptr<Ui::FlatLabel>(box, std::move(text), st::boxLabel));
-		Ui::AddSkip(box->verticalLayout());
-		box->addRow(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				rpl::single(state.link) | Ui::Text::ToLink(),
-				st::boxLabel));
-		Ui::AddSkip(box->verticalLayout());
-		if (state.users > 0) {
-			box->addRow(
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_star_ref_link_copy_users(
-						lt_count,
-						rpl::single(state.users * 1.),
-						lt_app,
-						rpl::single(peer->name())),
-					st::boxLabel));
-		} else {
-			box->addRow(
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_star_ref_link_copy_none(
-						lt_app,
-						rpl::single(peer->name())),
-					st::boxLabel));
-		}
-
-		box->addButton(tr::lng_star_ref_link_copy(), [=] {
-			QApplication::clipboard()->setText(state.link);
-			window->showToast(tr::lng_username_copied(tr::now));
-		});
-		box->addButton(tr::lng_cancel(), [=] {
-			box->closeBox();
-		});
-	}));
-}
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
-	const auto peer = row->peer();
-	const auto i = _states.find(peer);
+	const auto bot = row->peer()->asUser();
+	const auto i = _states.find(bot);
 	Assert(i != end(_states));
 	const auto state = i->second;
-	const auto program = state.program;
 	const auto window = _controller->parentController();
 	if (_type == JoinType::Joined || !state.link.isEmpty()) {
-		showLink(row->peer(), state);
+		window->show(StarRefLinkBox({ bot, state }, _peer));
 	} else {
-		const auto join = [=](Fn<void()> close) {
-			session().api().request(MTPpayments_ConnectStarRefBot(
-				_peer->input,
-				peer->asUser()->inputUser
-			)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
-				window->showToast(u"Connected!"_q);
-				close();
-			}).fail([=](const MTP::Error &error) {
-				window->showToast(u"Failed: "_q + error.type());
-			}).send();
-		};
-		auto duration = !program.durationMonths
-			? tr::lng_star_ref_one_about_for_forever(Ui::Text::RichLangValue)
-			: (program.durationMonths < 12)
-			? tr::lng_star_ref_one_about_for_months(
-				lt_count,
-				rpl::single(program.durationMonths * 1.),
-				Ui::Text::RichLangValue)
-			: tr::lng_star_ref_one_about_for_years(
-				lt_count,
-				rpl::single((program.durationMonths / 12) * 1.),
-				Ui::Text::RichLangValue);
-		auto text = tr::lng_star_ref_one_about(
-			lt_app,
-			rpl::single(Ui::Text::Bold(peer->name())),
-			lt_amount,
-			rpl::single(Ui::Text::Bold(QString::number(program.commission / 10.) + '%')),
-			lt_duration,
-			std::move(duration),
-			Ui::Text::WithEntities);
-		auto added = tr::lng_star_ref_one_join_text(
-			lt_terms,
-			tr::lng_star_ref_button_link() | Ui::Text::ToLink(),
-			Ui::Text::WithEntities);
-		auto joined = rpl::combine(
-			std::move(text),
-			std::move(added)
-		) | rpl::map([=](TextWithEntities a, TextWithEntities b) {
-			return a.append("\n\n").append(b);
-		});
-		window->show(Ui::MakeConfirmBox({
-			.text = std::move(joined),
-			.confirmed = join,
-			.confirmText = tr::lng_star_ref_one_join(),
-			.title = tr::lng_star_ref_title(),
-		}));
+		window->show(JoinStarRefBox({ bot, state }, _peer));
 	}
 }
 
 base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	const auto peer = row->peer();
-	const auto i = _states.find(peer);
+	const auto bot = row->peer()->asUser();
+	const auto i = _states.find(bot);
 	Assert(i != end(_states));
 	const auto state = i->second;
 	if (state.link.isEmpty()) {
@@ -403,7 +497,7 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	const auto addAction = Ui::Menu::CreateAddActionCallback(result.get());
 
 	addAction(tr::lng_star_ref_list_my_open(tr::now), [=] {
-		_controller->parentController()->showPeerHistory(peer);
+		_controller->parentController()->showPeerHistory(bot);
 	}, &st::menuIconBot);
 	addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
 		QApplication::clipboard()->setText(state.link);
@@ -772,6 +866,10 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
 			std::make_shared<Memento>(peer)));
+}
+
+QString FormatStarRefCommission(ushort commission) {
+	return QString::number(commission / 10.) + '%';
 }
 
 } // namespace Info::BotStarRef::Join

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/click_handler_types.h"
 #include "data/data_user.h"
+#include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -495,7 +496,7 @@ void InnerWidget::setupCommission() {
 			commission,
 			setCommission,
 			setCommission,
-			[=](int value) { return QString::number(value / 10.) + '%'; },
+			[=](int value) { return Join::FormatStarRefCommission(value); },
 			_state.exists),
 		st::boxRowPadding);
 
@@ -852,7 +853,8 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 				? tr::lng_star_ref_update_info
 				: tr::lng_star_ref_start_info)(
 					lt_terms,
-					tr::lng_star_ref_button_link() | Ui::Text::ToLink(),
+					tr::lng_star_ref_button_link(
+					) | Ui::Text::ToLink(tr::lng_star_ref_tos_url(tr::now)),
 					Ui::Text::WithEntities),
 			st::boxDividerLabel),
 		QMargins(margins.left(), 0, margins.right(), 0));

@@ -1647,6 +1647,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_update" = "Update Affiliate Program";
 "lng_star_ref_update_info" = "By updating an affiliate program, you agree to the {terms} of Affiliate Programs.";
 "lng_star_ref_button_link" = "terms and conditions";
+"lng_star_ref_tos_url" = "https://telegram.org/tos/mini-apps";
 "lng_star_ref_warning_title" = "Warning";
 "lng_star_ref_warning_text" = "Once you start the affiliate program, you won't be able to decrease its commission or duration. You can only increase these parameters or end the program, which will disable all previously distributed referral links.";
 "lng_star_ref_warning_change" = "This change is irreversible. You won't be able to reduce commission or duration. You can only increase these parameters or end the program, which will disable all previously shared referral links.";
