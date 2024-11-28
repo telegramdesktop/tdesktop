@@ -125,8 +125,8 @@ int PaintRightButton(QPainter &p, const PaintContext &context) {
 			.position = QPoint(
 				left + size.height() / 2,
 				top + (st::dialogRowOpenBotHeight - rightButton->text.minHeight()) / 2),
-			.availableWidth = size.width() - size.height() / 2,
 			.outerWidth = size.width() - size.height() / 2,
+			.availableWidth = size.width() - size.height() / 2,
 			.elisionLines = 1,
 		});
 		return size.width() + st::dialogsUnreadPadding;

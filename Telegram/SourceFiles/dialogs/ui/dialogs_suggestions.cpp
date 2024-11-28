@@ -262,7 +262,6 @@ bool RecentRow::refreshBadge() {
 
 QSize RecentRow::rightActionSize() const {
 	if (_mainAppText) {
-		const auto &font = st::dialogRowOpenBotTextStyle.font;
 		return QSize(
 			_mainAppText->maxWidth() + _mainAppText->minHeight(),
 			st::dialogRowOpenBotHeight);
@@ -314,8 +313,8 @@ void RecentRow::rightActionPaint(
 			+ (st::dialogRowOpenBotHeight - _mainAppText->minHeight()) / 2;
 		_mainAppText->draw(p, {
 			.position = QPoint(x + size.height() / 2, y + top),
-			.availableWidth = outerWidth,
 			.outerWidth = outerWidth,
+			.availableWidth = outerWidth,
 			.elisionLines = 1,
 		});
 	}
