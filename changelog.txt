@@ -1,3 +1,8 @@
+5.8.4 beta (28.11.24)
+
+- Add option to show folder tags in chats list.
+- Count group with topics as one chat in folder unread counter.
+
 5.8.3 (23.11.24)
 
 - Ctrl+Click on Reply in groups to reply in another chat.
