@@ -63,7 +63,8 @@ void AddFullWidthButtonFooter(
 	not_null<PeerData*> peer);
 [[nodiscard]] object_ptr<Ui::BoxContent> JoinStarRefBox(
 	ConnectedBot row,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	Fn<void(ConnectedBotState)> done);
 
 std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	not_null<QWidget*> parent,

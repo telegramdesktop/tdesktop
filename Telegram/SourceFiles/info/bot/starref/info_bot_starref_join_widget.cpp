@@ -75,9 +75,9 @@ public:
 	void loadMoreRows() override;
 
 	[[nodiscard]] rpl::producer<int> rowCountValue() const;
+	[[nodiscard]] rpl::producer<ConnectedBot> connected() const;
 
-	void setContentWidget(not_null<Ui::RpWidget*> widget);
-	[[nodiscard]] rpl::producer<int> unlockHeightValue() const;
+	void process(ConnectedBot row);
 
 private:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(ConnectedBot bot);
@@ -90,6 +90,8 @@ private:
 	base::flat_map<not_null<PeerData*>, ConnectedBotState> _states;
 	base::flat_set<not_null<PeerData*>> _resolving;
 	UserData *_openOnResolve = nullptr;
+
+	rpl::event_stream<ConnectedBot> _connected;
 
 	mtpRequestId _requestId = 0;
 	TimeId _offsetDate = 0;
@@ -127,6 +129,7 @@ ListController::ListController(
 , _controller(controller)
 , _peer(peer)
 , _type(type) {
+	setStyleOverrides(&st::peerListSingleRow);
 }
 
 ListController::~ListController() {
@@ -162,7 +165,6 @@ void ListController::prepare() {
 	delegate()->peerListSetTitle((_type == JoinType::Joined)
 		? tr::lng_star_ref_list_my()
 		: tr::lng_star_ref_list_title());
-
 	loadMoreRows();
 }
 
@@ -196,12 +198,13 @@ void ListController::loadMoreRows() {
 		}).send();
 	} else {
 		using Flag = MTPpayments_GetSuggestedStarRefBots::Flag;
-		_requestId = session().api().request(MTPpayments_GetSuggestedStarRefBots(
-			MTP_flags(Flag::f_order_by_revenue),
-			_peer->input,
-			MTP_string(_offsetThing),
-			MTP_int(kPerPage)
-		)).done([=](const MTPpayments_SuggestedStarRefBots &result) {
+		_requestId = session().api().request(
+			MTPpayments_GetSuggestedStarRefBots(
+				MTP_flags(Flag::f_order_by_revenue),
+				_peer->input,
+				MTP_string(_offsetThing),
+				MTP_int(kPerPage))
+		).done([=](const MTPpayments_SuggestedStarRefBots &result) {
 			const auto &data = result.data();
 			if (data.vnext_offset()) {
 				_offsetThing = qs(*data.vnext_offset());
@@ -241,6 +244,17 @@ rpl::producer<int> ListController::rowCountValue() const {
 	return _rowCount.value();
 }
 
+rpl::producer<ConnectedBot> ListController::connected() const {
+	return _connected.events();
+}
+
+void ListController::process(ConnectedBot row) {
+	if (!delegate()->peerListFindRow(PeerListRowId(row.bot->id.value))) {
+		delegate()->peerListPrependRow(createRow(row));
+		delegate()->peerListRefreshRows();
+	}
+}
+
 void ListController::rowClicked(not_null<PeerListRow*> row) {
 	const auto bot = row->peer()->asUser();
 	const auto i = _states.find(bot);
@@ -255,8 +269,6 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 			auto &now = _states[bot];
 			if (state) {
 				now = *state;
-			} else {
-				now.unresolved = false;
 			}
 			if (_openOnResolve == bot) {
 				open(bot, now);
@@ -273,7 +285,11 @@ void ListController::open(not_null<UserData*> bot, ConnectedBotState state) {
 	if (_type == JoinType::Joined || !state.link.isEmpty()) {
 		_controller->show(StarRefLinkBox({ bot, state }, _peer));
 	} else {
-		_controller->show(JoinStarRefBox({ bot, state }, _peer));
+		const auto connected = crl::guard(this, [=](ConnectedBotState now) {
+			_states[bot] = now;
+			_connected.fire({ bot, now });
+		});
+		_controller->show(JoinStarRefBox({ bot, state }, _peer, connected));
 	}
 }
 
@@ -284,9 +300,6 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	const auto i = _states.find(bot);
 	Assert(i != end(_states));
 	const auto state = i->second;
-	if (state.link.isEmpty()) {
-		return nullptr;
-	}
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
@@ -295,27 +308,29 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	addAction(tr::lng_star_ref_list_my_open(tr::now), [=] {
 		_controller->showPeerHistory(bot);
 	}, &st::menuIconBot);
-	addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
-		QApplication::clipboard()->setText(state.link);
-		_controller->showToast(tr::lng_username_copied(tr::now));
-	}, &st::menuIconLinks);
-	const auto revoke = [=] {
-		session().api().request(MTPpayments_EditConnectedStarRefBot(
-			MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
-			_peer->input,
-			MTP_string(state.link)
-		)).done([=] {
-			_controller->showToast(u"Revoked!"_q);
-		}).fail([=](const MTP::Error &error) {
-			_controller->showToast(u"Failed: "_q + error.type());
-		}).send();
-	};
-	addAction({
-		.text = tr::lng_star_ref_list_my_leave(tr::now),
-		.handler = revoke,
-		.icon = &st::menuIconLeaveAttention,
-		.isAttention = true,
-	});
+	if (!state.link.isEmpty()) {
+		addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
+			QApplication::clipboard()->setText(state.link);
+			_controller->showToast(tr::lng_username_copied(tr::now));
+		}, &st::menuIconLinks);
+		const auto revoke = [=] {
+			session().api().request(MTPpayments_EditConnectedStarRefBot(
+				MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
+				_peer->input,
+				MTP_string(state.link)
+			)).done([=] {
+				_controller->showToast(u"Revoked!"_q);
+			}).fail([=](const MTP::Error &error) {
+				_controller->showToast(u"Failed: "_q + error.type());
+			}).send();
+		};
+		addAction({
+			.text = tr::lng_star_ref_list_my_leave(tr::now),
+			.handler = revoke,
+			.icon = &st::menuIconLeaveAttention,
+			.isAttention = true,
+		});
+	}
 	return result;
 }
 
@@ -336,7 +351,7 @@ public:
 private:
 	void prepare();
 	void setupInfo();
-	void setupMy();
+	not_null<ListController*> setupMy();
 	void setupSuggested();
 
 	[[nodiscard]] object_ptr<Ui::RpWidget> infoRow(
@@ -346,6 +361,7 @@ private:
 
 	const not_null<Controller*> _controller;
 	const not_null<Ui::VerticalLayout*> _container;
+	ListController *_my = nullptr;
 
 };
 
@@ -362,7 +378,7 @@ void InnerWidget::prepare() {
 	setupInfo();
 	Ui::AddSkip(_container);
 	Ui::AddDivider(_container);
-	setupMy();
+	_my = setupMy();
 	setupSuggested();
 }
 
@@ -385,7 +401,7 @@ void InnerWidget::setupInfo() {
 		&st::menuIconLike));
 }
 
-void InnerWidget::setupMy() {
+not_null<ListController*> InnerWidget::setupMy() {
 	const auto wrap = _container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			_container,
@@ -409,10 +425,13 @@ void InnerWidget::setupMy() {
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
+	Ui::AddSkip(inner);
 	Ui::AddDivider(inner);
 
 	wrap->toggleOn(controller->rowCountValue(
 	) | rpl::map(rpl::mappers::_1 > 0));
+
+	return controller;
 }
 
 void InnerWidget::setupSuggested() {
@@ -432,6 +451,11 @@ void InnerWidget::setupSuggested() {
 			controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
+
+	controller->connected(
+	) | rpl::start_with_next([=](ConnectedBot row) {
+		_my->process(row);
+	}, content->lifetime());
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::infoRow(

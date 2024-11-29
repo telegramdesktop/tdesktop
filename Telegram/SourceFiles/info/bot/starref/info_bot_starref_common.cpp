@@ -302,7 +302,8 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 
 [[nodiscard]] object_ptr<Ui::BoxContent> JoinStarRefBox(
 		ConnectedBot row,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void(ConnectedBotState)> done) {
 	Expects(row.bot->isUser());
 
 	return Box([=](not_null<Ui::GenericBox*> box) {
@@ -372,6 +373,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 			}
 			state->sent = true;
 			ConnectStarRef(bot->asUser(), peer, [=](ConnectedBot info) {
+				done(info.state);
 				show->show(StarRefLinkBox(info, peer));
 				if (const auto strong = state->weak.data()) {
 					strong->closeBox();
