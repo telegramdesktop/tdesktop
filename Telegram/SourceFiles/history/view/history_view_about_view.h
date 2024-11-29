@@ -34,7 +34,12 @@ public:
 	int height = 0;
 
 private:
+	[[nodiscard]] AdminLog::OwnedItem makeAboutVerifyCodes();
 	[[nodiscard]] AdminLog::OwnedItem makeAboutBot(not_null<BotInfo*> info);
+	[[nodiscard]] AdminLog::OwnedItem makeAboutSimple(
+		TextWithEntities textWithEntities,
+		DocumentData *document = nullptr,
+		PhotoData *photo = nullptr);
 	[[nodiscard]] AdminLog::OwnedItem makePremiumRequired();
 	[[nodiscard]] AdminLog::OwnedItem makeBlocked();
 	void makeIntro(not_null<UserData*> user);
