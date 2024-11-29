@@ -415,6 +415,8 @@ PRIVATE
     ui/effects/snowflakes.h
     ui/effects/toggle_arrow.cpp
     ui/effects/toggle_arrow.h
+    ui/search_field_controller.cpp
+    ui/search_field_controller.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp

@@ -1566,8 +1566,6 @@ PRIVATE
     ui/item_text_options.cpp
     ui/item_text_options.h
     ui/resize_area.h
-    ui/search_field_controller.cpp
-    ui/search_field_controller.h
     ui/unread_badge.cpp
     ui/unread_badge.h
     window/main_window.cpp
