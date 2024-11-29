@@ -1,3 +1,9 @@
+5.8.5 beta (29.11.24)
+
+- Fix pinned chats in folders.
+- Fix emoji in folder tags.
+- Fix several crashes.
+
 5.8.4 beta (28.11.24)
 
 - Add option to show folder tags in chats list.
