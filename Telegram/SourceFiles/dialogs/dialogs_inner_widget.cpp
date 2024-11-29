@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
+#include "ui/chat/chats_filter_tag.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/loading_element.h"
 #include "ui/widgets/multi_select.h"
@@ -315,6 +316,9 @@ InnerWidget::InnerWidget(
 		session().settings().archiveCollapsedChanges() | rpl::map_to(false),
 		session().data().chatsFilters().changed() | rpl::map_to(true)
 	) | rpl::start_with_next([=](bool refreshHeight) {
+		if (refreshHeight) {
+			_chatsFilterTags.clear();
+		}
 		if (refreshHeight && _filterId) {
 			// Height of the main list will be refreshed in other way.
 			_shownList->updateHeights(_narrowRatio);
@@ -4274,34 +4278,12 @@ QImage *InnerWidget::cacheChatsFilterTag(
 	if (roundedText.isEmpty() || colorIndex < 0) {
 		return nullptr;
 	}
-	const auto &roundedFont = st::dialogRowFilterTagFont;
-	const auto roundedWidth = roundedFont->width(roundedText)
-		+ roundedFont->spacew * 3;
-	const auto rect = QRect(0, 0, roundedWidth, roundedFont->height);
-	auto cache = QImage(
-		rect.size() * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	cache.setDevicePixelRatio(style::DevicePixelRatio());
-	cache.fill(Qt::transparent);
-	{
-		auto p = QPainter(&cache);
-		const auto pen = QPen(active
-			? st::dialogsBgActive
-			: Ui::EmptyUserpic::UserpicColor(colorIndex).color2);
-		p.setPen(Qt::NoPen);
-		p.setBrush(active
-			? st::dialogsTextFgActive->c
-			: anim::with_alpha(pen.color(), .15));
-		{
-			auto hq = PainterHighQualityEnabler(p);
-			const auto radius = roundedFont->height / 3.;
-			p.drawRoundedRect(rect, radius, radius);
-		}
-		p.setPen(pen);
-		p.setFont(roundedFont);
-		p.drawText(rect, roundedText, style::al_center);
-	}
-	return &_chatsFilterTags.emplace(key, std::move(cache)).first->second;
+	return &_chatsFilterTags.emplace(
+		key,
+		Ui::ChatsFilterTag(
+			std::move(roundedText),
+			Ui::EmptyUserpic::UserpicColor(colorIndex).color2->c,
+			active)).first->second;
 }
 
 bool InnerWidget::chooseHashtag() {

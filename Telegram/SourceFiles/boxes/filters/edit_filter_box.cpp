@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/chat/chats_filter_tag.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
@@ -544,31 +545,18 @@ void EditFilterBox(
 				colors->width(),
 				h);
 		}, preview->lifetime());
-		const auto previewColor = preview->lifetime().make_state<QColor>();
+		const auto previewTag = preview->lifetime().make_state<QImage>();
 		const auto previewAlpha = preview->lifetime().make_state<float64>(1);
 		preview->paintRequest() | rpl::start_with_next([=] {
 			auto p = QPainter(preview);
-			p.fillRect(preview->rect(), Qt::transparent);
-			const auto &font = st::dialogRowFilterTagFont;
-			const auto text = name->getLastText().toUpper();
-			p.setFont(font);
 			p.setOpacity(*previewAlpha);
-			const auto roundedWidth = font->width(text) + font->spacew * 3;
+			const auto size = previewTag->size() / style::DevicePixelRatio();
 			const auto rect = QRect(
-				preview->width() - roundedWidth - st::boxRowPadding.right(),
-				(st::normalFont->height - font->height) / 2,
-				roundedWidth,
-				font->height);
-			const auto pen = QPen(*previewColor);
-			p.setPen(Qt::NoPen);
-			p.setBrush(anim::with_alpha(pen.color(), .15));
-			{
-				auto hq = PainterHighQualityEnabler(p);
-				const auto radius = font->height / 3.;
-				p.drawRoundedRect(rect, radius, radius);
-			}
-			p.setPen(pen);
-			p.drawText(rect, text, style::al_center);
+				preview->width() - size.width() - st::boxRowPadding.right(),
+				(st::normalFont->height - size.height()) / 2,
+				size.width(),
+				size.height());
+			p.drawImage(rect.topLeft(), *previewTag);
 			if (p.opacity() < 1) {
 				p.setOpacity(1. - p.opacity());
 				p.setFont(st::normalFont);
@@ -578,10 +566,6 @@ void EditFilterBox(
 					tr::lng_filters_tag_color_no(tr::now),
 					style::al_right);
 			}
-		}, preview->lifetime());
-
-		name->changes() | rpl::start_with_next([=] {
-			preview->update();
 		}, preview->lifetime());
 
 		const auto side = st::userpicBuilderEmojiAccentColorSize;
@@ -594,6 +578,13 @@ void EditFilterBox(
 		const auto palette = [](int i) {
 			return Ui::EmptyUserpic::UserpicColor(i).color2;
 		};
+		name->changes() | rpl::start_with_next([=] {
+			*previewTag = Ui::ChatsFilterTag(
+				name->getLastText().toUpper(),
+				palette(state->colorIndex.current())->c,
+				false);
+			preview->update();
+		}, preview->lifetime());
 		for (auto i = 0; i < kColorsCount; ++i) {
 			const auto button = Ui::CreateChild<UserpicBuilder::CircleButton>(
 				line);
@@ -605,7 +596,10 @@ void EditFilterBox(
 			const auto color = palette(i);
 			button->setBrush(color);
 			if (progress == 1) {
-				*previewColor = color->c;
+				*previewTag = Ui::ChatsFilterTag(
+					name->getLastText().toUpper(),
+					color->c,
+					false);
 				if (i == kNoTag) {
 					*previewAlpha = 0.;
 				}
@@ -628,7 +622,10 @@ void EditFilterBox(
 							buttons[was]->setSelectedProgress(1. - progress);
 						}
 						buttons[now]->setSelectedProgress(progress);
-						*previewColor = anim::color(c1, c2, progress);
+						*previewTag = Ui::ChatsFilterTag(
+							name->getLastText().toUpper(),
+							anim::color(c1, c2, progress),
+							false);
 						*previewAlpha = anim::interpolateF(a1, a2, progress);
 						preview->update();
 					}, 0., 1., st::universalDuration);
