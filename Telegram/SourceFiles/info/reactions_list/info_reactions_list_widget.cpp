@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/search_field_controller.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
