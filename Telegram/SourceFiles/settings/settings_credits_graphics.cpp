@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h" // HistoryServicePaymentRefund.
+#include "info/bot/starref/info_bot_starref_common.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
@@ -1012,6 +1013,11 @@ void ReceiptCreditsBox(
 				? tr::lng_credits_box_history_entry_subscription(tr::now)
 				: !e.title.isEmpty()
 				? e.title
+				: e.starrefCommission
+				? tr::lng_credits_commission(
+					tr::now,
+					lt_amount,
+					Info::BotStarRef::FormatCommission(e.starrefCommission))
 				: e.soldOutInfo
 				? tr::lng_credits_box_history_entry_gift_unavailable(tr::now)
 				: sentStarGift

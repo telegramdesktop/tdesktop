@@ -1146,9 +1146,43 @@ void AddCreditsHistoryEntryTable(
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto actorId = PeerId(entry.bareActorId);
+	const auto starrefRecipientId = PeerId(entry.starrefRecipientId);
 	const auto session = &controller->session();
-	if (actorId || peerId) {
-		auto text = entry.in
+	if (entry.starrefCommission) {
+		if (entry.starrefAmount) {
+			AddTableRow(
+				table,
+				tr::lng_star_ref_commission_title(),
+				rpl::single(TextWithEntities{
+					QString::number(entry.starrefCommission / 10.) + '%' }));
+		} else {
+			AddTableRow(
+				table,
+				tr::lng_gift_link_label_reason(),
+				tr::lng_credits_box_history_entry_reason_star_ref(
+					Ui::Text::WithEntities));
+		}
+	}
+	if (starrefRecipientId && entry.starrefAmount) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_affiliate(),
+			controller,
+			starrefRecipientId);
+	}
+	if (peerId && entry.starrefCommission) {
+		AddTableRow(
+			table,
+			(entry.starrefAmount
+				? tr::lng_credits_box_history_entry_referred
+				: tr::lng_credits_box_history_entry_miniapp)(),
+			controller,
+			peerId);
+	}
+	if (actorId || (!entry.starrefCommission && peerId)) {
+		auto text = entry.starrefCommission
+			? tr::lng_credits_box_history_entry_referred()
+			: entry.in
 			? tr::lng_credits_box_history_entry_peer_in()
 			: tr::lng_credits_box_history_entry_peer();
 		AddTableRow(

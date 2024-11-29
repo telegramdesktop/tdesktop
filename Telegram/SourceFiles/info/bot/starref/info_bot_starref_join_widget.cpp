@@ -156,8 +156,8 @@ std::unique_ptr<PeerListRow> ListController::createRow(ConnectedBot bot) {
 	if (bot.state.revoked) {
 		result->setCustomStatus(u"Revoked"_q);
 	} else {
-		result->setCustomStatus(u"+%1%, %2"_q.arg(
-			QString::number(program.commission / 10.),
+		result->setCustomStatus(u"+%1, %2"_q.arg(
+			FormatCommission(program.commission),
 			duration));
 	}
 	return result;

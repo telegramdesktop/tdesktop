@@ -53,7 +53,7 @@ void ConnectStarRef(
 
 } // namespace
 
-QString FormatStarRefCommission(ushort commission) {
+QString FormatCommission(ushort commission) {
 	return QString::number(commission / 10.) + '%';
 }
 
@@ -248,7 +248,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 					: tr::lng_star_ref_link_about_channel)(
 						lt_amount,
 						rpl::single(Ui::Text::Bold(
-							FormatStarRefCommission(program.commission))),
+							FormatCommission(program.commission))),
 						lt_app,
 						rpl::single(Ui::Text::Bold(bot->name())),
 						lt_duration,
@@ -341,7 +341,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 					rpl::single(Ui::Text::Bold(bot->name())),
 					lt_amount,
 					rpl::single(Ui::Text::Bold(
-						FormatStarRefCommission(program.commission))),
+						FormatCommission(program.commission))),
 					lt_duration,
 					FormatProgramDuration(program),
 					Ui::Text::WithEntities),

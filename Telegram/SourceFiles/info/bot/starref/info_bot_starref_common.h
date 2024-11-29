@@ -38,7 +38,7 @@ struct ConnectedBot {
 };
 using ConnectedBots = std::vector<ConnectedBot>;
 
-[[nodiscard]] QString FormatStarRefCommission(ushort commission);
+[[nodiscard]] QString FormatCommission(ushort commission);
 [[nodiscard]] rpl::producer<TextWithEntities> FormatProgramDuration(
 	StarRefProgram program);
 

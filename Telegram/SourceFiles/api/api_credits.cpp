@@ -75,6 +75,14 @@ constexpr auto kTransactionsLimit = 100;
 	const auto stargift = tl.data().vstargift();
 	const auto reaction = tl.data().is_reaction();
 	const auto amount = Data::FromTL(tl.data().vstars());
+	const auto starrefAmount = tl.data().vstarref_amount()
+		? Data::FromTL(*tl.data().vstarref_amount())
+		: StarsAmount();
+	const auto starrefCommission
+		= tl.data().vstarref_commission_permille().value_or_empty();
+	const auto starrefBarePeerId = tl.data().vstarref_peer()
+		? peerFromMTP(*tl.data().vstarref_peer()).value
+		: 0;
 	const auto incoming = (amount >= StarsAmount());
 	const auto saveActorId = (reaction || !extended.empty()) && incoming;
 	return Data::CreditsHistoryEntry{
@@ -93,6 +101,9 @@ constexpr auto kTransactionsLimit = 100;
 			? owner->processDocument(stargift->data().vsticker())->id
 			: 0),
 		.bareActorId = saveActorId ? barePeerId : uint64(0),
+		.starrefAmount = starrefAmount,
+		.starrefCommission = starrefCommission,
+		.starrefRecipientId = starrefBarePeerId,
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
 			return Data::CreditsHistoryEntry::PeerType::Peer;
 		}, [](const MTPDstarsTransactionPeerPlayMarket &) {

@@ -1745,7 +1745,7 @@ void Controller::fillBotAffiliateProgram() {
 			? user->botInfo->starRefProgram.commission
 			: 0;
 		return commission
-			? u"%1%"_q.arg(commission / 10.)
+			? Info::BotStarRef::FormatCommission(commission)
 			: tr::lng_manage_peer_bot_star_ref_off(tr::now);
 	});
 	AddButtonWithCount(

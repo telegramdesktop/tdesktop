@@ -645,7 +645,7 @@ void InnerWidget::setupCommission() {
 			commission,
 			setCommission,
 			setCommission,
-			[=](int value) { return FormatStarRefCommission(value); },
+			[=](int value) { return FormatCommission(value); },
 			_state.exists),
 		st::boxRowPadding);
 	_state.program.commission = commission;
