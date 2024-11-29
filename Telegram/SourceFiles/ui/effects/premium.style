@@ -75,39 +75,6 @@ userPremiumCoverAbout: FlatLabel(boxDividerLabel) {
 userPremiumCover: PremiumCover(defaultPremiumCover) {
 	about: userPremiumCoverAbout;
 }
-starrefCover: PremiumCover(userPremiumCover) {
-	bg: windowBgOver;
-	starTopSkip: 24px;
-	titlePadding: margins(0px, 12px, 0px, 11px);
-}
-starrefCoverHeight: 180px;
-starrefFooterButton: RoundButton(defaultActiveButton) {
-	height: 42px;
-	textTop: 12px;
-	style: semiboldTextStyle;
-}
-starrefFooterBox: Box(defaultBox) {
-	buttonPadding: margins(22px, 11px, 22px, 54px);
-	buttonHeight: 42px;
-	button: starrefFooterButton;
-	shadowIgnoreTopSkip: true;
-}
-starrefCopyButton: RoundButton(starrefFooterButton) {
-	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
-	iconOver: icon {{ "info/edit/links_copy", activeButtonFgOver }};
-	iconPosition: point(-1px, 5px);
-}
-
-starrefJoinIcon: icon{{ "payments/small_star", premiumButtonFg }};
-starrefJoinUserpicsPadding: margins(0px, 32px, 0px, 10px);
-starrefJoinTitlePadding: margins(0px, 0px, 0px, 12px);
-starrefCenteredText: FlatLabel(defaultFlatLabel) {
-	align: align(top);
-	minWidth: 240px;
-}
-starrefJoinFooter: FlatLabel(starrefCenteredText) {
-	textFg: windowSubTextFg;
-}
 
 defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;
@@ -440,3 +407,57 @@ toastUndoSpace: 8px;
 toastUndoDiameter: 20px;
 toastUndoSkip: 20px;
 toastUndoFont: font(12px bold);
+
+starrefCover: PremiumCover(userPremiumCover) {
+	bg: windowBgOver;
+	starTopSkip: 24px;
+	titlePadding: margins(0px, 12px, 0px, 11px);
+}
+starrefCoverHeight: 180px;
+starrefFooterButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+starrefFooterBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 54px);
+	buttonHeight: 42px;
+	button: starrefFooterButton;
+	shadowIgnoreTopSkip: true;
+}
+starrefCopyButton: RoundButton(starrefFooterButton) {
+	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_copy", activeButtonFgOver }};
+	iconPosition: point(-1px, 5px);
+}
+
+starrefJoinIcon: icon{{ "payments/small_star", premiumButtonFg }};
+starrefJoinUserpicsPadding: margins(0px, 32px, 0px, 10px);
+starrefJoinTitlePadding: margins(0px, 0px, 0px, 12px);
+starrefCenteredText: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 240px;
+}
+starrefJoinFooter: FlatLabel(starrefCenteredText) {
+	textFg: windowSubTextFg;
+}
+
+starrefInfoIconPosition: point(16px, 8px);
+starrefBottomButton: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+starrefButtonMargin: margins(12px, 6px, 12px, 4px);
+starrefBottomButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowFgActive;
+	style: semiboldTextStyle;
+	minWidth: 0px;
+}
+starrefBottomButtonSublabel: FlatLabel(starrefBottomButtonLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px semibold);
+	}
+}
+starrefBottomButtonLabelTop: 5px;
+starrefBottomButtonSublabelTop: 23px;

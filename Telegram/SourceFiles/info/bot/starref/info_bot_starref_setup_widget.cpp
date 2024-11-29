@@ -105,7 +105,7 @@ private:
 	return State{
 		.user = user,
 		.program = program,
-		.exists = (program.commission > 0),
+		.exists = (program.commission > 0) && !program.endDate,
 	};
 }
 
@@ -420,6 +420,153 @@ private:
 		labels->resizeToWidth(width);
 		updateByIndex();
 	}, slider->lifetime());
+
+	return result;
+}
+
+[[nodiscard]] QString FormatTimeLeft(int seconds) {
+	const auto hours = seconds / 3600;
+	const auto minutes = (seconds % 3600) / 60;
+	seconds %= 60;
+	if (hours > 0) {
+		return u"%1:%2:%3"_q
+			.arg(hours)
+			.arg(minutes, 2, 10, QChar('0'))
+			.arg(seconds, 2, 10, QChar('0'));
+	}
+	return u"%1:%2"_q
+		.arg(minutes)
+		.arg(seconds, 2, 10, QChar('0'));
+}
+
+[[nodiscard]] object_ptr<Ui::RoundButton> MakeStartButton(
+		not_null<Ui::RpWidget*> parent,
+		Fn<TimeId()> endDate,
+		bool exists) {
+	auto result = object_ptr<Ui::RoundButton>(
+		parent,
+		rpl::single(QString()),
+		st::starrefBottomButton);
+	const auto raw = result.data();
+	rpl::combine(
+		parent->widthValue(),
+		raw->widthValue()
+	) | rpl::start_with_next([=](int outer, int inner) {
+		const auto padding = st::starrefButtonMargin;
+		const auto added = padding.left() + padding.right();
+		if (outer > added && outer - added != inner) {
+			raw->resizeToWidth(outer - added);
+			raw->moveToLeft(padding.left(), padding.top(), outer);
+		}
+	}, raw->lifetime());
+	struct State {
+		Ui::FlatLabel *label = nullptr;
+		Ui::FlatLabel *sublabel = nullptr;
+		QString labelText;
+		QString sublabelText;
+		Fn<void()> update;
+		rpl::lifetime lockedLifetime;
+	};
+	const auto state = raw->lifetime().make_state<State>();
+
+	state->label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		QString(),
+		st::starrefBottomButtonLabel);
+	state->label->show();
+	state->label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	state->sublabel = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		QString(),
+		st::starrefBottomButtonSublabel);
+	state->sublabel->show();
+	state->sublabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	rpl::combine(
+		raw->widthValue(),
+		state->label->widthValue(),
+		state->sublabel->widthValue()
+	) | rpl::start_with_next([=](int outer, int label, int sublabel) {
+		if (sublabel > 0) {
+			state->label->moveToLeft(
+				(outer - label) / 2,
+				st::starrefBottomButtonLabelTop);
+			state->sublabel->moveToLeft(
+				(outer - sublabel) / 2,
+				st::starrefBottomButtonSublabelTop);
+		} else {
+			state->label->moveToLeft(
+				(outer - label) / 2,
+				(raw->height() - state->label->height()) / 2);
+			state->sublabel->move(0, raw->height() * 2);
+		}
+	}, raw->lifetime());
+
+	const auto updatePalette = [=] {
+		auto color = st::windowFgActive->c;
+		if (state->lockedLifetime) {
+			color.setAlphaF((1. - kDisabledFade) * color.alphaF());
+		}
+		state->label->setTextColorOverride(color);
+		state->sublabel->setTextColorOverride(color);
+	};
+	updatePalette();
+	style::PaletteChanged(
+	) | rpl::start_with_next(updatePalette, raw->lifetime());
+
+	state->update = [=] {
+		const auto set = [&](
+				Ui::FlatLabel *label,
+				QString &was,
+				QString now) {
+			if (was != now) {
+				label->setText(now);
+				was = now;
+			}
+		};
+		const auto till = endDate();
+		const auto now = base::unixtime::now();
+		const auto left = (till > now) ? (till - now) : 0;
+		if (left) {
+			if (!state->lockedLifetime) {
+				state->lockedLifetime = base::timer_each(
+					100
+				) | rpl::start_with_next([=] {
+					state->update();
+				});
+				set(
+					state->label,
+					state->labelText,
+					tr::lng_star_ref_start(tr::now));
+				raw->clearState();
+				raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+				updatePalette();
+			}
+			set(
+				state->sublabel,
+				state->sublabelText,
+				tr::lng_star_ref_start_disabled(
+					tr::now,
+					lt_time,
+					FormatTimeLeft(left)));
+		} else {
+			if (state->lockedLifetime) {
+				state->lockedLifetime.destroy();
+				raw->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+				updatePalette();
+			}
+			set(
+				state->sublabel,
+				state->sublabelText,
+				QString());
+			set(
+				state->label,
+				state->labelText,
+				(exists ? tr::lng_star_ref_update : tr::lng_star_ref_start)(
+					tr::now));
+		}
+	};
+	state->update();
 
 	return result;
 }
@@ -824,31 +971,10 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 	auto result = std::make_unique<Ui::VerticalLayout>(this);
 	const auto raw = result.get();
 
-	auto text = base::timer_each(100) | rpl::map([=] {
-		const auto till = _state->user->botInfo->starRefProgram.endDate;
-		const auto now = base::unixtime::now();
-		const auto left = (till > now) ? (till - now) : 0;
-		return left
-			? tr::lng_star_ref_start_disabled(
-				tr::now,
-				lt_time,
-				QString::number(left))
-			: _state->exists
-			? tr::lng_star_ref_update(tr::now)
-			: tr::lng_star_ref_start(tr::now);
-	});
-	const auto save = raw->add(
-		object_ptr<Ui::RoundButton>(
-			raw,
-			rpl::duplicate(text),
-			st::defaultActiveButton),
-		st::starrefButtonMargin);
-	std::move(text) | rpl::start_with_next([=] {
-		save->resizeToWidth(raw->width()
-			- st::starrefButtonMargin.left()
-			- st::starrefButtonMargin.right());
-	}, save->lifetime());
-	save->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	const auto save = raw->add(MakeStartButton(raw, [=] {
+		return _state->user->botInfo->starRefProgram.endDate;
+	}, _state->exists), st::starrefButtonMargin);
+
 	const auto &margins = st::defaultBoxDividerLabelPadding;
 	raw->add(
 		object_ptr<Ui::FlatLabel>(
