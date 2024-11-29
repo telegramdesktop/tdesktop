@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "mainwidget.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -555,14 +556,20 @@ bool ResolveUsernameOrPhone(
 	auto resolveType = params.contains(u"profile"_q)
 		? ResolveType::Profile
 		: ResolveType::Default;
-	auto starref = params.value(u"ref"_q);
 	auto startToken = params.value(u"start"_q);
-	const auto kTgRefPrefix = u"_tgref_"_q;
-	if (startToken.startsWith(kTgRefPrefix)) {
-		startToken = startToken.mid(kTgRefPrefix.size());
-		resolveType = ResolveType::StarRef;
-	} else if (!startToken.isEmpty()) {
+	auto referral = params.value(u"ref"_q);
+	if (!startToken.isEmpty()) {
 		resolveType = ResolveType::BotStart;
+		if (referral.isEmpty()) {
+			const auto appConfig = &controller->session().appConfig();
+			const auto &prefixes = appConfig->startRefPrefixes();
+			for (const auto &prefix : prefixes) {
+				if (startToken.startsWith(prefix)) {
+					referral = startToken.mid(prefix.size());
+					break;
+				}
+			}
+		}
 	} else if (params.contains(u"startgroup"_q)) {
 		resolveType = ResolveType::AddToGroup;
 		startToken = params.value(u"startgroup"_q);
@@ -570,8 +577,6 @@ bool ResolveUsernameOrPhone(
 		resolveType = ResolveType::AddToChannel;
 	} else if (params.contains(u"boost"_q)) {
 		resolveType = ResolveType::Boost;
-	} else if (!starref.isEmpty()) {
-		resolveType = ResolveType::StarRef;
 	}
 	auto post = ShowAtUnreadMsgId;
 	auto adminRights = ChatAdminRights();
@@ -620,6 +625,7 @@ bool ResolveUsernameOrPhone(
 			}
 			: Window::RepliesByLinkInfo{ v::null },
 		.resolveType = resolveType,
+		.referral = referral,
 		.startToken = startToken,
 		.startAdminRights = adminRights,
 		.startAutoSubmit = myContext.botStartAutoSubmit,

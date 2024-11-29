@@ -48,6 +48,15 @@ int AppConfig::stargiftConvertPeriodMax() const {
 		_account->mtp().isTestMode() ? 300 : (90 * 86400));
 }
 
+const std::vector<QString> &AppConfig::startRefPrefixes() {
+	if (_startRefPrefixes.empty()) {
+		_startRefPrefixes = get<std::vector<QString>>(
+			u"starref_start_param_prefixes"_q,
+			std::vector<QString>());
+	}
+	return _startRefPrefixes;
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

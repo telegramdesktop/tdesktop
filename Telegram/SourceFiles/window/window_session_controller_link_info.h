@@ -24,7 +24,6 @@ enum class ResolveType {
 	Mention,
 	Boost,
 	Profile,
-	StarRef,
 };
 
 struct CommentId {
@@ -44,6 +43,7 @@ struct PeerByLinkInfo {
 	QString text;
 	RepliesByLinkInfo repliesInfo;
 	ResolveType resolveType = ResolveType::Default;
+	QString referral;
 	QString startToken;
 	ChatAdminRights startAdminRights;
 	bool startAutoSubmit = false;
