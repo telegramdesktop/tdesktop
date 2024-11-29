@@ -321,30 +321,26 @@ HistoryWidget::HistoryWidget(
 		_list->onParentGeometryChanged();
 	}), lifetime());
 
-	const auto weak = Ui::MakeWeak(this);
 	_scroll->addContentRequests(
 	) | rpl::start_with_next([=] {
 		if (_history && _history->loadedAtBottom()) {
 			using Result = Data::SponsoredMessages::AppendResult;
 			const auto tryToAppend = [=] {
-				const auto r = session().sponsoredMessages().append(_history);
-				if (r == Result::Appended) {
+				const auto sponsored = &session().sponsoredMessages();
+				const auto result = sponsored->append(_history);
+				if (result == Result::Appended) {
 					_scroll->contentAdded();
 				}
-				return r;
+				return result;
 			};
-			if (tryToAppend() == Result::MediaLoading) {
-				const auto sharedLifetime = std::make_shared<rpl::lifetime>();
+			if (tryToAppend() == Result::MediaLoading
+				&& !_historySponsoredPreloading) {
 				session().downloaderTaskFinished(
 				) | rpl::start_with_next([=] {
-					if (const auto strong = weak.data()) {
-						if (tryToAppend() != Result::MediaLoading) {
-							sharedLifetime->destroy();
-						}
-					} else {
-						sharedLifetime->destroy();
+					if (tryToAppend() != Result::MediaLoading) {
+						_historySponsoredPreloading.destroy();
 					}
-				}, *sharedLifetime);
+				}, _historySponsoredPreloading);
 			}
 		}
 	}, lifetime());
@@ -2625,6 +2621,7 @@ void HistoryWidget::setHistory(History *history) {
 		unregisterDraftSources();
 		clearAllLoadRequests();
 		clearSupportPreloadRequest();
+		_historySponsoredPreloading.destroy();
 		const auto wasHistory = base::take(_history);
 		const auto wasMigrated = base::take(_migrated);
 		unloadHeavyViewParts(wasHistory);
