@@ -1545,6 +1545,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_channel_title" = "Manage Channel";
 "lng_manage_bot_title" = "Manage Bot";
 "lng_manage_peer_recent_actions" = "Recent actions";
+"lng_manage_peer_star_ref" = "Affiliate programs";
 "lng_manage_peer_members" = "Members";
 "lng_manage_peer_subscribers" = "Subscribers";
 "lng_manage_peer_administrators" = "Administrators";

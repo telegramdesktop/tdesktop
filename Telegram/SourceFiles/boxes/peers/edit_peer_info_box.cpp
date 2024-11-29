@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
+#include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/bot/starref/info_bot_starref_setup_widget.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/channel_statistics/earn/earn_format.h"
@@ -1241,6 +1242,7 @@ void Controller::fillManageSection() {
 		&& (channel->isBroadcast() || channel->isGigagroup());
 	const auto hasRecentActions = isChannel
 		&& (channel->hasAdminRights() || channel->amCreator());
+	const auto hasStarRef = isChannel && channel->canPostMessages();
 	const auto canEditStickers = isChannel && channel->canEditStickers();
 	const auto canDeleteChannel = isChannel && channel->canDelete();
 	const auto canEditColorIndex = isChannel && channel->canEditEmoji();
@@ -1423,9 +1425,20 @@ void Controller::fillManageSection() {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_recent_actions(),
-			rpl::single(QString()), //Empty count.
+			rpl::single(QString()), // Empty count.
 			std::move(callback),
 			{ &st::menuIconGroupLog });
+	}
+	if (hasStarRef) {
+		auto callback = [=] {
+			_navigation->showSection(Info::BotStarRef::Join::Make(_peer));
+		};
+		AddButtonWithCount(
+			_controls.buttonsLayout,
+			tr::lng_manage_peer_star_ref(),
+			rpl::single(QString()), // Empty count.
+			std::move(callback),
+			{ &st::menuIconSharing });
 	}
 
 	if (canEditStickers || canDeleteChannel) {
