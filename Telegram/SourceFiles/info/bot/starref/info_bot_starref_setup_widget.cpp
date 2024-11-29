@@ -499,6 +499,7 @@ void InnerWidget::setupCommission() {
 			[=](int value) { return FormatStarRefCommission(value); },
 			_state.exists),
 		st::boxRowPadding);
+	_state.program.commission = commission;
 
 	Ui::AddSkip(_container, st::defaultVerticalListSkip * 2);
 	Ui::AddDividerText(_container, tr::lng_star_ref_commission_about());
@@ -541,6 +542,7 @@ void InnerWidget::setupDuration() {
 			label,
 			_state.exists),
 		st::boxRowPadding);
+	_state.program.durationMonths = durationMonths;
 
 	Ui::AddSkip(_container, st::defaultVerticalListSkip * 2);
 	Ui::AddDividerText(_container, tr::lng_star_ref_duration_about());
