@@ -261,7 +261,7 @@ bool RecentRow::refreshBadge() {
 }
 
 QSize RecentRow::rightActionSize() const {
-	if (_mainAppText) {
+	if (_mainAppText && _badgeSize.isEmpty()) {
 		return QSize(
 			_mainAppText->maxWidth() + _mainAppText->minHeight(),
 			st::dialogRowOpenBotHeight);
@@ -270,7 +270,7 @@ QSize RecentRow::rightActionSize() const {
 }
 
 QMargins RecentRow::rightActionMargins() const {
-	if (_mainAppText) {
+	if (_mainAppText && _badgeSize.isEmpty()) {
 		return QMargins(
 			0,
 			st::dialogRowOpenBotRecentTop,
@@ -292,7 +292,7 @@ void RecentRow::rightActionPaint(
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	if (_mainAppText) {
+	if (_mainAppText && _badgeSize.isEmpty()) {
 		const auto size = RecentRow::rightActionSize();
 		p.setPen(Qt::NoPen);
 		p.setBrush(actionSelected
@@ -335,13 +335,13 @@ void RecentRow::rightActionPaint(
 }
 
 bool RecentRow::rightActionDisabled() const {
-	return !_mainAppText;
+	return !_mainAppText || !_badgeSize.isEmpty();
 }
 
 void RecentRow::rightActionAddRipple(
 		QPoint point,
 		Fn<void()> updateCallback) {
-	if (!_mainAppText) {
+	if (!_mainAppText || !_badgeSize.isEmpty()) {
 		return;
 	}
 	if (!_actionRipple) {
