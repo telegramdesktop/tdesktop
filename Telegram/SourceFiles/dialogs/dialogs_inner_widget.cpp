@@ -1220,8 +1220,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		const auto it = _rightButtons.find(user->id);
 		if (it == _rightButtons.end()) {
 			auto rightButton = RightButton();
-			const auto text
-				= tr::lng_profile_open_app_short(tr::now).toUpper();
+			const auto text = tr::lng_profile_open_app_short(tr::now);
 			rightButton.text.setText(st::dialogRowOpenBotTextStyle, text);
 			const auto size = QSize(
 				rightButton.text.maxWidth()

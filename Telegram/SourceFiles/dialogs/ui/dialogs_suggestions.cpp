@@ -194,7 +194,7 @@ RecentRow::RecentRow(not_null<PeerData*> peer)
 		if (user->botInfo && user->botInfo->hasMainApp) {
 			return std::make_unique<Ui::Text::String>(
 				st::dialogRowOpenBotTextStyle,
-				tr::lng_profile_open_app_short(tr::now).toUpper());
+				tr::lng_profile_open_app_short(tr::now));
 		}
 	}
 	return nullptr;
