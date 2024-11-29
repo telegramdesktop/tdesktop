@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/data_user.h"
 #include "info/bot/starref/info_bot_starref_common.h"
+#include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -554,7 +555,8 @@ void InnerWidget::setupViewExisting() {
 		tr::lng_star_ref_existing_title(),
 		tr::lng_star_ref_existing_about());
 	button->setClickedCallback([=] {
-		_controller->showToast(u"List or smth.."_q);
+		const auto window = _controller->parentController();
+		window->show(Join::ProgramsListBox(window, peer()));
 	});
 
 	Ui::AddSkip(_container);

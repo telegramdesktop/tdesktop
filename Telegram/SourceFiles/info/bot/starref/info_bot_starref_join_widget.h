@@ -19,7 +19,12 @@ class FadeWrap;
 class IconButton;
 class AbstractButton;
 class VerticalLayout;
+class BoxContent;
 } // namespace Ui
+
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Info::BotStarRef::Join {
 
@@ -75,5 +80,9 @@ private:
 };
 
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
+
+[[nodiscard]] object_ptr<Ui::BoxContent> ProgramsListBox(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
 
 } // namespace Info::BotStarRef::Join

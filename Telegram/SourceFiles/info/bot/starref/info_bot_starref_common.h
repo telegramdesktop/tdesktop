@@ -29,6 +29,7 @@ struct ConnectedBotState {
 	QString link;
 	TimeId date = 0;
 	int users = 0;
+	bool unresolved = false;
 	bool revoked = false;
 };
 struct ConnectedBot {

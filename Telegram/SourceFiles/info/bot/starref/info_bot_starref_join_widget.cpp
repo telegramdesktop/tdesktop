@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
+#include "base/weak_ptr.h"
 #include "boxes/peer_list_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_session.h"
@@ -55,10 +56,12 @@ enum class JoinType {
 	Suggested,
 };
 
-class ListController final : public PeerListController {
+class ListController final
+	: public PeerListController
+	, public base::has_weak_ptr {
 public:
 	ListController(
-		not_null<Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		JoinType type);
 	~ListController();
@@ -78,12 +81,15 @@ public:
 
 private:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(ConnectedBot bot);
+	void open(not_null<UserData*> bot, ConnectedBotState state);
 
-	const not_null<Controller*> _controller;
+	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
 	const JoinType _type = {};
 
 	base::flat_map<not_null<PeerData*>, ConnectedBotState> _states;
+	base::flat_set<not_null<PeerData*>> _resolving;
+	UserData *_openOnResolve = nullptr;
 
 	mtpRequestId _requestId = 0;
 	TimeId _offsetDate = 0;
@@ -94,8 +100,27 @@ private:
 
 };
 
+void Resolve(
+		not_null<PeerData*> peer,
+		not_null<UserData*> bot,
+		Fn<void(std::optional<ConnectedBotState>)> done) {
+	peer->session().api().request(MTPpayments_GetConnectedStarRefBot(
+		peer->input,
+		bot->inputUser
+	)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
+		const auto parsed = Parse(&peer->session(), result);
+		if (parsed.empty()) {
+			done(std::nullopt);
+		} else {
+			done(parsed.front().state);
+		}
+	}).fail([=] {
+		done(std::nullopt);
+	}).send();
+}
+
 ListController::ListController(
-	not_null<Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	JoinType type)
 : PeerListController()
@@ -136,7 +161,7 @@ std::unique_ptr<PeerListRow> ListController::createRow(ConnectedBot bot) {
 void ListController::prepare() {
 	delegate()->peerListSetTitle((_type == JoinType::Joined)
 		? tr::lng_star_ref_list_my()
-		: tr::lng_star_ref_list_subtitle());
+		: tr::lng_star_ref_list_title());
 
 	loadMoreRows();
 }
@@ -198,6 +223,7 @@ void ListController::loadMoreRows() {
 							.commission = ushort(commission),
 							.durationMonths = uchar(durationMonths),
 						},
+						.unresolved = true,
 					},
 				}));
 			}
@@ -219,12 +245,35 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 	const auto bot = row->peer()->asUser();
 	const auto i = _states.find(bot);
 	Assert(i != end(_states));
-	const auto state = i->second;
-	const auto window = _controller->parentController();
-	if (_type == JoinType::Joined || !state.link.isEmpty()) {
-		window->show(StarRefLinkBox({ bot, state }, _peer));
+	if (i->second.unresolved) {
+		if (!_resolving.emplace(bot).second) {
+			return;
+		}
+		_openOnResolve = bot;
+		const auto resolved = [=](std::optional<ConnectedBotState> state) {
+			_resolving.remove(bot);
+			auto &now = _states[bot];
+			if (state) {
+				now = *state;
+			} else {
+				now.unresolved = false;
+			}
+			if (_openOnResolve == bot) {
+				open(bot, now);
+			}
+		};
+		Resolve(_peer, bot, crl::guard(this, resolved));
 	} else {
-		window->show(JoinStarRefBox({ bot, state }, _peer));
+		_openOnResolve = nullptr;
+		open(bot, i->second);
+	}
+}
+
+void ListController::open(not_null<UserData*> bot, ConnectedBotState state) {
+	if (_type == JoinType::Joined || !state.link.isEmpty()) {
+		_controller->show(StarRefLinkBox({ bot, state }, _peer));
+	} else {
+		_controller->show(JoinStarRefBox({ bot, state }, _peer));
 	}
 }
 
@@ -244,12 +293,11 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	const auto addAction = Ui::Menu::CreateAddActionCallback(result.get());
 
 	addAction(tr::lng_star_ref_list_my_open(tr::now), [=] {
-		_controller->parentController()->showPeerHistory(bot);
+		_controller->showPeerHistory(bot);
 	}, &st::menuIconBot);
 	addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
 		QApplication::clipboard()->setText(state.link);
-		_controller->parentController()->showToast(
-			tr::lng_username_copied(tr::now));
+		_controller->showToast(tr::lng_username_copied(tr::now));
 	}, &st::menuIconLinks);
 	const auto revoke = [=] {
 		session().api().request(MTPpayments_EditConnectedStarRefBot(
@@ -257,9 +305,9 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 			_peer->input,
 			MTP_string(state.link)
 		)).done([=] {
-			_controller->parentController()->showToast(u"Revoked!"_q);
+			_controller->showToast(u"Revoked!"_q);
 		}).fail([=](const MTP::Error &error) {
-			_controller->parentController()->showToast(u"Failed: "_q + error.type());
+			_controller->showToast(u"Failed: "_q + error.type());
 		}).send();
 	};
 	addAction({
@@ -351,7 +399,7 @@ void InnerWidget::setupMy() {
 		PeerListContentDelegateSimple
 	>();
 	const auto controller = lifetime().make_state<ListController>(
-		_controller,
+		_controller->parentController(),
 		peer(),
 		JoinType::Joined);
 	const auto content = inner->add(
@@ -375,7 +423,7 @@ void InnerWidget::setupSuggested() {
 		PeerListContentDelegateSimple
 	>();
 	auto controller = lifetime().make_state<ListController>(
-		_controller,
+		_controller->parentController(),
 		peer(),
 		JoinType::Suggested);
 	const auto content = _container->add(
@@ -613,6 +661,22 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
 			std::make_shared<Memento>(peer)));
+}
+
+object_ptr<Ui::BoxContent> ProgramsListBox(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
+	const auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+	};
+	return Box<PeerListBox>(
+		std::make_unique<ListController>(
+			controller,
+			peer,
+			JoinType::Suggested),
+		initBox);
 }
 
 } // namespace Info::BotStarRef::Join
