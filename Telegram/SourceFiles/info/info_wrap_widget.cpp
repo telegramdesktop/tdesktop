@@ -289,6 +289,7 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 			: Dialogs::RowDescriptor();
 	} else if (key().settingsSelf()
 			|| key().isDownloads()
+			|| key().reactionsContextId()
 			|| key().poll()
 			|| key().statisticsTag().peer) {
 		return Dialogs::RowDescriptor();
