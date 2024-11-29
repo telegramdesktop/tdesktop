@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "info/bot/starref/info_bot_starref_common.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -866,10 +867,6 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
 			std::make_shared<Memento>(peer)));
-}
-
-QString FormatStarRefCommission(ushort commission) {
-	return QString::number(commission / 10.) + '%';
 }
 
 } // namespace Info::BotStarRef::Join

@@ -16,8 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
+#include "info/bot/starref/info_bot_starref_common.h"
+#include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
@@ -250,7 +253,17 @@ void InnerWidget::fill() {
 				return v ? ToUsd(v, multiplier, kMinorLength) : QString();
 			}));
 	}
-
+	{
+		const auto button = BotStarRef::AddViewListButton(
+			container,
+			tr::lng_credits_summary_earn_title(),
+			tr::lng_credits_summary_earn_about());
+		button->setClickedCallback([=] {
+			_controller->showSection(BotStarRef::Join::Make(peer()));
+		});
+		Ui::AddSkip(container);
+		Ui::AddDivider(container);
+	}
 	fillHistory();
 }
 

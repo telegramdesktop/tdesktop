@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/click_handler_types.h"
 #include "data/data_user.h"
-#include "info/bot/starref/info_bot_starref_join_widget.h"
+#include "info/bot/starref/info_bot_starref_common.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -496,7 +496,7 @@ void InnerWidget::setupCommission() {
 			commission,
 			setCommission,
 			setCommission,
-			[=](int value) { return Join::FormatStarRefCommission(value); },
+			[=](int value) { return FormatStarRefCommission(value); },
 			_state.exists),
 		st::boxRowPadding);
 
@@ -905,93 +905,6 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
 			std::make_shared<Memento>(peer)));
-}
-
-not_null<Ui::AbstractButton*> AddViewListButton(
-		not_null<Ui::VerticalLayout*> parent,
-		rpl::producer<QString> title,
-		rpl::producer<QString> subtitle) {
-	const auto &stLabel = st::defaultFlatLabel;
-	const auto iconSize = st::settingsPremiumIconDouble.size();
-	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
-	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
-
-	const auto button = Ui::CreateChild<Ui::SettingsButton>(
-		parent,
-		rpl::single(QString()));
-
-	const auto label = parent->add(
-		object_ptr<Ui::FlatLabel>(
-			parent,
-			std::move(title) | Ui::Text::ToBold(),
-			stLabel),
-		titlePadding);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto description = parent->add(
-		object_ptr<Ui::FlatLabel>(
-			parent,
-			std::move(subtitle),
-			st::boxDividerLabel),
-		descriptionPadding);
-	description->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	const auto dummy = Ui::CreateChild<Ui::AbstractButton>(parent);
-	dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	parent->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		dummy->resize(s.width(), iconSize.height());
-	}, dummy->lifetime());
-
-	button->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
-		dummy->moveToLeft(0, r.y() + (r.height() - iconSize.height()) / 2);
-	}, dummy->lifetime());
-
-	::Settings::AddButtonIcon(dummy, st::settingsButton, {
-		.icon = &st::settingsStarRefEarnStars,
-		.backgroundBrush = st::premiumIconBg3,
-	});
-
-	rpl::combine(
-		parent->widthValue(),
-		label->heightValue(),
-		description->heightValue()
-	) | rpl::start_with_next([=,
-		topPadding = titlePadding,
-		bottomPadding = descriptionPadding](
-			int width,
-			int topHeight,
-			int bottomHeight) {
-		button->resize(
-			width,
-			topPadding.top()
-			+ topHeight
-			+ topPadding.bottom()
-			+ bottomPadding.top()
-			+ bottomHeight
-			+ bottomPadding.bottom());
-	}, button->lifetime());
-	label->topValue(
-	) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
-		button->moveToLeft(0, top - padding);
-	}, button->lifetime());
-	const auto arrow = Ui::CreateChild<Ui::IconButton>(
-		button,
-		st::backButton);
-	arrow->setIconOverride(
-		&st::settingsPremiumArrow,
-		&st::settingsPremiumArrowOver);
-	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
-	button->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		const auto &point = st::settingsPremiumArrowShift;
-		arrow->moveToRight(
-			-point.x(),
-			point.y() + (s.height() - arrow->height()) / 2);
-	}, arrow->lifetime());
-
-	return button;
 }
 
 } // namespace Info::BotStarRef::Setup

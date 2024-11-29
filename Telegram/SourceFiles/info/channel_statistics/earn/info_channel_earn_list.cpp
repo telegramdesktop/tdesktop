@@ -963,7 +963,7 @@ void InnerWidget::fill() {
 			) | rpl::map(creditsToUsdMap));
 	}
 
-	const auto button = Info::BotStarRef::Setup::AddViewListButton(
+	const auto button = Info::BotStarRef::AddViewListButton(
 		container,
 		tr::lng_credits_summary_earn_title(),
 		tr::lng_credits_summary_earn_about());

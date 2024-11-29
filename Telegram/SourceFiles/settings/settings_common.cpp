@@ -89,6 +89,7 @@ void AddButtonIcon(
 		std::move(descriptor));
 	icon->widget.setAttribute(Qt::WA_TransparentForMouseEvents);
 	icon->widget.resize(icon->icon.size());
+	icon->widget.show();
 	button->sizeValue(
 	) | rpl::start_with_next([=, left = st.iconLeft](QSize size) {
 		icon->widget.moveToLeft(

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/info_content_widget.h"
+#include "info/bot/starref/info_bot_starref_common.h"
 
 namespace Ui::Premium {
 class TopBarAbstract;
@@ -80,10 +81,5 @@ private:
 };
 
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
-
-[[nodiscard]] not_null<Ui::AbstractButton*> AddViewListButton(
-	not_null<Ui::VerticalLayout*> parent,
-	rpl::producer<QString> title,
-	rpl::producer<QString> subtitle);
 
 } // namespace Info::BotStarRef::Setup
