@@ -57,6 +57,14 @@ const std::vector<QString> &AppConfig::startRefPrefixes() {
 	return _startRefPrefixes;
 }
 
+bool AppConfig::starrefSetupAllowed() const {
+	return get<bool>(u"starref_program_allowed"_q, false);
+}
+
+bool AppConfig::starrefJoinAllowed() const {
+	return get<bool>(u"starref_connect_allowed"_q, false);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

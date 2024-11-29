@@ -1242,7 +1242,9 @@ void Controller::fillManageSection() {
 		&& (channel->isBroadcast() || channel->isGigagroup());
 	const auto hasRecentActions = isChannel
 		&& (channel->hasAdminRights() || channel->amCreator());
-	const auto hasStarRef = isChannel && channel->canPostMessages();
+	const auto hasStarRef = Info::BotStarRef::Join::Allowed(_peer)
+		&& isChannel
+		&& channel->canPostMessages();
 	const auto canEditStickers = isChannel && channel->canEditStickers();
 	const auto canDeleteChannel = isChannel && channel->canDelete();
 	const auto canEditColorIndex = isChannel && channel->canEditEmoji();
@@ -1729,6 +1731,10 @@ void Controller::fillBotCreditsButton() {
 
 void Controller::fillBotAffiliateProgram() {
 	Expects(_isBot);
+
+	if (!Info::BotStarRef::Setup::Allowed(_peer)) {
+		return;
+	}
 
 	const auto user = _peer->asUser();
 	auto label = user->session().changes().peerFlagsValue(

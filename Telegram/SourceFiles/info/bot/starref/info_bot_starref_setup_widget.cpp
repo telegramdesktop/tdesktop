@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/effects/premium_top_bar.h"
@@ -901,6 +902,12 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 	}, raw->lifetime());
 
 	return result;
+}
+
+bool Allowed(not_null<PeerData*> peer) {
+	return peer->isUser()
+		&& peer->asUser()->isBot()
+		&& peer->session().appConfig().starrefSetupAllowed();
 }
 
 std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {

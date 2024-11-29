@@ -67,6 +67,8 @@ public:
 	[[nodiscard]] int stargiftConvertPeriodMax() const;
 
 	[[nodiscard]] const std::vector<QString> &startRefPrefixes();
+	[[nodiscard]] bool starrefSetupAllowed() const;
+	[[nodiscard]] bool starrefJoinAllowed() const;
 
 	void refresh(bool force = false);
 

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "boxes/peer_list_box.h"
 #include "core/click_handler_types.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/bot/starref/info_bot_starref_common.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
@@ -678,6 +680,18 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	}, raw->lifetime());
 
 	return result;
+}
+
+bool Allowed(not_null<PeerData*> peer) {
+	if (!peer->session().appConfig().starrefJoinAllowed()) {
+		return false;
+	} else if (const auto user = peer->asUser()) {
+		return user->isSelf()
+			|| (user->isBot() && user->botInfo->canEditInformation);
+	} else if (const auto channel = peer->asChannel()) {
+		return channel->isBroadcast() && channel->canPostMessages();
+	}
+	return false;
 }
 
 std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {

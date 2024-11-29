@@ -80,6 +80,7 @@ private:
 
 };
 
+[[nodiscard]] bool Allowed(not_null<PeerData*> peer);
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
 
 } // namespace Info::BotStarRef::Setup

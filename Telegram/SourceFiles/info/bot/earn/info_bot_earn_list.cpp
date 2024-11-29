@@ -253,7 +253,7 @@ void InnerWidget::fill() {
 				return v ? ToUsd(v, multiplier, kMinorLength) : QString();
 			}));
 	}
-	{
+	if (BotStarRef::Join::Allowed(peer())) {
 		const auto button = BotStarRef::AddViewListButton(
 			container,
 			tr::lng_credits_summary_earn_title(),
