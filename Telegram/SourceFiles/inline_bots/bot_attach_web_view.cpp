@@ -1253,6 +1253,7 @@ void WebViewInstance::requestApp(bool allowWrite) {
 
 	using Flag = MTPmessages_RequestAppWebView::Flag;
 	const auto app = _app;
+	const auto title = app->title;
 	const auto flags = Flag::f_theme_params
 		| (_context.fullscreen ? Flag::f_fullscreen : Flag(0))
 		| (_appStartParam.isEmpty() ? Flag(0) : Flag::f_start_param)
@@ -1269,6 +1270,7 @@ void WebViewInstance::requestApp(bool allowWrite) {
 		const auto &data = result.data();
 		show({
 			.url = qs(data.vurl()),
+			.title = title,
 			.fullscreen = data.is_fullscreen(),
 		});
 	}).fail([=](const MTP::Error &error) {
@@ -1350,7 +1352,9 @@ void WebViewInstance::maybeChooseAndRequestButton(PeerTypes supported) {
 }
 
 void WebViewInstance::show(ShowArgs &&args) {
-	auto title = Info::Profile::NameValue(_bot);
+	auto title = args.title.isEmpty()
+		? Info::Profile::NameValue(_bot)
+		: rpl::single(args.title);
 	auto titleBadge = _bot->isVerified()
 		? object_ptr<Ui::RpWidget>(_parentShow->toastParent())
 		: nullptr;
