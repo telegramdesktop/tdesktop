@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "info/bot/starref/info_bot_starref_common.h" // MakePeerBubbleButton
 #include "info/profile/info_profile_values.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_confirm_prepared.h"
@@ -444,74 +445,32 @@ std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
 		not_null<QWidget*> parent,
 		not_null<PeerData*> peer,
 		not_null<DocumentData*> document) {
-	auto result = std::make_unique<Ui::RpWidget>(parent);
-
-	const auto size = st::chatGiveawayPeerSize;
-	const auto padding = st::chatGiveawayPeerPadding;
-
-	const auto raw = result.get();
-
-	const auto width = raw->lifetime().make_state<int>();
-	const auto name = raw->lifetime().make_state<Ui::FlatLabel>(
-		raw,
-		rpl::single(peer->name()),
-		st::botEmojiStatusName);
 	const auto makeContext = [=](Fn<void()> update) {
 		return Core::MarkedTextContext{
 			.session = &peer->session(),
 			.customEmojiRepaint = update,
 		};
 	};
-	const auto emoji = raw->lifetime().make_state<Ui::FlatLabel>(
-		raw,
-		rpl::single(
-			Ui::Text::SingleCustomEmoji(
-				Data::SerializeCustomEmojiId(document->id),
-				document->sticker() ? document->sticker()->alt : QString())),
-		st::botEmojiStatusEmoji,
-		st::defaultPopupMenu,
-		makeContext);
-	const auto userpic = raw->lifetime().make_state<Ui::UserpicButton>(
-		raw,
+	const auto emoji = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+		parent,
+		object_ptr<Ui::FlatLabel>(
+			parent,
+			rpl::single(
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(document->id),
+					(document->sticker()
+						? document->sticker()->alt
+						: QString()))),
+			st::botEmojiStatusEmoji,
+			st::defaultPopupMenu,
+			makeContext),
+		style::margins(st::normalFont->spacew, 0, 0, 0));
+
+	auto result = Info::BotStarRef::MakePeerBubbleButton(
+		parent,
 		peer,
-		st::botEmojiStatusUserpic);
-
-	raw->resize(size, size);
-	raw->sizeValue() | rpl::start_with_next([=](QSize outer) {
-		const auto full = outer.width();
-		const auto decorations = size
-			+ padding.left()
-			+ padding.right()
-			+ emoji->width()
-			+ st::normalFont->spacew;
-		const auto inner = full - decorations;
-		const auto use = std::min(inner, name->textMaxWidth());
-		*width = use + decorations;
-		const auto left = (full - *width) / 2;
-		if (inner > 0) {
-			userpic->moveToLeft(left, 0, outer.width());
-			emoji->moveToLeft(
-				left + *width - padding.right() - emoji->width(),
-				padding.top(),
-				outer.width());
-			name->resizeToWidth(use);
-			name->moveToLeft(
-				left + size + padding.left(),
-				padding.top(),
-				outer.width());
-		}
-	}, raw->lifetime());
-	raw->paintRequest() | rpl::start_with_next([=] {
-		auto p = QPainter(raw);
-		const auto left = (raw->width() - *width) / 2;
-		const auto skip = size / 2;
-		p.setClipRect(left + skip, 0, *width - skip, size);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgOver);
-		p.drawRoundedRect(left, 0, *width, size, skip, skip);
-	}, raw->lifetime());
-
+		emoji);
+	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;
 }
 

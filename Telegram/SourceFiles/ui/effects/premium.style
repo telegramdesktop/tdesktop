@@ -81,23 +81,32 @@ starrefCover: PremiumCover(userPremiumCover) {
 	titlePadding: margins(0px, 12px, 0px, 11px);
 }
 starrefCoverHeight: 180px;
+starrefFooterButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
 starrefFooterBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 11px, 22px, 54px);
 	buttonHeight: 42px;
-	button: RoundButton(defaultActiveButton) {
-		height: 42px;
-		textTop: 12px;
-		style: semiboldTextStyle;
-	}
+	button: starrefFooterButton;
 	shadowIgnoreTopSkip: true;
 }
+starrefCopyButton: RoundButton(starrefFooterButton) {
+	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_copy", activeButtonFgOver }};
+	iconPosition: point(-1px, 5px);
+}
+
 starrefJoinIcon: icon{{ "payments/small_star", premiumButtonFg }};
 starrefJoinUserpicsPadding: margins(0px, 32px, 0px, 10px);
 starrefJoinTitlePadding: margins(0px, 0px, 0px, 12px);
-starrefJoinFooter: FlatLabel(defaultFlatLabel) {
-	textFg: windowSubTextFg;
+starrefCenteredText: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	minWidth: 240px;
+}
+starrefJoinFooter: FlatLabel(starrefCenteredText) {
+	textFg: windowSubTextFg;
 }
 
 defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {

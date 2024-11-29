@@ -218,6 +218,8 @@ public:
 	[[nodiscard]] const Data::BusinessDetails &businessDetails() const;
 	void setBusinessDetails(Data::BusinessDetails details);
 
+	void setStarRefProgram(StarRefProgram program);
+
 	[[nodiscard]] ChannelId personalChannelId() const;
 	[[nodiscard]] MsgId personalChannelMessageId() const;
 	void setPersonalChannel(ChannelId channelId, MsgId messageId);
@@ -264,5 +266,8 @@ private:
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
+
+[[nodiscard]] StarRefProgram ParseStarRefProgram(
+	const MTPStarRefProgram *program);
 
 } // namespace Data

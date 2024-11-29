@@ -205,6 +205,16 @@ void UserData::setBusinessDetails(Data::BusinessDetails details) {
 	session().changes().peerUpdated(this, UpdateFlag::BusinessDetails);
 }
 
+void UserData::setStarRefProgram(StarRefProgram program) {
+	const auto info = botInfo.get();
+	if (info && info->starRefProgram != program) {
+		info->starRefProgram = program;
+		session().changes().peerUpdated(
+			this,
+			Data::PeerUpdate::Flag::StarRefProgram);
+	}
+}
+
 ChannelId UserData::personalChannelId() const {
 	return _personalChannelId;
 }
@@ -600,20 +610,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	}
 	if (const auto info = user->botInfo.get()) {
 		info->canManageEmojiStatus = update.is_bot_can_manage_emoji_status();
-		auto starRefProgram = StarRefProgram();
-		if (const auto program = update.vstarref_program()) {
-			const auto &data = program->data();
-			starRefProgram.commission = data.vcommission_permille().v;
-			starRefProgram.durationMonths
-				= data.vduration_months().value_or_empty();
-			starRefProgram.endDate = data.vend_date().value_or_empty();
-		}
-		if (info->starRefProgram != starRefProgram) {
-			info->starRefProgram = starRefProgram;
-			user->session().changes().peerUpdated(
-				user,
-				Data::PeerUpdate::Flag::StarRefProgram);
-		}
+		user->setStarRefProgram(
+			Data::ParseStarRefProgram(update.vstarref_program()));
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(user, pinned->v);
@@ -731,6 +729,18 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->owner().stories().apply(user, update.vstories());
 
 	user->fullUpdated();
+}
+
+StarRefProgram ParseStarRefProgram(const MTPStarRefProgram *program) {
+	if (!program) {
+		return {};
+	}
+	auto result = StarRefProgram();
+	const auto &data = program->data();
+	result.commission = data.vcommission_permille().v;
+	result.durationMonths = data.vduration_months().value_or_empty();
+	result.endDate = data.vend_date().value_or_empty();
+	return result;
 }
 
 } // namespace Data

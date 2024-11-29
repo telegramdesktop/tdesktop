@@ -579,16 +579,15 @@ void InnerWidget::setupEnd() {
 			user->inputUser,
 			MTP_int(0),
 			MTP_int(0)
-		)).done([=] {
-			user->botInfo->starRefProgram.commission = 0;
-			user->botInfo->starRefProgram.durationMonths = 0;
-			user->updateFullForced();
-			if (weak) {
-				_controller->showToast("Removed!");
-				_controller->showBackFromStack();
+		)).done([=](const MTPStarRefProgram &result) {
+			user->setStarRefProgram(Data::ParseStarRefProgram(&result));
+			if (const auto controller = weak ? _controller.get() : nullptr) {
+				const auto window = controller->parentController();
+				controller->showBackFromStack();
+				window->showToast("Removed!");
 			}
-		}).fail(crl::guard(weak, [=] {
-			_controller->showToast("Remove failed!");
+		}).fail(crl::guard(weak, [=](const MTP::Error &error) {
+			_controller->showToast(u"Failed: "_q + error.type());
 		})).send();
 	});
 	Ui::AddSkip(_container);
