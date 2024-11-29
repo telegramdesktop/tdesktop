@@ -84,13 +84,16 @@ QImage MenuIconCurrency(const QSize &size) {
 			w * 2),
 		Qt::white);
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-	const auto i = IconCurrencyColored(
-		st::inviteLinkSubscribeBoxTerms.style.font,
-		st::infoIconFg->c);
-	p.drawImage(
-		(size.width() - i.width() / style::DevicePixelRatio()) / 2,
-		(size.height() - i.height() / style::DevicePixelRatio()) / 2,
-		i);
+
+	const auto s = Size(st::inviteLinkSubscribeBoxTerms.style.font->ascent);
+	auto svg = QSvgRenderer(CurrencySvg(st::infoIconFg->c));
+	svg.render(
+		&p,
+		QRectF(
+			(size.width() - s.width()) / 2.,
+			(size.height() - s.height()) / 2.,
+			s.width(),
+			s.height()));
 	return image;
 }
 
