@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_common_adapters.h"
 #include "base/qt/qt_string_view.h"
 
+#include <QtCore/QLocale>
+
 namespace Lang {
 namespace {
 
@@ -943,11 +945,11 @@ ShortenedCount FormatCountToShort(int64 number) {
 }
 
 QString FormatCountDecimal(int64 number) {
-	return QString("%L1").arg(number);
+	return QLocale().toString(number);
 }
 
 QString FormatExactCountDecimal(float64 number) {
-	return QString("%L1").arg(number);
+	return QLocale().toString(number, 'f', QLocale::FloatingPointShortest);
 }
 
 ShortenedCount FormatStarsAmountToShort(StarsAmount amount) {
