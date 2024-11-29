@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/requests_list/info_requests_list_widget.h"
 
 #include "boxes/peers/edit_peer_requests_box.h"
-#include "data/data_channel.h"
 #include "info/info_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
@@ -28,10 +27,10 @@ public:
 	InnerWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
-		not_null<ChannelData*> channel);
+		not_null<PeerData*> peer);
 
-	[[nodiscard]] not_null<ChannelData*> channel() const {
-		return _channel;
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
 	}
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
@@ -67,7 +66,7 @@ private:
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	not_null<Controller*> _controller;
-	const not_null<ChannelData*> _channel;
+	const not_null<PeerData*> _peer;
 	std::unique_ptr<RequestsBoxController> _listController;
 	object_ptr<ListWidget> _list;
 
@@ -77,14 +76,14 @@ private:
 InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<ChannelData*> channel)
+	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _show(controller->uiShow())
 , _controller(controller)
-, _channel(channel)
+, _peer(peer)
 , _listController(std::make_unique<RequestsBoxController>(
 	controller,
-	_channel))
+	_peer))
 , _list(setupList(this, _listController.get())) {
 	setContent(_list.data());
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
@@ -188,23 +187,19 @@ std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
 	return _show;
 }
 
-Memento::Memento(not_null<ChannelData*> channel)
-: ContentMemento(channel, nullptr, PeerId()) {
+Memento::Memento(not_null<PeerData*> peer)
+: ContentMemento(peer, nullptr, PeerId()) {
 }
 
 Section Memento::section() const {
 	return Section(Section::Type::RequestsList);
 }
 
-not_null<ChannelData*> Memento::channel() const {
-	return peer()->asChannel();
-}
-
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller, channel());
+	auto result = object_ptr<Widget>(parent, controller, peer());
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -222,21 +217,18 @@ Memento::~Memento() = default;
 Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<ChannelData*> channel)
+	not_null<PeerData*> peer)
 : ContentWidget(parent, controller) {
 	controller->setSearchEnabledByContent(true);
-	_inner = setInnerWidget(object_ptr<InnerWidget>(
-		this,
-		controller,
-		channel));
+	_inner = setInnerWidget(object_ptr<InnerWidget>(this, controller, peer));
 }
 
 rpl::producer<QString> Widget::title() {
 	return tr::lng_manage_peer_requests();
 }
 
-not_null<ChannelData*> Widget::channel() const {
-	return _inner->channel();
+not_null<PeerData*> Widget::peer() const {
+	return _inner->peer();
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
@@ -244,7 +236,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto requestsMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (requestsMemento->channel() == channel()) {
+		if (requestsMemento->peer() == peer()) {
 			restoreState(requestsMemento);
 			return true;
 		}
@@ -261,7 +253,7 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(channel());
+	auto result = std::make_shared<Memento>(peer());
 	saveState(result.get());
 	return result;
 }

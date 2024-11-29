@@ -171,7 +171,7 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		return std::make_shared<SimilarChannels::Memento>(
 			peer->asChannel());
 	case Section::Type::RequestsList:
-		return std::make_shared<RequestsList::Memento>(peer->asChannel());
+		return std::make_shared<RequestsList::Memento>(peer);
 	case Section::Type::PeerGifts:
 		return std::make_shared<PeerGifts::Memento>(peer->asUser());
 	case Section::Type::SavedSublists:
