@@ -390,7 +390,7 @@ rpl::producer<not_null<QKeyEvent*>> TopBar::keyEvents() const {
 }
 
 void TopBar::setInnerFocus() {
-	if (Ui::InFocusChain(_select)) {
+	if (Ui::AppInFocus() && Ui::InFocusChain(_select->window())) {
 		_select->setInnerFocus();
 	}
 }
@@ -1035,7 +1035,7 @@ ComposeSearch::Inner::Inner(
 }
 
 void ComposeSearch::Inner::setInnerFocus() {
-	if (Ui::InFocusChain(_topBar)) {
+	if (Ui::AppInFocus() && Ui::InFocusChain(_topBar->window())) {
 		_topBar->setInnerFocus();
 	}
 }
