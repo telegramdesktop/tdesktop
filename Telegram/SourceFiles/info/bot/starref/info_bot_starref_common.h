@@ -16,6 +16,7 @@ class RoundButton;
 class VerticalLayout;
 class BoxContent;
 class RpWidget;
+class Show;
 } // namespace Ui
 
 namespace style {
@@ -65,11 +66,17 @@ void AddFullWidthButtonFooter(
 	ConnectedBot row,
 	not_null<PeerData*> peer,
 	Fn<void(ConnectedBotState)> done);
+[[nodiscard]] object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish);
 
 std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	not_null<QWidget*> parent,
 	not_null<PeerData*> peer,
 	Ui::RpWidget *right = nullptr);
+
+void FinishProgram(
+	std::shared_ptr<Ui::Show> show,
+	not_null<UserData*> bot,
+	Fn<void()> removed);
 
 [[nodiscard]] ConnectedBots Parse(
 	not_null<Main::Session*> session,

@@ -69,6 +69,8 @@ public:
 	[[nodiscard]] const std::vector<QString> &startRefPrefixes();
 	[[nodiscard]] bool starrefSetupAllowed() const;
 	[[nodiscard]] bool starrefJoinAllowed() const;
+	[[nodiscard]] int starrefCommissionMin() const;
+	[[nodiscard]] int starrefCommissionMax() const;
 
 	void refresh(bool force = false);
 

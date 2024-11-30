@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
@@ -295,6 +296,24 @@ void ListController::open(not_null<UserData*> bot, ConnectedBotState state) {
 	}
 }
 
+void RevokeLink(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		const QString &link) {
+	peer->session().api().request(MTPpayments_EditConnectedStarRefBot(
+		MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
+		peer->input,
+		MTP_string(link)
+	)).done([=] {
+		controller->showToast({
+			.title = tr::lng_star_ref_revoked_title(tr::now),
+			.text = tr::lng_star_ref_revoked_text(tr::now),
+		});
+	}).fail([=](const MTP::Error &error) {
+		controller->showToast(u"Failed: "_q + error.type());
+	}).send();
+}
+
 base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
@@ -316,15 +335,19 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 			_controller->showToast(tr::lng_username_copied(tr::now));
 		}, &st::menuIconLinks);
 		const auto revoke = [=] {
-			session().api().request(MTPpayments_EditConnectedStarRefBot(
-				MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
-				_peer->input,
-				MTP_string(state.link)
-			)).done([=] {
-				_controller->showToast(u"Revoked!"_q);
-			}).fail([=](const MTP::Error &error) {
-				_controller->showToast(u"Failed: "_q + error.type());
-			}).send();
+			const auto link = state.link;
+			const auto sure = [=](Fn<void()> close) {
+				RevokeLink(_controller, _peer, link);
+				close();
+			};
+			_controller->show(Ui::MakeConfirmBox({
+				.text = tr::lng_star_ref_revoke_text(
+					lt_bot,
+					rpl::single(Ui::Text::Bold(bot->name())),
+					Ui::Text::RichLangValue),
+				.confirmed = sure,
+				.title = tr::lng_star_ref_revoke_title(),
+			}));
 		};
 		addAction({
 			.text = tr::lng_star_ref_list_my_leave(tr::now),

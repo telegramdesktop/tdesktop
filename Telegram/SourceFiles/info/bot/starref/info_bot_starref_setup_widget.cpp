@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
@@ -619,15 +620,31 @@ void InnerWidget::setupCommission() {
 	Ui::AddSkip(_container);
 	Ui::AddSubsectionTitle(_container, tr::lng_star_ref_commission_title());
 
-	const auto commission = ValueForCommission(_state);
+	const auto appConfig = &_controller->session().appConfig();
+	const auto commissionMin = std::clamp(
+		appConfig->starrefCommissionMin(),
+		1,
+		998);
+	const auto commissionMax = std::clamp(
+		appConfig->starrefCommissionMax(),
+		commissionMin + 1,
+		999);
+	const auto commission = std::clamp(
+		ValueForCommission(_state),
+		commissionMin,
+		commissionMax);
+
+	auto valueMin = (commissionMin + 9) / 10;
+	auto valueMax = commissionMax / 10;
 
 	auto values = std::vector<int>();
-	if (commission > 0 && commission < 10) {
+	if (commission < valueMin * 10) {
 		values.push_back(commission);
 	}
-	for (auto i = 1; i != 91; ++i) {
+	for (auto i = valueMin; i != valueMax + 1; ++i) {
 		values.push_back(i * 10);
-		if (i * 10 < commission && (i == 90 || (i + 1) * 10 > commission)) {
+		if (i * 10 < commission
+			&& (i == valueMax || (i + 1) * 10 > commission)) {
 			values.push_back(commission);
 		}
 	}
@@ -721,24 +738,21 @@ void InnerWidget::setupEnd() {
 		tr::lng_star_ref_end(),
 		st::settingsAttentionButton));
 	end->setClickedCallback([=] {
-		using Flag = MTPbots_UpdateStarRefProgram::Flag;
-		const auto user = _state.user;
 		const auto weak = Ui::MakeWeak(this);
-		user->session().api().request(MTPbots_UpdateStarRefProgram(
-			MTP_flags(0),
-			user->inputUser,
-			MTP_int(0),
-			MTP_int(0)
-		)).done([=](const MTPStarRefProgram &result) {
-			user->setStarRefProgram(Data::ParseStarRefProgram(&result));
-			if (const auto controller = weak ? _controller.get() : nullptr) {
-				const auto window = controller->parentController();
-				controller->showBackFromStack();
-				window->showToast("Removed!");
-			}
-		}).fail(crl::guard(weak, [=](const MTP::Error &error) {
-			_controller->showToast(u"Failed: "_q + error.type());
-		})).send();
+		const auto window = _controller->parentController();
+		window->show(ConfirmEndBox([=] {
+			FinishProgram(_controller->uiShow(), _state.user, [=] {
+				if (const auto strong = weak.data()) {
+					_controller->showBackFromStack();
+					window->showToast({
+						.title = tr::lng_star_ref_ended_title(tr::now),
+						.text = tr::lng_star_ref_ended_text(
+							tr::now,
+							Ui::Text::RichLangValue),
+					});
+				}
+			});
+		}));
 	});
 	Ui::AddSkip(_container);
 	Ui::AddDivider(_container);

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
@@ -398,6 +399,52 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 	});
 }
 
+object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish) {
+	return Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_star_ref_warning_title());
+		const auto skip = st::defaultVerticalListSkip;
+		const auto margins = st::boxRowPadding + QMargins(0, 0, 0, skip);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_star_ref_warning_if_end(Ui::Text::RichLangValue),
+				st::boxLabel),
+			margins);
+		const auto addPoint = [&](tr::phrase<> text) {
+			const auto padded = box->addRow(
+				object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+					box,
+					object_ptr<Ui::FlatLabel>(
+						box,
+						text(Ui::Text::RichLangValue),
+						st::boxLabel),
+					QMargins(st::boxTextFont->height, 0, 0, 0)),
+				margins);
+			padded->paintRequest() | rpl::start_with_next([=] {
+				auto p = QPainter(padded);
+				auto hq = PainterHighQualityEnabler(p);
+				const auto size = st::boxTextFont->spacew;
+				const auto top = (st::boxTextFont->height - size) / 2;
+				p.setBrush(st::windowFg);
+				p.setPen(Qt::NoPen);
+				p.drawEllipse(0, top, size, size);
+			}, padded->lifetime());
+		};
+		addPoint(tr::lng_star_ref_warning_if_end1);
+		addPoint(tr::lng_star_ref_warning_if_end2);
+		addPoint(tr::lng_star_ref_warning_if_end3);
+		const auto done = [=] {
+			box->closeBox();
+			finish();
+		};
+		box->addButton(
+			tr::lng_star_ref_warning_end(),
+			done,
+			st::attentionBoxButton);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	});
+}
+
 std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 		not_null<QWidget*> parent,
 		not_null<PeerData*> peer,
@@ -471,6 +518,24 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 
 	return result;
 }
+
+void FinishProgram(
+		std::shared_ptr<Ui::Show> show,
+		not_null<UserData*> bot,
+		Fn<void()> finished) {
+	bot->session().api().request(MTPbots_UpdateStarRefProgram(
+		MTP_flags(0),
+		bot->inputUser,
+		MTP_int(0),
+		MTP_int(0)
+	)).done([=](const MTPStarRefProgram &result) {
+		bot->setStarRefProgram(Data::ParseStarRefProgram(&result));
+		finished();
+	}).fail([=](const MTP::Error &error) {
+		show->showToast(u"Failed: "_q + error.type());
+	}).send();
+}
+
 ConnectedBots Parse(
 		not_null<Main::Session*> session,
 		const MTPpayments_ConnectedStarRefBots &bots) {

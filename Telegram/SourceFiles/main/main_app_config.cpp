@@ -65,6 +65,14 @@ bool AppConfig::starrefJoinAllowed() const {
 	return get<bool>(u"starref_connect_allowed"_q, false);
 }
 
+int AppConfig::starrefCommissionMin() const {
+	return get<int>(u"starref_min_commission_permille"_q, 1);
+}
+
+int AppConfig::starrefCommissionMax() const {
+	return get<int>(u"starref_max_commission_permille"_q, 900);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {
