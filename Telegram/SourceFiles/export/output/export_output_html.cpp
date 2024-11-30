@@ -1549,6 +1549,7 @@ auto HtmlWriter::Wrap::pushMessage(
 			block.append(popTag());
 		}
 		block.append(popTag());
+		block.append(popTag());
 	}
 	if (!message.signature.isEmpty()) {
 		block.append(pushDiv("signature details"));
