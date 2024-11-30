@@ -89,15 +89,10 @@ public:
 }
 
 [[nodiscard]] ColorFactory GenerateReplyColorCallback(
+		not_null<Window::SessionController*> controller,
 		not_null<RpWidget*> widget,
 		FullMsgId fullId,
 		int colorIndex) {
-	const auto controller = FindSessionController(widget);
-	if (!controller) {
-		return []() -> Colors {
-			return { st::windowBgActive->c, st::windowActiveTextFg->c };
-		};
-	}
 	const auto peer = controller->session().data().peer(fullId.peer);
 	struct State final {
 		std::shared_ptr<Ui::ChatTheme> theme;
@@ -112,7 +107,10 @@ public:
 
 	return [=]() -> Colors {
 		if (!state->theme) {
-			return { st::windowBgActive->c, st::windowActiveTextFg->c };
+			return {
+				anim::with_alpha(st::windowBgActive->c, .15),
+				st::windowActiveTextFg->c,
+			};
 		}
 		const auto context = controller->preparePaintContext({
 			.theme = state->theme.get(),
@@ -122,6 +120,33 @@ public:
 			selected,
 			colorIndex);
 		return { cache->bg, cache->icon };
+	};
+}
+
+[[nodiscard]] ColorFactory GenerateReplyColorCallback(
+		not_null<RpWidget*> widget,
+		FullMsgId fullId,
+		int colorIndex) {
+	if (const auto window = FindSessionController(widget)) {
+		return GenerateReplyColorCallback(window, widget, fullId, colorIndex);
+	}
+	const auto window
+		= widget->lifetime().make_state<Window::SessionController*>();
+	const auto callback = widget->lifetime().make_state<ColorFactory>();
+	return [=, color = colorIndex]() -> Colors {
+		if (*callback) {
+			return (*callback)();
+		}
+		*window = FindSessionController(widget);
+		if (const auto w = (*window)) {
+			*callback = GenerateReplyColorCallback(w, widget, fullId, color);
+			return (*callback)();
+		} else {
+			return {
+				anim::with_alpha(st::windowBgActive->c, .15),
+				st::windowActiveTextFg->c,
+			};
+		}
 	};
 }
 
