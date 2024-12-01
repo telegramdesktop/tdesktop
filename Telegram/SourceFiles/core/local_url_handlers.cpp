@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_privacy_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/sticker_set_box.h"
-#include "boxes/sessions_box.h"
 #include "boxes/star_gift_box.h"
 #include "boxes/language_box.h"
 #include "passport/passport_form_controller.h"
@@ -51,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "payments/payments_checkout_process.h"
+#include "settings/settings_active_sessions.h"
 #include "settings/settings_credits.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_information.h"

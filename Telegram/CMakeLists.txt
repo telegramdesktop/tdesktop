@@ -322,8 +322,6 @@ PRIVATE
     boxes/send_gif_with_caption_box.h
     boxes/send_files_box.cpp
     boxes/send_files_box.h
-    boxes/sessions_box.cpp
-    boxes/sessions_box.h
     boxes/share_box.cpp
     boxes/share_box.h
     boxes/star_gift_box.cpp
@@ -1405,6 +1403,8 @@ PRIVATE
     settings/cloud_password/settings_cloud_password_manage.h
     settings/cloud_password/settings_cloud_password_start.cpp
     settings/cloud_password/settings_cloud_password_start.h
+    settings/settings_active_sessions.cpp
+    settings/settings_active_sessions.h
     settings/settings_advanced.cpp
     settings/settings_advanced.h
     settings/settings_blocked_peers.cpp
