@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_filters.h"
 
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
@@ -548,6 +549,26 @@ void ShowImportToast(
 	strong->showToast(std::move(text));
 }
 
+void HandleEnterInBox(not_null<Ui::BoxContent*> box) {
+	const auto isEnter = [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::KeyPress) {
+			if (const auto k = static_cast<QKeyEvent*>(event.get())) {
+				return (k->key() == Qt::Key_Enter)
+					|| (k->key() == Qt::Key_Return);
+			}
+		}
+		return false;
+	};
+
+	base::install_event_filter(box, [=](not_null<QEvent*> event) {
+		if (isEnter(event)) {
+			box->triggerButton(0);
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+}
+
 void ProcessFilterInvite(
 		base::weak_ptr<Window::SessionController> weak,
 		const QString &slug,
@@ -609,6 +630,8 @@ void ProcessFilterInvite(
 		}, button->lifetime());
 
 		box->addButton(std::move(owned));
+
+		HandleEnterInBox(box);
 
 		struct State {
 			bool importing = false;
@@ -828,6 +851,8 @@ void ProcessFilterRemove(
 		}, button->lifetime());
 
 		box->addButton(std::move(owned));
+
+		HandleEnterInBox(box);
 
 		raw->selectedValue(
 		) | rpl::start_with_next([=](
