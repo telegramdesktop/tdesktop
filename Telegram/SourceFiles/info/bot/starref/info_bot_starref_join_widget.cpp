@@ -57,6 +57,7 @@ constexpr auto kPerPage = 50;
 enum class JoinType {
 	Joined,
 	Suggested,
+	Existing,
 };
 
 class ListController final
@@ -79,12 +80,14 @@ public:
 
 	[[nodiscard]] rpl::producer<int> rowCountValue() const;
 	[[nodiscard]] rpl::producer<ConnectedBot> connected() const;
+	[[nodiscard]] rpl::producer<> addForBotRequests() const;
 
 	void process(ConnectedBot row);
 
 private:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(ConnectedBot bot);
 	void open(not_null<UserData*> bot, ConnectedBotState state);
+	void setupAddForBot();
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
@@ -95,6 +98,7 @@ private:
 	UserData *_openOnResolve = nullptr;
 
 	rpl::event_stream<ConnectedBot> _connected;
+	rpl::event_stream<> _addForBot;
 
 	mtpRequestId _requestId = 0;
 	TimeId _offsetDate = 0;
@@ -171,15 +175,16 @@ void ListController::loadMoreRows() {
 		return;
 	} else if (_type == JoinType::Joined) {
 		using Flag = MTPpayments_GetConnectedStarRefBots::Flag;
-		_requestId = session().api().request(MTPpayments_GetConnectedStarRefBots(
-			MTP_flags(Flag()
-				| (_offsetDate ? Flag::f_offset_date : Flag())
-				| (_offsetThing.isEmpty() ? Flag() : Flag::f_offset_link)),
-			_peer->input,
-			MTP_int(_offsetDate),
-			MTP_string(_offsetThing),
-			MTP_int(kPerPage)
-		)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
+		_requestId = session().api().request(
+			MTPpayments_GetConnectedStarRefBots(
+				MTP_flags(Flag()
+					| (_offsetDate ? Flag::f_offset_date : Flag())
+					| (_offsetThing.isEmpty() ? Flag() : Flag::f_offset_link)),
+				_peer->input,
+				MTP_int(_offsetDate),
+				MTP_string(_offsetThing),
+				MTP_int(kPerPage))
+		).done([=](const MTPpayments_ConnectedStarRefBots &result) {
 			const auto parsed = Parse(&session(), result);
 			if (parsed.empty()) {
 				_allLoaded = true;
@@ -195,6 +200,9 @@ void ListController::loadMoreRows() {
 			_requestId = 0;
 		}).send();
 	} else {
+		if (_type == JoinType::Existing) {
+			setDescriptionText(tr::lng_contacts_loading(tr::now));
+		}
 		using Flag = MTPpayments_GetSuggestedStarRefBots::Flag;
 		_requestId = session().api().request(
 			MTPpayments_GetSuggestedStarRefBots(
@@ -203,6 +211,9 @@ void ListController::loadMoreRows() {
 				MTP_string(_offsetThing),
 				MTP_int(kPerPage))
 		).done([=](const MTPpayments_SuggestedStarRefBots &result) {
+			setDescriptionText(QString());
+			setupAddForBot();
+
 			const auto &data = result.data();
 			if (data.vnext_offset()) {
 				_offsetThing = qs(*data.vnext_offset());
@@ -210,20 +221,13 @@ void ListController::loadMoreRows() {
 				_allLoaded = true;
 			}
 			session().data().processUsers(data.vusers());
-			for (const auto &bot : data.vsuggested_bots().v) {
-				const auto &data = bot.data();
-				const auto botId = UserId(data.vbot_id());
-				const auto commission = data.vcommission_permille().v;
-				const auto durationMonths
-					= data.vduration_months().value_or_empty();
+			for (const auto &program : data.vsuggested_bots().v) {
+				const auto botId = UserId(program.data().vbot_id());
 				const auto user = session().data().user(botId);
 				delegate()->peerListAppendRow(createRow({
 					.bot = user,
 					.state = {
-						.program = {
-							.commission = ushort(commission),
-							.durationMonths = uchar(durationMonths),
-						},
+						.program = Data::ParseStarRefProgram(&program),
 						.unresolved = true,
 					},
 				}));
@@ -238,12 +242,56 @@ void ListController::loadMoreRows() {
 	}
 }
 
+void ListController::setupAddForBot() {
+	const auto user = _peer->asUser();
+	if (_type != JoinType::Existing
+		|| !user
+		|| !user->isBot()
+		|| user->botInfo->starRefProgram.commission > 0) {
+		return;
+	}
+	auto button = object_ptr<Ui::PaddingWrap<Ui::SettingsButton>>(
+		nullptr,
+		object_ptr<Ui::SettingsButton>(
+			nullptr,
+			tr::lng_star_ref_add_bot(lt_bot, rpl::single(user->name())),
+			st::inviteViaLinkButton),
+		style::margins(0, st::membersMarginTop, 0, 0));
+
+	const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
+		button->entity(),
+		st::starrefAddForBotIcon,
+		QPoint());
+	button->entity()->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		icon->moveToLeft(
+			st::starrefAddForBotIconPosition.x(),
+			(height - st::starrefAddForBotIcon.height()) / 2);
+	}, icon->lifetime());
+
+	button->entity()->setClickedCallback([=] {
+		_addForBot.fire({});
+	});
+	button->entity()->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Enter);
+	}) | rpl::start_with_next([=] {
+		delegate()->peerListMouseLeftGeometry();
+	}, button->lifetime());
+	delegate()->peerListSetAboveWidget(std::move(button));
+	delegate()->peerListRefreshRows();
+}
+
 rpl::producer<int> ListController::rowCountValue() const {
 	return _rowCount.value();
 }
 
 rpl::producer<ConnectedBot> ListController::connected() const {
 	return _connected.events();
+}
+
+rpl::producer<> ListController::addForBotRequests() const {
+	return _addForBot.events();
 }
 
 void ListController::process(ConnectedBot row) {
@@ -720,19 +768,27 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 }
 
 object_ptr<Ui::BoxContent> ProgramsListBox(
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer) {
+	const auto weak = std::make_shared<QPointer<PeerListBox>>();
 	const auto initBox = [=](not_null<PeerListBox*> box) {
+		*weak = box;
 		box->addButton(tr::lng_close(), [=] {
 			box->closeBox();
 		});
 	};
-	return Box<PeerListBox>(
-		std::make_unique<ListController>(
-			controller,
-			peer,
-			JoinType::Suggested),
-		initBox);
+
+	auto controller = std::make_unique<ListController>(
+		window,
+		peer,
+		JoinType::Existing);
+	controller->addForBotRequests() | rpl::start_with_next([=] {
+		if (const auto strong = weak->data()) {
+			strong->closeBox();
+		}
+	}, controller->lifetime());
+
+	return Box<PeerListBox>(std::move(controller), initBox);
 }
 
 } // namespace Info::BotStarRef::Join

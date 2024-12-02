@@ -1641,6 +1641,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_duration_about" = "Set the duration for which affiliates will earn commissions from referred users.";
 "lng_star_ref_existing_title" = "View existing programs";
 "lng_star_ref_existing_about" = "Explore what other mini apps offer.";
+"lng_star_ref_add_bot" = "Add {bot}";
 "lng_star_ref_end" = "End Affiliate Program";
 "lng_star_ref_start" = "Start Affiliate Program";
 "lng_star_ref_start_disabled" = "Available in {time}";
@@ -1690,6 +1691,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_one_about_for_months#other" = "for **{count} months**";
 "lng_star_ref_one_about_for_years#one" = "for **{count} year**";
 "lng_star_ref_one_about_for_years#other" = "for **{count} years**";
+"lng_star_ref_one_daily_revenue" = "Daily revenue per user: {amount}";
 "lng_star_ref_one_join" = "Join Program";
 "lng_star_ref_one_join_text" = "By joining this program, you agree to the {terms} of Affiliate Programs.";
 "lng_star_ref_joined_title" = "Program joined";

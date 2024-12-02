@@ -441,6 +441,11 @@ starrefCenteredText: FlatLabel(defaultFlatLabel) {
 starrefJoinFooter: FlatLabel(starrefCenteredText) {
 	textFg: windowSubTextFg;
 }
+starrefRevenueText: FlatLabel(starrefCenteredText) {
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: creditsBg1;
+	}
+}
 
 starrefInfoIconPosition: point(16px, 8px);
 starrefBottomButton: RoundButton(defaultActiveButton) {
@@ -470,3 +475,6 @@ starrefLinkCountIcon: icon{{ "chat/mini_subscribers", historyPeerUserpicFg }};
 starrefLinkCountIconPosition: point(0px, 1px);
 starrefLinkCountFont: font(10px bold);
 starrefLinkCountPadding: margins(2px, 0px, 3px, 1px);
+
+starrefAddForBotIcon: icon {{ "menu/bot_add", lightButtonFg }};
+starrefAddForBotIconPosition: point(23px, 2px);

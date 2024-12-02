@@ -739,6 +739,9 @@ StarRefProgram ParseStarRefProgram(const MTPStarRefProgram *program) {
 	const auto &data = program->data();
 	result.commission = data.vcommission_permille().v;
 	result.durationMonths = data.vduration_months().value_or_empty();
+	result.revenuePerUser = data.vdaily_revenue_per_user()
+		? Data::FromTL(*data.vdaily_revenue_per_user())
+		: StarsAmount();
 	result.endDate = data.vend_date().value_or_empty();
 	return result;
 }

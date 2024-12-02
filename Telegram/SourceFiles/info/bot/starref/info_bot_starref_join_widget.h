@@ -83,7 +83,7 @@ private:
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
 
 [[nodiscard]] object_ptr<Ui::BoxContent> ProgramsListBox(
-	not_null<Window::SessionController*> controller,
+	not_null<Window::SessionController*> window,
 	not_null<PeerData*> peer);
 
 } // namespace Info::BotStarRef::Join

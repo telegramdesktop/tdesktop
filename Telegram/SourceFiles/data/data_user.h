@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "core/stars_amount.h"
 #include "data/data_birthday.h"
 #include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
@@ -20,6 +21,7 @@ struct BusinessDetails;
 } // namespace Data
 
 struct StarRefProgram {
+	StarsAmount revenuePerUser;
 	TimeId endDate = 0;
 	ushort commission = 0;
 	uint8 durationMonths = 0;

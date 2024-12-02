@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/peers/replace_boost_box.h" // CreateUserpicsTransfer.
+#include "boxes/send_credits_box.h" // Ui::CreditsEmoji.
 #include "chat_helpers/stickers_lottie.h"
+#include "core/ui_integration.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_sticker.h"
@@ -499,8 +501,32 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 				st::starrefCenteredText),
 			st::boxRowPadding);
 
-		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 4);
-
+		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
+		if (const auto average = program.revenuePerUser) {
+			const auto layout = box->verticalLayout();
+			const auto session = &peer->session();
+			const auto makeContext = [session](Fn<void()> update) {
+				return Core::MarkedTextContext{
+					.session = session,
+					.customEmojiRepaint = std::move(update),
+				};
+			};
+			auto text = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+			text.append(Lang::FormatStarsAmountDecimal(average));
+			layout->add(
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_star_ref_one_daily_revenue(
+						lt_amount,
+						rpl::single(Ui::Text::Wrapped(text, EntityType::Bold)),
+						Ui::Text::WithEntities),
+					st::starrefRevenueText,
+					st::defaultPopupMenu,
+					makeContext),
+				st::boxRowPadding);
+			Ui::AddSkip(layout, st::defaultVerticalListSkip);
+		}
+#if 0
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
@@ -510,6 +536,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		box->addRow(object_ptr<Ui::AbstractButton>::fromRaw(
 			MakePeerBubbleButton(box, peer).release()
 		))->setAttribute(Qt::WA_TransparentForMouseEvents);
+#endif
 
 		struct State {
 			QPointer<Ui::GenericBox> weak;
