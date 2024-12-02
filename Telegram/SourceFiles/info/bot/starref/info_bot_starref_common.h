@@ -66,7 +66,7 @@ void AddFullWidthButtonFooter(
 [[nodiscard]] object_ptr<Ui::BoxContent> JoinStarRefBox(
 	ConnectedBot row,
 	not_null<PeerData*> peer,
-	Fn<void(ConnectedBotState)> done);
+	Fn<void(ConnectedBotState)> done = nullptr);
 [[nodiscard]] object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish);
 
 std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(

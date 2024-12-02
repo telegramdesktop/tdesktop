@@ -524,7 +524,9 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 			}
 			state->sent = true;
 			ConnectStarRef(bot->asUser(), peer, [=](ConnectedBot info) {
-				done(info.state);
+				if (const auto onstack = done) {
+					onstack(info.state);
+				}
 				show->show(StarRefLinkBox(info, peer));
 				if (const auto strong = state->weak.data()) {
 					strong->closeBox();
