@@ -436,7 +436,7 @@ starrefJoinUserpicsPadding: margins(0px, 32px, 0px, 10px);
 starrefJoinTitlePadding: margins(0px, 0px, 0px, 12px);
 starrefCenteredText: FlatLabel(defaultFlatLabel) {
 	align: align(top);
-	minWidth: 240px;
+	minWidth: 40px;
 }
 starrefJoinFooter: FlatLabel(starrefCenteredText) {
 	textFg: windowSubTextFg;

@@ -296,6 +296,7 @@ void AddFullWidthButtonFooter(
 		button->parentWidget(),
 		std::move(text),
 		st::starrefJoinFooter);
+	footer->setTryMakeSimilarLines(true);
 	button->geometryValue() | rpl::start_with_next([=](QRect geometry) {
 		footer->resizeToWidth(geometry.width());
 		const auto &st = box->getDelegate()->style();
