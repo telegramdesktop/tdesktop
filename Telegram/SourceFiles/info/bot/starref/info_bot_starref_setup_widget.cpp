@@ -740,9 +740,18 @@ void InnerWidget::setupEnd() {
 	end->setClickedCallback([=] {
 		const auto weak = Ui::MakeWeak(this);
 		const auto window = _controller->parentController();
+		const auto sent = std::make_shared<bool>();
 		window->show(ConfirmEndBox([=] {
-			FinishProgram(_controller->uiShow(), _state.user, [=] {
-				if (const auto strong = weak.data()) {
+			if (*sent) {
+				return;
+			}
+			*sent = true;
+			const auto show = _controller->uiShow();
+			FinishProgram(show, _state.user, [=](bool success) {
+				*sent = false;
+				if (!success) {
+					return;
+				} else if (const auto strong = weak.data()) {
 					_controller->showBackFromStack();
 					window->showToast({
 						.title = tr::lng_star_ref_ended_title(tr::now),
@@ -1004,28 +1013,30 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 			st::boxDividerLabel),
 		QMargins(margins.left(), 0, margins.right(), 0));
 	save->setClickedCallback([=] {
+		const auto weak = Ui::MakeWeak(this);
 		const auto user = _state->user;
-		const auto program = StarRefProgram{
-			.commission = _state->program.commission,
-			.durationMonths = _state->program.durationMonths,
-		};
-
+		const auto program = _state->program;
 		const auto show = controller()->uiShow();
 		const auto exists = _state->exists;
-		UpdateProgram(show, user, program, crl::guard(this, [=] {
-			controller()->showBackFromStack();
-			show->showToast({
-				.title = (exists
-					? tr::lng_star_ref_updated_title
-					: tr::lng_star_ref_created_title)(tr::now),
-				.text = (exists
-					? tr::lng_star_ref_updated_text
-					: tr::lng_star_ref_created_text)(
-						tr::now,
-						Ui::Text::RichLangValue),
-				.duration = Ui::Toast::kDefaultDuration * 3,
+		ConfirmUpdate(show, user, program, exists, [=](Fn<void(bool)> done) {
+			UpdateProgram(show, user, program, [=](bool success) {
+				done(success);
+				if (weak) {
+					controller()->showBackFromStack();
+				}
+				show->showToast({
+					.title = (exists
+						? tr::lng_star_ref_updated_title
+						: tr::lng_star_ref_created_title)(tr::now),
+					.text = (exists
+						? tr::lng_star_ref_updated_text
+						: tr::lng_star_ref_created_text)(
+							tr::now,
+							Ui::Text::RichLangValue),
+					.duration = Ui::Toast::kDefaultDuration * 3,
+				});
 			});
-		}));
+		});
 	});
 
 	widthValue() | rpl::start_with_next([=](int width) {

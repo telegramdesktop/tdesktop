@@ -17,17 +17,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -157,18 +160,26 @@ QString FormatCommission(ushort commission) {
 	return QString::number(commission / 10.) + '%';
 }
 
-rpl::producer<TextWithEntities> FormatProgramDuration(
-		StarRefProgram program) {
-	return !program.durationMonths
+QString FormatProgramDuration(int durationMonths) {
+	return !durationMonths
+		? tr::lng_star_ref_duration_forever(tr::now)
+		: (durationMonths < 12)
+		? tr::lng_months(tr::now, lt_count, durationMonths)
+		: tr::lng_years(tr::now, lt_count, durationMonths / 12);
+}
+
+rpl::producer<TextWithEntities> FormatForProgramDuration(
+		int durationMonths) {
+	return !durationMonths
 		? tr::lng_star_ref_one_about_for_forever(Ui::Text::RichLangValue)
-		: (program.durationMonths < 12)
+		: (durationMonths < 12)
 		? tr::lng_star_ref_one_about_for_months(
 			lt_count,
-			rpl::single(program.durationMonths * 1.),
+			rpl::single(durationMonths * 1.),
 			Ui::Text::RichLangValue)
 		: tr::lng_star_ref_one_about_for_years(
 			lt_count,
-			rpl::single((program.durationMonths / 12) * 1.),
+			rpl::single((durationMonths / 12) * 1.),
 			Ui::Text::RichLangValue);
 }
 
@@ -386,7 +397,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 						lt_app,
 						rpl::single(Ui::Text::Bold(bot->name())),
 						lt_duration,
-						FormatProgramDuration(program),
+						FormatForProgramDuration(program.durationMonths),
 						Ui::Text::WithEntities),
 				st::starrefCenteredText),
 			st::boxRowPadding);
@@ -483,7 +494,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 					rpl::single(Ui::Text::Bold(
 						FormatCommission(program.commission))),
 					lt_duration,
-					FormatProgramDuration(program),
+					FormatForProgramDuration(program.durationMonths),
 					Ui::Text::WithEntities),
 				st::starrefCenteredText),
 			st::boxRowPadding);
@@ -658,11 +669,71 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	return result;
 }
 
+void ConfirmUpdate(
+		std::shared_ptr<Ui::Show> show,
+		not_null<UserData*> bot,
+		const StarRefProgram &program,
+		bool exists,
+		Fn<void(Fn<void(bool)>)> update) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto sent = std::make_shared<bool>();
+		Ui::ConfirmBox(box, {
+			.text = (exists
+				? tr::lng_star_ref_warning_change
+				: tr::lng_star_ref_warning_text)(Ui::Text::RichLangValue),
+			.confirmed = [=](Fn<void()> close) {
+				if (*sent) {
+					return;
+				}
+				*sent = true;
+				update([=](bool success) {
+					*sent = false;
+					if (success) {
+						close();
+					}
+				});
+			},
+			.confirmText = (exists
+				? tr::lng_star_ref_warning_update
+				: tr::lng_star_ref_warning_start)(),
+			.title = tr::lng_star_ref_warning_title(),
+		});
+
+		auto table = box->addRow(
+			object_ptr<Ui::TableLayout>(
+				box,
+				st::giveawayGiftCodeTable),
+			st::giveawayGiftCodeTableMargin);
+		const auto addRow = [&](
+				rpl::producer<QString> label,
+				const QString &value) {
+			table->addRow(
+				object_ptr<Ui::FlatLabel>(
+					table,
+					std::move(label),
+					st::giveawayGiftCodeLabel),
+				object_ptr<Ui::FlatLabel>(
+					table,
+					value,
+					st::giveawayGiftCodeValue,
+					st::defaultPopupMenu),
+				st::giveawayGiftCodeLabelMargin,
+				st::giveawayGiftCodeValueMargin);
+		};
+		addRow(
+			tr::lng_star_ref_commission_title(),
+			FormatCommission(program.commission));
+		addRow(
+			tr::lng_star_ref_duration_title(),
+			FormatProgramDuration(program.durationMonths));
+	}));
+}
+
 void UpdateProgram(
 		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
 		const StarRefProgram &program,
-		Fn<void()> finished) {
+		Fn<void(bool)> done) {
 	using Flag = MTPbots_UpdateStarRefProgram::Flag;
 	bot->session().api().request(MTPbots_UpdateStarRefProgram(
 		MTP_flags((program.commission > 0 && program.durationMonths > 0)
@@ -673,17 +744,18 @@ void UpdateProgram(
 		MTP_int(program.durationMonths)
 	)).done([=](const MTPStarRefProgram &result) {
 		bot->setStarRefProgram(Data::ParseStarRefProgram(&result));
-		finished();
+		done(true);
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(u"Failed: "_q + error.type());
+		done(false);
 	}).send();
 }
 
 void FinishProgram(
 		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
-		Fn<void()> finished) {
-	UpdateProgram(std::move(show), bot, {}, std::move(finished));
+		Fn<void(bool)> done) {
+	UpdateProgram(std::move(show), bot, {}, std::move(done));
 }
 
 ConnectedBots Parse(

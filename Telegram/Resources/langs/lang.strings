@@ -1683,7 +1683,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_transparent_about" = "Track your commissions from referred users in real time.";
 "lng_star_ref_simple_title" = "Simple";
 "lng_star_ref_simple_about" = "Choose a mini app below, get your referral link, and start earning Stars.";
-"lng_star_ref_duration_forever" = "Lifetime";
+"lng_star_ref_duration_forever" = "Forever";
 "lng_star_ref_one_about" = "{app} will share {amount} of the revenue from each user you refer to it {duration}.";
 "lng_star_ref_one_about_for_forever" = "for **lifetime**";
 "lng_star_ref_one_about_for_months#one" = "for **{count} month**";

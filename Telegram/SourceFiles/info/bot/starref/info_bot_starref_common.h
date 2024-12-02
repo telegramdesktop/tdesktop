@@ -40,8 +40,9 @@ struct ConnectedBot {
 using ConnectedBots = std::vector<ConnectedBot>;
 
 [[nodiscard]] QString FormatCommission(ushort commission);
-[[nodiscard]] rpl::producer<TextWithEntities> FormatProgramDuration(
-	StarRefProgram program);
+[[nodiscard]] QString FormatProgramDuration(int durationMonths);
+[[nodiscard]] rpl::producer<TextWithEntities> FormatForProgramDuration(
+	int durationMonths);
 
 [[nodiscard]] not_null<Ui::AbstractButton*> AddViewListButton(
 	not_null<Ui::VerticalLayout*> parent,
@@ -73,15 +74,21 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	not_null<PeerData*> peer,
 	Ui::RpWidget *right = nullptr);
 
+void ConfirmUpdate(
+	std::shared_ptr<Ui::Show> show,
+	not_null<UserData*> bot,
+	const StarRefProgram &program,
+	bool exists,
+	Fn<void(Fn<void(bool)> done)> update);
 void UpdateProgram(
 	std::shared_ptr<Ui::Show> show,
 	not_null<UserData*> bot,
 	const StarRefProgram &program,
-	Fn<void()> finished);
+	Fn<void(bool)> done);
 void FinishProgram(
 	std::shared_ptr<Ui::Show> show,
 	not_null<UserData*> bot,
-	Fn<void()> removed);
+	Fn<void(bool)> done);
 
 [[nodiscard]] ConnectedBots Parse(
 	not_null<Main::Session*> session,

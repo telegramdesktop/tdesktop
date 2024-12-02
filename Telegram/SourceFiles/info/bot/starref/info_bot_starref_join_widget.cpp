@@ -149,17 +149,12 @@ std::unique_ptr<PeerListRow> ListController::createRow(ConnectedBot bot) {
 	_states.emplace(bot.bot, bot.state);
 	auto result = std::make_unique<PeerListRow>(bot.bot);
 	const auto program = bot.state.program;
-	const auto duration = !program.durationMonths
-		? tr::lng_star_ref_duration_forever(tr::now)
-		: (program.durationMonths < 12)
-		? tr::lng_months(tr::now, lt_count, program.durationMonths)
-		: tr::lng_years(tr::now, lt_count, program.durationMonths / 12);
 	if (bot.state.revoked) {
 		result->setCustomStatus(u"Revoked"_q);
 	} else {
 		result->setCustomStatus(u"+%1, %2"_q.arg(
 			FormatCommission(program.commission),
-			duration));
+			FormatProgramDuration(program.durationMonths)));
 	}
 	return result;
 }
