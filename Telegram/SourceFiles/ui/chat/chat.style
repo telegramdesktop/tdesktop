@@ -1177,6 +1177,8 @@ botEmojiStatusUserpic: UserpicButton(defaultUserpicButton) {
 	photoSize: chatGiveawayPeerSize;
 }
 botEmojiStatusName: FlatLabel(defaultFlatLabel) {
+	minWidth: 32px;
+	maxHeight: 20px;
 }
 botEmojiStatusEmoji: FlatLabel(botEmojiStatusName) {
 	textFg: profileVerifiedCheckBg;

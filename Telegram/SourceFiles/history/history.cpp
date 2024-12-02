@@ -98,7 +98,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 : Thread(owner, Type::History)
 , peer(owner->peer(peerId))
 , _delegateMixin(HistoryInner::DelegateMixin())
-, _chatListNameSortKey(owner->nameSortKey(peer->name()))
+, _chatListNameSortKey(TextUtilities::NameSortKey(peer->name()))
 , _sendActionPainter(this) {
 	Thread::setMuted(owner->notifySettings().isMuted(peer));
 
@@ -2314,7 +2314,7 @@ const QString &History::chatListNameSortKey() const {
 }
 
 void History::refreshChatListNameSortKey() {
-	_chatListNameSortKey = owner().nameSortKey(peer->name());
+	_chatListNameSortKey = TextUtilities::NameSortKey(peer->name());
 }
 
 const base::flat_set<QString> &History::chatListNameWords() const {

@@ -87,6 +87,7 @@ public:
 private:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(ConnectedBot bot);
 	void open(not_null<UserData*> bot, ConnectedBotState state);
+	void requestRecipients();
 	void setupAddForBot();
 
 	const not_null<Window::SessionController*> _controller;
@@ -97,6 +98,8 @@ private:
 	base::flat_set<not_null<PeerData*>> _resolving;
 	UserData *_openOnResolve = nullptr;
 
+	Fn<void()> _recipientsReady;
+	std::vector<not_null<PeerData*>> _recipients;
 	rpl::event_stream<ConnectedBot> _connected;
 	rpl::event_stream<> _addForBot;
 
@@ -104,6 +107,7 @@ private:
 	TimeId _offsetDate = 0;
 	QString _offsetThing;
 	bool _allLoaded = false;
+	bool _recipientsRequested = false;
 
 	rpl::variable<int> _rowCount = 0;
 
@@ -328,15 +332,48 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void ListController::open(not_null<UserData*> bot, ConnectedBotState state) {
+	const auto show = _controller->uiShow();
 	if (_type == JoinType::Joined || !state.link.isEmpty()) {
-		_controller->show(StarRefLinkBox({ bot, state }, _peer));
+		_recipientsReady = nullptr;
+		show->show(StarRefLinkBox({ bot, state }, _peer));
 	} else {
+		const auto requireOthers = (_type == JoinType::Existing)
+			|| _peer->isSelf();
+		const auto requestOthers = requireOthers && _recipients.empty();
+		if (requestOthers) {
+			_recipientsReady = [=] {
+				Expects(!_recipients.empty());
+
+				open(bot, state);
+			};
+			requestRecipients();
+			return;
+		}
 		const auto connected = crl::guard(this, [=](ConnectedBotState now) {
 			_states[bot] = now;
 			_connected.fire({ bot, now });
 		});
-		_controller->show(JoinStarRefBox({ bot, state }, _peer, connected));
+		show->show(JoinStarRefBox(
+			{ bot, state },
+			_peer,
+			requireOthers ? _recipients : std::vector<not_null<PeerData*>>(),
+			connected));
 	}
+}
+
+void ListController::requestRecipients() {
+	if (_recipientsRequested) {
+		return;
+	}
+	_recipientsRequested = true;
+	const auto session = &this->session();
+	ResolveRecipients(session, crl::guard(this, [=](
+			std::vector<not_null<PeerData*>> list) {
+		_recipients = std::move(list);
+		if (const auto callback = base::take(_recipientsReady)) {
+			callback();
+		}
+	}));
 }
 
 void RevokeLink(

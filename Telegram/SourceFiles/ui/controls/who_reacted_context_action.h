@@ -74,6 +74,8 @@ enum class WhoReactedType : uchar {
 	Reposted,
 	Forwarded,
 	Preloader,
+	RefRecipient,
+	RefRecipientNow,
 };
 
 struct WhoReactedEntryData {

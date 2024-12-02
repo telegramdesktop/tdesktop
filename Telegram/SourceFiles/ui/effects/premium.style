@@ -475,6 +475,17 @@ starrefLinkCountIcon: icon{{ "chat/mini_subscribers", historyPeerUserpicFg }};
 starrefLinkCountIconPosition: point(0px, 1px);
 starrefLinkCountFont: font(10px bold);
 starrefLinkCountPadding: margins(2px, 0px, 3px, 1px);
+starrefRecipientBg: lightButtonBgOver;
+starrefRecipientBgDisabled: windowBgOver;
+starrefRecipientArrow: icon{{ "calendar_down", lightButtonFg }};
 
 starrefAddForBotIcon: icon {{ "menu/bot_add", lightButtonFg }};
 starrefAddForBotIconPosition: point(23px, 2px);
+
+starrefPopupMenu: PopupMenu(defaultPopupMenu) {
+	maxHeight: 320px;
+	menu: Menu(defaultMenu) {
+		widthMin: 156px;
+		widthMax: 200px;
+	}
+}

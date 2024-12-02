@@ -963,6 +963,11 @@ QString FormatStarsAmountDecimal(StarsAmount amount) {
 	return FormatExactCountDecimal(amount.value());
 }
 
+QString FormatStarsAmountRounded(StarsAmount amount) {
+	const auto value = amount.value();
+	return FormatExactCountDecimal(base::SafeRound(value * 100.) / 100.);
+}
+
 PluralResult Plural(
 		ushort keyBase,
 		float64 value,

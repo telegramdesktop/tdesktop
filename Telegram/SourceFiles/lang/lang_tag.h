@@ -31,6 +31,7 @@ struct ShortenedCount {
 [[nodiscard]] QString FormatExactCountDecimal(float64 number);
 [[nodiscard]] ShortenedCount FormatStarsAmountToShort(StarsAmount amount);
 [[nodiscard]] QString FormatStarsAmountDecimal(StarsAmount amount);
+[[nodiscard]] QString FormatStarsAmountRounded(StarsAmount amount);
 
 struct PluralResult {
 	int keyShift = 0;

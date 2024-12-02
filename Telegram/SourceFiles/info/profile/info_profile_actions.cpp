@@ -2142,6 +2142,29 @@ void ActionsFiller::addAffiliateProgram(not_null<UserData*> user) {
 	});
 	const auto show = _controller->uiShow();
 
+	struct StarRefRecipients {
+		std::vector<not_null<PeerData*>> list;
+		bool requested = false;
+		Fn<void()> open;
+	};
+	const auto recipients = std::make_shared<StarRefRecipients>();
+	recipients->open = [=] {
+		if (!recipients->list.empty()) {
+			const auto program = user->botInfo->starRefProgram;
+			show->show(Info::BotStarRef::JoinStarRefBox(
+				{ user, { program } },
+				user->session().user(),
+				recipients->list));
+		} else if (!recipients->requested) {
+			recipients->requested = true;
+			const auto done = [=](std::vector<not_null<PeerData*>> list) {
+				recipients->list = std::move(list);
+				recipients->open();
+			};
+			Info::BotStarRef::ResolveRecipients(&user->session(), done);
+		}
+	};
+
 	Ui::AddSkip(inner);
 	::Settings::AddButtonWithLabel(
 		inner,
@@ -2149,12 +2172,7 @@ void ActionsFiller::addAffiliateProgram(not_null<UserData*> user) {
 		rpl::duplicate(commission),
 		st::infoSharedMediaButton,
 		{ &st::menuIconSharing }
-	)->setClickedCallback([=] {
-		const auto program = user->botInfo->starRefProgram;
-		show->show(Info::BotStarRef::JoinStarRefBox(
-			{ user, { program } },
-			user->session().user()));
-	});
+	)->setClickedCallback(recipients->open);
 	Ui::AddSkip(inner);
 	Ui::AddDividerText(
 		inner,

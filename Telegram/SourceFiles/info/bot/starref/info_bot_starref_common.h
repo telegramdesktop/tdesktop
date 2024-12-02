@@ -23,6 +23,10 @@ namespace style {
 struct RoundButton;
 } // namespace style
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Info::BotStarRef {
 
 struct ConnectedBotState {
@@ -65,14 +69,20 @@ void AddFullWidthButtonFooter(
 	not_null<PeerData*> peer);
 [[nodiscard]] object_ptr<Ui::BoxContent> JoinStarRefBox(
 	ConnectedBot row,
-	not_null<PeerData*> peer,
+	not_null<PeerData*> initialRecipient,
+	std::vector<not_null<PeerData*>> recipients,
 	Fn<void(ConnectedBotState)> done = nullptr);
 [[nodiscard]] object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish);
+
+void ResolveRecipients(
+	not_null<Main::Session*> session,
+	Fn<void(std::vector<not_null<PeerData*>>)> done);
 
 std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	not_null<QWidget*> parent,
 	not_null<PeerData*> peer,
-	Ui::RpWidget *right = nullptr);
+	Ui::RpWidget *right = nullptr,
+	const style::color *bgOverride = nullptr);
 
 void ConfirmUpdate(
 	std::shared_ptr<Ui::Show> show,

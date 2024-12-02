@@ -115,8 +115,6 @@ public:
 		return *_session;
 	}
 
-	[[nodiscard]] QString nameSortKey(const QString &name) const;
-
 	[[nodiscard]] Groups &groups() {
 		return _groups;
 	}

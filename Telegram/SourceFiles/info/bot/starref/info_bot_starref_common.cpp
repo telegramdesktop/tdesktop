@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_credits_box.h" // Ui::CreditsEmoji.
 #include "chat_helpers/stickers_lottie.h"
 #include "core/ui_integration.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_sticker.h"
@@ -21,9 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/controls/who_reacted_context_action.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
@@ -31,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
@@ -154,6 +161,58 @@ void ConnectStarRef(
 	raw->resize(outer);
 
 	return result;
+}
+
+void ChooseRecipient(
+		not_null<Ui::RpWidget*> button,
+		const std::vector<not_null<PeerData*>> &list,
+		not_null<PeerData*> now,
+		Fn<void(not_null<PeerData*>)> done) {
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+		button,
+		st::starrefPopupMenu);
+
+	struct Entry {
+		not_null<Ui::WhoReactedEntryAction*> action;
+		std::shared_ptr<Ui::DynamicImage> userpic;
+	};
+	auto actions = std::make_shared<std::vector<Entry>>();
+	actions->reserve(list.size());
+	for (const auto &peer : list) {
+		auto view = peer->createUserpicView();
+		auto action = base::make_unique_q<Ui::WhoReactedEntryAction>(
+			menu->menu(),
+			Data::ReactedMenuFactory(&list.front()->session()),
+			menu->menu()->st(),
+			Ui::WhoReactedEntryData());
+		const auto index = int(actions->size());
+		actions->push_back({ action.get(), Ui::MakeUserpicThumbnail(peer) });
+
+		const auto updateUserpic = [=] {
+			const auto size = st::defaultWhoRead.photoSize;
+			actions->at(index).action->setData({
+				.text = peer->name(),
+				.date = (peer->isSelf()
+					? tr::lng_group_call_join_as_personal(tr::now)
+					: peer->isUser()
+					? tr::lng_status_bot(tr::now)
+					: peer->isBroadcast()
+					? tr::lng_channel_status(tr::now)
+					: tr::lng_group_status(tr::now)),
+				.type = (peer == now
+					? Ui::WhoReactedType::RefRecipientNow
+					: Ui::WhoReactedType::RefRecipient),
+				.userpic = actions->at(index).userpic->image(size),
+				.callback = [=] { done(peer); },
+			});
+		};
+		actions->back().userpic->subscribeToUpdates(updateUserpic);
+
+		menu->addAction(std::move(action));
+		updateUserpic();
+	}
+
+	menu->popup(button->mapToGlobal(QPoint(button->width() / 2, 0)));
 }
 
 } // namespace
@@ -453,9 +512,10 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 	});
 }
 
-[[nodiscard]] object_ptr<Ui::BoxContent> JoinStarRefBox(
+object_ptr<Ui::BoxContent> JoinStarRefBox(
 		ConnectedBot row,
-		not_null<PeerData*> peer,
+		not_null<PeerData*> initialRecipient,
+		std::vector<not_null<PeerData*>> recipients,
 		Fn<void(ConnectedBotState)> done) {
 	Expects(row.bot->isUser());
 
@@ -464,6 +524,13 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 
 		const auto bot = row.bot;
 		const auto program = row.state.program;
+		auto list = recipients;
+		if (!list.empty()) {
+			list.erase(ranges::remove(list, bot), end(list));
+			if (!ranges::contains(list, initialRecipient)) {
+				list.insert(begin(list), initialRecipient);
+			}
+		}
 
 		box->setStyle(st::starrefFooterBox);
 		box->setNoContentMargin(true);
@@ -471,13 +538,34 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 			box->closeBox();
 		});
 
-		box->addRow(
-			CreateUserpicsTransfer(
-				box,
-				rpl::single(std::vector{ not_null<PeerData*>(bot) }),
-				peer,
-				UserpicsTransferType::StarRefJoin),
-			st::boxRowPadding + st::starrefJoinUserpicsPadding);
+		struct State {
+			rpl::variable<not_null<PeerData*>> recipient;
+			QPointer<Ui::GenericBox> weak;
+			bool sent = false;
+		};
+		const auto state = std::make_shared<State>(State{
+			.recipient = initialRecipient,
+			.weak = box.get(),
+		});
+		const auto userpicsWrap = box->addRow(
+			object_ptr<Ui::VerticalLayout>(box),
+			QMargins());
+
+		state->recipient.value(
+		) | rpl::start_with_next([=](not_null<PeerData*> recipient) {
+			while (userpicsWrap->count()) {
+				delete userpicsWrap->widgetAt(0);
+			}
+			userpicsWrap->add(
+				CreateUserpicsTransfer(
+					box,
+					rpl::single(std::vector{ not_null<PeerData*>(bot) }),
+					recipient,
+					UserpicsTransferType::StarRefJoin),
+				st::boxRowPadding + st::starrefJoinUserpicsPadding);
+			userpicsWrap->resizeToWidth(box->width());
+		}, box->lifetime());
+
 		box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 				box,
@@ -504,7 +592,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
 		if (const auto average = program.revenuePerUser) {
 			const auto layout = box->verticalLayout();
-			const auto session = &peer->session();
+			const auto session = &initialRecipient->session();
 			const auto makeContext = [session](Fn<void()> update) {
 				return Core::MarkedTextContext{
 					.session = session,
@@ -512,13 +600,14 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 				};
 			};
 			auto text = Ui::Text::Colorized(Ui::CreditsEmoji(session));
-			text.append(Lang::FormatStarsAmountDecimal(average));
+			text.append(Lang::FormatStarsAmountRounded(average));
 			layout->add(
 				object_ptr<Ui::FlatLabel>(
 					box,
 					tr::lng_star_ref_one_daily_revenue(
 						lt_amount,
-						rpl::single(Ui::Text::Wrapped(text, EntityType::Bold)),
+						rpl::single(
+							Ui::Text::Wrapped(text, EntityType::Bold)),
 						Ui::Text::WithEntities),
 					st::starrefRevenueText,
 					st::defaultPopupMenu,
@@ -526,35 +615,89 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 				st::boxRowPadding);
 			Ui::AddSkip(layout, st::defaultVerticalListSkip);
 		}
-#if 0
-		box->addRow(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_star_ref_link_recipient(),
-				st::starrefCenteredText));
-		Ui::AddSkip(box->verticalLayout());
-		box->addRow(object_ptr<Ui::AbstractButton>::fromRaw(
-			MakePeerBubbleButton(box, peer).release()
-		))->setAttribute(Qt::WA_TransparentForMouseEvents);
-#endif
 
-		struct State {
-			QPointer<Ui::GenericBox> weak;
-			bool sent = false;
-		};
-		const auto state = std::make_shared<State>();
-		state->weak = box;
+		if (!list.empty()) {
+			struct Name {
+				not_null<PeerData*> peer;
+				QString name;
+			};
+			auto names = ranges::views::transform(list, [](auto peer) {
+				const auto name = TextUtilities::NameSortKey(peer->name());
+				return Name{ peer, name };
+			}) | ranges::to_vector;
+			ranges::sort(names, ranges::less(), &Name::name);
+
+			list = ranges::views::transform(names, &Name::peer)
+				| ranges::to_vector;
+
+			box->addRow(
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_star_ref_link_recipient(),
+					st::starrefCenteredText));
+			Ui::AddSkip(box->verticalLayout());
+			const auto recipientWrap = box->addRow(
+				object_ptr<Ui::VerticalLayout>(box),
+				QMargins());
+			state->recipient.value(
+			) | rpl::start_with_next([=](not_null<PeerData*> recipient) {
+				while (recipientWrap->count()) {
+					delete recipientWrap->widgetAt(0);
+				}
+
+				const auto selectable = (list.size() > 1);
+				const auto bgOverride = selectable
+					? &st::lightButtonBgOver
+					: nullptr;
+				const auto right = selectable
+					? Ui::CreateChild<Ui::RpWidget>(recipientWrap)
+					: nullptr;
+				if (right) {
+					const auto skip = st::chatGiveawayPeerPadding.right();
+					const auto icon = &st::starrefRecipientArrow;
+					right->resize(skip + icon->width(), icon->height());
+					right->paintRequest() | rpl::start_with_next([=] {
+						auto p = QPainter(right);
+						icon->paint(p, skip, 0, right->width());
+					}, right->lifetime());
+				}
+				const auto button = recipientWrap->add(
+					object_ptr<Ui::AbstractButton>::fromRaw(
+						MakePeerBubbleButton(
+							box,
+							recipient,
+							right,
+							bgOverride).release()),
+					st::boxRowPadding);
+				recipientWrap->resizeToWidth(box->width());
+				if (!selectable) {
+					button->setAttribute(Qt::WA_TransparentForMouseEvents);
+					return;
+				}
+				button->setClickedCallback([=] {
+					const auto callback = [=](not_null<PeerData*> peer) {
+						state->recipient = peer;
+					};
+					ChooseRecipient(
+						button,
+						list,
+						state->recipient.current(),
+						crl::guard(button, callback));
+				});
+			}, box->lifetime());
+		}
 
 		const auto send = [=] {
 			if (state->sent) {
 				return;
 			}
 			state->sent = true;
-			ConnectStarRef(bot->asUser(), peer, [=](ConnectedBot info) {
+			const auto recipient = state->recipient.current();
+			ConnectStarRef(bot->asUser(), recipient, [=](ConnectedBot info) {
 				if (const auto onstack = done) {
 					onstack(info.state);
 				}
-				show->show(StarRefLinkBox(info, peer));
+				show->show(StarRefLinkBox(info, recipient));
 				if (const auto strong = state->weak.data()) {
 					strong->closeBox();
 				}
@@ -624,18 +767,103 @@ object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish) {
 	});
 }
 
+void ResolveRecipients(
+		not_null<Main::Session*> session,
+		Fn<void(std::vector<not_null<PeerData*>>)> done) {
+	struct State {
+		not_null<Main::Session*> session;
+		std::vector<not_null<PeerData*>> list;
+		Fn<void(std::vector<not_null<PeerData*>>)> done;
+	};
+	const auto state = std::make_shared<State>(State{
+		.session = session,
+		.done = std::move(done),
+	});
+	const auto finish1 = [state](const MTPmessages_Chats &result) {
+		const auto already = int(state->list.size());
+		const auto session = state->session;
+		result.match([&](const auto &data) {
+			const auto &list = data.vchats().v;
+			state->list.reserve(list.size() + (already ? already : 1));
+			if (!already) {
+				state->list.push_back(session->user());
+			}
+			for (const auto &chat : list) {
+				const auto peer = session->data().processChat(chat);
+				if (const auto channel = peer->asBroadcast()) {
+					if (channel->canPostMessages()) {
+						state->list.push_back(channel);
+					}
+				}
+			}
+			if (already) {
+				base::take(state->done)(base::take(state->list));
+			}
+		});
+	};
+	const auto finish2 = [state](const MTPVector<MTPUser> &result) {
+		const auto already = int(state->list.size());
+		const auto session = state->session;
+		const auto &list = result.v;
+		state->list.reserve(list.size() + (already ? already : 1));
+		if (!already) {
+			state->list.push_back(session->user());
+		}
+		for (const auto &user : list) {
+			state->list.push_back(session->data().processUser(user));
+		}
+		if (already) {
+			base::take(state->done)(base::take(state->list));
+		}
+	};
+
+	session->api().request(MTPchannels_GetAdminedPublicChannels(
+		MTP_flags(0)
+	)).done(finish1).fail([=] {
+		finish1(MTP_messages_chats(MTP_vector<MTPChat>(0)));
+	}).send();
+
+	state->session->api().request(MTPbots_GetAdminedBots(
+	)).done(finish2).fail([=] {
+		finish2(MTP_vector<MTPUser>(0));
+	}).send();
+}
+
 std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 		not_null<QWidget*> parent,
 		not_null<PeerData*> peer,
-		Ui::RpWidget *right) {
-	auto result = std::make_unique<Ui::AbstractButton>(parent);
+		Ui::RpWidget *right,
+		const style::color *bgOverride) {
+	class Button final : public Ui::AbstractButton {
+	public:
+		Button(QWidget *parent, not_null<int*> innerWidth)
+		: AbstractButton(parent)
+		, _innerWidth(innerWidth) {
+		}
+
+		void mouseMoveEvent(QMouseEvent *e) override {
+			const auto inner = *_innerWidth;
+			const auto skip = (width() - inner) / 2;
+			const auto p = e->pos();
+			const auto over = QRect(skip, 0, inner, height()).contains(p);
+			setOver(over, StateChangeSource::ByHover);
+		}
+
+	private:
+		const not_null<int*> _innerWidth;
+
+	};
+
+	auto ownedWidth = std::make_unique<int>();
+	const auto width = ownedWidth.get();
+	auto result = std::make_unique<Button>(parent, width);
+	result->lifetime().add([moved = std::move(ownedWidth)] {});
 
 	const auto size = st::chatGiveawayPeerSize;
 	const auto padding = st::chatGiveawayPeerPadding;
 
 	const auto raw = result.get();
 
-	const auto width = raw->lifetime().make_state<int>();
 	const auto name = raw->lifetime().make_state<Ui::FlatLabel>(
 		raw,
 		rpl::single(peer->name()),
@@ -691,7 +919,7 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 		p.setClipRect(left + skip, 0, *width - skip, size);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgOver);
+		p.setBrush(bgOverride ? *bgOverride : st::windowBgOver);
 		p.drawRoundedRect(left, 0, *width, size, skip, skip);
 	}, raw->lifetime());
 
