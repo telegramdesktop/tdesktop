@@ -6,7 +6,7 @@ def resolve(arch):
     elif sys.platform == 'win32':
         if arch == 'arm' or 'qt6' in sys.argv:
             print('Choosing Qt 6.')
-            os.environ['QT'] = '6.8.0'
+            os.environ['QT'] = '6.8.1'
         elif os.environ.get('QT') is None:
             print('Choosing Qt 5.')
             os.environ['QT'] = '5.15.15'
