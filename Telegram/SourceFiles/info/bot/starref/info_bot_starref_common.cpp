@@ -9,7 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/peers/replace_boost_box.h" // CreateUserpicsTransfer.
+#include "chat_helpers/stickers_lottie.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
+#include "history/view/media/history_view_sticker.h"
+#include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -50,6 +54,100 @@ void ConnectStarRef(
 	}).fail([=](const MTP::Error &error) {
 		fail(error.type());
 	}).send();
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateLinkIcon(
+		not_null<QWidget*> parent,
+		not_null<UserData*> bot,
+		int users) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	struct State {
+		not_null<DocumentData*> icon;
+		std::shared_ptr<Data::DocumentMedia> media;
+		std::shared_ptr<HistoryView::StickerPlayer> player;
+		int counterWidth = 0;
+	};
+	const auto outerSide = st::starrefLinkThumbOuter;
+	const auto outerSkip = (outerSide - st::starrefLinkThumbInner) / 2;
+	const auto innerSide = (outerSide - 2 * outerSkip);
+	const auto add = st::starrefLinkCountAdd;
+	const auto outer = QSize(outerSide, outerSide + add);
+	const auto inner = QSize(innerSide, innerSide);
+	const auto state = raw->lifetime().make_state<State>(State{
+		.icon = ChatHelpers::GenerateLocalTgsSticker(
+			&bot->session(),
+			u"starref_link"_q),
+	});
+	state->icon->overrideEmojiUsesTextColor(true);
+	state->media = state->icon->createMediaView();
+	state->player = std::make_unique<HistoryView::LottiePlayer>(
+		ChatHelpers::LottiePlayerFromDocument(
+			state->media.get(),
+			ChatHelpers::StickerLottieSize::MessageHistory,
+			inner,
+			Lottie::Quality::High));
+	const auto player = state->player.get();
+	player->setRepaintCallback([=] { raw->update(); });
+
+	const auto text = users
+		? Lang::FormatCountToShort(users).string
+		: QString();
+	const auto length = st::starrefLinkCountFont->width(text);
+	const auto contents = length + st::starrefLinkCountIcon.width();
+	const auto delta = (outer.width() - contents) / 2;
+	const auto badge = QRect(
+		delta,
+		outer.height() - st::starrefLinkCountFont->height - st::lineWidth,
+		outer.width() - 2 * delta,
+		st::starrefLinkCountFont->height);
+	const auto badgeRect = badge.marginsAdded(st::starrefLinkCountPadding);
+
+	raw->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgActive);
+
+		auto hq = PainterHighQualityEnabler(p);
+
+		const auto left = (raw->width() - outer.width()) / 2;
+		p.drawEllipse(left, 0, outerSide, outerSide);
+
+		if (!text.isEmpty()) {
+			const auto rect = badgeRect.translated(left, 0);
+			const auto textRect = badge.translated(left, 0);
+			const auto radius = st::starrefLinkCountFont->height / 2.;
+			p.setPen(st::historyPeerUserpicFg);
+			p.setBrush(st::historyPeer2UserpicBg2);
+			p.drawRoundedRect(rect, radius, radius);
+
+			p.setFont(st::starrefLinkCountFont);
+			const auto shift = QPoint(
+				st::starrefLinkCountIcon.width(),
+				st::starrefLinkCountFont->ascent);
+			st::starrefLinkCountIcon.paint(
+				p,
+				textRect.topLeft() + st::starrefLinkCountIconPosition,
+				raw->width());
+			p.drawText(textRect.topLeft() + shift, text);
+		}
+		if (player->ready()) {
+			const auto now = crl::now();
+			const auto color = st::windowFgActive->c;
+			auto info = player->frame(inner, color, false, now, false);
+			p.drawImage(
+				QRect(QPoint(left + outerSkip, outerSkip), inner),
+				info.image);
+			if (info.index + 1 < player->framesCount()) {
+				player->markFrameShown();
+			}
+		}
+	}, raw->lifetime());
+
+	raw->resize(outer);
+
+	return result;
 }
 
 } // namespace
@@ -225,11 +323,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		});
 
 		box->addRow(
-			CreateUserpicsTransfer(
-				box,
-				rpl::single(std::vector{ not_null<PeerData*>(bot) }),
-				peer,
-				UserpicsTransferType::StarRefJoin),
+			CreateLinkIcon(box, bot, row.state.users),
 			st::boxRowPadding + st::starrefJoinUserpicsPadding);
 		box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
