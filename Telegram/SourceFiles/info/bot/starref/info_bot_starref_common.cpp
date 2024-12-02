@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "styles/style_chat.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -308,6 +309,43 @@ void AddFullWidthButtonFooter(
 	}, footer->lifetime());
 }
 
+object_ptr<Ui::AbstractButton> MakeLinkLabel(
+		not_null<QWidget*> parent,
+		const QString &link) {
+	const auto text = link.startsWith(u"https://"_q)
+		? link.mid(8)
+		: link.startsWith(u"http://"_q)
+		? link.mid(7)
+		: link;
+	const auto margins = st::dialogsFilter.textMargins;
+	const auto height = st::dialogsFilter.heightMin;
+	const auto skip = margins.left();
+
+	auto result = object_ptr<Ui::AbstractButton>(parent);
+	const auto raw = result.data();
+
+	raw->resize(height, height);
+	raw->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::dialogsFilter.textBg);
+		const auto radius = st::roundRadiusLarge;
+		p.drawRoundedRect(0, 0, raw->width(), height, radius, radius);
+
+		const auto font = st::dialogsFilter.style.font;
+		p.setPen(st::dialogsFilter.textFg);
+		p.setFont(font);
+		const auto available = raw->width() - skip * 2;
+		p.drawText(
+			QRect(skip, margins.top(), available, font->height),
+			style::al_top,
+			font->elided(link, available));
+	}, raw->lifetime());
+
+	return result;
+}
+
 object_ptr<Ui::BoxContent> StarRefLinkBox(
 		ConnectedBot row,
 		not_null<PeerData*> peer) {
@@ -353,7 +391,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 				st::starrefCenteredText),
 			st::boxRowPadding);
 
-		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 4);
+		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
 
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
@@ -365,18 +403,24 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 			MakePeerBubbleButton(box, peer).release()
 		))->setAttribute(Qt::WA_TransparentForMouseEvents);
 
+		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 2);
+		const auto preview = box->addRow(MakeLinkLabel(box, row.state.link));
 		Ui::AddSkip(box->verticalLayout());
-		row.state.link;
 
-		const auto copy = [=] {
-			QApplication::clipboard()->setText(row.state.link);
-			box->uiShow()->showToast(tr::lng_username_copied(tr::now));
-			box->closeBox();
+		const auto copy = [=](bool close) {
+			return [=] {
+				QApplication::clipboard()->setText(row.state.link);
+				box->uiShow()->showToast(tr::lng_username_copied(tr::now));
+				if (close) {
+					box->closeBox();
+				}
+			};
 		};
+		preview->setClickedCallback(copy(false));
 		const auto button = AddFullWidthButton(
 			box,
 			tr::lng_star_ref_link_copy(),
-			copy,
+			copy(true),
 			&st::starrefCopyButton);
 		const auto name = TextWithEntities{ bot->name() };
 		AddFullWidthButtonFooter(
