@@ -749,6 +749,7 @@ void InnerWidget::setupEnd() {
 						.text = tr::lng_star_ref_ended_text(
 							tr::now,
 							Ui::Text::RichLangValue),
+						.duration = Ui::Toast::kDefaultDuration * 3,
 					});
 				}
 			});
@@ -1003,30 +1004,28 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 			st::boxDividerLabel),
 		QMargins(margins.left(), 0, margins.right(), 0));
 	save->setClickedCallback([=] {
-		using Flag = MTPbots_UpdateStarRefProgram::Flag;
-		const auto weak = Ui::MakeWeak(this);
 		const auto user = _state->user;
-		auto program = StarRefProgram{
+		const auto program = StarRefProgram{
 			.commission = _state->program.commission,
 			.durationMonths = _state->program.durationMonths,
 		};
-		user->session().api().request(MTPbots_UpdateStarRefProgram(
-			MTP_flags((program.commission > 0 && program.durationMonths > 0)
-				? Flag::f_duration_months
-				: Flag()),
-			user->inputUser,
-			MTP_int(program.commission),
-			MTP_int(program.durationMonths)
-		)).done([=] {
-			user->botInfo->starRefProgram.commission = program.commission;
-			user->botInfo->starRefProgram.durationMonths
-				= program.durationMonths;
-			if (weak) {
-				controller()->showBackFromStack();
-			}
-		}).fail(crl::guard(weak, [=] {
-			controller()->showToast("Failed!");
-		})).send();
+
+		const auto show = controller()->uiShow();
+		const auto exists = _state->exists;
+		UpdateProgram(show, user, program, crl::guard(this, [=] {
+			controller()->showBackFromStack();
+			show->showToast({
+				.title = (exists
+					? tr::lng_star_ref_updated_title
+					: tr::lng_star_ref_created_title)(tr::now),
+				.text = (exists
+					? tr::lng_star_ref_updated_text
+					: tr::lng_star_ref_created_text)(
+						tr::now,
+						Ui::Text::RichLangValue),
+				.duration = Ui::Toast::kDefaultDuration * 3,
+			});
+		}));
 	});
 
 	widthValue() | rpl::start_with_next([=](int width) {

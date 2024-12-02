@@ -1661,6 +1661,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_warning_end" = "End Anyway";
 "lng_star_ref_created_title" = "Affiliate program started";
 "lng_star_ref_created_text" = "Any Telegram user, channel owner or mini app developer can now join your program.";
+"lng_star_ref_updated_title" = "Affiliate program updated";
+"lng_star_ref_updated_text" = "Any Telegram user, channel owner or mini app developer can join your program.";
 "lng_star_ref_ended_title" = "Affiliate program ended";
 "lng_star_ref_ended_text" = "Participating affiliates have been notified. All referral links will be disabled in **24** hours.";
 "lng_star_ref_list_title" = "Affiliate Programs";

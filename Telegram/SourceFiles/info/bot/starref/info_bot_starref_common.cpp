@@ -423,8 +423,8 @@ object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish) {
 			padded->paintRequest() | rpl::start_with_next([=] {
 				auto p = QPainter(padded);
 				auto hq = PainterHighQualityEnabler(p);
-				const auto size = st::boxTextFont->spacew;
-				const auto top = (st::boxTextFont->height - size) / 2;
+				const auto size = st::starrefEndBulletSize;
+				const auto top = st::starrefEndBulletTop;
 				p.setBrush(st::windowFg);
 				p.setPen(Qt::NoPen);
 				p.drawEllipse(0, top, size, size);
@@ -519,21 +519,32 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	return result;
 }
 
-void FinishProgram(
+void UpdateProgram(
 		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
+		const StarRefProgram &program,
 		Fn<void()> finished) {
+	using Flag = MTPbots_UpdateStarRefProgram::Flag;
 	bot->session().api().request(MTPbots_UpdateStarRefProgram(
-		MTP_flags(0),
+		MTP_flags((program.commission > 0 && program.durationMonths > 0)
+			? Flag::f_duration_months
+			: Flag()),
 		bot->inputUser,
-		MTP_int(0),
-		MTP_int(0)
+		MTP_int(program.commission),
+		MTP_int(program.durationMonths)
 	)).done([=](const MTPStarRefProgram &result) {
 		bot->setStarRefProgram(Data::ParseStarRefProgram(&result));
 		finished();
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(u"Failed: "_q + error.type());
 	}).send();
+}
+
+void FinishProgram(
+		std::shared_ptr<Ui::Show> show,
+		not_null<UserData*> bot,
+		Fn<void()> finished) {
+	UpdateProgram(std::move(show), bot, {}, std::move(finished));
 }
 
 ConnectedBots Parse(

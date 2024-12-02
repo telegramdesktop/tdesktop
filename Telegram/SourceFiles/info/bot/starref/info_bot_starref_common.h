@@ -73,6 +73,11 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	not_null<PeerData*> peer,
 	Ui::RpWidget *right = nullptr);
 
+void UpdateProgram(
+	std::shared_ptr<Ui::Show> show,
+	not_null<UserData*> bot,
+	const StarRefProgram &program,
+	Fn<void()> finished);
 void FinishProgram(
 	std::shared_ptr<Ui::Show> show,
 	not_null<UserData*> bot,

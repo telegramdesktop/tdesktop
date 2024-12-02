@@ -461,3 +461,5 @@ starrefBottomButtonSublabel: FlatLabel(starrefBottomButtonLabel) {
 }
 starrefBottomButtonLabelTop: 5px;
 starrefBottomButtonSublabelTop: 23px;
+starrefEndBulletSize: 6px;
+starrefEndBulletTop: 8px;
