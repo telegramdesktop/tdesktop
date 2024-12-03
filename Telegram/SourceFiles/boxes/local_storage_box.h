@@ -14,6 +14,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Storage {
 namespace Cache {
 class Database;
@@ -40,7 +44,7 @@ public:
 		not_null<Main::Session*> session,
 		CreateTag);
 
-	static void Show(not_null<Main::Session*> session);
+	static void Show(not_null<Window::SessionController*> controller);
 
 protected:
 	void prepare() override;

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/local_storage_box.h"
 
-#include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
@@ -21,8 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
-#include "mainwindow.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -282,19 +281,19 @@ LocalStorageBox::LocalStorageBox(
 	_timeLimit = settings.totalTimeLimit;
 }
 
-void LocalStorageBox::Show(not_null<::Main::Session*> session) {
+void LocalStorageBox::Show(not_null<Window::SessionController*> controller) {
 	auto shared = std::make_shared<object_ptr<LocalStorageBox>>(
-		Box<LocalStorageBox>(session, CreateTag()));
+		Box<LocalStorageBox>(&controller->session(), CreateTag()));
 	const auto weak = shared->data();
 	rpl::combine(
-		session->data().cache().statsOnMain(),
-		session->data().cacheBigFile().statsOnMain()
+		controller->session().data().cache().statsOnMain(),
+		controller->session().data().cacheBigFile().statsOnMain()
 	) | rpl::start_with_next([=](
 			Database::Stats &&stats,
 			Database::Stats &&statsBig) {
 		weak->update(std::move(stats), std::move(statsBig));
 		if (auto &strong = *shared) {
-			Ui::show(std::move(strong));
+			controller->uiShow()->show(std::move(strong));
 		}
 	}, weak->lifetime());
 }
