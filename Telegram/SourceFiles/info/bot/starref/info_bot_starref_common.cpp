@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
+#include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "styles/style_chat.h"
@@ -247,7 +248,8 @@ rpl::producer<TextWithEntities> FormatForProgramDuration(
 not_null<Ui::AbstractButton*> AddViewListButton(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> title,
-		rpl::producer<QString> subtitle) {
+		rpl::producer<QString> subtitle,
+		bool newBadge) {
 	const auto &stLabel = st::defaultFlatLabel;
 	const auto iconSize = st::settingsPremiumIconDouble.size();
 	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
@@ -272,6 +274,10 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 			st::boxDividerLabel),
 		descriptionPadding);
 	description->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	if (newBadge) {
+		Ui::NewBadge::AddAfterLabel(parent, label);
+	}
 
 	const auto dummy = Ui::CreateChild<Ui::AbstractButton>(parent);
 	dummy->setAttribute(Qt::WA_TransparentForMouseEvents);

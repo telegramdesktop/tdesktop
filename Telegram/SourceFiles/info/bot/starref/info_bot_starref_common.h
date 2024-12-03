@@ -51,7 +51,8 @@ using ConnectedBots = std::vector<ConnectedBot>;
 [[nodiscard]] not_null<Ui::AbstractButton*> AddViewListButton(
 	not_null<Ui::VerticalLayout*> parent,
 	rpl::producer<QString> title,
-	rpl::producer<QString> subtitle);
+	rpl::producer<QString> subtitle,
+	bool newBadge = false);
 
 [[nodiscard]] not_null<Ui::RoundButton*> AddFullWidthButton(
 	not_null<Ui::BoxContent*> box,
