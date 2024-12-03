@@ -1321,24 +1321,28 @@ SessionController::SessionController(
 		closeFolder();
 	}, lifetime());
 
+	const auto processFiltersMenu = [this] {
+		if (SessionNavigation::session().data().chatsFilters().has()) {
+			const auto isHorizontal
+				= Core::App().settings().chatFiltersHorizontal()
+					|| !enoughSpaceForFilters();
+			content()->toggleFiltersMenu(isHorizontal);
+			toggleFiltersMenu(!isHorizontal);
+		} else {
+			content()->toggleFiltersMenu(false);
+			toggleFiltersMenu(false);
+		}
+	};
 	rpl::merge(
 		enoughSpaceForFiltersValue() | rpl::skip(1) | rpl::to_empty,
 		Core::App().settings().chatFiltersHorizontalChanges() | rpl::to_empty,
 		session->data().chatsFilters().changed()
 	) | rpl::start_with_next([=] {
+		if (!_filtersActivated) {
+			processFiltersMenu();
+		}
 		checkOpenedFilter();
-		crl::on_main(this, [this] {
-			if (SessionNavigation::session().data().chatsFilters().has()) {
-				const auto isHorizontal
-					= Core::App().settings().chatFiltersHorizontal()
-						|| !enoughSpaceForFilters();
-				content()->toggleFiltersMenu(isHorizontal);
-				toggleFiltersMenu(!isHorizontal);
-			} else {
-				content()->toggleFiltersMenu(false);
-				toggleFiltersMenu(false);
-			}
-		});
+		crl::on_main(this, processFiltersMenu);
 	}, lifetime());
 
 	session->data().itemIdChanged(
