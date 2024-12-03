@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -100,6 +101,7 @@ private:
 	void open(not_null<UserData*> bot, ConnectedBotState state);
 	void requestRecipients();
 	void setupAddForBot();
+	void setupLinkBadge();
 	void refreshRows();
 
 	const not_null<Window::SessionController*> _controller;
@@ -122,6 +124,7 @@ private:
 	bool _allLoaded = false;
 	bool _recipientsRequested = false;
 	SuggestedSort _sort = SuggestedSort::Profitability;
+	QImage _linkBadge;
 
 	rpl::variable<int> _rowCount = 0;
 
@@ -129,7 +132,10 @@ private:
 
 class Row final : public PeerListRow {
 public:
-	Row(not_null<PeerData*> peer, StarRefProgram program);
+	Row(
+		not_null<PeerData*> peer,
+		StarRefProgram program,
+		QImage *link = nullptr);
 
 	void paintStatusText(
 		Painter &p,
@@ -139,18 +145,26 @@ public:
 		int availableWidth,
 		int outerWidth,
 		bool selected) override;
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
 
 private:
 	void refreshStatus() override;
 
 	StarRefProgram _program;
+	QImage *_link = nullptr;
+	QImage _userpic;
 	QImage _badge;
 
 };
 
-Row::Row(not_null<PeerData*> peer, StarRefProgram program)
+Row::Row(
+	not_null<PeerData*> peer,
+	StarRefProgram program,
+	QImage *link)
 : PeerListRow(peer)
-, _program(program) {
+, _program(program)
+, _link(link) {
 }
 
 void Row::paintStatusText(
@@ -180,6 +194,47 @@ void Row::paintStatusText(
 		availableWidth,
 		outerWidth,
 		selected);
+}
+
+PaintRoundImageCallback Row::generatePaintUserpicCallback(
+		bool forceRound) {
+	if (!_link) {
+		return PeerListRow::generatePaintUserpicCallback(forceRound);
+	}
+	return [=](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto dimensions = QSize(size, size);
+		if (_userpic.size() != dimensions * ratio) {
+			_userpic = QImage(
+				dimensions * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			_userpic.setDevicePixelRatio(ratio);
+		}
+		_userpic.fill(Qt::transparent);
+
+		auto q = Painter(&_userpic);
+		auto hq = PainterHighQualityEnabler(q);
+		auto paint = PeerListRow::generatePaintUserpicCallback(forceRound);
+		paint(q, 0, 0, size, size);
+		const auto corner = _link->size() / _link->devicePixelRatio();
+		auto pen = QPen(Qt::transparent, st::lineWidth * 1.5);
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		q.setPen(pen);
+		q.setBrush(st::historyPeer2UserpicBg2);
+		const auto left = size - corner.width();
+		const auto top = size - corner.height();
+		q.drawEllipse(left, top, corner.width(), corner.height());
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		q.drawImage(left, top, *_link);
+		q.end();
+
+		p.drawImage(x, y, _userpic);
+	};
 }
 
 void Row::refreshStatus() {
@@ -238,6 +293,13 @@ ListController::ListController(
 , _peer(peer)
 , _type(type) {
 	setStyleOverrides(&st::peerListSingleRow);
+
+	if (_type == JoinType::Joined) {
+		setupLinkBadge();
+		style::PaletteChanged() | rpl::start_with_next([=] {
+			setupLinkBadge();
+		}, lifetime());
+	}
 }
 
 ListController::~ListController() {
@@ -252,7 +314,31 @@ Main::Session &ListController::session() const {
 
 std::unique_ptr<PeerListRow> ListController::createRow(ConnectedBot bot) {
 	_states.emplace(bot.bot, bot.state);
-	return std::make_unique<Row>(bot.bot, bot.state.program);
+	const auto link = _linkBadge.isNull() ? nullptr : &_linkBadge;
+	return std::make_unique<Row>(bot.bot, bot.state.program, link);
+}
+
+void ListController::setupLinkBadge() {
+	const auto side = st::starrefLinkBadge;
+	const auto size = QSize(side, side);
+	const auto ratio = style::DevicePixelRatio();
+
+	_linkBadge = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	_linkBadge.setDevicePixelRatio(ratio);
+	_linkBadge.fill(Qt::transparent);
+
+	const auto skip = st::starrefLinkBadgeSkip;
+	const auto inner = QSize(side - 2 * skip, side - 2 * skip);
+
+	auto p = QPainter(&_linkBadge);
+	auto hq = PainterHighQualityEnabler(p);
+
+	auto owned = Lottie::MakeIcon({
+		.name = u"starref_link"_q,
+		.color = &st::historyPeerUserpicFg,
+		.sizeOverride = inner,
+	});
+	p.drawImage(QRect(QPoint(skip, skip), inner), owned->frame());
 }
 
 void ListController::prepare() {
@@ -704,7 +790,10 @@ void InnerWidget::setupSort(not_null<Ui::RpWidget*> label) {
 		sort->widthValue()
 	) | rpl::start_with_next([=](QRect geometry, int outer, int sortWidth) {
 		const auto skip = st::boxRowPadding.right();
-		sort->moveToLeft(outer - sortWidth - skip, geometry.y(), outer);
+		const auto top = geometry.y()
+			+ st::defaultSubsectionTitle.style.font->ascent
+			- st::defaultFlatLabel.style.font->ascent;
+		sort->moveToLeft(outer - sortWidth - skip, top, outer);
 	}, sort->lifetime());
 	sort->setClickHandlerFilter([=](const auto &...) {
 		const auto menu = Ui::CreateChild<Ui::PopupMenu>(

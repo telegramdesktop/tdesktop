@@ -480,6 +480,8 @@ starrefRecipientBgDisabled: windowBgOver;
 starrefRecipientArrow: icon{{ "intro_country_dropdown", lightButtonFg }};
 starrefCommissionFont: font(10px semibold);
 starrefCommissionPadding: margins(3px, 0px, 3px, 0px);
+starrefLinkBadge: 16px;
+starrefLinkBadgeSkip: 1px;
 
 starrefAddForBotIcon: icon {{ "menu/bot_add", lightButtonFg }};
 starrefAddForBotIconPosition: point(23px, 2px);
