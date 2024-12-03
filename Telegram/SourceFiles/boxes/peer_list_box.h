@@ -652,8 +652,7 @@ public:
 	[[nodiscard]] bool hasPressed() const;
 	void clearSelection();
 
-	using IsEmpty = bool;
-	IsEmpty searchQueryChanged(QString query);
+	void searchQueryChanged(QString query);
 	bool submitted();
 
 	PeerListRowId updateFromParentDrag(QPoint globalPosition);
@@ -1108,8 +1107,6 @@ public:
 	[[nodiscard]] std::vector<not_null<PeerData*>> collectSelectedRows();
 	[[nodiscard]] rpl::producer<int> multiSelectHeightValue() const;
 
-	void setSpecialTabMode(bool value);
-
 	void peerListSetTitle(rpl::producer<QString> title) override {
 		setTitle(std::move(title));
 	}
@@ -1174,12 +1171,5 @@ private:
 	Fn<void(PeerListBox*)> _init;
 	bool _scrollBottomFixed = false;
 	int _addedTopScrollSkip = 0;
-
-	struct SpecialTabsMode final {
-		bool enabled = false;
-		bool searchIsActive = false;
-		int topSkip = 0;
-	};
-	SpecialTabsMode _specialTabsMode;
 
 };
