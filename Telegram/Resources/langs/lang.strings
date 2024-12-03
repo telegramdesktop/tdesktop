@@ -1707,7 +1707,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_link_copy_users#other" = "{count} users have opened {app} through this link.";
 "lng_star_ref_link_copied_title" = "Link copied to clipboard";
 "lng_star_ref_link_copied_text" = "Share this link and earn {amount} of what people who use it spend in {app}!";
-"lng_star_ref_stopped" = "This link was part of an affiliate program that has been terminated by the app owner.";
+"lng_star_ref_stopped" = "This affiliate link is no longer active.";
 "lng_star_ref_revoke_title" = "Revoke Link";
 "lng_star_ref_revoke_text" = "Are you sure you want to revoke the link of {bot}?";
 "lng_star_ref_revoked_title" = "Link removed";
