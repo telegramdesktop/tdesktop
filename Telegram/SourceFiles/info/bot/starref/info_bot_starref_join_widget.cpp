@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "styles/style_info.h"
@@ -126,6 +127,89 @@ private:
 
 };
 
+class Row final : public PeerListRow {
+public:
+	Row(not_null<PeerData*> peer, StarRefProgram program);
+
+	void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) override;
+
+private:
+	void refreshStatus() override;
+
+	StarRefProgram _program;
+	QImage _badge;
+
+};
+
+Row::Row(not_null<PeerData*> peer, StarRefProgram program)
+: PeerListRow(peer)
+, _program(program) {
+}
+
+void Row::paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) {
+	const auto top = y
+		+ st::contactsStatusFont->ascent
+		- st::starrefCommissionFont->ascent
+		- st::lineWidth;
+	p.drawImage(x, top, _badge);
+
+	const auto space = st::normalFont->spacew;
+	auto shift = (_badge.width() / _badge.devicePixelRatio()) + space;
+	x += shift;
+	availableWidth -= shift;
+
+	PeerListRow::paintStatusText(
+		p,
+		st,
+		x,
+		y,
+		availableWidth,
+		outerWidth,
+		selected);
+}
+
+void Row::refreshStatus() {
+	const auto text = FormatCommission(_program.commission);
+	const auto padding = st::starrefCommissionPadding;
+	const auto font = st::starrefCommissionFont;
+	const auto width = font->width(text);
+	const auto inner = QRect(0, 0, width, font->height);
+	const auto outer = inner.marginsAdded(padding);
+	const auto ratio = style::DevicePixelRatio();
+	_badge = QImage(
+		outer.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_badge.setDevicePixelRatio(ratio);
+	_badge.fill(Qt::transparent);
+
+	auto p = QPainter(&_badge);
+	p.setBrush(st::historyPeer2UserpicBg2);
+	p.setPen(Qt::NoPen);
+	const auto radius = st::roundRadiusSmall;
+	p.drawRoundedRect(outer.translated(-outer.topLeft()), radius, radius);
+	p.setFont(font);
+	p.setBrush(Qt::NoBrush);
+	p.setPen(st::historyPeerUserpicFg);
+	p.drawText(padding.left(), padding.top() + font->ascent, text);
+	p.end();
+
+	setCustomStatus(FormatProgramDuration(_program.durationMonths));
+}
+
 void Resolve(
 		not_null<PeerData*> peer,
 		not_null<UserData*> bot,
@@ -168,16 +252,7 @@ Main::Session &ListController::session() const {
 
 std::unique_ptr<PeerListRow> ListController::createRow(ConnectedBot bot) {
 	_states.emplace(bot.bot, bot.state);
-	auto result = std::make_unique<PeerListRow>(bot.bot);
-	const auto program = bot.state.program;
-	if (bot.state.revoked) {
-		result->setCustomStatus(u"Revoked"_q);
-	} else {
-		result->setCustomStatus(u"+%1, %2"_q.arg(
-			FormatCommission(program.commission),
-			FormatProgramDuration(program.durationMonths)));
-	}
-	return result;
+	return std::make_unique<Row>(bot.bot, bot.state.program);
 }
 
 void ListController::prepare() {
