@@ -655,10 +655,16 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 				if (right) {
 					const auto skip = st::chatGiveawayPeerPadding.right();
 					const auto icon = &st::starrefRecipientArrow;
-					right->resize(skip + icon->width(), icon->height());
+					const auto height = st::chatGiveawayPeerSize
+						- st::chatGiveawayPeerPadding.top() * 2;
+					right->resize(skip + icon->width(), height);
 					right->paintRequest() | rpl::start_with_next([=] {
 						auto p = QPainter(right);
-						icon->paint(p, skip, 0, right->width());
+						icon->paint(
+							p,
+							skip,
+							(height - icon->height()) / 2,
+							right->width());
 					}, right->lifetime());
 				}
 				const auto button = recipientWrap->add(
