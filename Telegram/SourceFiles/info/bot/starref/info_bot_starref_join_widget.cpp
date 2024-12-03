@@ -600,7 +600,7 @@ void RevokeLink(
 	)).done([=] {
 		controller->showToast({
 			.title = tr::lng_star_ref_revoked_title(tr::now),
-			.text = tr::lng_star_ref_revoked_text(tr::now),
+			.text = { tr::lng_star_ref_revoked_text(tr::now) },
 		});
 		revoked();
 	}).fail([=](const MTP::Error &error) {

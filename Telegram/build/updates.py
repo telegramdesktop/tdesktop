@@ -89,8 +89,6 @@ if building:
             finish(1, 'Updater not found.')
         elif not os.path.exists('Telegram.app/Contents/Helpers/crashpad_handler'):
             finish(1, 'crashpad_handler not found.')
-        elif not os.path.exists('Telegram.app/Contents/Resources/Icon.icns'):
-            finish(1, 'Icon not found.')
         elif not os.path.exists('Telegram.app/Contents/_CodeSignature'):
             finish(1, 'Signature not found.')
 
