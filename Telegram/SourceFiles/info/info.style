@@ -674,6 +674,12 @@ manageGroupButton: SettingsCountButton(managePeerButton) {
 	labelPosition: point(22px, 10px);
 	iconPosition: point(20px, 4px);
 }
+infoSharedMediaCountButton: SettingsCountButton(managePeerButton) {
+	button: infoSharedMediaButton;
+	iconPosition: point(20px, 4px);
+	label: defaultSettingsRightLabel;
+	labelPosition: point(24px, 10px);
+}
 
 manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
 	iconPosition: point(0px, 0px);

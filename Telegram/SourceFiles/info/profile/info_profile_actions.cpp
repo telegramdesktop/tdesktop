@@ -2165,14 +2165,13 @@ void ActionsFiller::addAffiliateProgram(not_null<UserData*> user) {
 		}
 	};
 
-	Ui::AddSkip(inner);
-	::Settings::AddButtonWithLabel(
+	inner->add(EditPeerInfoBox::CreateButton(
 		inner,
 		tr::lng_manage_peer_bot_star_ref(),
 		rpl::duplicate(commission),
-		st::infoSharedMediaButton,
-		{ &st::menuIconSharing }
-	)->setClickedCallback(recipients->open);
+		recipients->open,
+		st::infoSharedMediaCountButton,
+		{ .icon = &st::menuIconSharing, .newBadge = true }));
 	Ui::AddSkip(inner);
 	Ui::AddDividerText(
 		inner,

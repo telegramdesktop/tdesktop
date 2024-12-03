@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/premium_graphics.h"
+#include "ui/new_badges.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
@@ -80,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -1440,7 +1442,7 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_star_ref(),
 			rpl::single(QString()), // Empty count.
 			std::move(callback),
-			{ &st::menuIconSharing });
+			{ .icon = &st::menuIconStarRefShare, .newBadge = true });
 	}
 
 	if (canEditStickers || canDeleteChannel) {
@@ -1755,7 +1757,7 @@ void Controller::fillBotAffiliateProgram() {
 		[controller = _navigation->parentController(), user] {
 			controller->showSection(Info::BotStarRef::Setup::Make(user));
 		},
-		{ &st::menuIconSharing });
+		{ .icon = &st::menuIconSharing, .newBadge = true });
 }
 
 void Controller::fillBotEditIntroButton() {
@@ -2550,6 +2552,13 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 		st.button);
 	const auto button = result.data();
 	button->addClickHandler(callback);
+
+	const auto badge = descriptor.newBadge
+		? Ui::NewBadge::CreateNewBadge(
+			button,
+			tr::lng_premium_summary_new_badge()).get()
+		: nullptr;
+
 	if (descriptor) {
 		AddButtonIcon(
 			button,
@@ -2558,7 +2567,7 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 	}
 
 	auto labelText = rpl::combine(
-		std::move(text),
+		rpl::duplicate(text),
 		std::move(count),
 		button->widthValue()
 	) | rpl::map([&st](const QString &text, const QString &count, int width) {
@@ -2573,11 +2582,40 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 			: count;
 	});
 
+	if (badge) {
+		rpl::combine(
+			std::move(text),
+			rpl::duplicate(labelText),
+			button->widthValue()
+		) | rpl::start_with_next([=](
+				const QString &text,
+				const QString &label,
+				int width) {
+			const auto space = st.button.style.font->spacew;
+			const auto left = st.button.padding.left()
+				+ st.button.style.font->width(text)
+				+ space;
+			const auto right = st.labelPosition.x()
+				+ st.label.style.font->width(label)
+				+ (space * 2);
+			const auto available = width - left - right;
+			badge->setVisible(available >= badge->width());
+			if (!badge->isHidden()) {
+				const auto top = st.button.padding.top()
+					+ st.button.style.font->ascent
+					- st::settingsPremiumNewBadge.style.font->ascent
+					- st::settingsPremiumNewBadgePadding.top();
+				badge->moveToLeft(left, top, width);
+			}
+		}, badge->lifetime());
+	}
+
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		std::move(labelText),
 		st.label);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->show();
 
 	rpl::combine(
 		button->widthValue(),
