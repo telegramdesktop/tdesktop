@@ -1675,9 +1675,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_list_my_leave" = "Leave";
 "lng_star_ref_list_subtitle" = "Programs";
 "lng_star_ref_sort_text" = "Sort by {sort}";
+"lng_star_ref_sort_profitability" = "Profitability";
 "lng_star_ref_sort_date" = "Date";
 "lng_star_ref_sort_revenue" = "Revenue";
-"lng_star_ref_sort_commission" = "Commission";
 "lng_star_ref_reliable_title" = "Reliable";
 "lng_star_ref_reliable_about" = "Receive guaranteed commissions for spending by users you refer.";
 "lng_star_ref_transparent_title" = "Transparent";

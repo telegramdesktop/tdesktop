@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_media_player.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -58,6 +59,12 @@ enum class JoinType {
 	Joined,
 	Suggested,
 	Existing,
+};
+
+enum class SuggestedSort {
+	Profitability,
+	Revenue,
+	Date
 };
 
 class ListController final
@@ -82,6 +89,8 @@ public:
 	[[nodiscard]] rpl::producer<ConnectedBot> connected() const;
 	[[nodiscard]] rpl::producer<ConnectedBot> revoked() const;
 	[[nodiscard]] rpl::producer<> addForBotRequests() const;
+
+	void setSort(SuggestedSort sort);
 
 	void process(ConnectedBot row);
 
@@ -111,6 +120,7 @@ private:
 	QString _offsetThing;
 	bool _allLoaded = false;
 	bool _recipientsRequested = false;
+	SuggestedSort _sort = SuggestedSort::Profitability;
 
 	rpl::variable<int> _rowCount = 0;
 
@@ -214,13 +224,24 @@ void ListController::loadMoreRows() {
 		using Flag = MTPpayments_GetSuggestedStarRefBots::Flag;
 		_requestId = session().api().request(
 			MTPpayments_GetSuggestedStarRefBots(
-				MTP_flags(Flag::f_order_by_revenue),
+				MTP_flags((_sort == SuggestedSort::Revenue)
+					? Flag::f_order_by_revenue
+					: (_sort == SuggestedSort::Date)
+					? Flag::f_order_by_date
+					: Flag()),
 				_peer->input,
 				MTP_string(_offsetThing),
 				MTP_int(kPerPage))
 		).done([=](const MTPpayments_SuggestedStarRefBots &result) {
 			setDescriptionText(QString());
 			setupAddForBot();
+
+			if (_offsetThing.isEmpty()) {
+				while (delegate()->peerListFullRowsCount() > 0) {
+					delegate()->peerListRemoveRow(
+						delegate()->peerListRowAt(0));
+				}
+			}
 
 			const auto &data = result.data();
 			if (data.vnext_offset()) {
@@ -304,6 +325,19 @@ rpl::producer<ConnectedBot> ListController::revoked() const {
 
 rpl::producer<> ListController::addForBotRequests() const {
 	return _addForBot.events();
+}
+
+void ListController::setSort(SuggestedSort sort) {
+	if (_sort == sort) {
+		return;
+	}
+	_sort = sort;
+	if (const auto requestId = base::take(_requestId)) {
+		session().api().request(requestId).cancel();
+	}
+	_allLoaded = false;
+	_offsetThing = QString();
+	loadMoreRows();
 }
 
 void ListController::process(ConnectedBot row) {
@@ -485,6 +519,7 @@ private:
 	void setupInfo();
 	not_null<ListController*> setupMy();
 	not_null<ListController*> setupSuggested();
+	void setupSort(not_null<Ui::RpWidget*> label);
 
 	[[nodiscard]] object_ptr<Ui::RpWidget> infoRow(
 		rpl::producer<QString> title,
@@ -493,6 +528,7 @@ private:
 
 	const not_null<Controller*> _controller;
 	const not_null<Ui::VerticalLayout*> _container;
+	rpl::variable<SuggestedSort> _sort = SuggestedSort::Profitability;
 	ListController *_my = nullptr;
 	ListController *_suggested = nullptr;
 
@@ -572,6 +608,49 @@ not_null<ListController*> InnerWidget::setupMy() {
 	return controller;
 }
 
+void InnerWidget::setupSort(not_null<Ui::RpWidget*> label) {
+	constexpr auto phrase = [](SuggestedSort sort) {
+		return (sort == SuggestedSort::Profitability)
+			? tr::lng_star_ref_sort_profitability(tr::now)
+			: (sort == SuggestedSort::Revenue)
+			? tr::lng_star_ref_sort_revenue(tr::now)
+			: tr::lng_star_ref_sort_date(tr::now);
+	};
+	const auto sort = Ui::CreateChild<Ui::FlatLabel>(
+		label->parentWidget(),
+		tr::lng_star_ref_sort_text(
+			lt_sort,
+			_sort.value() | rpl::map(phrase) | Ui::Text::ToLink(),
+		Ui::Text::WithEntities),
+		st::defaultFlatLabel);
+	rpl::combine(
+		label->geometryValue(),
+		widthValue(),
+		sort->widthValue()
+	) | rpl::start_with_next([=](QRect geometry, int outer, int sortWidth) {
+		const auto skip = st::boxRowPadding.right();
+		sort->moveToLeft(outer - sortWidth - skip, geometry.y(), outer);
+	}, sort->lifetime());
+	sort->setClickHandlerFilter([=](const auto &...) {
+		const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+			sort,
+			st::popupMenuWithIcons);
+		const auto orders = {
+			SuggestedSort::Profitability,
+			SuggestedSort::Revenue,
+			SuggestedSort::Date
+		};
+		for (const auto order : orders) {
+			const auto chosen = (order == _sort.current());
+			menu->addAction(phrase(order), crl::guard(this, [=] {
+				_sort = order;
+			}), chosen ? &st::mediaPlayerMenuCheck : nullptr);
+		}
+		menu->popup(sort->mapToGlobal(QPoint(0, 0)));
+		return false;
+	});
+}
+
 not_null<ListController*> InnerWidget::setupSuggested() {
 	const auto wrap = _container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -580,7 +659,10 @@ not_null<ListController*> InnerWidget::setupSuggested() {
 	const auto inner = wrap->entity();
 
 	Ui::AddSkip(inner);
-	Ui::AddSubsectionTitle(inner, tr::lng_star_ref_list_subtitle());
+	const auto subtitle = Ui::AddSubsectionTitle(
+		inner,
+		tr::lng_star_ref_list_subtitle());
+	setupSort(subtitle);
 
 	const auto delegate = lifetime().make_state<
 		PeerListContentDelegateSimple
@@ -602,6 +684,10 @@ not_null<ListController*> InnerWidget::setupSuggested() {
 	controller->connected(
 	) | rpl::start_with_next([=](ConnectedBot row) {
 		_my->process(row);
+	}, content->lifetime());
+
+	_sort.value() | rpl::start_with_next([=](SuggestedSort sort) {
+		controller->setSort(sort);
 	}, content->lifetime());
 
 	return controller;
