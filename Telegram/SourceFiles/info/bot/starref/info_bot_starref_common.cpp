@@ -694,8 +694,10 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 			state->sent = true;
 			const auto recipient = state->recipient.current();
 			ConnectStarRef(bot->asUser(), recipient, [=](ConnectedBot info) {
-				if (const auto onstack = done) {
-					onstack(info.state);
+				if (recipient == initialRecipient) {
+					if (const auto onstack = done) {
+						onstack(info.state);
+					}
 				}
 				show->show(StarRefLinkBox(info, recipient));
 				if (const auto strong = state->weak.data()) {

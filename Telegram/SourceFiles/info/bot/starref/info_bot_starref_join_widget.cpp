@@ -80,6 +80,7 @@ public:
 
 	[[nodiscard]] rpl::producer<int> rowCountValue() const;
 	[[nodiscard]] rpl::producer<ConnectedBot> connected() const;
+	[[nodiscard]] rpl::producer<ConnectedBot> revoked() const;
 	[[nodiscard]] rpl::producer<> addForBotRequests() const;
 
 	void process(ConnectedBot row);
@@ -89,6 +90,7 @@ private:
 	void open(not_null<UserData*> bot, ConnectedBotState state);
 	void requestRecipients();
 	void setupAddForBot();
+	void refreshRows();
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
@@ -101,6 +103,7 @@ private:
 	Fn<void()> _recipientsReady;
 	std::vector<not_null<PeerData*>> _recipients;
 	rpl::event_stream<ConnectedBot> _connected;
+	rpl::event_stream<ConnectedBot> _revoked;
 	rpl::event_stream<> _addForBot;
 
 	mtpRequestId _requestId = 0;
@@ -194,10 +197,11 @@ void ListController::loadMoreRows() {
 				_allLoaded = true;
 			} else {
 				for (const auto &bot : parsed) {
-					delegate()->peerListAppendRow(createRow(bot));
+					if (!delegate()->peerListFindRow(bot.bot->id.value)) {
+						delegate()->peerListAppendRow(createRow(bot));
+					}
 				}
-				delegate()->peerListRefreshRows();
-				_rowCount = delegate()->peerListFullRowsCount();
+				refreshRows();
 			}
 			_requestId = 0;
 		}).fail([=](const MTP::Error &error) {
@@ -228,16 +232,17 @@ void ListController::loadMoreRows() {
 			for (const auto &program : data.vsuggested_bots().v) {
 				const auto botId = UserId(program.data().vbot_id());
 				const auto user = session().data().user(botId);
-				delegate()->peerListAppendRow(createRow({
-					.bot = user,
-					.state = {
-						.program = Data::ParseStarRefProgram(&program),
-						.unresolved = true,
-					},
-				}));
+				if (!delegate()->peerListFindRow(user->id.value)) {
+					delegate()->peerListAppendRow(createRow({
+						.bot = user,
+						.state = {
+							.program = Data::ParseStarRefProgram(&program),
+							.unresolved = true,
+						},
+					}));
+				}
 			}
-			delegate()->peerListRefreshRows();
-			_rowCount = delegate()->peerListFullRowsCount();
+			refreshRows();
 			_requestId = 0;
 		}).fail([=](const MTP::Error &error) {
 			_allLoaded = true;
@@ -283,7 +288,6 @@ void ListController::setupAddForBot() {
 		delegate()->peerListMouseLeftGeometry();
 	}, button->lifetime());
 	delegate()->peerListSetAboveWidget(std::move(button));
-	delegate()->peerListRefreshRows();
 }
 
 rpl::producer<int> ListController::rowCountValue() const {
@@ -294,15 +298,27 @@ rpl::producer<ConnectedBot> ListController::connected() const {
 	return _connected.events();
 }
 
+rpl::producer<ConnectedBot> ListController::revoked() const {
+	return _revoked.events();
+}
+
 rpl::producer<> ListController::addForBotRequests() const {
 	return _addForBot.events();
 }
 
 void ListController::process(ConnectedBot row) {
+	if (_type != JoinType::Joined) {
+		_states[row.bot] = { .program = row.state.program };
+	}
 	if (!delegate()->peerListFindRow(PeerListRowId(row.bot->id.value))) {
 		delegate()->peerListPrependRow(createRow(row));
-		delegate()->peerListRefreshRows();
+		refreshRows();
 	}
+}
+
+void ListController::refreshRows() {
+	delegate()->peerListRefreshRows();
+	_rowCount = delegate()->peerListFullRowsCount();
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
@@ -333,7 +349,8 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 
 void ListController::open(not_null<UserData*> bot, ConnectedBotState state) {
 	const auto show = _controller->uiShow();
-	if (_type == JoinType::Joined || !state.link.isEmpty()) {
+	if (_type == JoinType::Joined
+		|| (!state.link.isEmpty() && !state.revoked)) {
 		_recipientsReady = nullptr;
 		show->show(StarRefLinkBox({ bot, state }, _peer));
 	} else {
@@ -379,7 +396,8 @@ void ListController::requestRecipients() {
 void RevokeLink(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
-		const QString &link) {
+		const QString &link,
+		Fn<void()> revoked) {
 	peer->session().api().request(MTPpayments_EditConnectedStarRefBot(
 		MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
 		peer->input,
@@ -389,6 +407,7 @@ void RevokeLink(
 			.title = tr::lng_star_ref_revoked_title(tr::now),
 			.text = tr::lng_star_ref_revoked_text(tr::now),
 		});
+		revoked();
 	}).fail([=](const MTP::Error &error) {
 		controller->showToast(u"Failed: "_q + error.type());
 	}).send();
@@ -406,6 +425,14 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 		st::popupMenuWithIcons);
 	const auto addAction = Ui::Menu::CreateAddActionCallback(result.get());
 
+	const auto revoked = crl::guard(this, [=] {
+		if (const auto row = delegate()->peerListFindRow(bot->id.value)) {
+			delegate()->peerListRemoveRow(row);
+			refreshRows();
+		}
+		_revoked.fire({ bot, state });
+	});
+
 	addAction(tr::lng_star_ref_list_my_open(tr::now), [=] {
 		_controller->showPeerHistory(bot);
 	}, &st::menuIconBot);
@@ -417,7 +444,7 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 		const auto revoke = [=] {
 			const auto link = state.link;
 			const auto sure = [=](Fn<void()> close) {
-				RevokeLink(_controller, _peer, link);
+				RevokeLink(_controller, _peer, link, revoked);
 				close();
 			};
 			_controller->show(Ui::MakeConfirmBox({
@@ -457,7 +484,7 @@ private:
 	void prepare();
 	void setupInfo();
 	not_null<ListController*> setupMy();
-	void setupSuggested();
+	not_null<ListController*> setupSuggested();
 
 	[[nodiscard]] object_ptr<Ui::RpWidget> infoRow(
 		rpl::producer<QString> title,
@@ -467,6 +494,7 @@ private:
 	const not_null<Controller*> _controller;
 	const not_null<Ui::VerticalLayout*> _container;
 	ListController *_my = nullptr;
+	ListController *_suggested = nullptr;
 
 };
 
@@ -484,7 +512,7 @@ void InnerWidget::prepare() {
 	Ui::AddSkip(_container);
 	Ui::AddDivider(_container);
 	_my = setupMy();
-	setupSuggested();
+	_suggested = setupSuggested();
 }
 
 void InnerWidget::setupInfo() {
@@ -525,7 +553,7 @@ not_null<ListController*> InnerWidget::setupMy() {
 		JoinType::Joined);
 	const auto content = inner->add(
 		object_ptr<PeerListContent>(
-			_container,
+			inner,
 			controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
@@ -536,12 +564,23 @@ not_null<ListController*> InnerWidget::setupMy() {
 	wrap->toggleOn(controller->rowCountValue(
 	) | rpl::map(rpl::mappers::_1 > 0));
 
+	controller->revoked(
+	) | rpl::start_with_next([=](ConnectedBot row) {
+		_suggested->process(row);
+	}, content->lifetime());
+
 	return controller;
 }
 
-void InnerWidget::setupSuggested() {
-	Ui::AddSkip(_container);
-	Ui::AddSubsectionTitle(_container, tr::lng_star_ref_list_subtitle());
+not_null<ListController*> InnerWidget::setupSuggested() {
+	const auto wrap = _container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_container,
+			object_ptr<Ui::VerticalLayout>(_container)));
+	const auto inner = wrap->entity();
+
+	Ui::AddSkip(inner);
+	Ui::AddSubsectionTitle(inner, tr::lng_star_ref_list_subtitle());
 
 	const auto delegate = lifetime().make_state<
 		PeerListContentDelegateSimple
@@ -550,17 +589,22 @@ void InnerWidget::setupSuggested() {
 		_controller->parentController(),
 		peer(),
 		JoinType::Suggested);
-	const auto content = _container->add(
+	const auto content = inner->add(
 		object_ptr<PeerListContent>(
-			_container,
+			inner,
 			controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
+
+	wrap->toggleOn(controller->rowCountValue(
+	) | rpl::map(rpl::mappers::_1 > 0));
 
 	controller->connected(
 	) | rpl::start_with_next([=](ConnectedBot row) {
 		_my->process(row);
 	}, content->lifetime());
+
+	return controller;
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::infoRow(
