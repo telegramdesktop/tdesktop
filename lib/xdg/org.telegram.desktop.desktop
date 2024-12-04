@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Telegram
-Comment=Official desktop version of Telegram messaging app
+Comment=New era of messaging
 TryExec=telegram-desktop
 Exec=telegram-desktop -- %u
 Icon=telegram
