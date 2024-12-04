@@ -36,8 +36,8 @@ void ProcessFilterUpdate(
 
 void ProcessFilterRemove(
 	base::weak_ptr<Window::SessionController> weak,
-	const QString &title,
-	const QString &iconEmoji,
+	TextWithEntities title,
+	QString iconEmoji,
 	std::vector<not_null<PeerData*>> all,
 	std::vector<not_null<PeerData*>> suggest,
 	Fn<void(std::vector<not_null<PeerData*>>)> done);

@@ -216,8 +216,8 @@ void FilterRowButton::setRemoved(bool removed) {
 
 void FilterRowButton::updateData(const Data::ChatFilter &filter) {
 	Expects(_session != nullptr);
-
-	_title.setText(st::contactsNameStyle, filter.title());
+	// todo filter emoji
+	_title.setText(st::contactsNameStyle, filter.title().text);
 	_icon = Ui::ComputeFilterIcon(filter);
 	_colorIndex = filter.colorIndex();
 	updateCount(filter);
@@ -243,8 +243,8 @@ void FilterRowButton::setup(
 		const Data::ChatFilter &filter,
 		const QString &status) {
 	resize(width(), st::defaultPeerListItem.height);
-
-	_title.setText(st::contactsNameStyle, filter.title());
+	// todo filter emoji
+	_title.setText(st::contactsNameStyle, filter.title().text);
 	_status = status;
 	_icon = Ui::ComputeFilterIcon(filter);
 	_colorIndex = filter.colorIndex();

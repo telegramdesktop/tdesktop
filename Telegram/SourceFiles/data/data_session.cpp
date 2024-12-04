@@ -4591,7 +4591,8 @@ void Session::serviceNotification(
 			MTPint(), // stories_max_id
 			MTPPeerColor(), // color
 			MTPPeerColor(), // profile_color
-			MTPint())); // bot_active_users
+			MTPint(), // bot_active_users
+			MTPBotVerification()));
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	const auto insert = [=] {
@@ -4649,7 +4650,8 @@ void Session::insertCheckedServiceNotification(
 				MTPint(), // ttl_period
 				MTPint(), // quick_reply_shortcut_id
 				MTPlong(), // effect
-				MTPFactCheck()),
+				MTPFactCheck(),
+				MTPint()), // report_delivery_until_date
 			localFlags,
 			NewMessageType::Unread);
 	}

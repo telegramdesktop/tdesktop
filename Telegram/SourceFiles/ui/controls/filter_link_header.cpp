@@ -70,7 +70,7 @@ private:
 	QPoint _titlePosition;
 	QPainterPath _titlePath;
 
-	QString _folderTitle;
+	TextWithEntities _folderTitle;
 	not_null<const style::icon*> _folderIcon;
 	bool _horizontalFilters = false;
 
@@ -82,7 +82,7 @@ private:
 
 [[nodiscard]] QImage GeneratePreview(
 		not_null<Ui::RpWidget*> parent,
-		const QString &title,
+		const TextWithEntities &title,
 		int badge) {
 	using Tabs = Ui::ChatsFiltersTabs;
 	auto owned = parent->lifetime().make_state<base::unique_qptr<Tabs>>(
@@ -90,7 +90,7 @@ private:
 	const auto raw = owned->get();
 	raw->setSections({
 		tr::lng_filters_name_people(tr::now),
-		title,
+		title.text, // todo filter emoji
 		tr::lng_filters_name_unread(tr::now),
 	});
 	raw->fitWidthToSections();
@@ -121,7 +121,7 @@ private:
 }
 
 [[nodiscard]] QImage GeneratePreview(
-		const QString &title,
+		const TextWithEntities &title,
 		not_null<const style::icon*> icon,
 		int badge) {
 	const auto size = st::filterLinkPreview;
@@ -171,7 +171,7 @@ private:
 	p.setPen(st.textFg);
 	paintName(tr::lng_filters_all(tr::now), st::filterLinkPreviewAllTop);
 	p.setPen(st.textFgActive);
-	paintName(title, st::filterLinkPreviewMyTop);
+	paintName(title.text, st::filterLinkPreviewMyTop); // todo filter emoji
 
 	auto hq = PainterHighQualityEnabler(p);
 
@@ -414,7 +414,7 @@ void Widget::wheelEvent(QWheelEvent *e) {
 object_ptr<RoundButton> FilterLinkProcessButton(
 		not_null<QWidget*> parent,
 		FilterLinkHeaderType type,
-		const QString &title,
+		TextWithEntities title,
 		rpl::producer<int> badge) {
 	const auto st = &st::filterInviteBox.button;
 	const auto badgeSt = &st::filterInviteButtonBadgeStyle;
@@ -439,7 +439,7 @@ object_ptr<RoundButton> FilterLinkProcessButton(
 				? tr::lng_filters_by_link_add_no() | with(QString())
 				: tr::lng_filters_by_link_add_button(
 					lt_folder,
-					rpl::single(title)
+					rpl::single(title.text) // todo filter emoji
 				) | with(badge);
 		case FilterLinkHeaderType::AddingChats:
 			return badge.isEmpty()

@@ -73,6 +73,11 @@ constexpr auto kTransactionsLimit = 100;
 		return PeerId(0);
 	}).value;
 	const auto stargift = tl.data().vstargift();
+	const auto nonUniqueGift = stargift
+		? stargift->match([&](const MTPDstarGift &data) {
+			return &data;
+		}, [](const auto &) { return (const MTPDstarGift*)nullptr; })
+		: nullptr;
 	const auto reaction = tl.data().is_reaction();
 	const auto amount = Data::FromTL(tl.data().vstars());
 	const auto starrefAmount = tl.data().vstarref_amount()
@@ -85,6 +90,25 @@ constexpr auto kTransactionsLimit = 100;
 		: 0;
 	const auto incoming = (amount >= StarsAmount());
 	const auto saveActorId = (reaction || !extended.empty()) && incoming;
+	const auto giftStickerId = [&] {
+		if (!stargift) {
+			return DocumentId();
+		}
+		return stargift->match([&](const MTPDstarGift &data) {
+			return owner->processDocument(data.vsticker())->id;
+		}, [&](const MTPDstarGiftUnique &data) {
+			for (const auto &attribute : data.vattributes().v) {
+				const auto result = attribute.match([&](
+						const MTPDstarGiftAttributeModel &data) {
+					return DocumentId(data.vdocument_id().v);
+				}, [](const auto &) { return DocumentId(); });
+				if (result) {
+					return result;
+				}
+			}
+			return DocumentId();
+		});
+	}();
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),
@@ -97,9 +121,7 @@ constexpr auto kTransactionsLimit = 100;
 		.barePeerId = saveActorId ? peer->id.value : barePeerId,
 		.bareGiveawayMsgId = uint64(
 			tl.data().vgiveaway_post_id().value_or_empty()),
-		.bareGiftStickerId = (stargift
-			? owner->processDocument(stargift->data().vsticker())->id
-			: 0),
+		.bareGiftStickerId = giftStickerId,
 		.bareActorId = saveActorId ? barePeerId : uint64(0),
 		.starrefAmount = starrefAmount,
 		.starrefCommission = starrefCommission,
@@ -129,8 +151,8 @@ constexpr auto kTransactionsLimit = 100;
 			? base::unixtime::parse(tl.data().vtransaction_date()->v)
 			: QDateTime(),
 		.successLink = qs(tl.data().vtransaction_url().value_or_empty()),
-		.starsConverted = int(stargift
-			? stargift->data().vconvert_stars().v
+		.starsConverted = int(nonUniqueGift
+			? nonUniqueGift->vconvert_stars().v
 			: 0),
 		.floodSkip = int(tl.data().vfloodskip_number().value_or(0)),
 		.converted = stargift && incoming,

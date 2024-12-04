@@ -1471,6 +1471,8 @@ ServiceAction ParseServiceAction(
 				return Reason::Hangup;
 			}, [](const MTPDphoneCallDiscardReasonBusy &data) {
 				return Reason::Busy;
+			}, [](const MTPDphoneCallDiscardReasonAllowGroupCall &) {
+				return Reason::AllowGroupCall;
 			});
 		}
 		result.content = content;
@@ -1667,18 +1669,29 @@ ServiceAction ParseServiceAction(
 			.isUnclaimed = data.is_unclaimed(),
 		};
 	}, [&](const MTPDmessageActionStarGift &data) {
-		const auto &gift = data.vgift().data();
-		result.content = ActionStarGift{
-			.giftId = uint64(gift.vid().v),
-			.stars = int64(gift.vstars().v),
-			.text = (data.vmessage()
-				? ParseText(
-					data.vmessage()->data().vtext(),
-					data.vmessage()->data().ventities().v)
-				: std::vector<TextPart>()),
-			.anonymous = data.is_name_hidden(),
-			.limited = gift.is_limited(),
-		};
+		data.vgift().match([&](const MTPDstarGift &gift) {
+			result.content = ActionStarGift{
+				.giftId = uint64(gift.vid().v),
+				.stars = int64(gift.vstars().v),
+				.text = (data.vmessage()
+					? ParseText(
+						data.vmessage()->data().vtext(),
+						data.vmessage()->data().ventities().v)
+					: std::vector<TextPart>()),
+				.anonymous = data.is_name_hidden(),
+				.limited = gift.is_limited(),
+			};
+		}, [&](const MTPDstarGiftUnique &gift) {
+			result.content = ActionStarGift{
+				.giftId = uint64(gift.vid().v),
+				.text = (data.vmessage()
+					? ParseText(
+						data.vmessage()->data().vtext(),
+						data.vmessage()->data().ventities().v)
+					: std::vector<TextPart>()),
+				.anonymous = data.is_name_hidden(),
+			};
+		});
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

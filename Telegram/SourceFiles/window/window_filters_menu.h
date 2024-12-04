@@ -44,7 +44,7 @@ private:
 	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareButton(
 		not_null<Ui::VerticalLayout*> container,
 		FilterId id,
-		const QString &title,
+		TextWithEntities title,
 		Ui::FilterIcon icon,
 		bool toBeginning = false);
 	void setupMainMenuIcon();

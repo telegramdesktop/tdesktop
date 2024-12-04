@@ -4271,7 +4271,7 @@ QImage *InnerWidget::cacheChatsFilterTag(
 	auto roundedText = QString();
 	auto colorIndex = -1;
 	if (filter.id()) {
-		roundedText = filter.title().toUpper();
+		roundedText = filter.title().text.toUpper(); // todo filter emoji
 		if (filter.colorIndex()) {
 			colorIndex = *(filter.colorIndex());
 		}

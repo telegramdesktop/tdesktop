@@ -472,7 +472,10 @@ MessageFlags FlagsFromMTP(
 		| ((flags & MTP::f_post) ? Flag::Post : Flag())
 		| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag())
 		| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag())
-		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag());
+		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
+		| ((flags & MTP::f_reactions_are_possible)
+			? Flag::ReactionsAllowed
+			: Flag());
 }
 
 MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {

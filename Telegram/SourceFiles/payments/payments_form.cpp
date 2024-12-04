@@ -514,6 +514,8 @@ void Form::requestForm() {
 				.starGiftForm = true,
 			};
 			_updates.fire(CreditsPaymentStarted{ .data = formData });
+		}, [&](const MTPDpayments_paymentFormStarGiftUpgrade &data) {
+			// todo gifts
 		});
 	}).fail([=](const MTP::Error &error) {
 		hideProgress();

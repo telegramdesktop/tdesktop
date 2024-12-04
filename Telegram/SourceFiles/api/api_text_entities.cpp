@@ -229,7 +229,7 @@ EntitiesInText EntitiesFromMTP(
 }
 
 MTPVector<MTPMessageEntity> EntitiesToMTP(
-		not_null<Main::Session*> session,
+		Main::Session *session,
 		const EntitiesInText &entities,
 		ConvertOption option) {
 	auto v = QVector<MTPMessageEntity>();
@@ -283,6 +283,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			v.push_back(MTP_messageEntityMention(offset, length));
 		} break;
 		case EntityType::MentionName: {
+			Assert(session != nullptr);
 			const auto valid = MentionNameEntity(
 				session,
 				offset,
@@ -342,6 +343,16 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		}
 	}
 	return MTP_vector<MTPMessageEntity>(std::move(v));
+}
+
+TextWithEntities ParseTextWithEntities(
+		Main::Session *session,
+		const MTPTextWithEntities &text) {
+	const auto &data = text.data();
+	return {
+		.text = qs(data.vtext()),
+		.entities = EntitiesFromMTP(session, data.ventities().v),
+	};
 }
 
 } // namespace Api

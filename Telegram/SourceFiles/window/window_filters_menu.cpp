@@ -216,7 +216,7 @@ void FiltersMenu::setupList() {
 	_setup = prepareButton(
 		_container,
 		-1,
-		tr::lng_filters_setup(tr::now),
+		TextWithEntities{ tr::lng_filters_setup(tr::now) },
 		Ui::FilterIcon::Edit);
 	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list, &_scroll);
 
@@ -247,12 +247,12 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareAll() {
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		not_null<Ui::VerticalLayout*> container,
 		FilterId id,
-		const QString &title,
+		TextWithEntities title,
 		Ui::FilterIcon icon,
 		bool toBeginning) {
 	auto prepared = object_ptr<Ui::SideBarButton>(
 		container,
-		id ? title : tr::lng_filters_all(tr::now),
+		id ? title.text : tr::lng_filters_all(tr::now), // todo filter emoji
 		st::windowFiltersButton);
 	auto added = toBeginning
 		? container->insert(0, std::move(prepared))

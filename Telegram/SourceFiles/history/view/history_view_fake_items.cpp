@@ -60,7 +60,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPint(), // stories_max_id
 		MTPPeerColor(), // color
 		MTPPeerColor(), // profile_color
-		MTPint())); // bot_active_users
+		MTPint(), // bot_active_users
+		MTPBotVerification()));
 	return peerId;
 }
 

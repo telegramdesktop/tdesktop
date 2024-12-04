@@ -303,6 +303,7 @@ void Call::startOutgoing() {
 	_api.request(MTPphone_RequestCall(
 		MTP_flags(flags),
 		_user->inputUser,
+		MTPInputGroupCall(),
 		MTP_int(base::RandomValue<int32>()),
 		MTP_bytes(_gaHash),
 		MTP_phoneCallProtocol(

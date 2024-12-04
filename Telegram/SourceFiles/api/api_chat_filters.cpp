@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_chat_filters.h"
 
+#include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "boxes/peer_list_box.h"
@@ -49,7 +50,7 @@ public:
 	ToggleChatsController(
 		not_null<Window::SessionController*> window,
 		ToggleAction action,
-		const QString &title,
+		TextWithEntities title,
 		std::vector<not_null<PeerData*>> chats,
 		std::vector<not_null<PeerData*>> additional);
 
@@ -75,7 +76,7 @@ private:
 	Ui::RpWidget *_addedBottomWidget = nullptr;
 
 	ToggleAction _action = ToggleAction::Adding;
-	QString _filterTitle;
+	TextWithEntities _filterTitle;
 	base::flat_set<not_null<PeerData*>> _checkable;
 	std::vector<not_null<PeerData*>> _chats;
 	std::vector<not_null<PeerData*>> _additional;
@@ -104,11 +105,11 @@ private:
 	Unexpected("Ui::FilterLinkHeaderType in TitleText.");
 }
 
-[[nodiscard]] TextWithEntities AboutText(
+[[nodiscard]] TextWithEntities AboutText( // todo filter emoji
 		Ui::FilterLinkHeaderType type,
-		const QString &title) {
+		TextWithEntities title) {
 	using Type = Ui::FilterLinkHeaderType;
-	auto boldTitle = Ui::Text::Bold(title);
+	auto boldTitle = Ui::Text::Wrapped(title, EntityType::Bold);
 	return (type == Type::AddingFilter)
 		? tr::lng_filters_by_link_sure(
 			tr::now,
@@ -138,8 +139,8 @@ void InitFilterLinkHeader(
 		not_null<PeerListBox*> box,
 		Fn<void(int minHeight, int maxHeight, int addedTopHeight)> adjust,
 		Ui::FilterLinkHeaderType type,
-		const QString &title,
-		const QString &iconEmoji,
+		TextWithEntities title,
+		QString iconEmoji,
 		rpl::producer<int> count,
 		bool horizontalFilters) {
 	const auto icon = Ui::LookupFilterIcon(
@@ -248,7 +249,7 @@ void ImportInvite(
 ToggleChatsController::ToggleChatsController(
 	not_null<Window::SessionController*> window,
 	ToggleAction action,
-	const QString &title,
+	TextWithEntities title,
 	std::vector<not_null<PeerData*>> chats,
 	std::vector<not_null<PeerData*>> additional)
 : _window(window)
@@ -529,7 +530,7 @@ void ShowImportError(
 
 void ShowImportToast(
 		base::weak_ptr<Window::SessionController> weak,
-		const QString &title,
+		TextWithEntities title,
 		Ui::FilterLinkHeaderType type,
 		int added) {
 	const auto strong = weak.get();
@@ -540,7 +541,9 @@ void ShowImportToast(
 	const auto phrase = created
 		? tr::lng_filters_added_title
 		: tr::lng_filters_updated_title;
-	auto text = Ui::Text::Bold(phrase(tr::now, lt_folder, title));
+	auto text = Ui::Text::Wrapped( // todo filter emoji
+		phrase(tr::now, lt_folder, title, Ui::Text::WithEntities),
+		EntityType::Bold);
 	if (added > 0) {
 		const auto phrase = created
 			? tr::lng_filters_added_also
@@ -574,8 +577,8 @@ void ProcessFilterInvite(
 		base::weak_ptr<Window::SessionController> weak,
 		const QString &slug,
 		FilterId filterId,
-		const QString &title,
-		const QString &iconEmoji,
+		TextWithEntities title,
+		QString iconEmoji,
 		std::vector<not_null<PeerData*>> peers,
 		std::vector<not_null<PeerData*>> already) {
 	const auto strong = weak.get();
@@ -720,7 +723,7 @@ void CheckFilterInvite(
 		if (!strong) {
 			return;
 		}
-		auto title = QString();
+		auto title = TextWithEntities();
 		auto iconEmoji = QString();
 		auto filterId = FilterId();
 		auto peers = std::vector<not_null<PeerData*>>();
@@ -739,7 +742,7 @@ void CheckFilterInvite(
 			return result;
 		};
 		result.match([&](const MTPDchatlists_chatlistInvite &data) {
-			title = qs(data.vtitle());
+			title = ParseTextWithEntities(session, data.vtitle());
 			iconEmoji = data.vemoticon().value_or_empty();
 			peers = parseList(data.vpeers());
 		}, [&](const MTPDchatlists_chatlistInviteAlready &data) {
@@ -804,8 +807,8 @@ void ProcessFilterUpdate(
 
 void ProcessFilterRemove(
 		base::weak_ptr<Window::SessionController> weak,
-		const QString &title,
-		const QString &iconEmoji,
+		TextWithEntities title,
+		QString iconEmoji,
 		std::vector<not_null<PeerData*>> all,
 		std::vector<not_null<PeerData*>> suggest,
 		Fn<void(std::vector<not_null<PeerData*>>)> done) {

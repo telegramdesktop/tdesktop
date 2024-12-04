@@ -176,7 +176,7 @@ void ChangeFilterById(
 						lt_chat,
 						Ui::Text::Bold(chat),
 						lt_folder,
-						Ui::Text::Bold(name),
+						Ui::Text::Wrapped(name, EntityType::Bold),
 						Ui::Text::WithEntities));
 			}
 		}).fail([=](const MTP::Error &error) {
@@ -278,8 +278,8 @@ void FillChooseFilterMenu(
 			menu.get(),
 			menu->st().menu,
 			Ui::Menu::CreateAction(
-				menu.get(),
-				Ui::Text::FixAmpersandInAction(filter.title()),
+				menu.get(), // todo filter emoji
+				Ui::Text::FixAmpersandInAction(filter.title().text),
 				std::move(callback)),
 			contains ? &st::mediaPlayerMenuCheck : nullptr,
 			contains ? &st::mediaPlayerMenuCheck : nullptr);

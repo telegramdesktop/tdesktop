@@ -1377,6 +1377,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				inputCall(),
 				joinAs()->input,
 				MTP_string(_joinHash),
+				MTPlong(), // key_fingerprint
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](
 					const MTPUpdates &updates,

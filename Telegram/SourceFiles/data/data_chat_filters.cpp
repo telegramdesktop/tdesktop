@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_chat_filters.h"
 
+#include "api/api_text_entities.h"
 #include "history/history.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
@@ -41,16 +42,16 @@ constexpr auto kLoadExceptionsPerRequest = 100;
 
 ChatFilter::ChatFilter(
 	FilterId id,
-	const QString &title,
-	const QString &iconEmoji,
+	TextWithEntities title,
+	QString iconEmoji,
 	std::optional<uint8> colorIndex,
 	Flags flags,
 	base::flat_set<not_null<History*>> always,
 	std::vector<not_null<History*>> pinned,
 	base::flat_set<not_null<History*>> never)
 : _id(id)
-, _title(title)
-, _iconEmoji(iconEmoji)
+, _title(std::move(title))
+, _iconEmoji(std::move(iconEmoji))
 , _colorIndex(colorIndex)
 , _always(std::move(always))
 , _pinned(std::move(pinned))
@@ -95,7 +96,7 @@ ChatFilter ChatFilter::FromTL(
 		};
 		return ChatFilter(
 			data.vid().v,
-			qs(data.vtitle()),
+			Api::ParseTextWithEntities(&owner->session(), data.vtitle()),
 			qs(data.vemoticon().value_or_empty()),
 			data.vcolor()
 				? std::make_optional(data.vcolor()->v)
@@ -143,7 +144,7 @@ ChatFilter ChatFilter::FromTL(
 		};
 		return ChatFilter(
 			data.vid().v,
-			qs(data.vtitle()),
+			Api::ParseTextWithEntities(&owner->session(), data.vtitle()),
 			qs(data.vemoticon().value_or_empty()),
 			data.vcolor()
 				? std::make_optional(data.vcolor()->v)
@@ -162,9 +163,9 @@ ChatFilter ChatFilter::withId(FilterId id) const {
 	return result;
 }
 
-ChatFilter ChatFilter::withTitle(const QString &title) const {
+ChatFilter ChatFilter::withTitle(TextWithEntities title) const {
 	auto result = *this;
-	result._title = title;
+	result._title = std::move(title);
 	return result;
 }
 
@@ -209,6 +210,12 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	for (const auto &history : always) {
 		include.push_back(history->peer->input);
 	}
+	auto title = MTP_textWithEntities(
+		MTP_string(_title.text),
+		Api::EntitiesToMTP(
+			nullptr,
+			_title.entities,
+			Api::ConvertOption::SkipLocal));
 	if (_flags & Flag::Chatlist) {
 		using TLFlag = MTPDdialogFilterChatlist::Flag;
 		const auto flags = TLFlag::f_emoticon
@@ -216,7 +223,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 		return MTP_dialogFilterChatlist(
 			MTP_flags(flags),
 			MTP_int(replaceId ? replaceId : _id),
-			MTP_string(_title),
+			std::move(title),
 			MTP_string(_iconEmoji),
 			MTP_int(_colorIndex.value_or(0)),
 			MTP_vector<MTPInputPeer>(pinned),
@@ -243,7 +250,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	return MTP_dialogFilter(
 		MTP_flags(flags),
 		MTP_int(replaceId ? replaceId : _id),
-		MTP_string(_title),
+		std::move(title),
 		MTP_string(_iconEmoji),
 		MTP_int(_colorIndex.value_or(0)),
 		MTP_vector<MTPInputPeer>(pinned),
@@ -255,7 +262,7 @@ FilterId ChatFilter::id() const {
 	return _id;
 }
 
-QString ChatFilter::title() const {
+TextWithEntities ChatFilter::title() const {
 	return _title;
 }
 

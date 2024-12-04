@@ -149,9 +149,9 @@ void ShowFiltersListMenu(
 
 	for (auto i = 0; i < list.size(); ++i) {
 		const auto &filter = list[i];
-		auto text = filter.title().isEmpty()
+		auto text = filter.title().empty()
 			? tr::lng_filters_all_short(tr::now)
-			: filter.title();
+			: filter.title().text; // todo filter emoji
 
 		const auto action = state->menu->addAction(std::move(text), [=] {
 			if (i != active) {
@@ -329,9 +329,9 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			ranges::views::all(
 				list
 			) | ranges::views::transform([](const Data::ChatFilter &filter) {
-				return filter.title().isEmpty()
+				return filter.title().empty()
 					? tr::lng_filters_all_short(tr::now)
-					: filter.title();
+					: filter.title().text; // todo filter emoji
 			}) | ranges::to_vector);
 		if (!sectionsChanged) {
 			return;

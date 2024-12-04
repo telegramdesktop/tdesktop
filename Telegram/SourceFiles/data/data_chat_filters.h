@@ -50,8 +50,8 @@ public:
 	ChatFilter() = default;
 	ChatFilter(
 		FilterId id,
-		const QString &title,
-		const QString &iconEmoji,
+		TextWithEntities title,
+		QString iconEmoji,
 		std::optional<uint8> colorIndex,
 		Flags flags,
 		base::flat_set<not_null<History*>> always,
@@ -59,7 +59,7 @@ public:
 		base::flat_set<not_null<History*>> never);
 
 	[[nodiscard]] ChatFilter withId(FilterId id) const;
-	[[nodiscard]] ChatFilter withTitle(const QString &title) const;
+	[[nodiscard]] ChatFilter withTitle(TextWithEntities title) const;
 	[[nodiscard]] ChatFilter withColorIndex(std::optional<uint8>) const;
 	[[nodiscard]] ChatFilter withChatlist(
 		bool chatlist,
@@ -72,7 +72,7 @@ public:
 	[[nodiscard]] MTPDialogFilter tl(FilterId replaceId = 0) const;
 
 	[[nodiscard]] FilterId id() const;
-	[[nodiscard]] QString title() const;
+	[[nodiscard]] TextWithEntities title() const;
 	[[nodiscard]] QString iconEmoji() const;
 	[[nodiscard]] std::optional<uint8> colorIndex() const;
 	[[nodiscard]] Flags flags() const;
@@ -88,7 +88,7 @@ public:
 
 private:
 	FilterId _id = 0;
-	QString _title;
+	TextWithEntities _title;
 	QString _iconEmoji;
 	std::optional<uint8> _colorIndex;
 	base::flat_set<not_null<History*>> _always;

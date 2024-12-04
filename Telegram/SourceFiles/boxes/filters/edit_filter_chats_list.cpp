@@ -130,7 +130,7 @@ ExceptionRow::ExceptionRow(not_null<History*> history) : Row(history) {
 	auto filters = QStringList();
 	for (const auto &filter : history->owner().chatsFilters().list()) {
 		if (filter.contains(history) && filter.id()) {
-			filters << filter.title();
+			filters << filter.title().text; // todo filter emoji
 		}
 	}
 	if (!filters.isEmpty()) {

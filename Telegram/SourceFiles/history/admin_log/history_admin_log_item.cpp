@@ -90,6 +90,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 		const auto removeFlags = MTPDmessageService::Flag::f_out
 			| MTPDmessageService::Flag::f_post
 			| MTPDmessageService::Flag::f_reply_to
+			| MTPDmessageService::Flag::f_reactions_are_possible
+			| MTPDmessageService::Flag::f_reactions
 			| MTPDmessageService::Flag::f_ttl_period;
 		return MTP_messageService(
 			MTP_flags(data.vflags().v & ~removeFlags),
@@ -99,6 +101,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPMessageReplyHeader(),
 			MTP_int(newDate),
 			data.vaction(),
+			MTPMessageReactions(),
 			MTPint()); // ttl_period
 	}, [&](const MTPDmessage &data) {
 		const auto removeFlags = MTPDmessage::Flag::f_out
@@ -112,7 +115,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			//| MTPDmessage::Flag::f_reactions
 			| MTPDmessage::Flag::f_restriction_reason
 			| MTPDmessage::Flag::f_ttl_period
-			| MTPDmessage::Flag::f_factcheck;
+			| MTPDmessage::Flag::f_factcheck
+			| MTPDmessage::Flag::f_report_delivery_until_date;
 		return MTP_message(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			data.vid(),
@@ -142,7 +146,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPint(), // ttl_period
 			MTPint(), // quick_reply_shortcut_id
 			MTP_long(data.veffect().value_or_empty()),
-			MTPFactCheck());
+			MTPFactCheck(),
+			MTPint()); // report_delivery_until_date
 	});
 }
 

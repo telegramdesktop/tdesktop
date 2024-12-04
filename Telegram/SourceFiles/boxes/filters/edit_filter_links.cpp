@@ -482,7 +482,7 @@ private:
 	const not_null<Window::SessionController*> _window;
 	InviteLinkData _data;
 
-	QString _filterTitle;
+	TextWithEntities _filterTitle;
 	base::flat_set<not_null<History*>> _filterChats;
 	base::flat_map<not_null<PeerData*>, QString> _denied;
 	rpl::variable<base::flat_set<not_null<PeerData*>>> _selected;
@@ -543,8 +543,10 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 				(_data.url.isEmpty()
 					? tr::lng_filters_link_no_about(Ui::Text::WithEntities)
 					: tr::lng_filters_link_share_about(
-						lt_folder,
-						rpl::single(Ui::Text::Bold(_filterTitle)),
+						lt_folder, // todo filter emoji
+						rpl::single(Ui::Text::Wrapped(
+							_filterTitle,
+							EntityType::Bold)),
 						Ui::Text::WithEntities)),
 				st::settingsFilterDividerLabel)),
 		st::filterLinkDividerLabelPadding);

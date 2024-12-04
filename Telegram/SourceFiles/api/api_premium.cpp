@@ -761,25 +761,28 @@ rpl::producer<DocumentData*> RandomHelloStickerValue(
 std::optional<StarGift> FromTL(
 		not_null<Main::Session*> session,
 		const MTPstarGift &gift) {
-	const auto &data = gift.data();
-	const auto document = session->data().processDocument(
-		data.vsticker());
-	const auto remaining = data.vavailability_remains();
-	const auto total = data.vavailability_total();
-	if (!document->sticker()) {
-		return {};
-	}
-	return StarGift{
-		.id = uint64(data.vid().v),
-		.stars = int64(data.vstars().v),
-		.starsConverted = int64(data.vconvert_stars().v),
-		.document = document,
-		.limitedLeft = remaining.value_or_empty(),
-		.limitedCount = total.value_or_empty(),
-		.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
-		.lastSaleDate = data.vlast_sale_date().value_or_empty(),
-		.birthday = data.is_birthday(),
-	};
+	return gift.match([&](const MTPDstarGift &data) {
+		const auto document = session->data().processDocument(
+			data.vsticker());
+		const auto remaining = data.vavailability_remains();
+		const auto total = data.vavailability_total();
+		if (!document->sticker()) {
+			return std::optional<StarGift>();
+		}
+		return std::optional<StarGift>(StarGift{
+			.id = uint64(data.vid().v),
+			.stars = int64(data.vstars().v),
+			.starsConverted = int64(data.vconvert_stars().v),
+			.document = document,
+			.limitedLeft = remaining.value_or_empty(),
+			.limitedCount = total.value_or_empty(),
+			.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
+			.lastSaleDate = data.vlast_sale_date().value_or_empty(),
+			.birthday = data.is_birthday(),
+		});
+	}, [&](const MTPDstarGiftUnique &data) {
+		return std::optional<StarGift>();
+	});
 }
 
 std::optional<UserStarGift> FromTL(

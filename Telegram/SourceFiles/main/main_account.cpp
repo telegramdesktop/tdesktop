@@ -173,7 +173,8 @@ void Account::createSession(
 			MTPint(), // stories_max_id
 			MTPPeerColor(), // color
 			MTPPeerColor(), // profile_color
-			MTPint()), // bot_active_users
+			MTPint(), // bot_active_users
+			MTPBotVerification()),
 		serialized,
 		streamVersion,
 		std::move(settings));

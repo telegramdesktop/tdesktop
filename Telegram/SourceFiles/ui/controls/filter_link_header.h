@@ -26,7 +26,7 @@ struct FilterLinkHeaderDescriptor {
 	base::required<FilterLinkHeaderType> type;
 	base::required<QString> title;
 	base::required<TextWithEntities> about;
-	base::required<QString> folderTitle;
+	base::required<TextWithEntities> folderTitle;
 	not_null<const style::icon*> folderIcon;
 	rpl::producer<int> badge;
 	bool horizontalFilters = false;
@@ -45,7 +45,7 @@ struct FilterLinkHeader {
 [[nodiscard]] object_ptr<RoundButton> FilterLinkProcessButton(
 	not_null<QWidget*> parent,
 	FilterLinkHeaderType type,
-	const QString &title,
+	TextWithEntities title,
 	rpl::producer<int> badge);
 
 } // namespace Ui

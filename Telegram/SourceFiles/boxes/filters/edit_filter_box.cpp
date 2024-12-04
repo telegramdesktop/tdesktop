@@ -356,7 +356,7 @@ void EditFilterBox(
 	const auto state = box->lifetime().make_state<State>(State{
 		.rules = filter,
 		.chatlist = filter.chatlist(),
-		.creating = filter.title().isEmpty(),
+		.creating = filter.title().empty(),
 	});
 	state->colorIndex = filter.colorIndex().value_or(kNoTag);
 	state->links = owner->chatsFilters().chatlistLinks(filter.id()),
@@ -406,7 +406,7 @@ void EditFilterBox(
 			box,
 			st::windowFilterNameInput,
 			tr::lng_filters_new_name(),
-			filter.title()),
+			filter.title().text), // todo filter emoji
 		st::markdownLinkFieldPadding);
 	name->setMaxLength(kMaxFilterTitleLength);
 	name->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -672,9 +672,10 @@ void EditFilterBox(
 	}
 
 	const auto collect = [=]() -> std::optional<Data::ChatFilter> {
-		const auto title = name->getLastText().trimmed();
+		// todo filter emoji
+		const auto title = TextWithEntities{ name->getLastText().trimmed() };
 		const auto rules = data->current();
-		if (title.isEmpty()) {
+		if (title.empty()) {
 			name->showError();
 			box->scrollToY(0);
 			return {};
