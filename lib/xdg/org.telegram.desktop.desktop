@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Telegram Desktop
+Name=Telegram
 Comment=Official desktop version of Telegram messaging app
 TryExec=telegram-desktop
 Exec=telegram-desktop -- %u
