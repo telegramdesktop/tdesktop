@@ -920,6 +920,7 @@ StoriesSlice ParseStoriesSlice(
 				auto content = photo
 					? ParsePhoto(*photo, suggestedPath)
 					: Photo();
+				content.spoilered = data.is_spoiler();
 				media.content = content;
 			}, [&](const MTPDmessageMediaDocument &data) {
 				const auto document = data.vdocument();
@@ -948,6 +949,7 @@ StoriesSlice ParseStoriesSlice(
 						date,
 						extension);
 				content.thumb.file.suggestedPath = path + "_thumb.jpg";
+				content.spoilered = data.is_spoiler();
 				media.content = content;
 			}, [&](const auto &data) {
 				media.content = UnsupportedMedia();
@@ -1329,6 +1331,7 @@ Media ParseMedia(
 				+ "photos/"
 				+ PreparePhotoFileName(++context.photos, date))
 			: Photo();
+		content.spoilered = data.is_spoiler();
 		if (const auto ttl = data.vttl_seconds()) {
 			result.ttl = ttl->v;
 			content.image.file = File();
@@ -1349,6 +1352,7 @@ Media ParseMedia(
 			result.ttl = ttl->v;
 			content.file = File();
 		}
+		content.spoilered = data.is_spoiler();
 		result.content = content;
 	}, [&](const MTPDmessageMediaWebPage &data) {
 		// Ignore web pages.
