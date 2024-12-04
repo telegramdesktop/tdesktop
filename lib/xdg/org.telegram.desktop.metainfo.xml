@@ -28,6 +28,10 @@
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
     <url type="translate">https://translations.telegram.org/</url>
     <url type="contribute">https://github.com/telegramdesktop/tdesktop/blob/dev/.github/CONTRIBUTING.md</url>
+    <branding>
+        <color type="primary" scheme_preference="light">#edf0f2</color>
+        <color type="primary" scheme_preference="dark">#2d363f</color>
+    </branding>
     <screenshots>
       <screenshot type="default">
         <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
