@@ -180,6 +180,21 @@ void InlineList::layoutButtons() {
 	_buttons = std::move(buttons);
 }
 
+InlineList::Dimension InlineList::countDimension(int width) const {
+	using Flag = InlineListData::Flag;
+	const auto inBubble = (_data.flags & Flag::InBubble);
+	const auto centered = (_data.flags & Flag::Centered);
+	const auto useWidth = centered
+		? std::min(width, st::chatGiveawayWidth)
+		: width;
+	const auto left = inBubble
+		? st::reactionInlineInBubbleLeft
+		: centered
+		? ((width - useWidth) / 2)
+		: 0;
+	return { .left = left, .width = useWidth };
+}
+
 InlineList::Button InlineList::prepareButtonWithId(const ReactionId &id) {
 	auto result = Button{ .id = id, .paid = id.paid()};
 	if (const auto customId = id.custom()) {
@@ -258,9 +273,7 @@ QSize InlineList::countOptimalSize() {
 	if (_buttons.empty()) {
 		return _skipBlock;
 	}
-	const auto left = (_data.flags & InlineListData::Flag::InBubble)
-		? st::reactionInlineInBubbleLeft
-		: 0;
+	const auto left = countDimension(width()).left;
 	auto x = left;
 	const auto between = st::reactionInlineBetween;
 	const auto padding = st::reactionInlinePadding;
@@ -308,23 +321,42 @@ QSize InlineList::countCurrentSize(int newWidth) {
 	}
 	using Flag = InlineListData::Flag;
 	const auto between = st::reactionInlineBetween;
-	const auto inBubble = (_data.flags & Flag::InBubble);
-	const auto left = inBubble ? st::reactionInlineInBubbleLeft : 0;
+	const auto dimension = countDimension(newWidth);
+	const auto left = dimension.left;
+	const auto width = dimension.width;
+	const auto centered = (_data.flags & Flag::Centered);
 	auto x = left;
 	auto y = 0;
-	for (auto &button : _buttons) {
+	const auto recenter = [&](int beforeIndex) {
+		const auto added = centered ? (left + width + between - x) : 0;
+		if (added <= 0) {
+			return;
+		}
+		const auto shift = added / 2;
+		for (auto j = beforeIndex; j != 0;) {
+			auto &button = _buttons[--j];
+			if (button.geometry.y() != y) {
+				break;
+			}
+			button.geometry.translate(shift, 0);
+		}
+	};
+	for (auto i = 0, count = int(_buttons.size()); i != count; ++i) {
+		auto &button = _buttons[i];
 		const auto size = button.geometry.size();
-		if (x > left && x + size.width() > newWidth) {
+		if (x > left && x + size.width() > left + width) {
+			recenter(i);
 			x = left;
 			y += size.height() + between;
 		}
 		button.geometry = QRect(QPoint(x, y), size);
 		x += size.width() + between;
 	}
+	recenter(_buttons.size());
 	const auto &last = _buttons.back().geometry;
 	const auto height = y + last.height();
 	const auto right = last.x() + last.width() + _skipBlock.width();
-	const auto add = (right > newWidth) ? _skipBlock.height() : 0;
+	const auto add = (right > width) ? _skipBlock.height() : 0;
 	return { newWidth, height + add };
 }
 
@@ -667,10 +699,9 @@ void InlineList::paintSingleBg(
 bool InlineList::getState(
 		QPoint point,
 		not_null<TextState*> outResult) const {
-	const auto left = (_data.flags & InlineListData::Flag::InBubble)
-		? st::reactionInlineInBubbleLeft
-		: 0;
-	if (!QRect(left, 0, width() - left, height()).contains(point)) {
+	const auto dimension = countDimension(width());
+	const auto left = dimension.left;
+	if (!QRect(left, 0, dimension.width, height()).contains(point)) {
 		return false;
 	}
 	for (const auto &button : _buttons) {
@@ -792,9 +823,9 @@ void InlineList::continueAnimations(base::flat_map<
 	}
 }
 
-InlineListData InlineListDataFromMessage(not_null<Message*> message) {
+InlineListData InlineListDataFromMessage(not_null<Element*> view) {
 	using Flag = InlineListData::Flag;
-	const auto item = message->data();
+	const auto item = view->data();
 	auto result = InlineListData();
 	result.reactions = item->reactionsWithLocal();
 	if (const auto user = item->history()->peer->asUser()) {
@@ -838,9 +869,10 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 			}
 		}
 	}
-	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())
-		| (message->embedReactionsInBubble() ? Flag::InBubble : Flag())
-		| (item->reactionsAreTags() ? Flag::Tags : Flag());
+	result.flags = (view->hasOutLayout() ? Flag::OutLayout : Flag())
+		| (view->embedReactionsInBubble() ? Flag::InBubble : Flag())
+		| (item->reactionsAreTags() ? Flag::Tags : Flag())
+		| (item->isService() ? Flag::Centered : Flag());
 	return result;
 }
 

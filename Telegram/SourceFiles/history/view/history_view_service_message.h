@@ -54,6 +54,8 @@ public:
 
 	bool consumeHorizontalScroll(QPoint position, int delta) override;
 
+	void animateReaction(Ui::ReactionFlyAnimationArgs &&args) override;
+
 private:
 	[[nodiscard]] QRect countGeometry() const;
 

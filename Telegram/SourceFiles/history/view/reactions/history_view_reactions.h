@@ -26,7 +26,7 @@ class CustomEmoji;
 
 namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
-class Message;
+class Element;
 struct TextState;
 struct UserpicInRow;
 } // namespace HistoryView
@@ -42,6 +42,7 @@ struct InlineListData {
 		OutLayout = 0x02,
 		Flipped   = 0x04,
 		Tags      = 0x08,
+		Centered  = 0x10,
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
@@ -99,6 +100,10 @@ public:
 	[[nodiscard]] static QImage PrepareTagBg(QColor tagBg, QColor dotBg);
 
 private:
+	struct Dimension {
+		int left = 0;
+		int width = 0;
+	};
 	struct Userpics {
 		QImage image;
 		std::vector<UserpicInRow> list;
@@ -131,6 +136,7 @@ private:
 	void validateTagBg(const QColor &color) const;
 
 	QSize countOptimalSize() override;
+	[[nodiscard]] Dimension countDimension(int width) const;
 
 	const not_null<::Data::Reactions*> _owner;
 	const Fn<ClickHandlerPtr(ReactionId)> _handlerFactory;
@@ -147,7 +153,7 @@ private:
 };
 
 [[nodiscard]] InlineListData InlineListDataFromMessage(
-	not_null<Message*> message);
+	not_null<Element*> view);
 
 [[nodiscard]] ReactionId ReactionIdOfLink(const ClickHandlerPtr &link);
 

@@ -462,16 +462,16 @@ HistoryItem::HistoryItem(
 	.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0),
 	.date = data.vdate().v,
 }) {
-	if (data.vaction().type() != mtpc_messageActionPhoneCall) {
-		createServiceFromMtp(data);
-	} else {
+	data.vaction().match([&](const MTPDmessageActionPhoneCall &data) {
 		createComponents(CreateConfig());
 		_media = std::make_unique<Data::MediaCall>(
 			this,
-			Data::ComputeCallData(
-				data.vaction().c_messageActionPhoneCall()));
+			Data::ComputeCallData(data));
 		setTextValue({});
-	}
+	}, [&](const auto &) {
+		createServiceFromMtp(data);
+	});
+	setReactions(data.vreactions());
 	applyTTL(data);
 }
 

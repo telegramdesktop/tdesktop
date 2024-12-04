@@ -225,11 +225,10 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 
 TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
+	point.setY(point.y() - st::msgServiceGiftBoxTopSkip);
 	const auto content = contentRect();
 	const auto lookupSubtitleLink = [&] {
-		auto top = st::msgServiceGiftBoxTopSkip
-			+ content.top()
-			+ content.height();
+		auto top = content.top() + content.height();
 		const auto &padding = st::msgServiceGiftBoxTitlePadding;
 		top += padding.top();
 		if (!_title.isEmpty()) {

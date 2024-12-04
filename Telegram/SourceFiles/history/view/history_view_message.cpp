@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
-#include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "window/themes/window_theme.h" // IsNightMode.
@@ -53,15 +52,6 @@ namespace {
 
 constexpr auto kPlayStatusLimit = 2;
 const auto kPsaTooltipPrefix = "cloud_lng_tooltip_psa_";
-
-[[nodiscard]] Window::SessionController *ExtractController(
-		const ClickContext &context) {
-	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto controller = my.sessionWindow.get()) {
-		return controller;
-	}
-	return nullptr;
-}
 
 class KeyboardStyle : public ReplyKeyboard::Style {
 public:
@@ -423,22 +413,8 @@ Message::Message(
 	}
 	initLogEntryOriginal();
 	initPsa();
-	refreshReactions();
-	auto animations = replacing
-		? replacing->takeReactionAnimations()
-		: base::flat_map<
-			Data::ReactionId,
-			std::unique_ptr<Ui::ReactionFlyAnimation>>();
+	setupReactions(replacing);
 	auto animation = replacing ? replacing->takeEffectAnimation() : nullptr;
-	if (!animations.empty()) {
-		const auto repainter = [=] { repaint(); };
-		for (const auto &[id, animation] : animations) {
-			animation->setRepaintCallback(repainter);
-		}
-		if (_reactions) {
-			_reactions->continueAnimations(std::move(animations));
-		}
-	}
 	if (animation) {
 		_bottomInfo.continueEffectAnimation(std::move(animation));
 	}
@@ -460,21 +436,6 @@ Message::~Message() {
 		_comments = nullptr;
 		_fromNameStatus = nullptr;
 		checkHeavyPart();
-	}
-	setReactions(nullptr);
-}
-
-void Message::setReactions(std::unique_ptr<Reactions::InlineList> list) {
-	auto was = _reactions
-		? _reactions->computeTagsList()
-		: std::vector<Data::ReactionId>();
-	_reactions = std::move(list);
-	auto now = _reactions
-		? _reactions->computeTagsList()
-		: std::vector<Data::ReactionId>();
-	if (!was.empty() || !now.empty()) {
-		auto &owner = history()->owner();
-		owner.viewTagsChanged(this, std::move(was), std::move(now));
 	}
 }
 
@@ -692,16 +653,6 @@ void Message::animateEffect(Ui::ReactionFlyAnimationArgs &&args) {
 	} else if (mediaDisplayed) {
 		animateInBottomInfo(g.topLeft() + media->resolveCustomInfoRightBottom());
 	}
-}
-
-auto Message::takeReactionAnimations()
--> base::flat_map<
-		Data::ReactionId,
-		std::unique_ptr<Ui::ReactionFlyAnimation>> {
-	if (_reactions) {
-		return _reactions->takeAnimations();
-	}
-	return {};
 }
 
 auto Message::takeEffectAnimation()
@@ -2425,9 +2376,6 @@ bool Message::hasHeavyPart() const {
 
 void Message::unloadHeavyPart() {
 	Element::unloadHeavyPart();
-	if (_reactions) {
-		_reactions->unloadCustomEmoji();
-	}
 	_comments = nullptr;
 	if (_fromNameStatus) {
 		_fromNameStatus->custom = nullptr;
@@ -3446,73 +3394,6 @@ bool Message::embedReactionsInBubble() const {
 	return needInfoDisplay();
 }
 
-void Message::refreshReactions() {
-	using namespace Reactions;
-	auto reactionsData = InlineListDataFromMessage(this);
-	if (reactionsData.reactions.empty()) {
-		setReactions(nullptr);
-		return;
-	}
-	if (!_reactions) {
-		const auto handlerFactory = [=](ReactionId id) {
-			const auto weak = base::make_weak(this);
-			return std::make_shared<LambdaClickHandler>([=](
-					ClickContext context) {
-				const auto strong = weak.get();
-				if (!strong) {
-					return;
-				}
-				const auto item = strong->data();
-				const auto controller = ExtractController(context);
-				if (item->reactionsAreTags()) {
-					if (item->history()->session().premium()) {
-						const auto tag = Data::SearchTagToQuery(id);
-						HashtagClickHandler(tag).onClick(context);
-					} else if (controller) {
-						ShowPremiumPreviewBox(
-							controller,
-							PremiumFeature::TagsForMessages);
-					}
-					return;
-				}
-				if (id.paid()) {
-					Payments::TryAddingPaidReaction(
-						item,
-						weak.get(),
-						1,
-						std::nullopt,
-						controller->uiShow());
-					return;
-				} else {
-					const auto source = HistoryReactionSource::Existing;
-					item->toggleReaction(id, source);
-				}
-				if (const auto now = weak.get()) {
-					const auto chosen = now->data()->chosenReactions();
-					if (id.paid() || ranges::contains(chosen, id)) {
-						now->animateReaction({
-							.id = id,
-						});
-					}
-				}
-			});
-		};
-		setReactions(std::make_unique<InlineList>(
-			&history()->owner().reactions(),
-			handlerFactory,
-			[=] { customEmojiRepaint(); },
-			std::move(reactionsData)));
-	} else {
-		auto was = _reactions->computeTagsList();
-		_reactions->update(std::move(reactionsData), width());
-		auto now = _reactions->computeTagsList();
-		if (!was.empty() || !now.empty()) {
-			auto &owner = history()->owner();
-			owner.viewTagsChanged(this, std::move(was), std::move(now));
-		}
-	}
-}
-
 void Message::validateInlineKeyboard(HistoryMessageReplyMarkup *markup) {
 	if (!markup
 		|| markup->inlineKeyboard
@@ -3554,18 +3435,17 @@ void Message::validateFromNameText(PeerData *from) const {
 	}
 }
 
-void Message::itemDataChanged() {
+bool Message::updateBottomInfo() {
 	const auto wasInfo = _bottomInfo.currentSize();
-	const auto wasReactions = _reactions
-		? _reactions->currentSize()
-		: QSize();
-	refreshReactions();
 	_bottomInfo.update(BottomInfoDataFromMessage(this), width());
-	const auto nowInfo = _bottomInfo.currentSize();
-	const auto nowReactions = _reactions
-		? _reactions->currentSize()
-		: QSize();
-	if (wasInfo != nowInfo || wasReactions != nowReactions) {
+	return (_bottomInfo.currentSize() != wasInfo);
+}
+
+void Message::itemDataChanged() {
+	const auto infoChanged = updateBottomInfo();
+	const auto reactionsChanged = updateReactions();
+
+	if (infoChanged || reactionsChanged) {
 		history()->owner().requestViewResize(this);
 	} else {
 		repaint();

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "base/unixtime.h"
+#include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
+#include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
 #include "window/window_session_controller.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/reaction_fly_animation.h"
@@ -591,6 +593,10 @@ Element::Element(
 			AddComponents(FakeBotAboutTop::Bit());
 		}
 	}
+}
+
+bool Element::embedReactionsInBubble() const {
+	return false;
 }
 
 not_null<ElementDelegate*> Element::delegate() const {
@@ -1591,7 +1597,122 @@ bool Element::isSignedAuthorElided() const {
 	return false;
 }
 
+void Element::setupReactions(Element *replacing) {
+	refreshReactions();
+	auto animations = replacing
+		? replacing->takeReactionAnimations()
+		: base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Ui::ReactionFlyAnimation>>();
+	if (!animations.empty()) {
+		const auto repainter = [=] { repaint(); };
+		for (const auto &[id, animation] : animations) {
+			animation->setRepaintCallback(repainter);
+		}
+		if (_reactions) {
+			_reactions->continueAnimations(std::move(animations));
+		}
+	}
+}
+
+void Element::refreshReactions() {
+	using namespace Reactions;
+	auto reactionsData = InlineListDataFromMessage(this);
+	if (reactionsData.reactions.empty()) {
+		setReactions(nullptr);
+		return;
+	}
+	if (!_reactions) {
+		const auto handlerFactory = [=](ReactionId id) {
+			const auto weak = base::make_weak(this);
+			return std::make_shared<LambdaClickHandler>([=](
+					ClickContext context) {
+				const auto strong = weak.get();
+				if (!strong) {
+					return;
+				}
+				const auto item = strong->data();
+				const auto controller = ExtractController(context);
+				if (item->reactionsAreTags()) {
+					if (item->history()->session().premium()) {
+						const auto tag = Data::SearchTagToQuery(id);
+						HashtagClickHandler(tag).onClick(context);
+					} else if (controller) {
+						ShowPremiumPreviewBox(
+							controller,
+							PremiumFeature::TagsForMessages);
+					}
+					return;
+				}
+				if (id.paid()) {
+					Payments::TryAddingPaidReaction(
+						item,
+						weak.get(),
+						1,
+						std::nullopt,
+						controller->uiShow());
+					return;
+				} else {
+					const auto source = HistoryReactionSource::Existing;
+					item->toggleReaction(id, source);
+				}
+				if (const auto now = weak.get()) {
+					const auto chosen = now->data()->chosenReactions();
+					if (id.paid() || ranges::contains(chosen, id)) {
+						now->animateReaction({
+							.id = id,
+						});
+					}
+				}
+			});
+		};
+		setReactions(std::make_unique<InlineList>(
+			&history()->owner().reactions(),
+			handlerFactory,
+			[=] { customEmojiRepaint(); },
+			std::move(reactionsData)));
+	} else {
+		auto was = _reactions->computeTagsList();
+		_reactions->update(std::move(reactionsData), width());
+		auto now = _reactions->computeTagsList();
+		if (!was.empty() || !now.empty()) {
+			auto &owner = history()->owner();
+			owner.viewTagsChanged(this, std::move(was), std::move(now));
+		}
+	}
+}
+
+void Element::setReactions(std::unique_ptr<Reactions::InlineList> list) {
+	auto was = _reactions
+		? _reactions->computeTagsList()
+		: std::vector<Data::ReactionId>();
+	_reactions = std::move(list);
+	auto now = _reactions
+		? _reactions->computeTagsList()
+		: std::vector<Data::ReactionId>();
+	if (!was.empty() || !now.empty()) {
+		auto &owner = history()->owner();
+		owner.viewTagsChanged(this, std::move(was), std::move(now));
+	}
+}
+
+bool Element::updateReactions() {
+	const auto wasReactions = _reactions
+		? _reactions->currentSize()
+		: QSize();
+	refreshReactions();
+	const auto nowReactions = _reactions
+		? _reactions->currentSize()
+		: QSize();
+	return (wasReactions != nowReactions);
+}
+
 void Element::itemDataChanged() {
+	if (updateReactions()) {
+		history()->owner().requestViewResize(this);
+	} else {
+		repaint();
+	}
 }
 
 void Element::itemTextUpdated() {
@@ -1615,6 +1736,9 @@ void Element::blockquoteExpandChanged() {
 
 void Element::unloadHeavyPart() {
 	history()->owner().unregisterHeavyViewPart(this);
+	if (_reactions) {
+		_reactions->unloadCustomEmoji();
+	}
 	if (_media) {
 		_media->unloadHeavyPart();
 	}
@@ -1915,9 +2039,6 @@ void Element::clickHandlerPressedChanged(
 	}
 }
 
-void Element::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
-}
-
 void Element::animateUnreadReactions() {
 	const auto &recent = data()->recentReactions();
 	for (const auto &[id, list] : recent) {
@@ -1931,6 +2052,9 @@ auto Element::takeReactionAnimations()
 -> base::flat_map<
 		Data::ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>> {
+	if (_reactions) {
+		return _reactions->takeAnimations();
+	}
 	return {};
 }
 
@@ -1950,6 +2074,8 @@ QRect Element::effectIconGeometry() const {
 }
 
 Element::~Element() {
+	setReactions(nullptr);
+
 	// Delete media while owner still exists.
 	clearSpecialOnlyEmoji();
 	base::take(_media);
@@ -2056,6 +2182,14 @@ int FindViewY(not_null<Element*> view, uint16 symbol, int yfrom) {
 		}
 	}
 	return origin.y() + (yfrom + ytill) / 2;
+}
+
+Window::SessionController *ExtractController(const ClickContext &context) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto controller = my.sessionWindow.get()) {
+		return controller;
+	}
+	return nullptr;
 }
 
 } // namespace HistoryView
