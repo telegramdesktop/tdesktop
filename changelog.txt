@@ -1,3 +1,8 @@
+5.9 (04.12.24)
+
+- Affiliate programs for bots.
+- Add option to show folder tags in chats list.
+
 5.8.5 beta (29.11.24)
 
 - Fix pinned chats in folders.
