@@ -996,7 +996,7 @@ chatGiveawayStickerTop: -16px;
 chatGiveawayStickerPadding: margins(14px, -2px, 14px, 14px);
 chatGiveawayWinnersTopSkip: 25px;
 chatGiveawayBadgeFont: font(12px bold);
-chatGiveawayBadgeTop: 106px;
+chatGiveawayBadgeTop: 118px;
 chatGiveawayBadgePadding: margins(7px, 1px, 5px, 3px);
 chatGiveawayBadgeStroke: 2px;
 chatGiveawayPrizesTitleMargin: margins(11px, 16px, 11px, 4px);
