@@ -32,6 +32,22 @@
       <screenshot type="default">
         <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
       </screenshot>
+      <screenshot>
+        <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/slide.01.jpg</image>
+        <caption>A lightning-fast native app that seamlessly syncs with your other devices</caption>
+      </screenshot>
+      <screenshot>
+        <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/slide.02.jpg</image>
+        <caption>A fully autonomous Telegram app, no phone connection required</caption>
+      </screenshot>
+      <screenshot>
+        <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/slide.03.jpg</image>
+        <caption>A quick way to view photos, videos and files</caption>
+      </screenshot>
+      <screenshot>
+        <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/slide.04.jpg</image>
+        <caption>Send and store unlimited media and files of any type</caption>
+      </screenshot>
     </screenshots>
     <keywords>
         <keyword>tg</keyword>
