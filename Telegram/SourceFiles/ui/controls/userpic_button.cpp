@@ -346,8 +346,8 @@ void UserpicButton::choosePhotoLocally() {
 					Editor::PrepareProfilePhoto(
 						this,
 						_window,
-						editorData(ChosenType::Set),
-						callback(ChosenType::Set),
+						editorData(type),
+						callback(type),
 						qvariant_cast<QImage>(data->imageData()));
 				});
 				_menu->addAction(
