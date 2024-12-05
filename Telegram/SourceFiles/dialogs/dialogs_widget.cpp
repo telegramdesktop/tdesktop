@@ -3265,6 +3265,9 @@ bool Widget::applySearchState(SearchState state) {
 			_openedForum && _searchState.inChat);
 	}
 	if (!_searchState.inChat && _searchState.query.isEmpty()) {
+		if (!_widthAnimationCache.isNull()) {
+			stopWidthAnimation();
+		}
 		setInnerFocus();
 	} else if (!_subsectionTopBar) {
 		_search->setFocus();
