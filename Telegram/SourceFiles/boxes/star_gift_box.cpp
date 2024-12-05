@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
@@ -70,6 +71,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
+
+#include <QtWidgets/QApplication>
 
 namespace Ui {
 namespace {
@@ -589,11 +592,22 @@ struct GiftPriceTabs {
 	struct State {
 		rpl::variable<std::vector<int>> prices;
 		rpl::variable<int> priceTab = kPriceTabAll;
+		rpl::variable<int> fullWidth;
 		std::vector<Button> buttons;
+		int dragx = 0;
+		int pressx = 0;
+		float64 dragscroll = 0.;
+		float64 scroll = 0.;
+		int scrollMax = 0;
 		int selected = -1;
+		int pressed = -1;
 		int active = -1;
 	};
 	const auto state = raw->lifetime().make_state<State>();
+	const auto scroll = [=] {
+		return QPoint(int(base::SafeRound(state->scroll)), 0);
+	};
+
 	state->prices = std::move(
 		gifts
 	) | rpl::map([](const std::vector<GiftTypeStars> &gifts) {
@@ -681,6 +695,9 @@ struct GiftPriceTabs {
 			button.geometry = QRect(QPoint(x, y), r.size());
 			x += r.width() + st::giftBoxTabSkip;
 		}
+		state->fullWidth = x
+			- st::giftBoxTabSkip
+			+ st::giftBoxTabsMargin.right();
 		const auto height = state->buttons.empty()
 			? 0
 			: (y
@@ -690,13 +707,35 @@ struct GiftPriceTabs {
 		raw->update();
 	}, raw->lifetime());
 
+	rpl::combine(
+		raw->widthValue(),
+		state->fullWidth.value()
+	) | rpl::start_with_next([=](int outer, int inner) {
+		state->scrollMax = std::max(0, inner - outer);
+	}, raw->lifetime());
+
 	raw->setMouseTracking(true);
 	raw->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		switch (type) {
 		case QEvent::Leave: setSelected(-1); break;
 		case QEvent::MouseMove: {
-			const auto position = static_cast<QMouseEvent*>(e.get())->pos();
+			const auto me = static_cast<QMouseEvent*>(e.get());
+			const auto mousex = me->pos().x();
+			const auto drag = QApplication::startDragDistance();
+			if (state->dragx > 0) {
+				state->scroll = std::clamp(
+					state->dragscroll + state->dragx - mousex,
+					0.,
+					state->scrollMax * 1.);
+				raw->update();
+				break;
+			} else if (state->pressx > 0
+				&& std::abs(state->pressx - mousex) > drag) {
+				state->dragx = state->pressx;
+				state->dragscroll = state->scroll;
+			}
+			const auto position = me->pos() + scroll();
 			for (auto i = 0, c = int(state->buttons.size()); i != c; ++i) {
 				if (state->buttons[i].geometry.contains(position)) {
 					setSelected(i);
@@ -704,17 +743,32 @@ struct GiftPriceTabs {
 				}
 			}
 		} break;
+		case QEvent::Wheel: {
+			const auto me = static_cast<QWheelEvent*>(e.get());
+			state->scroll = std::clamp(
+				state->scroll - Ui::ScrollDeltaF(me).x(),
+				0.,
+				state->scrollMax * 1.);
+			raw->update();
+		} break;
 		case QEvent::MouseButtonPress: {
 			const auto me = static_cast<QMouseEvent*>(e.get());
 			if (me->button() != Qt::LeftButton) {
 				break;
 			}
-			const auto position = me->pos();
-			for (auto i = 0, c = int(state->buttons.size()); i != c; ++i) {
-				if (state->buttons[i].geometry.contains(position)) {
-					setActive(i);
-					break;
-				}
+			state->pressed = state->selected;
+			state->pressx = me->pos().x();
+		} break;
+		case QEvent::MouseButtonRelease: {
+			const auto me = static_cast<QMouseEvent*>(e.get());
+			if (me->button() != Qt::LeftButton) {
+				break;
+			}
+			const auto dragx = std::exchange(state->dragx, 0);
+			const auto pressed = std::exchange(state->pressed, -1);
+			state->pressx = 0;
+			if (!dragx && pressed >= 0 && state->selected == pressed) {
+				setActive(pressed);
 			}
 		} break;
 		}
@@ -724,8 +778,9 @@ struct GiftPriceTabs {
 		auto p = QPainter(raw);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto padding = st::giftBoxTabPadding;
+		const auto shift = -scroll();
 		for (const auto &button : state->buttons) {
-			const auto geometry = button.geometry;
+			const auto geometry = button.geometry.translated(shift);
 			if (button.active) {
 				p.setBrush(st::giftBoxTabBgActive);
 				p.setPen(Qt::NoPen);
