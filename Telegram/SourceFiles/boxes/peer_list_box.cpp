@@ -474,7 +474,7 @@ void PeerListBox::addSelectItem(
 void PeerListBox::addSelectItem(
 		uint64 itemId,
 		const QString &text,
-		Ui::MultiSelect::PaintRoundImage paintUserpic,
+		PaintRoundImageCallback paintUserpic,
 		anim::type animated) {
 	if (!_select) {
 		createMultiSelect();
@@ -547,6 +547,10 @@ auto PeerListBox::collectSelectedRows()
 
 rpl::producer<int> PeerListBox::multiSelectHeightValue() const {
 	return _select ? _select->heightValue() : rpl::single(0);
+}
+
+rpl::producer<> PeerListBox::noSearchSubmits() const {
+	return content()->noSearchSubmits();
 }
 
 PeerListRow::PeerListRow(not_null<PeerData*> peer)
@@ -2189,6 +2193,9 @@ bool PeerListContent::submitted() {
 			_controller->rowClicked(row);
 			return true;
 		}
+	} else {
+		_noSearchSubmits.fire({});
+		return true;
 	}
 	return false;
 }

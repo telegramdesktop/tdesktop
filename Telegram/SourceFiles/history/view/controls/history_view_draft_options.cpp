@@ -917,6 +917,7 @@ void DraftOptionsBox(
 struct AuthorSelector {
 	object_ptr<Ui::RpWidget> content = { nullptr };
 	Fn<bool(int, int, int)> overrideKey;
+	Fn<void()> activate;
 };
 [[nodiscard]] AuthorSelector AuthorRowSelector(
 		not_null<Main::Session*> session,
@@ -975,12 +976,15 @@ struct AuthorSelector {
 		tr::lng_reply_in_author()));
 	Ui::AddSkip(container);
 
+	const auto activate = [=] {
+		chosen(from->owner().history(from));
+	};
 	const auto delegate = container->lifetime().make_state<
 		PeerListContentDelegateSimple
 	>();
 	const auto controller = container->lifetime().make_state<
 		AuthorController
-	>(from, [=] { chosen(from->owner().history(from)); });
+	>(from, activate);
 	controller->setStyleOverrides(&st::peerListSingleRow);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
@@ -1021,6 +1025,7 @@ struct AuthorSelector {
 	return {
 		.content = std::move(result),
 		.overrideKey = overrideKey,
+		.activate = activate,
 	};
 }
 
@@ -1048,6 +1053,12 @@ void ShowReplyToChatBox(
 				[=](Chosen thread) { _singleChosen.fire_copy(thread); });
 			if (_authorRow.content) {
 				setStyleOverrides(&st::peerListSmallSkips);
+			}
+		}
+
+		void noSearchSubmit() {
+			if (const auto onstack = _authorRow.activate) {
+				onstack();
 			}
 		}
 
@@ -1094,6 +1105,10 @@ void ShowReplyToChatBox(
 		auto box = Box<PeerListBox>(std::move(controller), [=](
 				not_null<PeerListBox*> box) {
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+			box->noSearchSubmits() | rpl::start_with_next([=] {
+				controllerRaw->noSearchSubmit();
+			}, box->lifetime());
 		});
 		const auto boxRaw = box.data();
 		show->show(std::move(box));
