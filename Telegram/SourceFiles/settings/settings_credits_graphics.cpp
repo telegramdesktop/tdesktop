@@ -1873,7 +1873,7 @@ void AddWithdrawalWidget(
 		rpl::producer<QString> secondButtonUrl,
 		rpl::producer<StarsAmount> availableBalanceValue,
 		rpl::producer<QDateTime> dateValue,
-		rpl::producer<bool> lockedValue,
+		bool withdrawalEnabled,
 		rpl::producer<QString> usdValue) {
 	Ui::AddSkip(container);
 
@@ -1915,17 +1915,22 @@ void AddWithdrawalWidget(
 
 	Ui::AddSkip(container);
 
+	const auto withdrawalWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
 	const auto input = Ui::AddInputFieldForCredits(
-		container,
+		withdrawalWrap->entity(),
 		rpl::duplicate(availableBalanceValue));
 
-	Ui::AddSkip(container);
-	Ui::AddSkip(container);
+	Ui::AddSkip(withdrawalWrap->entity());
+	Ui::AddSkip(withdrawalWrap->entity());
 
 	const auto &stButton = st::defaultActiveButton;
-	const auto buttonsContainer = container->add(
-		Ui::CreateSkipWidget(container, stButton.height),
+	const auto buttonsContainer = withdrawalWrap->entity()->add(
+		Ui::CreateSkipWidget(withdrawalWrap->entity(), stButton.height),
 		st::boxRowPadding);
+	withdrawalWrap->toggle(withdrawalEnabled, anim::type::instant);
 
 	const auto button = Ui::CreateChild<Ui::RoundButton>(
 		buttonsContainer,
@@ -1958,6 +1963,10 @@ void AddWithdrawalWidget(
 			});
 		}
 	}, buttonsContainer->lifetime());
+
+	auto lockedValue = rpl::duplicate(
+		dateValue
+	) | rpl::map([](const QDateTime &dt) { return !dt.isNull(); });
 
 	rpl::duplicate(
 		lockedValue

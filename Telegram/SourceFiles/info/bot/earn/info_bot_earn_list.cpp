@@ -244,9 +244,7 @@ void InnerWidget::fill() {
 			),
 			rpl::duplicate(availableBalanceValue),
 			rpl::duplicate(dateValue),
-			rpl::duplicate(dateValue) | rpl::map([=](const QDateTime &dt) {
-				return !dt.isNull() || (!_state.isWithdrawalEnabled);
-			}),
+			_state.isWithdrawalEnabled,
 			rpl::duplicate(
 				availableBalanceValue
 			) | rpl::map([=](StarsAmount v) {

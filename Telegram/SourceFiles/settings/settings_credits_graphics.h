@@ -76,7 +76,7 @@ void AddWithdrawalWidget(
 	rpl::producer<QString> secondButtonUrl,
 	rpl::producer<StarsAmount> availableBalanceValue,
 	rpl::producer<QDateTime> dateValue,
-	rpl::producer<bool> lockedValue,
+	bool withdrawalEnabled,
 	rpl::producer<QString> usdValue);
 
 void ReceiptCreditsBox(
