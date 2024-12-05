@@ -505,7 +505,7 @@ void WrapWidget::showTopBarMenu(bool check) {
 		return;
 	}
 	_topBarMenu = base::make_unique_q<Ui::PopupMenu>(
-		this,
+		QWidget::window(),
 		st::popupMenuExpandedSeparator);
 
 	_topBarMenu->setDestroyedCallback([this] {
