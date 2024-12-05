@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-class ContactClickHandler : public LambdaClickHandler {
+class ContactClickHandler final : public LambdaClickHandler {
 public:
 	using LambdaClickHandler::LambdaClickHandler;
 
@@ -45,7 +45,7 @@ public:
 		_dragText = t;
 	}
 
-	QString dragText() const override {
+	QString dragText() const override final {
 		return _dragText;
 	}
 
@@ -537,7 +537,7 @@ TextState Contact::textState(QPoint point, StateRequest request) const {
 
 	_lastPoint = point;
 
-	if (_buttons.size() > 1) {
+	if (!hasSingleLink()) {
 		const auto end = rect::bottom(inner) + _st.padding.bottom();
 		const auto bWidth = inner.width() / float64(_buttons.size());
 		const auto bHeight = rect::bottom(outer) - end;
@@ -564,6 +564,14 @@ bool Contact::hasHeavyPart() const {
 	return !_userpic.null();
 }
 
+bool Contact::hasSingleLink() const {
+	return (_buttons.size() > 1)
+		? false
+		: (_buttons.size() == 1 && _buttons.front().link == _mainButton.link)
+		? true
+		: (_buttons.empty() && _mainButton.link);
+}
+
 void Contact::clickHandlerPressedChanged(
 		const ClickHandlerPtr &p,
 		bool pressed) {
@@ -571,7 +579,7 @@ void Contact::clickHandlerPressedChanged(
 	const auto outer = full - inBubblePadding();
 	const auto inner = outer - innerMargin();
 	const auto end = rect::bottom(inner) + _st.padding.bottom();
-	if ((_lastPoint.y() < end) || (_buttons.size() <= 1)) {
+	if ((_lastPoint.y() < end) || hasSingleLink()) {
 		if (p != _mainButton.link) {
 			return;
 		}

@@ -68,6 +68,8 @@ private:
 	[[nodiscard]] TextSelection toDescriptionSelection(
 		TextSelection selection) const;
 
+	[[nodiscard]] bool hasSingleLink() const;
+
 	const style::QuoteStyle &_st;
 	const int _pixh;
 
