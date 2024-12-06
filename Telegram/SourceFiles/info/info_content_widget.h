@@ -115,6 +115,7 @@ public:
 	virtual void checkBeforeClose(Fn<void()> close) {
 		close();
 	}
+	virtual void checkBeforeCloseByEscape(Fn<void()> close);
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> subtitle() {
 		return nullptr;

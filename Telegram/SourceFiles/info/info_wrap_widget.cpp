@@ -439,6 +439,20 @@ void WrapWidget::checkBeforeClose(Fn<void()> close) {
 	}));
 }
 
+void WrapWidget::checkBeforeCloseByEscape(Fn<void()> close) {
+	if (_topBar) {
+		_topBar->checkBeforeCloseByEscape([&] {
+			_content->checkBeforeCloseByEscape(crl::guard(this, [=] {
+				WrapWidget::checkBeforeClose(close);
+			}));
+		});
+	} else {
+		_content->checkBeforeCloseByEscape(crl::guard(this, [=] {
+			WrapWidget::checkBeforeClose(close);
+		}));
+	}
+}
+
 void WrapWidget::addTopBarMenuButton() {
 	Expects(_topBar != nullptr);
 	Expects(_content != nullptr);
@@ -895,13 +909,11 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 
 void WrapWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
-		if (hasStackHistory() || wrap() != Wrap::Layer) {
-			checkBeforeClose([=] { _controller->showBackFromStack(); });
-		} else {
-			checkBeforeClose([=] {
+		checkBeforeCloseByEscape((hasStackHistory() || wrap() != Wrap::Layer)
+			? Fn<void()>([=] { _controller->showBackFromStack(); })
+			: Fn<void()>([=] {
 				_controller->parentController()->hideSpecialLayer();
-			});
-		}
+			}));
 		return;
 	}
 	SectionWidget::keyPressEvent(e);

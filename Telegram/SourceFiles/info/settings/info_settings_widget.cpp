@@ -240,6 +240,12 @@ void Widget::checkBeforeClose(Fn<void()> close) {
 	_inner->checkBeforeClose(std::move(close));
 }
 
+void Widget::checkBeforeCloseByEscape(Fn<void()> close) {
+	ContentWidget::checkBeforeCloseByEscape([&] {
+		_inner->checkBeforeClose(std::move(close));
+	});
+}
+
 rpl::producer<QString> Widget::title() {
 	return _inner->title();
 }

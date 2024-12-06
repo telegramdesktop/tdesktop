@@ -289,6 +289,18 @@ void ContentWidget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 		addAction);
 }
 
+void ContentWidget::checkBeforeCloseByEscape(Fn<void()> close) {
+	if (_searchField) {
+		if (!_searchField->empty()) {
+			_searchField->setText({});
+		} else {
+			close();
+		}
+	} else {
+		close();
+	}
+}
+
 rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
 }

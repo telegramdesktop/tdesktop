@@ -216,6 +216,19 @@ void TopBar::clearSearchField() {
 	_searchView = nullptr;
 }
 
+void TopBar::checkBeforeCloseByEscape(Fn<void()> close) {
+	if (_searchModeEnabled) {
+		if (_searchField && !_searchField->empty()) {
+			_searchField->setText({});
+		} else {
+			_searchModeEnabled = false;
+			updateControlsVisibility(anim::type::normal);
+		}
+	} else {
+		close();
+	}
+}
+
 void TopBar::createSearchView(
 		not_null<Ui::InputField*> field,
 		rpl::producer<bool> &&shown,
@@ -269,18 +282,14 @@ void TopBar::createSearchView(
 		return !selectionMode() && searchMode();
 	});
 
-	auto cancelSearch = [=] {
+	cancel->addClickHandler([=] {
 		if (!field->getLastText().isEmpty()) {
 			field->setText(QString());
 		} else {
 			_searchModeEnabled = false;
 			updateControlsVisibility(anim::type::normal);
 		}
-	};
-
-	cancel->addClickHandler(cancelSearch);
-	field->cancelled(
-	) | rpl::start_with_next(cancelSearch, field->lifetime());
+	});
 
 	wrap->widthValue(
 	) | rpl::start_with_next([=](int newWidth) {

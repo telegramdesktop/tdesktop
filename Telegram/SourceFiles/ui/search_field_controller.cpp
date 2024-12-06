@@ -30,10 +30,6 @@ auto SearchFieldController::createRowView(
 
 	auto field = createField(wrap, st.field).release();
 	field->show();
-	field->cancelled(
-	) | rpl::start_with_next([=] {
-		field->setText(QString());
-	}, field->lifetime());
 
 	auto cancel = CreateChild<Ui::CrossButton>(
 		wrap,

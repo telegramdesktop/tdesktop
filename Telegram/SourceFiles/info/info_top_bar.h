@@ -103,6 +103,8 @@ public:
 
 	void showSearch();
 
+	void checkBeforeCloseByEscape(Fn<void()> close);
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
