@@ -451,7 +451,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Country,
 				"country_code"_q,
-				tr::lng_passport_country(tr::now),
+				tr::lng_passport_residence_country(tr::now),
 				CountryValidate,
 				CountryFormat,
 			},
