@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_draft_options.h"
 
+#include "base/random.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/filters/edit_filter_chats_list.h"
@@ -20,12 +21,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_thread.h"
 #include "data/data_user.h"
 #include "data/data_web_page.h"
+#include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -41,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -56,6 +60,7 @@ namespace {
 
 enum class Section {
 	Reply,
+	Forward,
 	Link,
 };
 
@@ -104,6 +109,10 @@ public:
 		not_null<History*> history);
 	~PreviewWrap();
 
+	[[nodiscard]] bool hasViewForItem(
+		not_null<const HistoryItem*> item) const;
+
+	void showForwardSelector(Data::ResolvedForwardDraft draft);
 	[[nodiscard]] rpl::producer<SelectedQuote> showQuoteSelector(
 		const SelectedQuote &quote);
 	[[nodiscard]] rpl::producer<QString> showLinkSelector(
@@ -117,6 +126,11 @@ public:
 	}
 
 private:
+	struct Entry {
+		HistoryItem *item = nullptr;
+		std::unique_ptr<Element> view;
+	};
+
 	void paintEvent(QPaintEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -129,7 +143,8 @@ private:
 		_visibleBottom = bottom;
 	}
 
-	void initElement();
+	void clear(std::vector<Entry> entries);
+	void initElements();
 	void highlightUsedLink(
 		const TextWithTags &message,
 		const QString &usedLink,
@@ -144,8 +159,8 @@ private:
 	const std::unique_ptr<PreviewDelegate> _delegate;
 
 	Section _section = Section::Reply;
-	HistoryItem *_draftItem = nullptr;
-	std::unique_ptr<Element> _element;
+	std::vector<Entry> _entries;
+	base::flat_set<not_null<const Element*>> _views;
 	rpl::variable<TextSelection> _selection;
 	rpl::event_stream<QString> _chosenUrl;
 	Ui::PeerUserpicView _userpic;
@@ -191,7 +206,7 @@ PreviewWrap::PreviewWrap(
 	const auto session = &_history->session();
 	session->data().viewRepaintRequest(
 	) | rpl::start_with_next([=](not_null<const Element*> view) {
-		if (view == _element.get()) {
+		if (_views.contains(view)) {
 			update();
 		}
 	}, lifetime());
@@ -221,26 +236,92 @@ PreviewWrap::PreviewWrap(
 
 PreviewWrap::~PreviewWrap() {
 	_selection.reset(TextSelection());
+	base::take(_views);
+	clear(base::take(_entries));
+}
+
+void PreviewWrap::clear(std::vector<Entry> entries) {
 	_elementLifetime.destroy();
-	_element = nullptr;
-	if (_draftItem) {
-		_draftItem->destroy();
+	for (auto &entry : entries) {
+		entry.view = nullptr;
+		if (const auto item = entry.item) {
+			item->destroy();
+		}
 	}
+}
+
+bool PreviewWrap::hasViewForItem(not_null<const HistoryItem*> item) const {
+	return (item->history() == _history)
+		&& ranges::contains(_views, item, &Element::data);
+}
+
+void PreviewWrap::showForwardSelector(Data::ResolvedForwardDraft draft) {
+	Expects(!draft.items.empty());
+
+	_selection.reset(TextSelection());
+
+	auto was = base::take(_entries);
+	auto groups = base::flat_map<MessageGroupId, uint64>();
+	const auto groupByItem = [&](not_null<HistoryItem*> item) {
+		const auto groupId = item->groupId();
+		if (!groupId) {
+			return uint64();
+		}
+		auto i = groups.find(groupId);
+		if (i == end(groups)) {
+			i = groups.emplace(groupId, base::RandomValue<uint64>()).first;
+		}
+		return i->second;
+	};
+	const auto wasViews = base::take(_views);
+	using Options = Data::ForwardOptions;
+	const auto dropNames = (draft.options != Options::PreserveInfo);
+	const auto dropCaptions = (draft.options == Options::NoNamesAndCaptions);
+	for (const auto &source : draft.items) {
+		const auto groupedId = groupByItem(source);
+		const auto item = _history->addNewLocalMessage({
+			.id = _history->nextNonHistoryEntryId(),
+			.flags = (MessageFlag::FakeHistoryItem
+				| MessageFlag::Outgoing
+				| MessageFlag::HasFromId
+				| (source->invertMedia()
+					? MessageFlag::InvertMedia
+					: MessageFlag())),
+			.from = _history->session().userPeerId(),
+			.date = base::unixtime::now(),
+			.groupedId = groupedId,
+			.ignoreForwardFrom = dropNames,
+			.ignoreForwardCaptions = dropCaptions,
+		}, source);
+		_entries.push_back({ item });
+	}
+	for (auto &entry : _entries) {
+		entry.view = entry.item->createView(_delegate.get());
+		_views.emplace(entry.view.get());
+	}
+	_link = _pressedLink = nullptr;
+	clear(std::move(was));
+
+	_section = Section::Forward;
+
+	initElements();
 }
 
 rpl::producer<SelectedQuote> PreviewWrap::showQuoteSelector(
 		const SelectedQuote &quote) {
 	_selection.reset(TextSelection());
 
+	auto was = base::take(_entries);
+	const auto wasViews = base::take(_views);
 	const auto item = quote.item;
 	const auto group = item->history()->owner().groups().find(item);
 	const auto leader = group ? group->items.front().get() : item;
-	_element = leader->createView(_delegate.get());
+	_entries.push_back({
+		.view = leader->createView(_delegate.get()),
+	});
+	_views.emplace(_entries.back().view.get());
 	_link = _pressedLink = nullptr;
-
-	if (const auto was = base::take(_draftItem)) {
-		was->destroy();
-	}
+	clear(std::move(was));
 
 	const auto media = item->media();
 	_onlyMessageText = media
@@ -249,12 +330,13 @@ rpl::producer<SelectedQuote> PreviewWrap::showQuoteSelector(
 			|| (!media->photo() && !media->document()));
 	_section = Section::Reply;
 
-	initElement();
+	initElements();
 
-	_selection = _element->selectionFromQuote(quote);
+	const auto view = _entries.back().view.get();
+	_selection = view->selectionFromQuote(quote);
 	return _selection.value(
 	) | rpl::map([=](TextSelection selection) {
-		if (const auto result = _element->selectedQuote(selection)) {
+		if (const auto result = view->selectedQuote(selection)) {
 			return result;
 		}
 		return SelectedQuote{ item };
@@ -267,13 +349,11 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 		const std::vector<MessageLinkRange> &links,
 		const QString &usedLink) {
 	_selection.reset(TextSelection());
+	base::take(_views);
+	clear(base::take(_entries));
 
-	_element = nullptr;
-	if (const auto was = base::take(_draftItem)) {
-		was->destroy();
-	}
 	using Flag = MTPDmessageMediaWebPage::Flag;
-	_draftItem = _history->addNewLocalMessage({
+	const auto item = _history->addNewLocalMessage({
 		.id = _history->nextNonHistoryEntryId(),
 		.flags = (MessageFlag::FakeHistoryItem
 			| MessageFlag::Outgoing
@@ -299,13 +379,15 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 			MTP_long(webpage.id),
 			MTP_string(webpage.url),
 			MTP_int(0))));
-	_element = _draftItem->createView(_delegate.get());
+	_entries.push_back({ item, item->createView(_delegate.get()) });
+	_views.emplace(_entries.back().view.get());
+
 	_selectType = TextSelectType::Letters;
 	_symbol = _selectionStartSymbol = 0;
 	_afterSymbol = _selectionStartAfterSymbol = false;
 	_section = Section::Link;
 
-	initElement();
+	initElements();
 	highlightUsedLink(message, usedLink, links);
 
 	return _chosenUrl.events();
@@ -338,7 +420,8 @@ void PreviewWrap::highlightUsedLink(
 				text = text.mid(0, text.size() - 1);
 				--selection.to;
 			}
-			const auto basic = _element->textState(QPoint(0, 0), {
+			const auto view = _entries.back().view.get();
+			const auto basic = view->textState(QPoint(0, 0), {
 				.flags = Ui::Text::StateRequest::Flag::LookupSymbol,
 				.onlyMessageText = true,
 			});
@@ -353,30 +436,31 @@ void PreviewWrap::highlightUsedLink(
 }
 
 void PreviewWrap::paintEvent(QPaintEvent *e) {
-	if (!_element) {
-		return;
-	}
-
 	auto p = Painter(this);
+
+	p.translate(_position);
 
 	auto context = _theme->preparePaintContext(
 		_style.get(),
 		rect(),
 		e->rect(),
 		!window()->isActiveWindow());
-	context.outbg = _element->hasOutLayout();
-	context.selection = _selecting
-		? resolveNewSelection()
-		: _selection.current();
+	for (const auto &entry : _entries) {
+		context.outbg = entry.view->hasOutLayout();
+		context.selection = _selecting
+			? resolveNewSelection()
+			: _selection.current();
 
-	p.translate(_position);
-	_element->draw(p, context);
+		entry.view->draw(p, context);
 
-	if (_element->displayFromPhoto()) {
+		p.translate(0, entry.view->height());
+	}
+	const auto top = _entries.empty() ? nullptr : _entries.back().view.get();
+	if (top && top->displayFromPhoto()) {
 		auto userpicBottom = height()
-			- _element->marginBottom()
-			- _element->marginTop();
-		const auto item = _element->data();
+			- top->marginBottom()
+			- top->marginTop();
+		const auto item = top->data();
 		const auto userpicTop = userpicBottom - st::msgPhotoSize;
 		if (const auto from = item->displayFrom()) {
 			from->paintUserpicLeft(
@@ -415,7 +499,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 }
 
 void PreviewWrap::leaveEventHook(QEvent *e) {
-	if (!_element || !_over) {
+	if (!_over) {
 		return;
 	}
 	_over = false;
@@ -427,7 +511,7 @@ void PreviewWrap::leaveEventHook(QEvent *e) {
 }
 
 void PreviewWrap::mouseMoveEvent(QMouseEvent *e) {
-	if (!_element) {
+	if (_entries.empty()) {
 		return;
 	}
 	using Flag = Ui::Text::StateRequest::Flag;
@@ -438,7 +522,16 @@ void PreviewWrap::mouseMoveEvent(QMouseEvent *e) {
 		.onlyMessageText = (_section == Section::Link || _onlyMessageText),
 	};
 	const auto position = e->pos();
-	auto resolved = _element->textState(position - _position, request);
+	auto local = position - _position;
+	auto resolved = TextState();
+	for (auto &entry : _entries) {
+		const auto height = entry.view->height();
+		if (local.y() < height) {
+			resolved = entry.view->textState(local, request);
+			break;
+		}
+		local.setY(local.y() - height);
+	}
 	_over = true;
 	const auto text = (_section == Section::Reply)
 		&& (resolved.cursor == CursorState::Text);
@@ -518,27 +611,25 @@ void PreviewWrap::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 }
 
-void PreviewWrap::initElement() {
-	_elementLifetime.destroy();
-
-	if (!_element) {
-		return;
+void PreviewWrap::initElements() {
+	for (auto &entry : _entries) {
+		entry.view->initDimensions();
 	}
-	_element->initDimensions();
-
 	widthValue(
 	) | rpl::filter([=](int width) {
 		return width > st::msgMinWidth;
 	}) | rpl::start_with_next([=](int width) {
-		const auto height = _position.y()
-			+ _element->resizeGetHeight(width)
-			+ st::msgMargin.top();
+		auto height = _position.y();
+		for (const auto &entry : _entries) {
+			height += entry.view->resizeGetHeight(width);
+		}
+		height += st::msgMargin.top();
 		resize(width, height);
 	}, _elementLifetime);
 }
 
 TextSelection PreviewWrap::resolveNewSelection() const {
-	if (_section != Section::Reply) {
+	if (_section != Section::Reply || _entries.empty()) {
 		return TextSelection();
 	}
 	const auto make = [](uint16 symbol, bool afterSymbol) {
@@ -551,7 +642,7 @@ TextSelection PreviewWrap::resolveNewSelection() const {
 	const auto result = (first <= second)
 		? TextSelection{ first, second }
 		: TextSelection{ second, first };
-	return _element->adjustSelection(result, _selectType);
+	return _entries.back().view->adjustSelection(result, _selectType);
 }
 
 void PreviewWrap::startSelection(TextSelectType type) {
@@ -607,9 +698,10 @@ void DraftOptionsBox(
 
 	const auto &draft = args.draft;
 	struct State {
-		rpl::variable<Section> shown;
+		rpl::variable<Section> shown = Section::Link;
 		rpl::lifetime shownLifetime;
 		rpl::variable<SelectedQuote> quote;
+		Data::ResolvedForwardDraft forward;
 		Data::WebPageDraft webpage;
 		WebPageData *preview = nullptr;
 		QString link;
@@ -619,41 +711,90 @@ void DraftOptionsBox(
 		Fn<void(const QString &link, WebPageData *page)> performSwitch;
 		Fn<void(const QString &link, bool force)> requestAndSwitch;
 		rpl::lifetime resolveLifetime;
+
+		Fn<void()> rebuild;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	state->link = args.usedLink;
 	state->quote = SelectedQuote{
 		replyItem,
 		draft.reply.quote,
 		draft.reply.quoteOffset,
 	};
+	state->forward = std::move(args.forward);
 	state->webpage = draft.webpage;
 	state->preview = previewData;
-	state->shown = previewData ? Section::Link : Section::Reply;
-	if (replyItem && previewData) {
-		box->setNoContentMargin(true);
-		state->tabs = box->setPinnedToTopContent(
-			object_ptr<Ui::SettingsSlider>(
-				box.get(),
-				st::defaultTabsSlider));
-		state->tabs->resizeToWidth(st::boxWideWidth);
-		state->tabs->move(0, 0);
-		state->tabs->setRippleTopRoundRadius(st::boxRadius);
-		state->tabs->setSections({
-			tr::lng_reply_header_short(tr::now),
-			tr::lng_link_header_short(tr::now),
-		});
-		state->tabs->setActiveSectionFast(1);
-		state->tabs->sectionActivated(
-		) | rpl::start_with_next([=](int section) {
-			state->shown = section ? Section::Link : Section::Reply;
-		}, box->lifetime());
-	} else {
-		box->setTitle(previewData
-			? tr::lng_link_options_header()
-			: draft.reply.quote.empty()
-			? tr::lng_reply_options_header()
-			: tr::lng_reply_options_quote());
-	}
+
+	state->rebuild = [=] {
+		const auto hasLink = (state->preview != nullptr);
+		const auto hasReply = (state->quote.current().item != nullptr);
+		const auto hasForward = !state->forward.items.empty();
+		if (!hasLink && !hasReply && !hasForward) {
+			box->closeBox();
+			return;
+		}
+		const auto section = state->shown.current();
+		const auto changeSection = (section == Section::Link)
+			? !hasLink
+			: (section == Section::Reply)
+			? !hasReply
+			: !hasForward;
+		const auto now = !changeSection
+			? section
+			: hasLink
+			? Section::Link
+			: hasReply
+			? Section::Reply
+			: Section::Forward;
+		auto labels = std::vector<QString>();
+		auto indices = base::flat_map<Section, int>();
+		auto sections = std::vector<Section>();
+		const auto push = [&](Section section, tr::phrase<> phrase) {
+			indices[section] = labels.size();
+			labels.push_back(phrase(tr::now));
+			sections.push_back(section);
+		};
+		if (hasLink) {
+			push(Section::Link, tr::lng_link_header_short);
+		}
+		if (hasReply) {
+			push(Section::Reply, tr::lng_reply_header_short);
+		}
+		if (hasForward) {
+			push(Section::Forward, tr::lng_forward_header_short);
+		}
+		if (labels.size() > 1) {
+			box->setNoContentMargin(true);
+			state->tabs = box->setPinnedToTopContent(
+				object_ptr<Ui::SettingsSlider>(
+					box.get(),
+					st::defaultTabsSlider));
+			state->tabs->resizeToWidth(st::boxWideWidth);
+			state->tabs->move(0, 0);
+			state->tabs->setRippleTopRoundRadius(st::boxRadius);
+			state->tabs->setSections(labels);
+			state->tabs->setActiveSectionFast(indices[now]);
+			state->tabs->sectionActivated(
+			) | rpl::start_with_next([=](int index) {
+				state->shown = sections[index];
+			}, box->lifetime());
+		} else {
+			const auto forwardCount = state->forward.items.size();
+			box->setTitle(hasLink
+				? tr::lng_link_options_header()
+				: hasReply
+				? (state->quote.current().text.empty()
+					? tr::lng_reply_options_header()
+					: tr::lng_reply_options_quote())
+				: (forwardCount == 1)
+				? tr::lng_forward_title()
+				: tr::lng_forward_many_title(
+					lt_count,
+					rpl::single(forwardCount * 1.0)));
+		}
+		state->shown.force_assign(now);
+	};
+	state->rebuild();
 
 	const auto bottom = box->setPinnedToBottomContent(
 		object_ptr<Ui::VerticalLayout>(box));
@@ -675,9 +816,17 @@ void DraftOptionsBox(
 	};
 	const auto finish = [=](
 			FullReplyTo result,
-			Data::WebPageDraft webpage) {
+			Data::WebPageDraft webpage,
+			std::optional<Data::ForwardOptions> options) {
 		const auto weak = Ui::MakeWeak(box);
-		done(std::move(result), std::move(webpage));
+		auto forward = Data::ForwardDraft();
+		if (options) {
+			forward.options = *options;
+			for (const auto &item : state->forward.items) {
+				forward.ids.push_back(item->fullId());
+			}
+		}
+		done(std::move(result), std::move(webpage), std::move(forward));
 		if (const auto strong = weak.data()) {
 			strong->closeBox();
 		}
@@ -716,7 +865,7 @@ void DraftOptionsBox(
 			st::settingsAttentionButtonWithIcon,
 			{ &st::menuIconDeleteAttention }
 		)->setClickedCallback([=] {
-			finish({}, state->webpage);
+			finish({}, state->webpage, state->forward.options);
 		});
 
 		if (!item->originalText().empty()) {
@@ -774,13 +923,100 @@ void DraftOptionsBox(
 			st::settingsAttentionButtonWithIcon,
 			{ &st::menuIconDeleteAttention }
 		)->setClickedCallback([=] {
-			finish(resolveReply(), { .removed = true });
+			const auto options = state->forward.options;
+			finish(resolveReply(), { .removed = true }, options);
 		});
 
 		if (args.links.size() > 1) {
 			AddFilledSkip(bottom);
 			Ui::AddDividerText(bottom, tr::lng_link_about_choose());
 		}
+	};
+
+	const auto setupForwardActions = [=] {
+		using Options = Data::ForwardOptions;
+		const auto now = state->forward.options;
+		const auto &items = state->forward.items;
+		const auto count = items.size();
+		const auto dropNames = (now != Options::PreserveInfo);
+		const auto sendersCount = ItemsForwardSendersCount(items);
+		const auto captionsCount = ItemsForwardCaptionsCount(items);
+		const auto hasOnlyForcedForwardedInfo = !captionsCount
+			&& HasOnlyForcedForwardedInfo(items);
+		const auto dropCaptions = (now == Options::NoNamesAndCaptions);
+
+		AddFilledSkip(bottom);
+
+		if (!hasOnlyForcedForwardedInfo) {
+			Settings::AddButtonWithIcon(
+				bottom,
+				(dropNames
+					? (sendersCount == 1
+						? tr::lng_forward_action_show_sender
+						: tr::lng_forward_action_show_senders)
+					: (sendersCount == 1
+						? tr::lng_forward_action_hide_sender
+						: tr::lng_forward_action_hide_senders))(),
+				st::settingsButton,
+				{ dropNames
+					? &st::menuIconUserShow
+					: &st::menuIconUserHide }
+			)->setClickedCallback([=] {
+				state->forward.options = dropNames
+					? Options::PreserveInfo
+					: Options::NoSenderNames;
+				state->shown.force_assign(Section::Forward);
+			});
+		}
+		if (captionsCount) {
+			Settings::AddButtonWithIcon(
+				bottom,
+				(dropCaptions
+					? (captionsCount == 1
+						? tr::lng_forward_action_show_caption
+						: tr::lng_forward_action_show_captions)
+					: (captionsCount == 1
+						? tr::lng_forward_action_hide_caption
+						: tr::lng_forward_action_hide_captions))(),
+				st::settingsButton,
+				{ dropCaptions
+					? &st::menuIconCaptionShow
+					: &st::menuIconCaptionHide }
+			)->setClickedCallback([=] {
+				state->forward.options = dropCaptions
+					? Options::NoSenderNames
+					: Options::NoNamesAndCaptions;
+				state->shown.force_assign(Section::Forward);
+			});
+		}
+
+		Settings::AddButtonWithIcon(
+			bottom,
+			tr::lng_forward_action_change_recipient(),
+			st::settingsButton,
+			{ &st::menuIconReplace }
+		)->setClickedCallback([=] {
+			auto draft = base::take(state->forward);
+			finish(resolveReply(), state->webpage, std::nullopt);
+			Window::ShowForwardMessagesBox(show, {
+				.ids = show->session().data().itemsToIds(draft.items),
+				.options = draft.options,
+			});
+		});
+
+		Settings::AddButtonWithIcon(
+			bottom,
+			tr::lng_forward_action_remove(),
+			st::settingsAttentionButtonWithIcon,
+			{ &st::menuIconDeleteAttention }
+		)->setClickedCallback([=] {
+			finish(resolveReply(), state->webpage, std::nullopt);
+		});
+
+		AddFilledSkip(bottom);
+		Ui::AddDividerText(bottom, (count == 1
+			? tr::lng_forward_about()
+			: tr::lng_forward_many_about()));
 	};
 
 	const auto &resolver = args.resolver;
@@ -847,20 +1083,27 @@ void DraftOptionsBox(
 	state->shown.value() | rpl::start_with_next([=](Section shown) {
 		bottom->clear();
 		state->shownLifetime.destroy();
-		if (shown == Section::Reply) {
-			state->quote = state->wrap->showQuoteSelector(
-				state->quote.current());
-			setupReplyActions();
-		} else {
-			state->wrap->showLinkSelector(
-				draft.textWithTags,
-				state->webpage,
-				linkRanges,
-				state->link
-			) | rpl::start_with_next([=](QString link) {
-				switchTo(link);
-			}, state->shownLifetime);
-			setupLinkActions();
+		switch (shown) {
+			case Section::Reply: {
+				state->quote = state->wrap->showQuoteSelector(
+					state->quote.current());
+				setupReplyActions();
+			} break;
+			case Section::Link: {
+				state->wrap->showLinkSelector(
+					draft.textWithTags,
+					state->webpage,
+					linkRanges,
+					state->link
+				) | rpl::start_with_next([=](QString link) {
+					switchTo(link);
+				}, state->shownLifetime);
+				setupLinkActions();
+			} break;
+			case Section::Forward: {
+				state->wrap->showForwardSelector(state->forward);
+				setupForwardActions();
+			} break;
 		}
 	}, box->lifetime());
 
@@ -879,7 +1122,8 @@ void DraftOptionsBox(
 				.text = { tr::lng_reply_quote_long_text(tr::now) },
 			});
 		} else {
-			finish(resolveReply(), state->webpage);
+			const auto options = state->forward.options;
+			finish(resolveReply(), state->webpage, options);
 		}
 	});
 
@@ -887,31 +1131,29 @@ void DraftOptionsBox(
 		box->closeBox();
 	});
 
-	if (replyItem) {
-		args.show->session().data().itemRemoved(
-		) | rpl::filter([=](not_null<const HistoryItem*> removed) {
-			const auto current = state->quote.current().item;
-			if ((removed == replyItem) || (removed == current)) {
-				return true;
-			}
-			const auto group = current->history()->owner().groups().find(
-				current);
-			return (group && ranges::contains(group->items, removed));
-		}) | rpl::start_with_next([=] {
-			if (previewData) {
-				state->tabs = nullptr;
-				box->setPinnedToTopContent(
-					object_ptr<Ui::RpWidget>(nullptr));
-				box->setNoContentMargin(false);
-				box->setTitle(state->quote.current().text.empty()
-					? tr::lng_reply_options_header()
-					: tr::lng_reply_options_quote());
-				state->shown = Section::Link;
-			} else {
-				box->closeBox();
-			}
-		}, box->lifetime());
-	}
+	args.show->session().data().itemRemoved(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
+		const auto inReply = (state->quote.current().item == removed);
+		if (inReply) {
+			state->quote = SelectedQuote();
+		}
+		const auto i = ranges::find(state->forward.items, removed);
+		const auto inForward = (i != end(state->forward.items));
+		if (inForward) {
+			state->forward.items.erase(i);
+		}
+		if (inReply || inForward) {
+			state->rebuild();
+		}
+	}, box->lifetime());
+
+	args.show->session().data().itemViewRefreshRequest(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		if (state->wrap->hasViewForItem(item)) {
+			state->rebuild();
+		}
+	}, box->lifetime());
+
 }
 
 struct AuthorSelector {
@@ -1165,7 +1407,7 @@ void EditDraftOptions(EditDraftOptionsArgs &&args) {
 		&& !previewDataRaw->failed)
 		? previewDataRaw
 		: nullptr;
-	if (!replyItem && !previewData) {
+	if (!replyItem && !previewData && args.forward.items.empty()) {
 		return;
 	}
 	args.show->show(

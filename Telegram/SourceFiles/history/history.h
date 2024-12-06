@@ -26,7 +26,6 @@ class HistoryMainElementDelegateMixin;
 struct LanguageId;
 
 namespace Data {
-
 struct Draft;
 class Session;
 class Folder;
@@ -34,29 +33,6 @@ class ChatFilter;
 struct SponsoredFrom;
 class SponsoredMessages;
 class HistoryMessages;
-
-enum class ForwardOptions {
-	PreserveInfo,
-	NoSenderNames,
-	NoNamesAndCaptions,
-};
-
-struct ForwardDraft {
-	MessageIdsList ids;
-	ForwardOptions options = ForwardOptions::PreserveInfo;
-
-	friend inline auto operator<=>(
-		const ForwardDraft&,
-		const ForwardDraft&) = default;
-};
-
-using ForwardDrafts = base::flat_map<MsgId, ForwardDraft>;
-
-struct ResolvedForwardDraft {
-	HistoryItemsList items;
-	ForwardOptions options = ForwardOptions::PreserveInfo;
-};
-
 } // namespace Data
 
 namespace Dialogs {

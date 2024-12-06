@@ -2109,7 +2109,7 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		if (!_replyEditMsg) {
 			requestMessageData(_editMsgId);
 		}
-	} else if (!readyToForward()) {
+	} else {
 		const auto draft = _history->localDraft({});
 		_processingReplyTo = draft ? draft->reply : FullReplyTo();
 		if (_processingReplyTo) {
@@ -4982,7 +4982,7 @@ bool HistoryWidget::showRecordButton() const {
 		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
 		&& !_previewDrawPreview
-		&& !readyToForward()
+		&& (_replyTo || !readyToForward())
 		&& !_editMsgId;
 }
 
@@ -6825,18 +6825,15 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			_peer,
 			Window::SectionShow::Way::Forward,
 			_editMsgId);
-	} else if (isReadyToForward) {
-		if (e->button() != Qt::LeftButton) {
-			_forwardPanel->editToNextOption();
-		} else {
-			_forwardPanel->editOptions(controller()->uiShow());
-		}
 	} else if (_replyTo
 		&& ((e->modifiers() & Qt::ControlModifier)
 			|| (e->button() != Qt::LeftButton))) {
 		jumpToReply(_replyTo);
-	} else if (_replyTo) {
+	} else if (_replyTo
+		|| (isReadyToForward && e->button() == Qt::LeftButton)) {
 		editDraftOptions();
+	} else if (isReadyToForward) {
+		_forwardPanel->editToNextOption();
 	} else if (_kbReplyTo) {
 		controller()->showPeerHistory(
 			_kbReplyTo->history()->peer->id,
@@ -6851,15 +6848,18 @@ void HistoryWidget::editDraftOptions() {
 	const auto history = _history;
 	const auto reply = _replyTo;
 	const auto webpage = _preview->draft();
+	const auto forward = _forwardPanel->draft();
 
 	const auto done = [=](
 			FullReplyTo replyTo,
-			Data::WebPageDraft webpage) {
+			Data::WebPageDraft webpage,
+			Data::ForwardDraft forward) {
 		if (replyTo) {
 			replyToMessage(replyTo);
 		} else {
 			cancelReply();
 		}
+		history->setForwardDraft({}, std::move(forward));
 		_preview->apply(webpage);
 	};
 	const auto replyToId = reply.messageId;
@@ -6873,6 +6873,7 @@ void HistoryWidget::editDraftOptions() {
 		.history = history,
 		.draft = Data::Draft(_field, reply, _preview->draft()),
 		.usedLink = _preview->link(),
+		.forward = _forwardPanel->draft(),
 		.links = _preview->links(),
 		.resolver = _preview->resolver(),
 		.done = done,
@@ -7956,7 +7957,7 @@ void HistoryWidget::processReply() {
 							{ .ids = { 1, itemId } });
 					}),
 					.confirmText = tr::lng_selected_forward(),
-					}));
+				}));
 		}
 		return processCancel();
 #endif
@@ -7985,7 +7986,6 @@ void HistoryWidget::setReplyFieldsFromProcessing() {
 		return;
 	}
 
-	_history->setForwardDraft(MsgId(), {});
 	if (_composeSearch) {
 		_composeSearch->hideAnimated();
 	}
@@ -8243,10 +8243,10 @@ void HistoryWidget::cancelFieldAreaState() {
 		_preview->apply({ .removed = true });
 	} else if (_editMsgId) {
 		cancelEdit();
-	} else if (readyToForward()) {
-		_history->setForwardDraft(MsgId(), {});
 	} else if (_replyTo) {
 		cancelReply();
+	} else if (readyToForward()) {
+		_history->setForwardDraft(MsgId(), {});
 	} else if (_kbReplyTo) {
 		toggleKeyboard();
 	}
@@ -8595,9 +8595,6 @@ void HistoryWidget::updateForwarding() {
 	_forwardPanel->update(_history, _history
 		? _history->resolveForwardDraft(MsgId())
 		: Data::ResolvedForwardDraft());
-	if (readyToForward()) {
-		cancelReply();
-	}
 	updateControlsVisibility();
 	updateControlsGeometry();
 }

@@ -28,11 +28,4 @@ void FillForwardOptions(
 	Fn<void(ForwardOptions)> optionsChanged,
 	rpl::lifetime &lifetime);
 
-void ForwardOptionsBox(
-	not_null<GenericBox*> box,
-	int count,
-	ForwardOptions options,
-	Fn<void(ForwardOptions)> optionsChanged,
-	Fn<void()> changeRecipient);
-
 } // namespace Ui

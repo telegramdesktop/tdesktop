@@ -146,6 +146,7 @@ public:
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
+	[[nodiscard]] const Data::ResolvedForwardDraft &forwardDraft() const;
 	[[nodiscard]] FullReplyTo replyingToMessage() const;
 	[[nodiscard]] FullMsgId editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
@@ -281,23 +282,23 @@ void FieldHeader::init() {
 			st::historyLinkIcon.paint(p, position, width());
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
-		} else if (readyToForward()) {
-			st::historyForwardIcon.paint(p, position, width());
 		} else if (const auto reply = replyingToMessage()) {
 			if (!reply.quote.empty()) {
 				st::historyQuoteIcon.paint(p, position, width());
 			} else {
 				st::historyReplyIcon.paint(p, position, width());
 			}
+		} else if (readyToForward()) {
+			st::historyForwardIcon.paint(p, position, width());
 		}
 
 		if (_preview.parsed) {
 			paintWebPage(
 				p,
 				_history ? _history->peer : _data->session().user());
-		} else if (isEditingMessage() || !readyToForward()) {
+		} else if (isEditingMessage() || replyingToMessage()) {
 			paintEditOrReplyToMessage(p);
-		} else {
+		} else if (readyToForward()) {
 			paintForwardInfo(p);
 		}
 	}, lifetime());
@@ -339,10 +340,10 @@ void FieldHeader::init() {
 			_previewCancelled.fire({});
 		} else if (_editMsgId.current()) {
 			_editCancelled.fire({});
-		} else if (readyToForward()) {
-			_forwardCancelled.fire({});
 		} else if (_replyTo.current()) {
 			_replyCancelled.fire({});
+		} else if (readyToForward()) {
+			_forwardCancelled.fire({});
 		}
 		updateVisible();
 		update();
@@ -403,12 +404,9 @@ void FieldHeader::init() {
 					_jumpToItemRequests.fire(FullReplyTo{
 						.messageId = _editMsgId.current()
 					});
-				} else if (readyToForward()) {
-					_forwardPanel->editOptions(_show);
-				} else if (reply
-					&& (e->modifiers() & Qt::ControlModifier)) {
+				} else if (reply && (e->modifiers() & Qt::ControlModifier)) {
 					_jumpToItemRequests.fire_copy(reply);
-				} else if (reply) {
+				} else if (reply || readyToForward()) {
 					_editOptionsRequests.fire({});
 				}
 			} else if (!isLeftButton) {
@@ -419,6 +417,8 @@ void FieldHeader::init() {
 						_hasSendText());
 				} else if (const auto reply = replyingToMessage()) {
 					_jumpToItemRequests.fire_copy(reply);
+				} else if (readyToForward()) {
+					_forwardPanel->editToNextOption();
 				}
 			}
 		}
@@ -713,6 +713,10 @@ const HistoryItemsList &FieldHeader::forwardItems() const {
 	return _forwardPanel->items();
 }
 
+const Data::ResolvedForwardDraft &FieldHeader::forwardDraft() const {
+	return _forwardPanel->draft();
+}
+
 FullReplyTo FieldHeader::replyingToMessage() const {
 	return _replyTo.current();
 }
@@ -764,9 +768,6 @@ void FieldHeader::updateForwarding(
 		Data::Thread *thread,
 		Data::ResolvedForwardDraft items) {
 	_forwardPanel->update(thread, std::move(items));
-	if (readyToForward()) {
-		replyToMessage({});
-	}
 	updateControlsGeometry(size());
 }
 
@@ -1408,12 +1409,14 @@ void ComposeControls::init() {
 
 		const auto done = [=](
 				FullReplyTo replyTo,
-				Data::WebPageDraft webpage) {
+				Data::WebPageDraft webpage,
+				Data::ForwardDraft forward) {
 			if (replyTo) {
 				replyToMessage(replyTo);
 			} else {
 				cancelReplyMessage();
 			}
+			history->setForwardDraft(topicRootId, std::move(forward));
 			_preview->apply(webpage);
 			_field->setFocus();
 		};
@@ -1428,6 +1431,7 @@ void ComposeControls::init() {
 			.history = history,
 			.draft = Data::Draft(_field, reply, _preview->draft()),
 			.usedLink = _preview->link(),
+			.forward = _header->forwardDraft(),
 			.links = _preview->links(),
 			.resolver = _preview->resolver(),
 			.done = done,
@@ -2013,9 +2017,6 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_canReplaceMedia = _canAddMedia = false;
 		_photoEditMedia = nullptr;
 		_header->replyToMessage(draft->reply);
-		if (_header->replyingToMessage()) {
-			cancelForward();
-		}
 		_header->editMessage({});
 		if (_preview) {
 			_preview->setDisabled(false);
@@ -3018,9 +3019,6 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 		}
 	} else {
 		_header->replyToMessage(id);
-		if (_header->replyingToMessage()) {
-			cancelForward();
-		}
 	}
 
 	_saveDraftText = true;
@@ -3071,11 +3069,11 @@ bool ComposeControls::handleCancelRequest() {
 	} else if (isEditingMessage()) {
 		maybeCancelEditMessage();
 		return true;
-	} else if (readyToForward()) {
-		cancelForward();
-		return true;
 	} else if (replyingToMessage()) {
 		cancelReplyMessage();
+		return true;
+	} else if (readyToForward()) {
+		cancelForward();
 		return true;
 	}
 	return false;

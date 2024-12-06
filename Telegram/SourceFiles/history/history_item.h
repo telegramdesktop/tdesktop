@@ -107,6 +107,8 @@ struct HistoryItemCommonFields {
 	uint64 groupedId = 0;
 	EffectId effectId = 0;
 	HistoryMessageMarkupData markup;
+	bool ignoreForwardFrom = false;
+	bool ignoreForwardCaptions = false;
 };
 
 enum class HistoryReactionSource : char {

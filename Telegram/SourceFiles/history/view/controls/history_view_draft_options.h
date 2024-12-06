@@ -29,9 +29,10 @@ struct EditDraftOptionsArgs {
 	not_null<History*> history;
 	Data::Draft draft;
 	QString usedLink;
+	Data::ResolvedForwardDraft forward;
 	std::vector<MessageLinkRange> links;
 	std::shared_ptr<WebpageResolver> resolver;
-	Fn<void(FullReplyTo, Data::WebPageDraft)> done;
+	Fn<void(FullReplyTo, Data::WebPageDraft, Data::ForwardDraft)> done;
 	Fn<void(FullReplyTo)> highlight;
 	Fn<void()> clearOldDraft;
 };

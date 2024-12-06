@@ -4912,6 +4912,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forward_show_captions" = "Show captions";
 "lng_forward_change_recipient" = "Change recipient";
 "lng_forward_sender_names_removed" = "Sender names removed";
+"lng_forward_header_short" = "Forward";
+"lng_forward_action_show_sender" = "Show Sender Name";
+"lng_forward_action_show_senders" = "Show Sender Names";
+"lng_forward_action_hide_sender" = "Hide Sender Name";
+"lng_forward_action_hide_senders" = "Hide Sender Names";
+"lng_forward_action_show_caption" = "Show Caption";
+"lng_forward_action_show_captions" = "Show Captions";
+"lng_forward_action_hide_caption" = "Hide Caption";
+"lng_forward_action_hide_captions" = "Hide Captions";
+"lng_forward_action_change_recipient" = "Change Recipient";
+"lng_forward_action_remove" = "Do Not Forward";
 
 "lng_passport_title" = "Telegram Passport";
 "lng_passport_request1" = "{bot} requests access to your personal data";
