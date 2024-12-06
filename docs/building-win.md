@@ -30,6 +30,11 @@ Open **x86 Native Tools Command Prompt for VS 2022.bat**, go to ***BuildPath*** 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
     tdesktop\Telegram\build\prepare\win.bat
 
+> [!IMPORTANT]
+> You might not need Telegram Desktop's git dependency history, in which case you can run this command **instead of the last one** and save disk space and speed up cloning quite a bit:
+>
+>     tdesktop\Telegram\build\prepare\win.bat no-deps-git-history
+
 ## Build the project
 
 Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
