@@ -134,7 +134,7 @@ not_null<HistoryItem*> SendGame::makeMessage(
 		const Result *owner,
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const {
-	return history->addNewLocalMessage(std::move(fields), _game);
+	return history->makeMessage(std::move(fields), _game);
 }
 
 QString SendGame::getErrorOnSend(
