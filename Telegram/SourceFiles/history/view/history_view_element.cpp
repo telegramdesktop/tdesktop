@@ -94,6 +94,89 @@ Element *MousedElement/* = nullptr*/;
 	return session->tryResolveWindow();
 }
 
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+		const QString &text,
+		const QString &query) {
+	const auto lower = query.toLower();
+	const auto inside = text.toLower();
+	const auto find = [&](QStringView part) {
+		auto skip = 0;
+		if (const auto from = inside.indexOf(part, skip); from >= 0) {
+			if (!from || !inside[from - 1].isLetterOrNumber()) {
+				return from;
+			}
+			skip = from + 1;
+		}
+		return -1;
+	};
+	if (const auto from = find(lower); from >= 0) {
+		const auto till = from + query.size();
+		if (till >= inside.size() || !inside[till].isLetterOrNumber()) {
+			return { uint16(from), uint16(till) };
+		}
+	}
+	const auto tillEndOfWord = [&](int from) {
+		for (auto till = from + 1; till != inside.size(); ++till) {
+			if (!inside[till].isLetterOrNumber()) {
+				return TextSelection{ uint16(from), uint16(till) };
+			}
+		}
+		return TextSelection{ uint16(from), uint16(inside.size()) };
+	};
+	const auto words = QStringView(lower).split(
+		QRegularExpression(
+			u"[\\W]"_q,
+			QRegularExpression::UseUnicodePropertiesOption),
+		Qt::SkipEmptyParts);
+	for (const auto &word : words) {
+		const auto length = int(word.size());
+		const auto cut = length / 2;
+		const auto part = word.mid(0, length - cut);
+		const auto offset = find(part);
+		if (offset < 0) {
+			continue;
+		}
+		for (auto i = 0; i != cut; ++i) {
+			const auto part = word.mid(0, length - i);
+			if (const auto from = find(part); from >= 0) {
+				return tillEndOfWord(from);
+			}
+		}
+		return tillEndOfWord(offset);
+	}
+	return {};
+}
+
+[[nodiscard]] TextSelection ApplyModificationsFrom(
+		TextSelection result,
+		const Ui::Text::String &text) {
+	if (result.empty()) {
+		return result;
+	}
+	for (const auto &modification : text.modifications()) {
+		if (modification.position >= result.to) {
+			break;
+		}
+		if (modification.added) {
+			++result.to;
+		}
+		const auto shiftTo = std::min(
+			int(modification.skipped),
+			result.to - modification.position);
+		result.to -= shiftTo;
+		if (modification.position <= result.from) {
+			if (modification.added) {
+				++result.from;
+			}
+			const auto shiftFrom = std::min(
+				int(modification.skipped),
+				result.from - modification.position);
+			result.from -= shiftFrom;
+		}
+	}
+	return result;
+}
+
 } // namespace
 
 std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
@@ -1726,6 +1809,11 @@ TextSelection Element::FindSelectionFromQuote(
 		return {};
 	}
 	const auto &original = quote.item->originalText();
+	if (quote.offset == kSearchQueryOffsetHint) {
+		return ApplyModificationsFrom(
+			FindSearchQueryHighlight(original.text, quote.text.text),
+			text);
+	}
 	const auto length = int(original.text.size());
 	const auto qlength = int(quote.text.text.size());
 	const auto checkAt = [&](int offset) {
@@ -1789,28 +1877,7 @@ TextSelection Element::FindSelectionFromQuote(
 	if (result.empty()) {
 		return {};
 	}
-	for (const auto &modification : text.modifications()) {
-		if (modification.position >= result.to) {
-			break;
-		}
-		if (modification.added) {
-			++result.to;
-		}
-		const auto shiftTo = std::min(
-			int(modification.skipped),
-			result.to - modification.position);
-		result.to -= shiftTo;
-		if (modification.position <= result.from) {
-			if (modification.added) {
-				++result.from;
-			}
-			const auto shiftFrom = std::min(
-				int(modification.skipped),
-				result.from - modification.position);
-			result.from -= shiftFrom;
-		}
-	}
-	return result;
+	return ApplyModificationsFrom(result, text);
 }
 
 Reactions::ButtonParameters Element::reactionButtonParameters(

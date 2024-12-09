@@ -88,6 +88,7 @@ constexpr auto SwitchAtTopMsgId = MsgId(SpecialMsgIdShift + 2);
 constexpr auto ShowAndStartBotMsgId = MsgId(SpecialMsgIdShift + 4);
 constexpr auto ShowAndMaybeStartBotMsgId = MsgId(SpecialMsgIdShift + 5);
 constexpr auto ShowForChooseMessagesMsgId = MsgId(SpecialMsgIdShift + 6);
+constexpr auto kSearchQueryOffsetHint = -1;
 
 static_assert(SpecialMsgIdShift + 0xFF < 0);
 static_assert(-(SpecialMsgIdShift + 0xFF) > ServerMaxMsgId);
