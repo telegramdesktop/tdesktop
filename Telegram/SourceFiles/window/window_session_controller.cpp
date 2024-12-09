@@ -690,6 +690,8 @@ void SessionNavigation::showPeerByLinkResolved(
 			? info.messageId
 			: info.startAutoSubmit
 			? ShowAndStartBotMsgId
+			: (bot && !info.startToken.isEmpty())
+			? ShowAndMaybeStartBotMsgId
 			: ShowAtUnreadMsgId;
 		const auto attachBotUsername = info.attachBotUsername;
 		if (bot && bot->botInfo->startToken != info.startToken) {

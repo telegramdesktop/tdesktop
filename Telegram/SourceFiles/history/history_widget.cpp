@@ -2181,7 +2181,8 @@ void HistoryWidget::showHistory(
 
 	const auto wasState = controller()->currentDialogsEntryState();
 	const auto startBot = (showAtMsgId == ShowAndStartBotMsgId);
-	if (startBot) {
+	_showAndMaybeSendStart = (showAtMsgId == ShowAndMaybeStartBotMsgId);
+	if (startBot || _showAndMaybeSendStart) {
 		showAtMsgId = ShowAtTheEndMsgId;
 	}
 
@@ -2283,8 +2284,8 @@ void HistoryWidget::showHistory(
 
 			if (const auto user = _peer->asUser()) {
 				if (const auto &info = user->botInfo) {
-					if (startBot) {
-						if (wasState.key) {
+					if (startBot || clearMaybeSendStart()) {
+						if (startBot && wasState.key) {
 							info->inlineReturnTo = wasState;
 						}
 						sendBotStartCommand();
@@ -2519,8 +2520,9 @@ void HistoryWidget::showHistory(
 
 		if (const auto user = _peer->asUser()) {
 			if (const auto &info = user->botInfo) {
-				if (startBot) {
-					if (wasState.key) {
+				if (startBot
+					|| (!_history->isEmpty() && clearMaybeSendStart())) {
+					if (startBot && wasState.key) {
 						info->inlineReturnTo = wasState;
 					}
 					sendBotStartCommand();
@@ -3582,6 +3584,21 @@ void HistoryWidget::historyLoaded() {
 	doneShow();
 }
 
+bool HistoryWidget::clearMaybeSendStart() {
+	if (!_showAndMaybeSendStart) {
+		return false;
+	}
+	_showAndMaybeSendStart = false;
+	if (const auto user = _history ? _history->peer->asUser() : nullptr) {
+		if (const auto info = user->botInfo.get()) {
+			if (!info->startToken.isEmpty()) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void HistoryWidget::windowShown() {
 	updateControlsGeometry();
 }
@@ -3943,6 +3960,11 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 	if (!_scrollToAnimation.animating()) {
 		preloadHistoryByScroll();
 		checkReplyReturns();
+	}
+	if (_history && _history->loadedAtTop() && _history->loadedAtBottom()) {
+		if (clearMaybeSendStart() && !_history->isDisplayedEmpty()) {
+			sendBotStartCommand();
+		}
 	}
 }
 
