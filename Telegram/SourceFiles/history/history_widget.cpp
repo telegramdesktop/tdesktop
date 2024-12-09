@@ -1433,6 +1433,49 @@ int HistoryWidget::itemTopForHighlight(
 	const auto heightLeft = (visibleAreaHeight - viewHeight);
 	if (heightLeft >= 0) {
 		return std::max(itemTop - (heightLeft / 2), 0);
+	} else if (const auto sel = itemHighlight(item).range; !sel.empty()) {
+		auto request = HistoryView::StateRequest();
+		request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
+		const auto single = st::messageTextStyle.font->height;
+		const auto findy = [&](int symbol, int yfrom = 0) {
+			const auto fory = [&](int y) {
+				return view->textState(QPoint(0, y), request).symbol;
+			};
+			auto ytill = view->height() - 1;
+			auto symbolfrom = fory(yfrom);
+			auto symboltill = fory(ytill);
+			if ((yfrom >= ytill) || (symbolfrom >= symbol)) {
+				return yfrom;
+			} else if (symboltill <= symbol) {
+				return ytill;
+			}
+			while (ytill - yfrom >= 2 * single) {
+				const auto middle = (yfrom + ytill) / 2;
+				const auto found = fory(middle);
+				if (found == symbol
+					|| symbolfrom > found
+					|| symboltill < found) {
+					return middle;
+				} else if (found < symbol) {
+					yfrom = middle;
+					symbolfrom = found;
+				} else {
+					ytill = middle;
+					symboltill = found;
+				}
+			}
+			return (yfrom + ytill) / 2;
+		};
+		const auto begin = findy(sel.from) - single;
+		const auto end = findy(sel.to, begin + single) + 2 * single;
+		auto result = itemTop;
+		if (end > visibleAreaHeight) {
+			result = std::max(result, itemTop + end - visibleAreaHeight);
+		}
+		if (itemTop + begin < result) {
+			result = itemTop + begin;
+		}
+		return result;
 	} else if (reactionCenter >= 0) {
 		const auto maxSize = st::reactionInlineImage;
 
