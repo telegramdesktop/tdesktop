@@ -203,6 +203,7 @@ settingsInfoPeerBadge: InfoPeerBadge {
 	};
 	premium: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
 	premiumFg: dialogsVerifiedIconBg;
+	premiumInnerFg: dialogsVerifiedIconFg;
 	sizeTag: 0; // Normal
 }
 

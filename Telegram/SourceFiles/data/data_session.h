@@ -177,6 +177,8 @@ public:
 		return ++_nonHistoryEntryId;
 	}
 
+	[[nodiscard]] Ui::VerifyDetails verifiedByTelegram();
+
 	void subscribeForTopicRepliesLists();
 	void clear();
 
@@ -1139,6 +1141,9 @@ private:
 	const std::unique_ptr<Chatbots> _chatbots;
 	const std::unique_ptr<BusinessInfo> _businessInfo;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
+
+	QString _verifiedByTelegramIconBgId;
+	QString _verifiedByTelegramIconFgId;
 
 	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
 

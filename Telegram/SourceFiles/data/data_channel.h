@@ -376,6 +376,11 @@ public:
 	[[nodiscard]] bool canRestrictParticipant(
 		not_null<PeerData*> participant) const;
 
+	void setVerifyDetails(Ui::VerifyDetails details);
+	[[nodiscard]] Ui::VerifyDetails *verifyDetails() const {
+		return _verifyDetails.get();
+	}
+
 	void setInviteLink(const QString &newInviteLink);
 	[[nodiscard]] QString inviteLink() const {
 		return _inviteLink;
@@ -545,6 +550,8 @@ private:
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;
+
+	std::unique_ptr<Ui::VerifyDetails> _verifyDetails;
 
 };
 

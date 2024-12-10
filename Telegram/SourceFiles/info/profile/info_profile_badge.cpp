@@ -113,14 +113,29 @@ void Badge::setContent(Content content) {
 	switch (_content.badge) {
 	case BadgeType::Verified:
 	case BadgeType::Premium: {
-		if (const auto id = _content.emojiStatusId) {
-			_emojiStatus = _session->data().customEmojiManager().create(
-				id,
-				[raw = _view.data()] { raw->update(); },
-				sizeTag());
-			if (_customStatusLoopsLimit > 0) {
+		const auto id = _content.emojiStatusId;
+		const auto innerId = _content.emojiStatusInnerId;
+		if (id || innerId) {
+			_emojiStatus = id
+				? _session->data().customEmojiManager().create(
+					id,
+					[raw = _view.data()] { raw->update(); },
+					sizeTag())
+				: nullptr;
+			_statusInner = innerId
+				? _session->data().customEmojiManager().create(
+					innerId,
+					[raw = _view.data()] { raw->update(); },
+					sizeTag())
+				: nullptr;
+			if (_emojiStatus && _customStatusLoopsLimit > 0) {
 				_emojiStatus = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
-					std::move(_emojiStatus),
+						std::move(_emojiStatus),
+						_customStatusLoopsLimit);
+			}
+			if (_statusInner && _customStatusLoopsLimit > 0) {
+				_statusInner = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+					std::move(_statusInner),
 					_customStatusLoopsLimit);
 			}
 			const auto emoji = Data::FrameSizeFromTag(sizeTag())
@@ -137,7 +152,13 @@ void Badge::setContent(Content content) {
 				if (!_emojiStatusPanel
 					|| !_emojiStatusPanel->paintBadgeFrame(check)) {
 					Painter p(check);
-					_emojiStatus->paint(p, args);
+					if (_emojiStatus) {
+						_emojiStatus->paint(p, args);
+					}
+					if (_statusInner) {
+						args.textColor = _st.premiumInnerFg->c;
+						_statusInner->paint(p, args);
+					}
 				}
 			}, _view->lifetime());
 		} else {

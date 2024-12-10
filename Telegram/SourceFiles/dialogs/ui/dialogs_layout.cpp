@@ -449,13 +449,17 @@ void PaintRow(
 			? tr::lng_badge_psa_default(tr::now)
 			: custom;
 		PaintRowTopRight(p, text, rectForName, context);
-	} else if (from) {
-		if (const auto chatTypeIcon = ChatTypeIcon(from, context)) {
-			chatTypeIcon->paint(p, rectForName.topLeft(), context.width);
-			rectForName.setLeft(rectForName.left()
-				+ chatTypeIcon->width()
-				+ st::dialogsChatTypeSkip);
+	} else if (const auto details = from ? from->verifyDetails() : nullptr) {
+		if (!rowBadge.ready(details)) {
+			rowBadge.set(
+				details,
+				from->owner().customEmojiManager().factory(),
+				customEmojiRepaint);
 		}
+		const auto &st = Ui::VerifiedStyle(context);
+		const auto position = rectForName.topLeft();
+		const auto skip = rowBadge.drawVerified(p, position, st);
+		rectForName.setLeft(position.x() + skip + st::dialogsChatTypeSkip);
 	}
 	auto texttop = context.st->textTop;
 	if (const auto folder = entry->asFolder()) {
@@ -837,6 +841,14 @@ const style::icon *ChatTypeIcon(
 			context.selected);
 	}
 	return nullptr;
+}
+
+const style::VerifiedBadge &VerifiedStyle(const PaintContext &context) {
+	return context.active
+		? st::dialogsVerifiedColorsActive
+		: context.selected
+		? st::dialogsVerifiedColorsOver
+		: st::dialogsVerifiedColors;
 }
 
 void RowPainter::Paint(

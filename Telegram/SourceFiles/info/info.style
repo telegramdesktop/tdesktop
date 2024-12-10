@@ -25,6 +25,7 @@ InfoPeerBadge {
 	verified: icon;
 	premium: icon;
 	premiumFg: color;
+	premiumInnerFg: color;
 	position: point;
 	sizeTag: int;
 }
@@ -439,6 +440,7 @@ infoPeerBadge: InfoPeerBadge {
 	verified: infoVerifiedCheck;
 	premium: infoPremiumStar;
 	premiumFg: profileVerifiedCheckBg;
+	premiumInnerFg: profileVerifiedCheckFg;
 	position: infoVerifiedCheckPosition;
 	sizeTag: 1; // Large
 }

@@ -31,6 +31,12 @@ ThreeStateIcon {
 	active: icon;
 }
 
+VerifiedBadge {
+	bg: color;
+	fg: color;
+	height: pixels;
+}
+
 ForumTopicIcon {
 	size: pixels;
 	font: font;
@@ -399,6 +405,22 @@ dialogsLockIcon: ThreeStateIcon {
 	icon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
 	over: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
 	active: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
+}
+
+dialogsVerifiedBg: icon{{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg }};
+dialogsVerifiedFg: icon{{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFg }};
+dialogsVerifiedColors: VerifiedBadge {
+	height: 20px;
+	bg: dialogsVerifiedIconBg;
+	fg: dialogsVerifiedIconFg;
+}
+dialogsVerifiedColorsOver: VerifiedBadge(dialogsVerifiedColors) {
+	bg: dialogsVerifiedIconBgOver;
+	fg: dialogsVerifiedIconFgOver;
+}
+dialogsVerifiedColorsActive: VerifiedBadge(dialogsVerifiedColors) {
+	bg: dialogsVerifiedIconBgActive;
+	fg: dialogsVerifiedIconFgActive;
 }
 
 dialogsVerifiedIcon: icon {

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/text/text.h"
 #include "ui/effects/animations.h"
+#include "ui/text/text.h"
 #include "ui/unread_badge.h"
 #include "ui/userpic_view.h"
 #include "dialogs/dialogs_key.h"

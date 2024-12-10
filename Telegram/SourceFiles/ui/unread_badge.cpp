@@ -31,6 +31,13 @@ struct PeerBadge::EmojiStatus {
 	int skip = 0;
 };
 
+struct PeerBadge::VerifiedData {
+	QImage cache;
+	QImage cacheFg;
+	std::unique_ptr<Text::CustomEmoji> bg;
+	std::unique_ptr<Text::CustomEmoji> fg;
+};
+
 void UnreadBadge::setText(const QString &text, bool active) {
 	_text = text;
 	_active = active;
@@ -193,14 +200,6 @@ int PeerBadge::drawGetWidth(
 			.paused = descriptor.paused || On(PowerSaving::kEmojiStatus),
 		});
 		return iconw - 4 * _emojiStatus->skip;
-	} else if (descriptor.verified && peer->isVerified()) {
-		const auto iconw = descriptor.verified->width();
-		descriptor.verified->paint(
-			p,
-			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
-			rectForName.y(),
-			outerWidth);
-		return iconw;
 	} else if (descriptor.premium
 		&& peer->isPremium()
 		&& peer->session().premiumBadgesShown()) {
@@ -217,6 +216,72 @@ int PeerBadge::drawGetWidth(
 
 void PeerBadge::unload() {
 	_emojiStatus = nullptr;
+}
+
+bool PeerBadge::ready(const VerifyDetails *details) const {
+	if (!details || !*details) {
+		_verifiedData = nullptr;
+		return true;
+	} else if (!_verifiedData) {
+		return false;
+	}
+	if (details->iconBgId.isEmpty()) {
+		_verifiedData->bg = nullptr;
+	} else if (!_verifiedData->bg
+		|| _verifiedData->bg->entityData() != details->iconBgId) {
+		return false;
+	}
+	if (details->iconFgId.isEmpty()) {
+		_verifiedData->fg = nullptr;
+	} else if (!_verifiedData->fg
+		|| _verifiedData->fg->entityData() != details->iconFgId) {
+		return false;
+	}
+	return true;
+}
+
+void PeerBadge::set(
+		not_null<const VerifyDetails*> details,
+		Ui::Text::CustomEmojiFactory factory,
+		Fn<void()> repaint) {
+	if (!_verifiedData) {
+		_verifiedData = std::make_unique<VerifiedData>();
+	}
+	if (!details->iconBgId.isEmpty()) {
+		_verifiedData->bg = factory(details->iconBgId, repaint);
+	}
+	if (!details->iconFgId.isEmpty()) {
+		_verifiedData->fg = factory(details->iconFgId, repaint);
+	}
+}
+
+int PeerBadge::drawVerified(
+		QPainter &p,
+		QPoint position,
+		const style::VerifiedBadge &st) {
+	const auto data = _verifiedData.get();
+	if (!data) {
+		return 0;
+	}
+	const auto now = crl::now();
+	auto result = 0;
+	if (const auto bg = data->bg.get()) {
+		bg->paint(p, {
+			.textColor = st.bg->c,
+			.now = now,
+			.position = position,
+		});
+		result = bg->width();
+	}
+	if (const auto fg = data->fg.get()) {
+		fg->paint(p, {
+			.textColor = st.fg->c,
+			.now = now,
+			.position = position,
+		});
+		result = std::max(result, fg->width());
+	}
+	return result;
 }
 
 } // namespace Ui

@@ -514,6 +514,21 @@ bool UserData::isUsernameEditable(QString username) const {
 	return _username.isEditable(username);
 }
 
+void UserData::setVerifyDetails(Ui::VerifyDetails details) {
+	if (!details) {
+		if (_verifyDetails) {
+			_verifyDetails = nullptr;
+			session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
+		}
+	} else if (!_verifyDetails) {
+		_verifyDetails = std::make_unique<Ui::VerifyDetails>(details);
+		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
+	} else if (*_verifyDetails != details) {
+		*_verifyDetails = details;
+		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
+	}
+}
+
 const QString &UserData::phone() const {
 	return _phone;
 }

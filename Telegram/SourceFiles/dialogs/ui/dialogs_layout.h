@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct DialogRow;
+struct VerifiedBadge;
 } // namespace style
 
 namespace st {
@@ -78,6 +79,9 @@ struct PaintContext {
 	not_null<PeerData*> peer,
 	const PaintContext &context);
 [[nodiscard]] const style::icon *ChatTypeIcon(not_null<PeerData*> peer);
+
+[[nodiscard]] const style::VerifiedBadge &VerifiedStyle(
+	const PaintContext &context);
 
 class RowPainter {
 public:

@@ -293,6 +293,21 @@ Cover::Cover(
 	std::move(title)) {
 }
 
+[[nodiscard]] rpl::producer<Badge::Content> VerifyBadgeForPeer(
+		not_null<PeerData*> peer) {
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::VerifyInfo
+	) | rpl::map([=] {
+		const auto details = peer->verifyDetails();
+		return Badge::Content{
+			.badge = details ? BadgeType::Verified : BadgeType::None,
+			.emojiStatusId = details->iconBgId.toULongLong(),
+			.emojiStatusInnerId = details->iconFgId.toULongLong(),
+		};
+	});
+}
+
 Cover::Cover(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
@@ -308,6 +323,17 @@ Cover::Cover(
 , _emojiStatusPanel(peer->isSelf()
 	? std::make_unique<EmojiStatusPanel>()
 	: nullptr)
+, _verify(
+	std::make_unique<Badge>(
+		this,
+		st::infoPeerBadge,
+		&peer->session(),
+		VerifyBadgeForPeer(peer),
+		nullptr,
+		[=] {
+			return controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer);
+		}))
 , _badge(
 	std::make_unique<Badge>(
 		this,
@@ -359,7 +385,10 @@ Cover::Cover(
 			::Settings::ShowEmojiStatusPremium(_controller, _peer);
 		}
 	});
-	_badge->updated() | rpl::start_with_next([=] {
+	rpl::merge(
+		_verify->updated(),
+		_badge->updated()
+	) | rpl::start_with_next([=] {
 		refreshNameGeometry(width());
 	}, _name->lifetime());
 
@@ -699,11 +728,17 @@ void Cover::refreshNameGeometry(int newWidth) {
 	if (const auto widget = _badge->widget()) {
 		nameWidth -= st::infoVerifiedCheckPosition.x() + widget->width();
 	}
-	_name->resizeToNaturalWidth(nameWidth);
-	_name->moveToLeft(_st.nameLeft, _st.nameTop, newWidth);
-	const auto badgeLeft = _st.nameLeft + _name->width();
+	auto nameLeft = _st.nameLeft;
 	const auto badgeTop = _st.nameTop;
 	const auto badgeBottom = _st.nameTop + _name->height();
+	_verify->move(nameLeft, badgeTop, badgeBottom);
+	if (const auto widget = _verify->widget()) {
+		nameLeft += widget->width() + st::infoVerifiedCheckPosition.x();
+		nameWidth -= widget->width() + st::infoVerifiedCheckPosition.x();
+	}
+	_name->resizeToNaturalWidth(nameWidth);
+	_name->moveToLeft(nameLeft, _st.nameTop, newWidth);
+	const auto badgeLeft = nameLeft + _name->width();
 	_badge->move(badgeLeft, badgeTop, badgeBottom);
 }
 

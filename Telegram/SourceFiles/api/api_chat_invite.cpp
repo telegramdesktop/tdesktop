@@ -570,9 +570,7 @@ ConfirmInviteBox::ChatInvite ConfirmInviteBox::Parse(
 [[nodiscard]] Info::Profile::BadgeType ConfirmInviteBox::BadgeForInvite(
 		const ChatInvite &invite) {
 	using Type = Info::Profile::BadgeType;
-	return invite.isVerified
-		? Type::Verified
-		: invite.isScam
+	return invite.isScam
 		? Type::Scam
 		: invite.isFake
 		? Type::Fake

@@ -1379,12 +1379,17 @@ void InnerWidget::paintPeerSearchResult(
 			Ui::NameTextOptions());
 	}
 
-	// draw chat icon
-	if (const auto chatTypeIcon = Ui::ChatTypeIcon(peer, context)) {
-		chatTypeIcon->paint(p, rectForName.topLeft(), context.width);
-		rectForName.setLeft(rectForName.left()
-			+ chatTypeIcon->width()
-			+ st::dialogsChatTypeSkip);
+	if (const auto details = peer->verifyDetails()) {
+		if (!result->badge.ready(details)) {
+			result->badge.set(
+				details,
+				peer->owner().customEmojiManager().factory(),
+				[=] { updateSearchResult(peer); });
+		}
+		const auto &st = Ui::VerifiedStyle(context);
+		const auto position = rectForName.topLeft();
+		const auto skip = result->badge.drawVerified(p, position, st);
+		rectForName.setLeft(position.x() + skip + st::dialogsChatTypeSkip);
 	}
 	const auto badgeWidth = result->badge.drawGetWidth(
 		p,
@@ -1461,112 +1466,6 @@ void InnerWidget::paintSearchTags(
 	const auto position = QPoint(_searchTagsLeft, top);
 	_searchTags->paint(p, position, context.now, context.paused);
 }
-//
-//void InnerWidget::paintSearchInChat(
-//		Painter &p,
-//		const Ui::PaintContext &context) const {
-//	auto height = searchInChatSkip();
-//
-//	auto top = 0;
-//	p.setFont(st::searchedBarFont);
-//	auto fullRect = QRect(0, top, width(), height - top);
-//	p.fillRect(fullRect, currentBg());
-//	if (_searchFromShown) {
-//		p.setPen(st::dialogsTextFg);
-//		p.setTextPalette(st::dialogsSearchFromPalette);
-//		paintSearchInPeer(p, _searchFromShown, _searchFromUserUserpic, top, _searchFromUserText);
-//		p.restoreTextPalette();
-//	}
-//}
-//
-//template <typename PaintUserpic>
-//void InnerWidget::paintSearchInFilter(
-//		Painter &p,
-//		PaintUserpic paintUserpic,
-//		int top,
-//		const style::icon *icon,
-//		const Ui::Text::String &text) const {
-//	const auto savedPen = p.pen();
-//	const auto userpicLeft = st::defaultDialogRow.padding.left();
-//	const auto userpicTop = top
-//		+ (st::dialogsSearchInHeight - st::dialogsSearchInPhotoSize) / 2;
-//	paintUserpic(p, userpicLeft, userpicTop, st::dialogsSearchInPhotoSize);
-//
-//	const auto nameleft = st::defaultDialogRow.padding.left()
-//		+ st::dialogsSearchInPhotoSize
-//		+ st::dialogsSearchInPhotoPadding;
-//	const auto namewidth = width()
-//		- nameleft
-//		- st::defaultDialogRow.padding.left()
-//		- st::defaultDialogRow.padding.right()
-//		- st::dialogsCancelSearch.width;
-//	auto rectForName = QRect(
-//		nameleft,
-//		top + (st::dialogsSearchInHeight - st::semiboldFont->height) / 2,
-//		namewidth,
-//		st::semiboldFont->height);
-//	if (icon) {
-//		icon->paint(p, rectForName.topLeft(), width());
-//		rectForName.setLeft(rectForName.left()
-//			+ icon->width()
-//			+ st::dialogsChatTypeSkip);
-//	}
-//	p.setPen(savedPen);
-//	text.drawLeftElided(
-//		p,
-//		rectForName.left(),
-//		rectForName.top(),
-//		rectForName.width(),
-//		width());
-//}
-//
-//void InnerWidget::paintSearchInPeer(
-//		Painter &p,
-//		not_null<PeerData*> peer,
-//		Ui::PeerUserpicView &userpic,
-//		int top,
-//		const Ui::Text::String &text) const {
-//	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
-//		peer->paintUserpicLeft(p, userpic, x, y, width(), size);
-//	};
-//	const auto icon = Ui::ChatTypeIcon(peer);
-//	paintSearchInFilter(p, paintUserpic, top, icon, text);
-//}
-//
-//void InnerWidget::paintSearchInSaved(
-//		Painter &p,
-//		int top,
-//		const Ui::Text::String &text) const {
-//	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
-//		Ui::EmptyUserpic::PaintSavedMessages(p, x, y, width(), size);
-//	};
-//	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
-//}
-//
-//void InnerWidget::paintSearchInReplies(
-//		Painter &p,
-//		int top,
-//		const Ui::Text::String &text) const {
-//	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
-//		Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, width(), size);
-//	};
-//	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
-//}
-//
-//void InnerWidget::paintSearchInTopic(
-//		Painter &p,
-//		const Ui::PaintContext &context,
-//		not_null<Data::ForumTopic*> topic,
-//		Ui::PeerUserpicView &userpic,
-//		int top,
-//		const Ui::Text::String &text) const {
-//	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
-//		p.translate(x, y);
-//		topic->paintUserpic(p, userpic, context);
-//		p.translate(-x, -y);
-//	};
-//	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
-//}
 
 void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 	if (_chatPreviewTouchGlobal || _touchDragStartGlobal) {

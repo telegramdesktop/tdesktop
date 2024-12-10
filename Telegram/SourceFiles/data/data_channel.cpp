@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
+#include "ui/unread_badge.h"
 #include "window/notifications_manager.h"
 
 namespace {
@@ -711,6 +712,24 @@ bool ChannelData::canRestrictParticipant(
 		}
 	}
 	return adminRights() & AdminRight::BanUsers;
+}
+
+void ChannelData::setVerifyDetails(Ui::VerifyDetails details) {
+	if (_verifyDetails && !verifiedByTelegram() && !details) {
+		return; AssertIsDebug();
+	}
+	if (!details) {
+		if (_verifyDetails) {
+			_verifyDetails = nullptr;
+			session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
+		}
+	} else if (!_verifyDetails) {
+		_verifyDetails = std::make_unique<Ui::VerifyDetails>(details);
+		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
+	} else if (*_verifyDetails != details) {
+		*_verifyDetails = details;
+		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
+	}
 }
 
 void ChannelData::setAdminRights(ChatAdminRights rights) {

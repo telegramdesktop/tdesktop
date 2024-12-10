@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+#include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
@@ -1244,6 +1245,22 @@ void PeerData::setStoriesHidden(bool hidden) {
 	} else {
 		Unexpected("PeerData::setStoriesHidden for non-user/non-channel.");
 	}
+}
+
+Ui::VerifyDetails *PeerData::verifyDetails() const {
+	if (const auto user = asUser()) {
+		return user->verifyDetails();
+	} else if (const auto channel = asChannel()) {
+		return channel->verifyDetails();
+	}
+	return nullptr;
+}
+
+bool PeerData::verifiedByTelegram() const {
+	if (const auto details = verifyDetails()) {
+		return (details->iconBgId == owner().verifiedByTelegram().iconBgId);
+	}
+	return false;
 }
 
 Data::Forum *PeerData::forum() const {

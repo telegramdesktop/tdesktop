@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "storage/localimageloader.h"
 #include "storage/storage_account.h"
 #include "storage/storage_encrypted_file.h"
 #include "media/player/media_player_instance.h" // instance()->play()
@@ -78,6 +79,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/random.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
+
+#include "ui/chat/attach/attach_prepare.h"
+#include "ui/unread_badge.h"
+#include "styles/style_dialogs.h"
+#include <QtCore/QBuffer>
 
 namespace Data {
 namespace {
@@ -329,6 +335,25 @@ Session::Session(not_null<Main::Session*> session)
 	}, _lifetime);
 }
 
+
+Ui::VerifyDetails Session::verifiedByTelegram() {
+	if (_verifiedByTelegramIconBgId.isEmpty()) {
+		auto &manager = customEmojiManager();
+		_verifiedByTelegramIconBgId = manager.registerInternalEmoji(
+			st::dialogsVerifiedBg);
+		_verifiedByTelegramIconFgId = manager.registerInternalEmoji(
+			st::dialogsVerifiedFg);
+	}
+	return {
+		.iconBgId = _verifiedByTelegramIconBgId,
+		.iconFgId = _verifiedByTelegramIconFgId,
+		.description = {
+			u"This community is verified as official "
+			"by the representatives of Telegram."_q,
+		},
+	};
+}
+
 void Session::subscribeForTopicRepliesLists() {
 	repliesReadTillUpdates(
 	) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
@@ -569,6 +594,11 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				| (data.is_stories_hidden() ? Flag::StoriesHidden : Flag())
 				: Flag());
 		result->setFlags((result->flags() & ~flagsMask) | flagsSet);
+		if (data.is_verified()) {
+			result->setVerifyDetails(verifiedByTelegram());
+		} else {
+			result->setVerifyDetails({});
+		}
 		if (minimal) {
 			if (result->input.type() == mtpc_inputPeerEmpty) {
 				result->input = MTP_inputPeerUser(
@@ -984,6 +1014,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				? Flag::StoriesHidden
 				: Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
+		if (data.is_verified()) {
+			channel->setVerifyDetails(verifiedByTelegram());
+		} else {
+			channel->setVerifyDetails({});
+		}
 		if (!minimal && storiesState) {
 			result->setStoriesState(!storiesState->maxId
 				? UserData::StoriesState::None
@@ -2680,6 +2715,35 @@ void Session::unregisterDependentMessage(
 
 void Session::registerMessageRandomId(uint64 randomId, FullMsgId itemId) {
 	_messageByRandomId.emplace(randomId, itemId);
+
+	AssertIsDebug();
+	if (peerIsChannel(itemId.peer)) {
+		if (const auto channel = channelLoaded(peerToChannel(itemId.peer))) {
+			auto colored = std::vector<not_null<DocumentData*>>();
+			for (const auto &[id, document] : _documents) {
+				if (const auto sticker = document->sticker()) {
+					if (sticker->setType == Data::StickersType::Emoji) {
+						if (document->emojiUsesTextColor()) {
+							colored.push_back(document.get());
+						}
+					}
+				}
+			}
+			const auto count = int(colored.size());
+			if (count > 1) {
+				auto index1 = base::RandomIndex(count);
+				auto index2 = base::RandomIndex(count - 1);
+				if (index2 >= index1) {
+					++index2;
+				}
+				channel->setVerifyDetails({
+					.iconBgId = QString::number(colored[index1]->id),
+					.iconFgId = QString::number(colored[index2]->id),
+				});
+				history(channel)->updateChatListEntry();
+			}
+		}
+	}
 }
 
 void Session::unregisterMessageRandomId(uint64 randomId) {

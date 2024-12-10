@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/text_custom_emoji.h"
 #include "ui/rp_widget.h"
 
-namespace Ui::Text {
-class CustomEmoji;
-} // namespace Ui::Text
+namespace style {
+struct VerifiedBadge;
+} // namespace style
 
 namespace Ui {
 
@@ -29,6 +30,19 @@ private:
 	QString _text;
 	bool _active = false;
 
+};
+
+struct VerifyDetails {
+	QString iconBgId;
+	QString iconFgId;
+	TextWithEntities description;
+
+	explicit operator bool() const {
+		return !iconBgId.isEmpty() || !iconFgId.isEmpty();
+	}
+	friend inline bool operator==(
+		const VerifyDetails &,
+		const VerifyDetails &) = default;
 };
 
 class PeerBadge {
@@ -54,9 +68,24 @@ public:
 		const Descriptor &descriptor);
 	void unload();
 
+	[[nodiscard]] bool ready(const VerifyDetails *details) const;
+	void set(
+		not_null<const VerifyDetails*> details,
+		Text::CustomEmojiFactory factory,
+		Fn<void()> repaint);
+
+	// How much horizontal space the badge took.
+	int drawVerified(
+		QPainter &p,
+		QPoint position,
+		const style::VerifiedBadge &st);
+
 private:
 	struct EmojiStatus;
+	struct VerifiedData;
+
 	std::unique_ptr<EmojiStatus> _emojiStatus;
+	mutable std::unique_ptr<VerifiedData> _verifiedData;
 
 };
 

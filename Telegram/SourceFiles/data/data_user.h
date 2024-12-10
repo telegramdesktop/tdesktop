@@ -177,6 +177,11 @@ public:
 	[[nodiscard]] const std::vector<QString> &usernames() const;
 	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
+	void setVerifyDetails(Ui::VerifyDetails details);
+	[[nodiscard]] Ui::VerifyDetails *verifyDetails() const {
+		return _verifyDetails.get();
+	}
+
 	enum class ContactStatus : char {
 		Unknown,
 		Contact,
@@ -255,6 +260,7 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	QString _privateForwardName;
+	std::unique_ptr<Ui::VerifyDetails> _verifyDetails;
 
 	ChannelId _personalChannelId = 0;
 	MsgId _personalChannelMessageId = 0;
