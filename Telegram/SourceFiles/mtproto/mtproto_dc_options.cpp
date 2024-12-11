@@ -182,7 +182,7 @@ void DcOptions::constructFromBuiltIn() {
 			).arg(entry.port));
 	}
 
-	// const auto listv6 = isTestMode()
+	// const auto listv6 = isTestMode()s
 	// 	? gsl::make_span(kBuiltInDcsIPv6Test)
 	// 	: gsl::make_span(kBuiltInDcsIPv6).subspan(0);
 	// for (const auto &entry : listv6) {
