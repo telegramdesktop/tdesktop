@@ -3192,11 +3192,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_visible_hint" = "This gift is visible to visitors of your page.";
 "lng_gift_availability" = "Availability";
 "lng_gift_from_hidden" = "Hidden User";
+"lng_gift_visibility" = "Visibility";
+"lng_gift_visibility_shown" = "Visible on your page";
+"lng_gift_visibility_hidden" = "Not visible on your page";
+"lng_gift_visibility_show" = "show";
+"lng_gift_visibility_hide" = "hide";
 "lng_gift_availability_left#one" = "{count} of {amount} left";
 "lng_gift_availability_left#other" = "{count} of {amount} left";
 "lng_gift_availability_none" = "None of {amount} left";
-"lng_gift_display_on_page" = "Display on my Page";
-"lng_gift_display_on_page_hide" = "Hide from my Page";
 "lng_gift_convert_to_stars#one" = "Convert to {count} Star";
 "lng_gift_convert_to_stars#other" = "Convert to {count} Stars";
 "lng_gift_convert_sure_title" = "Convert Gift to Stars";

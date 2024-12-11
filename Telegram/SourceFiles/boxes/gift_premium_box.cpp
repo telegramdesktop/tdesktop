@@ -237,7 +237,7 @@ void AddTableRow(
 		valueMargins);
 }
 
-object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionNavigation*> controller,
 		const Data::CreditsHistoryEntry &entry,
@@ -284,6 +284,62 @@ object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
 		label->moveToLeft(0, 0, width);
 		if (convert) {
 			convert->moveToLeft(
+				label->width() + st::normalFont->spacew,
+				(st::giveawayGiftCodeValue.style.font->ascent
+					- st::starGiftSmallButton.style.font->ascent),
+				width);
+		}
+	}, label->lifetime());
+
+	label->heightValue() | rpl::start_with_next([=](int height) {
+		raw->resize(
+			raw->width(),
+			height + st::giveawayGiftCodeValueMargin.bottom());
+	}, raw->lifetime());
+
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeVisibilityTableValue(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionNavigation*> controller,
+		bool savedToProfile,
+		Fn<void(bool)> toggleVisibility) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		(savedToProfile
+			? tr::lng_gift_visibility_shown()
+			: tr::lng_gift_visibility_hidden()),
+		st::giveawayGiftCodeValue,
+		st::defaultPopupMenu);
+
+	const auto toggle = Ui::CreateChild<Ui::RoundButton>(
+		raw,
+		(savedToProfile
+			? tr::lng_gift_visibility_hide()
+			: tr::lng_gift_visibility_show()),
+		st::starGiftSmallButton);
+	toggle->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	toggle->setClickedCallback([=] {
+		toggleVisibility(!savedToProfile);
+	});
+
+	rpl::combine(
+		raw->widthValue(),
+		toggle->widthValue()
+	) | rpl::start_with_next([=](int width, int toggleWidth) {
+		const auto toggleSkip = toggleWidth
+			? (st::normalFont->spacew + toggleWidth)
+			: 0;
+		label->resizeToNaturalWidth(width - toggleSkip);
+		label->moveToLeft(0, 0, width);
+		if (toggle) {
+			toggle->moveToLeft(
 				label->width() + st::normalFont->spacew,
 				(st::giveawayGiftCodeValue.style.font->ascent
 					- st::starGiftSmallButton.style.font->ascent),
@@ -1035,6 +1091,7 @@ void AddStarGiftTable(
 		not_null<Window::SessionNavigation*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		const Data::CreditsHistoryEntry &entry,
+		Fn<void(bool)> toggleVisibility,
 		Fn<void()> convertToStars) {
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
@@ -1072,9 +1129,15 @@ void AddStarGiftTable(
 			rpl::single(Ui::Text::WithEntities(
 				langDateTime(entry.lastSaleDate))));
 	}
+	if (!entry.date.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
+	const auto marginWithButton = st::giveawayGiftCodeValueMargin
+		- QMargins(0, 0, 0, st::giveawayGiftCodeValueMargin.bottom());
 	{
-		const auto margin = st::giveawayGiftCodeValueMargin
-			- QMargins(0, 0, 0, st::giveawayGiftCodeValueMargin.bottom());
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_value(),
@@ -1083,13 +1146,18 @@ void AddStarGiftTable(
 				controller,
 				entry,
 				std::move(convertToStars)),
-			margin);
+			marginWithButton);
 	}
-	if (!entry.date.isNull()) {
+	if (toggleVisibility) {
 		AddTableRow(
 			table,
-			tr::lng_gift_link_label_date(),
-			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+			tr::lng_gift_visibility(),
+			MakeVisibilityTableValue(
+				table,
+				controller,
+				entry.savedToProfile,
+				std::move(toggleVisibility)),
+			marginWithButton);
 	}
 	if (entry.limitedCount > 0) {
 		auto amount = rpl::single(TextWithEntities{

@@ -1244,6 +1244,49 @@ void ReceiptCreditsBox(
 	const auto state = box->lifetime().make_state<State>();
 	const auto weakWindow = base::make_weak(controller);
 
+	const auto toggleVisibility = [=, weak = Ui::MakeWeak(box)](bool save) {
+		const auto window = weakWindow.get();
+		const auto showSection = !e.fromGiftsList;
+		const auto itemId = MsgId(e.bareMsgId);
+		if (!window) {
+			return;
+		}
+		const auto done = [=](bool ok) {
+			if (const auto window = weakWindow.get()) {
+				if (ok) {
+					using GiftAction = Data::GiftUpdate::Action;
+					window->session().data().notifyGiftUpdate({
+						.itemId = FullMsgId(
+							starGiftSender->id,
+							itemId),
+						.action = (save
+							? GiftAction::Save
+							: GiftAction::Unsave),
+					});
+					if (showSection) {
+						window->showSection(
+							std::make_shared<Info::Memento>(
+								window->session().user(),
+								Info::Section::Type::PeerGifts));
+					}
+				}
+			}
+			if (const auto strong = weak.data()) {
+				if (ok) {
+					strong->closeBox();
+				} else {
+					state->confirmButtonBusy = false;
+				}
+			}
+		};
+		ToggleStarGiftSaved(
+			window,
+			starGiftSender,
+			itemId,
+			save,
+			done);
+	};
+
 	if (isStarGift && e.id.isEmpty()) {
 		const auto convert = [=, weak = Ui::MakeWeak(box)] {
 			const auto stars = e.starsConverted;
@@ -1287,11 +1330,13 @@ void ReceiptCreditsBox(
 				}
 			});
 		};
+		const auto canToggle = canConvert || couldConvert || nonConvertible;
 
 		AddStarGiftTable(
 			controller,
 			content,
 			e,
+			canToggle ? toggleVisibility : Fn<void(bool)>(),
 			canConvert ? convert : Fn<void()>());
 	} else {
 		AddCreditsHistoryEntryTable(controller, content, e);
@@ -1339,7 +1384,7 @@ void ReceiptCreditsBox(
 		Ui::AddSkip(content);
 		auto label = object_ptr<Ui::FlatLabel>(
 			box,
-			(s.cancelledByBot && bot)
+			((s.cancelledByBot && bot)
 				? tr::lng_credits_subscription_off_by_bot_about(
 					lt_bot,
 					rpl::single(bot->name()))
@@ -1349,8 +1394,8 @@ void ReceiptCreditsBox(
 				? tr::lng_credits_subscription_off_about()
 				: tr::lng_credits_subscription_on_about(
 					lt_date,
-					rpl::single(langDayOfMonthFull(s.until.date()))),
-				st::creditsBoxAboutDivider);
+					rpl::single(langDayOfMonthFull(s.until.date())))),
+			st::creditsBoxAboutDivider);
 		if (toCancel) {
 			label->setClickHandlerFilter([=](
 					const auto &,
@@ -1402,54 +1447,9 @@ void ReceiptCreditsBox(
 			? tr::lng_credits_subscription_off_button()
 			: toRejoin
 			? tr::lng_credits_subscription_off_rejoin_button()
-			: (canConvert || couldConvert || nonConvertible)
-			? (e.savedToProfile
-				? tr::lng_gift_display_on_page_hide()
-				: tr::lng_gift_display_on_page())
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
-		if (canConvert || couldConvert || nonConvertible) {
-			const auto save = !e.savedToProfile;
-			const auto window = weakWindow.get();
-			const auto showSection = !e.fromGiftsList;
-			const auto itemId = MsgId(e.bareMsgId);
-			if (window) {
-				const auto done = [=](bool ok) {
-					if (const auto window = weakWindow.get()) {
-						if (ok) {
-							using GiftAction = Data::GiftUpdate::Action;
-							window->session().data().notifyGiftUpdate({
-								.itemId = FullMsgId(
-									starGiftSender->id,
-									itemId),
-								.action = (save
-									? GiftAction::Save
-									: GiftAction::Unsave),
-							});
-							if (showSection) {
-								window->showSection(
-									std::make_shared<Info::Memento>(
-										window->session().user(),
-										Info::Section::Type::PeerGifts));
-							}
-						}
-					}
-					if (const auto strong = weak.data()) {
-						if (ok) {
-							strong->closeBox();
-						} else {
-							state->confirmButtonBusy = false;
-						}
-					}
-				};
-				ToggleStarGiftSaved(
-					window,
-					starGiftSender,
-					itemId,
-					save,
-					done);
-			}
-		} else if (toRejoin) {
+		if (toRejoin) {
 			if (const auto window = weakWindow.get()) {
 				const auto finish = [=](Payments::CheckoutResult&&) {
 					ProcessReceivedSubscriptions(weak, session);
@@ -1480,9 +1480,7 @@ void ReceiptCreditsBox(
 		}
 	};
 
-	const auto willBusy = toRejoin
-		|| (peer
-			&& (toRenew || canConvert || couldConvert || nonConvertible));
+	const auto willBusy = toRejoin || (peer && toRenew);
 	if (willBusy) {
 		const auto close = Ui::CreateChild<Ui::IconButton>(
 			content,
