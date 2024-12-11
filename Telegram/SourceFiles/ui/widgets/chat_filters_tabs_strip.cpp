@@ -42,6 +42,7 @@ struct State final {
 	Ui::Animations::Simple animation;
 	std::optional<FilterId> lastFilterId = std::nullopt;
 	rpl::lifetime rebuildLifetime;
+	rpl::lifetime reorderLifetime;
 	base::unique_qptr<Ui::PopupMenu> menu;
 
 	Api::RemoveComplexChatFilter removeApi;
@@ -199,6 +200,33 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				? st::dialogsSearchTabs
 				: st::chatsFiltersTabs));
 	const auto state = wrap->lifetime().make_state<State>();
+	const auto reassignUnreadValue = [=] {
+		const auto &list = session->data().chatsFilters().list();
+		auto includeMuted = Data::IncludeMutedCounterFoldersValue();
+		for (auto i = 0; i < list.size(); i++) {
+			rpl::combine(
+				Data::UnreadStateValue(session, list[i].id()),
+				rpl::duplicate(includeMuted)
+			) | rpl::start_with_next([=](
+					const Dialogs::UnreadState &state,
+					bool includeMuted) {
+				const auto chats = state.chatsTopic
+					? (state.chats - state.chatsTopic + state.forums)
+					: state.chats;
+				const auto chatsMuted = state.chatsTopicMuted
+					? (state.chatsMuted
+						- state.chatsTopicMuted
+						+ state.forumsMuted)
+					: state.chatsMuted;
+				const auto muted = (chatsMuted + state.marksMuted);
+				const auto count = (chats + state.marks)
+					- (includeMuted ? 0 : muted);
+				const auto isMuted = includeMuted && (count == muted);
+				slider->setUnreadCount(i, count, isMuted);
+				slider->fitWidthToSections();
+			}, state->reorderLifetime);
+		}
+	};
 	if (trackActiveFilterAndUnreadAndReorder) {
 		using Reorder = Ui::ChatsFiltersTabsReorder;
 		state->reorder = std::make_unique<Reorder>(slider, scroll);
@@ -241,6 +269,8 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				});
 				if (data.state == Reorder::State::Applied) {
 					applyReorder(data.oldPosition, data.newPosition);
+					state->reorderLifetime.destroy();
+					reassignUnreadValue();
 				}
 			}
 		}, slider->lifetime());
@@ -329,30 +359,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			}
 		}
 		if (trackActiveFilterAndUnreadAndReorder) {
-			auto includeMuted = Data::IncludeMutedCounterFoldersValue();
-			for (auto i = 0; i < list.size(); i++) {
-				rpl::combine(
-					Data::UnreadStateValue(session, list[i].id()),
-					rpl::duplicate(includeMuted)
-				) | rpl::start_with_next([=](
-						const Dialogs::UnreadState &state,
-						bool includeMuted) {
-					const auto chats = state.chatsTopic
-						? (state.chats - state.chatsTopic + state.forums)
-						: state.chats;
-					const auto chatsMuted = state.chatsTopicMuted
-						? (state.chatsMuted
-							- state.chatsTopicMuted
-							+ state.forumsMuted)
-						: state.chatsMuted;
-					const auto muted = (chatsMuted + state.marksMuted);
-					const auto count = (chats + state.marks)
-						- (includeMuted ? 0 : muted);
-					const auto isMuted = includeMuted && (count == muted);
-					slider->setUnreadCount(i, count, isMuted);
-					slider->fitWidthToSections();
-				}, state->rebuildLifetime);
-			}
+			reassignUnreadValue();
 		}
 		[&] {
 			const auto lookingId = state->lastFilterId.value_or(list[0].id());
