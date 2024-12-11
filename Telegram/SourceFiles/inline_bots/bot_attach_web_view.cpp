@@ -348,7 +348,7 @@ WebViewContext ResolveContext(
 		WebViewContext context) {
 	if (!context.dialogsEntryState.key) {
 		if (const auto strong = context.controller.get()) {
-			context.dialogsEntryState = strong->currentDialogsEntryState();
+			context.dialogsEntryState = strong->dialogsEntryStateCurrent();
 		}
 	}
 	if (!context.action) {

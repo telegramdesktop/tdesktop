@@ -1014,7 +1014,7 @@ void HistoryWidget::refreshTopBarActiveChat() {
 	const auto state = computeDialogsEntryState();
 	_topBar->setActiveChat(state, _history->sendActionPainter());
 	if (state.key) {
-		controller()->setCurrentDialogsEntryState(state);
+		controller()->setDialogsEntryState(state);
 	}
 }
 
@@ -1989,7 +1989,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(
 		UserData *samePeerBot,
 		MsgId samePeerReplyTo) {
 	if (samePeerBot) {
-		const auto to = controller()->currentDialogsEntryState();
+		const auto to = controller()->dialogsEntryStateCurrent();
 		if (!to.key.owningHistory()) {
 			return false;
 		}
@@ -2222,7 +2222,7 @@ void HistoryWidget::showHistory(
 	_showAtMsgHighlightPart = {};
 	_showAtMsgHighlightPartOffsetHint = 0;
 
-	const auto wasState = controller()->currentDialogsEntryState();
+	const auto wasState = controller()->dialogsEntryStateCurrent();
 	const auto startBot = (showAtMsgId == ShowAndStartBotMsgId);
 	_showAndMaybeSendStart = (showAtMsgId == ShowAndMaybeStartBotMsgId);
 	if (startBot || _showAndMaybeSendStart) {

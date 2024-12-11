@@ -967,6 +967,8 @@ private:
 		not_null<UserData*> user);
 	Ui::MultiSlideTracker fillChannelButtons(
 		not_null<ChannelData*> channel);
+	Ui::MultiSlideTracker fillDiscussionButtons(
+		not_null<ChannelData*> channel);
 
 	void addReportReaction(Ui::MultiSlideTracker &tracker);
 	void addReportReaction(
@@ -1915,7 +1917,11 @@ void DetailsFiller::setupMainButtons() {
 			return fillUserButtons(user);
 		});
 	} else if (const auto channel = _peer->asChannel()) {
-		if (!channel->isMegagroup()) {
+		if (channel->isMegagroup()) {
+			wrapButtons([=] {
+				return fillDiscussionButtons(channel);
+			});
+		} else {
 			wrapButtons([=] {
 				return fillChannelButtons(channel);
 			});
@@ -2075,6 +2081,37 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 		tr::lng_profile_view_channel(),
 		std::move(viewChannelVisible),
 		std::move(viewChannel),
+		tracker);
+
+	return tracker;
+}
+
+Ui::MultiSlideTracker DetailsFiller::fillDiscussionButtons(
+		not_null<ChannelData*> channel) {
+	using namespace rpl::mappers;
+
+	Ui::MultiSlideTracker tracker;
+	auto window = _controller->parentController();
+	auto viewDiscussionVisible = rpl::combine(
+		_controller->wrapValue(),
+		window->dialogsEntryStateValue()
+	) | rpl::map([=](Wrap wrap, const Dialogs::EntryState &state) {
+		const auto history = state.key.history();
+		return (wrap == Wrap::Side)
+			&& (state.section == Dialogs::EntryState::Section::Replies)
+			&& history
+			&& (history->peer == channel);
+	});
+	auto viewDiscussion = [=] {
+		window->showPeerHistory(
+			channel,
+			Window::SectionShow::Way::Forward);
+	};
+	AddMainButton(
+		_wrap,
+		tr::lng_profile_view_discussion(),
+		std::move(viewDiscussionVisible),
+		std::move(viewDiscussion),
 		tracker);
 
 	return tracker;

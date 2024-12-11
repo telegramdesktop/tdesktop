@@ -121,8 +121,12 @@ struct EntryState {
 	FilterId filterId = 0;
 	FullReplyTo currentReplyTo;
 
-	friend inline auto operator<=>(EntryState, EntryState) noexcept
-		= default;
+	friend inline auto operator<=>(
+		const EntryState&,
+		const EntryState&) = default;
+	friend inline bool operator==(
+		const EntryState&,
+		const EntryState&) = default;
 };
 
 struct SearchState {

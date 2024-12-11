@@ -186,7 +186,7 @@ ScheduledWidget::ScheduledWidget(
 	};
 	_topBar->setActiveChat(state, nullptr);
 	_composeControls->setCurrentDialogsEntryState(state);
-	controller->setCurrentDialogsEntryState(state);
+	controller->setDialogsEntryState(state);
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
