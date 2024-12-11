@@ -602,6 +602,8 @@ void WhenAction::paint(Painter &p) {
 	p.fillRect(0, 0, width(), _height, _st.itemBg);
 	const auto &icon = (_content.type == WhoReadType::Edited)
 		? (selected ? st::whenEditedOver : st::whenEdited)
+		: (_content.type == WhoReadType::Original)
+		? (selected ? st::whenOriginalOver : st::whenOriginal)
 		: loading
 		? st::whoReadChecksDisabled
 		: selected

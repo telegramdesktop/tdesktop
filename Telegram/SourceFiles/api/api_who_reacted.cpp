@@ -756,19 +756,32 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 		const style::WhoRead &st) {
 	return WhoReacted(item, reaction, context, st, nullptr);
 }
-rpl::producer<Ui::WhoReadContent> WhenEdited(
+
+[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhenDate(
 		not_null<PeerData*> author,
-		TimeId date) {
+		TimeId date,
+		Ui::WhoReadType type) {
 	return rpl::single(Ui::WhoReadContent{
 		.participants = { Ui::WhoReadParticipant{
 			.name = author->name(),
 			.date = FormatReadDate(date, QDateTime::currentDateTime()),
 			.id = author->id.value,
 		} },
-		.type = Ui::WhoReadType::Edited,
+		.type = type,
 		.fullReadCount = 1,
 	});
 }
 
+rpl::producer<Ui::WhoReadContent> WhenEdited(
+		not_null<PeerData*> author,
+		TimeId date) {
+	return WhenDate(author, date, Ui::WhoReadType::Edited);
+}
+
+rpl::producer<Ui::WhoReadContent> WhenOriginal(
+		not_null<PeerData*> author,
+		TimeId date) {
+	return WhenDate(author, date, Ui::WhoReadType::Original);
+}
 
 } // namespace Api

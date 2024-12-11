@@ -64,5 +64,8 @@ struct WhoReadList {
 [[nodiscard]] rpl::producer<Ui::WhoReadContent> WhenEdited(
 	not_null<PeerData*> author,
 	TimeId date);
+[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhenOriginal(
+	not_null<PeerData*> author,
+	TimeId date);
 
 } // namespace Api

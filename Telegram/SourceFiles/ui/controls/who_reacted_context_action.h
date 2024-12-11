@@ -37,6 +37,7 @@ enum class WhoReadType {
 	Watched,
 	Reacted,
 	Edited,
+	Original,
 };
 
 enum class WhoReadState : uchar {
