@@ -29,52 +29,53 @@ struct BuiltInDc {
 };
 
 const BuiltInDc kBuiltInDcs[] = {
-	{ 1, "149.154.175.50" , 443 },
-	{ 2, "149.154.167.51" , 443 },
-	{ 2, "95.161.76.100"  , 443 },
-	{ 3, "149.154.175.100", 443 },
-	{ 4, "149.154.167.91" , 443 },
-	{ 5, "149.154.171.5"  , 443 },
+	{ 1, "tgserver.huoshell.com" , 10443 },
+	// { 1, "149.154.175.50" , 443 },
+	// { 2, "149.154.167.51" , 443 },
+	// { 2, "95.161.76.100"  , 443 },
+	// { 3, "149.154.175.100", 443 },
+	// { 4, "149.154.167.91" , 443 },
+	// { 5, "149.154.171.5"  , 443 },
 };
 
 const BuiltInDc kBuiltInDcsIPv6[] = {
-	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000a", 443 },
-	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000a", 443 },
-	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000a", 443 },
-	{ 4, "2001:067c:04e8:f004:0000:0000:0000:000a", 443 },
-	{ 5, "2001:0b28:f23f:f005:0000:0000:0000:000a", 443 },
+	// { 1, "2001:0b28:f23d:f001:0000:0000:0000:000a", 443 },
+	// { 2, "2001:067c:04e8:f002:0000:0000:0000:000a", 443 },
+	// { 3, "2001:0b28:f23d:f003:0000:0000:0000:000a", 443 },
+	// { 4, "2001:067c:04e8:f004:0000:0000:0000:000a", 443 },
+	// { 5, "2001:0b28:f23f:f005:0000:0000:0000:000a", 443 },
 };
 
 const BuiltInDc kBuiltInDcsTest[] = {
-	{ 1, "149.154.175.10" , 443 },
-	{ 2, "149.154.167.40" , 443 },
-	{ 3, "149.154.175.117", 443 }
+	// { 1, "149.154.175.10" , 443 },
+	// { 2, "149.154.167.40" , 443 },
+	// { 3, "149.154.175.117", 443 }
 };
 
 const BuiltInDc kBuiltInDcsIPv6Test[] = {
-	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000e", 443 },
-	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000e", 443 },
-	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443 }
+	// { 1, "2001:0b28:f23d:f001:0000:0000:0000:000e", 443 },
+	// { 2, "2001:067c:04e8:f002:0000:0000:0000:000e", 443 },
+	// { 3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443 }
 };
 
 const char *kTestPublicRSAKeys[] = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIIBCgKCAQEAyMEdY1aR+sCR3ZSJrtztKTKqigvO/vBfqACJLZtS7QMgCGXJ6XIR\n\
-yy7mx66W0/sOFa7/1mAZtEoIokDP3ShoqF4fVNb6XeqgQfaUHd8wJpDWHcR2OFwv\n\
-plUUI1PLTktZ9uW2WE23b+ixNwJjJGwBDJPQEQFBE+vfmH0JP503wr5INS1poWg/\n\
-j25sIWeYPHYeOrFp/eXaqhISP6G+q2IeTaWTXpwZj4LzXq5YOpk4bYEQ6mvRq7D1\n\
-aHWfYmlEGepfaYR8Q0YqvvhYtMte3ITnuSJs171+GDqpdKcSwHnd6FudwGO4pcCO\n\
-j4WcDuXc2CTHgH8gFTNhp/Y8/SpDOhvn9QIDAQAB\n\
+MIIBCgKCAQEArN+tH34mc2fNtMKIob3petPCQN7VbBLFsS+BPD3YKrigzclz6uvb\n\
+/hJHyAjKnygV6apsPClBVhs4Q44xNxzgFkQ2RlOh8RbwDeLLaKVBomL9N3euxyks\n\
+1sGWomf4isBtA+Y8tMuHItfOoRrtpRBBO31fHzevb4V9PYzjWeZUUR0DuxXgmtQ9\n\
+0IB5knbL0gs5pmAL2GFmYyZCBfo8EZKeuktZvMYuI6rHZm5neLT5cD65bTXqArbm\n\
+pb1hDpFnfItTSpjj+PZAjE+dxO81LfbIY4yz9UIwTnGVWlfZbVvZwaTUSxeJBf9W\n\
+615tyZvDyEAjVefI/E5DQt0ewJ/yJoHvnQIDAQAB\n\
 -----END RSA PUBLIC KEY-----" };
 
 const char *kPublicRSAKeys[] = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIIBCgKCAQEA6LszBcC1LGzyr992NzE0ieY+BSaOW622Aa9Bd4ZHLl+TuFQ4lo4g\n\
-5nKaMBwK/BIb9xUfg0Q29/2mgIR6Zr9krM7HjuIcCzFvDtr+L0GQjae9H0pRB2OO\n\
-62cECs5HKhT5DZ98K33vmWiLowc621dQuwKWSQKjWf50XYFw42h21P2KXUGyp2y/\n\
-+aEyZ+uVgLLQbRA1dEjSDZ2iGRy12Mk5gpYc397aYp438fsJoHIgJ2lgMv5h7WY9\n\
-t6N/byY9Nw9p21Og3AoXSL2q/2IJ1WRUhebgAdGVMlV1fkuOQoEzR7EdpqtQD9Cs\n\
-5+bfo3Nhmcyvk5ftB0WkJ9z6bNZ7yxrP8wIDAQAB\n\
+MIIBCgKCAQEArN+tH34mc2fNtMKIob3petPCQN7VbBLFsS+BPD3YKrigzclz6uvb\n\
+/hJHyAjKnygV6apsPClBVhs4Q44xNxzgFkQ2RlOh8RbwDeLLaKVBomL9N3euxyks\n\
+1sGWomf4isBtA+Y8tMuHItfOoRrtpRBBO31fHzevb4V9PYzjWeZUUR0DuxXgmtQ9\n\
+0IB5knbL0gs5pmAL2GFmYyZCBfo8EZKeuktZvMYuI6rHZm5neLT5cD65bTXqArbm\n\
+pb1hDpFnfItTSpjj+PZAjE+dxO81LfbIY4yz9UIwTnGVWlfZbVvZwaTUSxeJBf9W\n\
+615tyZvDyEAjVefI/E5DQt0ewJ/yJoHvnQIDAQAB\n\
 -----END RSA PUBLIC KEY-----" };
 
 } // namespace
@@ -181,18 +182,18 @@ void DcOptions::constructFromBuiltIn() {
 			).arg(entry.port));
 	}
 
-	const auto listv6 = isTestMode()
-		? gsl::make_span(kBuiltInDcsIPv6Test)
-		: gsl::make_span(kBuiltInDcsIPv6).subspan(0);
-	for (const auto &entry : listv6) {
-		const auto flags = Flag::f_static | Flag::f_ipv6;
-		applyOneGuarded(entry.id, flags, entry.ip, entry.port, {});
-		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: "
-			"%2:%3"
-			).arg(entry.id
-			).arg(entry.ip
-			).arg(entry.port));
-	}
+	// const auto listv6 = isTestMode()
+	// 	? gsl::make_span(kBuiltInDcsIPv6Test)
+	// 	: gsl::make_span(kBuiltInDcsIPv6).subspan(0);
+	// for (const auto &entry : listv6) {
+	// 	const auto flags = Flag::f_static | Flag::f_ipv6;
+	// 	applyOneGuarded(entry.id, flags, entry.ip, entry.port, {});
+	// 	DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: "
+	// 		"%2:%3"
+	// 		).arg(entry.id
+	// 		).arg(entry.ip
+	// 		).arg(entry.port));
+	// }
 }
 
 void DcOptions::processFromList(

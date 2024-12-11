@@ -192,49 +192,49 @@ void DomainResolver::resolve(const QString &domain) {
 }
 
 void DomainResolver::resolve(const AttemptKey &key) {
-	if (_attempts.find(key) != end(_attempts)) {
-		return;
-	} else if (_requests.find(key) != end(_requests)) {
-		return;
-	}
-	const auto i = _cache.find(key);
-	_lastTimestamp = crl::now();
-	if (i != end(_cache) && i->second.expireAt > _lastTimestamp) {
-		checkExpireAndPushResult(key.domain);
-		return;
-	}
+	// if (_attempts.find(key) != end(_attempts)) {
+	// 	return;
+	// } else if (_requests.find(key) != end(_requests)) {
+	// 	return;
+	// }
+	// const auto i = _cache.find(key);
+	// _lastTimestamp = crl::now();
+	// if (i != end(_cache) && i->second.expireAt > _lastTimestamp) {
+	// 	checkExpireAndPushResult(key.domain);
+	// 	return;
+	// }
 
-	auto attempts = std::vector<Attempt>();
-	auto domains = DnsDomains();
-	std::random_device rd;
-	ranges::shuffle(domains, std::mt19937(rd()));
-	const auto takeDomain = [&] {
-		const auto result = domains.back();
-		domains.pop_back();
-		return result;
-	};
-	const auto shuffle = [&](int from, int till) {
-		Expects(till > from);
+	// auto attempts = std::vector<Attempt>();
+	// auto domains = DnsDomains();
+	// std::random_device rd;
+	// ranges::shuffle(domains, std::mt19937(rd()));
+	// const auto takeDomain = [&] {
+	// 	const auto result = domains.back();
+	// 	domains.pop_back();
+	// 	return result;
+	// };
+	// const auto shuffle = [&](int from, int till) {
+	// 	Expects(till > from);
 
-		ranges::shuffle(
-			begin(attempts) + from,
-			begin(attempts) + till,
-			std::mt19937(rd()));
-	};
+	// 	ranges::shuffle(
+	// 		begin(attempts) + from,
+	// 		begin(attempts) + till,
+	// 		std::mt19937(rd()));
+	// };
 
-	attempts.push_back({ Type::Google, "dns.google.com" });
-	attempts.push_back({ Type::Google, takeDomain(), "dns" });
-	attempts.push_back({ Type::Mozilla, "mozilla.cloudflare-dns.com" });
-	while (!domains.empty()) {
-		attempts.push_back({ Type::Google, takeDomain(), "dns" });
-	}
+	// attempts.push_back({ Type::Google, "dns.google.com" });
+	// attempts.push_back({ Type::Google, takeDomain(), "dns" });
+	// attempts.push_back({ Type::Mozilla, "mozilla.cloudflare-dns.com" });
+	// while (!domains.empty()) {
+	// 	attempts.push_back({ Type::Google, takeDomain(), "dns" });
+	// }
 
-	shuffle(0, 2);
+	// shuffle(0, 2);
 
-	ranges::reverse(attempts); // We go from last to first.
+	// ranges::reverse(attempts); // We go from last to first.
 
-	_attempts.emplace(key, Attempts{ std::move(attempts) });
-	sendNextRequest(key);
+	// _attempts.emplace(key, Attempts{ std::move(attempts) });
+	// sendNextRequest(key);
 }
 
 void DomainResolver::checkExpireAndPushResult(const QString &domain) {
