@@ -299,6 +299,7 @@ void RecentRow::rightActionPaint(
 			? st::activeButtonBgOver
 			: st::activeButtonBg);
 		const auto radius = size.height() / 2;
+		auto hq = PainterHighQualityEnabler(p);
 		p.drawRoundedRect(QRect(QPoint(x, y), size), radius, radius);
 		if (_actionRipple) {
 			_actionRipple->paint(p, x, y, outerWidth);
