@@ -197,6 +197,10 @@ settingsInfoPhotoSkip: 7px;
 settingsInfoNameSkip: -1px;
 settingsInfoUploadLeft: 6px;
 settingsInfoPeerBadge: InfoPeerBadge {
+	verified: icon {
+		{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg },
+		{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFg },
+	};
 	premium: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
 	premiumFg: dialogsVerifiedIconBg;
 	sizeTag: 0; // Normal
