@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/stories/info_stories_widget.h"
 
+#include "data/data_peer.h"
 #include "info/stories/info_stories_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -107,8 +108,11 @@ void Widget::selectionAction(SelectionAction action) {
 }
 
 rpl::producer<QString> Widget::title() {
+	const auto peer = controller()->key().storiesPeer();
 	return (controller()->key().storiesTab() == Tab::Archive)
 		? tr::lng_stories_archive_title()
+		: (peer && peer->isSelf())
+		? tr::lng_menu_my_profile()
 		: tr::lng_stories_my_title();
 }
 

@@ -70,7 +70,6 @@ InnerWidget::InnerWidget(
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		not_null<RpWidget*> parent,
 		Origin origin) {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	if (const auto user = _peer->asUser()) {
 		user->session().changes().peerFlagsValue(
 			user,
@@ -85,30 +84,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			}
 		}, lifetime());
 	}
-	_cover = _topic
-		? result->add(object_ptr<Cover>(
-			result,
-			_controller->parentController(),
-			_topic))
-		: result->add(object_ptr<Cover>(
-			result,
-			_controller->parentController(),
-			_peer));
-	_cover->showSection(
-	) | rpl::start_with_next([=](Section section) {
-		_controller->showSection(_topic
-			? std::make_shared<Info::Memento>(_topic, section)
-			: std::make_shared<Info::Memento>(_peer, section));
-	}, _cover->lifetime());
-	_cover->setOnlineCount(rpl::single(0));
-	if (_topic) {
-		if (_topic->creating()) {
-			return result;
-		}
-		result->add(SetupDetails(_controller, parent, _topic));
-	} else {
-		result->add(SetupDetails(_controller, parent, _peer, origin));
+
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	_cover = AddCover(result, _controller, _peer, _topic);
+	if (_topic && _topic->creating()) {
+		return result;
 	}
+
+	AddDetails(result, _controller, _peer, _topic, origin);
 	result->add(setupSharedMedia(result.data()));
 	if (_topic) {
 		return result;

@@ -382,6 +382,7 @@ void WrapWidget::setupTopBarMenuToggle() {
 	if (!_topBar) {
 		return;
 	}
+	const auto key = _controller->key();
 	const auto section = _controller->section();
 	if (section.type() == Section::Type::Profile
 		&& (wrap() != Wrap::Side || hasStackHistory())) {
@@ -406,6 +407,17 @@ void WrapWidget::setupTopBarMenuToggle() {
 				});
 			}
 		}
+	} else if (key.storiesPeer()
+		&& key.storiesPeer()->isSelf()
+		&& key.storiesTab() == Stories::Tab::Saved) {
+		const auto &st = (wrap() == Wrap::Layer)
+			? st::infoLayerTopBarEdit
+			: st::infoTopBarEdit;
+		const auto button = _topBar->addButton(
+			base::make_unique_q<Ui::IconButton>(_topBar, st));
+		button->addClickHandler([=] {
+			_controller->showSettings(::Settings::Information::Id());
+		});
 	} else if (section.type() == Section::Type::Downloads) {
 		auto &manager = Core::App().downloadManager();
 		rpl::merge(

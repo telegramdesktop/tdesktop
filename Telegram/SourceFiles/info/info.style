@@ -168,10 +168,17 @@ infoTopBarCall: IconButton(infoTopBarMenu) {
 	rippleAreaPosition: point(0px, 6px);
 }
 infoTopBarQr: IconButton(infoTopBarMenu) {
-	width: 52px;
+	width: 48px;
 	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
 	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
-	iconPosition: point(9px, -1px);
+	iconPosition: point(8px, -1px);
+	rippleAreaPosition: point(0px, 6px);
+}
+infoTopBarEdit: IconButton(infoTopBarMenu) {
+	width: 48px;
+	icon: icon {{ "menu/edit", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/edit", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
 	rippleAreaPosition: point(0px, 6px);
 }
 infoTopBarForward: IconButton(infoTopBarBack) {
@@ -271,6 +278,12 @@ infoLayerTopBarQr: IconButton(infoLayerTopBarClose) {
 	width: 40px;
 	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
 	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
+}
+infoLayerTopBarEdit: IconButton(infoLayerTopBarClose) {
+	width: 40px;
+	icon: icon {{ "menu/edit", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/edit", boxTitleCloseFgOver }};
 	iconPosition: point(8px, -1px);
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {

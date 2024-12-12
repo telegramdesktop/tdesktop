@@ -13,8 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
+#include "info/media/info_media_buttons.h"
 #include "info/media/info_media_list_widget.h"
+#include "info/profile/info_profile_actions.h"
 #include "info/profile/info_profile_icon.h"
+#include "info/profile/info_profile_widget.h"
 #include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -25,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
@@ -102,11 +106,15 @@ InnerWidget::InnerWidget(
 void InnerWidget::setupTop() {
 	const auto key = _controller->key();
 	const auto peer = key.storiesPeer();
-	if (peer
-		&& key.storiesTab() == Stories::Tab::Saved
-		&& peer->owner().stories().hasArchive(peer)
-		&& _isStackBottom) {
-		createButtons();
+	if (peer && key.storiesTab() == Stories::Tab::Saved && _isStackBottom) {
+		if (peer->isSelf()) {
+			createProfileTop();
+		} else if (peer->owner().stories().hasArchive(peer)) {
+			createButtons();
+		} else {
+			_top.destroy();
+			refreshHeight();
+		}
 	} else if (peer && key.storiesTab() == Stories::Tab::Archive) {
 		createAboutArchive();
 	} else {
@@ -115,23 +123,57 @@ void InnerWidget::setupTop() {
 	}
 }
 
-void InnerWidget::createButtons() {
+void InnerWidget::startTop() {
 	_top.create(this);
 	_top->show();
 	_topHeight = _top->heightValue();
+}
+
+void InnerWidget::createProfileTop() {
+	const auto key = _controller->key();
+	const auto peer = key.storiesPeer();
+
+	startTop();
+	Profile::AddCover(_top, _controller, peer, nullptr);
+	Profile::AddDetails(_top, _controller, peer, nullptr, { v::null });
+
+	auto tracker = Ui::MultiSlideTracker();
+	const auto dividerWrap = _top->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_top,
+			object_ptr<Ui::VerticalLayout>(_top)));
+	const auto divider = dividerWrap->entity();
+	Ui::AddDivider(divider);
+	Ui::AddSkip(divider);
+
+	addGiftsButton(tracker);
+	addArchiveButton(tracker);
+	addRecentButton(tracker);
+
+	dividerWrap->toggleOn(tracker.atLeastOneShownValue());
+
+	finalizeTop();
+}
+
+void InnerWidget::createButtons() {
+	startTop();
+	auto tracker = Ui::MultiSlideTracker();
+	addArchiveButton(tracker);
+	addRecentButton(tracker);
+	finalizeTop();
+}
+
+void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
+	Expects(_top != nullptr);
 
 	const auto key = _controller->key();
 	const auto peer = key.storiesPeer();
 	const auto stories = &peer->owner().stories();
-	const auto archive = _top->add(object_ptr<Ui::SettingsButton>(
-		_top,
-		tr::lng_stories_archive_button(),
-		st::infoSharedMediaButton));
-	archive->addClickHandler([=] {
-		_controller->showSection(Info::Stories::Make(
-			_controller->key().storiesPeer(),
-			Stories::Tab::Archive));
-	});
+
+	if (!stories->archiveCountKnown(peer->id)) {
+		stories->archiveLoadMore(peer->id);
+	}
+
 	auto count = rpl::single(
 		rpl::empty
 	) | rpl::then(
@@ -140,19 +182,50 @@ void InnerWidget::createButtons() {
 			rpl::mappers::_1 == peer->id
 		) | rpl::to_empty
 	) | rpl::map([=] {
-		const auto value = stories->archiveCount(peer->id);
-		return (value > 0) ? QString::number(value) : QString();
+		return stories->archiveCount(peer->id);
+	}) | rpl::start_spawning(_top->lifetime());
+
+	const auto archiveWrap = _top->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			_top,
+			object_ptr<Ui::SettingsButton>(
+				_top,
+				tr::lng_stories_archive_button(),
+				st::infoSharedMediaButton))
+	)->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(rpl::duplicate(count) | rpl::map(rpl::mappers::_1 > 0));
+
+	const auto archive = archiveWrap->entity();
+	archive->addClickHandler([=] {
+		_controller->showSection(Info::Stories::Make(
+			_controller->key().storiesPeer(),
+			Stories::Tab::Archive));
+	});
+	auto label = rpl::duplicate(
+		count
+	) | rpl::filter(
+		rpl::mappers::_1 > 0
+	) | rpl::map([=](int count) {
+		return (count > 0) ? QString::number(count) : QString();
 	});
 	::Settings::CreateRightLabel(
 		archive,
-		std::move(count),
+		std::move(label),
 		st::infoSharedMediaButton,
 		tr::lng_stories_archive_button());
 	object_ptr<Profile::FloatingIcon>(
 		archive,
 		st::infoIconMediaStoriesArchive,
 		st::infoSharedMediaButtonIconPosition)->show();
+	tracker.track(archiveWrap);
+}
 
+void InnerWidget::addRecentButton(Ui::MultiSlideTracker &tracker) {
+	Expects(_top != nullptr);
+
+	const auto key = _controller->key();
+	const auto peer = key.storiesPeer();
 	const auto recentWrap = _top->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			_top,
@@ -207,13 +280,64 @@ void InnerWidget::createButtons() {
 	) | rpl::map([](const Content &content) {
 		return !content.elements.empty();
 	}));
+	tracker.track(recentWrap);
+}
 
-	_top->add(object_ptr<Ui::FixedHeightWidget>(
-		_top,
-		st::infoProfileSkip));
-	_top->add(object_ptr<Ui::BoxContentDivider>(_top));
+void InnerWidget::addGiftsButton(Ui::MultiSlideTracker &tracker) {
+	Expects(_top != nullptr);
+
+	const auto key = _controller->key();
+	const auto peer = key.storiesPeer();
+	const auto user = peer->asUser();
+	Assert(user != nullptr);
+
+	auto count = Profile::PeerGiftsCountValue(
+		user
+	) | rpl::start_spawning(_top->lifetime());
+
+	const auto giftsWrap = _top->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			_top,
+			object_ptr<Ui::SettingsButton>(
+				_top,
+				tr::lng_peer_gifts_title(),
+				st::infoSharedMediaButton))
+	)->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(rpl::duplicate(count) | rpl::map(rpl::mappers::_1 > 0));
+
+	const auto gifts = giftsWrap->entity();
+	gifts->addClickHandler([=] {
+		_controller->showSection(
+			std::make_shared<Info::Memento>(
+				user,
+				Section::Type::PeerGifts));
+	});
+	auto label = rpl::duplicate(
+		count
+	) | rpl::filter(
+		rpl::mappers::_1 > 0
+	) | rpl::map([=](int count) {
+		return (count > 0) ? QString::number(count) : QString();
+	});
+	::Settings::CreateRightLabel(
+		gifts,
+		std::move(label),
+		st::infoSharedMediaButton,
+		tr::lng_stories_archive_button());
+	object_ptr<Profile::FloatingIcon>(
+		gifts,
+		st::infoIconMediaGifts,
+		st::infoSharedMediaButtonIconPosition)->show();
+	tracker.track(giftsWrap);
+}
+
+void InnerWidget::finalizeTop() {
+	Ui::AddSkip(_top, st::infoProfileSkip);
+	Ui::AddDivider(_top);
 
 	_top->resizeToWidth(width());
+
 	_top->heightValue(
 	) | rpl::start_with_next([=] {
 		refreshHeight();
@@ -221,9 +345,7 @@ void InnerWidget::createButtons() {
 }
 
 void InnerWidget::createAboutArchive() {
-	_top.create(this);
-	_top->show();
-	_topHeight = _top->heightValue();
+	startTop();
 
 	const auto peer = _controller->key().storiesPeer();
 	_top->add(object_ptr<Ui::DividerLabel>(
@@ -236,11 +358,7 @@ void InnerWidget::createAboutArchive() {
 			st::infoStoriesAboutArchive),
 		st::infoStoriesAboutArchivePadding));
 
-	_top->resizeToWidth(width());
-	_top->heightValue(
-	) | rpl::start_with_next([=] {
-		refreshHeight();
-	}, _top->lifetime());
+	finalizeTop();
 }
 
 void InnerWidget::visibleTopBottomUpdated(
