@@ -55,7 +55,8 @@ MTPInputReplyTo ReplyToForMTP(
 				? replyingToTopic->rootId()
 				: Data::ForumTopic::kGeneralId)
 			: (to ? to->topicRootId() : Data::ForumTopic::kGeneralId);
-		const auto replyToTopicId = to
+		const auto replyToTopicId = (to
+			&& (to->history() != history || to->id != replyingToTopicId))
 			? to->topicRootId()
 			: replyingToTopicId;
 		const auto external = replyTo.messageId
