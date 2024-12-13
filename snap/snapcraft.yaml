@@ -254,7 +254,7 @@ parts:
   libjxl:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.10.3
+    source-tag: v0.11.1
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -274,9 +274,6 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
-    override-pull: |
-      craftctl default
-      git apply $CRAFT_STAGE/patches/libjxl.patch
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libbrotli*
     prime:
