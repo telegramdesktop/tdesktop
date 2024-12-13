@@ -979,7 +979,7 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.17.6 https://github.com/strukturag/libheif.git
+    git clone -b v1.18.2 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -1031,7 +1031,7 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.10.3 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.11.1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
