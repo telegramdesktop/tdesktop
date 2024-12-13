@@ -130,6 +130,11 @@ public:
 		QWidget *parent,
 		const style::SettingsSlider &st = st::defaultSettingsSlider);
 
+	[[nodiscard]] const style::SettingsSlider &st() const;
+
+	[[nodiscard]] int centerOfSection(int section) const;
+	virtual void fitWidthToSections();
+
 	void setRippleTopRoundRadius(int radius);
 
 protected:

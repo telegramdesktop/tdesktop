@@ -689,7 +689,11 @@ recentPeersSpecialName: PeerListItem(recentPeersItem) {
 	namePosition: point(64px, 19px);
 }
 
+dialogsTabsScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
 dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
+	padding: 8px;
 	height: 33px;
 	barTop: 30px;
 	barSkip: 0px;
@@ -707,7 +711,6 @@ dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
 	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;
 }
-dialogsSearchTabsPadding: 8px;
 
 chatsFiltersTabs: SettingsSlider(dialogsSearchTabs) {
 	rippleBottomSkip: 0px;

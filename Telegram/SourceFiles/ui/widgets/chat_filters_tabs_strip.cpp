@@ -180,7 +180,6 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		Window::SessionController *controller,
 		bool trackActiveFilterAndUnreadAndReorder) {
 
-	const auto &scrollSt = st::defaultScrollArea;
 	const auto wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		parent,
 		object_ptr<Ui::RpWidget>(parent));
@@ -194,7 +193,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	const auto container = wrap->entity();
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
 		container,
-		scrollSt,
+		st::dialogsTabsScroll,
 		true);
 	const auto slider = scroll->setOwnedWidget(
 		object_ptr<Ui::ChatsFiltersTabs>(
@@ -457,7 +456,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		parent->widthValue() | rpl::filter(rpl::mappers::_1 > 0),
 		slider->heightValue() | rpl::filter(rpl::mappers::_1 > 0)
 	) | rpl::start_with_next([=](int w, int h) {
-		scroll->resize(w, h + scrollSt.deltax * 4);
+		scroll->resize(w, h);
 		container->resize(w, h);
 		wrap->resize(w, h);
 	}, wrap->lifetime());

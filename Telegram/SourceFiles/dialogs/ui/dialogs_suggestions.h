@@ -24,6 +24,7 @@ class Session;
 
 namespace Ui {
 class BoxContent;
+class ScrollArea;
 class ElasticScroll;
 class SettingsSlider;
 class VerticalLayout;
@@ -169,7 +170,9 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 
-	const std::unique_ptr<Ui::SettingsSlider> _tabs;
+	const std::unique_ptr<Ui::ScrollArea> _tabsScroll;
+	const not_null<Ui::SettingsSlider*> _tabs;
+	Ui::Animations::Simple _tabsScrollAnimation;
 	rpl::variable<Tab> _tab = Tab::Chats;
 
 	const std::unique_ptr<Ui::ElasticScroll> _chatsScroll;

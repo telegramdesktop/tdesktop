@@ -1292,7 +1292,11 @@ Suggestions::Suggestions(
 	RecentPeersList recentPeers)
 : RpWidget(parent)
 , _controller(controller)
-, _tabs(std::make_unique<Ui::SettingsSlider>(this, st::dialogsSearchTabs))
+, _tabsScroll(
+	std::make_unique<Ui::ScrollArea>(this, st::dialogsTabsScroll, true))
+, _tabs(
+	_tabsScroll->setOwnedWidget(
+		object_ptr<Ui::SettingsSlider>(this, st::dialogsSearchTabs)))
 , _chatsScroll(std::make_unique<Ui::ElasticScroll>(this))
 , _chatsContent(
 	_chatsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
@@ -1314,7 +1318,6 @@ Suggestions::Suggestions(
 	_appsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
 , _recentApps(setupRecentApps())
 , _popularApps(setupPopularApps()) {
-
 	setupTabs();
 	setupChats();
 	setupChannels();
@@ -1324,10 +1327,46 @@ Suggestions::Suggestions(
 Suggestions::~Suggestions() = default;
 
 void Suggestions::setupTabs() {
+	_tabsScroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
+		const auto pixelDelta = e->pixelDelta();
+		const auto angleDelta = e->angleDelta();
+		if (std::abs(pixelDelta.x()) + std::abs(angleDelta.x())) {
+			return false;
+		}
+		const auto y = pixelDelta.y() ? pixelDelta.y() : angleDelta.y();
+		_tabsScroll->scrollToX(_tabsScroll->scrollLeft() - y);
+		return true;
+	});
+
+	const auto scrollToIndex = [=](int index, anim::type type) {
+		const auto to = index
+			? (_tabs->centerOfSection(index) - _tabsScroll->width() / 2)
+			: 0;
+		_tabsScrollAnimation.stop();
+		if (type == anim::type::instant) {
+			_tabsScroll->scrollToX(to);
+		} else {
+			_tabsScrollAnimation.start(
+				[=](float64 v) { _tabsScroll->scrollToX(v); },
+				_tabsScroll->scrollLeft(),
+				std::min(to, _tabsScroll->scrollLeftMax()),
+				st::defaultTabsSlider.duration);
+		}
+	};
+	rpl::single(-1) | rpl::then(
+		_tabs->sectionActivated()
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](int was, int index) {
+		if (was != index) {
+			scrollToIndex(index, anim::type::normal);
+		}
+	}, _tabs->lifetime());
+
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
 	shadow->lower();
 
-	_tabs->move(st::dialogsSearchTabsPadding, 0);
+	_tabsScroll->move(0, 0);
+	_tabs->move(0, 0);
 	rpl::combine(
 		widthValue(),
 		_tabs->heightValue()
@@ -1338,11 +1377,12 @@ void Suggestions::setupTabs() {
 
 	shadow->showOn(_tabs->shownValue());
 
-	_tabs->setSections({
+	auto sections = std::vector<QString>{
 		tr::lng_recent_chats(tr::now),
 		tr::lng_recent_channels(tr::now),
 		tr::lng_recent_apps(tr::now),
-	});
+	};
+	_tabs->setSections(sections);
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int section) {
 		switchTab(section == 2
@@ -1808,7 +1848,7 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 			resize(now, height());
 		}
 	}
-	_tabs->hide();
+	_tabsScroll->hide();
 	_chatsScroll->hide();
 	_channelsScroll->hide();
 	_appsScroll->hide();
@@ -1823,7 +1863,7 @@ void Suggestions::finishShow() {
 	_shownAnimation.stop();
 	_cache = QPixmap();
 
-	_tabs->show();
+	_tabsScroll->show();
 	const auto tab = _tab.current();
 	_chatsScroll->setVisible(tab == Tab::Chats);
 	_channelsScroll->setVisible(tab == Tab::Channels);
@@ -1864,8 +1904,10 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 
 void Suggestions::resizeEvent(QResizeEvent *e) {
 	const auto w = std::max(width(), st::columnMinimalWidthLeft);
-	_tabs->resizeToWidth(w);
+	_tabs->fitWidthToSections();
+
 	const auto tabs = _tabs->height();
+	_tabsScroll->setGeometry(0, 0, w, tabs);
 
 	_chatsScroll->setGeometry(0, tabs, w, height() - tabs);
 	_chatsContent->resizeToWidth(w);

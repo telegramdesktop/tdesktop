@@ -242,6 +242,27 @@ SettingsSlider::SettingsSlider(
 	setSelectOnPress(_st.ripple.showDuration == 0);
 }
 
+const style::SettingsSlider &SettingsSlider::st() const {
+	return _st;
+}
+
+int SettingsSlider::centerOfSection(int section) const {
+	const auto widths = countSectionsWidths(0);
+	auto result = 0;
+	if (section >= 0 && section < widths.size()) {
+		for (auto i = 0; i < section; i++) {
+			result += widths[i];
+		}
+		result += widths[section] / 2;
+	}
+	return result;
+}
+
+void SettingsSlider::fitWidthToSections() {
+	const auto widths = countSectionsWidths(0);
+	resizeToWidth(ranges::accumulate(widths, .0) + _st.padding * 2);
+}
+
 void SettingsSlider::setRippleTopRoundRadius(int radius) {
 	_rippleTopRoundRadius = radius;
 }
@@ -263,7 +284,7 @@ void SettingsSlider::resizeSections(int newWidth) {
 	const auto sectionWidths = countSectionsWidths(newWidth);
 
 	auto skip = 0;
-	auto x = 0.;
+	auto x = _st.padding * 1.;
 	auto sectionWidth = sectionWidths.begin();
 	enumerateSections([&](Section &section) {
 		Expects(sectionWidth != sectionWidths.end());
@@ -280,7 +301,9 @@ void SettingsSlider::resizeSections(int newWidth) {
 
 std::vector<float64> SettingsSlider::countSectionsWidths(int newWidth) const {
 	const auto count = getSectionsCount();
-	const auto sectionsWidth = newWidth - (count - 1) * _st.barSkip;
+	const auto sectionsWidth = newWidth
+		- 2 * _st.padding
+		- (count - 1) * _st.barSkip;
 	const auto sectionWidth = sectionsWidth / float64(count);
 
 	auto result = std::vector<float64>(count, sectionWidth);

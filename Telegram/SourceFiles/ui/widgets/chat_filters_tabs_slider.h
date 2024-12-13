@@ -29,8 +29,7 @@ public:
 
 	bool setSectionsAndCheckChanged(std::vector<QString> &&sections);
 
-	[[nodiscard]] int centerOfSection(int section) const;
-	void fitWidthToSections();
+	void fitWidthToSections() override;
 	void setUnreadCount(int index, int unreadCount, bool muted);
 	void setLockedFrom(int index);
 

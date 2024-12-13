@@ -15,18 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QScrollBar>
 
 namespace Ui {
-namespace {
-
-[[nodiscard]] QMouseEvent TranslatedMouseEvent(QMouseEvent *e) {
-	return QMouseEvent(
-		e->type(),
-		e->pos() + QPoint(-st::dialogsSearchTabsPadding, 0),
-		e->button(),
-		e->buttons(),
-		e->modifiers());
-}
-
-} // namespace
 
 ChatsFiltersTabs::ChatsFiltersTabs(
 	not_null<Ui::RpWidget*> parent,
@@ -77,22 +65,9 @@ bool ChatsFiltersTabs::setSectionsAndCheckChanged(
 	return changed;
 }
 
-int ChatsFiltersTabs::centerOfSection(int section) const {
-	const auto widths = countSectionsWidths(0);
-	auto result = 0;
-	if (section >= 0 && section < widths.size()) {
-		for (auto i = 0; i < section; i++) {
-			result += widths[i];
-		}
-		result += widths[section] / 2;
-	}
-	return result;
-}
-
 void ChatsFiltersTabs::fitWidthToSections() {
-	const auto widths = countSectionsWidths(0);
-	const auto sliderPadding = st::dialogsSearchTabsPadding;
-	resizeToWidth(ranges::accumulate(widths, .0) + sliderPadding * 2);
+	SettingsSlider::fitWidthToSections();
+
 	_lockedFromX = calculateLockedFromX();
 
 	{
@@ -196,8 +171,6 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 	const auto clip = e->rect();
 	const auto range = getCurrentActiveRange();
 	const auto activeIndex = activeSection();
-
-	p.translate(st::dialogsSearchTabsPadding, 0);
 
 	auto index = 0;
 	auto raisedIndex = -1;
@@ -310,32 +283,29 @@ void ChatsFiltersTabs::paintEvent(QPaintEvent *e) {
 }
 
 void ChatsFiltersTabs::mousePressEvent(QMouseEvent *e) {
-	auto m = TranslatedMouseEvent(e);
-	const auto mouseButton = m.button();
+	const auto mouseButton = e->button();
 	if (mouseButton == Qt::MouseButton::LeftButton) {
-		_lockedPressed = (m.pos().x() >= _lockedFromX);
+		_lockedPressed = (e->pos().x() >= _lockedFromX);
 		if (_lockedPressed) {
-			Ui::RpWidget::mousePressEvent(&m);
+			Ui::RpWidget::mousePressEvent(e);
 		} else {
-			Ui::SettingsSlider::mousePressEvent(&m);
+			Ui::SettingsSlider::mousePressEvent(e);
 		}
 	} else {
-		Ui::RpWidget::mousePressEvent(&m);
+		Ui::RpWidget::mousePressEvent(e);
 	}
 }
 
 void ChatsFiltersTabs::mouseMoveEvent(QMouseEvent *e) {
-	auto m = TranslatedMouseEvent(e);
 	if (_reordering) {
-		Ui::RpWidget::mouseMoveEvent(&m);
+		Ui::RpWidget::mouseMoveEvent(e);
 	} else {
-		Ui::SettingsSlider::mouseMoveEvent(&m);
+		Ui::SettingsSlider::mouseMoveEvent(e);
 	}
 }
 
 void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
-	auto m = TranslatedMouseEvent(e);
-	const auto mouseButton = m.button();
+	const auto mouseButton = e->button();
 	if (mouseButton == Qt::MouseButton::LeftButton) {
 		if (base::take(_lockedPressed)) {
 			_lockedPressed = false;
@@ -348,16 +318,16 @@ void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
 					}
 				}
 			} else {
-				Ui::SettingsSlider::mouseReleaseEvent(&m);
+				Ui::SettingsSlider::mouseReleaseEvent(e);
 			}
 		}
 	} else {
-		Ui::RpWidget::mouseReleaseEvent(&m);
+		Ui::RpWidget::mouseReleaseEvent(e);
 	}
 }
 
 void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
-	const auto pos = e->pos() + QPoint(-st::dialogsSearchTabsPadding, 0);
+	const auto pos = e->pos();
 	if (pos.x() >= _lockedFromX) {
 		return;
 	}
