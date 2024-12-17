@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/global_media/info_global_media_provider.h"
 #include "info/global_media/info_global_media_widget.h"
+#include "info/media/info_media_empty_widget.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/info_controller.h"
 #include "ui/widgets/labels.h"
@@ -18,75 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::GlobalMedia {
 
-class EmptyWidget : public Ui::RpWidget {
-public:
-	EmptyWidget(QWidget *parent);
-
-	void setFullHeight(rpl::producer<int> fullHeightValue);
-	void setSearchQuery(const QString &query);
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	object_ptr<Ui::FlatLabel> _text;
-	int _height = 0;
-
-};
-
-EmptyWidget::EmptyWidget(QWidget *parent)
-: RpWidget(parent)
-, _text(this, st::infoEmptyLabel) {
-}
-
-void EmptyWidget::setFullHeight(rpl::producer<int> fullHeightValue) {
-	std::move(
-		fullHeightValue
-	) | rpl::start_with_next([this](int fullHeight) {
-		// Make icon center be on 1/3 height.
-		auto iconCenter = fullHeight / 3;
-		auto iconHeight = st::infoEmptyFile.height();
-		auto iconTop = iconCenter - iconHeight / 2;
-		_height = iconTop + st::infoEmptyIconTop;
-		resizeToWidth(width());
-	}, lifetime());
-}
-
-void EmptyWidget::setSearchQuery(const QString &query) {
-	_text->setText(query.isEmpty()
-		? tr::lng_media_file_empty(tr::now)
-		: tr::lng_media_file_empty_search(tr::now));
-	resizeToWidth(width());
-}
-
-int EmptyWidget::resizeGetHeight(int newWidth) {
-	auto labelTop = _height - st::infoEmptyLabelTop;
-	auto labelWidth = newWidth - 2 * st::infoEmptyLabelSkip;
-	_text->resizeToNaturalWidth(labelWidth);
-
-	auto labelLeft = (newWidth - _text->width()) / 2;
-	_text->moveToLeft(labelLeft, labelTop, newWidth);
-
-	update();
-	return _height;
-}
-
-void EmptyWidget::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-
-	const auto iconLeft = (width() - st::infoEmptyFile.width()) / 2;
-	const auto iconTop = height() - st::infoEmptyIconTop;
-	st::infoEmptyFile.paint(p, iconLeft, iconTop, width());
-}
-
 InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _empty(this) {
+	_empty->setType(type());
 	_empty->heightValue(
 	) | rpl::start_with_next(
 		[this] { refreshHeight(); },

@@ -40,6 +40,8 @@ public:
 	rpl::producer<QString> queryValue() const;
 	rpl::producer<QString> queryChanges() const;
 
+	void setQuery(const QString &query);
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

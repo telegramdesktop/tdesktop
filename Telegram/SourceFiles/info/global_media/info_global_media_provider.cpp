@@ -227,18 +227,6 @@ void Provider::checkPreload(
 	}
 }
 
-void Provider::applyListQuery(const QString &query) {
-	if (_totalListQuery == query) {
-		return;
-	}
-	_totalListQuery = query;
-	_totalList.clear();
-	_totalOffsetPosition = Data::MessagePosition();
-	_totalOffsetRate = 0;
-	_totalFullCount = 0;
-	_totalLoaded = false;
-}
-
 rpl::producer<GlobalMediaSlice> Provider::source(
 		Type type,
 		Data::MessagePosition aroundId,
@@ -247,7 +235,7 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 		int limitAfter) {
 	Expects(_type == type);
 
-	applyListQuery(query);
+	_totalListQuery = query;
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		const auto session = &_controller->session();
@@ -268,7 +256,7 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 		state->pushAndLoadMore = [=] {
 			auto result = fillRequest(aroundId, limitBefore, limitAfter);
 			consumer.put_next(std::move(result.slice));
-			if (!_totalLoaded && result.notEnough) {
+			if (!currentList()->loaded && result.notEnough) {
 				state->requestId = requestMore(state->pushAndLoadMore);
 			}
 		};
@@ -280,30 +268,32 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 
 mtpRequestId Provider::requestMore(Fn<void()> loaded) {
 	const auto done = [=](const Api::GlobalMediaResult &result) {
+		const auto list = currentList();
 		if (result.messageIds.empty()) {
-			_totalLoaded = true;
-			_totalFullCount = _totalList.size();
+			list->loaded = true;
+			list->fullCount = list->list.size();
 		} else {
-			_totalList.reserve(_totalList.size() + result.messageIds.size());
-			_totalFullCount = result.fullCount;
+			list->list.reserve(list->list.size() + result.messageIds.size());
+			list->fullCount = result.fullCount;
 			for (const auto &position : result.messageIds) {
 				_seenIds.emplace(position.fullId);
-				_totalOffsetPosition = position;
-				_totalList.push_back(position);
+				list->offsetPosition = position;
+				list->list.push_back(position);
 			}
 		}
 		if (!result.offsetRate) {
-			_totalLoaded = true;
+			list->loaded = true;
 		} else {
-			_totalOffsetRate = result.offsetRate;
+			list->offsetRate = result.offsetRate;
 		}
 		loaded();
 	};
+	const auto list = currentList();
 	return _controller->session().api().requestGlobalMedia(
 		_type,
 		_totalListQuery,
-		_totalOffsetRate,
-		_totalOffsetPosition,
+		list->offsetRate,
+		list->offsetPosition,
 		done);
 }
 
@@ -311,24 +301,25 @@ Provider::FillResult Provider::fillRequest(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
+	const auto list = currentList();
 	const auto i = ranges::lower_bound(
-		_totalList,
+		list->list,
 		aroundId,
 		std::greater<>());
-	const auto hasAfter = int(i - begin(_totalList));
-	const auto hasBefore = int(end(_totalList) - i);
+	const auto hasAfter = int(i - begin(list->list));
+	const auto hasBefore = int(end(list->list) - i);
 	const auto takeAfter = std::min(limitAfter, hasAfter);
 	const auto takeBefore = std::min(limitBefore, hasBefore);
-	auto list = std::vector<Data::MessagePosition>{
+	auto messages = std::vector<Data::MessagePosition>{
 		i - takeAfter,
 		i + takeBefore,
 	};
 	return FillResult{
 		.slice = GlobalMediaSlice(
 			GlobalMediaKey{ aroundId },
-			std::move(list),
-			((!_totalList.empty() || _totalLoaded)
-				? _totalFullCount
+			std::move(messages),
+			((!list->list.empty() || list->loaded)
+				? list->fullCount
 				: std::optional<int>()),
 			hasAfter - takeAfter),
 		.notEnough = (takeBefore < limitBefore),
@@ -398,6 +389,10 @@ void Provider::clearStaleLayouts() {
 			++i;
 		}
 	}
+}
+
+Provider::List *Provider::currentList() {
+	return &_totalLists[_totalListQuery];
 }
 
 rpl::producer<not_null<Media::BaseLayout*>> Provider::layoutRemoved() {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "base/timer.h"
 #include "dialogs/ui/top_peers_strip.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
@@ -63,6 +64,9 @@ public:
 
 	void selectJump(Qt::Key direction, int pageSize = 0);
 	void chooseRow();
+
+	bool consumeSearchQuery(const QString &query);
+	[[nodiscard]] rpl::producer<> clearSearchQueryRequests() const;
 
 	[[nodiscard]] Data::Thread *updateFromParentDrag(QPoint globalPosition);
 	void dragLeft();
@@ -193,6 +197,7 @@ private:
 
 	void handlePressForChatPreview(PeerId id, Fn<void(bool)> callback);
 	void updateControlsGeometry();
+	void applySearchQuery();
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -231,6 +236,9 @@ private:
 	const std::unique_ptr<ObjectList> _popularApps;
 
 	base::flat_map<Key, MediaList> _mediaLists;
+	rpl::event_stream<> _clearSearchQueryRequests;
+	QString _searchQuery;
+	base::Timer _searchQueryTimer;
 
 	Ui::Animations::Simple _shownAnimation;
 	Fn<void()> _showFinished;

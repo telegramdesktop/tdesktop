@@ -92,6 +92,10 @@ rpl::producer<QString> SearchFieldController::queryChanges() const {
 	return _query.changes();
 }
 
+void SearchFieldController::setQuery(const QString &query) {
+	_query = query;
+}
+
 base::unique_qptr<Ui::InputField> SearchFieldController::createField(
 		QWidget *parent,
 		const style::InputField &st) {

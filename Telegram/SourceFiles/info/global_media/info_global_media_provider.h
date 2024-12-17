@@ -126,6 +126,13 @@ private:
 		GlobalMediaSlice slice;
 		bool notEnough = false;
 	};
+	struct List {
+		std::vector<Data::MessagePosition> list;
+		Data::MessagePosition offsetPosition;
+		int32 offsetRate = 0;
+		int fullCount = 0;
+		bool loaded = false;
+	};
 
 	bool sectionHasFloatingHeader() override;
 	QString sectionTitle(not_null<const BaseLayout*> item) override;
@@ -154,7 +161,7 @@ private:
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void markLayoutsStale();
 	void clearStaleLayouts();
-	void applyListQuery(const QString &query);
+	[[nodiscard]] List *currentList();
 	[[nodiscard]] FillResult fillRequest(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -174,11 +181,7 @@ private:
 	rpl::event_stream<> _refreshed;
 
 	QString _totalListQuery;
-	std::vector<Data::MessagePosition> _totalList;
-	Data::MessagePosition _totalOffsetPosition;
-	int32 _totalOffsetRate = 0;
-	int _totalFullCount = 0;
-	bool _totalLoaded = false;
+	base::flat_map<QString, List> _totalLists;
 
 	rpl::lifetime _lifetime;
 	rpl::lifetime _viewerLifetime;

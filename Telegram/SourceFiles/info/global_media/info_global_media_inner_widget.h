@@ -21,16 +21,17 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Info {
-
 class Controller;
 struct SelectedItems;
 enum class SelectionAction;
+} // namespace Info
 
-namespace Media {
+namespace Info::Media {
 class ListWidget;
-} // namespace Media
+class EmptyWidget;
+} // namespace Info::Media
 
-namespace GlobalMedia {
+namespace Info::GlobalMedia {
 
 class Memento;
 class EmptyWidget;
@@ -71,7 +72,7 @@ private:
 	const not_null<Controller*> _controller;
 
 	object_ptr<Media::ListWidget> _list = { nullptr };
-	object_ptr<EmptyWidget> _empty;
+	object_ptr<Media::EmptyWidget> _empty;
 
 	bool _inResize = false;
 
@@ -81,5 +82,4 @@ private:
 
 };
 
-} // namespace GlobalMedia
-} // namespace Info
+} // namespace Info::GlobalMedia

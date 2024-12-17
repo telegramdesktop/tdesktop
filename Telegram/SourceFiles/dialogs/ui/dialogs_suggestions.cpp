@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/delayed_activation.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
+#include "ui/search_field_controller.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/ui_utility.h"
 #include "window/window_separate_id.h"
@@ -66,6 +67,7 @@ constexpr auto kCollapsedChannelsCount = 5;
 constexpr auto kProbablyMaxChannels = 1000;
 constexpr auto kCollapsedAppsCount = 5;
 constexpr auto kProbablyMaxApps = 100;
+constexpr auto kSearchQueryDelay = crl::time(900);
 
 class RecentRow final : public PeerListRow {
 public:
@@ -1335,7 +1337,8 @@ Suggestions::Suggestions(
 , _appsContent(
 	_appsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
 , _recentApps(setupRecentApps())
-, _popularApps(setupPopularApps()) {
+, _popularApps(setupPopularApps())
+, _searchQueryTimer([=] { applySearchQuery(); }) {
 	setupTabs();
 	setupChats();
 	setupChannels();
@@ -1754,6 +1757,43 @@ void Suggestions::chooseRow() {
 	}
 }
 
+bool Suggestions::consumeSearchQuery(const QString &query) {
+	using Type = MediaType;
+	const auto key = _key.current();
+	const auto tab = key.tab;
+	const auto type = (key.tab == Tab::Media) ? key.mediaType : Type::kCount;
+	if (tab != Tab::Downloads
+		&& type != Type::File
+		&& type != Type::Link
+		&& type != Type::MusicFile) {
+		return false;
+	} else if (_searchQuery == query) {
+		return false;
+	}
+	_searchQuery = query;
+	_persist = !_searchQuery.isEmpty();
+	if (query.isEmpty() || tab == Tab::Downloads) {
+		_searchQueryTimer.cancel();
+		applySearchQuery();
+	} else {
+		_searchQueryTimer.callOnce(kSearchQueryDelay);
+	}
+	return true;
+}
+
+void Suggestions::applySearchQuery() {
+	const auto key = _key.current();
+	const auto controller = _mediaLists[key].wrap->controller();
+	const auto search = controller->searchFieldController();
+	if (search->query() != _searchQuery) {
+		search->setQuery(_searchQuery);
+	}
+}
+
+rpl::producer<> Suggestions::clearSearchQueryRequests() const {
+	return _clearSearchQueryRequests.events();
+}
+
 Data::Thread *Suggestions::updateFromParentDrag(QPoint globalPosition) {
 	switch (_key.current().tab) {
 	case Tab::Chats: return updateFromChatsDrag(globalPosition);
@@ -1825,8 +1865,10 @@ void Suggestions::switchTab(Key key) {
 	if (was == key) {
 		return;
 	}
+	consumeSearchQuery(QString());
 	_key = key;
 	_persist = false;
+	_clearSearchQueryRequests.fire({});
 	if (_tabs->isHidden()) {
 		return;
 	}
