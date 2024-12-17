@@ -95,9 +95,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 	return result;
 }
 
-Widget::Widget(
-	QWidget *parent,
-	not_null<Controller*> controller)
+Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,

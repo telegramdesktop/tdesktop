@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_memento.h"
 
+#include "info/global_media/info_global_media_widget.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/members/info_members_widget.h"
@@ -164,6 +165,10 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		return std::make_shared<Media::Memento>(
 			peer,
 			migratedPeerId,
+			section.mediaType());
+	case Section::Type::GlobalMedia:
+		return std::make_shared<GlobalMedia::Memento>(
+			peer->asUser(),
 			section.mediaType());
 	case Section::Type::CommonGroups:
 		return std::make_shared<CommonGroups::Memento>(peer->asUser());

@@ -5832,6 +5832,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_recent_chats" = "Chats";
 "lng_recent_channels" = "Channels";
 "lng_recent_apps" = "Apps";
+"lng_all_photos" = "Photos";
+"lng_all_videos" = "Videos";
+"lng_all_downloads" = "Downloads";
+"lng_all_links" = "Links";
+"lng_all_files" = "Files";
+"lng_all_music" = "Music";
+"lng_all_voice" = "Voice";
 "lng_channels_none_title" = "No channels yet...";
 "lng_channels_none_about" = "You are not currently subscribed to any channels.";
 "lng_channels_your_title" = "Channels you joined";

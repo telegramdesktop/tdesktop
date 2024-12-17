@@ -57,6 +57,10 @@ enum class Type : uchar;
 struct Tag;
 } // namespace Info::BotStarRef
 
+namespace Info::GlobalMedia {
+struct Tag;
+} // namespace Info::GlobalMedia
+
 namespace Info {
 
 class ContentMemento;
@@ -198,6 +202,7 @@ public:
 	explicit ContentMemento(Stories::Tag stories);
 	explicit ContentMemento(Statistics::Tag statistics);
 	explicit ContentMemento(BotStarRef::Tag starref);
+	explicit ContentMemento(GlobalMedia::Tag global);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
 	, _pollReactionsContextId(contextId) {
@@ -254,6 +259,9 @@ public:
 	FullMsgId reactionsContextId() const {
 		return _reactionsWhoReadIds ? _pollReactionsContextId : FullMsgId();
 	}
+	UserData *globalMediaSelf() const {
+		return _globalMediaSelf;
+	}
 	Key key() const;
 
 	virtual Section section() const = 0;
@@ -299,6 +307,7 @@ private:
 	std::shared_ptr<Api::WhoReadList> _reactionsWhoReadIds;
 	Data::ReactionId _reactionsSelected;
 	const FullMsgId _pollReactionsContextId;
+	UserData * const _globalMediaSelf = nullptr;
 
 	int _scrollTop = 0;
 	QString _searchFieldQuery;

@@ -42,7 +42,11 @@ ContentWidget::ContentWidget(
 	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _scroll(this) {
+, _scroll(
+	this,
+	(_controller->wrap() == Wrap::Search
+		? st::infoSharedMediaScroll
+		: st::defaultScrollArea)) {
 	using namespace rpl::mappers;
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -394,6 +398,8 @@ Key ContentMemento::key() const {
 		return BotStarRef::Tag(starref, starrefType());
 	} else if (const auto who = reactionsWhoReadIds()) {
 		return Key(who, _reactionsSelected, _pollReactionsContextId);
+	} else if (const auto another = globalMediaSelf()) {
+		return GlobalMedia::Tag{ another };
 	} else {
 		return Downloads::Tag();
 	}
@@ -437,6 +443,10 @@ ContentMemento::ContentMemento(Statistics::Tag statistics)
 ContentMemento::ContentMemento(BotStarRef::Tag starref)
 : _starrefPeer(starref.peer)
 , _starrefType(starref.type) {
+}
+
+ContentMemento::ContentMemento(GlobalMedia::Tag global)
+: _globalMediaSelf(global.self) {
 }
 
 ContentMemento::ContentMemento(

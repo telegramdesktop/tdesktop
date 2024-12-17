@@ -218,7 +218,8 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 		: _controller->section().type();
 	const auto firstSectionMediaType = [&] {
 		if (firstSectionType == Section::Type::Profile
-			|| firstSectionType == Section::Type::SavedSublists) {
+			|| firstSectionType == Section::Type::SavedSublists
+			|| firstSectionType == Section::Type::Downloads) {
 			return Section::MediaType::kCount;
 		}
 		return hasStackHistory()
@@ -309,7 +310,7 @@ void WrapWidget::forceContentRepaint() {
 }
 
 void WrapWidget::setupTop() {
-	if (HasCustomTopBar(_controller.get())) {
+	if (HasCustomTopBar(_controller.get()) || wrap() == Wrap::Search) {
 		_topBar.destroy();
 		return;
 	}

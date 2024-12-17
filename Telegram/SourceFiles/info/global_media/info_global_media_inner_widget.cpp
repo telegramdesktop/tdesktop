@@ -5,9 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/downloads/info_downloads_inner_widget.h"
+#include "info/global_media/info_global_media_inner_widget.h"
 
-#include "info/downloads/info_downloads_widget.h"
+#include "info/global_media/info_global_media_provider.h"
+#include "info/global_media/info_global_media_widget.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/info_controller.h"
 #include "ui/widgets/labels.h"
@@ -15,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 
-namespace Info::Downloads {
+namespace Info::GlobalMedia {
 
 class EmptyWidget : public Ui::RpWidget {
 public:
@@ -93,6 +94,38 @@ InnerWidget::InnerWidget(
 	_list = setupList();
 }
 
+object_ptr<Media::ListWidget> InnerWidget::setupList() {
+	auto result = object_ptr<Media::ListWidget>(this, _controller);
+
+	// Setup list widget connections
+	result->heightValue(
+	) | rpl::start_with_next([this] {
+		refreshHeight();
+	}, result->lifetime());
+
+	using namespace rpl::mappers;
+	result->scrollToRequests(
+	) | rpl::map([widget = result.data()](int to) {
+		return Ui::ScrollToRequest{
+			widget->y() + to,
+			-1
+		};
+	}) | rpl::start_to_stream(
+		_scrollToRequests,
+		result->lifetime());
+
+	_controller->searchQueryValue(
+	) | rpl::start_with_next([this](const QString &query) {
+		_empty->setSearchQuery(query);
+	}, result->lifetime());
+
+	return result;
+}
+
+Storage::SharedMediaType InnerWidget::type() const {
+	return _controller->section().mediaType();
+}
+
 void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
@@ -100,36 +133,12 @@ void InnerWidget::visibleTopBottomUpdated(
 }
 
 bool InnerWidget::showInternal(not_null<Memento*> memento) {
-	if (memento->section().type() == Section::Type::Downloads) {
+	if (memento->section().type() == Section::Type::GlobalMedia
+		&& memento->section().mediaType() == type()) {
 		restoreState(memento);
 		return true;
 	}
 	return false;
-}
-
-object_ptr<Media::ListWidget> InnerWidget::setupList() {
-	auto result = object_ptr<Media::ListWidget>(this, _controller);
-	result->heightValue(
-	) | rpl::start_with_next(
-		[this] { refreshHeight(); },
-		result->lifetime());
-	using namespace rpl::mappers;
-	result->scrollToRequests(
-	) | rpl::map([widget = result.data()](int to) {
-		return Ui::ScrollToRequest {
-			widget->y() + to,
-			-1
-		};
-	}) | rpl::start_to_stream(
-		_scrollToRequests,
-		result->lifetime());
-	_selectedLists.fire(result->selectedListValue());
-	_listTops.fire(result->topValue());
-	_controller->searchQueryValue(
-	) | rpl::start_with_next([this](const QString &query) {
-		_empty->setSearchQuery(query);
-	}, result->lifetime());
-	return result;
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
@@ -200,4 +209,4 @@ rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 	return _scrollToRequests.events();
 }
 
-} // namespace Info::Downloads
+} // namespace Info::GlobalMedia

@@ -3219,6 +3219,31 @@ void ApiWrap::sharedMediaDone(
 	}
 }
 
+mtpRequestId ApiWrap::requestGlobalMedia(
+		Storage::SharedMediaType type,
+		const QString &query,
+		int32 offsetRate,
+		Data::MessagePosition offsetPosition,
+		Fn<void(Api::GlobalMediaResult)> done) {
+	auto prepared = Api::PrepareGlobalMediaRequest(
+		_session,
+		offsetRate,
+		offsetPosition,
+		type,
+		query);
+	if (!prepared) {
+		done({});
+		return 0;
+	}
+	return request(
+		std::move(*prepared)
+	).done([=](const Api::SearchRequestResult &result) {
+		done(Api::ParseGlobalMediaResult(_session, result));
+	}).fail([=] {
+		done({});
+	}).send();
+}
+
 void ApiWrap::sendAction(const SendAction &action) {
 	if (!action.options.scheduled
 		&& !action.options.shortcutId

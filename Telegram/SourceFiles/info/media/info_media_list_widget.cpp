@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/media/info_media_list_widget.h"
 
+#include "info/global_media/info_global_media_provider.h"
 #include "info/media/info_media_common.h"
 #include "info/media/info_media_provider.h"
 #include "info/media/info_media_list_section.h"
@@ -95,6 +96,8 @@ struct ListWidget::DateBadge {
 		return std::make_unique<Downloads::Provider>(controller);
 	} else if (controller->storiesPeer()) {
 		return std::make_unique<Stories::Provider>(controller);
+	} else if (controller->section().type() == Section::Type::GlobalMedia) {
+		return std::make_unique<GlobalMedia::Provider>(controller);
 	}
 	return std::make_unique<Provider>(controller);
 }
@@ -185,7 +188,9 @@ void ListWidget::start() {
 	} else {
 		trackSession(&session());
 
-		_controller->mediaSourceQueryValue(
+		(_controller->key().isGlobalMedia()
+			? _controller->searchQueryValue()
+			: _controller->mediaSourceQueryValue()
 		) | rpl::start_with_next([this] {
 			restart();
 		}, lifetime());
@@ -614,7 +619,7 @@ auto ListWidget::findItemByItem(const HistoryItem *item)
 }
 
 auto ListWidget::findItemDetails(not_null<BaseLayout*> item)
--> FoundItem {
+ -> FoundItem {
 	const auto sectionIt = findSectionByItem(item->getItem());
 	Assert(sectionIt != _sections.end());
 	return foundItemInSection(sectionIt->findItemDetails(item), *sectionIt);
@@ -2066,7 +2071,7 @@ std::vector<ListSection>::iterator ListWidget::findSectionByItem(
 	if (_sections.size() < 2) {
 		return _sections.begin();
 	}
-	Assert(!_controller->isDownloads());
+	Assert(!_controller->isDownloads() && !_controller->isGlobalMedia());
 	return ranges::lower_bound(
 		_sections,
 		GetUniversalId(item),

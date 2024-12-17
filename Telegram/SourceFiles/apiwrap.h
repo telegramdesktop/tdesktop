@@ -59,6 +59,7 @@ class Show;
 namespace Api {
 
 struct SearchResult;
+struct GlobalMediaResult;
 
 class Updates;
 class Authorizations;
@@ -288,6 +289,12 @@ public:
 		Storage::SharedMediaType type,
 		MsgId messageId,
 		SliceType slice);
+	mtpRequestId requestGlobalMedia(
+		Storage::SharedMediaType type,
+		const QString &query,
+		int32 offsetRate,
+		Data::MessagePosition offsetPosition,
+		Fn<void(Api::GlobalMediaResult)> done);
 
 	void readFeaturedSetDelayed(uint64 setId);
 
@@ -509,6 +516,10 @@ private:
 		MsgId topicRootId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
+	void globalMediaDone(
+		SharedMediaType type,
+		FullMsgId messageId,
+		Api::GlobalMediaResult &&parsed);
 
 	void sendSharedContact(
 		const QString &phone,
@@ -671,6 +682,17 @@ private:
 			const HistoryRequest&) = default;
 	};
 	base::flat_set<HistoryRequest> _historyRequests;
+
+	struct GlobalMediaRequest {
+		SharedMediaType mediaType = {};
+		FullMsgId aroundId;
+		SliceType sliceType = {};
+
+		friend inline auto operator<=>(
+			const GlobalMediaRequest&,
+			const GlobalMediaRequest&) = default;
+	};
+	base::flat_set<GlobalMediaRequest> _globalMediaRequests;
 
 	std::unique_ptr<DialogsLoadState> _dialogsLoadState;
 	TimeId _dialogsLoadTill = 0;

@@ -23,10 +23,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "dialogs/ui/chat_search_empty.h"
 #include "history/history.h"
+#include "info/downloads/info_downloads_widget.h"
+#include "info/media/info_media_widget.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
+#include "info/info_wrap_widget.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "storage/storage_shared_media.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
@@ -1297,6 +1303,18 @@ Suggestions::Suggestions(
 , _tabs(
 	_tabsScroll->setOwnedWidget(
 		object_ptr<Ui::SettingsSlider>(this, st::dialogsSearchTabs)))
+, _tabKeys{
+	{ Tab::Chats },
+	{ Tab::Channels },
+	{ Tab::Apps },
+	{ Tab::Media, MediaType::Photo },
+	{ Tab::Media, MediaType::Video },
+	{ Tab::Downloads },
+	{ Tab::Media, MediaType::Link },
+	{ Tab::Media, MediaType::File },
+	{ Tab::Media, MediaType::MusicFile },
+	{ Tab::Media, MediaType::RoundVoiceFile },
+}
 , _chatsScroll(std::make_unique<Ui::ElasticScroll>(this))
 , _chatsContent(
 	_chatsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
@@ -1375,21 +1393,37 @@ void Suggestions::setupTabs() {
 		shadow->setGeometry(0, height - line, width, line);
 	}, shadow->lifetime());
 
-	shadow->showOn(_tabs->shownValue());
+	shadow->showOn(_tabsScroll->shownValue());
 
-	auto sections = std::vector<QString>{
-		tr::lng_recent_chats(tr::now),
-		tr::lng_recent_channels(tr::now),
-		tr::lng_recent_apps(tr::now),
+	const auto labels = base::flat_map<Key, QString>{
+		{ Key{ Tab::Chats }, tr::lng_recent_chats(tr::now) },
+		{ Key{ Tab::Channels }, tr::lng_recent_channels(tr::now) },
+		{ Key{ Tab::Apps }, tr::lng_recent_apps(tr::now) },
+		{ Key{ Tab::Media, MediaType::Photo }, tr::lng_all_photos(tr::now) },
+		{ Key{ Tab::Media, MediaType::Video }, tr::lng_all_videos(tr::now) },
+		{ Key{ Tab::Downloads }, tr::lng_all_downloads(tr::now) },
+		{ Key{ Tab::Media, MediaType::Link }, tr::lng_all_links(tr::now) },
+		{ Key{ Tab::Media, MediaType::File }, tr::lng_all_files(tr::now) },
+		{
+			Key{ Tab::Media, MediaType::MusicFile },
+			tr::lng_all_music(tr::now),
+		},
+		{
+			Key{ Tab::Media, MediaType::RoundVoiceFile },
+			tr::lng_all_voice(tr::now),
+		},
 	};
+	auto sections = std::vector<QString>();
+	for (const auto key : _tabKeys) {
+		const auto i = labels.find(key);
+		Assert(i != end(labels));
+		sections.push_back(i->second);
+	}
 	_tabs->setSections(sections);
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int section) {
-		switchTab(section == 2
-			? Tab::Apps
-			: section
-			? Tab::Channels
-			: Tab::Chats);
+		Assert(section >= 0 && section < _tabKeys.size());
+		switchTab(_tabKeys[section]);
 	}, _tabs->lifetime());
 }
 
@@ -1459,7 +1493,7 @@ void Suggestions::setupChats() {
 		_chatsScroll->viewportEvent(e);
 	}, _topPeers->lifetime());
 
-	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
+	_chatsScroll->setVisible(_key.current().tab == Tab::Chats);
 	_chatsScroll->setCustomTouchProcess(_recent->processTouch);
 }
 
@@ -1493,7 +1527,7 @@ void Suggestions::setupChannels() {
 			rpl::mappers::_1 + rpl::mappers::_2 == 0),
 		anim::type::instant);
 
-	_channelsScroll->setVisible(_tab.current() == Tab::Channels);
+	_channelsScroll->setVisible(_key.current().tab == Tab::Channels);
 	_channelsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
 		const auto myChannels = _myChannels->processTouch(e);
 		const auto recommendations = _recommendations->processTouch(e);
@@ -1510,7 +1544,7 @@ void Suggestions::setupApps() {
 		_popularApps->wrap->toggle(count > 0, anim::type::instant);
 	}, _popularApps->wrap->lifetime());
 
-	_appsScroll->setVisible(_tab.current() == Tab::Apps);
+	_appsScroll->setVisible(_key.current().tab == Tab::Apps);
 	_appsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
 		const auto recentApps = _recentApps->processTouch(e);
 		const auto popularApps = _popularApps->processTouch(e);
@@ -1519,12 +1553,11 @@ void Suggestions::setupApps() {
 }
 
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
-	switch (_tab.current()) {
+	switch (_key.current().tab) {
 	case Tab::Chats: selectJumpChats(direction, pageSize); return;
 	case Tab::Channels: selectJumpChannels(direction, pageSize); return;
 	case Tab::Apps: selectJumpApps(direction, pageSize); return;
 	}
-	Unexpected("Tab in Suggestions::selectJump.");
 }
 
 void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
@@ -1702,7 +1735,7 @@ void Suggestions::selectJumpApps(Qt::Key direction, int pageSize) {
 }
 
 void Suggestions::chooseRow() {
-	switch (_tab.current()) {
+	switch (_key.current().tab) {
 	case Tab::Chats:
 		if (!_topPeers->chooseRow()) {
 			_recent->choose();
@@ -1722,9 +1755,11 @@ void Suggestions::chooseRow() {
 }
 
 Data::Thread *Suggestions::updateFromParentDrag(QPoint globalPosition) {
-	return (_tab.current() == Tab::Chats)
-		? updateFromChatsDrag(globalPosition)
-		: updateFromChannelsDrag(globalPosition);
+	switch (_key.current().tab) {
+	case Tab::Chats: return updateFromChatsDrag(globalPosition);
+	case Tab::Channels: return updateFromChannelsDrag(globalPosition);
+	}
+	return nullptr;
 }
 
 Data::Thread *Suggestions::updateFromChatsDrag(QPoint globalPosition) {
@@ -1785,39 +1820,69 @@ void Suggestions::hide(anim::type animated, Fn<void()> finish) {
 	}
 }
 
-void Suggestions::switchTab(Tab tab) {
-	const auto was = _tab.current();
-	if (was == tab) {
+void Suggestions::switchTab(Key key) {
+	const auto was = _key.current();
+	if (was == key) {
 		return;
 	}
-	_tab = tab;
+	_key = key;
 	_persist = false;
 	if (_tabs->isHidden()) {
 		return;
 	}
-	startSlideAnimation(was, tab);
+	startSlideAnimation(was, key);
 }
 
-void Suggestions::startSlideAnimation(Tab was, Tab now) {
-	if (!_slideAnimation.animating()) {
-		_slideLeft = (was == Tab::Chats || now == Tab::Chats)
-			? Ui::GrabWidget(_chatsScroll.get())
-			: Ui::GrabWidget(_channelsScroll.get());
-		_slideLeftTop = (was == Tab::Chats || now == Tab::Chats)
-			? _chatsScroll->y()
-			: _channelsScroll->y();
-		_slideRight = (was == Tab::Apps || now == Tab::Apps)
-			? Ui::GrabWidget(_appsScroll.get())
-			: Ui::GrabWidget(_channelsScroll.get());
-		_slideRightTop = (was == Tab::Apps || now == Tab::Apps)
-			? _appsScroll->y()
-			: _channelsScroll->y();
-		_chatsScroll->hide();
-		_channelsScroll->hide();
-		_appsScroll->hide();
+void Suggestions::ensureContent(Key key) {
+	if (key.tab != Tab::Downloads && key.tab != Tab::Media) {
+		return;
 	}
-	const auto from = (now > was) ? 0. : 1.;
-	const auto to = (now > was) ? 1. : 0.;
+	auto &list = _mediaLists[key];
+	if (list.wrap) {
+		return;
+	}
+	const auto self = _controller->session().user();
+	const auto memento = (key.tab == Tab::Downloads)
+		? Info::Downloads::Make(self)
+		: std::make_shared<Info::Memento>(
+			self,
+			Info::Section(key.mediaType, Info::Section::Type::GlobalMedia));
+	list.wrap = Ui::CreateChild<Info::WrapWidget>(
+		this,
+		_controller,
+		Info::Wrap::Search,
+		memento.get());
+	list.wrap->show();
+	updateControlsGeometry();
+}
+
+void Suggestions::startSlideAnimation(Key was, Key now) {
+	ensureContent(now);
+	const auto wasIndex = ranges::find(_tabKeys, was);
+	const auto nowIndex = ranges::find(_tabKeys, now);
+	if (!_slideAnimation.animating()) {
+		const auto find = [&](Key key) -> not_null<QWidget*> {
+			switch (key.tab) {
+			case Tab::Chats: return _chatsScroll.get();
+			case Tab::Channels: return _channelsScroll.get();
+			case Tab::Apps: return _appsScroll.get();
+			}
+			return _mediaLists[key].wrap;
+		};
+		auto left = find(was);
+		auto right = find(now);
+		if (wasIndex > nowIndex) {
+			std::swap(left, right);
+		}
+		_slideLeft = Ui::GrabWidget(left);
+		_slideLeftTop = left->y();
+		_slideRight = Ui::GrabWidget(right);
+		_slideRightTop = right->y();
+		left->hide();
+		right->hide();
+	}
+	const auto from = (nowIndex > wasIndex) ? 0. : 1.;
+	const auto to = (nowIndex > wasIndex) ? 1. : 0.;
 	_slideAnimation.start([=] {
 		update();
 		if (!_slideAnimation.animating() && !_shownAnimation.animating()) {
@@ -1852,6 +1917,9 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 	_chatsScroll->hide();
 	_channelsScroll->hide();
 	_appsScroll->hide();
+	for (const auto &[key, list] : _mediaLists) {
+		list.wrap->hide();
+	}
 	_slideAnimation.stop();
 }
 
@@ -1864,10 +1932,13 @@ void Suggestions::finishShow() {
 	_cache = QPixmap();
 
 	_tabsScroll->show();
-	const auto tab = _tab.current();
-	_chatsScroll->setVisible(tab == Tab::Chats);
-	_channelsScroll->setVisible(tab == Tab::Channels);
-	_appsScroll->setVisible(tab == Tab::Apps);
+	const auto key = _key.current();
+	_chatsScroll->setVisible(key == Key{ Tab::Chats });
+	_channelsScroll->setVisible(key == Key{ Tab::Channels });
+	_appsScroll->setVisible(key == Key{ Tab::Apps });
+	for (const auto &[mediaKey, list] : _mediaLists) {
+		list.wrap->setVisible(key == mediaKey);
+	}
 }
 
 float64 Suggestions::shownOpacity() const {
@@ -1887,7 +1958,7 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(0, (opacity - 1.) * slide, _cache);
 	} else if (!_slideLeft.isNull()) {
 		const auto slide = st::topPeers.height + st::searchedBarHeight;
-		const auto right = (_tab.current() == Tab::Channels);
+		const auto right = (_key.current().tab == Tab::Channels);
 		const auto progress = _slideAnimation.value(right ? 1. : 0.);
 		p.setOpacity(1. - progress);
 		p.drawPixmap(
@@ -1903,20 +1974,39 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 }
 
 void Suggestions::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void Suggestions::updateControlsGeometry() {
 	const auto w = std::max(width(), st::columnMinimalWidthLeft);
 	_tabs->fitWidthToSections();
 
 	const auto tabs = _tabs->height();
 	_tabsScroll->setGeometry(0, 0, w, tabs);
 
-	_chatsScroll->setGeometry(0, tabs, w, height() - tabs);
+	const auto content = QRect(0, tabs, w, height() - tabs);
+
+	_chatsScroll->setGeometry(content);
 	_chatsContent->resizeToWidth(w);
 
-	_channelsScroll->setGeometry(0, tabs, w, height() - tabs);
+	_channelsScroll->setGeometry(content);
 	_channelsContent->resizeToWidth(w);
 
-	_appsScroll->setGeometry(0, tabs, w, height() - tabs);
+	_appsScroll->setGeometry(content);
 	_appsContent->resizeToWidth(w);
+
+	const auto expanding = false;
+	for (const auto &[key, list] : _mediaLists) {
+		const auto full = !list.wrap->scrollBottomSkip();
+		const auto additionalScroll = (full ? st::boxRadius : 0);
+		const auto height = content.height() - (full ? 0 : st::boxRadius);
+		const auto wrapGeometry = QRect{ 0, tabs, w, height};
+		list.wrap->updateGeometry(
+			wrapGeometry,
+			expanding,
+			additionalScroll,
+			content.height());
+	}
 }
 
 auto Suggestions::setupRecentPeers(RecentPeersList recentPeers)
@@ -2070,8 +2160,8 @@ auto Suggestions::setupRecommendations() -> std::unique_ptr<ObjectList> {
 		_persist = true;
 	}, list->lifetime());
 
-	_tab.value() | rpl::filter(
-		rpl::mappers::_1 == Tab::Channels
+	_key.value() | rpl::filter(
+		rpl::mappers::_1 == Key{ Tab::Channels }
 	) | rpl::start_with_next([=] {
 		controller->load();
 	}, list->lifetime());
@@ -2185,8 +2275,8 @@ auto Suggestions::setupPopularApps() -> std::unique_ptr<ObjectList> {
 		_persist = true;
 	}, list->lifetime());
 
-	_tab.value() | rpl::filter(
-		rpl::mappers::_1 == Tab::Apps
+	_key.value() | rpl::filter(
+		rpl::mappers::_1 == Key{ Tab::Apps }
 	) | rpl::start_with_next([=] {
 		controller->load();
 	}, list->lifetime());

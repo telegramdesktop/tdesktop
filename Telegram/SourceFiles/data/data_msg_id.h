@@ -223,4 +223,13 @@ struct hash<FullStoryId> {
 	}
 };
 
+template <>
+struct hash<FullMsgId> {
+	size_t operator()(FullMsgId value) const {
+		return QtPrivate::QHashCombine().operator()(
+			std::hash<BareId>()(value.peer.value),
+			value.msg.bare);
+	}
+};
+
 } // namespace std

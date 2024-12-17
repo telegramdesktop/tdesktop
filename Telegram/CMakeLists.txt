@@ -946,6 +946,12 @@ PRIVATE
     info/downloads/info_downloads_provider.h
     info/downloads/info_downloads_widget.cpp
     info/downloads/info_downloads_widget.h
+    info/global_media/info_global_media_widget.cpp
+    info/global_media/info_global_media_widget.h
+    info/global_media/info_global_media_inner_widget.cpp
+    info/global_media/info_global_media_inner_widget.h
+    info/global_media/info_global_media_provider.cpp
+    info/global_media/info_global_media_provider.h
     info/media/info_media_buttons.h
     info/media/info_media_common.cpp
     info/media/info_media_common.h

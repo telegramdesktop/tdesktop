@@ -26,6 +26,109 @@ constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 } // namespace
 
+MTPMessagesFilter PrepareSearchFilter(Storage::SharedMediaType type) {
+	using Type = Storage::SharedMediaType;
+	switch (type) {
+	case Type::Photo:
+		return MTP_inputMessagesFilterPhotos();
+	case Type::Video:
+		return MTP_inputMessagesFilterVideo();
+	case Type::PhotoVideo:
+		return MTP_inputMessagesFilterPhotoVideo();
+	case Type::MusicFile:
+		return MTP_inputMessagesFilterMusic();
+	case Type::File:
+		return MTP_inputMessagesFilterDocument();
+	case Type::VoiceFile:
+		return MTP_inputMessagesFilterVoice();
+	case Type::RoundVoiceFile:
+		return MTP_inputMessagesFilterRoundVoice();
+	case Type::RoundFile:
+		return MTP_inputMessagesFilterRoundVideo();
+	case Type::GIF:
+		return MTP_inputMessagesFilterGif();
+	case Type::Link:
+		return MTP_inputMessagesFilterUrl();
+	case Type::ChatPhoto:
+		return MTP_inputMessagesFilterChatPhotos();
+	case Type::Pinned:
+		return MTP_inputMessagesFilterPinned();
+	}
+	return MTP_inputMessagesFilterEmpty();
+}
+
+std::optional<GlobalMediaRequest> PrepareGlobalMediaRequest(
+		not_null<Main::Session*> session,
+		int32 offsetRate,
+		Data::MessagePosition offsetPosition,
+		Storage::SharedMediaType type,
+		const QString &query) {
+	const auto filter = PrepareSearchFilter(type);
+	if (query.isEmpty() && filter.type() == mtpc_inputMessagesFilterEmpty) {
+		return std::nullopt;
+	}
+
+	const auto minDate = 0;
+	const auto maxDate = 0;
+	const auto folderId = 0;
+	const auto limit = offsetPosition.fullId.peer
+		? kSharedMediaLimit
+		: kFirstSharedMediaLimit;
+	return MTPmessages_SearchGlobal(
+		MTP_flags(MTPmessages_SearchGlobal::Flag::f_folder_id), // No archive
+		MTP_int(folderId),
+		MTP_string(query),
+		filter,
+		MTP_int(minDate),
+		MTP_int(maxDate),
+		MTP_int(offsetRate),
+		(offsetPosition.fullId.peer
+			? session->data().peer(PeerId(offsetPosition.fullId.peer))->input
+			: MTP_inputPeerEmpty()),
+		MTP_int(offsetPosition.fullId.msg),
+		MTP_int(limit));
+}
+
+GlobalMediaResult ParseGlobalMediaResult(
+		not_null<Main::Session*> session,
+		const MTPmessages_Messages &data) {
+	auto result = GlobalMediaResult();
+
+	auto messages = (const QVector<MTPMessage>*)nullptr;
+	data.match([&](const MTPDmessages_messagesNotModified &) {
+	}, [&](const auto &data) {
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		messages = &data.vmessages().v;
+	});
+	data.match([&](const MTPDmessages_messagesNotModified &) {
+	}, [&](const MTPDmessages_messages &data) {
+		result.fullCount = data.vmessages().v.size();
+	}, [&](const MTPDmessages_messagesSlice &data) {
+		result.fullCount = data.vcount().v;
+		result.offsetRate = data.vnext_rate().value_or_empty();
+	}, [&](const MTPDmessages_channelMessages &data) {
+		result.fullCount = data.vcount().v;
+	});
+	data.match([&](const MTPDmessages_channelMessages &data) {
+		LOG(("API Error: received messages.channelMessages when "
+			"no channel was passed! (ParseSearchResult)"));
+	}, [](const auto &) {});
+
+	const auto addType = NewMessageType::Existing;
+	result.messageIds.reserve(messages->size());
+	for (const auto &message : *messages) {
+		const auto item = session->data().addNewMessage(
+			message,
+			MessageFlags(),
+			addType);
+		if (item) {
+			result.messageIds.push_back(item->position());
+		}
+	}
+	return result;
+}
+
 std::optional<SearchRequest> PrepareSearchRequest(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
@@ -33,36 +136,7 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		const QString &query,
 		MsgId messageId,
 		Data::LoadDirection direction) {
-	const auto filter = [&] {
-		using Type = Storage::SharedMediaType;
-		switch (type) {
-		case Type::Photo:
-			return MTP_inputMessagesFilterPhotos();
-		case Type::Video:
-			return MTP_inputMessagesFilterVideo();
-		case Type::PhotoVideo:
-			return MTP_inputMessagesFilterPhotoVideo();
-		case Type::MusicFile:
-			return MTP_inputMessagesFilterMusic();
-		case Type::File:
-			return MTP_inputMessagesFilterDocument();
-		case Type::VoiceFile:
-			return MTP_inputMessagesFilterVoice();
-		case Type::RoundVoiceFile:
-			return MTP_inputMessagesFilterRoundVoice();
-		case Type::RoundFile:
-			return MTP_inputMessagesFilterRoundVideo();
-		case Type::GIF:
-			return MTP_inputMessagesFilterGif();
-		case Type::Link:
-			return MTP_inputMessagesFilterUrl();
-		case Type::ChatPhoto:
-			return MTP_inputMessagesFilterChatPhotos();
-		case Type::Pinned:
-			return MTP_inputMessagesFilterPinned();
-		}
-		return MTP_inputMessagesFilterEmpty();
-	}();
+	const auto filter = PrepareSearchFilter(type);
 	if (query.isEmpty() && filter.type() == mtpc_inputMessagesFilterEmpty) {
 		return std::nullopt;
 	}

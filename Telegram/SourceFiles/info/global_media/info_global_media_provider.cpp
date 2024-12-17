@@ -5,45 +5,111 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/media/info_media_provider.h"
+#include "info/global_media/info_global_media_provider.h"
 
+#include "apiwrap.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
-#include "layout/layout_selection.h"
-#include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "history/history.h"
+#include "ui/text/format_song_document_name.h"
+#include "ui/ui_utility.h"
+#include "data/data_document.h"
+#include "data/data_media_types.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
+#include "main/main_account.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "data/data_session.h"
-#include "data/data_chat.h"
-#include "data/data_channel.h"
-#include "data/data_forum_topic.h"
-#include "data/data_user.h"
-#include "data/data_peer_values.h"
-#include "data/data_document.h"
-#include "styles/style_info.h"
+#include "history/history.h"
+#include "core/application.h"
+#include "storage/storage_shared_media.h"
+#include "layout/layout_selection.h"
 #include "styles/style_overview.h"
 
-namespace Info::Media {
+namespace Info::GlobalMedia {
 namespace {
 
+constexpr auto kPerPage = 50;
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
 
 } // namespace
 
+GlobalMediaSlice::GlobalMediaSlice(
+	Key key,
+	std::vector<Data::MessagePosition> items,
+	std::optional<int> fullCount,
+	int skippedAfter)
+: _key(key)
+, _items(std::move(items))
+, _fullCount(fullCount)
+, _skippedAfter(skippedAfter) {
+}
+
+std::optional<int> GlobalMediaSlice::fullCount() const {
+	return _fullCount;
+}
+
+std::optional<int> GlobalMediaSlice::skippedBefore() const {
+	return _fullCount
+		? int(*_fullCount - _skippedAfter - _items.size())
+		: std::optional<int>();
+}
+
+std::optional<int> GlobalMediaSlice::skippedAfter() const {
+	return _skippedAfter;
+}
+
+std::optional<int> GlobalMediaSlice::indexOf(Value position) const {
+	const auto it = ranges::find(_items, position);
+	return (it != end(_items))
+		? std::make_optional(int(it - begin(_items)))
+		: std::nullopt;
+}
+
+int GlobalMediaSlice::size() const {
+	return _items.size();
+}
+
+GlobalMediaSlice::Value GlobalMediaSlice::operator[](int index) const {
+	Expects(index >= 0 && index < size());
+
+	return _items[index];
+}
+
+std::optional<int> GlobalMediaSlice::distance(
+		const Key &a,
+		const Key &b) const {
+	const auto i = indexOf(a.aroundId);
+	const auto j = indexOf(b.aroundId);
+	return (i && j) ? std::make_optional(*j - *i) : std::nullopt;
+}
+
+std::optional<GlobalMediaSlice::Value> GlobalMediaSlice::nearest(
+		Value position) const {
+	if (_items.empty()) {
+		return std::nullopt;
+	}
+
+	const auto it = ranges::lower_bound(
+		_items,
+		position,
+		std::greater<>{});
+
+	if (it == end(_items)) {
+		return _items.back();
+	} else if (it == begin(_items)) {
+		return _items.front();
+	}
+	return *it;
+}
+
 Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
-, _peer(_controller->key().peer())
-, _topicRootId(_controller->key().topic()
-	? _controller->key().topic()->rootId()
-	: 0)
-, _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
-, _slice(sliceKey(_universalAroundId)) {
+, _slice(sliceKey(_aroundId)) {
 	_controller->session().data().itemRemoved(
 	) | rpl::start_with_next([this](auto item) {
 		itemRemoved(item);
@@ -57,50 +123,16 @@ Provider::Provider(not_null<AbstractController*> controller)
 	}, _lifetime);
 }
 
-Type Provider::type() {
+Provider::Type Provider::type() {
 	return _type;
 }
 
 bool Provider::hasSelectRestriction() {
-	if (_peer->allowsForwarding()) {
-		return false;
-	} else if (const auto chat = _peer->asChat()) {
-		return !chat->canDeleteMessages();
-	} else if (const auto channel = _peer->asChannel()) {
-		return !channel->canDeleteMessages();
-	}
 	return true;
 }
 
 rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
-	if (_peer->isUser()) {
-		return rpl::never<bool>();
-	}
-	const auto chat = _peer->asChat();
-	const auto channel = _peer->asChannel();
-	auto noForwards = chat
-		? Data::PeerFlagValue(chat, ChatDataFlag::NoForwards)
-		: Data::PeerFlagValue(
-			channel,
-			ChannelDataFlag::NoForwards
-		) | rpl::type_erased();
-
-	auto rights = chat
-		? chat->adminRightsValue()
-		: channel->adminRightsValue();
-	auto canDelete = std::move(
-		rights
-	) | rpl::map([=] {
-		return chat
-			? chat->canDeleteMessages()
-			: channel->canDeleteMessages();
-	});
-	return rpl::combine(
-		std::move(noForwards),
-		std::move(canDelete)
-	) | rpl::map([=] {
-		return hasSelectRestriction();
-	}) | rpl::distinct_until_changed() | rpl::skip(1);
+	return rpl::never<bool>();
 }
 
 bool Provider::sectionHasFloatingHeader() {
@@ -120,55 +152,17 @@ bool Provider::sectionHasFloatingHeader() {
 }
 
 QString Provider::sectionTitle(not_null<const BaseLayout*> item) {
-	switch (_type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile:
-	case Type::RoundVoiceFile:
-	case Type::File:
-		return langMonthFull(item->dateTime().date());
-
-	case Type::Link:
-		return langDayOfMonthFull(item->dateTime().date());
-
-	case Type::MusicFile:
-		return QString();
-	}
-	Unexpected("Type in ListSection::setHeader()");
+	return QString();
 }
 
 bool Provider::sectionItemBelongsHere(
 		not_null<const BaseLayout*> item,
 		not_null<const BaseLayout*> previous) {
-	const auto date = item->dateTime().date();
-	const auto sectionDate = previous->dateTime().date();
-
-	switch (_type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile:
-	case Type::RoundVoiceFile:
-	case Type::File:
-		return date.year() == sectionDate.year()
-			&& date.month() == sectionDate.month();
-
-	case Type::Link:
-		return date == sectionDate;
-
-	case Type::MusicFile:
-		return true;
-	}
-	Unexpected("Type in ListSection::belongsHere()");
+	return true;
 }
 
 bool Provider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
-	return isPossiblyMyPeerId(item->history()->peer->id);
-}
-
-bool Provider::isPossiblyMyPeerId(PeerId peerId) const {
-	return (peerId == _peer->id) || (_migrated && peerId == _migrated->id);
+	return item->media() != nullptr;
 }
 
 std::optional<int> Provider::fullCount() {
@@ -177,9 +171,9 @@ std::optional<int> Provider::fullCount() {
 
 void Provider::restart() {
 	_layouts.clear();
-	_universalAroundId = kDefaultAroundId;
+	_aroundId = Data::MaxMessagePosition;
 	_idsLimit = kMinimalIdsLimit;
-	_slice = SparseIdsMergedSlice(sliceKey(_universalAroundId));
+	_slice = GlobalMediaSlice(sliceKey(_aroundId));
 	refreshViewer();
 }
 
@@ -192,7 +186,7 @@ void Provider::checkPreload(
 	const auto visibleWidth = viewport.width();
 	const auto visibleHeight = viewport.height();
 	const auto preloadedHeight = kPreloadedScreensCountFull * visibleHeight;
-	const auto minItemHeight = MinItemHeight(_type, visibleWidth);
+	const auto minItemHeight = Media::MinItemHeight(_type, visibleWidth);
 	const auto preloadedCount = preloadedHeight / minItemHeight;
 	const auto preloadIdsLimitMin = (preloadedCount / 2) + 1;
 	const auto preloadIdsLimit = preloadIdsLimitMin
@@ -203,25 +197,25 @@ void Provider::checkPreload(
 	const auto bottomLoaded = before && (*before == 0);
 
 	const auto minScreenDelta = kPreloadedScreensCount
-		- kPreloadIfLessThanScreens;
+		- Media::kPreloadIfLessThanScreens;
 	const auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
 		/ minItemHeight;
 	const auto preloadAroundItem = [&](not_null<BaseLayout*> layout) {
 		auto preloadRequired = false;
-		auto universalId = GetUniversalId(layout);
+		auto aroundId = layout->getItem()->position();
 		if (!preloadRequired) {
 			preloadRequired = (_idsLimit < preloadIdsLimitMin);
 		}
 		if (!preloadRequired) {
 			auto delta = _slice.distance(
-				sliceKey(_universalAroundId),
-				sliceKey(universalId));
+				sliceKey(_aroundId),
+				sliceKey(aroundId));
 			Assert(delta != std::nullopt);
 			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
 		}
 		if (preloadRequired) {
 			_idsLimit = preloadIdsLimit;
-			_universalAroundId = universalId;
+			_aroundId = aroundId;
 			refreshViewer();
 		}
 	};
@@ -233,21 +227,133 @@ void Provider::checkPreload(
 	}
 }
 
+void Provider::applyListQuery(const QString &query) {
+	if (_totalListQuery == query) {
+		return;
+	}
+	_totalListQuery = query;
+	_totalList.clear();
+	_totalOffsetPosition = Data::MessagePosition();
+	_totalOffsetRate = 0;
+	_totalFullCount = 0;
+	_totalLoaded = false;
+}
+
+rpl::producer<GlobalMediaSlice> Provider::source(
+		Type type,
+		Data::MessagePosition aroundId,
+		QString query,
+		int limitBefore,
+		int limitAfter) {
+	Expects(_type == type);
+
+	applyListQuery(query);
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto session = &_controller->session();
+
+		struct State {
+			State(not_null<Main::Session*> session) : session(session) {
+			}
+			~State() {
+				session->api().request(requestId).cancel();
+			}
+
+			const not_null<Main::Session*> session;
+			Fn<void()> pushAndLoadMore;
+			mtpRequestId requestId = 0;
+		};
+		const auto state = lifetime.make_state<State>(session);
+
+		state->pushAndLoadMore = [=] {
+			auto result = fillRequest(aroundId, limitBefore, limitAfter);
+			consumer.put_next(std::move(result.slice));
+			if (!_totalLoaded && result.notEnough) {
+				state->requestId = requestMore(state->pushAndLoadMore);
+			}
+		};
+		state->pushAndLoadMore();
+
+		return lifetime;
+	};
+}
+
+mtpRequestId Provider::requestMore(Fn<void()> loaded) {
+	const auto done = [=](const Api::GlobalMediaResult &result) {
+		if (result.messageIds.empty()) {
+			_totalLoaded = true;
+			_totalFullCount = _totalList.size();
+		} else {
+			_totalList.reserve(_totalList.size() + result.messageIds.size());
+			_totalFullCount = result.fullCount;
+			for (const auto &position : result.messageIds) {
+				_seenIds.emplace(position.fullId);
+				_totalOffsetPosition = position;
+				_totalList.push_back(position);
+			}
+		}
+		if (!result.offsetRate) {
+			_totalLoaded = true;
+		} else {
+			_totalOffsetRate = result.offsetRate;
+		}
+		loaded();
+	};
+	return _controller->session().api().requestGlobalMedia(
+		_type,
+		_totalListQuery,
+		_totalOffsetRate,
+		_totalOffsetPosition,
+		done);
+}
+
+Provider::FillResult Provider::fillRequest(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter) {
+	const auto i = ranges::lower_bound(
+		_totalList,
+		aroundId,
+		std::greater<>());
+	const auto hasAfter = int(i - begin(_totalList));
+	const auto hasBefore = int(end(_totalList) - i);
+	const auto takeAfter = std::min(limitAfter, hasAfter);
+	const auto takeBefore = std::min(limitBefore, hasBefore);
+	auto list = std::vector<Data::MessagePosition>{
+		i - takeAfter,
+		i + takeBefore,
+	};
+	return FillResult{
+		.slice = GlobalMediaSlice(
+			GlobalMediaKey{ aroundId },
+			std::move(list),
+			((!_totalList.empty() || _totalLoaded)
+				? _totalFullCount
+				: std::optional<int>()),
+			hasAfter - takeAfter),
+		.notEnough = (takeBefore < limitBefore),
+	};
+}
+
 void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
-	const auto idForViewer = sliceKey(_universalAroundId).universalId;
-	_controller->mediaSource(
-		idForViewer,
-		_idsLimit,
-		_idsLimit
-	) | rpl::start_with_next([=](SparseIdsMergedSlice &&slice) {
+	_controller->searchQueryValue(
+	) | rpl::map([=](QString query) {
+		return source(
+			_type,
+			sliceKey(_aroundId).aroundId,
+			query,
+			_idsLimit,
+			_idsLimit);
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](GlobalMediaSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;
 		}
 		_slice = std::move(slice);
-		if (auto nearest = _slice.nearest(idForViewer)) {
-			_universalAroundId = GetUniversalId(*nearest);
+		if (auto nearest = _slice.nearest(_aroundId)) {
+			_aroundId = *nearest;
 		}
 		_refreshed.fire({});
 	}, _viewerLifetime);
@@ -257,28 +363,22 @@ rpl::producer<> Provider::refreshed() {
 	return _refreshed.events();
 }
 
-std::vector<ListSection> Provider::fillSections(
+std::vector<Media::ListSection> Provider::fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) {
 	markLayoutsStale();
 	const auto guard = gsl::finally([&] { clearStaleLayouts(); });
 
-	auto result = std::vector<ListSection>();
-	auto section = ListSection(_type, sectionDelegate());
-	auto count = _slice.size();
-	for (auto i = count; i != 0;) {
-		auto universalId = GetUniversalId(_slice[--i]);
-		if (auto layout = getLayout(universalId, delegate)) {
-			if (!section.addItem(layout)) {
-				section.finishSection();
-				result.push_back(std::move(section));
-				section = ListSection(_type, sectionDelegate());
-				section.addItem(layout);
-			}
+	auto result = std::vector<Media::ListSection>();
+	result.emplace_back(_type, sectionDelegate());
+	auto &section = result.back();
+	for (auto i = 0, count = int(_slice.size()); i != count; ++i) {
+		auto position = _slice[i];
+		if (auto layout = getLayout(position.fullId, delegate)) {
+			section.addItem(layout);
 		}
 	}
-	if (!section.empty()) {
-		section.finishSection();
-		result.push_back(std::move(section));
+	if (section.empty()) {
+		result.pop_back();
 	}
 	return result;
 }
@@ -300,72 +400,51 @@ void Provider::clearStaleLayouts() {
 	}
 }
 
-rpl::producer<not_null<BaseLayout*>> Provider::layoutRemoved() {
+rpl::producer<not_null<Media::BaseLayout*>> Provider::layoutRemoved() {
 	return _layoutRemoved.events();
 }
 
-BaseLayout *Provider::lookupLayout(
+Media::BaseLayout *Provider::lookupLayout(
 		const HistoryItem *item) {
-	const auto i = _layouts.find(GetUniversalId(item));
+	const auto i = _layouts.find(item ? item->fullId() : FullMsgId());
 	return (i != _layouts.end()) ? i->second.item.get() : nullptr;
 }
 
 bool Provider::isMyItem(not_null<const HistoryItem*> item) {
-	const auto peer = item->history()->peer;
-	return (_peer == peer) || (_migrated == peer);
+	return _seenIds.contains(item->fullId());
 }
 
 bool Provider::isAfter(
 		not_null<const HistoryItem*> a,
 		not_null<const HistoryItem*> b) {
-	return (GetUniversalId(a) < GetUniversalId(b));
+	return (a->fullId() < b->fullId());
 }
 
 void Provider::setSearchQuery(QString query) {
 	Unexpected("Media::Provider::setSearchQuery.");
 }
 
-SparseIdsMergedSlice::Key Provider::sliceKey(
-		UniversalMsgId universalId) const {
-	using Key = SparseIdsMergedSlice::Key;
-	if (!_topicRootId && _migrated) {
-		return Key(_peer->id, _topicRootId, _migrated->id, universalId);
-	}
-	if (universalId < 0) {
-		// Convert back to plain id for non-migrated histories.
-		universalId = universalId + ServerMaxMsgId;
-	}
-	return Key(_peer->id, _topicRootId, 0, universalId);
+GlobalMediaKey Provider::sliceKey(Data::MessagePosition aroundId) const {
+	return GlobalMediaKey{ aroundId };
 }
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {
-	const auto id = GetUniversalId(item);
+	const auto id = item->fullId();
 	if (const auto i = _layouts.find(id); i != end(_layouts)) {
 		_layoutRemoved.fire(i->second.item.get());
 		_layouts.erase(i);
 	}
 }
 
-FullMsgId Provider::computeFullId(
-		UniversalMsgId universalId) const {
-	Expects(universalId != 0);
-
-	return (universalId > 0)
-		? FullMsgId(_peer->id, universalId)
-		: FullMsgId(
-			(_migrated ? _migrated : _peer.get())->id,
-			ServerMaxMsgId + universalId);
-}
-
-BaseLayout *Provider::getLayout(
-		UniversalMsgId universalId,
+Media::BaseLayout *Provider::getLayout(
+		FullMsgId itemId,
 		not_null<Overview::Layout::Delegate*> delegate) {
-	auto it = _layouts.find(universalId);
+	auto it = _layouts.find(itemId);
 	if (it == _layouts.end()) {
-		if (auto layout = createLayout(universalId, delegate, _type)) {
+		if (auto layout = createLayout(itemId, delegate, _type)) {
 			layout->initDimensions();
 			it = _layouts.emplace(
-				universalId,
+				itemId,
 				std::move(layout)).first;
 		} else {
 			return nullptr;
@@ -375,12 +454,11 @@ BaseLayout *Provider::getLayout(
 	return it->second.item.get();
 }
 
-std::unique_ptr<BaseLayout> Provider::createLayout(
-		UniversalMsgId universalId,
+std::unique_ptr<Media::BaseLayout> Provider::createLayout(
+		FullMsgId itemId,
 		not_null<Overview::Layout::Delegate*> delegate,
 		Type type) {
-	const auto item = _controller->session().data().message(
-		computeFullId(universalId));
+	const auto item = _controller->session().data().message(itemId);
 	if (!item) {
 		return nullptr;
 	}
@@ -454,10 +532,10 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	Unexpected("Type in ListWidget::createLayout()");
 }
 
-ListItemSelectionData Provider::computeSelectionData(
+Media::ListItemSelectionData Provider::computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) {
-	auto result = ListItemSelectionData(selection);
+	auto result = Media::ListItemSelectionData(selection);
 	result.canDelete = item->canDelete();
 	result.canForward = item->allowsForward();
 	return result;
@@ -476,11 +554,12 @@ QString Provider::showInFolderPath(
 }
 
 void Provider::applyDragSelection(
-		ListSelectedMap &selected,
+		Media::ListSelectedMap &selected,
 		not_null<const HistoryItem*> fromItem,
 		bool skipFrom,
 		not_null<const HistoryItem*> tillItem,
 		bool skipTill) {
+#if 0 // not used for now
 	const auto fromId = GetUniversalId(fromItem) - (skipFrom ? 1 : 0);
 	const auto tillId = GetUniversalId(tillItem) - (skipTill ? 0 : 1);
 	for (auto i = selected.begin(); i != selected.end();) {
@@ -501,17 +580,22 @@ void Provider::applyDragSelection(
 				computeSelectionData(item, FullSelection));
 		}
 	}
+#endif // todo global media
 }
 
 int64 Provider::scrollTopStatePosition(not_null<HistoryItem*> item) {
-	return GetUniversalId(item).bare;
+	return item->position().date;
 }
 
-HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
-	if (state.item && _slice.indexOf(state.item->fullId())) {
+HistoryItem *Provider::scrollTopStateItem(Media::ListScrollTopState state) {
+	const auto maybe = Data::MessagePosition{
+		.date = TimeId(state.position),
+	};
+	if (state.item && _slice.indexOf(state.item->position())) {
 		return state.item;
-	} else if (const auto id = _slice.nearest(state.position)) {
-		if (const auto item = _controller->session().data().message(*id)) {
+	} else if (const auto position = _slice.nearest(maybe)) {
+		const auto id = position->fullId;
+		if (const auto item = _controller->session().data().message(id)) {
 			return item;
 		}
 	}
@@ -519,10 +603,10 @@ HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
 }
 
 void Provider::saveState(
-		not_null<Memento*> memento,
-		ListScrollTopState scrollState) {
-	if (_universalAroundId != kDefaultAroundId && scrollState.item) {
-		memento->setAroundId(computeFullId(_universalAroundId));
+		not_null<Media::Memento*> memento,
+		Media::ListScrollTopState scrollState) {
+	if (_aroundId != Data::MaxMessagePosition && scrollState.item) {
+		memento->setAroundId(_aroundId.fullId);
 		memento->setIdsLimit(_idsLimit);
 		memento->setScrollTopItem(scrollState.item->globalId());
 		memento->setScrollTopItemPosition(scrollState.position);
@@ -531,21 +615,18 @@ void Provider::saveState(
 }
 
 void Provider::restoreState(
-		not_null<Memento*> memento,
-		Fn<void(ListScrollTopState)> restoreScrollState) {
+		not_null<Media::Memento*> memento,
+		Fn<void(Media::ListScrollTopState)> restoreScrollState) {
 	if (const auto limit = memento->idsLimit()) {
-		auto wasAroundId = memento->aroundId();
-		if (isPossiblyMyPeerId(wasAroundId.peer)) {
-			_idsLimit = limit;
-			_universalAroundId = GetUniversalId(wasAroundId);
-			restoreScrollState({
-				.position = memento->scrollTopItemPosition(),
-				.item = MessageByGlobalId(memento->scrollTopItem()),
-				.shift = memento->scrollTopShift(),
-			});
-			refreshViewer();
-		}
+		_idsLimit = limit;
+		_aroundId = { memento->aroundId() };
+		restoreScrollState({
+			.position = memento->scrollTopItemPosition(),
+			.item = MessageByGlobalId(memento->scrollTopItem()),
+			.shift = memento->scrollTopShift(),
+		});
+		refreshViewer();
 	}
 }
 
-} // namespace Info::Media
+} // namespace Info::GlobalMedia

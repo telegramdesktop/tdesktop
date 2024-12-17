@@ -49,6 +49,7 @@ enum class Wrap {
 	Layer,
 	Narrow,
 	Side,
+	Search,
 };
 
 struct SelectedItem {

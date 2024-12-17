@@ -5,11 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/downloads/info_downloads_widget.h"
+#include "info/global_media/info_global_media_widget.h"
 
-#include "info/downloads/info_downloads_inner_widget.h"
+#include "info/global_media/info_global_media_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/search_field_controller.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
@@ -23,22 +24,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
-namespace Info::Downloads {
+namespace Info::GlobalMedia {
 
 Memento::Memento(not_null<Controller*> controller)
-: ContentMemento(Tag{})
+: ContentMemento(Tag{ controller->session().user() })
 , _media(controller) {
 }
 
-Memento::Memento(not_null<UserData*> self)
-: ContentMemento(Tag{})
-, _media(self, 0, Media::Type::File) {
+Memento::Memento(not_null<UserData*> self, Storage::SharedMediaType type)
+: ContentMemento(Tag{ self })
+, _media(self, 0, type) {
 }
 
 Memento::~Memento() = default;
 
 Section Memento::section() const {
-	return Section(Section::Type::Downloads);
+	return Section(_media.type(), Section::Type::GlobalMedia);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -50,9 +51,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 	return result;
 }
 
-Widget::Widget(
-	QWidget *parent,
-	not_null<Controller*> controller)
+Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
@@ -65,8 +64,8 @@ Widget::Widget(
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
-	if (auto downloadsMemento = dynamic_cast<Memento*>(memento.get())) {
-		restoreState(downloadsMemento);
+	if (auto globalMediaMemento = dynamic_cast<Memento*>(memento.get())) {
+		restoreState(globalMediaMemento);
 		return true;
 	}
 	return false;
@@ -130,15 +129,16 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 }
 
 rpl::producer<QString> Widget::title() {
-	return tr::lng_downloads_section();
+	return tr::lng_profile_shared_media();
 }
 
-std::shared_ptr<Info::Memento> Make(not_null<UserData*> self) {
+std::shared_ptr<Info::Memento> Make(
+		not_null<UserData*> self,
+		Storage::SharedMediaType type) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
-			std::make_shared<Memento>(self)));
+			std::make_shared<Memento>(self, type)));
 }
 
-} // namespace Info::Downloads
-
+} // namespace Info::GlobalMedia
