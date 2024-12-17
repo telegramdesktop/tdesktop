@@ -103,7 +103,7 @@ Element *MousedElement/* = nullptr*/;
 		auto skip = 0;
 		if (const auto from = inside.indexOf(part, skip); from >= 0) {
 			if (!from || !inside[from - 1].isLetterOrNumber()) {
-				return from;
+				return int(from);
 			}
 			skip = from + 1;
 		}

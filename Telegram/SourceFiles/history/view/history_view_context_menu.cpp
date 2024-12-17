@@ -1478,7 +1478,6 @@ void AddWhenEditedForwardedActionHelper(
 			menu->addAction(Ui::WhenReadContextAction(
 				menu.get(),
 				Api::WhenOriginal(item->from(), forwarded->originalDate)));
-			forwarded->originalDate;
 		}
 	}
 }
