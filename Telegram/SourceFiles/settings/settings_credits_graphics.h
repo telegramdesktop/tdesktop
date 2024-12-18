@@ -179,5 +179,11 @@ void MaybeRequestBalanceIncrease(
 	SmallBalanceSource source,
 	Fn<void(SmallBalanceResult)> done);
 
-} // namespace Settings
+void AddMiniStars(
+	not_null<Ui::VerticalLayout*> content,
+	not_null<Ui::RpWidget*> widget,
+	int photoSize,
+	int boxWidth,
+	float64 heightRatio);
 
+} // namespace Settings

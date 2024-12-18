@@ -1325,32 +1325,12 @@ void GiftBox(
 	AddSkip(content);
 	AddSkip(content);
 
-	{
-		const auto widget = CreateChild<RpWidget>(content);
-		using ColoredMiniStars = Premium::ColoredMiniStars;
-		const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
-			widget,
-			false,
-			Premium::MiniStars::Type::BiStars);
-		stars->setColorOverride(Premium::CreditsIconGradientStops());
-		widget->resize(
-			st::boxWidth - stUser.photoSize,
-			stUser.photoSize * 2);
-		content->sizeValue(
-		) | rpl::start_with_next([=](const QSize &size) {
-			widget->moveToLeft((size.width() - widget->width()) / 2, 0);
-			const auto starsRect = Rect(widget->size());
-			stars->setPosition(starsRect.topLeft());
-			stars->setSize(starsRect.size());
-			widget->lower();
-		}, widget->lifetime());
-		widget->paintRequest(
-		) | rpl::start_with_next([=](const QRect &r) {
-			auto p = QPainter(widget);
-			p.fillRect(r, Qt::transparent);
-			stars->paint(p);
-		}, widget->lifetime());
-	}
+	Settings::AddMiniStars(
+		content,
+		Ui::CreateChild<Ui::RpWidget>(content),
+		stUser.photoSize,
+		box->width(),
+		2.);
 	AddSkip(content);
 	AddSkip(box->verticalLayout());
 

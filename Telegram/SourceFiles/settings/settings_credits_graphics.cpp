@@ -348,10 +348,12 @@ void AddViewMediaHandler(
 	}, thumb->lifetime());
 }
 
+} // namespace
+
 void AddMiniStars(
 		not_null<Ui::VerticalLayout*> content,
 		not_null<Ui::RpWidget*> widget,
-		const style::UserpicButton &stUser,
+		int photoSize,
 		int boxWidth,
 		float64 heightRatio) {
 	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
@@ -360,12 +362,10 @@ void AddMiniStars(
 		false,
 		Ui::Premium::MiniStars::Type::BiStars);
 	stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
-	widget->resize(
-		boxWidth - stUser.photoSize,
-		stUser.photoSize * heightRatio);
+	widget->resize(boxWidth - photoSize, photoSize * heightRatio);
 	content->sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
-		widget->moveToLeft(stUser.photoSize / 2, 0);
+		widget->moveToLeft(photoSize / 2, 0);
 		const auto starsRect = Rect(widget->size());
 		stars->setPosition(starsRect.topLeft());
 		stars->setSize(starsRect.size());
@@ -378,8 +378,6 @@ void AddMiniStars(
 		stars->paint(p);
 	}, widget->lifetime());
 }
-
-} // namespace
 
 SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
 		not_null<Main::Session*> session,
@@ -699,7 +697,7 @@ void BoostCreditsBox(
 	{
 		const auto &stUser = st::premiumGiftsUserpicButton;
 		const auto widget = content->add(object_ptr<Ui::RpWidget>(content));
-		AddMiniStars(content, widget, stUser, st::boxWidth, 1.3);
+		AddMiniStars(content, widget, stUser.photoSize, st::boxWidth, 1.3);
 		const auto svg = std::make_shared<QSvgRenderer>(
 			Ui::Premium::ColorizedSvg(
 				Ui::Premium::CreditsIconGradientStops()));
@@ -893,7 +891,8 @@ void ReceiptCreditsBox(
 	} else if (s.photoId || (e.photoId && !e.subscriptionUntil.isNull())) {
 		if (!(s.cancelled || s.expired || s.cancelledByBot)) {
 			const auto widget = Ui::CreateChild<Ui::RpWidget>(content);
-			AddMiniStars(content, widget, stUser, st::boxWideWidth, 1.5);
+			const auto photoSize = stUser.photoSize;
+			AddMiniStars(content, widget, photoSize, st::boxWideWidth, 1.5);
 		}
 		const auto photoId = s.photoId ? s.photoId : e.photoId;
 		const auto callback = [=](Fn<void()> update) {
@@ -1427,7 +1426,7 @@ void ReceiptCreditsBox(
 
 	if (e.peerType == Data::CreditsHistoryEntry::PeerType::PremiumBot) {
 		const auto widget = Ui::CreateChild<Ui::RpWidget>(content);
-		AddMiniStars(content, widget, stUser, st::boxWideWidth, 2);
+		AddMiniStars(content, widget, stUser.photoSize, st::boxWideWidth, 2);
 	}
 
 	const auto rejoinByApi = base::unixtime::serialize(s.until)
