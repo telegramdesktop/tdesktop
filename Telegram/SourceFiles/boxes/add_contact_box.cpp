@@ -262,10 +262,16 @@ void ShowAddParticipantsError(
 			return tr::lng_bot_already_in_group(tr::now);
 		} else if (error == u"BOT_GROUPS_BLOCKED"_q) {
 			return tr::lng_error_cant_add_bot(tr::now);
-		} else if (error == u"ADMINS_TOO_MUCH"_q) {
-			return ((chat->isChat() || chat->isMegagroup())
-				? tr::lng_error_admin_limit
-				: tr::lng_error_admin_limit_channel)(tr::now);
+		} else if (error == u"YOU_BLOCKED_USER"_q) {
+			return tr::lng_error_you_blocked_user(tr::now);
+		} else if (error == u"CHAT_ADMIN_INVITE_REQUIRED"_q) {
+			return tr::lng_error_add_admin_not_member(tr::now);
+		} else if (error == u"USER_ADMIN_INVALID"_q) {
+			return tr::lng_error_user_admin_invalid(tr::now);
+		} else if (error == u"BOTS_TOO_MUCH"_q) {
+			return (chat->isChannel()
+				? tr::lng_error_channel_bots_too_much
+				: tr::lng_error_group_bots_too_much)(tr::now);
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();

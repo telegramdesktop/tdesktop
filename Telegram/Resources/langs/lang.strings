@@ -289,6 +289,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_error_cant_add_member" = "Sorry, you can't add the bot to this group. Ask a group admin to do it.";
 "lng_error_cant_add_bot" = "Sorry, this bot can't be added to groups.";
 "lng_error_cant_add_admin_invite" = "You can't add this user as an admin because they are not a member of this group and you are not allowed to add them.";
+"lng_error_you_blocked_user" = "Sorry, you can't add this user or bot to groups because you've blocked them. Please unblock to proceed.";
+"lng_error_add_admin_not_member" = "You can't add this user as an admin because they are not a member of this group and you are not allowed to add them.";
+"lng_error_user_admin_invalid" = "You can't ban this user because they are an admin in this group and you are not allowed to demote them.";
+"lng_error_channel_bots_too_much" = "Sorry, this channel has too many bots.";
+"lng_error_group_bots_too_much" = "There are too many bots in this group. Please remove some of the bots you're not using first.";
 "lng_error_cant_add_admin_unban" = "Sorry, you can't add this user as an admin because they are in the Removed Users list and you can't unban them.";
 "lng_error_cant_ban_admin" = "You can't ban this user because they are an admin in this group and you are not allowed to demote them.";
 "lng_error_cant_reply_other" = "This message can't be replied in another chat.";
