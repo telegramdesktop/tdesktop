@@ -69,7 +69,7 @@ jobs:
         run: |
           brew update
           brew upgrade || true
-          brew install ada-url autoconf automake boost cmake ffmpeg@6 libtool openal-soft openh264 openssl opus ninja pkg-config python qt yasm xz
+          brew install ada-url autoconf automake boost cmake ffmpeg libtool openal-soft openh264 openssl opus ninja pkg-config python qt yasm xz
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
           xcodebuild -version > CACHE_KEY.txt
