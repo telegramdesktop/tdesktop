@@ -57,14 +57,14 @@ jobs:
           sudo iptables -P FORWARD ACCEPT
           sudo snap install --classic snapcraft
           sudo usermod -aG lxd $USER
-          sudo snap run lxd init --auto
-          sudo snap run lxd waitready
+          sudo lxd init --auto
+          sudo lxd waitready
 
       - name: Free up some disk space.
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
 
       - name: Telegram Desktop snap build.
-        run: sg lxd -c 'snap run snapcraft --verbosity=debug'
+        run: sudo -u $USER snap run snapcraft --verbosity=debug
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
