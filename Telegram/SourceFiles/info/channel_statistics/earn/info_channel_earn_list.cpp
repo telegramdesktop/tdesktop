@@ -417,7 +417,7 @@ void InnerWidget::fill() {
 		session->data().customEmojiManager().registerInternalEmoji(
 			st::topicButtonArrow,
 			st::channelEarnLearnArrowMargins,
-			false));
+			true));
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
 		auto label = Ui::CreateLabelWithCustomEmoji(
 			container,

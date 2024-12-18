@@ -90,7 +90,7 @@ void GiftCreditsBox(
 			peer->owner().customEmojiManager().registerInternalEmoji(
 				st::topicButtonArrow,
 				st::channelEarnLearnArrowMargins,
-				false));
+				true));
 		auto link = tr::lng_credits_box_history_entry_gift_about_link(
 			lt_emoji,
 			rpl::single(arrow),

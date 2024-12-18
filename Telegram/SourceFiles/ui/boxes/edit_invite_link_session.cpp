@@ -132,7 +132,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		peer->owner().customEmojiManager().registerInternalEmoji(
 			st::topicButtonArrow,
 			st::channelEarnLearnArrowMargins,
-			false));
+			true));
 	auto about = Ui::CreateLabelWithCustomEmoji(
 		container,
 		tr::lng_group_invite_subscription_about(

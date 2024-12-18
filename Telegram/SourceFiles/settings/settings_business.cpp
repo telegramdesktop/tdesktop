@@ -513,7 +513,7 @@ void Business::setupContent() {
 				session->data().customEmojiManager().registerInternalEmoji(
 					st::topicButtonArrow,
 					st::channelEarnLearnArrowMargins,
-					false));
+					true));
 			inner->add(object_ptr<Ui::DividerLabel>(
 				inner,
 				Ui::CreateLabelWithCustomEmoji(

@@ -1205,7 +1205,7 @@ void ReceiptCreditsBox(
 			session->data().customEmojiManager().registerInternalEmoji(
 				st::topicButtonArrow,
 				st::channelEarnLearnArrowMargins,
-				false));
+				true));
 		auto link = tr::lng_credits_box_history_entry_gift_about_link(
 			lt_emoji,
 			rpl::single(arrow),
@@ -2157,7 +2157,7 @@ void AddWithdrawalWidget(
 		session->data().customEmojiManager().registerInternalEmoji(
 			st::topicButtonArrow,
 			st::channelEarnLearnArrowMargins,
-			false));
+			true));
 	auto about = Ui::CreateLabelWithCustomEmoji(
 		container,
 		tr::lng_bot_earn_learn_credits_out_about(

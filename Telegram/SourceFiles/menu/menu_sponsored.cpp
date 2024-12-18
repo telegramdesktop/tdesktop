@@ -195,7 +195,7 @@ void AboutBox(
 			session->data().customEmojiManager().registerInternalEmoji(
 				st::topicButtonArrow,
 				st::channelEarnLearnArrowMargins,
-				false));
+				true));
 		const auto available = box->width()
 			- rect::m::sum::h(st::boxRowPadding);
 		box->addRow(

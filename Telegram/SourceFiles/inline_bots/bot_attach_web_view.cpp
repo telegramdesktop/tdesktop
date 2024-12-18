@@ -383,7 +383,7 @@ void FillBotUsepic(
 		bot->owner().customEmojiManager().registerInternalEmoji(
 			st::topicButtonArrow,
 			st::channelEarnLearnArrowMargins,
-			false));
+			true));
 	auto aboutLabel = Ui::CreateLabelWithCustomEmoji(
 		box->verticalLayout(),
 		tr::lng_allow_bot_webview_details(
