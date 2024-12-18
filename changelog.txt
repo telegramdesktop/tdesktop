@@ -1,3 +1,13 @@
+5.9.1 beta (18.12.24)
+
+- Add global media overview tabs in chats search.
+- Add main menu "My Profile" with my stories and gifts access.
+- Highlight some of search query on result message open.
+- Fix highlighting quotes from bottom parts of long messages.
+- Allow forward and reply bars together.
+- Make gift price categories scrollable.
+- Auto-send deep-link /start in existing bot chats.
+
 5.9 (04.12.24)
 
 - Affiliate programs for bots.
