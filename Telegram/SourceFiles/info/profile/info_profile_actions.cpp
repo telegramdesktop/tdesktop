@@ -1241,9 +1241,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			int rightSkip) {
 		const auto parent = label->parentWidget();
 		rpl::combine(
-			result->widthValue(),
+			label->geometryValue(),
 			button->sizeValue()
-		) | rpl::start_with_next([=](int, QSize buttonSize) {
+		) | rpl::start_with_next([=](const QRect&, const QSize &buttonSize) {
 			const auto s = parent->size();
 			button->moveToRight(
 				rightSkip,
