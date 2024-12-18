@@ -457,7 +457,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout cf3b896e00
+    git checkout b3d7243fe1
 """)
 
 stage('msys64', """
@@ -1637,7 +1637,7 @@ else: # qt > '6'
     stage('qt_' + qt, """
     git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
-    git submodule update --init --recursive qtbase qtimageformats qtsvg
+    git submodule update --init --recursive --progress qtbase qtimageformats qtsvg
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 mac:
