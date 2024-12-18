@@ -795,6 +795,14 @@ struct GiftPriceTabs {
 				.availableWidth = button.text.maxWidth(),
 			});
 		}
+		{
+			const auto &icon = st::defaultEmojiSuggestions;
+			const auto w = icon.fadeRight.width();
+			const auto &c = st::boxDividerBg->c;
+			const auto r = QRect(0, 0, w, raw->height());
+			icon.fadeRight.fill(p, r.translated(raw->width() -  w, 0), c);
+			icon.fadeLeft.fill(p, r, c);
+		}
 	}, raw->lifetime());
 
 	return {
