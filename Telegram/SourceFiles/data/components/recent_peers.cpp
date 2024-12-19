@@ -85,7 +85,7 @@ QByteArray RecentPeers::serialize() const {
 	auto stream = Serialize::ByteArrayWriter(size);
 	stream
 		<< quint32(AppVersion)
-		<< quint32(_list.size());
+		<< quint32(count);
 	for (const auto &peer : list) {
 		Serialize::writePeer(stream, peer);
 	}

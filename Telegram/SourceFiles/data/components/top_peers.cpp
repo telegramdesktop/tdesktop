@@ -264,7 +264,7 @@ QByteArray TopPeers::serialize() const {
 	stream
 		<< quint32(AppVersion)
 		<< quint32(_disabled ? 1 : 0)
-		<< quint32(_list.size());
+		<< quint32(count);
 	for (const auto &top : list) {
 		Serialize::writePeer(stream, top.peer);
 		stream << SerializeRating(top.rating);
