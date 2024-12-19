@@ -228,7 +228,7 @@ rpl::producer<bool> DefaultOverlayWidgetHelper::controlsSideRightValue() {
 
 	return TitleControlsLayoutValue(
 	) | rpl::map([=](const TitleControls::Layout &layout) {
-		return !TitleControlsOnLeft(layout);
+		return !layout.onLeft();
 	}) | rpl::distinct_until_changed();
 }
 
