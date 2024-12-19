@@ -132,6 +132,21 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	}
 }
 
+[[nodiscard]] Ui::VerifyDetails Parse(const MTPBotVerification *info) {
+	if (!info) {
+		return {};
+	}
+	const auto &data = info->data();
+	auto description = qs(data.vdescription().value_or_empty());
+	const auto flags = TextParseLinks;
+	return {
+		.botId = UserId(data.vbot_id().v),
+		.iconBgId = SerializeCustomEmojiId(DocumentId(data.vicon().v)),
+		.company = qs(data.vcompany()),
+		.description = TextUtilities::ParseEntities(description, flags),
+	};
+}
+
 [[nodiscard]] InlineImageLocation FindInlineThumbnail(
 		const QVector<MTPPhotoSize> &sizes) {
 	const auto i = ranges::find(
@@ -347,10 +362,8 @@ Ui::VerifyDetails Session::verifiedByTelegram() {
 	return {
 		.iconBgId = _verifiedByTelegramIconBgId,
 		.iconFgId = _verifiedByTelegramIconFgId,
-		.description = {
-			u"This community is verified as official "
-			"by the representatives of Telegram."_q,
-		},
+		.company = u"Telegram"_q,
+		.description = { tr::lng_verified_by_telegram(tr::now) },
 	};
 }
 
@@ -597,7 +610,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (data.is_verified()) {
 			result->setVerifyDetails(verifiedByTelegram());
 		} else {
-			result->setVerifyDetails({});
+			result->setVerifyDetails(Parse(data.vbot_verification()));
 		}
 		if (minimal) {
 			if (result->input.type() == mtpc_inputPeerEmpty) {
@@ -1017,7 +1030,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (data.is_verified()) {
 			channel->setVerifyDetails(verifiedByTelegram());
 		} else {
-			channel->setVerifyDetails({});
+			channel->setVerifyDetails(Parse(data.vbot_verification()));
 		}
 		if (!minimal && storiesState) {
 			result->setStoriesState(!storiesState->maxId
@@ -2715,35 +2728,6 @@ void Session::unregisterDependentMessage(
 
 void Session::registerMessageRandomId(uint64 randomId, FullMsgId itemId) {
 	_messageByRandomId.emplace(randomId, itemId);
-
-	AssertIsDebug();
-	if (peerIsChannel(itemId.peer)) {
-		if (const auto channel = channelLoaded(peerToChannel(itemId.peer))) {
-			auto colored = std::vector<not_null<DocumentData*>>();
-			for (const auto &[id, document] : _documents) {
-				if (const auto sticker = document->sticker()) {
-					if (sticker->setType == Data::StickersType::Emoji) {
-						if (document->emojiUsesTextColor()) {
-							colored.push_back(document.get());
-						}
-					}
-				}
-			}
-			const auto count = int(colored.size());
-			if (count > 1) {
-				auto index1 = base::RandomIndex(count);
-				auto index2 = base::RandomIndex(count - 1);
-				if (index2 >= index1) {
-					++index2;
-				}
-				channel->setVerifyDetails({
-					.iconBgId = QString::number(colored[index1]->id),
-					.iconFgId = QString::number(colored[index2]->id),
-				});
-				history(channel)->updateChatListEntry();
-			}
-		}
-	}
 }
 
 void Session::unregisterMessageRandomId(uint64 randomId) {

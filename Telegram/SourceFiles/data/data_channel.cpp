@@ -715,9 +715,6 @@ bool ChannelData::canRestrictParticipant(
 }
 
 void ChannelData::setVerifyDetails(Ui::VerifyDetails details) {
-	if (_verifyDetails && !verifiedByTelegram() && !details) {
-		return; AssertIsDebug();
-	}
 	if (!details) {
 		if (_verifyDetails) {
 			_verifyDetails = nullptr;

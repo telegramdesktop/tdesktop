@@ -33,8 +33,10 @@ private:
 };
 
 struct VerifyDetails {
+	UserId botId = 0;
 	QString iconBgId;
 	QString iconFgId;
+	QString company;
 	TextWithEntities description;
 
 	explicit operator bool() const {

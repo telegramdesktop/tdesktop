@@ -302,8 +302,10 @@ Cover::Cover(
 		const auto details = peer->verifyDetails();
 		return Badge::Content{
 			.badge = details ? BadgeType::Verified : BadgeType::None,
-			.emojiStatusId = details->iconBgId.toULongLong(),
-			.emojiStatusInnerId = details->iconFgId.toULongLong(),
+			.emojiStatusId = details ? details->iconBgId.toULongLong() : 0,
+			.emojiStatusInnerId = (details
+				? details->iconFgId.toULongLong()
+				: 0),
 		};
 	});
 }

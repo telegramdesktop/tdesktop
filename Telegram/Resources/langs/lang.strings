@@ -3484,6 +3484,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_verification_codes" = "Verification Codes";
 "lng_verification_codes_about" = "Third-party services, like websites and stores, can send verification codes to your phone number via Telegram instead of SMS. Such codes will appear in this chat.\n\nIf you didn't request any codes — don't worry! Most likely, someone made a mistake when entering their number.";
 
+"lng_verified_by_telegram" = "This community is verified as official by the representatives of Telegram.";
+
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
 "lng_archived_remove" = "Unarchive";
