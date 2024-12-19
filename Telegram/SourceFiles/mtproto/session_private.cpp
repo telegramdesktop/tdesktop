@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "base/options.h"
 #include "mtproto/session_private.h"
 
 #include "mtproto/details/mtproto_bound_key_creator.h"
@@ -138,7 +139,15 @@ void WrapInvokeAfter(
 	return different;
 }
 
+base::options::toggle OptionPreferIPv6({
+	.id = kOptionPreferIPv6,
+	.name = "Prefer IPv6",
+	.description = "Prefer IPv6 if it is available",
+});
+
 } // namespace
+
+const char kOptionPreferIPv6[] = "prefer-ipv6";
 
 SessionPrivate::SessionPrivate(
 	not_null<Instance*> instance,
@@ -187,7 +196,7 @@ void SessionPrivate::appendTestConnection(
 		const bytes::vector &protocolSecret) {
 	QWriteLocker lock(&_stateMutex);
 
-	const auto priority = (qthelp::is_ipv6(ip) ? 0 : 1)
+	const auto priority = (qthelp::is_ipv6(ip) ? (OptionPreferIPv6.value() ? 2 : 0) : 1)
 		+ (protocol == DcOptions::Variants::Tcp ? 1 : 0)
 		+ (protocolSecret.empty() ? 0 : 1);
 	_testConnections.push_back({

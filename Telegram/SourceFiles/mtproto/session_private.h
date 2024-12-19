@@ -240,5 +240,7 @@ private:
 
 };
 
+extern const char kOptionPreferIPv6[];
+
 } // namespace details
 } // namespace MTP
