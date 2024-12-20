@@ -120,6 +120,9 @@ void PeerListBox::createMultiSelect() {
 		content()->submitted();
 	});
 	_select->entity()->setQueryChangedCallback([=](const QString &query) {
+		if (_customQueryChangedCallback) {
+			_customQueryChangedCallback(query);
+		}
 		searchQueryChanged(query);
 	});
 	_select->entity()->setItemRemovedCallback([=](uint64 itemId) {
@@ -136,6 +139,10 @@ void PeerListBox::createMultiSelect() {
 	});
 	_select->resizeToWidth(_controller->contentWidth());
 	_select->moveToLeft(0, 0);
+}
+
+void PeerListBox::appendQueryChangedCallback(Fn<void(QString)> callback) {
+	_customQueryChangedCallback = std::move(callback);
 }
 
 void PeerListBox::setAddedTopScrollSkip(int skip) {

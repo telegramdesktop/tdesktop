@@ -1137,6 +1137,8 @@ public:
 
 	void showFinished() override;
 
+	void appendQueryChangedCallback(Fn<void(QString)>);
+
 protected:
 	void prepare() override;
 	void setInnerFocus() override;
@@ -1174,6 +1176,7 @@ private:
 	object_ptr<Ui::SlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
 	const std::shared_ptr<Main::SessionShow> _show;
+	Fn<void(QString)> _customQueryChangedCallback;
 	std::unique_ptr<PeerListController> _controller;
 	Fn<void(PeerListBox*)> _init;
 	bool _scrollBottomFixed = false;

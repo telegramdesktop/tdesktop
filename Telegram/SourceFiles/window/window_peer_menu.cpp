@@ -2234,13 +2234,29 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		auto init = [=](not_null<ListBox*> box) {
 			controllerRaw->setSearchNoResultsText(
 				tr::lng_bot_chats_not_found(tr::now));
+			const auto lastFilterId = box->lifetime().make_state<FilterId>(0);
 			const auto chatsFilters = Ui::AddChatFiltersTabsStrip(
 				box,
 				session,
-				[=](FilterId id) { applyFilter(box, id); });
+				[=](FilterId id) {
+					*lastFilterId = id;
+					applyFilter(box, id);
+				});
 			chatsFilters->lower();
-			chatsFilters->heightValue() | rpl::start_with_next([box](int h) {
-				box->setAddedTopScrollSkip(h);
+			rpl::combine(
+				chatsFilters->heightValue(),
+				rpl::producer<bool>([=](auto consumer) {
+					auto lifetime = rpl::lifetime();
+					consumer.put_next(false);
+					box->appendQueryChangedCallback([=](const QString &q) {
+						const auto hasQuery = !q.isEmpty();
+						applyFilter(box, hasQuery ? 0 : (*lastFilterId));
+						consumer.put_next_copy(hasQuery);
+					});
+					return lifetime;
+				})
+			) | rpl::start_with_next([box](int h, bool hasQuery) {
+				box->setAddedTopScrollSkip(hasQuery ? 0 : h);
 			}, box->lifetime());
 			box->multiSelectHeightValue() | rpl::start_with_next([=](int h) {
 				chatsFilters->moveToLeft(0, h);
