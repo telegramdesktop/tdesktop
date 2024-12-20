@@ -2770,7 +2770,6 @@ void MenuAddMarkAsReadAllChatsAction(
 		not_null<Main::Session*> session,
 		std::shared_ptr<Ui::Show> show,
 		const PeerMenuCallback &addAction) {
-	// There is no async to make weak from controller.
 	auto callback = [=, owner = &session->data()] {
 		auto boxCallback = [=](Fn<void()> &&close) {
 			close();
@@ -2781,9 +2780,36 @@ void MenuAddMarkAsReadAllChatsAction(
 			}
 		};
 		show->show(
-			Ui::MakeConfirmBox({
-				tr::lng_context_mark_read_all_sure(),
-				std::move(boxCallback)
+			Box([=](not_null<Ui::GenericBox*> box) {
+				Ui::AddSkip(box->verticalLayout());
+				Ui::AddSkip(box->verticalLayout());
+				const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+					box->verticalLayout(),
+					session->user(),
+					st::mainMenuUserpic);
+				Ui::IconWithTitle(
+					box->verticalLayout(),
+					userpic,
+					Ui::CreateChild<Ui::FlatLabel>(
+						box->verticalLayout(),
+						Info::Profile::NameValue(session->user()),
+						box->getDelegate()->style().title));
+				auto text = rpl::combine(
+					tr::lng_context_mark_read_all_sure(),
+					tr::lng_context_mark_read_all_sure_2(
+						Ui::Text::RichLangValue)
+				) | rpl::map([](QString t1, TextWithEntities t2) {
+					return TextWithEntities()
+						.append(std::move(t1))
+						.append('\n')
+						.append('\n')
+						.append(std::move(t2));
+				});
+				Ui::ConfirmBox(box, {
+					.text = std::move(text),
+					.confirmed = std::move(boxCallback),
+					.confirmStyle = &st::attentionBoxButton,
+				});
 			}),
 			Ui::LayerOption::CloseOther);
 	};
