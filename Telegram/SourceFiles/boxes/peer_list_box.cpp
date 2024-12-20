@@ -1281,6 +1281,9 @@ void PeerListContent::clearAllContent() {
 		= _normalizedSearchQuery
 		= _mentionHighlight
 		= QString();
+	if (_controller->hasComplexSearch()) {
+		_controller->search(QString());
+	}
 }
 
 void PeerListContent::convertRowToSearchResult(not_null<PeerListRow*> row) {
