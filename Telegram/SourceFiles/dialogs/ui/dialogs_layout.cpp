@@ -732,11 +732,6 @@ void PaintRow(
 				context.width,
 				{
 					.peer = from,
-					.verified = (context.active
-						? &st::dialogsVerifiedIconActive
-						: context.selected
-						? &st::dialogsVerifiedIconOver
-						: &st::dialogsVerifiedIcon),
 					.premium = &ThreeStateIcon(
 						st::dialogsPremiumIcon,
 						context.active,

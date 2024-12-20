@@ -22,7 +22,6 @@ InfoToggle {
 }
 
 InfoPeerBadge {
-	verified: icon;
 	premium: icon;
 	premiumFg: color;
 	premiumInnerFg: color;
@@ -437,7 +436,6 @@ infoVerifiedCheck: icon {
 infoPremiumStar: icon {{ "profile_premium", profileVerifiedCheckBg }};
 
 infoPeerBadge: InfoPeerBadge {
-	verified: infoVerifiedCheck;
 	premium: infoPremiumStar;
 	premiumFg: profileVerifiedCheckBg;
 	premiumInnerFg: profileVerifiedCheckFg;

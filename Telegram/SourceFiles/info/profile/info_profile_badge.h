@@ -58,8 +58,8 @@ public:
 
 	struct Content {
 		BadgeType badge = BadgeType::None;
-		DocumentId emojiStatusId = 0;
-		DocumentId emojiStatusInnerId = 0;
+		QString emojiStatusId;
+		QString emojiStatusInnerId;
 
 		friend inline constexpr bool operator==(Content, Content) = default;
 	};

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_bot.h"
 #include "api/api_text_entities.h"
 #include "api/api_user_names.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/mime_type.h" // Core::IsMimeSticker
@@ -353,11 +354,16 @@ Session::Session(not_null<Main::Session*> session)
 
 Ui::VerifyDetails Session::verifiedByTelegram() {
 	if (_verifiedByTelegramIconBgId.isEmpty()) {
-		auto &manager = customEmojiManager();
-		_verifiedByTelegramIconBgId = manager.registerInternalEmoji(
-			st::dialogsVerifiedBg);
-		_verifiedByTelegramIconFgId = manager.registerInternalEmoji(
-			st::dialogsVerifiedFg);
+		const auto bg = ChatHelpers::GenerateLocalSticker(
+			_session,
+			u":/gui/art/verified_bg.webp"_q);
+		bg->overrideEmojiUsesTextColor(true);
+		const auto fg = ChatHelpers::GenerateLocalSticker(
+			_session,
+			u":/gui/art/verified_fg.webp"_q);
+		fg->overrideEmojiUsesTextColor(true);
+		_verifiedByTelegramIconBgId = Data::SerializeCustomEmojiId(bg);
+		_verifiedByTelegramIconFgId = Data::SerializeCustomEmojiId(fg);
 	}
 	return {
 		.iconBgId = _verifiedByTelegramIconBgId,

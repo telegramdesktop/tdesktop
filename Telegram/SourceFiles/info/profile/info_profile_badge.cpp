@@ -35,7 +35,12 @@ namespace {
 		} else if (emojiStatusId && badge == BadgeType::None) {
 			badge = BadgeType::Premium;
 		}
-		return Badge::Content{ badge, emojiStatusId };
+		return Badge::Content{
+			badge,
+			(emojiStatusId
+				? Data::SerializeCustomEmojiId(emojiStatusId)
+				: QString()),
+		};
 	});
 }
 
@@ -115,14 +120,14 @@ void Badge::setContent(Content content) {
 	case BadgeType::Premium: {
 		const auto id = _content.emojiStatusId;
 		const auto innerId = _content.emojiStatusInnerId;
-		if (id || innerId) {
-			_emojiStatus = id
+		if (!id.isEmpty() || !innerId.isEmpty()) {
+			_emojiStatus = !id.isEmpty()
 				? _session->data().customEmojiManager().create(
 					id,
 					[raw = _view.data()] { raw->update(); },
 					sizeTag())
 				: nullptr;
-			_statusInner = innerId
+			_statusInner = !innerId.isEmpty()
 				? _session->data().customEmojiManager().create(
 					innerId,
 					[raw = _view.data()] { raw->update(); },
@@ -162,9 +167,7 @@ void Badge::setContent(Content content) {
 				}
 			}, _view->lifetime());
 		} else {
-			const auto icon = (_content.badge == BadgeType::Verified)
-				? &_st.verified
-				: &_st.premium;
+			const auto icon = &_st.premium;
 			_view->resize(icon->size());
 			_view->paintRequest(
 			) | rpl::start_with_next([=, check = _view.data()]{
@@ -224,9 +227,9 @@ void Badge::move(int left, int top, int bottom) {
 		return;
 	}
 	const auto star = !_emojiStatus
-		&& (_content.badge == BadgeType::Premium
-			|| _content.badge == BadgeType::Verified);
-	const auto fake = !_emojiStatus && !star;
+		&& (_content.badge == BadgeType::Premium);
+	const auto fake = (!_emojiStatus && !star)
+		|| (_content.badge == BadgeType::Verified);
 	const auto skip = fake ? 0 : _st.position.x();
 	const auto badgeLeft = left + skip;
 	const auto badgeTop = top

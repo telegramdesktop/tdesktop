@@ -1398,11 +1398,6 @@ void InnerWidget::paintPeerSearchResult(
 		context.width,
 		{
 			.peer = peer,
-			.verified = (context.active
-				? &st::dialogsVerifiedIconActive
-				: context.selected
-				? &st::dialogsVerifiedIconOver
-				: &st::dialogsVerifiedIcon),
 			.premium = &ThreeStateIcon(
 				st::dialogsPremiumIcon,
 				context.active,

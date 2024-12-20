@@ -130,6 +130,10 @@ bool PaintStickerThumbnailPath(
 	not_null<DocumentData*> document,
 	QSize box);
 
+[[nodiscard]] not_null<DocumentData*> GenerateLocalSticker(
+	not_null<Main::Session*> session,
+	const QString &path);
+
 [[nodiscard]] not_null<DocumentData*> GenerateLocalTgsSticker(
 	not_null<Main::Session*> session,
 	const QString &name);

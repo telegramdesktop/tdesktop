@@ -589,7 +589,6 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			width(),
 			{
 				.peer = namePeer,
-				.verified = &st::dialogsVerifiedIcon,
 				.premium = &st::dialogsPremiumIcon.icon,
 				.scam = &st::attentionButtonFg,
 				.premiumFg = &st::dialogsVerifiedIconBg,
