@@ -31,6 +31,20 @@ struct StarRefProgram {
 		StarRefProgram) = default;
 };
 
+struct BotVerifierSettings {
+	DocumentId iconId = 0;
+	QString company;
+	QString customDescription;
+
+	explicit operator bool() const {
+		return iconId != 0;
+	}
+
+	friend inline bool operator==(
+		const BotVerifierSettings &a,
+		const BotVerifierSettings &b) = default;
+};
+
 struct BotInfo {
 	BotInfo();
 
@@ -57,6 +71,7 @@ struct BotInfo {
 	ChatAdminRights channelAdminRights;
 
 	StarRefProgram starRefProgram;
+	std::unique_ptr<BotVerifierSettings> verifierSettings;
 
 	int version = 0;
 	int descriptionVersion = 0;

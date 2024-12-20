@@ -36,6 +36,30 @@ constexpr auto kSetOnlineAfterActivity = TimeId(30);
 
 using UpdateFlag = Data::PeerUpdate::Flag;
 
+bool ApplyBotVerifierSettings(
+		not_null<BotInfo*> info,
+		const MTPBotVerifierSettings *settings) {
+	if (!settings) {
+		const auto taken = base::take(info->verifierSettings);
+		return taken != nullptr;
+	}
+	const auto &data = settings->data();
+	const auto parsed = BotVerifierSettings{
+		.iconId = DocumentId(data.vicon().v),
+		.company = qs(data.vcompany()),
+		.customDescription = qs(data.vcustom_description().value_or_empty()),
+	};
+	if (!info->verifierSettings) {
+		info->verifierSettings = std::make_unique<BotVerifierSettings>(
+			parsed);
+		return true;
+	} else if (*info->verifierSettings != parsed) {
+		*info->verifierSettings = parsed;
+		return true;
+	}
+	return false;
+}
+
 } // namespace
 
 BotInfo::BotInfo() = default;
@@ -232,7 +256,11 @@ void UserData::setPersonalChannel(ChannelId channelId, MsgId messageId) {
 	}
 }
 
-void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
+void UserData::setName(
+		const QString &newFirstName,
+		const QString &newLastName,
+		const QString &newPhoneName,
+		const QString &newUsername) {
 	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
 
 	QString newFullName;
@@ -245,7 +273,14 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 			firstName = newFirstName;
 			lastName = newLastName;
 		}
-		newFullName = lastName.isEmpty() ? firstName : tr::lng_full_name(tr::now, lt_first_name, firstName, lt_last_name, lastName);
+		newFullName = lastName.isEmpty()
+			? firstName
+			: tr::lng_full_name(
+				tr::now,
+				lt_first_name,
+				firstName,
+				lt_last_name,
+				lastName);
 	}
 	updateNameDelayed(newFullName, newPhoneName, newUsername);
 }
@@ -372,8 +407,14 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 				= botInfo->botAppColorBodyNight
 				= QColor(0, 0, 0, 0);
 		}
+		const auto changedVerifierSettings = ApplyBotVerifierSettings(
+			botInfo.get(),
+			d.vverifier_settings());
 
-		if (changedCommands || changedButton || privacyChanged) {
+		if (changedCommands
+			|| changedButton
+			|| privacyChanged
+			|| changedVerifierSettings) {
 			owner().botCommandsChanged(this);
 		}
 	} break;

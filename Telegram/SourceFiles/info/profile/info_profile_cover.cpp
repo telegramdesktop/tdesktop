@@ -94,6 +94,16 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 		: st::infoProfileCover;
 }
 
+[[nodiscard]] QMargins LargeCustomEmojiMargins() {
+	const auto ratio = style::DevicePixelRatio();
+	const auto emoji = Ui::Emoji::GetSizeLarge() / ratio;
+	const auto size = Data::FrameSizeFromTag(Data::CustomEmojiSizeTag::Large)
+		/ ratio;
+	const auto left = (size - emoji) / 2;
+	const auto right = size - emoji - left;
+	return { left, left, right, right };
+}
+
 } // namespace
 
 TopicIconView::TopicIconView(
@@ -302,8 +312,8 @@ Cover::Cover(
 		const auto details = peer->verifyDetails();
 		return Badge::Content{
 			.badge = details ? BadgeType::Verified : BadgeType::None,
-			.emojiStatusId = details ? details->iconBgId : QString(),
-			.emojiStatusInnerId = details ? details->iconFgId : QString(),
+			.emojiStatusId = details ? details->iconBgId : DocumentId(),
+			.emojiStatusInnerId = details ? details->iconFgId : DocumentId(),
 		};
 	});
 }
@@ -731,10 +741,16 @@ void Cover::refreshNameGeometry(int newWidth) {
 	auto nameLeft = _st.nameLeft;
 	const auto badgeTop = _st.nameTop;
 	const auto badgeBottom = _st.nameTop + _name->height();
-	_verify->move(nameLeft, badgeTop, badgeBottom);
+	const auto margins = LargeCustomEmojiMargins();
+
+	_verify->move(nameLeft - margins.left(), badgeTop, badgeBottom);
 	if (const auto widget = _verify->widget()) {
-		nameLeft += widget->width() + st::infoVerifiedCheckPosition.x();
-		nameWidth -= widget->width() + st::infoVerifiedCheckPosition.x();
+		const auto skip = widget->width()
+			+ st::infoVerifiedCheckPosition.x()
+			- margins.left()
+			- margins.right();
+		nameLeft += skip;
+		nameWidth -= skip;
 	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, _st.nameTop, newWidth);

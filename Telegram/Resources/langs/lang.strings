@@ -1628,10 +1628,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_bot_star_ref" = "Affiliate Program";
 "lng_manage_peer_bot_star_ref_off" = "Off";
 "lng_manage_peer_bot_star_ref_about" = "Share a link to {bot} with your friends and earn {amount} of their spending there.";
+"lng_manage_peer_bot_verify" = "Verify Accounts";
 "lng_manage_peer_bot_edit_intro" = "Edit Intro";
 "lng_manage_peer_bot_edit_commands" = "Edit Commands";
 "lng_manage_peer_bot_edit_settings" = "Change Bot Settings";
 "lng_manage_peer_bot_about" = "Use {bot} to manage this bot.";
+
+"lng_bot_verify_title" = "Choose Chat to Verify";
+"lng_bot_verify_bot_title" = "Verify Bot";
+"lng_bot_verify_bot_text" = "Do you want to verify {name} with your verification mark and description?";
+"lng_bot_verify_bot_about" = "You can customize your description for each bot.";
+"lng_bot_verify_bot_submit" = "Verify Bot";
+"lng_bot_verify_bot_sent" = "{name} has been notified and will receive your verification mark and description upon accepting.";
+"lng_bot_verify_bot_remove" = "This bot is already verified by you. Do you want to remove verification?";
+"lng_bot_verify_bot_telegram" = "This bot is verified as official by the representatives of Telegram.";
+"lng_bot_verify_bot_company" = "This bot was verified by {company}.";
+"lng_bot_verify_user_title" = "Verify User";
+"lng_bot_verify_user_text" = "Do you want to verify {name} with your verification mark and description?";
+"lng_bot_verify_user_about" = "You can customize your description for each account.";
+"lng_bot_verify_user_submit" = "Verify User";
+"lng_bot_verify_user_sent" = "{name} has been notified and will receive your verification mark and description upon accepting.";
+"lng_bot_verify_user_remove" = "This account is already verified by you. Do you want to remove verification?";
+"lng_bot_verify_user_telegram" = "This account is verified as official by the representatives of Telegram.";
+"lng_bot_verify_user_company" = "This account was verified by {company}.";
+"lng_bot_verify_channel_title" = "Verify Channel";
+"lng_bot_verify_channel_text" = "Do you want to verify {name} with your verification mark and description?";
+"lng_bot_verify_channel_about" = "You can customize your description for each channel.";
+"lng_bot_verify_channel_submit" = "Verify Channel";
+"lng_bot_verify_channel_sent" = "{name} has been notified and will receive your verification mark and description upon accepting.";
+"lng_bot_verify_channel_remove" = "This channel is already verified by you. Do you want to remove verification?";
+"lng_bot_verify_channel_telegram" = "This channel is verified as official by the representatives of Telegram.";
+"lng_bot_verify_channel_company" = "This channel was verified by {company}.";
+"lng_bot_verify_group_title" = "Verify Group";
+"lng_bot_verify_group_text" = "Do you want to verify {name} with your verification mark and description?";
+"lng_bot_verify_group_about" = "You can customize your description for each group.";
+"lng_bot_verify_group_submit" = "Verify Group";
+"lng_bot_verify_group_sent" = "{name} has been notified and will receive your verification mark and description upon accepting.";
+"lng_bot_verify_group_remove" = "This group is already verified by you. Do you want to remove verification?";
+"lng_bot_verify_group_telegram" = "This community is verified as official by the representatives of Telegram.";
+"lng_bot_verify_group_company" = "This community was verified by {company}.";
+"lng_bot_verify_description_label" = "Description";
+"lng_bot_verify_remove_title" = "Remove verification";
+"lng_bot_verify_remove_submit" = "Remove";
+"lng_bot_verify_remove_done" = "You've removed this verification.";
 
 "lng_star_ref_title" = "Affiliate Program";
 "lng_star_ref_about" = "Reward those who help grow your user base.";
@@ -3483,8 +3522,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_verification_codes" = "Verification Codes";
 "lng_verification_codes_about" = "Third-party services, like websites and stores, can send verification codes to your phone number via Telegram instead of SMS. Such codes will appear in this chat.\n\nIf you didn't request any codes — don't worry! Most likely, someone made a mistake when entering their number.";
-
-"lng_verified_by_telegram" = "This community is verified as official by the representatives of Telegram.";
 
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";

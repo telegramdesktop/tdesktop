@@ -37,9 +37,7 @@ namespace {
 		}
 		return Badge::Content{
 			badge,
-			(emojiStatusId
-				? Data::SerializeCustomEmojiId(emojiStatusId)
-				: QString()),
+			emojiStatusId ? emojiStatusId : DocumentId(),
 		};
 	});
 }
@@ -120,14 +118,14 @@ void Badge::setContent(Content content) {
 	case BadgeType::Premium: {
 		const auto id = _content.emojiStatusId;
 		const auto innerId = _content.emojiStatusInnerId;
-		if (!id.isEmpty() || !innerId.isEmpty()) {
-			_emojiStatus = !id.isEmpty()
+		if (id || innerId) {
+			_emojiStatus = id
 				? _session->data().customEmojiManager().create(
 					id,
 					[raw = _view.data()] { raw->update(); },
 					sizeTag())
 				: nullptr;
-			_statusInner = !innerId.isEmpty()
+			_statusInner = innerId
 				? _session->data().customEmojiManager().create(
 					innerId,
 					[raw = _view.data()] { raw->update(); },

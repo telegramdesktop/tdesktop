@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "boxes/peers/edit_peer_reactions.h"
 #include "boxes/peers/replace_boost_box.h"
+#include "boxes/peers/verify_peers_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/stickers_box.h"
 #include "boxes/username_box.h"
@@ -366,6 +367,7 @@ private:
 	void fillBotEditIntroButton();
 	void fillBotEditCommandsButton();
 	void fillBotEditSettingsButton();
+	void fillBotVerifyAccounts();
 
 	void submitTitle();
 	void submitDescription();
@@ -1206,6 +1208,7 @@ void Controller::fillManageSection() {
 					Ui::Text::RichLangValue),
 				st::boxDividerLabel),
 			st::defaultBoxDividerLabelPadding));
+		fillBotVerifyAccounts();
 		return;
 	}
 
@@ -1794,6 +1797,39 @@ void Controller::fillBotEditSettingsButton() {
 		rpl::never<QString>(),
 		[=] { toggleBotManager(user->username()); },
 		{ &st::menuIconSettings });
+}
+
+void Controller::fillBotVerifyAccounts() {
+	Expects(_isBot);
+
+	const auto user = _peer->asUser();
+	const auto wrap = _controls.buttonsLayout->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_controls.buttonsLayout,
+			object_ptr<Ui::VerticalLayout>(
+				_controls.buttonsLayout)));
+	wrap->toggleOn(rpl::single(
+		rpl::empty
+	) | rpl::then(user->owner().botCommandsChanges(
+	) | rpl::filter(
+		rpl::mappers::_1 == _peer
+	) | rpl::to_empty) | rpl::map([=] {
+		const auto info = user->botInfo.get();
+		return info && info->verifierSettings;
+	}));
+
+	const auto inner = wrap->entity();
+	Ui::AddSkip(inner);
+	AddButtonWithCount(
+		inner,
+		tr::lng_manage_peer_bot_verify(),
+		rpl::never<QString>(),
+		[controller = _navigation->parentController(), user] {
+			controller->show(MakeVerifyPeersBox(controller, user));
+		},
+		{ &st::menuIconFactcheck });
+	Ui::AddSkip(inner);
+	Ui::AddDivider(inner);
 }
 
 void Controller::submitTitle() {

@@ -142,7 +142,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	const auto flags = TextParseLinks;
 	return {
 		.botId = UserId(data.vbot_id().v),
-		.iconBgId = SerializeCustomEmojiId(DocumentId(data.vicon().v)),
+		.iconBgId = DocumentId(data.vicon().v),
 		.company = qs(data.vcompany()),
 		.description = TextUtilities::ParseEntities(description, flags),
 	};
@@ -353,7 +353,7 @@ Session::Session(not_null<Main::Session*> session)
 
 
 Ui::VerifyDetails Session::verifiedByTelegram() {
-	if (_verifiedByTelegramIconBgId.isEmpty()) {
+	if (!_verifiedByTelegramIconBgId) {
 		const auto bg = ChatHelpers::GenerateLocalSticker(
 			_session,
 			u":/gui/art/verified_bg.webp"_q);
@@ -362,14 +362,13 @@ Ui::VerifyDetails Session::verifiedByTelegram() {
 			_session,
 			u":/gui/art/verified_fg.webp"_q);
 		fg->overrideEmojiUsesTextColor(true);
-		_verifiedByTelegramIconBgId = Data::SerializeCustomEmojiId(bg);
-		_verifiedByTelegramIconFgId = Data::SerializeCustomEmojiId(fg);
+		_verifiedByTelegramIconBgId = bg->id;
+		_verifiedByTelegramIconFgId = fg->id;
 	}
 	return {
 		.iconBgId = _verifiedByTelegramIconBgId,
 		.iconFgId = _verifiedByTelegramIconFgId,
 		.company = u"Telegram"_q,
-		.description = { tr::lng_verified_by_telegram(tr::now) },
 	};
 }
 

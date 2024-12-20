@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "boxes/peers/verify_peers_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
@@ -960,6 +961,7 @@ private:
 	object_ptr<Ui::RpWidget> setupPersonalChannel(not_null<UserData*> user);
 	object_ptr<Ui::RpWidget> setupInfo();
 	object_ptr<Ui::RpWidget> setupMuteToggle();
+	void setupAboutVerification();
 	void setupMainApp();
 	void setupBotPermissions();
 	void setupMainButtons();
@@ -1560,8 +1562,6 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 		}));
 		onlyChannelWrap->finishAnimating();
 
-		Ui::AddDivider(onlyChannelWrap->entity());
-
 		auto text = rpl::duplicate(
 			channel
 		) | rpl::map([=](ChannelData *channel) {
@@ -1591,6 +1591,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 			onlyChannelWrap,
 			st::infoIconMediaChannel,
 			st::infoPersonalChannelIconPosition);
+
+		Ui::AddDivider(onlyChannelWrap->entity());
 	}
 
 	{
@@ -1620,7 +1622,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 
 			messageChannelWrap->toggle(false, anim::type::instant);
 			clear();
-			Ui::AddDivider(messageChannelWrap->entity());
+
 			Ui::AddSkip(messageChannelWrap->entity());
 
 			const auto inner = messageChannelWrap->entity()->add(
@@ -1751,6 +1753,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 			}
 			inner->setAttribute(Qt::WA_TransparentForMouseEvents);
 			Ui::AddSkip(messageChannelWrap->entity());
+			Ui::AddDivider(messageChannelWrap->entity());
 
 			Ui::ToggleChildrenVisibility(messageChannelWrap->entity(), true);
 			Ui::ToggleChildrenVisibility(line, true);
@@ -1833,6 +1836,35 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 		st::infoIconNotifications,
 		st::infoNotificationsIconPosition);
 	return result;
+}
+
+void DetailsFiller::setupAboutVerification() {
+	const auto peer = _peer;
+	const auto inner = _wrap->add(object_ptr<Ui::VerticalLayout>(_wrap));
+	peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::VerifyInfo
+	) | rpl::start_with_next([=] {
+		const auto info = peer->verifyDetails();
+		while (inner->count()) {
+			delete inner->widgetAt(0);
+		}
+		if (!info) {
+			Ui::AddDivider(inner);
+		} else if (!info->description.empty()) {
+			Ui::AddDividerText(inner, rpl::single(info->description));
+		} else {
+			const auto phrases = PeerVerifyPhrases(peer);
+			Ui::AddDividerText(
+				inner,
+				(_peer->verifiedByTelegram()
+					? phrases.telegram()
+					: phrases.company(
+						lt_company,
+						rpl::single(info->company))));
+		}
+		inner->resizeToWidth(inner->width());
+	}, inner->lifetime());
 }
 
 void DetailsFiller::setupMainApp() {
@@ -2103,10 +2135,14 @@ Ui::MultiSlideTracker DetailsFiller::fillDiscussionButtons(
 object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	Expects(!_topic || !_topic->creating());
 
+	if (!_topic) {
+		setupAboutVerification();
+	} else {
+		add(object_ptr<Ui::BoxContentDivider>(_wrap));
+	}
 	if (const auto user = _peer->asUser()) {
 		add(setupPersonalChannel(user));
 	}
-	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
 	if (const auto user = _peer->asUser()) {

@@ -1142,8 +1142,8 @@ private:
 	const std::unique_ptr<BusinessInfo> _businessInfo;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
 
-	QString _verifiedByTelegramIconBgId;
-	QString _verifiedByTelegramIconFgId;
+	DocumentId _verifiedByTelegramIconBgId = 0;
+	DocumentId _verifiedByTelegramIconFgId = 0;
 
 	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
 

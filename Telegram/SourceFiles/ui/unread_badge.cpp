@@ -225,16 +225,18 @@ bool PeerBadge::ready(const VerifyDetails *details) const {
 	} else if (!_verifiedData) {
 		return false;
 	}
-	if (details->iconBgId.isEmpty()) {
+	if (!details->iconBgId) {
 		_verifiedData->bg = nullptr;
 	} else if (!_verifiedData->bg
-		|| _verifiedData->bg->entityData() != details->iconBgId) {
+		|| (_verifiedData->bg->entityData()
+			!= Data::SerializeCustomEmojiId(details->iconBgId))) {
 		return false;
 	}
-	if (details->iconFgId.isEmpty()) {
+	if (!details->iconFgId) {
 		_verifiedData->fg = nullptr;
 	} else if (!_verifiedData->fg
-		|| _verifiedData->fg->entityData() != details->iconFgId) {
+		|| (_verifiedData->fg->entityData()
+			!= Data::SerializeCustomEmojiId(details->iconFgId))) {
 		return false;
 	}
 	return true;
@@ -247,11 +249,15 @@ void PeerBadge::set(
 	if (!_verifiedData) {
 		_verifiedData = std::make_unique<VerifiedData>();
 	}
-	if (!details->iconBgId.isEmpty()) {
-		_verifiedData->bg = factory(details->iconBgId, repaint);
+	if (details->iconBgId) {
+		_verifiedData->bg = factory(
+			Data::SerializeCustomEmojiId(details->iconBgId),
+			repaint);
 	}
-	if (!details->iconFgId.isEmpty()) {
-		_verifiedData->fg = factory(details->iconFgId, repaint);
+	if (details->iconFgId) {
+		_verifiedData->fg = factory(
+			Data::SerializeCustomEmojiId(details->iconFgId),
+			repaint);
 	}
 }
 

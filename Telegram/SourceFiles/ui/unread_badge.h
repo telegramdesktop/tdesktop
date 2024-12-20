@@ -34,13 +34,13 @@ private:
 
 struct VerifyDetails {
 	UserId botId = 0;
-	QString iconBgId;
-	QString iconFgId;
+	DocumentId iconBgId = 0;
+	DocumentId iconFgId = 0;
 	QString company;
 	TextWithEntities description;
 
 	explicit operator bool() const {
-		return !iconBgId.isEmpty() || !iconFgId.isEmpty();
+		return iconBgId || iconFgId;
 	}
 	friend inline bool operator==(
 		const VerifyDetails &,
