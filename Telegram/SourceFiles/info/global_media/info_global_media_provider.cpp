@@ -240,7 +240,7 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 		auto lifetime = rpl::lifetime();
 		const auto session = &_controller->session();
 
-		struct State {
+		struct State : base::has_weak_ptr {
 			State(not_null<Main::Session*> session) : session(session) {
 			}
 			~State() {
@@ -252,11 +252,15 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 			mtpRequestId requestId = 0;
 		};
 		const auto state = lifetime.make_state<State>(session);
+		const auto guard = base::make_weak(state);
 
 		state->pushAndLoadMore = [=] {
 			auto result = fillRequest(aroundId, limitBefore, limitAfter);
+
+			// May destroy 'state' by calling source() with different args.
 			consumer.put_next(std::move(result.slice));
-			if (!currentList()->loaded && result.notEnough) {
+
+			if (guard && !currentList()->loaded && result.notEnough) {
 				state->requestId = requestMore(state->pushAndLoadMore);
 			}
 		};
