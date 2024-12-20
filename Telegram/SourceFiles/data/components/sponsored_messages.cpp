@@ -156,10 +156,11 @@ void SponsoredMessages::inject(
 		if (blockIt == end(history->blocks)) {
 			return;
 		}
-		const auto messages = [&]() -> const std::vector<ViewPtr> & {
+		const auto messages = [&]() -> const std::vector<ViewPtr>& {
 			return (*blockIt)->messages;
 		};
 		auto lastViewIt = ranges::find(messages(), lastView, &ViewPtr::get);
+		auto appendAtLeastToEnd = false;
 		while ((summaryBetween < list.postsBetween)
 			|| (summaryHeight < betweenHeight)) {
 			lastViewIt++;
@@ -168,6 +169,10 @@ void SponsoredMessages::inject(
 				if (blockIt != end(history->blocks)) {
 					lastViewIt = begin(messages());
 				} else {
+					if (!list.injectedCount) {
+						appendAtLeastToEnd = true;
+						break;
+					}
 					return;
 				}
 			}
@@ -182,17 +187,24 @@ void SponsoredMessages::inject(
 		entryIt->itemFullId = FullMsgId(
 			history->peer->id,
 			_session->data().nextLocalMessageId());
-		const auto makedMessage = history->makeMessage(
-			entryIt->itemFullId.msg,
-			entryIt->sponsored.from,
-			entryIt->sponsored.textWithEntities,
-			(*lastViewIt)->data());
-		entryIt->item.reset(makedMessage.get());
-		history->addNewInTheMiddle(
-			makedMessage.get(),
-			std::distance(begin(history->blocks), blockIt),
-			std::distance(begin(messages()), lastViewIt) + 1);
-		messages().back().get()->setPendingResize();
+		if (appendAtLeastToEnd) {
+			entryIt->item.reset(history->addSponsoredMessage(
+				entryIt->itemFullId.msg,
+				entryIt->sponsored.from,
+				entryIt->sponsored.textWithEntities));
+		} else {
+			const auto makedMessage = history->makeMessage(
+				entryIt->itemFullId.msg,
+				entryIt->sponsored.from,
+				entryIt->sponsored.textWithEntities,
+				(*lastViewIt)->data());
+			entryIt->item.reset(makedMessage.get());
+			history->addNewInTheMiddle(
+				makedMessage.get(),
+				std::distance(begin(history->blocks), blockIt),
+				std::distance(begin(messages()), lastViewIt) + 1);
+			messages().back().get()->setPendingResize();
+		}
 		list.injectedCount++;
 	}
 }
