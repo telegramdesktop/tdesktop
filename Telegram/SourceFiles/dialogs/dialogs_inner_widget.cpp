@@ -1390,6 +1390,11 @@ void InnerWidget::paintPeerSearchResult(
 		const auto position = rectForName.topLeft();
 		const auto skip = result->badge.drawVerified(p, position, st);
 		rectForName.setLeft(position.x() + skip + st::dialogsChatTypeSkip);
+	} else if (const auto chatTypeIcon = Ui::ChatTypeIcon(peer, context)) {
+		chatTypeIcon->paint(p, rectForName.topLeft(), context.width);
+		rectForName.setLeft(rectForName.left()
+			+ chatTypeIcon->width()
+			+ st::dialogsChatTypeSkip);
 	}
 	const auto badgeWidth = result->badge.drawGetWidth(
 		p,

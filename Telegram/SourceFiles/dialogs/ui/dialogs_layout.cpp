@@ -460,6 +460,13 @@ void PaintRow(
 		const auto position = rectForName.topLeft();
 		const auto skip = rowBadge.drawVerified(p, position, st);
 		rectForName.setLeft(position.x() + skip + st::dialogsChatTypeSkip);
+	} else if (from) {
+		if (const auto chatTypeIcon = ChatTypeIcon(from, context)) {
+			chatTypeIcon->paint(p, rectForName.topLeft(), context.width);
+			rectForName.setLeft(rectForName.left()
+				+ chatTypeIcon->width()
+				+ st::dialogsChatTypeSkip);
+		}
 	}
 	auto texttop = context.st->textTop;
 	if (const auto folder = entry->asFolder()) {

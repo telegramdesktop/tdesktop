@@ -407,9 +407,6 @@ dialogsLockIcon: ThreeStateIcon {
 	active: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
 }
 
-dialogsVerifiedBg: icon{{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg }};
-dialogsVerifiedFg: icon{{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFg }};
-dialogsVerifiedPadding: margins(0px, 3px, 0px, 0px);
 dialogsVerifiedColors: VerifiedBadge {
 	height: 20px;
 	bg: dialogsVerifiedIconBg;
