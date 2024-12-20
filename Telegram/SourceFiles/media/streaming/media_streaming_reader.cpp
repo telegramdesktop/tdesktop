@@ -536,12 +536,12 @@ void Reader::Slices::processPart(
 		_header.addPart(offset, bytes);
 		checkSliceFullLoaded(0);
 		return;
-	} else if (_headerMode == HeaderMode::Unknown) {
-		if (_header.parts.contains(offset)) {
-			return;
-		} else if (_header.parts.size() < kMaxPartsInHeader) {
-			_header.addPart(offset, bytes);
-		}
+	//} else if (_headerMode == HeaderMode::Unknown) {
+	//	if (_header.parts.contains(offset)) {
+	//		return;
+	//	} else if (_header.parts.size() < kMaxPartsInHeader) {
+	//		_header.addPart(offset, bytes);
+	//	}
 	}
 	const auto index = offset / kInSlice;
 	_data[index].addPart(offset - index * kInSlice, std::move(bytes));
@@ -599,6 +599,17 @@ auto Reader::Slices::fill(uint32 offset, bytes::span buffer) -> FillResult {
 			result.state = FillState::WaitingCache;
 		}
 	};
+	const auto addToHeader = [&](int slice, auto parts) {
+		if (_headerMode == HeaderMode::Unknown) {
+			for (const auto &part : parts) {
+				const auto totalOffset = slice * kInSlice + part.first;
+				if (!_header.parts.contains(totalOffset)
+					&& _header.parts.size() < kMaxPartsInHeader) {
+					_header.addPart(totalOffset, part.second);
+				}
+			}
+		}
+	};
 	const auto firstFrom = offset - fromSlice * kInSlice;
 	const auto firstTill = std::min(kInSlice, till - fromSlice * kInSlice);
 	const auto secondFrom = 0;
@@ -615,18 +626,18 @@ auto Reader::Slices::fill(uint32 offset, bytes::span buffer) -> FillResult {
 	}
 	if (first.ready && second.ready) {
 		markSliceUsed(fromSlice);
-		CopyLoaded(
-			buffer,
-			ranges::make_subrange(first.start, first.finish),
-			firstFrom,
-			firstTill);
+		auto &&list = ranges::make_subrange(first.start, first.finish);
+		CopyLoaded(buffer, list, firstFrom, firstTill);
+		addToHeader(fromSlice, list);
 		if (fromSlice + 1 < tillSlice) {
 			markSliceUsed(fromSlice + 1);
+			auto &&list = ranges::make_subrange(second.start, second.finish);
 			CopyLoaded(
 				buffer.subspan(firstTill - firstFrom),
-				ranges::make_subrange(second.start, second.finish),
+				list,
 				secondFrom,
 				secondTill);
+			addToHeader(fromSlice + 1, list);
 		}
 		result.toCache = serializeAndUnloadUnused();
 		result.state = FillState::Success;
