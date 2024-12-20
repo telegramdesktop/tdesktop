@@ -751,7 +751,8 @@ void SetupAccountsWrap(
 				raw,
 				st::popupMenuWithIcons);
 			Window::MenuAddMarkAsReadAllChatsAction(
-				window,
+				session,
+				window->uiShow(),
 				Ui::Menu::CreateAddActionCallback(state->menu));
 			state->menu->popup(QCursor::pos());
 			return;

@@ -2767,10 +2767,11 @@ void UnpinAllMessages(
 }
 
 void MenuAddMarkAsReadAllChatsAction(
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
+		std::shared_ptr<Ui::Show> show,
 		const PeerMenuCallback &addAction) {
 	// There is no async to make weak from controller.
-	auto callback = [=, owner = &controller->session().data()] {
+	auto callback = [=, owner = &session->data()] {
 		auto boxCallback = [=](Fn<void()> &&close) {
 			close();
 
@@ -2779,7 +2780,7 @@ void MenuAddMarkAsReadAllChatsAction(
 				MarkAsReadChatList(folder->chatsList());
 			}
 		};
-		controller->show(
+		show->show(
 			Ui::MakeConfirmBox({
 				tr::lng_context_mark_read_all_sure(),
 				std::move(boxCallback)

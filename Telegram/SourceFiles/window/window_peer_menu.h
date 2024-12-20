@@ -74,7 +74,8 @@ void FillSenderUserpicMenu(
 	const PeerMenuCallback &addAction);
 
 void MenuAddMarkAsReadAllChatsAction(
-	not_null<Window::SessionController*> controller,
+	not_null<Main::Session*> session,
+	std::shared_ptr<Ui::Show> show,
 	const PeerMenuCallback &addAction);
 
 void MenuAddMarkAsReadChatListAction(
