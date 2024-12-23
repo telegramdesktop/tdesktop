@@ -441,7 +441,7 @@ void StickerInBubblePart::ensureCreated(Element *replacing) const {
 			_skipTop = data.skipTop;
 			_sticker.emplace(_parent, sticker, skipPremiumEffect, replacing);
 			if (data.singleTimePlayback) {
-				_sticker->setDiceIndex(info->alt, 1);
+				_sticker->setPlayingOnce(true);
 			}
 			_sticker->initSize(data.size);
 			_sticker->setCustomCachingTag(data.cacheTag);

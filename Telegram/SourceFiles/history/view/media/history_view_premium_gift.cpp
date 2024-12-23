@@ -295,7 +295,7 @@ void PremiumGift::ensureStickerCreated() const {
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
-			_sticker->setDiceIndex(sticker->alt, 1);
+			_sticker->setPlayingOnce(true);
 			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
 			return;
 		}
@@ -308,7 +308,7 @@ void PremiumGift::ensureStickerCreated() const {
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
-			_sticker->setDiceIndex(sticker->alt, 1);
+			_sticker->setPlayingOnce(true);
 			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
 		}
 	}
