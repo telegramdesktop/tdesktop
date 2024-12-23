@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
+#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
@@ -753,7 +754,7 @@ object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish) {
 					object_ptr<Ui::FlatLabel>(
 						box,
 						text(Ui::Text::RichLangValue),
-						st::boxLabel),
+						st::blockUserConfirmation),
 					QMargins(st::boxTextFont->height, 0, 0, 0)),
 				margins);
 			padded->paintRequest() | rpl::start_with_next([=] {
