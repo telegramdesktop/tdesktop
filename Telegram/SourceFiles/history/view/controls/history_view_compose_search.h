@@ -33,7 +33,11 @@ public:
 	void setInnerFocus();
 	void setQuery(const QString &query);
 
-	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> activations() const;
+	struct Activation {
+		not_null<HistoryItem*> item;
+		QString query;
+	};
+	[[nodiscard]] rpl::producer<Activation> activations() const;
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();

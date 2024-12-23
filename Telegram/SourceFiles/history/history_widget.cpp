@@ -5199,11 +5199,17 @@ void HistoryWidget::switchToSearch(QString query) {
 		update();
 		setInnerFocus();
 
+		using Activation = HistoryView::ComposeSearch::Activation;
 		_composeSearch->activations(
-		) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		) | rpl::start_with_next([=](Activation activation) {
+			const auto item = activation.item;
+			auto params = ::Window::SectionShow(
+				::Window::SectionShow::Way::ClearStack);
+			params.highlightPart = { activation.query };
+			params.highlightPartOffsetHint = kSearchQueryOffsetHint;
 			controller()->showPeerHistory(
 				item->history()->peer->id,
-				::Window::SectionShow::Way::ClearStack,
+				params,
 				item->fullId().msg);
 		}, _composeSearch->lifetime());
 

@@ -74,12 +74,17 @@ const FoundMessages &MessagesSearchMerged::messages() const {
 	return _concatedFound;
 }
 
+const MessagesSearch::Request &MessagesSearchMerged::request() const {
+	return _request;
+}
+
 void MessagesSearchMerged::clear() {
 	_concatedFound = {};
 	_migratedFirstFound = {};
 }
 
 void MessagesSearchMerged::search(const Request &search) {
+	_request = search;
 	if (_migratedSearch) {
 		_waitingForTotal = true;
 		_migratedSearch->searchMessages(search);
