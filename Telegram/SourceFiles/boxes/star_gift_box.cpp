@@ -164,10 +164,6 @@ private:
 	return info.limitedCount && !info.limitedLeft;
 }
 
-[[nodiscard]] bool IsInStock(const Api::StarGift &info) {
-	return !IsSoldOut(info);
-}
-
 PreviewDelegate::PreviewDelegate(
 	not_null<QWidget*> parent,
 	not_null<Ui::ChatStyle*> st,

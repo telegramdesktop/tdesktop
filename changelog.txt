@@ -1,3 +1,12 @@
+5.9.2 beta (24.12.24)
+
+- Fix some jump-to-message highlightings.
+- Fix some long round video messages sending.
+- Fix possible crash in global photos / videos.
+- Fix streaming starting for some large video files.
+- Fix possible drop of top peers / recent chats cache.
+- Fix possible crashes in audio on macOS (rollback OpenAL).
+
 5.9.1 beta (18.12.24)
 
 - Add global media overview tabs in chats search.
