@@ -2079,13 +2079,10 @@ Ui::MultiSlideTracker DetailsFiller::fillDiscussionButtons(
 
 	Ui::MultiSlideTracker tracker;
 	auto window = _controller->parentController();
-	auto viewDiscussionVisible = rpl::combine(
-		_controller->wrapValue(),
-		window->dialogsEntryStateValue()
-	) | rpl::map([=](Wrap wrap, const Dialogs::EntryState &state) {
+	auto viewDiscussionVisible = window->dialogsEntryStateValue(
+	) | rpl::map([=](const Dialogs::EntryState &state) {
 		const auto history = state.key.history();
-		return (wrap == Wrap::Side)
-			&& (state.section == Dialogs::EntryState::Section::Replies)
+		return (state.section == Dialogs::EntryState::Section::Replies)
 			&& history
 			&& (history->peer == channel);
 	});
