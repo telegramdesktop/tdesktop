@@ -711,7 +711,25 @@ std::optional<int> ListWidget::scrollTopForView(
 	const auto top = view->y();
 	const auto height = view->height();
 	const auto available = _visibleBottom - _visibleTop;
-	return top - std::max((available - height) / 2, 0);
+	const auto heightLeft = (available - height);
+	if (heightLeft >= 0) {
+		return std::max(top - (heightLeft / 2), 0);
+	} else if (const auto sel = _highlighter.state(view->data()).range
+		; !sel.empty() && !IsSubGroupSelection(sel)) {
+		const auto single = st::messageTextStyle.font->height;
+		const auto begin = HistoryView::FindViewY(view, sel.from) - single;
+		const auto end = HistoryView::FindViewY(view, sel.to, begin + single)
+			+ 2 * single;
+		auto result = top;
+		if (end > available) {
+			result = std::max(result, top + end - available);
+		}
+		if (top + begin < result) {
+			result = top + begin;
+		}
+		return result;
+	}
+	return top;
 }
 
 void ListWidget::scrollTo(
@@ -873,24 +891,31 @@ bool ListWidget::showAtPositionNow(
 		Data::MessagePosition position,
 		const Window::SectionShow &params,
 		Fn<void(bool found)> done) {
-	if (const auto scrollTop = scrollTopForPosition(position)) {
-		computeScrollTo(*scrollTop, position, params.animated);
-		if (position != Data::MaxMessagePosition
-			&& position != Data::UnreadMessagePosition) {
-			highlightMessage(
-				position.fullId,
-				params.highlightPart,
-				params.highlightPartOffsetHint);
-		}
-		if (done) {
-			const auto found = !position.fullId.peer
-				|| !IsServerMsgId(position.fullId.msg)
-				|| viewForItem(position.fullId);
-			done(found);
-		}
-		return true;
+	auto scrollTop = scrollTopForPosition(position);
+	if (!scrollTop.has_value()) {
+		return false;
 	}
-	return false;
+	if (position != Data::MaxMessagePosition
+		&& position != Data::UnreadMessagePosition) {
+		const auto hasHighlight = !params.highlightPart.empty();
+		highlightMessage(
+			position.fullId,
+			params.highlightPart,
+			params.highlightPartOffsetHint);
+		if (hasHighlight) {
+			// We may want to scroll to a different part of the message.
+			scrollTop = scrollTopForPosition(position);
+			Assert(scrollTop.has_value());
+		}
+	}
+	computeScrollTo(*scrollTop, position, params.animated);
+	if (done) {
+		const auto found = !position.fullId.peer
+			|| !IsServerMsgId(position.fullId.msg)
+			|| viewForItem(position.fullId);
+		done(found);
+	}
+	return true;
 }
 
 void ListWidget::computeScrollTo(
