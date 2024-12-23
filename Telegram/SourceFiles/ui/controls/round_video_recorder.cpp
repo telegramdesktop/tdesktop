@@ -26,8 +26,8 @@ namespace {
 constexpr auto kSide = 400;
 constexpr auto kUpdateEach = crl::time(100);
 constexpr auto kAudioFrequency = 48'000;
-constexpr auto kAudioBitRate = 32'000;
-constexpr auto kVideoBitRate = 3 * 1024 * 1024;
+constexpr auto kAudioBitRate = 64 * 1024;
+constexpr auto kVideoBitRate = 2 * 1024 * 1024;
 constexpr auto kMinDuration = crl::time(200);
 constexpr auto kMaxDuration = 60 * crl::time(1000);
 constexpr auto kInitTimeout = 5 * crl::time(1000);
