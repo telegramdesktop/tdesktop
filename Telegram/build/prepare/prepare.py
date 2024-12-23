@@ -1369,8 +1369,8 @@ depends:yasm/yasm
 stage('openal-soft', """
     git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    git checkout 5e9429354d
 win:
+    git checkout 5e9429354d
     cmake -B build . ^
         -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
@@ -1382,6 +1382,7 @@ win:
 release:
     cmake --build build --config RelWithDebInfo --parallel
 mac:
+    git checkout coreaudio_device_uid
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_BUILD_TYPE=RelWithDebInfo \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
