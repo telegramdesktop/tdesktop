@@ -79,6 +79,7 @@ namespace {
 
 constexpr auto kPriceTabAll = 0;
 constexpr auto kPriceTabLimited = -1;
+constexpr auto kPriceTabInStock = -2;
 constexpr auto kGiftMessageLimit = 255;
 constexpr auto kSentToastDuration = 3 * crl::time(1000);
 
@@ -157,6 +158,14 @@ private:
 	};
 	const auto now = QDate::currentDate();
 	return is(now) || is(now.addDays(1)) || is(now.addDays(-1));
+}
+
+[[nodiscard]] bool IsSoldOut(const Api::StarGift &info) {
+	return info.limitedCount && !info.limitedLeft;
+}
+
+[[nodiscard]] bool IsInStock(const Api::StarGift &info) {
+	return !IsSoldOut(info);
 }
 
 PreviewDelegate::PreviewDelegate(
@@ -557,6 +566,8 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 		return simple(tr::lng_gift_stars_tabs_all(tr::now));
 	} else if (price == kPriceTabLimited) {
 		return simple(tr::lng_gift_stars_tabs_limited(tr::now));
+	} else if (price == kPriceTabInStock) {
+		return simple(tr::lng_gift_stars_tabs_in_stock(tr::now));
 	}
 	auto &manager = session->data().customEmojiManager();
 	auto result = Text::String();
@@ -613,8 +624,12 @@ struct GiftPriceTabs {
 	) | rpl::map([](const std::vector<GiftTypeStars> &gifts) {
 		auto result = std::vector<int>();
 		result.push_back(kPriceTabAll);
+		auto special = 1;
 		auto same = true;
 		auto sameKey = 0;
+		auto hasNonSoldOut = false;
+		auto hasSoldOut = false;
+		auto hasLimited = false;
 		for (const auto &gift : gifts) {
 			if (same) {
 				const auto key = gift.info.stars
@@ -625,10 +640,13 @@ struct GiftPriceTabs {
 					same = false;
 				}
 			}
-
-			if (gift.info.limitedCount
-				&& (result.size() < 2 || result[1] != kPriceTabLimited)) {
-				result.insert(begin(result) + 1, kPriceTabLimited);
+			if (IsSoldOut(gift.info)) {
+				hasSoldOut = true;
+			} else {
+				hasNonSoldOut = true;
+			}
+			if (gift.info.limitedCount) {
+				hasLimited = true;
 			}
 			if (!ranges::contains(result, gift.info.stars)) {
 				result.push_back(gift.info.stars);
@@ -636,6 +654,12 @@ struct GiftPriceTabs {
 		}
 		if (same) {
 			return std::vector<int>();
+		}
+		if (hasSoldOut && hasNonSoldOut) {
+			result.insert(begin(result) + (special++), kPriceTabInStock);
+		}
+		if (hasLimited) {
+			result.insert(begin(result) + (special++), kPriceTabLimited);
 		}
 		ranges::sort(begin(result) + 1, end(result));
 		return result;
@@ -1191,9 +1215,7 @@ void SendGiftBox(
 
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
-				if (star
-					&& star->info.limitedCount
-					&& !star->info.limitedLeft) {
+				if (star && IsSoldOut(star->info)) {
 					window->show(Box(SoldOutBox, window, *star));
 				} else {
 					window->show(
@@ -1298,6 +1320,8 @@ void AddBlock(
 		gifts.erase(ranges::remove_if(gifts, [&](const GiftTypeStars &gift) {
 			return (price == kPriceTabLimited)
 				? (!gift.info.limitedCount)
+				: (price == kPriceTabInStock)
+				? IsSoldOut(gift.info)
 				: (price && gift.info.stars != price);
 		}), end(gifts));
 		return GiftsDescriptor{
