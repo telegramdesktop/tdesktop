@@ -952,10 +952,16 @@ void HistoryItem::resolveDependent(not_null<HistoryMessageReply*> reply) {
 	if (!reply->acquireResolve()) {
 		return;
 	} else if (const auto messageId = reply->messageId()) {
+		if (Data::IsScheduledMsgId(messageId)) {
+			reply->updateData(this);
+			if (!reply->acquireResolve()) {
+				return;
+			}
+		}
 		RequestDependentMessageItem(
 			this,
 			reply->externalPeerId(),
-			reply->messageId());
+			messageId);
 	} else if (reply->storyId()) {
 		RequestDependentMessageStory(
 			this,
