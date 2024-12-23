@@ -32,6 +32,7 @@ namespace Data {
 namespace {
 
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
+constexpr auto kReportDeliveriesPerRequest = 50;
 
 } // namespace
 
@@ -563,6 +564,58 @@ void Histories::sendPendingReadInbox(not_null<History*> history) {
 			state->willReadWhen = 0;
 			sendReadRequests();
 		}
+	}
+}
+
+void Histories::reportDelivery(not_null<HistoryItem*> item) {
+	auto &set = _pendingDeliveryReport[item->history()->peer];
+	if (!set.emplace(item->id).second) {
+		return;
+	}
+	crl::on_main(&session(), [=] {
+		reportPendingDeliveries();
+	});
+}
+
+void Histories::reportPendingDeliveries() {
+	auto &pending = _pendingDeliveryReport;
+	for (auto i = begin(pending); i != end(pending);) {
+		auto &[peer, ids] = *i;
+		auto list = QVector<MTPint>();
+		if (_deliveryReportSent.contains(peer)) {
+			++i;
+			continue;
+		} else if (ids.size() > kReportDeliveriesPerRequest) {
+			const auto count = kReportDeliveriesPerRequest;
+			list.reserve(count);
+			for (auto j = begin(ids), till = j + count; j != till; ++j) {
+				list.push_back(MTP_int(*j));
+			}
+			ids.erase(begin(ids), begin(ids) + count);
+		} else if (!ids.empty()) {
+			list.reserve(ids.size());
+			for (const auto &id : ids) {
+				list.push_back(MTP_int(id));
+			}
+			ids.clear();
+		}
+		if (ids.empty()) {
+			i = pending.erase(i);
+		} else {
+			++i;
+		}
+		_deliveryReportSent.emplace(peer);
+		const auto finish = [=] {
+			_deliveryReportSent.remove(peer);
+			if (_pendingDeliveryReport.contains(peer)) {
+				reportPendingDeliveries();
+			}
+		};
+		session().api().request(MTPmessages_ReportMessagesDelivery(
+			MTP_flags(0),
+			peer->input,
+			MTP_vector(std::move(list))
+		)).done(finish).fail(finish).send();
 	}
 }
 
