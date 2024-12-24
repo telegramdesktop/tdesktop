@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace ChatHelpers {
+enum class PauseReason;
+} // namespace ChatHelpers
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -25,6 +29,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Main::Session*> session,
 	Fn<void(FilterId)> choose,
+	ChatHelpers::PauseReason pauseLevel,
 	Window::SessionController *controller = nullptr,
 	bool trackActiveFilterAndUnreadAndReorder = false);
 

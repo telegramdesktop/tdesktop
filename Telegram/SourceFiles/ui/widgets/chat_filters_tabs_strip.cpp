@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_premium_limits.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_folders.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/chat_filters_tabs_slider_reorder.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -177,6 +179,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Main::Session*> session,
 		Fn<void(FilterId)> choose,
+		ChatHelpers::PauseReason pauseLevel,
 		Window::SessionController *controller,
 		bool trackActiveFilterAndUnreadAndReorder) {
 
@@ -325,14 +328,22 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		if ((list.size() <= 1 && !slider->width()) || state->ignoreRefresh) {
 			return;
 		}
+		const auto context = Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [=] { slider->update(); },
+		};
+		const auto paused = [=] {
+			return On(PowerSaving::kEmojiChat)
+				|| controller->isGifPausedAtLeastFor(pauseLevel);
+		};
 		const auto sectionsChanged = slider->setSectionsAndCheckChanged(
 			ranges::views::all(
 				list
 			) | ranges::views::transform([](const Data::ChatFilter &filter) {
 				return filter.title().empty()
-					? tr::lng_filters_all_short(tr::now)
-					: filter.title().text; // todo filter emoji
-			}) | ranges::to_vector);
+					? TextWithEntities{ tr::lng_filters_all_short(tr::now) }
+					: filter.title();
+			}) | ranges::to_vector, context, paused);
 		if (!sectionsChanged) {
 			return;
 		}

@@ -1345,6 +1345,7 @@ void Widget::toggleFiltersMenu(bool enabled) {
 					controller()->setActiveChatsFilter(id);
 				}
 			},
+			Window::GifPauseReason::Any,
 			controller(),
 			true);
 		raw->show();

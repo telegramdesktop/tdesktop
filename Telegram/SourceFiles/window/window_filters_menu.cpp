@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
+#include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
 #include "data/data_user.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
@@ -46,7 +48,7 @@ FiltersMenu::FiltersMenu(
 : _session(session)
 , _parent(parent)
 , _outer(_parent)
-, _menu(&_outer, QString(), st::windowFiltersMainMenu)
+, _menu(&_outer, TextWithEntities(), st::windowFiltersMainMenu)
 , _scroll(&_outer)
 , _container(
 	_scroll.setOwnedWidget(
@@ -250,10 +252,22 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		TextWithEntities title,
 		Ui::FilterIcon icon,
 		bool toBeginning) {
+	const auto makeContext = [=](Fn<void()> update) {
+		return Core::MarkedTextContext{
+			.session = &_session->session(),
+			.customEmojiRepaint = std::move(update),
+		};
+	};
+	const auto paused = [=] {
+		return On(PowerSaving::kEmojiChat)
+			|| _session->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+	};
 	auto prepared = object_ptr<Ui::SideBarButton>(
 		container,
-		id ? title.text : tr::lng_filters_all(tr::now), // todo filter emoji
-		st::windowFiltersButton);
+		id ? title : TextWithEntities{ tr::lng_filters_all(tr::now) },
+		st::windowFiltersButton,
+		makeContext,
+		paused);
 	auto added = toBeginning
 		? container->insert(0, std::move(prepared))
 		: container->add(std::move(prepared));

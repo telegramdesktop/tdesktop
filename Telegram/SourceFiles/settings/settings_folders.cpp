@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
@@ -57,14 +58,13 @@ public:
 	FilterRowButton(
 		not_null<QWidget*> parent,
 		not_null<Main::Session*> session,
-		const Data::ChatFilter &filter);
-	FilterRowButton(
-		not_null<QWidget*> parent,
 		const Data::ChatFilter &filter,
-		const QString &description);
+		const QString &description = {});
 
 	void setRemoved(bool removed);
-	void updateData(const Data::ChatFilter &filter);
+	void updateData(
+		const Data::ChatFilter &filter,
+		bool ignoreCount = false);
 	void updateCount(const Data::ChatFilter &filter);
 
 	[[nodiscard]] rpl::producer<> removeRequests() const;
@@ -80,20 +80,13 @@ private:
 		Normal,
 	};
 
-	FilterRowButton(
-		not_null<QWidget*> parent,
-		Main::Session *session,
-		const Data::ChatFilter &filter,
-		const QString &description,
-		State state);
-
 	void paintEvent(QPaintEvent *e) override;
 
 	void setup(const Data::ChatFilter &filter, const QString &status);
 	void setState(State state, bool force = false);
 	void updateButtonsVisibility();
 
-	Main::Session *_session = nullptr;
+	const not_null<Main::Session*> _session;
 
 	Ui::IconButton _remove;
 	Ui::RoundButton _restore;
@@ -177,50 +170,43 @@ struct FilterRow {
 FilterRowButton::FilterRowButton(
 	not_null<QWidget*> parent,
 	not_null<Main::Session*> session,
-	const Data::ChatFilter &filter)
-: FilterRowButton(
-	parent,
-	session,
-	filter,
-	ComputeCountString(session, filter),
-	State::Normal) {
-}
-
-FilterRowButton::FilterRowButton(
-	not_null<QWidget*> parent,
 	const Data::ChatFilter &filter,
 	const QString &description)
-: FilterRowButton(parent, nullptr, filter, description, State::Suggested) {
-}
-
-FilterRowButton::FilterRowButton(
-	not_null<QWidget*> parent,
-	Main::Session *session,
-	const Data::ChatFilter &filter,
-	const QString &status,
-	State state)
 : RippleButton(parent, st::defaultRippleAnimation)
 , _session(session)
 , _remove(this, st::filtersRemove)
 , _restore(this, tr::lng_filters_restore(), st::stickersUndoRemove)
 , _add(this, tr::lng_filters_recommended_add(), st::stickersTrendingAdd)
-, _state(state) {
+, _state(description.isEmpty() ? State::Normal : State::Suggested) {
 	_restore.setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_add.setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	setup(filter, status);
+	setup(filter, description.isEmpty()
+		? ComputeCountString(session, filter)
+		: description);
 }
 
 void FilterRowButton::setRemoved(bool removed) {
 	setState(removed ? State::Removed : State::Normal);
 }
 
-void FilterRowButton::updateData(const Data::ChatFilter &filter) {
+void FilterRowButton::updateData(
+		const Data::ChatFilter &filter,
+		bool ignoreCount) {
 	Expects(_session != nullptr);
-	// todo filter emoji
-	_title.setText(st::contactsNameStyle, filter.title().text);
+
+	_title.setMarkedText(
+		st::contactsNameStyle,
+		filter.title(),
+		kMarkupTextOptions,
+		Core::MarkedTextContext{
+			.session = _session,
+			.customEmojiRepaint = [=] { update(); },
+		});
 	_icon = Ui::ComputeFilterIcon(filter);
 	_colorIndex = filter.colorIndex();
-	updateCount(filter);
+	if (!ignoreCount) {
+		updateCount(filter);
+	}
 }
 
 void FilterRowButton::updateCount(const Data::ChatFilter &filter) {
@@ -243,12 +229,9 @@ void FilterRowButton::setup(
 		const Data::ChatFilter &filter,
 		const QString &status) {
 	resize(width(), st::defaultPeerListItem.height);
-	// todo filter emoji
-	_title.setText(st::contactsNameStyle, filter.title().text);
-	_status = status;
-	_icon = Ui::ComputeFilterIcon(filter);
-	_colorIndex = filter.colorIndex();
 
+	_status = status;
+	updateData(filter, true);
 	setState(_state, true);
 
 	sizeValue() | rpl::start_with_next([=](QSize size) {
@@ -648,6 +631,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			state->suggested = state->suggested.current() + 1;
 			const auto button = aboutRows->add(object_ptr<FilterRowButton>(
 				aboutRows,
+				session,
 				filter,
 				suggestion.description));
 			button->addRequests(

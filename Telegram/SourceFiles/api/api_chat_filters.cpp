@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/ui_integration.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_chat_filters.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/filter_link_header.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/filter_icons.h"
 #include "ui/vertical_list.h"
@@ -105,7 +107,7 @@ private:
 	Unexpected("Ui::FilterLinkHeaderType in TitleText.");
 }
 
-[[nodiscard]] TextWithEntities AboutText( // todo filter emoji
+[[nodiscard]] TextWithEntities AboutText(
 		Ui::FilterLinkHeaderType type,
 		TextWithEntities title) {
 	using Type = Ui::FilterLinkHeaderType;
@@ -147,10 +149,17 @@ void InitFilterLinkHeader(
 		Ui::LookupFilterIconByEmoji(
 			iconEmoji
 		).value_or(Ui::FilterIcon::Custom)).active;
+	const auto makeContext = [=](Fn<void()> repaint) {
+		return Core::MarkedTextContext{
+			.session = &box->peerListUiShow()->session(),
+			.customEmojiRepaint = std::move(repaint),
+		};
+	};
 	auto header = Ui::MakeFilterLinkHeader(box, {
 		.type = type,
 		.title = TitleText(type)(tr::now),
 		.about = AboutText(type, title),
+		.makeAboutContext = makeContext,
 		.folderTitle = title,
 		.folderIcon = icon,
 		.badge = (type == Ui::FilterLinkHeaderType::AddingChats
@@ -541,7 +550,7 @@ void ShowImportToast(
 	const auto phrase = created
 		? tr::lng_filters_added_title
 		: tr::lng_filters_updated_title;
-	auto text = Ui::Text::Wrapped( // todo filter emoji
+	auto text = Ui::Text::Wrapped(
 		phrase(tr::now, lt_folder, title, Ui::Text::WithEntities),
 		EntityType::Bold);
 	if (added > 0) {
@@ -550,7 +559,16 @@ void ShowImportToast(
 			: tr::lng_filters_updated_also;
 		text.append('\n').append(phrase(tr::now, lt_count, added));
 	}
-	strong->showToast(std::move(text));
+	const auto makeContext = [=](not_null<QWidget*> widget) {
+		return Core::MarkedTextContext{
+			.session = &strong->session(),
+			.customEmojiRepaint = [=] { widget->update(); },
+		};
+	};
+	strong->showToast({
+		.text = std::move(text),
+		.textContext = makeContext,
+	});
 }
 
 void HandleEnterInBox(not_null<Ui::BoxContent*> box) {
@@ -619,10 +637,17 @@ void ProcessFilterInvite(
 
 		raw->setRealContentHeight(box->heightValue());
 
+		const auto makeContext = [=](Fn<void()> update) {
+			return Core::MarkedTextContext{
+				.session = &strong->session(),
+				.customEmojiRepaint = update,
+			};
+		};
 		auto owned = Ui::FilterLinkProcessButton(
 			box,
 			type,
 			title,
+			makeContext,
 			std::move(badge));
 
 		const auto button = owned.data();
@@ -842,10 +867,17 @@ void ProcessFilterRemove(
 			raw->adjust(min, max, addedTop);
 		}, type, title, iconEmoji, rpl::single(0), horizontalFilters);
 
+		const auto makeContext = [=](Fn<void()> update) {
+			return Core::MarkedTextContext{
+				.session = &strong->session(),
+				.customEmojiRepaint = update,
+			};
+		};
 		auto owned = Ui::FilterLinkProcessButton(
 			box,
 			type,
 			title,
+			makeContext,
 			std::move(badge));
 
 		const auto button = owned.data();

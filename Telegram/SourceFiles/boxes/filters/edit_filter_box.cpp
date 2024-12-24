@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/message_field.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_channel.h"
@@ -394,28 +395,28 @@ void EditFilterBox(
 		tr::lng_filters_edit()));
 	box->setCloseByOutsideClick(false);
 
+	const auto session = &window->session();
 	Data::AmPremiumValue(
-		&window->session()
+		session
 	) | rpl::start_with_next([=] {
 		box->closeBox();
 	}, box->lifetime());
 
 	const auto content = box->verticalLayout();
+	const auto current = filter.title();
 	const auto name = content->add(
 		object_ptr<Ui::InputField>(
 			box,
 			st::windowFilterNameInput,
-			tr::lng_filters_new_name(),
-			filter.title().text), // todo filter emoji
+			Ui::InputField::Mode::SingleLine,
+			tr::lng_filters_new_name()),
 		st::markdownLinkFieldPadding);
+	InitMessageFieldHandlers(window, name, ChatHelpers::PauseReason::Layer);
+	name->setTextWithTags({
+		current.text,
+		TextUtilities::ConvertEntitiesToTextTags(current.entities),
+	}, Ui::InputField::HistoryAction::Clear);
 	name->setMaxLength(kMaxFilterTitleLength);
-	name->setInstantReplaces(Ui::InstantReplaces::Default());
-	name->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
-	Ui::Emoji::SuggestionsController::Init(
-		box->getDelegate()->outerContainer(),
-		name,
-		&window->session());
 
 	const auto nameEditing = box->lifetime().make_state<NameEditing>(
 		NameEditing{ name });
@@ -672,8 +673,11 @@ void EditFilterBox(
 	}
 
 	const auto collect = [=]() -> std::optional<Data::ChatFilter> {
-		// todo filter emoji
-		const auto title = TextWithEntities{ name->getLastText().trimmed() };
+		const auto entered = name->getTextWithTags();
+		const auto title = TextWithEntities{
+			entered.text,
+			TextUtilities::ConvertTextTagsToEntities(entered.tags),
+		};
 		const auto rules = data->current();
 		if (title.empty()) {
 			name->showError();

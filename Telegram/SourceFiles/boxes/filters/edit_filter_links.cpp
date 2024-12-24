@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_invite_link.h" // InviteLinkQrBox.
 #include "boxes/peer_list_box.h"
 #include "boxes/premium_limits_box.h"
+#include "core/ui_integration.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_chat_filters.h"
@@ -535,6 +536,12 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 	}, verticalLayout->lifetime());
 	verticalLayout->add(std::move(icon.widget));
 
+	const auto makeContext = [=](Fn<void()> update) {
+		return Core::MarkedTextContext{
+			.session = &_window->session(),
+			.customEmojiRepaint = update,
+		};
+	};
 	verticalLayout->add(
 		object_ptr<Ui::CenterWrap<>>(
 			verticalLayout,
@@ -543,12 +550,14 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 				(_data.url.isEmpty()
 					? tr::lng_filters_link_no_about(Ui::Text::WithEntities)
 					: tr::lng_filters_link_share_about(
-						lt_folder, // todo filter emoji
+						lt_folder,
 						rpl::single(Ui::Text::Wrapped(
 							_filterTitle,
 							EntityType::Bold)),
 						Ui::Text::WithEntities)),
-				st::settingsFilterDividerLabel)),
+				st::settingsFilterDividerLabel,
+				st::defaultPopupMenu,
+				makeContext)),
 		st::filterLinkDividerLabelPadding);
 
 	verticalLayout->geometryValue(

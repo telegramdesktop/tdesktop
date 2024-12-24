@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/filters/edit_filter_chats_list.h"
 
+#include "core/ui_integration.h"
 #include "data/data_chat_filters.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -63,12 +64,26 @@ private:
 
 class ExceptionRow final : public ChatsListBoxController::Row {
 public:
-	explicit ExceptionRow(not_null<History*> history);
+	ExceptionRow(
+		not_null<History*> history,
+		not_null<PeerListDelegate*> delegate);
 
 	QString generateName() override;
 	QString generateShortName() override;
 	PaintRoundImageCallback generatePaintUserpicCallback(
 		bool forceRound) override;
+
+	void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) override;
+
+private:
+	Ui::Text::String _filtersText;
 
 };
 
@@ -126,15 +141,29 @@ Flag TypeRow::flag() const {
 	return static_cast<Flag>(id() & 0xFFFF);
 }
 
-ExceptionRow::ExceptionRow(not_null<History*> history) : Row(history) {
-	auto filters = QStringList();
+ExceptionRow::ExceptionRow(
+	not_null<History*> history,
+	not_null<PeerListDelegate*> delegate)
+: Row(history) {
+	auto filters = TextWithEntities();
 	for (const auto &filter : history->owner().chatsFilters().list()) {
 		if (filter.contains(history) && filter.id()) {
-			filters << filter.title().text; // todo filter emoji
+			if (!filters.empty()) {
+				filters.append(u", "_q);
+			}
+			filters.append(filter.title());
 		}
 	}
-	if (!filters.isEmpty()) {
-		setCustomStatus(filters.join(", "));
+	if (!filters.empty()) {
+		const auto repaint = [=] { delegate->peerListUpdateRow(this); };
+		_filtersText.setMarkedText(
+			st::defaultTextStyle,
+			filters,
+			kMarkupTextOptions,
+			Core::MarkedTextContext{
+				.session = &history->session(),
+				.customEmojiRepaint = repaint,
+			});
 	} else if (peer()->isSelf()) {
 		setCustomStatus(tr::lng_saved_forward_here(tr::now));
 	}
@@ -174,6 +203,37 @@ PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback(
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
 	};
+}
+
+void ExceptionRow::paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) {
+	if (_filtersText.isEmpty()) {
+		Row::paintStatusText(
+			p,
+			st,
+			x,
+			y,
+			availableWidth,
+			outerWidth,
+			selected);
+	} else {
+		p.setPen(selected ? st.statusFgOver : st.statusFg);
+		_filtersText.draw(p, {
+			.position = { x, y },
+			.outerWidth = outerWidth,
+			.availableWidth = availableWidth,
+			.palette = &st::defaultTextPalette,
+			.now = crl::now(),
+			.pausedEmoji = false,
+			.elisionLines = 1,
+		});
+	}
 }
 
 TypeController::TypeController(
@@ -418,7 +478,7 @@ void EditFilterChatsListController::prepareViewHook() {
 	const auto rows = std::make_unique<std::optional<ExceptionRow>[]>(count);
 	auto i = 0;
 	for (const auto &history : _peers) {
-		rows[i++].emplace(history);
+		rows[i++].emplace(history, delegate());
 	}
 	auto pointers = std::vector<ExceptionRow*>();
 	pointers.reserve(count);
@@ -499,7 +559,7 @@ auto EditFilterChatsListController::createRow(not_null<History*> history)
 		return nullptr;
 	}
 	return history->inChatList()
-		? std::make_unique<ExceptionRow>(history)
+		? std::make_unique<ExceptionRow>(history, delegate())
 		: nullptr;
 }
 
