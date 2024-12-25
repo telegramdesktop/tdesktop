@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_credits.h"
 #include "data/data_document.h"
@@ -221,7 +222,9 @@ void PremiumGift::draw(
 }
 
 QString PremiumGift::cornerTagText() {
-	if (const auto count = _data.limitedCount) {
+	if (_data.unique) {
+		return tr::lng_gift_limited_of_one(tr::now);
+	} else if (const auto count = _data.limitedCount) {
 		return (count == 1)
 			? tr::lng_gift_limited_of_one(tr::now)
 			: tr::lng_gift_limited_of_count(
@@ -291,14 +294,21 @@ int PremiumGift::credits() const {
 void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
-	} else if (const auto document = _data.document) {
-		if (const auto sticker = document->sticker()) {
-			const auto skipPremiumEffect = false;
-			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
-			_sticker->setPlayingOnce(true);
-			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
-			return;
+	} else if (const auto stickerId = _data.stickerId) {
+		if (!_lifetime) {
+			const auto owner = &_parent->history()->owner();
+			_lifetime = owner->customEmojiManager().resolve(
+				stickerId
+			) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+				const auto sticker = document->sticker();
+				Assert(sticker != nullptr);
+				_sticker.emplace(_parent, document, false, _parent);
+				_sticker->setPlayingOnce(true);
+				_sticker->initSize(st::msgServiceGiftBoxStickerSize);
+				_parent->repaint();
+			});
 		}
+		return;
 	}
 	const auto &session = _parent->history()->session();
 	auto &packs = session.giftBoxStickersPacks();

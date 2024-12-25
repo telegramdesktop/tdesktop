@@ -371,17 +371,20 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 		const auto cost = v::match(descriptor, [&](GiftTypePremium data) {
 			return FillAmountAndCurrency(data.cost, data.currency, true);
 		}, [&](GiftTypeStars data) {
-			return tr::lng_gift_stars_title(
-				tr::now,
-				lt_count,
-				data.info.stars);
+			const auto stars = data.info.stars;
+			return stars
+				? tr::lng_gift_stars_title(tr::now, lt_count, stars)
+				: QString();
 		});
-		const auto text = tr::lng_action_gift_received(
-			tr::now,
-			lt_user,
-			_history->session().user()->shortName(),
-			lt_cost,
-			cost);
+		const auto name = _history->session().user()->shortName();
+		const auto text = cost.isEmpty()
+			? tr::lng_action_gift_unique_received(tr::now, lt_user, name)
+			: tr::lng_action_gift_received(
+				tr::now,
+				lt_user,
+				name,
+				lt_cost,
+				cost);
 		const auto item = _history->makeMessage({
 			.id = _history->nextNonHistoryEntryId(),
 			.flags = (MessageFlag::FakeAboutView

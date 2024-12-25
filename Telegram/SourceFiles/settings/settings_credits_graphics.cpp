@@ -1615,7 +1615,7 @@ void StarGiftViewBox(
 			.credits = StarsAmount(data.count),
 			.bareMsgId = uint64(item->id.bare),
 			.barePeerId = item->history()->peer->id.value,
-			.bareGiftStickerId = data.document ? data.document->id : 0,
+			.bareGiftStickerId = data.stickerId,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.limitedCount,
 			.limitedLeft = data.limitedLeft,

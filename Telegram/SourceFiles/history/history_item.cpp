@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item.h"
 
+#include "api/api_premium.h"
 #include "api/api_sensitive_content.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -5410,6 +5411,20 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		}, [](const MTPDstarGiftUnique &) {
 			return uint64();
 		});
+		if (!stars) {
+			if (!isSelf) {
+				result.links.push_back(peer->createOpenLink());
+			}
+			result.text = isSelf
+				? tr::lng_action_gift_unique_sent(
+					tr::now,
+					Ui::Text::WithEntities)
+				: tr::lng_action_gift_unique_received(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
+					Ui::Text::WithEntities);
+		}
 		const auto cost = TextWithEntities{
 			tr::lng_action_gift_for_stars(tr::now, lt_count, stars),
 		};
@@ -5421,7 +5436,9 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 				cost,
 				Ui::Text::WithEntities);
 		} else {
-			result.links.push_back(peer->createOpenLink());
+			if (!isSelf) {
+				result.links.push_back(peer->createOpenLink());
+			}
 			result.text = isSelf
 				? tr::lng_action_gift_sent(tr::now,
 					lt_cost,
@@ -5611,32 +5628,29 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				.unclaimed = data.is_unclaimed(),
 			});
 	}, [&](const MTPDmessageActionStarGift &data) {
-		data.vgift().match([&](const MTPDstarGift &gift) {
-			const auto document = history()->owner().processDocument(
-				gift.vsticker());
-			using Fields = Data::GiftCode;
-			_media = std::make_unique<Data::MediaGiftBox>(this, _from, Fields{
-				.document = document->sticker() ? document.get() : nullptr,
-				.message = (data.vmessage()
-					? TextWithEntities{
-						.text = qs(data.vmessage()->data().vtext()),
-						.entities = Api::EntitiesFromMTP(
-							&history()->session(),
-							data.vmessage()->data().ventities().v),
-					}
-					: TextWithEntities()),
-				.starsConverted = int(data.vconvert_stars().value_or_empty()),
-				.limitedCount = gift.vavailability_total().value_or_empty(),
-				.limitedLeft = gift.vavailability_remains().value_or_empty(),
-				.count = int(gift.vstars().v),
-				.type = Data::GiftType::StarGift,
-				.anonymous = data.is_name_hidden(),
-				.converted = data.is_converted(),
-				.saved = data.is_saved(),
-			});
-		}, [&](const MTPDstarGiftUnique &gift) {
-
-		});
+		using Fields = Data::GiftCode;
+		auto fields = Fields{
+			.message = (data.vmessage()
+				? TextWithEntities{
+					.text = qs(data.vmessage()->data().vtext()),
+					.entities = Api::EntitiesFromMTP(
+						&history()->session(),
+						data.vmessage()->data().ventities().v),
+				}
+				: TextWithEntities()),
+			.starsConverted = int(data.vconvert_stars().value_or_empty()),
+			.type = Data::GiftType::StarGift,
+			.anonymous = data.is_name_hidden(),
+			.converted = data.is_converted(),
+			.saved = data.is_saved(),
+		};
+		if (auto gift = Api::FromTL(&history()->session(), data.vgift())) {
+			fields.stickerId = gift->stickerId;
+			fields.limitedCount = gift->limitedCount;
+			fields.limitedLeft = gift->limitedLeft;
+			fields.count = gift->stars;
+			fields.unique = gift->unique;
+		}
 	}, [](const auto &) {
 	});
 }

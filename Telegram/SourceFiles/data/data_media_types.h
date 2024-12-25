@@ -39,6 +39,7 @@ namespace Data {
 class CloudImage;
 class WallPaper;
 class Session;
+struct UniqueGift;
 
 enum class CallFinishReason : char {
 	Missed,
@@ -135,7 +136,8 @@ enum class GiftType : uchar {
 
 struct GiftCode {
 	QString slug;
-	DocumentData *document = nullptr;
+	DocumentId stickerId = 0;
+	std::shared_ptr<UniqueGift> unique;
 	TextWithEntities message;
 	ChannelData *channel = nullptr;
 	MsgId giveawayMsgId = 0;

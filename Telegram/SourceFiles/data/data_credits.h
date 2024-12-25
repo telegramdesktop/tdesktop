@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+struct UniqueGift;
+
 struct CreditTopupOption final {
 	uint64 credits = 0;
 	QString product;
@@ -63,6 +65,7 @@ struct CreditsHistoryEntry final {
 	uint64 bareGiveawayMsgId = 0;
 	uint64 bareGiftStickerId = 0;
 	uint64 bareActorId = 0;
+	std::shared_ptr<UniqueGift> uniqueGift;
 	StarsAmount starrefAmount;
 	int starrefCommission = 0;
 	uint64 starrefRecipientId = 0;

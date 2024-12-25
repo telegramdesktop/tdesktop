@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_credits.h"
 
+#include "api/api_premium.h"
 #include "api/api_statistics_data_deserialize.h"
 #include "api/api_updates.h"
 #include "apiwrap.h"
@@ -90,25 +91,10 @@ constexpr auto kTransactionsLimit = 100;
 		: 0;
 	const auto incoming = (amount >= StarsAmount());
 	const auto saveActorId = (reaction || !extended.empty()) && incoming;
-	const auto giftStickerId = [&] {
-		if (!stargift) {
-			return DocumentId();
-		}
-		return stargift->match([&](const MTPDstarGift &data) {
-			return owner->processDocument(data.vsticker())->id;
-		}, [&](const MTPDstarGiftUnique &data) {
-			for (const auto &attribute : data.vattributes().v) {
-				const auto result = attribute.match([&](
-						const MTPDstarGiftAttributeModel &data) {
-					return DocumentId(data.vdocument_id().v);
-				}, [](const auto &) { return DocumentId(); });
-				if (result) {
-					return result;
-				}
-			}
-			return DocumentId();
-		});
-	}();
+	const auto parsedGift = stargift
+		? FromTL(&peer->session(), *stargift)
+		: std::optional<Data::StarGift>();
+	const auto giftStickerId = parsedGift ? parsedGift->stickerId : 0;
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),
@@ -123,6 +109,7 @@ constexpr auto kTransactionsLimit = 100;
 			tl.data().vgiveaway_post_id().value_or_empty()),
 		.bareGiftStickerId = giftStickerId,
 		.bareActorId = saveActorId ? barePeerId : uint64(0),
+		.uniqueGift = parsedGift ? parsedGift->unique : nullptr,
 		.starrefAmount = starrefAmount,
 		.starrefCommission = starrefCommission,
 		.starrefRecipientId = starrefBarePeerId,
