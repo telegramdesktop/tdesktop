@@ -48,6 +48,7 @@ bool ApplyBotVerifierSettings(
 		.iconId = DocumentId(data.vicon().v),
 		.company = qs(data.vcompany()),
 		.customDescription = qs(data.vcustom_description().value_or_empty()),
+		.canModifyDescription = data.is_can_modify_custom_description(),
 	};
 	if (!info->verifierSettings) {
 		info->verifierSettings = std::make_unique<BotVerifierSettings>(

@@ -111,6 +111,7 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 		const auto settings = bot->botInfo
 			? bot->botInfo->verifierSettings.get()
 			: nullptr;
+		const auto modify = settings && settings->canModifyDescription;
 		const auto state = std::make_shared<State>(State{
 			.description = settings ? settings->customDescription : QString()
 		});
@@ -119,7 +120,7 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 			u"bot_verification_description_length_limit"_q,
 			70);
 		const auto send = [=] {
-			if (state->description.size() > limit) {
+			if (modify && state->description.size() > limit) {
 				state->field->showError();
 				return;
 			} else if (state->sent) {
@@ -127,7 +128,8 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 			}
 			state->sent = true;
 			const auto weak = Ui::MakeWeak(box);
-			Setup(bot, peer, state->description, [=](QString error) {
+			const auto description = modify ? state->description : QString();
+			Setup(bot, peer, description, [=](QString error) {
 				if (error.isEmpty()) {
 					if (const auto strong = weak.data()) {
 						strong->closeBox();
@@ -157,6 +159,9 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 			.confirmText = phrases.submit(),
 			.title = phrases.title(),
 		});
+		if (!modify) {
+			return;
+		}
 
 		Ui::AddSubsectionTitle(
 			box->verticalLayout(),

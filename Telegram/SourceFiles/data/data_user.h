@@ -35,6 +35,7 @@ struct BotVerifierSettings {
 	DocumentId iconId = 0;
 	QString company;
 	QString customDescription;
+	bool canModifyDescription = false;
 
 	explicit operator bool() const {
 		return iconId != 0;
