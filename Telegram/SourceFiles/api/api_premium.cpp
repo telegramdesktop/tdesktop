@@ -601,7 +601,7 @@ auto PremiumGiftCodeOptions::requestStarGifts()
 				_giftsHash = data.vhash().v;
 				const auto &list = data.vgifts().v;
 				const auto session = &_peer->session();
-				auto gifts = std::vector<StarGift>();
+				auto gifts = std::vector<Data::StarGift>();
 				gifts.reserve(list.size());
 				for (const auto &gift : list) {
 					if (auto parsed = FromTL(session, gift)) {
@@ -620,7 +620,8 @@ auto PremiumGiftCodeOptions::requestStarGifts()
 	};
 }
 
-const std::vector<StarGift> &PremiumGiftCodeOptions::starGifts() const {
+auto PremiumGiftCodeOptions::starGifts() const
+-> const std::vector<Data::StarGift> & {
 	return _gifts;
 }
 
@@ -758,7 +759,7 @@ rpl::producer<DocumentData*> RandomHelloStickerValue(
 	}) | rpl::take(1) | rpl::map(random));
 }
 
-std::optional<StarGift> FromTL(
+std::optional<Data::StarGift> FromTL(
 		not_null<Main::Session*> session,
 		const MTPstarGift &gift) {
 	return gift.match([&](const MTPDstarGift &data) {
@@ -767,13 +768,13 @@ std::optional<StarGift> FromTL(
 		const auto remaining = data.vavailability_remains();
 		const auto total = data.vavailability_total();
 		if (!document->sticker()) {
-			return std::optional<StarGift>();
+			return std::optional<Data::StarGift>();
 		}
-		return std::optional<StarGift>(StarGift{
+		return std::optional<Data::StarGift>(Data::StarGift{
 			.id = uint64(data.vid().v),
 			.stars = int64(data.vstars().v),
 			.starsConverted = int64(data.vconvert_stars().v),
-			.document = document,
+			.stickerId = document->id,
 			.limitedLeft = remaining.value_or_empty(),
 			.limitedCount = total.value_or_empty(),
 			.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
@@ -781,11 +782,54 @@ std::optional<StarGift> FromTL(
 			.birthday = data.is_birthday(),
 		});
 	}, [&](const MTPDstarGiftUnique &data) {
-		return std::optional<StarGift>();
+		const auto total = data.vavailability_total().v;
+		auto result = Data::StarGift{
+			.id = uint64(data.vid().v),
+			.unique = std::make_shared<Data::UniqueGift>(Data::UniqueGift{
+				.title = qs(data.vtitle()),
+				.number = data.vnum().v,
+				.ownerId = peerFromUser(UserId(data.vowner_id().v)),
+			}),
+			.limitedLeft = (total - data.vavailability_issued().v),
+			.limitedCount = total,
+		};
+		const auto unique = result.unique.get();
+		for (const auto &attribute : data.vattributes().v) {
+			attribute.match([&](const MTPDstarGiftAttributeModel &data) {
+				unique->model.name = qs(data.vname());
+				unique->model.rarityPermille = data.vrarity_permille().v;
+				result.stickerId = data.vdocument_id().v;
+			}, [&](const MTPDstarGiftAttributePattern &data) {
+				unique->pattern.name = qs(data.vname());
+				unique->pattern.rarityPermille = data.vrarity_permille().v;
+				unique->pattern.documentId = data.vdocument_id().v;
+			}, [&](const MTPDstarGiftAttributeBackdrop &data) {
+				unique->backdrop.name = qs(data.vname());
+				unique->backdrop.rarityPermille = data.vrarity_permille().v;
+				unique->backdrop.centerColor = Ui::ColorFromSerialized(
+					data.vcenter_color());
+				unique->backdrop.edgeColor = Ui::ColorFromSerialized(
+					data.vedge_color());
+				unique->backdrop.patternColor = Ui::ColorFromSerialized(
+					data.vpattern_color());
+				unique->backdrop.textColor = Ui::ColorFromSerialized(
+					data.vtext_color());
+			}, [&](const MTPDstarGiftAttributeOriginalDetails &data) {
+				unique->originalDetails.date = data.vdate().v;
+				unique->originalDetails.senderId = peerFromUser(
+					UserId(data.vsender_id().value_or_empty()));
+				unique->originalDetails.recipientId = peerFromUser(
+					UserId(data.vrecipient_id().v));
+				unique->originalDetails.message = data.vmessage()
+					? Api::ParseTextWithEntities(session, *data.vmessage())
+					: TextWithEntities();
+			});
+		}
+		return result.stickerId ? result : std::optional<Data::StarGift>();
 	});
 }
 
-std::optional<UserStarGift> FromTL(
+std::optional<Data::UserStarGift> FromTL(
 		not_null<UserData*> to,
 		const MTPuserStarGift &gift) {
 	const auto session = &to->session();
@@ -794,7 +838,7 @@ std::optional<UserStarGift> FromTL(
 	if (!parsed) {
 		return {};
 	}
-	return UserStarGift{
+	return Data::UserStarGift{
 		.info = std::move(*parsed),
 		.message = (data.vmessage()
 			? TextWithEntities{

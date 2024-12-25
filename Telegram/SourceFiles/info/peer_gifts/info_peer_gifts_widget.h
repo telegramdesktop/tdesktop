@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "api/api_premium.h"
+#include "data/data_star_gift.h"
 #include "info/info_content_widget.h"
 
 class UserData;
@@ -16,7 +16,7 @@ struct PeerListState;
 namespace Info::PeerGifts {
 
 struct ListState {
-	std::vector<Api::UserStarGift> list;
+	std::vector<Data::UserStarGift> list;
 	QString offset;
 };
 

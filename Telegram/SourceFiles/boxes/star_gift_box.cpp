@@ -139,6 +139,7 @@ private:
 	const std::unique_ptr<Ui::ChatStyle> _style;
 	const std::unique_ptr<PreviewDelegate> _delegate;
 	AdminLog::OwnedItem _item;
+	rpl::lifetime _itemLifetime;
 	QPoint _position;
 
 };
@@ -160,7 +161,7 @@ private:
 	return is(now) || is(now.addDays(1)) || is(now.addDays(-1));
 }
 
-[[nodiscard]] bool IsSoldOut(const Api::StarGift &info) {
+[[nodiscard]] bool IsSoldOut(const Data::StarGift &info) {
 	return info.limitedCount && !info.limitedLeft;
 }
 
@@ -188,7 +189,9 @@ Context PreviewDelegate::elementContext() {
 auto GenerateGiftMedia(
 	not_null<Element*> parent,
 	Element *replacing,
-	const GiftDetails &data)
+	const GiftDetails &data,
+	Fn<void()> requestResize,
+	not_null<rpl::lifetime*> onLifetime)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
 	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 		const auto &descriptor = data.descriptor;
@@ -206,12 +209,20 @@ auto GenerateGiftMedia(
 				links,
 				context));
 		};
+
+		const auto resolved = onLifetime->make_state<DocumentData*>(nullptr);
+		GiftStickerValue(
+			&parent->history()->session(),
+			descriptor
+		) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+			*resolved = document;
+			requestResize();
+		}, *onLifetime);
+
 		const auto sticker = [=] {
 			using Tag = ChatHelpers::StickerLottieSize;
-			const auto session = &parent->history()->session();
-			const auto sticker = LookupGiftSticker(session, descriptor);
 			return StickerInBubblePart::Data{
-				.sticker = sticker,
+				.sticker = *resolved,
 				.size = st::chatIntroStickerSize,
 				.cacheTag = Tag::ChatIntroHelloSticker,
 				.singleTimePlayback = v::is<GiftTypePremium>(descriptor),
@@ -296,9 +307,10 @@ void ShowSentToast(
 	const auto &st = st::historyPremiumToast;
 	const auto skip = st.padding.top();
 	const auto size = st.style.font->height * 2;
-	const auto document = LookupGiftSticker(&window->session(), descriptor);
-	const auto leftSkip = document
-		? (skip + size + skip - st.padding.left())
+	const auto stickerId = GiftStickerId(&window->session(), descriptor);
+	const auto stickerSize = skip + size + skip;
+	const auto leftSkip = stickerId
+		? (stickerSize - st.padding.left())
 		: 0;
 	auto text = v::match(descriptor, [&](const GiftTypePremium &gift) {
 		return tr::lng_action_gift_premium_about(
@@ -319,40 +331,31 @@ void ShowSentToast(
 		.attach = RectPart::Top,
 		.duration = kSentToastDuration,
 	}).get();
-	if (!strong || !document) {
+	if (!strong || !stickerId) {
 		return;
 	}
 	const auto widget = strong->widget();
 	const auto preview = Ui::CreateChild<Ui::RpWidget>(widget.get());
-	preview->moveToLeft(skip, skip);
-	preview->resize(size, size);
+	preview->moveToLeft(0, 0);
+	preview->resize(stickerSize, stickerSize);
 	preview->show();
 
-	const auto bytes = document->createMediaView()->bytes();
-	const auto filepath = document->filepath();
-	const auto ratio = style::DevicePixelRatio();
-	const auto player = preview->lifetime().make_state<Lottie::SinglePlayer>(
-		Lottie::ReadContent(bytes, filepath),
-		Lottie::FrameRequest{ QSize(size, size) * ratio },
-		Lottie::Quality::Default);
+	const auto tag = Data::CustomEmojiManager::SizeTag::Isolated;
+	const auto manager = &window->session().data().customEmojiManager();
+	const auto emoji = std::shared_ptr<Ui::Text::CustomEmoji>(
+		manager->create(stickerId, [=] { preview->update(); }, tag));
 
 	preview->paintRequest(
 	) | rpl::start_with_next([=] {
-		if (!player->ready()) {
-			return;
-		}
-		const auto image = player->frame();
-		QPainter(preview).drawImage(
-			QRect(QPoint(), image.size() / ratio),
-			image);
-		if (player->frameIndex() + 1 != player->framesCount()) {
-			player->markFrameShown();
-		}
-	}, preview->lifetime());
-
-	player->updates(
-	) | rpl::start_with_next([=] {
-		preview->update();
+		auto p = Painter(preview);
+		const auto frame = Data::FrameSizeFromTag(tag)
+			/ style::DevicePixelRatio();
+		const auto delta = (stickerSize - frame) / 2;
+		emoji->paint(p, {
+			.textColor = st::toastFg->c,
+			.now = crl::now(),
+			.position = QPoint(delta, delta),
+		});
 	}, preview->lifetime());
 }
 
@@ -362,6 +365,8 @@ PreviewWrap::~PreviewWrap() {
 
 void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 	std::move(details) | rpl::start_with_next([=](GiftDetails details) {
+		_itemLifetime.destroy();
+
 		const auto &descriptor = details.descriptor;
 		const auto cost = v::match(descriptor, [&](GiftTypePremium data) {
 			return FillAmountAndCurrency(data.cost, data.currency, true);
@@ -388,7 +393,12 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 		auto owned = AdminLog::OwnedItem(_delegate.get(), item);
 		owned->overrideMedia(std::make_unique<MediaGeneric>(
 			owned.get(),
-			GenerateGiftMedia(owned.get(), _item.get(), details),
+			GenerateGiftMedia(
+				owned.get(),
+				_item.get(),
+				details,
+				[=] { item->history()->owner().requestItemResize(item); },
+				&_itemLifetime),
 			MediaGenericDescriptor{
 				.maxWidth = st::chatIntroWidth,
 				.service = true,
@@ -405,6 +415,13 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 		return width >= st::msgMinWidth;
 	}) | rpl::start_with_next([=](int width) {
 		resizeTo(width);
+	}, lifetime());
+
+	_history->owner().itemResizeRequest(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		if (_item && item == _item->data() && width() >= st::msgMinWidth) {
+			resizeTo(width());
+		}
 	}, lifetime());
 }
 
@@ -959,7 +976,7 @@ void SoldOutBox(
 			.firstSaleDate = base::unixtime::parse(gift.info.firstSaleDate),
 			.lastSaleDate = base::unixtime::parse(gift.info.lastSaleDate),
 			.credits = StarsAmount(gift.info.stars),
-			.bareGiftStickerId = gift.info.document->id,
+			.bareGiftStickerId = gift.info.stickerId,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = gift.info.limitedCount,
 			.limitedLeft = gift.info.limitedLeft,
@@ -967,7 +984,6 @@ void SoldOutBox(
 			.gift = true,
 		},
 		Data::SubscriptionEntry());
-
 }
 
 void SendGiftBox(
@@ -1009,10 +1025,6 @@ void SendGiftBox(
 		.descriptor = descriptor,
 		.randomId = base::RandomValue<uint64>(),
 	};
-	const auto document = LookupGiftSticker(&window->session(), descriptor);
-	if ((state->media = document ? document->createMediaView() : nullptr)) {
-		state->media->checkStickerLarge();
-	}
 
 	const auto container = box->verticalLayout();
 	container->add(object_ptr<PreviewWrap>(

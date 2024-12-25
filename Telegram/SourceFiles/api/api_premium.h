@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_premium_subscription_option.h"
+#include "data/data_star_gift.h"
 #include "mtproto/sender.h"
 
 class History;
@@ -71,34 +72,6 @@ struct GiftOptionData {
 	int64 cost = 0;
 	QString currency;
 	int months = 0;
-};
-
-struct StarGift {
-	uint64 id = 0;
-	int64 stars = 0;
-	int64 starsConverted = 0;
-	not_null<DocumentData*> document;
-	int limitedLeft = 0;
-	int limitedCount = 0;
-	TimeId firstSaleDate = 0;
-	TimeId lastSaleDate = 0;
-	bool birthday = false;
-
-	friend inline bool operator==(
-		const StarGift &,
-		const StarGift &) = default;
-};
-
-struct UserStarGift {
-	StarGift info;
-	TextWithEntities message;
-	int64 starsConverted = 0;
-	PeerId fromId = 0;
-	MsgId messageId = 0;
-	TimeId date = 0;
-	bool anonymous = false;
-	bool hidden = false;
-	bool mine = false;
 };
 
 class Premium final {
@@ -223,7 +196,7 @@ public:
 	[[nodiscard]] bool giveawayGiftsPurchaseAvailable() const;
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> requestStarGifts();
-	[[nodiscard]] const std::vector<StarGift> &starGifts() const;
+	[[nodiscard]] const std::vector<Data::StarGift> &starGifts() const;
 
 private:
 	struct Token final {
@@ -253,7 +226,7 @@ private:
 	base::flat_map<Token, Store> _stores;
 
 	int32 _giftsHash = 0;
-	std::vector<StarGift> _gifts;
+	std::vector<Data::StarGift> _gifts;
 
 	MTP::Sender _api;
 
@@ -283,10 +256,10 @@ enum class RequirePremiumState {
 [[nodiscard]] rpl::producer<DocumentData*> RandomHelloStickerValue(
 	not_null<Main::Session*> session);
 
-[[nodiscard]] std::optional<StarGift> FromTL(
+[[nodiscard]] std::optional<Data::StarGift> FromTL(
 	not_null<Main::Session*> session,
 	const MTPstarGift &gift);
-[[nodiscard]] std::optional<UserStarGift> FromTL(
+[[nodiscard]] std::optional<Data::UserStarGift> FromTL(
 	not_null<UserData*> to,
 	const MTPuserStarGift &gift);
 

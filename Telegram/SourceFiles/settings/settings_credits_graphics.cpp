@@ -1574,7 +1574,7 @@ void CreditsPrizeBox(
 void UserStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
-		const Api::UserStarGift &data) {
+		const Data::UserStarGift &data) {
 	Settings::ReceiptCreditsBox(
 		box,
 		controller,
@@ -1584,7 +1584,7 @@ void UserStarGiftBox(
 			.credits = StarsAmount(data.info.stars),
 			.bareMsgId = uint64(data.messageId.bare),
 			.barePeerId = data.fromId.value,
-			.bareGiftStickerId = data.info.document->id,
+			.bareGiftStickerId = data.info.stickerId,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.info.limitedCount,
 			.limitedLeft = data.info.limitedLeft,

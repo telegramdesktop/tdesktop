@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "api/api_premium.h"
+#include "data/data_star_gift.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/text/text.h"
@@ -44,7 +44,7 @@ struct GiftTypePremium {
 };
 
 struct GiftTypeStars {
-	Api::StarGift info;
+	Data::StarGift info;
 	PeerData *from = nullptr;
 	bool userpic = false;
 	bool hidden = false;
@@ -70,7 +70,7 @@ public:
 	[[nodiscard]] virtual QSize buttonSize() = 0;
 	[[nodiscard]] virtual QMargins buttonExtend() = 0;
 	[[nodiscard]] virtual QImage background() = 0;
-	[[nodiscard]] virtual DocumentData *lookupSticker(
+	[[nodiscard]] virtual rpl::producer<not_null<DocumentData*>> sticker(
 		const GiftDescriptor &descriptor) = 0;
 	[[nodiscard]] virtual not_null<StickerPremiumMark*> hiddenMark() = 0;
 };
@@ -120,7 +120,8 @@ public:
 	QSize buttonSize() override;
 	QMargins buttonExtend() override;
 	QImage background() override;
-	DocumentData *lookupSticker(const GiftDescriptor &descriptor) override;
+	rpl::producer<not_null<DocumentData*>> sticker(
+		const GiftDescriptor &descriptor) override;
 	not_null<StickerPremiumMark*> hiddenMark() override;
 
 private:
@@ -131,7 +132,11 @@ private:
 
 };
 
-[[nodiscard]] DocumentData *LookupGiftSticker(
+[[nodiscard]] DocumentId GiftStickerId(
+	not_null<Main::Session*> session,
+	const GiftDescriptor &descriptor);
+
+[[nodiscard]] rpl::producer<not_null<DocumentData*>> GiftStickerValue(
 	not_null<Main::Session*> session,
 	const GiftDescriptor &descriptor);
 

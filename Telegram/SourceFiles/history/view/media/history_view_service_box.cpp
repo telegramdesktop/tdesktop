@@ -202,7 +202,7 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(Qt::NoPen);
 		const auto twidth = font->width(tag);
 		const auto pos = QPoint(_innerSize.width() - twidth, font->height);
-		const auto add = style::ConvertScale(2);
+		const auto add = 0;// style::ConvertScale(2);
 		p.save();
 		p.setClipRect(
 			-add,

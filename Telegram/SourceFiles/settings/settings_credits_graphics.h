@@ -12,16 +12,13 @@ class object_ptr;
 
 class PeerData;
 
-namespace Api {
-struct UserStarGift;
-} // namespace Api
-
 namespace Data {
 struct Boost;
 struct CreditsHistoryEntry;
 struct SubscriptionEntry;
 struct GiftCode;
 struct CreditTopupOption;
+struct UserStarGift;
 } // namespace Data
 
 namespace Main {
@@ -103,7 +100,7 @@ void CreditsPrizeBox(
 void UserStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
-	const Api::UserStarGift &data);
+	const Data::UserStarGift &data);
 void StarGiftViewBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,

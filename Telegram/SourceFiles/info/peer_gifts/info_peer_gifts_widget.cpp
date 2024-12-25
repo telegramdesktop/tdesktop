@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 
+#include "api/api_premium.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
@@ -32,7 +33,7 @@ constexpr auto kPerPage = 50;
 
 [[nodiscard]] GiftDescriptor DescriptorForGift(
 		not_null<UserData*> to,
-		const Api::UserStarGift &gift) {
+		const Data::UserStarGift &gift) {
 	return GiftTypeStars{
 		.info = gift.info,
 		.from = ((gift.anonymous || !gift.fromId)
@@ -62,7 +63,7 @@ public:
 
 private:
 	struct Entry {
-		Api::UserStarGift gift;
+		Data::UserStarGift gift;
 		GiftDescriptor descriptor;
 	};
 	struct View {

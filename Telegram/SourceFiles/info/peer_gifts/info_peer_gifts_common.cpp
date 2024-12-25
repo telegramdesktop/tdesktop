@@ -108,9 +108,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 			_stars.setColorOverride(Ui::Premium::CreditsIconGradientStops());
 		}
 	});
-	if (const auto document = _delegate->lookupSticker(descriptor)) {
+	_delegate->sticker(
+		descriptor
+	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
 		setDocument(document);
-	}
+	}, lifetime());
 
 	const auto buttonw = _price.maxWidth();
 	const auto buttonh = st::semiboldFont->height;
@@ -186,12 +188,6 @@ void GiftButton::resizeEvent(QResizeEvent *e) {
 }
 
 void GiftButton::paintEvent(QPaintEvent *e) {
-	if (!documentResolved()) {
-		if (const auto document = _delegate->lookupSticker(_descriptor)) {
-			setDocument(document);
-		}
-	}
-
 	auto p = QPainter(this);
 	const auto hidden = v::is<GiftTypeStars>(_descriptor)
 		&& v::get<GiftTypeStars>(_descriptor).hidden;;
@@ -447,24 +443,54 @@ QImage Delegate::background() {
 	return _bg;
 }
 
-DocumentData *Delegate::lookupSticker(const GiftDescriptor &descriptor) {
-	return LookupGiftSticker(&_window->session(), descriptor);
+rpl::producer<not_null<DocumentData*>> Delegate::sticker(
+		const GiftDescriptor &descriptor) {
+	return GiftStickerValue(&_window->session(), descriptor);
 }
 
 not_null<StickerPremiumMark*> Delegate::hiddenMark() {
 	return _hiddenMark.get();
 }
 
-DocumentData *LookupGiftSticker(
+DocumentId GiftStickerId(
 		not_null<Main::Session*> session,
 		const GiftDescriptor &descriptor) {
-	auto &packs = session->giftBoxStickersPacks();
-	packs.load();
 	return v::match(descriptor, [&](GiftTypePremium data) {
-		return packs.lookup(data.months);
+		auto &packs = session->giftBoxStickersPacks();
+		packs.load();
+		const auto document = packs.lookup(data.months);
+		return document ? document->id : DocumentId();
 	}, [&](GiftTypeStars data) {
-		return data.info.document.get();
+		return data.info.stickerId;
 	});
+}
+
+rpl::producer<not_null<DocumentData*>> GiftStickerValue(
+		not_null<Main::Session*> session,
+		const GiftDescriptor &descriptor) {
+	return v::match(descriptor, [&](GiftTypePremium data) {
+		const auto months = data.months;
+		auto &packs = session->giftBoxStickersPacks();
+		packs.load();
+		if (const auto result = packs.lookup(months)) {
+			return result->sticker()
+				? (rpl::single(not_null(result)) | rpl::type_erased())
+				: rpl::never<not_null<DocumentData*>>();
+		}
+		return packs.updated(
+		) | rpl::map([=] {
+			return session->giftBoxStickersPacks().lookup(data.months);
+		}) | rpl::filter([](DocumentData *document) {
+			return document && document->sticker();
+		}) | rpl::take(1) | rpl::map([=](DocumentData *document) {
+			return not_null(document);
+		}) | rpl::type_erased();
+	}, [&](GiftTypeStars data) {
+		return session->data().customEmojiManager().resolve(
+			data.info.stickerId
+		) | rpl::map_error_to_done();
+	});
+
 }
 
 } // namespace Info::PeerGifts
