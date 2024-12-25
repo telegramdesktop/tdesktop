@@ -570,6 +570,16 @@ void UserData::setVerifyDetails(Ui::VerifyDetails details) {
 	}
 }
 
+void UserData::setVerifyDetailsIcon(DocumentId iconId) {
+	if (!iconId) {
+		setVerifyDetails({});
+	} else {
+		auto info = _verifyDetails ? *_verifyDetails : Ui::VerifyDetails();
+		info.iconBgId = iconId;
+		setVerifyDetails(info);
+	}
+}
+
 const QString &UserData::phone() const {
 	return _phone;
 }
@@ -781,6 +791,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		user->owner().businessInfo().applyGreetingSettings(
 			FromMTP(&user->owner(), update.vbusiness_greeting_message()));
 	}
+	user->setVerifyDetails(ParseVerifyDetails(update.vbot_verification()));
 
 	user->owner().stories().apply(user, update.vstories());
 
@@ -800,6 +811,20 @@ StarRefProgram ParseStarRefProgram(const MTPStarRefProgram *program) {
 		: StarsAmount();
 	result.endDate = data.vend_date().value_or_empty();
 	return result;
+}
+
+Ui::VerifyDetails ParseVerifyDetails(const MTPBotVerification *info) {
+	if (!info) {
+		return {};
+	}
+	const auto &data = info->data();
+	const auto description = qs(data.vdescription());
+	const auto flags = TextParseLinks;
+	return {
+		.botId = UserId(data.vbot_id().v),
+		.iconBgId = DocumentId(data.vicon().v),
+		.description = TextUtilities::ParseEntities(description, flags),
+	};
 }
 
 } // namespace Data

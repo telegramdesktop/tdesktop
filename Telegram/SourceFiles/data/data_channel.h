@@ -377,6 +377,7 @@ public:
 		not_null<PeerData*> participant) const;
 
 	void setVerifyDetails(Ui::VerifyDetails details);
+	void setVerifyDetailsIcon(DocumentId iconId);
 	[[nodiscard]] Ui::VerifyDetails *verifyDetails() const {
 		return _verifyDetails.get();
 	}

@@ -1853,15 +1853,9 @@ void DetailsFiller::setupAboutVerification() {
 			Ui::AddDivider(inner);
 		} else if (!info->description.empty()) {
 			Ui::AddDividerText(inner, rpl::single(info->description));
-		} else {
+		} else if (_peer->verifiedByTelegram()) {
 			const auto phrases = PeerVerifyPhrases(peer);
-			Ui::AddDividerText(
-				inner,
-				(_peer->verifiedByTelegram()
-					? phrases.telegram()
-					: phrases.company(
-						lt_company,
-						rpl::single(info->company))));
+			Ui::AddDividerText(inner, phrases.telegram());
 		}
 		inner->resizeToWidth(inner->width());
 	}, inner->lifetime());

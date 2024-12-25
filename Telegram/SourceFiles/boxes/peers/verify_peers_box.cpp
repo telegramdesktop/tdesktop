@@ -167,9 +167,7 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 			box,
 			st::createPollField,
 			Ui::InputField::Mode::NoNewlines,
-			(settings
-				? phrases.company(lt_company, rpl::single(settings->company))
-				: rpl::single(QString())),
+			rpl::single(state->description),
 			state->description
 		), st::createPollFieldPadding);
 		state->field = field;
@@ -261,7 +259,6 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 				.sent = tr::lng_bot_verify_bot_sent,
 				.remove = tr::lng_bot_verify_bot_remove,
 				.telegram = tr::lng_bot_verify_bot_telegram,
-				.company = tr::lng_bot_verify_bot_company,
 			};
 		} else {
 			return {
@@ -272,7 +269,6 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 				.sent = tr::lng_bot_verify_user_sent,
 				.remove = tr::lng_bot_verify_user_remove,
 				.telegram = tr::lng_bot_verify_user_telegram,
-				.company = tr::lng_bot_verify_user_company,
 			};
 		}
 	} else if (peer->isBroadcast()) {
@@ -284,7 +280,6 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 			.sent = tr::lng_bot_verify_channel_sent,
 			.remove = tr::lng_bot_verify_channel_remove,
 			.telegram = tr::lng_bot_verify_channel_telegram,
-			.company = tr::lng_bot_verify_channel_company,
 		};
 	}
 	return {
@@ -295,6 +290,5 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 		.sent = tr::lng_bot_verify_group_sent,
 		.remove = tr::lng_bot_verify_group_remove,
 		.telegram = tr::lng_bot_verify_group_telegram,
-		.company = tr::lng_bot_verify_group_company,
 	};
 }

@@ -133,21 +133,6 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	}
 }
 
-[[nodiscard]] Ui::VerifyDetails Parse(const MTPBotVerification *info) {
-	if (!info) {
-		return {};
-	}
-	const auto &data = info->data();
-	auto description = qs(data.vdescription().value_or_empty());
-	const auto flags = TextParseLinks;
-	return {
-		.botId = UserId(data.vbot_id().v),
-		.iconBgId = DocumentId(data.vicon().v),
-		.company = qs(data.vcompany()),
-		.description = TextUtilities::ParseEntities(description, flags),
-	};
-}
-
 [[nodiscard]] InlineImageLocation FindInlineThumbnail(
 		const QVector<MTPPhotoSize> &sizes) {
 	const auto i = ranges::find(
@@ -368,7 +353,6 @@ Ui::VerifyDetails Session::verifiedByTelegram() {
 	return {
 		.iconBgId = _verifiedByTelegramIconBgId,
 		.iconFgId = _verifiedByTelegramIconFgId,
-		.company = u"Telegram"_q,
 	};
 }
 
@@ -615,7 +599,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (data.is_verified()) {
 			result->setVerifyDetails(verifiedByTelegram());
 		} else {
-			result->setVerifyDetails(Parse(data.vbot_verification()));
+			result->setVerifyDetailsIcon(data.vbot_verification_icon().value_or_empty());
 		}
 		if (minimal) {
 			if (result->input.type() == mtpc_inputPeerEmpty) {
@@ -1035,7 +1019,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (data.is_verified()) {
 			channel->setVerifyDetails(verifiedByTelegram());
 		} else {
-			channel->setVerifyDetails(Parse(data.vbot_verification()));
+			channel->setVerifyDetailsIcon(
+				data.vbot_verification_icon().value_or_empty());
 		}
 		if (!minimal && storiesState) {
 			result->setStoriesState(!storiesState->maxId
@@ -4645,7 +4630,7 @@ void Session::serviceNotification(
 			MTPPeerColor(), // color
 			MTPPeerColor(), // profile_color
 			MTPint(), // bot_active_users
-			MTPBotVerification()));
+			MTPlong())); // bot_verification_icon
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	const auto insert = [=] {

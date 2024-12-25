@@ -174,7 +174,7 @@ void Account::createSession(
 			MTPPeerColor(), // color
 			MTPPeerColor(), // profile_color
 			MTPint(), // bot_active_users
-			MTPBotVerification()),
+			MTPlong()), // bot_verification_icon
 		serialized,
 		streamVersion,
 		std::move(settings));

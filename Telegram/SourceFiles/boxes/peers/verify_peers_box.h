@@ -33,6 +33,5 @@ struct VerifyPhrases {
 	tr::phrase<lngtag_name> sent;
 	tr::phrase<> remove;
 	tr::phrase<> telegram;
-	tr::phrase<lngtag_company> company;
 };
 [[nodiscard]] VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer);

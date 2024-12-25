@@ -729,6 +729,16 @@ void ChannelData::setVerifyDetails(Ui::VerifyDetails details) {
 	}
 }
 
+void ChannelData::setVerifyDetailsIcon(DocumentId iconId) {
+	if (!iconId) {
+		setVerifyDetails({});
+	} else {
+		auto info = _verifyDetails ? *_verifyDetails : Ui::VerifyDetails();
+		info.iconBgId = iconId;
+		setVerifyDetails(info);
+	}
+}
+
 void ChannelData::setAdminRights(ChatAdminRights rights) {
 	if (rights == adminRights()) {
 		return;
@@ -1267,6 +1277,7 @@ void ApplyChannelUpdate(
 			.paidEnabled = update.is_paid_reactions_available(),
 		});
 	}
+	channel->setVerifyDetails(ParseVerifyDetails(update.vbot_verification()));
 	channel->owner().stories().apply(channel, update.vstories());
 	channel->fullUpdated();
 	channel->setPendingRequestsCount(

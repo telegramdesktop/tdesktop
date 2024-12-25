@@ -193,6 +193,7 @@ public:
 	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
 	void setVerifyDetails(Ui::VerifyDetails details);
+	void setVerifyDetailsIcon(DocumentId iconId);
 	[[nodiscard]] Ui::VerifyDetails *verifyDetails() const {
 		return _verifyDetails.get();
 	}
@@ -292,5 +293,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
 
 [[nodiscard]] StarRefProgram ParseStarRefProgram(
 	const MTPStarRefProgram *program);
+
+[[nodiscard]] Ui::VerifyDetails ParseVerifyDetails(
+	const MTPBotVerification *info);
 
 } // namespace Data

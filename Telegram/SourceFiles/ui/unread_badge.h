@@ -36,7 +36,6 @@ struct VerifyDetails {
 	UserId botId = 0;
 	DocumentId iconBgId = 0;
 	DocumentId iconFgId = 0;
-	QString company;
 	TextWithEntities description;
 
 	explicit operator bool() const {

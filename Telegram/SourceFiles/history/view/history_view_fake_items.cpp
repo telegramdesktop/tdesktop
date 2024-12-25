@@ -61,7 +61,7 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPPeerColor(), // color
 		MTPPeerColor(), // profile_color
 		MTPint(), // bot_active_users
-		MTPBotVerification()));
+		MTPlong())); // bot_verification_icon
 	return peerId;
 }
 
