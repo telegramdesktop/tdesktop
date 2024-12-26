@@ -452,16 +452,15 @@ not_null<StickerPremiumMark*> Delegate::hiddenMark() {
 	return _hiddenMark.get();
 }
 
-DocumentId GiftStickerId(
+DocumentData *LookupGiftSticker(
 		not_null<Main::Session*> session,
 		const GiftDescriptor &descriptor) {
 	return v::match(descriptor, [&](GiftTypePremium data) {
 		auto &packs = session->giftBoxStickersPacks();
 		packs.load();
-		const auto document = packs.lookup(data.months);
-		return document ? document->id : DocumentId();
+		return packs.lookup(data.months);
 	}, [&](GiftTypeStars data) {
-		return data.info.stickerId;
+		return data.info.document.get();
 	});
 }
 
@@ -486,9 +485,7 @@ rpl::producer<not_null<DocumentData*>> GiftStickerValue(
 			return not_null(document);
 		}) | rpl::type_erased();
 	}, [&](GiftTypeStars data) {
-		return session->data().customEmojiManager().resolve(
-			data.info.stickerId
-		) | rpl::map_error_to_done();
+		return rpl::single(data.info.document) | rpl::type_erased();
 	});
 
 }

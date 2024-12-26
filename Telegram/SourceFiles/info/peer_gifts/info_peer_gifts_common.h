@@ -132,7 +132,7 @@ private:
 
 };
 
-[[nodiscard]] DocumentId GiftStickerId(
+[[nodiscard]] DocumentData *LookupGiftSticker(
 	not_null<Main::Session*> session,
 	const GiftDescriptor &descriptor);
 

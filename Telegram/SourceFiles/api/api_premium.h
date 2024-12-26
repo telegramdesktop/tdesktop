@@ -263,4 +263,16 @@ enum class RequirePremiumState {
 	not_null<UserData*> to,
 	const MTPuserStarGift &gift);
 
+[[nodiscard]] Data::UniqueGiftModel FromTL(
+	not_null<Main::Session*> session,
+	const MTPDstarGiftAttributeModel &data);
+[[nodiscard]] Data::UniqueGiftPattern FromTL(
+	not_null<Main::Session*> session,
+	const MTPDstarGiftAttributePattern &data);
+[[nodiscard]] Data::UniqueGiftBackdrop FromTL(
+	const MTPDstarGiftAttributeBackdrop &data);
+[[nodiscard]] Data::UniqueGiftOriginalDetails FromTL(
+	not_null<Main::Session*> session,
+	const MTPDstarGiftAttributeOriginalDetails &data);
+
 } // namespace Api

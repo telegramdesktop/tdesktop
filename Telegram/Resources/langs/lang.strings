@@ -2023,6 +2023,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_unique_received" = "{user} sent you a unique collectible item";
 "lng_action_gift_sent" = "You sent a gift for {cost}";
 "lng_action_gift_unique_sent" = "You sent a unique collectible item";
+"lng_action_gift_upgraded" = "{user} turned the gift from you to a unique collectible";
+"lng_action_gift_upgraded_mine" = "You turned the gift from {user} to a unique collectible";
 "lng_action_gift_received_anonymous" = "Unknown user sent you a gift for {cost}";
 "lng_action_gift_for_stars#one" = "{count} Star";
 "lng_action_gift_for_stars#other" = "{count} Stars";
@@ -2440,6 +2442,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
 
 "lng_premium_summary_new_badge" = "NEW";
+"lng_soon_badge" = "Soon";
 
 "lng_premium_success" = "You've successfully subscribed to Telegram Premium!";
 "lng_premium_unavailable" = "This feature requires subscription to **Telegram Premium**.\n\nUnfortunately, **Telegram Premium** is not available in your region.";
@@ -3279,7 +3282,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sell_small#one" = "sell for {count} Star";
 "lng_gift_sell_small#other" = "sell for {count} Stars";
 "lng_gift_upgrade_title" = "Upgrade Gift";
-"lng_gift_upgrade_about" = "Turn your gift into a unique collectible that you can transfer or auction.";
+"lng_gift_upgrade_about" = "Turn your gift into a unique collectible\nthat you can transfer or auction.";
 "lng_gift_upgrade_unique_title" = "Unique";
 "lng_gift_upgrade_unique_about" = "Get a unique number, model, backdrop and symbol for your gift.";
 "lng_gift_upgrade_transferable_title" = "Transferable";

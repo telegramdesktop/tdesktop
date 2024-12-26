@@ -774,58 +774,58 @@ std::optional<Data::StarGift> FromTL(
 			.id = uint64(data.vid().v),
 			.stars = int64(data.vstars().v),
 			.starsConverted = int64(data.vconvert_stars().v),
-			.stickerId = document->id,
+			.starsUpgraded = int64(data.vupgrade_stars().value_or_empty()),
+			.document = document,
 			.limitedLeft = remaining.value_or_empty(),
 			.limitedCount = total.value_or_empty(),
 			.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
 			.lastSaleDate = data.vlast_sale_date().value_or_empty(),
+			.upgradable = data.vupgrade_stars().has_value(),
 			.birthday = data.is_birthday(),
 		});
 	}, [&](const MTPDstarGiftUnique &data) {
 		const auto total = data.vavailability_total().v;
+		auto model = std::optional<Data::UniqueGiftModel>();
+		auto pattern = std::optional<Data::UniqueGiftPattern>();
+		for (const auto &attribute : data.vattributes().v) {
+			attribute.match([&](const MTPDstarGiftAttributeModel &data) {
+				model = FromTL(session, data);
+			}, [&](const MTPDstarGiftAttributePattern &data) {
+				pattern = FromTL(session, data);
+			}, [&](const MTPDstarGiftAttributeBackdrop &data) {
+			}, [&](const MTPDstarGiftAttributeOriginalDetails &data) {
+			});
+		}
+		if (!model
+			|| !model->document->sticker()
+			|| !pattern
+			|| !pattern->document->sticker()) {
+			return std::optional<Data::StarGift>();
+		}
 		auto result = Data::StarGift{
 			.id = uint64(data.vid().v),
 			.unique = std::make_shared<Data::UniqueGift>(Data::UniqueGift{
 				.title = qs(data.vtitle()),
 				.number = data.vnum().v,
 				.ownerId = peerFromUser(UserId(data.vowner_id().v)),
+				.model = *model,
+				.pattern = *pattern,
 			}),
+			.document = model->document,
 			.limitedLeft = (total - data.vavailability_issued().v),
 			.limitedCount = total,
 		};
 		const auto unique = result.unique.get();
 		for (const auto &attribute : data.vattributes().v) {
 			attribute.match([&](const MTPDstarGiftAttributeModel &data) {
-				unique->model.name = qs(data.vname());
-				unique->model.rarityPermille = data.vrarity_permille().v;
-				result.stickerId = data.vdocument_id().v;
 			}, [&](const MTPDstarGiftAttributePattern &data) {
-				unique->pattern.name = qs(data.vname());
-				unique->pattern.rarityPermille = data.vrarity_permille().v;
-				unique->pattern.documentId = data.vdocument_id().v;
 			}, [&](const MTPDstarGiftAttributeBackdrop &data) {
-				unique->backdrop.name = qs(data.vname());
-				unique->backdrop.rarityPermille = data.vrarity_permille().v;
-				unique->backdrop.centerColor = Ui::ColorFromSerialized(
-					data.vcenter_color());
-				unique->backdrop.edgeColor = Ui::ColorFromSerialized(
-					data.vedge_color());
-				unique->backdrop.patternColor = Ui::ColorFromSerialized(
-					data.vpattern_color());
-				unique->backdrop.textColor = Ui::ColorFromSerialized(
-					data.vtext_color());
+				unique->backdrop = FromTL(data);
 			}, [&](const MTPDstarGiftAttributeOriginalDetails &data) {
-				unique->originalDetails.date = data.vdate().v;
-				unique->originalDetails.senderId = peerFromUser(
-					UserId(data.vsender_id().value_or_empty()));
-				unique->originalDetails.recipientId = peerFromUser(
-					UserId(data.vrecipient_id().v));
-				unique->originalDetails.message = data.vmessage()
-					? Api::ParseTextWithEntities(session, *data.vmessage())
-					: TextWithEntities();
+				unique->originalDetails = FromTL(session, data);
 			});
 		}
-		return result.stickerId ? result : std::optional<Data::StarGift>();
+		return std::make_optional(result);
 	});
 }
 
@@ -849,15 +849,70 @@ std::optional<Data::UserStarGift> FromTL(
 			}
 			: TextWithEntities()),
 		.starsConverted = int64(data.vconvert_stars().value_or_empty()),
+		.starsUpgraded = int64(data.vupgrade_stars().value_or_empty()),
 		.fromId = (data.vfrom_id()
 			? peerFromUser(data.vfrom_id()->v)
 			: PeerId()),
 		.messageId = data.vmsg_id().value_or_empty(),
 		.date = data.vdate().v,
+		.upgradable = data.is_can_upgrade(),
 		.anonymous = data.is_name_hidden(),
 		.hidden = data.is_unsaved(),
 		.mine = to->isSelf(),
 	};
+}
+
+Data::UniqueGiftModel FromTL(
+		not_null<Main::Session*> session,
+		const MTPDstarGiftAttributeModel &data) {
+	auto result = Data::UniqueGiftModel{
+		.document = session->data().processDocument(data.vdocument()),
+	};
+	result.name = qs(data.vname());
+	result.rarityPermille = data.vrarity_permille().v;
+	return result;
+}
+
+Data::UniqueGiftPattern FromTL(
+		not_null<Main::Session*> session,
+		const MTPDstarGiftAttributePattern &data) {
+	auto result = Data::UniqueGiftPattern{
+		.document = session->data().processDocument(data.vdocument()),
+	};
+	result.document->overrideEmojiUsesTextColor(true);
+	result.name = qs(data.vname());
+	result.rarityPermille = data.vrarity_permille().v;
+	return result;
+}
+
+Data::UniqueGiftBackdrop FromTL(const MTPDstarGiftAttributeBackdrop &data) {
+	auto result = Data::UniqueGiftBackdrop();
+	result.name = qs(data.vname());
+	result.rarityPermille = data.vrarity_permille().v;
+	result.centerColor = Ui::ColorFromSerialized(
+		data.vcenter_color());
+	result.edgeColor = Ui::ColorFromSerialized(
+		data.vedge_color());
+	result.patternColor = Ui::ColorFromSerialized(
+		data.vpattern_color());
+	result.textColor = Ui::ColorFromSerialized(
+		data.vtext_color());
+	return result;
+}
+
+Data::UniqueGiftOriginalDetails FromTL(
+		not_null<Main::Session*> session,
+		const MTPDstarGiftAttributeOriginalDetails &data) {
+	auto result = Data::UniqueGiftOriginalDetails();
+	result.date = data.vdate().v;
+	result.senderId = peerFromUser(
+		UserId(data.vsender_id().value_or_empty()));
+	result.recipientId = peerFromUser(
+		UserId(data.vrecipient_id().v));
+	result.message = data.vmessage()
+		? ParseTextWithEntities(session, *data.vmessage())
+		: TextWithEntities();
+	return result;
 }
 
 } // namespace Api

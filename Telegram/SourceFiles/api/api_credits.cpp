@@ -94,7 +94,7 @@ constexpr auto kTransactionsLimit = 100;
 	const auto parsedGift = stargift
 		? FromTL(&peer->session(), *stargift)
 		: std::optional<Data::StarGift>();
-	const auto giftStickerId = parsedGift ? parsedGift->stickerId : 0;
+	const auto giftStickerId = parsedGift ? parsedGift->document->id : 0;
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),

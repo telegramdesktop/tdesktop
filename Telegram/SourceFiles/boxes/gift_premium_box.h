@@ -59,7 +59,8 @@ void AddStarGiftTable(
 	not_null<Ui::VerticalLayout*> container,
 	const Data::CreditsHistoryEntry &entry,
 	Fn<void(bool)> toggleVisibility,
-	Fn<void()> convertToStars);
+	Fn<void()> convertToStars,
+	Fn<void()> startUpgrade);
 void AddCreditsHistoryEntryTable(
 	not_null<Window::SessionNavigation*> controller,
 	not_null<Ui::VerticalLayout*> container,

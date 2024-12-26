@@ -1692,6 +1692,18 @@ ServiceAction ParseServiceAction(
 				.anonymous = data.is_name_hidden(),
 			};
 		});
+	}, [&](const MTPDmessageActionStarGiftUnique &data) {
+		data.vgift().match([&](const MTPDstarGift &gift) {
+			result.content = ActionStarGift{
+				.giftId = uint64(gift.vid().v),
+				.stars = int64(gift.vstars().v),
+				.limited = gift.is_limited(),
+			};
+		}, [&](const MTPDstarGiftUnique &gift) {
+			result.content = ActionStarGift{
+				.giftId = uint64(gift.vid().v),
+			};
+		});
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

@@ -173,3 +173,15 @@ creditsHistoryEntriesList: PeerList(defaultPeerList) {
 }
 
 subscriptionCreditsBadgePadding: margins(10px, 1px, 8px, 3px);
+
+uniqueGiftModelTop: 20px;
+uniqueGiftTitle: FlatLabel(boxTitle) {
+	align: align(top);
+}
+uniqueGiftTitleTop: 140px;
+uniqueGiftSubtitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+}
+uniqueGiftSubtitleTop: 170px;
+uniqueGiftBottom: 20px;

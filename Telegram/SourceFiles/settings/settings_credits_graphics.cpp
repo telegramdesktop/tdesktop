@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
+#include "boxes/star_gift_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
@@ -174,7 +175,6 @@ void ToggleStarGiftSaved(
 	const auto weak = base::make_weak(window);
 	api->request(MTPpayments_SaveStarGift(
 		MTP_flags(save ? Flag(0) : Flag::f_unsave),
-		sender->inputUser,
 		MTP_int(itemId.bare)
 	)).done([=] {
 		done(true);
@@ -232,7 +232,6 @@ void ConvertStarGift(
 	const auto api = &window->session().api();
 	const auto weak = base::make_weak(window);
 	api->request(MTPpayments_ConvertStarGift(
-		sender->inputUser,
 		MTP_int(itemId)
 	)).done([=] {
 		if (const auto strong = weak.get()) {
@@ -1329,14 +1328,36 @@ void ReceiptCreditsBox(
 				}
 			});
 		};
+		const auto upgradeGuard = std::make_shared<bool>();
+		const auto upgrade = [=] {
+			if (const auto window = weakWindow.get()) {
+				const auto itemId = MsgId(e.bareMsgId);
+				if (*upgradeGuard) {
+					return;
+				}
+				*upgradeGuard = true;
+				using namespace Ui;
+				ShowStarGiftUpgradeBox(
+					window,
+					e.stargiftId,
+					starGiftSender,
+					itemId,
+					e.starsUpgraded,
+					[=](bool) { *upgradeGuard = false; });
+			}
+		};
 		const auto canToggle = canConvert || couldConvert || nonConvertible;
+		const auto canUpgrade = e.stargiftId
+			&& e.canUpgradeGift
+			&& !e.uniqueGift;
 
 		AddStarGiftTable(
 			controller,
 			content,
 			e,
 			canToggle ? toggleVisibility : Fn<void(bool)>(),
-			canConvert ? convert : Fn<void()>());
+			canConvert ? convert : Fn<void()>(),
+			canUpgrade ? upgrade : Fn<void()>());
 	} else {
 		AddCreditsHistoryEntryTable(controller, content, e);
 		AddSubscriptionEntryTable(controller, content, s);
@@ -1584,16 +1605,19 @@ void UserStarGiftBox(
 			.credits = StarsAmount(data.info.stars),
 			.bareMsgId = uint64(data.messageId.bare),
 			.barePeerId = data.fromId.value,
-			.bareGiftStickerId = data.info.stickerId,
+			.bareGiftStickerId = data.info.document->id,
+			.stargiftId = data.info.id,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.info.limitedCount,
 			.limitedLeft = data.info.limitedLeft,
 			.starsConverted = int(data.info.starsConverted),
+			.starsUpgraded = int(data.starsUpgraded),
 			.converted = false,
 			.anonymous = data.anonymous,
 			.stargift = true,
 			.savedToProfile = !data.hidden,
 			.fromGiftsList = true,
+			.canUpgradeGift = data.upgradable,
 			.in = data.mine,
 			.gift = true,
 		},
@@ -1615,15 +1639,18 @@ void StarGiftViewBox(
 			.credits = StarsAmount(data.count),
 			.bareMsgId = uint64(item->id.bare),
 			.barePeerId = item->history()->peer->id.value,
-			.bareGiftStickerId = data.stickerId,
+			.bareGiftStickerId = data.document ? data.document->id : 0,
+			.stargiftId = data.stargiftId,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.limitedCount,
 			.limitedLeft = data.limitedLeft,
 			.starsConverted = data.starsConverted,
+			.starsUpgraded = data.starsUpgraded,
 			.converted = data.converted,
 			.anonymous = data.anonymous,
 			.stargift = true,
 			.savedToProfile = data.saved,
+			.canUpgradeGift = data.upgradable,
 			.in = true,
 			.gift = true,
 		},

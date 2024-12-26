@@ -43,14 +43,14 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 	rpl::producer<TextWithEntities> text,
 	Fn<std::any(Fn<void()> update)> context,
 	const style::FlatLabel &st,
-	std::optional<QColor> textFg = {});
+	const style::color *textFg = nullptr);
 
 not_null<FlatLabel*> SetButtonMarkedLabel(
 	not_null<RpWidget*> button,
 	rpl::producer<TextWithEntities> text,
 	not_null<Main::Session*> session,
 	const style::FlatLabel &st,
-	std::optional<QColor> textFg = {});
+	const style::color *textFg = nullptr);
 
 void SendStarGift(
 	not_null<Main::Session*> session,

@@ -60,7 +60,6 @@ private:
 	const not_null<Data::MediaGiftBox*> _gift;
 	const Data::GiftCode &_data;
 	mutable std::optional<Sticker> _sticker;
-	mutable rpl::lifetime _lifetime;
 
 };
 

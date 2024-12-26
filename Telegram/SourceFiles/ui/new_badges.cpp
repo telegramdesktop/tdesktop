@@ -25,6 +25,7 @@ not_null<Ui::RpWidget*> CreateNewBadge(
 			std::move(text),
 			st::settingsPremiumNewBadge),
 		st::settingsPremiumNewBadgePadding);
+	badge->show();
 	badge->setAttribute(Qt::WA_TransparentForMouseEvents);
 	badge->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(badge);

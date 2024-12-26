@@ -136,20 +136,24 @@ enum class GiftType : uchar {
 
 struct GiftCode {
 	QString slug;
-	DocumentId stickerId = 0;
+	uint64 stargiftId = 0;
+	DocumentData *document = nullptr;
 	std::shared_ptr<UniqueGift> unique;
 	TextWithEntities message;
 	ChannelData *channel = nullptr;
 	MsgId giveawayMsgId = 0;
 	int starsConverted = 0;
+	int starsUpgraded = 0;
 	int limitedCount = 0;
 	int limitedLeft = 0;
 	int count = 0;
 	GiftType type = GiftType::Premium;
 	bool viaGiveaway : 1 = false;
+	bool upgradable : 1 = false;
 	bool unclaimed : 1 = false;
 	bool anonymous : 1 = false;
 	bool converted : 1 = false;
+	bool upgraded : 1 = false;
 	bool saved : 1 = false;
 };
 

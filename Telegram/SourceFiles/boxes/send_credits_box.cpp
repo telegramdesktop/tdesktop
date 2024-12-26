@@ -463,7 +463,7 @@ void SendCreditsBox(
 		}),
 		session,
 		st::creditsBoxButtonLabel,
-		box->getDelegate()->style().button.textFg->c);
+		&box->getDelegate()->style().button.textFg);
 
 	const auto buttonWidth = st::boxWidth
 		- rect::m::sum::h(stBox.buttonPadding);
@@ -524,7 +524,7 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 		rpl::producer<TextWithEntities> text,
 		Fn<std::any(Fn<void()> update)> context,
 		const style::FlatLabel &st,
-		std::optional<QColor> textFg) {
+		const style::color *textFg) {
 	const auto buttonLabel = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		rpl::single(QString()),
@@ -539,7 +539,10 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 			context([=] { buttonLabel->update(); }));
 	}, buttonLabel->lifetime());
 	if (textFg) {
-		buttonLabel->setTextColorOverride(textFg);
+		buttonLabel->setTextColorOverride((*textFg)->c);
+		style::PaletteChanged() | rpl::start_with_next([=] {
+			buttonLabel->setTextColorOverride((*textFg)->c);
+		}, buttonLabel->lifetime());
 	}
 	button->sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
@@ -561,7 +564,7 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 		rpl::producer<TextWithEntities> text,
 		not_null<Main::Session*> session,
 		const style::FlatLabel &st,
-		std::optional<QColor> textFg) {
+		const style::color *textFg) {
 	return SetButtonMarkedLabel(button, text, [=](Fn<void()> update) {
 		return Core::MarkedTextContext{
 			.session = session,

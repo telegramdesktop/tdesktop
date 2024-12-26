@@ -15,10 +15,11 @@ struct UniqueGiftAttribute {
 };
 
 struct UniqueGiftModel : UniqueGiftAttribute {
+	not_null<DocumentData*> document;
 };
 
 struct UniqueGiftPattern : UniqueGiftAttribute {
-	DocumentId documentId = 0;
+	not_null<DocumentData*> document;
 };
 
 struct UniqueGiftBackdrop : UniqueGiftAttribute {
@@ -50,11 +51,13 @@ struct StarGift {
 	std::shared_ptr<UniqueGift> unique;
 	int64 stars = 0;
 	int64 starsConverted = 0;
-	DocumentId stickerId = 0;
+	int64 starsUpgraded = 0;
+	not_null<DocumentData*> document;
 	int limitedLeft = 0;
 	int limitedCount = 0;
 	TimeId firstSaleDate = 0;
 	TimeId lastSaleDate = 0;
+	bool upgradable = false;
 	bool birthday = false;
 
 	friend inline bool operator==(
@@ -66,9 +69,11 @@ struct UserStarGift {
 	StarGift info;
 	TextWithEntities message;
 	int64 starsConverted = 0;
+	int64 starsUpgraded = 0;
 	PeerId fromId = 0;
 	MsgId messageId = 0;
 	TimeId date = 0;
+	bool upgradable = false;
 	bool anonymous = false;
 	bool hidden = false;
 	bool mine = false;

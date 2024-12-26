@@ -294,20 +294,13 @@ int PremiumGift::credits() const {
 void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
-	} else if (const auto stickerId = _data.stickerId) {
-		if (!_lifetime) {
-			const auto owner = &_parent->history()->owner();
-			_lifetime = owner->customEmojiManager().resolve(
-				stickerId
-			) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-				const auto sticker = document->sticker();
-				Assert(sticker != nullptr);
-				_sticker.emplace(_parent, document, false, _parent);
-				_sticker->setPlayingOnce(true);
-				_sticker->initSize(st::msgServiceGiftBoxStickerSize);
-				_parent->repaint();
-			});
-		}
+	} else if (const auto document = _data.document) {
+		const auto sticker = document->sticker();
+		Assert(sticker != nullptr);
+		_sticker.emplace(_parent, document, false, _parent);
+		_sticker->setPlayingOnce(true);
+		_sticker->initSize(st::msgServiceGiftBoxStickerSize);
+		_parent->repaint();
 		return;
 	}
 	const auto &session = _parent->history()->session();

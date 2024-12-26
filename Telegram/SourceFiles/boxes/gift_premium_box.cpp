@@ -338,13 +338,58 @@ void AddTableRow(
 			: 0;
 		label->resizeToNaturalWidth(width - toggleSkip);
 		label->moveToLeft(0, 0, width);
-		if (toggle) {
-			toggle->moveToLeft(
-				label->width() + st::normalFont->spacew,
-				(st::giveawayGiftCodeValue.style.font->ascent
-					- st::starGiftSmallButton.style.font->ascent),
-				width);
-		}
+		toggle->moveToLeft(
+			label->width() + st::normalFont->spacew,
+			(st::giveawayGiftCodeValue.style.font->ascent
+				- st::starGiftSmallButton.style.font->ascent),
+			width);
+	}, label->lifetime());
+
+	label->heightValue() | rpl::start_with_next([=](int height) {
+		raw->resize(
+			raw->width(),
+			height + st::giveawayGiftCodeValueMargin.bottom());
+	}, raw->lifetime());
+
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeNonUniqueStatusTableValue(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionNavigation*> controller,
+		Fn<void()> startUpgrade) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		tr::lng_gift_unique_status_non(),
+		st::giveawayGiftCodeValue,
+		st::defaultPopupMenu);
+
+	const auto upgrade = Ui::CreateChild<Ui::RoundButton>(
+		raw,
+		tr::lng_gift_unique_status_upgrade(),
+		st::starGiftSmallButton);
+	upgrade->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	upgrade->setClickedCallback(startUpgrade);
+
+	rpl::combine(
+		raw->widthValue(),
+		upgrade->widthValue()
+	) | rpl::start_with_next([=](int width, int toggleWidth) {
+		const auto toggleSkip = toggleWidth
+			? (st::normalFont->spacew + toggleWidth)
+			: 0;
+		label->resizeToNaturalWidth(width - toggleSkip);
+		label->moveToLeft(0, 0, width);
+		upgrade->moveToLeft(
+			label->width() + st::normalFont->spacew,
+			(st::giveawayGiftCodeValue.style.font->ascent
+				- st::starGiftSmallButton.style.font->ascent),
+			width);
 	}, label->lifetime());
 
 	label->heightValue() | rpl::start_with_next([=](int height) {
@@ -1092,7 +1137,8 @@ void AddStarGiftTable(
 		not_null<Ui::VerticalLayout*> container,
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void(bool)> toggleVisibility,
-		Fn<void()> convertToStars) {
+		Fn<void()> convertToStars,
+		Fn<void()> startUpgrade) {
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
@@ -1177,6 +1223,16 @@ void AddStarGiftTable(
 					lt_amount,
 					std::move(amount),
 					Ui::Text::WithEntities)));
+	}
+	if (!entry.uniqueGift && startUpgrade) {
+		AddTableRow(
+			table,
+			tr::lng_gift_unique_status(),
+			MakeNonUniqueStatusTableValue(
+				table,
+				controller,
+				std::move(startUpgrade)),
+			marginWithButton);
 	}
 	if (!entry.description.empty()) {
 		const auto makeContext = [=](Fn<void()> update) {
