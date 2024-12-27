@@ -2140,7 +2140,7 @@ void UpgradeBox(
 	infoRow(
 		tr::lng_gift_upgrade_unique_title(),
 		tr::lng_gift_upgrade_unique_about(),
-		&st::menuIconReplace);
+		&st::menuIconUnique);
 	infoRow(
 		tr::lng_gift_upgrade_transferable_title(),
 		tr::lng_gift_upgrade_transferable_about(),
@@ -2148,7 +2148,7 @@ void UpgradeBox(
 	infoRow(
 		tr::lng_gift_upgrade_tradable_title(),
 		tr::lng_gift_upgrade_tradable_about(),
-		&st::menuIconReplace,
+		&st::menuIconTradable,
 		true);
 
 	struct State {

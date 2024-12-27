@@ -171,6 +171,8 @@ menuIconStarRefShare: icon {{ "menu/stars_share", menuIconColor }};
 menuIconStarRefLink: icon {{ "settings/premium/features/feature_links2", menuIconColor }};
 menuIconTransparent: icon {{ "menu/affiliate_transparent", menuIconColor }};
 menuIconLike: icon {{ "menu/affiliate_simple", menuIconColor }};
+menuIconTradable: icon {{ "menu/tradable", menuIconColor }};
+menuIconUnique: icon {{ "menu/unique", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
