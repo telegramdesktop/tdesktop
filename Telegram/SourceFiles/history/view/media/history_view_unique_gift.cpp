@@ -469,7 +469,7 @@ auto GenerateUniqueGiftMedia(
 				st::chatUniqueButtonPadding,
 				[=] { parent->repaint(); },
 				std::move(link),
-				gift->backdrop.patternColor));
+				anim::with_alpha(gift->backdrop.patternColor, 0.75)));
 		}
 	};
 }
