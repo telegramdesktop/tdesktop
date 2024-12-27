@@ -171,6 +171,9 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg()); // ?
+		if (const auto stars = _button.stars.get()) {
+			stars->setPaused(context.paused);
+		}
 		_button.drawBg(p);
 		p.setPen(context.st->msgServiceFg());
 		if (_button.ripple) {

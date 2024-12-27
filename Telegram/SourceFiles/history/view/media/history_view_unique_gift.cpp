@@ -168,7 +168,7 @@ void ButtonPart::draw(
 		int outerWidth) const {
 	PainterHighQualityEnabler hq(p);
 
-	const auto position = QPoint(
+ 	const auto position = QPoint(
 		(outerWidth - width()) / 2 + _margins.left(),
 		_margins.top());
 	p.translate(position);
@@ -182,6 +182,7 @@ void ButtonPart::draw(
 	auto clipPath = QPainterPath();
 	clipPath.addRoundedRect(r, radius, radius);
 	p.setClipPath(clipPath);
+	_stars.setPaused(context.paused);
 	_stars.paint(p);
 	p.setClipping(false);
 
