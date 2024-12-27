@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 struct UniqueGift;
+struct GiftCode;
+struct CreditsHistoryEntry;
 } // namespace Data
 
 namespace Window {
@@ -21,6 +23,7 @@ class CustomEmoji;
 
 namespace Ui {
 
+class GenericBox;
 class VerticalLayout;
 
 void ChooseStarGiftRecipient(
@@ -50,5 +53,7 @@ void ShowStarGiftUpgradeBox(
 	MsgId itemId,
 	int stars,
 	Fn<void(bool)> ready);
+
+void AddUniqueCloseButton(not_null<GenericBox*> box);
 
 } // namespace Ui

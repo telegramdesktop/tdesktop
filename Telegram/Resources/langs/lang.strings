@@ -3254,11 +3254,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_unique_model" = "Model";
 "lng_gift_unique_backdrop" = "Backdrop";
 "lng_gift_unique_symbol" = "Symbol";
+"lng_gift_unique_rarity" = "Only {percent} of such collectibles have this attribute.";
 "lng_gift_unique_availability#one" = "{count} of {amount} issued";
 "lng_gift_unique_availability#other" = "{count} of {amount} issued";
 "lng_gift_unique_info" = "Gifted to {recipient} on {date}.";
 "lng_gift_unique_info_sender" = "Gifted by {from} to {recipient} on {date}.";
-"lng_gift_unique_info_comment" = "Gifted by {from} to {recipient} on {date} with the comment \"{text}\".";
+"lng_gift_unique_info_sender_comment" = "Gifted by {from} to {recipient} on {date} with the comment \"{text}\".";
+"lng_gift_unique_info_reciever" = "Gifted to {recipient} on {date}.";
+"lng_gift_unique_info_reciever_comment" = "Gifted to {recipient} on {date} with the comment \"{text}\".";
 "lng_gift_availability_left#one" = "{count} of {amount} left";
 "lng_gift_availability_left#other" = "{count} of {amount} left";
 "lng_gift_availability_none" = "None of {amount} left";

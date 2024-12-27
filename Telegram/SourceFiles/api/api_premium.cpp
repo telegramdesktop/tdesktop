@@ -906,8 +906,10 @@ Data::UniqueGiftOriginalDetails FromTL(
 		const MTPDstarGiftAttributeOriginalDetails &data) {
 	auto result = Data::UniqueGiftOriginalDetails();
 	result.date = data.vdate().v;
-	result.senderId = peerFromUser(
-		UserId(data.vsender_id().value_or_empty()));
+	result.senderId = data.vsender_id()
+		? peerFromUser(
+			UserId(data.vsender_id().value_or_empty()))
+		: PeerId();
 	result.recipientId = peerFromUser(
 		UserId(data.vrecipient_id().v));
 	result.message = data.vmessage()

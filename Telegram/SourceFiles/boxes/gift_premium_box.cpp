@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "api/api_premium_option.h"
 #include "apiwrap.h"
+#include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
 #include "boxes/peer_list_controllers.h" // ContactsBoxController.
@@ -44,12 +45,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/label_with_custom_emoji.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
@@ -64,6 +67,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 
 namespace {
+
+constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 
 [[nodiscard]] QString CreateMessageLink(
 		not_null<Main::Session*> session,
@@ -235,6 +240,57 @@ void AddTableRow(
 		std::move(value),
 		st::giveawayGiftCodeLabelMargin,
 		valueMargins);
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeAttributeValue(
+		not_null<Ui::RpWidget*> parent,
+		const Data::UniqueGiftAttribute &attribute,
+		Fn<void(not_null<Ui::RpWidget*>, int)> showTooltip) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		attribute.name,
+		st::giveawayGiftCodeValue);
+	const auto permille = attribute.rarityPermille;
+
+	const auto text = QString::number(permille / 10.) + '%';
+	const auto rarity = Ui::CreateChild<Ui::RoundButton>(
+		raw,
+		rpl::single(text),
+		st::starGiftSmallButton);
+	rarity->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+
+	rpl::combine(
+		raw->widthValue(),
+		rarity->widthValue()
+	) | rpl::start_with_next([=](int width, int convertWidth) {
+		const auto convertSkip = convertWidth
+			? (st::normalFont->spacew + convertWidth)
+			: 0;
+		label->resizeToNaturalWidth(width - convertSkip);
+		label->moveToLeft(0, 0, width);
+		rarity->moveToLeft(
+			label->width() + st::normalFont->spacew,
+			(st::giveawayGiftCodeValue.style.font->ascent
+				- st::starGiftSmallButton.style.font->ascent),
+			width);
+	}, label->lifetime());
+
+	label->heightValue() | rpl::start_with_next([=](int height) {
+		raw->resize(
+			raw->width(),
+			height + st::giveawayGiftCodeValueMargin.bottom());
+	}, raw->lifetime());
+
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	rarity->setClickedCallback([=] {
+		showTooltip(rarity, permille);
+	});
+
+	return result;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
@@ -1146,7 +1202,15 @@ void AddStarGiftTable(
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto session = &controller->session();
-	if (peerId) {
+	const auto unique = entry.uniqueGift.get();
+	if (unique) {
+		AddTableRow(
+			table,
+			tr::lng_gift_unique_owner(),
+			MakePeerTableValue(table, controller, peerId, false),
+			st::giveawayGiftCodePeerMargin);
+		//"lng_gift_unique_owner_change" = "change";
+	} else if (peerId) {
 		const auto user = session->data().peer(peerId)->asUser();
 		const auto withSendButton = entry.in && user && !user->isBot();
 		AddTableRow(
@@ -1161,21 +1225,21 @@ void AddStarGiftTable(
 			MakeHiddenPeerTableValue(table, controller),
 			st::giveawayGiftCodePeerMargin);
 	}
-	if (!entry.firstSaleDate.isNull()) {
+	if (!unique && !entry.firstSaleDate.isNull()) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_first_sale(),
 			rpl::single(Ui::Text::WithEntities(
 				langDateTime(entry.firstSaleDate))));
 	}
-	if (!entry.lastSaleDate.isNull()) {
+	if (!unique && !entry.lastSaleDate.isNull()) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_last_sale(),
 			rpl::single(Ui::Text::WithEntities(
 				langDateTime(entry.lastSaleDate))));
 	}
-	if (!entry.date.isNull()) {
+	if (!unique && !entry.date.isNull()) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_date(),
@@ -1183,7 +1247,87 @@ void AddStarGiftTable(
 	}
 	const auto marginWithButton = st::giveawayGiftCodeValueMargin
 		- QMargins(0, 0, 0, st::giveawayGiftCodeValueMargin.bottom());
-	{
+	if (unique) {
+		const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
+		const auto showTooltip = [=](
+				not_null<Ui::RpWidget*> widget,
+				int rarity) {
+			if (*raw) {
+				(*raw)->toggleAnimated(false);
+			}
+			const auto text = QString::number(rarity / 10.) + '%';
+			const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+				container,
+				Ui::MakeNiceTooltipLabel(
+					container,
+					tr::lng_gift_unique_rarity(
+						lt_percent,
+						rpl::single(TextWithEntities{ text }),
+						Ui::Text::WithEntities),
+					st::boxWideWidth,
+					st::defaultImportantTooltipLabel),
+				st::defaultImportantTooltip);
+			tooltip->toggleFast(false);
+
+			const auto update = [=] {
+				const auto geometry = Ui::MapFrom(
+					container,
+					widget,
+					widget->rect());
+				const auto countPosition = [=](QSize size) {
+					const auto left = geometry.x()
+						+ (geometry.width() - size.width()) / 2;
+					const auto right = container->width()
+						- st::normalFont->spacew;
+					return QPoint(
+						std::max(std::min(left, right - size.width()), 0),
+						geometry.y() - size.height() - st::normalFont->descent);
+				};
+				tooltip->pointAt(geometry, RectPart::Top, countPosition);
+			};
+			container->widthValue(
+			) | rpl::start_with_next(update, tooltip->lifetime());
+
+			update();
+			tooltip->toggleAnimated(true);
+
+			*raw = tooltip;
+			tooltip->shownValue() | rpl::filter(
+				!rpl::mappers::_1
+			) | rpl::start_with_next([=] {
+				crl::on_main(tooltip, [=] {
+					if (tooltip->isHidden()) {
+						if (*raw == tooltip) {
+							*raw = nullptr;
+						}
+						delete tooltip;
+					}
+				});
+			}, tooltip->lifetime());
+
+			base::timer_once(
+				kRarityTooltipDuration
+			) | rpl::start_with_next([=] {
+				tooltip->toggleAnimated(false);
+			}, tooltip->lifetime());
+		};
+
+		AddTableRow(
+			table,
+			tr::lng_gift_unique_model(),
+			MakeAttributeValue(container, unique->model, showTooltip),
+			marginWithButton);
+		AddTableRow(
+			table,
+			tr::lng_gift_unique_backdrop(),
+			MakeAttributeValue(container, unique->backdrop, showTooltip),
+			marginWithButton);
+		AddTableRow(
+			table,
+			tr::lng_gift_unique_symbol(),
+			MakeAttributeValue(container, unique->pattern, showTooltip),
+			marginWithButton);
+	} else {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_value(),
@@ -1212,19 +1356,21 @@ void AddStarGiftTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_availability(),
-			((entry.limitedLeft > 0)
-				? tr::lng_gift_availability_left(
-					lt_count_decimal,
-					rpl::single(entry.limitedLeft * 1.),
+			((!unique && !entry.limitedLeft)
+				? tr::lng_gift_availability_none(
 					lt_amount,
 					std::move(amount),
 					Ui::Text::WithEntities)
-				: tr::lng_gift_availability_none(
-					lt_amount,
-					std::move(amount),
-					Ui::Text::WithEntities)));
+				: (unique
+					? tr::lng_gift_unique_availability
+					: tr::lng_gift_availability_left)(
+						lt_count_decimal,
+						rpl::single(entry.limitedLeft * 1.),
+						lt_amount,
+						std::move(amount),
+						Ui::Text::WithEntities)));
 	}
-	if (!entry.uniqueGift && startUpgrade) {
+	if (!unique && startUpgrade) {
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_status(),
@@ -1234,7 +1380,72 @@ void AddStarGiftTable(
 				std::move(startUpgrade)),
 			marginWithButton);
 	}
-	if (!entry.description.empty()) {
+	if (unique) {
+		const auto &original = unique->originalDetails;
+		if (original.recipientId) {
+			const auto owner = &controller->session().data();
+			const auto to = owner->peer(original.recipientId);
+			const auto from = original.senderId
+				? owner->peer(original.senderId).get()
+				: nullptr;
+			const auto date = base::unixtime::parse(original.date).date();
+			const auto dateText = TextWithEntities{ langDayOfMonth(date) };
+			auto label = object_ptr<Ui::FlatLabel>(
+				table,
+				(from
+					? (original.message.empty()
+						? tr::lng_gift_unique_info_sender(
+							lt_from,
+							rpl::single(Ui::Text::Link(from->name(), 2)),
+							lt_recipient,
+							rpl::single(Ui::Text::Link(to->name(), 1)),
+							lt_date,
+							rpl::single(dateText),
+							Ui::Text::WithEntities)
+						: tr::lng_gift_unique_info_sender_comment(
+							lt_from,
+							rpl::single(Ui::Text::Link(from->name(), 2)),
+							lt_recipient,
+							rpl::single(Ui::Text::Link(to->name(), 1)),
+							lt_date,
+							rpl::single(dateText),
+							lt_text,
+							rpl::single(original.message),
+							Ui::Text::WithEntities))
+					: (original.message.empty()
+						? tr::lng_gift_unique_info_reciever(
+							lt_recipient,
+							rpl::single(Ui::Text::Link(to->name(), 1)),
+							lt_date,
+							rpl::single(dateText),
+							Ui::Text::WithEntities)
+						: tr::lng_gift_unique_info_reciever_comment(
+							lt_recipient,
+							rpl::single(Ui::Text::Link(to->name(), 1)),
+							lt_date,
+							rpl::single(dateText),
+							lt_text,
+							rpl::single(original.message),
+							Ui::Text::WithEntities))),
+				st::giveawayGiftMessage);
+			const auto showBoxLink = [=](not_null<PeerData*> peer) {
+				return std::make_shared<LambdaClickHandler>([=] {
+					controller->uiShow()->showBox(
+						PrepareShortInfoBox(peer, controller));
+				});
+			};
+			label->setLink(1, showBoxLink(to));
+			if (from) {
+				label->setLink(2, showBoxLink(from));
+			}
+			label->setSelectable(true);
+			table->addRow(
+				std::move(label),
+				nullptr,
+				st::giveawayGiftCodeLabelMargin,
+				st::giveawayGiftCodeValueMargin);
+		}
+	} else if (!entry.description.empty()) {
 		const auto makeContext = [=](Fn<void()> update) {
 			return Core::MarkedTextContext{
 				.session = session,

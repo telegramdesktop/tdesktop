@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "api/api_premium.h"
+#include "boxes/gift_premium_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/send_credits_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -1718,7 +1719,9 @@ void AddUniqueGiftCover(
 
 	const auto title = CreateChild<FlatLabel>(
 		cover,
-		tr::lng_gift_upgrade_title(tr::now),
+		rpl::duplicate(
+			data
+		) | rpl::map([](const Data::UniqueGift &now) { return now.title; }),
 		st::uniqueGiftTitle);
 	title->setTextColorOverride(QColor(255, 255, 255));
 	auto subtitleText = subtitleOverride
@@ -2072,6 +2075,8 @@ void UpgradeBox(
 			button->moveToLeft(padding.left(), padding.top());
 		}
 	}, box->lifetime());
+
+	AddUniqueCloseButton(box);
 }
 
 void PaintPoints(
@@ -2153,6 +2158,21 @@ void ShowStarGiftUpgradeBox(
 		}
 		ready(false);
 	}).send();
+}
+
+void AddUniqueCloseButton(not_null<GenericBox*> box) {
+	const auto button = Ui::CreateChild<IconButton>(
+		box,
+		st::uniqueCloseButton);
+	button->show();
+	button->raise();
+	box->widthValue() | rpl::start_with_next([=](int width) {
+		button->moveToRight(0, 0, width);
+		button->raise();
+	}, button->lifetime());
+	button->setClickedCallback([=] {
+		box->closeBox();
+	});
 }
 
 } // namespace Ui

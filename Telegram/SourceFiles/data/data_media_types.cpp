@@ -2380,7 +2380,7 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 			message,
 			HistoryView::GenerateUniqueGiftMedia(message, replacing, raw),
 			HistoryView::MediaGenericDescriptor{
-				.maxWidth = st::chatIntroWidth,
+				.maxWidth = st::msgServiceGiftBoxSize.width(),
 				.paintBg = HistoryView::UniqueGiftBg(message, raw),
 				.service = true,
 			});

@@ -846,6 +846,7 @@ void ReceiptCreditsBox(
 		+ controller->session().appConfig().stargiftConvertPeriodMax();
 	const auto timeLeft = int64(convertLast) - int64(base::unixtime::now());
 	const auto timeExceeded = (timeLeft <= 0);
+	const auto uniqueGift = e.uniqueGift.get();
 	const auto forConvert = gotStarGift
 		&& e.starsConverted
 		&& !e.converted
@@ -859,9 +860,11 @@ void ReceiptCreditsBox(
 	box->setNoContentMargin(true);
 
 	const auto content = box->verticalLayout();
-	Ui::AddSkip(content);
-	Ui::AddSkip(content);
-	Ui::AddSkip(content);
+	if (!uniqueGift) {
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+	}
 
 	using Type = Data::CreditsHistoryEntry::PeerType;
 
@@ -882,7 +885,15 @@ void ReceiptCreditsBox(
 		: e.barePeerId
 		? session->data().peer(PeerId(e.barePeerId)).get()
 		: nullptr;
-	if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
+	if (uniqueGift) {
+		box->setNoContentMargin(true);
+
+		AddUniqueGiftCover(content, rpl::single(*uniqueGift));
+
+		AddSkip(content, st::defaultVerticalListSkip * 2);
+
+		AddUniqueCloseButton(box);
+	} else if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
 		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
 			GenericEntryPhoto(content, callback, stUser.photoSize)));
@@ -994,45 +1005,46 @@ void ReceiptCreditsBox(
 		}, widget->lifetime());
 	}
 
-	Ui::AddSkip(content);
-	Ui::AddSkip(content);
+	if (!uniqueGift) {
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
 
-	box->addRow(object_ptr<Ui::CenterWrap<>>(
-		box,
-		object_ptr<Ui::FlatLabel>(
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,
-			rpl::single(!s.title.isEmpty()
-				? s.title
-				: !s.until.isNull()
-				? tr::lng_credits_box_subscription_title(tr::now)
-				: isPrize
-				? tr::lng_credits_box_history_entry_giveaway_name(tr::now)
-				: (!e.subscriptionUntil.isNull() && e.title.isEmpty())
-				? tr::lng_credits_box_history_entry_subscription(tr::now)
-				: !e.title.isEmpty()
-				? e.title
-				: e.starrefCommission
-				? tr::lng_credits_commission(
-					tr::now,
-					lt_amount,
-					Info::BotStarRef::FormatCommission(e.starrefCommission))
-				: e.soldOutInfo
-				? tr::lng_credits_box_history_entry_gift_unavailable(tr::now)
-				: sentStarGift
-				? tr::lng_credits_box_history_entry_gift_sent(tr::now)
-				: convertedStarGift
-				? tr::lng_credits_box_history_entry_gift_converted(tr::now)
-				: (isStarGift && !gotStarGift)
-				? tr::lng_gift_link_label_gift(tr::now)
-				: e.gift
-				? tr::lng_credits_box_history_entry_gift_name(tr::now)
-				: (peer && !e.reaction)
-				? peer->name()
-				: Ui::GenerateEntryName(e).text),
-			st::creditsBoxAboutTitle)));
+			object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(!s.title.isEmpty()
+					? s.title
+					: !s.until.isNull()
+					? tr::lng_credits_box_subscription_title(tr::now)
+					: isPrize
+					? tr::lng_credits_box_history_entry_giveaway_name(tr::now)
+					: (!e.subscriptionUntil.isNull() && e.title.isEmpty())
+					? tr::lng_credits_box_history_entry_subscription(tr::now)
+					: !e.title.isEmpty()
+					? e.title
+					: e.starrefCommission
+					? tr::lng_credits_commission(
+						tr::now,
+						lt_amount,
+						Info::BotStarRef::FormatCommission(e.starrefCommission))
+					: e.soldOutInfo
+					? tr::lng_credits_box_history_entry_gift_unavailable(tr::now)
+					: sentStarGift
+					? tr::lng_credits_box_history_entry_gift_sent(tr::now)
+					: convertedStarGift
+					? tr::lng_credits_box_history_entry_gift_converted(tr::now)
+					: (isStarGift && !gotStarGift)
+					? tr::lng_gift_link_label_gift(tr::now)
+					: e.gift
+					? tr::lng_credits_box_history_entry_gift_name(tr::now)
+					: (peer && !e.reaction)
+					? peer->name()
+					: Ui::GenerateEntryName(e).text),
+				st::creditsBoxAboutTitle)));
 
-	Ui::AddSkip(content);
-
+		Ui::AddSkip(content);
+	}
 	if (!isStarGift || creditsHistoryStarGift || e.soldOutInfo) {
 		constexpr auto kMinus = QChar(0x2212);
 		auto &lifetime = content->lifetime();
@@ -1163,7 +1175,7 @@ void ReceiptCreditsBox(
 				rpl::single(e.description),
 				st::creditsBoxAbout)));
 	}
-	if (gotStarGift) {
+	if (!uniqueGift && gotStarGift) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -1630,32 +1642,34 @@ void StarGiftViewBox(
 		not_null<Window::SessionController*> controller,
 		const Data::GiftCode &data,
 		not_null<HistoryItem*> item) {
+	const auto entry = Data::CreditsHistoryEntry{
+		.id = data.slug,
+		.description = data.message,
+		.date = base::unixtime::parse(item->date()),
+		.credits = StarsAmount(data.count),
+		.bareMsgId = uint64(item->id.bare),
+		.barePeerId = item->history()->peer->id.value,
+		.bareGiftStickerId = data.document ? data.document->id : 0,
+		.stargiftId = data.stargiftId,
+		.uniqueGift = data.unique,
+		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
+		.limitedCount = data.limitedCount,
+		.limitedLeft = data.limitedLeft,
+		.starsConverted = data.starsConverted,
+		.starsToUpgrade = data.starsToUpgrade,
+		.starsUpgradedBySender = data.starsUpgradedBySender,
+		.converted = data.converted,
+		.anonymous = data.anonymous,
+		.stargift = true,
+		.savedToProfile = data.saved,
+		.canUpgradeGift = data.upgradable,
+		.in = true,
+		.gift = true,
+	};
 	Settings::ReceiptCreditsBox(
 		box,
 		controller,
-		Data::CreditsHistoryEntry{
-			.id = data.slug,
-			.description = data.message,
-			.date = base::unixtime::parse(item->date()),
-			.credits = StarsAmount(data.count),
-			.bareMsgId = uint64(item->id.bare),
-			.barePeerId = item->history()->peer->id.value,
-			.bareGiftStickerId = data.document ? data.document->id : 0,
-			.stargiftId = data.stargiftId,
-			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
-			.limitedCount = data.limitedCount,
-			.limitedLeft = data.limitedLeft,
-			.starsConverted = data.starsConverted,
-			.starsToUpgrade = data.starsToUpgrade,
-			.starsUpgradedBySender = data.starsUpgradedBySender,
-			.converted = data.converted,
-			.anonymous = data.anonymous,
-			.stargift = true,
-			.savedToProfile = data.saved,
-			.canUpgradeGift = data.upgradable,
-			.in = true,
-			.gift = true,
-		},
+		entry,
 		Data::SubscriptionEntry());
 }
 

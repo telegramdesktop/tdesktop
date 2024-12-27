@@ -185,3 +185,10 @@ uniqueGiftSubtitle: FlatLabel(defaultFlatLabel) {
 }
 uniqueGiftSubtitleTop: 170px;
 uniqueGiftBottom: 20px;
+uniqueCloseButton: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_close", videoPlayIconFg }};
+	iconOver: icon {{ "box_button_close", videoPlayIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
