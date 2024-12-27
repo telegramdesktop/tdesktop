@@ -74,6 +74,7 @@ MediaGeneric::MediaGeneric(
 	Fn<void(Fn<void(std::unique_ptr<Part>)>)> generate,
 	MediaGenericDescriptor &&descriptor)
 : Media(parent)
+, _paintBg(std::move(descriptor.paintBg))
 , _maxWidthCap(descriptor.maxWidth)
 , _service(descriptor.service)
 , _hideServiceText(descriptor.hideServiceText) {
@@ -123,6 +124,8 @@ void MediaGeneric::draw(Painter &p, const PaintContext &context) const {
 	const auto outer = width();
 	if (outer < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
+	} else if (_paintBg) {
+		_paintBg(p, context);
 	} else if (_service) {
 		PainterHighQualityEnabler hq(p);
 		const auto radius = st::msgServiceGiftBoxRadius;
@@ -229,12 +232,13 @@ QMargins MediaGeneric::inBubblePadding() const {
 MediaGenericTextPart::MediaGenericTextPart(
 	TextWithEntities text,
 	QMargins margins,
+	const style::TextStyle &st,
 	const base::flat_map<uint16, ClickHandlerPtr> &links,
 	const std::any &context)
 : _text(st::msgMinWidth)
 , _margins(margins) {
 	_text.setMarkedText(
-		st::defaultTextStyle,
+		st,
 		text,
 		kMarkupTextOptions,
 		context);
@@ -248,16 +252,13 @@ void MediaGenericTextPart::draw(
 		not_null<const MediaGeneric*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
-	const auto service = owner->service();
-	p.setPen(service
-		? context.st->msgServiceFg()
-		: context.messageStyle()->historyTextFg);
+	setupPen(p, owner, context);
 	_text.draw(p, {
 		.position = { (outerWidth - width()) / 2, _margins.top() },
 		.outerWidth = outerWidth,
 		.availableWidth = width(),
 		.align = style::al_top,
-		.palette = &(service
+		.palette = &(owner->service()
 			? context.st->serviceTextPalette()
 			: context.messageStyle()->textPalette),
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
@@ -265,6 +266,16 @@ void MediaGenericTextPart::draw(
 		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 	});
+}
+
+void MediaGenericTextPart::setupPen(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context) const {
+	const auto service = owner->service();
+	p.setPen(service
+		? context.st->msgServiceFg()
+		: context.messageStyle()->historyTextFg);
 }
 
 TextState MediaGenericTextPart::textState(

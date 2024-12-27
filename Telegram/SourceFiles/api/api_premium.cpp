@@ -774,7 +774,7 @@ std::optional<Data::StarGift> FromTL(
 			.id = uint64(data.vid().v),
 			.stars = int64(data.vstars().v),
 			.starsConverted = int64(data.vconvert_stars().v),
-			.starsUpgraded = int64(data.vupgrade_stars().value_or_empty()),
+			.starsToUpgrade = int64(data.vupgrade_stars().value_or_empty()),
 			.document = document,
 			.limitedLeft = remaining.value_or_empty(),
 			.limitedCount = total.value_or_empty(),
@@ -849,7 +849,8 @@ std::optional<Data::UserStarGift> FromTL(
 			}
 			: TextWithEntities()),
 		.starsConverted = int64(data.vconvert_stars().value_or_empty()),
-		.starsUpgraded = int64(data.vupgrade_stars().value_or_empty()),
+		.starsUpgradedBySender = int64(
+			data.vupgrade_stars().value_or_empty()),
 		.fromId = (data.vfrom_id()
 			? peerFromUser(data.vfrom_id()->v)
 			: PeerId()),

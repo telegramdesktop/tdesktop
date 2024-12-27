@@ -51,6 +51,7 @@ private:
 	[[nodiscard]] bool incomingGift() const;
 	[[nodiscard]] bool outgoingGift() const;
 	[[nodiscard]] bool starGift() const;
+	[[nodiscard]] bool starGiftUpgrade() const;
 	[[nodiscard]] bool gift() const;
 	[[nodiscard]] bool creditsPrize() const;
 	[[nodiscard]] int credits() const;

@@ -74,6 +74,7 @@ auto GenerateGiveawayStart(
 			push(std::make_unique<MediaGenericTextPart>(
 				std::move(text),
 				margins,
+				st::defaultTextStyle,
 				links));
 		};
 		pushText(
@@ -242,6 +243,7 @@ auto GenerateGiveawayResults(
 			push(std::make_unique<MediaGenericTextPart>(
 				std::move(text),
 				margins,
+				st::defaultTextStyle,
 				links));
 		};
 		const auto isSingleWinner = (data->winnersCount == 1);

@@ -5657,7 +5657,8 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				}
 				: TextWithEntities()),
 			.starsConverted = int(data.vconvert_stars().value_or_empty()),
-			.starsUpgraded = int(data.vupgrade_stars().value_or_empty()),
+			.starsUpgradedBySender = int(
+				data.vupgrade_stars().value_or_empty()),
 			.type = Data::GiftType::StarGift,
 			.upgradable = data.is_can_upgrade(),
 			.anonymous = data.is_name_hidden(),
@@ -5667,6 +5668,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 		};
 		if (auto gift = Api::FromTL(&history()->session(), data.vgift())) {
 			fields.stargiftId = gift->id;
+			fields.starsToUpgrade = gift->starsToUpgrade;
 			fields.document = gift->document;
 			fields.limitedCount = gift->limitedCount;
 			fields.limitedLeft = gift->limitedLeft;
@@ -5680,7 +5682,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 	}, [&](const MTPDmessageActionStarGiftUnique &data) {
 		using Fields = Data::GiftCode;
 		auto fields = Fields{
-			.type = Data::GiftType::StarGift,
+			.type = Data::GiftType::StarGiftUpgrade,
 			.saved = data.is_saved(),
 		};
 		if (auto gift = Api::FromTL(&history()->session(), data.vgift())) {

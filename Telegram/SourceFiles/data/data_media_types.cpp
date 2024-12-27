@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_service_box.h"
 #include "history/view/media/history_view_story_mention.h"
 #include "history/view/media/history_view_premium_gift.h"
+#include "history/view/media/history_view_unique_gift.h"
 #include "history/view/media/history_view_userpic_suggestion.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "ui/image/image.h"
@@ -2374,6 +2375,16 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
+	if (const auto raw = _data.unique.get()) {
+		return std::make_unique<HistoryView::MediaGeneric>(
+			message,
+			HistoryView::GenerateUniqueGiftMedia(message, replacing, raw),
+			HistoryView::MediaGenericDescriptor{
+				.maxWidth = st::chatIntroWidth,
+				.paintBg = HistoryView::UniqueGiftBg(message, raw),
+				.service = true,
+			});
+	}
 	return std::make_unique<HistoryView::ServiceBox>(
 		message,
 		std::make_unique<HistoryView::PremiumGift>(message, this));

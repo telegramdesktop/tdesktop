@@ -212,6 +212,7 @@ auto GenerateGiftMedia(
 			push(std::make_unique<MediaGenericTextPart>(
 				std::move(text),
 				margins,
+				st::defaultTextStyle,
 				links,
 				context));
 		};
@@ -276,9 +277,9 @@ struct PatternPoint {
 };
 [[nodiscard]] const std::vector<PatternPoint> &PatternPoints() {
 	static const auto kSmall = 0.7;
-	static const auto kFaded = 0.7;
+	static const auto kFaded = 0.5;
 	static const auto kLarge = 0.85;
-	static const auto kOpaque = 0.9;
+	static const auto kOpaque = 0.7;
 	static const auto result = std::vector<PatternPoint>{
 		{ { 0.5, 0.066 }, kSmall, kFaded },
 
@@ -1088,10 +1089,6 @@ void SendGift(
 	return result;
 }
 
-[[nodiscard]] QString ComputeTitle(const Data::UniqueGift &gift) {
-	return gift.title + u" #"_q + QString::number(gift.number);
-}
-
 void SendUpgradeRequest(
 		not_null<Window::SessionController*> controller,
 		Settings::SmallBalanceResult result,
@@ -1117,7 +1114,7 @@ void SendUpgradeRequest(
 						.text = tr::lng_gift_upgraded_about(
 							tr::now,
 							lt_name,
-							Text::Bold(ComputeTitle(*gift)),
+							Text::Bold(Data::UniqueGiftName(*gift)),
 							Ui::Text::WithEntities),
 					});
 				}
@@ -1159,7 +1156,7 @@ void UpgradeGift(
 					.text = tr::lng_gift_upgraded_about(
 						tr::now,
 						lt_name,
-						Text::Bold(ComputeTitle(*gift)),
+						Text::Bold(Data::UniqueGiftName(*gift)),
 						Ui::Text::WithEntities),
 				});
 			}
@@ -1846,32 +1843,14 @@ void AddUniqueGiftCover(
 				gift.gradient = CreateGradient(cover->size(), *gift.gift);
 			}
 			p.drawImage(0, 0, gift.gradient);
-			const auto paintPoint = [&](const PatternPoint &point) {
-				const auto key = (1. + point.opacity) * 10. + point.scale;
-				auto &image = gift.emojis[key];
-				PrepareImage(image, gift.emoji.get(), point, *gift.gift);
-				if (!image.isNull()) {
-					const auto x = int(point.position.x() * width);
-					const auto y = int(point.position.y() * pointsHeight);
-					if (shown < 1.) {
-						p.save();
-						p.translate(x, y);
-						p.scale(shown, shown);
-						p.translate(-x, -y);
-					}
-					const auto size = image.size() / ratio;
-					p.drawImage(
-						x - size.width() / 2,
-						y - size.height() / 2,
-						image);
-					if (shown < 1.) {
-						p.restore();
-					}
-				}
-			};
-			for (const auto point : PatternPoints()) {
-				paintPoint(point);
-			}
+
+			PaintPoints(
+				p,
+				gift.emojis,
+				gift.emoji.get(),
+				*gift.gift,
+				QRect(0, 0, width, pointsHeight),
+				shown);
 
 			const auto lottie = gift.lottie.get();
 			const auto factor = style::DevicePixelRatio();
@@ -2093,6 +2072,45 @@ void UpgradeBox(
 			button->moveToLeft(padding.left(), padding.top());
 		}
 	}, box->lifetime());
+}
+
+void PaintPoints(
+		QPainter &p,
+		base::flat_map<float64, QImage> &cache,
+		not_null<Text::CustomEmoji*> emoji,
+		const Data::UniqueGift &gift,
+		const QRect &rect,
+		float64 shown) {
+	const auto origin = rect.topLeft();
+	const auto width = rect.width();
+	const auto height = rect.height();
+	const auto ratio = style::DevicePixelRatio();
+	const auto paintPoint = [&](const PatternPoint &point) {
+		const auto key = (1. + point.opacity) * 10. + point.scale;
+		auto &image = cache[key];
+		PrepareImage(image, emoji, point, gift);
+		if (!image.isNull()) {
+			const auto position = origin + QPoint(
+				int(point.position.x() * width),
+				int(point.position.y() * height));
+			if (shown < 1.) {
+				p.save();
+				p.translate(position);
+				p.scale(shown, shown);
+				p.translate(-position);
+			}
+			const auto size = image.size() / ratio;
+			p.drawImage(
+				position - QPoint(size.width() / 2, size.height() / 2),
+				image);
+			if (shown < 1.) {
+				p.restore();
+			}
+		}
+	};
+	for (const auto point : PatternPoints()) {
+		paintPoint(point);
+	}
 }
 
 void ShowStarGiftUpgradeBox(

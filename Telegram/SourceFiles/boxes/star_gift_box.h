@@ -15,6 +15,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Ui {
 
 class VerticalLayout;
@@ -30,6 +34,14 @@ void AddUniqueGiftCover(
 	not_null<VerticalLayout*> container,
 	rpl::producer<Data::UniqueGift> data,
 	rpl::producer<QString> subtitleOverride = nullptr);
+
+void PaintPoints(
+	QPainter &p,
+	base::flat_map<float64, QImage> &cache,
+	not_null<Text::CustomEmoji*> emoji,
+	const Data::UniqueGift &gift,
+	const QRect &rect,
+	float64 shown = 1.);
 
 void ShowStarGiftUpgradeBox(
 	not_null<Window::SessionController*> controller,

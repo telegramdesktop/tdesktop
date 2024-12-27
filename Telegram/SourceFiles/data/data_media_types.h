@@ -132,6 +132,7 @@ enum class GiftType : uchar {
 	Premium, // count - months
 	Credits, // count - credits
 	StarGift, // count - stars
+	StarGiftUpgrade,
 };
 
 struct GiftCode {
@@ -143,7 +144,8 @@ struct GiftCode {
 	ChannelData *channel = nullptr;
 	MsgId giveawayMsgId = 0;
 	int starsConverted = 0;
-	int starsUpgraded = 0;
+	int starsToUpgrade = 0;
+	int starsUpgradedBySender = 0;
 	int limitedCount = 0;
 	int limitedLeft = 0;
 	int count = 0;

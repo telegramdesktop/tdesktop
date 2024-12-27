@@ -77,7 +77,8 @@ struct CreditsHistoryEntry final {
 	int limitedCount = 0;
 	int limitedLeft = 0;
 	int starsConverted = 0;
-	int starsUpgraded = 0;
+	int starsToUpgrade = 0;
+	int starsUpgradedBySender = 0;
 	int floodSkip = 0;
 	bool converted : 1 = false;
 	bool anonymous : 1 = false;

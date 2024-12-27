@@ -1342,7 +1342,7 @@ void ReceiptCreditsBox(
 					e.stargiftId,
 					starGiftSender,
 					itemId,
-					e.starsUpgraded,
+					e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
 					[=](bool) { *upgradeGuard = false; });
 			}
 		};
@@ -1611,7 +1611,8 @@ void UserStarGiftBox(
 			.limitedCount = data.info.limitedCount,
 			.limitedLeft = data.info.limitedLeft,
 			.starsConverted = int(data.info.starsConverted),
-			.starsUpgraded = int(data.starsUpgraded),
+			.starsToUpgrade = int(data.info.starsToUpgrade),
+			.starsUpgradedBySender = int(data.starsUpgradedBySender),
 			.converted = false,
 			.anonymous = data.anonymous,
 			.stargift = true,
@@ -1645,7 +1646,8 @@ void StarGiftViewBox(
 			.limitedCount = data.limitedCount,
 			.limitedLeft = data.limitedLeft,
 			.starsConverted = data.starsConverted,
-			.starsUpgraded = data.starsUpgraded,
+			.starsToUpgrade = data.starsToUpgrade,
+			.starsUpgradedBySender = data.starsUpgradedBySender,
 			.converted = data.converted,
 			.anonymous = data.anonymous,
 			.stargift = true,

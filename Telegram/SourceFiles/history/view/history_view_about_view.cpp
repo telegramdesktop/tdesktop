@@ -94,6 +94,7 @@ auto GenerateChatIntro(
 			push(std::make_unique<MediaGenericTextPart>(
 				std::move(text),
 				margins,
+				st::defaultTextStyle,
 				links));
 		};
 		const auto title = data.customPhrases()

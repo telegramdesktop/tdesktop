@@ -799,6 +799,8 @@ PRIVATE
     history/view/media/history_view_story_mention.h
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_theme_document.h
+    history/view/media/history_view_unique_gift.cpp
+    history/view/media/history_view_unique_gift.h
     history/view/media/history_view_userpic_suggestion.cpp
     history/view/media/history_view_userpic_suggestion.h
     history/view/media/history_view_web_page.cpp

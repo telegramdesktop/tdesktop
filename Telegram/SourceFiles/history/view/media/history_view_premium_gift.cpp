@@ -266,11 +266,13 @@ void PremiumGift::unloadHeavyPart() {
 }
 
 bool PremiumGift::incomingGift() const {
-	return gift() && !_parent->data()->out();
+	const auto out = _parent->data()->out();
+	return gift() && (starGiftUpgrade() ? out : !out);
 }
 
 bool PremiumGift::outgoingGift() const {
-	return gift() && _parent->data()->out();
+	const auto out = _parent->data()->out();
+	return gift() && (starGiftUpgrade() ? !out : out);
 }
 
 bool PremiumGift::gift() const {
@@ -278,7 +280,12 @@ bool PremiumGift::gift() const {
 }
 
 bool PremiumGift::starGift() const {
-	return _data.type == Data::GiftType::StarGift;
+	return (_data.type == Data::GiftType::StarGift)
+		|| (_data.type == Data::GiftType::StarGiftUpgrade);
+}
+
+bool PremiumGift::starGiftUpgrade() const {
+	return (_data.type == Data::GiftType::StarGiftUpgrade);
 }
 
 bool PremiumGift::creditsPrize() const {
