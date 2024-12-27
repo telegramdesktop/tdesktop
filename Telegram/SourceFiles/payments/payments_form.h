@@ -180,6 +180,7 @@ struct InvoiceStarGift {
 	not_null<UserData*> user;
 	int limitedCount = 0;
 	bool anonymous = false;
+	bool upgraded = false;
 };
 
 struct InvoiceId {

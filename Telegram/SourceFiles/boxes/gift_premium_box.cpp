@@ -130,7 +130,8 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 		not_null<QWidget*> parent,
 		not_null<Window::SessionNavigation*> controller,
 		PeerId id,
-		bool withSendGiftButton = false) {
+		rpl::producer<QString> button = nullptr,
+		Fn<void()> handler = nullptr) {
 	auto result = object_ptr<Ui::AbstractButton>(parent);
 	const auto raw = result.data();
 
@@ -141,19 +142,17 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(raw, peer, st);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		withSendGiftButton ? peer->shortName() : peer->name(),
+		(button && handler) ? peer->shortName() : peer->name(),
 		st::giveawayGiftCodeValue);
-	const auto send = withSendGiftButton
+	const auto send = (button && handler)
 		? Ui::CreateChild<Ui::RoundButton>(
 			raw,
-			tr::lng_gift_send_small(),
+			std::move(button),
 			st::starGiftSmallButton)
 		: nullptr;
 	if (send) {
 		send->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-		send->setClickedCallback([=] {
-			Ui::ShowStarGiftBox(controller->parentController(), peer);
-		});
+		send->setClickedCallback(std::move(handler));
 	}
 	rpl::combine(
 		raw->widthValue(),
@@ -1204,19 +1203,25 @@ void AddStarGiftTable(
 	const auto session = &controller->session();
 	const auto unique = entry.uniqueGift.get();
 	if (unique) {
+		const auto ownerId = PeerId(entry.bareGiftOwnerId);
+		auto send = entry.in ? tr::lng_gift_unique_owner_change() : nullptr;
+		auto handler = entry.in ? Fn<void()>([=] {}) : nullptr;
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_owner(),
-			MakePeerTableValue(table, controller, peerId, false),
+			MakePeerTableValue(table, controller, ownerId, send, handler),
 			st::giveawayGiftCodePeerMargin);
-		//"lng_gift_unique_owner_change" = "change";
 	} else if (peerId) {
 		const auto user = session->data().peer(peerId)->asUser();
 		const auto withSendButton = entry.in && user && !user->isBot();
+		auto send = withSendButton ? tr::lng_gift_send_small() : nullptr;
+		auto handler = send ? Fn<void()>([=] {
+			Ui::ShowStarGiftBox(controller->parentController(), user);
+		}) : nullptr;
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer_in(),
-			MakePeerTableValue(table, controller, peerId, withSendButton),
+			MakePeerTableValue(table, controller, peerId, send, handler),
 			st::giveawayGiftCodePeerMargin);
 	} else if (!entry.soldOutInfo) {
 		AddTableRow(
@@ -1390,6 +1395,12 @@ void AddStarGiftTable(
 				: nullptr;
 			const auto date = base::unixtime::parse(original.date).date();
 			const auto dateText = TextWithEntities{ langDayOfMonth(date) };
+			const auto makeContext = [=](Fn<void()> update) {
+				return Core::MarkedTextContext{
+					.session = session,
+					.customEmojiRepaint = std::move(update),
+				};
+			};
 			auto label = object_ptr<Ui::FlatLabel>(
 				table,
 				(from
@@ -1427,7 +1438,9 @@ void AddStarGiftTable(
 							lt_text,
 							rpl::single(original.message),
 							Ui::Text::WithEntities))),
-				st::giveawayGiftMessage);
+				st::giveawayGiftMessage,
+				st::defaultPopupMenu,
+				makeContext);
 			const auto showBoxLink = [=](not_null<PeerData*> peer) {
 				return std::make_shared<LambdaClickHandler>([=] {
 					controller->uiShow()->showBox(

@@ -383,7 +383,8 @@ MTPInputInvoice Form::inputInvoice() const {
 		using Flag = MTPDinputInvoiceStarGift::Flag;
 		return MTP_inputInvoiceStarGift(
 			MTP_flags((gift->anonymous ? Flag::f_hide_name : Flag(0))
-				| (gift->message.empty() ? Flag(0) : Flag::f_message)),
+				| (gift->message.empty() ? Flag(0) : Flag::f_message)
+				| (gift->upgraded ? Flag::f_include_upgrade : Flag(0))),
 			gift->user->inputUser,
 			MTP_long(gift->giftId),
 			MTP_textWithEntities(

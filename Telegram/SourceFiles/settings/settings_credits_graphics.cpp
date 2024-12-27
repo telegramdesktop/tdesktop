@@ -1182,25 +1182,28 @@ void ReceiptCreditsBox(
 				box,
 				object_ptr<Ui::FlatLabel>(
 					box,
-					((couldConvert || nonConvertible)
-						? (e.savedToProfile
-							? tr::lng_action_gift_can_remove_text
-							: tr::lng_action_gift_got_gift_text)(
-								Ui::Text::WithEntities)
-						: rpl::combine(
-							(canConvert
-								? tr::lng_action_gift_got_stars_text
-								: tr::lng_gift_got_stars)(
-									lt_count,
-									rpl::single(e.starsConverted * 1.),
-									Ui::Text::RichLangValue),
-							tr::lng_paid_about_link()
-						) | rpl::map([](
-								TextWithEntities text,
-								QString link) {
-							return text.append(' ').append(
-								Ui::Text::Link(link));
-						})),
+					(e.starsUpgradedBySender
+						? tr::lng_action_gift_got_upgradable_text(
+							Ui::Text::RichLangValue)
+						: ((couldConvert || nonConvertible)
+							? (e.savedToProfile
+								? tr::lng_action_gift_can_remove_text
+								: tr::lng_action_gift_got_gift_text)(
+									Ui::Text::WithEntities)
+							: rpl::combine(
+								(canConvert
+									? tr::lng_action_gift_got_stars_text
+									: tr::lng_gift_got_stars)(
+										lt_count,
+										rpl::single(e.starsConverted * 1.),
+										Ui::Text::RichLangValue),
+								tr::lng_paid_about_link()
+							) | rpl::map([](
+									TextWithEntities text,
+									QString link) {
+								return text.append(' ').append(
+									Ui::Text::Link(link));
+							}))),
 					st::creditsBoxAbout)))->entity();
 		about->setClickHandlerFilter([=](const auto &...) {
 			Core::App().iv().openWithIvPreferred(
@@ -1297,6 +1300,32 @@ void ReceiptCreditsBox(
 			done);
 	};
 
+	const auto upgradeGuard = std::make_shared<bool>();
+	const auto upgrade = [=] {
+		if (const auto window = weakWindow.get()) {
+			const auto itemId = MsgId(e.bareMsgId);
+			if (*upgradeGuard) {
+				return;
+			}
+			*upgradeGuard = true;
+			using namespace Ui;
+			ShowStarGiftUpgradeBox({
+				.controller = window,
+				.stargiftId = e.stargiftId,
+				.ready = [=](bool) { *upgradeGuard = false; },
+				.user = starGiftSender,
+				.itemId = itemId,
+				.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
+				.canAddSender = !e.anonymous,
+				.canAddComment = !e.anonymous && e.hasGiftComment,
+				});
+		}
+	};
+	const auto canUpgrade = e.stargiftId
+		&& e.canUpgradeGift
+		&& !e.uniqueGift;
+	const auto canUpgradeFree = canUpgrade && (e.starsUpgradedBySender > 0);
+
 	if (isStarGift && e.id.isEmpty()) {
 		const auto convert = [=, weak = Ui::MakeWeak(box)] {
 			const auto stars = e.starsConverted;
@@ -1340,28 +1369,7 @@ void ReceiptCreditsBox(
 				}
 			});
 		};
-		const auto upgradeGuard = std::make_shared<bool>();
-		const auto upgrade = [=] {
-			if (const auto window = weakWindow.get()) {
-				const auto itemId = MsgId(e.bareMsgId);
-				if (*upgradeGuard) {
-					return;
-				}
-				*upgradeGuard = true;
-				using namespace Ui;
-				ShowStarGiftUpgradeBox(
-					window,
-					e.stargiftId,
-					starGiftSender,
-					itemId,
-					e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
-					[=](bool) { *upgradeGuard = false; });
-			}
-		};
 		const auto canToggle = canConvert || couldConvert || nonConvertible;
-		const auto canUpgrade = e.stargiftId
-			&& e.canUpgradeGift
-			&& !e.uniqueGift;
 
 		AddStarGiftTable(
 			controller,
@@ -1479,6 +1487,8 @@ void ReceiptCreditsBox(
 			? tr::lng_credits_subscription_off_button()
 			: toRejoin
 			? tr::lng_credits_subscription_off_rejoin_button()
+			: canUpgradeFree
+			? tr::lng_gift_upgrade_free()
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
 		if (toRejoin) {
@@ -1531,6 +1541,8 @@ void ReceiptCreditsBox(
 		if (willBusy) {
 			state->confirmButtonBusy = true;
 			send();
+		} else if (canUpgradeFree) {
+			upgrade();
 		} else {
 			box->closeBox();
 		}
@@ -1607,6 +1619,7 @@ void CreditsPrizeBox(
 void UserStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
+		not_null<UserData*> owner,
 		const Data::UserStarGift &data) {
 	Settings::ReceiptCreditsBox(
 		box,
@@ -1618,7 +1631,9 @@ void UserStarGiftBox(
 			.bareMsgId = uint64(data.messageId.bare),
 			.barePeerId = data.fromId.value,
 			.bareGiftStickerId = data.info.document->id,
+			.bareGiftOwnerId = owner->id.value,
 			.stargiftId = data.info.id,
+			.uniqueGift = data.info.unique,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.info.limitedCount,
 			.limitedLeft = data.info.limitedLeft,
@@ -1650,6 +1665,7 @@ void StarGiftViewBox(
 		.bareMsgId = uint64(item->id.bare),
 		.barePeerId = item->history()->peer->id.value,
 		.bareGiftStickerId = data.document ? data.document->id : 0,
+		.bareGiftOwnerId = item->history()->session().userPeerId().value,
 		.stargiftId = data.stargiftId,
 		.uniqueGift = data.unique,
 		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
@@ -1663,6 +1679,7 @@ void StarGiftViewBox(
 		.stargift = true,
 		.savedToProfile = data.saved,
 		.canUpgradeGift = data.upgradable,
+		.hasGiftComment = !data.message.empty(),
 		.in = true,
 		.gift = true,
 	};

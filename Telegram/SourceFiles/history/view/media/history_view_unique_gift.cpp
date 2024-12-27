@@ -96,9 +96,9 @@ public:
 	ButtonPart(
 		const QString &text,
 		QMargins margins,
-		QColor bg,
 		Fn<void()> repaint,
-		ClickHandlerPtr link);
+		ClickHandlerPtr link,
+		QColor bg = QColor(0, 0, 0, 0));
 
 	void draw(
 		Painter &p,
@@ -126,6 +126,7 @@ private:
 	ClickHandlerPtr _link;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	mutable Ui::Premium::ColoredMiniStars _stars;
+	mutable std::optional<QColor> _starsLastColor;
 	Fn<void()> _repaint;
 
 	mutable QPoint _lastPoint;
@@ -135,9 +136,9 @@ private:
 ButtonPart::ButtonPart(
 	const QString &text,
 	QMargins margins,
-	QColor bg,
 	Fn<void()> repaint,
-	ClickHandlerPtr link)
+	ClickHandlerPtr link,
+	QColor bg)
 : _text(st::semiboldTextStyle, text)
 , _margins(margins)
 , _bg(bg)
@@ -152,13 +153,6 @@ ButtonPart::ButtonPart(
 	repaint();
 }, Ui::Premium::MiniStars::Type::SlowStars)
 , _repaint(std::move(repaint)) {
-	_stars.setColorOverride(QGradientStops{
-		{ 0., QColor(255, 255, 255, 255 * .3) },
-		{ 1., QColor(255, 255, 255) },
-	});
-	const auto padding = _size.height() / 2;
-	_stars.setCenter(
-		Rect(_size) - QMargins(padding, 0, padding, 0));
 }
 
 void ButtonPart::draw(
@@ -168,16 +162,31 @@ void ButtonPart::draw(
 		int outerWidth) const {
 	PainterHighQualityEnabler hq(p);
 
- 	const auto position = QPoint(
+	const auto customColors = (_bg.alpha() > 0);
+
+	const auto position = QPoint(
 		(outerWidth - width()) / 2 + _margins.left(),
 		_margins.top());
 	p.translate(position);
 
 	p.setPen(Qt::NoPen);
-	p.setBrush(_bg);
+	p.setBrush(customColors ? QBrush(_bg) : context.st->msgServiceBg());
 	const auto radius = _size.height() / 2.;
 	const auto r = Rect(_size);
 	p.drawRoundedRect(r, radius, radius);
+
+	auto white = QColor(255, 255, 255);
+	const auto fg = customColors ? white : context.st->msgServiceFg()->c;
+	if (!_starsLastColor || *_starsLastColor != fg) {
+		_starsLastColor = fg;
+		_stars.setColorOverride(QGradientStops{
+			{ 0., anim::with_alpha(fg, .3) },
+			{ 1., fg },
+		});
+		const auto padding = _size.height() / 2;
+		_stars.setCenter(
+			Rect(_size) - QMargins(padding, 0, padding, 0));
+	}
 
 	auto clipPath = QPainterPath();
 	clipPath.addRoundedRect(r, radius, radius);
@@ -186,20 +195,22 @@ void ButtonPart::draw(
 	_stars.paint(p);
 	p.setClipping(false);
 
-	auto white = QColor(255, 255, 255);
-	p.setPen(white);
 	if (_ripple) {
 		const auto opacity = p.opacity();
+		const auto ripple = customColors
+			? anim::with_alpha(fg, .3)
+			: context.messageStyle()->msgWaveformInactive->c;
 		p.setOpacity(st::historyPollRippleOpacity);
-		white.setAlphaF(0.3);
 		_ripple->paint(
 			p,
 			0,
 			0,
 			width(),
-			&white);
+			&ripple);
 		p.setOpacity(opacity);
 	}
+
+	p.setPen(fg);
 	_text.draw(
 		p,
 		0,
@@ -456,9 +467,9 @@ auto GenerateUniqueGiftMedia(
 			push(std::make_unique<ButtonPart>(
 				tr::lng_sticker_premium_view(tr::now),
 				st::chatUniqueButtonPadding,
-				gift->backdrop.patternColor,
 				[=] { parent->repaint(); },
-				std::move(link)));
+				std::move(link),
+				gift->backdrop.patternColor));
 		}
 	};
 }
@@ -535,6 +546,15 @@ Fn<void(Painter&, const Ui::ChatPaintContext &)> UniqueGiftBg(
 		p.drawText(pos - QPoint(0, font->descent), tag);
 		p.restore();
 	};
+}
+
+std::unique_ptr<MediaGenericPart> MakeGenericButtonPart(
+		const QString &text,
+		QMargins margins,
+		Fn<void()> repaint,
+		ClickHandlerPtr link,
+		QColor bg) {
+	return std::make_unique<ButtonPart>(text, margins, repaint, link, bg);
 }
 
 } // namespace HistoryView

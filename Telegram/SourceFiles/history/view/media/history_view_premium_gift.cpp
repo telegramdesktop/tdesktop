@@ -78,14 +78,24 @@ TextWithEntities PremiumGift::subtitle() {
 		return !_data.message.empty()
 			? _data.message
 			: outgoingGift()
-			? tr::lng_action_gift_sent_text(
+			? (_data.starsUpgradedBySender
+				? tr::lng_action_gift_sent_upgradable(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold(_parent->history()->peer->shortName()),
+					Ui::Text::RichLangValue)
+				: tr::lng_action_gift_sent_text(
+					tr::now,
+					lt_count,
+					_data.starsConverted,
+					lt_user,
+					Ui::Text::Bold(_parent->history()->peer->shortName()),
+					Ui::Text::RichLangValue))
+			: _data.starsUpgradedBySender
+			? tr::lng_action_gift_got_upgradable_text(
 				tr::now,
-				lt_count,
-				_data.starsConverted,
-				lt_user,
-				Ui::Text::Bold(_parent->history()->peer->shortName()),
 				Ui::Text::RichLangValue)
-			: (_data.converted
+			: ((_data.converted || !_data.starsConverted)
 				? tr::lng_gift_got_stars
 				: tr::lng_action_gift_got_stars_text)(
 					tr::now,
@@ -147,6 +157,8 @@ rpl::producer<QString> PremiumGift::button() {
 		? nullptr
 		: creditsPrize()
 		? tr::lng_view_button_giftcode()
+		: (starGift() && _data.starsUpgradedBySender && !_data.upgraded)
+		? tr::lng_gift_view_unpack()
 		: (gift() && (outgoingGift() || !_data.unclaimed))
 		? tr::lng_sticker_premium_view()
 		: tr::lng_prize_open();

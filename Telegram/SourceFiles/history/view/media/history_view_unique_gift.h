@@ -29,8 +29,15 @@ auto GenerateUniqueGiftMedia(
 	not_null<Data::UniqueGift*> gift)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
-Fn<void(Painter&, const Ui::ChatPaintContext &)> UniqueGiftBg(
+[[nodiscard]] Fn<void(Painter&, const Ui::ChatPaintContext &)> UniqueGiftBg(
 	not_null<Element*> view,
 	not_null<Data::UniqueGift*> gift);
+
+[[nodiscard]] std::unique_ptr<MediaGenericPart> MakeGenericButtonPart(
+	const QString &text,
+	QMargins margins,
+	Fn<void()> repaint,
+	ClickHandlerPtr link,
+	QColor bg = QColor(0, 0, 0, 0));
 
 } // namespace HistoryView

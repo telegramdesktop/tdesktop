@@ -120,7 +120,8 @@ giftBoxButtonBottom: 12px;
 giftBoxButtonPadding: margins(8px, 4px, 8px, 4px);
 giftBoxPreviewStickerPadding: margins(10px, 12px, 10px, 16px);
 giftBoxPreviewTitlePadding: margins(12px, 4px, 12px, 4px);
-giftBoxPreviewTextPadding: margins(12px, 4px, 12px, 24px);
+giftBoxPreviewTextPadding: margins(12px, 4px, 12px, 4px);
+giftBoxButtonMargin: margins(12px, 8px, 12px, 12px);
 giftBoxStickerTop: 0px;
 giftBoxStickerStarTop: 24px;
 giftBoxStickerSize: size(80px, 80px);
@@ -191,4 +192,7 @@ uniqueCloseButton: IconButton(boxTitleClose) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: shadowFg;
 	}
+}
+upgradeGiftBox: Box(giftBox) {
+	buttonPadding: margins(22px, 3px, 22px, 22px);
 }

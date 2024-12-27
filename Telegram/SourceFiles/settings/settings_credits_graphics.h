@@ -100,6 +100,7 @@ void CreditsPrizeBox(
 void UserStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
+	not_null<UserData*> owner,
 	const Data::UserStarGift &data);
 void StarGiftViewBox(
 	not_null<Ui::GenericBox*> box,

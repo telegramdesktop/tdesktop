@@ -2031,11 +2031,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_got_subtitle" = "Gift from {user}";
 "lng_action_gift_got_stars_text#one" = "Display this gift on your page or convert it to **{count}** Star.";
 "lng_action_gift_got_stars_text#other" = "Display this gift on your page or convert it to **{count}** Stars.";
+"lng_action_gift_got_upgradable_text" = "Upgrade this gift to a unique collectible.";
 "lng_action_gift_got_gift_text" = "You can keep this gift on your page.";
 "lng_action_gift_can_remove_text" = "You can remove this gift from your page.";
 "lng_action_gift_sent_subtitle" = "Gift for {user}";
 "lng_action_gift_sent_text#one" = "{user} can display this gift on their page or convert it to {count} Star.";
 "lng_action_gift_sent_text#other" = "{user} can display this gift on their page or convert it to {count} Stars.";
+"lng_action_gift_sent_upgradable" = "{user} can upgrade this gift to a unique collectible.";
 "lng_action_gift_premium_months#one" = "{count} Month Premium";
 "lng_action_gift_premium_months#other" = "{count} Months Premium";
 "lng_action_gift_premium_about" = "Subscription for exclusive Telegram features.";
@@ -3227,6 +3229,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_send_message" = "Enter Message";
 "lng_gift_send_anonymous" = "Hide My Name";
 "lng_gift_send_anonymous_about" = "You can hide your name and message from visitors to {user}'s profile. {recipient} will still see your name and message.";
+"lng_gift_send_unique" = "Make Unique for {price}";
+"lng_gift_send_unique_about" = "Enable this to let {user} turn your gift into a unique collectible. {link}";
+"lng_gift_send_unique_link" = "Learn More >";
 "lng_gift_send_premium_about" = "Only {user} will see your message.";
 "lng_gift_send_button" = "Send a Gift for {cost}";
 "lng_gift_sent_title" = "Gift Sent!";
@@ -3235,6 +3240,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_limited_of_one" = "unique";
 "lng_gift_limited_of_count" = "1 of {amount}";
 "lng_gift_price_unique" = "Unique";
+"lng_gift_view_unpack" = "Unpack";
 "lng_gift_anonymous_hint" = "Only you can see the sender's name.";
 "lng_gift_hidden_hint" = "This gift is hidden. Only you can see it.";
 "lng_gift_visible_hint" = "This gift is visible to visitors of your page.";
@@ -3286,6 +3292,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sell_small#other" = "sell for {count} Stars";
 "lng_gift_upgrade_title" = "Upgrade Gift";
 "lng_gift_upgrade_about" = "Turn your gift into a unique collectible\nthat you can transfer or auction.";
+"lng_gift_upgrade_preview_title" = "Make Unique";
+"lng_gift_upgrade_preview_about" = "Let {name} turn your gift into a unique collectible.";
 "lng_gift_upgrade_unique_title" = "Unique";
 "lng_gift_upgrade_unique_about" = "Get a unique number, model, backdrop and symbol for your gift.";
 "lng_gift_upgrade_transferable_title" = "Transferable";
@@ -3293,7 +3301,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_upgrade_tradable_title" = "Tradable";
 "lng_gift_upgrade_tradable_about" = "Sell or auction your gift on third-party NFT marketplaces.";
 "lng_gift_upgrade_button" = "Upgrade for {price}";
-"lng_gift_upgrade_add_sender" = "Add sender's name";
+"lng_gift_upgrade_free" = "Upgrade for Free";
+"lng_gift_upgrade_confirm" = "Confirm";
+"lng_gift_upgrade_add_my" = "Add my name to the gift";
+"lng_gift_upgrade_add_sender" = "Add sender's name to the gift";
 "lng_gift_upgrade_add_comment" = "Add sender's name and comment";
 "lng_gift_upgraded_title" = "Gift Upgraded";
 "lng_gift_upgraded_about" = "Your gift {name} now has unique attributes and can be transferred to others";

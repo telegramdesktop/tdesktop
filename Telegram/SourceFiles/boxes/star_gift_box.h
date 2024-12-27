@@ -46,13 +46,17 @@ void PaintPoints(
 	const QRect &rect,
 	float64 shown = 1.);
 
-void ShowStarGiftUpgradeBox(
-	not_null<Window::SessionController*> controller,
-	uint64 stargiftId,
-	not_null<UserData*> user,
-	MsgId itemId,
-	int stars,
-	Fn<void(bool)> ready);
+struct StarGiftUpgradeArgs {
+	not_null<Window::SessionController*> controller;
+	base::required<uint64> stargiftId;
+	Fn<void(bool)> ready;
+	not_null<UserData*> user;
+	MsgId itemId = 0;
+	int cost = 0;
+	bool canAddSender = false;
+	bool canAddComment = false;
+};
+void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args);
 
 void AddUniqueCloseButton(not_null<GenericBox*> box);
 

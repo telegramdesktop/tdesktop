@@ -326,6 +326,7 @@ void InnerWidget::showGift(int index) {
 	_window->show(Box(
 		::Settings::UserStarGiftBox,
 		_window,
+		_user,
 		_entries[index].gift));
 }
 
