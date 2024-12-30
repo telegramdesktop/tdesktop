@@ -67,6 +67,11 @@ void AddUniqueCloseButton(not_null<GenericBox*> box);
 void RequestStarsFormAndSubmit(
 	not_null<Window::SessionController*> window,
 	MTPInputInvoice invoice,
-	Fn<void(Payments::CheckoutResult)> done);
+	Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done);
+
+void ShowGiftTransferredToast(
+	base::weak_ptr<Window::SessionController> weak,
+	not_null<PeerData*> to,
+	const MTPUpdates &result);
 
 } // namespace Ui

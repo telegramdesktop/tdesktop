@@ -1114,7 +1114,7 @@ void SendGift(
 void ShowGiftUpgradedToast(
 		base::weak_ptr<Window::SessionController> weak,
 		not_null<Main::Session*> session,
-		const MTPUpdates & result) {
+		const MTPUpdates &result) {
 	const auto gift = FindUniqueGift(session, result);
 	if (const auto strong = gift ? weak.get() : nullptr) {
 		strong->showToast({
@@ -1134,7 +1134,7 @@ void SendStarsFormRequest(
 		Settings::SmallBalanceResult result,
 		uint64 formId,
 		MTPInputInvoice invoice,
-		Fn<void(Payments::CheckoutResult)> done) {
+		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
 	using BalanceResult = Settings::SmallBalanceResult;
 	const auto session = &controller->session();
 	if (result == BalanceResult::Success
@@ -1146,20 +1146,20 @@ void SendStarsFormRequest(
 		)).done([=](const MTPpayments_PaymentResult &result) {
 			result.match([&](const MTPDpayments_paymentResult &data) {
 				session->api().applyUpdates(data.vupdates());
-				ShowGiftUpgradedToast(weak, session, data.vupdates());
-			}, [](const MTPDpayments_paymentVerificationNeeded &data) {
+				done(Payments::CheckoutResult::Paid, &data.vupdates());
+			}, [&](const MTPDpayments_paymentVerificationNeeded &data) {
+				done(Payments::CheckoutResult::Failed, nullptr);
 			});
-			done(Payments::CheckoutResult::Paid);
 		}).fail([=](const MTP::Error &error) {
 			if (const auto strong = weak.get()) {
 				strong->showToast(error.type());
 			}
-			done(Payments::CheckoutResult::Failed);
+			done(Payments::CheckoutResult::Failed, nullptr);
 		}).send();
 	} else if (result == BalanceResult::Cancelled) {
-		done(Payments::CheckoutResult::Cancelled);
+		done(Payments::CheckoutResult::Cancelled, nullptr);
 	} else {
-		done(Payments::CheckoutResult::Failed);
+		done(Payments::CheckoutResult::Failed, nullptr);
 	}
 }
 
@@ -1170,21 +1170,30 @@ void UpgradeGift(
 		int stars,
 		Fn<void(Payments::CheckoutResult)> done) {
 	const auto session = &window->session();
+	const auto weak = base::make_weak(window);
+	auto formDone = [=](
+			Payments::CheckoutResult result,
+			const MTPUpdates *updates) {
+		if (result == Payments::CheckoutResult::Paid && updates) {
+			if (const auto strong = weak.get()) {
+				ShowGiftUpgradedToast(strong, session, *updates);
+			}
+		}
+		done(result);
+	};
 	if (stars <= 0) {
 		using Flag = MTPpayments_UpgradeStarGift::Flag;
-		const auto weak = base::make_weak(window);
 		session->api().request(MTPpayments_UpgradeStarGift(
 			MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
 			MTP_int(messageId.bare)
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
-			ShowGiftUpgradedToast(weak, session, result);
-			done(Payments::CheckoutResult::Paid);
+			formDone(Payments::CheckoutResult::Paid, &result);
 		}).fail([=](const MTP::Error &error) {
 			if (const auto strong = weak.get()) {
 				strong->showToast(error.type());
 			}
-			done(Payments::CheckoutResult::Failed);
+			formDone(Payments::CheckoutResult::Failed, nullptr);
 		}).send();
 		return;
 	}
@@ -1194,7 +1203,7 @@ void UpgradeGift(
 		MTP_inputInvoiceStarGiftUpgrade(
 			MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
 			MTP_int(messageId.bare)),
-		std::move(done));
+		std::move(formDone));
 }
 
 void SoldOutBox(
@@ -2295,7 +2304,7 @@ void AddUniqueCloseButton(not_null<GenericBox*> box) {
 void RequestStarsFormAndSubmit(
 		not_null<Window::SessionController*> window,
 		MTPInputInvoice invoice,
-		Fn<void(Payments::CheckoutResult)> done) {
+		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
 	const auto weak = base::make_weak(window);
 	window->session().api().request(MTPpayments_GetPaymentForm(
 		MTP_flags(0),
@@ -2307,7 +2316,7 @@ void RequestStarsFormAndSubmit(
 			const auto prices = data.vinvoice().data().vprices().v;
 			const auto strong = weak.get();
 			if (!strong) {
-				done(Payments::CheckoutResult::Failed);
+				done(Payments::CheckoutResult::Failed, nullptr);
 				return;
 			}
 			const auto ready = [=](Settings::SmallBalanceResult result) {
@@ -2319,14 +2328,34 @@ void RequestStarsFormAndSubmit(
 				Settings::SmallBalanceDeepLink{},
 				ready);
 		}, [&](const auto &) {
-			done(Payments::CheckoutResult::Failed);
+			done(Payments::CheckoutResult::Failed, nullptr);
 		});
 	}).fail([=](const MTP::Error &error) {
 		if (const auto strong = weak.get()) {
 			strong->showToast(error.type());
 		}
-		done(Payments::CheckoutResult::Failed);
+		done(Payments::CheckoutResult::Failed, nullptr);
 	}).send();
+}
+
+void ShowGiftTransferredToast(
+		base::weak_ptr<Window::SessionController> weak,
+		not_null<PeerData*> to,
+		const MTPUpdates &result) {
+	const auto gift = FindUniqueGift(&to->session(), result);
+	if (const auto strong = gift ? weak.get() : nullptr) {
+		strong->showToast({
+			.title = tr::lng_gift_transferred_title(tr::now),
+			.text = tr::lng_gift_transferred_about(
+				tr::now,
+				lt_name,
+				Text::Bold(Data::UniqueGiftName(*gift)),
+				lt_recipient,
+				Text::Bold(to->shortName()),
+				Ui::Text::WithEntities),
+			.duration = kUpgradeDoneToastDuration,
+		});
+	}
 }
 
 } // namespace Ui

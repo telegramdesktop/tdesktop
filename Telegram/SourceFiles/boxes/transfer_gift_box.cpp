@@ -290,18 +290,28 @@ void TransferGift(
 
 	const auto session = &window->session();
 	const auto weak = base::make_weak(window);
+	auto formDone = [=](
+			Payments::CheckoutResult result,
+			const MTPUpdates *updates) {
+		if (result == Payments::CheckoutResult::Paid && updates) {
+			if (const auto strong = weak.get()) {
+				Ui::ShowGiftTransferredToast(strong, to, *updates);
+			}
+		}
+		done(result);
+	};
 	if (gift->starsForTransfer <= 0) {
 		session->api().request(MTPpayments_TransferStarGift(
 			MTP_int(messageId.bare),
 			to->asUser()->inputUser
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
-			done(Payments::CheckoutResult::Paid);
+			formDone(Payments::CheckoutResult::Paid, &result);
 		}).fail([=](const MTP::Error &error) {
 			if (const auto strong = weak.get()) {
 				strong->showToast(error.type());
 			}
-			done(Payments::CheckoutResult::Failed);
+			formDone(Payments::CheckoutResult::Failed, nullptr);
 		}).send();
 		return;
 	}
@@ -310,7 +320,7 @@ void TransferGift(
 		MTP_inputInvoiceStarGiftTransfer(
 			MTP_int(messageId.bare),
 			to->asUser()->inputUser),
-		std::move(done));
+		std::move(formDone));
 }
 
 void ShowTransferToBox(

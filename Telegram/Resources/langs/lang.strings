@@ -3311,6 +3311,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_upgrade_add_comment" = "Add sender's name and comment";
 "lng_gift_upgraded_title" = "Gift Upgraded";
 "lng_gift_upgraded_about" = "Your gift {name} now has unique attributes and can be transferred to others";
+"lng_gift_transferred_title" = "Gift Transferred";
+"lng_gift_transferred_about" = "{name} was successfully transferred to {recipient}.";
 "lng_gift_transfer_title" = "Transfer {name}";
 "lng_gift_transfer_via_blockchain" = "Send via Blockchain";
 "lng_gift_transfer_unlocks_days#one" = "unlocks in {count} day";
