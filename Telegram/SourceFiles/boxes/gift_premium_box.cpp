@@ -1363,7 +1363,7 @@ void AddStarGiftTable(
 				std::move(toggleVisibility)),
 			marginWithButton);
 	}
-	if (entry.limitedCount > 0) {
+	if (entry.limitedCount > 0 && !entry.giftRefunded) {
 		auto amount = rpl::single(TextWithEntities{
 			Lang::FormatCountDecimal(entry.limitedCount)
 		});

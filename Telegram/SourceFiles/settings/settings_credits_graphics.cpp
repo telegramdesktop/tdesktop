@@ -1182,7 +1182,10 @@ void ReceiptCreditsBox(
 				box,
 				object_ptr<Ui::FlatLabel>(
 					box,
-					(e.starsUpgradedBySender
+					(e.giftRefunded
+						? tr::lng_action_gift_refunded(
+							Ui::Text::RichLangValue)
+						: e.starsUpgradedBySender
 						? tr::lng_action_gift_got_upgradable_text(
 							Ui::Text::RichLangValue)
 						: ((couldConvert || nonConvertible)
@@ -1211,6 +1214,9 @@ void ReceiptCreditsBox(
 				tr::lng_paid_about_link_url(tr::now));
 			return false;
 		});
+		if (e.giftRefunded) {
+			about->setTextColorOverride(st::menuIconAttentionColor->c);
+		}
 	} else if (isStarGift) {
 	} else if (e.gift || isPrize) {
 		Ui::AddSkip(content);
@@ -1370,7 +1376,8 @@ void ReceiptCreditsBox(
 			});
 		};
 		const auto canToggle = (canConvert || couldConvert || nonConvertible)
-			&& !e.giftTransferred;
+			&& !e.giftTransferred
+			&& !e.giftRefunded;
 
 		AddStarGiftTable(
 			controller,
@@ -1681,6 +1688,7 @@ void StarGiftViewBox(
 		.anonymous = data.anonymous,
 		.stargift = true,
 		.giftTransferred = data.transferred,
+		.giftRefunded = data.refunded,
 		.savedToProfile = data.saved,
 		.canUpgradeGift = data.upgradable,
 		.hasGiftComment = !data.message.empty(),

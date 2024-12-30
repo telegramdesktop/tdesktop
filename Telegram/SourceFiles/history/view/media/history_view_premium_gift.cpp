@@ -79,6 +79,8 @@ TextWithEntities PremiumGift::subtitle() {
 	if (starGift()) {
 		return !_data.message.empty()
 			? _data.message
+			: _data.refunded
+			? tr::lng_action_gift_refunded(tr::now, Ui::Text::RichLangValue)
 			: outgoingGift()
 			? (_data.starsUpgradedBySender
 				? tr::lng_action_gift_sent_upgradable(

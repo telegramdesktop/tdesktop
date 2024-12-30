@@ -5408,7 +5408,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto stars = action.vgift().match([&](
 				const MTPDstarGift &data) {
 			return uint64(data.vstars().v)
-				+ uint64(data.vupgrade_stars().value_or_empty());
+				+ uint64(action.vupgrade_stars().value_or_empty());
 		}, [](const MTPDstarGiftUnique &) {
 			return uint64();
 		});

@@ -1853,7 +1853,7 @@ void DetailsFiller::setupAboutVerification() {
 			Ui::AddDivider(inner);
 		} else if (!info->description.empty()) {
 			Ui::AddDividerText(inner, rpl::single(info->description));
-		} else if (_peer->verifiedByTelegram()) {
+		} else if (peer->verifiedByTelegram()) {
 			const auto phrases = PeerVerifyPhrases(peer);
 			Ui::AddDividerText(inner, phrases.telegram());
 		}
