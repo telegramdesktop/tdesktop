@@ -400,6 +400,12 @@ auto GenerateUniqueGiftMedia(
 				st));
 		};
 
+		const auto item = parent->data();
+		const auto media = item->media();
+		const auto fields = media ? media->gift() : nullptr;
+		const auto upgrade = fields && fields->upgrade;
+		const auto outgoing = upgrade ? !item->out() : item->out();
+
 		const auto white = QColor(255, 255, 255);
 		const auto sticker = [=] {
 			using Tag = ChatHelpers::StickerLottieSize;
@@ -415,7 +421,7 @@ auto GenerateUniqueGiftMedia(
 			sticker,
 			st::chatUniqueStickerPadding));
 		pushText(
-			Ui::Text::Bold((!parent->data()->out()
+			Ui::Text::Bold((outgoing
 				? tr::lng_action_gift_sent_subtitle
 				: tr::lng_action_gift_got_subtitle)(
 					tr::now,
@@ -430,7 +436,7 @@ auto GenerateUniqueGiftMedia(
 			gift->backdrop.textColor,
 			st::chatUniqueTextPadding);
 
-		const auto withButton = parent->data()->out();
+		const auto withButton = !outgoing;
 
 		auto attributes = std::vector<AttributeTable::Entry>{
 			{ tr::lng_gift_unique_model(tr::now), gift->model.name },

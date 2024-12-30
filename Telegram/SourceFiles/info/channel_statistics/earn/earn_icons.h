@@ -12,6 +12,7 @@ namespace Ui::Earn {
 [[nodiscard]] QImage IconCurrencyColored(
 	const style::font &font,
 	const QColor &c);
+[[nodiscard]] QByteArray CurrencySvgColored(const QColor &c);
 
 [[nodiscard]] QImage MenuIconCurrency(const QSize &size);
 [[nodiscard]] QImage MenuIconCredits();

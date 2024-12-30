@@ -63,6 +63,10 @@ QImage IconCurrencyColored(
 	return image;
 }
 
+QByteArray CurrencySvgColored(const QColor &c) {
+	return CurrencySvg(c);
+}
+
 QImage MenuIconCurrency(const QSize &size) {
 	auto image = QImage(
 		size * style::DevicePixelRatio(),

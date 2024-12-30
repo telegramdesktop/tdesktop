@@ -13,6 +13,10 @@ struct GiftCode;
 struct CreditsHistoryEntry;
 } // namespace Data
 
+namespace Payments {
+enum class CheckoutResult;
+} // namespace Payments
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -59,5 +63,10 @@ struct StarGiftUpgradeArgs {
 void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args);
 
 void AddUniqueCloseButton(not_null<GenericBox*> box);
+
+void RequestStarsFormAndSubmit(
+	not_null<Window::SessionController*> window,
+	MTPInputInvoice invoice,
+	Fn<void(Payments::CheckoutResult)> done);
 
 } // namespace Ui

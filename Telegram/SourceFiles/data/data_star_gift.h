@@ -38,8 +38,10 @@ struct UniqueGiftOriginalDetails {
 
 struct UniqueGift {
 	QString title;
-	int number = 0;
 	PeerId ownerId = 0;
+	int number = 0;
+	int starsForTransfer = -1;
+	TimeId exportAt = 0;
 	UniqueGiftModel model;
 	UniqueGiftPattern pattern;
 	UniqueGiftBackdrop backdrop;

@@ -235,7 +235,7 @@ void PremiumGift::draw(
 
 QString PremiumGift::cornerTagText() {
 	if (_data.unique) {
-		return tr::lng_gift_limited_of_one(tr::now);
+		return tr::lng_gift_collectible_tag(tr::now);
 	} else if (const auto count = _data.limitedCount) {
 		return (count == 1)
 			? tr::lng_gift_limited_of_one(tr::now)
@@ -292,12 +292,11 @@ bool PremiumGift::gift() const {
 }
 
 bool PremiumGift::starGift() const {
-	return (_data.type == Data::GiftType::StarGift)
-		|| (_data.type == Data::GiftType::StarGiftUpgrade);
+	return (_data.type == Data::GiftType::StarGift);
 }
 
 bool PremiumGift::starGiftUpgrade() const {
-	return (_data.type == Data::GiftType::StarGiftUpgrade);
+	return (_data.type == Data::GiftType::StarGift) && _data.upgrade;
 }
 
 bool PremiumGift::creditsPrize() const {

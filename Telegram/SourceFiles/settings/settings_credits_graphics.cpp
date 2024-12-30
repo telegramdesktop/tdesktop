@@ -1318,7 +1318,7 @@ void ReceiptCreditsBox(
 				.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
 				.canAddSender = !e.anonymous,
 				.canAddComment = !e.anonymous && e.hasGiftComment,
-				});
+			});
 		}
 	};
 	const auto canUpgrade = e.stargiftId
@@ -1369,7 +1369,8 @@ void ReceiptCreditsBox(
 				}
 			});
 		};
-		const auto canToggle = canConvert || couldConvert || nonConvertible;
+		const auto canToggle = (canConvert || couldConvert || nonConvertible)
+			&& !e.giftTransferred;
 
 		AddStarGiftTable(
 			controller,
@@ -1665,7 +1666,9 @@ void StarGiftViewBox(
 		.bareMsgId = uint64(item->id.bare),
 		.barePeerId = item->history()->peer->id.value,
 		.bareGiftStickerId = data.document ? data.document->id : 0,
-		.bareGiftOwnerId = item->history()->session().userPeerId().value,
+		.bareGiftOwnerId = (data.unique
+			? data.unique->ownerId.value
+			: item->history()->session().userPeerId().value),
 		.stargiftId = data.stargiftId,
 		.uniqueGift = data.unique,
 		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
@@ -1677,6 +1680,7 @@ void StarGiftViewBox(
 		.converted = data.converted,
 		.anonymous = data.anonymous,
 		.stargift = true,
+		.giftTransferred = data.transferred,
 		.savedToProfile = data.saved,
 		.canUpgradeGift = data.upgradable,
 		.hasGiftComment = !data.message.empty(),

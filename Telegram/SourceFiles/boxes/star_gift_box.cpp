@@ -1129,11 +1129,10 @@ void ShowGiftUpgradedToast(
 	}
 }
 
-void SendUpgradeRequest(
+void SendStarsFormRequest(
 		not_null<Window::SessionController*> controller,
 		Settings::SmallBalanceResult result,
 		uint64 formId,
-		int stars,
 		MTPInputInvoice invoice,
 		Fn<void(Payments::CheckoutResult)> done) {
 	using BalanceResult = Settings::SmallBalanceResult;
@@ -1190,46 +1189,12 @@ void UpgradeGift(
 		return;
 	}
 	using Flag = MTPDinputInvoiceStarGiftUpgrade::Flag;
-	const auto weak = base::make_weak(window);
-	const auto invoice = MTP_inputInvoiceStarGiftUpgrade(
-		MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
-		MTP_int(messageId.bare));
-	session->api().request(MTPpayments_GetPaymentForm(
-		MTP_flags(0),
-		invoice,
-		MTPDataJSON() // theme_params
-	)).done([=](const MTPpayments_PaymentForm &result) {
-		result.match([&](const MTPDpayments_paymentFormStarGift &data) {
-			const auto formId = data.vform_id().v;
-			const auto prices = data.vinvoice().data().vprices().v;
-			const auto strong = weak.get();
-			if (!strong) {
-				done(Payments::CheckoutResult::Failed);
-				return;
-			}
-			const auto ready = [=](Settings::SmallBalanceResult result) {
-				SendUpgradeRequest(
-					strong,
-					result,
-					formId,
-					stars,
-					invoice,
-					done);
-			};
-			Settings::MaybeRequestBalanceIncrease(
-				Main::MakeSessionShow(strong->uiShow(), session),
-				prices.front().data().vamount().v,
-				Settings::SmallBalanceDeepLink{},
-				ready);
-		}, [&](const auto &) {
-			done(Payments::CheckoutResult::Failed);
-		});
-	}).fail([=](const MTP::Error &error) {
-		if (const auto strong = weak.get()) {
-			strong->showToast(error.type());
-		}
-		done(Payments::CheckoutResult::Failed);
-	}).send();
+	RequestStarsFormAndSubmit(
+		window,
+		MTP_inputInvoiceStarGiftUpgrade(
+			MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
+			MTP_int(messageId.bare)),
+		std::move(done));
 }
 
 void SoldOutBox(
@@ -2325,6 +2290,43 @@ void AddUniqueCloseButton(not_null<GenericBox*> box) {
 	button->setClickedCallback([=] {
 		box->closeBox();
 	});
+}
+
+void RequestStarsFormAndSubmit(
+		not_null<Window::SessionController*> window,
+		MTPInputInvoice invoice,
+		Fn<void(Payments::CheckoutResult)> done) {
+	const auto weak = base::make_weak(window);
+	window->session().api().request(MTPpayments_GetPaymentForm(
+		MTP_flags(0),
+		invoice,
+		MTPDataJSON() // theme_params
+	)).done([=](const MTPpayments_PaymentForm &result) {
+		result.match([&](const MTPDpayments_paymentFormStarGift &data) {
+			const auto formId = data.vform_id().v;
+			const auto prices = data.vinvoice().data().vprices().v;
+			const auto strong = weak.get();
+			if (!strong) {
+				done(Payments::CheckoutResult::Failed);
+				return;
+			}
+			const auto ready = [=](Settings::SmallBalanceResult result) {
+				SendStarsFormRequest(strong, result, formId, invoice, done);
+			};
+			Settings::MaybeRequestBalanceIncrease(
+				strong->uiShow(),
+				prices.front().data().vamount().v,
+				Settings::SmallBalanceDeepLink{},
+				ready);
+		}, [&](const auto &) {
+			done(Payments::CheckoutResult::Failed);
+		});
+	}).fail([=](const MTP::Error &error) {
+		if (const auto strong = weak.get()) {
+			strong->showToast(error.type());
+		}
+		done(Payments::CheckoutResult::Failed);
+	}).send();
 }
 
 } // namespace Ui

@@ -5463,13 +5463,17 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto isSelf = _from->isSelf();
 		const auto peer = isSelf ? _history->peer : _from;
 		result.links.push_back(peer->createOpenLink());
-		result.text = (isSelf
-			? tr::lng_action_gift_upgraded_mine
-			: tr::lng_action_gift_upgraded)(
-				tr::now,
-				lt_user,
-				Ui::Text::Link(peer->shortName(), 1), // Link 1.
-				Ui::Text::WithEntities);
+		result.text = (action.is_upgrade()
+			? (isSelf
+				? tr::lng_action_gift_upgraded_mine
+				: tr::lng_action_gift_upgraded)
+			: (isSelf
+				? tr::lng_action_gift_transferred_mine
+				: tr::lng_action_gift_transferred))(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
+					Ui::Text::WithEntities);
 		return result;
 	};
 
@@ -5683,7 +5687,10 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 	}, [&](const MTPDmessageActionStarGiftUnique &data) {
 		using Fields = Data::GiftCode;
 		auto fields = Fields{
-			.type = Data::GiftType::StarGiftUpgrade,
+			.type = Data::GiftType::StarGift,
+			.transferred = data.is_transferred(),
+			.refunded = data.is_refunded(),
+			.upgrade = data.is_upgrade(),
 			.saved = data.is_saved(),
 		};
 		if (auto gift = Api::FromTL(&history()->session(), data.vgift())) {
@@ -5692,7 +5699,12 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			fields.limitedCount = gift->limitedCount;
 			fields.limitedLeft = gift->limitedLeft;
 			fields.count = gift->stars;
-			fields.unique = gift->unique;
+			fields.unique = std::move(gift->unique);
+			if (const auto unique = fields.unique.get()) {
+				unique->starsForTransfer
+					= data.vtransfer_stars().value_or(-1);
+				unique->exportAt = data.vcan_export_at().value_or_empty();
+			}
 		}
 		_media = std::make_unique<Data::MediaGiftBox>(
 			this,

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
 #include "boxes/star_gift_box.h" // ShowStarGiftBox.
+#include "boxes/transfer_gift_box.h" // ShowTransferGiftBox.
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -1204,8 +1205,16 @@ void AddStarGiftTable(
 	const auto unique = entry.uniqueGift.get();
 	if (unique) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
-		auto send = entry.in ? tr::lng_gift_unique_owner_change() : nullptr;
-		auto handler = entry.in ? Fn<void()>([=] {}) : nullptr;
+		const auto transfer = entry.in
+			&& entry.bareMsgId
+			&& (unique->starsForTransfer >= 0);
+		auto send = transfer ? tr::lng_gift_unique_owner_change() : nullptr;
+		auto handler = transfer ? Fn<void()>([=] {
+			ShowTransferGiftBox(
+				controller->parentController(),
+				entry.uniqueGift,
+				MsgId(entry.bareMsgId));
+		}) : nullptr;
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_owner(),

@@ -113,6 +113,22 @@ public:
 		const style::color &fg);
 	[[nodiscard]] static QImage GenerateMyNotes(int size);
 
+	static void PaintCurrency(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size);
+	static void PaintCurrency(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		QBrush bg,
+		const style::color &fg);
+	[[nodiscard]] static QImage GenerateCurrency(int size);
+
 	~EmptyUserpic();
 
 private:

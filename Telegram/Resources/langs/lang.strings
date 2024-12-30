@@ -2025,6 +2025,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_unique_sent" = "You sent a unique collectible item";
 "lng_action_gift_upgraded" = "{user} turned the gift from you to a unique collectible";
 "lng_action_gift_upgraded_mine" = "You turned the gift from {user} to a unique collectible";
+"lng_action_gift_transferred" = "{user} transferred you a gift";
+"lng_action_gift_transferred_mine" = "You transferred a gift to {user}";
 "lng_action_gift_received_anonymous" = "Unknown user sent you a gift for {cost}";
 "lng_action_gift_for_stars#one" = "{count} Star";
 "lng_action_gift_for_stars#other" = "{count} Stars";
@@ -3239,6 +3241,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sent_about#other" = "You spent **{count}** Stars from your balance.";
 "lng_gift_limited_of_one" = "unique";
 "lng_gift_limited_of_count" = "1 of {amount}";
+"lng_gift_collectible_tag" = "gift";
 "lng_gift_price_unique" = "Unique";
 "lng_gift_view_unpack" = "Unpack";
 "lng_gift_anonymous_hint" = "Only you can see the sender's name.";

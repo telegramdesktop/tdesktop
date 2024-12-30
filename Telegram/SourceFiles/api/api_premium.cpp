@@ -806,8 +806,8 @@ std::optional<Data::StarGift> FromTL(
 			.id = uint64(data.vid().v),
 			.unique = std::make_shared<Data::UniqueGift>(Data::UniqueGift{
 				.title = qs(data.vtitle()),
-				.number = data.vnum().v,
 				.ownerId = peerFromUser(UserId(data.vowner_id().v)),
+				.number = data.vnum().v,
 				.model = *model,
 				.pattern = *pattern,
 			}),
@@ -837,6 +837,9 @@ std::optional<Data::UserStarGift> FromTL(
 	auto parsed = FromTL(session, data.vgift());
 	if (!parsed) {
 		return {};
+	} else if (const auto unique = parsed->unique.get()) {
+		unique->starsForTransfer = data.vtransfer_stars().value_or(-1);
+		unique->exportAt = data.vcan_export_at().value_or_empty();
 	}
 	return Data::UserStarGift{
 		.info = std::move(*parsed),

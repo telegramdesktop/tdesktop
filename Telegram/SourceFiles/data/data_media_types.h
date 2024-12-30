@@ -132,7 +132,6 @@ enum class GiftType : uchar {
 	Premium, // count - months
 	Credits, // count - credits
 	StarGift, // count - stars
-	StarGiftUpgrade,
 };
 
 struct GiftCode {
@@ -151,11 +150,14 @@ struct GiftCode {
 	int count = 0;
 	GiftType type = GiftType::Premium;
 	bool viaGiveaway : 1 = false;
+	bool transferred : 1 = false;
 	bool upgradable : 1 = false;
 	bool unclaimed : 1 = false;
 	bool anonymous : 1 = false;
 	bool converted : 1 = false;
 	bool upgraded : 1 = false;
+	bool refunded : 1 = false;
+	bool upgrade : 1 = false;
 	bool saved : 1 = false;
 };
 
