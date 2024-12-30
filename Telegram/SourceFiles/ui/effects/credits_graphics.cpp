@@ -558,11 +558,15 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 		? tr::lng_credits_box_history_entry_api
 		: entry.reaction
 		? tr::lng_credits_box_history_entry_reaction_name
+		: entry.giftUpgraded
+		? tr::lng_credits_box_history_entry_gift_upgrade
 		: entry.bareGiveawayMsgId
 		? tr::lng_credits_box_history_entry_giveaway_name
 		: entry.converted
 		? tr::lng_credits_box_history_entry_gift_converted
-		: entry.starsConverted
+		: (entry.gift && !entry.in && entry.uniqueGift)
+		? tr::lng_credits_box_history_entry_gift_transfer
+		: (entry.starsConverted || (entry.gift && !entry.in))
 		? tr::lng_credits_box_history_entry_gift_sent
 		: entry.gift
 		? tr::lng_credits_box_history_entry_gift_name

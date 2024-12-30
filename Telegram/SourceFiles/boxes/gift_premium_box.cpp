@@ -1541,6 +1541,8 @@ void AddCreditsHistoryEntryTable(
 			? tr::lng_credits_box_history_entry_referred()
 			: entry.in
 			? tr::lng_credits_box_history_entry_peer_in()
+			: entry.giftUpgraded
+			? tr::lng_credits_box_history_entry_gift_from()
 			: tr::lng_credits_box_history_entry_peer();
 		AddTableRow(
 			table,
