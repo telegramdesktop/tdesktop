@@ -142,6 +142,7 @@ struct GiftCode {
 	TextWithEntities message;
 	ChannelData *channel = nullptr;
 	MsgId giveawayMsgId = 0;
+	MsgId upgradeMsgId = 0;
 	int starsConverted = 0;
 	int starsToUpgrade = 0;
 	int starsUpgradedBySender = 0;

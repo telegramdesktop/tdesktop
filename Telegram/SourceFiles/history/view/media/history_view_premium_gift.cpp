@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_premium_gift.h"
 
+#include "apiwrap.h"
+#include "api/api_premium.h"
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -177,44 +179,90 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 	const auto peer = _parent->history()->peer;
 	const auto date = _parent->data()->date();
 	const auto data = *_gift->gift();
-	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-		const auto my = context.other.value<ClickHandlerContext>();
-		if (const auto controller = my.sessionWindow.get()) {
-			const auto selfId = controller->session().userPeerId();
-			const auto sent = (from->id == selfId);
-			if (starGift()) {
-				const auto item = controller->session().data().message(itemId);
-				if (item) {
-					controller->show(Box(
-						Settings::StarGiftViewBox,
-						controller,
-						data,
-						item));
-				}
-			} else if (creditsPrize()) {
+	const auto showForWeakWindow = [=](
+			base::weak_ptr<Window::SessionController> weak) {
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
+		const auto selfId = controller->session().userPeerId();
+		const auto sent = (from->id == selfId);
+		if (starGift()) {
+			const auto item = controller->session().data().message(itemId);
+			if (item) {
 				controller->show(Box(
-					Settings::CreditsPrizeBox,
+					Settings::StarGiftViewBox,
 					controller,
 					data,
-					date));
-			} else if (data.type == Data::GiftType::Credits) {
-				const auto to = sent ? peer : peer->session().user();
-				controller->show(Box(
-					Settings::GiftedCreditsBox,
-					controller,
-					from,
-					to,
-					data.count,
-					date));
-			} else if (data.slug.isEmpty()) {
-				const auto months = data.count;
-				Settings::ShowGiftPremium(controller, peer, months, sent);
-			} else {
-				const auto fromId = from->id;
-				const auto toId = sent ? peer->id : selfId;
-				ResolveGiftCode(controller, data.slug, fromId, toId);
+					item));
 			}
+		} else if (creditsPrize()) {
+			controller->show(Box(
+				Settings::CreditsPrizeBox,
+				controller,
+				data,
+				date));
+		} else if (data.type == Data::GiftType::Credits) {
+			const auto to = sent ? peer : peer->session().user();
+			controller->show(Box(
+				Settings::GiftedCreditsBox,
+				controller,
+				from,
+				to,
+				data.count,
+				date));
+		} else if (data.slug.isEmpty()) {
+			const auto months = data.count;
+			Settings::ShowGiftPremium(controller, peer, months, sent);
+		} else {
+			const auto fromId = from->id;
+			const auto toId = sent ? peer->id : selfId;
+			ResolveGiftCode(controller, data.slug, fromId, toId);
 		}
+	};
+
+	if (const auto upgradeTo = data.upgradeMsgId) {
+		const auto requesting = std::make_shared<bool>();
+		return std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto weak = my.sessionWindow;
+			const auto controller = weak.get();
+			if (!controller || *requesting) {
+				return;
+			}
+			*requesting = true;
+			controller->session().api().request(MTPpayments_GetUserStarGift(
+				MTP_vector<MTPint>(1, MTP_int(upgradeTo))
+			)).done([=](const MTPpayments_UserStarGifts &result) {
+				*requesting = false;
+				if (const auto window = weak.get()) {
+					const auto &data = result.data();
+					window->session().data().processUsers(data.vusers());
+					const auto self = window->session().user();
+					const auto &list = data.vgifts().v;
+					if (list.empty()) {
+						showForWeakWindow(weak);
+					} else if (auto parsed = Api::FromTL(self, list[0])) {
+						window->show(Box(
+							Settings::UserStarGiftBox,
+							window,
+							self,
+							*parsed));
+					}
+				}
+			}).fail([=](const MTP::Error &error) {
+				*requesting = false;
+				if (const auto window = weak.get()) {
+					window->showToast(error.type());
+				}
+				showForWeakWindow(weak);
+			}).send();
+		});
+	}
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		showForWeakWindow(
+			context.other.value<ClickHandlerContext>().sessionWindow);
 	});
 }
 
