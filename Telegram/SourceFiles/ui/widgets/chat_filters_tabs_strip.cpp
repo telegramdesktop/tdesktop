@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_folders.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/chat_filters_tabs_slider_reorder.h"
@@ -150,18 +151,38 @@ void ShowFiltersListMenu(
 	const auto premiumFrom = (reorderAll ? 0 : 1) + maxLimit;
 
 	for (auto i = 0; i < list.size(); ++i) {
-		const auto &filter = list[i];
-		auto title = filter.title();
-		auto text = title.text.empty()
+		const auto title = list[i].title();
+		const auto text = title.text.empty()
 			? tr::lng_filters_all_short(tr::now)
-			: title.text.text; // todo filter emoji
-
-		const auto action = state->menu->addAction(std::move(text), [=] {
+			: title.text.text;
+		const auto callback = [=] {
 			if (i != active) {
 				changeActive(i);
 			}
-		}, (i == active) ? &st::mediaPlayerMenuCheck : nullptr);
+		};
+		const auto icon = (i == active)
+			? &st::mediaPlayerMenuCheck
+			: nullptr;
+		const auto action = Ui::Menu::CreateAction(
+			state->menu.get(),
+			text,
+			callback);
+		auto item = base::make_unique_q<Ui::Menu::Action>(
+			state->menu.get(),
+			state->menu->st().menu,
+			action,
+			icon,
+			icon);
 		action->setEnabled(i < premiumFrom);
+		if (!title.text.empty()) {
+			const auto context = Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = [raw = item.get()] { raw->update(); },
+				.customEmojiLoopLimit = title.isStatic ? -1 : 0,
+			};
+			item->setMarkedText(title.text, QString(), context);
+		}
+		state->menu->addAction(std::move(item));
 	}
 	session->data().chatsFilters().changed() | rpl::start_with_next([=] {
 		state->menu->hideMenu();

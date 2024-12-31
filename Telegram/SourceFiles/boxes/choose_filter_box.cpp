@@ -287,19 +287,24 @@ void FillChooseFilterMenu(
 		};
 
 		const auto contains = filter.contains(history);
+		const auto title = filter.title();
 		auto item = base::make_unique_q<FilterAction>(
 			menu.get(),
-			menu->st().menu,
+			st::foldersMenu,
 			Ui::Menu::CreateAction(
-				menu.get(), // todo filter emoji
-				Ui::Text::FixAmpersandInAction(filter.title().text.text),
+				menu.get(),
+				Ui::Text::FixAmpersandInAction(title.text.text),
 				std::move(callback)),
 			contains ? &st::mediaPlayerMenuCheck : nullptr,
 			contains ? &st::mediaPlayerMenuCheck : nullptr);
+		const auto context = Core::MarkedTextContext{
+			.session = &history->session(),
+			.customEmojiRepaint = [raw = item.get()] { raw->update(); },
+			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
+		};
+		item->setMarkedText(title.text, QString(), context);
 
 		item->setIcon(Icon(showColors ? filter : filter.withColorIndex({})));
-		const auto &p = st::menuWithIcons.itemPadding;
-		item->setMinWidth(item->minWidth() + p.left() - p.right() - p.top());
 		const auto action = menu->addAction(std::move(item));
 		action->setEnabled(contains
 			? validator.canRemove(id)
