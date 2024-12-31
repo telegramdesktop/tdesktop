@@ -1528,6 +1528,7 @@ void MainWidget::showMessage(
 			if (_mainSection->showMessage(peerId, params, itemId)) {
 				if (params.activation != anim::activation::background) {
 					_controller->window().activate();
+					_controller->window().hideSettingsAndLayer();
 				}
 				return;
 			}
