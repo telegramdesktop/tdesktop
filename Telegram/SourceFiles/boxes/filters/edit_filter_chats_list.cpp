@@ -151,7 +151,10 @@ ExceptionRow::ExceptionRow(
 			if (!filters.empty()) {
 				filters.append(u", "_q);
 			}
-			filters.append(filter.title());
+			auto title = filter.title();
+			filters.append(title.isStatic
+				? Data::ForceCustomEmojiStatic(std::move(title.text))
+				: std::move(title.text));
 		}
 	}
 	if (!filters.empty()) {

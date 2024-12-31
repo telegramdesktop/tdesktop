@@ -218,7 +218,7 @@ void FiltersMenu::setupList() {
 	_setup = prepareButton(
 		_container,
 		-1,
-		TextWithEntities{ tr::lng_filters_setup(tr::now) },
+		{ TextWithEntities{ tr::lng_filters_setup(tr::now) } },
 		Ui::FilterIcon::Edit);
 	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list, &_scroll);
 
@@ -249,13 +249,15 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareAll() {
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		not_null<Ui::VerticalLayout*> container,
 		FilterId id,
-		TextWithEntities title,
+		Data::ChatFilterTitle title,
 		Ui::FilterIcon icon,
 		bool toBeginning) {
+	const auto isStatic = title.isStatic;
 	const auto makeContext = [=](Fn<void()> update) {
 		return Core::MarkedTextContext{
 			.session = &_session->session(),
 			.customEmojiRepaint = std::move(update),
+			.customEmojiLoopLimit = isStatic ? -1 : 0,
 		};
 	};
 	const auto paused = [=] {
@@ -264,7 +266,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	};
 	auto prepared = object_ptr<Ui::SideBarButton>(
 		container,
-		id ? title : TextWithEntities{ tr::lng_filters_all(tr::now) },
+		id ? title.text : TextWithEntities{ tr::lng_filters_all(tr::now) },
 		st::windowFiltersButton,
 		makeContext,
 		paused);

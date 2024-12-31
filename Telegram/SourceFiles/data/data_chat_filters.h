@@ -25,6 +25,17 @@ namespace Data {
 
 class Session;
 
+struct ChatFilterTitle {
+	TextWithEntities text;
+	bool isStatic = false;
+
+	[[nodiscard]] bool empty() const {
+		return text.empty();
+	}
+};
+
+[[nodiscard]] TextWithEntities ForceCustomEmojiStatic(TextWithEntities text);
+
 class ChatFilter final {
 public:
 	enum class Flag : ushort {
@@ -40,9 +51,10 @@ public:
 
 		Chatlist    = (1 << 8),
 		HasMyLinks  = (1 << 9),
+		StaticTitle = (1 << 10),
 
-		NewChats      = (1 << 10), // Telegram Business exceptions.
-		ExistingChats = (1 << 11),
+		NewChats      = (1 << 11), // Telegram Business exceptions.
+		ExistingChats = (1 << 12),
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
@@ -50,7 +62,7 @@ public:
 	ChatFilter() = default;
 	ChatFilter(
 		FilterId id,
-		TextWithEntities title,
+		ChatFilterTitle title,
 		QString iconEmoji,
 		std::optional<uint8> colorIndex,
 		Flags flags,
@@ -59,7 +71,7 @@ public:
 		base::flat_set<not_null<History*>> never);
 
 	[[nodiscard]] ChatFilter withId(FilterId id) const;
-	[[nodiscard]] ChatFilter withTitle(TextWithEntities title) const;
+	[[nodiscard]] ChatFilter withTitle(ChatFilterTitle title) const;
 	[[nodiscard]] ChatFilter withColorIndex(std::optional<uint8>) const;
 	[[nodiscard]] ChatFilter withChatlist(
 		bool chatlist,
@@ -72,10 +84,12 @@ public:
 	[[nodiscard]] MTPDialogFilter tl(FilterId replaceId = 0) const;
 
 	[[nodiscard]] FilterId id() const;
-	[[nodiscard]] TextWithEntities title() const;
+	[[nodiscard]] ChatFilterTitle title() const;
+	[[nodiscard]] const TextWithEntities &titleText() const;
 	[[nodiscard]] QString iconEmoji() const;
 	[[nodiscard]] std::optional<uint8> colorIndex() const;
 	[[nodiscard]] Flags flags() const;
+	[[nodiscard]] bool staticTitle() const;
 	[[nodiscard]] bool chatlist() const;
 	[[nodiscard]] bool hasMyLinks() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
@@ -99,7 +113,7 @@ private:
 };
 
 inline bool operator==(const ChatFilter &a, const ChatFilter &b) {
-	return (a.title() == b.title())
+	return (a.titleText() == b.titleText())
 		&& (a.iconEmoji() == b.iconEmoji())
 		&& (a.colorIndex() == b.colorIndex())
 		&& (a.flags() == b.flags())

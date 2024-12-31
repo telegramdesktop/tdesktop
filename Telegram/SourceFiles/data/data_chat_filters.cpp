@@ -40,9 +40,22 @@ constexpr auto kLoadExceptionsPerRequest = 100;
 
 } // namespace
 
+TextWithEntities ForceCustomEmojiStatic(TextWithEntities text) {
+	for (auto &entity : text.entities) {
+		if (entity.type() == EntityType::CustomEmoji) {
+			entity = EntityInText(
+				EntityType::CustomEmoji,
+				entity.offset(),
+				entity.length(),
+				u"force-static:"_q + entity.data());
+		}
+	}
+	return text;
+}
+
 ChatFilter::ChatFilter(
 	FilterId id,
-	TextWithEntities title,
+	ChatFilterTitle title,
 	QString iconEmoji,
 	std::optional<uint8> colorIndex,
 	Flags flags,
@@ -50,13 +63,15 @@ ChatFilter::ChatFilter(
 	std::vector<not_null<History*>> pinned,
 	base::flat_set<not_null<History*>> never)
 : _id(id)
-, _title(std::move(title))
+, _title(std::move(title.text))
 , _iconEmoji(std::move(iconEmoji))
 , _colorIndex(colorIndex)
 , _always(std::move(always))
 , _pinned(std::move(pinned))
 , _never(std::move(never))
-, _flags(flags) {
+, _flags(title.isStatic
+	? (flags | Flag::StaticTitle)
+	: (flags & ~Flag::StaticTitle)) {
 }
 
 ChatFilter ChatFilter::FromTL(
@@ -70,7 +85,8 @@ ChatFilter ChatFilter::FromTL(
 			| (data.is_bots() ? Flag::Bots : Flag(0))
 			| (data.is_exclude_muted() ? Flag::NoMuted : Flag(0))
 			| (data.is_exclude_read() ? Flag::NoRead : Flag(0))
-			| (data.is_exclude_archived() ? Flag::NoArchived : Flag(0));
+			| (data.is_exclude_archived() ? Flag::NoArchived : Flag(0))
+			| (data.is_title_noanimate() ? Flag::StaticTitle : Flag(0));
 		auto &&to_histories = ranges::views::transform([&](
 				const MTPInputPeer &input) {
 			const auto peer = Data::PeerFromInputMTP(owner, input);
@@ -96,7 +112,10 @@ ChatFilter ChatFilter::FromTL(
 		};
 		return ChatFilter(
 			data.vid().v,
-			Api::ParseTextWithEntities(&owner->session(), data.vtitle()),
+			{
+				Api::ParseTextWithEntities(&owner->session(), data.vtitle()),
+				data.is_title_noanimate(),
+			},
 			qs(data.vemoticon().value_or_empty()),
 			data.vcolor()
 				? std::make_optional(data.vcolor()->v)
@@ -105,7 +124,7 @@ ChatFilter ChatFilter::FromTL(
 			std::move(list),
 			std::move(pinned),
 			{ never.begin(), never.end() });
-	}, [](const MTPDdialogFilterDefault &d) {
+	}, [](const MTPDdialogFilterDefault &) {
 		return ChatFilter();
 	}, [&](const MTPDdialogFilterChatlist &data) {
 		auto &&to_histories = ranges::views::transform([&](
@@ -144,13 +163,17 @@ ChatFilter ChatFilter::FromTL(
 		};
 		return ChatFilter(
 			data.vid().v,
-			Api::ParseTextWithEntities(&owner->session(), data.vtitle()),
+			{
+				Api::ParseTextWithEntities(&owner->session(), data.vtitle()),
+				data.is_title_noanimate(),
+			},
 			qs(data.vemoticon().value_or_empty()),
 			data.vcolor()
 				? std::make_optional(data.vcolor()->v)
 				: std::nullopt,
 			(Flag::Chatlist
-				| (data.is_has_my_invites() ? Flag::HasMyLinks : Flag())),
+				| (data.is_has_my_invites() ? Flag::HasMyLinks : Flag())
+				| (data.is_title_noanimate() ? Flag::StaticTitle : Flag(0))),
 			std::move(list),
 			std::move(pinned),
 			{});
@@ -163,9 +186,14 @@ ChatFilter ChatFilter::withId(FilterId id) const {
 	return result;
 }
 
-ChatFilter ChatFilter::withTitle(TextWithEntities title) const {
+ChatFilter ChatFilter::withTitle(ChatFilterTitle title) const {
 	auto result = *this;
-	result._title = std::move(title);
+	result._title = std::move(title.text);
+	if (title.isStatic) {
+		result._flags |= Flag::StaticTitle;
+	} else {
+		result._flags &= ~Flag::StaticTitle;
+	}
 	return result;
 }
 
@@ -219,7 +247,8 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	if (_flags & Flag::Chatlist) {
 		using TLFlag = MTPDdialogFilterChatlist::Flag;
 		const auto flags = TLFlag::f_emoticon
-			| (_colorIndex ? TLFlag::f_color : TLFlag(0));
+			| (_colorIndex ? TLFlag::f_color : TLFlag(0))
+			| (staticTitle() ? TLFlag::f_title_noanimate : TLFlag(0));
 		return MTP_dialogFilterChatlist(
 			MTP_flags(flags),
 			MTP_int(replaceId ? replaceId : _id),
@@ -232,6 +261,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	using TLFlag = MTPDdialogFilter::Flag;
 	const auto flags = TLFlag::f_emoticon
 		| (_colorIndex ? TLFlag::f_color : TLFlag(0))
+		| (staticTitle() ? TLFlag::f_title_noanimate : TLFlag(0))
 		| ((_flags & Flag::Contacts) ? TLFlag::f_contacts : TLFlag(0))
 		| ((_flags & Flag::NonContacts) ? TLFlag::f_non_contacts : TLFlag(0))
 		| ((_flags & Flag::Groups) ? TLFlag::f_groups : TLFlag(0))
@@ -262,8 +292,12 @@ FilterId ChatFilter::id() const {
 	return _id;
 }
 
-TextWithEntities ChatFilter::title() const {
+const TextWithEntities &ChatFilter::titleText() const {
 	return _title;
+}
+
+ChatFilterTitle ChatFilter::title() const {
+	return { _title, !!(_flags & Flag::StaticTitle) };
 }
 
 QString ChatFilter::iconEmoji() const {
@@ -276,6 +310,10 @@ std::optional<uint8> ChatFilter::colorIndex() const {
 
 ChatFilter::Flags ChatFilter::flags() const {
 	return _flags;
+}
+
+bool ChatFilter::staticTitle() const {
+	return _flags & Flag::StaticTitle;
 }
 
 bool ChatFilter::chatlist() const {
@@ -669,7 +707,8 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		|| (filter.hasMyLinks() != updated.hasMyLinks());
 	const auto listUpdated = rulesChanged
 		|| pinnedChanged
-		|| (filter.title() != updated.title())
+		|| (filter.titleText() != updated.titleText())
+		|| (filter.staticTitle() != updated.staticTitle())
 		|| (filter.iconEmoji() != updated.iconEmoji());
 	const auto colorChanged = filter.colorIndex() != updated.colorIndex();
 	const auto colorExistenceChanged = (!filter.colorIndex())

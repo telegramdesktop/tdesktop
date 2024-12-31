@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h" // primaryWindow
+#include "core/ui_integration.h"
 #include "data/data_chat_filters.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h" // Ui::Text::Bold
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
@@ -169,15 +171,26 @@ void ChangeFilterById(
 		)).done([=, chat = history->peer->name(), name = filter.title()] {
 			const auto account = not_null(&history->session().account());
 			if (const auto controller = Core::App().windowFor(account)) {
-				controller->showToast((add
-					? tr::lng_filters_toast_add
-					: tr::lng_filters_toast_remove)(
-						tr::now,
-						lt_chat,
-						Ui::Text::Bold(chat),
-						lt_folder,
-						Ui::Text::Wrapped(name, EntityType::Bold),
-						Ui::Text::WithEntities));
+				const auto isStatic = name.isStatic;
+				const auto textContext = [=](not_null<QWidget*> widget) {
+					return Core::MarkedTextContext{
+						.session = &history->session(),
+						.customEmojiRepaint = [=] { widget->update(); },
+						.customEmojiLoopLimit = isStatic ? -1 : 0,
+					};
+				};
+				controller->showToast({
+					.text = (add
+						? tr::lng_filters_toast_add
+						: tr::lng_filters_toast_remove)(
+							tr::now,
+							lt_chat,
+							Ui::Text::Bold(chat),
+							lt_folder,
+							Ui::Text::Wrapped(name.text, EntityType::Bold),
+							Ui::Text::WithEntities),
+					.textContext = textContext,
+				});
 			}
 		}).fail([=](const MTP::Error &error) {
 			LOG(("API Error: failed to %1 a dialog to a folder. %2")
@@ -279,7 +292,7 @@ void FillChooseFilterMenu(
 			menu->st().menu,
 			Ui::Menu::CreateAction(
 				menu.get(), // todo filter emoji
-				Ui::Text::FixAmpersandInAction(filter.title().text),
+				Ui::Text::FixAmpersandInAction(filter.title().text.text),
 				std::move(callback)),
 			contains ? &st::mediaPlayerMenuCheck : nullptr,
 			contains ? &st::mediaPlayerMenuCheck : nullptr);

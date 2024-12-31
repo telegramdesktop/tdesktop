@@ -4181,7 +4181,7 @@ QImage *InnerWidget::cacheChatsFilterTag(
 	auto roundedText = TextWithEntities();
 	auto colorIndex = -1;
 	if (filter.id()) {
-		roundedText = filter.title();
+		roundedText = filter.title().text;
 		roundedText.text = roundedText.text.toUpper();
 		if (filter.colorIndex()) {
 			colorIndex = *(filter.colorIndex());

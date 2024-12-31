@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/side_bar_button.h"
 #include "ui/widgets/scroll_area.h"
 
+namespace Data {
+struct ChatFilterTitle;
+} // namespace Data
+
 namespace Ui {
 class VerticalLayout;
 class VerticalLayoutReorder;
@@ -44,7 +48,7 @@ private:
 	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareButton(
 		not_null<Ui::VerticalLayout*> container,
 		FilterId id,
-		TextWithEntities title,
+		Data::ChatFilterTitle title,
 		Ui::FilterIcon icon,
 		bool toBeginning = false);
 	void setupMainMenuIcon();

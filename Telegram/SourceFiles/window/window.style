@@ -285,8 +285,9 @@ windowFilterSmallRemoveRight: 10px;
 windowFilterNameInput: InputField(defaultInputField) {
 	textMargins: margins(0px, 26px, 36px, 4px);
 }
+windowFilterStaticTitlePosition: point(0px, 5px);
 windowFilterIconToggleSize: size(36px, 36px);
-windowFilterIconTogglePosition: point(-4px, 12px);
+windowFilterIconTogglePosition: point(-4px, 18px);
 windwoFilterIconPanelPosition: point(-2px, -1px);
 windowFilterIconSingle: size(44px, 42px);
 windowFilterIconPadding: margins(10px, 36px, 10px, 8px);

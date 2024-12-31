@@ -113,6 +113,10 @@ private:
 	return u"scaled-custom:"_q;
 }
 
+[[nodiscard]] QString ForceStaticPrefix() {
+	return u"force-static:"_q;
+}
+
 [[nodiscard]] QString InternalPadding(QMargins value) {
 	return value.isNull() ? QString() : QString(",%1,%2,%3,%4"
 	).arg(value.left()
@@ -554,6 +558,10 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		const auto original = data.mid(ScaledCustomPrefix().size());
 		return Ui::MakeScaledCustomEmoji(
 			create(original, std::move(update), SizeTag::Large));
+	} else if (data.startsWith(ForceStaticPrefix())) {
+		const auto original = data.mid(ForceStaticPrefix().size());
+		return std::make_unique<Ui::Text::FirstFrameEmoji>(
+			create(original, std::move(update), tag, sizeOverride));
 	} else if (data.startsWith(InternalPrefix())) {
 		return internal(data);
 	} else if (data.startsWith(UserpicEmojiPrefix())) {

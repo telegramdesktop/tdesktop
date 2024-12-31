@@ -194,13 +194,15 @@ void FilterRowButton::updateData(
 		bool ignoreCount) {
 	Expects(_session != nullptr);
 
+	const auto title = filter.title();
 	_title.setMarkedText(
 		st::contactsNameStyle,
-		filter.title(),
+		title.text,
 		kMarkupTextOptions,
 		Core::MarkedTextContext{
 			.session = _session,
 			.customEmojiRepaint = [=] { update(); },
+			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
 		});
 	_icon = Ui::ComputeFilterIcon(filter);
 	_colorIndex = filter.colorIndex();

@@ -17,6 +17,7 @@ class SessionController;
 
 namespace Data {
 class ChatFilter;
+struct ChatFilterTitle;
 } // namespace Data
 
 namespace Api {
@@ -36,7 +37,7 @@ void ProcessFilterUpdate(
 
 void ProcessFilterRemove(
 	base::weak_ptr<Window::SessionController> weak,
-	TextWithEntities title,
+	Data::ChatFilterTitle title,
 	QString iconEmoji,
 	std::vector<not_null<PeerData*>> all,
 	std::vector<not_null<PeerData*>> suggest,

@@ -286,6 +286,9 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 		return std::make_unique<Ui::Text::LimitedLoopsEmoji>(
 			std::move(result),
 			my->customEmojiLoopLimit);
+	} else if (my->customEmojiLoopLimit) {
+		return std::make_unique<Ui::Text::FirstFrameEmoji>(
+			std::move(result));
 	}
 	return result;
 }

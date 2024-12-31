@@ -5346,6 +5346,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_edit" = "Edit Folder";
 "lng_filters_setup_menu" = "Edit Folders";
 "lng_filters_new_name" = "Folder name";
+"lng_filters_enable_animations" = "Enable animations";
+"lng_filters_disable_animations" = "Disable animations";
 "lng_filters_add_chats" = "Add Chats";
 "lng_filters_remove_chats" = "Add Chats to Exclude";
 "lng_filters_include" = "Included chats";
