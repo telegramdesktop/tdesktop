@@ -112,8 +112,10 @@ taggedForumDialogRow: DialogRow(forumDialogRow) {
 	height: 96px;
 	tagTop: 77px;
 }
-dialogRowFilterTagSkip : 4px;
-dialogRowFilterTagFont : font(10px);
+dialogRowFilterTagSkip: 4px;
+dialogRowFilterTagStyle: TextStyle(defaultTextStyle) {
+	font: font(10px);
+}
 dialogRowOpenBotTextStyle: semiboldTextStyle;
 dialogRowOpenBotHeight: 20px;
 dialogRowOpenBotRight: 10px;

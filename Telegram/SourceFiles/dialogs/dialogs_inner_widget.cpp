@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/shortcuts.h"
+#include "core/ui_integration.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
@@ -218,6 +219,11 @@ struct InnerWidget::PeerSearchResult {
 	mutable Ui::Text::String name;
 	mutable Ui::PeerBadge badge;
 	BasicRow row;
+};
+
+struct InnerWidget::TagCache {
+	Ui::ChatsFilterTagContext context;
+	QImage frame;
 };
 
 Key InnerWidget::FilterResult::key() const {
@@ -4161,32 +4167,41 @@ QImage *InnerWidget::cacheChatsFilterTag(
 		return nullptr;
 	}
 	const auto key = SerializeFilterTagsKey(filter.id(), more, active);
-	{
-		const auto it = _chatsFilterTags.find(key);
-		if (it != end(_chatsFilterTags)) {
-			return &it->second;
+	auto &entry = _chatsFilterTags[key];
+	if (!entry.frame.isNull()) {
+		if (!entry.context.loading) {
+			return &entry.frame;
+		}
+		for (const auto &[k, emoji] : entry.context.emoji) {
+			if (!emoji->ready()) {
+				return &entry.frame; // Still waiting for emoji.
+			}
 		}
 	}
-	auto roundedText = QString();
+	auto roundedText = TextWithEntities();
 	auto colorIndex = -1;
 	if (filter.id()) {
-		roundedText = filter.title().text.toUpper(); // todo filter emoji
+		roundedText = filter.title();
+		roundedText.text = roundedText.text.toUpper();
 		if (filter.colorIndex()) {
 			colorIndex = *(filter.colorIndex());
 		}
 	} else if (more > 0) {
-		roundedText = QChar('+') + QString::number(more);
+		roundedText.text = QChar('+') + QString::number(more);
 		colorIndex = st::colorIndexBlue;
 	}
-	if (roundedText.isEmpty() || colorIndex < 0) {
+	if (roundedText.empty() || colorIndex < 0) {
 		return nullptr;
 	}
-	return &_chatsFilterTags.emplace(
-		key,
-		Ui::ChatsFilterTag(
-			std::move(roundedText),
-			Ui::EmptyUserpic::UserpicColor(colorIndex).color2->c,
-			active)).first->second;
+	const auto color = Ui::EmptyUserpic::UserpicColor(colorIndex).color2;
+	entry.context.color = color->c;
+	entry.context.active = active;
+	entry.context.textContext = Core::MarkedTextContext{
+		.session = &session(),
+		.customEmojiRepaint = [] {},
+	};
+	entry.frame = Ui::ChatsFilterTag(roundedText, entry.context);
+	return &entry.frame;
 }
 
 bool InnerWidget::chooseHashtag() {

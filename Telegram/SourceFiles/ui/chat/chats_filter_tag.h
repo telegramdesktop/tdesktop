@@ -7,8 +7,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "emoji.h"
+
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Ui {
 
-[[nodiscard]] QImage ChatsFilterTag(QString text, QColor color, bool active);
+struct ChatsFilterTagContext {
+	base::flat_map<QString, std::unique_ptr<Text::CustomEmoji>> emoji;
+	std::any textContext;
+	QColor color;
+	bool active = false;
+	bool loading = false;
+};
+
+[[nodiscard]] QImage ChatsFilterTag(
+	const TextWithEntities &text,
+	ChatsFilterTagContext &context);
+
+[[nodiscard]] std::unique_ptr<Text::CustomEmoji> MakeScaledSimpleEmoji(
+	EmojiPtr emoji);
+
+[[nodiscard]] std::unique_ptr<Text::CustomEmoji> MakeScaledCustomEmoji(
+	std::unique_ptr<Text::CustomEmoji> wrapped);
 
 } // namespace Ui

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "storage/file_download.h" // kMaxFileInMemory
+#include "ui/chat/chats_filter_tag.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/text/custom_emoji_instance.h"
@@ -102,6 +103,14 @@ private:
 
 [[nodiscard]] QString UserpicEmojiPrefix() {
 	return u"userpic:"_q;
+}
+
+[[nodiscard]] QString ScaledSimplePrefix() {
+	return u"scaled-simple:"_q;
+}
+
+[[nodiscard]] QString ScaledCustomPrefix() {
+	return u"scaled-custom:"_q;
 }
 
 [[nodiscard]] QString InternalPadding(QMargins value) {
@@ -536,7 +545,16 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		Fn<void()> update,
 		SizeTag tag,
 		int sizeOverride) {
-	if (data.startsWith(InternalPrefix())) {
+	if (data.startsWith(ScaledSimplePrefix())) {
+		const auto text = data.mid(ScaledSimplePrefix().size());
+		const auto emoji = Ui::Emoji::Find(text);
+		Assert(emoji != nullptr);
+		return Ui::MakeScaledSimpleEmoji(emoji);
+	} else if (data.startsWith(ScaledCustomPrefix())) {
+		const auto original = data.mid(ScaledCustomPrefix().size());
+		return Ui::MakeScaledCustomEmoji(
+			create(original, std::move(update), SizeTag::Large));
+	} else if (data.startsWith(InternalPrefix())) {
 		return internal(data);
 	} else if (data.startsWith(UserpicEmojiPrefix())) {
 		const auto ratio = style::DevicePixelRatio();

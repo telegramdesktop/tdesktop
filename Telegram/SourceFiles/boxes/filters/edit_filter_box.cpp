@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/ui_integration.h"
 #include "data/data_channel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
@@ -443,6 +444,13 @@ void EditFilterBox(
 			nameEditing->settingDefault = false;
 		}
 	};
+	const auto nameWithEntities = [=](bool upper = false) {
+		const auto entered = name->getTextWithTags();
+		return TextWithEntities{
+			(upper ? entered.text.toUpper() : entered.text),
+			TextUtilities::ConvertTextTagsToEntities(entered.tags),
+		};
+	};
 
 	const auto outer = box->getDelegate()->outerContainer();
 	CreateIconSelector(
@@ -546,18 +554,28 @@ void EditFilterBox(
 				colors->width(),
 				h);
 		}, preview->lifetime());
-		const auto previewTag = preview->lifetime().make_state<QImage>();
-		const auto previewAlpha = preview->lifetime().make_state<float64>(1);
+
+		struct TagState {
+			Ui::Animations::Simple animation;
+			Ui::ChatsFilterTagContext context;
+			QImage frame;
+			float64 alpha = 1.;
+		};
+		const auto tag = preview->lifetime().make_state<TagState>();
+		tag->context.textContext = Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [] {},
+		};
 		preview->paintRequest() | rpl::start_with_next([=] {
 			auto p = QPainter(preview);
-			p.setOpacity(*previewAlpha);
-			const auto size = previewTag->size() / style::DevicePixelRatio();
+			p.setOpacity(tag->alpha);
+			const auto size = tag->frame.size() / style::DevicePixelRatio();
 			const auto rect = QRect(
 				preview->width() - size.width() - st::boxRowPadding.right(),
 				(st::normalFont->height - size.height()) / 2,
 				size.width(),
 				size.height());
-			p.drawImage(rect.topLeft(), *previewTag);
+			p.drawImage(rect.topLeft(), tag->frame);
 			if (p.opacity() < 1) {
 				p.setOpacity(1. - p.opacity());
 				p.setFont(st::normalFont);
@@ -574,16 +592,14 @@ void EditFilterBox(
 			Ui::CreateSkipWidget(colors, side),
 			st::boxRowPadding);
 		auto buttons = std::vector<not_null<UserpicBuilder::CircleButton*>>();
-		const auto animation
-			= line->lifetime().make_state<Ui::Animations::Simple>();
 		const auto palette = [](int i) {
 			return Ui::EmptyUserpic::UserpicColor(i).color2;
 		};
 		name->changes() | rpl::start_with_next([=] {
-			*previewTag = Ui::ChatsFilterTag(
-				name->getLastText().toUpper(),
-				palette(state->colorIndex.current())->c,
-				false);
+			tag->context.color = palette(state->colorIndex.current())->c;
+			tag->frame = Ui::ChatsFilterTag(
+				nameWithEntities(true),
+				tag->context);
 			preview->update();
 		}, preview->lifetime());
 		for (auto i = 0; i < kColorsCount; ++i) {
@@ -597,12 +613,12 @@ void EditFilterBox(
 			const auto color = palette(i);
 			button->setBrush(color);
 			if (progress == 1) {
-				*previewTag = Ui::ChatsFilterTag(
-					name->getLastText().toUpper(),
-					color->c,
-					false);
+				tag->context.color = color->c;
+				tag->frame = Ui::ChatsFilterTag(
+					nameWithEntities(true),
+					tag->context);
 				if (i == kNoTag) {
-					*previewAlpha = 0.;
+					tag->alpha = 0.;
 				}
 			}
 			buttons.push_back(button);
@@ -617,17 +633,17 @@ void EditFilterBox(
 					const auto c2 = palette(now);
 					const auto a1 = (was == kNoTag) ? 0. : 1.;
 					const auto a2 = (now == kNoTag) ? 0. : 1.;
-					animation->stop();
-					animation->start([=](float64 progress) {
+					tag->animation.stop();
+					tag->animation.start([=](float64 progress) {
 						if (was >= 0) {
 							buttons[was]->setSelectedProgress(1. - progress);
 						}
 						buttons[now]->setSelectedProgress(progress);
-						*previewTag = Ui::ChatsFilterTag(
-							name->getLastText().toUpper(),
-							anim::color(c1, c2, progress),
-							false);
-						*previewAlpha = anim::interpolateF(a1, a2, progress);
+						tag->context.color = anim::color(c1, c2, progress);
+						tag->frame = Ui::ChatsFilterTag(
+							nameWithEntities(true),
+							tag->context);
+						tag->alpha = anim::interpolateF(a1, a2, progress);
 						preview->update();
 					}, 0., 1., st::universalDuration);
 				}
@@ -673,11 +689,7 @@ void EditFilterBox(
 	}
 
 	const auto collect = [=]() -> std::optional<Data::ChatFilter> {
-		const auto entered = name->getTextWithTags();
-		const auto title = TextWithEntities{
-			entered.text,
-			TextUtilities::ConvertTextTagsToEntities(entered.tags),
-		};
+		const auto title = nameWithEntities();
 		const auto rules = data->current();
 		if (title.empty()) {
 			name->showError();
