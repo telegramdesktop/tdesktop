@@ -80,6 +80,46 @@ TextWithEntities PrepareText(
 	}));
 }
 
+std::optional<MTPMessageReplyHeader> PrepareLogReply(
+		const MTPMessageReplyHeader *header) {
+	if (!header) {
+		return {};
+	}
+	return header->match([&](const MTPDmessageReplyHeader &data)
+	-> std::optional<MTPMessageReplyHeader> {
+		if (data.vreply_to_peer_id()) {
+			return *header;
+		} else if (data.is_forum_topic()) {
+			const auto topId = data.vreply_to_top_id().value_or(
+				data.vreply_to_msg_id().value_or_empty());
+			if (topId) {
+				using Flag = MTPDmessageReplyHeader::Flag;
+				const auto removeFlags = Flag::f_reply_from
+					| Flag::f_reply_media
+					| Flag::f_reply_to_scheduled
+					| Flag::f_quote
+					| Flag::f_quote_entities
+					| Flag::f_quote_offset
+					| Flag::f_quote_text;
+				return MTP_messageReplyHeader(
+					MTP_flags((data.vflags().v & ~removeFlags)
+						| Flag::f_reply_to_msg_id),
+					MTP_int(topId),
+					MTPPeer(), // reply_to_peer_id
+					MTPMessageFwdHeader(), // reply_from
+					MTPMessageMedia(), // reply_media
+					MTP_int(topId),
+					MTPstring(), // quote_text
+					MTPVector<MTPMessageEntity>(), // quote_entities
+					MTPint()); // quote_offset
+			}
+		}
+		return {};
+	}, [&](const MTPDmessageReplyStoryHeader &data) {
+		return std::optional<MTPMessageReplyHeader>();
+	});
+}
+
 MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 	return message.match([&](const MTPDmessageEmpty &data) {
 		return MTP_messageEmpty(
@@ -87,36 +127,40 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			data.vid(),
 			data.vpeer_id() ? *data.vpeer_id() : MTPPeer());
 	}, [&](const MTPDmessageService &data) {
-		const auto removeFlags = MTPDmessageService::Flag::f_out
-			| MTPDmessageService::Flag::f_post
-			| MTPDmessageService::Flag::f_reply_to
-			| MTPDmessageService::Flag::f_reactions_are_possible
-			| MTPDmessageService::Flag::f_reactions
-			| MTPDmessageService::Flag::f_ttl_period;
+		using Flag = MTPDmessageService::Flag;
+		const auto reply = PrepareLogReply(data.vreply_to());
+		const auto removeFlags = Flag::f_out
+			| Flag::f_post
+			| Flag::f_reactions_are_possible
+			| Flag::f_reactions
+			| Flag::f_ttl_period
+			| (reply ? Flag() : Flag::f_reply_to);
 		return MTP_messageService(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
-			MTPMessageReplyHeader(),
+			reply.value_or(MTPMessageReplyHeader()),
 			MTP_int(newDate),
 			data.vaction(),
 			MTPMessageReactions(),
 			MTPint()); // ttl_period
 	}, [&](const MTPDmessage &data) {
-		const auto removeFlags = MTPDmessage::Flag::f_out
-			| MTPDmessage::Flag::f_post
-			| MTPDmessage::Flag::f_reply_to
-			| MTPDmessage::Flag::f_replies
-			| MTPDmessage::Flag::f_edit_date
-			| MTPDmessage::Flag::f_grouped_id
-			| MTPDmessage::Flag::f_views
-			| MTPDmessage::Flag::f_forwards
-			//| MTPDmessage::Flag::f_reactions
-			| MTPDmessage::Flag::f_restriction_reason
-			| MTPDmessage::Flag::f_ttl_period
-			| MTPDmessage::Flag::f_factcheck
-			| MTPDmessage::Flag::f_report_delivery_until_date;
+		using Flag = MTPDmessage::Flag;
+		const auto reply = PrepareLogReply(data.vreply_to());
+		const auto removeFlags = Flag::f_out
+			| Flag::f_post
+			| (reply ? Flag() : Flag::f_reply_to)
+			| Flag::f_replies
+			| Flag::f_edit_date
+			| Flag::f_grouped_id
+			| Flag::f_views
+			| Flag::f_forwards
+			//| Flag::f_reactions
+			| Flag::f_restriction_reason
+			| Flag::f_ttl_period
+			| Flag::f_factcheck
+			| Flag::f_report_delivery_until_date;
 		return MTP_message(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			data.vid(),
@@ -127,7 +171,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
 			MTP_long(data.vvia_bot_id().value_or_empty()),
 			MTP_long(data.vvia_business_bot_id().value_or_empty()),
-			MTPMessageReplyHeader(),
+			reply.value_or(MTPMessageReplyHeader()),
 			MTP_int(newDate),
 			data.vmessage(),
 			data.vmedia() ? *data.vmedia() : MTPMessageMedia(),
