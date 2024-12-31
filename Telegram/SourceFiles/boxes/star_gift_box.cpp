@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "api/api_premium.h"
+#include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/send_credits_box.h"
@@ -138,7 +139,7 @@ class PreviewWrap final : public RpWidget {
 public:
 	PreviewWrap(
 		not_null<QWidget*> parent,
-		not_null<Main::Session*> session,
+		not_null<PeerData*> recipient,
 		rpl::producer<GiftDetails> details);
 	~PreviewWrap();
 
@@ -149,6 +150,7 @@ private:
 	void prepare(rpl::producer<GiftDetails> details);
 
 	const not_null<History*> _history;
+	const not_null<PeerData*> _recipient;
 	const std::unique_ptr<ChatTheme> _theme;
 	const std::unique_ptr<ChatStyle> _style;
 	const std::unique_ptr<PreviewDelegate> _delegate;
@@ -202,6 +204,7 @@ Context PreviewDelegate::elementContext() {
 auto GenerateGiftMedia(
 	not_null<Element*> parent,
 	Element *replacing,
+	not_null<PeerData*> recipient,
 	const GiftDetails &data)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
 	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
@@ -244,10 +247,12 @@ auto GenerateGiftMedia(
 				lt_count,
 				gift.months);
 		}, [&](const GiftTypeStars &gift) {
-			return tr::lng_action_gift_got_subtitle(
-				tr::now,
-				lt_user,
-				parent->history()->session().user()->shortName());
+			return recipient->isSelf()
+				? tr::lng_action_gift_self_subtitle(tr::now)
+				: tr::lng_action_gift_got_subtitle(
+					tr::now,
+					lt_user,
+					recipient->session().user()->shortName());
 		});
 		auto textFallback = v::match(descriptor, [&](GiftTypePremium gift) {
 			return tr::lng_action_gift_premium_about(
@@ -258,11 +263,17 @@ auto GenerateGiftMedia(
 				? tr::lng_action_gift_got_upgradable_text(
 					tr::now,
 					Text::RichLangValue)
-				: tr::lng_action_gift_got_stars_text(
+				: (recipient->isSelf() && gift.info.starsToUpgrade)
+				? tr::lng_action_gift_self_about_unique(
 					tr::now,
-					lt_count,
-					gift.info.starsConverted,
-					Text::RichLangValue);
+					Text::RichLangValue)
+				: (recipient->isSelf()
+					? tr::lng_action_gift_self_about
+					: tr::lng_action_gift_got_stars_text)(
+						tr::now,
+						lt_count,
+						gift.info.starsConverted,
+						Text::RichLangValue);
 		});
 		auto description = data.text.empty()
 			? std::move(textFallback)
@@ -386,10 +397,11 @@ void PrepareImage(
 
 PreviewWrap::PreviewWrap(
 	not_null<QWidget*> parent,
-	not_null<Main::Session*> session,
+	not_null<PeerData*> recipient,
 	rpl::producer<GiftDetails> details)
 : RpWidget(parent)
-, _history(session->data().history(session->userPeerId()))
+, _history(recipient->owner().history(recipient->session().userPeerId()))
+, _recipient(recipient)
 , _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
 , _style(std::make_unique<ChatStyle>(
 	_history->session().colorIndicesValue()))
@@ -401,14 +413,14 @@ PreviewWrap::PreviewWrap(
 	_style->apply(_theme.get());
 
 	using namespace HistoryView;
-	session->data().viewRepaintRequest(
+	_history->owner().viewRepaintRequest(
 	) | rpl::start_with_next([=](not_null<const Element*> view) {
 		if (view == _item.get()) {
 			update();
 		}
 	}, lifetime());
 
-	session->downloaderTaskFinished() | rpl::start_with_next([=] {
+	_history->session().downloaderTaskFinished() | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
 
@@ -503,6 +515,8 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 		const auto name = _history->session().user()->shortName();
 		const auto text = cost.isEmpty()
 			? tr::lng_action_gift_unique_received(tr::now, lt_user, name)
+			: _recipient->isSelf()
+			? tr::lng_action_gift_self_bought(tr::now, lt_cost, cost)
 			: tr::lng_action_gift_received(
 				tr::now,
 				lt_user,
@@ -520,7 +534,7 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 		auto owned = AdminLog::OwnedItem(_delegate.get(), item);
 		owned->overrideMedia(std::make_unique<MediaGeneric>(
 			owned.get(),
-			GenerateGiftMedia(owned.get(), _item.get(), details),
+			GenerateGiftMedia(owned.get(), _item.get(), _recipient, details),
 			MediaGenericDescriptor{
 				.maxWidth = st::chatIntroWidth,
 				.service = true,
@@ -1342,7 +1356,7 @@ void SendGiftBox(
 	const auto container = box->verticalLayout();
 	container->add(object_ptr<PreviewWrap>(
 		container,
-		session,
+		peer,
 		state->details.value()));
 
 	const auto limit = StarGiftMessageLimit(session);
@@ -1394,7 +1408,8 @@ void SendGiftBox(
 		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 
 	if (const auto stars = std::get_if<GiftTypeStars>(&descriptor)) {
-		if (const auto cost = stars->info.starsToUpgrade; cost > 0) {
+		const auto cost = stars->info.starsToUpgrade;
+		if (cost > 0 && !peer->isSelf()) {
 			const auto user = peer->asUser();
 			Assert(user != nullptr);
 
@@ -1429,7 +1444,7 @@ void SendGiftBox(
 				container,
 				tr::lng_gift_send_anonymous(),
 				st::settingsButtonNoIcon)
-		)->toggleOn(rpl::single(false))->toggledValue(
+		)->toggleOn(rpl::single(peer->isSelf()))->toggledValue(
 		) | rpl::start_with_next([=](bool toggled) {
 			auto now = state->details.current();
 			now.anonymous = toggled;
@@ -1442,11 +1457,13 @@ void SendGiftBox(
 			lt_user,
 			rpl::single(peer->shortName())));
 	}, [&](const GiftTypeStars &) {
-		AddDividerText(container, tr::lng_gift_send_anonymous_about(
-			lt_user,
-			rpl::single(peer->shortName()),
-			lt_recipient,
-			rpl::single(peer->shortName())));
+		AddDividerText(container, peer->isSelf()
+			? tr::lng_gift_send_anonymous_self()
+			: tr::lng_gift_send_anonymous_about(
+				lt_user,
+				rpl::single(peer->shortName()),
+				lt_recipient,
+				rpl::single(peer->shortName())));
 	});
 
 	const auto buttonWidth = st::boxWideWidth
@@ -1473,10 +1490,12 @@ void SendGiftBox(
 	});
 	SetButtonMarkedLabel(
 		button,
-		tr::lng_gift_send_button(
-			lt_cost,
-			std::move(cost),
-			Text::WithEntities),
+		(peer->isSelf()
+			? tr::lng_gift_send_button_self
+			: tr::lng_gift_send_button)(
+				lt_cost,
+				std::move(cost),
+				Text::WithEntities),
 		session,
 		st::creditsBoxButtonLabel,
 		&st::giftBox.button.textFg);
@@ -1715,71 +1734,209 @@ void GiftBox(
 	AddSkip(content);
 	AddSkip(box->verticalLayout());
 
-	const auto premiumClickHandlerFilter = [=](const auto &...) {
-		Settings::ShowPremium(window, u"gift_send"_q);
-		return false;
-	};
 	const auto starsClickHandlerFilter = [=](const auto &...) {
 		window->showSettings(Settings::CreditsId());
 		return false;
 	};
+	if (!peer->isSelf()) {
+		const auto premiumClickHandlerFilter = [=](const auto &...) {
+			Settings::ShowPremium(window, u"gift_send"_q);
+			return false;
+		};
+		AddBlock(content, window, {
+			.subtitle = tr::lng_gift_premium_subtitle(),
+			.about = tr::lng_gift_premium_about(
+				lt_name,
+				rpl::single(Text::Bold(peer->shortName())),
+				lt_features,
+				tr::lng_gift_premium_features() | Text::ToLink(),
+				Text::WithEntities),
+			.aboutFilter = premiumClickHandlerFilter,
+			.content = MakePremiumGifts(window, peer),
+		});
+	}
 	AddBlock(content, window, {
-		.subtitle = tr::lng_gift_premium_subtitle(),
-		.about = tr::lng_gift_premium_about(
-			lt_name,
-			rpl::single(Text::Bold(peer->shortName())),
-			lt_features,
-			tr::lng_gift_premium_features() | Text::ToLink(),
-			Text::WithEntities),
-		.aboutFilter = premiumClickHandlerFilter,
-		.content = MakePremiumGifts(window, peer),
-	});
-	AddBlock(content, window, {
-		.subtitle = tr::lng_gift_stars_subtitle(),
-		.about = tr::lng_gift_stars_about(
-			lt_name,
-			rpl::single(Text::Bold(peer->shortName())),
-			lt_link,
-			tr::lng_gift_stars_link() | Text::ToLink(),
-			Text::WithEntities),
+		.subtitle = (peer->isSelf()
+			? tr::lng_gift_self_title()
+			: tr::lng_gift_stars_subtitle()),
+		.about = (peer->isSelf()
+			? tr::lng_gift_self_about(Text::WithEntities)
+			: tr::lng_gift_stars_about(
+				lt_name,
+				rpl::single(Text::Bold(peer->shortName())),
+				lt_link,
+				tr::lng_gift_stars_link() | Text::ToLink(),
+				Text::WithEntities)),
 		.aboutFilter = starsClickHandlerFilter,
 		.content = MakeStarsGifts(window, peer),
 	});
+}
+
+struct SelfOption {
+	object_ptr<Ui::RpWidget> content = { nullptr };
+	Fn<bool(int, int, int)> overrideKey;
+	Fn<void()> activate;
+};
+
+class Controller final : public ContactsBoxController {
+public:
+	Controller(
+		not_null<Main::Session*> session,
+		Fn<void(not_null<PeerData*>)> choose);
+
+	void noSearchSubmit();
+
+	bool overrideKeyboardNavigation(
+		int direction,
+		int fromIndex,
+		int toIndex) override;
+
+private:
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<UserData*> user) override;
+
+	void prepareViewHook() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	const Fn<void(not_null<PeerData*>)> _choose;
+	SelfOption _selfOption;
+
+};
+
+[[nodiscard]] SelfOption MakeSelfOption(
+		not_null<Main::Session*> session,
+		Fn<void()> activate) {
+	class SelfController final : public PeerListController {
+	public:
+		SelfController(
+			not_null<Main::Session*> session,
+			Fn<void()> activate)
+		: _session(session)
+		, _activate(std::move(activate)) {
+		}
+
+		void prepare() override {
+			auto row = std::make_unique<PeerListRow>(_session->user());
+			row->setCustomStatus(tr::lng_gift_self_status(tr::now));
+			delegate()->peerListAppendRow(std::move(row));
+			delegate()->peerListRefreshRows();
+		}
+		void loadMoreRows() override {
+		}
+		void rowClicked(not_null<PeerListRow*> row) override {
+			_activate();
+		}
+		Main::Session &session() const override {
+			return *_session;
+		}
+
+	private:
+		const not_null<Main::Session*> _session;
+		Fn<void()> _activate;
+
+	};
+
+	auto result = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
+	const auto container = result.data();
+
+	Ui::AddSkip(container);
+
+	const auto delegate = container->lifetime().make_state<
+		PeerListContentDelegateSimple
+	>();
+	const auto controller = container->lifetime().make_state<
+		SelfController
+	>(session, activate);
+	controller->setStyleOverrides(&st::peerListSingleRow);
+	const auto content = container->add(object_ptr<PeerListContent>(
+		container,
+		controller));
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+
+	Ui::AddSkip(container);
+	container->add(CreatePeerListSectionSubtitle(
+		container,
+		tr::lng_contacts_header()));
+
+	const auto overrideKey = [=](int direction, int from, int to) {
+		if (!content->isVisible()) {
+			return false;
+		} else if (direction > 0 && from < 0 && to >= 0) {
+			if (content->hasSelection()) {
+				const auto was = content->selectedIndex();
+				const auto now = content->selectSkip(1).reallyMovedTo;
+				if (was != now) {
+					return true;
+				}
+				content->clearSelection();
+			} else {
+				content->selectSkip(1);
+				return true;
+			}
+		} else if (direction < 0 && to < 0) {
+			if (!content->hasSelection()) {
+				content->selectLast();
+			} else if (from >= 0 || content->hasSelection()) {
+				content->selectSkip(-1);
+			}
+		}
+		return false;
+	};
+
+	return {
+		.content = std::move(result),
+		.overrideKey = overrideKey,
+		.activate = activate,
+	};
+}
+
+Controller::Controller(
+	not_null<Main::Session*> session,
+	Fn<void(not_null<PeerData*>)> choose)
+: ContactsBoxController(session)
+, _choose(std::move(choose))
+, _selfOption(MakeSelfOption(session, [=] { _choose(session->user()); })) {
+	setStyleOverrides(&st::peerListSmallSkips);
+}
+
+void Controller::noSearchSubmit() {
+	if (const auto onstack = _selfOption.activate) {
+		onstack();
+	}
+}
+
+bool Controller::overrideKeyboardNavigation(
+		int direction,
+		int fromIndex,
+		int toIndex) {
+	return _selfOption.overrideKey
+		&& _selfOption.overrideKey(direction, fromIndex, toIndex);
+}
+
+std::unique_ptr<PeerListRow> Controller::createRow(
+		not_null<UserData*> user) {
+	if (user->isSelf()
+		|| user->isBot()
+		|| user->isServiceUser()
+		|| user->isInaccessible()) {
+		return nullptr;
+	}
+	return ContactsBoxController::createRow(user);
+}
+
+void Controller::prepareViewHook() {
+	delegate()->peerListSetAboveWidget(std::move(_selfOption.content));
+}
+
+void Controller::rowClicked(not_null<PeerListRow*> row) {
+	_choose(row->peer());
 }
 
 } // namespace
 
 void ChooseStarGiftRecipient(
 		not_null<Window::SessionController*> controller) {
-	class Controller final : public ContactsBoxController {
-	public:
-		Controller(
-			not_null<Main::Session*> session,
-			Fn<void(not_null<PeerData*>)> choose)
-		: ContactsBoxController(session)
-		, _choose(std::move(choose)) {
-		}
-
-	protected:
-		std::unique_ptr<PeerListRow> createRow(
-				not_null<UserData*> user) override {
-			if (user->isSelf()
-				|| user->isBot()
-				|| user->isServiceUser()
-				|| user->isInaccessible()) {
-				return nullptr;
-			}
-			return ContactsBoxController::createRow(user);
-		}
-
-		void rowClicked(not_null<PeerListRow*> row) override {
-			_choose(row->peer());
-		}
-
-	private:
-		const Fn<void(not_null<PeerData*>)> _choose;
-
-	};
 	auto initBox = [=](not_null<PeerListBox*> peersBox) {
 		peersBox->setTitle(tr::lng_gift_premium_or_stars());
 		peersBox->addButton(tr::lng_cancel(), [=] { peersBox->closeBox(); });
@@ -2140,11 +2297,16 @@ void UpgradeBox(
 		const auto checkbox = container->add(
 			object_ptr<CenterWrap<Checkbox>>(
 				container,
-				object_ptr<Checkbox>(container, args.canAddComment
-					? tr::lng_gift_upgrade_add_comment(tr::now)
-					: args.canAddSender
-					? tr::lng_gift_upgrade_add_sender(tr::now)
-					: tr::lng_gift_upgrade_add_my(tr::now))),
+				object_ptr<Checkbox>(
+					container,
+					(args.canAddComment
+						? tr::lng_gift_upgrade_add_comment(tr::now)
+						: args.canAddSender
+						? tr::lng_gift_upgrade_add_sender(tr::now)
+						: args.canAddMyComment
+						? tr::lng_gift_upgrade_add_my_comment(tr::now)
+						: tr::lng_gift_upgrade_add_my(tr::now)),
+					args.addDetailsDefault)),
 			st::defaultCheckbox.margin)->entity();
 		checkbox->checkedChanges() | rpl::start_with_next([=](bool checked) {
 			state->preserveDetails = checked;

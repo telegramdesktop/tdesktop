@@ -59,6 +59,8 @@ struct StarGiftUpgradeArgs {
 	int cost = 0;
 	bool canAddSender = false;
 	bool canAddComment = false;
+	bool canAddMyComment = false;
+	bool addDetailsDefault = false;
 };
 void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args);
 

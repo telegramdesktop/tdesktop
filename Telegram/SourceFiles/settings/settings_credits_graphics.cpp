@@ -1005,6 +1005,12 @@ void ReceiptCreditsBox(
 		}, widget->lifetime());
 	}
 
+	const auto selfPeerId = session->userPeerId().value;
+	const auto chatPeerId = e.fromGiftsList
+		? e.bareGiftOwnerId
+		: e.barePeerId;
+	const auto giftToSelf = isStarGift && (selfPeerId == chatPeerId);
+
 	if (!uniqueGift) {
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
@@ -1036,6 +1042,8 @@ void ReceiptCreditsBox(
 					? tr::lng_credits_box_history_entry_gift_converted(tr::now)
 					: (isStarGift && !gotStarGift)
 					? tr::lng_gift_link_label_gift(tr::now)
+					: giftToSelf
+					? tr::lng_action_gift_self_subtitle(tr::now)
 					: e.gift
 					? tr::lng_credits_box_history_entry_gift_name(tr::now)
 					: (peer && !e.reaction)
@@ -1188,6 +1196,11 @@ void ReceiptCreditsBox(
 						: e.starsUpgradedBySender
 						? tr::lng_action_gift_got_upgradable_text(
 							Ui::Text::RichLangValue)
+						: (e.starsToUpgrade
+							&& giftToSelf
+							&& !(couldConvert || nonConvertible))
+						? tr::lng_action_gift_self_about_unique(
+							Ui::Text::WithEntities)
 						: ((couldConvert || nonConvertible)
 							? (e.savedToProfile
 								? tr::lng_action_gift_can_remove_text
@@ -1195,7 +1208,9 @@ void ReceiptCreditsBox(
 									Ui::Text::WithEntities)
 							: rpl::combine(
 								(canConvert
-									? tr::lng_action_gift_got_stars_text
+									? (giftToSelf
+										? tr::lng_action_gift_self_about
+										: tr::lng_action_gift_got_stars_text)
 									: tr::lng_gift_got_stars)(
 										lt_count,
 										rpl::single(e.starsConverted * 1.),
@@ -1322,8 +1337,13 @@ void ReceiptCreditsBox(
 				.user = starGiftSender,
 				.itemId = itemId,
 				.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
-				.canAddSender = !e.anonymous,
-				.canAddComment = !e.anonymous && e.hasGiftComment,
+				.canAddSender = !giftToSelf && !e.anonymous,
+				.canAddComment = (!giftToSelf
+					&& !e.anonymous
+					&& e.hasGiftComment),
+				.canAddMyComment = (giftToSelf && e.hasGiftComment),
+				.addDetailsDefault = (giftToSelf
+					|| (e.starsUpgradedBySender && !e.anonymous)),
 			});
 		}
 	};

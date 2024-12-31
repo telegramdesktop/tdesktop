@@ -57,12 +57,15 @@ QSize PremiumGift::size() {
 
 QString PremiumGift::title() {
 	if (starGift()) {
-		return (outgoingGift()
-			? tr::lng_action_gift_sent_subtitle
-			: tr::lng_action_gift_got_subtitle)(
-				tr::now,
-				lt_user,
-				_parent->history()->peer->shortName());
+		const auto peer = _parent->history()->peer;
+		return peer->isSelf()
+			? tr::lng_action_gift_self_subtitle(tr::now)
+			: (outgoingGift()
+				? tr::lng_action_gift_sent_subtitle
+				: tr::lng_action_gift_got_subtitle)(
+					tr::now,
+					lt_user,
+					peer->shortName());
 	} else if (creditsPrize()) {
 		return tr::lng_prize_title(tr::now);
 	} else if (const auto count = credits()) {
@@ -99,8 +102,16 @@ TextWithEntities PremiumGift::subtitle() {
 			? tr::lng_action_gift_got_upgradable_text(
 				tr::now,
 				Ui::Text::RichLangValue)
+			: (_data.starsToUpgrade
+				&& !_data.converted
+				&& _parent->history()->peer->isSelf())
+			? tr::lng_action_gift_self_about_unique(
+				tr::now,
+				Ui::Text::RichLangValue)
 			: ((_data.converted || !_data.starsConverted)
 				? tr::lng_gift_got_stars
+				: _parent->history()->peer->isSelf()
+				? tr::lng_action_gift_self_about
 				: tr::lng_action_gift_got_stars_text)(
 					tr::now,
 					lt_count,

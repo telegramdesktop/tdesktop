@@ -5431,12 +5431,14 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			tr::lng_action_gift_for_stars(tr::now, lt_count, stars),
 		};
 		const auto anonymous = _from->isServiceUser();
-		if (anonymous) {
-			result.text = tr::lng_action_gift_received_anonymous(
-				tr::now,
-				lt_cost,
-				cost,
-				Ui::Text::WithEntities);
+		if (anonymous || _history->peer->isSelf()) {
+			result.text = (anonymous
+				? tr::lng_action_gift_received_anonymous
+				: tr::lng_action_gift_self_bought)(
+					tr::now,
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities);
 		} else {
 			if (!isSelf) {
 				result.links.push_back(peer->createOpenLink());
@@ -5463,17 +5465,21 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto isSelf = _from->isSelf();
 		const auto peer = isSelf ? _history->peer : _from;
 		result.links.push_back(peer->createOpenLink());
-		result.text = (action.is_upgrade()
-			? (isSelf
-				? tr::lng_action_gift_upgraded_mine
-				: tr::lng_action_gift_upgraded)
-			: (isSelf
-				? tr::lng_action_gift_transferred_mine
-				: tr::lng_action_gift_transferred))(
-					tr::now,
-					lt_user,
-					Ui::Text::Link(peer->shortName(), 1), // Link 1.
-					Ui::Text::WithEntities);
+		result.text = _history->peer->isSelf()
+			? tr::lng_action_gift_upgraded_self(
+				tr::now,
+				Ui::Text::WithEntities)
+			: (action.is_upgrade()
+				? (isSelf
+					? tr::lng_action_gift_upgraded_mine
+					: tr::lng_action_gift_upgraded)
+				: (isSelf
+					? tr::lng_action_gift_transferred_mine
+					: tr::lng_action_gift_transferred))(
+						tr::now,
+						lt_user,
+						Ui::Text::Link(peer->shortName(), 1), // Link 1.
+						Ui::Text::WithEntities);
 		return result;
 	};
 

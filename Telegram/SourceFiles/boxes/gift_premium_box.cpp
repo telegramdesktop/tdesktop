@@ -1203,6 +1203,9 @@ void AddStarGiftTable(
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto session = &controller->session();
 	const auto unique = entry.uniqueGift.get();
+	const auto chatPeerId = entry.fromGiftsList
+		? entry.bareGiftOwnerId
+		: entry.barePeerId;
 	if (unique) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
 		const auto transfer = entry.in
@@ -1221,17 +1224,19 @@ void AddStarGiftTable(
 			MakePeerTableValue(table, controller, ownerId, send, handler),
 			st::giveawayGiftCodePeerMargin);
 	} else if (peerId) {
-		const auto user = session->data().peer(peerId)->asUser();
-		const auto withSendButton = entry.in && user && !user->isBot();
-		auto send = withSendButton ? tr::lng_gift_send_small() : nullptr;
-		auto handler = send ? Fn<void()>([=] {
-			Ui::ShowStarGiftBox(controller->parentController(), user);
-		}) : nullptr;
-		AddTableRow(
-			table,
-			tr::lng_credits_box_history_entry_peer_in(),
-			MakePeerTableValue(table, controller, peerId, send, handler),
-			st::giveawayGiftCodePeerMargin);
+		if (chatPeerId != session->userPeerId().value) {
+			const auto user = session->data().peer(peerId)->asUser();
+			const auto withSendButton = entry.in && user && !user->isBot();
+			auto send = withSendButton ? tr::lng_gift_send_small() : nullptr;
+			auto handler = send ? Fn<void()>([=] {
+				Ui::ShowStarGiftBox(controller->parentController(), user);
+			}) : nullptr;
+			AddTableRow(
+				table,
+				tr::lng_credits_box_history_entry_peer_in(),
+				MakePeerTableValue(table, controller, peerId, send, handler),
+				st::giveawayGiftCodePeerMargin);
+		}
 	} else if (!entry.soldOutInfo) {
 		AddTableRow(
 			table,

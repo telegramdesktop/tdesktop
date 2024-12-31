@@ -420,13 +420,16 @@ auto GenerateUniqueGiftMedia(
 			replacing,
 			sticker,
 			st::chatUniqueStickerPadding));
+		const auto peer = parent->history()->peer;
 		pushText(
-			Ui::Text::Bold((outgoing
-				? tr::lng_action_gift_sent_subtitle
-				: tr::lng_action_gift_got_subtitle)(
-					tr::now,
-					lt_user,
-					parent->history()->peer->shortName())),
+			Ui::Text::Bold(peer->isSelf()
+				? tr::lng_action_gift_self_subtitle(tr::now)
+				: (outgoing
+					? tr::lng_action_gift_sent_subtitle
+					: tr::lng_action_gift_got_subtitle)(
+						tr::now,
+						lt_user,
+						peer->shortName())),
 			st::chatUniqueTitle,
 			white,
 			st::chatUniqueTitlePadding);
@@ -436,7 +439,7 @@ auto GenerateUniqueGiftMedia(
 			gift->backdrop.textColor,
 			st::chatUniqueTextPadding);
 
-		const auto withButton = !outgoing;
+		const auto withButton = !outgoing || item->history()->peer->isSelf();
 
 		auto attributes = std::vector<AttributeTable::Entry>{
 			{ tr::lng_gift_unique_model(tr::now), gift->model.name },
