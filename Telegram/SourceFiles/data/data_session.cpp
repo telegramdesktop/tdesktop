@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
-#include "storage/localimageloader.h"
 #include "storage/storage_account.h"
 #include "storage/storage_encrypted_file.h"
 #include "media/player/media_player_instance.h" // instance()->play()
@@ -80,11 +79,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/random.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
-
-#include "ui/chat/attach/attach_prepare.h"
-#include "ui/unread_badge.h"
-#include "styles/style_dialogs.h"
-#include <QtCore/QBuffer>
 
 namespace Data {
 namespace {
@@ -336,26 +330,6 @@ Session::Session(not_null<Main::Session*> session)
 	}, _lifetime);
 }
 
-
-Ui::VerifyDetails Session::verifiedByTelegram() {
-	if (!_verifiedByTelegramIconBgId) {
-		const auto bg = ChatHelpers::GenerateLocalSticker(
-			_session,
-			u":/gui/art/verified_bg.webp"_q);
-		bg->overrideEmojiUsesTextColor(true);
-		const auto fg = ChatHelpers::GenerateLocalSticker(
-			_session,
-			u":/gui/art/verified_fg.webp"_q);
-		fg->overrideEmojiUsesTextColor(true);
-		_verifiedByTelegramIconBgId = bg->id;
-		_verifiedByTelegramIconFgId = fg->id;
-	}
-	return {
-		.iconBgId = _verifiedByTelegramIconBgId,
-		.iconFgId = _verifiedByTelegramIconFgId,
-	};
-}
-
 void Session::subscribeForTopicRepliesLists() {
 	repliesReadTillUpdates(
 	) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
@@ -596,11 +570,8 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				| (data.is_stories_hidden() ? Flag::StoriesHidden : Flag())
 				: Flag());
 		result->setFlags((result->flags() & ~flagsMask) | flagsSet);
-		if (data.is_verified()) {
-			result->setVerifyDetails(verifiedByTelegram());
-		} else {
-			result->setVerifyDetailsIcon(data.vbot_verification_icon().value_or_empty());
-		}
+		result->setBotVerifyDetailsIcon(
+			data.vbot_verification_icon().value_or_empty());
 		if (minimal) {
 			if (result->input.type() == mtpc_inputPeerEmpty) {
 				result->input = MTP_inputPeerUser(
@@ -1016,12 +987,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				? Flag::StoriesHidden
 				: Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
-		if (data.is_verified()) {
-			channel->setVerifyDetails(verifiedByTelegram());
-		} else {
-			channel->setVerifyDetailsIcon(
-				data.vbot_verification_icon().value_or_empty());
-		}
+		channel->setBotVerifyDetailsIcon(
+			data.vbot_verification_icon().value_or_empty());
 		if (!minimal && storiesState) {
 			result->setStoriesState(!storiesState->maxId
 				? UserData::StoriesState::None

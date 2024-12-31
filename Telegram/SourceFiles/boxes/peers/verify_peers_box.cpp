@@ -90,7 +90,7 @@ Main::Session &Controller::session() const {
 
 void Controller::rowClicked(gsl::not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
-	const auto details = peer->verifyDetails();
+	const auto details = peer->botVerifyDetails();
 	const auto already = details && (details->botId == peerToUser(_bot->id));
 	if (already) {
 		confirmRemove(peer);
@@ -141,7 +141,7 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 							Ui::Text::Bold(peer->shortName()),
 							Ui::Text::WithEntities),
 						.duration = kSetupVerificationToastDuration,
-						});
+					});
 				} else {
 					state->sent = false;
 					show->showToast(error);
@@ -253,7 +253,7 @@ object_ptr<Ui::BoxContent> MakeVerifyPeersBox(
 	return Box<PeerListBox>(std::move(controller), std::move(init));
 }
 
-VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
+BotVerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
 		if (user->isBot()) {
 			return {
@@ -263,7 +263,6 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 				.submit = tr::lng_bot_verify_bot_submit,
 				.sent = tr::lng_bot_verify_bot_sent,
 				.remove = tr::lng_bot_verify_bot_remove,
-				.telegram = tr::lng_bot_verify_bot_telegram,
 			};
 		} else {
 			return {
@@ -273,7 +272,6 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 				.submit = tr::lng_bot_verify_user_submit,
 				.sent = tr::lng_bot_verify_user_sent,
 				.remove = tr::lng_bot_verify_user_remove,
-				.telegram = tr::lng_bot_verify_user_telegram,
 			};
 		}
 	} else if (peer->isBroadcast()) {
@@ -284,7 +282,6 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 			.submit = tr::lng_bot_verify_channel_submit,
 			.sent = tr::lng_bot_verify_channel_sent,
 			.remove = tr::lng_bot_verify_channel_remove,
-			.telegram = tr::lng_bot_verify_channel_telegram,
 		};
 	}
 	return {
@@ -294,6 +291,5 @@ VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer) {
 		.submit = tr::lng_bot_verify_group_submit,
 		.sent = tr::lng_bot_verify_group_sent,
 		.remove = tr::lng_bot_verify_group_remove,
-		.telegram = tr::lng_bot_verify_group_telegram,
 	};
 }

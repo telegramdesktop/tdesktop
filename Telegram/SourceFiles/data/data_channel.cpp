@@ -714,28 +714,30 @@ bool ChannelData::canRestrictParticipant(
 	return adminRights() & AdminRight::BanUsers;
 }
 
-void ChannelData::setVerifyDetails(Ui::VerifyDetails details) {
+void ChannelData::setBotVerifyDetails(Ui::BotVerifyDetails details) {
 	if (!details) {
-		if (_verifyDetails) {
-			_verifyDetails = nullptr;
+		if (_botVerifyDetails) {
+			_botVerifyDetails = nullptr;
 			session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
 		}
-	} else if (!_verifyDetails) {
-		_verifyDetails = std::make_unique<Ui::VerifyDetails>(details);
+	} else if (!_botVerifyDetails) {
+		_botVerifyDetails = std::make_unique<Ui::BotVerifyDetails>(details);
 		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
-	} else if (*_verifyDetails != details) {
-		*_verifyDetails = details;
+	} else if (*_botVerifyDetails != details) {
+		*_botVerifyDetails = details;
 		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
 	}
 }
 
-void ChannelData::setVerifyDetailsIcon(DocumentId iconId) {
+void ChannelData::setBotVerifyDetailsIcon(DocumentId iconId) {
 	if (!iconId) {
-		setVerifyDetails({});
+		setBotVerifyDetails({});
 	} else {
-		auto info = _verifyDetails ? *_verifyDetails : Ui::VerifyDetails();
-		info.iconBgId = iconId;
-		setVerifyDetails(info);
+		auto info = _botVerifyDetails
+			? *_botVerifyDetails
+			: Ui::BotVerifyDetails();
+		info.iconId = iconId;
+		setBotVerifyDetails(info);
 	}
 }
 
@@ -1277,7 +1279,8 @@ void ApplyChannelUpdate(
 			.paidEnabled = update.is_paid_reactions_available(),
 		});
 	}
-	channel->setVerifyDetails(ParseVerifyDetails(update.vbot_verification()));
+	channel->setBotVerifyDetails(
+		ParseBotVerifyDetails(update.vbot_verification()));
 	channel->owner().stories().apply(channel, update.vstories());
 	channel->fullUpdated();
 	channel->setPendingRequestsCount(

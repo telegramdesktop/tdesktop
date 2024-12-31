@@ -23,7 +23,7 @@ enum class ChatRestriction;
 
 namespace Ui {
 class EmptyUserpic;
-struct VerifyDetails;
+struct BotVerifyDetails;
 } // namespace Ui
 
 namespace Main {
@@ -234,8 +234,7 @@ public:
 	[[nodiscard]] bool hasStoriesHidden() const;
 	void setStoriesHidden(bool hidden);
 
-	[[nodiscard]] Ui::VerifyDetails *verifyDetails() const;
-	[[nodiscard]] bool verifiedByTelegram() const;
+	[[nodiscard]] Ui::BotVerifyDetails *botVerifyDetails() const;
 
 	[[nodiscard]] bool isNotificationsUser() const {
 		return (id == peerFromUser(333000))

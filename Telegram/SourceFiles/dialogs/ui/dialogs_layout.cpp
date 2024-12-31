@@ -449,10 +449,10 @@ void PaintRow(
 			? tr::lng_badge_psa_default(tr::now)
 			: custom;
 		PaintRowTopRight(p, text, rectForName, context);
-	} else if (const auto details = from ? from->verifyDetails() : nullptr) {
-		if (!rowBadge.ready(details)) {
+	} else if (const auto info = from ? from->botVerifyDetails() : nullptr) {
+		if (!rowBadge.ready(info)) {
 			rowBadge.set(
-				details,
+				info,
 				from->owner().customEmojiManager().factory(),
 				customEmojiRepaint);
 		}
@@ -739,6 +739,11 @@ void PaintRow(
 				context.width,
 				{
 					.peer = from,
+					.verified = (context.active
+						? &st::dialogsVerifiedIconActive
+						: context.selected
+						? &st::dialogsVerifiedIconOver
+						: &st::dialogsVerifiedIcon),
 					.premium = &ThreeStateIcon(
 						st::dialogsPremiumIcon,
 						context.active,

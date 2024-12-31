@@ -32,8 +32,7 @@ ThreeStateIcon {
 }
 
 VerifiedBadge {
-	bg: color;
-	fg: color;
+	color: color;
 	height: pixels;
 }
 
@@ -411,18 +410,27 @@ dialogsLockIcon: ThreeStateIcon {
 
 dialogsVerifiedColors: VerifiedBadge {
 	height: 20px;
-	bg: dialogsVerifiedIconBg;
-	fg: dialogsVerifiedIconFg;
+	color: dialogsVerifiedIconBg;
 }
 dialogsVerifiedColorsOver: VerifiedBadge(dialogsVerifiedColors) {
-	bg: dialogsVerifiedIconBgOver;
-	fg: dialogsVerifiedIconFgOver;
+	color: dialogsVerifiedIconBgOver;
 }
 dialogsVerifiedColorsActive: VerifiedBadge(dialogsVerifiedColors) {
-	bg: dialogsVerifiedIconBgActive;
-	fg: dialogsVerifiedIconFgActive;
+	color: dialogsVerifiedIconBgActive;
 }
 
+dialogsVerifiedIcon: icon {
+	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg },
+	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFg },
+};
+dialogsVerifiedIconOver: icon {
+	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgOver },
+	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFgOver },
+};
+dialogsVerifiedIconActive: icon {
+	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgActive },
+	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFgActive },
+};
 dialogsPremiumIcon: ThreeStateIcon {
 	icon: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
 	over: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgOver }};

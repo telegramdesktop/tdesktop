@@ -25,13 +25,12 @@ class SessionController;
 	not_null<Window::SessionController*> window,
 	not_null<UserData*> bot);
 
-struct VerifyPhrases {
+struct BotVerifyPhrases {
 	tr::phrase<> title;
 	tr::phrase<lngtag_name> text;
 	tr::phrase<> about;
 	tr::phrase<> submit;
 	tr::phrase<lngtag_name> sent;
 	tr::phrase<> remove;
-	tr::phrase<> telegram;
 };
-[[nodiscard]] VerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer);
+[[nodiscard]] BotVerifyPhrases PeerVerifyPhrases(not_null<PeerData*> peer);

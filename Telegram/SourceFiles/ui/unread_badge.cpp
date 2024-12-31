@@ -31,11 +31,9 @@ struct PeerBadge::EmojiStatus {
 	int skip = 0;
 };
 
-struct PeerBadge::VerifiedData {
+struct PeerBadge::BotVerifiedData {
 	QImage cache;
-	QImage cacheFg;
-	std::unique_ptr<Text::CustomEmoji> bg;
-	std::unique_ptr<Text::CustomEmoji> fg;
+	std::unique_ptr<Text::CustomEmoji> icon;
 };
 
 void UnreadBadge::setText(const QString &text, bool active) {
@@ -200,6 +198,14 @@ int PeerBadge::drawGetWidth(
 			.paused = descriptor.paused || On(PowerSaving::kEmojiStatus),
 		});
 		return iconw - 4 * _emojiStatus->skip;
+	} else if (descriptor.verified && peer->isVerified()) {
+		const auto iconw = descriptor.verified->width();
+		descriptor.verified->paint(
+			p,
+			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
+			rectForName.y(),
+			outerWidth);
+		return iconw;
 	} else if (descriptor.premium
 		&& peer->isPremium()
 		&& peer->session().premiumBadgesShown()) {
@@ -218,45 +224,33 @@ void PeerBadge::unload() {
 	_emojiStatus = nullptr;
 }
 
-bool PeerBadge::ready(const VerifyDetails *details) const {
+bool PeerBadge::ready(const BotVerifyDetails *details) const {
 	if (!details || !*details) {
-		_verifiedData = nullptr;
+		_botVerifiedData = nullptr;
 		return true;
-	} else if (!_verifiedData) {
+	} else if (!_botVerifiedData) {
 		return false;
 	}
-	if (!details->iconBgId) {
-		_verifiedData->bg = nullptr;
-	} else if (!_verifiedData->bg
-		|| (_verifiedData->bg->entityData()
-			!= Data::SerializeCustomEmojiId(details->iconBgId))) {
-		return false;
-	}
-	if (!details->iconFgId) {
-		_verifiedData->fg = nullptr;
-	} else if (!_verifiedData->fg
-		|| (_verifiedData->fg->entityData()
-			!= Data::SerializeCustomEmojiId(details->iconFgId))) {
+	if (!details->iconId) {
+		_botVerifiedData->icon = nullptr;
+	} else if (!_botVerifiedData->icon
+		|| (_botVerifiedData->icon->entityData()
+			!= Data::SerializeCustomEmojiId(details->iconId))) {
 		return false;
 	}
 	return true;
 }
 
 void PeerBadge::set(
-		not_null<const VerifyDetails*> details,
+		not_null<const BotVerifyDetails*> details,
 		Ui::Text::CustomEmojiFactory factory,
 		Fn<void()> repaint) {
-	if (!_verifiedData) {
-		_verifiedData = std::make_unique<VerifiedData>();
+	if (!_botVerifiedData) {
+		_botVerifiedData = std::make_unique<BotVerifiedData>();
 	}
-	if (details->iconBgId) {
-		_verifiedData->bg = factory(
-			Data::SerializeCustomEmojiId(details->iconBgId),
-			repaint);
-	}
-	if (details->iconFgId) {
-		_verifiedData->fg = factory(
-			Data::SerializeCustomEmojiId(details->iconFgId),
+	if (details->iconId) {
+		_botVerifiedData->icon = factory(
+			Data::SerializeCustomEmojiId(details->iconId),
 			repaint);
 	}
 }
@@ -265,29 +259,19 @@ int PeerBadge::drawVerified(
 		QPainter &p,
 		QPoint position,
 		const style::VerifiedBadge &st) {
-	const auto data = _verifiedData.get();
+	const auto data = _botVerifiedData.get();
 	if (!data) {
 		return 0;
 	}
-	const auto now = crl::now();
-	auto result = 0;
-	if (const auto bg = data->bg.get()) {
-		bg->paint(p, {
-			.textColor = st.bg->c,
-			.now = now,
+	if (const auto icon = data->icon.get()) {
+		icon->paint(p, {
+			.textColor = st.color->c,
+			.now = crl::now(),
 			.position = position,
 		});
-		result = bg->width();
+		return icon->width();
 	}
-	if (const auto fg = data->fg.get()) {
-		fg->paint(p, {
-			.textColor = st.fg->c,
-			.now = now,
-			.position = position,
-		});
-		result = std::max(result, fg->width());
-	}
-	return result;
+	return 0;
 }
 
 } // namespace Ui

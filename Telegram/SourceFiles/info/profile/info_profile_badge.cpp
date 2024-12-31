@@ -35,10 +35,7 @@ namespace {
 		} else if (emojiStatusId && badge == BadgeType::None) {
 			badge = BadgeType::Premium;
 		}
-		return Badge::Content{
-			badge,
-			emojiStatusId ? emojiStatusId : DocumentId(),
-		};
+		return Badge::Content{ badge, emojiStatusId };
 	});
 }
 
@@ -117,29 +114,15 @@ void Badge::setContent(Content content) {
 	case BadgeType::Verified:
 	case BadgeType::Premium: {
 		const auto id = _content.emojiStatusId;
-		const auto innerId = _content.emojiStatusInnerId;
-		if (id || innerId) {
-			_emojiStatus = id
-				? _session->data().customEmojiManager().create(
-					id,
-					[raw = _view.data()] { raw->update(); },
-					sizeTag())
-				: nullptr;
-			_statusInner = innerId
-				? _session->data().customEmojiManager().create(
-					innerId,
-					[raw = _view.data()] { raw->update(); },
-					sizeTag())
-				: nullptr;
-			if (_emojiStatus && _customStatusLoopsLimit > 0) {
+		if (id) {
+			_emojiStatus = _session->data().customEmojiManager().create(
+				id,
+				[raw = _view.data()] { raw->update(); },
+				sizeTag());
+			if (_customStatusLoopsLimit > 0) {
 				_emojiStatus = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
 						std::move(_emojiStatus),
 						_customStatusLoopsLimit);
-			}
-			if (_statusInner && _customStatusLoopsLimit > 0) {
-				_statusInner = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
-					std::move(_statusInner),
-					_customStatusLoopsLimit);
 			}
 			const auto emoji = Data::FrameSizeFromTag(sizeTag())
 				/ style::DevicePixelRatio();
@@ -155,17 +138,13 @@ void Badge::setContent(Content content) {
 				if (!_emojiStatusPanel
 					|| !_emojiStatusPanel->paintBadgeFrame(check)) {
 					Painter p(check);
-					if (_emojiStatus) {
-						_emojiStatus->paint(p, args);
-					}
-					if (_statusInner) {
-						args.textColor = _st.premiumInnerFg->c;
-						_statusInner->paint(p, args);
-					}
+					_emojiStatus->paint(p, args);
 				}
 			}, _view->lifetime());
 		} else {
-			const auto icon = &_st.premium;
+			const auto icon = (_content.badge == BadgeType::Verified)
+				? &_st.verified
+				: &_st.premium;
 			_view->resize(icon->size());
 			_view->paintRequest(
 			) | rpl::start_with_next([=, check = _view.data()]{
@@ -225,9 +204,9 @@ void Badge::move(int left, int top, int bottom) {
 		return;
 	}
 	const auto star = !_emojiStatus
-		&& (_content.badge == BadgeType::Premium);
-	const auto fake = (!_emojiStatus && !star)
-		|| (_content.badge == BadgeType::Verified);
+		&& (_content.badge == BadgeType::Premium
+			|| _content.badge == BadgeType::Verified);
+	const auto fake = !_emojiStatus && !star;
 	const auto skip = fake ? 0 : _st.position.x();
 	const auto badgeLeft = left + skip;
 	const auto badgeTop = top

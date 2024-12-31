@@ -32,18 +32,17 @@ private:
 
 };
 
-struct VerifyDetails {
+struct BotVerifyDetails {
 	UserId botId = 0;
-	DocumentId iconBgId = 0;
-	DocumentId iconFgId = 0;
+	DocumentId iconId = 0;
 	TextWithEntities description;
 
 	explicit operator bool() const {
-		return iconBgId || iconFgId;
+		return iconId != 0;
 	}
 	friend inline bool operator==(
-		const VerifyDetails &,
-		const VerifyDetails &) = default;
+		const BotVerifyDetails &,
+		const BotVerifyDetails &) = default;
 };
 
 class PeerBadge {
@@ -69,9 +68,9 @@ public:
 		const Descriptor &descriptor);
 	void unload();
 
-	[[nodiscard]] bool ready(const VerifyDetails *details) const;
+	[[nodiscard]] bool ready(const BotVerifyDetails *details) const;
 	void set(
-		not_null<const VerifyDetails*> details,
+		not_null<const BotVerifyDetails*> details,
 		Text::CustomEmojiFactory factory,
 		Fn<void()> repaint);
 
@@ -83,10 +82,10 @@ public:
 
 private:
 	struct EmojiStatus;
-	struct VerifiedData;
+	struct BotVerifiedData;
 
 	std::unique_ptr<EmojiStatus> _emojiStatus;
-	mutable std::unique_ptr<VerifiedData> _verifiedData;
+	mutable std::unique_ptr<BotVerifiedData> _botVerifiedData;
 
 };
 

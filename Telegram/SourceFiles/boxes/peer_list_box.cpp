@@ -799,6 +799,9 @@ int PeerListRow::paintNameIconGetWidth(
 		outerWidth,
 		{
 			.peer = peer(),
+			.verified = &(selected
+				? st::dialogsVerifiedIconOver
+				: st::dialogsVerifiedIcon),
 			.premium = &(selected
 				? st::dialogsPremiumIcon.over
 				: st::dialogsPremiumIcon.icon),

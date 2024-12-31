@@ -556,28 +556,30 @@ bool UserData::isUsernameEditable(QString username) const {
 	return _username.isEditable(username);
 }
 
-void UserData::setVerifyDetails(Ui::VerifyDetails details) {
+void UserData::setBotVerifyDetails(Ui::BotVerifyDetails details) {
 	if (!details) {
-		if (_verifyDetails) {
-			_verifyDetails = nullptr;
+		if (_botVerifyDetails) {
+			_botVerifyDetails = nullptr;
 			session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
 		}
-	} else if (!_verifyDetails) {
-		_verifyDetails = std::make_unique<Ui::VerifyDetails>(details);
+	} else if (!_botVerifyDetails) {
+		_botVerifyDetails = std::make_unique<Ui::BotVerifyDetails>(details);
 		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
-	} else if (*_verifyDetails != details) {
-		*_verifyDetails = details;
+	} else if (*_botVerifyDetails != details) {
+		*_botVerifyDetails = details;
 		session().changes().peerUpdated(this, UpdateFlag::VerifyInfo);
 	}
 }
 
-void UserData::setVerifyDetailsIcon(DocumentId iconId) {
+void UserData::setBotVerifyDetailsIcon(DocumentId iconId) {
 	if (!iconId) {
-		setVerifyDetails({});
+		setBotVerifyDetails({});
 	} else {
-		auto info = _verifyDetails ? *_verifyDetails : Ui::VerifyDetails();
-		info.iconBgId = iconId;
-		setVerifyDetails(info);
+		auto info = _botVerifyDetails
+			? *_botVerifyDetails
+			: Ui::BotVerifyDetails();
+		info.iconId = iconId;
+		setBotVerifyDetails(info);
 	}
 }
 
@@ -792,7 +794,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		user->owner().businessInfo().applyGreetingSettings(
 			FromMTP(&user->owner(), update.vbusiness_greeting_message()));
 	}
-	user->setVerifyDetails(ParseVerifyDetails(update.vbot_verification()));
+	user->setBotVerifyDetails(
+		ParseBotVerifyDetails(update.vbot_verification()));
 
 	user->owner().stories().apply(user, update.vstories());
 
@@ -814,7 +817,7 @@ StarRefProgram ParseStarRefProgram(const MTPStarRefProgram *program) {
 	return result;
 }
 
-Ui::VerifyDetails ParseVerifyDetails(const MTPBotVerification *info) {
+Ui::BotVerifyDetails ParseBotVerifyDetails(const MTPBotVerification *info) {
 	if (!info) {
 		return {};
 	}
@@ -823,7 +826,7 @@ Ui::VerifyDetails ParseVerifyDetails(const MTPBotVerification *info) {
 	const auto flags = TextParseLinks;
 	return {
 		.botId = UserId(data.vbot_id().v),
-		.iconBgId = DocumentId(data.vicon().v),
+		.iconId = DocumentId(data.vicon().v),
 		.description = TextUtilities::ParseEntities(description, flags),
 	};
 }

@@ -309,11 +309,10 @@ Cover::Cover(
 		peer,
 		Data::PeerUpdate::Flag::VerifyInfo
 	) | rpl::map([=] {
-		const auto details = peer->verifyDetails();
+		const auto info = peer->botVerifyDetails();
 		return Badge::Content{
-			.badge = details ? BadgeType::Verified : BadgeType::None,
-			.emojiStatusId = details ? details->iconBgId : DocumentId(),
-			.emojiStatusInnerId = details ? details->iconFgId : DocumentId(),
+			.badge = info ? BadgeType::Verified : BadgeType::None,
+			.emojiStatusId = info ? info->iconId : DocumentId(),
 		};
 	});
 }

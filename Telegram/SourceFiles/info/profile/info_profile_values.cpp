@@ -659,6 +659,8 @@ rpl::producer<BadgeType> BadgeValueFromFlags(Peer peer) {
 			? BadgeType::Scam
 			: (value & Flag::Fake)
 			? BadgeType::Fake
+			: (value & Flag::Verified)
+			? BadgeType::Verified
 			: premium
 			? BadgeType::Premium
 			: BadgeType::None;

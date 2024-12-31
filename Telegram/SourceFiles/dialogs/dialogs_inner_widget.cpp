@@ -1385,10 +1385,10 @@ void InnerWidget::paintPeerSearchResult(
 			Ui::NameTextOptions());
 	}
 
-	if (const auto details = peer->verifyDetails()) {
-		if (!result->badge.ready(details)) {
+	if (const auto info = peer->botVerifyDetails()) {
+		if (!result->badge.ready(info)) {
 			result->badge.set(
-				details,
+				info,
 				peer->owner().customEmojiManager().factory(),
 				[=] { updateSearchResult(peer); });
 		}
@@ -1409,6 +1409,11 @@ void InnerWidget::paintPeerSearchResult(
 		context.width,
 		{
 			.peer = peer,
+			.verified = (context.active
+				? &st::dialogsVerifiedIconActive
+				: context.selected
+				? &st::dialogsVerifiedIconOver
+				: &st::dialogsVerifiedIcon),
 			.premium = &ThreeStateIcon(
 				st::dialogsPremiumIcon,
 				context.active,

@@ -1845,7 +1845,7 @@ void DetailsFiller::setupAboutVerification() {
 		peer,
 		Data::PeerUpdate::Flag::VerifyInfo
 	) | rpl::start_with_next([=] {
-		const auto info = peer->verifyDetails();
+		const auto info = peer->botVerifyDetails();
 		while (inner->count()) {
 			delete inner->widgetAt(0);
 		}
@@ -1853,9 +1853,6 @@ void DetailsFiller::setupAboutVerification() {
 			Ui::AddDivider(inner);
 		} else if (!info->description.empty()) {
 			Ui::AddDividerText(inner, rpl::single(info->description));
-		} else if (peer->verifiedByTelegram()) {
-			const auto phrases = PeerVerifyPhrases(peer);
-			Ui::AddDividerText(inner, phrases.telegram());
 		}
 		inner->resizeToWidth(inner->width());
 	}, inner->lifetime());

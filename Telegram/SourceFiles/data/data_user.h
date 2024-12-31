@@ -193,10 +193,10 @@ public:
 	[[nodiscard]] const std::vector<QString> &usernames() const;
 	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
-	void setVerifyDetails(Ui::VerifyDetails details);
-	void setVerifyDetailsIcon(DocumentId iconId);
-	[[nodiscard]] Ui::VerifyDetails *verifyDetails() const {
-		return _verifyDetails.get();
+	void setBotVerifyDetails(Ui::BotVerifyDetails details);
+	void setBotVerifyDetailsIcon(DocumentId iconId);
+	[[nodiscard]] Ui::BotVerifyDetails *botVerifyDetails() const {
+		return _botVerifyDetails.get();
 	}
 
 	enum class ContactStatus : char {
@@ -277,7 +277,7 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	QString _privateForwardName;
-	std::unique_ptr<Ui::VerifyDetails> _verifyDetails;
+	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
 
 	ChannelId _personalChannelId = 0;
 	MsgId _personalChannelMessageId = 0;
@@ -295,7 +295,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
 [[nodiscard]] StarRefProgram ParseStarRefProgram(
 	const MTPStarRefProgram *program);
 
-[[nodiscard]] Ui::VerifyDetails ParseVerifyDetails(
+[[nodiscard]] Ui::BotVerifyDetails ParseBotVerifyDetails(
 	const MTPBotVerification *info);
 
 } // namespace Data

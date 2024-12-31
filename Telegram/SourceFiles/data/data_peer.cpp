@@ -1247,20 +1247,13 @@ void PeerData::setStoriesHidden(bool hidden) {
 	}
 }
 
-Ui::VerifyDetails *PeerData::verifyDetails() const {
+Ui::BotVerifyDetails *PeerData::botVerifyDetails() const {
 	if (const auto user = asUser()) {
-		return user->verifyDetails();
+		return user->botVerifyDetails();
 	} else if (const auto channel = asChannel()) {
-		return channel->verifyDetails();
+		return channel->botVerifyDetails();
 	}
 	return nullptr;
-}
-
-bool PeerData::verifiedByTelegram() const {
-	if (const auto details = verifyDetails()) {
-		return (details->iconBgId == owner().verifiedByTelegram().iconBgId);
-	}
-	return false;
 }
 
 Data::Forum *PeerData::forum() const {

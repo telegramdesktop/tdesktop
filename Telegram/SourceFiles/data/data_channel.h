@@ -376,10 +376,10 @@ public:
 	[[nodiscard]] bool canRestrictParticipant(
 		not_null<PeerData*> participant) const;
 
-	void setVerifyDetails(Ui::VerifyDetails details);
-	void setVerifyDetailsIcon(DocumentId iconId);
-	[[nodiscard]] Ui::VerifyDetails *verifyDetails() const {
-		return _verifyDetails.get();
+	void setBotVerifyDetails(Ui::BotVerifyDetails details);
+	void setBotVerifyDetailsIcon(DocumentId iconId);
+	[[nodiscard]] Ui::BotVerifyDetails *botVerifyDetails() const {
+		return _botVerifyDetails.get();
 	}
 
 	void setInviteLink(const QString &newInviteLink);
@@ -552,7 +552,7 @@ private:
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;
 
-	std::unique_ptr<Ui::VerifyDetails> _verifyDetails;
+	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
 
 };
 

@@ -566,10 +566,10 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				TopBarNameText(namePeer, _activeChat.section),
 				Ui::NameTextOptions());
 		}
-		if (const auto details = namePeer->verifyDetails()) {
-			if (!_titleBadge.ready(details)) {
+		if (const auto info = namePeer->botVerifyDetails()) {
+			if (!_titleBadge.ready(info)) {
 				_titleBadge.set(
-					details,
+					info,
 					namePeer->owner().customEmojiManager().factory(),
 					[=] { update(); });
 			}
@@ -589,6 +589,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			width(),
 			{
 				.peer = namePeer,
+				.verified = &st::dialogsVerifiedIcon,
 				.premium = &st::dialogsPremiumIcon.icon,
 				.scam = &st::attentionButtonFg,
 				.premiumFg = &st::dialogsVerifiedIconBg,
