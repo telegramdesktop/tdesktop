@@ -500,7 +500,13 @@ void Widget::opacityAnimationCallback() {
 	updateOpacity();
 	update();
 	if (!_a_opacity.animating() && _hiding) {
-		manager()->removeWidget(this);
+		if (underMouse()) {
+			// The notification is leaving from under the cursor, but in such case leave hook is not
+			// triggered automatically. But we still want the manager to start hiding notifications
+			// (see #28813).
+			manager()->startAllHiding();
+		}
+		manager()->removeWidget(this);  // Deletes `this`
 	}
 }
 
