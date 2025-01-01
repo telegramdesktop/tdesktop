@@ -549,6 +549,10 @@ void Widget::hideStop() {
 
 void Widget::hideAnimated(float64 duration, const anim::transition &func) {
 	_hiding = true;
+	// Stop the previous animation so as to make sure that the notification
+	// is fully restored before hiding it again.
+	// Relates to https://github.com/telegramdesktop/tdesktop/issues/28811.
+	_a_opacity.stop();
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., duration, func);
 }
 
