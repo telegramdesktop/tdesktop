@@ -1,3 +1,10 @@
+5.10 (02.01.25)
+
+- Collectible Gifts.
+- Reactions for Service Messages.
+- Verification from Third Parties.
+- Custom Emoji in Folder Names.
+
 5.9.2 beta (24.12.24)
 
 - Fix some jump-to-message highlightings.
