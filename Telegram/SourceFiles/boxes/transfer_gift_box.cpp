@@ -129,7 +129,7 @@ private:
 		}
 
 		const style::PeerListItem &computeSt(
-				const style::PeerListItem &st) const {
+				const style::PeerListItem &st) const override {
 			return _available ? st::recentPeersSpecialName : st;
 		}
 
