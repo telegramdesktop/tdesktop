@@ -143,7 +143,7 @@ public:
 		int shift,
 		Direction shiftDirection);
 
-	bool isShowing() const {
+	bool isFadingIn() const {
 		return _a_opacity.animating() && !_hiding;
 	}
 
