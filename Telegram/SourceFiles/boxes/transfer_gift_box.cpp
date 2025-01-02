@@ -406,7 +406,6 @@ void ShowTransferGiftBox(
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
-
 		box->noSearchSubmits() | rpl::start_with_next([=] {
 			controllerRaw->noSearchSubmit();
 		}, box->lifetime());

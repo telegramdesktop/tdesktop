@@ -432,8 +432,6 @@ QRect Service::countGeometry() const {
 }
 
 void Service::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
-	const auto item = data();
-
 	auto g = countGeometry();
 	if (g.width() < 1 || isHidden()) {
 		return;
@@ -541,7 +539,6 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	const auto st = context.st;
-	auto clip = context.clip;
 	if (const auto bar = Get<UnreadBar>()) {
 		auto unreadbarh = bar->height();
 		auto dateh = 0;

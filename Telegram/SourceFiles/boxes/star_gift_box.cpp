@@ -1936,19 +1936,23 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 } // namespace
 
 void ChooseStarGiftRecipient(
-		not_null<Window::SessionController*> controller) {
-	auto initBox = [=](not_null<PeerListBox*> peersBox) {
-		peersBox->setTitle(tr::lng_gift_premium_or_stars());
-		peersBox->addButton(tr::lng_cancel(), [=] { peersBox->closeBox(); });
-	};
-
-	auto listController = std::make_unique<Controller>(
-		&controller->session(),
+		not_null<Window::SessionController*> window) {
+	auto controller = std::make_unique<Controller>(
+		&window->session(),
 		[=](not_null<PeerData*> peer) {
-			ShowStarGiftBox(controller, peer);
+			ShowStarGiftBox(window, peer);
 		});
-	controller->show(
-		Box<PeerListBox>(std::move(listController), std::move(initBox)),
+	const auto controllerRaw = controller.get();
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setTitle(tr::lng_gift_premium_or_stars());
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+		box->noSearchSubmits() | rpl::start_with_next([=] {
+			controllerRaw->noSearchSubmit();
+		}, box->lifetime());
+	};
+	window->show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		LayerOption::KeepOther);
 }
 
