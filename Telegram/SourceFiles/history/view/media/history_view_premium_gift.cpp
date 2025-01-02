@@ -108,7 +108,13 @@ TextWithEntities PremiumGift::subtitle() {
 			? tr::lng_action_gift_self_about_unique(
 				tr::now,
 				Ui::Text::RichLangValue)
-			: ((_data.converted || !_data.starsConverted)
+			: (!_data.converted && !_data.starsConverted)
+			? (_data.saved
+				? tr::lng_action_gift_can_remove_text
+				: tr::lng_action_gift_got_gift_text)(
+					tr::now,
+					Ui::Text::RichLangValue)
+			: (_data.converted
 				? tr::lng_gift_got_stars
 				: _parent->history()->peer->isSelf()
 				? tr::lng_action_gift_self_about

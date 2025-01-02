@@ -1665,7 +1665,7 @@ void UserStarGiftBox(
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = data.info.limitedCount,
 			.limitedLeft = data.info.limitedLeft,
-			.starsConverted = int(data.info.starsConverted),
+			.starsConverted = int(data.starsConverted),
 			.starsToUpgrade = int(data.info.starsToUpgrade),
 			.starsUpgradedBySender = int(data.starsUpgradedBySender),
 			.converted = false,
