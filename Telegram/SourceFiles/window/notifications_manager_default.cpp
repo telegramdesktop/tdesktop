@@ -188,16 +188,10 @@ void Manager::checkLastInput() {
 
 void Manager::startAllHiding() {
 	if (!hasReplyingNotification()) {
-		int notHidingCount = 0;
 		for (const auto &notification : _notifications) {
-			if (notification->isShowing()) {
-				++notHidingCount;
-			} else {
-				notification->startHiding();
-			}
+			notification->startHiding();
 		}
-		notHidingCount += _queuedNotifications.size();
-		if (_hideAll && notHidingCount < 2) {
+		if (_hideAll && _queuedNotifications.size() < 2) {
 			_hideAll->startHiding();
 		}
 	}
