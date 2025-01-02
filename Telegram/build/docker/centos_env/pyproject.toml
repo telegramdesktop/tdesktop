@@ -6,7 +6,7 @@ authors = []
 
 [tool.poetry.dependencies]
 python = "^3.7"
-Jinja2 = "^3.1.4"
+Jinja2 = "^3.1.5"
 
 [tool.poetry.dev-dependencies]
 
