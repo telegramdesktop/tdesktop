@@ -76,9 +76,10 @@ using Order = std::vector<QString>;
 		u"quick_replies"_q,
 		u"business_hours"_q,
 		u"business_location"_q,
-		u"business_bots"_q,
-		u"business_intro"_q,
 		u"business_links"_q,
+		u"business_intro"_q,
+		u"business_bots"_q,
+		u"folder_tags"_q,
 	};
 }
 
@@ -136,7 +137,6 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chatbots(),
 				tr::lng_business_about_chatbots(),
 				PremiumFeature::BusinessBots,
-				true
 			},
 		},
 		{
@@ -146,7 +146,6 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chat_intro(),
 				tr::lng_business_about_chat_intro(),
 				PremiumFeature::ChatIntro,
-				true
 			},
 		},
 		{
@@ -156,7 +155,16 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chat_links(),
 				tr::lng_business_about_chat_links(),
 				PremiumFeature::ChatLinks,
-				true
+			},
+		},
+		{
+			u"folder_tags"_q,
+			Entry{
+				&st::settingsPremiumIconTags,
+				tr::lng_premium_summary_subtitle_filter_tags(),
+				tr::lng_premium_summary_about_filter_tags(),
+				PremiumFeature::FilterTags,
+				true,
 			},
 		},
 	};
@@ -402,6 +410,10 @@ void Business::setupContent() {
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
 	const auto showFeature = [=](PremiumFeature feature) {
+		if (feature == PremiumFeature::FilterTags) {
+			ShowPremiumPreviewToBuy(_controller, feature);
+			return;
+		}
 		showOther([&] {
 			switch (feature) {
 			case PremiumFeature::AwayMessage: return AwayMessageId();
@@ -437,6 +449,8 @@ void Business::setupContent() {
 			return owner->session().user()->isFullLoaded();
 		case PremiumFeature::ChatLinks:
 			return owner->session().api().chatLinks().loaded();
+		case PremiumFeature::FilterTags:
+			return true;
 		}
 		Unexpected("Feature in isReady.");
 	};
@@ -791,12 +805,14 @@ std::vector<PremiumFeature> BusinessFeaturesOrder(
 			return PremiumFeature::BusinessHours;
 		} else if (s == u"business_location"_q) {
 			return PremiumFeature::BusinessLocation;
-		} else if (s == u"business_bots"_q) {
-			return PremiumFeature::BusinessBots;
+		} else if (s == u"business_links"_q) {
+			return PremiumFeature::ChatLinks;
 		} else if (s == u"business_intro"_q) {
 			return PremiumFeature::ChatIntro;
-		} else if (s == "business_links"_q) {
-			return PremiumFeature::ChatLinks;
+		} else if (s == u"business_bots"_q) {
+			return PremiumFeature::BusinessBots;
+		} else if (s == u"folder_tags"_q) {
+			return PremiumFeature::FilterTags;
 		}
 		return PremiumFeature::kCount;
 	}) | ranges::views::filter([](PremiumFeature feature) {

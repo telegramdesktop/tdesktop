@@ -133,8 +133,6 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_business();
 	case PremiumFeature::Effects:
 		return tr::lng_premium_summary_subtitle_effects();
-	case PremiumFeature::FilterTags:
-		return tr::lng_premium_summary_subtitle_filter_tags();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_subtitle_location();
@@ -152,6 +150,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_subtitle_chat_intro();
 	case PremiumFeature::ChatLinks:
 		return tr::lng_business_subtitle_chat_links();
+	case PremiumFeature::FilterTags:
+		return tr::lng_premium_summary_subtitle_filter_tags();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -198,8 +198,6 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_business();
 	case PremiumFeature::Effects:
 		return tr::lng_premium_summary_about_effects();
-	case PremiumFeature::FilterTags:
-		return tr::lng_premium_summary_about_filter_tags();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_about_location();
@@ -217,6 +215,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_about_chat_intro();
 	case PremiumFeature::ChatLinks:
 		return tr::lng_business_about_chat_links();
+	case PremiumFeature::FilterTags:
+		return tr::lng_premium_summary_about_filter_tags();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -538,7 +538,6 @@ struct VideoPreviewDocument {
 		case PremiumFeature::LastSeen: return "last_seen";
 		case PremiumFeature::MessagePrivacy: return "message_privacy";
 		case PremiumFeature::Effects: return "effects";
-		case PremiumFeature::FilterTags: return "folder_tags";
 
 		case PremiumFeature::BusinessLocation: return "business_location";
 		case PremiumFeature::BusinessHours: return "business_hours";
@@ -548,6 +547,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::BusinessBots: return "business_bots";
 		case PremiumFeature::ChatIntro: return "business_intro";
 		case PremiumFeature::ChatLinks: return "business_links";
+		case PremiumFeature::FilterTags: return "folder_tags";
 		}
 		return "";
 	}();
@@ -1646,6 +1646,11 @@ void TelegramBusinessPreviewBox(
 			tr::lng_business_subtitle_chat_links,
 			tr::lng_business_about_chat_links,
 			st::settingsBusinessPromoChatLinks);
+			break;
+		case PremiumFeature::FilterTags: push(
+			tr::lng_premium_summary_subtitle_filter_tags,
+			tr::lng_premium_summary_about_filter_tags,
+			st::settingsPremiumIconTags);
 			break;
 		}
 	}
