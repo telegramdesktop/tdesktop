@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+
 class History;
 
 namespace Api {
@@ -17,11 +19,17 @@ struct SendAction;
 namespace Data {
 class Story;
 class Thread;
+struct SendError;
+struct SendErrorWithThread;
 } // namespace Data
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Ui {
+class BoxContent;
+} // namespace Ui
 
 struct PreparedServiceText {
 	TextWithEntities text;
@@ -108,12 +116,19 @@ struct SendingErrorRequest {
 	const TextWithTags *text = nullptr;
 	bool ignoreSlowmodeCountdown = false;
 };
-[[nodiscard]] QString GetErrorTextForSending(
+[[nodiscard]] Data::SendError GetErrorForSending(
 	not_null<PeerData*> peer,
 	SendingErrorRequest request);
-[[nodiscard]] QString GetErrorTextForSending(
+[[nodiscard]] Data::SendError GetErrorForSending(
 	not_null<Data::Thread*> thread,
 	SendingErrorRequest request);
+
+[[nodiscard]] Data::SendErrorWithThread GetErrorForSending(
+	const std::vector<not_null<Data::Thread*>> &threads,
+	SendingErrorRequest request);
+[[nodiscard]] object_ptr<Ui::BoxContent> MakeSendErrorBox(
+	const Data::SendErrorWithThread &error,
+	bool withTitle);
 
 [[nodiscard]] TextWithEntities DropDisallowedCustomEmoji(
 	not_null<PeerData*> to,

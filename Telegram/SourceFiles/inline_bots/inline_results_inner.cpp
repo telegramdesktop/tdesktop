@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -113,19 +114,35 @@ void Inner::checkRestrictedPeer() {
 		const auto error = Data::RestrictionError(
 			_inlineQueryPeer,
 			ChatRestriction::SendInline);
-		if (error) {
-			if (!_restrictedLabel) {
-				_restrictedLabel.create(this, *error, st::stickersRestrictedLabel);
-				_restrictedLabel->show();
-				_restrictedLabel->move(st::inlineResultsLeft - st::roundRadiusSmall, st::stickerPanPadding);
-				_restrictedLabel->resizeToNaturalWidth(width() - (st::inlineResultsLeft - st::roundRadiusSmall) * 2);
-				if (_switchPmButton) {
-					_switchPmButton->hide();
-				}
-				repaintItems();
-			}
+		const auto changed = (_restrictedLabelKey != error.text);
+		if (!changed) {
 			return;
 		}
+		_restrictedLabelKey = error.text;
+		if (error) {
+			const auto window = _controller;
+			const auto peer = _inlineQueryPeer;
+			_restrictedLabel.create(
+				this,
+				rpl::single(error.boostsToLift
+					? Ui::Text::Link(error.text)
+					: TextWithEntities{ error.text }),
+				st::stickersRestrictedLabel);
+			const auto lifting = error.boostsToLift;
+			_restrictedLabel->setClickHandlerFilter([=](auto...) {
+				window->resolveBoostState(peer->asChannel(), lifting);
+				return false;
+			});
+			_restrictedLabel->show();
+			updateRestrictedLabelGeometry();
+			if (_switchPmButton) {
+				_switchPmButton->hide();
+			}
+			repaintItems();
+			return;
+		}
+	} else {
+		_restrictedLabelKey = QString();
 	}
 	if (_restrictedLabel) {
 		_restrictedLabel.destroy();
@@ -134,6 +151,18 @@ void Inner::checkRestrictedPeer() {
 		}
 		repaintItems();
 	}
+}
+
+void Inner::updateRestrictedLabelGeometry() {
+	if (!_restrictedLabel) {
+		return;
+	}
+
+	auto labelWidth = width() - st::stickerPanPadding * 2;
+	_restrictedLabel->resizeToWidth(labelWidth);
+	_restrictedLabel->moveToLeft(
+		(width() - _restrictedLabel->width()) / 2,
+		st::stickerPanPadding);
 }
 
 bool Inner::isRestrictedView() {
@@ -177,6 +206,10 @@ rpl::producer<> Inner::inlineRowsCleared() const {
 }
 
 Inner::~Inner() = default;
+
+void Inner::resizeEvent(QResizeEvent *e) {
+	updateRestrictedLabelGeometry();
+}
 
 void Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);

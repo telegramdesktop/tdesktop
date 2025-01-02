@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_document.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_peer_values.h"
@@ -219,15 +220,15 @@ bool ReplyArea::send(
 		return false;
 	}
 
-	const auto error = GetErrorTextForSending(
+	const auto error = GetErrorForSending(
 		_data.peer,
 		{
 			.topicRootId = MsgId(0),
 			.text = &message.textWithTags,
 			.ignoreSlowmodeCountdown = (options.scheduled != 0),
 		});
-	if (!error.isEmpty()) {
-		_controller->uiShow()->showToast(error);
+	if (error) {
+		Data::ShowSendErrorToast(_controller->uiShow(), _data.peer, error);
 		return false;
 	}
 
@@ -262,7 +263,7 @@ bool ReplyArea::sendExistingDocument(
 		_data.peer,
 		ChatRestriction::SendStickers);
 	if (error) {
-		show->showToast(*error);
+		Data::ShowSendErrorToast(show, _data.peer, error);
 		return false;
 	} else if (showSlowmodeError()
 		|| Window::ShowSendPremiumError(show, document)) {
@@ -290,7 +291,7 @@ bool ReplyArea::sendExistingPhoto(
 		_data.peer,
 		ChatRestriction::SendPhotos);
 	if (error) {
-		show->showToast(*error);
+		Data::ShowSendErrorToast(show, _data.peer, error);
 		return false;
 	} else if (showSlowmodeError()) {
 		return false;
@@ -308,9 +309,9 @@ bool ReplyArea::sendExistingPhoto(
 void ReplyArea::sendInlineResult(
 		not_null<InlineBots::Result*> result,
 		not_null<UserData*> bot) {
-	const auto errorText = result->getErrorOnSend(history());
-	if (!errorText.isEmpty()) {
-		_controller->uiShow()->showToast(errorText);
+	if (const auto error = result->getErrorOnSend(history())) {
+		const auto show = _controller->uiShow();
+		Data::ShowSendErrorToast(show, history()->peer, error);
 		return;
 	}
 	sendInlineResult(result, bot, {}, std::nullopt);
@@ -363,11 +364,11 @@ bool ReplyArea::showSendingFilesError(
 bool ReplyArea::showSendingFilesError(
 		const Ui::PreparedList &list,
 		std::optional<bool> compress) const {
-	const auto text = [&] {
+	const auto error = [&]() -> Data::SendError {
 		const auto peer = _data.peer;
 		const auto error = Data::FileRestrictionError(peer, list, compress);
 		if (error) {
-			return *error;
+			return error;
 		}
 		using Error = Ui::PreparedList::Error;
 		switch (list.error) {
@@ -382,9 +383,9 @@ bool ReplyArea::showSendingFilesError(
 		}
 		return tr::lng_forward_send_files_cant(tr::now);
 	}();
-	if (text.isEmpty()) {
+	if (!error) {
 		return false;
-	} else if (text == u"(toolarge)"_q) {
+	} else if (error.text == u"(toolarge)"_q) {
 		const auto fileSize = list.files.back().size;
 		_controller->uiShow()->showBox(Box(
 			FileSizeLimitBox,
@@ -394,7 +395,7 @@ bool ReplyArea::showSendingFilesError(
 		return true;
 	}
 
-	_controller->uiShow()->showToast(text);
+	Data::ShowSendErrorToast(_controller->uiShow(), _data.peer, error);
 	return true;
 }
 
@@ -422,7 +423,7 @@ void ReplyArea::chooseAttach(
 	}
 	const auto peer = not_null(_data.peer);
 	if (const auto error = Data::AnyFileRestrictionError(peer)) {
-		_controller->uiShow()->showToast(*error);
+		Data::ShowSendErrorToast(_controller->uiShow(), peer, error);
 		return;
 	} else if (showSlowmodeError()) {
 		return;

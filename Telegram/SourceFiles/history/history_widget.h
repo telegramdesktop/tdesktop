@@ -29,6 +29,7 @@ class Error;
 
 namespace Data {
 class PhotoMedia;
+struct SendError;
 } // namespace Data
 
 namespace SendMenu {
@@ -579,7 +580,7 @@ private:
 	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 
 	void updateSendRestriction();
-	[[nodiscard]] QString computeSendRestriction() const;
+	[[nodiscard]] Data::SendError computeSendRestriction() const;
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
 	void startItemRevealAnimations();

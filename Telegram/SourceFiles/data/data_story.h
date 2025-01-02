@@ -24,6 +24,7 @@ namespace Data {
 class Session;
 class Thread;
 class MediaPreload;
+struct SendError;
 
 enum class StoryPrivacy : uchar {
 	Public,
@@ -191,7 +192,7 @@ public:
 	[[nodiscard]] bool canReport() const;
 
 	[[nodiscard]] bool hasDirectLink() const;
-	[[nodiscard]] std::optional<QString> errorTextForForward(
+	[[nodiscard]] Data::SendError errorTextForForward(
 		not_null<Thread*> to) const;
 
 	void setCaption(TextWithEntities &&caption);

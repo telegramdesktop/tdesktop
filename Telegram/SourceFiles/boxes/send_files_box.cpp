@@ -220,7 +220,7 @@ SendFilesCheck DefaultCheckForPeer(
 }
 
 SendFilesCheck DefaultCheckForPeer(
-		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer) {
 	return [=](
 			const Ui::PreparedFile &file,
@@ -228,7 +228,7 @@ SendFilesCheck DefaultCheckForPeer(
 			bool silent) {
 		const auto error = Data::FileRestrictionError(peer, file, compress);
 		if (error && !silent) {
-			show->showToast(*error);
+			Data::ShowSendErrorToast(show, peer, error);
 		}
 		return !error.has_value();
 	};

@@ -20,6 +20,7 @@ struct HistoryItemCommonFields;
 
 namespace Data {
 class LocationPoint;
+struct SendError;
 } // namespace Data
 
 namespace InlineBots {
@@ -69,7 +70,8 @@ public:
 	[[nodiscard]] not_null<HistoryItem*> makeMessage(
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const;
-	QString getErrorOnSend(not_null<History*> history) const;
+	[[nodiscard]] Data::SendError getErrorOnSend(
+		not_null<History*> history) const;
 
 	// interface for Layout:: usage
 	std::optional<Data::LocationPoint> getLocationPoint() const;

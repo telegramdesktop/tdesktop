@@ -253,7 +253,9 @@ public:
 		Dialogs::Key inChat,
 		PeerData *searchFrom = nullptr);
 
-	void resolveBoostState(not_null<ChannelData*> channel);
+	void resolveBoostState(
+		not_null<ChannelData*> channel,
+		int boostsToLift = 0);
 
 	void resolveCollectible(
 		PeerId ownerId,
@@ -319,6 +321,7 @@ private:
 	mtpRequestId _showingRepliesRequestId = 0;
 
 	ChannelData *_boostStateResolving = nullptr;
+	int _boostsToLift = 0;
 
 	QString _collectibleEntity;
 	mtpRequestId _collectibleRequestId = 0;

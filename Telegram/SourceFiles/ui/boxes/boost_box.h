@@ -48,6 +48,7 @@ struct BoostBoxData {
 	QString name;
 	BoostCounters boost;
 	BoostFeatures features;
+	int lifting = 0;
 	bool allowMulti = false;
 	bool group = false;
 };

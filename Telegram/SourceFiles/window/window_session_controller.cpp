@@ -764,7 +764,10 @@ void SessionNavigation::showPeerByLinkResolved(
 	}
 }
 
-void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
+void SessionNavigation::resolveBoostState(
+		not_null<ChannelData*> channel,
+		int boostsToLift) {
+	_boostsToLift = boostsToLift;
 	if (_boostStateResolving == channel) {
 		return;
 	}
@@ -772,18 +775,33 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 	_api.request(MTPpremium_GetBoostsStatus(
 		channel->input
 	)).done([=](const MTPpremium_BoostsStatus &result) {
-		_boostStateResolving = nullptr;
+		if (base::take(_boostStateResolving) != channel) {
+			return;
+		}
+		const auto boosted = std::make_shared<bool>();
 		channel->updateLevelHint(result.data().vlevel().v);
 		const auto submit = [=](Fn<void(Ui::BoostCounters)> done) {
-			applyBoost(channel, done);
+			applyBoost(channel, [=](Ui::BoostCounters counters) {
+				*boosted = true;
+				done(counters);
+			});
 		};
-		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
+		const auto lifting = base::take(_boostsToLift);
+		const auto box = uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
 			.name = channel->name(),
 			.boost = ParseBoostCounters(result),
 			.features = LookupBoostFeatures(channel),
+			.lifting = lifting,
 			.allowMulti = (BoostsForGift(_session) > 0),
 			.group = channel->isMegagroup(),
 		}, submit));
+		if (lifting) {
+			box->boxClosing() | rpl::start_with_next([=] {
+				if (*boosted) {
+					channel->updateFullForced();
+				}
+			}, box->lifetime());
+		}
 	}).fail([=](const MTP::Error &error) {
 		_boostStateResolving = nullptr;
 		showToast(u"Error: "_q + error.type());

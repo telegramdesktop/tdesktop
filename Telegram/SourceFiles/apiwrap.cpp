@@ -3267,13 +3267,13 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 	const auto topicRootId = action.replyTo.topicRootId;
 	auto toForward = history->resolveForwardDraft(topicRootId);
 	if (!toForward.items.empty()) {
-		const auto error = GetErrorTextForSending(
+		const auto error = GetErrorForSending(
 			history->peer,
 			{
 				.topicRootId = topicRootId,
 				.forward = &toForward.items,
 			});
-		if (!error.isEmpty()) {
+		if (error) {
 			return;
 		}
 

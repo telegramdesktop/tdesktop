@@ -185,7 +185,9 @@ std::optional<QString> RestrictionToSend(
 		not_null<Window::Controller*> controller,
 		ChatRestriction right) {
 	if (const auto peer = ActiveChat(controller).peer()) {
-		return Data::RestrictionError(peer, right);
+		if (const auto error = Data::RestrictionError(peer, right)) {
+			return *error;
+		}
 	}
 	return std::nullopt;
 }

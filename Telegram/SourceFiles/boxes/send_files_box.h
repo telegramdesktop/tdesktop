@@ -80,7 +80,7 @@ using SendFilesCheck = Fn<bool(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
 [[nodiscard]] SendFilesCheck DefaultCheckForPeer(
-	std::shared_ptr<Ui::Show> show,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer);
 
 using SendFilesConfirmed = Fn<void(

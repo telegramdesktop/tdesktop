@@ -68,6 +68,7 @@ struct SponsoredFrom;
 class Story;
 class SavedSublist;
 struct PaidReactionSend;
+struct SendError;
 } // namespace Data
 
 namespace Main {
@@ -442,7 +443,7 @@ public:
 	[[nodiscard]] bool suggestDeleteAllReport() const;
 	[[nodiscard]] ChatRestriction requiredSendRight() const;
 	[[nodiscard]] bool requiresSendInlineRight() const;
-	[[nodiscard]] std::optional<QString> errorTextForForward(
+	[[nodiscard]] Data::SendError errorTextForForward(
 		not_null<Data::Thread*> to) const;
 	[[nodiscard]] const HistoryMessageTranslation *translation() const;
 	[[nodiscard]] bool translationShowRequiresCheck(LanguageId to) const;

@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
+#include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -59,7 +60,7 @@ bool PeerCallKnown(not_null<PeerData*> peer) {
 
 } // namespace
 
-QString GetErrorTextForSending(
+Data::SendError GetErrorForSending(
 		not_null<PeerData*> peer,
 		SendingErrorRequest request) {
 	const auto forum = request.topicRootId ? peer->forum() : nullptr;
@@ -71,13 +72,13 @@ QString GetErrorTextForSending(
 		: peer->owner().history(peer);
 	if (request.story) {
 		if (const auto error = request.story->errorTextForForward(thread)) {
-			return *error;
+			return error;
 		}
 	}
 	if (request.forward) {
 		for (const auto &item : *request.forward) {
 			if (const auto error = item->errorTextForForward(thread)) {
-				return *error;
+				return error;
 			}
 		}
 	}
@@ -87,7 +88,7 @@ QString GetErrorTextForSending(
 			peer,
 			ChatRestriction::SendOther);
 		if (error) {
-			return *error;
+			return error;
 		} else if (!Data::CanSendTexts(thread)) {
 			return tr::lng_forward_cant(tr::now);
 		}
@@ -134,14 +135,58 @@ QString GetErrorTextForSending(
 		}
 	}
 
-	return QString();
+	return {};
 }
 
-QString GetErrorTextForSending(
+Data::SendError GetErrorForSending(
 		not_null<Data::Thread*> thread,
 		SendingErrorRequest request) {
 	request.topicRootId = thread->topicRootId();
-	return GetErrorTextForSending(thread->peer(), std::move(request));
+	return GetErrorForSending(thread->peer(), std::move(request));
+}
+
+Data::SendErrorWithThread GetErrorForSending(
+		const std::vector<not_null<Data::Thread*>> &threads,
+		SendingErrorRequest request) {
+	for (const auto thread : threads) {
+		const auto error = GetErrorForSending(thread, request);
+		if (error) {
+			return Data::SendErrorWithThread{ error, thread };
+		}
+	}
+	return {};
+}
+object_ptr<Ui::BoxContent> MakeSendErrorBox(
+		const Data::SendErrorWithThread &error,
+		bool withTitle) {
+	Expects(error.error.has_value() && error.thread != nullptr);
+
+	auto text = TextWithEntities();
+	if (withTitle) {
+		text.append(
+			Ui::Text::Bold(error.thread->chatListName())
+		).append("\n\n");
+	}
+	if (error.error.boostsToLift) {
+		text.append(Ui::Text::Link(error.error.text));
+	} else {
+		text.append(error.error.text);
+	}
+	const auto peer = error.thread->peer();
+	const auto lifting = error.error.boostsToLift;
+	const auto filter = [=](const auto &...) {
+		Expects(peer->isChannel());
+
+		const auto window = ChatHelpers::ResolveWindowDefault()(
+			&peer->session(),
+			ChatHelpers::WindowUsage::PremiumPromo);
+		window->resolveBoostState(peer->asChannel(), lifting);
+		return false;
+	};
+	return Ui::MakeInformBox({
+		.text = text,
+		.labelFilter = filter,
+	});
 }
 
 void RequestDependentMessageItem(

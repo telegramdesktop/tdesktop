@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
-#include "history/history_item_helpers.h" // GetErrorTextForSending.
+#include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -1492,27 +1492,14 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			return;
 		}
 
-		const auto error = [&] {
-			for (const auto thread : result) {
-				const auto error = GetErrorTextForSending(
-					thread,
-					{ .text = &comment });
-				if (!error.isEmpty()) {
-					return std::make_pair(error, thread);
-				}
-			}
-			return std::make_pair(QString(), result.front());
-		}();
-		if (!error.first.isEmpty()) {
-			auto text = TextWithEntities();
-			if (result.size() > 1) {
-				text.append(
-					Ui::Text::Bold(error.second->chatListName())
-				).append("\n\n");
-			}
-			text.append(error.first);
+		const auto errorWithThread = GetErrorForSending(
+			result,
+			{ .text = &comment });
+		if (errorWithThread.error) {
 			if (*box) {
-				(*box)->uiShow()->showBox(Ui::MakeInformBox(text));
+				(*box)->uiShow()->showBox(MakeSendErrorBox(
+					errorWithThread,
+					result.size() > 1));
 			}
 			return;
 		}

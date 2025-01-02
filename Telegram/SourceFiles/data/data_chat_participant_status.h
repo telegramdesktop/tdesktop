@@ -7,10 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Ui {
 struct PreparedList;
 struct PreparedFile;
 } // namespace Ui
+
+namespace Window {
+class SessionNavigation;
+} // namespace Window
 
 enum class ChatAdminRight {
 	ChangeInfo = (1 << 0),
@@ -175,18 +183,65 @@ struct RestrictionsSetOptions {
 	return CanSendAnyOf(peer, AllSendRestrictions(), forbidInForums);
 }
 
-[[nodiscard]] std::optional<QString> RestrictionError(
+struct SendError {
+	SendError(QString text = QString()) : text(std::move(text)) {
+	}
+
+	struct Args {
+		QString text;
+		int boostsToLift = 0;
+		bool premiumToLift = false;
+	};
+	SendError(Args &&args)
+	: text(std::move(args.text))
+	, boostsToLift(args.boostsToLift)
+	, premiumToLift(args.premiumToLift) {
+	}
+
+	QString text;
+	int boostsToLift = 0;
+	bool premiumToLift = false;
+
+	[[nodiscard]] SendError value_or(SendError other) const {
+		return *this ? *this : other;
+	}
+
+	explicit operator bool() const {
+		return !text.isEmpty();
+	}
+	[[nodiscard]] bool has_value() const {
+		return !text.isEmpty();
+	}
+	[[nodiscard]] const QString &operator*() const {
+		return text;
+	}
+};
+
+struct SendErrorWithThread {
+	SendError error;
+	Thread *thread = nullptr;
+};
+
+[[nodiscard]] SendError RestrictionError(
 	not_null<PeerData*> peer,
 	ChatRestriction restriction);
-[[nodiscard]] std::optional<QString> AnyFileRestrictionError(
-	not_null<PeerData*> peer);
-[[nodiscard]] std::optional<QString> FileRestrictionError(
+[[nodiscard]] SendError AnyFileRestrictionError(not_null<PeerData*> peer);
+[[nodiscard]] SendError FileRestrictionError(
 	not_null<PeerData*> peer,
 	const Ui::PreparedList &list,
 	std::optional<bool> compress);
-[[nodiscard]] std::optional<QString> FileRestrictionError(
+[[nodiscard]] SendError FileRestrictionError(
 	not_null<PeerData*> peer,
 	const Ui::PreparedFile &file,
 	std::optional<bool> compress);
+
+void ShowSendErrorToast(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	SendError error);
+void ShowSendErrorToast(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	SendError error);
 
 } // namespace Data

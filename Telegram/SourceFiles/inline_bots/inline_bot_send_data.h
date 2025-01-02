@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct HistoryItemCommonFields;
 
+namespace Data {
+struct SendError;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -44,7 +48,7 @@ public:
 		const Result *owner,
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const = 0;
-	virtual QString getErrorOnSend(
+	virtual Data::SendError getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const = 0;
 
@@ -80,7 +84,7 @@ public:
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const override;
 
-	QString getErrorOnSend(
+	Data::SendError getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const override;
 
@@ -241,7 +245,7 @@ public:
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const override;
 
-	QString getErrorOnSend(
+	Data::SendError getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const override;
 
@@ -275,7 +279,7 @@ public:
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const override;
 
-	QString getErrorOnSend(
+	Data::SendError getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const override;
 
@@ -303,7 +307,7 @@ public:
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields) const override;
 
-	QString getErrorOnSend(
+	Data::SendError getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const override;
 

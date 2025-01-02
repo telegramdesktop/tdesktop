@@ -394,13 +394,9 @@ not_null<HistoryItem*> Result::makeMessage(
 	return sendData->makeMessage(this, history, std::move(fields));
 }
 
-QString Result::getErrorOnSend(not_null<History*> history) const {
-	const auto specific = sendData->getErrorOnSend(this, history);
-	return !specific.isEmpty()
-		? specific
-		: Data::RestrictionError(
-			history->peer,
-			ChatRestriction::SendInline).value_or(QString());
+Data::SendError Result::getErrorOnSend(not_null<History*> history) const {
+	return sendData->getErrorOnSend(this, history).value_or(
+		Data::RestrictionError(history->peer, ChatRestriction::SendInline));
 }
 
 std::optional<Data::LocationPoint> Result::getLocationPoint() const {

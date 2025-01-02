@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/gifs_list_widget.h"
 #include "menu/menu_send.h"
 #include "ui/controls/tabbed_search.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
@@ -1042,23 +1043,39 @@ void TabbedSelector::checkRestrictedPeer() {
 				? Data::RestrictionError(
 					_currentPeer,
 					ChatRestriction::SendOther)
-				: std::nullopt)
-			: std::nullopt;
-		if (error) {
-			if (!_restrictedLabel) {
-				_restrictedLabel.create(
-					this,
-					*error,
-					st::stickersRestrictedLabel);
-				_restrictedLabel->show();
-				updateRestrictedLabelGeometry();
-				currentTab()->footer()->hide();
-				_scroll->hide();
-				_bottomShadow->hide();
-				update();
-			}
+				: Data::SendError())
+			: Data::SendError();
+		const auto changed = (_restrictedLabelKey != error.text);
+		if (!changed) {
 			return;
 		}
+		_restrictedLabelKey = error.text;
+		if (error) {
+			const auto show = _show;
+			const auto peer = _currentPeer;
+			_restrictedLabel.create(
+				this,
+				rpl::single(error.boostsToLift
+					? Ui::Text::Link(error.text)
+					: TextWithEntities{ error.text }),
+				st::stickersRestrictedLabel);
+			const auto lifting = error.boostsToLift;
+			_restrictedLabel->setClickHandlerFilter([=](auto...) {
+				const auto window = show->resolveWindow(
+					ChatHelpers::WindowUsage::PremiumPromo);
+				window->resolveBoostState(peer->asChannel(), lifting);
+				return false;
+			});
+			_restrictedLabel->show();
+			updateRestrictedLabelGeometry();
+			currentTab()->footer()->hide();
+			_scroll->hide();
+			_bottomShadow->hide();
+			update();
+			return;
+		}
+	} else {
+		_restrictedLabelKey = QString();
 	}
 	if (_restrictedLabel) {
 		_restrictedLabel.destroy();

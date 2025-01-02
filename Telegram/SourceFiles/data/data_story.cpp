@@ -423,7 +423,7 @@ bool Story::hasDirectLink() const {
 	return !_peer->username().isEmpty();
 }
 
-std::optional<QString> Story::errorTextForForward(
+Data::SendError Story::errorTextForForward(
 		not_null<Thread*> to) const {
 	const auto peer = to->peer();
 	const auto holdsPhoto = v::is<not_null<PhotoData*>>(_media.data);
@@ -433,10 +433,10 @@ std::optional<QString> Story::errorTextForForward(
 	const auto second = holdsPhoto
 		? ChatRestriction::SendVideos
 		: ChatRestriction::SendPhotos;
-	if (const auto error = Data::RestrictionError(peer, first)) {
-		return *error;
-	} else if (const auto error = Data::RestrictionError(peer, second)) {
-		return *error;
+	if (const auto one = Data::RestrictionError(peer, first)) {
+		return one;
+	} else if (const auto two = Data::RestrictionError(peer, second)) {
+		return two;
 	} else if (!Data::CanSend(to, first, false)
 		|| !Data::CanSend(to, second, false)) {
 		return tr::lng_forward_cant(tr::now);

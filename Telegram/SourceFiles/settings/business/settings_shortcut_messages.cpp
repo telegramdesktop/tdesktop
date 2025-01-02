@@ -1538,10 +1538,8 @@ void ShortcutMessages::sendInlineResult(
 		not_null<UserData*> bot) {
 	if (showPremiumRequired()) {
 		return;
-	}
-	const auto errorText = result->getErrorOnSend(_history);
-	if (!errorText.isEmpty()) {
-		_controller->showToast(errorText);
+	} else if (const auto error = result->getErrorOnSend(_history)) {
+		Data::ShowSendErrorToast(_controller, _history->peer, error);
 		return;
 	}
 	sendInlineResult(result, bot, {}, std::nullopt);

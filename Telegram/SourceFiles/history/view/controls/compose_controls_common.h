@@ -48,6 +48,7 @@ struct WriteRestriction {
 	QString text;
 	QString button;
 	Type type = Type::None;
+	int boostsToLift = false;
 
 	[[nodiscard]] bool empty() const {
 		return (type == Type::None);

@@ -325,8 +325,14 @@ void BoostBox(
 		return (counters.mine > 1) ? u"x%1"_q.arg(counters.mine) : u""_q;
 	});
 
+	const auto wasMine = state->data.current().mine;
+	const auto wasLifting = data.lifting;
 	auto text = state->data.value(
 	) | rpl::map([=](BoostCounters counters) {
+		const auto lifting = wasLifting
+			? (wasLifting
+				- std::clamp(counters.mine - wasMine, 0, wasLifting - 1))
+			: 0;
 		const auto bold = Ui::Text::Bold(name);
 		const auto now = counters.boosts;
 		const auto full = !counters.nextLevelBoosts;
@@ -337,7 +343,14 @@ void BoostBox(
 			lt_count,
 			rpl::single(float64(counters.level + (left ? 1 : 0))),
 			Ui::Text::RichLangValue);
-		return (counters.mine || full)
+		return (lifting > 1)
+			? tr::lng_boost_group_lift_restrictions_many(
+				lt_count,
+				rpl::single(float64(lifting)),
+				Ui::Text::RichLangValue)
+			: lifting
+			? tr::lng_boost_group_lift_restrictions(Ui::Text::RichLangValue)
+			: (counters.mine || full)
 			? (left
 				? tr::lng_boost_channel_needs_unlock(
 					lt_count,
@@ -365,6 +378,14 @@ void BoostBox(
 				rpl::single(bold),
 				Ui::Text::RichLangValue);
 	}) | rpl::flatten_latest();
+	if (wasLifting) {
+		state->data.value(
+		) | rpl::start_with_next([=](BoostCounters counters) {
+			if (counters.mine - wasMine >= wasLifting) {
+				box->closeBox();
+			}
+		}, box->lifetime());
+	}
 
 	auto faded = object_ptr<Ui::FadeWrap<>>(
 		close->parentWidget(),

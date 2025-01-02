@@ -42,11 +42,11 @@ not_null<HistoryItem*> SendDataCommon::makeMessage(
 		std::move(distinct.media));
 }
 
-QString SendDataCommon::getErrorOnSend(
+Data::SendError SendDataCommon::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	const auto type = ChatRestriction::SendOther;
-	return Data::RestrictionError(history->peer, type).value_or(QString());
+	return Data::RestrictionError(history->peer, type);
 }
 
 SendDataCommon::SentMessageFields SendText::getSentMessageFields() const {
@@ -106,11 +106,11 @@ not_null<HistoryItem*> SendPhoto::makeMessage(
 		TextWithEntities{ _message, _entities });
 }
 
-QString SendPhoto::getErrorOnSend(
+Data::SendError SendPhoto::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	const auto type = ChatRestriction::SendPhotos;
-	return Data::RestrictionError(history->peer, type).value_or(QString());
+	return Data::RestrictionError(history->peer, type);
 }
 
 not_null<HistoryItem*> SendFile::makeMessage(
@@ -123,11 +123,11 @@ not_null<HistoryItem*> SendFile::makeMessage(
 		TextWithEntities{ _message, _entities });
 }
 
-QString SendFile::getErrorOnSend(
+Data::SendError SendFile::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	const auto type = _document->requiredSendRight();
-	return Data::RestrictionError(history->peer, type).value_or(QString());
+	return Data::RestrictionError(history->peer, type);
 }
 
 not_null<HistoryItem*> SendGame::makeMessage(
@@ -137,11 +137,11 @@ not_null<HistoryItem*> SendGame::makeMessage(
 	return history->makeMessage(std::move(fields), _game);
 }
 
-QString SendGame::getErrorOnSend(
+Data::SendError SendGame::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	const auto type = ChatRestriction::SendGames;
-	return Data::RestrictionError(history->peer, type).value_or(QString());
+	return Data::RestrictionError(history->peer, type);
 }
 
 SendDataCommon::SentMessageFields SendInvoice::getSentMessageFields() const {
