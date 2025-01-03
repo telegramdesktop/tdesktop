@@ -745,9 +745,7 @@ void Cover::refreshNameGeometry(int newWidth) {
 	_verify->move(nameLeft - margins.left(), badgeTop, badgeBottom);
 	if (const auto widget = _verify->widget()) {
 		const auto skip = widget->width()
-			+ st::infoVerifiedCheckPosition.x()
-			- margins.left()
-			- margins.right();
+			+ st::infoVerifiedCheckPosition.x();
 		nameLeft += skip;
 		nameWidth -= skip;
 	}

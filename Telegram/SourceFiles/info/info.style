@@ -440,7 +440,7 @@ infoPeerBadge: InfoPeerBadge {
 	premium: infoPremiumStar;
 	premiumFg: profileVerifiedCheckBg;
 	position: infoVerifiedCheckPosition;
-	sizeTag: 1; // Large
+	sizeTag: 0; // Large
 }
 
 infoIconFg: windowBoldFg;
