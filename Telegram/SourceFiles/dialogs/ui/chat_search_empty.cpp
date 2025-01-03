@@ -62,6 +62,13 @@ void SearchEmpty::setup(Icon icon, rpl::producer<TextWithEntities> text) {
 		label->move((size.width() - label->width()) / 2, top - sub);
 	}, lifetime());
 
+	label->setClickHandlerFilter([=](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton) {
+		_handlerActivated.fire_copy(handler);
+		return false;
+	});
+
 	_animate = [animate] {
 		animate(anim::repeat::once);
 	};

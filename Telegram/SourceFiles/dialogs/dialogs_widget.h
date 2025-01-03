@@ -381,6 +381,7 @@ private:
 	PeerData *_searchQueryFrom = nullptr;
 	std::vector<Data::ReactionId> _searchQueryTags;
 	ChatSearchTab _searchQueryTab = {};
+	ChatTypeFilter _searchQueryFilter = {};
 
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;

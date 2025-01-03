@@ -4146,6 +4146,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_search_messages_from" = "Show messages from";
 "lng_search_messages_n_of_amount" = "{n} of {amount}";
 "lng_search_messages_none" = "No results";
+"lng_search_filter_all" = "All chats";
+"lng_search_filter_private" = "Private chats";
+"lng_search_filter_group" = "Group chats";
+"lng_search_filter_channel" = "Channels";
 
 "lng_media_save_progress" = "{ready} of {total} {mb}";
 "lng_mediaview_save_as" = "Save As...";
@@ -5998,6 +6002,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_search_tab_no_results_text" = "There were no results for \"{query}\".";
 "lng_search_tab_no_results_retry" = "Try another hashtag.";
 "lng_search_tab_by_hashtag" = "Enter a hashtag to find messages containing it.";
+"lng_search_tab_try_in_all" = "Search in All Messages";
 
 "lng_contact_details_button" = "View Contact";
 "lng_contact_details_title" = "Contact details";

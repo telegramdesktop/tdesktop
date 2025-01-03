@@ -29,10 +29,15 @@ public:
 
 	void animate();
 
+	[[nodiscard]] rpl::producer<ClickHandlerPtr> handlerActivated() const {
+		return _handlerActivated.events();
+	}
+
 private:
 	void setup(Icon icon, rpl::producer<TextWithEntities> text);
 
 	Fn<void()> _animate;
+	rpl::event_stream<ClickHandlerPtr> _handlerActivated;
 
 };
 

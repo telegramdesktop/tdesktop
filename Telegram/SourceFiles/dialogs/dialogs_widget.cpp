@@ -453,6 +453,15 @@ Widget::Widget(
 		copy.tab = tab;
 		applySearchState(std::move(copy));
 	}, lifetime());
+	_inner->changeSearchFilterRequests(
+	) | rpl::filter([=](ChatTypeFilter filter) {
+		return (_searchState.filter != filter)
+			&& (_searchState.tab == ChatSearchTab::MyMessages);
+	}) | rpl::start_with_next([=](ChatTypeFilter filter) {
+		auto copy = _searchState;
+		copy.filter = filter;
+		applySearchState(copy);
+	}, lifetime());
 	_inner->cancelSearchRequests(
 	) | rpl::start_with_next([=] {
 		cancelSearch({
@@ -2201,6 +2210,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 	const auto fromPeer = searchFromPeer();
 	const auto &inTags = searchInTags();
 	const auto tab = _searchState.tab;
+	const auto filter = _searchState.filter;
 	const auto fromStartType = SearchRequestType{
 		.start = true,
 		.peer = (inPeer != nullptr),
@@ -2232,6 +2242,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			_searchQueryFrom = fromPeer;
 			_searchQueryTags = inTags;
 			_searchQueryTab = tab;
+			_searchQueryFilter = filter;
 			process->nextRate = 0;
 			process->full = false;
 			_migratedProcess.full = false;
@@ -2242,12 +2253,14 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 	} else if (_searchQuery != query
 		|| _searchQueryFrom != fromPeer
 		|| _searchQueryTags != inTags
-		|| _searchQueryTab != tab) {
+		|| _searchQueryTab != tab
+		|| _searchQueryFilter != filter) {
 		const auto process = currentSearchProcess();
 		_searchQuery = query;
 		_searchQueryFrom = fromPeer;
 		_searchQueryTags = inTags;
 		_searchQueryTab = tab;
+		_searchQueryFilter = filter;
 		process->nextRate = 0;
 		process->full = false;
 		_migratedProcess.full = false;
@@ -2326,7 +2339,6 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				_peerSearchQuery = peerQuery;
 				_peerSearchRequest = 0;
 				peerSearchReceived(i->second, 0);
-				result = true;
 			}
 		} else if (_peerSearchQuery != peerQuery) {
 			_peerSearchQuery = peerQuery;
@@ -2598,9 +2610,18 @@ void Widget::requestMessages(bool fromStart) {
 	const auto type = SearchRequestType{
 		.start = fromStart,
 	};
-	const auto flags = session().settings().skipArchiveInSearch()
-		? MTPmessages_SearchGlobal::Flag::f_folder_id
-		: MTPmessages_SearchGlobal::Flag(0);
+	using Flag = MTPmessages_SearchGlobal::Flag;
+	const auto flags = Flag()
+		| (session().settings().skipArchiveInSearch()
+			? Flag::f_folder_id
+			: Flag())
+		| (_searchQueryFilter == ChatTypeFilter::Private
+			? Flag::f_users_only
+			: _searchQueryFilter == ChatTypeFilter::Groups
+			? Flag::f_groups_only
+			: _searchQueryFilter == ChatTypeFilter::Channels
+			? Flag::f_broadcasts_only
+			: Flag());
 	const auto folderId = 0;
 	_searchProcess.requestId = session().api().request(
 		MTPmessages_SearchGlobal(
@@ -3184,6 +3205,10 @@ bool Widget::applySearchState(SearchState state) {
 	const auto queryEmptyChanged = queryChanged
 		? (_searchState.query.isEmpty() != state.query.isEmpty())
 		: false;
+	if (queryEmptyChanged || tabChanged) {
+		state.filter = ChatTypeFilter::All;
+	}
+	const auto filterChanged = (_searchState.filter != state.filter);
 
 	if (forum) {
 		if (_openedForum == forum) {
@@ -3245,6 +3270,7 @@ bool Widget::applySearchState(SearchState state) {
 	if (searchCleared
 		|| inChatChanged
 		|| fromPeerChanged
+		|| filterChanged
 		|| tagsChanged
 		|| tabChanged) {
 		clearSearchCache(searchCleared);
