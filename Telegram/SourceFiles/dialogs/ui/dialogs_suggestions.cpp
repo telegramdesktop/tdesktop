@@ -12,11 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "boxes/peer_list_box.h"
+#include "core/application.h"
 #include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_download_manager.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
@@ -1305,18 +1307,7 @@ Suggestions::Suggestions(
 , _tabs(
 	_tabsScroll->setOwnedWidget(
 		object_ptr<Ui::SettingsSlider>(this, st::dialogsSearchTabs)))
-, _tabKeys{
-	{ Tab::Chats },
-	{ Tab::Channels },
-	{ Tab::Apps },
-	{ Tab::Media, MediaType::Photo },
-	{ Tab::Media, MediaType::Video },
-	{ Tab::Downloads },
-	{ Tab::Media, MediaType::Link },
-	{ Tab::Media, MediaType::File },
-	{ Tab::Media, MediaType::MusicFile },
-	{ Tab::Media, MediaType::RoundVoiceFile },
-}
+, _tabKeys(TabKeysFor(controller))
 , _chatsScroll(std::make_unique<Ui::ElasticScroll>(this))
 , _chatsContent(
 	_chatsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
@@ -1985,6 +1976,26 @@ void Suggestions::finishShow() {
 
 float64 Suggestions::shownOpacity() const {
 	return _shownAnimation.value(_hidden ? 0. : 1.);
+}
+
+std::vector<Suggestions::Key> Suggestions::TabKeysFor(
+		not_null<Window::SessionController*> controller) {
+	auto result = std::vector<Key>{
+		{ Tab::Chats },
+		{ Tab::Channels },
+		{ Tab::Apps },
+		{ Tab::Media, MediaType::Photo },
+		{ Tab::Media, MediaType::Video },
+		{ Tab::Downloads },
+		{ Tab::Media, MediaType::Link },
+		{ Tab::Media, MediaType::File },
+		{ Tab::Media, MediaType::MusicFile },
+		{ Tab::Media, MediaType::RoundVoiceFile },
+	};
+	if (Core::App().downloadManager().empty()) {
+		result.erase(ranges::find(result, Key{ Tab::Downloads }));
+	}
+	return result;
 }
 
 void Suggestions::paintEvent(QPaintEvent *e) {

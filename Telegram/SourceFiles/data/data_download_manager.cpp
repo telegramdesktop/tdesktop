@@ -124,6 +124,15 @@ DownloadManager::DownloadManager()
 
 DownloadManager::~DownloadManager() = default;
 
+bool DownloadManager::empty() const {
+	for (const auto &[session, data] : _sessions) {
+		if (!data.downloading.empty() || !data.downloaded.empty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	auto &data = _sessions.emplace(session, SessionData()).first->second;
 	data.downloaded = deserialize(session);
