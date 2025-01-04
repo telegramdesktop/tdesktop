@@ -4277,6 +4277,11 @@ void ListWidget::overrideIsChatWide(bool isWide) {
 ListWidget::~ListWidget() {
 	// Destroy child widgets first, because they may invoke leaveEvent-s.
 	_emptyInfo = nullptr;
+	if (const auto raw = _menu.release()) {
+		crl::on_main(raw, [=] {
+			delete raw;
+		});
+	}
 }
 
 void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
