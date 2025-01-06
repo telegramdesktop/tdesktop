@@ -476,33 +476,6 @@ void CreateGiveawayBox(
 		if (state->apiCreditsOptions.options().empty()) {
 			return;
 		}
-		static constexpr auto kOutdated = 1735689600;
-
-		auto badge = [&] {
-			if (base::unixtime::now() > kOutdated) {
-				return QImage();
-			}
-			const auto badge = Ui::CreateChild<Ui::PaddingWrap<>>(
-				creditsTypeWrap,
-				object_ptr<Ui::FlatLabel>(
-					creditsTypeWrap,
-					tr::lng_premium_summary_new_badge(tr::now),
-					st::settingsPremiumNewBadge),
-				st::settingsPremiumNewBadgePadding);
-			badge->setAttribute(Qt::WA_TransparentForMouseEvents);
-			badge->paintRequest() | rpl::start_with_next([=] {
-				auto p = QPainter(badge);
-				auto hq = PainterHighQualityEnabler(p);
-				p.setPen(Qt::NoPen);
-				p.setBrush(st::windowBgActive);
-				const auto r = st::settingsPremiumNewBadgePadding.left();
-				p.drawRoundedRect(badge->rect(), r, r);
-			}, badge->lifetime());
-			badge->show();
-			auto result = Ui::GrabWidget(badge).toImage();
-			badge->hide();
-			return result;
-		}();
 
 		const auto row = creditsTypeWrap->add(
 			object_ptr<Giveaway::GiveawayTypeRow>(
@@ -511,7 +484,7 @@ void CreateGiveawayBox(
 				st::colorIndexOrange,
 				tr::lng_credits_summary_title(),
 				tr::lng_giveaway_create_subtitle(),
-				std::move(badge)));
+				QImage()));
 		row->addRadio(typeGroup);
 		row->setClickedCallback([=] {
 			state->typeValue.force_assign(GiveawayType::Credits);
