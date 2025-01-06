@@ -1858,7 +1858,7 @@ void HistoryWidget::fileChosen(ChatHelpers::FileChosen &&data) {
 		} else if (!_field->isHidden()) {
 			Data::InsertCustomEmoji(_field.data(), data.document);
 		}
-	} else {
+	} else if (_history) {
 		controller()->sendingAnimation().appendSending(
 			data.messageSendingFrom);
 		const auto localId = data.messageSendingFrom.localId;
