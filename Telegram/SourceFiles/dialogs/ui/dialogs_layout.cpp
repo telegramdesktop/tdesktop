@@ -729,39 +729,41 @@ void PaintRow(
 			: context.selected
 			? st::dialogsNameFgOver
 			: st::dialogsNameFg);
-		p.drawTextLeft(rectForName.left(), rectForName.top(), context.width, text);
+		p.drawTextLeft(
+			rectForName.left(),
+			rectForName.top(),
+			context.width,
+			text);
 	} else if (from) {
 		if ((history || sublist) && !context.search) {
-			const auto badgeWidth = rowBadge.drawGetWidth(
-				p,
-				rectForName,
-				rowName.maxWidth(),
-				context.width,
-				{
-					.peer = from,
-					.verified = (context.active
-						? &st::dialogsVerifiedIconActive
-						: context.selected
-						? &st::dialogsVerifiedIconOver
-						: &st::dialogsVerifiedIcon),
-					.premium = &ThreeStateIcon(
-						st::dialogsPremiumIcon,
-						context.active,
-						context.selected),
-					.scam = (context.active
-						? &st::dialogsScamFgActive
-						: context.selected
-						? &st::dialogsScamFgOver
-						: &st::dialogsScamFg),
-					.premiumFg = (context.active
-						? &st::dialogsVerifiedIconBgActive
-						: context.selected
-						? &st::dialogsVerifiedIconBgOver
-						: &st::dialogsVerifiedIconBg),
-					.customEmojiRepaint = customEmojiRepaint,
-					.now = context.now,
-					.paused = context.paused,
-				});
+			const auto badgeWidth = rowBadge.drawGetWidth(p, {
+				.peer = from,
+				.rectForName = rectForName,
+				.nameWidth = rowName.maxWidth(),
+				.outerWidth = context.width,
+				.verified = (context.active
+					? &st::dialogsVerifiedIconActive
+					: context.selected
+					? &st::dialogsVerifiedIconOver
+					: &st::dialogsVerifiedIcon),
+				.premium = &ThreeStateIcon(
+					st::dialogsPremiumIcon,
+					context.active,
+					context.selected),
+				.scam = (context.active
+					? &st::dialogsScamFgActive
+					: context.selected
+					? &st::dialogsScamFgOver
+					: &st::dialogsScamFg),
+				.premiumFg = (context.active
+					? &st::dialogsVerifiedIconBgActive
+					: context.selected
+					? &st::dialogsVerifiedIconBgOver
+					: &st::dialogsVerifiedIconBg),
+				.customEmojiRepaint = customEmojiRepaint,
+				.now = context.now,
+				.paused = context.paused,
+			});
 			rectForName.setWidth(rectForName.width() - badgeWidth);
 		}
 		p.setPen(context.active

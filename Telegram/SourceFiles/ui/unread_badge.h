@@ -52,20 +52,20 @@ public:
 
 	struct Descriptor {
 		not_null<PeerData*> peer;
+		QRect rectForName;
+		int nameWidth = 0;
+		int outerWidth = 0;
 		const style::icon *verified = nullptr;
 		const style::icon *premium = nullptr;
 		const style::color *scam = nullptr;
 		const style::color *premiumFg = nullptr;
 		Fn<void()> customEmojiRepaint;
 		crl::time now = 0;
+		bool prioritizeVerification = false;
+		bool bothVerifyAndStatus = false;
 		bool paused = false;
 	};
-	int drawGetWidth(
-		Painter &p,
-		QRect rectForName,
-		int nameWidth,
-		int outerWidth,
-		const Descriptor &descriptor);
+	int drawGetWidth(Painter &p, Descriptor &&descriptor);
 	void unload();
 
 	[[nodiscard]] bool ready(const BotVerifyDetails *details) const;
@@ -83,6 +83,11 @@ public:
 private:
 	struct EmojiStatus;
 	struct BotVerifiedData;
+
+	int drawScamOrFake(Painter &p, const Descriptor &descriptor);
+	int drawVerifyCheck(Painter &p, const Descriptor &descriptor);
+	int drawPremiumEmojiStatus(Painter &p, const Descriptor &descriptor);
+	int drawPremiumStar(Painter &p, const Descriptor &descriptor);
 
 	std::unique_ptr<EmojiStatus> _emojiStatus;
 	mutable std::unique_ptr<BotVerifiedData> _botVerifiedData;

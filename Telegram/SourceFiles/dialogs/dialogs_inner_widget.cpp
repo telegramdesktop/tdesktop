@@ -1447,36 +1447,35 @@ void InnerWidget::paintPeerSearchResult(
 			+ chatTypeIcon->width()
 			+ st::dialogsChatTypeSkip);
 	}
-	const auto badgeWidth = result->badge.drawGetWidth(
-		p,
-		rectForName,
-		result->name.maxWidth(),
-		context.width,
-		{
-			.peer = peer,
-			.verified = (context.active
-				? &st::dialogsVerifiedIconActive
-				: context.selected
-				? &st::dialogsVerifiedIconOver
-				: &st::dialogsVerifiedIcon),
-			.premium = &ThreeStateIcon(
-				st::dialogsPremiumIcon,
-				context.active,
-				context.selected),
-			.scam = (context.active
-				? &st::dialogsScamFgActive
-				: context.selected
-				? &st::dialogsScamFgOver
-				: &st::dialogsScamFg),
-			.premiumFg = (context.active
-				? &st::dialogsVerifiedIconBgActive
-				: context.selected
-				? &st::dialogsVerifiedIconBgOver
-				: &st::dialogsVerifiedIconBg),
-			.customEmojiRepaint = [=] { updateSearchResult(peer); },
-			.now = context.now,
-			.paused = context.paused,
-		});
+	const auto badgeWidth = result->badge.drawGetWidth(p, {
+		.peer = peer,
+		.rectForName = rectForName,
+		.nameWidth = result->name.maxWidth(),
+		.outerWidth = context.width,
+		.verified = (context.active
+			? &st::dialogsVerifiedIconActive
+			: context.selected
+			? &st::dialogsVerifiedIconOver
+			: &st::dialogsVerifiedIcon),
+		.premium = &ThreeStateIcon(
+			st::dialogsPremiumIcon,
+			context.active,
+			context.selected),
+		.scam = (context.active
+			? &st::dialogsScamFgActive
+			: context.selected
+			? &st::dialogsScamFgOver
+			: &st::dialogsScamFg),
+		.premiumFg = (context.active
+			? &st::dialogsVerifiedIconBgActive
+			: context.selected
+			? &st::dialogsVerifiedIconBgOver
+			: &st::dialogsVerifiedIconBg),
+		.customEmojiRepaint = [=] { updateSearchResult(peer); },
+		.now = context.now,
+		.prioritizeVerification = true,
+		.paused = context.paused,
+	});
 	rectForName.setWidth(rectForName.width() - badgeWidth);
 
 	QRect tr(context.st->textLeft, context.st->textTop, namewidth, st::dialogsTextFont->height);

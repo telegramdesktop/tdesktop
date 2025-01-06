@@ -39,6 +39,11 @@ namespace {
 	});
 }
 
+[[nodiscard]] bool HasPremiumClick(const Badge::Content &content) {
+	return content.badge == BadgeType::Premium
+		|| (content.badge == BadgeType::Verified && content.emojiStatusId);
+}
+
 } // namespace
 
 Badge::Badge(
@@ -114,6 +119,15 @@ void Badge::setContent(Content content) {
 	case BadgeType::Verified:
 	case BadgeType::Premium: {
 		const auto id = _content.emojiStatusId;
+		const auto emoji = id
+			? (Data::FrameSizeFromTag(sizeTag())
+				/ style::DevicePixelRatio())
+			: 0;
+		const auto icon = (_content.badge == BadgeType::Verified)
+			? &_st.verified
+			: id
+			? nullptr
+			: &_st.premium;
 		if (id) {
 			_emojiStatus = _session->data().customEmojiManager().create(
 				id,
@@ -121,14 +135,16 @@ void Badge::setContent(Content content) {
 				sizeTag());
 			if (_customStatusLoopsLimit > 0) {
 				_emojiStatus = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
-						std::move(_emojiStatus),
-						_customStatusLoopsLimit);
+					std::move(_emojiStatus),
+					_customStatusLoopsLimit);
 			}
-			const auto emoji = Data::FrameSizeFromTag(sizeTag())
-				/ style::DevicePixelRatio();
-			_view->resize(emoji, emoji);
-			_view->paintRequest(
-			) | rpl::start_with_next([=, check = _view.data()]{
+		}
+		const auto width = emoji + (icon ? icon->width() : 0);
+		const auto height = std::max(emoji, icon ? icon->height() : 0);
+		_view->resize(width, height);
+		_view->paintRequest(
+		) | rpl::start_with_next([=, check = _view.data()]{
+			if (_emojiStatus) {
 				auto args = Ui::Text::CustomEmoji::Context{
 					.textColor = _st.premiumFg->c,
 					.now = crl::now(),
@@ -140,18 +156,12 @@ void Badge::setContent(Content content) {
 					Painter p(check);
 					_emojiStatus->paint(p, args);
 				}
-			}, _view->lifetime());
-		} else {
-			const auto icon = (_content.badge == BadgeType::Verified)
-				? &_st.verified
-				: &_st.premium;
-			_view->resize(icon->size());
-			_view->paintRequest(
-			) | rpl::start_with_next([=, check = _view.data()]{
+			}
+			if (icon) {
 				Painter p(check);
-				icon->paint(p, 0, 0, check->width());
-			}, _view->lifetime());
-		}
+				icon->paint(p, emoji, 0, check->width());
+			}
+		}, _view->lifetime());
 	} break;
 	case BadgeType::Scam:
 	case BadgeType::Fake: {
@@ -174,7 +184,7 @@ void Badge::setContent(Content content) {
 	} break;
 	}
 
-	if (_content.badge != BadgeType::Premium || !_premiumClickCallback) {
+	if (!HasPremiumClick(_content) || !_premiumClickCallback) {
 		_view->setAttribute(Qt::WA_TransparentForMouseEvents);
 	} else {
 		_view->setClickedCallback(_premiumClickCallback);
@@ -185,7 +195,7 @@ void Badge::setContent(Content content) {
 
 void Badge::setPremiumClickCallback(Fn<void()> callback) {
 	_premiumClickCallback = std::move(callback);
-	if (_view && _content.badge == BadgeType::Premium) {
+	if (_view && HasPremiumClick(_content)) {
 		if (!_premiumClickCallback) {
 			_view->setAttribute(Qt::WA_TransparentForMouseEvents);
 		} else {
