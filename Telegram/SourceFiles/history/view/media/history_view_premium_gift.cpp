@@ -185,7 +185,7 @@ TextWithEntities PremiumGift::subtitle() {
 
 rpl::producer<QString> PremiumGift::button() {
 	return (starGift() && outgoingGift())
-		? nullptr
+		? tr::lng_sticker_premium_view()
 		: creditsPrize()
 		? tr::lng_view_button_giftcode()
 		: (starGift() && _data.starsUpgradedBySender && !_data.upgraded)
@@ -200,9 +200,6 @@ bool PremiumGift::buttonMinistars() {
 }
 
 ClickHandlerPtr PremiumGift::createViewLink() {
-	if (starGift() && outgoingGift()) {
-		return nullptr;
-	}
 	const auto from = _gift->from();
 	const auto itemId = _parent->data()->fullId();
 	const auto peer = _parent->history()->peer;

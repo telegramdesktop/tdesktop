@@ -1008,7 +1008,7 @@ void ReceiptCreditsBox(
 	const auto selfPeerId = session->userPeerId().value;
 	const auto giftToSelf = isStarGift
 		&& (e.barePeerId == selfPeerId)
-		&& (!e.fromGiftsList || e.bareGiftOwnerId == selfPeerId);
+		&& (e.in || e.bareGiftOwnerId == selfPeerId);
 
 	if (!uniqueGift) {
 		Ui::AddSkip(content);
@@ -1684,17 +1684,21 @@ void StarGiftViewBox(
 		not_null<Window::SessionController*> controller,
 		const Data::GiftCode &data,
 		not_null<HistoryItem*> item) {
+	const auto incoming = data.upgrade ? item->out() : !item->out();
+	const auto peer = item->history()->peer;
+	const auto fromId = incoming ? peer->id : peer->session().userPeerId();
+	const auto toId = incoming ? peer->session().userPeerId() : peer->id;
 	const auto entry = Data::CreditsHistoryEntry{
 		.id = data.slug,
 		.description = data.message,
 		.date = base::unixtime::parse(item->date()),
 		.credits = StarsAmount(data.count),
 		.bareMsgId = uint64(item->id.bare),
-		.barePeerId = item->history()->peer->id.value,
+		.barePeerId = fromId.value,
 		.bareGiftStickerId = data.document ? data.document->id : 0,
 		.bareGiftOwnerId = (data.unique
 			? data.unique->ownerId.value
-			: item->history()->session().userPeerId().value),
+			: toId.value),
 		.stargiftId = data.stargiftId,
 		.uniqueGift = data.unique,
 		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
@@ -1711,7 +1715,7 @@ void StarGiftViewBox(
 		.savedToProfile = data.saved,
 		.canUpgradeGift = data.upgradable,
 		.hasGiftComment = !data.message.empty(),
-		.in = true,
+		.in = incoming,
 		.gift = true,
 	};
 	Settings::ReceiptCreditsBox(

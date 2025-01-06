@@ -1217,6 +1217,5 @@ chatUniqueTitle: TextStyle(defaultTextStyle) {
 chatUniqueTitlePadding: margins(12px, 12px, 12px, 2px);
 chatUniqueTextPadding: margins(12px, 2px, 12px, 8px);
 chatUniqueTableSkip: 9px;
-chatUniqueTableAtBottomPadding: margins(12px, 2px, 12px, 20px);
 chatUniqueRowSkip: 4px;
 chatUniqueButtonPadding: margins(12px, 4px, 12px, 16px);

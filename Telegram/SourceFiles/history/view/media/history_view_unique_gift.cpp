@@ -440,8 +440,6 @@ auto GenerateUniqueGiftMedia(
 			gift->backdrop.textColor,
 			st::chatUniqueTextPadding);
 
-		const auto withButton = !outgoing || item->history()->peer->isSelf();
-
 		auto attributes = std::vector<AttributeTable::Entry>{
 			{ tr::lng_gift_unique_model(tr::now), gift->model.name },
 			{ tr::lng_gift_unique_backdrop(tr::now), gift->backdrop.name },
@@ -449,38 +447,34 @@ auto GenerateUniqueGiftMedia(
 		};
 		push(std::make_unique<AttributeTable>(
 			std::move(attributes),
-			(withButton
-				? st::chatUniqueTextPadding
-				: st::chatUniqueTableAtBottomPadding),
+			st::chatUniqueTextPadding,
 			gift->backdrop.textColor));
 
-		if (withButton) {
-			const auto itemId = parent->data()->fullId();
-			auto link = std::make_shared<LambdaClickHandler>([=](
-					ClickContext context) {
-				const auto my = context.other.value<ClickHandlerContext>();
-				if (const auto controller = my.sessionWindow.get()) {
-					const auto owner = &controller->session().data();
-					if (const auto item = owner->message(itemId)) {
-						if (const auto media = item->media()) {
-							if (const auto gift = media->gift()) {
-								controller->show(Box(
-									Settings::StarGiftViewBox,
-									controller,
-									*gift,
-									item));
-							}
+		const auto itemId = parent->data()->fullId();
+		auto link = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto controller = my.sessionWindow.get()) {
+				const auto owner = &controller->session().data();
+				if (const auto item = owner->message(itemId)) {
+					if (const auto media = item->media()) {
+						if (const auto gift = media->gift()) {
+							controller->show(Box(
+								Settings::StarGiftViewBox,
+								controller,
+								*gift,
+								item));
 						}
 					}
 				}
-			});
-			push(std::make_unique<ButtonPart>(
-				tr::lng_sticker_premium_view(tr::now),
-				st::chatUniqueButtonPadding,
-				[=] { parent->repaint(); },
-				std::move(link),
-				anim::with_alpha(gift->backdrop.patternColor, 0.75)));
-		}
+			}
+		});
+		push(std::make_unique<ButtonPart>(
+			tr::lng_sticker_premium_view(tr::now),
+			st::chatUniqueButtonPadding,
+			[=] { parent->repaint(); },
+			std::move(link),
+			anim::with_alpha(gift->backdrop.patternColor, 0.75)));
 	};
 }
 

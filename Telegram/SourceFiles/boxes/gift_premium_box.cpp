@@ -1205,7 +1205,7 @@ void AddStarGiftTable(
 	const auto unique = entry.uniqueGift.get();
 	const auto selfBareId = session->userPeerId().value;
 	const auto giftToSelf = (peerId == session->userPeerId())
-		&& (!entry.fromGiftsList || entry.bareGiftOwnerId == selfBareId);
+		&& (entry.in || entry.bareGiftOwnerId == selfBareId);
 	if (unique) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
 		const auto transfer = entry.in
