@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_credits.h" // Settings::CreditsId
-#include "settings/settings_credits_graphics.h"
 #include "settings/settings_credits_graphics.h" // GiftedCreditsBox
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
 #include "ui/chat/chat_style.h"
@@ -47,13 +46,23 @@ PremiumGift::PremiumGift(
 PremiumGift::~PremiumGift() = default;
 
 int PremiumGift::top() {
-	return starGift() ? 0 : st::msgServiceGiftBoxStickerTop;
+	return starGift()
+		? st::msgServiceStarGiftStickerTop
+		: st::msgServiceGiftBoxStickerTop;
+}
+
+int PremiumGift::width() {
+	return st::msgServiceStarGiftBoxWidth;
 }
 
 QSize PremiumGift::size() {
-	return QSize(
-		st::msgServiceGiftBoxStickerSize,
-		st::msgServiceGiftBoxStickerSize);
+	return starGift()
+		? QSize(
+			st::msgServiceStarGiftStickerSize,
+			st::msgServiceStarGiftStickerSize)
+		: QSize(
+			st::msgServiceGiftBoxStickerSize,
+			st::msgServiceGiftBoxStickerSize);
 }
 
 QString PremiumGift::title() {
@@ -400,7 +409,7 @@ void PremiumGift::ensureStickerCreated() const {
 		Assert(sticker != nullptr);
 		_sticker.emplace(_parent, document, false, _parent);
 		_sticker->setPlayingOnce(true);
-		_sticker->initSize(st::msgServiceGiftBoxStickerSize);
+		_sticker->initSize(st::msgServiceStarGiftStickerSize);
 		_parent->repaint();
 		return;
 	}

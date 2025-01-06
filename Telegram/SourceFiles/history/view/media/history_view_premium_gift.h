@@ -26,6 +26,7 @@ public:
 	~PremiumGift();
 
 	int top() override;
+	int width() override;
 	QSize size() override;
 	QString title() override;
 	TextWithEntities subtitle() override;

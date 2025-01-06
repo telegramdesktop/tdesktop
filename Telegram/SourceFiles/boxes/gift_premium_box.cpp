@@ -1203,9 +1203,9 @@ void AddStarGiftTable(
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto session = &controller->session();
 	const auto unique = entry.uniqueGift.get();
-	const auto chatPeerId = entry.fromGiftsList
-		? entry.bareGiftOwnerId
-		: entry.barePeerId;
+	const auto selfBareId = session->userPeerId().value;
+	const auto giftToSelf = (peerId == session->userPeerId())
+		&& (!entry.fromGiftsList || entry.bareGiftOwnerId == selfBareId);
 	if (unique) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
 		const auto transfer = entry.in
@@ -1224,7 +1224,7 @@ void AddStarGiftTable(
 			MakePeerTableValue(table, controller, ownerId, send, handler),
 			st::giveawayGiftCodePeerMargin);
 	} else if (peerId) {
-		if (chatPeerId != session->userPeerId().value) {
+		if (!giftToSelf) {
 			const auto user = session->data().peer(peerId)->asUser();
 			const auto withSendButton = entry.in && user && !user->isBot();
 			auto send = withSendButton ? tr::lng_gift_send_small() : nullptr;

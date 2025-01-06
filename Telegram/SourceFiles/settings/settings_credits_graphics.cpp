@@ -1006,10 +1006,9 @@ void ReceiptCreditsBox(
 	}
 
 	const auto selfPeerId = session->userPeerId().value;
-	const auto chatPeerId = e.fromGiftsList
-		? e.bareGiftOwnerId
-		: e.barePeerId;
-	const auto giftToSelf = isStarGift && (selfPeerId == chatPeerId);
+	const auto giftToSelf = isStarGift
+		&& (e.barePeerId == selfPeerId)
+		&& (!e.fromGiftsList || e.bareGiftOwnerId == selfPeerId);
 
 	if (!uniqueGift) {
 		Ui::AddSkip(content);

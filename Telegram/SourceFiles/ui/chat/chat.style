@@ -917,9 +917,12 @@ msgServiceGiftBoxTopSkip: 4px;
 msgServiceGiftBoxButtonHeight: 32px;
 msgServiceGiftBoxButtonPadding: margins(2px, 0px, 2px, 0px);
 msgServiceGiftBoxButtonMargins: margins(0px, 13px, 0px, 17px);
-msgServiceGiftBoxTitlePadding: margins(0px, 5px, 0px, 2px);
+msgServiceGiftBoxTitlePadding: margins(0px, 20px, 0px, 6px);
 msgServiceGiftBoxStickerTop: -19px;
 msgServiceGiftBoxStickerSize: 140px;
+msgServiceStarGiftBoxWidth: 224px;
+msgServiceStarGiftStickerTop: 24px;
+msgServiceStarGiftStickerSize: 100px;
 
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -1207,13 +1210,13 @@ botDownloadCancel: IconButton {
 }
 chatUniqueGiftBorder: 4px;
 
-chatUniqueStickerPadding: margins(10px, 12px, 10px, 8px);
+chatUniqueStickerPadding: margins(10px, 30px, 10px, 9px);
 chatUniqueTitle: TextStyle(defaultTextStyle) {
 	font: font(16px semibold);
 }
-chatUniqueTitlePadding: margins(12px, 4px, 12px, 2px);
+chatUniqueTitlePadding: margins(12px, 12px, 12px, 2px);
 chatUniqueTextPadding: margins(12px, 2px, 12px, 8px);
-chatUniqueTableSkip: 10px;
+chatUniqueTableSkip: 9px;
 chatUniqueTableAtBottomPadding: margins(12px, 2px, 12px, 20px);
 chatUniqueRowSkip: 4px;
 chatUniqueButtonPadding: margins(12px, 4px, 12px, 16px);
