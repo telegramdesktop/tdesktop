@@ -71,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/ui_utility.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/text_variant.h"
@@ -1242,19 +1243,18 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			not_null<Ui::FlatLabel*> label,
 			int rightSkip) {
 		const auto parent = label->parentWidget();
+		const auto container = result.data();
 		rpl::combine(
-			result->widthValue(),
+			container->widthValue(),
 			label->geometryValue(),
 			button->sizeValue()
 		) | rpl::start_with_next([=](int width, QRect, QSize buttonSize) {
 			button->moveToRight(
 				rightSkip,
 				(parent->height() - buttonSize.height()) / 2);
-			label->resizeToWidth(width
-				- rightSkip
-				- label->geometry().left()
-				- st::lineWidth * 2
-				- buttonSize.width());
+			const auto x = Ui::MapFrom(container, label, QPoint(0, 0)).x();
+			const auto s = Ui::MapFrom(container, button, QPoint(0, 0)).x();
+			label->resizeToWidth(s - x);
 		}, button->lifetime());
 	};
 	const auto controller = _controller->parentController();
@@ -1373,7 +1373,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		const auto qrButton = Ui::CreateChild<Ui::IconButton>(
 			usernameLine.text->parentWidget(),
 			st::infoProfileLabeledButtonQr);
-		const auto rightSkip = st::infoProfileLabeledButtonQrRightSkip;
+		const auto rightSkip = 0;// st::infoProfileLabeledButtonQrRightSkip;
 		fitLabelToButton(qrButton, usernameLine.text, rightSkip);
 		fitLabelToButton(qrButton, usernameLine.subtext, rightSkip);
 		qrButton->setClickedCallback([=] {
@@ -1451,7 +1451,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			const auto qr = Ui::CreateChild<Ui::IconButton>(
 				linkLine.text->parentWidget(),
 				st::infoProfileLabeledButtonQr);
-			const auto rightSkip = st::infoProfileLabeledButtonQrRightSkip;
+			const auto rightSkip = 0;// st::infoProfileLabeledButtonQrRightSkip;
 			fitLabelToButton(qr, linkLine.text, rightSkip);
 			fitLabelToButton(qr, linkLine.subtext, rightSkip);
 			qr->setClickedCallback([=, peer = _peer] {
