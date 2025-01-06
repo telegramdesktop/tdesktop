@@ -2600,10 +2600,10 @@ bool HistoryItem::canReact() const {
 	if (!isRegular()) {
 		return false;
 	} else if (isService()) {
-		return _flags & MessageFlag::ReactionsAllowed;
+		return (_flags & MessageFlag::ReactionsAllowed);
 	} else if (const auto media = this->media()) {
 		if (media->call()) {
-			return false;
+			return (_flags & MessageFlag::ReactionsAllowed);
 		}
 	}
 	return true;
