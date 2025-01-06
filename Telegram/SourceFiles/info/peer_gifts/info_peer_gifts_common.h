@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/qt/qt_compare.h"
 #include "data/data_star_gift.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/premium_stars_colored.h"
@@ -71,6 +72,29 @@ struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 		const GiftDescriptor&) = default;
 };
 
+struct GiftBadge {
+	QString text;
+	QColor bg;
+	QColor fg;
+
+	explicit operator bool() const {
+		return !text.isEmpty();
+	}
+
+	friend std::strong_ordering operator<=>(
+		const GiftBadge &a,
+		const GiftBadge &b);
+
+	friend inline bool operator==(
+		const GiftBadge &,
+		const GiftBadge &) = default;
+};
+
+enum class GiftButtonMode {
+	Full,
+	Minimal,
+};
+
 class GiftButtonDelegate {
 public:
 	[[nodiscard]] virtual TextWithEntities star() = 0;
@@ -85,6 +109,7 @@ public:
 	[[nodiscard]] virtual rpl::producer<not_null<DocumentData*>> sticker(
 		const GiftDescriptor &descriptor) = 0;
 	[[nodiscard]] virtual not_null<StickerPremiumMark*> hiddenMark() = 0;
+	[[nodiscard]] virtual QImage cachedBadge(const GiftBadge &badge) = 0;
 };
 
 class GiftButton final : public Ui::AbstractButton {
@@ -92,7 +117,9 @@ public:
 	GiftButton(QWidget *parent, not_null<GiftButtonDelegate*> delegate);
 	~GiftButton();
 
-	void setDescriptor(const GiftDescriptor &descriptor);
+
+	using Mode = GiftButtonMode;
+	void setDescriptor(const GiftDescriptor &descriptor, Mode mode);
 	void setGeometry(QRect inner, QMargins extend);
 
 private:
@@ -118,7 +145,7 @@ private:
 	QImage _uniqueBackgroundCache;
 	std::unique_ptr<Ui::Text::CustomEmoji> _uniquePatternEmoji;
 	base::flat_map<float64, QImage> _uniquePatternCache;
-	Ui::Premium::ColoredMiniStars _stars;
+	std::optional<Ui::Premium::ColoredMiniStars> _stars;
 	bool _subscribed = false;
 	bool _patterned = false;
 
@@ -132,7 +159,9 @@ private:
 
 class Delegate final : public GiftButtonDelegate {
 public:
-	explicit Delegate(not_null<Window::SessionController*> window);
+	Delegate(
+		not_null<Window::SessionController*> window,
+		GiftButtonMode mode);
 	Delegate(Delegate &&other);
 	~Delegate();
 
@@ -148,12 +177,15 @@ public:
 	rpl::producer<not_null<DocumentData*>> sticker(
 		const GiftDescriptor &descriptor) override;
 	not_null<StickerPremiumMark*> hiddenMark() override;
+	QImage cachedBadge(const GiftBadge &badge) override;
 
 private:
 	const not_null<Window::SessionController*> _window;
 	std::unique_ptr<StickerPremiumMark> _hiddenMark;
+	base::flat_map<GiftBadge, QImage> _badges;
 	QSize _single;
 	QImage _bg;
+	GiftButtonMode _mode = GiftButtonMode::Full;
 
 };
 
@@ -164,5 +196,7 @@ private:
 [[nodiscard]] rpl::producer<not_null<DocumentData*>> GiftStickerValue(
 	not_null<Main::Session*> session,
 	const GiftDescriptor &descriptor);
+
+[[nodiscard]] QImage ValidateRotatedBadge(const GiftBadge &badge, int added);
 
 } // namespace Info::PeerGifts

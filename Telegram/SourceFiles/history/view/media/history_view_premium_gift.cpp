@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_credits_graphics.h" // GiftedCreditsBox
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
+#include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
@@ -300,20 +301,35 @@ void PremiumGift::draw(
 	}
 }
 
-QString PremiumGift::cornerTagText() {
+QImage PremiumGift::cornerTag(const PaintContext &context) {
+	auto badge = Info::PeerGifts::GiftBadge();
 	if (_data.unique) {
-		return tr::lng_gift_collectible_tag(tr::now);
+		badge = {
+			.text = tr::lng_gift_collectible_tag(tr::now),
+			.bg = _data.unique->backdrop.patternColor,
+			.fg = QColor(255, 255, 255),
+		};
 	} else if (const auto count = _data.limitedCount) {
-		return (count == 1)
-			? tr::lng_gift_limited_of_one(tr::now)
-			: tr::lng_gift_limited_of_count(
-				tr::now,
-				lt_amount,
-				((count % 1000)
-					? Lang::FormatCountDecimal(count)
-					: Lang::FormatCountToShort(count).string));
+		badge = {
+			.text = ((count == 1)
+				? tr::lng_gift_limited_of_one(tr::now)
+				: tr::lng_gift_limited_of_count(
+					tr::now,
+					lt_amount,
+					(((count % 1000) && (count < 10'000))
+						? Lang::FormatCountDecimal(count)
+						: Lang::FormatCountToShort(count).string))),
+			.bg = context.st->msgServiceBg()->c,
+			.fg = context.st->msgServiceFg()->c,
+		};
+	} else {
+		return {};
 	}
-	return QString();
+	if (_badgeCache.isNull() || _badgeKey != badge) {
+		_badgeKey = badge;
+		_badgeCache = ValidateRotatedBadge(badge, 0);
+	}
+	return _badgeCache;
 }
 
 bool PremiumGift::hideServiceText() {

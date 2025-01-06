@@ -112,6 +112,7 @@ giftBoxTabBgActive: windowBgRipple;
 giftBoxPadding: margins(20px, 4px, 20px, 24px);
 giftBoxGiftSkip: point(10px, 8px);
 giftBoxGiftHeight: 164px;
+giftBoxGiftSmall: 124px;
 giftBoxGiftRadius: 12px;
 giftBoxPremiumIconSize: 64px;
 giftBoxPremiumIconTop: 10px;

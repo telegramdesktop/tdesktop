@@ -199,28 +199,9 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 
 	_content->draw(p, context, content);
 
-	if (const auto tag = _content->cornerTagText(); !tag.isEmpty()) {
-		const auto font = st::semiboldFont;
-		p.setFont(font);
-		p.setPen(Qt::NoPen);
-		const auto twidth = font->width(tag);
-		const auto pos = QPoint(_innerSize.width() - twidth, font->height);
-		const auto add = 0;// style::ConvertScale(2);
-		p.save();
-		p.setClipRect(
-			-add,
-			-add,
-			_innerSize.width() + 2 * add,
-			_innerSize.height() + 2 * add);
-		p.translate(pos);
-		p.rotate(45.);
-		p.translate(-pos);
-		p.setPen(Qt::NoPen);
-		p.setBrush(context.st->msgServiceBg()); // ?
-		p.drawRect(-5 * twidth, 0, twidth * 12, font->height);
-		p.setPen(context.st->msgServiceFg());
-		p.drawText(pos - QPoint(0, font->descent), tag);
-		p.restore();
+	if (const auto tag = _content->cornerTag(context); !tag.isNull()) {
+		const auto width = tag.width() / tag.devicePixelRatio();
+		p.drawImage(_innerSize.width() - width, 0, tag);
 	}
 
 	p.translate(0, -st::msgServiceGiftBoxTopSkip);

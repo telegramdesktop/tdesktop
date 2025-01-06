@@ -1528,7 +1528,7 @@ void SendGiftBox(
 		bool sending = false;
 	};
 	const auto state = raw->lifetime().make_state<State>(State{
-		.delegate = Delegate(window),
+		.delegate = Delegate(window, GiftButtonMode::Full),
 	});
 	const auto single = state->delegate.buttonSize();
 	const auto shadow = st::defaultDropdownMenu.wrap.shadow;
@@ -1575,7 +1575,7 @@ void SendGiftBox(
 		for (auto i = 0; i != count; ++i) {
 			const auto button = state->buttons[i].get();
 			const auto &descriptor = gifts.list[order[i]];
-			button->setDescriptor(descriptor);
+			button->setDescriptor(descriptor, GiftButton::Mode::Full);
 
 			const auto last = !((i + 1) % perRow);
 			if (last) {
