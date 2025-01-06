@@ -305,9 +305,9 @@ struct PatternPoint {
 };
 [[nodiscard]] const std::vector<PatternPoint> &PatternPoints() {
 	static const auto kSmall = 0.7;
-	static const auto kFaded = 0.5;
+	static const auto kFaded = 0.3;
 	static const auto kLarge = 0.85;
-	static const auto kOpaque = 0.7;
+	static const auto kOpaque = 0.5;
 	static const auto result = std::vector<PatternPoint>{
 		{ { 0.5, 0.066 }, kSmall, kFaded },
 
