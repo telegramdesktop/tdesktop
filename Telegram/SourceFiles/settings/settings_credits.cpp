@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h"
 
 #include "api/api_credits.h"
+#include "base/call_delayed.h"
 #include "boxes/star_gift_box.h"
 #include "boxes/gift_credits_box.h"
 #include "boxes/gift_premium_box.h"
@@ -43,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
@@ -500,16 +502,46 @@ void Credits::setupContent() {
 
 	Ui::AddSkip(content);
 
-	const auto gift = content->add(
-		object_ptr<Ui::RoundButton>(
-			content,
-			tr::lng_credits_gift_button(),
-			st::creditsSettingsBigBalanceButtonGift),
-		st::boxRowPadding);
-	gift->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	gift->setClickedCallback([=, controller = _controller] {
-		Ui::ShowGiftCreditsBox(controller, paid);
-	});
+	{
+		const auto &giftSt = st::creditsSettingsBigBalanceButtonGift;
+		const auto giftDelay = giftSt.ripple.hideDuration * 2;
+		const auto fakeLoading
+			= content->lifetime().make_state<rpl::variable<bool>>(false);
+		const auto gift = content->add(
+			object_ptr<Ui::RoundButton>(
+				content,
+				rpl::conditional(
+					fakeLoading->value(),
+					rpl::single(QString()),
+					tr::lng_credits_gift_button()),
+				giftSt),
+			st::boxRowPadding);
+		gift->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		gift->setClickedCallback([=, controller = _controller] {
+			if (fakeLoading->current()) {
+				return;
+			}
+			*fakeLoading = true;
+			base::call_delayed(giftDelay, crl::guard(gift, [=] {
+				*fakeLoading = false;
+				Ui::ShowGiftCreditsBox(controller, paid);
+			}));
+		});
+		{
+			using namespace Info::Statistics;
+			const auto loadingAnimation = InfiniteRadialAnimationWidget(
+				gift,
+				gift->height() / 2,
+				&st::editStickerSetNameLoading);
+			AddChildToWidgetCenter(gift, loadingAnimation);
+			loadingAnimation->showOn(fakeLoading->value());
+		}
+		gift->widthValue() | rpl::filter([=] {
+			return (gift->widthNoMargins() != (content->width() - paddings));
+		}) | rpl::start_with_next([=] {
+			gift->resizeToWidth(content->width() - paddings);
+		}, gift->lifetime());
+	}
 
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
