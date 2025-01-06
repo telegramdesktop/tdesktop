@@ -64,9 +64,9 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		const auto columnId = array.first().toString();
 		if (columnId == u"x"_q) {
 			const auto length = array.size() - 1;
-			result.x.resize(length);
+			result.x.reserve(length);
 			for (auto i = 0; i < length; i++) {
-				result.x[i] = array.at(i + 1).toDouble();
+				result.x.push_back(array.at(i + 1).toDouble());
 			}
 		} else {
 			auto line = Data::StatisticalChart::Line();
@@ -94,7 +94,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			result.lines.push_back(std::move(line));
 		}
 		if (result.x.size() > 1) {
-			result.timeStep = result.x[1] - result.x[0];
+			result.timeStep = std::max(1., result.x[1] - result.x[0]);
 		} else {
 			constexpr auto kOneDay = 3600 * 24 * 1000;
 			result.timeStep = kOneDay;

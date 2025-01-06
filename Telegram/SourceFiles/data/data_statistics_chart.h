@@ -68,7 +68,7 @@ struct StatisticalChart {
 
 	float64 oneDayPercentage = 0.;
 
-	float64 timeStep = 0.;
+	float64 timeStep = 1.;
 
 	bool isFooterHidden = false;
 	bool hasPercentages = false;
