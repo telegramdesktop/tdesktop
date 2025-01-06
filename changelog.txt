@@ -1,3 +1,9 @@
+5.10.1 (06.01.25)
+
+- Show "Boost group the send messages" information.
+- Fix several gifts bugs and glitches.
+- Fix several crashes.
+
 5.10 (02.01.25)
 
 - Collectible Gifts.
