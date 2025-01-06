@@ -2282,6 +2282,8 @@ void ParticipantsBoxSearchController::restoreState(
 		_allLoaded = my->allLoaded;
 		_offset = my->offset;
 		_query = my->query;
+		_timer.cancel();
+		_requestId = 0;
 		if (my->wasLoading) {
 			searchOnServer();
 		}
