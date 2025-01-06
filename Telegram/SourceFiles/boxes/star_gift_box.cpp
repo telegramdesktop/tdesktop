@@ -973,7 +973,15 @@ struct GiftPriceTabs {
 			const auto w = icon.fadeRight.width();
 			const auto &c = st::boxDividerBg->c;
 			const auto r = QRect(0, 0, w, raw->height());
+			const auto s = std::abs(float64(shift.x()));
+			constexpr auto kF = 0.5;
+			const auto opacityRight = (state->scrollMax - s)
+				/ (icon.fadeRight.width() * kF);
+			p.setOpacity(std::clamp(std::abs(opacityRight), 0., 1.));
 			icon.fadeRight.fill(p, r.translated(raw->width() -  w, 0), c);
+
+			const auto opacityLeft = s / (icon.fadeLeft.width() * kF);
+			p.setOpacity(std::clamp(std::abs(opacityLeft), 0., 1.));
 			icon.fadeLeft.fill(p, r, c);
 		}
 	}, raw->lifetime());
