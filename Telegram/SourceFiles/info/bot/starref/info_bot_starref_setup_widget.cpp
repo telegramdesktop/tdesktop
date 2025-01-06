@@ -690,9 +690,9 @@ void InnerWidget::setupDuration() {
 	};
 	const auto label = [=](int value) {
 		return (value < 12)
-			? (QString::number(value) + 'm')
+			? tr::lng_months_tiny(tr::now, lt_count, value)
 			: (value < 999)
-			? (QString::number(value / 12) + 'y')
+			? tr::lng_years_tiny(tr::now, lt_count, value)
 			: QString::fromUtf8("\xE2\x88\x9E"); // utf-8 infinity
 	};
 	_container->add(

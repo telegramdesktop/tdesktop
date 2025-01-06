@@ -533,7 +533,7 @@ Fn<void(Painter&, const Ui::ChatPaintContext &)> UniqueGiftBg(
 
 		p.save();
 		p.translate(inner.topLeft());
-		const auto tag = tr::lng_gift_limited_of_one(tr::now);
+		const auto tag = tr::lng_gift_collectible_tag(tr::now);
 		const auto font = st::semiboldFont;
 		p.setFont(font);
 		p.setPen(Qt::NoPen);
