@@ -850,7 +850,7 @@ void FillPeerQrBox(
 		const auto backgroundToggled = state->backgroundToggled.current();
 		const auto scale = style::kScaleDefault
 			* (kMaxQualities + int(state->scaleValue.current() * 2));
-		const auto divider = std::max(1, style::Scale())
+		const auto divider = std::max(100, style::Scale())
 			/ style::kScaleDefault;
 		const auto profileQrBackgroundRadius = style::ConvertScale(
 			st::profileQrBackgroundRadius / divider,
