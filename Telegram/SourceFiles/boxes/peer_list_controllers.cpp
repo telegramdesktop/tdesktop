@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "ui/effects/outline_segments.h"
 #include "ui/wrap/slide_wrap.h"
+#include "window/window_separate_id.h"
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
 #include "styles/style_boxes.h"
@@ -64,6 +65,10 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 	public:
 		using ContactsBoxController::ContactsBoxController;
 
+		[[nodiscard]] rpl::producer<not_null<PeerData*>> wheelClicks() const {
+			return _wheelClicks.events();
+		}
+
 	protected:
 		std::unique_ptr<PeerListRow> createRow(
 				not_null<UserData*> user) override {
@@ -71,6 +76,14 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 				? ContactsBoxController::createRow(user)
 				: nullptr;
 		}
+
+		void rowMiddleClicked(
+				not_null<PeerListRow*> row) override {
+			_wheelClicks.fire(row->peer());
+		}
+
+	private:
+		rpl::event_stream<not_null<PeerData*>> _wheelClicks;
 
 	};
 	auto controller = std::make_unique<Controller>(
@@ -100,6 +113,10 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 				online ? &st::contactsSortOnlineIconOver : nullptr);
 		});
 		raw->setSortMode(Mode::Online);
+
+		raw->wheelClicks() | rpl::start_with_next([=](not_null<PeerData*> p) {
+			sessionController->showInNewWindow(p);
+		}, box->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(init));
 }
