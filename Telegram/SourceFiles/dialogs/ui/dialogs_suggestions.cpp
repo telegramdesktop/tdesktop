@@ -416,6 +416,7 @@ public:
 	}
 
 	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowMiddleClicked(not_null<PeerListRow*> row) override;
 	bool rowTrackPress(not_null<PeerListRow*> row) override;
 	void rowTrackPressCancel() override;
 	bool rowTrackPressSkipMouseSelection() override;
@@ -671,6 +672,11 @@ rpl::producer<bool> Suggestions::ObjectListController::expanded() const {
 void Suggestions::ObjectListController::rowClicked(
 		not_null<PeerListRow*> row) {
 	_chosen.fire(row->peer());
+}
+
+void Suggestions::ObjectListController::rowMiddleClicked(
+		not_null<PeerListRow*> row) {
+	window()->showInNewWindow(row->peer());
 }
 
 void Suggestions::ObjectListController::setupPlainDivider(
