@@ -1689,6 +1689,31 @@ void CreditsPrizeBox(
 		Data::SubscriptionEntry());
 }
 
+void GlobalStarGiftBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		const Data::StarGift &data) {
+	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
+	Settings::ReceiptCreditsBox(
+		box,
+		controller,
+		Data::CreditsHistoryEntry{
+			.credits = StarsAmount(data.stars),
+			.bareGiftStickerId = data.document->id,
+			.bareGiftOwnerId = ownerId,
+			.stargiftId = data.id,
+			.uniqueGift = data.unique,
+			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
+			.limitedCount = data.limitedCount,
+			.limitedLeft = data.limitedLeft,
+			.stargift = true,
+			.fromGiftSlug = true,
+			.in = (ownerId == controller->session().userPeerId().value),
+			.gift = true,
+		},
+		Data::SubscriptionEntry());
+}
+
 void UserStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,

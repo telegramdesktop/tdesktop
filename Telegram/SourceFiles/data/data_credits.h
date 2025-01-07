@@ -89,6 +89,7 @@ struct CreditsHistoryEntry final {
 	bool giftUpgraded : 1 = false;
 	bool savedToProfile : 1 = false;
 	bool fromGiftsList : 1 = false;
+	bool fromGiftSlug : 1 = false;
 	bool soldOutInfo : 1 = false;
 	bool canUpgradeGift : 1 = false;
 	bool hasGiftComment : 1 = false;

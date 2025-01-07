@@ -1344,6 +1344,59 @@ bool ResolveChatLink(
 	return true;
 }
 
+bool ResolveUniqueGift(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto slug = match->captured(1);
+	if (slug.isEmpty()) {
+		return false;
+	}
+	struct Request {
+		base::weak_ptr<Window::SessionController> weak;
+		QString slug;
+		mtpRequestId id = 0;
+	};
+	static auto request = Request();
+	if (request.weak.get() == controller && request.slug == slug) {
+		return true;
+	} else if (const auto strong = request.weak.get()) {
+		strong->session().api().request(request.id).cancel();
+	}
+	const auto weak = request.weak = controller;
+	request.slug = slug;
+	const auto clear = [slug](not_null<Window::SessionController*> window) {
+		if (request.weak.get() == window && request.slug == slug) {
+			request = {};
+		}
+	};
+	request.id = controller->session().api().request(
+		MTPpayments_GetUniqueStarGift(MTP_string(slug))
+	).done([=](const MTPpayments_UniqueStarGift &result) {
+		if (const auto strong = weak.get()) {
+			clear(strong);
+
+			const auto &data = result.data();
+			const auto session = &strong->session();
+			session->data().processUsers(data.vusers());
+			if (const auto gift = Api::FromTL(session, data.vgift())) {
+				using namespace ::Settings;
+				strong->show(Box(GlobalStarGiftBox, strong, *gift));
+			}
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (const auto strong = weak.get()) {
+			clear(strong);
+
+			strong->showToast(u"Error: "_q + error.type());
+		}
+	}).send();
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -1435,6 +1488,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^stars_topup/?\\?(.+)(#|$)"_q,
 			ResolveTopUp
+		},
+		{
+			u"^nft/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
+			ResolveUniqueGift
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,
@@ -1585,6 +1642,9 @@ QString TryConvertUrlToLocal(QString url) {
 		} else if (const auto chatlinkMatch = regex_match(u"^m/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
 			const auto slug = chatlinkMatch->captured(1);
 			return u"tg://message?slug="_q + slug;
+		} else if (const auto nftMatch = regex_match(u"^nft/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
+			const auto slug = nftMatch->captured(1);
+			return u"tg://nft?slug="_q + slug;
 		} else if (const auto privateMatch = regex_match(u"^"
 			"c/(\\-?\\d+)"
 			"("

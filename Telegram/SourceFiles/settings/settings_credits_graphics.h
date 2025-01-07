@@ -19,6 +19,7 @@ struct SubscriptionEntry;
 struct GiftCode;
 struct CreditTopupOption;
 struct UserStarGift;
+struct StarGift;
 } // namespace Data
 
 namespace Main {
@@ -97,6 +98,10 @@ void CreditsPrizeBox(
 	not_null<Window::SessionController*> controller,
 	const Data::GiftCode &data,
 	TimeId date);
+void GlobalStarGiftBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	const Data::StarGift &data);
 void UserStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
