@@ -25,6 +25,10 @@ struct GiveawayResults;
 struct SubscriptionEntry;
 } // namespace Data
 
+namespace Settings {
+struct CreditsEntryBoxStyleOverrides;
+} // namespace Settings
+
 namespace Ui {
 class GenericBox;
 class VerticalLayout;
@@ -61,6 +65,7 @@ void ResolveGiveawayInfo(
 void AddStarGiftTable(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
+	Settings::CreditsEntryBoxStyleOverrides st,
 	const Data::CreditsHistoryEntry &entry,
 	Fn<void(bool)> toggleVisibility,
 	Fn<void()> convertToStars,
@@ -68,19 +73,23 @@ void AddStarGiftTable(
 void AddCreditsHistoryEntryTable(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
+	Settings::CreditsEntryBoxStyleOverrides st,
 	const Data::CreditsHistoryEntry &entry);
 
 void AddSubscriptionEntryTable(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
+	Settings::CreditsEntryBoxStyleOverrides st,
 	const Data::SubscriptionEntry &s);
 void AddSubscriberEntryTable(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
+	Settings::CreditsEntryBoxStyleOverrides st,
 	not_null<PeerData*> peer,
 	TimeId date);
 
 void AddCreditsBoostTable(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
+	Settings::CreditsEntryBoxStyleOverrides st,
 	const Data::Boost &boost);

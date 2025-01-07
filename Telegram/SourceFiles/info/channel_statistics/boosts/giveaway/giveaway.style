@@ -78,22 +78,8 @@ giveawayGiftCodeTable: Table(defaultTable) {
 	labelMinWidth: 91px;
 }
 giveawayGiftCodeTableMargin: margins(24px, 4px, 24px, 4px);
-giveawayGiftCodeLabel: FlatLabel(defaultFlatLabel) {
-	textFg: menuIconColor;
-	maxHeight: 24px;
-	style: TextStyle(semiboldTextStyle) {
-		font: font(12px semibold);
-	}
-}
 giveawayGiftCodeLabelMargin: margins(13px, 10px, 13px, 10px);
-giveawayGiftCodeValue: FlatLabel(defaultFlatLabel) {
-	maxHeight: 24px;
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
-		linkUnderline: kLinkUnderlineNever;
-	}
-}
-giveawayGiftCodeValueMultiline: FlatLabel(giveawayGiftCodeValue) {
+giveawayGiftCodeValueMultiline: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 100px;
 	style: TextStyle(defaultTextStyle) {
@@ -101,7 +87,7 @@ giveawayGiftCodeValueMultiline: FlatLabel(giveawayGiftCodeValue) {
 		linkUnderline: kLinkUnderlineNever;
 	}
 }
-giveawayGiftMessage: FlatLabel(giveawayGiftCodeValue) {
+giveawayGiftMessage: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 0px;
 }
@@ -217,19 +203,53 @@ starConvertButtonLoading: InfiniteRadialAnimation(startGiveawayButtonLoading) {
 	thickness: 2px;
 }
 
-starGiftSmallButton: RoundButton(defaultActiveButton) {
-	textFg: windowActiveTextFg;
-	textFgOver: windowActiveTextFg;
-	textBg: lightButtonBgOver;
-	textBgOver: lightButtonBgOver;
-	width: -12px;
-	height: 18px;
-	radius: 9px;
-	textTop: 0px;
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
+starGiftSmallButton: defaultTableSmallButton;
+darkGiftCodeBox: Box(giveawayGiftCodeBox) {
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
 	}
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgRipple;
+	bg: groupCallMembersBg;
+	title: FlatLabel(boxTitle) {
+		textFg: groupCallMembersFg;
 	}
+	titleAdditionalFg: groupCallMemberNotJoinedStatus;
+}
+darkGiftLink: icon {{ "menu/copy", groupCallMembersFg }};
+darkGiftShare: icon {{ "menu/share", groupCallMembersFg }};
+darkGiftTransfer: icon {{ "chat/input_replace", groupCallMembersFg }};
+darkGiftPalette: TextPalette(defaultTextPalette) {
+	linkFg: mediaviewTextLinkFg;
+	monoFg: groupCallMembersFg;
+	spoilerFg: groupCallMembersFg;
+}
+darkGiftTable: Table(giveawayGiftCodeTable) {
+	headerBg: groupCallMembersBgOver;
+	borderFg: mediaviewMenuBgOver;
+	smallButton: RoundButton(defaultTableSmallButton) {
+		textFg: groupCallMembersFg;
+		textFgOver: groupCallMembersFg;
+		textBg: groupCallMenuBgRipple;
+		textBgOver: groupCallMenuBgRipple;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: mediaviewMenuBgOver;
+		}
+	}
+	defaultLabel: FlatLabel(defaultTableLabel) {
+		textFg: groupCallMembersFg;
+		palette: darkGiftPalette;
+	}
+	defaultValue: FlatLabel(defaultTableValue) {
+		textFg: groupCallMembersFg;
+		palette: darkGiftPalette;
+	}
+}
+darkGiftTableValueMultiline: FlatLabel(giveawayGiftCodeValueMultiline) {
+	textFg: groupCallMembersFg;
+	palette: darkGiftPalette;
+}
+darkGiftTableMessage: FlatLabel(giveawayGiftMessage) {
+	textFg: groupCallMembersFg;
+	palette: darkGiftPalette;
 }

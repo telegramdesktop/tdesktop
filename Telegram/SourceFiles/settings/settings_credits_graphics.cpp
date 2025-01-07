@@ -86,12 +86,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
+#include "styles/style_calls.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -775,7 +777,7 @@ void BoostCreditsBox(
 
 		Ui::AddSkip(content);
 	}
-	AddCreditsBoostTable(controller->uiShow(), content, b);
+	AddCreditsBoostTable(controller->uiShow(), content, {}, b);
 	Ui::AddSkip(content);
 
 	box->addRow(object_ptr<Ui::CenterWrap<>>(
@@ -826,9 +828,10 @@ void ProcessReceivedSubscriptions(
 }
 
 void FillUniqueGiftMenu(
-	std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::PopupMenu*> menu,
-		const Data::CreditsHistoryEntry &e) {
+		const Data::CreditsHistoryEntry &e,
+		CreditsEntryBoxStyleOverrides st) {
 	Expects(e.uniqueGift != nullptr);
 
 	const auto unique = e.uniqueGift;
@@ -837,11 +840,15 @@ void FillUniqueGiftMenu(
 	menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
 		TextUtilities::SetClipboardText({ url });
 		show->showToast(tr::lng_channel_public_link_copied(tr::now));
-	}, &st::menuIconLink);
+	}, st.link ? st.link : &st::menuIconLink);
 
+	const auto shareBoxSt = st.shareBox;
 	menu->addAction(tr::lng_chat_link_share(tr::now), [=] {
-		FastShareLink(show, url);
-	}, &st::menuIconShare);
+		FastShareLink(
+			show,
+			url,
+			shareBoxSt ? *shareBoxSt : ShareBoxStyleOverrides());
+	}, st.share ? st.share : &st::menuIconShare);
 
 	const auto messageId = MsgId(e.bareMsgId);
 	const auto transfer = e.in
@@ -852,15 +859,31 @@ void FillUniqueGiftMenu(
 			if (const auto window = show->resolveWindow()) {
 				ShowTransferGiftBox(window, unique, messageId);
 			}
-		}, &st::menuIconReplace);
+		}, st.transfer ? st.transfer : &st::menuIconReplace);
 	}
+}
+
+CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
+	return {
+		.box = &st::darkGiftCodeBox,
+		.menu = &st::mediaviewPopupMenu,
+		.table = &st::darkGiftTable,
+		.tableValueMultiline = &st::darkGiftTableValueMultiline,
+		.tableValueMessage = &st::darkGiftTableMessage,
+		.link = &st::darkGiftLink,
+		.share = &st::darkGiftShare,
+		.transfer = &st::darkGiftTransfer,
+		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
+			DarkShareBoxStyle()),
+	};
 }
 
 void GenericCreditsEntryBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
-		const Data::SubscriptionEntry &s) {
+		const Data::SubscriptionEntry &s,
+		CreditsEntryBoxStyleOverrides st) {
 	const auto session = &show->session();
 	const auto owner = &session->data();
 	const auto item = owner->message(
@@ -889,7 +912,7 @@ void GenericCreditsEntryBox(
 	const auto couldConvert = forConvert && timeExceeded;
 	const auto nonConvertible = (gotStarGift && !e.starsConverted);
 
-	box->setStyle(st::giveawayGiftCodeBox);
+	box->setStyle(st.box ? *st.box : st::giveawayGiftCodeBox);
 	box->setWidth(st::boxWideWidth);
 	box->setNoContentMargin(true);
 
@@ -925,8 +948,8 @@ void GenericCreditsEntryBox(
 
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 
-		AddUniqueCloseButton(box, [=](not_null<Ui::PopupMenu*> menu) {
-			FillUniqueGiftMenu(show, menu, e);
+		AddUniqueCloseButton(box, st, [=](not_null<Ui::PopupMenu*> menu) {
+			FillUniqueGiftMenu(show, menu, e, st);
 		});
 	} else if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
 		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
@@ -1423,13 +1446,14 @@ void GenericCreditsEntryBox(
 		AddStarGiftTable(
 			show,
 			content,
+			st,
 			e,
 			canToggle ? toggleVisibility : Fn<void(bool)>(),
 			canConvert ? convert : Fn<void()>(),
 			canUpgrade ? upgrade : Fn<void()>());
 	} else {
-		AddCreditsHistoryEntryTable(show, content, e);
-		AddSubscriptionEntryTable(show, content, s);
+		AddCreditsHistoryEntryTable(show, content, st, e);
+		AddSubscriptionEntryTable(show, content, st, s);
 	}
 
 	Ui::AddSkip(content);
@@ -1678,7 +1702,8 @@ void CreditsPrizeBox(
 void GlobalStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
-		const Data::StarGift &data) {
+		const Data::StarGift &data,
+		CreditsEntryBoxStyleOverrides st) {
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	Settings::GenericCreditsEntryBox(
 		box,
@@ -1697,7 +1722,8 @@ void GlobalStarGiftBox(
 			.in = (ownerId == show->session().userPeerId().value),
 			.gift = true,
 		},
-		Data::SubscriptionEntry());
+		Data::SubscriptionEntry(),
+		st);
 }
 
 void UserStarGiftBox(

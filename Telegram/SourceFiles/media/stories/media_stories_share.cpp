@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h" // CopyStoryLink.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_calls.h"
@@ -167,35 +168,15 @@ namespace Media::Stories {
 			++state->requests;
 		}
 	};
-
-	const auto viewerScheduleStyle = [&] {
-		auto date = Ui::ChooseDateTimeStyleArgs();
-		date.labelStyle = &st::groupCallBoxLabel;
-		date.dateFieldStyle = &st::groupCallScheduleDateField;
-		date.timeFieldStyle = &st::groupCallScheduleTimeField;
-		date.separatorStyle = &st::callMuteButtonLabel;
-		date.atStyle = &st::callMuteButtonLabel;
-		date.calendarStyle = &st::groupCallCalendarColors;
-
-		auto st = HistoryView::ScheduleBoxStyleArgs();
-		st.topButtonStyle = &st::groupCallMenuToggle;
-		st.popupMenuStyle = &st::groupCallPopupMenu;
-		st.chooseDateTimeArgs = std::move(date);
-		return st;
-	};
-
+	const auto st = viewerStyle
+		? ::Settings::DarkCreditsEntryBoxStyle()
+		: ::Settings::CreditsEntryBoxStyleOverrides();
 	return Box<ShareBox>(ShareBox::Descriptor{
 		.session = session,
 		.copyCallback = std::move(copyLinkCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
-		.stMultiSelect = viewerStyle ? &st::groupCallMultiSelect : nullptr,
-		.stComment = viewerStyle ? &st::groupCallShareBoxComment : nullptr,
-		.st = viewerStyle ? &st::groupCallShareBoxList : nullptr,
-		.stLabel = viewerStyle ? &st::groupCallField : nullptr,
-		.scheduleBoxStyle = (viewerStyle
-			? viewerScheduleStyle()
-			: HistoryView::ScheduleBoxStyleArgs()),
+		.st = st.shareBox ? *st.shareBox : ShareBoxStyleOverrides(),
 		.premiumRequiredError = SharePremiumRequiredError(),
 	});
 }

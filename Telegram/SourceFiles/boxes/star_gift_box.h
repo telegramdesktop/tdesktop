@@ -17,6 +17,10 @@ namespace Payments {
 enum class CheckoutResult;
 } // namespace Payments
 
+namespace Settings {
+struct CreditsEntryBoxStyleOverrides;
+} // namespace Settings
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -76,6 +80,7 @@ void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args);
 
 void AddUniqueCloseButton(
 	not_null<GenericBox*> box,
+	Settings::CreditsEntryBoxStyleOverrides st,
 	Fn<void(not_null<PopupMenu*>)> fillMenu = nullptr);
 
 void RequestStarsFormAndSubmit(

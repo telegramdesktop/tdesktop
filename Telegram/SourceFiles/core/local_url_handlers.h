@@ -15,6 +15,10 @@ namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
 
+namespace Settings {
+struct CreditsEntryBoxStyleOverrides;
+} // namespace Settings
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -38,6 +42,10 @@ struct LocalUrlHandler {
 
 [[nodiscard]] bool StartUrlRequiresActivate(const QString &url);
 
+void ResolveAndShowUniqueGift(
+	std::shared_ptr<ChatHelpers::Show> show,
+	const QString &slug,
+	::Settings::CreditsEntryBoxStyleOverrides st);
 void ResolveAndShowUniqueGift(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const QString &slug);

@@ -11,6 +11,7 @@ template <typename Object>
 class object_ptr;
 
 class PeerData;
+struct ShareBoxStyleOverrides;
 
 namespace ChatHelpers {
 class Show;
@@ -26,6 +27,10 @@ struct UserStarGift;
 struct StarGift;
 } // namespace Data
 
+namespace HistoryView {
+struct ScheduleBoxStyleArgs;
+} // namespace HistoryView
+
 namespace Main {
 class Session;
 class SessionShow;
@@ -36,6 +41,10 @@ class SessionController;
 } // namespace Window
 
 namespace style {
+struct Box;
+struct Table;
+struct FlatLabel;
+struct PopupMenu;
 struct PeerListItem;
 } // namespace style
 
@@ -81,11 +90,25 @@ void AddWithdrawalWidget(
 	bool withdrawalEnabled,
 	rpl::producer<QString> usdValue);
 
+struct CreditsEntryBoxStyleOverrides {
+	const style::Box *box = nullptr;
+	const style::PopupMenu *menu = nullptr;
+	const style::Table *table = nullptr;
+	const style::FlatLabel *tableValueMultiline = nullptr;
+	const style::FlatLabel *tableValueMessage = nullptr;
+	const style::icon *link = nullptr;
+	const style::icon *share = nullptr;
+	const style::icon *transfer = nullptr;
+	std::shared_ptr<ShareBoxStyleOverrides> shareBox;
+};
+[[nodiscard]] CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle();
+
 void GenericCreditsEntryBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::CreditsHistoryEntry &e,
-	const Data::SubscriptionEntry &s);
+	const Data::SubscriptionEntry &s,
+	CreditsEntryBoxStyleOverrides st = {});
 void ReceiptCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
@@ -110,7 +133,8 @@ void CreditsPrizeBox(
 void GlobalStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
-	const Data::StarGift &data);
+	const Data::StarGift &data,
+	CreditsEntryBoxStyleOverrides st = {});
 void UserStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,

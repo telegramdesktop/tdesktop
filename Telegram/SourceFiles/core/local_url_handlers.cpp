@@ -1702,7 +1702,8 @@ bool StartUrlRequiresActivate(const QString &url) {
 
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
-		const QString &slug) {
+		const QString &slug,
+		::Settings::CreditsEntryBoxStyleOverrides st) {
 	struct Request {
 		base::weak_ptr<Main::Session> weak;
 		QString slug;
@@ -1732,12 +1733,18 @@ void ResolveAndShowUniqueGift(
 		session->data().processUsers(data.vusers());
 		if (const auto gift = Api::FromTL(session, data.vgift())) {
 			using namespace ::Settings;
-			show->show(Box(GlobalStarGiftBox, show, *gift));
+			show->show(Box(GlobalStarGiftBox, show, *gift, st));
 		}
 	}).fail([=](const MTP::Error &error) {
 		clear();
 		show->showToast(u"Error: "_q + error.type());
 	}).send();
+}
+
+void ResolveAndShowUniqueGift(
+		std::shared_ptr<ChatHelpers::Show> show,
+		const QString &slug) {
+	ResolveAndShowUniqueGift(std::move(show), slug, {});
 }
 
 } // namespace Core

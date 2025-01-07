@@ -2345,7 +2345,7 @@ void UpgradeBox(
 		}
 	}, box->lifetime());
 
-	AddUniqueCloseButton(box);
+	AddUniqueCloseButton(box, {});
 }
 
 const std::vector<PatternPoint> &PatternPoints() {
@@ -2502,6 +2502,7 @@ void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args) {
 
 void AddUniqueCloseButton(
 		not_null<GenericBox*> box,
+		Settings::CreditsEntryBoxStyleOverrides st,
 		Fn<void(not_null<Ui::PopupMenu*>)> fillMenu) {
 	const auto close = Ui::CreateChild<IconButton>(
 		box,
@@ -2537,7 +2538,7 @@ void AddUniqueCloseButton(
 			}
 			*state = base::make_unique_q<Ui::PopupMenu>(
 				menu,
-				st::popupMenuWithIcons);
+				st.menu ? *st.menu : st::popupMenuWithIcons);
 			fillMenu(state->get());
 			if (!(*state)->empty()) {
 				(*state)->popup(QCursor::pos());

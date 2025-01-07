@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_stealth.h"
 #include "media/stories/media_stories_view.h"
 #include "media/audio/media_audio.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/text/text_utilities.h"
@@ -1959,7 +1960,10 @@ ClickHandlerPtr MakeUrlAreaHandler(
 				const auto slug = raw.mid(
 					prefix.size()
 				).split('&').front().split('#').front();
-				Core::ResolveAndShowUniqueGift(strong->uiShow(), slug);
+				Core::ResolveAndShowUniqueGift(
+					strong->uiShow(),
+					slug,
+					::Settings::DarkCreditsEntryBoxStyle());
 			} else {
 				HiddenUrlClickHandler::onClick(context);
 			}

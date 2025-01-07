@@ -983,11 +983,11 @@ void ConfirmUpdate(
 				object_ptr<Ui::FlatLabel>(
 					table,
 					std::move(label),
-					st::giveawayGiftCodeLabel),
+					table->st().defaultLabel),
 				object_ptr<Ui::FlatLabel>(
 					table,
 					value,
-					st::giveawayGiftCodeValue,
+					table->st().defaultValue,
 					st::defaultPopupMenu),
 				st::giveawayGiftCodeLabelMargin,
 				st::giveawayGiftCodeValueMargin);

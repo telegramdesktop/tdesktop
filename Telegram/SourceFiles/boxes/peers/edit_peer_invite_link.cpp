@@ -1020,7 +1020,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 		Ui::AddSkip(content);
 
 		const auto show = controller->uiShow();
-		AddSubscriberEntryTable(show, content, row->peer(), data.date);
+		AddSubscriberEntryTable(show, content, {}, row->peer(), data.date);
 
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);

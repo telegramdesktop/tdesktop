@@ -61,18 +61,31 @@ class PopupMenu;
 
 class ShareBox;
 
+struct ShareBoxStyleOverrides {
+	const style::MultiSelect *multiSelect = nullptr;
+	const style::InputField *comment = nullptr;
+	const style::PeerList *peerList = nullptr;
+	const style::InputField *label = nullptr;
+	std::shared_ptr<HistoryView::ScheduleBoxStyleArgs> scheduleBox;
+};
+[[nodiscard]] ShareBoxStyleOverrides DarkShareBoxStyle();
+
 void FastShareMessage(
 	std::shared_ptr<Main::SessionShow> show,
-	not_null<HistoryItem*> item);
+	not_null<HistoryItem*> item,
+	ShareBoxStyleOverrides st = {});
 void FastShareMessage(
 	not_null<Window::SessionController*> controller,
-	not_null<HistoryItem*> item);
+	not_null<HistoryItem*> item,
+	ShareBoxStyleOverrides st = {});
 void FastShareLink(
 	not_null<Window::SessionController*> controller,
-	const QString &url);
+	const QString &url,
+	ShareBoxStyleOverrides st = {});
 void FastShareLink(
 	std::shared_ptr<Main::SessionShow> show,
-	const QString &url);
+	const QString &url,
+	ShareBoxStyleOverrides st = {});
 
 struct RecipientPremiumRequiredError;
 [[nodiscard]] auto SharePremiumRequiredError()
@@ -100,16 +113,12 @@ public:
 		FilterCallback filterCallback;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
 		rpl::producer<QString> copyLinkText;
-		const style::MultiSelect *stMultiSelect = nullptr;
-		const style::InputField *stComment = nullptr;
-		const style::PeerList *st = nullptr;
-		const style::InputField *stLabel = nullptr;
+		ShareBoxStyleOverrides st;
 		struct {
 			int sendersCount = 0;
 			int captionsCount = 0;
 			bool show = false;
 		} forwardOptions;
-		HistoryView::ScheduleBoxStyleArgs scheduleBoxStyle;
 
 		using PremiumRequiredError = RecipientPremiumRequiredError;
 		Fn<PremiumRequiredError(not_null<UserData*>)> premiumRequiredError;

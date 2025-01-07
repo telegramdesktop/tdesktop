@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
+#include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/boxes/boost_box.h" // StartFireworks.
@@ -128,12 +129,12 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerTableValue(
-		not_null<QWidget*> parent,
+		not_null<Ui::TableLayout*> table,
 		std::shared_ptr<ChatHelpers::Show> show,
 		PeerId id,
 		rpl::producer<QString> button = nullptr,
 		Fn<void()> handler = nullptr) {
-	auto result = object_ptr<Ui::AbstractButton>(parent);
+	auto result = object_ptr<Ui::AbstractButton>(table);
 	const auto raw = result.data();
 
 	const auto &st = st::giveawayGiftCodeUserpic;
@@ -144,12 +145,12 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
 		(button && handler) ? peer->shortName() : peer->name(),
-		st::giveawayGiftCodeValue);
+		table->st().defaultValue);
 	const auto send = (button && handler)
 		? Ui::CreateChild<Ui::RoundButton>(
 			raw,
 			std::move(button),
-			st::starGiftSmallButton)
+			table->st().smallButton)
 		: nullptr;
 	if (send) {
 		send->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
@@ -171,8 +172,8 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 			send->moveToLeft(
 				position.x() + label->width() + st::normalFont->spacew,
 				(position.y()
-					+ st::giveawayGiftCodeValue.style.font->ascent
-					- st::starGiftSmallButton.style.font->ascent),
+					+ table->st().defaultValue.style.font->ascent
+					- table->st().smallButton.style.font->ascent),
 				width);
 		}
 	}, label->lifetime());
@@ -189,8 +190,8 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeHiddenPeerTableValue(
-		not_null<QWidget*> parent) {
-	auto result = object_ptr<Ui::RpWidget>(parent);
+		not_null<Ui::TableLayout*> table) {
+	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
 	const auto &st = st::giveawayGiftCodeUserpic;
@@ -207,7 +208,7 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
 		tr::lng_gift_from_hidden(),
-		st::giveawayGiftCodeValue);
+		table->st().defaultValue);
 	raw->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		const auto position = st::giveawayGiftCodeNamePosition;
@@ -234,7 +235,7 @@ void AddTableRow(
 			? object_ptr<Ui::FlatLabel>(
 				table,
 				std::move(label),
-				st::giveawayGiftCodeLabel)
+				table->st().defaultLabel)
 			: object_ptr<Ui::FlatLabel>(nullptr)),
 		std::move(value),
 		st::giveawayGiftCodeLabelMargin,
@@ -242,23 +243,23 @@ void AddTableRow(
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeAttributeValue(
-		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::TableLayout*> table,
 		const Data::UniqueGiftAttribute &attribute,
 		Fn<void(not_null<Ui::RpWidget*>, int)> showTooltip) {
-	auto result = object_ptr<Ui::RpWidget>(parent);
+	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
 		attribute.name,
-		st::giveawayGiftCodeValue);
+		table->st().defaultValue);
 	const auto permille = attribute.rarityPermille;
 
 	const auto text = QString::number(permille / 10.) + '%';
 	const auto rarity = Ui::CreateChild<Ui::RoundButton>(
 		raw,
 		rpl::single(text),
-		st::starGiftSmallButton);
+		table->st().smallButton);
 	rarity->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
 	rpl::combine(
@@ -272,8 +273,8 @@ void AddTableRow(
 		label->moveToLeft(0, 0, width);
 		rarity->moveToLeft(
 			label->width() + st::normalFont->spacew,
-			(st::giveawayGiftCodeValue.style.font->ascent
-				- st::starGiftSmallButton.style.font->ascent),
+			(table->st().defaultValue.style.font->ascent
+				- table->st().smallButton.style.font->ascent),
 			width);
 	}, label->lifetime());
 
@@ -293,11 +294,11 @@ void AddTableRow(
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
-		not_null<QWidget*> parent,
+		not_null<Ui::TableLayout*> table,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void()> convertToStars) {
-	auto result = object_ptr<Ui::RpWidget>(parent);
+	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
 	const auto session = &show->session();
@@ -312,7 +313,7 @@ void AddTableRow(
 		raw,
 		rpl::single(star.append(
 			' ' + Lang::FormatStarsAmountDecimal(entry.credits))),
-		st::giveawayGiftCodeValue,
+		table->st().defaultValue,
 		st::defaultPopupMenu,
 		std::move(makeContext));
 
@@ -322,7 +323,7 @@ void AddTableRow(
 			tr::lng_gift_sell_small(
 				lt_count_decimal,
 				rpl::single(entry.starsConverted * 1.)),
-			st::starGiftSmallButton)
+			table->st().smallButton)
 		: nullptr;
 	if (convert) {
 		convert->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
@@ -340,8 +341,8 @@ void AddTableRow(
 		if (convert) {
 			convert->moveToLeft(
 				label->width() + st::normalFont->spacew,
-				(st::giveawayGiftCodeValue.style.font->ascent
-					- st::starGiftSmallButton.style.font->ascent),
+				(table->st().defaultValue.style.font->ascent
+					- table->st().smallButton.style.font->ascent),
 				width);
 		}
 	}, label->lifetime());
@@ -358,10 +359,10 @@ void AddTableRow(
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeVisibilityTableValue(
-		not_null<QWidget*> parent,
+		not_null<Ui::TableLayout*> table,
 		bool savedToProfile,
 		Fn<void(bool)> toggleVisibility) {
-	auto result = object_ptr<Ui::RpWidget>(parent);
+	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
@@ -369,7 +370,7 @@ void AddTableRow(
 		(savedToProfile
 			? tr::lng_gift_visibility_shown()
 			: tr::lng_gift_visibility_hidden()),
-		st::giveawayGiftCodeValue,
+		table->st().defaultValue,
 		st::defaultPopupMenu);
 
 	const auto toggle = Ui::CreateChild<Ui::RoundButton>(
@@ -377,7 +378,7 @@ void AddTableRow(
 		(savedToProfile
 			? tr::lng_gift_visibility_hide()
 			: tr::lng_gift_visibility_show()),
-		st::starGiftSmallButton);
+		table->st().smallButton);
 	toggle->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	toggle->setClickedCallback([=] {
 		toggleVisibility(!savedToProfile);
@@ -394,8 +395,8 @@ void AddTableRow(
 		label->moveToLeft(0, 0, width);
 		toggle->moveToLeft(
 			label->width() + st::normalFont->spacew,
-			(st::giveawayGiftCodeValue.style.font->ascent
-				- st::starGiftSmallButton.style.font->ascent),
+			(table->st().defaultValue.style.font->ascent
+				- table->st().smallButton.style.font->ascent),
 			width);
 	}, label->lifetime());
 
@@ -411,21 +412,21 @@ void AddTableRow(
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeNonUniqueStatusTableValue(
-		not_null<QWidget*> parent,
+		not_null<Ui::TableLayout*> table,
 		Fn<void()> startUpgrade) {
-	auto result = object_ptr<Ui::RpWidget>(parent);
+	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
 		tr::lng_gift_unique_status_non(),
-		st::giveawayGiftCodeValue,
+		table->st().defaultValue,
 		st::defaultPopupMenu);
 
 	const auto upgrade = Ui::CreateChild<Ui::RoundButton>(
 		raw,
 		tr::lng_gift_unique_status_upgrade(),
-		st::starGiftSmallButton);
+		table->st().smallButton);
 	upgrade->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	upgrade->setClickedCallback(startUpgrade);
 
@@ -440,8 +441,8 @@ void AddTableRow(
 		label->moveToLeft(0, 0, width);
 		upgrade->moveToLeft(
 			label->width() + st::normalFont->spacew,
-			(st::giveawayGiftCodeValue.style.font->ascent
-				- st::starGiftSmallButton.style.font->ascent),
+			(table->st().defaultValue.style.font->ascent
+				- table->st().smallButton.style.font->ascent),
 			width);
 	}, label->lifetime());
 
@@ -464,7 +465,7 @@ not_null<Ui::FlatLabel*> AddTableRow(
 	auto widget = object_ptr<Ui::FlatLabel>(
 		table,
 		std::move(value),
-		st::giveawayGiftCodeValue,
+		table->st().defaultValue,
 		st::defaultPopupMenu,
 		std::move(makeContext));
 	const auto result = widget.data();
@@ -494,12 +495,13 @@ void AddTableRow(
 void AddTable(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<ChatHelpers::Show> show,
+		Settings::CreditsEntryBoxStyleOverrides st,
 		const Api::GiftCode &current,
 		bool skipReason) {
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
-			st::giveawayGiftCodeTable),
+			st.table ? *st.table : st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	if (current.from) {
 		AddTableRow(
@@ -678,7 +680,7 @@ void GiftCodeBox(
 		st::giveawayGiftCodeLinkMargin);
 
 	const auto show = controller->uiShow();
-	AddTable(box->verticalLayout(), show, state->data.current(), false);
+	AddTable(box->verticalLayout(), show, {}, state->data.current(), false);
 
 	auto shareLink = tr::lng_gift_link_also_send_link(
 	) | rpl::map([](const QString &text) {
@@ -760,7 +762,6 @@ void GiftCodeBox(
 	}, button->lifetime());
 }
 
-
 void GiftCodePendingBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionNavigation*> controller,
@@ -839,7 +840,7 @@ void GiftCodePendingBox(
 	}
 
 	const auto show = controller->uiShow();
-	AddTable(box->verticalLayout(), show, data, true);
+	AddTable(box->verticalLayout(), show, {}, data, true);
 
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -1192,6 +1193,7 @@ void ResolveGiveawayInfo(
 void AddStarGiftTable(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
+		Settings::CreditsEntryBoxStyleOverrides st,
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void(bool)> toggleVisibility,
 		Fn<void()> convertToStars,
@@ -1199,7 +1201,7 @@ void AddStarGiftTable(
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
-			st::giveawayGiftCodeTable),
+			st.table ? *st.table : st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto session = &show->session();
@@ -1344,17 +1346,17 @@ void AddStarGiftTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_model(),
-			MakeAttributeValue(container, unique->model, showTooltip),
+			MakeAttributeValue(table, unique->model, showTooltip),
 			marginWithButton);
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_backdrop(),
-			MakeAttributeValue(container, unique->backdrop, showTooltip),
+			MakeAttributeValue(table, unique->backdrop, showTooltip),
 			marginWithButton);
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_symbol(),
-			MakeAttributeValue(container, unique->pattern, showTooltip),
+			MakeAttributeValue(table, unique->pattern, showTooltip),
 			marginWithButton);
 	} else {
 		AddTableRow(
@@ -1458,7 +1460,9 @@ void AddStarGiftTable(
 							lt_text,
 							rpl::single(original.message),
 							Ui::Text::WithEntities))),
-				st::giveawayGiftMessage,
+				(st.tableValueMessage
+					? *st.tableValueMessage
+					: st::giveawayGiftMessage),
 				st::defaultPopupMenu,
 				makeContext);
 			const auto showBoxLink = [=](not_null<PeerData*> peer) {
@@ -1487,7 +1491,9 @@ void AddStarGiftTable(
 		auto label = object_ptr<Ui::FlatLabel>(
 			table,
 			rpl::single(entry.description),
-			st::giveawayGiftMessage,
+			(st.tableValueMessage
+				? *st.tableValueMessage
+				: st::giveawayGiftMessage),
 			st::defaultPopupMenu,
 			makeContext);
 		label->setSelectable(true);
@@ -1502,6 +1508,7 @@ void AddStarGiftTable(
 void AddCreditsHistoryEntryTable(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
+		Settings::CreditsEntryBoxStyleOverrides st,
 		const Data::CreditsHistoryEntry &entry) {
 	if (!entry) {
 		return;
@@ -1509,7 +1516,7 @@ void AddCreditsHistoryEntryTable(
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
-			st::giveawayGiftCodeTable),
+			st.table ? *st.table : st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto actorId = PeerId(entry.bareActorId);
@@ -1570,7 +1577,7 @@ void AddCreditsHistoryEntryTable(
 			auto label = object_ptr<Ui::FlatLabel>(
 				table,
 				rpl::single(Ui::Text::Link(link)),
-				st::giveawayGiftCodeValue);
+				table->st().defaultValue);
 			label->setClickHandlerFilter([=](const auto &...) {
 				if (const auto window = show->resolveWindow()) {
 					window->showPeerHistory(channel, {}, msgId);
@@ -1666,9 +1673,11 @@ void AddCreditsHistoryEntryTable(
 			table,
 			rpl::single(
 				Ui::Text::Wrapped({ entry.id }, EntityType::Code, {})),
-			oneLine
-				? st::giveawayGiftCodeValue
-				: st::giveawayGiftCodeValueMultiline);
+			(oneLine
+				? table->st().defaultValue
+				: st.tableValueMultiline
+				? *st.tableValueMultiline
+				: st::giveawayGiftCodeValueMultiline));
 		label->setClickHandlerFilter([=](const auto &...) {
 			TextUtilities::SetClipboardText(
 				TextForMimeData::Simple(entry.id));
@@ -1714,6 +1723,7 @@ void AddCreditsHistoryEntryTable(
 void AddSubscriptionEntryTable(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
+		Settings::CreditsEntryBoxStyleOverrides st,
 		const Data::SubscriptionEntry &s) {
 	if (!s) {
 		return;
@@ -1721,7 +1731,7 @@ void AddSubscriptionEntryTable(
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
-			st::giveawayGiftCodeTable),
+			st.table ? *st.table : st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(s.barePeerId);
 	const auto user = peerIsUser(peerId)
@@ -1767,12 +1777,13 @@ void AddSubscriptionEntryTable(
 void AddSubscriberEntryTable(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
+		Settings::CreditsEntryBoxStyleOverrides st,
 		not_null<PeerData*> peer,
 		TimeId date) {
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
-			st::giveawayGiftCodeTable),
+			st.table ? *st.table : st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	AddTableRow(
 		table,
@@ -1790,11 +1801,12 @@ void AddSubscriberEntryTable(
 void AddCreditsBoostTable(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
+		Settings::CreditsEntryBoxStyleOverrides st,
 		const Data::Boost &b) {
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
-			st::giveawayGiftCodeTable),
+			st.table ? *st.table : st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = b.giveawayMessage.peer;
 	if (!peerId) {
