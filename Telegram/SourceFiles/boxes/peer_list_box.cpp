@@ -1680,6 +1680,10 @@ void PeerListContent::mousePressReleased(Qt::MouseButton button) {
 				_controller->rowClicked(row);
 			}
 		}
+	} else if (button == Qt::MiddleButton && pressed == _selected) {
+		if (auto row = getRow(pressed.index)) {
+			_controller->rowMiddleClicked(row);
+		}
 	}
 }
 

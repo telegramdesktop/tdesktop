@@ -482,6 +482,8 @@ public:
 	}
 
 	virtual void rowClicked(not_null<PeerListRow*> row) = 0;
+	virtual void rowMiddleClicked(not_null<PeerListRow*> row) {
+	}
 	virtual void rowRightActionClicked(not_null<PeerListRow*> row) {
 	}
 
