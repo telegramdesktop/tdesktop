@@ -1,3 +1,7 @@
+5.10.2 (07.01.25)
+
+- Fix double verification badge in profiles.
+
 5.10.1 (06.01.25)
 
 - Show "Boost group the send messages" information.
