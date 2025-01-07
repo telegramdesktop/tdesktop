@@ -117,6 +117,7 @@ void Badge::setContent(Content content) {
 	_view->show();
 	switch (_content.badge) {
 	case BadgeType::Verified:
+	case BadgeType::BotVerified:
 	case BadgeType::Premium: {
 		const auto id = _content.emojiStatusId;
 		const auto emoji = id

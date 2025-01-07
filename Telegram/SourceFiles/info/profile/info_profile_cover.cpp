@@ -311,7 +311,7 @@ Cover::Cover(
 	) | rpl::map([=] {
 		const auto info = peer->botVerifyDetails();
 		return Badge::Content{
-			.badge = info ? BadgeType::Verified : BadgeType::None,
+			.badge = info ? BadgeType::BotVerified : BadgeType::None,
 			.emojiStatusId = info ? info->iconId : DocumentId(),
 		};
 	});

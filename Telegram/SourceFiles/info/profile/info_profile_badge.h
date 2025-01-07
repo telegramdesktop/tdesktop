@@ -38,9 +38,10 @@ class EmojiStatusPanel;
 enum class BadgeType {
 	None = 0x00,
 	Verified = 0x01,
-	Premium = 0x02,
-	Scam = 0x04,
-	Fake = 0x08,
+	BotVerified = 0x02,
+	Premium = 0x04,
+	Scam = 0x08,
+	Fake = 0x10,
 };
 inline constexpr bool is_flag_type(BadgeType) { return true; }
 
