@@ -1376,19 +1376,17 @@ void ShowPremiumPromoToast(
 		TextWithEntities textWithLink,
 		const QString &ref) {
 	ShowPremiumPromoToast(show, [=](
-			not_null<Main::Session*> session,
-			ChatHelpers::WindowUsage usage) {
+			not_null<Main::Session*> session) {
 		Expects(&show->session() == session);
 
-		return show->resolveWindow(usage);
+		return show->resolveWindow();
 	}, std::move(textWithLink), ref);
 }
 
 void ShowPremiumPromoToast(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<Window::SessionController*(
-			not_null<Main::Session*>,
-			ChatHelpers::WindowUsage)> resolveWindow,
+			not_null<Main::Session*>)> resolveWindow,
 		TextWithEntities textWithLink,
 		const QString &ref) {
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
@@ -1403,8 +1401,7 @@ void ShowPremiumPromoToast(
 					strong->hideAnimated();
 					(*toast) = nullptr;
 					if (const auto controller = resolveWindow(
-							&show->session(),
-							ChatHelpers::WindowUsage::PremiumPromo)) {
+							&show->session())) {
 						Settings::ShowPremium(controller, ref);
 					}
 					return true;
@@ -1476,12 +1473,10 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	Expects(args.show || args.controller);
 
 	auto show = args.show ? std::move(args.show) : args.controller->uiShow();
-	auto resolve = [show](
-			not_null<Main::Session*> session,
-			ChatHelpers::WindowUsage usage) {
+	auto resolve = [show](not_null<Main::Session*> session) {
 		Expects(session == &show->session());
 
-		return show->resolveWindow(usage);
+		return show->resolveWindow();
 	};
 	return CreateSubscribeButton(
 		std::move(show),
@@ -1492,8 +1487,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 not_null<Ui::GradientButton*> CreateSubscribeButton(
 		std::shared_ptr<::Main::SessionShow> show,
 		Fn<Window::SessionController*(
-			not_null<::Main::Session*>,
-			ChatHelpers::WindowUsage)> resolveWindow,
+			not_null<::Main::Session*>)> resolveWindow,
 		SubscribeButtonArgs &&args) {
 	const auto result = Ui::CreateChild<Ui::GradientButton>(
 		args.parent.get(),
@@ -1508,8 +1502,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			computeRef = args.computeRef,
 			computeBotUrl = args.computeBotUrl] {
 		const auto window = resolveWindow(
-			&show->session(),
-			ChatHelpers::WindowUsage::PremiumPromo);
+			&show->session());
 		if (!window) {
 			return;
 		} else if (promo) {

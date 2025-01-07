@@ -12,6 +12,10 @@ class object_ptr;
 
 class PeerData;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 struct Boost;
 struct CreditsHistoryEntry;
@@ -77,6 +81,11 @@ void AddWithdrawalWidget(
 	bool withdrawalEnabled,
 	rpl::producer<QString> usdValue);
 
+void GenericCreditsEntryBox(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<ChatHelpers::Show> show,
+	const Data::CreditsHistoryEntry &e,
+	const Data::SubscriptionEntry &s);
 void ReceiptCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
@@ -100,7 +109,7 @@ void CreditsPrizeBox(
 	TimeId date);
 void GlobalStarGiftBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::StarGift &data);
 void UserStarGiftBox(
 	not_null<Ui::GenericBox*> box,

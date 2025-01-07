@@ -88,8 +88,7 @@ void MaybeShowPremiumToast(
 		return;
 	}
 	const auto filter = [=](const auto ...) {
-		const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
-		if (const auto controller = show->resolveWindow(usage)) {
+		if (const auto controller = show->resolveWindow()) {
 			Settings::ShowPremium(controller, ref);
 		}
 		return false;

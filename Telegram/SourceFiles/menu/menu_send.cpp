@@ -522,8 +522,7 @@ void EffectPreview::setupSend(Details details) {
 		}, _actionWithEffect);
 	} else {
 		_premiumPromoLabel->entity()->setClickHandlerFilter([=](auto&&...) {
-			const auto window = _show->resolveWindow(
-				ChatHelpers::WindowUsage::PremiumPromo);
+			const auto window = _show->resolveWindow();
 			if (window) {
 				if (const auto onstack = _close) {
 					onstack();

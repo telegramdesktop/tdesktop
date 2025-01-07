@@ -773,9 +773,7 @@ void StickerSetBox::updateButtons() {
 					- st.buttonPadding.left()
 					- st.buttonPadding.left());
 				button->setClickedCallback([=] {
-					using namespace ChatHelpers;
-					const auto usage = WindowUsage::PremiumPromo;
-					if (const auto window = _show->resolveWindow(usage)) {
+					if (const auto window = _show->resolveWindow()) {
 						Settings::ShowPremium(window, u"animated_emoji"_q);
 					}
 				});

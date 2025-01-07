@@ -40,13 +40,8 @@ enum class PauseReason {
 using PauseReasons = base::flags<PauseReason>;
 inline constexpr bool is_flag_type(PauseReason) { return true; };
 
-enum class WindowUsage {
-	PremiumPromo,
-};
-
 using ResolveWindow = Fn<Window::SessionController*(
-	not_null<Main::Session*>,
-	WindowUsage)>;
+	not_null<Main::Session*>)>;
 [[nodiscard]] ResolveWindow ResolveWindowDefault();
 
 class Show : public Main::SessionShow {
@@ -68,8 +63,7 @@ public:
 
 	virtual void processChosenSticker(FileChosen &&chosen) const = 0;
 
-	[[nodiscard]] virtual Window::SessionController *resolveWindow(
-		WindowUsage) const;
+	[[nodiscard]] virtual Window::SessionController *resolveWindow() const;
 };
 
 } // namespace ChatHelpers

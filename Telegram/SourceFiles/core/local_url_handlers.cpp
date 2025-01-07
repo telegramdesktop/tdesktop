@@ -1355,45 +1355,7 @@ bool ResolveUniqueGift(
 	if (slug.isEmpty()) {
 		return false;
 	}
-	struct Request {
-		base::weak_ptr<Window::SessionController> weak;
-		QString slug;
-		mtpRequestId id = 0;
-	};
-	static auto request = Request();
-	if (request.weak.get() == controller && request.slug == slug) {
-		return true;
-	} else if (const auto strong = request.weak.get()) {
-		strong->session().api().request(request.id).cancel();
-	}
-	const auto weak = request.weak = controller;
-	request.slug = slug;
-	const auto clear = [slug](not_null<Window::SessionController*> window) {
-		if (request.weak.get() == window && request.slug == slug) {
-			request = {};
-		}
-	};
-	request.id = controller->session().api().request(
-		MTPpayments_GetUniqueStarGift(MTP_string(slug))
-	).done([=](const MTPpayments_UniqueStarGift &result) {
-		if (const auto strong = weak.get()) {
-			clear(strong);
-
-			const auto &data = result.data();
-			const auto session = &strong->session();
-			session->data().processUsers(data.vusers());
-			if (const auto gift = Api::FromTL(session, data.vgift())) {
-				using namespace ::Settings;
-				strong->show(Box(GlobalStarGiftBox, strong, *gift));
-			}
-		}
-	}).fail([=](const MTP::Error &error) {
-		if (const auto strong = weak.get()) {
-			clear(strong);
-
-			strong->showToast(u"Error: "_q + error.type());
-		}
-	}).send();
+	ResolveAndShowUniqueGift(controller->uiShow(), slug);
 	return true;
 }
 
@@ -1736,6 +1698,46 @@ bool StartUrlRequiresActivate(const QString &url) {
 	return Core::App().passcodeLocked()
 		? true
 		: !InternalPassportLink(url);
+}
+
+void ResolveAndShowUniqueGift(
+		std::shared_ptr<ChatHelpers::Show> show,
+		const QString &slug) {
+	struct Request {
+		base::weak_ptr<Main::Session> weak;
+		QString slug;
+		mtpRequestId id = 0;
+	};
+	static auto request = Request();
+
+	const auto session = &show->session();
+	if (request.weak.get() == session && request.slug == slug) {
+		return;
+	} else if (const auto strong = request.weak.get()) {
+		strong->api().request(request.id).cancel();
+	}
+	request.weak = session;
+	request.slug = slug;
+	const auto clear = [=] {
+		if (request.weak.get() == session && request.slug == slug) {
+			request = {};
+		}
+	};
+	request.id = session->api().request(
+		MTPpayments_GetUniqueStarGift(MTP_string(slug))
+	).done([=](const MTPpayments_UniqueStarGift &result) {
+		clear();
+
+		const auto &data = result.data();
+		session->data().processUsers(data.vusers());
+		if (const auto gift = Api::FromTL(session, data.vgift())) {
+			using namespace ::Settings;
+			show->show(Box(GlobalStarGiftBox, show, *gift));
+		}
+	}).fail([=](const MTP::Error &error) {
+		clear();
+		show->showToast(u"Error: "_q + error.type());
+	}).send();
 }
 
 } // namespace Core

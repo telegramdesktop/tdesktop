@@ -1751,7 +1751,6 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		const auto id = hasColorButton(button->section)
 			? 0
 			: _custom[button->section - _staticCount].id;
-		const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
 		if (hasColorButton(button->section)) {
 			_pickerSelected = pressed;
 			showPicker();
@@ -1759,7 +1758,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			removeSet(id);
 		} else if (hasAddButton(button->section)) {
 			_localSetsManager->install(id);
-		} else if (const auto resolved = _show->resolveWindow(usage)) {
+		} else if (const auto resolved = _show->resolveWindow()) {
 			_jumpedToPremium.fire({});
 			switch (_mode) {
 			case Mode::Full:

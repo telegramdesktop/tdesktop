@@ -170,29 +170,24 @@ private:
 };
 
 void ToggleStarGiftSaved(
-		not_null<Window::SessionController*> window,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<UserData*> sender,
 		MsgId itemId,
 		bool save,
 		Fn<void(bool)> done) {
 	using Flag = MTPpayments_SaveStarGift::Flag;
-	const auto api = &window->session().api();
-	const auto weak = base::make_weak(window);
+	const auto api = &show->session().api();
 	api->request(MTPpayments_SaveStarGift(
 		MTP_flags(save ? Flag(0) : Flag::f_unsave),
 		MTP_int(itemId.bare)
 	)).done([=] {
 		done(true);
-		if (const auto strong = weak.get()) {
-			strong->showToast((save
-				? tr::lng_gift_display_done
-				: tr::lng_gift_display_done_hide)(tr::now));
-		}
+		show->showToast((save
+			? tr::lng_gift_display_done
+			: tr::lng_gift_display_done_hide)(tr::now));
 	}).fail([=](const MTP::Error &error) {
 		done(false);
-		if (const auto strong = weak.get()) {
-			strong->showToast(error.type());
-		}
+		show->showToast(error.type());
 	}).send();
 }
 
@@ -229,36 +224,33 @@ void ConfirmConvertStarGift(
 }
 
 void ConvertStarGift(
-		not_null<Window::SessionController*> window,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<UserData*> sender,
 		MsgId itemId,
 		int stars,
 		Fn<void(bool)> done) {
-	const auto api = &window->session().api();
-	const auto weak = base::make_weak(window);
+	const auto api = &show->session().api();
 	api->request(MTPpayments_ConvertStarGift(
 		MTP_int(itemId)
 	)).done([=] {
-		if (const auto strong = weak.get()) {
-			strong->showSettings(Settings::CreditsId());
-			strong->showToast(tr::lng_gift_got_stars(
-				tr::now,
-				lt_count,
-				stars,
-				Ui::Text::RichLangValue));
+		if (const auto window = show->resolveWindow()) {
+			window->showSettings(Settings::CreditsId());
 		}
+		show->showToast(tr::lng_gift_got_stars(
+			tr::now,
+			lt_count,
+			stars,
+			Ui::Text::RichLangValue));
 		done(true);
 	}).fail([=](const MTP::Error &error) {
-		if (const auto strong = weak.get()) {
-			strong->showToast(error.type());
-		}
+		show->showToast(error.type());
 		done(false);
 	}).send();
 }
 
 void AddViewMediaHandler(
 		not_null<Ui::RpWidget*> thumb,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e) {
 	if (e.extended.empty()) {
 		return;
@@ -277,7 +269,7 @@ void AddViewMediaHandler(
 		bool over = false;
 	};
 	const auto state = thumb->lifetime().make_state<State>();
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	const auto owner = &session->data();
 	const auto peerId = e.barePeerId
 		? PeerId(e.barePeerId)
@@ -315,24 +307,27 @@ void AddViewMediaHandler(
 			.extendedMedia = std::move(fake),
 			.isPaidMedia = true,
 		}));
-	const auto showMedia = crl::guard(controller, [=] {
-		if (const auto media = state->item->media()) {
+	const auto showMedia = [=] {
+		const auto window = show->resolveWindow();
+		if (!window) {
+			return;
+		} else if (const auto media = state->item->media()) {
 			if (const auto invoice = media->invoice()) {
 				if (!invoice->extendedMedia.empty()) {
 					const auto first = invoice->extendedMedia[0].get();
 					if (const auto photo = first->photo()) {
-						controller->openPhoto(photo, {
+						window->openPhoto(photo, {
 							.id = state->item->fullId(),
 						});
 					} else if (const auto document = first->document()) {
-						controller->openDocument(document, true, {
+						window->openDocument(document, true, {
 							.id = state->item->fullId(),
 						});
 					}
 				}
 			}
 		}
-	});
+	};
 	thumb->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::MouseButtonPress) {
 			const auto mouse = static_cast<QMouseEvent*>(e.get());
@@ -780,7 +775,7 @@ void BoostCreditsBox(
 
 		Ui::AddSkip(content);
 	}
-	AddCreditsBoostTable(controller, content, b);
+	AddCreditsBoostTable(controller->uiShow(), content, b);
 	Ui::AddSkip(content);
 
 	box->addRow(object_ptr<Ui::CenterWrap<>>(
@@ -831,28 +826,21 @@ void ProcessReceivedSubscriptions(
 }
 
 void FillUniqueGiftMenu(
-		not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::PopupMenu*> menu,
 		const Data::CreditsHistoryEntry &e) {
 	Expects(e.uniqueGift != nullptr);
 
 	const auto unique = e.uniqueGift;
-	const auto show = controller->uiShow();
-	const auto weak = base::make_weak(controller);
 	const auto local = u"nft/"_q + unique->slug;
-	const auto url = controller->session().createInternalLinkFull(local);
+	const auto url = show->session().createInternalLinkFull(local);
 	menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
 		TextUtilities::SetClipboardText({ url });
-		if (const auto strong = weak.get()) {
-			strong->showToast(
-				tr::lng_channel_public_link_copied(tr::now));
-		}
+		show->showToast(tr::lng_channel_public_link_copied(tr::now));
 	}, &st::menuIconLink);
 
 	menu->addAction(tr::lng_chat_link_share(tr::now), [=] {
-		if (const auto strong = weak.get()) {
-			FastShareLink(strong, url);
-		}
+		FastShareLink(show, url);
 	}, &st::menuIconShare);
 
 	const auto messageId = MsgId(e.bareMsgId);
@@ -861,20 +849,23 @@ void FillUniqueGiftMenu(
 		&& (unique->starsForTransfer >= 0);
 	if (transfer) {
 		menu->addAction(tr::lng_gift_transfer_button(tr::now), [=] {
-			if (const auto strong = weak.get()) {
-				ShowTransferGiftBox(strong, unique, messageId);
+			if (const auto window = show->resolveWindow()) {
+				ShowTransferGiftBox(window, unique, messageId);
 			}
 		}, &st::menuIconReplace);
 	}
 }
 
-void ReceiptCreditsBox(
+void GenericCreditsEntryBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s) {
-	const auto item = controller->session().data().message(
-		PeerId(e.barePeerId), MsgId(e.bareMsgId));
+	const auto session = &show->session();
+	const auto owner = &session->data();
+	const auto item = owner->message(
+		PeerId(e.barePeerId),
+		MsgId(e.bareMsgId));
 	const auto isStarGift = e.stargift || e.soldOutInfo;
 	const auto creditsHistoryStarGift = isStarGift && !e.id.isEmpty();
 	const auto sentStarGift = creditsHistoryStarGift && !e.in;
@@ -883,10 +874,10 @@ void ReceiptCreditsBox(
 	const auto starGiftSender = (isStarGift && item)
 		? item->history()->peer->asUser()
 		: (isStarGift && e.in)
-		? controller->session().data().peer(PeerId(e.barePeerId))->asUser()
+		? owner->peer(PeerId(e.barePeerId))->asUser()
 		: nullptr;
 	const auto convertLast = base::unixtime::serialize(e.date)
-		+ controller->session().appConfig().stargiftConvertPeriodMax();
+		+ session->appConfig().stargiftConvertPeriodMax();
 	const auto timeLeft = int64(convertLast) - int64(base::unixtime::now());
 	const auto timeExceeded = (timeLeft <= 0);
 	const auto uniqueGift = e.uniqueGift.get();
@@ -912,21 +903,20 @@ void ReceiptCreditsBox(
 	using Type = Data::CreditsHistoryEntry::PeerType;
 
 	const auto &stUser = st::boostReplaceUserpic;
-	const auto session = &controller->session();
 	const auto isPrize = e.bareGiveawayMsgId > 0;
 	const auto starGiftSticker = (isStarGift && e.bareGiftStickerId)
-		? session->data().document(e.bareGiftStickerId).get()
+		? owner->document(e.bareGiftStickerId).get()
 		: nullptr;
 	const auto peer = isPrize
 		? nullptr
 		: (s.barePeerId)
-		? session->data().peer(PeerId(s.barePeerId)).get()
+		? owner->peer(PeerId(s.barePeerId)).get()
 		: (e.peerType == Type::PremiumBot)
 		? nullptr
 		: e.bareActorId
-		? session->data().peer(PeerId(e.bareActorId)).get()
+		? owner->peer(PeerId(e.bareActorId)).get()
 		: e.barePeerId
-		? session->data().peer(PeerId(e.barePeerId)).get()
+		? owner->peer(PeerId(e.barePeerId)).get()
 		: nullptr;
 	if (uniqueGift) {
 		box->setNoContentMargin(true);
@@ -936,13 +926,13 @@ void ReceiptCreditsBox(
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 
 		AddUniqueCloseButton(box, [=](not_null<Ui::PopupMenu*> menu) {
-			FillUniqueGiftMenu(controller, menu, e);
+			FillUniqueGiftMenu(show, menu, e);
 		});
 	} else if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
 		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
 			GenericEntryPhoto(content, callback, stUser.photoSize)));
-		AddViewMediaHandler(thumb->entity(), controller, e);
+		AddViewMediaHandler(thumb->entity(), show, e);
 	} else if (s.photoId || (e.photoId && !e.subscriptionUntil.isNull())) {
 		if (!(s.cancelled || s.expired || s.cancelledByBot)) {
 			const auto widget = Ui::CreateChild<Ui::RpWidget>(content);
@@ -952,7 +942,7 @@ void ReceiptCreditsBox(
 		const auto photoId = s.photoId ? s.photoId : e.photoId;
 		const auto callback = [=](Fn<void()> update) {
 			return Ui::GenerateCreditsPaintEntryCallback(
-				session->data().photo(photoId),
+				owner->photo(photoId),
 				std::move(update));
 		};
 		content->add(object_ptr<Ui::CenterWrap<>>(
@@ -1132,7 +1122,7 @@ void ReceiptCreditsBox(
 				tr::lng_credits_subscription_subtitle(
 					tr::now,
 					lt_emoji,
-					session->data().customEmojiManager().creditsEmoji(),
+					owner->customEmojiManager().creditsEmoji(),
 					lt_cost,
 					{ QString::number(s.subscription.credits) },
 					Ui::Text::WithEntities),
@@ -1147,7 +1137,7 @@ void ReceiptCreditsBox(
 					: QString(kMinus))
 				.append(Lang::FormatStarsAmountDecimal(e.credits.abs()))
 				.append(QChar(' '))
-				.append(session->data().customEmojiManager().creditsEmoji());
+				.append(owner->customEmojiManager().creditsEmoji());
 			text->setMarkedText(
 				st::semiboldTextStyle,
 				std::move(t),
@@ -1280,7 +1270,7 @@ void ReceiptCreditsBox(
 	} else if (e.gift || isPrize) {
 		Ui::AddSkip(content);
 		const auto arrow = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
+			owner->customEmojiManager().registerInternalEmoji(
 				st::topicButtonArrow,
 				st::channelEarnLearnArrowMargins,
 				true));
@@ -1320,28 +1310,23 @@ void ReceiptCreditsBox(
 		rpl::variable<bool> convertButtonBusy;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	const auto weakWindow = base::make_weak(controller);
 
 	const auto toggleVisibility = [=, weak = Ui::MakeWeak(box)](bool save) {
-		const auto window = weakWindow.get();
 		const auto showSection = !e.fromGiftsList;
 		const auto itemId = MsgId(e.bareMsgId);
-		if (!window) {
-			return;
-		}
 		const auto done = [=](bool ok) {
-			if (const auto window = weakWindow.get()) {
-				if (ok) {
-					using GiftAction = Data::GiftUpdate::Action;
-					window->session().data().notifyGiftUpdate({
-						.itemId = FullMsgId(
-							starGiftSender->id,
-							itemId),
-						.action = (save
-							? GiftAction::Save
-							: GiftAction::Unsave),
-					});
-					if (showSection) {
+			if (ok) {
+				using GiftAction = Data::GiftUpdate::Action;
+				show->session().data().notifyGiftUpdate({
+					.itemId = FullMsgId(
+						starGiftSender->id,
+						itemId),
+					.action = (save
+						? GiftAction::Save
+						: GiftAction::Unsave),
+				});
+				if (showSection) {
+					if (const auto window = show->resolveWindow()) {
 						window->showSection(
 							std::make_shared<Info::Memento>(
 								window->session().user(),
@@ -1357,39 +1342,33 @@ void ReceiptCreditsBox(
 				}
 			}
 		};
-		ToggleStarGiftSaved(
-			window,
-			starGiftSender,
-			itemId,
-			save,
-			done);
+		ToggleStarGiftSaved(show, starGiftSender, itemId, save, done);
 	};
 
 	const auto upgradeGuard = std::make_shared<bool>();
 	const auto upgrade = [=] {
-		if (const auto window = weakWindow.get()) {
-			const auto itemId = MsgId(e.bareMsgId);
-			if (*upgradeGuard) {
-				return;
-			}
-			*upgradeGuard = true;
-			using namespace Ui;
-			ShowStarGiftUpgradeBox({
-				.controller = window,
-				.stargiftId = e.stargiftId,
-				.ready = [=](bool) { *upgradeGuard = false; },
-				.user = starGiftSender,
-				.itemId = itemId,
-				.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
-				.canAddSender = !giftToSelf && !e.anonymous,
-				.canAddComment = (!giftToSelf
-					&& !e.anonymous
-					&& e.hasGiftComment),
-				.canAddMyComment = (giftToSelf && e.hasGiftComment),
-				.addDetailsDefault = (giftToSelf
-					|| (e.starsUpgradedBySender && !e.anonymous)),
-			});
+		const auto itemId = MsgId(e.bareMsgId);
+		const auto window = show->resolveWindow();
+		if (!window || *upgradeGuard) {
+			return;
 		}
+		*upgradeGuard = true;
+		using namespace Ui;
+		ShowStarGiftUpgradeBox({
+			.controller = window,
+			.stargiftId = e.stargiftId,
+			.ready = [=](bool) { *upgradeGuard = false; },
+			.user = starGiftSender,
+			.itemId = itemId,
+			.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
+			.canAddSender = !giftToSelf && !e.anonymous,
+			.canAddComment = (!giftToSelf
+				&& !e.anonymous
+				&& e.hasGiftComment),
+			.canAddMyComment = (giftToSelf && e.hasGiftComment),
+			.addDetailsDefault = (giftToSelf
+				|| (e.starsUpgradedBySender && !e.anonymous)),
+		});
 	};
 	const auto canUpgrade = e.stargiftId
 		&& e.canUpgradeGift
@@ -1402,26 +1381,23 @@ void ReceiptCreditsBox(
 			const auto stars = e.starsConverted;
 			const auto days = canConvert ? ((timeLeft + 86399) / 86400) : 0;
 			const auto name = starGiftSender->shortName();
-			ConfirmConvertStarGift(box->uiShow(), name, stars, days, [=] {
+			ConfirmConvertStarGift(show, name, stars, days, [=] {
 				if (state->convertButtonBusy.current()
 					|| state->confirmButtonBusy.current()) {
 					return;
 				}
 				state->convertButtonBusy = true;
-				const auto window = weakWindow.get();
 				const auto itemId = MsgId(e.bareMsgId);
-				if (window && stars) {
+				if (stars) {
 					const auto done = [=](bool ok) {
-						if (const auto window = weakWindow.get()) {
-							if (ok) {
-								using GiftAction = Data::GiftUpdate::Action;
-								window->session().data().notifyGiftUpdate({
-									.itemId = FullMsgId(
-										starGiftSender->id,
-										itemId),
-									.action = GiftAction::Convert,
-								});
-							}
+						if (ok) {
+							using GiftAction = Data::GiftUpdate::Action;
+							show->session().data().notifyGiftUpdate({
+								.itemId = FullMsgId(
+									starGiftSender->id,
+									itemId),
+								.action = GiftAction::Convert,
+							});
 						}
 						if (const auto strong = weak.data()) {
 							if (ok) {
@@ -1432,7 +1408,7 @@ void ReceiptCreditsBox(
 						}
 					};
 					ConvertStarGift(
-						window,
+						show,
 						starGiftSender,
 						itemId,
 						stars,
@@ -1445,15 +1421,15 @@ void ReceiptCreditsBox(
 			&& !e.giftRefunded;
 
 		AddStarGiftTable(
-			controller,
+			show,
 			content,
 			e,
 			canToggle ? toggleVisibility : Fn<void(bool)>(),
 			canConvert ? convert : Fn<void()>(),
 			canUpgrade ? upgrade : Fn<void()>());
 	} else {
-		AddCreditsHistoryEntryTable(controller, content, e);
-		AddSubscriptionEntryTable(controller, content, s);
+		AddCreditsHistoryEntryTable(show, content, e);
+		AddSubscriptionEntryTable(show, content, s);
 	}
 
 	Ui::AddSkip(content);
@@ -1565,7 +1541,7 @@ void ReceiptCreditsBox(
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
 		if (toRejoin) {
-			if (const auto window = weakWindow.get()) {
+			if (const auto window = show->resolveWindow()) {
 				const auto finish = [=](Payments::CheckoutResult&&) {
 					ProcessReceivedSubscriptions(weak, session);
 				};
@@ -1578,9 +1554,11 @@ void ReceiptCreditsBox(
 						finish));
 			}
 		} else if (toRenew && s.expired) {
-			Api::CheckChatInvite(controller, s.inviteHash, nullptr, [=] {
-				ProcessReceivedSubscriptions(weak, session);
-			});
+			if (const auto window = show->resolveWindow()) {
+				Api::CheckChatInvite(window, s.inviteHash, nullptr, [=] {
+					ProcessReceivedSubscriptions(weak, session);
+				});
+			}
 		} else {
 			const auto done = [=] {
 				ProcessReceivedSubscriptions(weak, session);
@@ -1638,6 +1616,14 @@ void ReceiptCreditsBox(
 	}, button->lifetime());
 }
 
+void ReceiptCreditsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		const Data::CreditsHistoryEntry &e,
+		const Data::SubscriptionEntry &s) {
+	GenericCreditsEntryBox(box, controller->uiShow(), e, s);
+}
+
 void GiftedCreditsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -1691,12 +1677,12 @@ void CreditsPrizeBox(
 
 void GlobalStarGiftBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::StarGift &data) {
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
-	Settings::ReceiptCreditsBox(
+	Settings::GenericCreditsEntryBox(
 		box,
-		controller,
+		show,
 		Data::CreditsHistoryEntry{
 			.credits = StarsAmount(data.stars),
 			.bareGiftStickerId = data.document->id,
@@ -1708,7 +1694,7 @@ void GlobalStarGiftBox(
 			.limitedLeft = data.limitedLeft,
 			.stargift = true,
 			.fromGiftSlug = true,
-			.in = (ownerId == controller->session().userPeerId().value),
+			.in = (ownerId == show->session().userPeerId().value),
 			.gift = true,
 		},
 		Data::SubscriptionEntry());

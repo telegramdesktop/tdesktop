@@ -237,8 +237,7 @@ StickersListWidget::StickersListWidget(
 	}
 
 	_settings->addClickHandler([=] {
-		if (const auto window = _show->resolveWindow(
-				WindowUsage::PremiumPromo)) {
+		if (const auto window = _show->resolveWindow()) {
 			// While media viewer can't show StickersBox.
 			using Section = StickersBox::Section;
 			window->show(

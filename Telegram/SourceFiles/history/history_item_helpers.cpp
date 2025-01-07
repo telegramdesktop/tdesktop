@@ -178,8 +178,7 @@ object_ptr<Ui::BoxContent> MakeSendErrorBox(
 		Expects(peer->isChannel());
 
 		const auto window = ChatHelpers::ResolveWindowDefault()(
-			&peer->session(),
-			ChatHelpers::WindowUsage::PremiumPromo);
+			&peer->session());
 		window->resolveBoostState(peer->asChannel(), lifting);
 		return false;
 	};

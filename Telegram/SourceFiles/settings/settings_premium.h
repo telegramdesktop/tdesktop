@@ -18,7 +18,6 @@ struct RoundButton;
 
 namespace ChatHelpers {
 class Show;
-enum class WindowUsage;
 } // namespace ChatHelpers
 
 namespace Ui {
@@ -66,9 +65,7 @@ void ShowPremiumPromoToast(
 	const QString &ref);
 void ShowPremiumPromoToast(
 	std::shared_ptr<::Main::SessionShow> show,
-	Fn<Window::SessionController*(
-		not_null<::Main::Session*>,
-		ChatHelpers::WindowUsage)> resolveWindow,
+	Fn<Window::SessionController*(not_null<::Main::Session*>)> resolveWindow,
 	TextWithEntities textWithLink,
 	const QString &ref);
 
@@ -95,9 +92,7 @@ struct SubscribeButtonArgs final {
 
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
 	std::shared_ptr<::Main::SessionShow> show,
-	Fn<Window::SessionController*(
-		not_null<::Main::Session*>,
-		ChatHelpers::WindowUsage)> resolveWindow,
+	Fn<Window::SessionController*(not_null<::Main::Session*>)> resolveWindow,
 	SubscribeButtonArgs &&args);
 
 [[nodiscard]] std::vector<PremiumFeature> PremiumFeaturesOrder(

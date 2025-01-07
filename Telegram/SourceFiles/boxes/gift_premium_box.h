@@ -13,6 +13,10 @@ namespace Api {
 struct GiftCode;
 } // namespace Api
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 struct Boost;
 struct CreditsHistoryEntry;
@@ -55,28 +59,28 @@ void ResolveGiveawayInfo(
 	std::optional<Data::GiveawayResults> results);
 
 void AddStarGiftTable(
-	not_null<Window::SessionNavigation*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	const Data::CreditsHistoryEntry &entry,
 	Fn<void(bool)> toggleVisibility,
 	Fn<void()> convertToStars,
 	Fn<void()> startUpgrade);
 void AddCreditsHistoryEntryTable(
-	not_null<Window::SessionNavigation*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	const Data::CreditsHistoryEntry &entry);
 
 void AddSubscriptionEntryTable(
-	not_null<Window::SessionNavigation*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	const Data::SubscriptionEntry &s);
 void AddSubscriberEntryTable(
-	not_null<Window::SessionNavigation*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	TimeId date);
 
 void AddCreditsBoostTable(
-	not_null<Window::SessionNavigation*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	const Data::Boost &boost);

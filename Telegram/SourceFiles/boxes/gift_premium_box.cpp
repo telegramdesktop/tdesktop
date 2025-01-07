@@ -129,7 +129,7 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerTableValue(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		PeerId id,
 		rpl::producer<QString> button = nullptr,
 		Fn<void()> handler = nullptr) {
@@ -139,7 +139,7 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	const auto &st = st::giveawayGiftCodeUserpic;
 	raw->resize(raw->width(), st.photoSize);
 
-	const auto peer = controller->session().data().peer(id);
+	const auto peer = show->session().data().peer(id);
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(raw, peer, st);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
@@ -182,15 +182,14 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	label->setTextColorOverride(st::windowActiveTextFg->c);
 
 	raw->setClickedCallback([=] {
-		controller->uiShow()->showBox(PrepareShortInfoBox(peer, controller));
+		show->showBox(PrepareShortInfoBox(peer, show));
 	});
 
 	return result;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeHiddenPeerTableValue(
-		not_null<QWidget*> parent,
-		not_null<Window::SessionNavigation*> controller) {
+		not_null<QWidget*> parent) {
 	auto result = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = result.data();
 
@@ -295,13 +294,13 @@ void AddTableRow(
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void()> convertToStars) {
 	auto result = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = result.data();
 
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	const auto makeContext = [session](Fn<void()> update) {
 		return Core::MarkedTextContext{
 			.session = session,
@@ -360,7 +359,6 @@ void AddTableRow(
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeVisibilityTableValue(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionNavigation*> controller,
 		bool savedToProfile,
 		Fn<void(bool)> toggleVisibility) {
 	auto result = object_ptr<Ui::RpWidget>(parent);
@@ -414,7 +412,6 @@ void AddTableRow(
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeNonUniqueStatusTableValue(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionNavigation*> controller,
 		Fn<void()> startUpgrade) {
 	auto result = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = result.data();
@@ -482,7 +479,7 @@ not_null<Ui::FlatLabel*> AddTableRow(
 void AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		PeerId id) {
 	if (!id) {
 		return;
@@ -490,13 +487,13 @@ void AddTableRow(
 	AddTableRow(
 		table,
 		std::move(label),
-		MakePeerTableValue(table, controller, id),
+		MakePeerTableValue(table, show, id),
 		st::giveawayGiftCodePeerMargin);
 }
 
 void AddTable(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const Api::GiftCode &current,
 		bool skipReason) {
 	auto table = container->add(
@@ -508,14 +505,14 @@ void AddTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_from(),
-			controller,
+			show,
 			current.from);
 	}
 	if (current.from && current.to) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_to(),
-			controller,
+			show,
 			current.to);
 	} else if (current.from) {
 		AddTableRow(
@@ -547,10 +544,12 @@ void AddTable(
 					) | rpl::type_erased())
 				: tr::lng_gift_link_reason_chosen(Ui::Text::WithEntities)));
 		reason->setClickHandlerFilter([=](const auto &...) {
-			controller->showPeerHistory(
-				current.from,
-				Window::SectionShow::Way::Forward,
-				current.giveawayId);
+			if (const auto window = show->resolveWindow()) {
+				window->showPeerHistory(
+					current.from,
+					Window::SectionShow::Way::Forward,
+					current.giveawayId);
+			}
 			return false;
 		});
 	}
@@ -678,7 +677,8 @@ void GiftCodeBox(
 			MakeLinkCopyIcon(box)),
 		st::giveawayGiftCodeLinkMargin);
 
-	AddTable(box->verticalLayout(), controller, state->data.current(), false);
+	const auto show = controller->uiShow();
+	AddTable(box->verticalLayout(), show, state->data.current(), false);
 
 	auto shareLink = tr::lng_gift_link_also_send_link(
 	) | rpl::map([](const QString &text) {
@@ -838,7 +838,8 @@ void GiftCodePendingBox(
 		spoiler->show();
 	}
 
-	AddTable(box->verticalLayout(), controller, data, true);
+	const auto show = controller->uiShow();
+	AddTable(box->verticalLayout(), show, data, true);
 
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -1189,7 +1190,7 @@ void ResolveGiveawayInfo(
 }
 
 void AddStarGiftTable(
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void(bool)> toggleVisibility,
@@ -1201,7 +1202,7 @@ void AddStarGiftTable(
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	const auto unique = entry.uniqueGift.get();
 	const auto selfBareId = session->userPeerId().value;
 	const auto giftToSelf = (peerId == session->userPeerId())
@@ -1213,15 +1214,17 @@ void AddStarGiftTable(
 			&& (unique->starsForTransfer >= 0);
 		auto send = transfer ? tr::lng_gift_unique_owner_change() : nullptr;
 		auto handler = transfer ? Fn<void()>([=] {
-			ShowTransferGiftBox(
-				controller->parentController(),
-				entry.uniqueGift,
-				MsgId(entry.bareMsgId));
+			if (const auto window = show->resolveWindow()) {
+				ShowTransferGiftBox(
+					window,
+					entry.uniqueGift,
+					MsgId(entry.bareMsgId));
+			}
 		}) : nullptr;
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_owner(),
-			MakePeerTableValue(table, controller, ownerId, send, handler),
+			MakePeerTableValue(table, show, ownerId, send, handler),
 			st::giveawayGiftCodePeerMargin);
 	} else if (unique) {
 		AddTableRow(
@@ -1234,19 +1237,21 @@ void AddStarGiftTable(
 			const auto withSendButton = entry.in && user && !user->isBot();
 			auto send = withSendButton ? tr::lng_gift_send_small() : nullptr;
 			auto handler = send ? Fn<void()>([=] {
-				Ui::ShowStarGiftBox(controller->parentController(), user);
+				if (const auto window = show->resolveWindow()) {
+					Ui::ShowStarGiftBox(window, user);
+				}
 			}) : nullptr;
 			AddTableRow(
 				table,
 				tr::lng_credits_box_history_entry_peer_in(),
-				MakePeerTableValue(table, controller, peerId, send, handler),
+				MakePeerTableValue(table, show, peerId, send, handler),
 				st::giveawayGiftCodePeerMargin);
 		}
 	} else if (!entry.soldOutInfo) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer_in(),
-			MakeHiddenPeerTableValue(table, controller),
+			MakeHiddenPeerTableValue(table),
 			st::giveawayGiftCodePeerMargin);
 	}
 	if (!unique && !entry.firstSaleDate.isNull()) {
@@ -1357,7 +1362,7 @@ void AddStarGiftTable(
 			tr::lng_gift_link_label_value(),
 			MakeStarGiftStarsValue(
 				table,
-				controller,
+				show,
 				entry,
 				std::move(convertToStars)),
 			marginWithButton);
@@ -1368,7 +1373,6 @@ void AddStarGiftTable(
 			tr::lng_gift_visibility(),
 			MakeVisibilityTableValue(
 				table,
-				controller,
 				entry.savedToProfile,
 				std::move(toggleVisibility)),
 			marginWithButton);
@@ -1398,16 +1402,13 @@ void AddStarGiftTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_status(),
-			MakeNonUniqueStatusTableValue(
-				table,
-				controller,
-				std::move(startUpgrade)),
+			MakeNonUniqueStatusTableValue(table, std::move(startUpgrade)),
 			marginWithButton);
 	}
 	if (unique) {
 		const auto &original = unique->originalDetails;
 		if (original.recipientId) {
-			const auto owner = &controller->session().data();
+			const auto owner = &show->session().data();
 			const auto to = owner->peer(original.recipientId);
 			const auto from = original.senderId
 				? owner->peer(original.senderId).get()
@@ -1462,8 +1463,7 @@ void AddStarGiftTable(
 				makeContext);
 			const auto showBoxLink = [=](not_null<PeerData*> peer) {
 				return std::make_shared<LambdaClickHandler>([=] {
-					controller->uiShow()->showBox(
-						PrepareShortInfoBox(peer, controller));
+					show->showBox(PrepareShortInfoBox(peer, show));
 				});
 			};
 			label->setLink(1, showBoxLink(to));
@@ -1500,7 +1500,7 @@ void AddStarGiftTable(
 }
 
 void AddCreditsHistoryEntryTable(
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		const Data::CreditsHistoryEntry &entry) {
 	if (!entry) {
@@ -1514,7 +1514,7 @@ void AddCreditsHistoryEntryTable(
 	const auto peerId = PeerId(entry.barePeerId);
 	const auto actorId = PeerId(entry.bareActorId);
 	const auto starrefRecipientId = PeerId(entry.starrefRecipientId);
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	if (entry.starrefCommission) {
 		if (entry.starrefAmount) {
 			AddTableRow(
@@ -1534,7 +1534,7 @@ void AddCreditsHistoryEntryTable(
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_affiliate(),
-			controller,
+			show,
 			starrefRecipientId);
 	}
 	if (peerId && entry.starrefCommission) {
@@ -1543,7 +1543,7 @@ void AddCreditsHistoryEntryTable(
 			(entry.starrefAmount
 				? tr::lng_credits_box_history_entry_referred
 				: tr::lng_credits_box_history_entry_miniapp)(),
-			controller,
+			show,
 			peerId);
 	}
 	if (actorId || (!entry.starrefCommission && peerId)) {
@@ -1557,7 +1557,7 @@ void AddCreditsHistoryEntryTable(
 		AddTableRow(
 			table,
 			std::move(text),
-			controller,
+			show,
 			actorId ? actorId : peerId);
 	}
 	if (const auto msgId = MsgId(peerId ? entry.bareMsgId : 0)) {
@@ -1572,7 +1572,9 @@ void AddCreditsHistoryEntryTable(
 				rpl::single(Ui::Text::Link(link)),
 				st::giveawayGiftCodeValue);
 			label->setClickHandlerFilter([=](const auto &...) {
-				controller->showPeerHistory(channel, {}, msgId);
+				if (const auto window = show->resolveWindow()) {
+					window->showPeerHistory(channel, {}, msgId);
+				}
 				return false;
 			});
 			AddTableRow(
@@ -1623,8 +1625,8 @@ void AddCreditsHistoryEntryTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_to(),
-			controller,
-			controller->session().userId());
+			show,
+			show->session().userId());
 	}
 	if (entry.bareGiveawayMsgId && entry.credits) {
 		AddTableRow(
@@ -1670,7 +1672,7 @@ void AddCreditsHistoryEntryTable(
 		label->setClickHandlerFilter([=](const auto &...) {
 			TextUtilities::SetClipboardText(
 				TextForMimeData::Simple(entry.id));
-			controller->showToast(
+			show->showToast(
 				tr::lng_credits_box_history_entry_id_copied(tr::now));
 			return false;
 		});
@@ -1710,7 +1712,7 @@ void AddCreditsHistoryEntryTable(
 }
 
 void AddSubscriptionEntryTable(
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		const Data::SubscriptionEntry &s) {
 	if (!s) {
@@ -1723,7 +1725,7 @@ void AddSubscriptionEntryTable(
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(s.barePeerId);
 	const auto user = peerIsUser(peerId)
-		? controller->session().data().peer(peerId)->asUser()
+		? show->session().data().peer(peerId)->asUser()
 		: nullptr;
 	AddTableRow(
 		table,
@@ -1732,7 +1734,7 @@ void AddSubscriptionEntryTable(
 			: (!s.title.isEmpty() && user && !user->botInfo)
 			? tr::lng_credits_subscription_row_to_business()
 			: tr::lng_credits_subscription_row_to(),
-		controller,
+		show,
 		peerId);
 	if (!s.title.isEmpty()) {
 		AddTableRow(
@@ -1763,7 +1765,7 @@ void AddSubscriptionEntryTable(
 }
 
 void AddSubscriberEntryTable(
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		TimeId date) {
@@ -1775,7 +1777,7 @@ void AddSubscriberEntryTable(
 	AddTableRow(
 		table,
 		tr::lng_group_invite_joined_row_subscriber(),
-		controller,
+		show,
 		peer->id);
 	if (const auto d = base::unixtime::parse(date); !d.isNull()) {
 		AddTableRow(
@@ -1786,7 +1788,7 @@ void AddSubscriberEntryTable(
 }
 
 void AddCreditsBoostTable(
-		not_null<Window::SessionNavigation*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		const Data::Boost &b) {
 	auto table = container->add(
@@ -1798,11 +1800,11 @@ void AddCreditsBoostTable(
 	if (!peerId) {
 		return;
 	}
-	const auto from = controller->session().data().peer(peerId);
+	const auto from = show->session().data().peer(peerId);
 	AddTableRow(
 		table,
 		tr::lng_credits_box_history_entry_peer_in(),
-		controller,
+		show,
 		from->id);
 	if (b.credits) {
 		AddTableRow(
@@ -1815,7 +1817,7 @@ void AddCreditsBoostTable(
 	}
 	{
 		const auto link = CreateMessageLink(
-			&controller->session(),
+			&show->session(),
 			peerId,
 			b.giveawayMessage.msg.bare);
 		if (!link.isEmpty()) {

@@ -1061,8 +1061,7 @@ void TabbedSelector::checkRestrictedPeer() {
 				st::stickersRestrictedLabel);
 			const auto lifting = error.boostsToLift;
 			_restrictedLabel->setClickHandlerFilter([=](auto...) {
-				const auto window = show->resolveWindow(
-					ChatHelpers::WindowUsage::PremiumPromo);
+				const auto window = show->resolveWindow();
 				window->resolveBoostState(peer->asChannel(), lifting);
 				return false;
 			});

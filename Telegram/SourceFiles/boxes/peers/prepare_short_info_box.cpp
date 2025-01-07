@@ -486,20 +486,23 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
-		not_null<Window::SessionNavigation*> navigation,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const style::ShortInfoBox *stOverride) {
-	const auto open = [=] { navigation->showPeerHistory(peer); };
+	const auto open = [=] {
+		if (const auto window = show->resolveWindow()) {
+			window->showPeerHistory(peer);
+		}
+	};
 	const auto videoIsPaused = [=] {
-		return navigation->parentController()->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
+		return show->paused(Window::GifPauseReason::Layer);
 	};
 	auto menuFiller = [=](Ui::Menu::MenuCallback addAction) {
-		const auto controller = navigation->parentController();
 		const auto peerSeparateId = Window::SeparateId(peer);
-		if (controller->windowId() != peerSeparateId) {
+		const auto window = show->resolveWindow();
+		if (window && window->windowId() != peerSeparateId) {
 			addAction(tr::lng_context_new_window(tr::now), [=] {
 				Ui::PreventDelayedActivation();
-				controller->showInNewWindow(peer);
+				window->showInNewWindow(peer);
 			}, &st::menuIconNewWindow);
 		}
 	};
@@ -509,6 +512,13 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		videoIsPaused,
 		std::move(menuFiller),
 		stOverride);
+}
+
+object_ptr<Ui::BoxContent> PrepareShortInfoBox(
+		not_null<PeerData*> peer,
+		not_null<Window::SessionNavigation*> navigation,
+		const style::ShortInfoBox *stOverride) {
+	return PrepareShortInfoBox(peer, navigation->uiShow(), stOverride);
 }
 
 rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {

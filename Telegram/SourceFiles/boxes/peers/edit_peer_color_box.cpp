@@ -872,8 +872,7 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 		const auto customTextColor = [=] {
 			return style->coloredValues(false, state->index).name;
 		};
-		const auto controller = show->resolveWindow(
-			ChatHelpers::WindowUsage::PremiumPromo);
+		const auto controller = show->resolveWindow();
 		if (controller) {
 			state->panel.show({
 				.controller = controller,
@@ -986,8 +985,7 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	}, right->lifetime());
 
 	raw->setClickedCallback([=] {
-		const auto controller = show->resolveWindow(
-			ChatHelpers::WindowUsage::PremiumPromo);
+		const auto controller = show->resolveWindow();
 		if (controller) {
 			state->panel.show({
 				.controller = controller,
@@ -1264,8 +1262,7 @@ void EditPeerColorBox(
 			{ &st::menuBlueIconWallpaper }
 		);
 		button->setClickedCallback([=] {
-			const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
-			if (const auto strong = show->resolveWindow(usage)) {
+			if (const auto strong = show->resolveWindow()) {
 				show->show(Box<BackgroundBox>(strong, channel));
 			}
 		});
@@ -1472,8 +1469,7 @@ void CheckBoostLevel(
 			return;
 		}
 		const auto openStatistics = [=] {
-			if (const auto controller = show->resolveWindow(
-					ChatHelpers::WindowUsage::PremiumPromo)) {
+			if (const auto controller = show->resolveWindow()) {
 				controller->showSection(Info::Boosts::Make(peer));
 			}
 		};

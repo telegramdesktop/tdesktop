@@ -350,8 +350,7 @@ struct Feature {
 				box->closeBox();
 			} else if (!now.premium) {
 				data->requested = false;
-				const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
-				if (const auto window = show->resolveWindow(usage)) {
+				if (const auto window = show->resolveWindow()) {
 					ShowPremiumPreviewBox(window, PremiumFeature::Stories);
 					window->window().activate();
 				}

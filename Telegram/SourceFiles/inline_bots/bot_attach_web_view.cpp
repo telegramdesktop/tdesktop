@@ -479,8 +479,7 @@ bool CheckEmojiStatusPremium(not_null<UserData*> bot) {
 		return true;
 	}
 	const auto window = ChatHelpers::ResolveWindowDefault()(
-		&bot->session(),
-		ChatHelpers::WindowUsage::PremiumPromo);
+		&bot->session());
 	if (window) {
 		ShowPremiumPreviewBox(window, PremiumFeature::EmojiStatus);
 		window->window().activate();

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/core_settings.h"
+#include "core/local_url_handlers.h"
 #include "core/update_checker.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
@@ -1274,11 +1275,12 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 				});
 			}
 		}
+		const auto weak = base::make_weak(this);
 		for (const auto &url : _urlAreas) {
 			_areas.push_back({
 				.original = url.area.geometry,
 				.rotation = url.area.rotation,
-				.handler = std::make_shared<HiddenUrlClickHandler>(url.url),
+				.handler = MakeUrlAreaHandler(weak, url.url),
 			});
 		}
 		for (const auto &weather : _weatherAreas) {
@@ -1938,6 +1940,36 @@ ClickHandlerPtr MakeChannelPostHandler(
 				item.msg);
 		}
 	}));
+}
+
+ClickHandlerPtr MakeUrlAreaHandler(
+		base::weak_ptr<Controller> weak,
+		const QString &url) {
+	class Handler final : public HiddenUrlClickHandler {
+	public:
+		Handler(const QString &url, base::weak_ptr<Controller> weak)
+		: HiddenUrlClickHandler(url), _weak(weak) {
+		}
+
+		void onClick(ClickContext context) const override {
+			const auto raw = url();
+			const auto strong = _weak.get();
+			const auto prefix = u"tg://nft?slug="_q;
+			if (raw.startsWith(prefix) && strong) {
+				const auto slug = raw.mid(
+					prefix.size()
+				).split('&').front().split('#').front();
+				Core::ResolveAndShowUniqueGift(strong->uiShow(), slug);
+			} else {
+				HiddenUrlClickHandler::onClick(context);
+			}
+		}
+
+	private:
+		base::weak_ptr<Controller> _weak;
+
+	};
+	return std::make_shared<Handler>(url, weak);
 }
 
 } // namespace Media::Stories

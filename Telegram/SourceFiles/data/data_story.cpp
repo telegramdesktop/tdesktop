@@ -158,6 +158,10 @@ using UpdateFlag = StoryUpdate::Flag;
 		});
 	}, [&](const MTPDmediaAreaWeather &data) {
 	}, [&](const MTPDmediaAreaStarGift &data) {
+		result.emplace(UrlArea{
+			.area = ParseArea(data.vcoordinates()),
+			.url = u"tg://nft?slug="_q + qs(data.vslug()),
+		});
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {

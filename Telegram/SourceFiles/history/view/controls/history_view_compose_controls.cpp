@@ -2317,8 +2317,7 @@ void SetupRestrictionView(
 				tr::lng_restricted_boost_group(tr::now),
 				st::historyComposeButton);
 			state->button->setClickedCallback([=] {
-				const auto window = show->resolveWindow(
-					ChatHelpers::WindowUsage::PremiumPromo);
+				const auto window = show->resolveWindow();
 				window->resolveBoostState(peer->asChannel(), lifting);
 			});
 		} else if (value.type == Type::Rights) {
