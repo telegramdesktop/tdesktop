@@ -1930,7 +1930,7 @@ void HistoryWidget::activate() {
 
 void HistoryWidget::setInnerFocus() {
 	if (_list) {
-		if (isSearching()) {
+		if (isSearching() && !_nonEmptySelection) {
 			_composeSearch->setInnerFocus();
 		} else if (isChoosingTheme()) {
 			_chooseTheme->setFocus();
@@ -8422,7 +8422,11 @@ void HistoryWidget::confirmDeleteSelected() {
 
 void HistoryWidget::escape() {
 	if (_composeSearch) {
-		_composeSearch->hideAnimated();
+		if (_nonEmptySelection) {
+			clearSelected();
+		} else {
+			_composeSearch->hideAnimated();
+		}
 	} else if (_chooseForReport) {
 		controller()->clearChooseReportMessages();
 	} else if (_nonEmptySelection && _list) {
@@ -8522,7 +8526,7 @@ void HistoryWidget::updateTopBarSelection() {
 	updateHistoryGeometry();
 	if (!controller()->isLayerShown()
 		&& !Core::App().passcodeLocked()) {
-		if (isSearching()) {
+		if (isSearching() && !_nonEmptySelection) {
 			_composeSearch->setInnerFocus();
 		} else if (_nonEmptySelection
 			|| (_list && _list->wasSelectedText())
