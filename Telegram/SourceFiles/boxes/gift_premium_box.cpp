@@ -1206,7 +1206,7 @@ void AddStarGiftTable(
 	const auto selfBareId = session->userPeerId().value;
 	const auto giftToSelf = (peerId == session->userPeerId())
 		&& (entry.in || entry.bareGiftOwnerId == selfBareId);
-	if (unique) {
+	if (unique && entry.bareGiftOwnerId) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
 		const auto transfer = entry.in
 			&& entry.bareMsgId
@@ -1223,6 +1223,11 @@ void AddStarGiftTable(
 			tr::lng_gift_unique_owner(),
 			MakePeerTableValue(table, controller, ownerId, send, handler),
 			st::giveawayGiftCodePeerMargin);
+	} else if (unique) {
+		AddTableRow(
+			table,
+			tr::lng_gift_unique_owner(),
+			rpl::single(TextWithEntities{ unique->ownerName }));
 	} else if (peerId) {
 		if (!giftToSelf) {
 			const auto user = session->data().peer(peerId)->asUser();

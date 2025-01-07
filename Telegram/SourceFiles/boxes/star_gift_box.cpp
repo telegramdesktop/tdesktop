@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
@@ -82,6 +83,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
+#include "styles/style_widgets.h"
 
 #include <QtWidgets/QApplication>
 
@@ -2494,19 +2496,50 @@ void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args) {
 	}).send();
 }
 
-void AddUniqueCloseButton(not_null<GenericBox*> box) {
-	const auto button = Ui::CreateChild<IconButton>(
+void AddUniqueCloseButton(
+		not_null<GenericBox*> box,
+		Fn<void(not_null<Ui::PopupMenu*>)> fillMenu) {
+	const auto close = Ui::CreateChild<IconButton>(
 		box,
 		st::uniqueCloseButton);
-	button->show();
-	button->raise();
+	const auto menu = fillMenu
+		? Ui::CreateChild<IconButton>(box, st::uniqueMenuButton)
+		: nullptr;
+	close->show();
+	close->raise();
+	if (menu) {
+		menu->show();
+		menu->raise();
+	}
 	box->widthValue() | rpl::start_with_next([=](int width) {
-		button->moveToRight(0, 0, width);
-		button->raise();
-	}, button->lifetime());
-	button->setClickedCallback([=] {
+		close->moveToRight(0, 0, width);
+		close->raise();
+		if (menu) {
+			menu->moveToRight(close->width(), 0, width);
+			menu->raise();
+		}
+	}, close->lifetime());
+	close->setClickedCallback([=] {
 		box->closeBox();
 	});
+	if (menu) {
+		const auto state = menu->lifetime().make_state<
+			base::unique_qptr<Ui::PopupMenu>
+		>();
+		menu->setClickedCallback([=] {
+			if (*state) {
+				*state = nullptr;
+				return;
+			}
+			*state = base::make_unique_q<Ui::PopupMenu>(
+				menu,
+				st::popupMenuWithIcons);
+			fillMenu(state->get());
+			if (!(*state)->empty()) {
+				(*state)->popup(QCursor::pos());
+			}
+		});
+	}
 }
 
 void RequestStarsFormAndSubmit(

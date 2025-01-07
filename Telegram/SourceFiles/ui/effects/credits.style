@@ -196,6 +196,16 @@ uniqueCloseButton: IconButton(boxTitleClose) {
 		color: shadowFg;
 	}
 }
+uniqueMenuButton: IconButton(uniqueCloseButton) {
+	width: 40px;
+	rippleAreaPosition: point(0px, 4px);
+
+	icon: icon {{ "title_menu_dots", videoPlayIconFg }};
+	iconOver: icon {{ "title_menu_dots", videoPlayIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
 upgradeGiftBox: Box(giftBox) {
 	buttonPadding: margins(22px, 3px, 22px, 22px);
 }

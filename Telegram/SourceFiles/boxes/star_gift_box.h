@@ -27,6 +27,7 @@ class CustomEmoji;
 
 namespace Ui {
 
+class PopupMenu;
 class GenericBox;
 class VerticalLayout;
 
@@ -73,7 +74,9 @@ struct StarGiftUpgradeArgs {
 };
 void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args);
 
-void AddUniqueCloseButton(not_null<GenericBox*> box);
+void AddUniqueCloseButton(
+	not_null<GenericBox*> box,
+	Fn<void(not_null<PopupMenu*>)> fillMenu = nullptr);
 
 void RequestStarsFormAndSubmit(
 	not_null<Window::SessionController*> window,

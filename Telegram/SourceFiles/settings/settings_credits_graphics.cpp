@@ -12,10 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_earn.h"
 #include "api/api_premium.h"
 #include "apiwrap.h"
+#include "base/random.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
+#include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
+#include "boxes/transfer_gift_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
@@ -73,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/fields/number_input.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
@@ -88,6 +92,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
@@ -825,6 +830,44 @@ void ProcessReceivedSubscriptions(
 	}
 }
 
+void FillUniqueGiftMenu(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::PopupMenu*> menu,
+		const Data::CreditsHistoryEntry &e) {
+	Expects(e.uniqueGift != nullptr);
+
+	const auto unique = e.uniqueGift;
+	const auto show = controller->uiShow();
+	const auto weak = base::make_weak(controller);
+	const auto local = u"nft/"_q + unique->slug;
+	const auto url = controller->session().createInternalLinkFull(local);
+	menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
+		TextUtilities::SetClipboardText({ url });
+		if (const auto strong = weak.get()) {
+			strong->showToast(
+				tr::lng_channel_public_link_copied(tr::now));
+		}
+	}, &st::menuIconLink);
+
+	menu->addAction(tr::lng_chat_link_share(tr::now), [=] {
+		if (const auto strong = weak.get()) {
+			FastShareLink(strong, url);
+		}
+	}, &st::menuIconShare);
+
+	const auto messageId = MsgId(e.bareMsgId);
+	const auto transfer = e.in
+		&& messageId
+		&& (unique->starsForTransfer >= 0);
+	if (transfer) {
+		menu->addAction(tr::lng_gift_transfer_button(tr::now), [=] {
+			if (const auto strong = weak.get()) {
+				ShowTransferGiftBox(strong, unique, messageId);
+			}
+		}, &st::menuIconReplace);
+	}
+}
+
 void ReceiptCreditsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -892,7 +935,9 @@ void ReceiptCreditsBox(
 
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 
-		AddUniqueCloseButton(box);
+		AddUniqueCloseButton(box, [=](not_null<Ui::PopupMenu*> menu) {
+			FillUniqueGiftMenu(controller, menu, e);
+		});
 	} else if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
 		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
