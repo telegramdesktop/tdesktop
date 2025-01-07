@@ -208,8 +208,12 @@ auto GenerateGiftMedia(
 	Element *replacing,
 	not_null<PeerData*> recipient,
 	const GiftDetails &data)
--> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
-	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
+-> Fn<void(
+		not_null<MediaGeneric*>,
+		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	return [=](
+			not_null<MediaGeneric*> media,
+			Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 		const auto &descriptor = data.descriptor;
 		auto pushText = [&](
 				TextWithEntities text,

@@ -53,7 +53,10 @@ public:
 
 struct MediaGenericDescriptor {
 	int maxWidth = 0;
-	Fn<void(Painter&, const PaintContext&)> paintBg;
+	Fn<void(
+		Painter&,
+		const PaintContext&,
+		not_null<const MediaGeneric*>)> paintBg;
 	ClickHandlerPtr serviceLink;
 	bool service = false;
 	bool hideServiceText = false;
@@ -65,7 +68,9 @@ public:
 
 	MediaGeneric(
 		not_null<Element*> parent,
-		Fn<void(Fn<void(std::unique_ptr<Part>)>)> generate,
+		Fn<void(
+			not_null<MediaGeneric*>,
+			Fn<void(std::unique_ptr<Part>)>)> generate,
 		MediaGenericDescriptor &&descriptor = {});
 	~MediaGeneric();
 
@@ -119,7 +124,10 @@ private:
 	[[nodiscard]] QMargins inBubblePadding() const;
 
 	std::vector<Entry> _entries;
-	Fn<void(Painter&, const PaintContext&)> _paintBg;
+	Fn<void(
+		Painter&,
+		const PaintContext&,
+		not_null<const MediaGeneric*>)> _paintBg;
 	int _maxWidthCap = 0;
 	bool _service : 1 = false;
 	bool _hideServiceText : 1 = false;
@@ -150,7 +158,7 @@ public:
 
 protected:
 	virtual void setupPen(
-		Painter &p, 
+		Painter &p,
 		not_null<const MediaGeneric*> owner,
 		const PaintContext &context) const;
 

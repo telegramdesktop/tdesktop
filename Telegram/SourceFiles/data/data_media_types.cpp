@@ -2375,13 +2375,13 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (const auto raw = _data.unique.get()) {
+	if (const auto &unique = _data.unique) {
 		return std::make_unique<HistoryView::MediaGeneric>(
 			message,
-			HistoryView::GenerateUniqueGiftMedia(message, replacing, raw),
+			HistoryView::GenerateUniqueGiftMedia(message, replacing, unique),
 			HistoryView::MediaGenericDescriptor{
 				.maxWidth = st::msgServiceGiftBoxSize.width(),
-				.paintBg = HistoryView::UniqueGiftBg(message, raw),
+				.paintBg = HistoryView::UniqueGiftBg(message, unique),
 				.service = true,
 			});
 	}

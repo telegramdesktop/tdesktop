@@ -720,6 +720,7 @@ HistoryItem::HistoryItem(
 		WebPageCollage(),
 		nullptr,
 		nullptr,
+		nullptr,
 		0,
 		QString(),
 		false,

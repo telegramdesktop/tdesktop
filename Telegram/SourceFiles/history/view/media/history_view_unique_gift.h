@@ -21,17 +21,32 @@ struct ChatPaintContext;
 namespace HistoryView {
 
 class Element;
+class MediaGeneric;
 class MediaGenericPart;
 
-auto GenerateUniqueGiftMedia(
+[[nodiscard]] auto GenerateUniqueGiftMedia(
 	not_null<Element*> parent,
 	Element *replacing,
-	not_null<Data::UniqueGift*> gift)
--> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
+	std::shared_ptr<Data::UniqueGift> gift)
+-> Fn<void(
+	not_null<MediaGeneric*>,
+	Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
-[[nodiscard]] Fn<void(Painter&, const Ui::ChatPaintContext &)> UniqueGiftBg(
+[[nodiscard]] auto UniqueGiftBg(
 	not_null<Element*> view,
-	not_null<Data::UniqueGift*> gift);
+	std::shared_ptr<Data::UniqueGift> gift)
+-> Fn<void(
+	Painter&,
+	const Ui::ChatPaintContext&,
+	not_null<const MediaGeneric*>)>;
+
+[[nodiscard]] auto GenerateUniqueGiftPreview(
+	not_null<Element*> parent,
+	Element *replacing,
+	std::shared_ptr<Data::UniqueGift> gift)
+-> Fn<void(
+	not_null<MediaGeneric*>,
+	Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
 [[nodiscard]] std::unique_ptr<MediaGenericPart> MakeGenericButtonPart(
 	const QString &text,

@@ -21,7 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "history/view/media/history_view_media_common.h"
-#include "history/view/media/history_view_sticker.h"
+#include "history/view/media/history_view_media_generic.h"
+#include "history/view/media/history_view_unique_gift.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_reply.h"
@@ -196,6 +197,8 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 	const auto type = page->type;
 	const auto text = Ui::Text::Upper(page->iv
 		? tr::lng_view_button_iv(tr::now)
+		: page->uniqueGift
+		? tr::lng_view_button_collectible(tr::now)
 		: (type == WebPageType::Theme)
 		? tr::lng_view_button_theme(tr::now)
 		: (type == WebPageType::Story)
@@ -245,6 +248,7 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 [[nodiscard]] bool HasButton(not_null<WebPageData*> webpage) {
 	const auto type = webpage->type;
 	return webpage->iv
+		|| webpage->uniqueGift
 		|| (type == WebPageType::Message)
 		|| (type == WebPageType::Group)
 		|| (type == WebPageType::GroupWithRequest)
@@ -501,7 +505,18 @@ QSize WebPage::countOptimalSize() {
 	}
 
 	// init attach
-	if (!_attach && !_asArticle) {
+	if (!_attach && _data->uniqueGift) {
+		_attach = std::make_unique<MediaGeneric>(
+			_parent,
+			GenerateUniqueGiftPreview(
+				_parent,
+				nullptr,
+				_data->uniqueGift),
+				MediaGenericDescriptor{
+					.maxWidth = st::msgServiceGiftPreview,
+					.paintBg = UniqueGiftBg(_parent, _data->uniqueGift),
+				});
+	} else if (!_attach && !_asArticle) {
 		_attach = CreateAttach(
 			_parent,
 			_data->document,
@@ -511,7 +526,9 @@ QSize WebPage::countOptimalSize() {
 	}
 
 	// init strings
-	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
+	if (_description.isEmpty()
+		&& !_data->description.text.isEmpty()
+		&& !_data->uniqueGift) {
 		const auto &text = _data->description;
 
 		if (isLogEntryOriginal()) {

@@ -224,6 +224,7 @@ bool WebPageData::applyChanges(
 		WebPageCollage &&newCollage,
 		std::unique_ptr<Iv::Data> newIv,
 		std::unique_ptr<WebPageStickerSet> newStickerSet,
+		std::shared_ptr<Data::UniqueGift> newUniqueGift,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -278,6 +279,7 @@ bool WebPageData::applyChanges(
 		&& (!iv == !newIv)
 		&& (!iv || iv->partial() == newIv->partial())
 		&& (!stickerSet == !newStickerSet)
+		&& (!uniqueGift == !newUniqueGift)
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
@@ -300,6 +302,7 @@ bool WebPageData::applyChanges(
 	collage = std::move(newCollage);
 	iv = std::move(newIv);
 	stickerSet = std::move(newStickerSet);
+	uniqueGift = std::move(newUniqueGift);
 	duration = newDuration;
 	author = resultAuthor;
 	pendingTill = newPendingTill;

@@ -15,16 +15,21 @@ struct GiveawayResults;
 namespace HistoryView {
 
 class Element;
+class MediaGeneric;
 class MediaGenericPart;
 
 [[nodiscard]] auto GenerateGiveawayStart(
 	not_null<Element*> parent,
 	not_null<Data::GiveawayStart*> data)
--> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
+-> Fn<void(
+	not_null<MediaGeneric*>,
+	Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
 [[nodiscard]] auto GenerateGiveawayResults(
 	not_null<Element*> parent,
 	not_null<Data::GiveawayResults*> data)
--> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
+-> Fn<void(
+	not_null<MediaGeneric*>,
+	Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
 } // namespace HistoryView
