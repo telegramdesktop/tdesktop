@@ -805,8 +805,11 @@ std::optional<Data::StarGift> FromTL(
 		auto result = Data::StarGift{
 			.id = uint64(data.vid().v),
 			.unique = std::make_shared<Data::UniqueGift>(Data::UniqueGift{
+				.slug = qs(data.vslug()),
 				.title = qs(data.vtitle()),
-				.ownerId = peerFromUser(UserId(data.vowner_id().v)),
+				.ownerName = qs(data.vowner_name().value_or_empty()),
+				.ownerId = peerFromUser(
+					UserId(data.vowner_id().value_or_empty())),
 				.number = data.vnum().v,
 				.model = *model,
 				.pattern = *pattern,

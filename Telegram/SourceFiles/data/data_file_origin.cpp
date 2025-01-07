@@ -59,6 +59,24 @@ struct FileReferenceAccumulator {
 			push(data.vdocuments());
 		}, [&](const MTPDwebPageAttributeStickerSet &data) {
 			push(data.vstickers());
+		}, [&](const MTPDwebPageAttributeUniqueStarGift &data) {
+			push(data.vgift());
+		});
+	}
+	void push(const MTPStarGift &data) {
+		data.match([&](const MTPDstarGift &data) {
+			push(data.vsticker());
+		}, [&](const MTPDstarGiftUnique &data) {
+			push(data.vattributes());
+		});
+	}
+	void push(const MTPStarGiftAttribute &data) {
+		data.match([&](const MTPDstarGiftAttributeModel &data) {
+			push(data.vdocument());
+		}, [&](const MTPDstarGiftAttributePattern &data) {
+			push(data.vdocument());
+		}, [&](const MTPDstarGiftAttributeBackdrop &data) {
+		}, [&](const MTPDstarGiftAttributeOriginalDetails &data) {
 		});
 	}
 	void push(const MTPWebPage &data) {

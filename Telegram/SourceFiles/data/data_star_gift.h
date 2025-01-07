@@ -37,7 +37,9 @@ struct UniqueGiftOriginalDetails {
 };
 
 struct UniqueGift {
+	QString slug;
 	QString title;
+	QString ownerName;
 	PeerId ownerId = 0;
 	int number = 0;
 	int starsForTransfer = -1;

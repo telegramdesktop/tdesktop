@@ -3572,6 +3572,8 @@ void Session::webpageApplyFields(
 					return (DocumentData*)nullptr;
 				}, [](const MTPDwebPageAttributeStickerSet &) {
 					return (DocumentData*)nullptr;
+				}, [](const MTPDwebPageAttributeUniqueStarGift &) {
+					return (DocumentData*)nullptr;
 				});
 				if (result) {
 					return result;
