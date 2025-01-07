@@ -649,11 +649,7 @@ QSize WebPage::countOptimalSize() {
 	if (!_openButton.isEmpty()) {
 		const auto w = rect::m::sum::h(st::historyPageButtonPadding)
 			+ _openButton.maxWidth();
-		if (sponsored) {
-			accumulate_max(maxWidth, w);
-		} else {
-			maxWidth += w;
-		}
+		accumulate_max(maxWidth, w);
 	}
 	maxWidth += rect::m::sum::h(padding);
 	minHeight += rect::m::sum::v(padding);
