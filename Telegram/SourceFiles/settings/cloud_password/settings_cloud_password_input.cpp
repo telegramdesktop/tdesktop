@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
+#include "settings/cloud_password/settings_cloud_password_step.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"

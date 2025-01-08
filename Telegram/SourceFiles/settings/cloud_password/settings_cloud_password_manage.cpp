@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 
 #include "api/api_cloud_password.h"
+#include "core/application.h"
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
+#include "settings/cloud_password/settings_cloud_password_step.h"
 #include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
@@ -97,7 +99,10 @@ void Manage::setupContent() {
 		showBack();
 	};
 
-	SetupAutoCloseTimer(content->lifetime(), quit);
+	SetupAutoCloseTimer(
+		content->lifetime(),
+		quit,
+		[] { return Core::App().lastNonIdleTime(); });
 
 	const auto state = cloudPassword().stateCurrent();
 	if (!state) {

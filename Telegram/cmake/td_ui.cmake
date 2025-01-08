@@ -224,6 +224,8 @@ PRIVATE
 
     settings/settings_common.cpp
     settings/settings_common.h
+    settings/cloud_password/settings_cloud_password_common.cpp
+    settings/cloud_password/settings_cloud_password_common.h
 
     statistics/chart_lines_filter_controller.cpp
     statistics/chart_lines_filter_controller.h

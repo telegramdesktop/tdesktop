@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_step.h"
 #include "storage/storage_domain.h"
 #include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
@@ -128,7 +129,8 @@ void LocalPasscodeEnter::setupContent() {
 	if (isChange) {
 		CloudPassword::SetupAutoCloseTimer(
 			content->lifetime(),
-			[=] { _showBack.fire({}); });
+			[=] { _showBack.fire({}); },
+			[] { return Core::App().lastNonIdleTime(); });
 	}
 
 	Ui::AddSkip(content);
@@ -448,7 +450,8 @@ void LocalPasscodeManage::setupContent() {
 
 	CloudPassword::SetupAutoCloseTimer(
 		content->lifetime(),
-		[=] { _showBack.fire({}); });
+		[=] { _showBack.fire({}); },
+		[] { return Core::App().lastNonIdleTime(); });
 
 	Ui::AddSkip(content);
 
