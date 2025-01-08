@@ -154,6 +154,7 @@ private:
 
 	Main::Session *_session = nullptr;
 	MTP::Sender _api;
+	const int _textWidth;
 
 	QString _pattern;
 
@@ -219,17 +220,18 @@ private:
 	void proceedToChange(const QString &code);
 	void checkSubmitFail(const MTP::Error &error);
 	void setError(const QString &error);
+	void updateHeight();
 
 	Main::Session *_session = nullptr;
 	MTP::Sender _api;
+	const int _textWidth;
 	mtpRequestId _submitRequest = 0;
-
-	QString _pattern;
 
 	PasscodeBox::CloudFields _cloudFields;
 
 	object_ptr<Ui::InputField> _recoverCode;
 	object_ptr<Ui::LinkButton> _noEmailAccess;
+	object_ptr<Ui::FlatLabel> _patternLabel;
 	Fn<void()> _closeParent;
 
 	QString _error;

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_edit_contact.h"
 #include "settings/settings_privacy_security.h"
@@ -171,8 +172,9 @@ PasscodeBox::PasscodeBox(
 	bool turningOff)
 : _session(session)
 , _api(&_session->mtp())
+, _textWidth(st::boxWidth - st::boxPadding.left() * 1.5)
 , _turningOff(turningOff)
-, _about(st::boxWidth - st::boxPadding.left() * 1.5)
+, _about(_textWidth)
 , _oldPasscode(this, st::defaultInputField, tr::lng_passcode_enter_old())
 , _newPasscode(
 	this,
@@ -193,10 +195,11 @@ PasscodeBox::PasscodeBox(
 	const CloudFields &fields)
 : _session(session)
 , _api(mtp)
+, _textWidth(st::boxWidth - st::boxPadding.left() * 1.5)
 , _turningOff(fields.turningOff)
 , _cloudPwd(true)
 , _cloudFields(fields)
-, _about(st::boxWidth - st::boxPadding.left() * 1.5)
+, _about(_textWidth)
 , _oldPasscode(this, st::defaultInputField, tr::lng_cloud_password_enter_old())
 , _newPasscode(
 	this,
@@ -274,7 +277,7 @@ void PasscodeBox::prepare() {
 			: _cloudPwd
 			? tr::lng_cloud_password_about(tr::now)
 			: tr::lng_passcode_about(tr::now)));
-	_aboutHeight = _about.countHeight(st::boxWidth - st::boxPadding.left() * 1.5);
+	_aboutHeight = _about.countHeight(_textWidth);
 	const auto onlyCheck = onlyCheckCurrent();
 	if (onlyCheck) {
 		_oldPasscode->show();
@@ -382,28 +385,27 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
 	int32 abouty = (_passwordHint->isHidden() ? ((_reenterPasscode->isHidden() ? (_oldPasscode->y() + (_showRecoverLink && !_hintText.isEmpty() ? st::passcodeTextLine : 0)) : _reenterPasscode->y()) + st::passcodeSkip) : _passwordHint->y()) + _oldPasscode->height() + st::passcodeLittleSkip + st::passcodeAboutSkip;
 	p.setPen(st::boxTextFg);
-	_about.drawLeft(p, st::boxPadding.left(), abouty, w, width());
+	_about.drawLeft(p, st::boxPadding.left(), abouty, _textWidth, width());
 
 	if (!_hintText.isEmpty() && _oldError.isEmpty()) {
-		_hintText.drawLeftElided(p, st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height() + ((st::passcodeTextLine - st::normalFont->height) / 2), w, width(), 1, style::al_topleft);
+		_hintText.drawLeftElided(p, st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height() + ((st::passcodeTextLine - st::normalFont->height) / 2), _textWidth, width(), 1, style::al_topleft);
 	}
 
 	if (!_oldError.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height(), w, st::passcodeTextLine), _oldError, style::al_left);
+		p.drawText(QRect(st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height(), _textWidth, st::passcodeTextLine), _oldError, style::al_left);
 	}
 
 	if (!_newError.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _reenterPasscode->y() + _reenterPasscode->height(), w, st::passcodeTextLine), _newError, style::al_left);
+		p.drawText(QRect(st::boxPadding.left(), _reenterPasscode->y() + _reenterPasscode->height(), _textWidth, st::passcodeTextLine), _newError, style::al_left);
 	}
 
 	if (!_emailError.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _recoverEmail->y() + _recoverEmail->height(), w, st::passcodeTextLine), _emailError, style::al_left);
+		p.drawText(QRect(st::boxPadding.left(), _recoverEmail->y() + _recoverEmail->height(), _textWidth, st::passcodeTextLine), _emailError, style::al_left);
 	}
 }
 
@@ -1141,11 +1143,21 @@ RecoverBox::RecoverBox(
 	Fn<void()> closeParent)
 : _session(session)
 , _api(mtp)
-, _pattern(st::normalFont->elided(tr::lng_signin_recover_hint(tr::now, lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
+, _textWidth(st::boxWidth - st::boxPadding.left() * 1.5)
 , _cloudFields(fields)
 , _recoverCode(this, st::defaultInputField, tr::lng_signin_code())
 , _noEmailAccess(this, tr::lng_signin_try_password(tr::now))
+, _patternLabel(
+	this,
+	tr::lng_signin_recover_hint(
+		lt_recover_email,
+		rpl::single(Ui::Text::WrapEmailPattern(pattern)),
+		Ui::Text::WithEntities),
+	st::termsContent,
+	st::defaultPopupMenu,
+	[=](Fn<void()> update) { return CommonTextContext{ std::move(update) }; })
 , _closeParent(std::move(closeParent)) {
+	_patternLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (_cloudFields.pendingResetDate != 0 || !session) {
 		_noEmailAccess.destroy();
 	} else {
@@ -1176,19 +1188,24 @@ rpl::producer<> RecoverBox::recoveryExpired() const {
 	return _recoveryExpired.events();
 }
 
-void RecoverBox::prepare() {
-	setTitle(tr::lng_signin_recover_title());
-
-	addButton(tr::lng_passcode_submit(), [=] { submit(); });
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
-
+void RecoverBox::updateHeight() {
 	setDimensions(
 		st::boxWidth,
 		(st::passcodePadding.top()
 			+ st::passcodePadding.bottom()
 			+ st::passcodeTextLine
 			+ _recoverCode->height()
+			+ _patternLabel->height()
 			+ st::passcodeTextLine));
+}
+
+void RecoverBox::prepare() {
+	setTitle(tr::lng_signin_recover_title());
+
+	addButton(tr::lng_passcode_submit(), [=] { submit(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+	updateHeight();
 
 	_recoverCode->changes(
 	) | rpl::start_with_next([=] {
@@ -1205,23 +1222,42 @@ void RecoverBox::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::normalFont);
 	p.setPen(st::boxTextFg);
-	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
-	p.drawText(QRect(st::boxPadding.left(), _recoverCode->y() - st::passcodeTextLine - st::passcodePadding.top(), w, st::passcodePadding.top() + st::passcodeTextLine), _pattern, style::al_left);
 
 	if (!_error.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _recoverCode->y() + _recoverCode->height(), w, st::passcodeTextLine), _error, style::al_left);
+		p.drawText(
+			QRect(
+				st::boxPadding.left(),
+				_recoverCode->y() + _recoverCode->height(),
+				_textWidth,
+				st::passcodeTextLine),
+			_error,
+			style::al_left);
 	}
 }
 
 void RecoverBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_recoverCode->resize(st::boxWidth - st::boxPadding.left() - st::boxPadding.right(), _recoverCode->height());
-	_recoverCode->moveToLeft(st::boxPadding.left(), st::passcodePadding.top() + st::passcodePadding.bottom() + st::passcodeTextLine);
+	_patternLabel->resizeToWidth(_textWidth);
+	_patternLabel->moveToLeft(
+		st::boxPadding.left(),
+		st::passcodePadding.top());
+
+	_recoverCode->resize(
+		st::boxWidth - st::boxPadding.left() - st::boxPadding.right(),
+		_recoverCode->height());
+	_recoverCode->moveToLeft(
+		st::boxPadding.left(),
+		rect::m::sum::v(st::passcodePadding) + _patternLabel->height());
 	if (_noEmailAccess) {
-		_noEmailAccess->moveToLeft(st::boxPadding.left(), _recoverCode->y() + _recoverCode->height() + (st::passcodeTextLine - _noEmailAccess->height()) / 2);
+		_noEmailAccess->moveToLeft(
+			st::boxPadding.left(),
+			rect::bottom(_recoverCode)
+				+ (st::passcodeTextLine - _noEmailAccess->height()) / 2);
 	}
+
+	updateHeight();
 }
 
 void RecoverBox::setInnerFocus() {
