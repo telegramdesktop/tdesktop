@@ -295,7 +295,11 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 
 Fn<void()> UiIntegration::createSpoilerRepaint(const std::any &context) {
 	const auto my = std::any_cast<MarkedTextContext>(&context);
-	return my ? my->customEmojiRepaint : nullptr;
+	if (my) {
+		return my->customEmojiRepaint;
+	}
+	const auto common = std::any_cast<CommonTextContext>(&context);
+	return common ? common->repaint : nullptr;
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
