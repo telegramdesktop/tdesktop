@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/sent_code_field.h"
@@ -138,13 +139,14 @@ void EmailConfirm::setupContent() {
 		state->unconfirmedPattern.isEmpty()
 			? tr::lng_settings_cloud_password_email_recovery_subtitle()
 			: tr::lng_cloud_password_confirm(),
-		rpl::single(
-			tr::lng_cloud_password_waiting_code(
-				tr::now,
-				lt_email,
-				state->unconfirmedPattern.isEmpty()
-					? recoverEmailPattern
-					: state->unconfirmedPattern)));
+		tr::lng_cloud_password_waiting_code(
+			lt_email,
+			rpl::single(
+				Ui::Text::WrapEmailPattern(
+					state->unconfirmedPattern.isEmpty()
+						? recoverEmailPattern
+						: state->unconfirmedPattern)),
+			TextWithEntities::Simple));
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 

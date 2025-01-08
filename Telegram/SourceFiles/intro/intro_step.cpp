@@ -99,7 +99,19 @@ Step::Step(
 
 	_descriptionText.value(
 	) | rpl::start_with_next([=](const TextWithEntities &text) {
-		_description->entity()->setMarkedText(text);
+		const auto label = _description->entity();
+		const auto hasSpoiler = ranges::contains(
+			text.entities,
+			EntityType::Spoiler,
+			&EntityInText::type);
+		if (hasSpoiler) {
+			label->setMarkedText(
+				text,
+				CommonTextContext{ [=] { label->update(); } });
+		} else {
+			label->setMarkedText(text);
+		}
+		label->setAttribute(Qt::WA_TransparentForMouseEvents, hasSpoiler);
 		updateLabelsPosition();
 	}, lifetime());
 }

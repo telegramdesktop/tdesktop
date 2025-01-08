@@ -118,7 +118,7 @@ void SetupHeader(
 		const QString &lottie,
 		rpl::producer<> &&showFinished,
 		rpl::producer<QString> &&subtitle,
-		rpl::producer<QString> &&about) {
+		v::text::data &&about) {
 	if (!lottie.isEmpty()) {
 		const auto &size = st::settingsCloudPasswordIconSize;
 		auto icon = CreateLottieIcon(
@@ -148,8 +148,16 @@ void SetupHeader(
 		const auto wrap = content->add(
 			object_ptr<Ui::CenterWrap<>>(
 				content,
-				object_ptr<Ui::FlatLabel>(content, std::move(about), st)),
+				object_ptr<Ui::FlatLabel>(
+					content,
+					v::text::take_marked(std::move(about)),
+					st,
+					st::defaultPopupMenu,
+					[=](Fn<void()> update) {
+						return CommonTextContext{ std::move(update) };
+					})),
 			st::changePhoneDescriptionPadding);
+		wrap->setAttribute(Qt::WA_TransparentForMouseEvents);
 		wrap->resize(
 			wrap->width(),
 			st::settingLocalPasscodeDescriptionHeight);

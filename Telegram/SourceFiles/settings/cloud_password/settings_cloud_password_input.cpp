@@ -183,7 +183,9 @@ void Input::setupContent() {
 			: hasPassword
 			? tr::lng_settings_cloud_password_manage_password_change()
 			: tr::lng_settings_cloud_password_password_subtitle(),
-		tr::lng_cloud_password_about());
+		isCheck
+			? tr::lng_settings_cloud_password_manage_about1()
+			: tr::lng_cloud_password_about());
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 

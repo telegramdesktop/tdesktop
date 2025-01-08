@@ -50,7 +50,7 @@ void SetupHeader(
 	const QString &lottie,
 	rpl::producer<> &&showFinished,
 	rpl::producer<QString> &&subtitle,
-	rpl::producer<QString> &&about);
+	v::text::data &&about);
 
 [[nodiscard]] not_null<Ui::PasswordInput*> AddPasswordField(
 	not_null<Ui::VerticalLayout*> content,
