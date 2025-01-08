@@ -42,9 +42,13 @@ std::strong_ordering operator<=>(const GiftBadge &a, const GiftBadge &b) {
 	if (result1 != std::strong_ordering::equal) {
 		return result1;
 	}
-	const auto result2 = (a.bg.rgb() <=> b.bg.rgb());
+	const auto result2 = (a.bg1.rgb() <=> b.bg1.rgb());
 	if (result2 != std::strong_ordering::equal) {
 		return result2;
+	}
+	const auto result3 = (a.bg2.rgb() <=> b.bg2.rgb());
+	if (result3 != std::strong_ordering::equal) {
+		return result3;
 	}
 	return a.fg.rgb() <=> b.fg.rgb();
 }
@@ -148,6 +152,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 
 	if (mode != Mode::Full) {
 		_button = QRect();
+		_small = true;
 		return;
 	}
 	const auto buttonw = _price.maxWidth();
@@ -263,11 +268,11 @@ void GiftButton::cacheUniqueBackground(
 	if (!_patterned && _uniquePatternEmoji->ready()) {
 		_patterned = true;
 		auto p = QPainter(&_uniqueBackgroundCache);
-		p.setOpacity(0.5);
 		p.setClipRect(inner);
 		const auto skip = inner.width() / 3;
 		Ui::PaintPoints(
 			p,
+			Ui::PatternPointsSmall(),
 			_uniquePatternCache,
 			_uniquePatternEmoji.get(),
 			*unique,
@@ -338,7 +343,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		p.drawImage(
 			QRect(
 				(width - size.width()) / 2,
-				(_text.isEmpty()
+				(_small
+					? st::giftBoxSmallStickerTop
+					: _text.isEmpty()
 					? st::giftBoxStickerStarTop
 					: st::giftBoxStickerTop),
 				size.width(),
@@ -348,7 +355,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	if (hidden) {
 		const auto topleft = QPoint(
 			(width - st::giftBoxStickerSize.width()) / 2,
-			(_text.isEmpty()
+			(_small
+				? st::giftBoxSmallStickerTop
+				: _text.isEmpty()
 				? st::giftBoxStickerStarTop
 				: st::giftBoxStickerTop));
 		_delegate->hiddenMark()->paint(
@@ -372,8 +381,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			const auto kMinus = QChar(0x2212);
 			return GiftBadge{
 				.text = kMinus + QString::number(data.discountPercent) + '%',
-				.bg = st::attentionButtonFg->c,
+				.bg1 = st::attentionButtonFg->c,
 				.fg = st::windowBg->c,
+				.small = true,
 			};
 		}
 		return GiftBadge();
@@ -383,7 +393,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			return GiftBadge{
 				.text = (soldOut
 					? tr::lng_gift_stars_sold_out(tr::now)
-					: !data.userpic
+					: (!data.userpic && !data.info.unique)
 					? tr::lng_gift_stars_limited(tr::now)
 					: (count == 1)
 					? tr::lng_gift_limited_of_one(tr::now)
@@ -393,19 +403,23 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 						(((count % 1000) && (count < 10'000))
 							? Lang::FormatCountDecimal(count)
 							: Lang::FormatCountToShort(count).string))),
-				.bg = (unique
-					? unique->backdrop.patternColor
+				.bg1 = (unique
+					? unique->backdrop.edgeColor
 					: soldOut
 					? st::attentionButtonFg->c
 					: st::windowActiveTextFg->c),
+				.bg2 = (unique
+					? unique->backdrop.patternColor
+					: QColor(0, 0, 0, 0)),
 				.fg = unique ? QColor(255, 255, 255) : st::windowBg->c,
+				.small = true,
 			};
 		}
 		return GiftBadge();
 	});
 
 	if (badge) {
-		const auto rubberOut = _extend.top();
+		const auto rubberOut = st::lineWidth;
 		const auto inner = rect().marginsRemoved(_extend);
 		p.setClipRect(inner.marginsAdded(
 			{ rubberOut, rubberOut, rubberOut, rubberOut }));
@@ -413,8 +427,8 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		const auto cached = _delegate->cachedBadge(badge);
 		const auto width = cached.width() / cached.devicePixelRatio();
 		p.drawImage(
-			position.x() + singlew + _extend.top() - width,
-			position.y() - _extend.top(),
+			position.x() + singlew + rubberOut - width,
+			position.y() - rubberOut,
 			cached);
 	}
 	if (!_button.isEmpty()) {
@@ -633,7 +647,9 @@ rpl::producer<not_null<DocumentData*>> GiftStickerValue(
 }
 
 QImage ValidateRotatedBadge(const GiftBadge &badge, int added) {
-	const auto &font = st::semiboldFont;
+	const auto &font = badge.small
+		? st::giftBoxGiftBadgeFont
+		: st::semiboldFont;
 	const auto twidth = font->width(badge.text) + 2 * added;
 	const auto skip = int(std::ceil(twidth / M_SQRT2));
 	const auto ratio = style::DevicePixelRatio();
@@ -670,12 +686,19 @@ QImage ValidateRotatedBadge(const GiftBadge &badge, int added) {
 		auto p = QPainter(&result);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(badge.bg);
+		p.setBrush(badge.bg1);
 
 		p.save();
 		p.translate(textpos);
 		p.rotate(45.);
-		p.drawRect(-5 * twidth, 0, twidth * 12, font->height);
+		const auto rect = QRect(-5 * twidth, 0, twidth * 12, font->height);
+		p.drawRect(rect);
+		if (badge.bg2.alpha() > 0) {
+			p.setOpacity(0.5);
+			p.setBrush(badge.bg2);
+			p.drawRect(rect);
+			p.setOpacity(1.);
+		}
 		p.restore();
 
 		p.drawImage(0, 0, scaled);

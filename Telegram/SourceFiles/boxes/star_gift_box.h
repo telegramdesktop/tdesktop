@@ -42,8 +42,17 @@ void AddUniqueGiftCover(
 	rpl::producer<Data::UniqueGift> data,
 	rpl::producer<QString> subtitleOverride = nullptr);
 
+struct PatternPoint {
+	QPointF position;
+	float64 scale = 1.;
+	float64 opacity = 1.;
+};
+[[nodiscard]] const std::vector<PatternPoint> &PatternPoints();
+[[nodiscard]] const std::vector<PatternPoint> &PatternPointsSmall();
+
 void PaintPoints(
 	QPainter &p,
+	const std::vector<PatternPoint> &points,
 	base::flat_map<float64, QImage> &cache,
 	not_null<Text::CustomEmoji*> emoji,
 	const Data::UniqueGift &gift,

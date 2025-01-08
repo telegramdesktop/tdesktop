@@ -74,8 +74,10 @@ struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 
 struct GiftBadge {
 	QString text;
-	QColor bg;
+	QColor bg1;
+	QColor bg2 = QColor(0, 0, 0, 0);
 	QColor fg;
+	bool small = false;
 
 	explicit operator bool() const {
 		return !text.isEmpty();
@@ -148,6 +150,7 @@ private:
 	std::optional<Ui::Premium::ColoredMiniStars> _stars;
 	bool _subscribed = false;
 	bool _patterned = false;
+	bool _small = false;
 
 	QRect _button;
 	QMargins _extend;

@@ -312,7 +312,8 @@ QImage PremiumGift::cornerTag(const PaintContext &context) {
 	if (_data.unique) {
 		badge = {
 			.text = tr::lng_gift_collectible_tag(tr::now),
-			.bg = _data.unique->backdrop.patternColor,
+			.bg1 = _data.unique->backdrop.edgeColor,
+			.bg2 = _data.unique->backdrop.patternColor,
 			.fg = QColor(255, 255, 255),
 		};
 	} else if (const auto count = _data.limitedCount) {
@@ -325,7 +326,7 @@ QImage PremiumGift::cornerTag(const PaintContext &context) {
 					(((count % 1000) && (count < 10'000))
 						? Lang::FormatCountDecimal(count)
 						: Lang::FormatCountToShort(count).string))),
-			.bg = context.st->msgServiceBg()->c,
+			.bg1 = context.st->msgServiceBg()->c,
 			.fg = context.st->msgServiceFg()->c,
 		};
 	} else {

@@ -525,7 +525,13 @@ Fn<void(Painter&, const Ui::ChatPaintContext &)> UniqueGiftBg(
 		const auto doubled = width + 2 * shift;
 		const auto outer = QRect(-shift, -shift, doubled, doubled);
 		p.setClipRect(inner);
-		Ui::PaintPoints(p, state->cache, state->pattern.get(), *gift, outer);
+		Ui::PaintPoints(
+			p,
+			Ui::PatternPoints(),
+			state->cache,
+			state->pattern.get(),
+			*gift,
+			outer);
 		p.setClipping(false);
 
 		const auto add = style::ConvertScale(2);
@@ -536,7 +542,8 @@ Fn<void(Painter&, const Ui::ChatPaintContext &)> UniqueGiftBg(
 			inner.height() + 2 * add);
 		auto badge = Info::PeerGifts::GiftBadge{
 			.text = tr::lng_gift_collectible_tag(tr::now),
-			.bg = gift->backdrop.patternColor,
+			.bg1 = gift->backdrop.edgeColor,
+			.bg2 = gift->backdrop.patternColor,
 			.fg = gift->backdrop.textColor,
 		};
 		if (state->badgeCache.isNull() || state->badgeKey != badge) {

@@ -1348,6 +1348,7 @@ void ReceiptCreditsBox(
 	};
 	const auto canUpgrade = e.stargiftId
 		&& e.canUpgradeGift
+		&& (e.in || giftToSelf)
 		&& !e.uniqueGift;
 	const auto canUpgradeFree = canUpgrade && (e.starsUpgradedBySender > 0);
 
