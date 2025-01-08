@@ -294,15 +294,8 @@ void Step::setTitleText(rpl::producer<QString> titleText) {
 	_titleText = std::move(titleText);
 }
 
-void Step::setDescriptionText(
-		rpl::producer<QString> descriptionText) {
-	setDescriptionText(
-		std::move(descriptionText) | Ui::Text::ToWithEntities());
-}
-
-void Step::setDescriptionText(
-		rpl::producer<TextWithEntities> richDescriptionText) {
-	_descriptionText = std::move(richDescriptionText);
+void Step::setDescriptionText(v::text::data &&descriptionText) {
+	_descriptionText = v::text::take_marked(std::move(descriptionText));
 }
 
 void Step::showFinished() {
