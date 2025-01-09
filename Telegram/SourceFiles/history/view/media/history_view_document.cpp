@@ -422,7 +422,9 @@ QSize Document::countOptimalSize() {
 			|| _realParent->isScheduled()
 			|| (!session->premium()
 				&& !transcribes->freeFor(_realParent)
-				&& !transcribes->trialsSupport())) {
+				&& !transcribes->trialsSupport())
+			|| (!session->premium()
+				&& _data->duration() > transcribes->trialsMaxLengthMs())) {
 			voice->transcribe = nullptr;
 			voice->transcribeText = {};
 		} else {
