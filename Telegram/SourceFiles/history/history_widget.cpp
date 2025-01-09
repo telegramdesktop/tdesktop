@@ -3599,14 +3599,19 @@ void HistoryWidget::historyLoaded() {
 }
 
 bool HistoryWidget::clearMaybeSendStart() {
-	if (!_showAndMaybeSendStart) {
+	if (!_showAndMaybeSendStart || !_history) {
+		return false;
+	} else if (!_history->peer->isFullLoaded()) {
+		_history->peer->updateFull();
 		return false;
 	}
 	_showAndMaybeSendStart = false;
 	if (const auto user = _history ? _history->peer->asUser() : nullptr) {
-		if (const auto info = user->botInfo.get()) {
-			if (!info->startToken.isEmpty()) {
-				return true;
+		if (user->blockStatus() == PeerData::BlockStatus::NotBlocked) {
+			if (const auto info = user->botInfo.get()) {
+				if (!info->startToken.isEmpty()) {
+					return true;
+				}
 			}
 		}
 	}
@@ -3975,10 +3980,8 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 		preloadHistoryByScroll();
 		checkReplyReturns();
 	}
-	if (_history && _history->loadedAtTop() && _history->loadedAtBottom()) {
-		if (clearMaybeSendStart() && !_history->isDisplayedEmpty()) {
-			sendBotStartCommand();
-		}
+	if (clearMaybeSendStart() && !_history->isDisplayedEmpty()) {
+		sendBotStartCommand();
 	}
 }
 
@@ -8307,6 +8310,10 @@ void HistoryWidget::fullInfoUpdated() {
 
 		handlePeerUpdate();
 		checkSuggestToGigagroup();
+
+		if (clearMaybeSendStart() && !_history->isDisplayedEmpty()) {
+			sendBotStartCommand();
+		}
 	}
 	if (updateCmdStartShown()) {
 		refresh = true;
