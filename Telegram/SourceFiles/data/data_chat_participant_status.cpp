@@ -261,6 +261,7 @@ SendError RestrictionError(
 			}
 		}
 		if (all
+			&& channel
 			&& channel->boostsUnrestrict()
 			&& !channel->unrestrictedByBoosts()) {
 			return SendError({
