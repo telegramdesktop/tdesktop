@@ -84,6 +84,10 @@ void EmojiStatuses::refreshChannelColored() {
 	requestChannelColored();
 }
 
+void EmojiStatuses::refreshCollectibles() {
+	requestCollectibles();
+}
+
 void EmojiStatuses::refreshRecentDelayed() {
 	if (_recentRequestId || _recentRequestScheduled) {
 		return;
@@ -103,6 +107,7 @@ const std::vector<EmojiStatusId> &EmojiStatuses::list(Type type) const {
 	case Type::Colored: return _colored;
 	case Type::ChannelDefault: return _channelDefault;
 	case Type::ChannelColored: return _channelColored;
+	case Type::Collectibles: return _collectibles;
 	}
 	Unexpected("Type in EmojiStatuses::list.");
 }
@@ -371,6 +376,7 @@ void EmojiStatuses::requestColored() {
 		_coloredRequestId = 0;
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			updateColored(data);
+			refreshCollectibles();
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
@@ -418,6 +424,25 @@ void EmojiStatuses::requestChannelColored() {
 	}).send();
 }
 
+void EmojiStatuses::requestCollectibles() {
+	if (_collectiblesRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_collectiblesRequestId = api.request(
+		MTPaccount_GetCollectibleEmojiStatuses(MTP_long(_collectiblesHash))
+	).done([=](const MTPaccount_EmojiStatuses &result) {
+		_collectiblesRequestId = 0;
+		result.match([&](const MTPDaccount_emojiStatuses &data) {
+			updateCollectibles(data);
+		}, [&](const MTPDaccount_emojiStatusesNotModified &) {
+		});
+	}).fail([=] {
+		_collectiblesRequestId = 0;
+		_collectiblesHash = 0;
+	}).send();
+}
+
 void EmojiStatuses::updateRecent(const MTPDaccount_emojiStatuses &data) {
 	_recentHash = data.vhash().v;
 	_recent = parse(data);
@@ -460,6 +485,13 @@ void EmojiStatuses::updateChannelColored(
 		});
 	}
 	_channelColoredUpdated.fire({});
+}
+
+void EmojiStatuses::updateCollectibles(
+	const MTPDaccount_emojiStatuses &data) {
+	_collectiblesHash = data.vhash().v;
+	_collectibles = parse(data);
+	_collectiblesUpdated.fire({});
 }
 
 void EmojiStatuses::set(EmojiStatusId id, TimeId until) {

@@ -814,6 +814,25 @@ void Stickers::setPackAndEmoji(
 	}
 }
 
+not_null<StickersSet*> Stickers::collectibleSet() {
+	const auto setId = CollectibleSetId;
+	auto &sets = setsRef();
+	auto it = sets.find(setId);
+	if (it == sets.cend()) {
+		it = sets.emplace(setId, std::make_unique<StickersSet>(
+				&owner(),
+				setId,
+				uint64(0), // accessHash
+				uint64(0), // hash
+				tr::lng_collectible_emoji(tr::now),
+				QString(),
+				0, // count
+				SetFlag::Special,
+				TimeId(0))).first;
+	}
+	return it->second.get();
+}
+
 void Stickers::specialSetReceived(
 		uint64 setId,
 		const QString &setTitle,

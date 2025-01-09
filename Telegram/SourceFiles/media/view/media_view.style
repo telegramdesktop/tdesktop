@@ -618,6 +618,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	}
 	icons: ComposeIcons {
 		settings: icon {{ "emoji/emoji_settings", storiesComposeGrayIcon }};
+		collectibles: icon {{ "menu/unique", storiesComposeGrayIcon }};
 
 		recent: icon {{ "emoji/emoji_recent", storiesComposeGrayIcon }};
 		recentActive: icon {{ "emoji/emoji_recent", storiesComposeWhiteText }};

@@ -243,7 +243,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 		.show = _controller->uiShow(),
 		.mode = ChatHelpers::EmojiListMode::UserpicBuilder,
 		.paused = [=] { return true; },
-		.customRecentList = _lastRecent,
+		.customRecentList = ChatHelpers::DocumentListToRecent(_lastRecent),
 		.customRecentFactory = [=](DocumentId id, Fn<void()> repaint) {
 			return manager->create(id, std::move(repaint), tag);
 		},

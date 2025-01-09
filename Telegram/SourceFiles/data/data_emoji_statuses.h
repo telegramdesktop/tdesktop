@@ -58,6 +58,7 @@ public:
 	void refreshColored();
 	void refreshChannelDefault();
 	void refreshChannelColored();
+	void refreshCollectibles();
 
 	enum class Type {
 		Recent,
@@ -103,12 +104,14 @@ private:
 	void requestColored();
 	void requestChannelDefault();
 	void requestChannelColored();
+	void requestCollectibles();
 
 	void updateRecent(const MTPDaccount_emojiStatuses &data);
 	void updateDefault(const MTPDaccount_emojiStatuses &data);
 	void updateColored(const MTPDmessages_stickerSet &data);
 	void updateChannelDefault(const MTPDaccount_emojiStatuses &data);
 	void updateChannelColored(const MTPDmessages_stickerSet &data);
+	void updateCollectibles(const MTPDaccount_emojiStatuses &data);
 
 	void processClearingIn(TimeId wait);
 	void processClearing();
@@ -153,6 +156,7 @@ private:
 	mtpRequestId _channelColoredRequestId = 0;
 
 	mtpRequestId _collectiblesRequestId = 0;
+	uint64 _collectiblesHash = 0;
 
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _sentRequests;
 

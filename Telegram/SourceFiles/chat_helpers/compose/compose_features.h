@@ -18,6 +18,7 @@ struct ComposeFeatures {
 	bool attachBotsMenu : 1 = true;
 	bool inlineBots : 1 = true;
 	bool megagroupSet : 1 = true;
+	bool collectibleStatus : 1 = false;
 	bool stickersSettings : 1 = true;
 	bool openStickerSets : 1 = true;
 	bool autocompleteHashtags : 1 = true;

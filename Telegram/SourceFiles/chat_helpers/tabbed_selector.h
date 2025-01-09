@@ -62,6 +62,7 @@ struct FileChosen {
 	not_null<DocumentData*> document;
 	Api::SendOptions options;
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
+	std::shared_ptr<Data::EmojiStatusCollectible> collectible;
 	TextWithTags caption;
 };
 
@@ -154,7 +155,7 @@ public:
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);
 	void provideRecentEmoji(
-		const std::vector<DocumentId> &customRecentList);
+		const std::vector<EmojiStatusId> &customRecentList);
 
 	void hideFinished();
 	void showStarted();

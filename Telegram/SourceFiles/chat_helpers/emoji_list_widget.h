@@ -83,12 +83,15 @@ enum class EmojiListMode {
 	MessageEffects,
 };
 
+[[nodiscard]] std::vector<EmojiStatusId> DocumentListToRecent(
+	const std::vector<DocumentId> &documents);
+
 struct EmojiListDescriptor {
 	std::shared_ptr<Show> show;
 	EmojiListMode mode = EmojiListMode::Full;
 	Fn<QColor()> customTextColor;
 	Fn<bool()> paused;
-	std::vector<DocumentId> customRecentList;
+	std::vector<EmojiStatusId> customRecentList;
 	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
 		DocumentId,
 		Fn<void()>)> customRecentFactory;
@@ -137,7 +140,7 @@ public:
 	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
 	[[nodiscard]] rpl::producer<> escapes() const;
 
-	void provideRecent(const std::vector<DocumentId> &customRecentList);
+	void provideRecent(const std::vector<EmojiStatusId> &customRecentList);
 
 	void prepareExpanding();
 	void paintExpanding(
@@ -186,6 +189,7 @@ private:
 		bool collapsed = false;
 	};
 	struct CustomOne {
+		std::shared_ptr<Data::EmojiStatusCollectible> collectible;
 		not_null<Ui::Text::CustomEmoji*> custom;
 		not_null<DocumentData*> document;
 		EmojiPtr emoji = nullptr;
@@ -253,6 +257,14 @@ private:
 		int finalHeight = 0;
 		bool expanding = false;
 	};
+	struct ResolvedCustom {
+		DocumentData *document = nullptr;
+		std::shared_ptr<Data::EmojiStatusCollectible> collectible;
+
+		explicit operator bool() const {
+			return document != nullptr;
+		}
+	};
 
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
@@ -271,6 +283,7 @@ private:
 		Visible,
 		Hidden,
 	};
+	void refreshEmojiStatusCollectibles();
 	void refreshMegagroupStickers(
 		Fn<void(uint64 setId, bool installed)> push,
 		GroupStickersPlace place);
@@ -296,22 +309,26 @@ private:
 		int index);
 
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
-	[[nodiscard]] DocumentData *lookupCustomEmoji(
+	[[nodiscard]] ResolvedCustom lookupCustomEmoji(
 		const OverEmoji *over) const;
-	[[nodiscard]] DocumentData *lookupCustomEmoji(
+	[[nodiscard]] ResolvedCustom lookupCustomEmoji(
 		int index,
 		int section) const;
 	[[nodiscard]] EmojiChosen lookupChosen(
 		EmojiPtr emoji,
 		not_null<const OverEmoji*> over);
 	[[nodiscard]] FileChosen lookupChosen(
-		not_null<DocumentData*> custom,
+		ResolvedCustom custom,
 		const OverEmoji *over,
 		Api::SendOptions options = Api::SendOptions());
 	void selectEmoji(EmojiChosen data);
 	void selectCustom(FileChosen data);
 	void paint(Painter &p, ExpandingContext context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
+	void drawCollectible(
+		QPainter &p,
+		QPoint position,
+		Data::EmojiStatusCollectible *collectible);
 	void drawRecent(
 		QPainter &p,
 		const ExpandingContext &context,
@@ -370,7 +387,7 @@ private:
 	void repaintCustom(uint64 setId);
 
 	void fillRecent();
-	void fillRecentFrom(const std::vector<DocumentId> &list);
+	void fillRecentFrom(const std::vector<EmojiStatusId> &list);
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		not_null<DocumentData*> document,
 		uint64 setId);

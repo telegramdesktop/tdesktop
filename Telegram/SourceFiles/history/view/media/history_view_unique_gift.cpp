@@ -522,9 +522,7 @@ auto UniqueGiftBg(
 			p.setBrush(Qt::transparent);
 			p.drawRoundedRect(inner, radius, radius);
 		}
-		auto gradient = QRadialGradient(
-			inner.center(),
-			inner.height() / 2);
+		auto gradient = QRadialGradient(inner.center(), inner.height() / 2);
 		gradient.setStops({
 			{ 0., gift->backdrop.centerColor },
 			{ 1., gift->backdrop.edgeColor },

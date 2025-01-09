@@ -2373,6 +2373,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_stickers_add" = "Choose sticker set";
 "lng_group_emoji" = "Select Emoji Pack";
 "lng_group_emoji_description" = "Choose an emoji pack that will be available to all members within the group.";
+"lng_collectible_emoji" = "Collectibles";
 
 "lng_premium" = "Premium";
 "lng_premium_free" = "Free";

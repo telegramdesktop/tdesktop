@@ -265,7 +265,7 @@ struct IconSelector {
 	const auto manager = &controller->session().data().customEmojiManager();
 
 	auto factory = [=](DocumentId id, Fn<void()> repaint)
-		-> std::unique_ptr<Ui::Text::CustomEmoji> {
+	-> std::unique_ptr<Ui::Text::CustomEmoji> {
 		const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 		if (id == kDefaultIconId) {
 			return std::make_unique<DefaultIconEmoji>(
@@ -288,7 +288,7 @@ struct IconSelector {
 			.show = controller->uiShow(),
 			.mode = EmojiListWidget::Mode::TopicIcon,
 			.paused = Window::PausedIn(controller, PauseReason::Layer),
-			.customRecentList = recent(),
+			.customRecentList = DocumentListToRecent(recent()),
 			.customRecentFactory = std::move(factory),
 			.st = &st::reactPanelEmojiPan,
 		}),
@@ -297,7 +297,7 @@ struct IconSelector {
 	icons->requestDefaultIfUnknown();
 	icons->defaultUpdates(
 	) | rpl::start_with_next([=] {
-		selector->provideRecent(recent());
+		selector->provideRecent(DocumentListToRecent(recent()));
 	}, selector->lifetime());
 
 	placeFooter(selector->createFooter());

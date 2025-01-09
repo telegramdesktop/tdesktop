@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/event_filter.h"
+#include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/ui_integration.h"
@@ -491,7 +492,8 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 	panelList.erase(
 		ranges::remove(panelList, paid->selectAnimation->id),
 		end(panelList));
-	panel->selector()->provideRecentEmoji(panelList);
+	panel->selector()->provideRecentEmoji(
+		ChatHelpers::DocumentListToRecent(panelList));
 	panel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,

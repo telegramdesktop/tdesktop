@@ -1047,7 +1047,7 @@ void Selector::createList() {
 			.show = _show,
 			.mode = _listMode,
 			.paused = _paused ? _paused : [] { return false; },
-			.customRecentList = std::move(recentList),
+			.customRecentList = DocumentListToRecent(recentList),
 			.customRecentFactory = _unifiedFactoryOwner->factory(),
 			.freeEffects = std::move(freeEffects),
 			.st = st,
