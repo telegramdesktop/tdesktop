@@ -692,7 +692,7 @@ void InnerWidget::setupDuration() {
 		return (value < 12)
 			? tr::lng_months_tiny(tr::now, lt_count, value)
 			: (value < 999)
-			? tr::lng_years_tiny(tr::now, lt_count, value)
+			? tr::lng_years_tiny(tr::now, lt_count, value / 12)
 			: QString::fromUtf8("\xE2\x88\x9E"); // utf-8 infinity
 	};
 	_container->add(
