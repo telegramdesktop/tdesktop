@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
@@ -860,6 +861,24 @@ void FillUniqueGiftMenu(
 				ShowTransferGiftBox(window, unique, messageId);
 			}
 		}, st.transfer ? st.transfer : &st::menuIconReplace);
+	}
+	const auto wear = e.in
+		&& (unique->ownerId == show->session().userPeerId());
+	if (wear) {
+		const auto peer = show->session().user();
+		const auto name = UniqueGiftName(*unique);
+		const auto now = peer->emojiStatusId().collectible;
+		if (now && unique->slug == now->slug) {
+			menu->addAction(tr::lng_gift_transfer_take_off(tr::now), [=] {
+				show->session().data().emojiStatuses().set(peer, {});
+				show->showToast(
+					tr::lng_gift_wear_end_toast(tr::now, lt_name, name));
+			}, st.transfer ? st.transfer : &st::menuIconReplace);
+		} else {
+			menu->addAction(tr::lng_gift_transfer_wear(tr::now), [=] {
+				ShowUniqueGiftWearBox(show, *unique, st);
+			}, st.transfer ? st.transfer : &st::menuIconReplace);
+		}
 	}
 }
 

@@ -3345,6 +3345,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_sure_for" = "Do you want to transfer ownership of {name} to {recipient} for {price}?";
 "lng_gift_transfer_button" = "Transfer";
 "lng_gift_transfer_button_for" = "Transfer for {price}";
+"lng_gift_transfer_wear" = "Wear";
+"lng_gift_transfer_take_off" = "Take Off";
+"lng_gift_wear_title" = "Wear {name}";
+"lng_gift_wear_about" = "and get these benefits:";
+"lng_gift_wear_badge_title" = "Radiant Badge";
+"lng_gift_wear_badge_about" = "The glittering icon of this item will be displayed next to your name.";
+"lng_gift_wear_proof_title" = "Proof of Ownership";
+"lng_gift_wear_proof_about" = "Clicking the icon of this item next to your name will show its info and owner.";
+"lng_gift_wear_start" = "Start Wearing";
+"lng_gift_wear_start_toast" = "You put on {name}";
+"lng_gift_wear_end_toast" = "You took off {name}";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

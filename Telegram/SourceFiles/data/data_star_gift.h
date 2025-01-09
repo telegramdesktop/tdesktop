@@ -37,6 +37,7 @@ struct UniqueGiftOriginalDetails {
 };
 
 struct UniqueGift {
+	CollectibleId id = 0;
 	QString slug;
 	QString title;
 	QString ownerName;

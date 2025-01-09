@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_star_gift.h"
 #include "data/data_document.h"
 #include "data/data_wall_paper.h"
 #include "data/stickers/data_stickers.h"
@@ -535,6 +536,27 @@ void EmojiStatuses::set(
 	} else if (const auto channel = peer->asChannel()) {
 		send(MTPchannels_UpdateEmojiStatus(channel->inputChannel, status));
 	}
+}
+
+EmojiStatusId EmojiStatuses::fromUniqueGift(
+		const Data::UniqueGift &gift) {
+	const auto collectibleId = gift.id;
+	auto &collectible = _collectibleData[collectibleId];
+	if (!collectible) {
+		collectible = std::make_shared<EmojiStatusCollectible>(
+			EmojiStatusCollectible{
+				.id = gift.id,
+				.documentId = gift.model.document->id,
+				.title = Data::UniqueGiftName(gift),
+				.slug = gift.slug,
+				.patternDocumentId = gift.pattern.document->id,
+				.centerColor = gift.backdrop.centerColor,
+				.edgeColor = gift.backdrop.edgeColor,
+				.patternColor = gift.backdrop.patternColor,
+				.textColor = gift.backdrop.textColor,
+			});
+	}
+	return { .collectible = collectible };
 }
 
 } // namespace Data

@@ -21,6 +21,7 @@ namespace Data {
 
 class DocumentMedia;
 class Session;
+struct UniqueGift;
 
 struct EmojiStatusCollectible {
 	CollectibleId id = 0;
@@ -79,6 +80,7 @@ public:
 
 	void set(EmojiStatusId id, TimeId until = 0);
 	void set(not_null<PeerData*> peer, EmojiStatusId id, TimeId until = 0);
+	[[nodiscard]] EmojiStatusId fromUniqueGift(const Data::UniqueGift &gift);
 
 	void registerAutomaticClear(not_null<PeerData*> peer, TimeId until);
 

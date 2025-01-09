@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 struct UniqueGift;
 struct GiftCode;
@@ -46,6 +50,15 @@ void AddUniqueGiftCover(
 	not_null<VerticalLayout*> container,
 	rpl::producer<Data::UniqueGift> data,
 	rpl::producer<QString> subtitleOverride = nullptr);
+void AddWearGiftCover(
+	not_null<VerticalLayout*> container,
+	const Data::UniqueGift &data,
+	not_null<PeerData*> peer);
+
+void ShowUniqueGiftWearBox(
+	std::shared_ptr<ChatHelpers::Show> show,
+	const Data::UniqueGift &gift,
+	Settings::CreditsEntryBoxStyleOverrides st);
 
 struct PatternPoint {
 	QPointF position;

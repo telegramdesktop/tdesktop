@@ -805,6 +805,7 @@ std::optional<Data::StarGift> FromTL(
 		auto result = Data::StarGift{
 			.id = uint64(data.vid().v),
 			.unique = std::make_shared<Data::UniqueGift>(Data::UniqueGift{
+				.id = data.vid().v,
 				.slug = qs(data.vslug()),
 				.title = qs(data.vtitle()),
 				.ownerName = qs(data.vowner_name().value_or_empty()),

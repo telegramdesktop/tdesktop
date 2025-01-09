@@ -188,6 +188,8 @@ uniqueGiftSubtitle: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 uniqueGiftSubtitleTop: 170px;
+uniqueGiftUserpicTop: 48px;
+uniqueGiftUserpicSize: 80px;
 uniqueGiftBottom: 20px;
 uniqueCloseButton: IconButton(boxTitleClose) {
 	icon: icon {{ "box_button_close", videoPlayIconFg }};

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_credits.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -2116,6 +2117,177 @@ void AddUniqueGiftCover(
 			paint(state->next, progress);
 		}
 	}, cover->lifetime());
+}
+
+void AddWearGiftCover(
+		not_null<VerticalLayout*> container,
+		const Data::UniqueGift &data,
+		not_null<PeerData*> peer) {
+	const auto cover = container->add(object_ptr<RpWidget>(container));
+
+	const auto title = CreateChild<FlatLabel>(
+		cover,
+		rpl::single(peer->name()),
+		st::uniqueGiftTitle);
+	title->setTextColorOverride(QColor(255, 255, 255));
+	const auto subtitle = CreateChild<FlatLabel>(
+		cover,
+		tr::lng_status_online(),
+		st::uniqueGiftSubtitle);
+	subtitle->setTextColorOverride(data.backdrop.textColor);
+
+	struct State {
+		QImage gradient;
+		Data::UniqueGift gift;
+		Ui::PeerUserpicView view;
+		std::unique_ptr<Text::CustomEmoji> emoji;
+		base::flat_map<float64, QImage> emojis;
+		rpl::lifetime lifetime;
+	};
+	const auto state = cover->lifetime().make_state<State>(State{
+		.gift = data,
+	});
+	state->emoji = peer->owner().customEmojiManager().create(
+		state->gift.pattern.document,
+		[=] { cover->update(); },
+		Data::CustomEmojiSizeTag::Large);
+
+	cover->widthValue() | rpl::start_with_next([=](int width) {
+		const auto skip = st::uniqueGiftBottom;
+		if (width <= 3 * skip) {
+			return;
+		}
+		const auto available = width - 2 * skip;
+		title->resizeToWidth(available);
+		title->moveToLeft(skip, st::uniqueGiftTitleTop);
+
+		subtitle->resizeToWidth(available);
+		subtitle->moveToLeft(skip, st::uniqueGiftSubtitleTop);
+
+		cover->resize(width, subtitle->y() + subtitle->height() + skip);
+	}, cover->lifetime());
+
+	cover->paintRequest() | rpl::start_with_next([=] {
+		auto p = Painter(cover);
+
+		const auto width = cover->width();
+		const auto pointsHeight = st::uniqueGiftSubtitleTop;
+		const auto ratio = style::DevicePixelRatio();
+		if (state->gradient.size() != cover->size() * ratio) {
+			state->gradient = CreateGradient(cover->size(), state->gift);
+		}
+		p.drawImage(0, 0, state->gradient);
+
+		PaintPoints(
+			p,
+			PatternPoints(),
+			state->emojis,
+			state->emoji.get(),
+			state->gift,
+			QRect(0, 0, width, pointsHeight),
+			1.);
+
+		peer->paintUserpic(
+			p,
+			state->view,
+			(width - st::uniqueGiftUserpicSize) / 2,
+			st::uniqueGiftUserpicTop,
+			st::uniqueGiftUserpicSize);
+	}, cover->lifetime());
+}
+
+void ShowUniqueGiftWearBox(
+		std::shared_ptr<ChatHelpers::Show> show,
+		const Data::UniqueGift &gift,
+		Settings::CreditsEntryBoxStyleOverrides st) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setNoContentMargin(true);
+
+		const auto content = box->verticalLayout();
+		AddWearGiftCover(content, gift, show->session().user());
+
+		AddSkip(content, st::defaultVerticalListSkip * 2);
+
+		const auto infoRow = [&](
+				rpl::producer<QString> title,
+				rpl::producer<QString> text,
+				not_null<const style::icon*> icon) {
+			auto raw = content->add(
+				object_ptr<Ui::VerticalLayout>(content));
+			raw->add(
+				object_ptr<Ui::FlatLabel>(
+					raw,
+					std::move(title) | Ui::Text::ToBold(),
+					st::defaultFlatLabel),
+				st::settingsPremiumRowTitlePadding);
+			raw->add(
+				object_ptr<Ui::FlatLabel>(
+					raw,
+					std::move(text),
+					st::boxDividerLabel),
+				st::settingsPremiumRowAboutPadding);
+			object_ptr<Info::Profile::FloatingIcon>(
+				raw,
+				*icon,
+				st::starrefInfoIconPosition);
+		};
+
+		content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_gift_wear_title(
+					lt_name,
+					rpl::single(UniqueGiftName(gift))),
+				st::uniqueGiftTitle),
+			st::settingsPremiumRowTitlePadding);
+		content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_gift_wear_about(),
+				st::uniqueGiftSubtitle),
+			st::settingsPremiumRowTitlePadding);
+		//"lng_gift_wear_title" = "Wear {name}";
+		//"lng_gift_wear_about" = "and get these benefits:";
+
+		infoRow(
+			tr::lng_gift_wear_badge_title(),
+			tr::lng_gift_wear_badge_about(),
+			&st::menuIconUnique);
+		//infoRow(
+		//	tr::lng_gift_wear_design_title(),
+		//	tr::lng_gift_wear_design_about(),
+		//	&st::menuIconUniqueProfile);
+		infoRow(
+			tr::lng_gift_wear_proof_title(),
+			tr::lng_gift_wear_proof_about(),
+			&st::menuIconTradable); // todo collectibles
+
+		box->setStyle(st::upgradeGiftBox);
+
+		const auto button = box->addButton(tr::lng_gift_wear_start(), [=] {
+			show->session().data().emojiStatuses().set(
+				show->session().user(),
+				show->session().data().emojiStatuses().fromUniqueGift(gift));
+			box->closeBox();
+			show->showToast(tr::lng_gift_wear_start_toast(
+				tr::now,
+				lt_name,
+				UniqueGiftName(gift)));
+		});
+		rpl::combine(
+			box->widthValue(),
+			button->widthValue()
+		) | rpl::start_with_next([=](int outer, int inner) {
+			const auto padding = st::giftBox.buttonPadding;
+			const auto wanted = outer - padding.left() - padding.right();
+			if (inner != wanted) {
+				button->resizeToWidth(wanted);
+				button->moveToLeft(padding.left(), padding.top());
+			}
+		}, box->lifetime());
+
+		AddUniqueCloseButton(box, st);
+	}));
 }
 
 struct UpgradeArgs : StarGiftUpgradeArgs {
