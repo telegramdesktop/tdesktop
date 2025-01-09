@@ -59,7 +59,7 @@ public:
 
 	struct Content {
 		BadgeType badge = BadgeType::None;
-		DocumentId emojiStatusId = 0;
+		EmojiStatusId emojiStatusId;
 
 		friend inline constexpr bool operator==(Content, Content) = default;
 	};

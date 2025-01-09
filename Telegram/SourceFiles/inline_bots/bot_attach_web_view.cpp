@@ -590,7 +590,7 @@ void ConfirmEmojiStatusBox(
 			return;
 		}
 		document->owner().emojiStatuses().set(
-			document->id,
+			{ document->id },
 			duration ? (base::unixtime::now() + duration) : 0);
 		*set = true;
 		box->closeBox();

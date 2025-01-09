@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h" // MarkedTextContext.
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h" // SerializeCustomEmojiId.
@@ -606,9 +607,12 @@ TopBarUser::TopBarUser(
 
 	auto documentValue = Info::Profile::EmojiStatusIdValue(
 		peer
-	) | rpl::map([=](DocumentId id) -> DocumentData* {
-		const auto document = id
-			? controller->session().data().document(id).get()
+	) | rpl::map([=](EmojiStatusId id) -> DocumentData* {
+		const auto documentId = id.collectible
+			? id.collectible->documentId
+			: id.documentId;
+		const auto document = documentId
+			? controller->session().data().document(documentId).get()
 			: nullptr;
 		return (document && document->sticker()) ? document : nullptr;
 	});
@@ -1184,7 +1188,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			if (const auto peer = data.peer(emojiStatusData.peerId)) {
 				return Info::Profile::EmojiStatusIdValue(
 					peer
-				) | rpl::map([=](DocumentId id) {
+				) | rpl::map([=](EmojiStatusId id) {
 					return id
 						? tr::lng_premium_emoji_status_button()
 						: _buttonText.value();

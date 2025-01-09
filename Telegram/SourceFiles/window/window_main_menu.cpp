@@ -179,7 +179,7 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 		self,
 		Data::PeerUpdate::Flag::EmojiStatus
 	) | rpl::map([=] {
-		return (self->emojiStatusId() != 0);
+		return !!self->emojiStatusId();
 	}) | rpl::distinct_until_changed() | rpl::map([](bool has) {
 		const auto makeLink = [](const QString &text) {
 			return Ui::Text::Link(text);

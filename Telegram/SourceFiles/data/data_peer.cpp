@@ -1115,11 +1115,11 @@ bool PeerData::changeBackgroundEmojiId(DocumentId id) {
 }
 
 void PeerData::setEmojiStatus(const MTPEmojiStatus &status) {
-	const auto parsed = Data::ParseEmojiStatus(status);
+	const auto parsed = owner().emojiStatuses().parse(status);
 	setEmojiStatus(parsed.id, parsed.until);
 }
 
-void PeerData::setEmojiStatus(DocumentId emojiStatusId, TimeId until) {
+void PeerData::setEmojiStatus(EmojiStatusId emojiStatusId, TimeId until) {
 	if (_emojiStatusId != emojiStatusId) {
 		_emojiStatusId = emojiStatusId;
 		session().changes().peerUpdated(this, UpdateFlag::EmojiStatus);
@@ -1127,7 +1127,7 @@ void PeerData::setEmojiStatus(DocumentId emojiStatusId, TimeId until) {
 	owner().emojiStatuses().registerAutomaticClear(this, until);
 }
 
-DocumentId PeerData::emojiStatusId() const {
+EmojiStatusId PeerData::emojiStatusId() const {
 	return _emojiStatusId;
 }
 

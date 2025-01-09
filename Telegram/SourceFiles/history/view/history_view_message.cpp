@@ -1767,8 +1767,8 @@ void Message::paintFromName(
 			+ std::min(availableWidth - statusWidth, nameText->maxWidth());
 		const auto y = trect.top();
 		auto color = nameFg;
-		color.setAlpha(115);
-		const auto id = from ? from->emojiStatusId() : 0;
+		color.setAlpha(115); // todo collectibles
+		const auto id = from ? from->emojiStatusId().documentId : 0;
 		if (_fromNameStatus->id != id) {
 			const auto that = const_cast<Message*>(this);
 			_fromNameStatus->custom = id

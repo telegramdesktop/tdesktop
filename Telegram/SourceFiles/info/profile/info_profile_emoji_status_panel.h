@@ -52,7 +52,7 @@ public:
 		not_null<Window::SessionController*> controller;
 		not_null<QWidget*> button;
 		Data::CustomEmojiSizeTag animationSizeTag = {};
-		DocumentId ensureAddedEmojiId = 0;
+		EmojiStatusId ensureAddedEmojiId;
 		Fn<QColor()> customTextColor;
 		bool backgroundEmojiMode = false;
 		bool channelStatusMode = false;
@@ -61,7 +61,7 @@ public:
 	void repaint();
 
 	struct CustomChosen {
-		DocumentId id = 0;
+		EmojiStatusId id;
 		TimeId until = 0;
 	};
 	[[nodiscard]] rpl::producer<CustomChosen> someCustomChosen() const {

@@ -4146,6 +4146,7 @@ void ApiWrap::uploadAlbumMedia(
 					fields.vid(),
 					fields.vaccess_hash(),
 					fields.vfile_reference()),
+				MTPInputPhoto(), // video_cover
 				MTP_int(data.vttl_seconds().value_or_empty()),
 				MTPstring()); // query
 			sendAlbumWithUploaded(item, groupId, media);

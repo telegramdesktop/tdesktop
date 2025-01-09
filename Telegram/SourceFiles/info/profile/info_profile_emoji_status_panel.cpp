@@ -111,18 +111,28 @@ void EmojiStatusPanel::show(Descriptor &&descriptor) {
 	_panelButton = button;
 	_animationSizeTag = descriptor.animationSizeTag;
 	const auto feed = [=, now = descriptor.ensureAddedEmojiId](
-			std::vector<DocumentId> list) {
-		list.insert(begin(list), 0);
+			std::vector<EmojiStatusId> list) {
+		list.insert(begin(list), EmojiStatusId());
 		if (now && !ranges::contains(list, now)) {
 			list.push_back(now);
 		}
-		_panel->selector()->provideRecentEmoji(list);
+		auto tmp = std::vector<DocumentId>();
+		for (const auto &id : list) {
+			if (id.documentId) { // todo collectibles
+				tmp.push_back(id.documentId);
+			}
+		}
+		_panel->selector()->provideRecentEmoji(tmp);
 	};
 	if (descriptor.backgroundEmojiMode) {
 		controller->session().api().peerPhoto().emojiListValue(
 			Api::PeerPhoto::EmojiListType::Background
 		) | rpl::start_with_next([=](std::vector<DocumentId> &&list) {
-			feed(std::move(list));
+			auto tmp = std::vector<EmojiStatusId>();
+			for (const auto &id : list) { // todo collectibles
+				tmp.push_back(EmojiStatusId{ .documentId = id });
+			}
+			feed(std::move(tmp));
 		}, _panel->lifetime());
 	} else if (descriptor.channelStatusMode) {
 		const auto &statuses = controller->session().data().emojiStatuses();
@@ -254,8 +264,8 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 		) | rpl::start_with_next([=](const Chosen &chosen) {
 			const auto owner = &controller->session().data();
 			startAnimation(owner, body, chosen.id, chosen.animation);
-			_someCustomChosen.fire({ chosen.id, chosen.until });
-			_panel->hideAnimated();
+			_someCustomChosen.fire({ { chosen.id }, chosen.until });
+			_panel->hideAnimated(); // todo collectibles
 		}, _panel->lifetime());
 	} else {
 		const auto weak = Ui::MakeWeak(_panel.get());
@@ -266,8 +276,8 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 			const auto owner = &controller->session().data();
 			if (weak) {
 				startAnimation(owner, body, chosen.id, chosen.animation);
-			}
-			owner->emojiStatuses().set(chosen.id, chosen.until);
+			} // todo collectibles
+			owner->emojiStatuses().set({ chosen.id }, chosen.until);
 		};
 
 		rpl::merge(

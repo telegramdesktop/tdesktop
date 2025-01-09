@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_badge.h"
 
+#include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -29,9 +30,9 @@ namespace {
 	return rpl::combine(
 		BadgeValue(peer),
 		EmojiStatusIdValue(peer)
-	) | rpl::map([=](BadgeType badge, DocumentId emojiStatusId) {
+	) | rpl::map([=](BadgeType badge, EmojiStatusId emojiStatusId) {
 		if (statusOnlyForPremium && badge != BadgeType::Premium) {
-			emojiStatusId = 0;
+			emojiStatusId = EmojiStatusId();
 		} else if (emojiStatusId && badge == BadgeType::None) {
 			badge = BadgeType::Premium;
 		}
@@ -129,9 +130,12 @@ void Badge::setContent(Content content) {
 			: id
 			? nullptr
 			: &_st.premium;
-		if (id) {
+		const auto documentId = id.collectible
+			? id.collectible->documentId
+			: id.documentId;
+		if (documentId) {
 			_emojiStatus = _session->data().customEmojiManager().create(
-				id,
+				documentId,
 				[raw = _view.data()] { raw->update(); },
 				sizeTag());
 			if (_customStatusLoopsLimit > 0) {

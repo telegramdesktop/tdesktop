@@ -2003,17 +2003,19 @@ void GenerateItems(
 			return status.match([](
 					const MTPDemojiStatus &data) {
 				return data.vdocument_id().v;
+			}, [](const MTPDemojiStatusCollectible &data) {
+				return data.vdocument_id().v;
 			}, [](const MTPDemojiStatusEmpty &) {
 				return DocumentId();
-			}, [](const MTPDemojiStatusUntil &data) {
-				return data.vdocument_id().v;
+			}, [](const MTPDinputEmojiStatusCollectible &) {
+				return DocumentId();
 			});
 		};
 		const auto prevEmoji = parse(data.vprev_value());
 		const auto nextEmoji = parse(data.vnew_value());
 		const auto nextUntil = data.vnew_value().match([](
-				const MTPDemojiStatusUntil &data) {
-			return data.vuntil().v;
+				const MTPDemojiStatus &data) {
+			return TimeId(data.vuntil().value_or_empty());
 		}, [](const auto &) { return TimeId(); });
 
 		const auto text = !prevEmoji

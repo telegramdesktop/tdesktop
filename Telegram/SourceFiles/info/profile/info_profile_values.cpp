@@ -676,9 +676,9 @@ rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer) {
 	return rpl::single(BadgeType::None);
 }
 
-rpl::producer<DocumentId> EmojiStatusIdValue(not_null<PeerData*> peer) {
+rpl::producer<EmojiStatusId> EmojiStatusIdValue(not_null<PeerData*> peer) {
 	if (peer->isChat()) {
-		return rpl::single(DocumentId(0));
+		return rpl::single(EmojiStatusId());
 	}
 	return peer->session().changes().peerFlagsValue(
 		peer,

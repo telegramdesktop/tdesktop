@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -112,8 +113,11 @@ namespace {
 		Data::PeerUpdate::Flag::EmojiStatus
 	) | rpl::map([=] {
 		const auto id = peer->emojiStatusId();
-		return id
-			? ResolveIsCustom(owner, id)
+		const auto documentId = id.collectible
+			? id.collectible->documentId
+			: id.documentId;
+		return documentId
+			? ResolveIsCustom(owner, documentId)
 			: rpl::single(TextWithEntities());
 	}) | rpl::flatten_latest() | rpl::distinct_until_changed();
 }

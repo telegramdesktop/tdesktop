@@ -37,6 +37,7 @@ using Options = base::flags<Option>;
 namespace Data {
 
 struct FileOrigin;
+struct EmojiStatusCollectible;
 
 struct UploadState {
 	explicit UploadState(int64 size) : size(size) {
@@ -139,6 +140,23 @@ using WallPaperId = uint64;
 using CallId = uint64;
 using BotAppId = uint64;
 using EffectId = uint64;
+using CollectibleId = uint64;
+
+struct EmojiStatusId {
+	DocumentId documentId = 0;
+	std::shared_ptr<Data::EmojiStatusCollectible> collectible;
+
+	explicit operator bool() const {
+		return documentId || collectible;
+	}
+
+	friend inline auto operator<=>(
+		const EmojiStatusId &,
+		const EmojiStatusId &) = default;
+	friend inline bool operator==(
+		const EmojiStatusId &,
+		const EmojiStatusId &) = default;
+};
 
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 

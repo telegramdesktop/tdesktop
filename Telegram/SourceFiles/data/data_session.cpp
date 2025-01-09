@@ -695,7 +695,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (const auto &status = data.vemoji_status()) {
 			result->setEmojiStatus(*status);
 		} else {
-			result->setEmojiStatus(0);
+			result->setEmojiStatus(EmojiStatusId());
 		}
 		if (!minimal) {
 			if (const auto botInfoVersion = data.vbot_info_version()) {
@@ -886,7 +886,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (const auto &status = data.vemoji_status()) {
 			channel->setEmojiStatus(*status);
 		} else {
-			channel->setEmojiStatus(0);
+			channel->setEmojiStatus(EmojiStatusId());
 		}
 		if (minimal) {
 			if (channel->input.type() == mtpc_inputPeerEmpty

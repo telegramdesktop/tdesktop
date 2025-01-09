@@ -132,7 +132,7 @@ struct LinkWithUrl {
 
 enum class BadgeType;
 [[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
+[[nodiscard]] rpl::producer<EmojiStatusId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
 
 [[nodiscard]] rpl::producer<QString> BirthdayLabelText(
