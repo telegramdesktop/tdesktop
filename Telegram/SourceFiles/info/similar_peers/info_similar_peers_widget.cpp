@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/similar_channels/info_similar_channels_widget.h"
+#include "info/similar_peers/info_similar_peers_widget.h"
 
 #include "api/api_chat_participants.h"
 #include "apiwrap.h"
@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "info/info_controller.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
@@ -27,14 +28,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_widgets.h"
 
-namespace Info::SimilarChannels {
+namespace Info::SimilarPeers {
 namespace {
 
 class ListController final : public PeerListController {
 public:
 	ListController(
 		not_null<Controller*> controller,
-		not_null<ChannelData*> channel);
+		not_null<PeerData*> peer);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -60,7 +61,7 @@ private:
 	struct SavedState : SavedStateBase {
 	};
 	const not_null<Controller*> _controller;
-	const not_null<ChannelData*> _channel;
+	const not_null<PeerData*> _peer;
 	Ui::RpWidget *_content = nullptr;
 	Ui::RpWidget *_unlock = nullptr;
 	rpl::variable<int> _unlockHeight;
@@ -69,14 +70,14 @@ private:
 
 ListController::ListController(
 	not_null<Controller*> controller,
-	not_null<ChannelData*> channel)
+	not_null<PeerData*> peer)
 : PeerListController()
 , _controller(controller)
-, _channel(channel) {
+, _peer(peer) {
 }
 
 Main::Session &ListController::session() const {
-	return _channel->session();
+	return _peer->session();
 }
 
 std::unique_ptr<PeerListRow> ListController::createRow(
@@ -95,20 +96,22 @@ std::unique_ptr<PeerListRow> ListController::createRow(
 }
 
 void ListController::prepare() {
-	delegate()->peerListSetTitle(tr::lng_similar_channels_title());
+	delegate()->peerListSetTitle(_peer->isBroadcast()
+		? tr::lng_similar_channels_title()
+		: tr::lng_similar_bots_title());
 
-	const auto participants = &_channel->session().api().chatParticipants();
+	const auto participants = &_peer->session().api().chatParticipants();
 
 	Data::AmPremiumValue(
-		&_channel->session()
+		&_peer->session()
 	) | rpl::start_with_next([=] {
-		participants->loadSimilarChannels(_channel);
+		participants->loadSimilarPeers(_peer);
 		rebuild();
 	}, lifetime());
 
 	participants->similarLoaded(
 	) | rpl::filter(
-		rpl::mappers::_1 == _channel
+		rpl::mappers::_1 == _peer
 	) | rpl::start_with_next([=] {
 		rebuild();
 	}, lifetime());
@@ -123,16 +126,16 @@ rpl::producer<int> ListController::unlockHeightValue() const {
 }
 
 void ListController::rebuild() {
-	const auto participants = &_channel->session().api().chatParticipants();
-	const auto &list = participants->similar(_channel);
-	for (const auto channel : list.list) {
-		if (!delegate()->peerListFindRow(channel->id.value)) {
-			delegate()->peerListAppendRow(createRow(channel));
+	const auto participants = &_peer->session().api().chatParticipants();
+	const auto &list = participants->similar(_peer);
+	for (const auto peer : list.list) {
+		if (!delegate()->peerListFindRow(peer->id.value)) {
+			delegate()->peerListAppendRow(createRow(peer));
 		}
 	}
 	if (!list.more
-		|| _channel->session().premium()
-		|| !_channel->session().premiumPossible()) {
+		|| _peer->session().premium()
+		|| !_peer->session().premiumPossible()) {
 		delete base::take(_unlock);
 		_unlockHeight = 0;
 	} else if (!_unlock) {
@@ -149,7 +152,9 @@ void ListController::setupUnlock() {
 
 	const auto button = ::Settings::CreateLockedButton(
 		_unlock,
-		tr::lng_similar_channels_show_more(),
+		(_peer->isBroadcast()
+			? tr::lng_similar_channels_show_more()
+			: tr::lng_similar_bots_show_more()),
 		st::similarChannelsLock,
 		rpl::single(true));
 	button->setClickedCallback([=] {
@@ -158,16 +163,18 @@ void ListController::setupUnlock() {
 	});
 
 	const auto upto = Data::PremiumLimits(
-		&_channel->session()).similarChannelsPremium();
+		&_peer->session()).similarChannelsPremium();
 	const auto about = Ui::CreateChild<Ui::FlatLabel>(
 		_unlock,
-		tr::lng_similar_channels_premium_all(
-			lt_count,
-			rpl::single(upto * 1.),
-			lt_link,
-			tr::lng_similar_channels_premium_all_link(
-			) | Ui::Text::ToBold() | Ui::Text::ToLink(),
-			Ui::Text::RichLangValue),
+		(_peer->isBroadcast()
+			? tr::lng_similar_channels_premium_all
+			: tr::lng_similar_bots_premium_all)(
+				lt_count,
+				rpl::single(upto * 1.),
+				lt_link,
+				tr::lng_similar_channels_premium_all_link(
+				) | Ui::Text::ToBold() | Ui::Text::ToLink(),
+				Ui::Text::RichLangValue),
 		st::similarChannelsLockAbout);
 	about->setClickHandlerFilter([=](const auto &...) {
 		const auto window = _controller->parentController();
@@ -177,7 +184,9 @@ void ListController::setupUnlock() {
 
 	rpl::combine(
 		_content->sizeValue(),
-		tr::lng_similar_channels_show_more()
+		(_peer->isBroadcast()
+			? tr::lng_similar_channels_show_more()
+			: tr::lng_similar_bots_show_more())
 	) | rpl::start_with_next([=](QSize size, const auto &) {
 		auto top = st::similarChannelsLockFade
 			+ st::similarChannelsLockPadding.top();
@@ -263,10 +272,10 @@ public:
 	InnerWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
-		not_null<ChannelData*> channel);
+		not_null<PeerData*> peer);
 
-	[[nodiscard]] not_null<ChannelData*> channel() const {
-		return _channel;
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
 	}
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
@@ -305,7 +314,7 @@ private:
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	not_null<Controller*> _controller;
-	const not_null<ChannelData*> _channel;
+	const not_null<PeerData*> _peer;
 	std::unique_ptr<ListController> _listController;
 	object_ptr<ListWidget> _list;
 
@@ -316,12 +325,12 @@ private:
 InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<ChannelData*> channel)
+	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _show(controller->uiShow())
 , _controller(controller)
-, _channel(channel)
-, _listController(std::make_unique<ListController>(controller, _channel))
+, _peer(peer)
+, _listController(std::make_unique<ListController>(controller, _peer))
 , _list(setupList(this, _listController.get())) {
 	setContent(_list.data());
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
@@ -428,23 +437,19 @@ std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
 	return _show;
 }
 
-Memento::Memento(not_null<ChannelData*> channel)
-: ContentMemento(channel, nullptr, PeerId()) {
+Memento::Memento(not_null<PeerData*> peer)
+: ContentMemento(peer, nullptr, PeerId()) {
 }
 
 Section Memento::section() const {
-	return Section(Section::Type::SimilarChannels);
-}
-
-not_null<ChannelData*> Memento::channel() const {
-	return peer()->asChannel();
+	return Section(Section::Type::SimilarPeers);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller, channel());
+	auto result = object_ptr<Widget>(parent, controller, peer());
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -462,20 +467,22 @@ Memento::~Memento() = default;
 Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<ChannelData*> channel)
+	not_null<PeerData*> peer)
 : ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
-		channel));
+		peer));
 }
 
 rpl::producer<QString> Widget::title() {
-	return tr::lng_similar_channels_title();
+	return peer()->isBroadcast()
+		? tr::lng_similar_channels_title()
+		: tr::lng_similar_bots_title();
 }
 
-not_null<ChannelData*> Widget::channel() const {
-	return _inner->channel();
+not_null<PeerData*> Widget::peer() const {
+	return _inner->peer();
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
@@ -483,7 +490,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto similarMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (similarMemento->channel() == channel()) {
+		if (similarMemento->peer() == peer()) {
 			restoreState(similarMemento);
 			return true;
 		}
@@ -500,7 +507,7 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(channel());
+	auto result = std::make_shared<Memento>(peer());
 	saveState(result.get());
 	return result;
 }
@@ -515,4 +522,4 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
-} // namespace Info::SimilarChannels
+} // namespace Info::SimilarPeers

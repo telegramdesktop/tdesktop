@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "info/similar_channels/info_similar_channels_widget.h"
+#include "info/similar_peers/info_similar_peers_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-using Channels = Api::ChatParticipants::Channels;
+using Channels = Api::ChatParticipants::Peers;
 
 //void SimilarChannelsController::prepare() {
 //	for (const auto &channel : _channels.list) {
@@ -86,7 +86,7 @@ using Channels = Api::ChatParticipants::Channels;
 			strong->showSection(
 				std::make_shared<Info::Memento>(
 					channel,
-					Info::Section::Type::SimilarChannels));
+					Info::Section::Type::SimilarPeers));
 		}
 	});
 }
@@ -519,7 +519,7 @@ QSize SimilarChannels::countOptimalSize() {
 	_channels.clear();
 	_moreThumbnails = {};
 	const auto api = &channel->session().api();
-	api->chatParticipants().loadSimilarChannels(channel);
+	api->chatParticipants().loadSimilarPeers(channel);
 	const auto premium = channel->session().premium();
 	const auto &similar = api->chatParticipants().similar(channel);
 	_empty = similar.list.empty() ? 1 : 0;
@@ -543,9 +543,14 @@ QSize SimilarChannels::countOptimalSize() {
 		? limit
 		: int(similar.list.size());
 	const auto more = similar.more + int(similar.list.size() - take);
-	auto &&channels = ranges::views::all(similar.list)
+	auto &&peers = ranges::views::all(similar.list)
 		| ranges::views::take(limit);
-	for (const auto &channel : channels) {
+	for (const auto &peer : peers) {
+		const auto channel = peer->asBroadcast();
+		if (!channel) {
+			continue;
+		}
+
 		const auto moreCounter = (_channels.size() + 1 == take) ? more : 0;
 		_channels.push_back({
 			.geometry = QRect(QPoint(x, y), outer.size()),
@@ -566,8 +571,8 @@ QSize SimilarChannels::countOptimalSize() {
 			: channel->openLink();
 
 		const auto counter = moreCounter
-			? moreCounter :
-			channel->membersCount();
+			? moreCounter
+			: channel->membersCount();
 		if (moreCounter || counter > 1) {
 			last.counter = (moreCounter ? u"+"_q : QString())
 				+ Lang::FormatCountToShort(counter).string;

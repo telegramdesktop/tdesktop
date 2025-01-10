@@ -477,6 +477,7 @@ infoIconMediaAudio: icon {{ "info/info_media_audio", infoIconFg }};
 infoIconMediaLink: icon {{ "info/info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
 infoIconMediaChannel: icon {{ "menu/channel", infoIconFg, point(4px, 4px) }};
+infoIconMediaBot: icon {{ "menu/bot", infoIconFg, point(4px, 4px) }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
 infoIconMediaStories: icon {{ "info/info_media_stories", infoIconFg }};
 infoIconMediaSaved: icon {{ "info/info_media_saved", infoIconFg }};

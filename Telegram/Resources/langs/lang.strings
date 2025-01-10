@@ -1346,6 +1346,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_similar_channels#one" = "{count} similar channel";
 "lng_profile_similar_channels#other" = "{count} similar channels";
+"lng_profile_similar_bots#one" = "{count} similar bot";
+"lng_profile_similar_bots#other" = "{count} similar bots";
 "lng_profile_saved_messages#one" = "{count} saved message";
 "lng_profile_saved_messages#other" = "{count} saved messages";
 "lng_profile_peer_gifts#one" = "{count} gift";
@@ -2107,6 +2109,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_similar_channels_premium_all#other" = "Subscribe to {link} to unlock up to **{count}** similar channels.";
 "lng_similar_channels_premium_all_link" = "Telegram Premium";
 "lng_similar_channels_show_more" = "Show more channels";
+
+"lng_similar_bots_title" = "Similar bots";
+"lng_similar_bots_premium_all#one" = "Subscribe to {link} to unlock up to **{count}** similar bot.";
+"lng_similar_bots_premium_all#other" = "Subscribe to {link} to unlock up to **{count}** similar bots.";
+"lng_similar_bots_show_more" = "Show more bots";
 
 "lng_peer_gifts_title" = "Gifts";
 "lng_peer_gifts_about" = "These gifts were sent to {user} by other users.";

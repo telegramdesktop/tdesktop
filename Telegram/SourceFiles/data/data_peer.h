@@ -218,6 +218,7 @@ public:
 	[[nodiscard]] bool isChannel() const {
 		return peerIsChannel(id);
 	}
+	[[nodiscard]] bool isBot() const;
 	[[nodiscard]] bool isSelf() const;
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isPremium() const;
@@ -267,6 +268,8 @@ public:
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canManageGroupCall() const;
 
+	[[nodiscard]] UserData *asBot();
+	[[nodiscard]] const UserData *asBot() const;
 	[[nodiscard]] UserData *asUser();
 	[[nodiscard]] const UserData *asUser() const;
 	[[nodiscard]] ChatData *asChat();

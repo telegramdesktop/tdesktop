@@ -911,6 +911,16 @@ void PeerData::fullUpdated() {
 	setLoadedStatus(LoadedStatus::Full);
 }
 
+UserData *PeerData::asBot() {
+	return isBot() ? static_cast<UserData*>(this) : nullptr;
+}
+
+const UserData *PeerData::asBot() const {
+	return isBot()
+		? static_cast<const UserData*>(this)
+		: nullptr;
+}
+
 UserData *PeerData::asUser() {
 	return isUser() ? static_cast<UserData*>(this) : nullptr;
 }
@@ -1129,6 +1139,13 @@ void PeerData::setEmojiStatus(EmojiStatusId emojiStatusId, TimeId until) {
 
 EmojiStatusId PeerData::emojiStatusId() const {
 	return _emojiStatusId;
+}
+
+bool PeerData::isBot() const {
+	if (const auto user = asUser()) {
+		return user->isBot();
+	}
+	return false;
 }
 
 bool PeerData::isSelf() const {

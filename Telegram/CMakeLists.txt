@@ -1014,8 +1014,8 @@ PRIVATE
     info/saved/info_saved_sublists_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
-    info/similar_channels/info_similar_channels_widget.cpp
-    info/similar_channels/info_similar_channels_widget.h
+    info/similar_peers/info_similar_peers_widget.cpp
+    info/similar_peers/info_similar_peers_widget.h
     info/statistics/info_statistics_common.h
     info/statistics/info_statistics_inner_widget.cpp
     info/statistics/info_statistics_inner_widget.h

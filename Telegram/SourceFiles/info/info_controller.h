@@ -158,7 +158,7 @@ public:
 		Media,
 		GlobalMedia,
 		CommonGroups,
-		SimilarChannels,
+		SimilarPeers,
 		RequestsList,
 		ReactionsList,
 		SavedSublists,
