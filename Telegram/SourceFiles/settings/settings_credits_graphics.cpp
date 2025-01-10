@@ -1276,7 +1276,7 @@ void GenericCreditsEntryBox(
 							&& giftToSelf
 							&& !(couldConvert || nonConvertible))
 						? tr::lng_action_gift_self_about_unique(
-							Ui::Text::WithEntities)
+							Ui::Text::WithEntities) // todo channel gifts
 						: ((couldConvert || nonConvertible)
 							? (e.savedToProfile
 								? tr::lng_action_gift_can_remove_text
@@ -1284,7 +1284,7 @@ void GenericCreditsEntryBox(
 									Ui::Text::WithEntities)
 							: rpl::combine(
 								(canConvert
-									? (giftToSelf
+									? (giftToSelf // todo channel gifts
 										? tr::lng_action_gift_self_about
 										: tr::lng_action_gift_got_stars_text)
 									: tr::lng_gift_got_stars)(
@@ -1400,7 +1400,7 @@ void GenericCreditsEntryBox(
 			.controller = window,
 			.stargiftId = e.stargiftId,
 			.ready = [=](bool) { *upgradeGuard = false; },
-			.user = starGiftSender,
+			.peer = starGiftSender,
 			.itemId = itemId,
 			.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
 			.canAddSender = !giftToSelf && !e.anonymous,
@@ -1496,7 +1496,7 @@ void GenericCreditsEntryBox(
 				box,
 				(e.savedToProfile
 					? tr::lng_gift_visible_hint()
-					: tr::lng_gift_hidden_hint()),
+					: tr::lng_gift_hidden_hint()), // todo channel gifts
 				st::creditsBoxAboutDivider)));
 	} else if (gotStarGift && e.anonymous) {
 		box->addRow(object_ptr<Ui::CenterWrap<>>(

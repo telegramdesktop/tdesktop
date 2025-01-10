@@ -274,8 +274,14 @@ auto GenerateGiftMedia(
 				? tr::lng_action_gift_self_about_unique(
 					tr::now,
 					Text::RichLangValue)
+				: (recipient->isBroadcast() && gift.info.starsToUpgrade)
+				? tr::lng_action_gift_channel_about_unique(
+					tr::now,
+					Text::RichLangValue)
 				: (recipient->isSelf()
 					? tr::lng_action_gift_self_about
+					: recipient->isBroadcast()
+					? tr::lng_action_gift_channel_about
 					: tr::lng_action_gift_got_stars_text)(
 						tr::now,
 						lt_count,
@@ -482,6 +488,15 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 			? tr::lng_action_gift_unique_received(tr::now, lt_user, name)
 			: _recipient->isSelf()
 			? tr::lng_action_gift_self_bought(tr::now, lt_cost, cost)
+			: _recipient->isBroadcast()
+			? tr::lng_action_gift_sent_channel(
+				tr::now,
+				lt_user,
+				name,
+				lt_name,
+				_recipient->name(),
+				lt_cost,
+				cost)
 			: tr::lng_action_gift_received(
 				tr::now,
 				lt_user,
@@ -1218,7 +1233,7 @@ void AddUpgradeButton(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Main::Session*> session,
 		int cost,
-		QString name,
+		not_null<PeerData*> peer,
 		Fn<void(bool)> toggled,
 		Fn<void()> preview) {
 	const auto button = container->add(
@@ -1265,12 +1280,19 @@ void AddUpgradeButton(
 	AddSkip(container);
 	const auto about = AddDividerText(
 		container,
-		tr::lng_gift_send_unique_about(
-			lt_user,
-			rpl::single(TextWithEntities{ name }),
-			lt_link,
-			tr::lng_gift_send_unique_link() | Text::ToLink(),
-			Text::WithEntities));
+		(peer->isBroadcast()
+			? tr::lng_gift_send_unique_about_channel(
+				lt_name,
+				rpl::single(TextWithEntities{ peer->name() }),
+				lt_link,
+				tr::lng_gift_send_unique_link() | Text::ToLink(),
+				Text::WithEntities)
+			: tr::lng_gift_send_unique_about(
+				lt_user,
+				rpl::single(TextWithEntities{ peer->shortName() }),
+				lt_link,
+				tr::lng_gift_send_unique_link() | Text::ToLink(),
+				Text::WithEntities)));
 	about->setClickHandlerFilter([=](const auto &...) {
 		preview();
 		return false;
@@ -1383,15 +1405,11 @@ void SendGiftBox(
 	if (const auto stars = std::get_if<GiftTypeStars>(&descriptor)) {
 		const auto cost = stars->info.starsToUpgrade;
 		if (cost > 0 && !peer->isSelf()) {
-			const auto user = peer->asUser();
-			Assert(user != nullptr);
-
 			const auto id = stars->info.id;
-			const auto name = user->shortName();
 			const auto showing = std::make_shared<bool>();
 			AddDivider(container);
 			AddSkip(container);
-			AddUpgradeButton(container, session, cost, name, [=](bool on) {
+			AddUpgradeButton(container, session, cost, peer, [=](bool on) {
 				auto now = state->details.current();
 				now.upgraded = on;
 				state->details = std::move(now);
@@ -1404,7 +1422,7 @@ void SendGiftBox(
 					.controller = window,
 					.stargiftId = id,
 					.ready = [=](bool) { *showing = false; },
-					.user = user,
+					.peer = peer,
 					.cost = int(cost),
 				});
 			});
@@ -1432,6 +1450,8 @@ void SendGiftBox(
 	}, [&](const GiftTypeStars &) {
 		AddDividerText(container, peer->isSelf()
 			? tr::lng_gift_send_anonymous_self()
+			: peer->isBroadcast()
+			? tr::lng_gift_send_anonymous_about_channel()
 			: tr::lng_gift_send_anonymous_about(
 				lt_user,
 				rpl::single(peer->shortName()),
@@ -1711,7 +1731,7 @@ void GiftBox(
 		window->showSettings(Settings::CreditsId());
 		return false;
 	};
-	if (!peer->isSelf()) {
+	if (peer->isUser() && !peer->isSelf()) {
 		const auto premiumClickHandlerFilter = [=](const auto &...) {
 			Settings::ShowPremium(window, u"gift_send"_q);
 			return false;
@@ -1731,9 +1751,16 @@ void GiftBox(
 	AddBlock(content, window, {
 		.subtitle = (peer->isSelf()
 			? tr::lng_gift_self_title()
+			: peer->isBroadcast()
+			? tr::lng_gift_channel_title()
 			: tr::lng_gift_stars_subtitle()),
 		.about = (peer->isSelf()
 			? tr::lng_gift_self_about(Text::WithEntities)
+			: peer->isBroadcast()
+			? tr::lng_gift_channel_about(
+				lt_name,
+				rpl::single(Text::Bold(peer->name())),
+				Text::WithEntities)
 			: tr::lng_gift_stars_about(
 				lt_name,
 				rpl::single(Text::Bold(peer->shortName())),
@@ -2366,9 +2393,11 @@ void AddUpgradeGiftCover(
 		MakeUpgradeGiftStream(args),
 		(args.itemId
 			? tr::lng_gift_upgrade_about()
-			: tr::lng_gift_upgrade_preview_about(
-				lt_name,
-				rpl::single(args.user->shortName()))));
+			: (args.peer->isBroadcast()
+				? tr::lng_gift_upgrade_preview_about_channel
+				: tr::lng_gift_upgrade_preview_about)(
+					lt_name,
+					rpl::single(args.peer->shortName()))));
 }
 
 void UpgradeBox(
@@ -2481,7 +2510,7 @@ void UpgradeBox(
 			if (result != Payments::CheckoutResult::Paid) {
 				state->sent = false;
 			} else {
-				controller->showPeerHistory(args.user);
+				controller->showPeerHistory(args.peer);
 				if (const auto strong = weak.data()) {
 					strong->closeBox();
 				}
@@ -2636,7 +2665,7 @@ void PaintPoints(
 
 void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args) {
 	const auto weak = base::make_weak(args.controller);
-	const auto session = &args.user->session();
+	const auto session = &args.peer->session();
 	session->api().request(MTPpayments_GetStarGiftUpgradePreview(
 		MTP_long(args.stargiftId)
 	)).done([=](const MTPpayments_StarGiftUpgradePreview &result) {

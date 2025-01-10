@@ -81,7 +81,7 @@ struct StarGiftUpgradeArgs {
 	not_null<Window::SessionController*> controller;
 	base::required<uint64> stargiftId;
 	Fn<void(bool)> ready;
-	not_null<UserData*> user;
+	not_null<PeerData*> peer;
 	MsgId itemId = 0;
 	int cost = 0;
 	bool canAddSender = false;

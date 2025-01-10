@@ -686,6 +686,8 @@ void AskBoostBox(
 		return tr::lng_boost_channel_title_reactions();
 	}, [](AskBoostCpm) {
 		return tr::lng_boost_channel_title_cpm();
+	}, [](AskBoostWearCollectible) {
+		return tr::lng_boost_channel_title_wear();
 	});
 	auto reasonText = v::match(data.reason.data, [&](
 			AskBoostChannelColor data) {
@@ -721,6 +723,11 @@ void AskBoostBox(
 			Ui::Text::RichLangValue);
 	}, [&](AskBoostCpm data) {
 		return tr::lng_boost_channel_needs_level_cpm(
+			lt_count,
+			rpl::single(float64(data.requiredLevel)),
+			Ui::Text::RichLangValue);
+	}, [&](AskBoostWearCollectible data) {
+		return tr::lng_boost_channel_needs_level_wear(
 			lt_count,
 			rpl::single(float64(data.requiredLevel)),
 			Ui::Text::RichLangValue);

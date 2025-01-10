@@ -5445,6 +5445,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		};
 		const auto anonymous = _from->isServiceUser();
 		if (anonymous || _history->peer->isSelf()) {
+			// todo channel gifts
 			result.text = (anonymous
 				? tr::lng_action_gift_received_anonymous
 				: tr::lng_action_gift_self_bought)(

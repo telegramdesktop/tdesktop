@@ -302,7 +302,7 @@ private:
 	void addNewMembers();
 	void addDeleteContact();
 	void addTTLSubmenu(bool addSeparator);
-	void addGiftPremium();
+	void addSendGift();
 	void addCreateTopic();
 	void addViewAsMessages();
 	void addViewAsTopics();
@@ -1227,22 +1227,28 @@ void Filler::addTTLSubmenu(bool addSeparator) {
 	}
 }
 
-void Filler::addGiftPremium() {
+void Filler::addSendGift() {
 	const auto user = _peer->asUser();
-	if (!user
-		|| user->isInaccessible()
-		|| user->isSelf()
-		|| user->isBot()
-		|| user->isNotificationsUser()
-		|| user->isRepliesChat()
-		|| user->isVerifyCodes()
-		|| !user->session().premiumCanBuy()) {
+	const auto channel = _peer->asBroadcast();
+	if (!user && !channel) {
+		return;
+	} else if (user
+		&& (user->isInaccessible()
+			|| user->isSelf()
+			|| user->isBot()
+			|| user->isNotificationsUser()
+			|| user->isRepliesChat()
+			|| user->isVerifyCodes()
+			|| !user->session().premiumCanBuy())) {
+		return;
+	} else if (channel && channel->isForbidden()) {
 		return;
 	}
 
+	const auto peer = _peer;
 	const auto navigation = _controller;
 	_addAction(tr::lng_profile_gift_premium(tr::now), [=] {
-		Ui::ShowStarGiftBox(navigation, user);
+		Ui::ShowStarGiftBox(navigation, peer);
 	}, &st::menuIconGiftPremium);
 }
 
@@ -1446,9 +1452,9 @@ void Filler::fillProfileActions() {
 	addNewContact();
 	addShareContact();
 	addEditContact();
-	addGiftPremium();
 	addBotToGroup();
 	addNewMembers();
+	addSendGift();
 	addViewStatistics();
 	addStoryArchive();
 	addManageChat();

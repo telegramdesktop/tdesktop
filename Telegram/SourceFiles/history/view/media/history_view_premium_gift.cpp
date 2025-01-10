@@ -115,7 +115,7 @@ TextWithEntities PremiumGift::subtitle() {
 			: (_data.starsToUpgrade
 				&& !_data.converted
 				&& _parent->history()->peer->isSelf())
-			? tr::lng_action_gift_self_about_unique(
+			? tr::lng_action_gift_self_about_unique( // todo channel gifts
 				tr::now,
 				Ui::Text::RichLangValue)
 			: (!_data.converted && !_data.starsConverted)
@@ -127,7 +127,7 @@ TextWithEntities PremiumGift::subtitle() {
 			: (_data.converted
 				? tr::lng_gift_got_stars
 				: _parent->history()->peer->isSelf()
-				? tr::lng_action_gift_self_about
+				? tr::lng_action_gift_self_about // todo channel gifts
 				: tr::lng_action_gift_got_stars_text)(
 					tr::now,
 					lt_count,
