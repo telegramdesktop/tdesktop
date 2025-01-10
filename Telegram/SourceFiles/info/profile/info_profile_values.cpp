@@ -595,12 +595,12 @@ rpl::producer<int> SavedSublistCountValue(
 	return sublist->fullCountValue();
 }
 
-rpl::producer<int> PeerGiftsCountValue(not_null<UserData*> user) {
-	return user->session().changes().peerFlagsValue(
-		user,
+rpl::producer<int> PeerGiftsCountValue(not_null<PeerData*> peer) {
+	return peer->session().changes().peerFlagsValue(
+		peer,
 		UpdateFlag::PeerGifts
 	) | rpl::map([=] {
-		return user->peerGiftsCount();
+		return peer->peerGiftsCount();
 	});
 }
 

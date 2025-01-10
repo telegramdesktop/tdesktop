@@ -260,7 +260,7 @@ enum class RequirePremiumState {
 	not_null<Main::Session*> session,
 	const MTPstarGift &gift);
 [[nodiscard]] std::optional<Data::UserStarGift> FromTL(
-	not_null<UserData*> to,
+	not_null<PeerData*> to,
 	const MTPuserStarGift &gift);
 
 [[nodiscard]] Data::UniqueGiftModel FromTL(

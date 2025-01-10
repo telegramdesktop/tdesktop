@@ -24,7 +24,7 @@ class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	explicit Memento(not_null<UserData*> user);
+	explicit Memento(not_null<PeerData*> peer);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -32,8 +32,6 @@ public:
 		const QRect &geometry) override;
 
 	Section section() const override;
-
-	[[nodiscard]] not_null<UserData*> user() const;
 
 	void setListState(std::unique_ptr<ListState> state);
 	std::unique_ptr<ListState> listState();
@@ -50,9 +48,9 @@ public:
 	Widget(
 		QWidget *parent,
 		not_null<Controller*> controller,
-		not_null<UserData*> user);
+		not_null<PeerData*> peer);
 
-	[[nodiscard]] not_null<UserData*> user() const;
+	[[nodiscard]] not_null<PeerData*> peer() const;
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;

@@ -221,12 +221,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			st::infoSharedMediaButtonIconPosition);
 	};
 	auto addPeerGiftsButton = [&](
-			not_null<UserData*> user,
+			not_null<PeerData*> peer,
 			const style::icon &icon) {
 		auto result = Media::AddPeerGiftsButton(
 			content,
 			_controller,
-			user,
+			peer,
 			tracker);
 		object_ptr<Profile::FloatingIcon>(
 			result,
@@ -236,9 +236,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 
 	if (!_topic) {
 		addStoriesButton(_peer, st::infoIconMediaStories);
-		if (const auto user = _peer->asUser()) {
-			addPeerGiftsButton(user, st::infoIconMediaGifts);
-		}
+		addPeerGiftsButton(_peer, st::infoIconMediaGifts);
 		addSavedSublistButton(_peer, st::infoIconMediaSaved);
 	}
 	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);

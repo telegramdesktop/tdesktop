@@ -122,7 +122,7 @@ struct LinkWithUrl {
 [[nodiscard]] rpl::producer<int> SavedSublistCountValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> PeerGiftsCountValue(
-	not_null<UserData*> user);
+	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(

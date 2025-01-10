@@ -375,6 +375,7 @@ public:
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canRestrictParticipant(
 		not_null<PeerData*> participant) const;
+	[[nodiscard]] bool canManageGifts() const;
 
 	void setBotVerifyDetails(Ui::BotVerifyDetails details);
 	void setBotVerifyDetailsIcon(DocumentId iconId);
@@ -452,6 +453,9 @@ public:
 	[[nodiscard]] TimeId slowmodeLastMessage() const;
 	void growSlowmodeLastMessage(TimeId when);
 
+	[[nodiscard]] int peerGiftsCount() const;
+	void setPeerGiftsCount(int count);
+
 	[[nodiscard]] int boostsApplied() const;
 	[[nodiscard]] int boostsUnrestrict() const;
 	[[nodiscard]] bool unrestrictedByBoosts() const;
@@ -522,6 +526,7 @@ private:
 		std::vector<Data::UnavailableReason> &&reasons) override;
 
 	Flags _flags = ChannelDataFlags(Flag::Forbidden);
+	int _peerGiftsCount = 0;
 
 	PtsWaiter _ptsWaiter;
 

@@ -205,11 +205,11 @@ inline auto AddSavedSublistButton(
 inline auto AddPeerGiftsButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
 		parent,
-		Profile::PeerGiftsCountValue(user),
+		Profile::PeerGiftsCountValue(peer),
 		[](int count) {
 			return tr::lng_profile_peer_gifts(tr::now, lt_count, count);
 		},
@@ -217,7 +217,7 @@ inline auto AddPeerGiftsButton(
 	result->addClickHandler([=] {
 		navigation->showSection(
 			std::make_shared<Info::Memento>(
-				user,
+				peer,
 				Section::Type::PeerGifts));
 	});
 	return result;

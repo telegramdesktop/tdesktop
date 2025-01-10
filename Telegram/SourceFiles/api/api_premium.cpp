@@ -834,7 +834,7 @@ std::optional<Data::StarGift> FromTL(
 }
 
 std::optional<Data::UserStarGift> FromTL(
-		not_null<UserData*> to,
+		not_null<PeerData*> to,
 		const MTPuserStarGift &gift) {
 	const auto session = &to->session();
 	const auto &data = gift.data();

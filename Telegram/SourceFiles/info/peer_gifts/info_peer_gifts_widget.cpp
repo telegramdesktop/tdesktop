@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 
 #include "api/api_premium.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
@@ -32,7 +33,7 @@ constexpr auto kPreloadPages = 2;
 constexpr auto kPerPage = 50;
 
 [[nodiscard]] GiftDescriptor DescriptorForGift(
-		not_null<UserData*> to,
+		not_null<PeerData*> to,
 		const Data::UserStarGift &gift) {
 	return GiftTypeStars{
 		.info = gift.info,
@@ -52,10 +53,10 @@ public:
 	InnerWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
-		not_null<UserData*> user);
+		not_null<PeerData*> peer);
 
-	[[nodiscard]] not_null<UserData*> user() const {
-		return _user;
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
 	}
 
 	void saveState(not_null<Memento*> memento);
@@ -88,7 +89,7 @@ private:
 	Delegate _delegate;
 	not_null<Controller*> _controller;
 	std::unique_ptr<Ui::FlatLabel> _about;
-	const not_null<UserData*> _user;
+	const not_null<PeerData*> _peer;
 	std::vector<Entry> _entries;
 	int _totalCount = 0;
 
@@ -113,32 +114,33 @@ private:
 InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<UserData*> user)
+	not_null<PeerData*> peer)
 : BoxContentDivider(parent)
 , _window(controller->parentController())
 , _delegate(_window, GiftButtonMode::Minimal)
 , _controller(controller)
 , _about(std::make_unique<Ui::FlatLabel>(
 	this,
-	(user->isSelf()
+	(peer->isSelf()
 		? tr::lng_peer_gifts_about_mine(Ui::Text::RichLangValue)
 		: tr::lng_peer_gifts_about(
 			lt_user,
-			rpl::single(Ui::Text::Bold(user->shortName())),
+			rpl::single(Ui::Text::Bold(peer->shortName())),
 			Ui::Text::RichLangValue)),
 	st::giftListAbout))
-, _user(user)
-, _totalCount(_user->peerGiftsCount())
-, _api(&_user->session().mtp()) {
+, _peer(peer)
+, _totalCount(_peer->peerGiftsCount())
+, _api(&_peer->session().mtp()) {
 	_singleMin = _delegate.buttonSize();
 
-	if (user->isSelf()) {
+	const auto channel = peer->asBroadcast();
+	if (peer->isSelf() || (channel && channel->canManageGifts())) {
 		subscribeToUpdates();
 	}
 }
 
 void InnerWidget::subscribeToUpdates() {
-	_user->owner().giftUpdates(
+	_peer->owner().giftUpdates(
 	) | rpl::start_with_next([=](const Data::GiftUpdate &update) {
 		const auto itemId = [](const Entry &entry) {
 			return FullMsgId(entry.gift.fromId, entry.gift.messageId);
@@ -202,11 +204,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 }
 
 void InnerWidget::loadMore() {
-	if (_allLoaded || _loadMoreRequestId) {
-		return;
+	if (_allLoaded || _loadMoreRequestId || !_peer->isUser()) {
+		return; // todo channel gifts
 	}
 	_loadMoreRequestId = _api.request(MTPpayments_GetUserStarGifts(
-		_user->inputUser,
+		_peer->asUser()->inputUser,
 		MTP_string(_offset),
 		MTP_int(kPerPage)
 	)).done([=](const MTPpayments_UserStarGifts &result) {
@@ -219,13 +221,13 @@ void InnerWidget::loadMore() {
 		}
 		_totalCount = data.vcount().v;
 
-		const auto owner = &_user->owner();
+		const auto owner = &_peer->owner();
 		owner->processUsers(data.vusers());
 
 		_entries.reserve(_entries.size() + data.vgifts().v.size());
 		for (const auto &gift : data.vgifts().v) {
-			if (auto parsed = Api::FromTL(_user, gift)) {
-				auto descriptor = DescriptorForGift(_user, *parsed);
+			if (auto parsed = Api::FromTL(_peer, gift)) {
+				auto descriptor = DescriptorForGift(_peer, *parsed);
 				_entries.push_back({
 					.gift = std::move(*parsed),
 					.descriptor = std::move(descriptor),
@@ -327,7 +329,7 @@ void InnerWidget::showGift(int index) {
 	_window->show(Box(
 		::Settings::UserStarGiftBox,
 		_window,
-		_user,
+		_peer,
 		_entries[index].gift));
 }
 
@@ -373,23 +375,19 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 	}
 }
 
-Memento::Memento(not_null<UserData*> user)
-: ContentMemento(user, nullptr, PeerId()) {
+Memento::Memento(not_null<PeerData*> peer)
+: ContentMemento(peer, nullptr, PeerId()) {
 }
 
 Section Memento::section() const {
 	return Section(Section::Type::PeerGifts);
 }
 
-not_null<UserData*> Memento::user() const {
-	return peer()->asUser();
-}
-
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller, user());
+	auto result = object_ptr<Widget>(parent, controller, peer());
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -407,20 +405,20 @@ Memento::~Memento() = default;
 Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller,
-	not_null<UserData*> user)
+	not_null<PeerData*> peer)
 : ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
-		user));
+		peer));
 }
 
 rpl::producer<QString> Widget::title() {
 	return tr::lng_peer_gifts_title();
 }
 
-not_null<UserData*> Widget::user() const {
-	return _inner->user();
+not_null<PeerData*> Widget::peer() const {
+	return _inner->peer();
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
@@ -428,7 +426,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto similarMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (similarMemento->user() == user()) {
+		if (similarMemento->peer() == peer()) {
 			restoreState(similarMemento);
 			return true;
 		}
@@ -445,7 +443,7 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(user());
+	auto result = std::make_shared<Memento>(peer());
 	saveState(result.get());
 	return result;
 }

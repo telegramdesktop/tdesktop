@@ -714,6 +714,10 @@ bool ChannelData::canRestrictParticipant(
 	return adminRights() & AdminRight::BanUsers;
 }
 
+bool ChannelData::canManageGifts() const {
+	return amCreator(); // todo channel gifts
+}
+
 void ChannelData::setBotVerifyDetails(Ui::BotVerifyDetails details) {
 	if (!details) {
 		if (_botVerifyDetails) {
@@ -857,6 +861,17 @@ void ChannelData::growSlowmodeLastMessage(TimeId when) {
 		info->slowmodeLastMessage = when;
 	}
 	session().changes().peerUpdated(this, UpdateFlag::Slowmode);
+}
+
+int ChannelData::peerGiftsCount() const {
+	return _peerGiftsCount;
+}
+
+void ChannelData::setPeerGiftsCount(int count) {
+	if (_peerGiftsCount != count) {
+		_peerGiftsCount = count;
+		session().changes().peerUpdated(this, UpdateFlag::PeerGifts);
+	}
 }
 
 int ChannelData::boostsApplied() const {

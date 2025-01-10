@@ -486,6 +486,8 @@ public:
 	[[nodiscard]] bool hasUnreadStories() const;
 	void setStoriesState(StoriesState state);
 
+	[[nodiscard]] int peerGiftsCount() const;
+
 	const PeerId id;
 	MTPinputPeer input = MTP_inputPeerEmpty();
 
