@@ -1341,7 +1341,11 @@ void ShowGiftPremium(
 void ShowEmojiStatusPremium(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
-	ShowPremium(controller, Ref::EmojiStatus::Serialize({ peer->id }));
+	if (const auto unique = peer->emojiStatusId().collectible.get()) {
+		Core::ResolveAndShowUniqueGift(controller->uiShow(), unique->slug);
+	} else {
+		ShowPremium(controller, Ref::EmojiStatus::Serialize({ peer->id }));
+	}
 }
 
 void StartPremiumPayment(
