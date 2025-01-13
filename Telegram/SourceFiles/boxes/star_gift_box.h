@@ -22,6 +22,7 @@ enum class CheckoutResult;
 } // namespace Payments
 
 namespace Settings {
+struct GiftWearBoxStyleOverride;
 struct CreditsEntryBoxStyleOverrides;
 } // namespace Settings
 
@@ -58,7 +59,7 @@ void AddWearGiftCover(
 void ShowUniqueGiftWearBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::UniqueGift &gift,
-	Settings::CreditsEntryBoxStyleOverrides st);
+	Settings::GiftWearBoxStyleOverride st);
 
 struct PatternPoint {
 	QPointF position;

@@ -211,3 +211,22 @@ uniqueMenuButton: IconButton(uniqueCloseButton) {
 upgradeGiftBox: Box(giftBox) {
 	buttonPadding: margins(22px, 3px, 22px, 22px);
 }
+darkUpgradeGiftTitle: FlatLabel(uniqueGiftTitle) {
+	textFg: groupCallMembersFg;
+}
+darkUpgradeGiftSubtitle: FlatLabel(uniqueGiftSubtitle) {
+	textFg: groupCallMembersFg;
+}
+darkUpgradeGiftBox: Box(upgradeGiftBox) {
+	bg: groupCallMembersBg;
+	title: darkUpgradeGiftTitle;
+	titleAdditionalFg: groupCallMemberNotJoinedStatus;
+}
+darkUpgradeGiftRadiant: icon{{ "menu/unique", groupCallMembersFg }};
+darkUpgradeGiftProof: icon{{ "menu/tradable", groupCallMembersFg }};
+darkUpgradeGiftInfoTitle: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallMembersFg;
+}
+darkUpgradeGiftInfoAbout: FlatLabel(boxDividerLabel) {
+	textFg: groupCallMemberNotJoinedStatus;
+}

@@ -67,7 +67,6 @@ void AddStarGiftTable(
 	not_null<Ui::VerticalLayout*> container,
 	Settings::CreditsEntryBoxStyleOverrides st,
 	const Data::CreditsHistoryEntry &entry,
-	Fn<void(bool)> toggleVisibility,
 	Fn<void()> convertToStars,
 	Fn<void()> startUpgrade);
 void AddCreditsHistoryEntryTable(

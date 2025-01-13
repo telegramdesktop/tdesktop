@@ -90,6 +90,17 @@ void AddWithdrawalWidget(
 	bool withdrawalEnabled,
 	rpl::producer<QString> usdValue);
 
+struct GiftWearBoxStyleOverride {
+	const style::Box *box = nullptr;
+	const style::FlatLabel *title = nullptr;
+	const style::FlatLabel *subtitle = nullptr;
+	const style::icon *radiantIcon = nullptr;
+	const style::icon *proofIcon = nullptr;
+	const style::FlatLabel *infoTitle = nullptr;
+	const style::FlatLabel *infoAbout = nullptr;
+};
+[[nodiscard]] GiftWearBoxStyleOverride DarkGiftWearBoxStyle();
+
 struct CreditsEntryBoxStyleOverrides {
 	const style::Box *box = nullptr;
 	const style::PopupMenu *menu = nullptr;
@@ -100,6 +111,7 @@ struct CreditsEntryBoxStyleOverrides {
 	const style::icon *share = nullptr;
 	const style::icon *transfer = nullptr;
 	std::shared_ptr<ShareBoxStyleOverrides> shareBox;
+	std::shared_ptr<GiftWearBoxStyleOverride> giftWearBox;
 };
 [[nodiscard]] CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle();
 

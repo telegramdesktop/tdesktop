@@ -2227,9 +2227,11 @@ void AddWearGiftCover(
 void ShowUniqueGiftWearBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::UniqueGift &gift,
-		Settings::CreditsEntryBoxStyleOverrides st) {
+		Settings::GiftWearBoxStyleOverride st) {
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setNoContentMargin(true);
+
+		box->setStyle(st.box ? *st.box : st::upgradeGiftBox);
 
 		const auto content = box->verticalLayout();
 		AddWearGiftCover(content, gift, show->session().user());
@@ -2246,13 +2248,13 @@ void ShowUniqueGiftWearBox(
 				object_ptr<Ui::FlatLabel>(
 					raw,
 					std::move(title) | Ui::Text::ToBold(),
-					st::defaultFlatLabel),
+					st.infoTitle ? *st.infoTitle : st::defaultFlatLabel),
 				st::settingsPremiumRowTitlePadding);
 			raw->add(
 				object_ptr<Ui::FlatLabel>(
 					raw,
 					std::move(text),
-					st::boxDividerLabel),
+					st.infoAbout ? *st.infoAbout : st::boxDividerLabel),
 				st::settingsPremiumRowAboutPadding);
 			object_ptr<Info::Profile::FloatingIcon>(
 				raw,
@@ -2266,28 +2268,26 @@ void ShowUniqueGiftWearBox(
 				tr::lng_gift_wear_title(
 					lt_name,
 					rpl::single(UniqueGiftName(gift))),
-				st::uniqueGiftTitle),
+				st.title ? *st.title : st::uniqueGiftTitle),
 			st::settingsPremiumRowTitlePadding);
 		content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
 				tr::lng_gift_wear_about(),
-				st::uniqueGiftSubtitle),
+				st.subtitle ? *st.subtitle : st::uniqueGiftSubtitle),
 			st::settingsPremiumRowAboutPadding);
 		infoRow(
 			tr::lng_gift_wear_badge_title(),
 			tr::lng_gift_wear_badge_about(),
-			&st::menuIconUnique);
+			st.radiantIcon ? st.radiantIcon : &st::menuIconUnique);
 		//infoRow(
 		//	tr::lng_gift_wear_design_title(),
 		//	tr::lng_gift_wear_design_about(),
 		//	&st::menuIconUniqueProfile);
 		infoRow(
 			tr::lng_gift_wear_proof_title(),
-			tr::lng_gift_wear_proof_about(),
-			&st::menuIconTradable); // todo collectibles
-
-		box->setStyle(st::upgradeGiftBox);
+			tr::lng_gift_wear_proof_about(), // todo collectibles
+			st.proofIcon ? st.proofIcon : &st::menuIconTradable);
 
 		const auto button = box->addButton(tr::lng_gift_wear_start(), [=] {
 			const auto session = &show->session();
@@ -2312,7 +2312,7 @@ void ShowUniqueGiftWearBox(
 			}
 		}, box->lifetime());
 
-		AddUniqueCloseButton(box, st);
+		AddUniqueCloseButton(box, {});
 	}));
 }
 

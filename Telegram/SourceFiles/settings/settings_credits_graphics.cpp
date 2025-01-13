@@ -874,10 +874,24 @@ void FillUniqueGiftMenu(
 			}, st.transfer ? st.transfer : &st::menuIconReplace);
 		} else {
 			menu->addAction(tr::lng_gift_transfer_wear(tr::now), [=] {
-				ShowUniqueGiftWearBox(show, *unique, st);
+				ShowUniqueGiftWearBox(show, *unique, st.giftWearBox
+					? *st.giftWearBox
+					: GiftWearBoxStyleOverride());
 			}, st.transfer ? st.transfer : &st::menuIconReplace);
 		}
 	}
+}
+
+GiftWearBoxStyleOverride DarkGiftWearBoxStyle() {
+	return {
+		.box = &st::darkUpgradeGiftBox,
+		.title = &st::darkUpgradeGiftTitle,
+		.subtitle = &st::darkUpgradeGiftSubtitle,
+		.radiantIcon = &st::darkUpgradeGiftRadiant,
+		.proofIcon = &st::darkUpgradeGiftProof,
+		.infoTitle = &st::darkUpgradeGiftInfoTitle,
+		.infoAbout = &st::darkUpgradeGiftInfoAbout,
+	};
 }
 
 CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
@@ -892,6 +906,8 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.transfer = &st::darkGiftTransfer,
 		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
 			DarkShareBoxStyle()),
+		.giftWearBox = std::make_shared<GiftWearBoxStyleOverride>(
+			DarkGiftWearBoxStyle()),
 	};
 }
 
@@ -1351,6 +1367,9 @@ void GenericCreditsEntryBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 
+	const auto canToggle = (canConvert || couldConvert || nonConvertible)
+		&& !e.giftTransferred
+		&& !e.giftRefunded;
 	const auto toggleVisibility = [=, weak = Ui::MakeWeak(box)](bool save) {
 		const auto showSection = !e.fromGiftsList;
 		const auto itemId = MsgId(e.bareMsgId);
@@ -1456,16 +1475,11 @@ void GenericCreditsEntryBox(
 				}
 			});
 		};
-		const auto canToggle = (canConvert || couldConvert || nonConvertible)
-			&& !e.giftTransferred
-			&& !e.giftRefunded;
-
 		AddStarGiftTable(
 			show,
 			content,
 			st,
 			e,
-			canToggle ? toggleVisibility : Fn<void(bool)>(),
 			canConvert ? convert : Fn<void()>(),
 			canUpgrade ? upgrade : Fn<void()>());
 	} else {
@@ -1487,22 +1501,38 @@ void GenericCreditsEntryBox(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider)));
-	} else if (gotStarGift && e.fromGiftsList) {
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
-			object_ptr<Ui::FlatLabel>(
+	} else if (gotStarGift) {
+		auto withHide = rpl::combine(
+			tr::lng_gift_visible_hint(),
+			tr::lng_gift_visible_hide()
+		) | rpl::map([](QString &&hint, QString &&hide) {
+			return TextWithEntities{ std::move(hint) }.append(' ').append(
+				Ui::Text::Link(std::move(hide)));
+		});
+		auto text = !e.savedToProfile // todo channel gifts
+			? tr::lng_gift_hidden_hint(Ui::Text::WithEntities)
+			: canToggle
+			? std::move(withHide)
+			: tr::lng_gift_visible_hint(Ui::Text::WithEntities);
+		if (e.anonymous && e.barePeerId) {
+			text = rpl::combine(
+				std::move(text),
+				tr::lng_gift_anonymous_hint()
+			) | rpl::map([](TextWithEntities &&a, QString &&b) {
+				return a.append("\n\n").append(b);
+			});
+		}
+		const auto label = box->addRow(
+			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 				box,
-				(e.savedToProfile
-					? tr::lng_gift_visible_hint()
-					: tr::lng_gift_hidden_hint()), // todo channel gifts
-				st::creditsBoxAboutDivider)));
-	} else if (gotStarGift && e.anonymous) {
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_gift_anonymous_hint(),
-				st::creditsBoxAboutDivider)));
+				object_ptr<Ui::FlatLabel>(
+					box,
+					std::move(text),
+					st::creditsBoxAboutDivider)))->entity();
+		label->setClickHandlerFilter([=](const auto &...) {
+			toggleVisibility(!e.savedToProfile);
+			return false;
+		});
 	}
 	if (s) {
 		const auto user = peer ? peer->asUser() : nullptr;
@@ -1579,6 +1609,8 @@ void GenericCreditsEntryBox(
 			? tr::lng_credits_subscription_off_rejoin_button()
 			: canUpgradeFree
 			? tr::lng_gift_upgrade_free()
+			: (canToggle && !e.savedToProfile)
+			? tr::lng_gift_show_on_page()
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
 		if (toRejoin) {
@@ -1635,6 +1667,8 @@ void GenericCreditsEntryBox(
 			send();
 		} else if (canUpgradeFree) {
 			upgrade();
+		} else if (canToggle && !e.savedToProfile) {
+			toggleVisibility(true);
 		} else {
 			box->closeBox();
 		}

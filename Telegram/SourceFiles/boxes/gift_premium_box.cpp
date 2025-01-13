@@ -183,7 +183,7 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	label->setTextColorOverride(st::windowActiveTextFg->c);
+	label->setTextColorOverride(table->st().defaultValue.palette.linkFg->c);
 
 	raw->setClickedCallback([=] {
 		show->showBox(PrepareShortInfoBox(peer, show));
@@ -258,7 +258,7 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	label->setTextColorOverride(st::windowActiveTextFg->c);
+	label->setTextColorOverride(table->st().defaultValue.palette.linkFg->c);
 
 	raw->setClickedCallback([=] {
 		show->showBox(PrepareShortInfoBox(peer, show));
@@ -423,59 +423,6 @@ void AddTableRow(
 					- table->st().smallButton.style.font->ascent),
 				width);
 		}
-	}, label->lifetime());
-
-	label->heightValue() | rpl::start_with_next([=](int height) {
-		raw->resize(
-			raw->width(),
-			height + st::giveawayGiftCodeValueMargin.bottom());
-	}, raw->lifetime());
-
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	return result;
-}
-
-[[nodiscard]] object_ptr<Ui::RpWidget> MakeVisibilityTableValue(
-		not_null<Ui::TableLayout*> table,
-		bool savedToProfile,
-		Fn<void(bool)> toggleVisibility) {
-	auto result = object_ptr<Ui::RpWidget>(table);
-	const auto raw = result.data();
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
-		(savedToProfile
-			? tr::lng_gift_visibility_shown()
-			: tr::lng_gift_visibility_hidden()),
-		table->st().defaultValue,
-		st::defaultPopupMenu);
-
-	const auto toggle = Ui::CreateChild<Ui::RoundButton>(
-		raw,
-		(savedToProfile
-			? tr::lng_gift_visibility_hide()
-			: tr::lng_gift_visibility_show()),
-		table->st().smallButton);
-	toggle->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	toggle->setClickedCallback([=] {
-		toggleVisibility(!savedToProfile);
-	});
-
-	rpl::combine(
-		raw->widthValue(),
-		toggle->widthValue()
-	) | rpl::start_with_next([=](int width, int toggleWidth) {
-		const auto toggleSkip = toggleWidth
-			? (st::normalFont->spacew + toggleWidth)
-			: 0;
-		label->resizeToNaturalWidth(width - toggleSkip);
-		label->moveToLeft(0, 0, width);
-		toggle->moveToLeft(
-			label->width() + st::normalFont->spacew,
-			(table->st().defaultValue.style.font->ascent
-				- table->st().smallButton.style.font->ascent),
-			width);
 	}, label->lifetime());
 
 	label->heightValue() | rpl::start_with_next([=](int height) {
@@ -1273,7 +1220,6 @@ void AddStarGiftTable(
 		not_null<Ui::VerticalLayout*> container,
 		Settings::CreditsEntryBoxStyleOverrides st,
 		const Data::CreditsHistoryEntry &entry,
-		Fn<void(bool)> toggleVisibility,
 		Fn<void()> convertToStars,
 		Fn<void()> startUpgrade) {
 	auto table = container->add(
@@ -1462,16 +1408,6 @@ void AddStarGiftTable(
 				show,
 				entry,
 				std::move(convertToStars)),
-			marginWithButton);
-	}
-	if (toggleVisibility) {
-		AddTableRow(
-			table,
-			tr::lng_gift_visibility(),
-			MakeVisibilityTableValue(
-				table,
-				entry.savedToProfile,
-				std::move(toggleVisibility)),
 			marginWithButton);
 	}
 	if (entry.limitedCount > 0 && !entry.giftRefunded) {
