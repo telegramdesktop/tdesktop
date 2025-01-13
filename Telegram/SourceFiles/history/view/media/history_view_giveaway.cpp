@@ -221,6 +221,7 @@ auto GenerateGiveawayResults(
 			return Data{
 				.sticker = packs.lookup(emoji, 0),
 				.skipTop = st::chatGiveawayWinnersTopSkip,
+				.size = st::maxAnimatedEmojiSize,
 				.singleTimePlayback = true,
 			};
 		};
