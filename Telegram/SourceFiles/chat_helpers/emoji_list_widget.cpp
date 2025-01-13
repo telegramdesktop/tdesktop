@@ -1129,17 +1129,16 @@ void EmojiListWidget::fillRecentFrom(
 			});
 			_recentCustomIds.emplace(fakeId);
 		} else {
-			const auto documentId = id.collectible
-				? id.collectible->documentId
-				: id.documentId;
 			_recent.push_back({
 				.collectible = id.collectible,
-				.custom = resolveCustomRecent(documentId),
+				.custom = resolveCustomRecent(id),
 				.id = {
-					RecentEmojiDocument{ .id = documentId, .test = test },
+					RecentEmojiDocument{ .id = id.documentId, .test = test },
 				},
 			});
-			_recentCustomIds.emplace(documentId);
+			_recentCustomIds.emplace(id.collectible
+				? id.collectible->documentId
+				: id.documentId);
 		}
 	}
 }
@@ -1490,27 +1489,6 @@ void EmojiListWidget::drawCollapsedBadge(
 		text);
 }
 
-void EmojiListWidget::drawCollectible(
-		QPainter &p,
-		QPoint position,
-		Data::EmojiStatusCollectible *collectible) {
-	if (!collectible) {
-		return;
-	}
-	const auto inner = QRect(position, st::emojiPanArea);
-	auto gradient = QRadialGradient(inner.center(), inner.height() / 2);
-	gradient.setStops({
-		{ 0., collectible->centerColor },
-		{ 1., collectible->edgeColor },
-		});
-	p.setBrush(gradient);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(
-		inner,
-		st::emojiPanRadius,
-		st::emojiPanRadius);
-}
-
 void EmojiListWidget::drawRecent(
 		QPainter &p,
 		const ExpandingContext &context,
@@ -1547,14 +1525,12 @@ void EmojiListWidget::drawRecent(
 
 			auto q = Painter(&_premiumMarkFrameCache);
 			_emojiPaintContext->position = QPoint();
-			drawCollectible(q, position, recent.collectible.get());
 			custom->paint(q, *_emojiPaintContext);
 			q.end();
 
 			p.drawImage(exactPosition, _premiumMarkFrameCache);
 		} else {
 			_emojiPaintContext->position = exactPosition;
-			drawCollectible(p, position, recent.collectible.get());
 			custom->paint(p, *_emojiPaintContext);
 		}
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&recent.id.data)) {
@@ -1609,7 +1585,6 @@ void EmojiListWidget::drawCustom(
 	_emojiPaintContext->position = position
 		+ _innerPosition
 		+ _customPosition;
-	drawCollectible(p, position, entry.collectible.get());
 	entry.custom->paint(p, *_emojiPaintContext);
 }
 
@@ -1643,8 +1618,15 @@ EmojiListWidget::ResolvedCustom EmojiListWidget::lookupCustomEmoji(
 		}
 		return {};
 	} else if (section == int(Section::Recent) && index < _recent.size()) {
+		const auto &recent = _recent[index];
+		if (recent.collectible) {
+			return {
+				session().data().document(recent.collectible->documentId),
+				recent.collectible,
+			};
+		}
 		const auto document = std::get_if<RecentEmojiDocument>(
-			&_recent[index].id.data);
+			&recent.id.data);
 		if (document) {
 			return { session().data().document(document->id) };
 		}
@@ -2342,11 +2324,12 @@ void EmojiListWidget::refreshCustom() {
 		auto set = std::vector<CustomOne>();
 		set.reserve(list.size());
 		for (const auto document : list) {
-			if (_restrictedCustomList.contains(document->id)) {
+			const auto id = EmojiStatusId{ document->id };
+			if (_restrictedCustomList.contains(id.documentId)) {
 				continue;
 			} else if (const auto sticker = document->sticker()) {
 				set.push_back({
-					.custom = resolveCustomEmoji(document, lookupId),
+					.custom = resolveCustomEmoji(id, document, lookupId),
 					.document = document,
 					.emoji = Ui::Emoji::Find(sticker->alt),
 				});
@@ -2401,18 +2384,19 @@ Fn<void()> EmojiListWidget::repaintCallback(
 }
 
 not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
+		EmojiStatusId id,
 		not_null<DocumentData*> document,
 		uint64 setId) {
 	Expects(document->sticker() != nullptr);
 
 	const auto documentId = document->id;
-	const auto i = _customEmoji.find(documentId);
+	const auto i = _customEmoji.find(id);
 	const auto recentOnly = (i != end(_customEmoji)) && i->second.recentOnly;
 	if (i != end(_customEmoji) && !recentOnly) {
 		return i->second.emoji.get();
 	}
 	auto instance = document->owner().customEmojiManager().create(
-		document,
+		Data::EmojiStatusCustomId(id),
 		repaintCallback(documentId, setId),
 		Data::CustomEmojiManager::SizeTag::Large);
 	if (recentOnly) {
@@ -2426,7 +2410,7 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 		return i->second.emoji.get();
 	}
 	return _customEmoji.emplace(
-		documentId,
+		id,
 		CustomEmojiInstance{ .emoji = std::move(instance) }
 	).first->second.emoji.get();
 }
@@ -2444,27 +2428,37 @@ Ui::Text::CustomEmoji *EmojiListWidget::resolveCustomRecent(
 
 not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomRecent(
 		DocumentId documentId) {
-	const auto i = _customRecent.find(documentId);
+	return resolveCustomRecent(EmojiStatusId{ documentId });
+}
+
+not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomRecent(
+		EmojiStatusId id) {
+	const auto i = id.collectible
+		? end(_customRecent)
+		: _customRecent.find(id.documentId);
 	if (i != end(_customRecent)) {
 		return i->second.get();
 	}
-	const auto j = _customEmoji.find(documentId);
+	const auto j = _customEmoji.find(id);
 	if (j != end(_customEmoji)) {
 		return j->second.emoji.get();
 	}
+	const auto documentId = id.collectible
+		? id.collectible->documentId
+		: id.documentId;
 	auto repaint = repaintCallback(documentId, RecentEmojiSectionSetId());
-	if (_customRecentFactory) {
+	if (_customRecentFactory && !id.collectible) {
 		return _customRecent.emplace(
-			documentId,
-			_customRecentFactory(documentId, std::move(repaint))
+			id.documentId,
+			_customRecentFactory(id.documentId, std::move(repaint))
 		).first->second.get();
 	}
 	auto custom = session().data().customEmojiManager().create(
-		documentId,
+		Data::EmojiStatusCustomId(id),
 		std::move(repaint),
 		Data::CustomEmojiManager::SizeTag::Large);
 	return _customEmoji.emplace(
-		documentId,
+		id,
 		CustomEmojiInstance{ .emoji = std::move(custom), .recentOnly = true }
 	).first->second.emoji.get();
 }
@@ -2489,7 +2483,7 @@ void EmojiListWidget::refreshEmojiStatusCollectibles() {
 		if (const auto sticker = document->sticker()) {
 			set.push_back({
 				.collectible = status.collectible,
-				.custom = resolveCustomEmoji(document, setId),
+				.custom = resolveCustomEmoji(status, document, setId),
 				.document = document,
 				.emoji = Ui::Emoji::Find(sticker->alt),
 			});

@@ -935,13 +935,9 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	const auto session = &show->session();
 	std::move(statusIdValue) | rpl::start_with_next([=](EmojiStatusId id) {
 		state->statusId = id;
-		state->emoji = id.collectible // todo collectibles
+		state->emoji = id
 			? session->data().customEmojiManager().create(
-				id.collectible->documentId,
-				[=] { right->update(); })
-			: id.documentId
-			? session->data().customEmojiManager().create(
-				id.documentId,
+				Data::EmojiStatusCustomId(id),
 				[=] { right->update(); })
 			: nullptr;
 		right->resize(

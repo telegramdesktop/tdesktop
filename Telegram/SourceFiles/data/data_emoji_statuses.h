@@ -81,6 +81,7 @@ public:
 	void set(EmojiStatusId id, TimeId until = 0);
 	void set(not_null<PeerData*> peer, EmojiStatusId id, TimeId until = 0);
 	[[nodiscard]] EmojiStatusId fromUniqueGift(const Data::UniqueGift &gift);
+	[[nodiscard]] EmojiStatusCollectible *collectibleInfo(CollectibleId id);
 
 	void registerAutomaticClear(not_null<PeerData*> peer, TimeId until);
 

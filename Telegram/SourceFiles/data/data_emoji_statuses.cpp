@@ -559,4 +559,9 @@ EmojiStatusId EmojiStatuses::fromUniqueGift(
 	return { .collectible = collectible };
 }
 
+EmojiStatusCollectible *EmojiStatuses::collectibleInfo(CollectibleId id) {
+	const auto i = _collectibleData.find(id);
+	return (i != end(_collectibleData)) ? i->second.get() : nullptr;
+}
+
 } // namespace Data

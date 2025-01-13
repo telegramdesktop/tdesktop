@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_stars_colored.h"
 
 #include "ui/effects/premium_graphics.h" // GiftGradientStops.
+#include "ui/text/text_custom_emoji.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
-namespace Premium {
+namespace Ui::Premium {
 
 ColoredMiniStars::ColoredMiniStars(
 	not_null<Ui::RpWidget*> parent,
@@ -106,5 +106,79 @@ void ColoredMiniStars::setCenter(const QRect &rect) {
 	setSize(ministarsRect.size());
 }
 
-} // namespace Premium
-} // namespace Ui
+std::unique_ptr<Text::CustomEmoji> MakeCollectibleEmoji(
+		QStringView entityData,
+		QColor centerColor,
+		QColor edgeColor,
+		std::unique_ptr<Text::CustomEmoji> inner,
+		Fn<void()> update,
+		int size) {
+	class Emoji final : public Text::CustomEmoji {
+	public:
+		Emoji(
+			QStringView entityData,
+			QColor centerColor,
+			QColor edgeColor,
+			std::unique_ptr<Ui::Text::CustomEmoji> inner,
+			Fn<void()> update,
+			int size)
+		: _entityData(entityData.toString())
+		, _stars([=](QRect) { update(); }, MiniStars::Type::SlowStars)
+		, _centerColor(centerColor)
+		, _edgeColor(edgeColor)
+		, _inner(std::move(inner))
+		, _size(size) {
+			_stars.setColorOverride(QGradientStops{
+				{ 0., edgeColor },
+				{ 1., centerColor },
+			});
+			_stars.setSize(QSize(size, size));
+		}
+
+		int width() override {
+			return _inner->width();
+		}
+
+		QString entityData() override {
+			return _entityData;
+		}
+
+		void paint(QPainter &p, const Context &context) override {
+			_stars.setPosition(context.position);
+			_stars.paint(p);
+
+			_inner->paint(p, context);
+		}
+
+		void unload() override {
+			_inner->unload();
+		}
+
+		bool ready() override {
+			return _inner->ready();
+		}
+
+		bool readyInDefaultState() override {
+			return _inner->readyInDefaultState();
+		}
+
+	private:
+		QString _entityData;
+		ColoredMiniStars _stars;
+		QColor _centerColor;
+		QColor _edgeColor;
+		std::unique_ptr<Text::CustomEmoji> _inner;
+		int _size = 0;
+
+	};
+
+	return std::make_unique<Emoji>(
+		entityData,
+		centerColor,
+		edgeColor,
+		std::move(inner),
+		std::move(update),
+		size);
+}
+
+} // namespace Ui::Premium

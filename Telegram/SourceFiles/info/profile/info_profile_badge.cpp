@@ -130,12 +130,9 @@ void Badge::setContent(Content content) {
 			: id
 			? nullptr
 			: &_st.premium;
-		const auto documentId = id.collectible
-			? id.collectible->documentId
-			: id.documentId;
-		if (documentId) {
+		if (id) {
 			_emojiStatus = _session->data().customEmojiManager().create(
-				documentId,
+				Data::EmojiStatusCustomId(id),
 				[raw = _view.data()] { raw->update(); },
 				sizeTag());
 			if (_customStatusLoopsLimit > 0) {

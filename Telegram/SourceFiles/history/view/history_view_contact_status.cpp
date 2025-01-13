@@ -113,11 +113,11 @@ namespace {
 		Data::PeerUpdate::Flag::EmojiStatus
 	) | rpl::map([=] {
 		const auto id = peer->emojiStatusId();
-		const auto documentId = id.collectible
-			? id.collectible->documentId
-			: id.documentId;
-		return documentId
-			? ResolveIsCustom(owner, documentId)
+		return id.collectible
+			? rpl::single(Ui::Text::SingleCustomEmoji(
+				Data::EmojiStatusCustomId(id)))
+			: id.documentId
+			? ResolveIsCustom(owner, id.documentId)
 			: rpl::single(TextWithEntities());
 	}) | rpl::flatten_latest() | rpl::distinct_until_changed();
 }

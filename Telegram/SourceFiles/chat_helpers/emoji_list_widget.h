@@ -325,10 +325,6 @@ private:
 	void selectCustom(FileChosen data);
 	void paint(Painter &p, ExpandingContext context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
-	void drawCollectible(
-		QPainter &p,
-		QPoint position,
-		Data::EmojiStatusCollectible *collectible);
 	void drawRecent(
 		QPainter &p,
 		const ExpandingContext &context,
@@ -389,12 +385,15 @@ private:
 	void fillRecent();
 	void fillRecentFrom(const std::vector<EmojiStatusId> &list);
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
+		EmojiStatusId id,
 		not_null<DocumentData*> document,
 		uint64 setId);
 	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomRecent(
 		Core::RecentEmojiId customId);
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(
 		DocumentId documentId);
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(
+		EmojiStatusId id);
 	[[nodiscard]] Fn<void()> repaintCallback(
 		DocumentId documentId,
 		uint64 setId);
@@ -432,7 +431,7 @@ private:
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_set<DocumentId> _restrictedCustomList;
-	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
+	base::flat_map<EmojiStatusId, CustomEmojiInstance> _customEmoji;
 	base::flat_map<
 		DocumentId,
 		std::unique_ptr<Ui::Text::CustomEmoji>> _customRecent;

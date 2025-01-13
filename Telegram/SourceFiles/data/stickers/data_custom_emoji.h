@@ -223,4 +223,8 @@ void InsertCustomEmoji(
 [[nodiscard]] Ui::Text::CustomEmojiFactory ReactedMenuFactory(
 	not_null<Main::Session*> session);
 
+[[nodiscard]] QString CollectibleCustomEmojiId(
+	Data::EmojiStatusCollectible &data);
+[[nodiscard]] QString EmojiStatusCustomId(const EmojiStatusId &id);
+
 } // namespace Data

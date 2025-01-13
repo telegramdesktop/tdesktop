@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
 #include "data/data_forum_topic.h" // ParseTopicIconEmojiEntity.
 #include "data/data_peer.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "storage/file_download.h" // kMaxFileInMemory
 #include "ui/chat/chats_filter_tag.h"
+#include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/text/custom_emoji_instance.h"
@@ -115,6 +117,10 @@ private:
 
 [[nodiscard]] QString ForceStaticPrefix() {
 	return u"force-static:"_q;
+}
+
+[[nodiscard]] QString CollectiblePrefix() {
+	return u"collectible:"_q;
 }
 
 [[nodiscard]] QString InternalPadding(QMargins value) {
@@ -568,6 +574,20 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = EmojiSizeFromTag(tag) / ratio;
 		return userpic(data, std::move(update), size);
+	} else if (data.startsWith(CollectiblePrefix())) {
+		const auto id = data.mid(CollectiblePrefix().size()).toULongLong();
+		const auto emojiStatuses = &session().data().emojiStatuses();
+		auto info = emojiStatuses->collectibleInfo(id);
+		Assert(info != nullptr);
+		const auto documentId = info->documentId;
+		auto inner = create(documentId, base::duplicate(update), tag);
+		return Ui::Premium::MakeCollectibleEmoji(
+			data,
+			info->centerColor,
+			info->edgeColor,
+			std::move(inner),
+			std::move(update),
+			FrameSizeFromTag(tag) / style::DevicePixelRatio());
 	} else if (const auto parsed = Data::ParseTopicIconEmojiEntity(data)) {
 		return MakeTopicIconEmoji(parsed, std::move(update), tag);
 	}
@@ -1145,6 +1165,16 @@ Ui::Text::CustomEmojiFactory ReactedMenuFactory(
 		}
 		return owner->customEmojiManager().create(data, std::move(repaint));
 	};
+}
+
+QString CollectibleCustomEmojiId(Data::EmojiStatusCollectible &data) {
+	return CollectiblePrefix() + QString::number(data.id);
+}
+
+QString EmojiStatusCustomId(const EmojiStatusId &id) {
+	return id.collectible
+		? CollectibleCustomEmojiId(*id.collectible)
+		: SerializeCustomEmojiId(id.documentId);
 }
 
 } // namespace Data

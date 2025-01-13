@@ -239,17 +239,11 @@ int PeerBadge::drawPremiumEmojiStatus(
 		using namespace Ui::Text;
 		auto &manager = peer->session().data().customEmojiManager();
 		_emojiStatus->id = id;
-		_emojiStatus->emoji = id.collectible // todo collectibles
-			? std::make_unique<LimitedLoopsEmoji>(
-				manager.create(
-					id.collectible->documentId,
-					descriptor.customEmojiRepaint),
-				kPlayStatusLimit)
-			: std::make_unique<LimitedLoopsEmoji>(
-				manager.create(
-					id.documentId,
-					descriptor.customEmojiRepaint),
-				kPlayStatusLimit);
+		_emojiStatus->emoji = std::make_unique<LimitedLoopsEmoji>(
+			manager.create(
+				Data::EmojiStatusCustomId(id),
+				descriptor.customEmojiRepaint),
+			kPlayStatusLimit);
 	}
 	_emojiStatus->emoji->paint(p, {
 		.textColor = (*descriptor.premiumFg)->c,
