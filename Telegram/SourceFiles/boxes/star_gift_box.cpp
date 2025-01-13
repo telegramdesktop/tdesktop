@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/send_credits_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
@@ -2272,10 +2273,7 @@ void ShowUniqueGiftWearBox(
 				content,
 				tr::lng_gift_wear_about(),
 				st::uniqueGiftSubtitle),
-			st::settingsPremiumRowTitlePadding);
-		//"lng_gift_wear_title" = "Wear {name}";
-		//"lng_gift_wear_about" = "and get these benefits:";
-
+			st::settingsPremiumRowAboutPadding);
 		infoRow(
 			tr::lng_gift_wear_badge_title(),
 			tr::lng_gift_wear_badge_about(),
@@ -2292,10 +2290,15 @@ void ShowUniqueGiftWearBox(
 		box->setStyle(st::upgradeGiftBox);
 
 		const auto button = box->addButton(tr::lng_gift_wear_start(), [=] {
-			box->closeBox();
-			show->session().data().emojiStatuses().set(
-				show->session().user(),
-				show->session().data().emojiStatuses().fromUniqueGift(gift));
+			const auto session = &show->session();
+			if (session->premium()) {
+				box->closeBox();
+				session->data().emojiStatuses().set(
+					session->user(),
+					session->data().emojiStatuses().fromUniqueGift(gift));
+			} else {
+				ShowPremiumPreviewBox(show, PremiumFeature::EmojiStatus);
+			}
 		});
 		rpl::combine(
 			box->widthValue(),
