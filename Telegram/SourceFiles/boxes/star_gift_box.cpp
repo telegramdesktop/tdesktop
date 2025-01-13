@@ -2292,14 +2292,10 @@ void ShowUniqueGiftWearBox(
 		box->setStyle(st::upgradeGiftBox);
 
 		const auto button = box->addButton(tr::lng_gift_wear_start(), [=] {
+			box->closeBox();
 			show->session().data().emojiStatuses().set(
 				show->session().user(),
 				show->session().data().emojiStatuses().fromUniqueGift(gift));
-			box->closeBox();
-			show->showToast(tr::lng_gift_wear_start_toast(
-				tr::now,
-				lt_name,
-				UniqueGiftName(gift)));
 		});
 		rpl::combine(
 			box->widthValue(),

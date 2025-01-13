@@ -871,8 +871,6 @@ void FillUniqueGiftMenu(
 		if (now && unique->slug == now->slug) {
 			menu->addAction(tr::lng_gift_transfer_take_off(tr::now), [=] {
 				show->session().data().emojiStatuses().set(peer, {});
-				show->showToast(
-					tr::lng_gift_wear_end_toast(tr::now, lt_name, name));
 			}, st.transfer ? st.transfer : &st::menuIconReplace);
 		} else {
 			menu->addAction(tr::lng_gift_transfer_wear(tr::now), [=] {

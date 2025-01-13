@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_credits.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_media_types.h" // Data::GiveawayStart.
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
@@ -30,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -176,6 +179,81 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 					- table->st().smallButton.style.font->ascent),
 				width);
 		}
+	}, label->lifetime());
+
+	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setTextColorOverride(st::windowActiveTextFg->c);
+
+	raw->setClickedCallback([=] {
+		show->showBox(PrepareShortInfoBox(peer, show));
+	});
+
+	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakePeerWithStatusValue(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<ChatHelpers::Show> show,
+		PeerId id,
+		Fn<void(not_null<Ui::RpWidget*>, EmojiStatusId)> pushStatusId) {
+	auto result = object_ptr<Ui::AbstractButton>(table);
+	const auto raw = result.data();
+
+	const auto &st = st::giveawayGiftCodeUserpic;
+	raw->resize(raw->width(), st.photoSize);
+
+	const auto peer = show->session().data().peer(id);
+	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(raw, peer, st);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		peer->name(),
+		table->st().defaultValue);
+
+	using namespace Info::Profile;
+	struct State {
+		rpl::variable<Badge::Content> content;
+	};
+	const auto state = label->lifetime().make_state<State>();
+	state->content = EmojiStatusIdValue(
+		peer
+	) | rpl::map([=](EmojiStatusId emojiStatusId) {
+		return Badge::Content{
+			.badge = BadgeType::Premium,
+			.emojiStatusId = emojiStatusId,
+		};
+	});
+	const auto badge = label->lifetime().make_state<Badge>(
+		raw,
+		st::infoPeerBadge,
+		&peer->session(),
+		state->content.value(),
+		nullptr,
+		[=] { return show->paused(ChatHelpers::PauseReason::Layer); });
+	state->content.value(
+	) | rpl::start_with_next([=](const Badge::Content &content) {
+		pushStatusId(badge->widget(), content.emojiStatusId);
+	}, raw->lifetime());
+
+	rpl::combine(
+		raw->widthValue(),
+		rpl::single(rpl::empty) | rpl::then(badge->updated())
+	) | rpl::start_with_next([=](int width, const auto &) {
+		const auto position = st::giveawayGiftCodeNamePosition;
+		const auto badgeWidget = badge->widget();
+		const auto badgeSkip = badgeWidget
+			? (st::normalFont->spacew + badgeWidget->width())
+			: 0;
+		label->resizeToNaturalWidth(width - position.x() - badgeSkip);
+		label->moveToLeft(position.x(), position.y(), width);
+		const auto top = (raw->height() - userpic->height()) / 2;
+		userpic->moveToLeft(0, top, width);
+		badge->widget()->moveToLeft(
+			position.x() + label->width() + st::normalFont->spacew,
+			(position.y()
+				+ table->st().defaultValue.style.font->ascent
+				- table->st().smallButton.style.font->ascent),
+			width);
 	}, label->lifetime());
 
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -1209,24 +1287,96 @@ void AddStarGiftTable(
 	const auto selfBareId = session->userPeerId().value;
 	const auto giftToSelf = (peerId == session->userPeerId())
 		&& (entry.in || entry.bareGiftOwnerId == selfBareId);
+
+	const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
+	const auto showTooltip = [=](
+			not_null<Ui::RpWidget*> widget,
+			rpl::producer<TextWithEntities> text) {
+		if (*raw) {
+			(*raw)->toggleAnimated(false);
+		}
+		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+			container,
+			Ui::MakeNiceTooltipLabel(
+				container,
+				std::move(text),
+				st::boxWideWidth,
+				st::defaultImportantTooltipLabel),
+			st::defaultImportantTooltip);
+		tooltip->toggleFast(false);
+
+		const auto update = [=] {
+			const auto geometry = Ui::MapFrom(
+				container,
+				widget,
+				widget->rect());
+			const auto countPosition = [=](QSize size) {
+				const auto left = geometry.x()
+					+ (geometry.width() - size.width()) / 2;
+				const auto right = container->width()
+					- st::normalFont->spacew;
+				return QPoint(
+					std::max(std::min(left, right - size.width()), 0),
+					geometry.y() - size.height() - st::normalFont->descent);
+			};
+			tooltip->pointAt(geometry, RectPart::Top, countPosition);
+		};
+		container->widthValue(
+		) | rpl::start_with_next(update, tooltip->lifetime());
+
+		update();
+		tooltip->toggleAnimated(true);
+
+		*raw = tooltip;
+		tooltip->shownValue() | rpl::filter(
+			!rpl::mappers::_1
+		) | rpl::start_with_next([=] {
+			crl::on_main(tooltip, [=] {
+				if (tooltip->isHidden()) {
+					if (*raw == tooltip) {
+						*raw = nullptr;
+					}
+					delete tooltip;
+				}
+			});
+		}, tooltip->lifetime());
+
+		base::timer_once(
+			kRarityTooltipDuration
+		) | rpl::start_with_next([=] {
+			tooltip->toggleAnimated(false);
+		}, tooltip->lifetime());
+	};
+
 	if (unique && entry.bareGiftOwnerId) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
-		const auto transfer = entry.in
-			&& entry.bareMsgId
-			&& (unique->starsForTransfer >= 0);
-		auto send = transfer ? tr::lng_gift_unique_owner_change() : nullptr;
-		auto handler = transfer ? Fn<void()>([=] {
-			if (const auto window = show->resolveWindow()) {
-				ShowTransferGiftBox(
-					window,
-					entry.uniqueGift,
-					MsgId(entry.bareMsgId));
+		const auto was = std::make_shared<std::optional<CollectibleId>>();
+		const auto handleChange = [=](
+				not_null<Ui::RpWidget*> badge,
+				EmojiStatusId emojiStatusId) {
+			const auto id = emojiStatusId.collectible
+				? emojiStatusId.collectible->id
+				: 0;
+			const auto show = [&](const auto &phrase) {
+				showTooltip(badge, phrase(
+					lt_name,
+					rpl::single(Ui::Text::Bold(UniqueGiftName(*unique))),
+					Ui::Text::WithEntities));
+			};
+			if (!*was || *was == id) {
+				*was = id;
+				return;
+			} else if (*was == unique->id) {
+				show(tr::lng_gift_wear_end_toast);
+			} else if (id == unique->id) {
+				show(tr::lng_gift_wear_start_toast);
 			}
-		}) : nullptr;
+			*was = id;
+		};
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_owner(),
-			MakePeerTableValue(table, show, ownerId, send, handler),
+			MakePeerWithStatusValue(table, show, ownerId, handleChange),
 			st::giveawayGiftCodePeerMargin);
 	} else if (unique) {
 		AddTableRow(
@@ -1279,84 +1429,29 @@ void AddStarGiftTable(
 	const auto marginWithButton = st::giveawayGiftCodeValueMargin
 		- QMargins(0, 0, 0, st::giveawayGiftCodeValueMargin.bottom());
 	if (unique) {
-		const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
-		const auto showTooltip = [=](
+		const auto showRarity = [=](
 				not_null<Ui::RpWidget*> widget,
 				int rarity) {
-			if (*raw) {
-				(*raw)->toggleAnimated(false);
-			}
-			const auto text = QString::number(rarity / 10.) + '%';
-			const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
-				container,
-				Ui::MakeNiceTooltipLabel(
-					container,
-					tr::lng_gift_unique_rarity(
-						lt_percent,
-						rpl::single(TextWithEntities{ text }),
-						Ui::Text::WithEntities),
-					st::boxWideWidth,
-					st::defaultImportantTooltipLabel),
-				st::defaultImportantTooltip);
-			tooltip->toggleFast(false);
-
-			const auto update = [=] {
-				const auto geometry = Ui::MapFrom(
-					container,
-					widget,
-					widget->rect());
-				const auto countPosition = [=](QSize size) {
-					const auto left = geometry.x()
-						+ (geometry.width() - size.width()) / 2;
-					const auto right = container->width()
-						- st::normalFont->spacew;
-					return QPoint(
-						std::max(std::min(left, right - size.width()), 0),
-						geometry.y() - size.height() - st::normalFont->descent);
-				};
-				tooltip->pointAt(geometry, RectPart::Top, countPosition);
-			};
-			container->widthValue(
-			) | rpl::start_with_next(update, tooltip->lifetime());
-
-			update();
-			tooltip->toggleAnimated(true);
-
-			*raw = tooltip;
-			tooltip->shownValue() | rpl::filter(
-				!rpl::mappers::_1
-			) | rpl::start_with_next([=] {
-				crl::on_main(tooltip, [=] {
-					if (tooltip->isHidden()) {
-						if (*raw == tooltip) {
-							*raw = nullptr;
-						}
-						delete tooltip;
-					}
-				});
-			}, tooltip->lifetime());
-
-			base::timer_once(
-				kRarityTooltipDuration
-			) | rpl::start_with_next([=] {
-				tooltip->toggleAnimated(false);
-			}, tooltip->lifetime());
+			const auto percent = QString::number(rarity / 10.) + '%';
+			showTooltip(widget, tr::lng_gift_unique_rarity(
+				lt_percent,
+				rpl::single(TextWithEntities{ percent }),
+				Ui::Text::WithEntities));
 		};
-
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_model(),
-			MakeAttributeValue(table, unique->model, showTooltip),
+			MakeAttributeValue(table, unique->model, showRarity),
 			marginWithButton);
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_backdrop(),
-			MakeAttributeValue(table, unique->backdrop, showTooltip),
+			MakeAttributeValue(table, unique->backdrop, showRarity),
 			marginWithButton);
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_symbol(),
-			MakeAttributeValue(table, unique->pattern, showTooltip),
+			MakeAttributeValue(table, unique->pattern, showRarity),
 			marginWithButton);
 	} else {
 		AddTableRow(
