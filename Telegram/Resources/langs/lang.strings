@@ -5836,6 +5836,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boosts_list_tab_gifts#other" = "{count} Gifts";
 
 "lng_boosts_prepaid_giveaway_title" = "Prepaid giveaways";
+"lng_boosts_prepaid_giveaway_title_subtext" = "Select a giveaway you already paid for to set it up.";
 "lng_boosts_prepaid_giveaway_single" = "Prepaid giveaway";
 "lng_boosts_prepaid_giveaway_quantity#one" = "{count} Telegram Premium";
 "lng_boosts_prepaid_giveaway_quantity#other" = "{count} Telegram Premium";
