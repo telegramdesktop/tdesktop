@@ -2387,8 +2387,6 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 		EmojiStatusId id,
 		not_null<DocumentData*> document,
 		uint64 setId) {
-	Expects(document->sticker() != nullptr);
-
 	const auto documentId = document->id;
 	const auto i = _customEmoji.find(id);
 	const auto recentOnly = (i != end(_customEmoji)) && i->second.recentOnly;
@@ -2469,9 +2467,6 @@ void EmojiListWidget::refreshEmojiStatusCollectibles() {
 	}
 	const auto type = Data::EmojiStatuses::Type::Collectibles;
 	const auto &list = session().data().emojiStatuses().list(type);
-	if (list.empty()) {
-		return;
-	}
 	const auto setId = Data::Stickers::CollectibleSetId;
 	auto set = std::vector<CustomOne>();
 	set.reserve(list.size());
@@ -2480,14 +2475,16 @@ void EmojiListWidget::refreshEmojiStatusCollectibles() {
 			? status.collectible->documentId
 			: status.documentId;
 		const auto document = session().data().document(documentId);
-		if (const auto sticker = document->sticker()) {
-			set.push_back({
-				.collectible = status.collectible,
-				.custom = resolveCustomEmoji(status, document, setId),
-				.document = document,
-				.emoji = Ui::Emoji::Find(sticker->alt),
-			});
-		}
+		const auto sticker = document->sticker();
+		set.push_back({
+			.collectible = status.collectible,
+			.custom = resolveCustomEmoji(status, document, setId),
+			.document = document,
+			.emoji = sticker ? Ui::Emoji::Find(sticker->alt) : nullptr,
+		});
+	}
+	if (set.empty()) {
+		return;
 	}
 	const auto collectibles = session().data().stickers().collectibleSet();
 	_custom.push_back({
