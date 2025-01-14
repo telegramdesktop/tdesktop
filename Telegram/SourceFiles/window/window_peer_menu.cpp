@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_peer_menu.h"
 
+#include "base/call_delayed.h"
 #include "menu/menu_check_item.h"
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
@@ -1540,7 +1541,9 @@ void Filler::fillSavedSublistActions() {
 } // namespace
 
 void PeerMenuExportChat(not_null<PeerData*> peer) {
-	Core::App().exportManager().start(peer);
+	base::call_delayed(st::defaultPopupMenu.showDuration, [=] {
+		Core::App().exportManager().start(peer);
+	});
 }
 
 void PeerMenuDeleteContact(
