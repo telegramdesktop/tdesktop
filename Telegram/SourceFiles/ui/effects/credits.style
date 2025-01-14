@@ -80,7 +80,7 @@ creditsGiftBox: Box(defaultBox) {
 }
 
 giftBox: Box(defaultBox) {
-	buttonPadding: margins(22px, 11px, 22px, 22px);
+	buttonPadding: margins(22px, 11px, 22px, 12px);
 	buttonHeight: 42px;
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
@@ -88,6 +88,10 @@ giftBox: Box(defaultBox) {
 		style: semiboldTextStyle;
 	}
 }
+giftLimitedBox: Box(giftBox) {
+	buttonPadding: margins(22px, 48px, 22px, 12px);
+}
+giftLimitedPadding: margins(8px, 4px, 8px, 4px);
 giftBoxSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: boxTitleFont;

@@ -1300,13 +1300,86 @@ void AddUpgradeButton(
 	});
 }
 
+void AddSoldLeftSlider(
+		not_null<RoundButton*> button,
+		const GiftTypeStars &gift) {
+	const auto still = gift.info.limitedLeft;
+	const auto total = gift.info.limitedCount;
+	const auto slider = CreateChild<RpWidget>(button->parentWidget());
+	struct State {
+		Text::String still;
+		Text::String sold;
+		int height = 0;
+	};
+	const auto state = slider->lifetime().make_state<State>();
+	const auto sold = total - still;
+	state->still.setText(
+		st::semiboldTextStyle,
+		tr::lng_gift_send_limited_left(tr::now, lt_count_decimal, still));
+	state->sold.setText(
+		st::semiboldTextStyle,
+		tr::lng_gift_send_limited_sold(tr::now, lt_count_decimal, sold));
+	state->height = st::giftLimitedPadding.top()
+		+ st::semiboldFont->height
+		+ st::giftLimitedPadding.bottom();
+	button->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+		const auto space = st::giftLimitedBox.buttonPadding.top();
+		const auto skip = (space - state->height) / 2;
+		slider->setGeometry(
+			geometry.x(),
+			geometry.y() - skip - state->height,
+			geometry.width(),
+			state->height);
+	}, slider->lifetime());
+	slider->paintRequest() | rpl::start_with_next([=] {
+		const auto &padding = st::giftLimitedPadding;
+		const auto left = (padding.left() * 2) + state->still.maxWidth();
+		const auto right = (padding.right() * 2) + state->sold.maxWidth();
+		const auto space = slider->width() - left - right;
+		if (space <= 0) {
+			return;
+		}
+		const auto edge = left + ((space * still) / total);
+
+		const auto radius = st::buttonRadius;
+		auto p = QPainter(slider);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(
+			edge - (radius * 3),
+			0,
+			slider->width() - (edge - (radius * 3)),
+			state->height,
+			radius,
+			radius);
+		p.setBrush(st::windowBgActive);
+		p.drawRoundedRect(0, 0, edge, state->height, radius, radius);
+
+		p.setPen(st::windowFgActive);
+		state->still.draw(p, {
+			.position = { padding.left(), padding.top() },
+			.availableWidth = left,
+		});
+		p.setPen(st::windowSubTextFg);
+		state->sold.draw(p, {
+			.position = { left + space + padding.right(), padding.top() },
+			.availableWidth = right,
+		});
+	}, slider->lifetime());
+}
+
 void SendGiftBox(
 		not_null<GenericBox*> box,
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Api::PremiumGiftCodeOptions> api,
 		const GiftDescriptor &descriptor) {
-	box->setStyle(st::giftBox);
+	const auto stars = std::get_if<GiftTypeStars>(&descriptor);
+	const auto limited = stars
+		&& (stars->info.limitedCount > stars->info.limitedLeft)
+		&& (stars->info.limitedLeft > 0);
+	box->setStyle(limited ? st::giftLimitedBox : st::giftBox);
 	box->setWidth(st::boxWideWidth);
 	box->setTitle(tr::lng_gift_send_title());
 	box->addTopButton(st::boxTitleClose, [=] {
@@ -1403,7 +1476,7 @@ void SendGiftBox(
 		session,
 		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 
-	if (const auto stars = std::get_if<GiftTypeStars>(&descriptor)) {
+	if (stars) {
 		const auto cost = stars->info.starsToUpgrade;
 		if (cost > 0 && !peer->isSelf()) {
 			const auto id = stars->info.id;
@@ -1482,6 +1555,9 @@ void SendGiftBox(
 		};
 		SendGift(window, peer, api, details, done);
 	});
+	if (limited) {
+		AddSoldLeftSlider(button, *stars);
+	}
 	SetButtonMarkedLabel(
 		button,
 		(peer->isSelf()
