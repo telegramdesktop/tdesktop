@@ -173,6 +173,8 @@ menuIconTransparent: icon {{ "menu/affiliate_transparent", menuIconColor }};
 menuIconLike: icon {{ "menu/affiliate_simple", menuIconColor }};
 menuIconTradable: icon {{ "menu/tradable", menuIconColor }};
 menuIconUnique: icon {{ "menu/unique", menuIconColor }};
+menuIconNftWear: icon {{ "menu/nft_wear", menuIconColor }};
+menuIconNftTakeOff: icon {{ "menu/nft_takeoff", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

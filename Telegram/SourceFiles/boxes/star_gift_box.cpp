@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -2362,20 +2363,52 @@ void ShowUniqueGiftWearBox(
 		//	&st::menuIconUniqueProfile);
 		infoRow(
 			tr::lng_gift_wear_proof_title(),
-			tr::lng_gift_wear_proof_about(), // todo collectibles
-			st.proofIcon ? st.proofIcon : &st::menuIconTradable);
+			tr::lng_gift_wear_proof_about(),
+			st.proofIcon ? st.proofIcon : &st::menuIconFactcheck);
 
-		const auto button = box->addButton(tr::lng_gift_wear_start(), [=] {
-			const auto session = &show->session();
+		const auto session = &show->session();
+		const auto button = box->addButton(rpl::single(QString()), [=] {
 			if (session->premium()) {
 				box->closeBox();
 				session->data().emojiStatuses().set(
 					session->user(),
 					session->data().emojiStatuses().fromUniqueGift(gift));
 			} else {
-				ShowPremiumPreviewBox(show, PremiumFeature::EmojiStatus);
+				const auto link = Ui::Text::Bold(
+					tr::lng_send_as_premium_required_link(tr::now));
+				Settings::ShowPremiumPromoToast(
+					show,
+					tr::lng_gift_wear_subscribe(
+						tr::now,
+						lt_link,
+						Ui::Text::Link(link),
+						Ui::Text::WithEntities),
+					u"wear_collectibles"_q);
 			}
 		});
+		const auto lock = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				st::historySendDisabledIcon,
+				st::giftBoxLockMargins,
+				true));
+		auto label = rpl::combine(
+			tr::lng_gift_wear_start(),
+			Data::AmPremiumValue(&show->session())
+		) | rpl::map([=](const QString &text, bool premium) {
+			auto result = TextWithEntities();
+			if (!premium) {
+				result.append(lock);
+			}
+			result.append(text);
+			return result;
+		});
+		SetButtonMarkedLabel(
+			button,
+			std::move(label),
+			session,
+			st::creditsBoxButtonLabel,
+			&st::giftBox.button.textFg);
+
 		rpl::combine(
 			box->widthValue(),
 			button->widthValue()

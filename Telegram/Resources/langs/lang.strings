@@ -3379,6 +3379,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_wear_proof_title" = "Proof of Ownership";
 "lng_gift_wear_proof_about" = "Clicking the icon of this item next to your name will show its info and owner.";
 "lng_gift_wear_start" = "Start Wearing";
+"lng_gift_wear_subscribe" = "Subscribe to {link} to wear collectibles.";
 "lng_gift_wear_start_toast" = "You put on {name}";
 "lng_gift_wear_end_toast" = "You took off {name}";
 

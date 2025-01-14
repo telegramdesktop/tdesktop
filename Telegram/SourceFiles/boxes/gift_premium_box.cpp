@@ -218,6 +218,9 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	state->content = EmojiStatusIdValue(
 		peer
 	) | rpl::map([=](EmojiStatusId emojiStatusId) {
+		if (!peer->session().premium()) {
+			return Badge::Content();
+		}
 		return Badge::Content{
 			.badge = BadgeType::Premium,
 			.emojiStatusId = emojiStatusId,
@@ -232,7 +235,9 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 		[=] { return show->paused(ChatHelpers::PauseReason::Layer); });
 	state->content.value(
 	) | rpl::start_with_next([=](const Badge::Content &content) {
-		pushStatusId(badge->widget(), content.emojiStatusId);
+		if (const auto widget = badge->widget()) {
+			pushStatusId(widget, content.emojiStatusId);
+		}
 	}, raw->lifetime());
 
 	rpl::combine(
@@ -248,12 +253,14 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 		label->moveToLeft(position.x(), position.y(), width);
 		const auto top = (raw->height() - userpic->height()) / 2;
 		userpic->moveToLeft(0, top, width);
-		badge->widget()->moveToLeft(
-			position.x() + label->width() + st::normalFont->spacew,
-			(position.y()
-				+ table->st().defaultValue.style.font->ascent
-				- table->st().smallButton.style.font->ascent),
-			width);
+		if (badgeWidget) {
+			badgeWidget->moveToLeft(
+				position.x() + label->width() + st::normalFont->spacew,
+				(position.y()
+					+ table->st().defaultValue.style.font->ascent
+					- table->st().smallButton.style.font->ascent),
+				width);
+		}
 	}, label->lifetime());
 
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);

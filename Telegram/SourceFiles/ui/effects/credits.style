@@ -164,6 +164,7 @@ giftListAbout: FlatLabel(defaultFlatLabel) {
 giftListAboutMargin: margins(12px, 24px, 12px, 24px);
 giftBoxEmojiToggleTop: 7px;
 giftBoxLimitTop: 28px;
+giftBoxLockMargins: margins(-2px, 1px, 0px, 0px);
 
 creditsHistoryEntriesList: PeerList(defaultPeerList) {
 	padding: margins(
@@ -227,7 +228,7 @@ darkUpgradeGiftBox: Box(upgradeGiftBox) {
 	titleAdditionalFg: groupCallMemberNotJoinedStatus;
 }
 darkUpgradeGiftRadiant: icon{{ "menu/unique", groupCallMembersFg }};
-darkUpgradeGiftProof: icon{{ "menu/tradable", groupCallMembersFg }};
+darkUpgradeGiftProof: icon{{ "menu/factcheck", groupCallMembersFg }};
 darkUpgradeGiftInfoTitle: FlatLabel(defaultFlatLabel) {
 	textFg: groupCallMembersFg;
 }

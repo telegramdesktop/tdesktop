@@ -871,13 +871,13 @@ void FillUniqueGiftMenu(
 		if (now && unique->slug == now->slug) {
 			menu->addAction(tr::lng_gift_transfer_take_off(tr::now), [=] {
 				show->session().data().emojiStatuses().set(peer, {});
-			}, st.transfer ? st.transfer : &st::menuIconReplace);
+			}, st.takeoff ? st.takeoff : &st::menuIconNftTakeOff);
 		} else {
 			menu->addAction(tr::lng_gift_transfer_wear(tr::now), [=] {
 				ShowUniqueGiftWearBox(show, *unique, st.giftWearBox
 					? *st.giftWearBox
 					: GiftWearBoxStyleOverride());
-			}, st.transfer ? st.transfer : &st::menuIconReplace);
+			}, st.wear ? st.wear : &st::menuIconNftWear);
 		}
 	}
 }
@@ -904,6 +904,8 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.link = &st::darkGiftLink,
 		.share = &st::darkGiftShare,
 		.transfer = &st::darkGiftTransfer,
+		.wear = &st::darkGiftNftWear,
+		.takeoff = &st::darkGiftNftTakeOff,
 		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
 			DarkShareBoxStyle()),
 		.giftWearBox = std::make_shared<GiftWearBoxStyleOverride>(

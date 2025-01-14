@@ -219,6 +219,8 @@ darkGiftCodeBox: Box(giveawayGiftCodeBox) {
 darkGiftLink: icon {{ "menu/copy", groupCallMembersFg }};
 darkGiftShare: icon {{ "menu/share", groupCallMembersFg }};
 darkGiftTransfer: icon {{ "chat/input_replace", groupCallMembersFg }};
+darkGiftNftWear: icon {{ "menu/nft_wear", groupCallMembersFg }};
+darkGiftNftTakeOff: icon {{ "menu/nft_takeoff", groupCallMembersFg }};
 darkGiftPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
 	monoFg: groupCallMembersFg;
