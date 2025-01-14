@@ -41,7 +41,11 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	object_ptr<Ui::FlatLabel> _info;
+	void resizeToWidthInfo(int w);
+
+	object_ptr<Ui::FlatLabel> _infoLeft;
+	object_ptr<Ui::FlatLabel> _infoMiddle;
+	object_ptr<Ui::FlatLabel> _infoRight;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _progress;
 	object_ptr<Ui::AbstractButton> _button;
