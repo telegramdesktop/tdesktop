@@ -303,7 +303,7 @@ Cover::Cover(
 	std::move(title)) {
 }
 
-[[nodiscard]] rpl::producer<Badge::Content> VerifyBadgeForPeer(
+[[nodiscard]] rpl::producer<Badge::Content> BotVerifyBadgeForPeer(
 		not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
 		peer,
@@ -332,12 +332,12 @@ Cover::Cover(
 , _emojiStatusPanel(peer->isSelf()
 	? std::make_unique<EmojiStatusPanel>()
 	: nullptr)
-, _verify(
+, _botVerify(
 	std::make_unique<Badge>(
 		this,
 		st::infoPeerBadge,
 		&peer->session(),
-		VerifyBadgeForPeer(peer),
+		BotVerifyBadgeForPeer(peer),
 		nullptr,
 		[=] {
 			return controller->isGifPausedAtLeastFor(
@@ -347,7 +347,19 @@ Cover::Cover(
 	std::make_unique<Badge>(
 		this,
 		st::infoPeerBadge,
-		peer,
+		&peer->session(),
+		BadgeContentForPeer(peer),
+		_emojiStatusPanel.get(),
+		[=] {
+			return controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer);
+		}))
+, _verified(
+	std::make_unique<Badge>(
+		this,
+		st::infoPeerBadge,
+		&peer->session(),
+		VerifiedContentForPeer(peer),
 		_emojiStatusPanel.get(),
 		[=] {
 			return controller->isGifPausedAtLeastFor(
@@ -395,8 +407,9 @@ Cover::Cover(
 		}
 	});
 	rpl::merge(
-		_verify->updated(),
-		_badge->updated()
+		_botVerify->updated(),
+		_badge->updated(),
+		_verified->updated()
 	) | rpl::start_with_next([=] {
 		refreshNameGeometry(width());
 	}, _name->lifetime());
@@ -734,16 +747,24 @@ Cover::~Cover() {
 
 void Cover::refreshNameGeometry(int newWidth) {
 	auto nameWidth = newWidth - _st.nameLeft - _st.rightSkip;
-	if (const auto widget = _badge->widget()) {
-		nameWidth -= st::infoVerifiedCheckPosition.x() + widget->width();
+	const auto verifiedWidget = _verified->widget();
+	const auto badgeWidget = _badge->widget();
+	if (verifiedWidget) {
+		nameWidth -= verifiedWidget->width();
+	}
+	if (badgeWidget) {
+		nameWidth -= badgeWidget->width();
+	}
+	if (verifiedWidget || badgeWidget) {
+		nameWidth -= st::infoVerifiedCheckPosition.x();
 	}
 	auto nameLeft = _st.nameLeft;
 	const auto badgeTop = _st.nameTop;
 	const auto badgeBottom = _st.nameTop + _name->height();
 	const auto margins = LargeCustomEmojiMargins();
 
-	_verify->move(nameLeft - margins.left(), badgeTop, badgeBottom);
-	if (const auto widget = _verify->widget()) {
+	_botVerify->move(nameLeft - margins.left(), badgeTop, badgeBottom);
+	if (const auto widget = _botVerify->widget()) {
 		const auto skip = widget->width()
 			+ st::infoVerifiedCheckPosition.x();
 		nameLeft += skip;
@@ -753,6 +774,10 @@ void Cover::refreshNameGeometry(int newWidth) {
 	_name->moveToLeft(nameLeft, _st.nameTop, newWidth);
 	const auto badgeLeft = nameLeft + _name->width();
 	_badge->move(badgeLeft, badgeTop, badgeBottom);
+	_verified->move(
+		badgeLeft + (badgeWidget ? badgeWidget->width() : 0),
+		badgeTop,
+		badgeBottom);
 }
 
 void Cover::refreshStatusGeometry(int newWidth) {

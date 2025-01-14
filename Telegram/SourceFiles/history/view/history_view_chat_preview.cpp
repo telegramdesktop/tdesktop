@@ -251,7 +251,20 @@ struct StatusFields {
 		}
 		Unexpected("Peer type in ChatPreview Item.");
 	});
+}
 
+[[nodiscard]] rpl::producer<Info::Profile::Badge::Content> ContentForPeer(
+		not_null<PeerData*> peer) {
+	using namespace Info::Profile;
+	return rpl::combine(
+		BadgeContentForPeer(peer),
+		VerifiedContentForPeer(peer)
+	) | rpl::map([](Badge::Content &&content, Badge::Content &&verified) {
+		if (verified.badge == BadgeType::Verified) {
+			content.badge = BadgeType::Verified;
+		}
+		return content;
+	});
 }
 
 Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
@@ -274,7 +287,8 @@ Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
 , _badge(
 		_top.get(),
 		st::settingsInfoPeerBadge,
-		_peer,
+		_session,
+		ContentForPeer(_peer),
 		nullptr,
 		nullptr,
 		1) {

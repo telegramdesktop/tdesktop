@@ -104,7 +104,8 @@ ComposedBadge::ComposedBadge(
 , _badge(
 		this,
 		st::settingsInfoPeerBadge,
-		session->user(),
+		session,
+		Info::Profile::BadgeContentForPeer(session->user()),
 		nullptr,
 		std::move(animationPaused),
 		kPlayStatusLimit,

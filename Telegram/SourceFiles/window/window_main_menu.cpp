@@ -391,7 +391,8 @@ MainMenu::MainMenu(
 , _badge(std::make_unique<Info::Profile::Badge>(
 	this,
 	st::settingsInfoPeerBadge,
-	controller->session().user(),
+	&controller->session(),
+	Info::Profile::BadgeContentForPeer(controller->session().user()),
 	_emojiStatusPanel.get(),
 	[=] { return controller->isGifPausedAtLeastFor(GifPauseReason::Layer); },
 	kPlayStatusLimit,
