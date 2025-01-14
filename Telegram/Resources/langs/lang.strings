@@ -604,6 +604,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_update_fail" = "Update check failed :(";
 "lng_settings_workmode_tray" = "Show tray icon";
 "lng_settings_workmode_window" = "Show taskbar icon";
+"lng_settings_window_close" = "When window closed";
+"lng_settings_run_in_background" = "Run in the background";
+"lng_settings_quit_on_close" = "Quit the application";
 "lng_settings_close_to_taskbar" = "Close to taskbar";
 "lng_settings_monochrome_icon" = "Use monochrome icon";
 "lng_settings_window_system" = "Window title bar";

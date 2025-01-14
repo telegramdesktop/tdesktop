@@ -337,7 +337,7 @@ QByteArray Settings::serialize() const {
 			<< _photoEditorBrush
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
 			<< qint32(SerializePlaybackSpeed(_voicePlaybackSpeed))
-			<< qint32(_closeToTaskbar.current() ? 1 : 0)
+			<< qint32(_closeBehavior)
 			<< _customDeviceModel.current()
 			<< qint32(_playerRepeatMode.current())
 			<< qint32(_playerOrderMode.current())
@@ -493,7 +493,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray proxy;
 	qint32 hiddenGroupCallTooltips = qint32(_hiddenGroupCallTooltips.value());
 	QByteArray photoEditorBrush = _photoEditorBrush;
-	qint32 closeToTaskbar = _closeToTaskbar.current() ? 1 : 0;
+	qint32 closeBehavior = qint32(_closeBehavior);
 	QString customDeviceModel = _customDeviceModel.current();
 	qint32 playerRepeatMode = static_cast<qint32>(_playerRepeatMode.current());
 	qint32 playerOrderMode = static_cast<qint32>(_playerOrderMode.current());
@@ -689,7 +689,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> voicePlaybackSpeed;
 	}
 	if (!stream.atEnd()) {
-		stream >> closeToTaskbar;
+		stream >> closeBehavior;
 	}
 	if (!stream.atEnd()) {
 		stream >> customDeviceModel;
@@ -998,7 +998,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 				: Tooltip(0));
 	}();
 	_photoEditorBrush = photoEditorBrush;
-	_closeToTaskbar = (closeToTaskbar == 1);
+	const auto uncheckedCloseBehavior = static_cast<CloseBehavior>(closeBehavior);
+	switch (uncheckedCloseBehavior) {
+	case CloseBehavior::CloseToTaskbar:
+	case CloseBehavior::RunInBackground:
+	case CloseBehavior::Quit: _closeBehavior = uncheckedCloseBehavior; break;
+	}
 	_customDeviceModel = customDeviceModel;
 	_accountsOrder = accountsOrder;
 	const auto uncheckedPlayerRepeatMode = static_cast<Media::RepeatMode>(playerRepeatMode);

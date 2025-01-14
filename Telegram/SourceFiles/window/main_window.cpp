@@ -420,8 +420,8 @@ bool MainWindow::hideNoQuit() {
 		return false;
 	}
 	const auto workMode = Core::App().settings().workMode();
-	if (workMode == Core::Settings::WorkMode::TrayOnly
-		|| workMode == Core::Settings::WorkMode::WindowAndTray) {
+	using Mode = Core::Settings::WorkMode;
+	if (workMode == Mode::TrayOnly || workMode == Mode::WindowAndTray) {
 		if (minimizeToTray()) {
 			if (const auto controller = sessionController()) {
 				controller->clearSectionStack();
@@ -429,20 +429,23 @@ bool MainWindow::hideNoQuit() {
 			return true;
 		}
 	}
-	if (Platform::RunInBackground() || Core::App().settings().closeToTaskbar()) {
-		if (Platform::RunInBackground()) {
-			closeWithoutDestroy();
-		} else {
-			setWindowState(window()->windowState() | Qt::WindowMinimized);
-		}
-		controller().updateIsActiveBlur();
-		updateGlobalMenu();
-		if (const auto controller = sessionController()) {
-			controller->clearSectionStack();
-		}
-		return true;
+	using Behavior = Core::Settings::CloseBehavior;
+	const auto behavior = Platform::IsMac()
+		? Behavior::RunInBackground
+		: Core::App().settings().closeBehavior();
+	if (behavior == Behavior::RunInBackground) {
+		closeWithoutDestroy();
+	} else if (behavior == Behavior::CloseToTaskbar) {
+		setWindowState(window()->windowState() | Qt::WindowMinimized);
+	} else {
+		return false;
 	}
-	return false;
+	controller().updateIsActiveBlur();
+	updateGlobalMenu();
+	if (const auto controller = sessionController()) {
+		controller->clearSectionStack();
+	}
+	return true;
 }
 
 void MainWindow::clearWidgets() {

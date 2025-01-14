@@ -578,11 +578,14 @@ void SetupSystemIntegrationContent(
 #endif // Q_OS_MAC
 
 	if (!Platform::RunInBackground()) {
+		using Behavior = Core::Settings::CloseBehavior;
 		const auto closeToTaskbar = addSlidingCheckbox(
 			tr::lng_settings_close_to_taskbar(),
-			settings->closeToTaskbar());
+			settings->closeBehavior() == Behavior::CloseToTaskbar);
 
-		const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
+		const auto closeToTaskbarShown = std::make_shared<
+			rpl::variable<bool>
+		>(false);
 		settings->workModeValue(
 		) | rpl::start_with_next([=](WorkMode workMode) {
 			*closeToTaskbarShown = !Core::App().tray().has();
@@ -590,12 +593,16 @@ void SetupSystemIntegrationContent(
 
 		closeToTaskbar->toggleOn(closeToTaskbarShown->value());
 		closeToTaskbar->entity()->checkedChanges(
-		) | rpl::filter([=](bool checked) {
-			return (checked != settings->closeToTaskbar());
-		}) | rpl::start_with_next([=](bool checked) {
-			settings->setCloseToTaskbar(checked);
+		) | rpl::map([=](bool checked) {
+			return checked ? Behavior::CloseToTaskbar : Behavior::Quit;
+		}) | rpl::filter([=](Behavior value) {
+			return (settings->closeBehavior() != value);
+		}) | rpl::start_with_next([=](Behavior value) {
+			settings->setCloseBehavior(value);
 			Local::writeSettings();
 		}, closeToTaskbar->lifetime());
+	} else if (!Platform::IsMac()) {
+
 	}
 
 	if (Platform::AutostartSupported() && controller) {
@@ -958,6 +965,66 @@ void SetupWindowTitle(
 	AddSkip(container);
 }
 
+void SetupWindowCloseBehavior(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	if (Platform::IsMac() || !Platform::RunInBackground()) {
+		return;
+	}
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+	AddDivider(inner);
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_settings_window_close());
+
+	const auto settings = &Core::App().settings();
+	using Behavior = Core::Settings::CloseBehavior;
+	const auto group = std::make_shared<Ui::RadioenumGroup<Behavior>>(
+		settings->closeBehavior());
+	const auto add = [&](Behavior value, const QString &label) {
+		inner->add(
+			object_ptr<Ui::Radioenum<Behavior>>(
+				inner,
+				group,
+				value,
+				label,
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+	};
+
+	add(
+		Behavior::RunInBackground,
+		tr::lng_settings_run_in_background(tr::now));
+	add(
+		Behavior::CloseToTaskbar,
+		tr::lng_settings_close_to_taskbar(tr::now));
+	add(
+		Behavior::Quit,
+		tr::lng_settings_quit_on_close(tr::now));
+
+	group->value() | rpl::filter([=](Behavior value) {
+		return (value != settings->closeBehavior());
+	}) | rpl::start_with_next([=](Behavior value) {
+		settings->setCloseBehavior(value);
+		Local::writeSettings();
+	}, inner->lifetime());
+
+	AddSkip(inner);
+
+	if (!Platform::TrayIconSupported()) {
+		wrap->toggle(true, anim::type::instant);
+	} else {
+		wrap->toggleOn(Core::App().settings().workModeValue(
+		) | rpl::map([=](Core::Settings::WorkMode mode) {
+			return (mode == Core::Settings::WorkMode::WindowOnly);
+		}) | rpl::distinct_until_changed(), anim::type::normal);
+		wrap->finishAnimating();
+	}
+}
+
 void SetupSystemIntegration(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
@@ -1006,6 +1073,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
 	SetupWindowTitle(controller, content);
+	SetupWindowCloseBehavior(controller, content);
 	SetupSystemIntegration(controller, content);
 	empty = false;
 
