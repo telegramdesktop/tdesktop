@@ -877,7 +877,7 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 			state->panel.show({
 				.controller = controller,
 				.button = right,
-				.ensureAddedEmojiId = state->emojiId,
+				.ensureAddedEmojiId = { state->emojiId },
 				.customTextColor = customTextColor,
 				.backgroundEmojiMode = true,
 			});
@@ -990,7 +990,7 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 			state->panel.show({
 				.controller = controller,
 				.button = right,
-				.ensureAddedEmojiId = state->statusId.documentId,
+				.ensureAddedEmojiId = { state->statusId },
 				.channelStatusMode = true,
 			});
 		}
