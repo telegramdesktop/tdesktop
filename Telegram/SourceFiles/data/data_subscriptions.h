@@ -18,7 +18,6 @@ struct PeerSubscription final {
 	}
 };
 
-using PhotoId = uint64;
 struct SubscriptionEntry final {
 	explicit operator bool() const {
 		return !id.isEmpty();
@@ -31,7 +30,7 @@ struct SubscriptionEntry final {
 	QDateTime until;
 	PeerSubscription subscription;
 	uint64 barePeerId = 0;
-	PhotoId photoId = PhotoId(0);
+	uint64 photoId = 0;
 	bool cancelled = false;
 	bool cancelledByBot = false;
 	bool expired = false;

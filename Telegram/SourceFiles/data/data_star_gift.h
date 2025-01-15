@@ -74,13 +74,60 @@ struct StarGift {
 		const StarGift &) = default;
 };
 
-struct UserStarGift {
+class SavedStarGiftId {
+public:
+	[[nodiscard]] static SavedStarGiftId User(MsgId messageId) {
+		auto result = SavedStarGiftId();
+		result.entityId = uint64(messageId.bare);
+		return result;
+	}
+	[[nodiscard]] static SavedStarGiftId Chat(
+			not_null<PeerData*> peer,
+			uint64 savedId) {
+		auto result = SavedStarGiftId();
+		result.peer = peer;
+		result.entityId = savedId;
+		return result;
+	}
+
+	[[nodiscard]] bool isUser() const {
+		return !peer;
+	}
+	[[nodiscard]] bool isChat() const {
+		return peer != nullptr;
+	}
+
+	[[nodiscard]] MsgId userMessageId() const {
+		return peer ? MsgId(0) : MsgId(entityId);
+	}
+	[[nodiscard]] PeerData *chat() const {
+		return peer;
+	}
+	[[nodiscard]] uint64 chatSavedId() const {
+		return peer ? entityId : 0;
+	}
+
+	explicit operator bool() const {
+		return entityId != 0;
+	}
+
+	friend inline bool operator==(
+		const SavedStarGiftId &a,
+		const SavedStarGiftId &b) = default;
+
+private:
+	PeerData *peer = nullptr;
+	uint64 entityId = 0;
+
+};
+
+struct SavedStarGift {
 	StarGift info;
+	SavedStarGiftId id;
 	TextWithEntities message;
 	int64 starsConverted = 0;
 	int64 starsUpgradedBySender = 0;
 	PeerId fromId = 0;
-	MsgId messageId = 0;
 	TimeId date = 0;
 	bool upgradable = false;
 	bool anonymous = false;

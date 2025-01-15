@@ -1241,7 +1241,8 @@ void Filler::addSendGift() {
 			|| user->isVerifyCodes()
 			|| !user->session().premiumCanBuy())) {
 		return;
-	} else if (channel && channel->isForbidden()) {
+	} else if (channel
+		&& (channel->isForbidden() || !channel->stargiftsAvailable())) {
 		return;
 	}
 

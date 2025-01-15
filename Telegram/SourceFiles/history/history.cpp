@@ -192,7 +192,7 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 		if (const auto gift = media->gift()) {
 			using GiftAction = Data::GiftUpdate::Action;
 			owner().notifyGiftUpdate({
-				.itemId = item->fullId(),
+				.id = Data::SavedStarGiftId::User(item->id),
 				.action = GiftAction::Delete,
 			});
 		}

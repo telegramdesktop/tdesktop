@@ -13,9 +13,10 @@ class SessionController;
 
 namespace Data {
 struct UniqueGift;
+class SavedStarGiftId;
 } // namespace Data
 
 void ShowTransferGiftBox(
 	not_null<Window::SessionController*> window,
 	std::shared_ptr<Data::UniqueGift> gift,
-	MsgId msgId);
+	Data::SavedStarGiftId savedId);

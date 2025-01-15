@@ -69,6 +69,7 @@ enum class ChannelDataFlag : uint64 {
 	PaidMediaAllowed = (1ULL << 33),
 	CanViewCreditsRevenue = (1ULL << 34),
 	SignatureProfiles = (1ULL << 35),
+	StargiftsAvailable = (1ULL << 36),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -253,6 +254,9 @@ public:
 	[[nodiscard]] bool viewForumAsMessages() const {
 		return flags() & Flag::ViewAsMessages;
 	}
+	[[nodiscard]] bool stargiftsAvailable() const {
+		return flags() & Flag::StargiftsAvailable;
+	}
 
 	[[nodiscard]] static ChatRestrictionsInfo KickedRestrictedRights(
 		not_null<PeerData*> participant);
@@ -375,7 +379,6 @@ public:
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canRestrictParticipant(
 		not_null<PeerData*> participant) const;
-	[[nodiscard]] bool canManageGifts() const;
 
 	void setBotVerifyDetails(Ui::BotVerifyDetails details);
 	void setBotVerifyDetailsIcon(DocumentId iconId);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_cloud_file.h"
+#include "data/data_star_gift.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 
@@ -87,7 +88,7 @@ struct GiftUpdate {
 		Delete,
 	};
 
-	FullMsgId itemId;
+	Data::SavedStarGiftId id;
 	Action action = {};
 };
 

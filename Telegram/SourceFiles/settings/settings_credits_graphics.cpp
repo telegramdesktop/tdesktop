@@ -172,17 +172,27 @@ private:
 
 };
 
+[[nodiscard]] Data::SavedStarGiftId EntryToSavedStarGiftId(
+		not_null<Main::Session*> session,
+		const Data::CreditsHistoryEntry &entry) {
+	return (entry.bareGiftListPeerId && entry.giftSavedId)
+		? Data::SavedStarGiftId::Chat(
+			session->data().peer(PeerId(entry.bareGiftListPeerId)),
+			entry.giftSavedId)
+		: Data::SavedStarGiftId::User(MsgId(entry.bareMsgId));
+}
+
 void ToggleStarGiftSaved(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<UserData*> sender,
-		MsgId itemId,
+		Data::SavedStarGiftId savedId,
 		bool save,
 		Fn<void(bool)> done) {
 	using Flag = MTPpayments_SaveStarGift::Flag;
 	const auto api = &show->session().api();
 	api->request(MTPpayments_SaveStarGift(
 		MTP_flags(save ? Flag(0) : Flag::f_unsave),
-		MTP_int(itemId.bare)
+		Api::InputSavedStarGiftId(savedId)
 	)).done([=] {
 		done(true);
 		show->showToast((save
@@ -229,12 +239,12 @@ void ConfirmConvertStarGift(
 void ConvertStarGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<UserData*> sender,
-		MsgId itemId,
+		Data::SavedStarGiftId savedId,
 		int stars,
 		Fn<void(bool)> done) {
 	const auto api = &show->session().api();
 	api->request(MTPpayments_ConvertStarGift(
-		MTP_int(itemId)
+		Api::InputSavedStarGiftId(savedId)
 	)).done([=] {
 		if (const auto window = show->resolveWindow()) {
 			window->showSettings(Settings::CreditsId());
@@ -851,14 +861,15 @@ void FillUniqueGiftMenu(
 			shareBoxSt ? *shareBoxSt : ShareBoxStyleOverrides());
 	}, st.share ? st.share : &st::menuIconShare);
 
-	const auto messageId = MsgId(e.bareMsgId);
+	const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
 	const auto transfer = e.in
-		&& messageId
+		&& savedId
+		&& (savedId.isUser() ? e.in : savedId.chat()->canManageGifts())
 		&& (unique->starsForTransfer >= 0);
 	if (transfer) {
 		menu->addAction(tr::lng_gift_transfer_button(tr::now), [=] {
 			if (const auto window = show->resolveWindow()) {
-				ShowTransferGiftBox(window, unique, messageId);
+				ShowTransferGiftBox(window, unique, savedId);
 			}
 		}, st.transfer ? st.transfer : &st::menuIconReplace);
 	}
@@ -1102,6 +1113,11 @@ void GenericCreditsEntryBox(
 	const auto giftToSelf = isStarGift
 		&& (e.barePeerId == selfPeerId)
 		&& (e.in || e.bareGiftOwnerId == selfPeerId);
+	const auto giftToChannel = isStarGift && e.giftSavedId;
+	const auto giftToChannelCanManage = isStarGift
+		&& e.giftSavedId
+		&& session->data().peer(
+			PeerId(e.bareGiftListPeerId))->canManageGifts();
 
 	if (!uniqueGift) {
 		Ui::AddSkip(content);
@@ -1292,16 +1308,27 @@ void GenericCreditsEntryBox(
 							&& giftToSelf
 							&& !(couldConvert || nonConvertible))
 						? tr::lng_action_gift_self_about_unique(
-							Ui::Text::WithEntities) // todo channel gifts
+							Ui::Text::WithEntities)
+						: (e.starsToUpgrade
+							&& giftToChannelCanManage
+							&& !(couldConvert || nonConvertible))
+						? tr::lng_action_gift_channel_about_unique(
+							Ui::Text::WithEntities)
 						: ((couldConvert || nonConvertible)
 							? (e.savedToProfile
-								? tr::lng_action_gift_can_remove_text
-								: tr::lng_action_gift_got_gift_text)(
-									Ui::Text::WithEntities)
+								? (giftToChannel
+									? tr::lng_action_gift_can_remove_channel
+									: tr::lng_action_gift_can_remove_text)
+								: (giftToChannel
+									? tr::lng_action_gift_got_gift_channel
+									: tr::lng_action_gift_got_gift_text))(
+										Ui::Text::WithEntities)
 							: rpl::combine(
 								(canConvert
-									? (giftToSelf // todo channel gifts
+									? (giftToSelf
 										? tr::lng_action_gift_self_about
+										: giftToChannelCanManage
+										? tr::lng_action_gift_channel_about
 										: tr::lng_action_gift_got_stars_text)
 									: tr::lng_gift_got_stars)(
 										lt_count,
@@ -1374,14 +1401,12 @@ void GenericCreditsEntryBox(
 		&& !e.giftRefunded;
 	const auto toggleVisibility = [=, weak = Ui::MakeWeak(box)](bool save) {
 		const auto showSection = !e.fromGiftsList;
-		const auto itemId = MsgId(e.bareMsgId);
+		const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
 		const auto done = [=](bool ok) {
 			if (ok) {
 				using GiftAction = Data::GiftUpdate::Action;
 				show->session().data().notifyGiftUpdate({
-					.itemId = FullMsgId(
-						starGiftSender->id,
-						itemId),
+					.id = savedId,
 					.action = (save
 						? GiftAction::Save
 						: GiftAction::Unsave),
@@ -1403,24 +1428,27 @@ void GenericCreditsEntryBox(
 				}
 			}
 		};
-		ToggleStarGiftSaved(show, starGiftSender, itemId, save, done);
+		ToggleStarGiftSaved(show, starGiftSender, savedId, save, done);
 	};
 
 	const auto upgradeGuard = std::make_shared<bool>();
 	const auto upgrade = [=] {
-		const auto itemId = MsgId(e.bareMsgId);
 		const auto window = show->resolveWindow();
 		if (!window || *upgradeGuard) {
 			return;
 		}
 		*upgradeGuard = true;
+		const auto savedId = EntryToSavedStarGiftId(&window->session(), e);
+		const auto openWhenDone = giftToChannel
+			? window->session().data().peer(PeerId(e.bareGiftOwnerId)).get()
+			: starGiftSender;
 		using namespace Ui;
 		ShowStarGiftUpgradeBox({
 			.controller = window,
 			.stargiftId = e.stargiftId,
 			.ready = [=](bool) { *upgradeGuard = false; },
-			.peer = starGiftSender,
-			.itemId = itemId,
+			.peer = openWhenDone,
+			.savedId = savedId,
 			.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
 			.canAddSender = !giftToSelf && !e.anonymous,
 			.canAddComment = (!giftToSelf
@@ -1433,7 +1461,7 @@ void GenericCreditsEntryBox(
 	};
 	const auto canUpgrade = e.stargiftId
 		&& e.canUpgradeGift
-		&& (e.in || giftToSelf)
+		&& (e.in || giftToSelf || giftToChannelCanManage)
 		&& !e.uniqueGift;
 	const auto canUpgradeFree = canUpgrade && (e.starsUpgradedBySender > 0);
 
@@ -1448,15 +1476,15 @@ void GenericCreditsEntryBox(
 					return;
 				}
 				state->convertButtonBusy = true;
-				const auto itemId = MsgId(e.bareMsgId);
+				const auto savedId = EntryToSavedStarGiftId(
+					&show->session(),
+					e);
 				if (stars) {
 					const auto done = [=](bool ok) {
 						if (ok) {
 							using GiftAction = Data::GiftUpdate::Action;
 							show->session().data().notifyGiftUpdate({
-								.itemId = FullMsgId(
-									starGiftSender->id,
-									itemId),
+								.id = savedId,
 								.action = GiftAction::Convert,
 							});
 						}
@@ -1471,7 +1499,7 @@ void GenericCreditsEntryBox(
 					ConvertStarGift(
 						show,
 						starGiftSender,
-						itemId,
+						savedId,
 						stars,
 						done);
 				}
@@ -1503,34 +1531,40 @@ void GenericCreditsEntryBox(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider)));
-	} else if (gotStarGift) {
+	} else if (gotStarGift || giftToChannelCanManage) {
+		const auto hiddenPhrase = giftToChannelCanManage
+			? tr::lng_gift_hidden_hint_channel
+			: tr::lng_gift_hidden_hint;
+		const auto visiblePhrase = giftToChannelCanManage
+			? tr::lng_gift_visible_hint_channel
+			: tr::lng_gift_visible_hint;
 		auto withHide = rpl::combine(
-			tr::lng_gift_visible_hint(),
+			visiblePhrase(),
 			tr::lng_gift_visible_hide()
 		) | rpl::map([](QString &&hint, QString &&hide) {
 			return TextWithEntities{ std::move(hint) }.append(' ').append(
 				Ui::Text::Link(std::move(hide)));
 		});
-		auto text = !e.savedToProfile // todo channel gifts
-			? tr::lng_gift_hidden_hint(Ui::Text::WithEntities)
+		auto text = !e.savedToProfile
+			? hiddenPhrase(Ui::Text::WithEntities)
 			: canToggle
 			? std::move(withHide)
-			: tr::lng_gift_visible_hint(Ui::Text::WithEntities);
+			: visiblePhrase(Ui::Text::WithEntities);
 		if (e.anonymous && e.barePeerId) {
 			text = rpl::combine(
 				std::move(text),
-				tr::lng_gift_anonymous_hint()
+				(giftToChannelCanManage
+					? tr::lng_gift_anonymous_hint_channel
+					: tr::lng_gift_anonymous_hint)()
 			) | rpl::map([](TextWithEntities &&a, QString &&b) {
 				return a.append("\n\n").append(b);
 			});
 		}
 		const auto label = box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					std::move(text),
-					st::creditsBoxAboutDivider)))->entity();
+				std::move(text),
+				st::creditsBoxAboutDivider));
 		label->setClickHandlerFilter([=](const auto &...) {
 			toggleVisibility(!e.savedToProfile);
 			return false;
@@ -1612,7 +1646,9 @@ void GenericCreditsEntryBox(
 			: canUpgradeFree
 			? tr::lng_gift_upgrade_free()
 			: (canToggle && !e.savedToProfile)
-			? tr::lng_gift_show_on_page()
+			? (e.giftSavedId
+				? tr::lng_gift_show_on_channel
+				: tr::lng_gift_show_on_page)()
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
 		if (toRejoin) {
@@ -1779,11 +1815,12 @@ void GlobalStarGiftBox(
 		st);
 }
 
-void UserStarGiftBox(
+void SavedStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> owner,
-		const Data::UserStarGift &data) {
+		const Data::SavedStarGift &data) {
+	const auto chatGiftPeer = data.id.chat();
 	Settings::ReceiptCreditsBox(
 		box,
 		controller,
@@ -1791,10 +1828,13 @@ void UserStarGiftBox(
 			.description = data.message,
 			.date = base::unixtime::parse(data.date),
 			.credits = StarsAmount(data.info.stars),
-			.bareMsgId = uint64(data.messageId.bare),
+			.bareMsgId = uint64(data.id.userMessageId().bare),
 			.barePeerId = data.fromId.value,
 			.bareGiftStickerId = data.info.document->id,
 			.bareGiftOwnerId = owner->id.value,
+			.bareActorId = data.fromId.value,
+			.bareGiftListPeerId = chatGiftPeer ? chatGiftPeer->id.value : 0,
+			.giftSavedId = data.id.chatSavedId(),
 			.stargiftId = data.info.id,
 			.uniqueGift = data.info.unique,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
@@ -1820,8 +1860,10 @@ void StarGiftViewBox(
 		not_null<Window::SessionController*> controller,
 		const Data::GiftCode &data,
 		not_null<HistoryItem*> item) {
-	const auto incoming = data.upgrade ? item->out() : !item->out();
 	const auto peer = item->history()->peer;
+	const auto toChannel = peer->isServiceUser() && data.channel;
+	const auto incoming = !toChannel
+		&& (data.upgrade ? item->out() : !item->out());
 	const auto fromId = incoming ? peer->id : peer->session().userPeerId();
 	const auto toId = incoming ? peer->session().userPeerId() : peer->id;
 	const auto entry = Data::CreditsHistoryEntry{
@@ -1835,6 +1877,9 @@ void StarGiftViewBox(
 		.bareGiftOwnerId = (data.unique
 			? data.unique->ownerId.value
 			: toId.value),
+		.bareActorId = (toChannel ? data.channelFrom->id.value : 0),
+		.bareGiftListPeerId = (toChannel ? data.channel->id.value : 0),
+		.giftSavedId = data.channelSavedId,
 		.stargiftId = data.stargiftId,
 		.uniqueGift = data.unique,
 		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
@@ -1995,7 +2040,7 @@ void SmallBalanceBox(
 	}, [](SmallBalanceDeepLink value) {
 		return QString();
 	}, [&](SmallBalanceStarGift value) {
-		return owner->peer(peerFromUser(value.userId))->shortName();
+		return owner->peer(value.recipientId)->shortName();
 	});
 
 	auto needed = show->session().credits().balanceValue(

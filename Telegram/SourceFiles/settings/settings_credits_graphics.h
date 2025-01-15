@@ -23,7 +23,7 @@ struct CreditsHistoryEntry;
 struct SubscriptionEntry;
 struct GiftCode;
 struct CreditTopupOption;
-struct UserStarGift;
+struct SavedStarGift;
 struct StarGift;
 } // namespace Data
 
@@ -149,11 +149,11 @@ void GlobalStarGiftBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::StarGift &data,
 	CreditsEntryBoxStyleOverrides st = {});
-void UserStarGiftBox(
+void SavedStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> owner,
-	const Data::UserStarGift &data);
+	const Data::SavedStarGift &data);
 void StarGiftViewBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
@@ -198,7 +198,7 @@ struct SmallBalanceDeepLink {
 	QString purpose;
 };
 struct SmallBalanceStarGift {
-	UserId userId = 0;
+	PeerId recipientId;
 };
 struct SmallBalanceSource : std::variant<
 	SmallBalanceBot,

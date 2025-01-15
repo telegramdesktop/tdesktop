@@ -513,4 +513,12 @@ void EditCreditsSubscription(
 	)).done(done).fail([=](const MTP::Error &e) { fail(e.type()); }).send();
 }
 
+MTPInputSavedStarGift InputSavedStarGiftId(const Data::SavedStarGiftId &id) {
+	return id.isUser()
+		? MTP_inputSavedStarGiftUser(MTP_int(id.userMessageId().bare))
+		: MTP_inputSavedStarGiftChat(
+			id.chat()->input,
+			MTP_long(id.chatSavedId()));
+}
+
 } // namespace Api

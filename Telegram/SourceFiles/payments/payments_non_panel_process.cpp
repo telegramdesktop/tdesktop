@@ -117,7 +117,7 @@ void ProcessCreditsPayment(
 	auto source = !starGift
 		? SmallBalanceSource(SmallBalanceBot{ .botId = form->botId })
 		: SmallBalanceSource(SmallBalanceStarGift{
-			.userId = peerToUser(starGift->user->id)
+			.recipientId = starGift->recipient->id,
 		});
 	MaybeRequestBalanceIncrease(show, form->invoice.credits, source, done);
 }

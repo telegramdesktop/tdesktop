@@ -652,6 +652,13 @@ bool PeerData::canManageTopics() const {
 	return false;
 }
 
+bool PeerData::canManageGifts() const {
+	if (const auto channel = asChannel()) {
+		return channel->canPostMessages();
+	}
+	return isSelf();
+}
+
 bool PeerData::canEditMessagesIndefinitely() const {
 	if (const auto user = asUser()) {
 		return user->isSelf();

@@ -809,8 +809,9 @@ std::optional<Data::StarGift> FromTL(
 				.slug = qs(data.vslug()),
 				.title = qs(data.vtitle()),
 				.ownerName = qs(data.vowner_name().value_or_empty()),
-				.ownerId = peerFromUser(
-					UserId(data.vowner_id().value_or_empty())),
+				.ownerId = (data.vowner_id()
+					? peerFromMTP(*data.vowner_id())
+					: PeerId()),
 				.number = data.vnum().v,
 				.model = *model,
 				.pattern = *pattern,
@@ -833,9 +834,9 @@ std::optional<Data::StarGift> FromTL(
 	});
 }
 
-std::optional<Data::UserStarGift> FromTL(
+std::optional<Data::SavedStarGift> FromTL(
 		not_null<PeerData*> to,
-		const MTPuserStarGift &gift) {
+		const MTPsavedStarGift &gift) {
 	const auto session = &to->session();
 	const auto &data = gift.data();
 	auto parsed = FromTL(session, data.vgift());
@@ -845,8 +846,12 @@ std::optional<Data::UserStarGift> FromTL(
 		unique->starsForTransfer = data.vtransfer_stars().value_or(-1);
 		unique->exportAt = data.vcan_export_at().value_or_empty();
 	}
-	return Data::UserStarGift{
+	using Id = Data::SavedStarGiftId;
+	return Data::SavedStarGift{
 		.info = std::move(*parsed),
+		.id = (to->isUser()
+			? Id::User(data.vmsg_id().value_or_empty())
+			: Id::Chat(to, data.vsaved_id().value_or_empty())),
 		.message = (data.vmessage()
 			? TextWithEntities{
 				.text = qs(data.vmessage()->data().vtext()),
@@ -859,9 +864,8 @@ std::optional<Data::UserStarGift> FromTL(
 		.starsUpgradedBySender = int64(
 			data.vupgrade_stars().value_or_empty()),
 		.fromId = (data.vfrom_id()
-			? peerFromUser(data.vfrom_id()->v)
+			? peerFromMTP(*data.vfrom_id())
 			: PeerId()),
-		.messageId = data.vmsg_id().value_or_empty(),
 		.date = data.vdate().v,
 		.upgradable = data.is_can_upgrade(),
 		.anonymous = data.is_name_hidden(),
@@ -914,11 +918,9 @@ Data::UniqueGiftOriginalDetails FromTL(
 	auto result = Data::UniqueGiftOriginalDetails();
 	result.date = data.vdate().v;
 	result.senderId = data.vsender_id()
-		? peerFromUser(
-			UserId(data.vsender_id().value_or_empty()))
+		? peerFromMTP(*data.vsender_id())
 		: PeerId();
-	result.recipientId = peerFromUser(
-		UserId(data.vrecipient_id().v));
+	result.recipientId = peerFromMTP(data.vrecipient_id());
 	result.message = data.vmessage()
 		? ParseTextWithEntities(session, *data.vmessage())
 		: TextWithEntities();

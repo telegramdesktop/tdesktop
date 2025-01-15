@@ -90,6 +90,8 @@ QString PremiumGift::title() {
 
 TextWithEntities PremiumGift::subtitle() {
 	if (starGift()) {
+		const auto toChannel = _data.channel
+			&& _parent->history()->peer->isServiceUser();
 		return !_data.message.empty()
 			? _data.message
 			: _data.refunded
@@ -115,19 +117,32 @@ TextWithEntities PremiumGift::subtitle() {
 			: (_data.starsToUpgrade
 				&& !_data.converted
 				&& _parent->history()->peer->isSelf())
-			? tr::lng_action_gift_self_about_unique( // todo channel gifts
+			? tr::lng_action_gift_self_about_unique(
+				tr::now,
+				Ui::Text::RichLangValue)
+			: (_data.starsToUpgrade
+				&& !_data.converted
+				&& _parent->history()->peer->isServiceUser()
+				&& _data.channel)
+			? tr::lng_action_gift_channel_about_unique(
 				tr::now,
 				Ui::Text::RichLangValue)
 			: (!_data.converted && !_data.starsConverted)
 			? (_data.saved
-				? tr::lng_action_gift_can_remove_text
-				: tr::lng_action_gift_got_gift_text)(
-					tr::now,
-					Ui::Text::RichLangValue)
+				? (toChannel
+					? tr::lng_action_gift_can_remove_channel
+					: tr::lng_action_gift_can_remove_text)
+				: (toChannel
+					? tr::lng_action_gift_got_gift_channel
+					: tr::lng_action_gift_got_gift_text))(
+						tr::now,
+						Ui::Text::RichLangValue)
 			: (_data.converted
 				? tr::lng_gift_got_stars
 				: _parent->history()->peer->isSelf()
-				? tr::lng_action_gift_self_about // todo channel gifts
+				? tr::lng_action_gift_self_about
+				: toChannel
+				? tr::lng_action_gift_channel_about
 				: tr::lng_action_gift_got_stars_text)(
 					tr::now,
 					lt_count,
@@ -258,20 +273,23 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 				return;
 			}
 			*requesting = true;
-			controller->session().api().request(MTPpayments_GetUserStarGift(
-				MTP_vector<MTPint>(1, MTP_int(upgradeTo))
-			)).done([=](const MTPpayments_UserStarGifts &result) {
+			controller->session().api().request(MTPpayments_GetSavedStarGift(
+				MTP_vector<MTPInputSavedStarGift>(
+					1,
+					MTP_inputSavedStarGiftUser(MTP_int(upgradeTo)))
+			)).done([=](const MTPpayments_SavedStarGifts &result) {
 				*requesting = false;
 				if (const auto window = weak.get()) {
 					const auto &data = result.data();
 					window->session().data().processUsers(data.vusers());
+					window->session().data().processChats(data.vchats());
 					const auto self = window->session().user();
 					const auto &list = data.vgifts().v;
 					if (list.empty()) {
 						showForWeakWindow(weak);
 					} else if (auto parsed = Api::FromTL(self, list[0])) {
 						window->show(Box(
-							Settings::UserStarGiftBox,
+							Settings::SavedStarGiftBox,
 							window,
 							self,
 							*parsed));

@@ -1584,7 +1584,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						MTP_int(topMsgId),
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty(), // send_as
-						Data::ShortcutIdToMTP(session, options.shortcutId)
+						Data::ShortcutIdToMTP(session, options.shortcutId),
+						MTPint() // video_timestamp
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					threadHistory->session().api().applyUpdates(updates);
 					state->requests.remove(reqId);

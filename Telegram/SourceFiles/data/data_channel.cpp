@@ -714,10 +714,6 @@ bool ChannelData::canRestrictParticipant(
 	return adminRights() & AdminRight::BanUsers;
 }
 
-bool ChannelData::canManageGifts() const {
-	return amCreator(); // todo channel gifts
-}
-
 void ChannelData::setBotVerifyDetails(Ui::BotVerifyDetails details) {
 	if (!details) {
 		if (_botVerifyDetails) {
@@ -1153,7 +1149,8 @@ void ApplyChannelUpdate(
 		| Flag::ViewAsMessages
 		| Flag::CanViewRevenue
 		| Flag::PaidMediaAllowed
-		| Flag::CanViewCreditsRevenue;
+		| Flag::CanViewCreditsRevenue
+		| Flag::StargiftsAvailable;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
 		| (update.is_can_view_participants()
@@ -1174,6 +1171,9 @@ void ApplyChannelUpdate(
 		| (update.is_can_view_revenue() ? Flag::CanViewRevenue : Flag())
 		| (update.is_can_view_stars_revenue()
 			? Flag::CanViewCreditsRevenue
+			: Flag())
+		| (update.is_stargifts_available()
+			? Flag::StargiftsAvailable
 			: Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {
@@ -1187,6 +1187,7 @@ void ApplyChannelUpdate(
 	channel->setRestrictedCount(update.vbanned_count().value_or_empty());
 	channel->setKickedCount(update.vkicked_count().value_or_empty());
 	channel->setSlowmodeSeconds(update.vslowmode_seconds().value_or_empty());
+	channel->setPeerGiftsCount(update.vstargifts_count().value_or_empty());
 	if (const auto next = update.vslowmode_next_send_date()) {
 		channel->growSlowmodeLastMessage(
 			next->v - channel->slowmodeSeconds());

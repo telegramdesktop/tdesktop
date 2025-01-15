@@ -5443,9 +5443,32 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto cost = TextWithEntities{
 			tr::lng_action_gift_for_stars(tr::now, lt_count, stars),
 		};
-		const auto anonymous = _from->isServiceUser();
-		if (anonymous || _history->peer->isSelf()) {
-			// todo channel gifts
+		const auto giftPeer = action.vpeer()
+			? peerFromMTP(*action.vpeer())
+			: PeerId();
+		const auto service = _from->isServiceUser();
+		const auto toChannel = service && peerIsChannel(giftPeer);
+		const auto anonymous = service && !toChannel;
+		if (toChannel) {
+			const auto fromId = action.vfrom_id()
+				? peerFromMTP(*action.vfrom_id())
+				: PeerId();
+			const auto from = fromId ? peer->owner().peer(fromId) : peer;
+			const auto channel = peer->owner().channel(
+				peerToChannel(giftPeer));
+			Assert(channel != nullptr);
+			result.links.push_back(from->createOpenLink());
+			result.links.push_back(channel->createOpenLink());
+			result.text = tr::lng_action_gift_sent_channel(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(from->shortName(), 1),
+				lt_name,
+				Ui::Text::Link(channel->name(), 2),
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities);
+		} else if (anonymous || _history->peer->isSelf()) {
 			result.text = (anonymous
 				? tr::lng_action_gift_received_anonymous
 				: tr::lng_action_gift_self_bought)(
@@ -5671,6 +5694,13 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				.unclaimed = data.is_unclaimed(),
 			});
 	}, [&](const MTPDmessageActionStarGift &data) {
+		const auto service = _from->isServiceUser();
+		const auto from = data.vfrom_id()
+			? peerFromMTP(*data.vfrom_id())
+			: PeerId();
+		const auto to = data.vpeer()
+			? peerFromMTP(*data.vpeer())
+			: PeerId();
 		using Fields = Data::GiftCode;
 		auto fields = Fields{
 			.message = (data.vmessage()
@@ -5681,6 +5711,13 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 						data.vmessage()->data().ventities().v),
 				}
 				: TextWithEntities()),
+			.channel = ((service && peerIsChannel(to))
+				? history()->owner().channel(peerToChannel(to)).get()
+				: nullptr),
+			.channelFrom = ((service && from)
+				? history()->owner().peer(from).get()
+				: nullptr),
+			.channelSavedId = data.vsaved_id().value_or_empty(),
 			.upgradeMsgId = data.vupgrade_msg_id().value_or_empty(),
 			.starsConverted = int(data.vconvert_stars().value_or_empty()),
 			.starsUpgradedBySender = int(
@@ -5706,8 +5743,22 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			_from,
 			std::move(fields));
 	}, [&](const MTPDmessageActionStarGiftUnique &data) {
+		const auto service = _from->isServiceUser();
+		const auto from = data.vfrom_id()
+			? peerFromMTP(*data.vfrom_id())
+			: PeerId();
+		const auto to = data.vpeer()
+			? peerFromMTP(*data.vpeer())
+			: PeerId();
 		using Fields = Data::GiftCode;
 		auto fields = Fields{
+			.channel = ((service && peerIsChannel(to))
+				? history()->owner().channel(peerToChannel(to)).get()
+				: nullptr),
+			.channelFrom = ((service && from)
+				? history()->owner().peer(from).get()
+				: nullptr),
+			.channelSavedId = data.vsaved_id().value_or_empty(),
 			.type = Data::GiftType::StarGift,
 			.transferred = data.is_transferred(),
 			.refunded = data.is_refunded(),

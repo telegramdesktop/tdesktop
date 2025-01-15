@@ -16,7 +16,7 @@ struct PeerListState;
 namespace Info::PeerGifts {
 
 struct ListState {
-	std::vector<Data::UserStarGift> list;
+	std::vector<Data::SavedStarGift> list;
 	QString offset;
 };
 

@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 
 #include "apiwrap.h"
+#include "api/api_credits.h"
+#include "api/api_premium.h"
 #include "base/event_filter.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
-#include "api/api_premium.h"
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -1084,7 +1085,7 @@ void SendGift(
 			.giftId = gift.info.id,
 			.randomId = details.randomId,
 			.message = details.text,
-			.user = peer->asUser(),
+			.recipient = peer,
 			.limitedCount = gift.info.limitedCount,
 			.anonymous = details.anonymous,
 			.upgraded = details.upgraded,
@@ -1169,7 +1170,7 @@ void SendStarsFormRequest(
 
 void UpgradeGift(
 		not_null<Window::SessionController*> window,
-		MsgId messageId,
+		Data::SavedStarGiftId savedId,
 		bool keepDetails,
 		int stars,
 		Fn<void(Payments::CheckoutResult)> done) {
@@ -1189,7 +1190,7 @@ void UpgradeGift(
 		using Flag = MTPpayments_UpgradeStarGift::Flag;
 		session->api().request(MTPpayments_UpgradeStarGift(
 			MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
-			MTP_int(messageId.bare)
+			Api::InputSavedStarGiftId(savedId)
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
 			formDone(Payments::CheckoutResult::Paid, &result);
@@ -1206,7 +1207,7 @@ void UpgradeGift(
 		window,
 		MTP_inputInvoiceStarGiftUpgrade(
 			MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
-			MTP_int(messageId.bare)),
+			Api::InputSavedStarGiftId(savedId)),
 		std::move(formDone));
 }
 
@@ -2475,7 +2476,7 @@ struct UpgradeArgs : StarGiftUpgradeArgs {
 			auto &patterns = state->data.patterns;
 			auto &backdrops = state->data.backdrops;
 			consumer.put_next(Data::UniqueGift{
-				.title = (state->data.itemId
+				.title = (state->data.savedId
 					? tr::lng_gift_upgrade_title(tr::now)
 					: tr::lng_gift_upgrade_preview_title(tr::now)),
 				.model = models[index(state->modelIndices, models)],
@@ -2499,7 +2500,7 @@ void AddUpgradeGiftCover(
 	AddUniqueGiftCover(
 		container,
 		MakeUpgradeGiftStream(args),
-		(args.itemId
+		(args.savedId
 			? tr::lng_gift_upgrade_about()
 			: (args.peer->isBroadcast()
 				? tr::lng_gift_upgrade_preview_about_channel
@@ -2573,7 +2574,7 @@ void UpgradeBox(
 		bool preserveDetails = false;
 	};
 	const auto state = std::make_shared<State>();
-	const auto preview = !args.itemId;
+	const auto preview = !args.savedId;
 
 	if (!preview) {
 		const auto skip = st::defaultVerticalListSkip;
@@ -2624,7 +2625,7 @@ void UpgradeBox(
 				}
 			}
 		};
-		UpgradeGift(controller, args.itemId, keepDetails, cost, done);
+		UpgradeGift(controller, args.savedId, keepDetails, cost, done);
 	});
 	if (!preview) {
 		auto star = session->data().customEmojiManager().creditsEmoji();

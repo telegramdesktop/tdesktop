@@ -3378,7 +3378,8 @@ void ApiWrap::forwardMessages(
 				MTP_int(topMsgId),
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-				Data::ShortcutIdToMTP(_session, action.options.shortcutId)
+				Data::ShortcutIdToMTP(_session, action.options.shortcutId),
+				MTPint() // video_timestamp
 			)).done([=](const MTPUpdates &result) {
 				if (!scheduled) {
 					this->updates().checkForSentToScheduled(result);
@@ -4148,6 +4149,7 @@ void ApiWrap::uploadAlbumMedia(
 					fields.vfile_reference()),
 				MTPInputPhoto(), // video_cover
 				MTP_int(data.vttl_seconds().value_or_empty()),
+				MTPint(), // video_timestamp
 				MTPstring()); // query
 			sendAlbumWithUploaded(item, groupId, media);
 		} break;

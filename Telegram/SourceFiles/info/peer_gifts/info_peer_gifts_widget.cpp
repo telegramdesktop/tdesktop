@@ -34,7 +34,7 @@ constexpr auto kPerPage = 50;
 
 [[nodiscard]] GiftDescriptor DescriptorForGift(
 		not_null<PeerData*> to,
-		const Data::UserStarGift &gift) {
+		const Data::SavedStarGift &gift) {
 	return GiftTypeStars{
 		.info = gift.info,
 		.from = ((gift.anonymous || !gift.fromId)
@@ -64,7 +64,7 @@ public:
 
 private:
 	struct Entry {
-		Data::UserStarGift gift;
+		Data::SavedStarGift gift;
 		GiftDescriptor descriptor;
 	};
 	struct View {
@@ -142,10 +142,10 @@ InnerWidget::InnerWidget(
 void InnerWidget::subscribeToUpdates() {
 	_peer->owner().giftUpdates(
 	) | rpl::start_with_next([=](const Data::GiftUpdate &update) {
-		const auto itemId = [](const Entry &entry) {
-			return FullMsgId(entry.gift.fromId, entry.gift.messageId);
+		const auto savedId = [](const Entry &entry) {
+			return entry.gift.id;
 		};
-		const auto i = ranges::find(_entries, update.itemId, itemId);
+		const auto i = ranges::find(_entries, update.id, savedId);
 		if (i == end(_entries)) {
 			return;
 		}
@@ -204,14 +204,18 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 }
 
 void InnerWidget::loadMore() {
-	if (_allLoaded || _loadMoreRequestId || !_peer->isUser()) {
-		return; // todo channel gifts
+	if (_allLoaded || _loadMoreRequestId) {
+		return;
 	}
-	_loadMoreRequestId = _api.request(MTPpayments_GetUserStarGifts(
-		_peer->asUser()->inputUser,
+	using Flag = MTPpayments_GetSavedStarGifts::Flag;
+	const auto withUnsaved = _peer->isSelf()
+		|| (_peer->isChannel() && _peer->asChannel()->canManageGifts());
+	_loadMoreRequestId = _api.request(MTPpayments_GetSavedStarGifts(
+		MTP_flags(withUnsaved ? Flag() : Flag::f_exclude_unsaved),
+		_peer->input,
 		MTP_string(_offset),
 		MTP_int(kPerPage)
-	)).done([=](const MTPpayments_UserStarGifts &result) {
+	)).done([=](const MTPpayments_SavedStarGifts &result) {
 		_loadMoreRequestId = 0;
 		const auto &data = result.data();
 		if (const auto next = data.vnext_offset()) {
@@ -223,6 +227,7 @@ void InnerWidget::loadMore() {
 
 		const auto owner = &_peer->owner();
 		owner->processUsers(data.vusers());
+		owner->processChats(data.vchats());
 
 		_entries.reserve(_entries.size() + data.vgifts().v.size());
 		for (const auto &gift : data.vgifts().v) {
@@ -327,7 +332,7 @@ void InnerWidget::validateButtons() {
 
 void InnerWidget::showGift(int index) {
 	_window->show(Box(
-		::Settings::UserStarGiftBox,
+		::Settings::SavedStarGiftBox,
 		_window,
 		_peer,
 		_entries[index].gift));

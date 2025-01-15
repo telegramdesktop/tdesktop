@@ -1240,6 +1240,8 @@ void AddStarGiftTable(
 	const auto selfBareId = session->userPeerId().value;
 	const auto giftToSelf = (peerId == session->userPeerId())
 		&& (entry.in || entry.bareGiftOwnerId == selfBareId);
+	const auto giftToChannel = entry.giftSavedId
+		&& peerIsChannel(PeerId(entry.bareGiftListPeerId));
 
 	const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
 	const auto showTooltip = [=](
@@ -1336,22 +1338,38 @@ void AddStarGiftTable(
 			table,
 			tr::lng_gift_unique_owner(),
 			rpl::single(TextWithEntities{ unique->ownerName }));
-	} else if (peerId) {
-		if (!giftToSelf) {
-			const auto user = session->data().peer(peerId)->asUser();
-			const auto withSendButton = entry.in && user && !user->isBot();
-			auto send = withSendButton ? tr::lng_gift_send_small() : nullptr;
-			auto handler = send ? Fn<void()>([=] {
-				if (const auto window = show->resolveWindow()) {
-					Ui::ShowStarGiftBox(window, user);
-				}
-			}) : nullptr;
+	} else if (giftToChannel) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer_in(),
+			(entry.bareActorId
+				? MakePeerTableValue(table, show, PeerId(entry.bareActorId))
+				: MakeHiddenPeerTableValue(table)),
+			st::giveawayGiftCodePeerMargin);
+		if (!entry.fromGiftsList) {
 			AddTableRow(
 				table,
-				tr::lng_credits_box_history_entry_peer_in(),
-				MakePeerTableValue(table, show, peerId, send, handler),
+				tr::lng_credits_box_history_entry_peer(),
+				MakePeerTableValue(
+					table,
+					show,
+					PeerId(entry.bareGiftListPeerId)),
 				st::giveawayGiftCodePeerMargin);
 		}
+	} else if (peerId && !giftToSelf) {
+		const auto user = session->data().peer(peerId)->asUser();
+		const auto withSendButton = entry.in && user && !user->isBot();
+		auto send = withSendButton ? tr::lng_gift_send_small() : nullptr;
+		auto handler = send ? Fn<void()>([=] {
+			if (const auto window = show->resolveWindow()) {
+				Ui::ShowStarGiftBox(window, user);
+			}
+		}) : nullptr;
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer_in(),
+			MakePeerTableValue(table, show, peerId, send, handler),
+			st::giveawayGiftCodePeerMargin);
 	} else if (!entry.soldOutInfo) {
 		AddTableRow(
 			table,

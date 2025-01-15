@@ -384,6 +384,7 @@ public:
 	[[nodiscard]] bool canCreatePolls() const;
 	[[nodiscard]] bool canCreateTopics() const;
 	[[nodiscard]] bool canManageTopics() const;
+	[[nodiscard]] bool canManageGifts() const;
 	[[nodiscard]] bool canExportChatHistory() const;
 
 	// Returns true if about text was changed.

@@ -122,7 +122,7 @@ not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
 	} else if (const auto slug = std::get_if<InvoiceCredits>(&id.value)) {
 		return slug->session;
 	} else if (const auto gift = std::get_if<InvoiceStarGift>(&id.value)) {
-		return &gift->user->session();
+		return &gift->recipient->session();
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(id.value);
 	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
@@ -385,12 +385,12 @@ MTPInputInvoice Form::inputInvoice() const {
 			MTP_flags((gift->anonymous ? Flag::f_hide_name : Flag(0))
 				| (gift->message.empty() ? Flag(0) : Flag::f_message)
 				| (gift->upgraded ? Flag::f_include_upgrade : Flag(0))),
-			gift->user->inputUser,
+			gift->recipient->input,
 			MTP_long(gift->giftId),
 			MTP_textWithEntities(
 				MTP_string(gift->message.text),
 				Api::EntitiesToMTP(
-					&gift->user->session(),
+					&gift->recipient->session(),
 					gift->message.entities,
 					Api::ConvertOption::SkipLocal)));
 	}

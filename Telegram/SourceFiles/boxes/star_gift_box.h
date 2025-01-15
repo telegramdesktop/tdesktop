@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_star_gift.h"
+
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
@@ -83,7 +85,7 @@ struct StarGiftUpgradeArgs {
 	base::required<uint64> stargiftId;
 	Fn<void(bool)> ready;
 	not_null<PeerData*> peer;
-	MsgId itemId = 0;
+	Data::SavedStarGiftId savedId;
 	int cost = 0;
 	bool canAddSender = false;
 	bool canAddComment = false;

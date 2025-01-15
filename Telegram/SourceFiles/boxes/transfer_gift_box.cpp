@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/transfer_gift_box.h"
 
 #include "apiwrap.h"
+#include "api/api_credits.h"
 #include "base/unixtime.h"
 #include "data/data_star_gift.h"
 #include "data/data_user.h"
@@ -284,7 +285,7 @@ void TransferGift(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> to,
 		std::shared_ptr<Data::UniqueGift> gift,
-		MsgId messageId,
+		Data::SavedStarGiftId savedId,
 		Fn<void(Payments::CheckoutResult)> done) {
 	Expects(to->isUser());
 
@@ -302,8 +303,8 @@ void TransferGift(
 	};
 	if (gift->starsForTransfer <= 0) {
 		session->api().request(MTPpayments_TransferStarGift(
-			MTP_int(messageId.bare),
-			to->asUser()->inputUser
+			Api::InputSavedStarGiftId(savedId),
+			to->input
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
 			formDone(Payments::CheckoutResult::Paid, &result);
@@ -318,8 +319,8 @@ void TransferGift(
 	Ui::RequestStarsFormAndSubmit(
 		window,
 		MTP_inputInvoiceStarGiftTransfer(
-			MTP_int(messageId.bare),
-			to->asUser()->inputUser),
+			Api::InputSavedStarGiftId(savedId),
+			to->input),
 		std::move(formDone));
 }
 
@@ -327,7 +328,7 @@ void ShowTransferToBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Data::UniqueGift> gift,
-		MsgId msgId) {
+		Data::SavedStarGiftId savedId) {
 	const auto stars = gift->starsForTransfer;
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(tr::lng_gift_transfer_title(
@@ -362,7 +363,7 @@ void ShowTransferToBox(
 					}
 				}
 			};
-			TransferGift(controller, peer, gift, msgId, done);
+			TransferGift(controller, peer, gift, savedId, done);
 		};
 
 		Ui::ConfirmBox(box, {
@@ -395,12 +396,12 @@ void ShowTransferToBox(
 void ShowTransferGiftBox(
 		not_null<Window::SessionController*> window,
 		std::shared_ptr<Data::UniqueGift> gift,
-		MsgId msgId) {
+		Data::SavedStarGiftId savedId) {
 	auto controller = std::make_unique<Controller>(
 		window,
 		gift,
 		[=](not_null<PeerData*> peer) {
-			ShowTransferToBox(window, peer, gift, msgId);
+			ShowTransferToBox(window, peer, gift, savedId);
 		});
 	const auto controllerRaw = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {

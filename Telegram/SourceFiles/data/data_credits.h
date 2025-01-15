@@ -66,6 +66,8 @@ struct CreditsHistoryEntry final {
 	uint64 bareGiftStickerId = 0;
 	uint64 bareGiftOwnerId = 0;
 	uint64 bareActorId = 0;
+	uint64 bareGiftListPeerId = 0;
+	uint64 giftSavedId = 0;
 	uint64 stargiftId = 0;
 	std::shared_ptr<UniqueGift> uniqueGift;
 	StarsAmount starrefAmount;
