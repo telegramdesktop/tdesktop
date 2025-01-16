@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "info/profile/info_profile_badge.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/abstract_button.h"
 #include "base/timer.h"
@@ -103,7 +104,8 @@ public:
 	Cover(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer);
+		not_null<PeerData*> peer,
+		Fn<not_null<QWidget*>()> parentForTooltip = nullptr);
 	Cover(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
@@ -124,13 +126,16 @@ public:
 	[[nodiscard]] std::optional<QImage> updatedPersonalPhoto() const;
 
 private:
+	class BadgeTooltip;
+
 	Cover(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
 		Role role,
-		rpl::producer<QString> title);
+		rpl::producer<QString> title,
+		Fn<not_null<QWidget*>()> parentForTooltip);
 
 	void setupShowLastSeen();
 	void setupChildGeometry();
@@ -139,7 +144,9 @@ private:
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
 	void refreshUploadPhotoOverlay();
+	void setupUniqueBadgeTooltip();
 	void setupChangePersonal();
+	void hideBadgeTooltip();
 
 	const style::InfoProfileCover &_st;
 
@@ -148,9 +155,16 @@ private:
 	const not_null<PeerData*> _peer;
 	const std::unique_ptr<EmojiStatusPanel> _emojiStatusPanel;
 	const std::unique_ptr<Badge> _botVerify;
+	rpl::variable<Badge::Content> _badgeContent;
 	const std::unique_ptr<Badge> _badge;
 	const std::unique_ptr<Badge> _verified;
 	rpl::variable<int> _onlineCount;
+
+	const Fn<not_null<QWidget*>()> _parentForTooltip;
+	std::unique_ptr<BadgeTooltip> _badgeTooltip;
+	std::vector<std::unique_ptr<BadgeTooltip>> _badgeOldTooltips;
+	base::Timer _badgeTooltipHide;
+	uint64 _badgeCollectibleId = 0;
 
 	const object_ptr<Ui::UserpicButton> _userpic;
 	Ui::UserpicButton *_changePersonal = nullptr;

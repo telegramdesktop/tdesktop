@@ -338,6 +338,10 @@ rpl::producer<Wrap> Controller::wrapValue() const {
 	return _widget->wrapValue();
 }
 
+not_null<Ui::RpWidget*> Controller::wrapWidget() const {
+	return _widget;
+}
+
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peer() == peer()
