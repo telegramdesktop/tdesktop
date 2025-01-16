@@ -461,6 +461,7 @@ private:
 	void handleChatListEntryRefreshes();
 	void moveSearchIn();
 	void dragPinnedFromTouch();
+	[[nodiscard]] bool hasChatTypeFilter() const;
 
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
