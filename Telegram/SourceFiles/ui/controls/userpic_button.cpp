@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/userpic_button.h"
 
+#include "apiwrap.h"
+#include "api/api_user_privacy.h"
 #include "base/call_delayed.h"
+#include "boxes/edit_privacy_box.h"
 #include "boxes/peers/edit_peer_info_box.h" // EditPeerInfoBox::Available.
 #include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
@@ -36,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
 #include "settings/settings_calls.h" // Calls::AddCameraSubsection.
+#include "settings/settings_privacy_controllers.h"
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "ui/widgets/popup_menu.h"
@@ -404,6 +408,26 @@ void UserpicButton::choosePhotoLocally() {
 			addUserpicBuilder(ChosenType::Set);
 		} else {
 			chooseFile(ChosenType::Set);
+		}
+		if (user && user->isSelf()) {
+			const auto key = Api::UserPrivacy::Key::ProfilePhoto;
+			const auto text = tr::lng_edit_privacy_profile_photo_public_set(
+				tr::now);
+			user->session().api().userPrivacy().reload(key);
+			_menu->addAction(std::move(text), [=] {
+				using namespace Api;
+				user->session().api().userPrivacy().value(
+					key
+				) | rpl::take(
+					1
+				) | rpl::start_with_next([=](const UserPrivacy::Rule &value) {
+					using namespace Settings;
+					_window->show(Box<EditPrivacyBox>(
+						_window->sessionController(),
+						std::make_unique<ProfilePhotoPrivacyController>(),
+						value));
+				}, _menu->lifetime());
+			}, &st::menuIconProfile);
 		}
 	}
 	_menu->popup(QCursor::pos());

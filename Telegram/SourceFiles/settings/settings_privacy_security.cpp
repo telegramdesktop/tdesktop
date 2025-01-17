@@ -1022,8 +1022,7 @@ not_null<Ui::SettingsButton*> AddPrivacyButton(
 		std::move(label),
 		PrivacyString(session, key),
 		stOverride ? *stOverride : st::settingsButtonNoIcon,
-		std::move(descriptor)
-	);
+		std::move(descriptor));
 	button->addClickHandler([=] {
 		*shower = session->api().userPrivacy().value(
 			key
