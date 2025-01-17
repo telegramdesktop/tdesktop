@@ -241,6 +241,17 @@ BubbleWidget::BubbleWidget(
 		) | rpl::start_with_next([=](BubbleRowState state) {
 			animateTo(state);
 		}, lifetime());
+
+		parent->widthValue() | rpl::start_with_next([=](int w) {
+			if (!_appearanceAnimation.animating()) {
+				const auto x = base::SafeRound(
+					w * _state.current().ratio - width() / 2);
+				const auto padding = _spaceForDeflection.width();
+				moveToLeft(
+					std::clamp(int(x), -padding, w - width() + padding),
+					y());
+			}
+		}, lifetime());
 	}, lifetime());
 }
 
