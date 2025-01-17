@@ -1115,7 +1115,7 @@ void DraftOptionsBox(
 			? tr::lng_settings_save()
 			: tr::lng_reply_quote_selected();
 	}) | rpl::flatten_latest();
-	box->addButton(std::move(save), [=] {
+	const auto submit = [=] {
 		if (state->quote.current().overflown) {
 			show->showToast({
 				.title = tr::lng_reply_quote_long_title(tr::now),
@@ -1125,11 +1125,21 @@ void DraftOptionsBox(
 			const auto options = state->forward.options;
 			finish(resolveReply(), state->webpage, options);
 		}
-	});
+	};
+	box->addButton(std::move(save), submit);
 
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
 	});
+
+	box->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress) {
+			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+				submit();
+			}
+		}
+	}, box->lifetime());
 
 	args.show->session().data().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {

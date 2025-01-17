@@ -209,14 +209,8 @@ public:
 	Private(Manager *manager);
 
 	void showNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		Ui::PeerUserpicView &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options);
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView);
 	void clearAll();
 	void clearFromItem(not_null<HistoryItem*> item);
 	void clearFromTopic(not_null<Data::ForumTopic*> topic);
@@ -296,23 +290,18 @@ Manager::Private::Private(Manager *manager)
 }
 
 void Manager::Private::showNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		Ui::PeerUserpicView &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) {
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView) {
 	@autoreleasepool {
 
+	const auto peer = info.peer;
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
 	if ([notification respondsToSelector:@selector(setIdentifier:)]) {
 		auto identifier = _managerIdString
 			+ '_'
 			+ QString::number(peer->id.value)
 			+ '_'
-			+ QString::number(msgId.bare);
+			+ QString::number(info.itemId.bare);
 		auto identifierValue = Q2NSString(identifier);
 		[notification setIdentifier:identifierValue];
 	}
@@ -322,30 +311,35 @@ void Manager::Private::showNotification(
 			@"session",
 			[NSNumber numberWithUnsignedLongLong:peer->id.value],
 			@"peer",
-			[NSNumber numberWithLongLong:topicRootId.bare],
+			[NSNumber numberWithLongLong:info.topicRootId.bare],
 			@"topic",
-			[NSNumber numberWithLongLong:msgId.bare],
+			[NSNumber numberWithLongLong:info.itemId.bare],
 			@"msgid",
 			[NSNumber numberWithUnsignedLongLong:_managerId],
 			@"manager",
 			nil]];
 
-	[notification setTitle:Q2NSString(title)];
-	[notification setSubtitle:Q2NSString(subtitle)];
-	[notification setInformativeText:Q2NSString(msg)];
-	if (!options.hideNameAndPhoto
+	[notification setTitle:Q2NSString(info.title)];
+	[notification setSubtitle:Q2NSString(info.subtitle)];
+	[notification setInformativeText:Q2NSString(info.message)];
+	if (!info.options.hideNameAndPhoto
 		&& [notification respondsToSelector:@selector(setContentImage:)]) {
 		NSImage *img = Q2NSImage(
 			Window::Notifications::GenerateUserpic(peer, userpicView));
 		[notification setContentImage:img];
 	}
 
-	if (!options.hideReplyButton
+	if (!info.options.hideReplyButton
 		&& [notification respondsToSelector:@selector(setHasReplyButton:)]) {
 		[notification setHasReplyButton:YES];
 	}
 
-	[notification setSoundName:nil];
+	const auto sound = info.soundPath ? info.soundPath() : QString();
+	if (!sound.isEmpty()) {
+		[notification setSoundName:Q2NSString(sound)];
+	} else {
+		[notification setSoundName:nil];
+	}
 
 	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 	[center deliverNotification:notification];
@@ -572,23 +566,9 @@ Manager::Manager(Window::Notifications::System *system) : NativeManager(system)
 Manager::~Manager() = default;
 
 void Manager::doShowNativeNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		Ui::PeerUserpicView &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) {
-	_private->showNotification(
-		peer,
-		topicRootId,
-		userpicView,
-		msgId,
-		title,
-		subtitle,
-		msg,
-		options);
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView) {
+	_private->showNotification(std::move(info), userpicView);
 }
 
 void Manager::doClearAllFast() {
@@ -620,11 +600,11 @@ bool Manager::doSkipToast() const {
 }
 
 void Manager::doMaybePlaySound(Fn<void()> playSound) {
-	_private->invokeIfNotFocused(std::move(playSound));
+	// Play through native notification system.
 }
 
 void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
-	_private->invokeIfNotFocused(std::move(flashBounce));
+	flashBounce();
 }
 
 } // namespace Notifications

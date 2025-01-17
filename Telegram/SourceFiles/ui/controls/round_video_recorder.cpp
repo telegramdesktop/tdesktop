@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/concurrent_timer.h"
 #include "base/debug_log.h"
+#include "ffmpeg/ffmpeg_bytes_io_wrap.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio_capture.h"
 #include "ui/image/image_prepare.h"
@@ -39,39 +40,6 @@ constexpr auto kSkipFrames = 8;
 constexpr auto kMinScale = 0.7;
 
 using namespace FFmpeg;
-
-struct ReadBytesWrap {
-	int64 size = 0;
-	int64 offset = 0;
-	const uchar *data = nullptr;
-
-	static int Read(void *opaque, uint8_t *buf, int buf_size) {
-		auto wrap = static_cast<ReadBytesWrap*>(opaque);
-		const auto toRead = std::min(
-			int64(buf_size),
-			wrap->size - wrap->offset);
-		if (toRead > 0) {
-			memcpy(buf, wrap->data + wrap->offset, toRead);
-			wrap->offset += toRead;
-		}
-		return toRead;
-	};
-	static int64_t Seek(void *opaque, int64_t offset, int whence) {
-		auto wrap = static_cast<ReadBytesWrap*>(opaque);
-		auto updated = int64(-1);
-		switch (whence) {
-		case SEEK_SET: updated = offset; break;
-		case SEEK_CUR: updated = wrap->offset + offset; break;
-		case SEEK_END: updated = wrap->size + offset; break;
-		case AVSEEK_SIZE: return wrap->size; break;
-		}
-		if (updated < 0 || updated > wrap->size) {
-			return -1;
-		}
-		wrap->offset = updated;
-		return updated;
-	};
-};
 
 [[nodiscard]] int MinithumbSize() {
 	const auto full = st::historySendSize.height();
@@ -106,22 +74,6 @@ private:
 		std::array<int64, kMaxStreams> lastPts = { 0 };
 		std::array<int64, kMaxStreams> lastDts = { 0 };
 	};
-
-#if DA_FFMPEG_CONST_WRITE_CALLBACK
-	static int Write(void *opaque, const uint8_t *_buf, int buf_size) {
-		uint8_t *buf = const_cast<uint8_t *>(_buf);
-#else
-	static int Write(void *opaque, uint8_t *buf, int buf_size) {
-#endif
-		return static_cast<Private*>(opaque)->write(buf, buf_size);
-	}
-
-	static int64_t Seek(void *opaque, int64_t offset, int whence) {
-		return static_cast<Private*>(opaque)->seek(offset, whence);
-	}
-
-	int write(uint8_t *buf, int buf_size);
-	int64_t seek(int64_t offset, int whence);
 
 	void initEncoding();
 	void initCircleMask();
@@ -188,8 +140,7 @@ private:
 	crl::time _firstAudioChunkFinished = 0;
 	crl::time _firstVideoFrameTime = 0;
 
-	QByteArray _result;
-	int64_t _resultOffset = 0;
+	WriteBytesWrap _result;
 	crl::time _resultDuration = 0;
 	bool _finished = false;
 
@@ -236,49 +187,12 @@ RoundVideoRecorder::Private::~Private() {
 	finishEncoding();
 }
 
-int RoundVideoRecorder::Private::write(uint8_t *buf, int buf_size) {
-	if (const auto total = _resultOffset + int64(buf_size)) {
-		const auto size = int64(_result.size());
-		constexpr auto kReserve = 1024 * 1024;
-		_result.reserve((total / kReserve) * kReserve);
-		const auto overwrite = std::min(
-			size - _resultOffset,
-			int64(buf_size));
-		if (overwrite) {
-			memcpy(_result.data() + _resultOffset, buf, overwrite);
-		}
-		if (const auto append = buf_size - overwrite) {
-			_result.append(
-				reinterpret_cast<const char*>(buf) + overwrite,
-				append);
-		}
-		_resultOffset += buf_size;
-	}
-	return buf_size;
-}
-
-int64_t RoundVideoRecorder::Private::seek(int64_t offset, int whence) {
-	const auto checkedSeek = [&](int64_t offset) {
-		if (offset < 0 || offset > int64(_result.size())) {
-			return int64_t(-1);
-		}
-		return int64_t(_resultOffset = offset);
-	};
-	switch (whence) {
-	case SEEK_SET: return checkedSeek(offset);
-	case SEEK_CUR: return checkedSeek(_resultOffset + offset);
-	case SEEK_END: return checkedSeek(int64(_result.size()) + offset);
-	case AVSEEK_SIZE: return int64(_result.size());
-	}
-	return -1;
-}
-
 void RoundVideoRecorder::Private::initEncoding() {
 	_format = MakeWriteFormatPointer(
-		static_cast<void*>(this),
+		static_cast<void*>(&_result),
 		nullptr,
-		&Private::Write,
-		&Private::Seek,
+		&WriteBytesWrap::Write,
+		&WriteBytesWrap::Seek,
 		"mp4"_q);
 
 	if (!initVideo()) {
@@ -427,10 +341,10 @@ bool RoundVideoRecorder::Private::initAudio() {
 		&_swrContext);
 #else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_swrContext = MakeSwresamplePointer(
-		&_audioCodec->ch_layout,
+		&_audioCodec->channel_layout,
 		AV_SAMPLE_FMT_S16,
 		_audioCodec->sample_rate,
-		&_audioCodec->ch_layout,
+		&_audioCodec->channel_layout,
 		_audioCodec->sample_fmt,
 		_audioCodec->sample_rate,
 		&_swrContext);
@@ -487,7 +401,7 @@ RoundVideoResult RoundVideoRecorder::Private::finish() {
 	}
 	finishEncoding();
 	auto result = appendToPrevious({
-		.content = base::take(_result),
+		.content = base::take(_result.content),
 		.duration = base::take(_resultDuration),
 		//.waveform = {},
 		.minithumbs = base::take(_minithumbs),
@@ -518,10 +432,10 @@ RoundVideoResult RoundVideoRecorder::Private::appendToPrevious(
 	}
 
 	auto output = MakeWriteFormatPointer(
-		static_cast<void*>(this),
+		static_cast<void*>(&_result),
 		nullptr,
-		&Private::Write,
-		&Private::Seek,
+		&WriteBytesWrap::Write,
+		&WriteBytesWrap::Seek,
 		"mp4"_q);
 
 	for (auto i = 0; i != input1->nb_streams; ++i) {
@@ -562,7 +476,7 @@ RoundVideoResult RoundVideoRecorder::Private::appendToPrevious(
 		fail(Error::Encoding);
 		return {};
 	}
-	video.content = base::take(_result);
+	video.content = base::take(_result.content);
 	video.duration += _previous.duration;
 	return video;
 }
@@ -685,7 +599,7 @@ void RoundVideoRecorder::Private::deinitEncoding() {
 	_firstAudioChunkFinished = 0;
 	_firstVideoFrameTime = 0;
 
-	_resultOffset = 0;
+	_result.offset = 0;
 
 	_maxLevelSinceLastUpdate = 0;
 	_lastUpdateDuration = 0;
