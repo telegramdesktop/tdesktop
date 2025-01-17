@@ -32,6 +32,7 @@ public:
 		QString query;
 		PeerData *from = nullptr;
 		std::vector<Data::ReactionId> tags;
+		MsgId topMsgId;
 
 		friend inline bool operator==(
 			const Request &,

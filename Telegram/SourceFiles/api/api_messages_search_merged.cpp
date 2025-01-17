@@ -64,6 +64,10 @@ MessagesSearchMerged::MessagesSearchMerged(not_null<History*> history)
 	}
 }
 
+void MessagesSearchMerged::disableMigrated() {
+	_migratedSearch = std::nullopt;
+}
+
 void MessagesSearchMerged::addFound(const FoundMessages &data) {
 	for (const auto &message : data.messages) {
 		_concatedFound.messages.push_back(message);

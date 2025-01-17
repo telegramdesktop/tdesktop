@@ -103,6 +103,7 @@ void MessagesSearch::searchRequest() {
 		_requestId = _history->session().api().request(MTPmessages_Search(
 			MTP_flags((fromPeer ? Flag::f_from_id : Flag())
 				| (savedPeer ? Flag::f_saved_peer_id : Flag())
+				| (_request.topMsgId ? Flag::f_top_msg_id : Flag())
 				| (_request.tags.empty() ? Flag() : Flag::f_saved_reaction)),
 			_history->peer->input,
 			MTP_string(_request.query),
@@ -111,7 +112,7 @@ void MessagesSearch::searchRequest() {
 			MTP_vector_from_range(_request.tags | ranges::views::transform(
 				Data::ReactionToMTP
 			)),
-			MTPint(), // top_msg_id
+			MTP_int(_request.topMsgId), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date

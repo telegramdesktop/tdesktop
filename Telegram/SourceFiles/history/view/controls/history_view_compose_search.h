@@ -33,6 +33,8 @@ public:
 	void setInnerFocus();
 	void setQuery(const QString &query);
 
+	void setTopMsgId(MsgId topMsgId);
+
 	struct Activation {
 		not_null<HistoryItem*> item;
 		QString query;
