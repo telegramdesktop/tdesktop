@@ -307,6 +307,7 @@ void InnerWidget::fill() {
 			delete Ui::VerticalLayout::widgetAt(0);
 		}
 		load();
+		_showFinished.fire({});
 	});
 
 	{
