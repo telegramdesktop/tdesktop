@@ -1244,7 +1244,9 @@ void Controller::fillManageSection() {
 		? channel->canViewMembers()
 		: chat->amIn();
 	const auto canViewKicked = isChannel
-		&& (channel->isBroadcast() || channel->isGigagroup());
+		&& (channel->isMegagroup()
+			? (channel->isBroadcast() || channel->isGigagroup())
+			: true);
 	const auto hasRecentActions = isChannel
 		&& (channel->hasAdminRights() || channel->amCreator());
 	const auto hasStarRef = Info::BotStarRef::Join::Allowed(_peer)
