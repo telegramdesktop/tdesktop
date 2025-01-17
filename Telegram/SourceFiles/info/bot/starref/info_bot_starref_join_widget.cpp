@@ -1045,6 +1045,8 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 		_back->entity()->addClickHandler([=] {
 			controller->showBackFromStack();
 		});
+		_back->entity()->setRippleColorOverride(
+			&st::universalRippleAnimation.color);
 		_back->toggledValue(
 		) | rpl::start_with_next([=](bool toggled) {
 			const auto &st = isLayer ? st::infoLayerTopBar : st::infoTopBar;
@@ -1063,6 +1065,8 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 				controller->parentController()->hideLayer();
 				controller->parentController()->hideSpecialLayer();
 			});
+			_close->setRippleColorOverride(
+				&st::universalRippleAnimation.color);
 			raw->widthValue(
 			) | rpl::start_with_next([=] {
 				_close->moveToRight(0, 0);
