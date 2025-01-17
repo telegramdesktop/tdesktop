@@ -1197,7 +1197,7 @@ void Filler::addCreatePoll() {
 
 void Filler::addThemeEdit() {
 	const auto user = _peer->asUser();
-	if (!user || user->isBot() || user->isInaccessible()) {
+	if (!user || user->isInaccessible()) {
 		return;
 	}
 	const auto controller = _controller;
