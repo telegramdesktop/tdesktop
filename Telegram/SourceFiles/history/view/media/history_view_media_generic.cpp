@@ -562,7 +562,7 @@ void StickerWithBadgePart::paintBadge(
 void StickerWithBadgePart::validateBadge(
 		const PaintContext &context) const {
 	const auto stm = context.messageStyle();
-	const auto &badgeFg = stm->historyFileRadialFg->c;
+	const auto &badgeFg = st::premiumButtonFg->c;
 	const auto &badgeBorder = stm->msgBg->c;
 	if (!_badge.isNull()
 		&& _badgeFg == badgeFg
