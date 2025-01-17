@@ -6624,7 +6624,13 @@ void OverlayWidget::updateHeader() {
 		} else if (_message) {
 			_headerText = tr::lng_mediaview_single_photo(tr::now);
 		} else if (_user) {
-			_headerText = tr::lng_mediaview_profile_photo(tr::now);
+			if (_user->hasPersonalPhoto()
+				&& _photo
+				&& (_photo->id == _user->userpicPhotoId())) {
+				_headerText = tr::lng_mediaview_profile_photo_by_you(tr::now);
+			} else {
+				_headerText = tr::lng_mediaview_profile_photo(tr::now);
+			}
 		} else if ((_history && _history->peer->isBroadcast())
 			|| (_peer && _peer->isChannel() && !_peer->isMegagroup())) {
 			_headerText = tr::lng_mediaview_channel_photo(tr::now);
