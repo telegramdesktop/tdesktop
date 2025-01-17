@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h" // megagroupSizeMax
 #include "apiwrap.h"
 #include "settings/settings_common.h"
 #include "styles/style_layers.h"
@@ -49,7 +50,6 @@ namespace {
 
 constexpr auto kSlowmodeValues = 7;
 constexpr auto kBoostsUnrestrictValues = 5;
-constexpr auto kSuggestGigagroupThreshold = 199000;
 constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 
 [[nodiscard]] auto Dependencies(PowerSaving::Flags)
@@ -1189,8 +1189,11 @@ void ShowEditPeerPermissionsBox(
 	});
 
 	if (const auto channel = peer->asChannel()) {
+		constexpr auto kThresholdOffset = int(1000);
+		const auto threshold =  -kThresholdOffset
+			+ channel->session().serverConfig().megagroupSizeMax;
 		if (channel->amCreator()
-			&& channel->membersCount() >= kSuggestGigagroupThreshold) {
+			&& channel->membersCount() >= threshold) {
 			AddSuggestGigagroup(
 				inner,
 				AboutGigagroupCallback(
