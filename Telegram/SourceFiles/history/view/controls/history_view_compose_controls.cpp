@@ -1035,13 +1035,15 @@ void ComposeControls::setAutocompleteBoundingRect(QRect rect) {
 rpl::producer<int> ComposeControls::height() const {
 	using namespace rpl::mappers;
 	return rpl::conditional(
-		_writeRestriction.value() | rpl::map(!_1),
+		rpl::combine(
+			_writeRestriction.value(),
+			_hidden.value()) | rpl::map(!_1 && !_2),
 		_wrap->heightValue(),
 		rpl::single(_st.attach.height));
 }
 
 int ComposeControls::heightCurrent() const {
-	return _writeRestriction.current()
+	return (_writeRestriction.current() || _hidden.current())
 		? _st.attach.height
 		: _wrap->height();
 }

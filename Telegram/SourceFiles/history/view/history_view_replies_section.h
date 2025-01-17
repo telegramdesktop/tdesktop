@@ -64,6 +64,7 @@ class Element;
 class TopBarWidget;
 class RepliesMemento;
 class ComposeControls;
+class ComposeSearch;
 class SendActionPainter;
 class StickerToast;
 class TopicReopenBar;
@@ -345,6 +346,7 @@ private:
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<ComposeControls> _composeControls;
+	std::unique_ptr<ComposeSearch> _composeSearch;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
 	std::unique_ptr<TopicReopenBar> _topicReopenBar;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
