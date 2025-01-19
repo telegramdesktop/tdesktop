@@ -591,6 +591,7 @@ RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 		--enable-encoder=aac \
 		--enable-encoder=libopenh264 \
 		--enable-encoder=libopus \
+		--enable-encoder=pcm_s16le \
 		--enable-filter=atempo \
 		--enable-parser=aac \
 		--enable-parser=aac_latm \
@@ -616,6 +617,7 @@ RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 		--enable-muxer=mp4 \
 		--enable-muxer=ogg \
 		--enable-muxer=opus \
+		--enable-muxer=wav \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/ffmpeg-cache" install \
 	&& cd .. \

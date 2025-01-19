@@ -457,7 +457,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 7c8c828b07
+    git checkout 8828ed7f66
 """)
 
 stage('msys64', """
@@ -1305,6 +1305,7 @@ depends:yasm/yasm
         --enable-encoder=aac \
         --enable-encoder=libopus \
         --enable-encoder=libopenh264 \
+        --enable-encoder=pcm_s16le \
         --enable-filter=atempo \
         --enable-parser=aac \
         --enable-parser=aac_latm \
@@ -1329,7 +1330,8 @@ depends:yasm/yasm
         --enable-demuxer=wav \
         --enable-muxer=mp4 \
         --enable-muxer=ogg \
-        --enable-muxer=opus
+        --enable-muxer=opus \
+        --enable-muxer=wav
     }
 
     configureFFmpeg arm64
