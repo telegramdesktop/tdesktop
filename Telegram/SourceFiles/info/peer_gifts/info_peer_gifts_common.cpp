@@ -50,7 +50,11 @@ std::strong_ordering operator<=>(const GiftBadge &a, const GiftBadge &b) {
 	if (result3 != std::strong_ordering::equal) {
 		return result3;
 	}
-	return a.fg.rgb() <=> b.fg.rgb();
+	const auto result4 = (a.fg.rgb() <=> b.fg.rgb());
+	if (result4 != std::strong_ordering::equal) {
+		return result4;
+	}
+	return a.gradient <=> b.gradient;
 }
 
 GiftButton::GiftButton(
@@ -381,8 +385,10 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			const auto kMinus = QChar(0x2212);
 			return GiftBadge{
 				.text = kMinus + QString::number(data.discountPercent) + '%',
-				.bg1 = st::attentionButtonFg->c,
+				.bg1 = st::premiumButtonBg3->c,
+				.bg2 = st::premiumButtonBg2->c,
 				.fg = st::windowBg->c,
+				.gradient = true,
 				.small = true,
 			};
 		}
@@ -686,18 +692,31 @@ QImage ValidateRotatedBadge(const GiftBadge &badge, int added) {
 		auto p = QPainter(&result);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(badge.bg1);
 
 		p.save();
 		p.translate(textpos);
 		p.rotate(45.);
 		const auto rect = QRect(-5 * twidth, 0, twidth * 12, font->height);
-		p.drawRect(rect);
-		if (badge.bg2.alpha() > 0) {
-			p.setOpacity(0.5);
-			p.setBrush(badge.bg2);
+		if (badge.gradient) {
+			const auto skip = font->height / M_SQRT2;
+			auto gradient = QLinearGradient(
+				QPointF(-twidth - skip, 0),
+				QPointF(twidth + skip, 0));
+			gradient.setStops({
+				{ 0., badge.bg1 },
+				{ 1., badge.bg2 },
+			});
+			p.setBrush(gradient);
 			p.drawRect(rect);
-			p.setOpacity(1.);
+		} else {
+			p.setBrush(badge.bg1);
+			p.drawRect(rect);
+			if (badge.bg2.alpha() > 0) {
+				p.setOpacity(0.5);
+				p.setBrush(badge.bg2);
+				p.drawRect(rect);
+				p.setOpacity(1.);
+			}
 		}
 		p.restore();
 

@@ -77,6 +77,7 @@ struct GiftBadge {
 	QColor bg1;
 	QColor bg2 = QColor(0, 0, 0, 0);
 	QColor fg;
+	bool gradient = false;
 	bool small = false;
 
 	explicit operator bool() const {
@@ -118,7 +119,6 @@ class GiftButton final : public Ui::AbstractButton {
 public:
 	GiftButton(QWidget *parent, not_null<GiftButtonDelegate*> delegate);
 	~GiftButton();
-
 
 	using Mode = GiftButtonMode;
 	void setDescriptor(const GiftDescriptor &descriptor, Mode mode);
