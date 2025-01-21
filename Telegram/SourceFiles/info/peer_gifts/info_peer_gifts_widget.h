@@ -26,6 +26,17 @@ struct ListState {
 	QString offset;
 };
 
+struct Filter {
+	bool sortByValue : 1 = false;
+	bool skipUnlimited : 1 = false;
+	bool skipLimited : 1 = false;
+	bool skipUnique : 1 = false;
+	bool skipSaved : 1 = false;
+	bool skipUnsaved : 1 = false;
+
+	friend inline bool operator==(Filter, Filter) = default;
+};
+
 class InnerWidget;
 
 class Memento final : public ContentMemento {
@@ -65,6 +76,8 @@ public:
 		const QRect &geometry,
 		not_null<Memento*> memento);
 
+	void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) override;
+
 	rpl::producer<QString> title() override;
 
 	rpl::producer<bool> desiredBottomShadowVisibility() override;
@@ -82,6 +95,7 @@ private:
 	InnerWidget *_inner = nullptr;
 	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
 	rpl::variable<bool> _hasPinnedToBottom;
+	rpl::variable<Filter> _filter;
 	bool _shown = false;
 
 };

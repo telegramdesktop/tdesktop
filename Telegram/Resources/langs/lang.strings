@@ -2131,6 +2131,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_peer_gifts_about_mine" = "These gifts were sent to you by other users. Click on a gift to convert it to Stars or change its privacy settings.";
 "lng_peer_gifts_notify" = "Notify About New Gifts";
 "lng_peer_gifts_notify_enabled" = "You will receive a message from Telegram when your channel receives a gift.";
+"lng_peer_gifts_filter_by_value" = "Sort by Value";
+"lng_peer_gifts_filter_by_date" = "Sort by Date";
+"lng_peer_gifts_filter_unlimited" = "Unlimited";
+"lng_peer_gifts_filter_limited" = "Limited";
+"lng_peer_gifts_filter_unique" = "Unique";
+"lng_peer_gifts_filter_saved" = "Displayed";
+"lng_peer_gifts_filter_unsaved" = "Hidden";
 
 "lng_premium_gift_duration_months#one" = "for {count} month";
 "lng_premium_gift_duration_months#other" = "for {count} months";
