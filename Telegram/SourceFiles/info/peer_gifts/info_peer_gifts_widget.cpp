@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 
 #include "api/api_premium.h"
+#include "apiwrap.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -16,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -24,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_credits_graphics.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h" // boxRadius
 #include "styles/style_credits.h" // giftBoxPadding
 
 namespace Info::PeerGifts {
@@ -57,6 +61,9 @@ public:
 
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
+	}
+	[[nodiscard]] rpl::producer<bool> notifyEnabled() const {
+		return _notifyEnabled.events();
 	}
 
 	void saveState(not_null<Memento*> memento);
@@ -98,6 +105,7 @@ private:
 	QString _offset;
 	bool _allLoaded = false;
 
+	rpl::event_stream<bool> _notifyEnabled;
 	std::vector<View> _views;
 	int _viewsForWidth = 0;
 	int _viewsFromRow = 0;
@@ -119,22 +127,23 @@ InnerWidget::InnerWidget(
 , _window(controller->parentController())
 , _delegate(_window, GiftButtonMode::Minimal)
 , _controller(controller)
-, _about(std::make_unique<Ui::FlatLabel>(
-	this,
-	(peer->isSelf()
-		? tr::lng_peer_gifts_about_mine(Ui::Text::RichLangValue)
-		: tr::lng_peer_gifts_about(
-			lt_user,
-			rpl::single(Ui::Text::Bold(peer->shortName())),
-			Ui::Text::RichLangValue)),
-	st::giftListAbout))
+, _about((!peer->isSelf() && peer->canManageGifts())
+	? nullptr
+	: std::make_unique<Ui::FlatLabel>(
+		this,
+		(peer->isSelf()
+			? tr::lng_peer_gifts_about_mine(Ui::Text::RichLangValue)
+			: tr::lng_peer_gifts_about(
+				lt_user,
+				rpl::single(Ui::Text::Bold(peer->shortName())),
+				Ui::Text::RichLangValue)),
+		st::giftListAbout))
 , _peer(peer)
 , _totalCount(_peer->peerGiftsCount())
 , _api(&_peer->session().mtp()) {
 	_singleMin = _delegate.buttonSize();
 
-	const auto channel = peer->asBroadcast();
-	if (peer->isSelf() || (channel && channel->canManageGifts())) {
+	if (peer->canManageGifts()) {
 		subscribeToUpdates();
 	}
 }
@@ -196,11 +205,15 @@ void InnerWidget::visibleTopBottomUpdated(
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	const auto aboutSize = _about->size().grownBy(st::giftListAboutMargin);
+	const auto aboutSize = _about
+		? _about->size().grownBy(st::giftListAboutMargin)
+		: QSize();
 	const auto skips = QMargins(0, 0, 0, aboutSize.height());
 	p.fillRect(rect().marginsRemoved(skips), st::boxDividerBg->c);
 	paintTop(p);
-	paintBottom(p, skips.bottom());
+	if (const auto bottom = skips.bottom()) {
+		paintBottom(p, bottom);
+	}
 }
 
 void InnerWidget::loadMore() {
@@ -208,8 +221,7 @@ void InnerWidget::loadMore() {
 		return;
 	}
 	using Flag = MTPpayments_GetSavedStarGifts::Flag;
-	const auto withUnsaved = _peer->isSelf()
-		|| (_peer->isChannel() && _peer->asChannel()->canManageGifts());
+	const auto withUnsaved = _peer->canManageGifts();
 	_loadMoreRequestId = _api.request(MTPpayments_GetSavedStarGifts(
 		MTP_flags(withUnsaved ? Flag() : Flag::f_exclude_unsaved),
 		_peer->input,
@@ -218,6 +230,9 @@ void InnerWidget::loadMore() {
 	)).done([=](const MTPpayments_SavedStarGifts &result) {
 		_loadMoreRequestId = 0;
 		const auto &data = result.data();
+		if (const auto enabled = data.vchat_notifications_enabled()) {
+			_notifyEnabled.fire(mtpIsTrue(*enabled));
+		}
 		if (const auto next = data.vnext_offset()) {
 			_offset = qs(*next);
 		} else {
@@ -361,10 +376,12 @@ int InnerWidget::resizeGetHeight(int width) {
 
 	auto result = padding.bottom() * 2 + rows * (singleh + skiph) - skiph;
 
-	const auto margin = st::giftListAboutMargin;
-	_about->resizeToWidth(width - margin.left() - margin.right());
-	_about->moveToLeft(margin.left(), result + margin.top());
-	result += margin.top() + _about->height() + margin.bottom();
+	if (const auto about = _about.get()) {
+		const auto margin = st::giftListAboutMargin;
+		about->resizeToWidth(width - margin.left() - margin.right());
+		about->moveToLeft(margin.left(), result + margin.top());
+		result += margin.top() + about->height() + margin.bottom();
+	}
 
 	return result;
 }
@@ -412,14 +429,89 @@ Widget::Widget(
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer)
 : ContentWidget(parent, controller) {
-	_inner = setInnerWidget(object_ptr<InnerWidget>(
+	_inner = setInnerWidget(
+		object_ptr<InnerWidget>(this, controller, peer));
+	_inner->notifyEnabled(
+	) | rpl::take(1) | rpl::start_with_next([=](bool enabled) {
+		setupNotifyCheckbox(enabled);
+	}, _inner->lifetime());
+}
+
+void Widget::showFinished() {
+	_shown = true;
+	if (const auto bottom = _pinnedToBottom.data()) {
+		bottom->toggle(true, anim::type::normal);
+	}
+}
+
+void Widget::setupNotifyCheckbox(bool enabled) {
+	_pinnedToBottom = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		this,
-		controller,
-		peer));
+		object_ptr<Ui::RpWidget>(this));
+	const auto wrap = _pinnedToBottom.data();
+	wrap->toggle(false, anim::type::instant);
+
+	const auto bottom = wrap->entity();
+	bottom->show();
+
+	const auto notify = Ui::CreateChild<Ui::Checkbox>(
+		bottom,
+		tr::lng_peer_gifts_notify(),
+		enabled);
+	notify->show();
+
+	notify->checkedChanges() | rpl::start_with_next([=](bool checked) {
+		const auto api = &controller()->session().api();
+		using Flag = MTPpayments_ToggleChatStarGiftNotifications::Flag;
+		api->request(MTPpayments_ToggleChatStarGiftNotifications(
+			MTP_flags(checked ? Flag::f_enabled : Flag()),
+			_inner->peer()->input
+		)).send();
+	}, notify->lifetime());
+
+	const auto &checkSt = st::defaultCheckbox;
+	const auto checkTop = st::boxRadius + checkSt.margin.top();
+	bottom->widthValue() | rpl::start_with_next([=](int width) {
+		const auto normal = notify->naturalWidth()
+			- checkSt.margin.left()
+			- checkSt.margin.right();
+		notify->resizeToWidth(normal);
+		const auto checkLeft = (width - normal) / 2;
+		notify->moveToLeft(checkLeft, checkTop);
+	}, notify->lifetime());
+
+	notify->heightValue() | rpl::start_with_next([=](int height) {
+		bottom->resize(bottom->width(), st::boxRadius + height);
+	}, notify->lifetime());
+
+	const auto processHeight = [=] {
+		setScrollBottomSkip(wrap->height());
+		wrap->moveToLeft(wrap->x(), height() - wrap->height());
+	};
+
+	_inner->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		wrap->resizeToWidth(s.width());
+		crl::on_main(wrap, processHeight);
+	}, wrap->lifetime());
+
+	rpl::combine(
+		wrap->heightValue(),
+		heightValue()
+	) | rpl::start_with_next(processHeight, wrap->lifetime());
+
+	if (_shown) {
+		wrap->toggle(true, anim::type::normal);
+	}
+	_hasPinnedToBottom = true;
 }
 
 rpl::producer<QString> Widget::title() {
 	return tr::lng_peer_gifts_title();
+}
+
+rpl::producer<bool> Widget::desiredBottomShadowVisibility() {
+	return _hasPinnedToBottom.value();
 }
 
 not_null<PeerData*> Widget::peer() const {

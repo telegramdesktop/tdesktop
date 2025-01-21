@@ -131,7 +131,8 @@ public:
 
 	[[nodiscard]] int scrollBottomSkip() const;
 	[[nodiscard]] rpl::producer<int> scrollBottomSkipValue() const;
-	[[nodiscard]] rpl::producer<bool> desiredBottomShadowVisibility() const;
+	[[nodiscard]] virtual auto desiredBottomShadowVisibility()
+		-> rpl::producer<bool>;
 
 protected:
 	template <typename Widget>

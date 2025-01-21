@@ -659,6 +659,13 @@ bool PeerData::canManageGifts() const {
 	return isSelf();
 }
 
+bool PeerData::canTransferGifts() const {
+	if (const auto channel = asChannel()) {
+		return channel->amCreator();
+	}
+	return isSelf();
+}
+
 bool PeerData::canEditMessagesIndefinitely() const {
 	if (const auto user = asUser()) {
 		return user->isSelf();

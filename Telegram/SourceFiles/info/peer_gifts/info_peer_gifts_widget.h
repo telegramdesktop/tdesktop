@@ -13,6 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class UserData;
 struct PeerListState;
 
+namespace Ui {
+class RpWidget;
+template <typename Widget>
+class SlideWrap;
+} // namespace Ui
+
 namespace Info::PeerGifts {
 
 struct ListState {
@@ -61,13 +67,22 @@ public:
 
 	rpl::producer<QString> title() override;
 
+	rpl::producer<bool> desiredBottomShadowVisibility() override;
+
+	void showFinished() override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
+	void setupNotifyCheckbox(bool enabled);
+
 	InnerWidget *_inner = nullptr;
+	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
+	rpl::variable<bool> _hasPinnedToBottom;
+	bool _shown = false;
 
 };
 

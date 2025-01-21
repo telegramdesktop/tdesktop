@@ -5456,7 +5456,6 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			const auto from = fromId ? peer->owner().peer(fromId) : peer;
 			const auto channel = peer->owner().channel(
 				peerToChannel(giftPeer));
-			Assert(channel != nullptr);
 			result.links.push_back(from->createOpenLink());
 			result.links.push_back(channel->createOpenLink());
 			result.text = tr::lng_action_gift_sent_channel(
@@ -5500,23 +5499,48 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			const MTPDmessageActionStarGiftUnique &action) {
 		auto result = PreparedServiceText();
 		const auto isSelf = _from->isSelf();
+		const auto giftPeer = action.vpeer()
+			? peerFromMTP(*action.vpeer())
+			: PeerId();
+		const auto service = _from->isServiceUser();
+		const auto toChannel = service && peerIsChannel(giftPeer);
 		const auto peer = isSelf ? _history->peer : _from;
-		result.links.push_back(peer->createOpenLink());
-		result.text = _history->peer->isSelf()
-			? tr::lng_action_gift_upgraded_self(
-				tr::now,
-				Ui::Text::WithEntities)
-			: (action.is_upgrade()
-				? (isSelf
-					? tr::lng_action_gift_upgraded_mine
-					: tr::lng_action_gift_upgraded)
-				: (isSelf
-					? tr::lng_action_gift_transferred_mine
-					: tr::lng_action_gift_transferred))(
-						tr::now,
-						lt_user,
-						Ui::Text::Link(peer->shortName(), 1), // Link 1.
-						Ui::Text::WithEntities);
+		if (toChannel) {
+			const auto fromId = action.vfrom_id()
+				? peerFromMTP(*action.vfrom_id())
+				: PeerId();
+			const auto channel = peer->owner().channel(
+				peerToChannel(giftPeer));
+			const auto from = fromId ? peer->owner().peer(fromId) : peer;
+			result.links.push_back(from->createOpenLink());
+			result.links.push_back(channel->createOpenLink());
+			result.text = (action.is_upgrade()
+				? tr::lng_action_gift_upgraded_channel
+				: tr::lng_action_gift_transferred_channel)(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(from->shortName(), 1),
+					lt_channel,
+					Ui::Text::Link(channel->name(), 2),
+					Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(peer->createOpenLink());
+			result.text = _history->peer->isSelf()
+				? tr::lng_action_gift_upgraded_self(
+					tr::now,
+					Ui::Text::WithEntities)
+				: (action.is_upgrade()
+					? (isSelf
+						? tr::lng_action_gift_upgraded_mine
+						: tr::lng_action_gift_upgraded)
+					: (isSelf
+						? tr::lng_action_gift_transferred_mine
+						: tr::lng_action_gift_transferred))(
+							tr::now,
+							lt_user,
+							Ui::Text::Link(peer->shortName(), 1), // Link 1.
+							Ui::Text::WithEntities);
+		}
 		return result;
 	};
 

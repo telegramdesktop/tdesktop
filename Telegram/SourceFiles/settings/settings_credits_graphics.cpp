@@ -184,7 +184,6 @@ private:
 
 void ToggleStarGiftSaved(
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<UserData*> sender,
 		Data::SavedStarGiftId savedId,
 		bool save,
 		Fn<void(bool)> done) {
@@ -206,17 +205,12 @@ void ToggleStarGiftSaved(
 
 void ConfirmConvertStarGift(
 		std::shared_ptr<Ui::Show> show,
-		QString name,
+		rpl::producer<TextWithEntities> confirmText,
 		int stars,
 		int daysLeft,
 		Fn<void()> convert) {
 	auto text = rpl::combine(
-		tr::lng_gift_convert_sure_confirm(
-			lt_count,
-			rpl::single(stars * 1.),
-			lt_user,
-			rpl::single(Ui::Text::Bold(name)),
-			Ui::Text::RichLangValue),
+		std::move(confirmText),
 		tr::lng_gift_convert_sure_limit(
 			lt_count,
 			rpl::single(daysLeft * 1.),
@@ -238,7 +232,6 @@ void ConfirmConvertStarGift(
 
 void ConvertStarGift(
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<UserData*> sender,
 		Data::SavedStarGiftId savedId,
 		int stars,
 		Fn<void(bool)> done) {
@@ -931,6 +924,7 @@ void GenericCreditsEntryBox(
 		const Data::SubscriptionEntry &s,
 		CreditsEntryBoxStyleOverrides st) {
 	const auto session = &show->session();
+	const auto selfPeerId = session->userPeerId().value;
 	const auto owner = &session->data();
 	const auto item = owner->message(
 		PeerId(e.barePeerId),
@@ -939,7 +933,19 @@ void GenericCreditsEntryBox(
 	const auto creditsHistoryStarGift = isStarGift && !e.id.isEmpty();
 	const auto sentStarGift = creditsHistoryStarGift && !e.in;
 	const auto convertedStarGift = creditsHistoryStarGift && e.converted;
-	const auto gotStarGift = isStarGift && !creditsHistoryStarGift && e.in;
+	const auto giftToSelf = isStarGift
+		&& (e.barePeerId == selfPeerId)
+		&& (e.in || e.bareGiftOwnerId == selfPeerId);
+	const auto giftChannel = (isStarGift && e.giftSavedId)
+		? session->data().peer(
+			PeerId(e.bareGiftListPeerId))->asChannel()
+		: nullptr;
+	const auto giftToChannel = (giftChannel != nullptr);
+	const auto giftToChannelCanManage = giftToChannel
+		&& giftChannel->canManageGifts();
+	const auto gotStarGift = isStarGift
+		&& !creditsHistoryStarGift
+		&& (e.in || giftToChannelCanManage);
 	const auto starGiftSender = (isStarGift && item)
 		? item->history()->peer->asUser()
 		: (isStarGift && e.in)
@@ -1108,16 +1114,6 @@ void GenericCreditsEntryBox(
 			(*draw)(p, 0, 0, stUser.photoSize, stUser.photoSize);
 		}, widget->lifetime());
 	}
-
-	const auto selfPeerId = session->userPeerId().value;
-	const auto giftToSelf = isStarGift
-		&& (e.barePeerId == selfPeerId)
-		&& (e.in || e.bareGiftOwnerId == selfPeerId);
-	const auto giftToChannel = isStarGift && e.giftSavedId;
-	const auto giftToChannelCanManage = isStarGift
-		&& e.giftSavedId
-		&& session->data().peer(
-			PeerId(e.bareGiftListPeerId))->canManageGifts();
 
 	if (!uniqueGift) {
 		Ui::AddSkip(content);
@@ -1428,7 +1424,7 @@ void GenericCreditsEntryBox(
 				}
 			}
 		};
-		ToggleStarGiftSaved(show, starGiftSender, savedId, save, done);
+		ToggleStarGiftSaved(show, savedId, save, done);
 	};
 
 	const auto upgradeGuard = std::make_shared<bool>();
@@ -1469,8 +1465,20 @@ void GenericCreditsEntryBox(
 		const auto convert = [=, weak = Ui::MakeWeak(box)] {
 			const auto stars = e.starsConverted;
 			const auto days = canConvert ? ((timeLeft + 86399) / 86400) : 0;
-			const auto name = starGiftSender->shortName();
-			ConfirmConvertStarGift(show, name, stars, days, [=] {
+			auto text = giftToChannelCanManage
+				? tr::lng_gift_convert_sure_confirm_channel(
+					lt_count,
+					rpl::single(stars * 1.),
+					lt_channel,
+					rpl::single(Ui::Text::Bold(giftChannel->name())),
+					Ui::Text::RichLangValue)
+				: tr::lng_gift_convert_sure_confirm(
+					lt_count,
+					rpl::single(stars * 1.),
+					lt_user,
+					rpl::single(Ui::Text::Bold(starGiftSender->shortName())),
+					Ui::Text::RichLangValue);
+			ConfirmConvertStarGift(show, std::move(text), stars, days, [=] {
 				if (state->convertButtonBusy.current()
 					|| state->confirmButtonBusy.current()) {
 					return;
@@ -1496,12 +1504,7 @@ void GenericCreditsEntryBox(
 							}
 						}
 					};
-					ConvertStarGift(
-						show,
-						starGiftSender,
-						savedId,
-						stars,
-						done);
+					ConvertStarGift(show, savedId, stars, done);
 				}
 			});
 		};

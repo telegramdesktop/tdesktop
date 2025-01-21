@@ -2025,9 +2025,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_sent" = "You sent a gift for {cost}";
 "lng_action_gift_unique_sent" = "You sent a unique collectible item";
 "lng_action_gift_upgraded" = "{user} turned the gift from you into a unique collectible";
+"lng_action_gift_upgraded_channel" = "{user} turned this gift to {channel} into a unique collectible";
 "lng_action_gift_upgraded_mine" = "You turned the gift from {user} into a unique collectible";
 "lng_action_gift_upgraded_self" = "You turned this gift into a unique collectible";
 "lng_action_gift_transferred" = "{user} transferred you a gift";
+"lng_action_gift_transferred_channel" = "{user} transferred a gift to {channel}";
 "lng_action_gift_transferred_mine" = "You transferred a gift to {user}";
 "lng_action_gift_received_anonymous" = "Unknown user sent you a gift for {cost}";
 "lng_action_gift_sent_channel" = "{user} sent a gift to {name} for {cost}";
@@ -3323,6 +3325,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_convert_sure_title" = "Convert Gift to Stars";
 "lng_gift_convert_sure_confirm#one" = "Do you want to convert this gift from {user} to **{count} Star**?";
 "lng_gift_convert_sure_confirm#other" = "Do you want to convert this gift from {user} to **{count} Stars**?";
+"lng_gift_convert_sure_confirm_channel#one" = "Do you want to convert this gift to {channel} to **{count} Star**?";
+"lng_gift_convert_sure_confirm_channel#other" = "Do you want to convert this gift to {channel} to **{count} Stars**?";
 "lng_gift_convert_sure_limit#one" = "Conversion is available for the next **{count} day**.";
 "lng_gift_convert_sure_limit#other" = "Conversion is available for the next **{count} days**.";
 "lng_gift_convert_sure_caution" = "This action cannot be undone. This will permanently destroy the gift.";
