@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "api/api_credits.h"
+#include "api/api_cloud_password.h"
 #include "base/unixtime.h"
+#include "boxes/passcode_box.h"
 #include "data/data_star_gift.h"
 #include "data/data_user.h"
 #include "boxes/filters/edit_filter_chats_list.h" // CreatePe...tionSubtitle.
@@ -22,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
@@ -42,13 +45,15 @@ public:
 	Controller(
 		not_null<Window::SessionController*> window,
 		std::shared_ptr<Data::UniqueGift> gift,
+		Data::SavedStarGiftId savedId,
 		Fn<void(not_null<PeerData*>)> choose);
+
+	void initExport(not_null<PeerListBox*> box);
 
 	void noSearchSubmit();
 
 private:
 	void prepareViewHook() override;
-	void setupExportOption();
 
 	bool overrideKeyboardNavigation(
 		int direction,
@@ -59,34 +64,115 @@ private:
 		not_null<UserData*> user) override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
+	const not_null<Window::SessionController*> _window;
 	const std::shared_ptr<Data::UniqueGift> _gift;
+	const Data::SavedStarGiftId _savedId;
 	const Fn<void(not_null<PeerData*>)> _choose;
 	ExportOption _exportOption;
 
 };
 
+void ExportOnBlockchain(
+		not_null<Window::SessionController*> window,
+		not_null<Ui::RpWidget*> parent,
+		Data::SavedStarGiftId giftId,
+		Fn<void()> waitFinished) {
+	struct State {
+		bool loading = false;
+		rpl::lifetime lifetime;
+	};
+	const auto state = std::make_shared<State>();
+	const auto session = &window->session();
+	const auto show = window->uiShow();
+	session->api().cloudPassword().reload();
+	session->api().request(
+		MTPpayments_GetStarGiftWithdrawalUrl(
+			Api::InputSavedStarGiftId(giftId),
+			MTP_inputCheckPasswordEmpty())
+	).fail([=](const MTP::Error &error) {
+		auto box = PrePasswordErrorBox(
+			error.type(),
+			session,
+			TextWithEntities{
+				tr::lng_gift_transfer_password_about(tr::now),
+			});
+		if (box) {
+			waitFinished();
+			show->show(std::move(box));
+			return;
+		}
+		state->lifetime = session->api().cloudPassword().state(
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=](const Core::CloudPasswordState &pass) {
+			waitFinished();
+
+			auto fields = PasscodeBox::CloudFields::From(pass);
+			fields.customTitle = tr::lng_gift_transfer_password_title();
+			fields.customDescription
+				= tr::lng_gift_transfer_password_description(tr::now);
+			fields.customSubmitButton = tr::lng_passcode_submit();
+			fields.customCheckCallback = crl::guard(parent, [=](
+				const Core::CloudPasswordResult &result,
+				QPointer<PasscodeBox> box) {
+				const auto done = [=](const QString &result) {
+				};
+				using ExportUrl = MTPpayments_StarGiftWithdrawalUrl;
+				session->api().request(
+					MTPpayments_GetStarGiftWithdrawalUrl(
+						Api::InputSavedStarGiftId(giftId),
+						result.result)
+				).done([=](const ExportUrl &result) {
+					UrlClickHandler::Open(qs(result.data().vurl()));
+					if (box) {
+						box->closeBox();
+					}
+				}).fail([=](const MTP::Error &error) {
+					const auto message = error.type();
+					if (box && !box->handleCustomCheckError(message)) {
+						show->showToast(message);
+					}
+				}).send();
+			});
+			show->show(Box<PasscodeBox>(session, fields));
+		});
+	}).send();
+}
+
 [[nodiscard]] ExportOption MakeExportOption(
 		not_null<Window::SessionController*> window,
+		not_null<Ui::RpWidget*> parent,
+		Data::SavedStarGiftId giftId,
 		TimeId when) {
+	struct State {
+		bool exporting = false;
+	};
+	const auto state = std::make_shared<State>();
 	const auto activate = [=] {
 		const auto now = base::unixtime::now();
 		const auto left = (when > now) ? (when - now) : 0;
 		const auto hours = left ? std::max((left + 1800) / 3600, 1) : 0;
+		if (!hours) {
+			if (state->exporting) {
+				return;
+			}
+			state->exporting = true;
+			ExportOnBlockchain(window, parent, giftId, [=] {
+				state->exporting = false;
+			});
+			return;
+		}
 		window->show(Ui::MakeInformBox({
-			.text = (!hours
-				? tr::lng_gift_transfer_unlocks_update_about()
-				: tr::lng_gift_transfer_unlocks_about(
-					lt_when,
-					((hours >= 24)
-						? tr::lng_gift_transfer_unlocks_when_days(
-							lt_count,
-							rpl::single((hours / 24) * 1.))
-						: tr::lng_gift_transfer_unlocks_when_hours(
-							lt_count,
-							rpl::single(hours * 1.))))),
-			.title = (!hours
-				? tr::lng_gift_transfer_unlocks_update_title()
-				: tr::lng_gift_transfer_unlocks_title()),
+			.text = tr::lng_gift_transfer_unlocks_about(
+				lt_when,
+				((hours >= 24)
+					? tr::lng_gift_transfer_unlocks_when_days(
+						lt_count,
+						rpl::single((hours / 24) * 1.))
+					: tr::lng_gift_transfer_unlocks_when_hours(
+						lt_count,
+						rpl::single(hours * 1.)))),
+			.title = tr::lng_gift_transfer_unlocks_title(),
 		}));
 	};
 
@@ -131,10 +217,14 @@ private:
 
 		const style::PeerListItem &computeSt(
 				const style::PeerListItem &st) const override {
-			return _available ? st::recentPeersSpecialName : st;
+			_st = st;
+			_st.namePosition.setY(
+				st::recentPeersSpecialName.namePosition.y());
+			return _available ? _st : st;
 		}
 
 	private:
+		mutable style::PeerListItem _st;
 		bool _available = false;
 
 	};
@@ -229,15 +319,23 @@ private:
 Controller::Controller(
 	not_null<Window::SessionController*> window,
 	std::shared_ptr<Data::UniqueGift> gift,
+	Data::SavedStarGiftId savedId,
 	Fn<void(not_null<PeerData*>)> choose)
 : ContactsBoxController(&window->session())
+, _window(window)
 , _gift(std::move(gift))
+, _savedId(savedId)
 , _choose(std::move(choose)) {
-	if (const auto when = _gift->exportAt) {
-		_exportOption = MakeExportOption(window, when);
-	}
-	if (_exportOption.content) {
+	if (_gift->exportAt) {
 		setStyleOverrides(&st::peerListSmallSkips);
+	}
+}
+
+void Controller::initExport(not_null<PeerListBox*> box) {
+	if (const auto when = _gift->exportAt) {
+		_exportOption = MakeExportOption(_window, box, _savedId, when);
+		delegate()->peerListSetAboveWidget(std::move(_exportOption.content));
+		delegate()->peerListRefreshRows();
 	}
 }
 
@@ -259,11 +357,6 @@ void Controller::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_gift_transfer_title(
 		lt_name,
 		rpl::single(UniqueGiftName(*_gift))));
-	setupExportOption();
-}
-
-void Controller::setupExportOption() {
-	delegate()->peerListSetAboveWidget(std::move(_exportOption.content));
 }
 
 std::unique_ptr<PeerListRow> Controller::createRow(
@@ -400,11 +493,14 @@ void ShowTransferGiftBox(
 	auto controller = std::make_unique<Controller>(
 		window,
 		gift,
+		savedId,
 		[=](not_null<PeerData*> peer) {
 			ShowTransferToBox(window, peer, gift, savedId);
 		});
 	const auto controllerRaw = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
+		controllerRaw->initExport(box);
+
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
 		box->noSearchSubmits() | rpl::start_with_next([=] {

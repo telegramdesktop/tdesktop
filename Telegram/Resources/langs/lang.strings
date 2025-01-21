@@ -3365,6 +3365,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transferred_about" = "{name} was successfully transferred to {recipient}.";
 "lng_gift_transfer_title" = "Transfer {name}";
 "lng_gift_transfer_via_blockchain" = "Send via Blockchain";
+"lng_gift_transfer_password_title" = "Two-step verification";
+"lng_gift_transfer_password_description" = "Please enter your password to transfer.";
+"lng_gift_transfer_password_about" = "You can withdraw only if you have:";
 "lng_gift_transfer_unlocks_days#one" = "unlocks in {count} day";
 "lng_gift_transfer_unlocks_days#other" = "unlocks in {count} days";
 "lng_gift_transfer_unlocks_hours#one" = "unlocks in {count} hour";
