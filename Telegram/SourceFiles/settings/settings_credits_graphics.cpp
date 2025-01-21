@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h" // HistoryServicePaymentRefund.
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/channel_statistics/earn/info_channel_earn_widget.h" // Info::ChannelEarn::Make.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "info/info_controller.h"
@@ -240,7 +241,11 @@ void ConvertStarGift(
 		Api::InputSavedStarGiftId(savedId)
 	)).done([=] {
 		if (const auto window = show->resolveWindow()) {
-			window->showSettings(Settings::CreditsId());
+			if (const auto channel = savedId.chat()) {
+				window->showSection(Info::ChannelEarn::Make(channel));
+			} else {
+				window->showSettings(Settings::CreditsId());
+			}
 		}
 		show->showToast(tr::lng_gift_got_stars(
 			tr::now,
@@ -950,6 +955,8 @@ void GenericCreditsEntryBox(
 		? item->history()->peer->asUser()
 		: (isStarGift && e.in)
 		? owner->peer(PeerId(e.barePeerId))->asUser()
+		: (isStarGift && e.bareActorId)
+		? owner->peer(PeerId(e.bareActorId)).get()
 		: nullptr;
 	const auto convertLast = base::unixtime::serialize(e.date)
 		+ session->appConfig().stargiftConvertPeriodMax();
