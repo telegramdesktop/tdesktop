@@ -575,35 +575,31 @@ void SetupSystemIntegrationContent(
 		Core::App().saveSettings();
 	}, roundIcon->lifetime());
 #endif // OS_MAC_STORE
-#endif // Q_OS_MAC
+#elif defined Q_OS_WIN // Q_OS_MAC
+	using Behavior = Core::Settings::CloseBehavior;
+	const auto closeToTaskbar = addSlidingCheckbox(
+		tr::lng_settings_close_to_taskbar(),
+		settings->closeBehavior() == Behavior::CloseToTaskbar);
 
-	if (!Platform::RunInBackground()) {
-		using Behavior = Core::Settings::CloseBehavior;
-		const auto closeToTaskbar = addSlidingCheckbox(
-			tr::lng_settings_close_to_taskbar(),
-			settings->closeBehavior() == Behavior::CloseToTaskbar);
+	const auto closeToTaskbarShown = std::make_shared<
+		rpl::variable<bool>
+	>(false);
+	settings->workModeValue(
+	) | rpl::start_with_next([=](WorkMode workMode) {
+		*closeToTaskbarShown = !Core::App().tray().has();
+	}, closeToTaskbar->lifetime());
 
-		const auto closeToTaskbarShown = std::make_shared<
-			rpl::variable<bool>
-		>(false);
-		settings->workModeValue(
-		) | rpl::start_with_next([=](WorkMode workMode) {
-			*closeToTaskbarShown = !Core::App().tray().has();
-		}, closeToTaskbar->lifetime());
-
-		closeToTaskbar->toggleOn(closeToTaskbarShown->value());
-		closeToTaskbar->entity()->checkedChanges(
-		) | rpl::map([=](bool checked) {
-			return checked ? Behavior::CloseToTaskbar : Behavior::Quit;
-		}) | rpl::filter([=](Behavior value) {
-			return (settings->closeBehavior() != value);
-		}) | rpl::start_with_next([=](Behavior value) {
-			settings->setCloseBehavior(value);
-			Local::writeSettings();
-		}, closeToTaskbar->lifetime());
-	} else if (!Platform::IsMac()) {
-
-	}
+	closeToTaskbar->toggleOn(closeToTaskbarShown->value());
+	closeToTaskbar->entity()->checkedChanges(
+	) | rpl::map([=](bool checked) {
+		return checked ? Behavior::CloseToTaskbar : Behavior::Quit;
+	}) | rpl::filter([=](Behavior value) {
+		return (settings->closeBehavior() != value);
+	}) | rpl::start_with_next([=](Behavior value) {
+		settings->setCloseBehavior(value);
+		Local::writeSettings();
+	}, closeToTaskbar->lifetime());
+#endif // Q_OS_MAC || Q_OS_WIN
 
 	if (Platform::AutostartSupported() && controller) {
 		const auto minimizedToggled = [=] {
@@ -968,9 +964,7 @@ void SetupWindowTitle(
 void SetupWindowCloseBehavior(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	if (Platform::IsMac() || !Platform::RunInBackground()) {
-		return;
-	}
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
@@ -1023,6 +1017,7 @@ void SetupWindowCloseBehavior(
 		}) | rpl::distinct_until_changed(), anim::type::normal);
 		wrap->finishAnimating();
 	}
+#endif
 }
 
 void SetupSystemIntegration(

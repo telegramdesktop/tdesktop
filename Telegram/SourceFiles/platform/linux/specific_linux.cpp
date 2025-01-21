@@ -593,10 +593,6 @@ bool SkipTaskbarSupported() {
 	return false;
 }
 
-bool RunInBackground() {
-	return true;
-}
-
 QString ExecutablePathForShortcuts() {
 	if (Core::UpdaterDisabled()) {
 		const auto &arguments = Core::Launcher::Instance().arguments();
