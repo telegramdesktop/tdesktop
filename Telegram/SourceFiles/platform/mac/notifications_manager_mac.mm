@@ -218,8 +218,6 @@ public:
 	void clearFromSession(not_null<Main::Session*> session);
 	void updateDelegate();
 
-	void invokeIfNotFocused(Fn<void()> callback);
-
 	~Private();
 
 private:
@@ -227,7 +225,6 @@ private:
 	void putClearTask(Task task);
 
 	void clearingThreadLoop();
-	void checkFocusState();
 
 	[[nodiscard]] QString cacheSound(const Media::Audio::LocalSound &sound);
 
@@ -265,14 +262,8 @@ private:
 		ClearFinish>;
 	std::vector<ClearTask> _clearingTasks;
 
-	QProcess _dnd;
-	QProcess _focus;
 	std::vector<Fn<void()>> _focusedCallbacks;
 	base::flat_map<DocumentId, QString> _cachedSounds;
-	bool _waitingDnd = false;
-	bool _waitingFocus = false;
-	bool _focused = false;
-	bool _processesInited = false;
 
 	rpl::lifetime _lifetime;
 
@@ -513,77 +504,7 @@ void Manager::Private::updateDelegate() {
 	[center setDelegate:_delegate];
 }
 
-void Manager::Private::invokeIfNotFocused(Fn<void()> callback) {
-	if (!Platform::IsMac11_0OrGreater()) {
-		queryDoNotDisturbState();
-		if (!DoNotDisturbEnabled) {
-			callback();
-		}
-	} else if (Platform::IsMacStoreBuild() || LibraryPath().isEmpty()) {
-		callback();
-	} else if (!_focusedCallbacks.empty()) {
-		_focusedCallbacks.push_back(std::move(callback));
-	} else if (!ShouldQuerySettings()) {
-		if (!_focused) {
-			callback();
-		}
-	} else {
-		if (!_processesInited) {
-			_processesInited = true;
-			QObject::connect(&_dnd, &QProcess::finished, [=] {
-				_waitingDnd = false;
-				checkFocusState();
-			});
-			QObject::connect(&_focus, &QProcess::finished, [=] {
-				_waitingFocus = false;
-				checkFocusState();
-			});
-		}
-		const auto start = [](QProcess &process, QString keys) {
-			auto arguments = QStringList()
-				<< "-extract"
-				<< keys
-				<< "raw"
-				<< "-o"
-				<< "-"
-				<< "--"
-				<< (LibraryPath() + "/Preferences/com.apple.controlcenter.plist");
-			DEBUG_LOG(("Focus Check: Started %1.").arg(u"plutil"_q + arguments.join(' ')));
-			process.start(u"plutil"_q, arguments);
-		};
-		_focusedCallbacks.push_back(std::move(callback));
-		_waitingFocus = _waitingDnd = true;
-		start(_focus, u"NSStatusItem Visible FocusModes"_q);
-		start(_dnd, u"NSStatusItem Visible DoNotDisturb"_q);
-	}
-}
-
-void Manager::Private::checkFocusState() {
-	if (_waitingFocus || _waitingDnd) {
-		return;
-	}
-	const auto istrue = [](QProcess &process) {
-		const auto output = process.readAllStandardOutput();
-		DEBUG_LOG(("Focus Check: %1").arg(output));
-		const auto result = (output.trimmed() == u"true"_q);
-		return result;
-	};
-	_focused = istrue(_focus) || istrue(_dnd);
-	auto callbacks = base::take(_focusedCallbacks);
-	if (!_focused) {
-		for (const auto &callback : callbacks) {
-			callback();
-		}
-	}
-}
-
 Manager::Private::~Private() {
-	if (_waitingDnd) {
-		_dnd.kill();
-	}
-	if (_waitingFocus) {
-		_focus.kill();
-	}
 	if (_clearingThread.joinable()) {
 		putClearTask(ClearFinish());
 		_clearingThread.join();
