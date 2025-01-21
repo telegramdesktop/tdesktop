@@ -60,6 +60,7 @@ void AddWearGiftCover(
 
 void ShowUniqueGiftWearBox(
 	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
 	const Data::UniqueGift &gift,
 	Settings::GiftWearBoxStyleOverride st);
 

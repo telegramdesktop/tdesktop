@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/filters/edit_filter_chats_list.h"
+#include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_preview_box.h"
@@ -26,12 +27,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/ui_integration.h"
+#include "data/data_channel.h"
 #include "data/data_credits.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -55,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
+#include "ui/boxes/boost_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/emoji_button.h"
@@ -2238,7 +2242,11 @@ void AddWearGiftCover(
 	title->setTextColorOverride(QColor(255, 255, 255));
 	const auto subtitle = CreateChild<FlatLabel>(
 		cover,
-		tr::lng_status_online(),
+		(peer->isChannel()
+			? tr::lng_chat_status_subscribers(
+				lt_count,
+				rpl::single(peer->asChannel()->membersCount() * 1.))
+			: tr::lng_status_online()),
 		st::uniqueGiftSubtitle);
 	subtitle->setTextColorOverride(data.backdrop.textColor);
 
@@ -2304,15 +2312,18 @@ void AddWearGiftCover(
 
 void ShowUniqueGiftWearBox(
 		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
 		const Data::UniqueGift &gift,
 		Settings::GiftWearBoxStyleOverride st) {
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setNoContentMargin(true);
 
+		box->setWidth((st::boxWidth + st::boxWideWidth) / 2); // =)
 		box->setStyle(st.box ? *st.box : st::upgradeGiftBox);
 
+		const auto channel = peer->isChannel();
 		const auto content = box->verticalLayout();
-		AddWearGiftCover(content, gift, show->session().user());
+		AddWearGiftCover(content, gift, peer);
 
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 
@@ -2356,7 +2367,9 @@ void ShowUniqueGiftWearBox(
 			st::settingsPremiumRowAboutPadding);
 		infoRow(
 			tr::lng_gift_wear_badge_title(),
-			tr::lng_gift_wear_badge_about(),
+			(channel
+				? tr::lng_gift_wear_badge_about_channel()
+				: tr::lng_gift_wear_badge_about()),
 			st.radiantIcon ? st.radiantIcon : &st::menuIconUnique);
 		//infoRow(
 		//	tr::lng_gift_wear_design_title(),
@@ -2364,16 +2377,42 @@ void ShowUniqueGiftWearBox(
 		//	&st::menuIconUniqueProfile);
 		infoRow(
 			tr::lng_gift_wear_proof_title(),
-			tr::lng_gift_wear_proof_about(),
+			(channel
+				? tr::lng_gift_wear_proof_about_channel()
+				: tr::lng_gift_wear_proof_about()),
 			st.proofIcon ? st.proofIcon : &st::menuIconFactcheck);
 
 		const auto session = &show->session();
+		const auto checking = std::make_shared<bool>();
 		const auto button = box->addButton(rpl::single(QString()), [=] {
-			if (session->premium()) {
+			const auto emojiStatuses = &session->data().emojiStatuses();
+			const auto id = emojiStatuses->fromUniqueGift(gift);
+			if (!peer->isSelf()) {
+				if (*checking) {
+					return;
+				}
+				*checking = true;
+				const auto weak = Ui::MakeWeak(box);
+				CheckBoostLevel(show, peer, [=](int level) {
+					const auto limits = Data::LevelLimits(&peer->session());
+					const auto wanted = limits.channelEmojiStatusLevelMin();
+					if (level >= wanted) {
+						if (const auto strong = weak.data()) {
+							strong->closeBox();
+						}
+						emojiStatuses->set(peer, id);
+						return std::optional<Ui::AskBoostReason>();
+					}
+					const auto reason = [&]() -> Ui::AskBoostReason {
+						return { Ui::AskBoostWearCollectible{
+							wanted
+						} };
+					}();
+					return std::make_optional(reason);
+				}, [=] { *checking = false; });
+			} else if (session->premium()) {
 				box->closeBox();
-				session->data().emojiStatuses().set(
-					session->user(),
-					session->data().emojiStatuses().fromUniqueGift(gift));
+				emojiStatuses->set(peer, id);
 			} else {
 				const auto link = Ui::Text::Bold(
 					tr::lng_send_as_premium_required_link(tr::now));
@@ -2397,7 +2436,7 @@ void ShowUniqueGiftWearBox(
 			Data::AmPremiumValue(&show->session())
 		) | rpl::map([=](const QString &text, bool premium) {
 			auto result = TextWithEntities();
-			if (!premium) {
+			if (!premium && peer->isSelf()) {
 				result.append(lock);
 			}
 			result.append(text);

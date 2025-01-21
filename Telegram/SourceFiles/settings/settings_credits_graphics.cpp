@@ -190,14 +190,19 @@ void ToggleStarGiftSaved(
 		Fn<void(bool)> done) {
 	using Flag = MTPpayments_SaveStarGift::Flag;
 	const auto api = &show->session().api();
+	const auto channelGift = savedId.chat();
 	api->request(MTPpayments_SaveStarGift(
 		MTP_flags(save ? Flag(0) : Flag::f_unsave),
 		Api::InputSavedStarGiftId(savedId)
 	)).done([=] {
 		done(true);
 		show->showToast((save
-			? tr::lng_gift_display_done
-			: tr::lng_gift_display_done_hide)(tr::now));
+			? (channelGift
+				? tr::lng_gift_display_done_channel
+				: tr::lng_gift_display_done)
+			: (channelGift
+				? tr::lng_gift_display_done_hide_channel
+				: tr::lng_gift_display_done_hide))(tr::now));
 	}).fail([=](const MTP::Error &error) {
 		done(false);
 		show->showToast(error.type());
@@ -860,9 +865,8 @@ void FillUniqueGiftMenu(
 	}, st.share ? st.share : &st::menuIconShare);
 
 	const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
-	const auto transfer = e.in
-		&& savedId
-		&& (savedId.isUser() ? e.in : savedId.chat()->canManageGifts())
+	const auto transfer = savedId
+		&& (savedId.isUser() ? e.in : savedId.chat()->canTransferGifts())
 		&& (unique->starsForTransfer >= 0);
 	if (transfer) {
 		menu->addAction(tr::lng_gift_transfer_button(tr::now), [=] {
@@ -871,19 +875,20 @@ void FillUniqueGiftMenu(
 			}
 		}, st.transfer ? st.transfer : &st::menuIconReplace);
 	}
-	const auto wear = e.in
-		&& (unique->ownerId == show->session().userPeerId());
+	const auto owner = show->session().data().peer(unique->ownerId);
+	const auto wear = owner->isSelf()
+		? e.in
+		: (owner->isChannel() && owner->asChannel()->canEditEmoji());
 	if (wear) {
-		const auto peer = show->session().user();
 		const auto name = UniqueGiftName(*unique);
-		const auto now = peer->emojiStatusId().collectible;
+		const auto now = owner->emojiStatusId().collectible;
 		if (now && unique->slug == now->slug) {
 			menu->addAction(tr::lng_gift_transfer_take_off(tr::now), [=] {
-				show->session().data().emojiStatuses().set(peer, {});
+				show->session().data().emojiStatuses().set(owner, {});
 			}, st.takeoff ? st.takeoff : &st::menuIconNftTakeOff);
 		} else {
 			menu->addAction(tr::lng_gift_transfer_wear(tr::now), [=] {
-				ShowUniqueGiftWearBox(show, *unique, st.giftWearBox
+				ShowUniqueGiftWearBox(show, owner, *unique, st.giftWearBox
 					? *st.giftWearBox
 					: GiftWearBoxStyleOverride());
 			}, st.wear ? st.wear : &st::menuIconNftWear);
@@ -948,9 +953,14 @@ void GenericCreditsEntryBox(
 	const auto giftToChannel = (giftChannel != nullptr);
 	const auto giftToChannelCanManage = giftToChannel
 		&& giftChannel->canManageGifts();
-	const auto gotStarGift = isStarGift
+	const auto giftToChannelCanTransfer = giftToChannel
+		&& giftChannel->canTransferGifts();
+	const auto starGiftCanManage = isStarGift
 		&& !creditsHistoryStarGift
 		&& (e.in || giftToChannelCanManage);
+	const auto starGiftCanTransfer = isStarGift
+		&& !creditsHistoryStarGift
+		&& (e.in || giftToChannelCanTransfer);
 	const auto starGiftSender = (isStarGift && item)
 		? item->history()->peer->asUser()
 		: (isStarGift && e.in)
@@ -963,13 +973,11 @@ void GenericCreditsEntryBox(
 	const auto timeLeft = int64(convertLast) - int64(base::unixtime::now());
 	const auto timeExceeded = (timeLeft <= 0);
 	const auto uniqueGift = e.uniqueGift.get();
-	const auto forConvert = gotStarGift
+	const auto forConvert = starGiftCanTransfer
 		&& e.starsConverted
 		&& !e.converted
 		&& starGiftSender;
 	const auto canConvert = forConvert && !timeExceeded;
-	const auto couldConvert = forConvert && timeExceeded;
-	const auto nonConvertible = (gotStarGift && !e.starsConverted);
 
 	box->setStyle(st.box ? *st.box : st::giveawayGiftCodeBox);
 	box->setWidth(st::boxWideWidth);
@@ -1151,7 +1159,7 @@ void GenericCreditsEntryBox(
 					? tr::lng_credits_box_history_entry_gift_sent(tr::now)
 					: convertedStarGift
 					? tr::lng_credits_box_history_entry_gift_converted(tr::now)
-					: (isStarGift && !gotStarGift)
+					: (isStarGift && !starGiftCanManage)
 					? tr::lng_gift_link_label_gift(tr::now)
 					: giftToSelf
 					? tr::lng_action_gift_self_subtitle(tr::now)
@@ -1294,7 +1302,7 @@ void GenericCreditsEntryBox(
 				rpl::single(e.description),
 				st::creditsBoxAbout)));
 	}
-	if (!uniqueGift && gotStarGift) {
+	if (!uniqueGift && starGiftCanManage) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -1309,28 +1317,20 @@ void GenericCreditsEntryBox(
 							Ui::Text::RichLangValue)
 						: (e.starsToUpgrade
 							&& giftToSelf
-							&& !(couldConvert || nonConvertible))
+							&& !e.giftTransferred)
 						? tr::lng_action_gift_self_about_unique(
 							Ui::Text::WithEntities)
 						: (e.starsToUpgrade
 							&& giftToChannelCanManage
-							&& !(couldConvert || nonConvertible))
+							&& !e.giftTransferred)
 						? tr::lng_action_gift_channel_about_unique(
 							Ui::Text::WithEntities)
-						: ((couldConvert || nonConvertible)
-							? (e.savedToProfile
-								? (giftToChannel
-									? tr::lng_action_gift_can_remove_channel
-									: tr::lng_action_gift_can_remove_text)
-								: (giftToChannel
-									? tr::lng_action_gift_got_gift_channel
-									: tr::lng_action_gift_got_gift_text))(
-										Ui::Text::WithEntities)
-							: rpl::combine(
+						: ((canConvert || e.converted)
+							? rpl::combine(
 								(canConvert
 									? (giftToSelf
 										? tr::lng_action_gift_self_about
-										: giftToChannelCanManage
+										: giftToChannelCanTransfer
 										? tr::lng_action_gift_channel_about
 										: tr::lng_action_gift_got_stars_text)
 									: tr::lng_gift_got_stars)(
@@ -1343,7 +1343,15 @@ void GenericCreditsEntryBox(
 									QString link) {
 								return text.append(' ').append(
 									Ui::Text::Link(link));
-							}))),
+							})
+							: (e.savedToProfile
+								? (giftToChannel
+									? tr::lng_action_gift_can_remove_channel
+									: tr::lng_action_gift_can_remove_text)
+								: (giftToChannel
+									? tr::lng_action_gift_got_gift_channel
+									: tr::lng_action_gift_got_gift_text))(
+										Ui::Text::WithEntities))),
 					st::creditsBoxAbout)))->entity();
 		about->setClickHandlerFilter([=](const auto &...) {
 			Core::App().iv().openWithIvPreferred(
@@ -1399,7 +1407,7 @@ void GenericCreditsEntryBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 
-	const auto canToggle = (canConvert || couldConvert || nonConvertible)
+	const auto canToggle = starGiftCanManage
 		&& !e.giftTransferred
 		&& !e.giftRefunded;
 	const auto toggleVisibility = [=, weak = Ui::MakeWeak(box)](bool save) {
@@ -1541,7 +1549,7 @@ void GenericCreditsEntryBox(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider)));
-	} else if (gotStarGift || giftToChannelCanManage) {
+	} else if (starGiftCanManage) {
 		const auto hiddenPhrase = giftToChannelCanManage
 			? tr::lng_gift_hidden_hint_channel
 			: tr::lng_gift_hidden_hint;

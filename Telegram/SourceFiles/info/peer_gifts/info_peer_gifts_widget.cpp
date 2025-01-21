@@ -462,11 +462,15 @@ void Widget::setupNotifyCheckbox(bool enabled) {
 
 	notify->checkedChanges() | rpl::start_with_next([=](bool checked) {
 		const auto api = &controller()->session().api();
+		const auto show = controller()->uiShow();
 		using Flag = MTPpayments_ToggleChatStarGiftNotifications::Flag;
 		api->request(MTPpayments_ToggleChatStarGiftNotifications(
 			MTP_flags(checked ? Flag::f_enabled : Flag()),
 			_inner->peer()->input
 		)).send();
+		if (checked) {
+			show->showToast(tr::lng_peer_gifts_notify_enabled(tr::now));
+		}
 	}, notify->lifetime());
 
 	const auto &checkSt = st::defaultCheckbox;

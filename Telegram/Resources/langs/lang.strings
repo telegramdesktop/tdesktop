@@ -3301,7 +3301,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_channel_title" = "Send a Gift";
 "lng_gift_channel_about" = "Select a gift to show appreciation for {name}.";
 "lng_gift_unique_owner" = "Owner";
-"lng_gift_unique_owner_change" = "change";
 "lng_gift_unique_status" = "Status";
 "lng_gift_unique_status_non" = "Non-Unique";
 "lng_gift_unique_status_upgrade" = "upgrade";
@@ -3332,7 +3331,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_convert_sure_caution" = "This action cannot be undone. This will permanently destroy the gift.";
 "lng_gift_convert_sure" = "Convert";
 "lng_gift_display_done" = "The gift is now shown on your profile page.";
+"lng_gift_display_done_channel" = "The gift is now shown in channel's Gifts.";
 "lng_gift_display_done_hide" = "The gift is now hidden from your profile page.";
+"lng_gift_display_done_hide_channel" = "The gift is now hidden from channel's Gifts.";
 "lng_gift_got_stars#one" = "You got **{count} Star** for this gift.";
 "lng_gift_got_stars#other" = "You got **{count} Stars** for this gift.";
 "lng_gift_sold_out_title" = "Sold Out!";
@@ -3390,8 +3391,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_wear_about" = "and get these benefits:";
 "lng_gift_wear_badge_title" = "Radiant Badge";
 "lng_gift_wear_badge_about" = "The glittering icon of this item will be displayed next to your name.";
+"lng_gift_wear_badge_about_channel" = "The glittering icon of this item will be displayed next to channel's name.";
 "lng_gift_wear_proof_title" = "Proof of Ownership";
 "lng_gift_wear_proof_about" = "Clicking the icon of this item next to your name will show its info and owner.";
+"lng_gift_wear_proof_about_channel" = "Clicking the icon of this item next to channel's name will show its info and owner.";
 "lng_gift_wear_start" = "Start Wearing";
 "lng_gift_wear_subscribe" = "Subscribe to {link} to wear collectibles.";
 "lng_gift_wear_start_toast" = "You put on {name}";

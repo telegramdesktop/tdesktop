@@ -218,7 +218,8 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	state->content = EmojiStatusIdValue(
 		peer
 	) | rpl::map([=](EmojiStatusId emojiStatusId) {
-		if (!peer->session().premium()) {
+		if (!peer->session().premium()
+			|| (!peer->isSelf() && !emojiStatusId)) {
 			return Badge::Content();
 		}
 		return Badge::Content{
