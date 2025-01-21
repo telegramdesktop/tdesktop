@@ -9,18 +9,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::Audio {
 
+struct LocalSound {
+    DocumentId id = 0;
+    QByteArray wav;
+
+    explicit operator bool() const {
+        return !wav.isEmpty();
+    }
+};
+
 class LocalCache final {
 public:
     LocalCache() = default;
     ~LocalCache();
 
-    [[nodiscard]] QString path(
+    [[nodiscard]] LocalSound sound(
         DocumentId id,
-        Fn<QByteArray()> resolveBytes,
-        Fn<QByteArray()> fallbackBytes);
+        Fn<QByteArray()> resolveOriginalBytes,
+        Fn<QByteArray()> fallbackOriginalBytes);
 
 private:
-    base::flat_map<DocumentId, QString> _cache;
+    base::flat_map<DocumentId, QByteArray> _cache;
 
 };
 

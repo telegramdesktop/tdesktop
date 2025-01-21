@@ -314,30 +314,20 @@ LocalCache::~LocalCache() {
 	}
 }
 
-QString LocalCache::path(
+LocalSound LocalCache::sound(
 		DocumentId id,
-		Fn<QByteArray()> resolveBytes,
-		Fn<QByteArray()> fallbackBytes) {
+		Fn<QByteArray()> resolveOriginalBytes,
+		Fn<QByteArray()> fallbackOriginalBytes) {
 	auto &result = _cache[id];
 	if (!result.isEmpty()) {
-		return result;
+		return { id, result };
 	}
-	const auto bytes = resolveBytes();
-	if (bytes.isEmpty()) {
-		return fallbackBytes ? path(0, fallbackBytes, nullptr) : QString();
-	}
-	const auto prefix = cWorkingDir() + u"tdata/audio_cache"_q;
-	QDir().mkpath(prefix);
-
-	const auto name = QString::number(id, 16).toUpper();
-	result = u"%1/%2.wav"_q.arg(prefix, name);
-	auto file = QFile(result);
-	if (!file.open(QIODevice::WriteOnly)) {
-		return fallbackBytes ? path(0, fallbackBytes, nullptr) : QString();
-	}
-	file.write(ConvertAndCut(bytes));
-	file.close();
-	return result;
+	result = resolveOriginalBytes();
+	return !result.isEmpty()
+		? LocalSound{ id, result }
+		: fallbackOriginalBytes
+		? sound(0, fallbackOriginalBytes, nullptr)
+		: LocalSound();
 }
 
 } // namespace Media::Audio

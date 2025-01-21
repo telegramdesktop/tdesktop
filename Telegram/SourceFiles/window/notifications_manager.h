@@ -399,6 +399,7 @@ public:
 		return ManagerType::Native;
 	}
 
+	using NotificationSound = Media::Audio::LocalSound;
 	struct NotificationInfo {
 		not_null<PeerData*> peer;
 		MsgId topicRootId = 0;
@@ -406,7 +407,7 @@ public:
 		QString title;
 		QString subtitle;
 		QString message;
-		Fn<QString()> soundPath;
+		Fn<NotificationSound()> sound;
 		DisplayOptions options;
 	};
 

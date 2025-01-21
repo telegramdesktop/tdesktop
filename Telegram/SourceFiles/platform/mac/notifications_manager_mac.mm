@@ -229,6 +229,8 @@ private:
 	void clearingThreadLoop();
 	void checkFocusState();
 
+	[[nodiscard]] QString cacheSound(const Media::Audio::LocalSound &sound);
+
 	const uint64 _managerId = 0;
 	QString _managerIdString;
 
@@ -266,6 +268,7 @@ private:
 	QProcess _dnd;
 	QProcess _focus;
 	std::vector<Fn<void()>> _focusedCallbacks;
+	base::flat_map<DocumentId, QString> _cachedSounds;
 	bool _waitingDnd = false;
 	bool _waitingFocus = false;
 	bool _focused = false;
@@ -287,6 +290,37 @@ Manager::Private::Private(Manager *manager)
 			updateDelegate();
 		});
 	}, _lifetime);
+}
+
+QString Manager::Private::cacheSound(const Media::Audio::LocalSound &sound) {
+	const auto i = _cachedSounds.find(sound.id);
+	if (i != end(_cachedSounds)) {
+		return i->second;
+	}
+
+	auto result = u"TDesktop-%1"_q.arg(sound.id
+		? QString::number(sound.id, 16).toUpper()
+		: u"Default"_q);
+
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(
+		NSLibraryDirectory,
+		NSUserDomainMask,
+		YES);
+    NSString *library = [paths firstObject];
+    NSString *sounds = [library stringByAppendingPathComponent:@"Sounds"];
+	const auto folder = NS2QString(sounds);
+
+	const auto path = folder + u"/%1.wav"_q.arg(result);
+    QDir().mkpath(folder);
+
+	auto f = QFile(path);
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(sound.wav);
+		f.close();
+	}
+
+	_cachedSounds.emplace(sound.id, result);
+	return result;
 }
 
 void Manager::Private::showNotification(
@@ -334,9 +368,9 @@ void Manager::Private::showNotification(
 		[notification setHasReplyButton:YES];
 	}
 
-	const auto sound = info.soundPath ? info.soundPath() : QString();
-	if (!sound.isEmpty()) {
-		[notification setSoundName:Q2NSString(sound)];
+	const auto sound = info.sound ? info.sound() : Media::Audio::LocalSound();
+	if (sound) {
+		[notification setSoundName:Q2NSString(cacheSound(sound))];
 	} else {
 		[notification setSoundName:nil];
 	}

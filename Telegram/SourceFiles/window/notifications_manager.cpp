@@ -118,8 +118,9 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 		|| notifySettings->muteUnknown(from));
 	const auto fromAlert = !fromUnknown
 		&& !notifySettings->isMuted(from);
-	return (threadAlert || fromAlert)
-		? notifySettings->sound(thread).id
+	const auto &sound = notifySettings->sound(thread);
+	return ((threadAlert || fromAlert) && !sound.none)
+		? sound.id
 		: std::optional<DocumentId>();
 }
 
@@ -1252,13 +1253,13 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 	// #TODO optimize
 	auto userpicView = item->history()->peer->createUserpicView();
 	const auto owner = &item->history()->owner();
-	const auto soundPath = fields.soundId ? [=, id = *fields.soundId] {
-		return _localSoundCache.path(id, [=] {
+	const auto sound = fields.soundId ? [=, id = *fields.soundId] {
+		return _localSoundCache.sound(id, [=] {
 			return Core::App().notifications().lookupSoundBytes(owner, id);
 		}, [=] {
 			return Core::App().notifications().lookupSoundBytes(owner, 0);
 		});
-	} : Fn<QString()>();
+	} : Fn<NotificationSound()>();
 	doShowNativeNotification({
 		.peer = item->history()->peer,
 		.topicRootId = item->topicRootId(),
@@ -1266,7 +1267,7 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		.title = scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
 		.subtitle = subtitle,
 		.message = text,
-		.soundPath = soundPath,
+		.sound = sound,
 		.options = options,
 	}, userpicView);
 }

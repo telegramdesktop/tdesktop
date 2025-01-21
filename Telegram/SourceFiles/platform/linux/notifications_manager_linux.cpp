@@ -232,7 +232,7 @@ NotificationData::NotificationData(
 bool NotificationData::init(const Info &info) {
 	const auto &title = info.title;
 	const auto &subtitle = info.subtitle;
-	//const auto sound = info.soundPath ? info.soundPath() : QString();
+	//const auto sound = info.sound ? info.sound() : QString();
 	if (_application) {
 		_notification = Gio::Notification::new_(
 			subtitle.isEmpty()
