@@ -140,7 +140,9 @@ TextWithEntities PremiumGift::subtitle() {
 						tr::now,
 						Ui::Text::RichLangValue)
 			: (_data.converted
-				? tr::lng_gift_got_stars
+				? (toChannel
+					? tr::lng_gift_channel_got
+					: tr::lng_gift_got_stars)
 				: _parent->history()->peer->isSelf()
 				? tr::lng_action_gift_self_about
 				: toChannel

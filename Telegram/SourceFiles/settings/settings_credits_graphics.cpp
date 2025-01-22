@@ -254,11 +254,13 @@ void ConvertStarGift(
 				window->showSettings(Settings::CreditsId());
 			}
 		}
-		show->showToast(tr::lng_gift_got_stars(
-			tr::now,
-			lt_count,
-			stars,
-			Ui::Text::RichLangValue));
+		show->showToast((savedId.chat()
+			? tr::lng_gift_channel_got
+			: tr::lng_gift_got_stars)(
+				tr::now,
+				lt_count,
+				stars,
+				Ui::Text::RichLangValue));
 		done(true);
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(error.type());
@@ -1344,7 +1346,9 @@ void GenericCreditsEntryBox(
 										: giftToChannelCanTransfer
 										? tr::lng_action_gift_channel_about
 										: tr::lng_action_gift_got_stars_text)
-									: tr::lng_gift_got_stars)(
+									: (giftToChannel
+										? tr::lng_gift_channel_got
+										: tr::lng_gift_got_stars))(
 										lt_count,
 										rpl::single(e.starsConverted * 1.),
 										Ui::Text::RichLangValue),

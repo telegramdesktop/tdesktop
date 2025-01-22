@@ -3343,6 +3343,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_display_done_hide_channel" = "The gift is now hidden from channel's Gifts.";
 "lng_gift_got_stars#one" = "You got **{count} Star** for this gift.";
 "lng_gift_got_stars#other" = "You got **{count} Stars** for this gift.";
+"lng_gift_channel_got#one" = "Channel got **{count} Star** for this gift.";
+"lng_gift_channel_got#other" = "Channel got **{count} Stars** for this gift.";
 "lng_gift_sold_out_title" = "Sold Out!";
 "lng_gift_sold_out_text#one" = "All {count} gift was already sold.";
 "lng_gift_sold_out_text#other" = "All {count} gifts were already sold.";
