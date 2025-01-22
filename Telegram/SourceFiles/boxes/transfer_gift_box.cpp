@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h" // peerListSingleRow.
 #include "styles/style_dialogs.h" // recentPeersSpecialName.
+#include "styles/style_layers.h" // boxLabel.
 
 namespace {
 
@@ -66,17 +67,42 @@ private:
 
 	const not_null<Window::SessionController*> _window;
 	const std::shared_ptr<Data::UniqueGift> _gift;
-	const Data::SavedStarGiftId _savedId;
+	const Data::SavedStarGiftId _giftId;
 	const Fn<void(not_null<PeerData*>)> _choose;
 	ExportOption _exportOption;
 
 };
 
+void ConfirmExportBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Data::UniqueGift> gift,
+		const QString &url,
+		Fn<void()> wentToUrl) {
+	box->setTitle(tr::lng_gift_transfer_confirm_title());
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_gift_transfer_confirm_text(
+			lt_name,
+			rpl::single(Ui::Text::Bold(UniqueGiftName(*gift))),
+			Ui::Text::WithEntities),
+		st::boxLabel));
+	box->addButton(tr::lng_gift_transfer_confirm_button(), [=] {
+		UrlClickHandler::Open(url);
+		wentToUrl();
+		box->closeBox();
+	});
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
+}
+
 void ExportOnBlockchain(
 		not_null<Window::SessionController*> window,
 		not_null<Ui::RpWidget*> parent,
+		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId giftId,
-		Fn<void()> waitFinished) {
+		Fn<void()> waitFinished,
+		Fn<void()> wentToUrl) {
 	struct State {
 		bool loading = false;
 		rpl::lifetime lifetime;
@@ -113,17 +139,16 @@ void ExportOnBlockchain(
 				= tr::lng_gift_transfer_password_description(tr::now);
 			fields.customSubmitButton = tr::lng_passcode_submit();
 			fields.customCheckCallback = crl::guard(parent, [=](
-				const Core::CloudPasswordResult &result,
-				QPointer<PasscodeBox> box) {
-				const auto done = [=](const QString &result) {
-				};
+					const Core::CloudPasswordResult &result,
+					QPointer<PasscodeBox> box) {
 				using ExportUrl = MTPpayments_StarGiftWithdrawalUrl;
 				session->api().request(
 					MTPpayments_GetStarGiftWithdrawalUrl(
 						Api::InputSavedStarGiftId(giftId),
 						result.result)
 				).done([=](const ExportUrl &result) {
-					UrlClickHandler::Open(qs(result.data().vurl()));
+					const auto url = qs(result.data().vurl());
+					show->show(Box(ConfirmExportBox, gift, url, wentToUrl));
 					if (box) {
 						box->closeBox();
 					}
@@ -141,7 +166,8 @@ void ExportOnBlockchain(
 
 [[nodiscard]] ExportOption MakeExportOption(
 		not_null<Window::SessionController*> window,
-		not_null<Ui::RpWidget*> parent,
+		not_null<PeerListBox*> box,
+		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId giftId,
 		TimeId when) {
 	struct State {
@@ -150,6 +176,7 @@ void ExportOnBlockchain(
 	const auto state = std::make_shared<State>();
 	const auto activate = [=] {
 		const auto now = base::unixtime::now();
+		const auto weak = Ui::MakeWeak(box);
 		const auto left = (when > now) ? (when - now) : 0;
 		const auto hours = left ? std::max((left + 1800) / 3600, 1) : 0;
 		if (!hours) {
@@ -157,8 +184,12 @@ void ExportOnBlockchain(
 				return;
 			}
 			state->exporting = true;
-			ExportOnBlockchain(window, parent, giftId, [=] {
+			ExportOnBlockchain(window, box, gift, giftId, [=] {
 				state->exporting = false;
+			}, [=] {
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
 			});
 			return;
 		}
@@ -319,12 +350,12 @@ void ExportOnBlockchain(
 Controller::Controller(
 	not_null<Window::SessionController*> window,
 	std::shared_ptr<Data::UniqueGift> gift,
-	Data::SavedStarGiftId savedId,
+	Data::SavedStarGiftId giftId,
 	Fn<void(not_null<PeerData*>)> choose)
 : ContactsBoxController(&window->session())
 , _window(window)
 , _gift(std::move(gift))
-, _savedId(savedId)
+, _giftId(giftId)
 , _choose(std::move(choose)) {
 	if (_gift->exportAt) {
 		setStyleOverrides(&st::peerListSmallSkips);
@@ -333,7 +364,7 @@ Controller::Controller(
 
 void Controller::initExport(not_null<PeerListBox*> box) {
 	if (const auto when = _gift->exportAt) {
-		_exportOption = MakeExportOption(_window, box, _savedId, when);
+		_exportOption = MakeExportOption(_window, box, _gift, _giftId, when);
 		delegate()->peerListSetAboveWidget(std::move(_exportOption.content));
 		delegate()->peerListRefreshRows();
 	}

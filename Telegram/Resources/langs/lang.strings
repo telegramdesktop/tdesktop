@@ -3376,6 +3376,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_password_title" = "Two-step verification";
 "lng_gift_transfer_password_description" = "Please enter your password to transfer.";
 "lng_gift_transfer_password_about" = "You can withdraw only if you have:";
+"lng_gift_transfer_confirm_title" = "Manage with Fragment";
+"lng_gift_transfer_confirm_text" = "You can use Fragment, a third-party service, to transfer {name} to your TON account. After that, you can manage it as an NFT with any TON wallet outside Telegram.\n\nYou can also move such NFTs back to your Telegram account via Fragment.";
+"lng_gift_transfer_confirm_button" = "Open Fragment";
 "lng_gift_transfer_unlocks_days#one" = "unlocks in {count} day";
 "lng_gift_transfer_unlocks_days#other" = "unlocks in {count} days";
 "lng_gift_transfer_unlocks_hours#one" = "unlocks in {count} hour";
