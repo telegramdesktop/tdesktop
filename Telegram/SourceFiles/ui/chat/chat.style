@@ -1219,3 +1219,5 @@ chatUniqueTextPadding: margins(12px, 2px, 12px, 8px);
 chatUniqueTableSkip: 9px;
 chatUniqueRowSkip: 4px;
 chatUniqueButtonPadding: margins(12px, 4px, 12px, 16px);
+
+markupWebview: icon {{ "chat/markup_webview", windowFg }};
