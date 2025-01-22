@@ -78,8 +78,7 @@ private:
 void ConfirmExportBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Data::UniqueGift> gift,
-		const QString &url,
-		Fn<void()> wentToUrl) {
+		Fn<void(Fn<void()> close)> confirmed) {
 	box->setTitle(tr::lng_gift_transfer_confirm_title());
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
@@ -89,9 +88,11 @@ void ConfirmExportBox(
 			Ui::Text::WithEntities),
 		st::boxLabel));
 	box->addButton(tr::lng_gift_transfer_confirm_button(), [=] {
-		UrlClickHandler::Open(url);
-		wentToUrl();
-		box->closeBox();
+		confirmed([weak = Ui::MakeWeak(box)] {
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		});
 	});
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
@@ -103,7 +104,7 @@ void ExportOnBlockchain(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId giftId,
-		Fn<void()> waitFinished,
+		Fn<void()> boxShown,
 		Fn<void()> wentToUrl) {
 	struct State {
 		bool loading = false;
@@ -125,16 +126,14 @@ void ExportOnBlockchain(
 				tr::lng_gift_transfer_password_about(tr::now),
 			});
 		if (box) {
-			waitFinished();
 			show->show(std::move(box));
+			boxShown();
 			return;
 		}
 		state->lifetime = session->api().cloudPassword().state(
 		) | rpl::take(
 			1
 		) | rpl::start_with_next([=](const Core::CloudPasswordState &pass) {
-			waitFinished();
-
 			auto fields = PasscodeBox::CloudFields::From(pass);
 			fields.customTitle = tr::lng_gift_transfer_password_title();
 			fields.customDescription
@@ -149,8 +148,8 @@ void ExportOnBlockchain(
 						Api::InputSavedStarGiftId(giftId),
 						result.result)
 				).done([=](const ExportUrl &result) {
-					const auto url = qs(result.data().vurl());
-					show->show(Box(ConfirmExportBox, gift, url, wentToUrl));
+					UrlClickHandler::Open(qs(result.data().vurl()));
+					wentToUrl();
 					if (box) {
 						box->closeBox();
 					}
@@ -162,6 +161,7 @@ void ExportOnBlockchain(
 				}).send();
 			});
 			show->show(Box<PasscodeBox>(session, fields));
+			boxShown();
 		});
 	}).send();
 }
@@ -182,17 +182,21 @@ void ExportOnBlockchain(
 		const auto left = (when > now) ? (when - now) : 0;
 		const auto hours = left ? std::max((left + 1800) / 3600, 1) : 0;
 		if (!hours) {
-			if (state->exporting) {
-				return;
-			}
-			state->exporting = true;
-			ExportOnBlockchain(window, box, gift, giftId, [=] {
-				state->exporting = false;
-			}, [=] {
-				if (const auto strong = weak.data()) {
-					strong->closeBox();
+			window->show(Box(ConfirmExportBox, gift, [=](Fn<void()> close) {
+				if (state->exporting) {
+					return;
 				}
-			});
+				state->exporting = true;
+				ExportOnBlockchain(window, box, gift, giftId, [=] {
+					state->exporting = false;
+					close();
+				}, [=] {
+					if (const auto strong = weak.data()) {
+						strong->closeBox();
+					}
+					close();
+				});
+			}));
 			return;
 		}
 		window->show(Ui::MakeInformBox({
