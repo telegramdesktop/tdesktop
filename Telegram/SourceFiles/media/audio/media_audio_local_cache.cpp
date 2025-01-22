@@ -20,6 +20,10 @@ constexpr auto kFrameSize = 4096;
 [[nodiscard]] QByteArray ConvertAndCut(const QByteArray &bytes) {
 	using namespace FFmpeg;
 
+	if (bytes.isEmpty()) {
+		return {};
+	}
+
 	auto wrap = ReadBytesWrap{
 		.size = bytes.size(),
 		.data = reinterpret_cast<const uchar*>(bytes.constData()),
@@ -322,7 +326,7 @@ LocalSound LocalCache::sound(
 	if (!result.isEmpty()) {
 		return { id, result };
 	}
-	result = resolveOriginalBytes();
+	result = ConvertAndCut(resolveOriginalBytes());
 	return !result.isEmpty()
 		? LocalSound{ id, result }
 		: fallbackOriginalBytes

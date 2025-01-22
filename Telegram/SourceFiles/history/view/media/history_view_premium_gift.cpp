@@ -224,7 +224,6 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 		return link;
 	}
 	const auto from = _gift->from();
-	const auto itemId = _parent->data()->fullId();
 	const auto peer = _parent->history()->peer;
 	const auto date = _parent->data()->date();
 	const auto data = *_gift->gift();

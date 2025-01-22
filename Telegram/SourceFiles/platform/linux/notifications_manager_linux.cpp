@@ -772,6 +772,7 @@ void Manager::Private::showNotification(
 		NotificationInfo &&info,
 		Ui::PeerUserpicView &userpicView) {
 	const auto peer = info.peer;
+	const auto options = info.options;
 	const auto key = ContextId{
 		.sessionId = peer->session().uniqueId(),
 		.peerId = peer->id,
@@ -797,7 +798,7 @@ void Manager::Private::showNotification(
 
 	auto i = _notifications.find(key);
 	if (i != end(_notifications)) {
-		auto j = i->second.find(msgId);
+		auto j = i->second.find(info.itemId);
 		if (j != end(i->second)) {
 			auto oldNotification = std::move(j->second);
 			i->second.erase(j);
@@ -811,7 +812,7 @@ void Manager::Private::showNotification(
 			base::flat_map<MsgId, Notification>()).first;
 	}
 	const auto j = i->second.emplace(
-		msgId,
+		info.itemId,
 		std::move(notification)).first;
 	j->second->show();
 }

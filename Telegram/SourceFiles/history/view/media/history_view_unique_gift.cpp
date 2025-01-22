@@ -457,7 +457,6 @@ auto GenerateUniqueGiftMedia(
 			st::chatUniqueTextPadding,
 			gift->backdrop.textColor));
 
-		const auto itemId = parent->data()->fullId();
 		auto link = OpenStarGiftLink(parent->data());
 		push(std::make_unique<ButtonPart>(
 			tr::lng_sticker_premium_view(tr::now),
