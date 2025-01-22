@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "history/view/media/history_view_media_generic.h"
+#include "history/view/media/history_view_premium_gift.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
@@ -457,24 +458,7 @@ auto GenerateUniqueGiftMedia(
 			gift->backdrop.textColor));
 
 		const auto itemId = parent->data()->fullId();
-		auto link = std::make_shared<LambdaClickHandler>([=](
-				ClickContext context) {
-			const auto my = context.other.value<ClickHandlerContext>();
-			if (const auto controller = my.sessionWindow.get()) {
-				const auto owner = &controller->session().data();
-				if (const auto item = owner->message(itemId)) {
-					if (const auto media = item->media()) {
-						if (const auto gift = media->gift()) {
-							controller->show(Box(
-								Settings::StarGiftViewBox,
-								controller,
-								*gift,
-								item));
-						}
-					}
-				}
-			}
-		});
+		auto link = OpenStarGiftLink(parent->data());
 		push(std::make_unique<ButtonPart>(
 			tr::lng_sticker_premium_view(tr::now),
 			st::chatUniqueButtonPadding,

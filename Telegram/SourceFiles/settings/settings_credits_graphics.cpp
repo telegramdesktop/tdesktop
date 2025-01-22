@@ -1604,6 +1604,20 @@ void GenericCreditsEntryBox(
 			toggleVisibility(!e.savedToProfile);
 			return false;
 		});
+	} else if (uniqueGift && !uniqueGift->ownerAddress.isEmpty()) {
+		const auto label = box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_gift_in_blockchain(
+					lt_link,
+					tr::lng_gift_in_blockchain_link() | Ui::Text::ToLink(),
+					Ui::Text::WithEntities),
+				st::creditsBoxAboutDivider));
+		label->setClickHandlerFilter([=](const auto &...) {
+			UrlClickHandler::Open(
+				TonAddressUrl(session, uniqueGift->ownerAddress));
+			return false;
+		});
 	}
 	if (s) {
 		const auto user = peer ? peer->asUser() : nullptr;

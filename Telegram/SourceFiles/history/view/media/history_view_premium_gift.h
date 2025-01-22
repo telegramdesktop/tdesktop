@@ -68,4 +68,6 @@ private:
 
 };
 
+[[nodiscard]] ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item);
+
 } // namespace HistoryView

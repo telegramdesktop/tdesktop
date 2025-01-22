@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_premium_gift.h"
 
 #include "apiwrap.h"
+#include "api/api_credits.h" // InputSavedStarGiftId
 #include "api/api_premium.h"
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
@@ -219,6 +220,9 @@ bool PremiumGift::buttonMinistars() {
 }
 
 ClickHandlerPtr PremiumGift::createViewLink() {
+	if (auto link = OpenStarGiftLink(_parent->data())) {
+		return link;
+	}
 	const auto from = _gift->from();
 	const auto itemId = _parent->data()->fullId();
 	const auto peer = _parent->history()->peer;
@@ -232,16 +236,7 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 		}
 		const auto selfId = controller->session().userPeerId();
 		const auto sent = (from->id == selfId);
-		if (starGift()) {
-			const auto item = controller->session().data().message(itemId);
-			if (item) {
-				controller->show(Box(
-					Settings::StarGiftViewBox,
-					controller,
-					data,
-					item));
-			}
-		} else if (creditsPrize()) {
+		if (creditsPrize()) {
 			controller->show(Box(
 				Settings::CreditsPrizeBox,
 				controller,
@@ -265,49 +260,6 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 			ResolveGiftCode(controller, data.slug, fromId, toId);
 		}
 	};
-
-	if (const auto upgradeTo = data.upgradeMsgId) {
-		const auto requesting = std::make_shared<bool>();
-		return std::make_shared<LambdaClickHandler>([=](
-				ClickContext context) {
-			const auto my = context.other.value<ClickHandlerContext>();
-			const auto weak = my.sessionWindow;
-			const auto controller = weak.get();
-			if (!controller || *requesting) {
-				return;
-			}
-			*requesting = true;
-			controller->session().api().request(MTPpayments_GetSavedStarGift(
-				MTP_vector<MTPInputSavedStarGift>(
-					1,
-					MTP_inputSavedStarGiftUser(MTP_int(upgradeTo)))
-			)).done([=](const MTPpayments_SavedStarGifts &result) {
-				*requesting = false;
-				if (const auto window = weak.get()) {
-					const auto &data = result.data();
-					window->session().data().processUsers(data.vusers());
-					window->session().data().processChats(data.vchats());
-					const auto self = window->session().user();
-					const auto &list = data.vgifts().v;
-					if (list.empty()) {
-						showForWeakWindow(weak);
-					} else if (auto parsed = Api::FromTL(self, list[0])) {
-						window->show(Box(
-							Settings::SavedStarGiftBox,
-							window,
-							self,
-							*parsed));
-					}
-				}
-			}).fail([=](const MTP::Error &error) {
-				*requesting = false;
-				if (const auto window = weak.get()) {
-					window->showToast(error.type());
-				}
-				showForWeakWindow(weak);
-			}).send();
-		});
-	}
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		showForWeakWindow(
 			context.other.value<ClickHandlerContext>().sessionWindow);
@@ -445,6 +397,78 @@ void PremiumGift::ensureStickerCreated() const {
 			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
 		}
 	}
+}
+
+ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto gift = media ? media->gift() : nullptr;
+	if (!gift || gift->type != Data::GiftType::StarGift) {
+		return nullptr;
+	}
+	const auto data = *gift;
+	const auto itemId = item->fullId();
+	const auto openInsteadId = data.upgradeMsgId
+		? Data::SavedStarGiftId::User(data.upgradeMsgId)
+		: (data.channel && data.channelSavedId)
+		? Data::SavedStarGiftId::Chat(data.channel, data.channelSavedId)
+		: Data::SavedStarGiftId();
+	const auto requesting = std::make_shared<bool>();
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		const auto weak = my.sessionWindow;
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
+		const auto quick = [=](not_null<Window::SessionController*> window) {
+			const auto item = window->session().data().message(itemId);
+			if (item) {
+				window->show(Box(
+					Settings::StarGiftViewBox,
+					window,
+					data,
+					item));
+			}
+		};
+		if (!openInsteadId) {
+			quick(controller);
+			return;
+		} else if (*requesting) {
+			return;
+		}
+		*requesting = true;
+		controller->session().api().request(MTPpayments_GetSavedStarGift(
+			MTP_vector<MTPInputSavedStarGift>(
+				1,
+				Api::InputSavedStarGiftId(openInsteadId))
+		)).done([=](const MTPpayments_SavedStarGifts &result) {
+			*requesting = false;
+			if (const auto window = weak.get()) {
+				const auto &data = result.data();
+				window->session().data().processUsers(data.vusers());
+				window->session().data().processChats(data.vchats());
+				const auto owner = openInsteadId.chat()
+					? openInsteadId.chat()
+					: window->session().user();
+				const auto &list = data.vgifts().v;
+				if (list.empty()) {
+					quick(window);
+				} else if (auto parsed = Api::FromTL(owner, list[0])) {
+					window->show(Box(
+						Settings::SavedStarGiftBox,
+						window,
+						owner,
+						*parsed));
+				}
+			}
+		}).fail([=](const MTP::Error &error) {
+			*requesting = false;
+			if (const auto window = weak.get()) {
+				window->showToast(error.type());
+				quick(window);
+			}
+		}).send();
+	});
 }
 
 } // namespace HistoryView

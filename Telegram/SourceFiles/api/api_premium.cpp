@@ -808,6 +808,7 @@ std::optional<Data::StarGift> FromTL(
 				.id = data.vid().v,
 				.slug = qs(data.vslug()),
 				.title = qs(data.vtitle()),
+				.ownerAddress = qs(data.vowner_address().value_or_empty()),
 				.ownerName = qs(data.vowner_name().value_or_empty()),
 				.ownerId = (data.vowner_id()
 					? peerFromMTP(*data.vowner_id())

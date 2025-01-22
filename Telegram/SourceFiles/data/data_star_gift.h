@@ -40,6 +40,7 @@ struct UniqueGift {
 	CollectibleId id = 0;
 	QString slug;
 	QString title;
+	QString ownerAddress;
 	QString ownerName;
 	PeerId ownerId = 0;
 	int number = 0;

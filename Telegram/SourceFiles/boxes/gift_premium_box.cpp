@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "payments/payments_checkout_process.h"
@@ -129,6 +130,23 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 	return (months < 12)
 		? tr::lng_premium_gift_duration_months
 		: tr::lng_premium_gift_duration_years;
+}
+
+[[nodiscard]] object_ptr<Ui::FlatLabel> MakeMaybeMultilineTokenValue(
+		not_null<Ui::TableLayout*> table,
+		const QString &token,
+		Settings::CreditsEntryBoxStyleOverrides st) {
+	constexpr auto kOneLineCount = 24;
+	const auto oneLine = token.length() <= kOneLineCount;
+	return object_ptr<Ui::FlatLabel>(
+		table,
+		rpl::single(
+			Ui::Text::Wrapped({ token }, EntityType::Code, {})),
+		(oneLine
+			? table->st().defaultValue
+			: st.tableValueMultiline
+			? *st.tableValueMultiline
+			: st::giveawayGiftCodeValueMultiline));
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerTableValue(
@@ -1223,6 +1241,15 @@ void ResolveGiveawayInfo(
 		crl::guard(controller, show));
 }
 
+QString TonAddressUrl(
+		not_null<Main::Session*> session,
+		const QString &address) {
+	const auto prefix = session->appConfig().get<QString>(
+		u"ton_blockchain_explorer_url"_q,
+		u"https://tonviewer.com/"_q);
+	return prefix + address;
+}
+
 void AddStarGiftTable(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
@@ -1335,10 +1362,26 @@ void AddStarGiftTable(
 			MakePeerWithStatusValue(table, show, ownerId, handleChange),
 			st::giveawayGiftCodePeerMargin);
 	} else if (unique) {
-		AddTableRow(
-			table,
-			tr::lng_gift_unique_owner(),
-			rpl::single(TextWithEntities{ unique->ownerName }));
+		if (!unique->ownerName.isEmpty()) {
+			AddTableRow(
+				table,
+				tr::lng_gift_unique_owner(),
+				rpl::single(TextWithEntities{ unique->ownerName }));
+		} else if (auto address = unique->ownerAddress; !address.isEmpty()) {
+			auto label = MakeMaybeMultilineTokenValue(table, address, st);
+			label->setClickHandlerFilter([=](const auto &...) {
+				TextUtilities::SetClipboardText(
+					TextForMimeData::Simple(address));
+				show->showToast(
+					tr::lng_gift_unique_address_copied(tr::now));
+				return false;
+			});
+			AddTableRow(
+				table,
+				tr::lng_gift_unique_owner(),
+				std::move(label),
+				st::giveawayGiftCodeValueMargin);
+		}
 	} else if (giftToChannel) {
 		AddTableRow(
 			table,
@@ -1724,17 +1767,7 @@ void AddCreditsHistoryEntryTable(
 				Ui::Text::WithEntities));
 	}
 	if (!entry.id.isEmpty()) {
-		constexpr auto kOneLineCount = 24;
-		const auto oneLine = entry.id.length() <= kOneLineCount;
-		auto label = object_ptr<Ui::FlatLabel>(
-			table,
-			rpl::single(
-				Ui::Text::Wrapped({ entry.id }, EntityType::Code, {})),
-			(oneLine
-				? table->st().defaultValue
-				: st.tableValueMultiline
-				? *st.tableValueMultiline
-				: st::giveawayGiftCodeValueMultiline));
+		auto label = MakeMaybeMultilineTokenValue(table, entry.id, st);
 		label->setClickHandlerFilter([=](const auto &...) {
 			TextUtilities::SetClipboardText(
 				TextForMimeData::Simple(entry.id));
