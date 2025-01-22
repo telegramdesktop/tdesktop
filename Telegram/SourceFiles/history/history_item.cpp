@@ -5505,13 +5505,13 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto service = _from->isServiceUser();
 		const auto toChannel = service && peerIsChannel(giftPeer);
 		const auto peer = isSelf ? _history->peer : _from;
+		const auto fromId = action.vfrom_id()
+			? peerFromMTP(*action.vfrom_id())
+			: PeerId();
+		const auto from = fromId ? peer->owner().peer(fromId) : peer;
 		if (toChannel) {
-			const auto fromId = action.vfrom_id()
-				? peerFromMTP(*action.vfrom_id())
-				: PeerId();
 			const auto channel = peer->owner().channel(
 				peerToChannel(giftPeer));
-			const auto from = fromId ? peer->owner().peer(fromId) : peer;
 			result.links.push_back(from->createOpenLink());
 			result.links.push_back(channel->createOpenLink());
 			result.text = (action.is_upgrade()
@@ -5538,7 +5538,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 						: tr::lng_action_gift_transferred))(
 							tr::now,
 							lt_user,
-							Ui::Text::Link(peer->shortName(), 1), // Link 1.
+							Ui::Text::Link(from->shortName(), 1), // Link 1.
 							Ui::Text::WithEntities);
 		}
 		return result;

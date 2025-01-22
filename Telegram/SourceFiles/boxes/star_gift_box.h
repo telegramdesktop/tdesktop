@@ -108,6 +108,6 @@ void RequestStarsFormAndSubmit(
 void ShowGiftTransferredToast(
 	base::weak_ptr<Window::SessionController> weak,
 	not_null<PeerData*> to,
-	const MTPUpdates &result);
+	const Data::UniqueGift &gift);
 
 } // namespace Ui

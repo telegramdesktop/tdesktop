@@ -172,6 +172,7 @@ void InnerWidget::subscribeToUpdates() {
 		const auto index = int(i - begin(_entries));
 		using Action = Data::GiftUpdate::Action;
 		if (update.action == Action::Convert
+			|| update.action == Action::Transfer
 			|| update.action == Action::Delete) {
 			_entries.erase(i);
 			if (_totalCount > 0) {

@@ -176,7 +176,9 @@ private:
 [[nodiscard]] Data::SavedStarGiftId EntryToSavedStarGiftId(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &entry) {
-	return (entry.bareGiftListPeerId && entry.giftSavedId)
+	return !entry.stargift
+		? Data::SavedStarGiftId()
+		: (entry.bareGiftListPeerId && entry.giftSavedId)
 		? Data::SavedStarGiftId::Chat(
 			session->data().peer(PeerId(entry.bareGiftListPeerId)),
 			entry.giftSavedId)
@@ -978,6 +980,15 @@ void GenericCreditsEntryBox(
 		&& !e.converted
 		&& starGiftSender;
 	const auto canConvert = forConvert && !timeExceeded;
+
+	if (auto savedId = EntryToSavedStarGiftId(session, e)) {
+		session->data().giftUpdates(
+		) | rpl::start_with_next([=](const Data::GiftUpdate &update) {
+			if (update.id == savedId) {
+				box->closeBox();
+			}
+		}, box->lifetime());
+	}
 
 	box->setStyle(st.box ? *st.box : st::giveawayGiftCodeBox);
 	box->setWidth(st::boxWideWidth);

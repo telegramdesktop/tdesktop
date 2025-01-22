@@ -429,6 +429,8 @@ auto GenerateUniqueGiftMedia(
 		pushText(
 			Ui::Text::Bold(peer->isSelf()
 				? tr::lng_action_gift_self_subtitle(tr::now)
+				: peer->isServiceUser()
+				? tr::lng_gift_link_label_gift(tr::now)
 				: (outgoing
 					? tr::lng_action_gift_sent_subtitle
 					: tr::lng_action_gift_got_subtitle)(

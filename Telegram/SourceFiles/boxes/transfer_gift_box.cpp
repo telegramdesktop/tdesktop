@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
+#include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "data/data_user.h"
 #include "boxes/filters/edit_filter_chats_list.h" // CreatePe...tionSubtitle.
@@ -47,9 +48,9 @@ public:
 		not_null<Window::SessionController*> window,
 		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId savedId,
-		Fn<void(not_null<PeerData*>)> choose);
+		Fn<void(not_null<PeerData*>, Fn<void()>)> choose);
 
-	void initExport(not_null<PeerListBox*> box);
+	void init(not_null<PeerListBox*> box);
 
 	void noSearchSubmit();
 
@@ -68,8 +69,9 @@ private:
 	const not_null<Window::SessionController*> _window;
 	const std::shared_ptr<Data::UniqueGift> _gift;
 	const Data::SavedStarGiftId _giftId;
-	const Fn<void(not_null<PeerData*>)> _choose;
+	const Fn<void(not_null<PeerData*>, Fn<void()>)> _choose;
 	ExportOption _exportOption;
+	QPointer<PeerListBox> _box;
 
 };
 
@@ -351,7 +353,7 @@ Controller::Controller(
 	not_null<Window::SessionController*> window,
 	std::shared_ptr<Data::UniqueGift> gift,
 	Data::SavedStarGiftId giftId,
-	Fn<void(not_null<PeerData*>)> choose)
+	Fn<void(not_null<PeerData*>, Fn<void()>)> choose)
 : ContactsBoxController(&window->session())
 , _window(window)
 , _gift(std::move(gift))
@@ -362,7 +364,8 @@ Controller::Controller(
 	}
 }
 
-void Controller::initExport(not_null<PeerListBox*> box) {
+void Controller::init(not_null<PeerListBox*> box) {
+	_box = box;
 	if (const auto when = _gift->exportAt) {
 		_exportOption = MakeExportOption(_window, box, _gift, _giftId, when);
 		delegate()->peerListSetAboveWidget(std::move(_exportOption.content));
@@ -402,7 +405,11 @@ std::unique_ptr<PeerListRow> Controller::createRow(
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
-	_choose(row->peer());
+	_choose(row->peer(), [parentBox = _box] {
+		if (const auto strong = parentBox.data()) {
+			strong->closeBox();
+		}
+	});
 }
 
 void TransferGift(
@@ -418,12 +425,16 @@ void TransferGift(
 	auto formDone = [=](
 			Payments::CheckoutResult result,
 			const MTPUpdates *updates) {
-		if (result == Payments::CheckoutResult::Paid && updates) {
+		done(result);
+		if (result == Payments::CheckoutResult::Paid) {
 			if (const auto strong = weak.get()) {
-				Ui::ShowGiftTransferredToast(strong, to, *updates);
+				strong->session().data().notifyGiftUpdate({
+					.id = savedId,
+					.action = Data::GiftUpdate::Action::Transfer,
+				});
+				Ui::ShowGiftTransferredToast(strong, to, *gift);
 			}
 		}
-		done(result);
 	};
 	if (gift->starsForTransfer <= 0) {
 		session->api().request(MTPpayments_TransferStarGift(
@@ -433,10 +444,10 @@ void TransferGift(
 			session->api().applyUpdates(result);
 			formDone(Payments::CheckoutResult::Paid, &result);
 		}).fail([=](const MTP::Error &error) {
+			formDone(Payments::CheckoutResult::Failed, nullptr);
 			if (const auto strong = weak.get()) {
 				strong->showToast(error.type());
 			}
-			formDone(Payments::CheckoutResult::Failed, nullptr);
 		}).send();
 		return;
 	}
@@ -452,7 +463,8 @@ void ShowTransferToBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Data::UniqueGift> gift,
-		Data::SavedStarGiftId savedId) {
+		Data::SavedStarGiftId savedId,
+		Fn<void()> closeParentBox) {
 	const auto stars = gift->starsForTransfer;
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(tr::lng_gift_transfer_title(
@@ -478,10 +490,18 @@ void ShowTransferToBox(
 			state->sent = true;
 			const auto weak = Ui::MakeWeak(box);
 			const auto done = [=](Payments::CheckoutResult result) {
-				if (result != Payments::CheckoutResult::Paid) {
+				if (result == Payments::CheckoutResult::Cancelled) {
+					closeParentBox();
+					if (const auto strong = weak.data()) {
+						strong->closeBox();
+					}
+				} else if (result != Payments::CheckoutResult::Paid) {
 					state->sent = false;
 				} else {
-					controller->showPeerHistory(peer);
+					if (savedId.isUser()) {
+						controller->showPeerHistory(peer);
+					}
+					closeParentBox();
 					if (const auto strong = weak.data()) {
 						strong->closeBox();
 					}
@@ -525,12 +545,12 @@ void ShowTransferGiftBox(
 		window,
 		gift,
 		savedId,
-		[=](not_null<PeerData*> peer) {
-			ShowTransferToBox(window, peer, gift, savedId);
+		[=](not_null<PeerData*> peer, Fn<void()> done) {
+			ShowTransferToBox(window, peer, gift, savedId, done);
 		});
 	const auto controllerRaw = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
-		controllerRaw->initExport(box);
+		controllerRaw->init(box);
 
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 

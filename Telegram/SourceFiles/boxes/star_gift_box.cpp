@@ -2926,25 +2926,29 @@ void RequestStarsFormAndSubmit(
 			done(Payments::CheckoutResult::Failed, nullptr);
 		});
 	}).fail([=](const MTP::Error &error) {
-		if (const auto strong = weak.get()) {
-			strong->showToast(error.type());
+		const auto type = error.type();
+		if (type == u"STARGIFT_EXPORT_IN_PROGRESS"_q) {
+			done(Payments::CheckoutResult::Cancelled, nullptr);
+		} else {
+			if (const auto strong = weak.get()) {
+				strong->showToast(type);
+			}
+			done(Payments::CheckoutResult::Failed, nullptr);
 		}
-		done(Payments::CheckoutResult::Failed, nullptr);
 	}).send();
 }
 
 void ShowGiftTransferredToast(
 		base::weak_ptr<Window::SessionController> weak,
 		not_null<PeerData*> to,
-		const MTPUpdates &result) {
-	const auto gift = FindUniqueGift(&to->session(), result);
-	if (const auto strong = gift ? weak.get() : nullptr) {
+		const Data::UniqueGift &gift) {
+	if (const auto strong = weak.get()) {
 		strong->showToast({
 			.title = tr::lng_gift_transferred_title(tr::now),
 			.text = tr::lng_gift_transferred_about(
 				tr::now,
 				lt_name,
-				Text::Bold(Data::UniqueGiftName(*gift)),
+				Text::Bold(Data::UniqueGiftName(gift)),
 				lt_recipient,
 				Text::Bold(to->shortName()),
 				Ui::Text::WithEntities),

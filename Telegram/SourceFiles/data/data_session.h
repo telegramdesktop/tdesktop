@@ -85,6 +85,7 @@ struct GiftUpdate {
 		Save,
 		Unsave,
 		Convert,
+		Transfer,
 		Delete,
 	};
 
