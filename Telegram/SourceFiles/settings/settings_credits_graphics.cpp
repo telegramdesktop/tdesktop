@@ -1567,6 +1567,8 @@ void GenericCreditsEntryBox(
 	} else if (starGiftCanManage) {
 		const auto hiddenPhrase = giftToChannelCanManage
 			? tr::lng_gift_hidden_hint_channel
+			: uniqueGift
+			? tr::lng_gift_hidden_unique
 			: tr::lng_gift_hidden_hint;
 		const auto visiblePhrase = giftToChannelCanManage
 			? tr::lng_gift_visible_hint_channel
