@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 
+#include <QtCore/QLocale>
+
 namespace Ui {
 namespace {
 

@@ -1,3 +1,10 @@
+5.10.4 (22.01.25)
+
+- Add messages search in channel comments.
+- Allow sending your unique gifts to blockchain.
+- Add option for running in backround on Linux.
+- Fix possible freeze on quit on macOS.
+
 5.10.3 (09.01.25)
 
 - Fix a crash in legacy group opening.
