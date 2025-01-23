@@ -312,12 +312,6 @@ constexpr auto kFrameSize = 4096;
 
 } // namespace
 
-LocalCache::~LocalCache() {
-	for (const auto &[id, path] : _cache) {
-		QFile::remove(path);
-	}
-}
-
 LocalSound LocalCache::sound(
 		DocumentId id,
 		Fn<QByteArray()> resolveOriginalBytes,
@@ -332,6 +326,35 @@ LocalSound LocalCache::sound(
 		: fallbackOriginalBytes
 		? sound(0, fallbackOriginalBytes, nullptr)
 		: LocalSound();
+}
+
+LocalDiskCache::LocalDiskCache(const QString &folder)
+: _base(folder + '/') {
+	QDir().mkpath(_base);
+}
+
+QString LocalDiskCache::path(const LocalSound &sound) {
+	if (!sound) {
+		return {};
+	}
+	const auto i = _paths.find(sound.id);
+	if (i != end(_paths)) {
+		return i->second;
+	}
+
+	auto result = u"TDesktop-%1"_q.arg(sound.id
+		? QString::number(sound.id, 16).toUpper()
+		: u"Default"_q);
+	const auto path = _base + u"%1.wav"_q.arg(result);
+
+	auto f = QFile(path);
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(sound.wav);
+		f.close();
+	}
+
+	_paths.emplace(sound.id, result);
+	return result;
 }
 
 } // namespace Media::Audio

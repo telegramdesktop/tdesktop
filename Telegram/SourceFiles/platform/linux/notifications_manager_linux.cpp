@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "media/audio/media_audio_local_cache.h"
 #include "lang/lang_keys.h"
 #include "base/weak_ptr.h"
 #include "window/notifications_utilities.h"
@@ -191,6 +192,8 @@ private:
 	const not_null<Manager*> _manager;
 	NotificationId _id;
 
+	//Media::Audio::LocalDiskCache _sounds;
+
 	Gio::Application _application;
 	Gio::Notification _notification;
 	const std::string _guid;
@@ -219,6 +222,7 @@ NotificationData::NotificationData(
 	NotificationId id)
 : _manager(manager)
 , _id(id)
+//, _sounds(cWorkingDir() + u"tdata/audio_cache"_q)
 , _application(UseGNotification()
 		? Gio::Application::get_default()
 		: nullptr)
@@ -232,7 +236,8 @@ NotificationData::NotificationData(
 bool NotificationData::init(const Info &info) {
 	const auto &title = info.title;
 	const auto &subtitle = info.subtitle;
-	//const auto sound = info.sound ? info.sound() : QString();
+	//const auto sound = info.sound ? info.sound() : Media::Audio::LocalSound();
+	//const auto path = sound ? _sounds.path(sound) : QString();
 	if (_application) {
 		_notification = Gio::Notification::new_(
 			subtitle.isEmpty()

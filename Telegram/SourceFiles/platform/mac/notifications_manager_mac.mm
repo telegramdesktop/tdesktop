@@ -226,8 +226,6 @@ private:
 
 	void clearingThreadLoop();
 
-	[[nodiscard]] QString cacheSound(const Media::Audio::LocalSound &sound);
-
 	const uint64 _managerId = 0;
 	QString _managerIdString;
 
@@ -262,17 +260,27 @@ private:
 		ClearFinish>;
 	std::vector<ClearTask> _clearingTasks;
 
-	std::vector<Fn<void()>> _focusedCallbacks;
-	base::flat_map<DocumentId, QString> _cachedSounds;
+	Media::Audio::LocalDiskCache _sounds;
 
 	rpl::lifetime _lifetime;
 
 };
 
+[[nodiscard]] QString ResolveSoundsFolder() {
+	NSArray *paths = NSSearchPathForDirectoriesInDomains(
+		NSLibraryDirectory,
+		NSUserDomainMask,
+		YES);
+	NSString *library = [paths firstObject];
+	NSString *sounds = [library stringByAppendingPathComponent : @"Sounds"];
+	return NS2QString(sounds);
+}
+
 Manager::Private::Private(Manager *manager)
 : _managerId(base::RandomValue<uint64>())
 , _managerIdString(QString::number(_managerId))
-, _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId]) {
+, _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId])
+, _sounds(ResolveSoundsFolder()) {
 	Core::App().settings().workModeValue(
 	) | rpl::start_with_next([=](Core::Settings::WorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
@@ -281,37 +289,6 @@ Manager::Private::Private(Manager *manager)
 			updateDelegate();
 		});
 	}, _lifetime);
-}
-
-QString Manager::Private::cacheSound(const Media::Audio::LocalSound &sound) {
-	const auto i = _cachedSounds.find(sound.id);
-	if (i != end(_cachedSounds)) {
-		return i->second;
-	}
-
-	auto result = u"TDesktop-%1"_q.arg(sound.id
-		? QString::number(sound.id, 16).toUpper()
-		: u"Default"_q);
-
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(
-		NSLibraryDirectory,
-		NSUserDomainMask,
-		YES);
-    NSString *library = [paths firstObject];
-    NSString *sounds = [library stringByAppendingPathComponent:@"Sounds"];
-	const auto folder = NS2QString(sounds);
-
-	const auto path = folder + u"/%1.wav"_q.arg(result);
-    QDir().mkpath(folder);
-
-	auto f = QFile(path);
-	if (f.open(QIODevice::WriteOnly)) {
-		f.write(sound.wav);
-		f.close();
-	}
-
-	_cachedSounds.emplace(sound.id, result);
-	return result;
 }
 
 void Manager::Private::showNotification(
@@ -361,7 +338,7 @@ void Manager::Private::showNotification(
 
 	const auto sound = info.sound ? info.sound() : Media::Audio::LocalSound();
 	if (sound) {
-		[notification setSoundName:Q2NSString(cacheSound(sound))];
+		[notification setSoundName:Q2NSString(_sounds.path(sound))];
 	} else {
 		[notification setSoundName:nil];
 	}

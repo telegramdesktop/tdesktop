@@ -20,9 +20,6 @@ struct LocalSound {
 
 class LocalCache final {
 public:
-    LocalCache() = default;
-    ~LocalCache();
-
     [[nodiscard]] LocalSound sound(
         DocumentId id,
         Fn<QByteArray()> resolveOriginalBytes,
@@ -30,6 +27,18 @@ public:
 
 private:
     base::flat_map<DocumentId, QByteArray> _cache;
+
+};
+
+class LocalDiskCache final {
+public:
+    explicit LocalDiskCache(const QString &folder);
+
+    [[nodiscard]] QString path(const LocalSound &sound);
+
+private:
+    const QString _base;
+	base::flat_map<DocumentId, QString> _paths;
 
 };
 
