@@ -333,7 +333,7 @@ LocalDiskCache::LocalDiskCache(const QString &folder)
 	QDir().mkpath(_base);
 }
 
-QString LocalDiskCache::path(const LocalSound &sound) {
+QString LocalDiskCache::name(const LocalSound &sound) {
 	if (!sound) {
 		return {};
 	}
@@ -355,6 +355,11 @@ QString LocalDiskCache::path(const LocalSound &sound) {
 
 	_paths.emplace(sound.id, result);
 	return result;
+}
+
+QString LocalDiskCache::path(const LocalSound &sound) {
+	const auto part = name(sound);
+	return part.isEmpty() ? QString() : _base + part + u".wav"_q;
 }
 
 } // namespace Media::Audio

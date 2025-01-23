@@ -34,6 +34,7 @@ class LocalDiskCache final {
 public:
     explicit LocalDiskCache(const QString &folder);
 
+    [[nodiscard]] QString name(const LocalSound &sound);
     [[nodiscard]] QString path(const LocalSound &sound);
 
 private:

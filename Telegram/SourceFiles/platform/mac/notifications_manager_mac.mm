@@ -338,7 +338,7 @@ void Manager::Private::showNotification(
 
 	const auto sound = info.sound ? info.sound() : Media::Audio::LocalSound();
 	if (sound) {
-		[notification setSoundName:Q2NSString(_sounds.path(sound))];
+		[notification setSoundName:Q2NSString(_sounds.name(sound))];
 	} else {
 		[notification setSoundName:nil];
 	}
