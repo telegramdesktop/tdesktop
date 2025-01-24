@@ -5968,6 +5968,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_learn_coin_link" = "https://telegram.org/blog/monetization-for-channels";
 "lng_channel_earn_chart_top_hours" = "Ad impressions";
 "lng_channel_earn_chart_revenue" = "Ad rewards";
+"lng_channel_earn_chart_overriden_detail_credits" = "Rewards in Stars";
 "lng_channel_earn_chart_overriden_detail_currency" = "Rewards in TON";
 "lng_channel_earn_chart_overriden_detail_usd" = "Rewards in USD";
 "lng_channel_earn_currency_history" = "TON Transactions";
