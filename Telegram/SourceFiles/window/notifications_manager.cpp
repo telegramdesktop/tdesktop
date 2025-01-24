@@ -184,9 +184,30 @@ void System::createManager() {
 	Platform::Notifications::Create(this);
 }
 
-void System::setManager(std::unique_ptr<Manager> manager) {
-	_manager = std::move(manager);
-	if (!_manager) {
+void System::setManager(Fn<std::unique_ptr<Manager>()> create) {
+	Expects(_manager != nullptr);
+	const auto guard = gsl::finally([&] {
+		Ensures(_manager != nullptr);
+	});
+
+	if ((Core::App().settings().nativeNotifications()
+				|| Platform::Notifications::Enforced())
+			&& Platform::Notifications::Supported()) {
+		if (_manager->type() == ManagerType::Native) {
+			return;
+		}
+
+		if (auto manager = create()) {
+			_manager = std::move(manager);
+			return;
+		}
+	}
+
+	if (Platform::Notifications::Enforced()) {
+		if (_manager->type() != ManagerType::Dummy) {
+			_manager = std::make_unique<DummyManager>(this);
+		}
+	} else if (_manager->type() != ManagerType::Default) {
 		_manager = std::make_unique<Default::Manager>(this);
 	}
 }

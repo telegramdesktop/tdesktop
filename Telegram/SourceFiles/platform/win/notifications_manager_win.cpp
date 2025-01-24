@@ -416,14 +416,10 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
-	if (Core::App().settings().nativeNotifications() && Supported()) {
+	system->setManager([=] {
 		auto result = std::make_unique<Manager>(system);
-		if (result->init()) {
-			system->setManager(std::move(result));
-			return;
-		}
-	}
-	system->setManager(nullptr);
+		return result->init() ? std::move(result) : nullptr;
+	});
 }
 
 class Manager::Private {
