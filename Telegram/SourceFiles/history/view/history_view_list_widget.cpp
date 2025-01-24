@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/toast/toast.h"
@@ -57,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/moderate_messages_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "core/crash_reports.h"
@@ -4289,18 +4291,30 @@ void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 	if (items.empty()) {
 		return;
 	}
+	const auto controller = widget->controller();
+	const auto owner = &controller->session().data();
+	auto historyItems = std::vector<not_null<HistoryItem*>>();
+	historyItems.reserve(items.size());
 	for (const auto &item : items) {
 		if (!item.canDelete) {
 			return;
+		} else if (const auto i = owner->message(item.msgId)) {
+			historyItems.push_back(i);
 		}
 	}
-	auto box = Box<DeleteMessagesBox>(
-		&widget->session(),
-		widget->getSelectedIds());
-	box->setDeleteConfirmedCallback(crl::guard(widget, [=] {
+	const auto confirmed = crl::guard(widget, [=] {
 		widget->cancelSelection();
-	}));
-	widget->controller()->show(std::move(box));
+	});
+	if (CanCreateModerateMessagesBox(historyItems)) {
+		controller->show(
+			Box(CreateModerateMessagesBox, historyItems, confirmed));
+	} else {
+		auto box = Box<DeleteMessagesBox>(
+			&widget->session(),
+			widget->getSelectedIds());
+		box->setDeleteConfirmedCallback(confirmed);
+		controller->show(std::move(box));
+	}
 }
 
 void ConfirmForwardSelectedItems(not_null<ListWidget*> widget) {
