@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/data_web_page.h"
 #include "styles/style_chat.h"
 
 #include <QSvgRenderer>
@@ -134,6 +135,18 @@ Gif::Streamed::Streamed(
 		&& parent->data()->media()->ttlSeconds();
 }
 
+[[nodiscard]] TimeId ExtractVideoTimestamp(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	if (!media) {
+		return 0;
+	} else if (const auto timestamp = media->videoTimestamp()) {
+		return timestamp;
+	} else if (const auto webpage = media->webpage()) {
+		return webpage->extractVideoTimestamp();
+	}
+	return 0;
+}
+
 Gif::Gif(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
@@ -150,6 +163,7 @@ Gif::Gif(
 	? std::make_unique<MediaSpoiler>()
 	: nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size))
+, _videoTimestamp(ExtractVideoTimestamp(realParent))
 , _sensitiveSpoiler(realParent->isMediaSensitive())
 , _hasVideoCover(realParent->media() && realParent->media()->videoCover()) {
 	if (_data->isVideoMessage() && _parent->data()->media()->ttlSeconds()) {
@@ -396,7 +410,7 @@ bool Gif::downloadInCorner() const {
 bool Gif::autoplayEnabled() const {
 	if (_realParent->isSponsored()) {
 		return true;
-	} else if (_hasVideoCover) {
+	} else if (_videoTimestamp || _hasVideoCover) {
 		return false;
 	}
 	return Data::AutoDownload::ShouldAutoPlay(
@@ -581,6 +595,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		ensureDataMediaCreated();
 		validateThumbCache({ usew, painth }, isRound, rounding);
 		p.drawImage(rthumb, _thumbCache);
+		paintTimestampMark(p, rthumb, rounding);
 	}
 
 	if (revealed < 1.) {
@@ -865,6 +880,68 @@ void Gif::paintTranscribe(
 		x - (right ? 0 : s.width()),
 		y - s.height() - st::msgDateImgDelta,
 		context);
+}
+
+void Gif::paintTimestampMark(
+		Painter &p,
+		QRect rthumb,
+		std::optional<Ui::BubbleRounding> rounding) const {
+	if (_videoTimestamp <= 0) {
+		return;
+	}
+	const auto roundingLeft = rounding
+		? rounding->bottomLeft
+		: Ui::BubbleCornerRounding::Small;
+	const auto roundingRight = rounding
+		? rounding->bottomRight
+		: Ui::BubbleCornerRounding::Small;
+	const auto convert = [](Ui::BubbleCornerRounding rounding) {
+		return (rounding == Ui::BubbleCornerRounding::Small)
+			? st::roundRadiusSmall
+			: (rounding == Ui::BubbleCornerRounding::Large)
+			? st::roundRadiusLarge
+			: 0;
+	};
+	const auto radiusl = convert(roundingLeft);
+	const auto radiusr = convert(roundingRight);
+	const auto line = st::historyVideoTimestampProgressLine;
+	const auto duration = _data->duration() / 1000;
+	if (rthumb.height() <= line
+		|| rthumb.width() <= radiusl + radiusr
+		|| _videoTimestamp >= duration) {
+		return;
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	const auto used = rthumb.width() - radiusl - radiusr;
+	const auto progress = _videoTimestamp / float64(duration);
+	const auto edge = radiusl + int(base::SafeRound(used * progress));
+	const auto top = rthumb.y() + rthumb.height() - line;
+	p.save();
+	p.setPen(Qt::NoPen);
+	if (edge > 0) {
+		p.setBrush(st::windowBgActive);
+
+		p.setClipRect(rthumb.x(), top, edge, line);
+		p.drawRoundedRect(
+			rthumb.x(),
+			top - radiusl,
+			edge + radiusl,
+			line + radiusl,
+			radiusl,
+			radiusl);
+	}
+	if (const auto width = rthumb.width() - edge; width > 0) {
+		const auto left = rthumb.x() + edge;
+		p.setBrush(st::mediaviewPlaybackProgressFg);
+		p.setClipRect(left, top, width, line);
+		p.drawRoundedRect(
+			left - radiusr,
+			top - radiusr,
+			width + radiusr,
+			line + radiusr,
+			radiusr, radiusr);
+	}
+	p.restore();
 }
 
 void Gif::drawSpoilerTag(

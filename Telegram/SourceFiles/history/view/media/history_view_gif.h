@@ -163,6 +163,10 @@ private:
 		int y,
 		bool right,
 		const PaintContext &context) const;
+	void paintTimestampMark(
+		Painter &p,
+		QRect rthumb,
+		std::optional<Ui::BubbleRounding> rounding) const;
 
 	[[nodiscard]] bool needInfoDisplay() const;
 	[[nodiscard]] bool needCornerStatusDisplay() const;
@@ -218,6 +222,7 @@ private:
 	QString _downloadSize;
 	mutable QImage _thumbCache;
 	mutable QImage _roundingMask;
+	mutable TimeId _videoTimestamp = 0;
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
 	mutable bool _thumbCacheBlurred : 1 = false;
 	mutable bool _thumbIsEllipse : 1 = false;

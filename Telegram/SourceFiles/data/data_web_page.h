@@ -114,6 +114,7 @@ struct WebPageData {
 		const MTPmessages_Messages &result);
 
 	[[nodiscard]] QString displayedSiteName() const;
+	[[nodiscard]] TimeId extractVideoTimestamp() const;
 	[[nodiscard]] bool computeDefaultSmallMedia() const;
 	[[nodiscard]] bool suggestEnlargePhoto() const;
 

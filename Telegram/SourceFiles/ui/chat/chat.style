@@ -686,6 +686,7 @@ historyVideoCancelSelected: icon {{ "player/playlist_cancel", historyFileThumbIc
 historyVideoDownload: icon {{ "player/playlist_download", historyFileThumbIconFg }};
 historyVideoDownloadSelected: icon {{ "player/playlist_download", historyFileThumbIconFgSelected }};
 historyVideoRadialLine: msgFileRadialLine;
+historyVideoTimestampProgressLine: 4px;
 
 historyAudioDownloadSize: 20px;
 historyAudioRadialLine: 2px;

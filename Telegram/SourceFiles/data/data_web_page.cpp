@@ -374,6 +374,28 @@ QString WebPageData::displayedSiteName() const {
 		: siteName;
 }
 
+TimeId WebPageData::extractVideoTimestamp() const {
+	const auto take = [&](const QStringList &list, int index) {
+		return (index >= 0 && index < list.size()) ? list[index] : QString();
+	};
+	const auto hashed = take(url.split('#'), 0);
+	const auto params = take(hashed.split('?'), 1);
+	const auto parts = params.split('&');
+	for (const auto &part : parts) {
+		if (part.startsWith(u"t="_q)) {
+			const auto value = part.mid(2);
+			const auto kExp = u"^(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$"_q;
+			const auto m = QRegularExpression(kExp).match(value);
+			return m.hasMatch()
+				? (m.capturedView(1).toInt() * 3600
+					+ m.capturedView(2).toInt() * 60
+					+ m.capturedView(3).toInt())
+				: value.toInt();
+		}
+	}
+	return 0;
+}
+
 bool WebPageData::computeDefaultSmallMedia() const {
 	if (!collage.items.empty()) {
 		return false;
