@@ -76,16 +76,11 @@ constexpr auto kSponsoredUserpicLines = 2;
 	const auto spoiler = false;
 	for (const auto &item : data.items) {
 		if (const auto document = std::get_if<DocumentData*>(&item)) {
-			const auto hasQualitiesList = false;
-			const auto skipPremiumEffect = false;
-			result.push_back(std::make_unique<Data::MediaFile>(
-				parent,
-				*document,
-				/*videoCover=*/nullptr,
-				skipPremiumEffect,
-				hasQualitiesList,
-				spoiler,
-				/*ttlSeconds = */0));
+			using MediaFile = Data::MediaFile;
+			using Args = MediaFile::Args;
+			const auto data = *document;
+			result.push_back(
+				std::make_unique<Data::MediaFile>(parent, data, Args{}));
 		} else if (const auto photo = std::get_if<PhotoData*>(&item)) {
 			result.push_back(std::make_unique<Data::MediaPhoto>(
 				parent,

@@ -557,6 +557,10 @@ PhotoData *Media::videoCover() const {
 	return nullptr;
 }
 
+TimeId Media::videoTimestamp() const {
+	return 0;
+}
+
 bool Media::hasQualitiesList() const {
 	return false;
 }
@@ -973,19 +977,16 @@ std::unique_ptr<HistoryView::Media> MediaPhoto::createView(
 MediaFile::MediaFile(
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> document,
-	PhotoData *videoCover,
-	bool skipPremiumEffect,
-	bool hasQualitiesList,
-	bool spoiler,
-	crl::time ttlSeconds)
+	Args &&args)
 : Media(parent)
 , _document(document)
-, _videoCover(videoCover)
+, _videoCover(args.videoCover)
+, _ttlSeconds(args.ttlSeconds)
 , _emoji(document->sticker() ? document->sticker()->alt : QString())
-, _skipPremiumEffect(skipPremiumEffect)
-, _hasQualitiesList(hasQualitiesList)
-, _spoiler(spoiler)
-, _ttlSeconds(ttlSeconds) {
+, _videoTimestamp(args.videoTimestamp)
+, _skipPremiumEffect(args.skipPremiumEffect)
+, _hasQualitiesList(args.hasQualitiesList)
+, _spoiler(args.spoiler) {
 	parent->history()->owner().registerDocumentItem(_document, parent);
 
 	if (!_emoji.isEmpty()) {
@@ -1009,14 +1010,14 @@ MediaFile::~MediaFile() {
 }
 
 std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaFile>(
-		parent,
-		_document,
-		_videoCover,
-		!_document->session().premium(),
-		_hasQualitiesList,
-		_spoiler,
-		_ttlSeconds);
+	return std::make_unique<MediaFile>(parent, _document, MediaFile::Args{
+		.ttlSeconds = _ttlSeconds,
+		.videoCover = _videoCover,
+		.videoTimestamp = _videoTimestamp,
+		.hasQualitiesList = _hasQualitiesList,
+		.skipPremiumEffect = !_document->session().premium(),
+		.spoiler = _spoiler,
+	});
 }
 
 DocumentData *MediaFile::document() const {
@@ -1025,6 +1026,10 @@ DocumentData *MediaFile::document() const {
 
 PhotoData *MediaFile::videoCover() const {
 	return _videoCover;
+}
+
+TimeId MediaFile::videoTimestamp() const {
+	return _videoTimestamp;
 }
 
 bool MediaFile::hasQualitiesList() const {

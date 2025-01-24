@@ -180,6 +180,7 @@ public:
 
 	virtual DocumentData *document() const;
 	virtual PhotoData *videoCover() const;
+	virtual TimeId videoTimestamp() const;
 	virtual bool hasQualitiesList() const;
 	virtual PhotoData *photo() const;
 	virtual WebPageData *webpage() const;
@@ -299,20 +300,26 @@ private:
 
 class MediaFile final : public Media {
 public:
+	struct Args {
+		crl::time ttlSeconds = 0;
+		PhotoData *videoCover = nullptr;
+		TimeId videoTimestamp = 0;
+		bool hasQualitiesList = false;
+		bool skipPremiumEffect = false;
+		bool spoiler = false;
+	};
+
 	MediaFile(
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> document,
-		PhotoData *videoCover,
-		bool skipPremiumEffect,
-		bool hasQualitiesList,
-		bool spoiler,
-		crl::time ttlSeconds);
+		Args &&args);
 	~MediaFile();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	DocumentData *document() const override;
 	PhotoData *videoCover() const override;
+	TimeId videoTimestamp() const override;
 	bool hasQualitiesList() const override;
 
 	bool uploading() const override;
@@ -343,13 +350,15 @@ public:
 private:
 	not_null<DocumentData*> _document;
 	PhotoData *_videoCover = nullptr;
-	QString _emoji;
-	bool _skipPremiumEffect = false;
-	bool _hasQualitiesList = false;
-	bool _spoiler = false;
 
 	// Video (unsupported) / Voice / Round.
 	crl::time _ttlSeconds = 0;
+
+	QString _emoji;
+	TimeId _videoTimestamp = 0;
+	bool _skipPremiumEffect = false;
+	bool _hasQualitiesList = false;
+	bool _spoiler = false;
 
 };
 

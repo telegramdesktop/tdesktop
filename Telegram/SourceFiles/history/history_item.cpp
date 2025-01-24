@@ -304,16 +304,18 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return document->match([&](const MTPDdocument &document) -> Result {
 			const auto list = media.valt_documents();
 			const auto owner = &item->history()->owner();
-			return std::make_unique<Data::MediaFile>(
-				item,
-				owner->processDocument(document, list),
-				(media.vvideo_cover()
+			const auto data = owner->processDocument(document);
+			using Args = Data::MediaFile::Args;
+			return std::make_unique<Data::MediaFile>(item, data, Args{
+				.ttlSeconds = media.vttl_seconds().value_or_empty(),
+				.videoCover = (media.vvideo_cover()
 					? owner->processPhoto(*media.vvideo_cover()).get()
 					: nullptr),
-				media.is_nopremium(),
-				list && !list->v.isEmpty(),
-				media.is_spoiler(),
-				media.vttl_seconds().value_or_empty());
+				.videoTimestamp = media.vvideo_timestamp().value_or_empty(),
+				.hasQualitiesList = list && !list->v.isEmpty(),
+				.skipPremiumEffect = media.is_nopremium(),
+				.spoiler = media.is_spoiler(),
+			});
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});
@@ -657,17 +659,12 @@ HistoryItem::HistoryItem(
 : HistoryItem(history, fields) {
 	createComponentsHelper(std::move(fields));
 
-	const auto skipPremiumEffect = !history->session().premium();
 	const auto video = document->video();
-	const auto spoiler = false;
-	_media = std::make_unique<Data::MediaFile>(
-		this,
-		document,
-		/*videoCover=*/nullptr,
-		skipPremiumEffect,
-		video && !video->qualities.empty(),
-		spoiler,
-		/*ttlSeconds = */0);
+	using Args = Data::MediaFile::Args;
+	_media = std::make_unique<Data::MediaFile>(this, document, Args{
+		.hasQualitiesList = video && !video->qualities.empty(),
+		.skipPremiumEffect = !history->session().premium(),
+	});
 	setText(caption);
 }
 
@@ -1853,18 +1850,12 @@ void HistoryItem::applyChanges(not_null<Data::Story*> story) {
 }
 
 void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
-	const auto spoiler = false;
 	if (const auto photo = story->photo()) {
+		const auto spoiler = false;
 		_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
 	} else if (const auto document = story->document()) {
-		_media = std::make_unique<Data::MediaFile>(
-			this,
-			document,
-			/*videoCover=*/nullptr,
-			/*skipPremiumEffect=*/false,
-			/*hasQualitiesList=*/false,
-			spoiler,
-			/*ttlSeconds = */0);
+		using Args = Data::MediaFile::Args;
+		_media = std::make_unique<Data::MediaFile>(this, document, Args{});
 	}
 	setText(story->caption());
 	if (story->pinnedToTop()) {
