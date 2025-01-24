@@ -968,7 +968,9 @@ bool Manager::doSkipToast() const {
 }
 
 void Manager::doMaybePlaySound(Fn<void()> playSound) {
-	if (UseGNotification() || !HasCapability("sound")) {
+	if (UseGNotification()
+		|| !HasCapability("sound")
+		|| !Core::App().settings().desktopNotify()) {
 		_private->invokeIfNotInhibited(std::move(playSound));
 	}
 }
