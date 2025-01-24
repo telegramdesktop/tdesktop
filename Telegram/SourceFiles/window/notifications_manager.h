@@ -99,7 +99,7 @@ public:
 	[[nodiscard]] Main::Session *findSession(uint64 sessionId) const;
 
 	void createManager();
-	void setManager(std::unique_ptr<Manager> manager);
+	void setManager(Fn<std::unique_ptr<Manager>()> create);
 	[[nodiscard]] Manager &manager() const;
 
 	void checkDelayed();

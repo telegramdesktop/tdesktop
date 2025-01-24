@@ -640,22 +640,11 @@ void Create(Window::Notifications::System *system) {
 
 	const auto managerSetter = [=](
 			XdgNotifications::NotificationsProxy proxy) {
-		using ManagerType = Window::Notifications::ManagerType;
-		if ((Core::App().settings().nativeNotifications() || Enforced())
-			&& Supported()) {
-			if (system->manager().type() != ManagerType::Native) {
-				auto manager = std::make_unique<Manager>(system);
-				manager->_private->init(proxy);
-				system->setManager(std::move(manager));
-			}
-		} else if (Enforced()) {
-			if (system->manager().type() != ManagerType::Dummy) {
-				using DummyManager = Window::Notifications::DummyManager;
-				system->setManager(std::make_unique<DummyManager>(system));
-			}
-		} else if (system->manager().type() != ManagerType::Default) {
-			system->setManager(nullptr);
-		}
+		system->setManager([=] {
+			auto manager = std::make_unique<Manager>(system);
+			manager->_private->init(proxy);
+			return manager;
+		});
 	};
 
 	const auto counter = std::make_shared<int>(2);

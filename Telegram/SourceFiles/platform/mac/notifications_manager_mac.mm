@@ -197,11 +197,7 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
-	if (Supported()) {
-		system->setManager(std::make_unique<Manager>(system));
-	} else {
-		system->setManager(nullptr);
-	}
+	system->setManager([=] { return std::make_unique<Manager>(system); });
 }
 
 class Manager::Private : public QObject {
