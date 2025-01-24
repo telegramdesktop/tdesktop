@@ -2803,8 +2803,7 @@ void RepliesWidget::setupDragArea() {
 void RepliesWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
-		return _topic
-			&& Ui::AppInFocus()
+		return Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
 			&& !controller()->isLayerShown()
 			&& (Core::App().activeWindow() == &controller()->window());
@@ -2831,7 +2830,7 @@ void RepliesWidget::searchInTopic() {
 			}
 			updateControlsGeometry();
 		};
-		const auto from = (PeerData*)nullptr;
+		const auto from = (PeerData*)(nullptr);
 		_composeSearch = std::make_unique<HistoryView::ComposeSearch>(
 			this,
 			controller(),
