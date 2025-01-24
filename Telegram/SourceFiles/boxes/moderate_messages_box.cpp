@@ -72,6 +72,16 @@ ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
 		if (peer != item->history()->peer) {
 			return {};
 		}
+		{
+			const auto author = item->author();
+			if (author == peer) {
+				return {};
+			} else if (const auto channel = author->asChannel()) {
+				if (channel->linkedChat() == peer) {
+					return {};
+				}
+			}
+		}
 		if (!item->suggestBanReport()) {
 			result.allCanBan = false;
 		}
