@@ -303,9 +303,13 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		}
 		return document->match([&](const MTPDdocument &document) -> Result {
 			const auto list = media.valt_documents();
+			const auto owner = &item->history()->owner();
 			return std::make_unique<Data::MediaFile>(
 				item,
-				item->history()->owner().processDocument(document, list),
+				owner->processDocument(document, list),
+				(media.vvideo_cover()
+					? owner->processPhoto(*media.vvideo_cover()).get()
+					: nullptr),
 				media.is_nopremium(),
 				list && !list->v.isEmpty(),
 				media.is_spoiler(),
@@ -659,6 +663,7 @@ HistoryItem::HistoryItem(
 	_media = std::make_unique<Data::MediaFile>(
 		this,
 		document,
+		/*videoCover=*/nullptr,
 		skipPremiumEffect,
 		video && !video->qualities.empty(),
 		spoiler,
@@ -1855,6 +1860,7 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 		_media = std::make_unique<Data::MediaFile>(
 			this,
 			document,
+			/*videoCover=*/nullptr,
 			/*skipPremiumEffect=*/false,
 			/*hasQualitiesList=*/false,
 			spoiler,

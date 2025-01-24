@@ -150,7 +150,8 @@ Gif::Gif(
 	? std::make_unique<MediaSpoiler>()
 	: nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size))
-, _sensitiveSpoiler(realParent->isMediaSensitive()) {
+, _sensitiveSpoiler(realParent->isMediaSensitive())
+, _hasVideoCover(realParent->media() && realParent->media()->videoCover()) {
 	if (_data->isVideoMessage() && _parent->data()->media()->ttlSeconds()) {
 		if (_spoiler) {
 			_drawTtl = CreateTtlPaintCallback([=] { repaint(); });
@@ -395,6 +396,8 @@ bool Gif::downloadInCorner() const {
 bool Gif::autoplayEnabled() const {
 	if (_realParent->isSponsored()) {
 		return true;
+	} else if (_hasVideoCover) {
+		return false;
 	}
 	return Data::AutoDownload::ShouldAutoPlay(
 		_data->session().settings().autoDownload(),

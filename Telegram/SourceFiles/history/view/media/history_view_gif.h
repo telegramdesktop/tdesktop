@@ -224,6 +224,7 @@ private:
 	mutable bool _pollingStory : 1 = false;
 	mutable bool _purchasedPriceTag : 1 = false;
 	const bool _sensitiveSpoiler : 1 = false;
+	const bool _hasVideoCover : 1 = false;
 
 };
 

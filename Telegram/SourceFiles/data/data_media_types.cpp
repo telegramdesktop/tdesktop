@@ -553,6 +553,10 @@ DocumentData *Media::document() const {
 	return nullptr;
 }
 
+PhotoData *Media::videoCover() const {
+	return nullptr;
+}
+
 bool Media::hasQualitiesList() const {
 	return false;
 }
@@ -969,12 +973,14 @@ std::unique_ptr<HistoryView::Media> MediaPhoto::createView(
 MediaFile::MediaFile(
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> document,
+	PhotoData *videoCover,
 	bool skipPremiumEffect,
 	bool hasQualitiesList,
 	bool spoiler,
 	crl::time ttlSeconds)
 : Media(parent)
 , _document(document)
+, _videoCover(videoCover)
 , _emoji(document->sticker() ? document->sticker()->alt : QString())
 , _skipPremiumEffect(skipPremiumEffect)
 , _hasQualitiesList(hasQualitiesList)
@@ -1006,6 +1012,7 @@ std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaFile>(
 		parent,
 		_document,
+		_videoCover,
 		!_document->session().premium(),
 		_hasQualitiesList,
 		_spoiler,
@@ -1014,6 +1021,10 @@ std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
 
 DocumentData *MediaFile::document() const {
 	return _document;
+}
+
+PhotoData *MediaFile::videoCover() const {
+	return _videoCover;
 }
 
 bool MediaFile::hasQualitiesList() const {

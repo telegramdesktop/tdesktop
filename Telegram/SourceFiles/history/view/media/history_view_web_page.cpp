@@ -81,6 +81,7 @@ constexpr auto kSponsoredUserpicLines = 2;
 			result.push_back(std::make_unique<Data::MediaFile>(
 				parent,
 				*document,
+				/*videoCover=*/nullptr,
 				skipPremiumEffect,
 				hasQualitiesList,
 				spoiler,

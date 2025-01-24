@@ -313,6 +313,7 @@ void AddViewMediaHandler(
 			fake.push_back(std::make_unique<Data::MediaFile>(
 				state->item,
 				owner->document(item.id),
+				nullptr, // videoCover
 				true, // skipPremiumEffect
 				false, // hasQualitiesList
 				false, // spoiler
