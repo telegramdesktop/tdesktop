@@ -1,3 +1,11 @@
+5.10.5 (24.01.25)
+
+- Count all unread topics as a single chat in archive unread counter.
+- Fix common groups section in bots profiles.
+- Fix crash on scheduling messages from Share box.
+- Fix silent notifications on macOS.
+- Add support for 'sound-file' notification hint on Linux.
+
 5.10.4 (22.01.25)
 
 - Add messages search in channel comments.
