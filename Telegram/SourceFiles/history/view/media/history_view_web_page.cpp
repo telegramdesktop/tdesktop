@@ -50,6 +50,7 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 constexpr auto kFactcheckCollapsedLines = 3;
 constexpr auto kStickerSetLines = 3;
 constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
+constexpr auto kSponsoredUserpicLines = 2;
 
 [[nodiscard]] int ArticleThumbWidth(not_null<PhotoData*> thumb, int height) {
 	const auto size = thumb->location(Data::PhotoSize::Thumbnail);
@@ -375,6 +376,9 @@ QSize WebPage::countOptimalSize() {
 
 	const auto sponsored = sponsoredData();
 	const auto factcheck = factcheckData();
+	const auto stickerSet = stickerSetData();
+	const auto specialRightPix = (stickerSet
+		|| (sponsored && !sponsored->hasMedia && _data->photo));
 
 	// Detect _openButtonWidth before counting paddings.
 	_openButton = Ui::Text::String();
@@ -600,10 +604,16 @@ QSize WebPage::countOptimalSize() {
 		+ titleMinHeight
 		+ descriptionMinHeight;
 	const auto articlePhotoMaxWidth = _asArticle
-		? st::webPagePhotoDelta
+		? (st::webPagePhotoDelta
 			+ std::max(
 				ArticleThumbWidth(_data->photo, articleMinHeight),
-				lineHeight)
+				lineHeight))
+		: specialRightPix
+		? (st::webPagePhotoDelta
+			+ (lineHeight
+				* (stickerSet
+					? kStickerSetLines
+					: kSponsoredUserpicLines)))
 		: 0;
 
 	if (!_siteName.isEmpty()) {
@@ -705,7 +715,6 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	const auto twoTitleLines = 2 * st::webPageTitleFont->height;
 	const auto descriptionLineHeight = st::webPageDescriptionFont->height;
 	if (asArticle() || specialRightPix) {
-		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = lineHeight
 			* (stickerSet
 				? kStickerSetLines
