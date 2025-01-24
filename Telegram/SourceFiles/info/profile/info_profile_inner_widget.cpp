@@ -247,6 +247,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	addMediaButton(MediaType::RoundVoiceFile, st::infoIconMediaVoice);
 	addMediaButton(MediaType::GIF, st::infoIconMediaGif);
 	if (const auto bot = _peer->asBot()) {
+		addCommonGroupsButton(bot, st::infoIconMediaGroup);
 		addSimilarPeersButton(bot, st::infoIconMediaBot);
 	} else if (const auto channel = _peer->asBroadcast()) {
 		addSimilarPeersButton(channel, st::infoIconMediaChannel);
