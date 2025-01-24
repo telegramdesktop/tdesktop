@@ -85,12 +85,9 @@ using UpdateFlag = Data::HistoryUpdate::Flag;
 
 [[nodiscard]] Dialogs::UnreadState AdjustedForumUnreadState(
 		Dialogs::UnreadState state) {
-	if (state.chatsTopic) {
-		state.forums = 1;
-		if (state.chatsTopic == state.chatsTopicMuted) {
-			state.forumsMuted = 1;
-		}
-	}
+	const auto allMuted = (state.chats == state.chatsMuted);
+	state.chatsMuted = (state.chats && allMuted) ? 1 : 0;
+	state.chats = state.chats ? 1 : 0;
 	return state;
 }
 
@@ -2229,7 +2226,7 @@ Dialogs::BadgesState History::chatListBadgesState() const {
 	if (const auto forum = peer->forum()) {
 		return adjustBadgesStateByFolder(
 			Dialogs::BadgesForUnread(
-				AdjustedForumUnreadState(forum->topicsList()->unreadState()),
+				forum->topicsList()->unreadState(),
 				Dialogs::CountInBadge::Chats,
 				Dialogs::IncludeInBadge::UnmutedOrAll));
 	}
@@ -3103,7 +3100,8 @@ void History::forumChanged(Data::Forum *old) {
 		forum->topicsList()->unreadStateChanges(
 		) | rpl::filter([=] {
 			return (_flags & Flag::IsForum) && inChatList();
-		}) | rpl::map(AdjustedForumUnreadState
+		}) | rpl::map(
+			AdjustedForumUnreadState
 		) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 			notifyUnreadStateChange(old);
 		}, forum->lifetime());

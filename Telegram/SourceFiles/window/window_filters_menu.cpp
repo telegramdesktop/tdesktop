@@ -286,14 +286,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		) | rpl::start_with_next([=](
 				const Dialogs::UnreadState &state,
 				bool includeMuted) {
-			const auto chats = state.chatsTopic
-				? (state.chats - state.chatsTopic + state.forums)
-				: state.chats;
-			const auto chatsMuted = state.chatsTopicMuted
-				? (state.chatsMuted
-					- state.chatsTopicMuted
-					+ state.forumsMuted)
-				: state.chatsMuted;
+			const auto chats = state.chats;
+			const auto chatsMuted = state.chatsMuted;
 			const auto muted = (chatsMuted + state.marksMuted);
 			const auto count = (chats + state.marks)
 				- (includeMuted ? 0 : muted);
