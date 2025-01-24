@@ -562,6 +562,9 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 			submit(action.options);
 			return;
 		}
+		const auto st = _descriptor.st.scheduleBox
+			? *_descriptor.st.scheduleBox
+			: HistoryView::ScheduleBoxStyleArgs();
 		uiShow()->showBox(
 			HistoryView::PrepareScheduleBox(
 				this,
@@ -570,7 +573,7 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 				[=](Api::SendOptions options) { submit(options); },
 				action.options,
 				HistoryView::DefaultScheduleTime(),
-				*_descriptor.st.scheduleBox));
+				st));
 	});
 	_menu->setForcedVerticalOrigin(Ui::PopupMenu::VerticalOrigin::Bottom);
 	const auto result = FillSendMenu(
