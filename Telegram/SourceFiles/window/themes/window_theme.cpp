@@ -526,24 +526,41 @@ void ChatBackground::start() {
 		checkUploadWallPaper();
 	}, _lifetime);
 
+	rpl::combine(
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-	rpl::single(
-		QGuiApplication::styleHints()->colorScheme()
-	) | rpl::then(
-		base::qt_signal_producer(
-			QGuiApplication::styleHints(),
-			&QStyleHints::colorSchemeChanged
+		rpl::single(
+			QGuiApplication::styleHints()->colorScheme()
+		) | rpl::then(
+			base::qt_signal_producer(
+				QGuiApplication::styleHints(),
+				&QStyleHints::colorSchemeChanged
+			)
+		),
+#endif // Qt >= 6.5.0
+		rpl::single(
+			QGuiApplication::palette()
+		) | rpl::then(
+			base::qt_signal_producer(
+				qApp,
+				&QGuiApplication::paletteChanged
+			)
 		)
-	) | rpl::map([](Qt::ColorScheme colorScheme) {
-		return colorScheme == Qt::ColorScheme::Unknown
-			? std::nullopt
-			: std::make_optional(colorScheme == Qt::ColorScheme::Dark);
-	}) | rpl::start_with_next([](std::optional<bool> dark) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+	) | rpl::map([](Qt::ColorScheme colorScheme, const QPalette &palette) {
+		return colorScheme != Qt::ColorScheme::Unknown
+			? colorScheme == Qt::ColorScheme::Dark
+#else // Qt >= 6.5.0
+	) | rpl::map([](const QPalette &palette) {
+		const auto dark = Platform::IsDarkMode();
+		return dark
+			? *dark
+#endif // Qt < 6.5.0
+			: palette.windowText().color().lightness()
+				> palette.window().color().lightness();
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([](bool dark) {
 		Core::App().settings().setSystemDarkMode(dark);
 	}, _lifetime);
-#else // Qt >= 6.5.0
-	Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
-#endif // Qt < 6.5.0
 }
 
 void ChatBackground::refreshThemeWatcher() {
