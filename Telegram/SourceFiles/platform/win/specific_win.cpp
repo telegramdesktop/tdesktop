@@ -399,6 +399,13 @@ std::optional<bool> IsDarkMode() {
 		return std::nullopt;
 	}
 
+	HIGHCONTRAST hcf = {};
+	hcf.cbSize = static_cast<UINT>(sizeof(HIGHCONTRAST));
+	if (SystemParametersInfo(SPI_GETHIGHCONTRAST, hcf.cbSize, &hcf, FALSE)
+			&& (hcf.dwFlags & HCF_HIGHCONTRASTON)) {
+		return std::nullopt;
+	}
+
 	const auto keyName = L""
 		"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 	const auto valueName = L"AppsUseLightTheme";
