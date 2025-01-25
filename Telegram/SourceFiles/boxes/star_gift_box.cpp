@@ -2577,8 +2577,7 @@ void UpgradeBox(
 	const auto infoRow = [&](
 			rpl::producer<QString> title,
 			rpl::producer<QString> text,
-			not_null<const style::icon*> icon,
-			bool newBadge = false) {
+			not_null<const style::icon*> icon) {
 		auto raw = container->add(
 			object_ptr<Ui::VerticalLayout>(container));
 		const auto widget = raw->add(
@@ -2587,16 +2586,6 @@ void UpgradeBox(
 				std::move(title) | Ui::Text::ToBold(),
 				st::defaultFlatLabel),
 			st::settingsPremiumRowTitlePadding);
-		if (newBadge) {
-			const auto badge = NewBadge::CreateNewBadge(
-				raw,
-				tr::lng_soon_badge(Ui::Text::Upper));
-			widget->geometryValue(
-			) | rpl::start_with_next([=](QRect geometry) {
-				badge->move(st::settingsPremiumNewBadgePosition
-					+ QPoint(widget->x() + widget->width(), widget->y()));
-			}, badge->lifetime());
-		}
 		raw->add(
 			object_ptr<Ui::FlatLabel>(
 				raw,
@@ -2620,8 +2609,7 @@ void UpgradeBox(
 	infoRow(
 		tr::lng_gift_upgrade_tradable_title(),
 		tr::lng_gift_upgrade_tradable_about(),
-		&st::menuIconTradable,
-		true);
+		&st::menuIconTradable);
 
 	struct State {
 		bool sent = false;
