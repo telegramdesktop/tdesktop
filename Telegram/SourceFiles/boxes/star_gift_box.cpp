@@ -681,6 +681,21 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			for (auto &gift : gifts) {
 				list.push_back({ .info = gift });
 			}
+			ranges::sort(list, [](
+					const GiftTypeStars &a,
+					const GiftTypeStars &b) {
+				if (!a.info.limitedCount && !b.info.limitedCount) {
+					return a.info.stars <= b.info.stars;
+				} else if (!a.info.limitedCount) {
+					return true;
+				} else if (!b.info.limitedCount) {
+					return false;
+				} else if (a.info.limitedLeft != b.info.limitedLeft) {
+					return a.info.limitedLeft > b.info.limitedLeft;
+				}
+				return a.info.stars <= b.info.stars;
+			});
+
 			auto &map = Map[session];
 			if (map.last != list) {
 				map.last = list;
