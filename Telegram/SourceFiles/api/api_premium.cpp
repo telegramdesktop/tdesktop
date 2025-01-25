@@ -850,7 +850,7 @@ std::optional<Data::SavedStarGift> FromTL(
 	using Id = Data::SavedStarGiftId;
 	return Data::SavedStarGift{
 		.info = std::move(*parsed),
-		.id = (to->isUser()
+		.manageId = (to->isUser()
 			? Id::User(data.vmsg_id().value_or_empty())
 			: Id::Chat(to, data.vsaved_id().value_or_empty())),
 		.message = (data.vmessage()

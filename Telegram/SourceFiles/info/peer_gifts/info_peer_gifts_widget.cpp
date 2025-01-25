@@ -84,7 +84,8 @@ private:
 	};
 	struct View {
 		std::unique_ptr<GiftButton> button;
-		Data::SavedStarGiftId id;
+		Data::SavedStarGiftId manageId;
+		uint64 giftId = 0;
 		int index = 0;
 	};
 
@@ -97,7 +98,7 @@ private:
 	void loadMore();
 	void refreshButtons();
 	void validateButtons();
-	void showGift(Data::SavedStarGiftId id);
+	void showGift(int index);
 	void refreshAbout();
 
 	int resizeGetHeight(int width) override;
@@ -164,7 +165,7 @@ void InnerWidget::subscribeToUpdates() {
 	_peer->owner().giftUpdates(
 	) | rpl::start_with_next([=](const Data::GiftUpdate &update) {
 		const auto savedId = [](const Entry &entry) {
-			return entry.gift.id;
+			return entry.gift.manageId;
 		};
 		const auto i = ranges::find(_entries, update.id, savedId);
 		if (i == end(_entries)) {
@@ -194,7 +195,7 @@ void InnerWidget::subscribeToUpdates() {
 			for (auto &view : _views) {
 				if (view.index == index) {
 					view.index = -1;
-					view.id = {};
+					view.manageId = {};
 				}
 			}
 		} else {
@@ -321,56 +322,59 @@ void InnerWidget::validateButtons() {
 	auto y = vskip + fromRow * oneh;
 	auto views = std::vector<View>();
 	views.reserve((tillRow - fromRow) * _perRow);
-	const auto idUsed = [&](const Data::SavedStarGiftId &id) {
-		for (auto j = fromRow; j != tillRow; ++j) {
-			for (auto i = 0; i != _perRow; ++i) {
+	const auto idUsed = [&](uint64 giftId, int column, int row) {
+		for (auto j = row; j != tillRow; ++j) {
+			for (auto i = column; i != _perRow; ++i) {
 				const auto index = j * _perRow + i;
 				if (index >= _entries.size()) {
 					return false;
-				} else if (_entries[index].gift.id == id) {
+				} else if (_entries[index].gift.info.id == giftId) {
 					return true;
 				}
 			}
+			column = 0;
 		}
 		return false;
 	};
-	const auto add = [&](int index) {
-		const auto id = _entries[index].gift.id;
-		const auto already = ranges::find(_views, id, &View::id);
+	const auto add = [&](int column, int row) {
+		const auto index = row * _perRow + column;
+		if (index >= _entries.size()) {
+			return false;
+		}
+		const auto giftId = _entries[index].gift.info.id;
+		const auto manageId = _entries[index].gift.manageId;
+		const auto already = ranges::find(_views, giftId, &View::giftId);
 		if (already != end(_views)) {
 			views.push_back(base::take(*already));
-			views.back().index = index;
-			return;
-		}
-		const auto &descriptor = _entries[index].descriptor;
-		const auto callback = [=] {
-			showGift(id);
-		};
-		const auto unused = ranges::find_if(_views, [&](const View &v) {
-			return v.button && !idUsed(v.id);
-		});
-		if (unused != end(_views)) {
-			views.push_back(base::take(*unused));
-			views.back().index = index;
 		} else {
-			auto button = std::make_unique<GiftButton>(this, &_delegate);
-			button->show();
-			views.push_back({
-				.button = std::move(button),
-				.id = id,
-				.index = index,
+			const auto &descriptor = _entries[index].descriptor;
+			const auto unused = ranges::find_if(_views, [&](const View &v) {
+				return v.button && !idUsed(v.giftId, column, row);
 			});
+			if (unused != end(_views)) {
+				views.push_back(base::take(*unused));
+			} else {
+				auto button = std::make_unique<GiftButton>(this, &_delegate);
+				button->show();
+				views.push_back({ .button = std::move(button) });
+			}
+			auto &view = views.back();
+			const auto callback = [=] {
+				showGift(index);
+			};
+			view.index = index;
+			view.manageId = manageId;
+			view.giftId = giftId;
+			view.button->setDescriptor(descriptor, mode);
+			view.button->setClickedCallback(callback);
 		}
-		views.back().button->setDescriptor(descriptor, mode);
-		views.back().button->setClickedCallback(callback);
- 	};
+		return true;
+	};
 	for (auto j = fromRow; j != tillRow; ++j) {
 		for (auto i = 0; i != _perRow; ++i) {
-			const auto index = j * _perRow + i;
-			if (index >= _entries.size()) {
+			if (!add(i, j)) {
 				break;
 			}
-			add(index);
 			views.back().button->setGeometry(
 				QRect(QPoint(x, y), _single),
 				_delegate.buttonExtend());
@@ -382,15 +386,14 @@ void InnerWidget::validateButtons() {
 	std::swap(_views, views);
 }
 
-void InnerWidget::showGift(Data::SavedStarGiftId id) {
-	const auto savedId = [](const Entry &entry) {
-		return entry.gift.id;
-	};
-	const auto i = ranges::find(_entries, id, savedId);
-	if (i != end(_entries)) {
-		using namespace ::Settings;
-		_window->show(Box(SavedStarGiftBox, _window, _peer, i->gift));
-	}
+void InnerWidget::showGift(int index) {
+	Expects(index >= 0 && index < _entries.size());
+
+	_window->show(Box(
+		::Settings::SavedStarGiftBox,
+		_window,
+		_peer,
+		_entries[index].gift));
 }
 
 void InnerWidget::refreshAbout() {

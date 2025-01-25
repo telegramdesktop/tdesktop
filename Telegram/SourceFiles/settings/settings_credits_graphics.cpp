@@ -1869,7 +1869,7 @@ void SavedStarGiftBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> owner,
 		const Data::SavedStarGift &data) {
-	const auto chatGiftPeer = data.id.chat();
+	const auto chatGiftPeer = data.manageId.chat();
 	Settings::ReceiptCreditsBox(
 		box,
 		controller,
@@ -1877,13 +1877,13 @@ void SavedStarGiftBox(
 			.description = data.message,
 			.date = base::unixtime::parse(data.date),
 			.credits = StarsAmount(data.info.stars),
-			.bareMsgId = uint64(data.id.userMessageId().bare),
+			.bareMsgId = uint64(data.manageId.userMessageId().bare),
 			.barePeerId = data.fromId.value,
 			.bareGiftStickerId = data.info.document->id,
 			.bareGiftOwnerId = owner->id.value,
 			.bareActorId = data.fromId.value,
 			.bareGiftListPeerId = chatGiftPeer ? chatGiftPeer->id.value : 0,
-			.giftSavedId = data.id.chatSavedId(),
+			.giftSavedId = data.manageId.chatSavedId(),
 			.stargiftId = data.info.id,
 			.uniqueGift = data.info.unique,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
