@@ -2006,6 +2006,30 @@ void HistoryWidget::setupShortcuts() {
 			controller()->searchInChat(_history);
 			return true;
 		});
+		request->check(Command::ChatScrollUp) && request->handle([=] {
+			return touchScroll({ 0, _scroll->height() / 10 });
+		});
+		request->check(Command::ChatScrollDown) && request->handle([=] {
+			return touchScroll({ 0, -_scroll->height() / 10 });
+		});
+		request->check(Command::ChatScrollScreenUp) && request->handle([=] {
+			return touchScroll({ 0, _scroll->height() });
+		});
+		request->check(Command::ChatScrollScreenDown) && request->handle([=] {
+			return touchScroll({ 0, -_scroll->height() });
+		});
+		request->check(Command::ChatScrollHalfScreenUp) && request->handle([=] {
+			return touchScroll({ 0, _scroll->height() / 2 });
+		});
+		request->check(Command::ChatScrollHalfScreenDown) && request->handle([=] {
+			return touchScroll({ 0, -_scroll->height() / 2 });
+		});
+		request->check(Command::ChatScrollTop) && request->handle([=] {
+			return touchScroll({ 0, _scroll->scrollTopMax() });
+		});
+		request->check(Command::ChatScrollBottom) && request->handle([=] {
+			return touchScroll({ 0, -_scroll->scrollTopMax() });
+		});
 		_canSendMessages
 			&& request->check(Command::ShowScheduled, 1)
 			&& request->handle([=] {
@@ -6950,10 +6974,6 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Back) {
 		_cancelRequests.fire({});
-	} else if (e->key() == Qt::Key_PageDown) {
-		_scroll->keyPressEvent(e);
-	} else if (e->key() == Qt::Key_PageUp) {
-		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Down && !commonModifiers) {
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Up && !commonModifiers) {
