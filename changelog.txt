@@ -1,3 +1,9 @@
+5.10.6 (26.01.25)
+
+- Fix crash in opening users gifts section.
+- Fix unintended sound in reaction notifications.
+- Fix disabling notifications sound on macOS and Linux.
+
 5.10.5 (24.01.25)
 
 - Count all unread topics as a single chat in archive unread counter.
