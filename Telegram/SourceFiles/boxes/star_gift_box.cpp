@@ -2580,7 +2580,7 @@ void UpgradeBox(
 			not_null<const style::icon*> icon) {
 		auto raw = container->add(
 			object_ptr<Ui::VerticalLayout>(container));
-		const auto widget = raw->add(
+		raw->add(
 			object_ptr<Ui::FlatLabel>(
 				raw,
 				std::move(title) | Ui::Text::ToBold(),

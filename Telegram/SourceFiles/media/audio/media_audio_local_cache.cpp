@@ -120,7 +120,6 @@ constexpr auto kFrameSize = 4096;
 		outCodecContext->channel_layout = AV_CH_LAYOUT_STEREO;
 	}
 #endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	const auto inrate = inCodecContext->sample_rate;
 	const auto rate = 44'100;
 	outCodecContext->sample_fmt = AV_SAMPLE_FMT_S16;
 	outCodecContext->time_base = AVRational{ 1, rate };
