@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
 #include "boxes/peer_list_box.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -610,11 +611,17 @@ void InnerWidget::setupContent() {
 			_content,
 			rpl::single(_poll->question),
 			st::pollResultsQuestion),
-		style::margins{
-			st::boxRowPadding.left(),
-			0,
-			st::boxRowPadding.right(),
-			st::boxMediumSkip });
+		st::boxRowPadding);
+	Ui::AddSkip(_content, st::boxLittleSkip / 2);
+	_content->add(
+		object_ptr<Ui::FlatLabel>(
+			_content,
+			tr::lng_polls_votes_count(
+				lt_count_decimal,
+				rpl::single(float64(_poll->totalVoters))),
+			st::boxDividerLabel),
+		st::boxRowPadding);
+	Ui::AddSkip(_content, st::boxLittleSkip);
 	for (const auto &answer : _poll->answers) {
 		const auto session = &_controller->session();
 		const auto controller = CreateAnswerRows(
