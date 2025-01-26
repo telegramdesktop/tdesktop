@@ -1277,7 +1277,9 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 	// #TODO optimize
 	auto userpicView = item->history()->peer->createUserpicView();
 	const auto owner = &item->history()->owner();
-	const auto sound = fields.soundId ? [=, id = *fields.soundId] {
+	const auto withSound = fields.soundId
+		&& Core::App().settings().soundNotify();
+	const auto sound = withSound ? [=, id = *fields.soundId] {
 		return _localSoundCache.sound(id, [=] {
 			return Core::App().notifications().lookupSoundBytes(owner, id);
 		}, [=] {

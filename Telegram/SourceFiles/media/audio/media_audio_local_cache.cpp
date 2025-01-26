@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media::Audio {
 namespace {
 
-constexpr auto kMaxDuration = 10 * crl::time(1000);
+constexpr auto kMaxDuration = 3 * crl::time(1000);
 constexpr auto kMaxStreams = 2;
 constexpr auto kFrameSize = 4096;
 
@@ -121,12 +121,9 @@ constexpr auto kFrameSize = 4096;
 	}
 #endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	const auto inrate = inCodecContext->sample_rate;
-	const auto rate = (inrate == 44'100 || inrate == 48'000)
-		? inrate
-		: 44'100;
+	const auto rate = 44'100;
 	outCodecContext->sample_fmt = AV_SAMPLE_FMT_S16;
 	outCodecContext->time_base = AVRational{ 1, rate };
-	outCodecContext->bit_rate = 64 * 1024;
 	outCodecContext->sample_rate = rate;
 
 	error = avcodec_open2(outCodecContext.get(), outCodec, nullptr);
@@ -342,7 +339,7 @@ QString LocalDiskCache::name(const LocalSound &sound) {
 		return i->second;
 	}
 
-	auto result = u"TDesktop-%1"_q.arg(sound.id
+	auto result = u"TD_%1"_q.arg(sound.id
 		? QString::number(sound.id, 16).toUpper()
 		: u"Default"_q);
 	const auto path = _base + u"%1.wav"_q.arg(result);
