@@ -49,7 +49,7 @@ public:
 	int width() override;
 	int top() override;
 	QSize size() override;
-	QString title() override;
+	TextWithEntities title() override;
 	TextWithEntities subtitle() override;
 	int buttonSkip() override;
 	rpl::producer<QString> button() override;
@@ -162,8 +162,8 @@ QSize PremiumRequiredBox::size() {
 	return { st::msgServicePhotoWidth, st::msgServicePhotoWidth };
 }
 
-QString PremiumRequiredBox::title() {
-	return QString();
+TextWithEntities PremiumRequiredBox::title() {
+	return {};
 }
 
 int PremiumRequiredBox::buttonSkip() {

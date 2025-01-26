@@ -97,7 +97,7 @@ public:
 
 	int top() override;
 	QSize size() override;
-	QString title() override;
+	TextWithEntities title() override;
 	TextWithEntities subtitle() override;
 	rpl::producer<QString> button() override;
 	void draw(

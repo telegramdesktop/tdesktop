@@ -26,7 +26,7 @@ public:
 	[[nodiscard]] virtual int width();
 	[[nodiscard]] virtual int top() = 0;
 	[[nodiscard]] virtual QSize size() = 0;
-	[[nodiscard]] virtual QString title() = 0;
+	[[nodiscard]] virtual TextWithEntities title() = 0;
 	[[nodiscard]] virtual TextWithEntities subtitle() = 0;
 	[[nodiscard]] virtual int buttonSkip() {
 		return top();

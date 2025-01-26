@@ -66,29 +66,35 @@ QSize PremiumGift::size() {
 			st::msgServiceGiftBoxStickerSize);
 }
 
-QString PremiumGift::title() {
+TextWithEntities PremiumGift::title() {
+	using namespace Ui::Text;
 	if (starGift()) {
 		const auto peer = _parent->history()->peer;
 		return peer->isSelf()
-			? tr::lng_action_gift_self_subtitle(tr::now)
+			? tr::lng_action_gift_self_subtitle(tr::now, WithEntities)
 			: peer->isServiceUser()
-			? tr::lng_gift_link_label_gift(tr::now)
+			? tr::lng_gift_link_label_gift(tr::now, WithEntities)
 			: (outgoingGift()
 				? tr::lng_action_gift_sent_subtitle
 				: tr::lng_action_gift_got_subtitle)(
 					tr::now,
 					lt_user,
-					peer->shortName());
+					WithEntities(peer->shortName()),
+					WithEntities);
 	} else if (creditsPrize()) {
-		return tr::lng_prize_title(tr::now);
-	} else if (const auto count = credits()) {
-		return tr::lng_gift_stars_title(tr::now, lt_count, count);
+		return tr::lng_prize_title(tr::now, WithEntities);
+	} else if (const auto c = credits()) {
+		return tr::lng_gift_stars_title(tr::now, lt_count, c, WithEntities);
 	}
 	return gift()
-		? tr::lng_action_gift_premium_months(tr::now, lt_count, _data.count)
+		? tr::lng_action_gift_premium_months(
+			tr::now,
+			lt_count,
+			_data.count,
+			WithEntities)
 		: _data.unclaimed
-		? tr::lng_prize_unclaimed_title(tr::now)
-		: tr::lng_prize_title(tr::now);
+		? tr::lng_prize_unclaimed_title(tr::now, WithEntities)
+		: tr::lng_prize_title(tr::now, WithEntities);
 }
 
 TextWithEntities PremiumGift::subtitle() {

@@ -509,8 +509,8 @@ QSize ThemeDocumentBox::size() {
 		: QSize(st::msgServicePhotoWidth, st::msgServicePhotoWidth);
 }
 
-QString ThemeDocumentBox::title() {
-	return QString();
+TextWithEntities ThemeDocumentBox::title() {
+	return {};
 }
 
 TextWithEntities ThemeDocumentBox::subtitle() {

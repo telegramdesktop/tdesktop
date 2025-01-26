@@ -30,7 +30,7 @@ public:
 
 	int top() override;
 	QSize size() override;
-	QString title() override;
+	TextWithEntities title() override;
 	TextWithEntities subtitle() override;
 	int buttonSkip() override;
 	rpl::producer<QString> button() override;

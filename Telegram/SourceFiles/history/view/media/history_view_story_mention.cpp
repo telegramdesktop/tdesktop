@@ -68,8 +68,8 @@ QSize StoryMention::size() {
 	return { st::msgServicePhotoWidth, st::msgServicePhotoWidth };
 }
 
-QString StoryMention::title() {
-	return QString();
+TextWithEntities StoryMention::title() {
+	return {};
 }
 
 int StoryMention::buttonSkip() {
