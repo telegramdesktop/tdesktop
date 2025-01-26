@@ -1523,6 +1523,21 @@ void InnerWidget::paintSearchTags(
 	_searchTags->paint(p, position, context.now, context.paused);
 }
 
+void InnerWidget::showPeerMenu() {
+	if (!_selected) {
+		return;
+	}
+	const auto &padding = st::defaultDialogRow.padding;
+	const auto pos = QPoint(
+		width() - padding.right(),
+		_selected->top() + _selected->height() + padding.bottom());
+	auto event = QContextMenuEvent(
+		QContextMenuEvent::Keyboard,
+		pos,
+		mapToGlobal(pos));
+	InnerWidget::contextMenuEvent(&event);
+}
+
 void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 	if (_chatPreviewTouchGlobal || _touchDragStartGlobal) {
 		return;
@@ -2835,7 +2850,9 @@ bool InnerWidget::scheduleChatPreview(QPoint positionOverride) {
 void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = nullptr;
 
-	if (e->reason() == QContextMenuEvent::Mouse) {
+	const auto fromMouse = e->reason() == QContextMenuEvent::Mouse;
+
+	if (fromMouse) {
 		selectByMouse(e->globalPos());
 	}
 
@@ -2897,6 +2914,9 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
 		if (_menuRow.key) {
 			updateDialogRow(base::take(_menuRow));
+		}
+		if (!fromMouse) {
+			return;
 		}
 		const auto globalPosition = QCursor::pos();
 		if (rect().contains(mapFromGlobal(globalPosition))) {

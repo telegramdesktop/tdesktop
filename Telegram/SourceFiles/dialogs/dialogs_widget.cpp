@@ -1212,6 +1212,12 @@ void Widget::setupShortcuts() {
 				}
 				return false;
 			});
+			request->check(Command::ShowChatMenu, 1) && request->handle([=] {
+				if (_inner) {
+					_inner->showPeerMenu();
+				}
+				return true;
+			});
 		}
 	}, lifetime());
 }

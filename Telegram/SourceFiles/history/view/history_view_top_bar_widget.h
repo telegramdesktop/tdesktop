@@ -119,6 +119,7 @@ public:
 		QRect geometry,
 		int narrowWidth,
 		float64 narrowRatio);
+	void showPeerMenu();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -142,7 +143,6 @@ private:
 
 	void call();
 	void groupCall();
-	void showPeerMenu();
 	void showGroupCallMenu(not_null<PeerData*> peer);
 	void toggleInfoSection();
 

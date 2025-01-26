@@ -141,6 +141,8 @@ public:
 	void refreshEmpty();
 	void resizeEmpty();
 
+	void showPeerMenu();
+
 	[[nodiscard]] bool isUserpicPress() const;
 	[[nodiscard]] bool isUserpicPressOnWide() const;
 	void cancelChatPreview();

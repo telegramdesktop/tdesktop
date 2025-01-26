@@ -2006,6 +2006,10 @@ void HistoryWidget::setupShortcuts() {
 			controller()->searchInChat(_history);
 			return true;
 		});
+		request->check(Command::ShowChatMenu, 1) && request->handle([=] {
+			_topBar->showPeerMenu();
+			return true;
+		});
 		_canSendMessages
 			&& request->check(Command::ShowScheduled, 1)
 			&& request->handle([=] {
