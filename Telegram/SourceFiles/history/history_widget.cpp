@@ -2916,7 +2916,6 @@ void HistoryWidget::setupFastButtonMode() {
 		if (!link) {
 			return base::EventFilterResult::Continue;
 		}
-		const auto id = item->fullId();
 		ActivateClickHandler(window(), link, {
 			Qt::LeftButton,
 			QVariant::fromValue(ClickHandlerContext{
