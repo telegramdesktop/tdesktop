@@ -740,8 +740,7 @@ auto AddActionButton(
 		ToggleOn &&toggleOn,
 		Callback &&callback,
 		const style::icon *icon,
-		const style::SettingsButton &st
-			= st::infoSharedMediaButton) {
+		const style::SettingsButton &st = st::infoSharedMediaButton) {
 	auto result = parent->add(object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 		parent,
 		object_ptr<Ui::SettingsButton>(
@@ -1018,6 +1017,7 @@ private:
 	void addEditContactAction(not_null<UserData*> user);
 	void addDeleteContactAction(not_null<UserData*> user);
 	void addBotCommandActions(not_null<UserData*> user);
+	void addFastButtonsMode(not_null<UserData*> user);
 	void addReportAction();
 	void addBlockAction(not_null<UserData*> user);
 	void addLeaveChannelAction(not_null<ChannelData*> channel);
@@ -2320,7 +2320,36 @@ void ActionsFiller::addDeleteContactAction(not_null<UserData*> user) {
 		&st::infoIconDelete);
 }
 
+void ActionsFiller::addFastButtonsMode(not_null<UserData*> user) {
+	Expects(user->isBot());
+
+	const auto helper = &user->session().supportHelper();
+	const auto button = _wrap->add(object_ptr<Ui::SettingsButton>(
+		_wrap,
+		rpl::single(u"Fast buttons mode"_q),
+		st::infoSharedMediaButton));
+	object_ptr<Info::Profile::FloatingIcon>(
+		button,
+		st::infoIconMediaBot,
+		st::infoSharedMediaButtonIconPosition);
+
+	AddSkip(_wrap);
+	AddDivider(_wrap);
+	AddSkip(_wrap);
+
+	button->toggleOn(helper->fastButtonModeValue(user));
+	button->toggledValue(
+	) | rpl::filter([=](bool value) {
+		return value != helper->fastButtonMode(user);
+	}) | rpl::start_with_next([=](bool value) {
+		helper->setFastButtonMode(user, value);
+	}, button->lifetime());
+}
+
 void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
+	if (user->session().supportMode()) {
+		addFastButtonsMode(user);
+	}
 	const auto window = _controller->parentController();
 	const auto findBotCommand = [user](const QString &command) {
 		if (!user->isBot()) {

@@ -504,6 +504,7 @@ public:
 		int outerWidth,
 		const QRect &clip) const;
 	ClickHandlerPtr getLink(QPoint point) const;
+	ClickHandlerPtr getLinkByIndex(int index) const;
 
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
@@ -537,6 +538,7 @@ private:
 	};
 
 	void startAnimation(int i, int j, int direction);
+	[[nodiscard]] bool hasFastButtonMode() const;
 
 	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
 

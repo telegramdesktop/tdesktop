@@ -28,15 +28,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
+#include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
 #include "core/launcher.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonArray>
 
 namespace Main {
 class Session;
@@ -256,6 +261,12 @@ TimeId OccupiedBySomeoneTill(History *history) {
 	return valid ? result : 0;
 }
 
+QString FastButtonModeIdsPath(not_null<Main::Session*> session) {
+	const auto base = session->account().local().supportModePath();
+	QDir().mkpath(base);
+	return base + u"/fast_button_mode_ids.json"_q;
+}
+
 } // namespace
 
 Helper::Helper(not_null<Main::Session*> session)
@@ -470,6 +481,79 @@ rpl::producer<TextWithEntities> Helper::infoTextValue(
 UserInfo Helper::infoCurrent(not_null<UserData*> user) const {
 	const auto i = _userInformation.find(user);
 	return (i != end(_userInformation)) ? i->second : UserInfo();
+}
+
+void Helper::readFastButtonModeBots() {
+	_readFastButtonModeBots = true;
+
+	auto f = QFile(FastButtonModeIdsPath(_session));
+	if (!f.open(QIODevice::ReadOnly)) {
+		return;
+	}
+	const auto data = f.readAll();
+	const auto json = QJsonDocument::fromJson(data);
+	if (!json.isObject()) {
+		return;
+	}
+	const auto object = json.object();
+	const auto array = object.value(u"ids"_q).toArray();
+	for (const auto &value : array) {
+		const auto bareId = value.toString().toULongLong();
+		_fastButtonModeBots.emplace(PeerId(bareId));
+	}
+}
+
+void Helper::writeFastButtonModeBots() {
+	auto array = QJsonArray();
+	for (const auto &id : _fastButtonModeBots) {
+		array.append(QString::number(id.value));
+	}
+	auto object = QJsonObject();
+	object[u"ids"_q] = array;
+	auto f = QFile(FastButtonModeIdsPath(_session));
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(QJsonDocument(object).toJson(QJsonDocument::Indented));
+	}
+}
+
+bool Helper::fastButtonMode(not_null<PeerData*> peer) const {
+	if (!_readFastButtonModeBots) {
+		const_cast<Helper*>(this)->readFastButtonModeBots();
+	}
+	return _fastButtonModeBots.contains(peer->id);
+}
+
+rpl::producer<bool> Helper::fastButtonModeValue(
+		not_null<PeerData*> peer) const {
+	return rpl::single(
+		fastButtonMode(peer)
+	) | rpl::then(_fastButtonModeBotsChanges.events(
+	) | rpl::filter([=](PeerId id) {
+		return (peer->id == id);
+	}) | rpl::map([=] {
+		return fastButtonMode(peer);
+	}));
+}
+
+void Helper::setFastButtonMode(not_null<PeerData*> peer, bool fast) {
+	if (fast == fastButtonMode(peer)) {
+		return;
+	} else if (fast) {
+		_fastButtonModeBots.emplace(peer->id);
+	} else {
+		_fastButtonModeBots.remove(peer->id);
+	}
+	if (_fastButtonModeBots.empty()) {
+		QFile(FastButtonModeIdsPath(_session)).remove();
+	} else {
+		writeFastButtonModeBots();
+	}
+	_fastButtonModeBotsChanges.fire_copy(peer->id);
+	if (const auto history = peer->owner().history(peer)) {
+		if (const auto item = history->lastMessage()) {
+			history->owner().requestItemRepaint(item);
+		}
+	}
 }
 
 void Helper::editInfo(

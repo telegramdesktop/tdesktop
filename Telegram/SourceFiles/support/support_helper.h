@@ -50,18 +50,25 @@ public:
 
 	void chatOccupiedUpdated(not_null<History*> history);
 
-	bool isOccupiedByMe(History *history) const;
-	bool isOccupiedBySomeone(History *history) const;
+	[[nodiscard]] bool isOccupiedByMe(History *history) const;
+	[[nodiscard]] bool isOccupiedBySomeone(History *history) const;
 
 	void refreshInfo(not_null<UserData*> user);
-	rpl::producer<UserInfo> infoValue(not_null<UserData*> user) const;
-	rpl::producer<QString> infoLabelValue(not_null<UserData*> user) const;
-	rpl::producer<TextWithEntities> infoTextValue(
+	[[nodiscard]] rpl::producer<UserInfo> infoValue(
 		not_null<UserData*> user) const;
-	UserInfo infoCurrent(not_null<UserData*> user) const;
+	[[nodiscard]] rpl::producer<QString> infoLabelValue(
+		not_null<UserData*> user) const;
+	[[nodiscard]] rpl::producer<TextWithEntities> infoTextValue(
+		not_null<UserData*> user) const;
+	[[nodiscard]] UserInfo infoCurrent(not_null<UserData*> user) const;
 	void editInfo(
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> user);
+
+	[[nodiscard]] bool fastButtonMode(not_null<PeerData*> peer) const;
+	[[nodiscard]] rpl::producer<bool> fastButtonModeValue(
+		not_null<PeerData*> peer) const;
+	void setFastButtonMode(not_null<PeerData*> peer, bool fast);
 
 	Templates &templates();
 
@@ -90,6 +97,9 @@ private:
 		TextWithEntities text,
 		Fn<void(bool success)> done);
 
+	void writeFastButtonModeBots();
+	void readFastButtonModeBots();
+
 	not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	Templates _templates;
@@ -106,6 +116,10 @@ private:
 		not_null<UserData*>,
 		base::weak_ptr<Window::SessionController>> _userInfoEditPending;
 	base::flat_map<not_null<UserData*>, SavingInfo> _userInfoSaving;
+
+	base::flat_set<PeerId> _fastButtonModeBots;
+	rpl::event_stream<PeerId> _fastButtonModeBotsChanges;
+	bool _readFastButtonModeBots = false;
 
 	rpl::lifetime _lifetime;
 
