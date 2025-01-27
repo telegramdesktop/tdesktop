@@ -292,7 +292,11 @@ void TabbedPanel::otherLeave() {
 	if (_a_opacity.animating()) {
 		hideByTimerOrLeave();
 	} else {
-		_hideTimer.callOnce(0);
+		// In case of animations disabled add some delay before hiding.
+		// Otherwise if emoji suggestions panel is shown in between
+		// (z-order wise) the emoji toggle button and tabbed panel,
+		// we won't be able to move cursor from the button to the panel.
+		_hideTimer.callOnce(anim::Disabled() ? kHideTimeoutMs : 0);
 	}
 }
 
