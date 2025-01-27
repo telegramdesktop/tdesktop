@@ -474,27 +474,34 @@ void AddTableRow(
 		table->st().defaultValue,
 		st::defaultPopupMenu);
 
-	const auto upgrade = Ui::CreateChild<Ui::RoundButton>(
-		raw,
-		tr::lng_gift_unique_status_upgrade(),
-		table->st().smallButton);
-	upgrade->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	upgrade->setClickedCallback(startUpgrade);
+	const auto upgrade = startUpgrade
+		? Ui::CreateChild<Ui::RoundButton>(
+			raw,
+			tr::lng_gift_unique_status_upgrade(),
+			table->st().smallButton)
+		: (Ui::RoundButton*)(nullptr);
+	if (upgrade) {
+		using namespace Ui;
+		upgrade->setTextTransform(RoundButton::TextTransform::NoTransform);
+		upgrade->setClickedCallback(startUpgrade);
+	}
 
 	rpl::combine(
 		raw->widthValue(),
-		upgrade->widthValue()
+		upgrade ? upgrade->widthValue() : rpl::single(0)
 	) | rpl::start_with_next([=](int width, int toggleWidth) {
 		const auto toggleSkip = toggleWidth
 			? (st::normalFont->spacew + toggleWidth)
 			: 0;
 		label->resizeToNaturalWidth(width - toggleSkip);
 		label->moveToLeft(0, 0, width);
-		upgrade->moveToLeft(
-			label->width() + st::normalFont->spacew,
-			(table->st().defaultValue.style.font->ascent
-				- table->st().smallButton.style.font->ascent),
-			width);
+		if (upgrade) {
+			upgrade->moveToLeft(
+				label->width() + st::normalFont->spacew,
+				(table->st().defaultValue.style.font->ascent
+					- table->st().smallButton.style.font->ascent),
+				width);
+		}
 	}, label->lifetime());
 
 	label->heightValue() | rpl::start_with_next([=](int height) {
@@ -1390,7 +1397,7 @@ void AddStarGiftTable(
 				? MakePeerTableValue(table, show, PeerId(entry.bareActorId))
 				: MakeHiddenPeerTableValue(table)),
 			st::giveawayGiftCodePeerMargin);
-		if (!entry.fromGiftsList) {
+		if (entry.bareGiftListPeerId) {
 			AddTableRow(
 				table,
 				tr::lng_credits_box_history_entry_peer(),
@@ -1500,7 +1507,7 @@ void AddStarGiftTable(
 						std::move(amount),
 						Ui::Text::WithEntities)));
 	}
-	if (!unique && startUpgrade) {
+	if (!unique && !entry.soldOutInfo) {
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_status(),
