@@ -21,7 +21,9 @@ struct ReadBytesWrap {
 		const auto toRead = std::min(
 			int64(buf_size),
 			wrap->size - wrap->offset);
-		if (toRead > 0) {
+		if (!toRead) {
+			return AVERROR_EOF;
+		} else if (toRead > 0) {
 			memcpy(buf, wrap->data + wrap->offset, toRead);
 			wrap->offset += toRead;
 		}
