@@ -488,7 +488,7 @@ void Selector::mousePressEvent(QMouseEvent *e) {
 void Selector::mouseReleaseEvent(QMouseEvent *e) {
 	const auto pressed = _pressed;
 	updatePressed(-1);
-	if (pressed == _selected) {
+	if (pressed >= 0 && pressed == _selected) {
 		choose(shownRowAt(pressed));
 	}
 }
