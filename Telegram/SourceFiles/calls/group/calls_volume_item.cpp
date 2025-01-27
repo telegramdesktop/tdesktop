@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/effects/cross_line.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "ui/rect.h"
 #include "styles/style_calls.h"
 
 #include "ui/paint/arcs.h"
@@ -41,20 +42,21 @@ constexpr auto kVolumeStickedValues
 MenuVolumeItem::MenuVolumeItem(
 	not_null<RpWidget*> parent,
 	const style::Menu &st,
+	const style::MediaSlider &stSlider,
 	rpl::producer<Group::ParticipantState> participantState,
 	int startVolume,
 	int maxVolume,
-	bool muted)
+	bool muted,
+	const QMargins &padding)
 : Ui::Menu::ItemBase(parent, st)
 , _maxVolume(maxVolume)
 , _cloudMuted(muted)
 , _localMuted(muted)
-, _slider(base::make_unique_q<Ui::MediaSlider>(
-	this,
-	st::groupCallMenuVolumeSlider))
+, _slider(base::make_unique_q<Ui::MediaSlider>(this, stSlider))
 , _dummyAction(new QAction(parent))
 , _st(st)
 , _stCross(st::groupCallMuteCrossLine)
+, _padding(padding)
 , _crossLineMute(std::make_unique<Ui::CrossLineAnimation>(_stCross, true))
 , _arcs(std::make_unique<Ui::Paint::ArcsAnimation>(
 	st::groupCallSpeakerArcsAnimation,
@@ -71,7 +73,7 @@ MenuVolumeItem::MenuVolumeItem(
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
 		const auto geometry = QRect(QPoint(), size);
-		_itemRect = geometry - st::groupCallMenuVolumePadding;
+		_itemRect = geometry - _padding;
 		_speakerRect = QRect(_itemRect.topLeft(), _stCross.icon.size());
 		_arcPosition = _speakerRect.center()
 			+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
@@ -280,9 +282,7 @@ bool MenuVolumeItem::isEnabled() const {
 }
 
 int MenuVolumeItem::contentHeight() const {
-	return st::groupCallMenuVolumePadding.top()
-		+ st::groupCallMenuVolumePadding.bottom()
-		+ _stCross.icon.height();
+	return rect::m::sum::v(_padding) + _stCross.icon.height();
 }
 
 rpl::producer<bool> MenuVolumeItem::toggleMuteRequests() const {

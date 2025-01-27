@@ -1431,10 +1431,12 @@ void Members::Controller::addMuteActionsToContextMenu(
 		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
 			menu->menu(),
 			st::groupCallPopupVolumeMenu,
+			st::groupCallMenuVolumeSlider,
 			otherParticipantStateValue,
 			_call->rtmp() ? _call->rtmpVolume() : row->volume(),
 			Group::kMaxVolume,
-			muted);
+			muted,
+			st::groupCallMenuVolumePadding);
 
 		mutesFromVolume = volumeItem->toggleMuteRequests();
 

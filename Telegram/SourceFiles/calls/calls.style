@@ -1441,6 +1441,19 @@ groupCallScheduleTimeField: InputField(groupCallScheduleDateField) {
 	placeholderFont: font(14px);
 }
 
+groupCallVolumeSettings: Menu(groupCallPopupVolumeMenu) {
+	widthMin: 210px;
+	itemBg: groupCallMembersBg;
+	itemBgOver: groupCallMembersBgOver;
+}
+groupCallVolumeSettingsPadding: margins(24px, 8px, 24px, 6px);
+groupCallVolumeSettingsSlider: MediaSlider(groupCallMenuVolumeSlider) {
+	activeFg: groupCallMenuBg;
+	inactiveFg: groupCallMenuBg;
+	activeFgOver: groupCallMenuBg;
+	inactiveFgOver: groupCallMenuBg;
+}
+
 //
 groupCallCalendarPreviousDisabled: icon {{ "calendar_down-flip_vertical", groupCallMemberNotJoinedStatus }};
 groupCallCalendarNextDisabled: icon {{ "calendar_down", groupCallMemberNotJoinedStatus }};

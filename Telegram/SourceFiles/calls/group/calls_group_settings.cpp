@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_menu.h" // LeaveBox.
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_choose_join_as.h"
+#include "calls/group/calls_volume_item.h"
 #include "calls/calls_instance.h"
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -712,6 +713,50 @@ void SettingsBox(
 
 		addDivider();
 		Ui::AddSkip(layout);
+	}
+	if (rtmp) {
+		const auto volumeItem = layout->add(
+			object_ptr<MenuVolumeItem>(
+				layout,
+				st::groupCallVolumeSettings,
+				st::groupCallVolumeSettingsSlider,
+				call->otherParticipantStateValue(
+				) | rpl::filter([=](const Group::ParticipantState &data) {
+					return data.peer == peer;
+				}),
+				call->rtmpVolume(),
+				Group::kMaxVolume,
+				false,
+				st::groupCallVolumeSettingsPadding));
+
+		const auto toggleMute = crl::guard(layout, [=](bool m, bool local) {
+			if (call) {
+				call->toggleMute({
+					.peer = peer,
+					.mute = m,
+					.locallyOnly = local,
+				});
+			}
+		});
+		const auto changeVolume = crl::guard(layout, [=](int v, bool local) {
+			if (call) {
+				call->changeVolume({
+					.peer = peer,
+					.volume = std::clamp(v, 1, Group::kMaxVolume),
+					.locallyOnly = local,
+				});
+			}
+		});
+
+		volumeItem->toggleMuteLocallyRequests(
+		) | rpl::start_with_next([=](bool muted) {
+			toggleMute(muted, true);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeLocallyRequests(
+		) | rpl::start_with_next([=](int volume) {
+			changeVolume(volume, true);
+		}, volumeItem->lifetime());
 	}
 
 	if (peer->canManageGroupCall()) {
