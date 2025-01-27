@@ -153,6 +153,10 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
 		setDocument(document);
 	}, lifetime());
+	_patterned = false;
+	_uniqueBackgroundCache = QImage();
+	_uniquePatternEmoji = nullptr;
+	_uniquePatternCache.clear();
 
 	if (mode != Mode::Full) {
 		_button = QRect();
