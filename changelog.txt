@@ -1,3 +1,8 @@
+5.10.7 (27.01.25)
+
+- Fix some phrases for collectible gifts.
+- Fix freeze in sound reencoding on macOS and Linux.
+
 5.10.6 (26.01.25)
 
 - Fix crash in opening users gifts section.
