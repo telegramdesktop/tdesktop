@@ -255,18 +255,26 @@ auto GenerateGiftMedia(
 			replacing,
 			sticker,
 			st::giftBoxPreviewStickerPadding));
-		const auto title = v::match(descriptor, [&](GiftTypePremium gift) {
+		auto title = v::match(descriptor, [&](GiftTypePremium gift) {
 			return tr::lng_action_gift_premium_months(
 				tr::now,
 				lt_count,
-				gift.months);
+				gift.months,
+				Text::Bold);
 		}, [&](const GiftTypeStars &gift) {
 			return recipient->isSelf()
-				? tr::lng_action_gift_self_subtitle(tr::now)
+				? tr::lng_action_gift_self_subtitle(tr::now, Text::Bold)
 				: tr::lng_action_gift_got_subtitle(
 					tr::now,
 					lt_user,
-					recipient->session().user()->shortName());
+					TextWithEntities()
+						.append(Text::SingleCustomEmoji(
+							recipient->owner().customEmojiManager(
+								).peerUserpicEmojiData(
+									recipient->session().user())))
+						.append(' ')
+						.append(recipient->session().user()->shortName()),
+					Text::Bold);
 		});
 		auto textFallback = v::match(descriptor, [&](GiftTypePremium gift) {
 			return tr::lng_action_gift_premium_about(
@@ -298,15 +306,20 @@ auto GenerateGiftMedia(
 		auto description = data.text.empty()
 			? std::move(textFallback)
 			: data.text;
-		pushText(Text::Bold(title), st::giftBoxPreviewTitlePadding);
+		const auto context = Core::MarkedTextContext{
+			.session = &parent->history()->session(),
+			.customEmojiRepaint = [parent] { parent->repaint(); },
+		};
+		pushText(
+			std::move(title),
+			st::giftBoxPreviewTitlePadding,
+			{},
+			context);
 		pushText(
 			std::move(description),
 			st::giftBoxPreviewTextPadding,
 			{},
-			Core::MarkedTextContext{
-				.session = &parent->history()->session(),
-				.customEmojiRepaint = [parent] { parent->repaint(); },
-			});
+			context);
 
 		push(HistoryView::MakeGenericButtonPart(
 			(data.upgraded

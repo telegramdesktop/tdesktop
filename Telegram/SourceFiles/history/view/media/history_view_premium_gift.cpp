@@ -72,6 +72,17 @@ TextWithEntities PremiumGift::title() {
 		const auto peer = _parent->history()->peer;
 		return peer->isSelf()
 			? tr::lng_action_gift_self_subtitle(tr::now, WithEntities)
+			: (peer->isServiceUser() && _data.channelFrom)
+			? tr::lng_action_gift_got_subtitle(
+				tr::now,
+				lt_user,
+				WithEntities({})
+					.append(SingleCustomEmoji(
+						peer->owner().customEmojiManager(
+							).peerUserpicEmojiData(_data.channelFrom)))
+					.append(' ')
+					.append(_data.channelFrom->shortName()),
+				WithEntities)
 			: peer->isServiceUser()
 			? tr::lng_gift_link_label_gift(tr::now, WithEntities)
 			: (outgoingGift()
@@ -79,7 +90,12 @@ TextWithEntities PremiumGift::title() {
 				: tr::lng_action_gift_got_subtitle)(
 					tr::now,
 					lt_user,
-					WithEntities(peer->shortName()),
+					WithEntities({})
+						.append(SingleCustomEmoji(
+							peer->owner().customEmojiManager(
+								).peerUserpicEmojiData(peer)))
+						.append(' ')
+						.append(peer->shortName()),
 					WithEntities);
 	} else if (creditsPrize()) {
 		return tr::lng_prize_title(tr::now, WithEntities);
