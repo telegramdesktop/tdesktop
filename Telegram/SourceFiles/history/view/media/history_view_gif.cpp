@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_utility.h"
+#include "media/view/media_view_open_common.h"
 #include "media/view/media_view_playback_progress.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
@@ -135,18 +136,6 @@ Gif::Streamed::Streamed(
 		&& parent->data()->media()->ttlSeconds();
 }
 
-[[nodiscard]] TimeId ExtractVideoTimestamp(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	if (!media) {
-		return 0;
-	} else if (const auto timestamp = media->videoTimestamp()) {
-		return timestamp;
-	} else if (const auto webpage = media->webpage()) {
-		return webpage->extractVideoTimestamp();
-	}
-	return 0;
-}
-
 Gif::Gif(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
@@ -163,7 +152,7 @@ Gif::Gif(
 	? std::make_unique<MediaSpoiler>()
 	: nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size))
-, _videoTimestamp(ExtractVideoTimestamp(realParent))
+, _videoTimestamp(::Media::View::ExtractVideoTimestamp(realParent))
 , _sensitiveSpoiler(realParent->isMediaSensitive())
 , _hasVideoCover(realParent->media() && realParent->media()->videoCover()) {
 	if (_data->isVideoMessage() && _parent->data()->media()->ttlSeconds()) {
@@ -889,21 +878,19 @@ void Gif::paintTimestampMark(
 	if (_videoTimestamp <= 0) {
 		return;
 	}
-	const auto roundingLeft = rounding
-		? rounding->bottomLeft
-		: Ui::BubbleCornerRounding::Small;
-	const auto roundingRight = rounding
-		? rounding->bottomRight
-		: Ui::BubbleCornerRounding::Small;
 	const auto convert = [](Ui::BubbleCornerRounding rounding) {
 		return (rounding == Ui::BubbleCornerRounding::Small)
-			? st::roundRadiusSmall
+			? Ui::BubbleRadiusSmall()
 			: (rounding == Ui::BubbleCornerRounding::Large)
-			? st::roundRadiusLarge
+			? Ui::BubbleRadiusLarge()
 			: 0;
 	};
-	const auto radiusl = convert(roundingLeft);
-	const auto radiusr = convert(roundingRight);
+	const auto radiusl = rounding
+		? convert(rounding->bottomLeft)
+		: st::roundRadiusSmall;
+	const auto radiusr = rounding
+		? convert(rounding->bottomRight)
+		: st::roundRadiusSmall;
 	const auto line = st::historyVideoTimestampProgressLine;
 	const auto duration = _data->duration() / 1000;
 	if (rthumb.height() <= line
@@ -924,9 +911,9 @@ void Gif::paintTimestampMark(
 		p.setClipRect(rthumb.x(), top, edge, line);
 		p.drawRoundedRect(
 			rthumb.x(),
-			top - radiusl,
+			top - 2 * radiusl,
 			edge + radiusl,
-			line + radiusl,
+			line + 2 * radiusl,
 			radiusl,
 			radiusl);
 	}
@@ -936,10 +923,11 @@ void Gif::paintTimestampMark(
 		p.setClipRect(left, top, width, line);
 		p.drawRoundedRect(
 			left - radiusr,
-			top - radiusr,
+			top - 2 * radiusr,
 			width + radiusr,
-			line + radiusr,
-			radiusr, radiusr);
+			line + 2 * radiusr,
+			radiusr,
+			radiusr);
 	}
 	p.restore();
 }

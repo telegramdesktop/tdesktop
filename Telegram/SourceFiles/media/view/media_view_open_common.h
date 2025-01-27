@@ -135,4 +135,6 @@ private:
 
 };
 
+[[nodiscard]] TimeId ExtractVideoTimestamp(not_null<HistoryItem*> item);
+
 } // namespace Media::View

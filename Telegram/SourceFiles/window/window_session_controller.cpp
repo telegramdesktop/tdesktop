@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
+#include "data/data_web_page.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -2784,11 +2785,14 @@ void SessionController::openDocument(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
-		_window->openInMediaView(Media::View::OpenRequest(
+		using namespace Media::View;
+		_window->openInMediaView(OpenRequest(
 			this,
 			document,
 			item,
-			message.topicRootId));
+			message.topicRootId,
+			false,
+			(item ? ExtractVideoTimestamp(item) : 0) * crl::time(1000)));
 		return;
 	}
 	Data::ResolveDocument(this, document, item, message.topicRootId);
