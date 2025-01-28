@@ -4157,6 +4157,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_reply_cant_forward" = "Sorry, you can't reply to a message that was sent before the group was upgraded to a supergroup. Do you wish to forward it and add your comment?";
 
 "lng_share_title" = "Share to";
+"lng_share_at_time_title" = "Share at {time} to";
 "lng_share_copy_link" = "Copy share link";
 "lng_share_confirm" = "Send";
 "lng_share_wrong_user" = "This game was opened from a different user.";
@@ -4280,7 +4281,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_save_progress" = "{ready} of {total} {mb}";
 "lng_mediaview_save_as" = "Save As...";
 "lng_mediaview_copy" = "Copy";
+"lng_mediaview_copy_frame" = "Copy Frame";
 "lng_mediaview_forward" = "Forward";
+"lng_mediaview_share_at_time" = "Share at {time}";
 "lng_mediaview_delete" = "Delete";
 "lng_mediaview_save_to_profile" = "Post to Profile";
 "lng_mediaview_pin_story_done" = "Story pinned";

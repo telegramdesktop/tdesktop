@@ -104,7 +104,8 @@ public:
 	[[nodiscard]] static SubmitCallback DefaultForwardCallback(
 		std::shared_ptr<Ui::Show> show,
 		not_null<History*> history,
-		MessageIdsList msgIds);
+		MessageIdsList msgIds,
+		std::optional<TimeId> videoTimestamp = {});
 
 	struct Descriptor {
 		not_null<Main::Session*> session;
@@ -113,7 +114,9 @@ public:
 		FilterCallback filterCallback;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
 		rpl::producer<QString> copyLinkText;
+		rpl::producer<QString> titleOverride;
 		ShareBoxStyleOverrides st;
+		std::optional<TimeId> videoTimestamp;
 		struct {
 			int sendersCount = 0;
 			int captionsCount = 0;

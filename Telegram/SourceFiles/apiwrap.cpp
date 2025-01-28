@@ -142,6 +142,16 @@ void ShowChannelsLimitBox(not_null<PeerData*> peer) {
 		action.replaceMediaOf);
 }
 
+[[nodiscard]] QString FormatVideoTimestamp(TimeId seconds) {
+	const auto minutes = seconds / 60;
+	const auto hours = minutes / 60;
+	return hours
+		? u"%1h%2m%3s"_q.arg(hours).arg(minutes % 60).arg(seconds % 60)
+		: minutes
+		? u"%1m%2s"_q.arg(minutes).arg(seconds % 60)
+		: QString::number(seconds);
+}
+
 } // namespace
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
@@ -717,7 +727,8 @@ void ApiWrap::finalizeMessageDataRequest(
 QString ApiWrap::exportDirectMessageLink(
 		not_null<HistoryItem*> item,
 		bool inRepliesContext,
-		bool forceNonPublicLink) {
+		bool forceNonPublicLink,
+		std::optional<TimeId> videoTimestamp) {
 	Expects(item->history()->peer->isChannel());
 
 	const auto itemId = item->fullId();
@@ -790,7 +801,14 @@ QString ApiWrap::exportDirectMessageLink(
 			_unlikelyMessageLinks.emplace_or_assign(itemId, link);
 		}
 	}).send();
-	return current;
+	const auto addTimestamp = channel->hasUsername()
+		&& !inRepliesContext
+		&& videoTimestamp.has_value();
+	const auto addedSeparator = (current.indexOf('?') >= 0) ? '&' : '?';
+	const auto addedTimestamp = addTimestamp
+		? (addedSeparator + u"t="_q + FormatVideoTimestamp(*videoTimestamp))
+		: QString();
+	return current + addedTimestamp;
 }
 
 QString ApiWrap::exportDirectStoryLink(not_null<Data::Story*> story) {

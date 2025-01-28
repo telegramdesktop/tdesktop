@@ -200,6 +200,7 @@ mediaMenuIconDownload: icon {{ "menu/download", mediaviewMenuFg }};
 mediaMenuIconDownloadLocked: icon {{ "menu/download_locked", mediaviewMenuFg }};
 mediaMenuIconCopy: icon {{ "menu/copy", mediaviewMenuFg }};
 mediaMenuIconForward: icon {{ "menu/forward", mediaviewMenuFg }};
+mediaMenuIconShare: icon {{ "menu/share2", mediaviewMenuFg }};
 mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
 mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};

@@ -24,4 +24,11 @@ namespace Media::Stories {
 	FullStoryId id,
 	bool viewerStyle = false);
 
+[[nodiscard]] QString FormatShareAtTime(TimeId seconds);
+
+[[nodiscard]] object_ptr<Ui::BoxContent> PrepareShareAtTimeBox(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<HistoryItem*> item,
+	TimeId videoTimestamp);
+
 } // namespace Media::Stories

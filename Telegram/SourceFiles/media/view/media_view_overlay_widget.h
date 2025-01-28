@@ -291,6 +291,10 @@ private:
 	void handleTouchTimer();
 	void handleDocumentClick();
 
+	[[nodiscard]] bool canShareAtTime() const;
+	[[nodiscard]] TimeId shareAtVideoTimestamp() const;
+	void shareAtTime();
+
 	void showSaveMsgToast(const QString &path, auto phrase);
 	void showSaveMsgToastWith(
 		const QString &path,
