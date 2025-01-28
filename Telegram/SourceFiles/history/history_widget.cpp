@@ -2207,15 +2207,12 @@ bool HistoryWidget::insideJumpToEndInsteadOfToUnread() const {
 }
 
 void HistoryWidget::showHistory(
-		const PeerId &peerId,
+		PeerId peerId,
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart,
-		int highlightPartOffsetHint) {
-
+		const Window::SectionShow &params) {
 	_pinnedClickedId = FullMsgId();
 	_minPinnedId = std::nullopt;
-	_showAtMsgHighlightPart = {};
-	_showAtMsgHighlightPartOffsetHint = 0;
+	_showAtMsgParams = {};
 
 	const auto wasState = controller()->dialogsEntryStateCurrent();
 	const auto startBot = (showAtMsgId == ShowAndStartBotMsgId);
@@ -2265,16 +2262,10 @@ void HistoryWidget::showHistory(
 						).arg(_history->inboxReadTillId().bare
 						).arg(Logs::b(_history->loadedAtBottom())
 						).arg(showAtMsgId.bare));
-					delayedShowAt(
-						showAtMsgId,
-						highlightPart,
-						highlightPartOffsetHint);
+					delayedShowAt(showAtMsgId, params);
 				} else if (_showAtMsgId != showAtMsgId) {
 					clearAllLoadRequests();
-					setMsgId(
-						showAtMsgId,
-						highlightPart,
-						highlightPartOffsetHint);
+					setMsgId(showAtMsgId, params);
 					firstLoadMessages();
 					doneShow();
 				}
@@ -2294,10 +2285,7 @@ void HistoryWidget::showHistory(
 					_cornerButtons.skipReplyReturn(skipId);
 				}
 
-				setMsgId(
-					showAtMsgId,
-					highlightPart,
-					highlightPartOffsetHint);
+				setMsgId(showAtMsgId, params);
 				if (_historyInited) {
 					DEBUG_LOG(("JumpToEnd(%1, %2, %3): "
 						"Showing instant at %4."
@@ -2402,8 +2390,7 @@ void HistoryWidget::showHistory(
 	clearInlineBot();
 
 	_showAtMsgId = showAtMsgId;
-	_showAtMsgHighlightPart = highlightPart;
-	_showAtMsgHighlightPartOffsetHint = highlightPartOffsetHint;
+	_showAtMsgParams = params;
 	_historyInited = false;
 	_contactStatus = nullptr;
 	_businessBotStatus = nullptr;
@@ -3642,10 +3629,7 @@ void HistoryWidget::messagesReceived(
 		}
 
 		_delayedShowAtRequest = 0;
-		setMsgId(
-			_delayedShowAtMsgId,
-			_delayedShowAtMsgHighlightPart,
-			_delayedShowAtMsgHighlightPartOffsetHint);
+		setMsgId(_delayedShowAtMsgId, _delayedShowAtMsgParams);
 		historyLoaded();
 	}
 	if (session().supportMode()) {
@@ -3897,15 +3881,11 @@ void HistoryWidget::loadMessagesDown() {
 
 void HistoryWidget::delayedShowAt(
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart,
-		int highlightPartOffsetHint) {
+		const Window::SectionShow &params) {
 	if (!_history) {
 		return;
 	}
-	if (_delayedShowAtMsgHighlightPart != highlightPart) {
-		_delayedShowAtMsgHighlightPart = highlightPart;
-	}
-	_delayedShowAtMsgHighlightPartOffsetHint = highlightPartOffsetHint;
+	_delayedShowAtMsgParams = params;
 	if (_delayedShowAtRequest && _delayedShowAtMsgId == showAtMsgId) {
 		return;
 	}
@@ -4539,12 +4519,8 @@ PeerData *HistoryWidget::peer() const {
 // Sometimes _showAtMsgId is set directly.
 void HistoryWidget::setMsgId(
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart,
-		int highlightPartOffsetHint) {
-	if (_showAtMsgHighlightPart != highlightPart) {
-		_showAtMsgHighlightPart = highlightPart;
-	}
-	_showAtMsgHighlightPartOffsetHint = highlightPartOffsetHint;
+		const Window::SectionShow &params) {
+	_showAtMsgParams = params;
 	if (_showAtMsgId != showAtMsgId) {
 		_showAtMsgId = showAtMsgId;
 		if (_history) {
@@ -6289,8 +6265,8 @@ int HistoryWidget::countInitialScrollTop() {
 
 			enqueueMessageHighlight({
 				item,
-				base::take(_showAtMsgHighlightPart),
-				base::take(_showAtMsgHighlightPartOffsetHint),
+				base::take(_showAtMsgParams.highlightPart),
+				base::take(_showAtMsgParams.highlightPartOffsetHint),
 			});
 			const auto result = itemTopForHighlight(view);
 			createUnreadBarIfBelowVisibleArea(result);
@@ -6507,6 +6483,22 @@ void HistoryWidget::updateHistoryGeometry(
 	}
 	const auto toY = std::clamp(newScrollTop, 0, _scroll->scrollTopMax());
 	synteticScrollToY(toY);
+	if (initial && _showAtMsgId) {
+		const auto timestamp = base::take(_showAtMsgParams.videoTimestamp);
+		if (timestamp.has_value()) {
+			const auto item = session().data().message(_peer, _showAtMsgId);
+			const auto media = item ? item->media() : nullptr;
+			const auto document = media ? media->document() : nullptr;
+			if (document && document->isVideoFile()) {
+				controller()->openDocument(
+					document,
+					true,
+					{ item->fullId() },
+					nullptr,
+					timestamp);
+			}
+		}
+	}
 }
 
 void HistoryWidget::revealItemsCallback() {

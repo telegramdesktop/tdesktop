@@ -317,6 +317,7 @@ PreviewWrap::PreviewWrap(
 	0, // duration
 	QString(), // author
 	false, // hasLargeMedia
+	false, // photoIsVideoCover
 	0)) // pendingTill
 , _theme(theme)
 , _style(style)

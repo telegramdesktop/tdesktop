@@ -755,6 +755,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			});
 		} else {
 			const auto draft = info.text;
+			params.videoTimestamp = info.videoTimestamp;
 			crl::on_main(this, [=] {
 				if (peer->isUser() && !draft.isEmpty()) {
 					Data::SetChatLinkDraft(peer, { draft });
@@ -2780,19 +2781,21 @@ void SessionController::openDocument(
 		not_null<DocumentData*> document,
 		bool showInMediaView,
 		MessageContext message,
-		const Data::StoriesContext *stories) {
+		const Data::StoriesContext *stories,
+		std::optional<TimeId> videoTimestampOverride) {
 	const auto item = session().data().message(message.id);
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
 		using namespace Media::View;
+		const auto timestamp = item ? ExtractVideoTimestamp(item) : 0;
 		_window->openInMediaView(OpenRequest(
 			this,
 			document,
 			item,
 			message.topicRootId,
 			false,
-			(item ? ExtractVideoTimestamp(item) : 0) * crl::time(1000)));
+			videoTimestampOverride.value_or(timestamp) * crl::time(1000)));
 		return;
 	}
 	Data::ResolveDocument(this, document, item, message.topicRootId);

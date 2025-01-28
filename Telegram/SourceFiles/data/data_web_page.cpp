@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "core/local_url_handlers.h"
 #include "lang/lang_keys.h"
 #include "iv/iv_data.h"
 #include "ui/image/image.h"
@@ -228,6 +229,7 @@ bool WebPageData::applyChanges(
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
+		bool newPhotoIsVideoCover,
 		int newPendingTill) {
 	if (newPendingTill != 0
 		&& (!url.isEmpty() || failed)
@@ -265,6 +267,9 @@ bool WebPageData::applyChanges(
 		|| (hasSiteName + hasTitle + hasDescription < 2)) {
 		newHasLargeMedia = false;
 	}
+	if (!newDocument || !newDocument->isVideoFile() || !newPhoto) {
+		newPhotoIsVideoCover = false;
+	}
 
 	if (type == newType
 		&& url == resultUrl
@@ -283,6 +288,7 @@ bool WebPageData::applyChanges(
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
+		&& photoIsVideoCover == (newPhotoIsVideoCover ? 1 : 0)
 		&& pendingTill == newPendingTill) {
 		return false;
 	}
@@ -291,6 +297,7 @@ bool WebPageData::applyChanges(
 	}
 	type = newType;
 	hasLargeMedia = newHasLargeMedia ? 1 : 0;
+	photoIsVideoCover = newPhotoIsVideoCover ? 1 : 0;
 	url = resultUrl;
 	displayUrl = resultDisplayUrl;
 	siteName = resultSiteName;
@@ -383,14 +390,7 @@ TimeId WebPageData::extractVideoTimestamp() const {
 	const auto parts = params.split('&');
 	for (const auto &part : parts) {
 		if (part.startsWith(u"t="_q)) {
-			const auto value = part.mid(2);
-			const auto kExp = u"^(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$"_q;
-			const auto m = QRegularExpression(kExp).match(value);
-			return m.hasMatch()
-				? (m.capturedView(1).toInt() * 3600
-					+ m.capturedView(2).toInt() * 60
-					+ m.capturedView(3).toInt())
-				: value.toInt();
+			return Core::ParseVideoTimestamp(part.mid(2));
 		}
 	}
 	return 0;

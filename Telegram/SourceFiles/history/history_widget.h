@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_characters_count_manager.h"
 #include "data/data_report.h"
 #include "window/section_widget.h"
+#include "window/window_session_controller.h"
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
 
@@ -85,10 +86,6 @@ class SuggestionsController;
 namespace Webrtc {
 enum class RecordAvailability : uchar;
 } // namespace Webrtc
-
-namespace Window {
-class SessionController;
-} // namespace Window
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -160,10 +157,7 @@ public:
 	void loadMessages();
 	void loadMessagesDown();
 	void firstLoadMessages();
-	void delayedShowAt(
-		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart,
-		int highlightPartOffsetHint);
+	void delayedShowAt(MsgId showAtMsgId, const Window::SectionShow &params);
 
 	bool updateReplaceMediaButton();
 	void updateFieldPlaceholder();
@@ -176,10 +170,7 @@ public:
 
 	History *history() const;
 	PeerData *peer() const;
-	void setMsgId(
-		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart = {},
-		int highlightPartOffsetHint = 0);
+	void setMsgId(MsgId showAtMsgId, const Window::SectionShow &params = {});
 	MsgId msgId() const;
 
 	bool hasTopBarShadow() const {
@@ -244,10 +235,9 @@ public:
 	bool applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 	void showHistory(
-		const PeerId &peer,
+		PeerId peerId,
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart = {},
-		int highlightPartOffsetHint = 0);
+		const Window::SectionShow &params = {});
 	void setChooseReportMessagesDetails(
 		Data::ReportInput reportInput,
 		Fn<void(std::vector<MsgId>)> callback);
@@ -728,8 +718,7 @@ private:
 	bool _canSendTexts = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 	base::flat_set<MsgId> _topicsRequested;
-	TextWithEntities _showAtMsgHighlightPart;
-	int _showAtMsgHighlightPartOffsetHint = 0;
+	Window::SectionShow _showAtMsgParams;
 	bool _showAndMaybeSendStart = false;
 
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
@@ -737,8 +726,7 @@ private:
 	int _preloadDownRequest = 0; // Not real mtpRequestId.
 
 	MsgId _delayedShowAtMsgId = -1;
-	TextWithEntities _delayedShowAtMsgHighlightPart;
-	int _delayedShowAtMsgHighlightPartOffsetHint = 0;
+	Window::SectionShow _delayedShowAtMsgParams;
 	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
 
 	History *_supportPreloadHistory = nullptr;

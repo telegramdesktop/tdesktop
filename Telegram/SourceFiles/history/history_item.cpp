@@ -726,6 +726,7 @@ HistoryItem::HistoryItem(
 		0,
 		QString(),
 		false,
+		false,
 		0);
 	auto webpageMedia = std::make_unique<Data::MediaWebPage>(
 		this,

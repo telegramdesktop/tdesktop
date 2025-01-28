@@ -598,6 +598,8 @@ bool ResolveUsernameOrPhone(
 	const auto threadParam = params.value(u"thread"_q);
 	const auto threadId = topicId ? topicId : threadParam.toInt();
 	const auto gameParam = params.value(u"game"_q);
+	const auto videot = params.value(u"t"_q);
+
 	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
 		resolveType = ResolveType::ShareGame;
@@ -614,6 +616,9 @@ bool ResolveUsernameOrPhone(
 		.phone = phone,
 		.messageId = post,
 		.storyId = storyId,
+		.videoTimestamp = (!videot.isEmpty()
+			? ParseVideoTimestamp(videot)
+			: std::optional<TimeId>()),
 		.text = params.value(u"text"_q),
 		.repliesInfo = commentId
 			? Window::RepliesByLinkInfo{
@@ -1745,6 +1750,16 @@ void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QString &slug) {
 	ResolveAndShowUniqueGift(std::move(show), slug, {});
+}
+
+TimeId ParseVideoTimestamp(QStringView value) {
+	const auto kExp = u"^(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$"_q;
+	const auto m = QRegularExpression(kExp).match(value);
+	return m.hasMatch()
+		? (m.capturedView(1).toInt() * 3600
+			+ m.capturedView(2).toInt() * 60
+			+ m.capturedView(3).toInt())
+		: value.toInt();
 }
 
 } // namespace Core
