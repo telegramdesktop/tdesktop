@@ -38,4 +38,21 @@ Or, to create a debug build, run (also using [your **api_id** and **api_hash**](
 
 The built files will be in the `out` directory.
 
+### Visual Studio Code integration
+
+Ensure you've followed the instruction up to the [**Clone source code and prepare libraries**](#clone-source-code-and-prepare-libraries) step at least.
+
+Open the repository in Visual Studio Code, install the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension and add the following to `.vscode/settings.json` (using [your **api_id** and **api_hash**](#obtain-your-api-credentials)):
+
+    {
+        "cmake.configureSettings": {
+            "TDESKTOP_API_ID": "YOUR_API_ID",
+            "TDESKTOP_API_HASH": "YOUR_API_HASH"
+        }
+    }
+
+After that, choose **Reopen in Container** via the menu triggered by the green button in bottom left corner and you're done.
+
+![Quick actions Status bar item](https://code.visualstudio.com/assets/docs/devcontainers/containers/remote-dev-status-bar.png)
+
 [api_credentials]: api_credentials.md

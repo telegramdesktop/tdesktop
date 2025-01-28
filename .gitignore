@@ -19,6 +19,7 @@ Release/
 ipch/
 .vs/
 .vscode/
+.cache/
 
 /Telegram/log.txt
 /Telegram/data
