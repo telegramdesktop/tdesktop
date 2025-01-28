@@ -96,7 +96,10 @@ inline auto AddButton(
 		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
 		MediaText(type),
 		tracker)->entity();
-	result->addClickHandler([=] {
+	result->addClickHandler([=](Qt::MouseButton mouse) {
+		if (mouse == Qt::RightButton) {
+			return;
+		}
 		const auto topic = topicRootId
 			? peer->forumTopicFor(topicRootId)
 			: nullptr;

@@ -208,6 +208,8 @@ private:
 	void addProfileCallsButton();
 	void showTopBarMenu(bool check);
 
+	const bool _isSeparatedWindow = false;
+
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };

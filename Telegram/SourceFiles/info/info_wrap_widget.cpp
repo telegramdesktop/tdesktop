@@ -106,6 +106,8 @@ WrapWidget::WrapWidget(
 	Wrap wrap,
 	not_null<Memento*> memento)
 : SectionWidget(parent, window, rpl::producer<PeerData*>())
+, _isSeparatedWindow(
+	window->windowId().type == Window::SeparateType::SharedMedia)
 , _wrap(wrap)
 , _controller(createController(window, memento->content()))
 , _topShadow(this)
@@ -1044,7 +1046,8 @@ const Ui::RoundRect *WrapWidget::bottomSkipRounding() const {
 }
 
 bool WrapWidget::hasBackButton() const {
-	return (wrap() == Wrap::Narrow || hasStackHistory());
+	return !_isSeparatedWindow
+		&& (wrap() == Wrap::Narrow || hasStackHistory());
 }
 
 bool WrapWidget::willHaveBackButton(

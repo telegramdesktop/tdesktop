@@ -44,6 +44,13 @@ SeparateId::SeparateId(not_null<PeerData*> peer)
 : SeparateId(SeparateType::Chat, peer->owner().history(peer)) {
 }
 
+SeparateId::SeparateId(SeparateSharedMediaType type, not_null<PeerData*> peer)
+: type(SeparateType::SharedMedia)
+, sharedMedia(type)
+, account(&peer->session().account())
+, sharedMediaLocalPeer(peer) {
+}
+
 bool SeparateId::primary() const {
 	return (type == SeparateType::Primary);
 }
@@ -72,6 +79,12 @@ bool SeparateId::hasChatsList() const {
 	return (type == SeparateType::Primary)
 		|| (type == SeparateType::Archive)
 		|| (type == SeparateType::Forum);
+}
+
+PeerData *SeparateId::sharedMediaPeer() const {
+	return (type == SeparateType::SharedMedia)
+		? sharedMediaLocalPeer
+		: nullptr;
 }
 
 } // namespace Window

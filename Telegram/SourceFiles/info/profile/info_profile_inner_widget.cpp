@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_inner_widget.h"
 
+#include "base/call_delayed.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_widget.h"
@@ -29,11 +30,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "window/main_window.h"
+#include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/box_content_divider.h"
@@ -44,9 +47,78 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_shared_media.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 namespace Info {
 namespace Profile {
+
+namespace {
+
+Window::SeparateSharedMediaType ToSeparateType(
+		Storage::SharedMediaType type) {
+	using Type = Storage::SharedMediaType;
+	using SeparatedType = Window::SeparateSharedMediaType;
+	return (type == Type::Photo)
+		? SeparatedType::Photos
+		: (type == Type::Video)
+		? SeparatedType::Videos
+		: (type == Type::File)
+		? SeparatedType::Files
+		: (type == Type::MusicFile)
+		? SeparatedType::Audio
+		: (type == Type::Link)
+		? SeparatedType::Links
+		: (type == Type::RoundVoiceFile)
+		? SeparatedType::Voices
+		: (type == Type::GIF)
+		? SeparatedType::GIF
+		: SeparatedType::None;
+}
+
+Fn<void()> SeparateWindowFactory(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType type) {
+	const auto separateType = ToSeparateType(type);
+	if (separateType == Window::SeparateSharedMediaType::None) {
+		return nullptr;
+	}
+	return [=] {
+		controller->showInNewWindow(Window::SeparateId(separateType, peer));
+	};
+}
+
+void AddContextMenu(
+		not_null<Ui::AbstractButton*> button,
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType type) {
+	const auto callback = SeparateWindowFactory(controller, peer, type);
+	if (!callback) {
+		return;
+	}
+	button->setAcceptBoth();
+	struct State final {
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+	const auto state = button->lifetime().make_state<State>();
+	button->addClickHandler([=](Qt::MouseButton mouse) {
+		if (mouse != Qt::RightButton) {
+			return;
+		}
+		state->menu = base::make_unique_q<Ui::PopupMenu>(
+			button.get(),
+			st::popupMenuWithIcons);
+		state->menu->addAction(tr::lng_context_new_window(tr::now), [=] {
+			base::call_delayed(
+				st::popupMenuWithIcons.showDuration,
+				crl::guard(button, callback));
+			}, &st::menuIconNewWindow);
+		state->menu->popup(QCursor::pos());
+	});
+}
+
+} // namespace
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
@@ -160,6 +232,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			_migrated,
 			type,
 			tracker);
+		if (const auto window = _controller->parentController(); !_topic) {
+			AddContextMenu(result, window, _peer, type);
+		}
 		object_ptr<Profile::FloatingIcon>(
 			result,
 			icon,

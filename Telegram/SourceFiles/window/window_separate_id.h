@@ -29,6 +29,18 @@ enum class SeparateType {
 	Chat,
 	Forum,
 	SavedSublist,
+	SharedMedia,
+};
+
+enum class SeparateSharedMediaType {
+	None,
+	Photos,
+	Videos,
+	Files,
+	Audio,
+	Links,
+	Voices,
+	GIF,
 };
 
 struct SeparateId {
@@ -38,10 +50,13 @@ struct SeparateId {
 	SeparateId(SeparateType type, not_null<Data::Thread*> thread);
 	SeparateId(not_null<Data::Thread*> thread);
 	SeparateId(not_null<PeerData*> peer);
+	SeparateId(SeparateSharedMediaType type, not_null<PeerData*> peer);
 
 	SeparateType type = SeparateType::Primary;
+	SeparateSharedMediaType sharedMedia = SeparateSharedMediaType::None;
 	Main::Account *account = nullptr;
 	Data::Thread *thread = nullptr; // For types except Main and Archive.
+	PeerData *sharedMediaLocalPeer = nullptr;
 
 	[[nodiscard]] bool valid() const {
 		return account != nullptr;
@@ -55,6 +70,7 @@ struct SeparateId {
 	[[nodiscard]] Data::Forum *forum() const;
 	[[nodiscard]] Data::Folder *folder() const;
 	[[nodiscard]] Data::SavedSublist *sublist() const;
+	[[nodiscard]] PeerData *sharedMediaPeer() const;
 
 	[[nodiscard]] bool hasChatsList() const;
 
