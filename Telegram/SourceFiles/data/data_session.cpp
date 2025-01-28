@@ -3727,7 +3727,7 @@ void Session::webpageApplyFields(
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
 		data.is_has_large_media(),
-		false, // photo_is_video_cover
+		data.is_video_cover_photo(),
 		pendingTill);
 }
 
