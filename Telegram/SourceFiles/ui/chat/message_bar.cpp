@@ -637,33 +637,34 @@ void MessageBar::paintLeftBar(Painter &p) {
 	}
 	p.setClipping(false);
 	if (_content.count > 4) {
-		const auto firstScroll = countBarState(2).scroll;
-		const auto gradientTop = (scroll >= firstScroll)
-			? 0
-			: anim::interpolate(-gradientSize, 0, scroll / firstScroll);
-		const auto lastScroll = countBarState(_content.count - 3).scroll;
-		const auto largestScroll = countBarState(_content.count - 1).scroll;
-		const auto gradientBottom = (scroll <= lastScroll)
-			? fullHeight
-			: anim::interpolate(
-				fullHeight,
-				fullHeight + gradientSize,
-				(scroll - lastScroll) / (largestScroll - lastScroll));
-		if (gradientTop > -gradientSize) {
-			p.drawPixmap(
-				QRect(bar.x(), gradientTop, bar.width(), gradientSize),
-				_topBarGradient);
-		}
-		if (gradientBottom < fullHeight + gradientSize) {
-			p.drawPixmap(
-				QRect(
-					bar.x(),
-					gradientBottom - gradientSize,
-					bar.width(),
-					gradientSize),
-				_bottomBarGradient);
-		}
-	}
+    const auto firstScroll = countBarState(2).scroll;
+    const auto gradientTop = (scroll >= firstScroll)
+        ? 0
+        : (firstScroll != 0 ? anim::interpolate(-gradientSize, 0, scroll / firstScroll) : 0);
+    const auto lastScroll = countBarState(_content.count - 3).scroll;
+    const auto largestScroll = countBarState(_content.count - 1).scroll;
+    const auto gradientBottom = (scroll <= lastScroll)
+        ? fullHeight
+        : (largestScroll != lastScroll ? anim::interpolate(
+            fullHeight,
+            fullHeight + gradientSize,
+            (scroll - lastScroll) / (largestScroll - lastScroll)) : fullHeight);
+    if (gradientTop > -gradientSize) {
+        p.drawPixmap(
+            QRect(bar.x(), gradientTop, bar.width(), gradientSize),
+            _topBarGradient);
+    }
+    if (gradientBottom < fullHeight + gradientSize) {
+        p.drawPixmap(
+            QRect(
+                bar.x(),
+                gradientBottom - gradientSize,
+                bar.width(),
+                gradientSize),
+            _bottomBarGradient);
+    }
+}
+
 }
 
 } // namespace Ui

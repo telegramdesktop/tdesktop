@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include <memory>
 #include "ui/effects/round_checkbox.h"
 
 #include "ui/rp_widget.h"
@@ -243,14 +244,13 @@ QPixmap CheckCaches::paintFrame(
 }
 
 CheckCaches *FrameCaches() {
-	static QPointer<CheckCaches> Instance;
-
-	if (const auto instance = Instance.data()) {
-		return instance;
-	}
-	const auto result = new CheckCaches(QCoreApplication::instance());
-	Instance = result;
-	return result;
+    static std::unique_ptr<CheckCaches> Instance;
+    if (const auto instance = Instance.get()) {
+        return instance;
+    }
+    const auto result = new CheckCaches(QCoreApplication::instance());
+    Instance.reset(result);
+    return result;
 }
 
 } // namespace

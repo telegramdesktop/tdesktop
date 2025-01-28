@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include <memory>
 #include "api/api_chat_invite.h"
 
 #include "apiwrap.h"
@@ -580,49 +581,48 @@ ConfirmInviteBox::ChatInvite ConfirmInviteBox::Parse(
 }
 
 void ConfirmInviteBox::prepare() {
-	addButton(
-		(_requestApprove
-			? tr::lng_group_request_to_join()
-			: _isChannel
-			? tr::lng_profile_join_channel()
-			: tr::lng_profile_join_group()),
-		_submit);
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
+    addButton(
+        (_requestApprove
+            ? tr::lng_group_request_to_join()
+            : _isChannel
+            ? tr::lng_profile_join_channel()
+            : tr::lng_profile_join_group()),
+        _submit);
+    addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-	while (_participants.size() > 4) {
-		_participants.pop_back();
-	}
+    while (_participants.size() > 4) {
+        _participants.pop_back();
+    }
 
-	auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
-	if (!_participants.empty()) {
-		int skip = (st::confirmInviteUsersWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
-		int padding = skip / 2;
-		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
-		int sumWidth = _participants.size() * _userWidth;
-		int left = (st::boxWideWidth - sumWidth) / 2;
-		for (const auto &participant : _participants) {
-			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
-			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
-			name->setText(participant.user->firstName.isEmpty()
-				? participant.user->name()
-				: participant.user->firstName);
-			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
-			left += _userWidth;
-		}
-
-		newHeight += st::confirmInviteUserHeight;
-	}
-	if (_about) {
-		const auto padding = st::confirmInviteAboutPadding;
-		_about->resizeToWidth(st::boxWideWidth - padding.left() - padding.right());
-		newHeight += padding.top() + _about->height() + padding.bottom();
-	}
-	if (_aboutRequests) {
-		const auto padding = st::confirmInviteAboutRequestsPadding;
-		_aboutRequests->resizeToWidth(st::boxWideWidth - padding.left() - padding.right());
-		newHeight += padding.top() + _aboutRequests->height() + padding.bottom();
-	}
-	setDimensions(st::boxWideWidth, newHeight);
+    auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
+    if (!_participants.empty()) {
+        int skip = (st::confirmInviteUsersWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
+        int padding = skip / 2;
+        _userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
+        int sumWidth = _participants.size() * _userWidth;
+        int left = (st::boxWideWidth - sumWidth) / 2;
+        for (const auto &participant : _participants) {
+            auto name = std::make_unique<Ui::FlatLabel>(this, st::confirmInviteUserName);
+            name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
+            name->setText(participant.user->firstName.isEmpty()
+                ? participant.user->name()
+                : participant.user->firstName);
+            name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
+            left += _userWidth;
+        }
+        newHeight += st::confirmInviteUserHeight;
+    }
+    if (_about) {
+        const auto padding = st::confirmInviteAboutPadding;
+        _about->resizeToWidth(st::boxWideWidth - padding.left() - padding.right());
+        newHeight += padding.top() + _about->height() + padding.bottom();
+    }
+    if (_aboutRequests) {
+        const auto padding = st::confirmInviteAboutRequestsPadding;
+        _aboutRequests->resizeToWidth(st::boxWideWidth - padding.left() - padding.right());
+        newHeight += padding.top() + _aboutRequests->height() + padding.bottom();
+    }
+    setDimensions(st::boxWideWidth, newHeight);
 }
 
 void ConfirmInviteBox::resizeEvent(QResizeEvent *e) {
