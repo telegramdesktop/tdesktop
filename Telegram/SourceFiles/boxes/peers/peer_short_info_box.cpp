@@ -106,6 +106,8 @@ PeerShortInfoCover::PeerShortInfoCover(
 , _statusStyle(std::make_unique<CustomLabelStyle>(_st.status))
 , _status(_widget.get(), std::move(status), _statusStyle->st)
 , _roundMask(Images::CornersMask(_st.radius))
+, _roundMaskRetina(
+	Images::CornersMask(_st.radius / style::DevicePixelRatio()))
 , _videoPaused(std::move(videoPaused)) {
 	_widget->setCursor(_cursor);
 
@@ -190,7 +192,7 @@ void PeerShortInfoCover::paint(QPainter &p) {
 	if (!frame.isNull()) {
 		frame = Images::Round(
 			std::move(frame),
-			_roundMask,
+			_roundMaskRetina,
 			RectPart::TopLeft | RectPart::TopRight);
 	} else if (_userpicImage.isNull()) {
 		auto image = QImage(
@@ -226,10 +228,11 @@ void PeerShortInfoCover::paintCoverImage(QPainter &p, const QImage &image) {
 	const auto top = _widget->height() - fill;
 	const auto factor = style::DevicePixelRatio();
 	if (fill > 0) {
+		const auto t = roundedHeight + _scrollTop;
 		p.drawImage(
-			QRect(0, top, roundedWidth, fill),
+			QRect(0, t, roundedWidth * factor, (roundedWidth - t) * factor),
 			image,
-			QRect(0, top * factor, roundedWidth * factor, fill * factor));
+			QRect(0, t, roundedWidth * factor, (roundedWidth - t) * factor));
 	}
 	if (covered <= 0) {
 		return;
@@ -238,9 +241,9 @@ void PeerShortInfoCover::paintCoverImage(QPainter &p, const QImage &image) {
 	const auto from = top - rounded;
 	auto q = QPainter(&_roundedTopImage);
 	q.drawImage(
-		QRect(0, 0, roundedWidth, rounded),
+		QRect(0, 0, roundedWidth * factor, rounded * factor),
 		image,
-		QRect(0, from * factor, roundedWidth * factor, rounded * factor));
+		QRect(0, _scrollTop, roundedWidth * factor, rounded * factor));
 	q.end();
 	_roundedTopImage = Images::Round(
 		std::move(_roundedTopImage),

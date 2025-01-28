@@ -123,6 +123,7 @@ private:
 	object_ptr<Ui::FlatLabel> _additionalStatus = { nullptr };
 
 	std::array<QImage, 4> _roundMask;
+	std::array<QImage, 4> _roundMaskRetina;
 	QImage _userpicImage;
 	QImage _roundedTopImage;
 	QImage _barSmall;
