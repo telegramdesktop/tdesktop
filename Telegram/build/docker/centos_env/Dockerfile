@@ -1,6 +1,7 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set GIT_UPDATE_M4 = "git submodule set-url m4 https://gitlab.freedesktop.org/xorg/util/xcb-util-m4 && git config -f .gitmodules submodule.m4.shallow true && git submodule init && git submodule update" -%}
+{%- set TOOLSET = "gcc-toolset-12" -%}
 {%- set QT = "6.8.1" -%}
 {%- set QT_TAG = "v" ~ QT -%}
 {%- set CFLAGS_DEBUG = "$CFLAGS -O0 -fno-lto -U_FORTIFY_SOURCE" -%}
@@ -14,23 +15,36 @@ ENV LIBRARY_PATH /usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
 ENV LD_LIBRARY_PATH $LIBRARY_PATH
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
+RUN adduser user
+
 RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
 	&& dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
-		python3.11-pip python3.11-devel gperf flex bison clang lld nasm yasm \
-		file which perl-open perl-XML-Parser perl-IPC-Cmd xorg-x11-util-macros \
-		gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils \
-		gcc-toolset-12-libasan-devel libffi-devel fontconfig-devel freetype-devel \
-		libX11-devel alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel \
-		mesa-libEGL-devel mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel \
-		libvdpau-devel glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
+		python3.11-pip python3.11-devel gperf flex bison clang clang-tools-extra \
+		lld nasm yasm file which perl-open perl-XML-Parser perl-IPC-Cmd \
+		xorg-x11-util-macros {{ TOOLSET }}-gcc {{ TOOLSET }}-gcc-c++ \
+		{{ TOOLSET }}-binutils {{ TOOLSET }}-gdb {{ TOOLSET }}-libasan-devel \
+		libffi-devel fontconfig-devel freetype-devel libX11-devel wayland-devel \
+		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
+		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
+		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
 	&& dnf clean all
 
-SHELL [ "bash", "-c", ". /opt/rh/gcc-toolset-12/enable; exec bash -c \"$@\"", "-s"]
+SHELL [ "bash", "-c", ". /opt/rh/{{ TOOLSET }}/enable; exec bash -c \"$@\"", "-s"]
 
 WORKDIR {{ LibrariesPath }}
 
 RUN python3 -m pip install meson ninja
+
+RUN curl -sSL https://github.com/direnv/direnv/releases/download/v2.35.0/direnv.linux-amd64 > /usr/local/bin/direnv \
+	&& chmod +x /usr/local/bin/direnv \
+	&& echo 'eval "$(direnv hook bash)"' >> /home/user/.bashrc \
+	&& mkdir -p /home/user/.config/direnv \
+	&& echo . /opt/rh/{{ TOOLSET }}/enable > /home/user/.config/direnv/direnvrc \
+	&& touch /.envrc \
+	&& su -c "direnv allow /" user
+
+RUN echo set debuginfod enabled on > /opt/rh/{{ TOOLSET }}/root/etc/gdbinit.d/00-debuginfod.gdb
 
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
@@ -460,8 +474,10 @@ RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 		-Ddocumentation=false \
 		-Ddtd_validation=false \
 		-Dicon_directory=/usr/share/icons \
-	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/wayland-cache" meson install -C build \
+	&& meson compile -C build src/wayland-scanner \
+	&& mkdir -p "{{ LibrariesPath }}/wayland-cache/usr/local/bin" "{{ LibrariesPath }}/wayland-cache/usr/local/lib64/pkgconfig" \
+	&& cp build/src/wayland-scanner "{{ LibrariesPath }}/wayland-cache/usr/local/bin" \
+	&& sed 's@bindir=${prefix}/bin@bindir=${prefix}/local/bin@;s/1.21.0/1.19.0/' /usr/lib64/pkgconfig/wayland-scanner.pc > "{{ LibrariesPath }}/wayland-cache/usr/local/lib64/pkgconfig/wayland-scanner.pc" \
 	&& cd .. \
 	&& rm -rf wayland
 
@@ -868,6 +884,7 @@ ENV QT {{ QT }}
 ENV BOOST_INCLUDEDIR /usr/include/boost1.78
 ENV BOOST_LIBRARYDIR /usr/lib64/boost1.78
 
+USER user
 VOLUME [ "/usr/src/tdesktop" ]
-ENTRYPOINT [ "scl", "enable", "gcc-toolset-12", "--" ]
+ENTRYPOINT [ "scl", "enable", "{{ TOOLSET }}", "--" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]
