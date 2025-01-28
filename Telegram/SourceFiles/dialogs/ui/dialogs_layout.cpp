@@ -438,6 +438,9 @@ void PaintRow(
 
 	const auto promoted = (history && history->useTopPromotion())
 		&& !context.search;
+	const auto verifyInfo = (from && !from->isSelf())
+		? from->botVerifyDetails()
+		: nullptr;
 	if (promoted) {
 		const auto type = history->topPromotionType();
 		const auto custom = type.isEmpty()
@@ -449,10 +452,10 @@ void PaintRow(
 			? tr::lng_badge_psa_default(tr::now)
 			: custom;
 		PaintRowTopRight(p, text, rectForName, context);
-	} else if (const auto info = from ? from->botVerifyDetails() : nullptr) {
-		if (!rowBadge.ready(info)) {
+	} else if (verifyInfo) {
+		if (!rowBadge.ready(verifyInfo)) {
 			rowBadge.set(
-				info,
+				verifyInfo,
 				from->owner().customEmojiManager().factory(),
 				customEmojiRepaint);
 		}
