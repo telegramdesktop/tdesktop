@@ -51,22 +51,21 @@ string argv0;
 
 FILE *_logFile = 0;
 void openLog() {
-	if (!_debug || _logFile) return;
+    if (!_debug || _logFile) return;
 
-	if (!do_mkdir((workDir + "DebugLogs").c_str())) {
-		return;
-	}
+    if (!do_mkdir((workDir + "DebugLogs").c_str())) {
+        return;
+    }
 
-	time_t timer;
+    time_t timer;
+    time(&timer);
+    struct tm *t = localtime(&timer);
 
-	time(&timer);
-	struct tm *t = localtime(&timer);
-
-	static const int maxFileLen = 65536;
-	char logName[maxFileLen];
-	sprintf(logName, "%sDebugLogs/%04d%02d%02d_%02d%02d%02d_upd.txt", workDir.c_str(),
-		t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
-	_logFile = fopen(logName, "w");
+    static const int maxFileLen = 65536;
+    char logName[maxFileLen];
+    snprintf(logName, maxFileLen, "%sDebugLogs/%04d%02d%02d_%02d%02d%02d_upd.txt", workDir.c_str(),
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+    _logFile = fopen(logName, "w");
 }
 
 void closeLog() {
