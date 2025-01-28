@@ -69,7 +69,10 @@ QSize Game::countOptimalSize() {
 
 	// init attach
 	if (!_attach) {
-		_attach = CreateAttach(_parent, _data->document, _data->photo);
+		_attach = CreateAttach(
+			_parent,
+			_data->document,
+			_data->document ? nullptr : _data->photo);
 	}
 
 	// init strings

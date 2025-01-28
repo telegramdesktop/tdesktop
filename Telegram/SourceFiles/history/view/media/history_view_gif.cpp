@@ -48,6 +48,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/spoiler_mess.h"
+#include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_streaming.h"
@@ -140,9 +142,11 @@ Gif::Gif(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
 	not_null<DocumentData*> document,
+	PhotoData *videoCover,
 	bool spoiler)
 : File(parent, realParent)
 , _data(document)
+, _videoCover(videoCover)
 , _storyId(realParent->media()
 	? realParent->media()->storyId()
 	: FullStoryId())
@@ -200,6 +204,12 @@ Gif::Gif(
 
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
+	} else if (_videoCover) {
+		if (_videoCover->inlineThumbnailBytes().isEmpty()
+			&& (_videoCover->hasExact(Data::PhotoSize::Small)
+				|| _videoCover->hasExact(Data::PhotoSize::Thumbnail))) {
+			_videoCover->load(Data::PhotoSize::Small, realParent->fullId());
+		}
 	} else {
 		_data->loadThumbnail(realParent->fullId());
 		if (!autoplayEnabled()) {
@@ -955,6 +965,8 @@ QImage Gif::spoilerTagBackground() const {
 }
 
 void Gif::validateVideoThumbnail() const {
+	Expects(!_videoCover);
+
 	const auto content = _dataMedia->videoThumbnailContent();
 	if (_videoThumbnailFrame || content.isEmpty()) {
 		return;
@@ -970,13 +982,25 @@ void Gif::validateThumbCache(
 		QSize outer,
 		bool isEllipse,
 		std::optional<Ui::BubbleRounding> rounding) const {
-	const auto good = _dataMedia->goodThumbnail();
-	const auto normal = good ? good : _dataMedia->thumbnail();
+	const auto good = _videoCoverMedia
+		? _videoCoverMedia->image(Data::PhotoSize::Large)
+		: _dataMedia->goodThumbnail();
+	const auto normal = good
+		? good
+		: _videoCoverMedia
+		? nullptr
+		: _dataMedia->thumbnail();
 	if (!normal) {
-		_data->loadThumbnail(_realParent->fullId());
-		validateVideoThumbnail();
+		if (_videoCoverMedia) {
+			_videoCover->load(Data::PhotoSize::Small, _realParent->fullId());
+		} else {
+			_data->loadThumbnail(_realParent->fullId());
+			validateVideoThumbnail();
+		}
 	}
-	const auto videothumb = normal ? nullptr : _videoThumbnailFrame.get();
+	const auto videothumb = (normal || _videoCoverMedia)
+		? nullptr
+		: _videoThumbnailFrame.get();
 	const auto blurred = normal
 		? (!good
 			&& (normal->width() < kUseNonBlurredThreshold)
@@ -998,9 +1022,17 @@ void Gif::validateThumbCache(
 }
 
 QImage Gif::prepareThumbCache(QSize outer) const {
-	const auto good = _dataMedia->goodThumbnail();
-	const auto normal = good ? good : _dataMedia->thumbnail();
-	const auto videothumb = normal ? nullptr : _videoThumbnailFrame.get();
+	const auto good = _videoCoverMedia
+		? _videoCoverMedia->image(Data::PhotoSize::Large)
+		: _dataMedia->goodThumbnail();
+	const auto normal = good
+		? good
+		: _videoCoverMedia
+		? nullptr
+		: _dataMedia->thumbnail();
+	const auto videothumb = (normal || _videoCoverMedia)
+		? nullptr
+		: _videoThumbnailFrame.get();
 	auto blurred = (!good
 		&& normal
 		&& (normal->width() < kUseNonBlurredThreshold)
@@ -1010,6 +1042,10 @@ QImage Gif::prepareThumbCache(QSize outer) const {
 	const auto blurFromLarge = good || (normal && !blurred);
 	const auto large = blurFromLarge ? normal : videothumb;
 	if (videothumb) {
+	} else if (_videoCoverMedia) {
+		if (const auto embedded = _videoCoverMedia->thumbnailInline()) {
+			blurred = embedded;
+		}
 	} else if (const auto embedded = _dataMedia->thumbnailInline()) {
 		blurred = embedded;
 	}
@@ -1035,7 +1071,9 @@ void Gif::validateSpoilerImageCache(
 		&& _spoiler->backgroundRounding == rounding) {
 		return;
 	}
-	const auto normal = _dataMedia->thumbnail();
+	const auto normal = _videoCoverMedia
+		? _videoCoverMedia->image(Data::PhotoSize::Small)
+		: _dataMedia->thumbnail();
 	auto container = std::optional<Image>();
 	const auto downscale = [&](Image *image) {
 		if (!image || (image->width() <= 40 && image->height() <= 40)) {
@@ -1047,7 +1085,9 @@ void Gif::validateSpoilerImageCache(
 			Qt::SmoothTransformation));
 		return &*container;
 	};
-	const auto embedded = _dataMedia->thumbnailInline();
+	const auto embedded = _videoCoverMedia
+		? _videoCoverMedia->thumbnailInline()
+		: _dataMedia->thumbnailInline();
 	const auto blurred = embedded ? embedded : downscale(normal);
 	_spoiler->background = Images::Round(
 		PrepareWithBlurredBackground(
@@ -1584,20 +1624,29 @@ TextState Gif::getStateGrouped(
 }
 
 void Gif::ensureDataMediaCreated() const {
-	if (_dataMedia) {
+	if (_dataMedia && (!_videoCover || _videoCoverMedia)) {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
+	_videoCoverMedia = _videoCover
+		? _videoCover->createMediaView()
+		: nullptr;
 	dataMediaCreated();
 }
 
 void Gif::dataMediaCreated() const {
 	Expects(_dataMedia != nullptr);
 
-	_dataMedia->goodThumbnailWanted();
-	_dataMedia->thumbnailWanted(_realParent->fullId());
-	if (!autoplayEnabled()) {
-		_dataMedia->videoThumbnailWanted(_realParent->fullId());
+	if (_videoCoverMedia) {
+		_videoCoverMedia->wanted(
+			Data::PhotoSize::Large,
+			_realParent->fullId());
+	} else {
+		_dataMedia->goodThumbnailWanted();
+		_dataMedia->thumbnailWanted(_realParent->fullId());
+		if (!autoplayEnabled()) {
+			_dataMedia->videoThumbnailWanted(_realParent->fullId());
+		}
 	}
 	history()->owner().registerHeavyViewPart(_parent);
 	togglePollingStory(true);

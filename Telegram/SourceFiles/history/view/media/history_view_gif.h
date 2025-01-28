@@ -15,9 +15,11 @@ struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 class Painter;
+class PhotoData;
 
 namespace Data {
 class DocumentMedia;
+class PhotoMedia;
 } // namespace Data
 
 namespace Media {
@@ -37,6 +39,7 @@ enum class Error;
 
 namespace HistoryView {
 
+class Photo;
 class Reply;
 class TranscribeButton;
 
@@ -51,6 +54,7 @@ public:
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
 		not_null<DocumentData*> document,
+		PhotoData *videoCover,
 		bool spoiler);
 	~Gif();
 
@@ -212,12 +216,14 @@ private:
 	TtlRoundPaintCallback _drawTtl;
 
 	const not_null<DocumentData*> _data;
+	PhotoData *_videoCover = nullptr;
 	const FullStoryId _storyId;
 	std::unique_ptr<Streamed> _streamed;
 	const std::unique_ptr<MediaSpoiler> _spoiler;
 	mutable std::unique_ptr<MediaSpoilerTag> _spoilerTag;
 	mutable std::unique_ptr<TranscribeButton> _transcribe;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	mutable std::shared_ptr<Data::PhotoMedia> _videoCoverMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 	QString _downloadSize;
 	mutable QImage _thumbCache;

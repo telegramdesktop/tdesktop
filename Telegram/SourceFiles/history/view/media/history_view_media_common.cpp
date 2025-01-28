@@ -101,6 +101,7 @@ std::unique_ptr<Media> CreateAttach(
 				parent,
 				parent->data(),
 				document,
+				photo,
 				spoiler);
 		} else if (document->isWallPaper() || document->isTheme()) {
 			return std::make_unique<ThemeDocument>(

@@ -1334,6 +1334,7 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 				message,
 				realParent,
 				_document,
+				_videoCover,
 				_spoiler);
 		}
 	} else if (_document->isAnimation() || _document->isVideoFile()) {
@@ -1341,6 +1342,7 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 			message,
 			realParent,
 			_document,
+			_videoCover,
 			_spoiler);
 	} else if (_document->isTheme() && _document->hasThumbnail()) {
 		return std::make_unique<HistoryView::ThemeDocument>(
@@ -2609,6 +2611,7 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 				message,
 				realParent,
 				story->document(),
+				nullptr,
 				spoiler);
 		}
 	}

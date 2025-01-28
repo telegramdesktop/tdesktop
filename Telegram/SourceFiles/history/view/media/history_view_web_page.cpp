@@ -309,12 +309,12 @@ void WebPage::setupAdditionalData() {
 			UrlClickHandler::Open(link);
 		});
 		if (!_attach) {
-			const auto maybePhoto = details.mediaPhotoId
-				? session->data().photo(details.mediaPhotoId).get()
-				: nullptr;
 			const auto maybeDocument = details.mediaDocumentId
 				? session->data().document(
 					details.mediaDocumentId).get()
+				: nullptr;
+			const auto maybePhoto = (!maybeDocument && details.mediaPhotoId)
+				? session->data().photo(details.mediaPhotoId).get()
 				: nullptr;
 			_attach = CreateAttach(
 				_parent,
@@ -520,7 +520,9 @@ QSize WebPage::countOptimalSize() {
 		_attach = CreateAttach(
 			_parent,
 			_data->document,
-			_data->photo,
+			((!_data->document || _data->photoIsVideoCover)
+				? _data->photo
+				: nullptr),
 			_collage,
 			_data->url);
 	}
