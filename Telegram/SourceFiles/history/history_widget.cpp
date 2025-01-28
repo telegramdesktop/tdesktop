@@ -4042,7 +4042,10 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 		preloadHistoryByScroll();
 		checkReplyReturns();
 	}
-	if (clearMaybeSendStart() && !_history->isDisplayedEmpty()) {
+	const auto hasNonEmpty = _history->findFirstNonEmpty();
+	const auto readyForBotStart = hasNonEmpty
+		|| (_history->loadedAtTop() && _history->loadedAtBottom());
+	if (readyForBotStart && clearMaybeSendStart() && hasNonEmpty) {
 		sendBotStartCommand();
 	}
 }
@@ -8373,7 +8376,10 @@ void HistoryWidget::fullInfoUpdated() {
 		handlePeerUpdate();
 		checkSuggestToGigagroup();
 
-		if (clearMaybeSendStart() && !_history->isDisplayedEmpty()) {
+		const auto hasNonEmpty = _history->findFirstNonEmpty();
+		const auto readyForBotStart = hasNonEmpty
+			|| (_history->loadedAtTop() && _history->loadedAtBottom());
+		if (readyForBotStart && clearMaybeSendStart() && hasNonEmpty) {
 			sendBotStartCommand();
 		}
 
