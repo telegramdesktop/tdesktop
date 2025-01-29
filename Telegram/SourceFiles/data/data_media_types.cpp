@@ -1302,7 +1302,11 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 			"or with ttl_seconds in updateSentMedia()"));
 		return false;
 	}
-	parent()->history()->owner().documentConvert(_document, *content);
+	const auto owner = &parent()->history()->owner();
+	owner->documentConvert(_document, *content);
+	if (const auto cover = _videoCover ? data.vvideo_cover() : nullptr) {
+		owner->photoConvert(_videoCover, *cover);
+	}
 	return true;
 }
 
@@ -1334,7 +1338,6 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 				message,
 				realParent,
 				_document,
-				_videoCover,
 				_spoiler);
 		}
 	} else if (_document->isAnimation() || _document->isVideoFile()) {
@@ -1342,7 +1345,6 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 			message,
 			realParent,
 			_document,
-			_videoCover,
 			_spoiler);
 	} else if (_document->isTheme() && _document->hasThumbnail()) {
 		return std::make_unique<HistoryView::ThemeDocument>(
@@ -2611,7 +2613,6 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 				message,
 				realParent,
 				story->document(),
-				nullptr,
 				spoiler);
 		}
 	}

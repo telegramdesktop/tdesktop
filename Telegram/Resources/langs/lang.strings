@@ -3883,6 +3883,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_choose_image" = "Choose an image";
 "lng_choose_file" = "Choose a file";
 "lng_choose_files" = "Choose Files";
+"lng_choose_cover" = "Choose video cover";
+"lng_choose_cover_bad" = "Can't use this file as a caption.";
 "lng_game_tag" = "Game";
 
 "lng_context_new_window" = "Open in new window";
@@ -4028,6 +4030,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_disable_spoiler" = "Remove Spoiler";
 "lng_context_make_paid" = "Make This Content Paid";
 "lng_context_change_price" = "Change Price";
+"lng_context_edit_cover" = "Edit Cover";
+"lng_context_clear_cover" = "Clear Cover";
 
 "lng_context_mention" = "Mention";
 "lng_context_search_from" = "Search messages";

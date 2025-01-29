@@ -74,12 +74,14 @@ struct PreparedFile {
 	[[nodiscard]] bool canBeInAlbumType(AlbumType album) const;
 	[[nodiscard]] AlbumType albumType(bool sendImagesAsPhotos) const;
 	[[nodiscard]] bool isSticker() const;
+	[[nodiscard]] bool isVideoFile() const;
 	[[nodiscard]] bool isGifv() const;
 
 	QString path;
 	QByteArray content;
 	int64 size = 0;
-	std::unique_ptr<Ui::PreparedFileInformation> information;
+	std::unique_ptr<PreparedFileInformation> information;
+	std::unique_ptr<PreparedFile> videoCover;
 	QImage preview;
 	QSize shownDimensions;
 	QSize originalDimensions;

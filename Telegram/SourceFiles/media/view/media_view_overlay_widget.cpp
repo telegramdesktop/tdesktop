@@ -2328,11 +2328,22 @@ void OverlayWidget::assignMediaPointer(DocumentData *document) {
 			_quality = Core::App().settings().videoQuality();
 			_chosenQuality = _document->chooseQuality(_message, _quality);
 			_documentMedia = _document->createMediaView();
-			_documentMedia->goodThumbnailWanted();
-			_documentMedia->thumbnailWanted(fileOrigin());
+			_videoCover = LookupVideoCover(_document, _message);
+			if (_videoCover) {
+				_videoCoverMedia = _videoCover->createMediaView();
+				_videoCoverMedia->wanted(
+					Data::PhotoSize::Large,
+					fileOrigin());
+			} else {
+				_videoCoverMedia = nullptr;
+				_documentMedia->goodThumbnailWanted();
+				_documentMedia->thumbnailWanted(fileOrigin());
+			}
 		} else {
 			_chosenQuality = nullptr;
 			_documentMedia = nullptr;
+			_videoCover = nullptr;
+			_videoCoverMedia = nullptr;
 		}
 		_documentLoadingTo = QString();
 	}
@@ -2346,6 +2357,8 @@ void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
 	_document = nullptr;
 	_documentMedia = nullptr;
 	_documentLoadingTo = QString();
+	_videoCover = nullptr;
+	_videoCoverMedia = nullptr;
 	if (_photo != photo) {
 		_flip = {};
 		_photo = photo;
@@ -3988,13 +4001,19 @@ void OverlayWidget::initStreamingThumbnail() {
 		}
 		return thumbnail;
 	};
-	const auto good = _document
+	const auto good = _videoCover
+		? _videoCoverMedia->image(Data::PhotoSize::Large)
+		: _document
 		? _documentMedia->goodThumbnail()
 		: _photoMedia->image(Data::PhotoSize::Large);
-	const auto thumbnail = _document
+	const auto thumbnail = _videoCover
+		? _videoCoverMedia->image(Data::PhotoSize::Small)
+		: _document
 		? _documentMedia->thumbnail()
 		: computePhotoThumbnail();
-	const auto blurred = _document
+	const auto blurred = _videoCover
+		? _videoCoverMedia->thumbnailInline()
+		: _document
 		? _documentMedia->thumbnailInline()
 		: _photoMedia->thumbnailInline();
 	const auto size = _photo

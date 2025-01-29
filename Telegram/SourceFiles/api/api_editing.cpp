@@ -276,16 +276,22 @@ mtpRequestId EditTextMessage(
 			takeFileReference = [=] { return photo->fileReference(); };
 		} else if (const auto document = media->document()) {
 			using Flag = MTPDinputMediaDocument::Flag;
+			const auto videoCover = media->videoCover();
+			const auto videoTimestamp = media->videoTimestamp();
 			const auto flags = Flag()
 				| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
-				| (spoilered ? Flag::f_spoiler : Flag());
+				| (spoilered ? Flag::f_spoiler : Flag())
+				| (videoTimestamp ? Flag::f_video_timestamp : Flag())
+				| (videoCover ? Flag::f_video_cover : Flag());
 			takeInputMedia = [=] {
 				return MTP_inputMediaDocument(
 					MTP_flags(flags),
 					document->mtpInput(),
-					MTPInputPhoto(), // video_cover
+					(videoCover
+						? videoCover->mtpInput()
+						: MTPInputPhoto()),
 					MTP_int(media->ttlSeconds()),
-					MTPint(), // video_timestamp
+					MTP_int(videoTimestamp),
 					MTPstring()); // query
 			};
 			takeFileReference = [=] { return document->fileReference(); };

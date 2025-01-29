@@ -549,10 +549,11 @@ void SendConfirmedFile(
 			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
 				MTP_flags(Flag::f_document
-					| (file->spoiler ? Flag::f_spoiler : Flag())),
+					| (file->spoiler ? Flag::f_spoiler : Flag())
+					| (file->videoCover ? Flag::f_video_cover : Flag())),
 				file->document,
 				MTPVector<MTPDocument>(), // alt_documents
-				MTPPhoto(), // video_cover
+				file->videoCover ? file->videoCover->photo : MTPPhoto(),
 				MTPint(), // video_timestamp
 				MTPint());
 		} else if (file->type == SendMediaType::Audio) {
@@ -561,10 +562,11 @@ void SendConfirmedFile(
 			return MTP_messageMediaDocument(
 				MTP_flags(Flag::f_document
 					| Flag::f_voice
-					| (ttlSeconds ? Flag::f_ttl_seconds : Flag())),
+					| (ttlSeconds ? Flag::f_ttl_seconds : Flag())
+					| (file->videoCover ? Flag::f_video_cover : Flag())),
 				file->document,
 				MTPVector<MTPDocument>(), // alt_documents
-				MTPPhoto(), // video_cover
+				file->videoCover ? file->videoCover->photo : MTPPhoto(),
 				MTPint(), // video_timestamp
 				MTP_int(ttlSeconds));
 		} else if (file->type == SendMediaType::Round) {

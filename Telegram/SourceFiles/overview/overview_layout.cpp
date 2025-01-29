@@ -486,6 +486,7 @@ Video::Video(
 	MediaOptions options)
 : RadialProgressItem(delegate, parent)
 , _data(video)
+, _videoCover(LookupVideoCover(video, parent))
 , _duration(Ui::FormatDurationText(_data->duration() / 1000))
 , _spoiler(options.spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
@@ -493,7 +494,13 @@ Video::Video(
 , _pinned(options.pinned)
 , _story(options.story) {
 	setDocumentLinks(_data);
-	_data->loadThumbnail(parent->fullId());
+	if (!_videoCover) {
+		_data->loadThumbnail(parent->fullId());
+	} else if (_videoCover->inlineThumbnailBytes().isEmpty()
+		&& (_videoCover->hasExact(Data::PhotoSize::Small)
+			|| _videoCover->hasExact(Data::PhotoSize::Thumbnail))) {
+		_videoCover->load(Data::PhotoSize::Small, parent->fullId());
+	}
 }
 
 Video::~Video() = default;
@@ -516,9 +523,19 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	ensureDataMediaCreated();
 
 	const auto selected = (selection == FullSelection);
-	const auto blurred = _dataMedia->thumbnailInline();
-	const auto thumbnail = _spoiler ? nullptr : _dataMedia->thumbnail();
-	const auto good = _spoiler ? nullptr : _dataMedia->goodThumbnail();
+	const auto blurred = _videoCover
+		? _videoCoverMedia->thumbnailInline()
+		: _dataMedia->thumbnailInline();
+	const auto thumbnail = _spoiler
+		? nullptr
+		: _videoCover
+		? _videoCoverMedia->image(Data::PhotoSize::Small)
+		: _dataMedia->thumbnail();
+	const auto good = _spoiler
+		? nullptr
+		: _videoCover
+		? _videoCoverMedia->image(Data::PhotoSize::Large)
+		: _dataMedia->goodThumbnail();
 
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
@@ -626,12 +643,17 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 }
 
 void Video::ensureDataMediaCreated() const {
-	if (_dataMedia) {
+	if (_dataMedia && (!_videoCover || _videoCoverMedia)) {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
-	_dataMedia->goodThumbnailWanted();
-	_dataMedia->thumbnailWanted(parent()->fullId());
+	if (_videoCover) {
+		_videoCoverMedia = _videoCover->createMediaView();
+		_videoCover->load(Data::PhotoSize::Large, parent()->fullId());
+	} else {
+		_dataMedia->goodThumbnailWanted();
+		_dataMedia->thumbnailWanted(parent()->fullId());
+	}
 	delegate()->registerHeavyItem(this);
 }
 

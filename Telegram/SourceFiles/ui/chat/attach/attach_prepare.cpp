@@ -42,6 +42,15 @@ bool PreparedFile::isSticker() const {
 		&& Core::IsMimeSticker(information->filemime);
 }
 
+bool PreparedFile::isVideoFile() const {
+	Expects(information != nullptr);
+
+	using Video = Ui::PreparedFileInformation::Video;
+	return (type == PreparedFile::Type::Video)
+		&& v::is<Video>(information->media)
+		&& !v::get<Video>(information->media).isGifv;
+}
+
 bool PreparedFile::isGifv() const {
 	Expects(information != nullptr);
 

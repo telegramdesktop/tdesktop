@@ -37,9 +37,7 @@ QByteArray SessionSettings::serialize() const {
 		+ _groupStickersSectionHidden.size() * sizeof(quint64)
 		+ sizeof(qint32) * 4
 		+ Serialize::bytearraySize(autoDownload)
-		+ sizeof(qint32) * 4
-		+ sizeof(qint32) * 5
-		+ sizeof(qint32)
+		+ sizeof(qint32) * 11
 		+ (_mutePeriods.size() * sizeof(quint64))
 		+ sizeof(qint32) * 2
 		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 3)
@@ -69,6 +67,7 @@ QByteArray SessionSettings::serialize() const {
 			<< qint32(_archiveCollapsed.current() ? 1 : 0)
 			<< qint32(_archiveInMainMenu.current() ? 1 : 0)
 			<< qint32(_skipArchiveInSearch.current() ? 1 : 0)
+			<< qint32(0) // old _mediaLastPlaybackPosition.size());
 			<< qint32(0) // very old _hiddenPinnedMessages.size());
 			<< qint32(_dialogsFiltersEnabled ? 1 : 0)
 			<< qint32(_supportAllSilent ? 1 : 0)

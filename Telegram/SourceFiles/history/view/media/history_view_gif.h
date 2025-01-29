@@ -54,7 +54,6 @@ public:
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
 		not_null<DocumentData*> document,
-		PhotoData *videoCover,
 		bool spoiler);
 	~Gif();
 

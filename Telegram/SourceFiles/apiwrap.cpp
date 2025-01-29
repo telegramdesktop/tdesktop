@@ -3578,6 +3578,18 @@ void ApiWrap::editMedia(
 		file.path,
 		file.content,
 		std::move(file.information),
+		(file.videoCover
+			? std::make_unique<FileLoadTask>(
+				&session(),
+				file.videoCover->path,
+				file.videoCover->content,
+				std::move(file.videoCover->information),
+				nullptr,
+				SendMediaType::Photo,
+				to,
+				TextWithTags(),
+				false)
+			: nullptr),
 		type,
 		to,
 		caption,
@@ -3619,6 +3631,19 @@ void ApiWrap::sendFiles(
 			file.path,
 			file.content,
 			std::move(file.information),
+			(file.videoCover
+				? std::make_unique<FileLoadTask>(
+					&session(),
+					file.videoCover->path,
+					file.videoCover->content,
+					std::move(file.videoCover->information),
+					nullptr,
+					SendMediaType::Photo,
+					to,
+					TextWithTags(),
+					false,
+					nullptr)
+				: nullptr),
 			uploadWithType,
 			to,
 			caption,
@@ -3644,11 +3669,13 @@ void ApiWrap::sendFile(
 	auto caption = TextWithTags();
 	const auto spoiler = false;
 	const auto information = nullptr;
+	const auto videoCover = nullptr;
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		&session(),
 		QString(),
 		fileContent,
 		information,
+		videoCover,
 		type,
 		to,
 		caption,
@@ -4142,19 +4169,30 @@ void ApiWrap::uploadAlbumMedia(
 				return;
 			}
 			const auto &fields = document->c_document();
+			const auto mtpCover = data.vvideo_cover();
+			const auto cover = (mtpCover && mtpCover->type() == mtpc_photo)
+				? &(mtpCover->c_photo())
+				: (const MTPDphoto*)nullptr;
 			using Flag = MTPDinputMediaDocument::Flag;
 			const auto flags = Flag()
 				| (data.vttl_seconds() ? Flag::f_ttl_seconds : Flag())
-				| (spoiler ? Flag::f_spoiler : Flag());
+				| (spoiler ? Flag::f_spoiler : Flag())
+				| (data.vvideo_timestamp() ? Flag::f_video_timestamp : Flag())
+				| (cover ? Flag::f_video_cover : Flag());
 			const auto media = MTP_inputMediaDocument(
 				MTP_flags(flags),
 				MTP_inputDocument(
 					fields.vid(),
 					fields.vaccess_hash(),
 					fields.vfile_reference()),
-				MTPInputPhoto(), // video_cover
+				(cover
+					? MTP_inputPhoto(
+						cover->vid(),
+						cover->vaccess_hash(),
+						cover->vfile_reference())
+					: MTPInputPhoto()),
+				MTP_int(data.vvideo_timestamp().value_or_empty()),
 				MTP_int(data.vttl_seconds().value_or_empty()),
-				MTPint(), // video_timestamp
 				MTPstring()); // query
 			sendAlbumWithUploaded(item, groupId, media);
 		} break;

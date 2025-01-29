@@ -329,6 +329,7 @@ not_null<DocumentData*> GenerateLocalSticker(
 		path,
 		QByteArray(),
 		nullptr,
+		nullptr,
 		SendMediaType::File,
 		FileLoadTo(0, {}, {}, 0),
 		{},

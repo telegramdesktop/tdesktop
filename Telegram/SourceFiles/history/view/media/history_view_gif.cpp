@@ -143,11 +143,10 @@ Gif::Gif(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
 	not_null<DocumentData*> document,
-	PhotoData *videoCover,
 	bool spoiler)
 : File(parent, realParent)
 , _data(document)
-, _videoCover(videoCover)
+, _videoCover(LookupVideoCover(document, realParent))
 , _storyId(realParent->media()
 	? realParent->media()->storyId()
 	: FullStoryId())
@@ -1805,12 +1804,18 @@ void Gif::validateGroupedCache(
 
 	ensureDataMediaCreated();
 
-	const auto good = _dataMedia->goodThumbnail();
-	const auto thumb = _dataMedia->thumbnail();
+	const auto good = _videoCoverMedia
+		? _videoCoverMedia->image(Data::PhotoSize::Large)
+		: _dataMedia->goodThumbnail();
+	const auto thumb = _videoCoverMedia
+		? nullptr
+		: _dataMedia->thumbnail();
 	const auto image = good
 		? good
 		: thumb
 		? thumb
+		: _videoCoverMedia
+		? _videoCoverMedia->thumbnailInline()
 		: _dataMedia->thumbnailInline();
 	const auto blur = !good
 		&& (!thumb
