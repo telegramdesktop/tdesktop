@@ -523,6 +523,7 @@ private:
 	}
 
 	void setupShortcuts();
+	void setupGiftToChannelButton();
 
 	void handlePeerMigration();
 
@@ -785,6 +786,7 @@ private:
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
+	QPointer<Ui::IconButton> _giftToChannel;
 	object_ptr<Ui::FlatButton> _reportMessages;
 	struct {
 		object_ptr<Ui::RoundButton> button = { nullptr };

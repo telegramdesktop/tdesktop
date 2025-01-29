@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/moderate_messages_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
+#include "boxes/star_gift_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h" // ShowAboutGigagroup.
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "core/file_utilities.h"
@@ -377,6 +378,7 @@ HistoryWidget::HistoryWidget(
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
 	_joinChannel->addClickHandler([=] { joinChannel(); });
 	_muteUnmute->addClickHandler([=] { toggleMuteUnmute(); });
+	setupGiftToChannelButton();
 	_reportMessages->addClickHandler([=] { reportSelectedMessages(); });
 	_field->submits(
 	) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
@@ -2033,6 +2035,20 @@ void HistoryWidget::setupShortcuts() {
 	}, lifetime());
 }
 
+void HistoryWidget::setupGiftToChannelButton() {
+	_giftToChannel = Ui::CreateChild<Ui::IconButton>(
+		_muteUnmute.data(),
+		st::historyGiftToChannel);
+	_muteUnmute->widthValue() | rpl::start_with_next([=](int width) {
+		_giftToChannel->moveToRight(0, 0);
+	}, _giftToChannel->lifetime());
+	_giftToChannel->setClickedCallback([=] {
+		if (_peer) {
+			Ui::ShowStarGiftBox(controller(), _peer);
+		}
+	});
+}
+
 void HistoryWidget::pushReplyReturn(not_null<HistoryItem*> item) {
 	if (item->history() != _history && item->history() != _migrated) {
 		return;
@@ -2415,6 +2431,8 @@ void HistoryWidget::showHistory(
 			) | rpl::start_with_next([=] {
 				updateControlsGeometry();
 			}, _businessBotStatus->bar().lifetime());
+		} else if (const auto channel = _peer->asChannel()) {
+			_giftToChannel->setVisible(channel->stargiftsAvailable());
 		}
 		orderWidgets();
 		controller()->tabbedSelector()->setCurrentPeer(_peer);
@@ -8357,6 +8375,10 @@ void HistoryWidget::fullInfoUpdated() {
 
 		if (clearMaybeSendStart() && !_history->isDisplayedEmpty()) {
 			sendBotStartCommand();
+		}
+
+		if (const auto channel = _peer->asChannel()) {
+			_giftToChannel->setVisible(channel->stargiftsAvailable());
 		}
 	}
 	if (updateCmdStartShown()) {
