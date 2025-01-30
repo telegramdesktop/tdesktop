@@ -440,7 +440,7 @@ void Manager::fillDefaults() {
 
 	set(u"ctrl+r"_q, Command::ReadChat);
 
-	set(u"ctrl+="_q, Command::ShowChatMenu);
+	set(u"ctrl+\\"_q, Command::ShowChatMenu);
 }
 
 void Manager::writeDefaultFile() {
