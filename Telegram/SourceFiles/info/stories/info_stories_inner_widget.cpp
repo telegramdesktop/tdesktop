@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 #include "info/profile/info_profile_actions.h"
 #include "info/profile/info_profile_icon.h"
+#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"

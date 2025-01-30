@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_inner_widget.h"
 
+#include "info/info_controller.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_icon.h"
@@ -14,9 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_actions.h"
 #include "info/media/info_media_buttons.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_file_origin.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
@@ -25,7 +29,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
+#include "styles/style_info.h"
 
 namespace Info {
 namespace Profile {
