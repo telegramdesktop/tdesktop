@@ -216,6 +216,9 @@ uniqueMenuButton: IconButton(uniqueCloseButton) {
 upgradeGiftBox: Box(giftBox) {
 	buttonPadding: margins(22px, 3px, 22px, 22px);
 }
+upgradeGiftSubtext: FlatLabel(boxDividerLabel) {
+	minWidth: 200px;
+}
 darkUpgradeGiftTitle: FlatLabel(uniqueGiftTitle) {
 	textFg: groupCallMembersFg;
 }
@@ -232,6 +235,6 @@ darkUpgradeGiftProof: icon{{ "menu/factcheck", groupCallMembersFg }};
 darkUpgradeGiftInfoTitle: FlatLabel(defaultFlatLabel) {
 	textFg: groupCallMembersFg;
 }
-darkUpgradeGiftInfoAbout: FlatLabel(boxDividerLabel) {
+darkUpgradeGiftInfoAbout: FlatLabel(upgradeGiftSubtext) {
 	textFg: groupCallMemberNotJoinedStatus;
 }

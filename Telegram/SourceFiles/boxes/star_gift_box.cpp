@@ -2371,7 +2371,7 @@ void ShowUniqueGiftWearBox(
 				object_ptr<Ui::FlatLabel>(
 					raw,
 					std::move(text),
-					st.infoAbout ? *st.infoAbout : st::boxDividerLabel),
+					st.infoAbout ? *st.infoAbout : st::upgradeGiftSubtext),
 				st::settingsPremiumRowAboutPadding);
 			object_ptr<Info::Profile::FloatingIcon>(
 				raw,
@@ -2603,7 +2603,7 @@ void UpgradeBox(
 			object_ptr<Ui::FlatLabel>(
 				raw,
 				std::move(text),
-				st::boxDividerLabel),
+				st::upgradeGiftSubtext),
 			st::settingsPremiumRowAboutPadding);
 		object_ptr<Info::Profile::FloatingIcon>(
 			raw,
