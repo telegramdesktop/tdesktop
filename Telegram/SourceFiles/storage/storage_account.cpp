@@ -47,6 +47,7 @@ using Database = Cache::Database;
 
 constexpr auto kDelayedWriteTimeout = crl::time(1000);
 constexpr auto kWriteSearchSuggestionsDelay = 5 * crl::time(1000);
+constexpr auto kMaxSavedPlaybackPositions = 256;
 
 constexpr auto kStickersVersionTag = quint32(-1);
 constexpr auto kStickersSerializeVersion = 4;
@@ -96,6 +97,7 @@ enum { // Local Storage Keys
 	lskWebviewTokens = 0x19, // data: QByteArray bots, QByteArray other
 	lskRoundPlaceholder = 0x1a, // no data
 	lskInlineBotsDownloads = 0x1b, // no data
+	lskMediaLastPlaybackPositions = 0x1c, // no data
 };
 
 auto EmptyMessageDraftSources()
@@ -228,6 +230,7 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_searchSuggestionsKey,
 		_roundPlaceholderKey,
 		_inlineBotsDownloadsKey,
+		_mediaLastPlaybackPositionsKey,
 	};
 	auto result = base::flat_set<QString>{
 		"map0",
@@ -316,6 +319,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 searchSuggestionsKey = 0;
 	quint64 roundPlaceholderKey = 0;
 	quint64 inlineBotsDownloadsKey = 0;
+	quint64 mediaLastPlaybackPositionsKey = 0;
 	QByteArray webviewStorageTokenBots, webviewStorageTokenOther;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
@@ -431,6 +435,9 @@ Account::ReadMapResult Account::readMapWith(
 		case lskInlineBotsDownloads: {
 			map.stream >> inlineBotsDownloadsKey;
 		} break;
+		case lskMediaLastPlaybackPositions: {
+			map.stream >> mediaLastPlaybackPositionsKey;
+		} break;
 		case lskWebviewTokens: {
 			map.stream
 				>> webviewStorageTokenBots
@@ -474,6 +481,7 @@ Account::ReadMapResult Account::readMapWith(
 	_searchSuggestionsKey = searchSuggestionsKey;
 	_roundPlaceholderKey = roundPlaceholderKey;
 	_inlineBotsDownloadsKey = inlineBotsDownloadsKey;
+	_mediaLastPlaybackPositionsKey = mediaLastPlaybackPositionsKey;
 	_oldMapVersion = mapData.version;
 	_webviewStorageIdBots.token = webviewStorageTokenBots;
 	_webviewStorageIdOther.token = webviewStorageTokenOther;
@@ -590,6 +598,7 @@ void Account::writeMap() {
 	}
 	if (_roundPlaceholderKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_inlineBotsDownloadsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (_mediaLastPlaybackPositionsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 
 	EncryptedDescriptor mapData(mapSize);
 	if (!self.isEmpty()) {
@@ -668,6 +677,10 @@ void Account::writeMap() {
 		mapData.stream << quint32(lskInlineBotsDownloads);
 		mapData.stream << quint64(_inlineBotsDownloadsKey);
 	}
+	if (_mediaLastPlaybackPositionsKey) {
+		mapData.stream << quint32(lskMediaLastPlaybackPositions);
+		mapData.stream << quint64(_mediaLastPlaybackPositionsKey);
+	}
 	map.writeEncrypted(mapData, _localKey);
 
 	_mapChanged = false;
@@ -699,6 +712,7 @@ void Account::reset() {
 	_searchSuggestionsKey = 0;
 	_roundPlaceholderKey = 0;
 	_inlineBotsDownloadsKey = 0;
+	_mediaLastPlaybackPositionsKey = 0;
 	_oldMapVersion = 0;
 	_fileLocations.clear();
 	_fileLocationPairs.clear();
@@ -709,6 +723,7 @@ void Account::reset() {
 	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
 	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
+	_mediaLastPlaybackPosition.clear();
 
 	const auto wvbots = _webviewStorageIdBots.path;
 	const auto wvother = _webviewStorageIdOther.path;
@@ -2941,6 +2956,96 @@ Export::Settings Account::readExportSettings() {
 	return (file.stream.status() == QDataStream::Ok && result.validate())
 		? result
 		: Export::Settings();
+}
+
+void Account::setMediaLastPlaybackPosition(DocumentId id, crl::time time) {
+	auto &map = _mediaLastPlaybackPosition;
+	const auto i = ranges::find(
+		map,
+		id,
+		&std::pair<DocumentId, crl::time>::first);
+	if (i != map.end()) {
+		if (time > 0) {
+			if (i->second == time) {
+				return;
+			}
+			i->second = time;
+			std::rotate(i, i + 1, map.end());
+		} else {
+			map.erase(i);
+		}
+	} else if (time > 0) {
+		if (map.size() >= kMaxSavedPlaybackPositions) {
+			map.erase(map.begin());
+		}
+		map.emplace_back(id, time);
+	}
+	writeMediaLastPlaybackPositions();
+}
+
+crl::time Account::mediaLastPlaybackPosition(DocumentId id) const {
+	const_cast<Account*>(this)->readMediaLastPlaybackPositions();
+	const auto i = ranges::find(
+		_mediaLastPlaybackPosition,
+		id,
+		&std::pair<DocumentId, crl::time>::first);
+	return (i != _mediaLastPlaybackPosition.end()) ? i->second : 0;
+}
+
+void Account::writeMediaLastPlaybackPositions() {
+	if (_mediaLastPlaybackPosition.empty()) {
+		if (_mediaLastPlaybackPositionsKey) {
+			ClearKey(_mediaLastPlaybackPositionsKey, _basePath);
+			_mediaLastPlaybackPositionsKey = 0;
+			writeMapDelayed();
+		}
+		return;
+	}
+	if (!_mediaLastPlaybackPositionsKey) {
+		_mediaLastPlaybackPositionsKey = GenerateKey(_basePath);
+		writeMapQueued();
+	}
+	quint32 size = sizeof(quint32)
+		+ _mediaLastPlaybackPosition.size() * sizeof(quint64) * 2;
+	EncryptedDescriptor data(size);
+	data.stream << quint32(_mediaLastPlaybackPosition.size());
+	for (const auto &[id, time] : _mediaLastPlaybackPosition) {
+		data.stream << quint64(id) << qint64(time);
+	}
+
+	FileWriteDescriptor file(_mediaLastPlaybackPositionsKey, _basePath);
+	file.writeEncrypted(data, _localKey);
+}
+
+void Account::readMediaLastPlaybackPositions() {
+	if (_mediaLastPlaybackPositionsRead) {
+		return;
+	}
+	_mediaLastPlaybackPositionsRead = true;
+	if (!_mediaLastPlaybackPositionsKey) {
+		return;
+	}
+
+	FileReadDescriptor file;
+	if (!ReadEncryptedFile(
+			file,
+			_mediaLastPlaybackPositionsKey,
+			_basePath,
+			_localKey)) {
+		ClearKey(_mediaLastPlaybackPositionsKey, _basePath);
+		_mediaLastPlaybackPositionsKey = 0;
+		writeMapDelayed();
+		return;
+	}
+
+	quint32 size = 0;
+	file.stream >> size;
+	for (auto i = 0; i < size; ++i) {
+		quint64 id = 0;
+		qint64 time = 0;
+		file.stream >> id >> time;
+		_mediaLastPlaybackPosition.emplace_back(DocumentId(id), time);
+	}
 }
 
 void Account::writeSearchSuggestionsDelayed() {

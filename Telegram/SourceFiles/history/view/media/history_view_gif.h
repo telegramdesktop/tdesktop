@@ -141,6 +141,8 @@ private:
 	void dataMediaCreated() const;
 
 	[[nodiscard]] bool autoplayEnabled() const;
+	[[nodiscard]] bool autoplayUnderCursor() const;
+	[[nodiscard]] bool underCursor() const;
 
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
@@ -210,6 +212,7 @@ private:
 		QPoint point,
 		StateRequest request,
 		QPoint position) const;
+	[[nodiscard]] ClickHandlerPtr currentVideoLink() const;
 
 	void togglePollingStory(bool enabled) const;
 
@@ -228,12 +231,14 @@ private:
 	QString _downloadSize;
 	mutable QImage _thumbCache;
 	mutable QImage _roundingMask;
+	mutable crl::time _videoPosition = 0;
 	mutable TimeId _videoTimestamp = 0;
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
 	mutable bool _thumbCacheBlurred : 1 = false;
 	mutable bool _thumbIsEllipse : 1 = false;
 	mutable bool _pollingStory : 1 = false;
 	mutable bool _purchasedPriceTag : 1 = false;
+	mutable bool _smallGroupPart : 1 = false;
 	const bool _sensitiveSpoiler : 1 = false;
 	const bool _hasVideoCover : 1 = false;
 

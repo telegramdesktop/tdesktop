@@ -89,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "storage/file_upload.h"
 #include "storage/download_manager_mtproto.h"
+#include "storage/storage_account.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller_link_info.h"
@@ -2789,13 +2790,18 @@ void SessionController::openDocument(
 	} else if (showInMediaView) {
 		using namespace Media::View;
 		const auto timestamp = item ? ExtractVideoTimestamp(item) : 0;
+		const auto usedTimestamp = videoTimestampOverride
+			? ((*videoTimestampOverride) * crl::time(1000))
+			: timestamp
+			? (timestamp * crl::time(1000))
+			: session().local().mediaLastPlaybackPosition(document->id);
 		_window->openInMediaView(OpenRequest(
 			this,
 			document,
 			item,
 			message.topicRootId,
 			false,
-			videoTimestampOverride.value_or(timestamp) * crl::time(1000)));
+			usedTimestamp));
 		return;
 	}
 	Data::ResolveDocument(this, document, item, message.topicRootId);

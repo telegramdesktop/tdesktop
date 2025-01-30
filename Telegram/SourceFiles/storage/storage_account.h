@@ -150,6 +150,9 @@ public:
 	void writeExportSettings(const Export::Settings &settings);
 	[[nodiscard]] Export::Settings readExportSettings();
 
+	void setMediaLastPlaybackPosition(DocumentId id, crl::time time);
+	[[nodiscard]] crl::time mediaLastPlaybackPosition(DocumentId id) const;
+
 	void writeSearchSuggestionsDelayed();
 	void writeSearchSuggestionsIfNeeded();
 	void writeSearchSuggestions();
@@ -261,6 +264,9 @@ private:
 	void readTrustedBots();
 	void writeTrustedBots();
 
+	void readMediaLastPlaybackPositions();
+	void writeMediaLastPlaybackPositions();
+
 	std::optional<RecentHashtagPack> saveRecentHashtags(
 		Fn<RecentHashtagPack()> getPack,
 		const QString &text);
@@ -311,6 +317,7 @@ private:
 	FileKey _searchSuggestionsKey = 0;
 	FileKey _roundPlaceholderKey = 0;
 	FileKey _inlineBotsDownloadsKey = 0;
+	FileKey _mediaLastPlaybackPositionsKey = 0;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;
@@ -323,6 +330,9 @@ private:
 	bool _recentHashtagsAndBotsWereRead = false;
 	bool _searchSuggestionsRead = false;
 	bool _inlineBotsDownloadsRead = false;
+	bool _mediaLastPlaybackPositionsRead = false;
+
+	std::vector<std::pair<DocumentId, crl::time>> _mediaLastPlaybackPosition;
 
 	Webview::StorageId _webviewStorageIdBots;
 	Webview::StorageId _webviewStorageIdOther;

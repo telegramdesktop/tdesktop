@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_security.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_premium.h"
+#include "storage/storage_account.h"
 #include "mainwidget.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -782,8 +783,8 @@ bool OpenMediaTimestamp(
 	if (!controller) {
 		return false;
 	}
-	const auto time = match->captured(2).toInt();
-	if (time < 0) {
+	const auto position = match->captured(2).toInt();
+	if (position < 0) {
 		return false;
 	}
 	const auto base = match->captured(1);
@@ -796,7 +797,7 @@ bool OpenMediaTimestamp(
 		const auto session = &controller->session();
 		const auto document = session->data().document(documentId);
 		const auto context = session->data().message(itemId);
-		const auto timeMs = time * crl::time(1000);
+		const auto time = position * crl::time(1000);
 		if (document->isVideoFile()) {
 			controller->window().openInMediaView(Media::View::OpenRequest(
 				controller,
@@ -804,11 +805,9 @@ bool OpenMediaTimestamp(
 				context,
 				context ? context->topicRootId() : MsgId(0),
 				false,
-				timeMs));
+				time));
 		} else if (document->isSong() || document->isVoiceMessage()) {
-			session->settings().setMediaLastPlaybackPosition(
-				documentId,
-				timeMs);
+			session->local().setMediaLastPlaybackPosition(documentId, time);
 			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;
