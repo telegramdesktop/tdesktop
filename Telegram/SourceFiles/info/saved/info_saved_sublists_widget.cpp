@@ -109,7 +109,8 @@ void SublistsWidget::setupOtherTypes() {
 			MsgId(), // topicRootId
 			nullptr, // migrated
 			buttonType,
-			tracker);
+			tracker,
+			nullptr);
 		object_ptr<Profile::FloatingIcon>(
 			result,
 			icon,

@@ -93,12 +93,8 @@ Fn<void()> SeparateWindowFactory(
 
 void AddContextMenu(
 		not_null<Ui::AbstractButton*> button,
-		not_null<Window::SessionController*> window,
-		not_null<PeerData*> peer,
-		MsgId rootId,
-		Storage::SharedMediaType type) {
-	const auto callback = SeparateWindowFactory(window, peer, rootId, type);
-	if (!callback) {
+		Fn<void()> openInWindow) {
+	if (!openInWindow) {
 		return;
 	}
 	button->setAcceptBoth();
@@ -116,7 +112,7 @@ void AddContextMenu(
 		state->menu->addAction(tr::lng_context_new_window(tr::now), [=] {
 			base::call_delayed(
 				st::popupMenuWithIcons.showDuration,
-				crl::guard(button, callback));
+				crl::guard(button, openInWindow));
 			}, &st::menuIconNewWindow);
 		state->menu->popup(QCursor::pos());
 	});
@@ -229,6 +225,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			MediaType type,
 			const style::icon &icon) {
 		const auto topicRootId = _topic ? _topic->rootId() : 0;
+		const auto window = _controller->parentController();
+		const auto openInWindow = SeparateWindowFactory(
+			window,
+			_peer,
+			topicRootId,
+			type);
 		auto result = Media::AddButton(
 			content,
 			_controller,
@@ -236,10 +238,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			topicRootId,
 			_migrated,
 			type,
-			tracker);
-		if (const auto window = _controller->parentController()) {
-			AddContextMenu(result, window, _peer, topicRootId, type);
-		}
+			tracker,
+			openInWindow);
+		AddContextMenu(result, openInWindow);
 		object_ptr<Profile::FloatingIcon>(
 			result,
 			icon,

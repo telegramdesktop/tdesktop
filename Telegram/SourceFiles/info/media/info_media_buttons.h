@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/mappers.h>
 #include <rpl/map.h>
 #include "lang/lang_keys.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "data/data_stories_ids.h"
@@ -90,7 +91,8 @@ inline auto AddButton(
 		MsgId topicRootId,
 		PeerData *migrated,
 		Type type,
-		Ui::MultiSlideTracker &tracker) {
+		Ui::MultiSlideTracker &tracker,
+		Fn<void()> openInWindow) {
 	auto result = AddCountedButton(
 		parent,
 		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
@@ -99,6 +101,10 @@ inline auto AddButton(
 	result->addClickHandler([=](Qt::MouseButton mouse) {
 		if (mouse == Qt::RightButton) {
 			return;
+		}
+		if (openInWindow
+			&& (base::IsCtrlPressed() || mouse == Qt::MiddleButton)) {
+			return openInWindow();
 		}
 		const auto topic = topicRootId
 			? peer->forumTopicFor(topicRootId)
