@@ -1207,8 +1207,18 @@ void SessionNavigation::showByInitialId(
 			: (id.sharedMedia == SeparateSharedMediaType::GIF)
 			? Storage::SharedMediaType::GIF
 			: Storage::SharedMediaType::Photo;
+		const auto topicRootId = id.sharedMediaTopicRootId();
+		const auto peer = id.sharedMediaPeer();
+		const auto topic = topicRootId
+			? peer->forumTopicFor(topicRootId)
+			: nullptr;
+		if (topicRootId && !topic) {
+			break;
+		}
 		showSection(
-			std::make_shared<Info::Memento>(id.sharedMediaPeer(), type),
+			topicRootId
+				? std::make_shared<Info::Memento>(topic, type)
+				: std::make_shared<Info::Memento>(peer, type),
 			instant);
 		parent->widget()->setMaximumWidth(st::maxWidthSharedMediaWindow);
 		break;

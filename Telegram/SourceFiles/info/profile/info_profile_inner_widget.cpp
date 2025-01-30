@@ -78,22 +78,26 @@ Window::SeparateSharedMediaType ToSeparateType(
 Fn<void()> SeparateWindowFactory(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		Storage::SharedMediaType type) {
 	const auto separateType = ToSeparateType(type);
 	if (separateType == Window::SeparateSharedMediaType::None) {
 		return nullptr;
 	}
 	return [=] {
-		controller->showInNewWindow(Window::SeparateId(separateType, peer));
+		controller->showInNewWindow({
+			Window::SeparateSharedMedia(separateType, peer, topicRootId),
+		});
 	};
 }
 
 void AddContextMenu(
 		not_null<Ui::AbstractButton*> button,
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
+		MsgId rootId,
 		Storage::SharedMediaType type) {
-	const auto callback = SeparateWindowFactory(controller, peer, type);
+	const auto callback = SeparateWindowFactory(window, peer, rootId, type);
 	if (!callback) {
 		return;
 	}
@@ -224,16 +228,17 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	auto addMediaButton = [&](
 			MediaType type,
 			const style::icon &icon) {
+		const auto topicRootId = _topic ? _topic->rootId() : 0;
 		auto result = Media::AddButton(
 			content,
 			_controller,
 			_peer,
-			_topic ? _topic->rootId() : 0,
+			topicRootId,
 			_migrated,
 			type,
 			tracker);
-		if (const auto window = _controller->parentController(); !_topic) {
-			AddContextMenu(result, window, _peer, type);
+		if (const auto window = _controller->parentController()) {
+			AddContextMenu(result, window, _peer, topicRootId, type);
 		}
 		object_ptr<Profile::FloatingIcon>(
 			result,
