@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/call_delayed.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "core/application.h"
 #include "data/data_channel.h"
 #include "data/data_saved_messages.h"
 #include "data/data_session.h"
@@ -31,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Media {
 namespace {
 
-Window::SeparateSharedMediaType ToSeparateType(
+[[nodiscard]] Window::SeparateSharedMediaType ToSeparateType(
 		Storage::SharedMediaType type) {
 	using Type = Storage::SharedMediaType;
 	using SeparatedType = Window::SeparateSharedMediaType;
@@ -52,20 +53,18 @@ Window::SeparateSharedMediaType ToSeparateType(
 		: SeparatedType::None;
 }
 
-Fn<void()> SeparateWindowFactory(
-		not_null<Window::SessionController*> controller,
+[[nodiscard]] Window::SeparateId SeparateId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
 		Storage::SharedMediaType type) {
+	if (peer->isSelf()) {
+		return { nullptr };
+	}
 	const auto separateType = ToSeparateType(type);
 	if (separateType == Window::SeparateSharedMediaType::None) {
-		return nullptr;
+		return { nullptr };
 	}
-	return [=] {
-		controller->showInNewWindow({
-			Window::SeparateSharedMedia(separateType, peer, topicRootId),
-		});
-	};
+	return { Window::SeparateSharedMedia(separateType, peer, topicRootId) };
 }
 
 void AddContextMenuToButton(
@@ -146,16 +145,6 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
 	return button;
 };
 
-Fn<void()> SeparateWindowFactory(
-	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer,
-	MsgId topicRootId,
-	Type type);
-
-void AddContextMenuToButton(
-	not_null<Ui::AbstractButton*> button,
-	Fn<void()> openInWindow);
-
 not_null<Ui::SettingsButton*> AddButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::SessionNavigation*> navigation,
@@ -169,11 +158,10 @@ not_null<Ui::SettingsButton*> AddButton(
 		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
 		MediaText(type),
 		tracker)->entity();
-	const auto openInWindow = SeparateWindowFactory(
-		navigation->parentController(),
-		peer,
-		topicRootId,
-		type);
+	const auto separateId = SeparateId(peer, topicRootId, type);
+	const auto openInWindow = separateId
+		? [=] { navigation->parentController()->showInNewWindow(separateId); }
+		: Fn<void()>(nullptr);
 	AddContextMenuToButton(result, openInWindow);
 	result->addClickHandler([=](Qt::MouseButton mouse) {
 		if (mouse == Qt::RightButton) {
@@ -189,9 +177,14 @@ not_null<Ui::SettingsButton*> AddButton(
 		if (topicRootId && !topic) {
 			return;
 		}
-		navigation->showSection(topicRootId
-			? std::make_shared<Info::Memento>(topic, Section(type))
-			: std::make_shared<Info::Memento>(peer, Section(type)));
+		const auto separateId = SeparateId(peer, topicRootId, type);
+		if (Core::App().separateWindowFor(separateId) && openInWindow) {
+			openInWindow();
+		} else {
+			navigation->showSection(topicRootId
+				? std::make_shared<Info::Memento>(topic, Section(type))
+				: std::make_shared<Info::Memento>(peer, Section(type)));
+		}
 	});
 	return result;
 };
