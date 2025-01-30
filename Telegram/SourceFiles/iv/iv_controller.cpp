@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/iv_controller.h"
 
+#include "base/event_filter.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/invoke_queued.h"
@@ -679,18 +680,31 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 			if (event->key() == Qt::Key_Escape) {
 				escape();
 			}
+		}
+	}, window->lifetime());
+
+	base::install_event_filter(window, qApp, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ShortcutOverride) {
+			if (!window->isActiveWindow()) {
+				return base::EventFilterResult::Continue;
+			}
+			const auto event = static_cast<QKeyEvent*>(e.get());
 			if (event->modifiers() & Qt::ControlModifier) {
 				if (event->key() == Qt::Key_Plus
 					|| event->key() == Qt::Key_Equal) {
 					_delegate->ivSetZoom(_delegate->ivZoom() + kZoomStep);
+					return base::EventFilterResult::Cancel;
 				} else if (event->key() == Qt::Key_Minus) {
 					_delegate->ivSetZoom(_delegate->ivZoom() - kZoomStep);
+					return base::EventFilterResult::Cancel;
 				} else if (event->key() == Qt::Key_0) {
 					_delegate->ivSetZoom(kDefaultZoom);
+					return base::EventFilterResult::Cancel;
 				}
 			}
 		}
-	}, window->lifetime());
+		return base::EventFilterResult::Continue;
+	});
 
 	const auto widget = raw->widget();
 	if (!widget) {

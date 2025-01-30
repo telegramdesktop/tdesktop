@@ -502,6 +502,7 @@ void WrapWidget::addTopBarMenuButton() {
 		using Command = Shortcuts::Command;
 
 		request->check(Command::ShowChatMenu, 1) && request->handle([=] {
+			Window::ActivateWindow(_controller->parentController());
 			showTopBarMenu(false);
 			return true;
 		});

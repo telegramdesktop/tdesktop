@@ -2010,6 +2010,7 @@ void HistoryWidget::setupShortcuts() {
 			return true;
 		});
 		request->check(Command::ShowChatMenu, 1) && request->handle([=] {
+			Window::ActivateWindow(controller());
 			_topBar->showPeerMenu();
 			return true;
 		});
