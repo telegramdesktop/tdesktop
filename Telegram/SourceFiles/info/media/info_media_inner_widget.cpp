@@ -92,8 +92,7 @@ void InnerWidget::createTypeButtons() {
 			topicRootId,
 			migrated,
 			buttonType,
-			tracker,
-			nullptr);
+			tracker);
 		object_ptr<Profile::FloatingIcon>(
 			result,
 			icon,

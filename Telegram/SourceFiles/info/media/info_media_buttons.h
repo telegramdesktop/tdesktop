@@ -84,6 +84,16 @@ inline auto AddCountedButton(
 	return button;
 };
 
+Fn<void()> SeparateWindowFactory(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	Type type);
+
+void AddContextMenuToButton(
+	not_null<Ui::AbstractButton*> button,
+	Fn<void()> openInWindow);
+
 inline auto AddButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::SessionNavigation*> navigation,
@@ -91,13 +101,18 @@ inline auto AddButton(
 		MsgId topicRootId,
 		PeerData *migrated,
 		Type type,
-		Ui::MultiSlideTracker &tracker,
-		Fn<void()> openInWindow) {
+		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
 		parent,
 		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
 		MediaText(type),
 		tracker)->entity();
+	const auto openInWindow = SeparateWindowFactory(
+		navigation->parentController(),
+		peer,
+		topicRootId,
+		type);
+	AddContextMenuToButton(result, openInWindow);
 	result->addClickHandler([=](Qt::MouseButton mouse) {
 		if (mouse == Qt::RightButton) {
 			return;

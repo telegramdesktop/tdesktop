@@ -959,6 +959,7 @@ PRIVATE
     info/global_media/info_global_media_inner_widget.h
     info/global_media/info_global_media_provider.cpp
     info/global_media/info_global_media_provider.h
+    info/media/info_media_buttons.cpp
     info/media/info_media_buttons.h
     info/media/info_media_common.cpp
     info/media/info_media_common.h
