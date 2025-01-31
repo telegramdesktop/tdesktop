@@ -769,19 +769,6 @@ QString ApiWrap::exportDirectMessageLink(
 				: linkThreadId
 				? (QString::number(linkThreadId.bare) + '/' + post)
 				: post);
-		if (linkChannel->hasUsername()
-			&& !forceNonPublicLink
-			&& !linkChannel->isMegagroup()
-			&& !linkCommentId
-			&& !linkThreadId) {
-			if (const auto media = item->media()) {
-				if (const auto document = media->document()) {
-					if (document->isVideoMessage()) {
-						return u"https://telesco.pe/"_q + query;
-					}
-				}
-			}
-		}
 		return session().createInternalLinkFull(query);
 	};
 	if (forceNonPublicLink) {
