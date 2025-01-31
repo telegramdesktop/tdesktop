@@ -13,6 +13,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 
+PeerId ParsePaidReactionShownPeer(
+		not_null<Main::Session*> session,
+		const MTPPaidReactionPrivacy &value) {
+	return value.match([&](const MTPDpaidReactionPrivacyDefault &) {
+		return session->userPeerId();
+	}, [](const MTPDpaidReactionPrivacyAnonymous &) {
+		return PeerId();
+	}, [&](const MTPDpaidReactionPrivacyPeer &data) {
+		return data.vpeer().match([&](const MTPDinputPeerSelf &) {
+			return session->userPeerId();
+		}, [](const MTPDinputPeerUser &data) {
+			return peerFromUser(data.vuser_id());
+		}, [](const MTPDinputPeerChat &data) {
+			return peerFromChat(data.vchat_id());
+		}, [](const MTPDinputPeerChannel &data) {
+			return peerFromChannel(data.vchannel_id());
+		}, [](const MTPDinputPeerUserFromMessage &data) -> PeerId {
+			Unexpected("From message peer in ParsePaidReactionShownPeer.");
+		}, [](const MTPDinputPeerChannelFromMessage &data) -> PeerId {
+			Unexpected("From message peer in ParsePaidReactionShownPeer.");
+		}, [](const MTPDinputPeerEmpty &) -> PeerId {
+			Unexpected("Empty peer in ParsePaidReactionShownPeer.");
+		});
+	});
+}
+
 GlobalPrivacy::GlobalPrivacy(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
@@ -115,27 +141,27 @@ rpl::producer<bool> GlobalPrivacy::newRequirePremium() const {
 	return _newRequirePremium.value();
 }
 
-void GlobalPrivacy::loadPaidReactionAnonymous() {
-	if (_paidReactionAnonymousLoaded) {
+void GlobalPrivacy::loadPaidReactionShownPeer() {
+	if (_paidReactionShownPeerLoaded) {
 		return;
 	}
-	_paidReactionAnonymousLoaded = true;
+	_paidReactionShownPeerLoaded = true;
 	_api.request(MTPmessages_GetPaidReactionPrivacy(
 	)).done([=](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);
 	}).send();
 }
 
-void GlobalPrivacy::updatePaidReactionAnonymous(bool value) {
-	_paidReactionAnonymous = value;
+void GlobalPrivacy::updatePaidReactionShownPeer(PeerId shownPeer) {
+	_paidReactionShownPeer = shownPeer;
 }
 
-bool GlobalPrivacy::paidReactionAnonymousCurrent() const {
-	return _paidReactionAnonymous.current();
+PeerId GlobalPrivacy::paidReactionShownPeerCurrent() const {
+	return _paidReactionShownPeer.current();
 }
 
-rpl::producer<bool> GlobalPrivacy::paidReactionAnonymous() const {
-	return _paidReactionAnonymous.value();
+rpl::producer<PeerId> GlobalPrivacy::paidReactionShownPeer() const {
+	return _paidReactionShownPeer.value();
 }
 
 void GlobalPrivacy::updateArchiveAndMute(bool value) {

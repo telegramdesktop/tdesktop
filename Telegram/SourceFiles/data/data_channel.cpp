@@ -1012,7 +1012,7 @@ PeerId ChannelData::groupCallDefaultJoinAs() const {
 void ChannelData::setAllowedReactions(Data::AllowedReactions value) {
 	if (_allowedReactions != value) {
 		if (value.paidEnabled) {
-			session().api().globalPrivacy().loadPaidReactionAnonymous();
+			session().api().globalPrivacy().loadPaidReactionShownPeer();
 		}
 		const auto enabled = [](const Data::AllowedReactions &allowed) {
 			return (allowed.type != Data::AllowedReactionsType::Some)

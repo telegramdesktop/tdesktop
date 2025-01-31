@@ -2328,7 +2328,7 @@ bool MessageReactions::localPaidAnonymous() const {
 			}
 		}
 		const auto api = &_item->history()->session().api();
-		return api->globalPrivacy().paidReactionAnonymousCurrent();
+		return api->globalPrivacy().paidReactionShownPeerCurrent() != 0;
 	};
 	return _paid
 		&& ((_paid->scheduledFlag && _paid->scheduledPrivacySet)

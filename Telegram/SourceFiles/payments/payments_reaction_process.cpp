@@ -230,7 +230,7 @@ void ShowPaidReactionDetails(
 		add(entry);
 		entry.peer = nullptr;
 		add(entry);
-		if (session->api().globalPrivacy().paidReactionAnonymousCurrent()) {
+		if (session->api().globalPrivacy().paidReactionShownPeerCurrent()) {
 			std::swap(top.front(), top.back());
 		}
 	}

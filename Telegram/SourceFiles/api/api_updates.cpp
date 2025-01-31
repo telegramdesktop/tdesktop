@@ -2709,8 +2709,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updatePaidReactionPrivacy: {
 		const auto &data = update.c_updatePaidReactionPrivacy();
-		_session->api().globalPrivacy().updatePaidReactionAnonymous(
-			mtpIsTrue(data.vprivate()));
+		_session->api().globalPrivacy().updatePaidReactionShownPeer(
+			Api::ParsePaidReactionShownPeer(_session, data.vprivate()));
 	} break;
 
 	}
