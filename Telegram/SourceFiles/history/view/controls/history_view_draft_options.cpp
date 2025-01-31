@@ -947,7 +947,8 @@ void DraftOptionsBox(
 
 		AddFilledSkip(bottom);
 
-		if (!hasOnlyForcedForwardedInfo) {
+		if (!hasOnlyForcedForwardedInfo
+			&& !HasOnlyDroppedForwardedInfo(items)) {
 			Settings::AddButtonWithIcon(
 				bottom,
 				(dropNames

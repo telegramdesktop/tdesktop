@@ -85,5 +85,6 @@ void EditWebPageOptions(
 	Fn<void(Data::WebPageDraft)> done);
 
 [[nodiscard]] bool HasOnlyForcedForwardedInfo(const HistoryItemsList &list);
+[[nodiscard]] bool HasOnlyDroppedForwardedInfo(const HistoryItemsList &list);
 
 } // namespace HistoryView::Controls
