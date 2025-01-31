@@ -1487,10 +1487,15 @@ void AddStarGiftTable(
 		auto amount = rpl::single(TextWithEntities{
 			Lang::FormatCountDecimal(entry.limitedCount)
 		});
+		const auto count = unique
+			? (entry.limitedCount - entry.limitedLeft)
+			: entry.limitedLeft;
 		AddTableRow(
 			table,
-			tr::lng_gift_availability(),
-			((!unique && !entry.limitedLeft)
+			(unique
+				? tr::lng_gift_unique_availability_label()
+				: tr::lng_gift_availability()),
+			((!unique && !count)
 				? tr::lng_gift_availability_none(
 					lt_amount,
 					std::move(amount),
@@ -1499,7 +1504,7 @@ void AddStarGiftTable(
 					? tr::lng_gift_unique_availability
 					: tr::lng_gift_availability_left)(
 						lt_count_decimal,
-						rpl::single(entry.limitedLeft * 1.),
+						rpl::single(count * 1.),
 						lt_amount,
 						std::move(amount),
 						Ui::Text::WithEntities)));

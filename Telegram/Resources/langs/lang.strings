@@ -3326,6 +3326,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_unique_backdrop" = "Backdrop";
 "lng_gift_unique_symbol" = "Symbol";
 "lng_gift_unique_rarity" = "Only {percent} of such collectibles have this attribute.";
+"lng_gift_unique_availability_label" = "Quantity";
 "lng_gift_unique_availability#one" = "{count} of {amount} issued";
 "lng_gift_unique_availability#other" = "{count} of {amount} issued";
 "lng_gift_unique_info" = "Gifted to {recipient} on {date}.";
