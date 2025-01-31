@@ -99,8 +99,8 @@ namespace Ui {
 namespace {
 
 constexpr auto kPriceTabAll = 0;
-constexpr auto kPriceTabLimited = -1;
-constexpr auto kPriceTabInStock = -2;
+constexpr auto kPriceTabLimited = -2;
+constexpr auto kPriceTabInStock = -1;
 constexpr auto kGiftMessageLimit = 255;
 constexpr auto kSentToastDuration = 3 * crl::time(1000);
 constexpr auto kSwitchUpgradeCoverInterval = 3 * crl::time(1000);
