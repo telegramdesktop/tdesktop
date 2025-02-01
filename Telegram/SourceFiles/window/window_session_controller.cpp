@@ -2789,12 +2789,16 @@ void SessionController::openDocument(
 		return;
 	} else if (showInMediaView) {
 		using namespace Media::View;
+		const auto saved = session().local().mediaLastPlaybackPosition(
+			document->id);
 		const auto timestamp = item ? ExtractVideoTimestamp(item) : 0;
 		const auto usedTimestamp = videoTimestampOverride
 			? ((*videoTimestampOverride) * crl::time(1000))
+			: saved
+			? saved
 			: timestamp
 			? (timestamp * crl::time(1000))
-			: session().local().mediaLastPlaybackPosition(document->id);
+			: crl::time();
 		_window->openInMediaView(OpenRequest(
 			this,
 			document,
