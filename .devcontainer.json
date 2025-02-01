@@ -20,7 +20,6 @@
                 "TheQtCompany.qt",
                 "ms-python.python",
                 "ms-azuretools.vscode-docker",
-                "mkhl.direnv",
                 "eamodio.gitlens"
             ]
         }
