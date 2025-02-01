@@ -112,6 +112,8 @@ parts:
       - libasound2t64
       - libavif16
       - libboost-regex1.83.0
+      - libgeoclue-2-0
+      - libgeocode-glib-2-0
       - libglib2.0-0t64
       - libheif1
       - libopenal1
