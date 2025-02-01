@@ -2,7 +2,7 @@
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set GIT_UPDATE_M4 = "git submodule set-url m4 https://gitlab.freedesktop.org/xorg/util/xcb-util-m4 && git config -f .gitmodules submodule.m4.shallow true && git submodule init && git submodule update" -%}
 {%- set TOOLSET = "gcc-toolset-12" -%}
-{%- set QT = "6.8.1" -%}
+{%- set QT = "6.8.2" -%}
 {%- set QT_TAG = "v" ~ QT -%}
 {%- set CFLAGS_DEBUG = "$CFLAGS -O0 -fno-lto -U_FORTIFY_SOURCE" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
@@ -44,7 +44,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 140cd1837ed200946d6248e9f4cada52452178c1 \
+	&& git fetch --depth=1 origin 61bbacab28d377d0a2771cc87e008554e2f23ffb \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
