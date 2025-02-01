@@ -11,11 +11,10 @@
 
 FROM rockylinux:8 AS builder
 ENV LANG C.UTF-8
-ENV LIBRARY_PATH /usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
+ENV PATH /opt/rh/{{ TOOLSET }}/root/usr/bin:$PATH
+ENV LIBRARY_PATH /opt/rh/{{ TOOLSET }}/root/usr/lib64:/opt/rh/{{ TOOLSET }}/root/usr/lib:/usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
 ENV LD_LIBRARY_PATH $LIBRARY_PATH
-ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
-
-RUN adduser user
+ENV PKG_CONFIG_PATH /opt/rh/{{ TOOLSET }}/root/usr/lib64/pkgconfig:/opt/rh/{{ TOOLSET }}/root/usr/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
 RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
@@ -30,22 +29,11 @@ RUN dnf -y install epel-release \
 		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
 	&& dnf clean all
 
-SHELL [ "bash", "-c", ". /opt/rh/{{ TOOLSET }}/enable; exec bash -c \"$@\"", "-s"]
+RUN python3 -m pip install meson ninja
+RUN echo set debuginfod enabled on > /opt/rh/{{ TOOLSET }}/root/etc/gdbinit.d/00-debuginfod.gdb
+RUN adduser user
 
 WORKDIR {{ LibrariesPath }}
-
-RUN python3 -m pip install meson ninja
-
-RUN curl -sSL https://github.com/direnv/direnv/releases/download/v2.35.0/direnv.linux-amd64 > /usr/local/bin/direnv \
-	&& chmod +x /usr/local/bin/direnv \
-	&& echo 'eval "$(direnv hook bash)"' >> /home/user/.bashrc \
-	&& mkdir -p /home/user/.config/direnv \
-	&& echo . /opt/rh/{{ TOOLSET }}/enable > /home/user/.config/direnv/direnvrc \
-	&& touch /.envrc \
-	&& su -c "direnv allow /" user
-
-RUN echo set debuginfod enabled on > /opt/rh/{{ TOOLSET }}/root/etc/gdbinit.d/00-debuginfod.gdb
-
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
@@ -886,5 +874,4 @@ ENV BOOST_LIBRARYDIR /usr/lib64/boost1.78
 
 USER user
 VOLUME [ "/usr/src/tdesktop" ]
-ENTRYPOINT [ "scl", "enable", "{{ TOOLSET }}", "--" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]
