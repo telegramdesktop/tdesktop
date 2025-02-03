@@ -496,7 +496,9 @@ auto UniqueGiftBg(
 		p.setPen(Qt::NoPen);
 		const auto webpreview = (media.get() != view->media());
 		const auto thickness = webpreview ? 0 : st::chatUniqueGiftBorder * 2;
-		const auto radius = st::msgServiceGiftBoxRadius - thickness;
+		const auto radius = webpreview
+			? st::roundRadiusLarge
+			: (st::msgServiceGiftBoxRadius - thickness);
 		const auto full = QRect(0, 0, media->width(), media->height());
 		const auto inner = full.marginsRemoved(
 			{ thickness, thickness, thickness, thickness });
@@ -519,7 +521,8 @@ auto UniqueGiftBg(
 		const auto width = media->width();
 		const auto shift = width / 12;
 		const auto doubled = width + 2 * shift;
-		const auto outer = QRect(-shift, -shift, doubled, doubled);
+		const auto top = (webpreview ? 2 : 1) * (-shift);
+		const auto outer = QRect(-shift, top, doubled, doubled);
 		p.setClipRect(inner);
 		Ui::PaintPoints(
 			p,

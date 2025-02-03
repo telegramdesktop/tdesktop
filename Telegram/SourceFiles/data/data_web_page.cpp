@@ -382,7 +382,8 @@ bool WebPageData::computeDefaultSmallMedia() const {
 		&& description.empty()
 		&& author.isEmpty()) {
 		return false;
-	} else if (!document
+	} else if (!uniqueGift
+		&& !document
 		&& photo
 		&& type != WebPageType::Photo
 		&& type != WebPageType::Document
