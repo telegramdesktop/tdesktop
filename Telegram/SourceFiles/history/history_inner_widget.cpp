@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_sponsored_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/report_messages_box.h"
+#include "boxes/star_gift_box.h" // ShowStarGiftBox
 #include "boxes/sticker_set_box.h"
 #include "boxes/translate_box.h"
 #include "chat_helpers/message_field.h"
@@ -2770,6 +2771,29 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						_menu->addAction(tr::lng_profile_copy_phone(tr::now), [=] {
 							QGuiApplication::clipboard()->setText(phone);
 						}, &st::menuIconCopy);
+					} else if (const auto gift = media->gift()) {
+						const auto peer = item->history()->peer;
+						const auto user = peer->asUser();
+						if (!user
+							|| (!user->isInaccessible()
+								&& !user->isNotificationsUser())) {
+							const auto controller = _controller;
+							const auto starGiftUpgrade = gift->upgrade
+								&& (gift->type == Data::GiftType::StarGift);
+							const auto isGift = gift->slug.isEmpty()
+								|| !gift->channel;
+							const auto out = item->out();
+							const auto outgoingGift = isGift
+								&& (starGiftUpgrade ? !out : out);
+							if (outgoingGift) {
+								_menu->addAction(
+									tr::lng_context_gift_send(tr::now),
+									[=] {
+										Ui::ShowStarGiftBox(controller, peer);
+									},
+									&st::menuIconGiftPremium);
+							}
+						}
 					}
 				}
 				if (!item->isService() && view && actionText.isEmpty()) {

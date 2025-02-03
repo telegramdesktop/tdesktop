@@ -3952,6 +3952,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_read_show" = "show when";
 "lng_context_edit_shortcut" = "Edit Shortcut";
 "lng_context_delete_shortcut" = "Delete Quick Reply";
+"lng_context_gift_send" = "Send Another Gift";
 
 "lng_add_tag_about" = "Tag this message with an emoji for quick search.";
 "lng_subscribe_tag_about" = "Organize your Saved Messages with tags. {link}";
