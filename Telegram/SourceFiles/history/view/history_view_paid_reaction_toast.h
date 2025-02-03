@@ -40,7 +40,7 @@ private:
 	void showFor(
 		FullMsgId itemId,
 		int count,
-		bool anonymous,
+		PeerId shownPeer,
 		crl::time left,
 		crl::time total);
 
@@ -54,7 +54,7 @@ private:
 	base::weak_ptr<Ui::Toast::Instance> _weak;
 	std::vector<base::weak_ptr<Ui::Toast::Instance>> _hiding;
 	rpl::variable<int> _count;
-	rpl::variable<bool> _anonymous;
+	rpl::variable<PeerId> _shownPeer;
 	rpl::variable<crl::time> _timeFinish;
 
 	std::vector<FullMsgId> _stack;

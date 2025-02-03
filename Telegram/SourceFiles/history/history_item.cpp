@@ -2608,14 +2608,16 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
-void HistoryItem::addPaidReaction(int count, std::optional<bool> anonymous) {
+void HistoryItem::addPaidReaction(
+		int count,
+		std::optional<PeerId> shownPeer) {
 	Expects(count >= 0);
 	Expects(_history->peer->isBroadcast() || isDiscussionPost());
 
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
-	_reactions->scheduleSendPaid(count, anonymous);
+	_reactions->scheduleSendPaid(count, shownPeer);
 	if (count > 0) {
 		_history->owner().notifyItemDataChange(this);
 	}
@@ -2711,8 +2713,10 @@ int HistoryItem::reactionsPaidScheduled() const {
 	return _reactions ? _reactions->scheduledPaid() : 0;
 }
 
-bool HistoryItem::reactionsLocalAnonymous() const {
-	return _reactions ? _reactions->localPaidAnonymous() : false;
+PeerId HistoryItem::reactionsLocalShownPeer() const {
+	return _reactions
+		? _reactions->localPaidShownPeer()
+		: _history->session().userPeerId();
 }
 
 bool HistoryItem::reactionsAreTags() const {
@@ -2740,9 +2744,8 @@ auto HistoryItem::topPaidReactionsWithLocal() const
 		result,
 		[](const TopPaid &entry) { return entry.my != 0; });
 	const auto peerForMine = [&] {
-		return _reactions->localPaidAnonymous()
-			? nullptr
-			: history()->session().user().get();
+		const auto peerId = _reactions->localPaidShownPeer();
+		return peerId ? history()->owner().peer(peerId).get() : nullptr;
 	};
 	if (const auto local = _reactions->localPaidCount()) {
 		const auto top = [&](int mine) {

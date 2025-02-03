@@ -454,7 +454,7 @@ public:
 	void toggleReaction(
 		const Data::ReactionId &reaction,
 		HistoryReactionSource source);
-	void addPaidReaction(int count, std::optional<bool> anonymous = {});
+	void addPaidReaction(int count, std::optional<PeerId> shownPeer = {});
 	void cancelScheduledPaidReaction();
 	[[nodiscard]] Data::PaidReactionSend startPaidReactionSending();
 	void finishPaidReactionSending(
@@ -472,7 +472,7 @@ public:
 	[[nodiscard]] auto topPaidReactionsWithLocal() const
 		-> std::vector<Data::MessageReactionsTopPaid>;
 	[[nodiscard]] int reactionsPaidScheduled() const;
-	[[nodiscard]] bool reactionsLocalAnonymous() const;
+	[[nodiscard]] PeerId reactionsLocalShownPeer() const;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] std::vector<Data::ReactionId> chosenReactions() const;
 	[[nodiscard]] Data::ReactionId lookupUnreadReaction(

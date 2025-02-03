@@ -45,7 +45,7 @@ void TryAddingPaidReaction(
 		FullMsgId itemId,
 		base::weak_ptr<HistoryView::Element> weakView,
 		int count,
-		std::optional<bool> anonymous,
+		std::optional<PeerId> shownPeer,
 		std::shared_ptr<Ui::Show> show,
 		Fn<void(bool)> finished) {
 	const auto checkItem = [=] {
@@ -66,7 +66,7 @@ void TryAddingPaidReaction(
 		if (result == Settings::SmallBalanceResult::Success
 			|| result == Settings::SmallBalanceResult::Already) {
 			if (const auto item = checkItem()) {
-				item->addPaidReaction(count, anonymous);
+				item->addPaidReaction(count, shownPeer);
 				if (const auto view = count ? weakView.get() : nullptr) {
 					const auto history = view->history();
 					history->owner().notifyViewPaidReactionSent(view);
@@ -105,7 +105,7 @@ void TryAddingPaidReaction(
 		not_null<HistoryItem*> item,
 		HistoryView::Element *view,
 		int count,
-		std::optional<bool> anonymous,
+		std::optional<PeerId> shownPeer,
 		std::shared_ptr<Ui::Show> show,
 		Fn<void(bool)> finished) {
 	TryAddingPaidReaction(
@@ -113,7 +113,7 @@ void TryAddingPaidReaction(
 		item->fullId(),
 		view,
 		count,
-		anonymous,
+		shownPeer,
 		std::move(show),
 		std::move(finished));
 }
@@ -140,26 +140,26 @@ void ShowPaidReactionDetails(
 
 	struct State {
 		QPointer<Ui::BoxContent> selectBox;
-		bool ignoreAnonymousSwitch = false;
+		bool ignoreShownPeerSwitch = false;
 		bool sending = false;
 	};
 	const auto state = std::make_shared<State>();
 	session->credits().load(true);
 
 	const auto weakView = base::make_weak(view);
-	const auto send = [=](int count, bool anonymous, auto resend) -> void {
+	const auto send = [=](int count, PeerId shownPeer, auto resend) -> void {
 		Expects(count >= 0);
 
 		const auto finish = [=](bool success) {
 			state->sending = false;
 			if (success && count > 0) {
-				state->ignoreAnonymousSwitch = true;
+				state->ignoreShownPeerSwitch = true;
 				if (const auto strong = state->selectBox.data()) {
 					strong->closeBox();
 				}
 			}
 		};
-		if (state->sending || (!count && state->ignoreAnonymousSwitch)) {
+		if (state->sending || (!count && state->ignoreShownPeerSwitch)) {
 			return;
 		} else if (const auto item = session->data().message(itemId)) {
 			state->sending = true;
@@ -167,7 +167,7 @@ void ShowPaidReactionDetails(
 				item,
 				weakView.get(),
 				count,
-				anonymous,
+				shownPeer,
 				show,
 				finish);
 		}
@@ -246,7 +246,7 @@ void ShowPaidReactionDetails(
 		.submit = std::move(submitText),
 		.balanceValue = session->credits().balanceValue(),
 		.send = [=](int count, bool anonymous) {
-			send(count, anonymous, send);
+			send(count, anonymous ? PeerId() : 0, send);
 		},
 	}));
 
