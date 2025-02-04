@@ -10,19 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_compare.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/boost_box.h" // MakeBoostFeaturesBadge.
+#include "ui/controls/who_reacted_context_action.h"
 #include "ui/effects/premium_bubble.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
+#include "styles/style_media_player.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
 
@@ -192,13 +196,41 @@ void PaidReactionSlider(
 	return result;
 }
 
+void AddArrowDown(not_null<RpWidget*> widget) {
+	const auto arrow = CreateChild<RpWidget>(widget);
+	const auto icon = &st::paidReactChannelArrow;
+	const auto skip = st::lineWidth * 4;
+	const auto size = icon->width() + skip * 2;
+	arrow->resize(size, size);
+	widget->widthValue() | rpl::start_with_next([=](int width) {
+		const auto left = (width - st::paidReactTopUserpic) / 2;
+		arrow->moveToRight(left - skip, -st::lineWidth, width);
+	}, widget->lifetime());
+	arrow->paintRequest() | rpl::start_with_next([=] {
+		Painter p(arrow);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::activeButtonBg);
+		p.setPen(st::activeButtonFg);
+		const auto rect = arrow->rect();
+		const auto line = st::lineWidth;
+		p.drawEllipse(rect.marginsRemoved({ line, line, line, line }));
+		icon->paint(p, skip, (size - icon->height()) / 2 + line, size);
+	}, widget->lifetime());
+	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	arrow->show();
+}
+
 [[nodiscard]] not_null<RpWidget*> MakeTopReactor(
 		not_null<QWidget*> parent,
-		const PaidReactionTop &data) {
+		const PaidReactionTop &data,
+		Fn<void()> selectShownPeer) {
 	const auto result = CreateChild<AbstractButton>(parent);
 	result->show();
 	if (data.click && !data.my) {
 		result->setClickedCallback(data.click);
+	} else if (data.click && selectShownPeer) {
+		result->setClickedCallback(selectShownPeer);
+		AddArrowDown(result);
 	} else {
 		result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
@@ -244,11 +276,60 @@ void PaidReactionSlider(
 	return result;
 }
 
+void SelectShownPeer(
+		std::shared_ptr<QPointer<PopupMenu>> menu,
+		not_null<QWidget*> parent,
+		const std::vector<PaidReactionTop> &mine,
+		uint64 selected,
+		Fn<void(uint64)> callback) {
+	if (*menu) {
+		(*menu)->hideMenu();
+	}
+	(*menu) = CreateChild<PopupMenu>(
+		parent,
+		st::paidReactChannelMenu);
+
+	struct Entry {
+		not_null<Ui::WhoReactedEntryAction*> action;
+		std::shared_ptr<Ui::DynamicImage> userpic;
+	};
+	auto actions = std::make_shared<std::vector<Entry>>();
+	actions->reserve(mine.size());
+	for (const auto &entry : mine) {
+		auto action = base::make_unique_q<WhoReactedEntryAction>(
+			(*menu)->menu(),
+			nullptr,
+			(*menu)->menu()->st(),
+			Ui::WhoReactedEntryData());
+		const auto index = int(actions->size());
+		actions->push_back({ action.get(), entry.photo->clone() });
+		const auto id = entry.barePeerId;
+		const auto updateUserpic = [=] {
+			const auto size = st::defaultWhoRead.photoSize;
+			actions->at(index).action->setData({
+				.text = entry.name,
+				.type = ((id == selected)
+					? Ui::WhoReactedType::RefRecipientNow
+					: Ui::WhoReactedType::RefRecipient),
+				.userpic = actions->at(index).userpic->image(size),
+				.callback = [=] { callback(id); },
+			});
+		};
+		actions->back().userpic->subscribeToUpdates(updateUserpic);
+
+		(*menu)->addAction(std::move(action));
+		updateUserpic();
+	}
+	(*menu)->popup(QCursor::pos());
+
+}
+
 void FillTopReactors(
 		not_null<VerticalLayout*> container,
 		std::vector<PaidReactionTop> top,
 		rpl::producer<int> chosen,
-		rpl::producer<bool> anonymous) {
+		rpl::producer<uint64> shownPeer,
+		Fn<void(uint64)> changeShownPeer) {
 	container->add(
 		MakeBoostFeaturesBadge(
 			container,
@@ -272,27 +353,32 @@ void FillTopReactors(
 		bool chosenChanged = false;
 	};
 	const auto state = wrap->lifetime().make_state<State>();
+	const auto menu = std::make_shared<QPointer<Ui::PopupMenu>>();
 
 	rpl::combine(
 		std::move(chosen),
-		std::move(anonymous)
-	) | rpl::start_with_next([=](int chosen, bool anonymous) {
+		std::move(shownPeer)
+	) | rpl::start_with_next([=](int chosen, uint64 barePeerId) {
 		if (!state->initialChosen) {
 			state->initialChosen = chosen;
 		} else if (*state->initialChosen != chosen) {
 			state->chosenChanged = true;
 		}
+		auto mine = std::vector<PaidReactionTop>();
 		auto list = std::vector<PaidReactionTop>();
 		list.reserve(kMaxTopPaidShown + 1);
 		for (const auto &entry : top) {
 			if (!entry.my) {
 				list.push_back(entry);
-			} else if (!entry.click == anonymous) {
+			} else if (entry.barePeerId == barePeerId) {
 				auto copy = entry;
 				if (state->chosenChanged) {
 					copy.count += chosen;
 				}
 				list.push_back(copy);
+			}
+			if (entry.my && entry.barePeerId) {
+				mine.push_back(entry);
 			}
 		}
 		ranges::stable_sort(
@@ -303,6 +389,14 @@ void FillTopReactors(
 			|| (!list.empty() && !list.back().count)) {
 			list.pop_back();
 		}
+		auto selectShownPeer = (mine.size() < 2)
+			? Fn<void()>()
+			: [=] { SelectShownPeer(
+				menu,
+				parent,
+				mine,
+				barePeerId,
+				changeShownPeer); };
 		if (list.empty()) {
 			wrap->hide(anim::type::normal);
 		} else {
@@ -319,7 +413,7 @@ void FillTopReactors(
 				const auto i = state->cache.find(key);
 				const auto widget = (i != end(state->cache))
 					? i->second
-					: MakeTopReactor(parent, entry);
+					: MakeTopReactor(parent, entry, selectShownPeer);
 				state->widgets.push_back(widget);
 				widget->show();
 			}
@@ -368,7 +462,8 @@ void PaidReactionsBox(
 
 	struct State {
 		rpl::variable<int> chosen;
-		rpl::variable<bool> anonymous;
+		rpl::variable<uint64> shownPeer;
+		uint64 savedShownPeer = 0;
 	};
 	const auto state = box->lifetime().make_state<State>();
 
@@ -377,12 +472,16 @@ void PaidReactionsBox(
 		state->chosen = count;
 	};
 
-	const auto initialAnonymous = ranges::find(
+	const auto initialShownPeer = ranges::find(
 		args.top,
 		true,
 		&PaidReactionTop::my
-	)->click == nullptr;
-	state->anonymous = initialAnonymous;
+	)->barePeerId;
+	state->shownPeer = initialShownPeer;
+	state->savedShownPeer = ranges::find_if(args.top, [](
+			const PaidReactionTop &entry) {
+		return entry.my && entry.barePeerId != 0;
+	})->barePeerId;
 
 	const auto content = box->verticalLayout();
 	AddSkip(content, st::boxTitleClose.height + st::paidReactBubbleTop);
@@ -455,25 +554,30 @@ void PaidReactionsBox(
 		content,
 		std::move(args.top),
 		state->chosen.value(),
-		state->anonymous.value());
+		state->shownPeer.value(),
+		[=](uint64 barePeerId) {
+			state->shownPeer = state->savedShownPeer = barePeerId;
+		});
 
 	const auto named = box->addRow(object_ptr<CenterWrap<Checkbox>>(
 		box,
 		object_ptr<Checkbox>(
 			box,
 			tr::lng_paid_react_show_in_top(tr::now),
-			!state->anonymous.current())));
-	state->anonymous = named->entity()->checkedValue(
-	) | rpl::map(!rpl::mappers::_1);
+			state->shownPeer.current() != 0)));
+	named->entity()->checkedValue(
+	) | rpl::start_with_next([=](bool show) {
+		state->shownPeer = show ? state->savedShownPeer : 0;
+	}, named->lifetime());
 
 	const auto button = box->addButton(rpl::single(QString()), [=] {
-		args.send(state->chosen.current(), !named->entity()->checked());
+		args.send(state->chosen.current(), state->shownPeer.current());
 	});
 
 	box->boxClosing() | rpl::filter([=] {
-		return state->anonymous.current() != initialAnonymous;
+		return state->shownPeer.current() != initialShownPeer;
 	}) | rpl::start_with_next([=] {
-		args.send(0, state->anonymous.current());
+		args.send(0, state->shownPeer.current());
 	}, box->lifetime());
 
 	{

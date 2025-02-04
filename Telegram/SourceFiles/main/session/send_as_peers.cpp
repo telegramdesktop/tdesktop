@@ -73,6 +73,17 @@ const std::vector<SendAsPeer> &SendAsPeers::list(
 	return (i != end(_lists)) ? i->second : _onlyMe;
 }
 
+std::vector<not_null<PeerData*>> SendAsPeers::paidReactionList() const {
+	auto result = std::vector<not_null<PeerData*>>();
+	const auto owner = &_session->data();
+	owner->enumerateBroadcasts([&](not_null<ChannelData*> channel) {
+		if (channel->amCreator() && !ranges::contains(result, channel)) {
+			result.push_back(channel);
+		}
+	});
+	return result;
+}
+
 rpl::producer<not_null<PeerData*>> SendAsPeers::updated() const {
 	return _updates.events();
 }

@@ -34,6 +34,8 @@ public:
 	void setChosen(not_null<PeerData*> peer, PeerId chosenId);
 	[[nodiscard]] PeerId chosen(not_null<PeerData*> peer) const;
 
+	[[nodiscard]] std::vector<not_null<PeerData*>> paidReactionList() const;
+
 	// If !list(peer).empty() then the result will be from that list.
 	[[nodiscard]] not_null<PeerData*> resolveChosen(
 		not_null<PeerData*> peer) const;
