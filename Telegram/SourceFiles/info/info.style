@@ -1164,6 +1164,7 @@ infoHoursOuter: RoundButton(defaultActiveButton) {
 }
 infoHoursOuterMargin: margins(8px, 4px, 8px, 4px);
 infoHoursDaySkip: 6px;
+infoHoursArrowSize: 4px;
 
 infoSharedMediaScroll: ScrollArea(defaultScrollArea) {
 	round: 1px;

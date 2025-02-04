@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/peer_qr_box.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
@@ -93,6 +94,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h" // settingsButtonRightSkip.
+#include "styles/style_window.h" // mainMenuToggleFourStrokes.
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -508,6 +510,8 @@ base::options::toggle ShowPeerIdBelowAbout({
 			dayHoursTextValue(state->day.value())
 		) | rpl::after_next(recount),
 		st::infoHoursValue);
+	const auto timingArrow = Ui::CreateChild<Ui::RpWidget>(openedWrap);
+	timingArrow->resize(Size(timing->st().style.font->height));
 	timing->setAttribute(Qt::WA_TransparentForMouseEvents);
 	state->opened.value() | rpl::start_with_next([=](bool value) {
 		opened->setTextColorOverride(value
@@ -521,7 +525,8 @@ base::options::toggle ShowPeerIdBelowAbout({
 		timing->sizeValue()
 	) | rpl::start_with_next([=](int width, int h1, QSize size) {
 		opened->moveToLeft(0, 0, width);
-		timing->moveToRight(0, 0, width);
+		timingArrow->moveToRight(0, 0, width);
+		timing->moveToRight(timingArrow->width(), 0, width);
 
 		const auto margins = opened->getMargins();
 		const auto added = margins.top() + margins.bottom();
@@ -578,6 +583,38 @@ base::options::toggle ShowPeerIdBelowAbout({
 			inner,
 			object_ptr<Ui::VerticalLayout>(inner)));
 	other->toggleOn(state->expanded.value(), anim::type::normal);
+	constexpr auto kSlideDuration = float64(st::slideWrapDuration);
+	other->setDuration(kSlideDuration);
+	{
+		const auto arrowAnimation
+			= other->lifetime().make_state<Ui::Animations::Basic>();
+		arrowAnimation->init([=] {
+			timingArrow->update();
+			if (!other->animating()) {
+				arrowAnimation->stop();
+			}
+		});
+		timingArrow->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(timingArrow);
+			const auto progress = other->animating()
+				? (crl::now() - arrowAnimation->started()) / kSlideDuration
+				: 1.;
+
+			const auto path = Ui::ToggleUpDownArrowPath(
+				timingArrow->width() / 2,
+				timingArrow->height() / 2,
+				st::infoHoursArrowSize,
+				st::mainMenuToggleFourStrokes,
+				other->toggled() ? progress : 1 - progress);
+
+			auto hq = PainterHighQualityEnabler(p);
+			p.fillPath(path, timing->st().textFg);
+		}, timingArrow->lifetime());
+		state->expanded.value() | rpl::start_with_next([=] {
+			arrowAnimation->start();
+		}, other->lifetime());
+	}
+
 	other->finishAnimating();
 	const auto days = other->entity();
 
