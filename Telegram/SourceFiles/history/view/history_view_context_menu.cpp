@@ -402,6 +402,31 @@ bool AddForwardSelectedAction(
 	}, &st::menuIconForward);
 	return true;
 }
+bool AddCopyForwardSelectedAction(
+	not_null<Ui::PopupMenu*> menu,
+	const ContextMenuRequest& request,
+	not_null<ListWidget*> list) {
+	if (!request.overSelection || request.selectedItems.empty()) {
+		return false;
+	}
+	if (!ranges::all_of(request.selectedItems, &SelectedItem::canForward)) {
+		return false;
+	}
+
+	menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+		const auto weak = Ui::MakeWeak(list);
+		const auto callback = [=] {
+			if (const auto strong = weak.data()) {
+				strong->cancelSelection();
+			}
+			};
+		Window::ShowForwardMessagesBox(
+			request.navigation,
+			ExtractIdsList(request.selectedItems),
+			callback);
+		}, &st::menuIconForward);
+	return true;
+}
 
 bool AddForwardMessageAction(
 		not_null<Ui::PopupMenu*> menu,
@@ -432,6 +457,42 @@ bool AddForwardMessageAction(
 					: MessageIdsList{ 1, itemId }));
 		}
 	}, &st::menuIconForward);
+
+	return true;
+}
+
+
+bool AddCopyForwardMessageAction(
+	not_null<Ui::PopupMenu*> menu,
+	const ContextMenuRequest& request,
+	not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!request.selectedItems.empty()) {
+		return false;
+	}
+	else if (!item || !item->allowsForward()) {
+		return false;
+	}
+	const auto owner = &item->history()->owner();
+	const auto asGroup = (request.pointState != PointState::GroupPart);
+	if (asGroup) {
+		if (const auto group = owner->groups().find(item)) {
+			if (!ranges::all_of(group->items, &HistoryItem::allowsForward)) {
+				return false;
+			}
+		}
+	}
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+		if (const auto item = owner->message(itemId)) {
+			Window::ShowForwardMessagesBox(
+				request.navigation,
+				(asGroup
+					? owner->itemOrItsGroup(item)
+					: MessageIdsList{ 1, itemId }));
+		}
+		}, &st::menuIconForward);
+
 	return true;
 }
 
@@ -441,6 +502,8 @@ void AddForwardAction(
 		not_null<ListWidget*> list) {
 	AddForwardSelectedAction(menu, request, list);
 	AddForwardMessageAction(menu, request, list);
+	AddCopyForwardSelectedAction(menu, request, list);
+	AddCopyForwardMessageAction(menu, request, list);
 }
 
 bool AddSendNowSelectedAction(
