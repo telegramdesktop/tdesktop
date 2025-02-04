@@ -24,10 +24,10 @@ std::optional<QColor> MaybeColorFromSerialized(quint32 serialized) {
 
 QColor Color32FromSerialized(quint32 serialized) {
 	return QColor(
-		int((serialized >> 24) & 0xFFU),
-		int((serialized >> 16) & 0xFFU),
+		int(serialized & 0xFFU),
 		int((serialized >> 8) & 0xFFU),
-		int(serialized & 0xFFU));
+		int((serialized >> 16) & 0xFFU),
+		int((serialized >> 24) & 0xFFU));
 }
 
 } // namespace Ui
