@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/boxes/boost_box.h" // StartFireworks.
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/premium_top_bar.h"
@@ -405,21 +406,14 @@ void AddTableRow(
 	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
-	const auto session = &show->session();
-	const auto makeContext = [session](Fn<void()> update) {
-		return Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = std::move(update),
-		};
-	};
-	auto star = session->data().customEmojiManager().creditsEmoji();
+	const auto star = Ui::CreateSingleStarWidget(
+		raw,
+		table->st().defaultValue.style.font->height);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		rpl::single(star.append(
-			' ' + Lang::FormatStarsAmountDecimal(entry.credits))),
+		Lang::FormatStarsAmountDecimal(entry.credits),
 		table->st().defaultValue,
-		st::defaultPopupMenu,
-		std::move(makeContext));
+		st::defaultPopupMenu);
 
 	const auto convert = convertToStars
 		? Ui::CreateChild<Ui::RoundButton>(
@@ -430,7 +424,8 @@ void AddTableRow(
 			table->st().smallButton)
 		: nullptr;
 	if (convert) {
-		convert->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		using namespace Ui;
+		convert->setTextTransform(RoundButton::TextTransform::NoTransform);
 		convert->setClickedCallback(std::move(convertToStars));
 	}
 	rpl::combine(
@@ -440,11 +435,13 @@ void AddTableRow(
 		const auto convertSkip = convertWidth
 			? (st::normalFont->spacew + convertWidth)
 			: 0;
-		label->resizeToNaturalWidth(width - convertSkip);
-		label->moveToLeft(0, 0, width);
+		const auto labelLeft = rect::right(star) + st::normalFont->spacew;
+		label->resizeToNaturalWidth(width - convertSkip - labelLeft);
+		star->moveToLeft(0, 0, width);
+		label->moveToLeft(labelLeft, 0, width);
 		if (convert) {
 			convert->moveToLeft(
-				label->width() + st::normalFont->spacew,
+				rect::right(label) + st::normalFont->spacew,
 				(table->st().defaultValue.style.font->ascent
 					- table->st().smallButton.style.font->ascent),
 				width);
