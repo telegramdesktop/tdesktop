@@ -534,10 +534,7 @@ base::options::toggle ShowPeerIdBelowAbout({
 		tr::lng_info_hours_label(),
 		st::infoLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto link = Ui::CreateChild<Ui::LinkButton>(
-		labelWrap,
-		QString());
-	rpl::combine(
+	auto linkText = rpl::combine(
 		state->nonTrivial.value(),
 		state->hours.value(),
 		state->mine.value(),
@@ -552,10 +549,12 @@ base::options::toggle ShowPeerIdBelowAbout({
 			: my
 			? tr::lng_info_hours_my_time()
 			: tr::lng_info_hours_local_time();
-	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](const QString &text) {
-		link->setText(text);
-	}, link->lifetime());
+	}) | rpl::flatten_latest();
+	const auto link = Ui::CreateChild<Ui::RoundButton>(
+		labelWrap,
+		std::move(linkText),
+		st::defaultTableSmallButton);
+	link->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	link->setClickedCallback([=] {
 		state->myTimezone = !state->myTimezone.current();
 		state->expanded = true;
