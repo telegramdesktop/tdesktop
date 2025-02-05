@@ -3000,9 +3000,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_boost_channel_ask" = "Ask your **Premium** subscribers to boost your channel with this link:";
 "lng_boost_channel_ask_button" = "Copy Link";
-"lng_boost_channel_or" = "or";
-"lng_boost_channel_gifting" = "Boost your channel by gifting your subscribers Telegram Premium. {link}";
-"lng_boost_channel_gifting_link" = "Get boosts >";
+//"lng_boost_channel_or" = "or";
+//"lng_boost_channel_gifting" = "Boost your channel by gifting your subscribers Telegram Premium. {link}";
+//"lng_boost_channel_gifting_link" = "Get boosts >";
+"lng_boost_group_ask" = "Ask your **Premium** members to boost your group with this link:";
+//"lng_boost_group_gifting" = "Boost your group by gifting your members Telegram Premium. {link}";
 
 "lng_feature_stories#one" = "**{count}** Story Per Day";
 "lng_feature_stories#other" = "**{count}** Stories Per Day";
