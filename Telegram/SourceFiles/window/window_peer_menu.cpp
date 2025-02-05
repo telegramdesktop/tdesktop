@@ -1236,6 +1236,7 @@ void Filler::addSendGift() {
 		&& (user->isInaccessible()
 			|| user->isSelf()
 			|| user->isBot()
+			|| user->isServiceUser()
 			|| user->isNotificationsUser()
 			|| user->isRepliesChat()
 			|| user->isVerifyCodes()
