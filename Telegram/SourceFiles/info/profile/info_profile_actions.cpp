@@ -1643,6 +1643,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 				&& user->personalChannelMessageId();
 		}));
 		messageChannelWrap->finishAnimating();
+		messageChannelWrap->toggledValue(
+		) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+			messageChannelWrap->resizeToWidth(messageChannelWrap->width());
+		}, messageChannelWrap->lifetime());
 
 		const auto clear = [=] {
 			while (messageChannelWrap->entity()->count()) {
@@ -1739,12 +1743,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 				}
 			}, preview->lifetime());
 
-			line->sizeValue(
+			line->sizeValue() | rpl::filter_size(
 			) | rpl::start_with_next([=](const QSize &size) {
 				const auto left = stLabeled.left();
 				const auto right = st::infoPersonalChannelDateSkip;
 				const auto top = stLabeled.top();
-				date->moveToRight(right, top);
+				date->moveToRight(right, top, size.width());
 
 				name->resizeToWidth(size.width()
 					- left
@@ -1775,14 +1779,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 						st::infoProfileLabeledPadding.bottom()));
 			}
 			{
-				const auto button = Ui::CreateChild<Ui::RippleButton>(
+				const auto button = Ui::CreateSimpleRectButton(
 					messageChannelWrap->entity(),
 					st::defaultRippleAnimation);
-				button->paintRequest(
-				) | rpl::start_with_next([=](const QRect &rect) {
-					auto p = QPainter(button);
-					button->paintRipple(p, 0, 0);
-				}, button->lifetime());
 				inner->geometryValue(
 				) | rpl::start_with_next([=](const QRect &rect) {
 					button->setGeometry(rect);
@@ -1794,6 +1793,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 						msg);
 				});
 				button->lower();
+				inner->lifetime().make_state<base::unique_qptr<Ui::RpWidget>>(
+					button);
 			}
 			inner->setAttribute(Qt::WA_TransparentForMouseEvents);
 			Ui::AddSkip(messageChannelWrap->entity());
