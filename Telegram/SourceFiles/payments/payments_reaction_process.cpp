@@ -213,7 +213,9 @@ void ShowPaidReactionDetails(
 			.my = (entry.my == 1),
 		});
 	};
-	const auto channels = session->sendAsPeers().paidReactionList();
+	const auto linked = item->discussionPostOriginalSender();
+	const auto channel = (linked ? linked : item->history()->peer.get());
+	const auto channels = session->sendAsPeers().paidReactionList(channel);
 	const auto topPaid = item->topPaidReactionsWithLocal();
 	top.reserve(topPaid.size() + 2 + channels.size());
 	for (const auto &entry : topPaid) {
@@ -248,8 +250,6 @@ void ShowPaidReactionDetails(
 	}
 	ranges::stable_sort(top, ranges::greater(), &Ui::PaidReactionTop::count);
 
-	const auto linked = item->discussionPostOriginalSender();
-	const auto channel = (linked ? linked : item->history()->peer.get());
 	state->selectBox = show->show(Ui::MakePaidReactionBox({
 		.chosen = chosen,
 		.max = max,

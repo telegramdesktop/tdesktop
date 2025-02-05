@@ -23,7 +23,8 @@ constexpr auto kRequestEach = 30 * crl::time(1000);
 
 SendAsPeers::SendAsPeers(not_null<Session*> session)
 : _session(session)
-, _onlyMe({ { .peer = session->user(), .premiumRequired = false } }) {
+, _onlyMe({ { .peer = session->user(), .premiumRequired = false } })
+, _onlyMePaid({ session->user() }) {
 	_session->changes().peerUpdates(
 		Data::PeerUpdate::Flag::Rights
 	) | rpl::map([=](const Data::PeerUpdate &update) {
@@ -65,6 +66,7 @@ void SendAsPeers::refresh(not_null<PeerData*> peer, bool force) {
 	}
 	_lastRequestTime[peer] = now;
 	request(peer);
+	request(peer, true);
 }
 
 const std::vector<SendAsPeer> &SendAsPeers::list(
@@ -73,15 +75,10 @@ const std::vector<SendAsPeer> &SendAsPeers::list(
 	return (i != end(_lists)) ? i->second : _onlyMe;
 }
 
-std::vector<not_null<PeerData*>> SendAsPeers::paidReactionList() const {
-	auto result = std::vector<not_null<PeerData*>>();
-	const auto owner = &_session->data();
-	owner->enumerateBroadcasts([&](not_null<ChannelData*> channel) {
-		if (channel->amCreator() && !ranges::contains(result, channel)) {
-			result.push_back(channel);
-		}
-	});
-	return result;
+const std::vector<not_null<PeerData*>> &SendAsPeers::paidReactionList(
+		not_null<PeerData*> peer) const {
+	const auto i = _paidReactionLists.find(peer);
+	return (i != end(_paidReactionLists)) ? i->second : _onlyMePaid;
 }
 
 rpl::producer<not_null<PeerData*>> SendAsPeers::updated() const {
@@ -144,8 +141,10 @@ not_null<PeerData*> SendAsPeers::ResolveChosen(
 		: fallback;
 }
 
-void SendAsPeers::request(not_null<PeerData*> peer) {
+void SendAsPeers::request(not_null<PeerData*> peer, bool forPaidReactions) {
+	using Flag = MTPchannels_GetSendAs::Flag;
 	peer->session().api().request(MTPchannels_GetSendAs(
+		MTP_flags(forPaidReactions ? Flag::f_for_paid_reactions : Flag()),
 		peer->input
 	)).done([=](const MTPchannels_SendAsPeers &result) {
 		auto parsed = std::vector<SendAsPeer>();
@@ -166,15 +165,26 @@ void SendAsPeers::request(not_null<PeerData*> peer) {
 				}
 			}
 		});
-		if (parsed.size() > 1) {
-			auto &now = _lists[peer];
-			if (now != parsed) {
-				now = std::move(parsed);
+		if (forPaidReactions) {
+			auto peers = parsed | ranges::views::transform(
+				&SendAsPeer::peer
+			) | ranges::to_vector;
+			if (!peers.empty()) {
+				_paidReactionLists[peer] = std::move(peers);
+			} else {
+				_paidReactionLists.remove(peer);
+			}
+		} else {
+			if (parsed.size() > 1) {
+				auto &now = _lists[peer];
+				if (now != parsed) {
+					now = std::move(parsed);
+					_updates.fire_copy(peer);
+				}
+			} else if (const auto i = _lists.find(peer); i != end(_lists)) {
+				_lists.erase(i);
 				_updates.fire_copy(peer);
 			}
-		} else if (const auto i = _lists.find(peer); i != end(_lists)) {
-			_lists.erase(i);
-			_updates.fire_copy(peer);
 		}
 	}).send();
 }

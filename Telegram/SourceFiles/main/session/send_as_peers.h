@@ -34,7 +34,8 @@ public:
 	void setChosen(not_null<PeerData*> peer, PeerId chosenId);
 	[[nodiscard]] PeerId chosen(not_null<PeerData*> peer) const;
 
-	[[nodiscard]] std::vector<not_null<PeerData*>> paidReactionList() const;
+	[[nodiscard]] const std::vector<not_null<PeerData*>> &paidReactionList(
+		not_null<PeerData*> peer) const;
 
 	// If !list(peer).empty() then the result will be from that list.
 	[[nodiscard]] not_null<PeerData*> resolveChosen(
@@ -46,14 +47,18 @@ public:
 		PeerId chosen);
 
 private:
-	void request(not_null<PeerData*> peer);
+	void request(not_null<PeerData*> peer, bool forPaidReactions = false);
 
 	const not_null<Session*> _session;
 	const std::vector<SendAsPeer> _onlyMe;
+	const std::vector<not_null<PeerData*>> _onlyMePaid;
 
 	base::flat_map<not_null<PeerData*>, std::vector<SendAsPeer>> _lists;
 	base::flat_map<not_null<PeerData*>, crl::time> _lastRequestTime;
 	base::flat_map<not_null<PeerData*>, PeerId> _chosen;
+	base::flat_map<
+		not_null<PeerData*>,
+		std::vector<not_null<PeerData*>>> _paidReactionLists;
 
 	rpl::event_stream<not_null<PeerData*>> _updates;
 
