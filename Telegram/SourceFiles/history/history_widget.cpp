@@ -6610,7 +6610,7 @@ void HistoryWidget::startMessageSendingAnimation(
 void HistoryWidget::updateListSize() {
 	Expects(_list != nullptr);
 
-	_list->recountHistoryGeometry();
+	_list->recountHistoryGeometry(!_historyInited);
 	auto washidden = _scroll->isHidden();
 	if (washidden) {
 		_scroll->show();

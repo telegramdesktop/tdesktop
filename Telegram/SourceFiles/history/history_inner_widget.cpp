@@ -3275,7 +3275,7 @@ void HistoryInner::checkActivation() {
 	session().data().histories().readInboxTill(view->data());
 }
 
-void HistoryInner::recountHistoryGeometry() {
+void HistoryInner::recountHistoryGeometry(bool initial) {
 	_contentWidth = _scroll->width();
 
 	if (_history->hasPendingResizedItems()
@@ -3333,7 +3333,7 @@ void HistoryInner::recountHistoryGeometry() {
 	}
 
 	auto historyPaddingTopDelta = (newHistoryPaddingTop - oldHistoryPaddingTop);
-	if (historyPaddingTopDelta != 0) {
+	if (!initial && historyPaddingTopDelta != 0) {
 		if (_history->scrollTopItem) {
 			_history->scrollTopOffset += historyPaddingTopDelta;
 		} else if (_migrated && _migrated->scrollTopItem) {

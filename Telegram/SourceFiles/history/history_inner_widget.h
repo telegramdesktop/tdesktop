@@ -121,7 +121,7 @@ public:
 	void setItemsRevealHeight(int revealHeight);
 	void changeItemsRevealHeight(int revealHeight);
 	void checkActivation();
-	void recountHistoryGeometry();
+	void recountHistoryGeometry(bool initial = false);
 	void updateSize();
 	void setShownPinned(HistoryItem *item);
 
