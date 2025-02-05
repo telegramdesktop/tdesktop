@@ -628,6 +628,13 @@ void EmojiListWidget::applyNextSearchQuery() {
 		const auto modeChanged = (_searchMode != searching);
 		clearSelection();
 		if (modeChanged) {
+			if (_picker) {
+				_picker->hideAnimated();
+			}
+			_colorAllRipple = nullptr;
+			for (auto &set : _custom) {
+				set.ripple = nullptr;
+			}
 			_searchMode = searching;
 		}
 		if (!searching) {
