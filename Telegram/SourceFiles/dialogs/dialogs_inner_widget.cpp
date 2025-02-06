@@ -281,6 +281,7 @@ InnerWidget::InnerWidget(
 	) | rpl::start_with_next([=] {
 		_topicJumpCache = nullptr;
 		_chatsFilterTags.clear();
+		_rightButtons.clear();
 	}, lifetime());
 
 	session().downloaderTaskFinished(
