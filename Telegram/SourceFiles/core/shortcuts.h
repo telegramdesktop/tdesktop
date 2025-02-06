@@ -139,4 +139,11 @@ void ToggleMediaShortcuts(bool toggled);
 // have some conflicts with default input shortcuts, like Ctrl+Delete.
 void ToggleSupportShortcuts(bool toggled);
 
+void Pause();
+void Unpause();
+
+[[nodiscard]] base::flat_map<QKeySequence, Command> KeysDefaults();
+[[nodiscard]] base::flat_map<QKeySequence, Command> KeysCurrents();
+[[nodiscard]] bool AllowWithoutModifiers(int key);
+
 } // namespace Shortcuts

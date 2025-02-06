@@ -28,6 +28,7 @@ namespace {
 constexpr auto kCountLimit = 256; // How many shortcuts can be in json file.
 
 rpl::event_stream<not_null<Request*>> RequestsStream;
+bool Paused/* = false*/;
 
 const auto AutoRepeatCommands = base::flat_set<Command>{
 	Command::MediaPrevious,
@@ -175,6 +176,9 @@ public:
 
 	[[nodiscard]] const QStringList &errors() const;
 
+	[[nodiscard]] base::flat_map<QKeySequence, Command> keysDefaults() const;
+	[[nodiscard]] base::flat_map<QKeySequence, Command> keysCurrents() const;
+
 private:
 	void fillDefaults();
 	void writeDefaultFile();
@@ -188,6 +192,8 @@ private:
 
 	base::flat_map<QKeySequence, base::unique_qptr<QAction>> _shortcuts;
 	base::flat_multi_map<not_null<QObject*>, Command> _commandByObject;
+
+	base::flat_map<QKeySequence, Command> _defaults;
 
 	base::flat_set<QAction*> _mediaShortcuts;
 	base::flat_set<QAction*> _supportShortcuts;
@@ -276,6 +282,21 @@ void Manager::clear() {
 
 const QStringList &Manager::errors() const {
 	return _errors;
+}
+
+base::flat_map<QKeySequence, Command> Manager::keysDefaults() const {
+	return _defaults;
+}
+
+base::flat_map<QKeySequence, Command> Manager::keysCurrents() const {
+	auto result = base::flat_map<QKeySequence, Command>();
+	for (const auto &[keys, command] : _shortcuts) {
+		const auto i = _commandByObject.findFirst(command);
+		if (i != _commandByObject.end()) {
+			result.emplace(keys, i->second);
+		}
+	}
+	return result;
 }
 
 std::vector<Command> Manager::lookup(not_null<QObject*> object) const {
@@ -441,6 +462,8 @@ void Manager::fillDefaults() {
 	set(u"ctrl+r"_q, Command::ReadChat);
 
 	set(u"ctrl+\\"_q, Command::ShowChatMenu);
+
+	_defaults = keysCurrents();
 }
 
 void Manager::writeDefaultFile() {
@@ -598,7 +621,9 @@ bool Launch(Command command) {
 }
 
 bool Launch(std::vector<Command> commands) {
-	if (auto handler = RequestHandler(std::move(commands))) {
+	if (Paused) {
+		return false;
+	} else if (auto handler = RequestHandler(std::move(commands))) {
 		return handler();
 	}
 	return false;
@@ -628,6 +653,55 @@ void ToggleMediaShortcuts(bool toggled) {
 
 void ToggleSupportShortcuts(bool toggled) {
 	Data.toggleSupport(toggled);
+}
+
+void Pause() {
+	Paused = true;
+}
+
+void Unpause() {
+	Paused = false;
+}
+
+base::flat_map<QKeySequence, Command> KeysDefaults() {
+	return Data.keysDefaults();
+}
+
+base::flat_map<QKeySequence, Command> KeysCurrents() {
+	return Data.keysCurrents();
+}
+
+bool AllowWithoutModifiers(int key) {
+	const auto service = {
+		Qt::Key_Escape,
+		Qt::Key_Tab,
+		Qt::Key_Backtab,
+		Qt::Key_Backspace,
+		Qt::Key_Return,
+		Qt::Key_Enter,
+		Qt::Key_Insert,
+		Qt::Key_Delete,
+		Qt::Key_Pause,
+		Qt::Key_Print,
+		Qt::Key_SysReq,
+		Qt::Key_Clear,
+		Qt::Key_Home,
+		Qt::Key_End,
+		Qt::Key_Left,
+		Qt::Key_Up,
+		Qt::Key_Right,
+		Qt::Key_Down,
+		Qt::Key_PageUp,
+		Qt::Key_PageDown,
+		Qt::Key_Shift,
+		Qt::Key_Control,
+		Qt::Key_Meta,
+		Qt::Key_Alt,
+		Qt::Key_CapsLock,
+		Qt::Key_NumLock,
+		Qt::Key_ScrollLock,
+	};
+	return (key >= 0x80) && !ranges::contains(service, key);
 }
 
 void Finish() {

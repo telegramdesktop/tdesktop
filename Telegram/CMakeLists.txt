@@ -1474,6 +1474,8 @@ PRIVATE
     settings/settings_privacy_security.h
     settings/settings_scale_preview.cpp
     settings/settings_scale_preview.h
+    settings/settings_shortcuts.cpp
+    settings/settings_shortcuts.h
     settings/settings_type.h
     settings/settings_websites.cpp
     settings/settings_websites.h

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_advanced.h"
 #include "settings/settings_privacy_security.h"
 #include "settings/settings_experimental.h"
+#include "settings/settings_shortcuts.h"
 #include "boxes/abstract_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/connection_box.h"
@@ -833,7 +834,8 @@ void SetupStickersEmoji(
 
 void SetupMessages(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 
@@ -1003,7 +1005,16 @@ void SetupMessages(
 		Core::App().saveSettingsDelayed();
 	}, inner->lifetime());
 
-	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
+	AddButtonWithIcon(
+		inner,
+		tr::lng_settings_shortcuts(),
+		st::settingsButton,
+		{ &st::menuIconBotCommands }
+	)->addClickHandler([=] {
+		showOther(Shortcuts::Id());
+	});
+
+	Ui::AddSkip(inner);
 }
 
 void SetupArchive(
@@ -1793,7 +1804,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);
-	SetupMessages(controller, content);
+	SetupMessages(controller, content, showOtherMethod());
 	Ui::AddDivider(content);
 	SetupSensitiveContent(controller, content, std::move(updateOnTick));
 	SetupArchive(controller, content);
