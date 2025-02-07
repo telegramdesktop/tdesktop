@@ -284,22 +284,29 @@ bool NotificationData::init(const Info &info) {
 		return false;
 	}
 
-	const auto &text = info.message;
 	if (HasCapability("body-markup")) {
-		_title = title.toStdString();
-
-		_body = subtitle.isEmpty()
-			? text.toHtmlEscaped().toStdString()
-			: u"<b>%1</b>\n%2"_q.arg(
-				subtitle.toHtmlEscaped(),
-				text.toHtmlEscaped()).toStdString();
+		if (qEnvironmentVariable("XDG_CURRENT_DESKTOP").toLower().contains("gnome")) {
+			_title = subtitle.isEmpty()
+				? title.toPlainText().toStdString()
+				: subtitle.toPlainText().toStdString() + " (" + title.toPlainText().toStdString() + ')';
+			_body = msg.toPlainText().toStdString();
+		} else {
+			_title = subtitle.isEmpty()
+				? title.toStdString()
+				: subtitle.toStdString() + " (" + title.toStdString() + ')';
+			_body = subtitle.isEmpty()
+				? msg.toHtmlEscaped().toStdString()
+				: u"<b>%1</b>\n%2"_q.arg(
+					subtitle.toHtmlEscaped(),
+					msg.toHtmlEscaped()).toStdString();
+		}
 	} else {
 		_title = subtitle.isEmpty()
-			? title.toStdString()
-			: subtitle.toStdString() + " (" + title.toStdString() + ')';
-
-		_body = text.toStdString();
+			? title.toPlainText().toStdString()
+			: subtitle.toPlainText().toStdString() + " (" + title.toPlainText().toStdString() + ')';
+		_body = msg.toPlainText().toStdString();
 	}
+	
 
 	if (HasCapability("actions")) {
 		_actions.push_back("default");
