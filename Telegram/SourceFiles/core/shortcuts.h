@@ -144,6 +144,13 @@ void Unpause();
 
 [[nodiscard]] base::flat_map<QKeySequence, Command> KeysDefaults();
 [[nodiscard]] base::flat_map<QKeySequence, Command> KeysCurrents();
+
+void Change(
+	QKeySequence was,
+	QKeySequence now,
+	Command command,
+	std::optional<Command> restore = {});
+
 [[nodiscard]] bool AllowWithoutModifiers(int key);
 
 } // namespace Shortcuts

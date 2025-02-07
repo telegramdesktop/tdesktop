@@ -227,10 +227,10 @@ struct Labeled {
 							TextWithEntities{ key.toString() },
 							EntityType::StrikeOut)
 						: TextWithEntities{ key.toString() });
-					keys->setTextColorOverride(removed
-						? st::attentionButtonFg->c
-						: (recording == raw)
+					keys->setTextColorOverride((recording == raw)
 						? st::boxTextFgGood->c
+						: removed
+						? st::attentionButtonFg->c
 						: std::optional<QColor>());
 					keys->resizeToNaturalWidth(available);
 					keys->moveToRight(
@@ -259,56 +259,71 @@ struct Labeled {
 			return;
 		}
 		state->recording = nullptr;
-		if (result) {
-			auto was = button->key.current();
-			const auto now = *result;
-			for (auto &entry : state->entries) {
-				const auto i = ranges::find(
-					entry.buttons,
-					button,
-					&std::unique_ptr<Button>::get);
-				if (i != end(entry.buttons)) {
-					const auto index = i - begin(entry.buttons);
-					if (now.isEmpty()) {
-						entry.now.erase(begin(entry.now) + index);
-					} else {
-						const auto i = ranges::find(entry.now, now);
-						if (i == end(entry.now)) {
-							entry.now[index] = now;
-						} else if (i != begin(entry.now) + index) {
-							std::swap(entry.now[index], *i);
-							entry.now.erase(i);
-						}
-					}
-					fill(entry);
-					checkModified();
-				} else if (now != was) {
-					const auto i = now.isEmpty()
-						? end(entry.now)
-						: ranges::find(entry.now, now);
-					if (i != end(entry.now)) {
-						entry.buttons[i - begin(entry.now)]->removed = true;
-					}
-					const auto j = was.isEmpty()
-						? end(entry.now)
-						: ranges::find(entry.now, was);
-					if (j != end(entry.now)) {
-						entry.buttons[j - begin(entry.now)]->removed = false;
-						was = QKeySequence();
-					}
-				}
-			}
-		}
 		InvokeQueued(content, [=] {
 			InvokeQueued(content, [=] {
 				// Let all the shortcut events propagate first.
 				S::Unpause();
 			});
 		});
+		auto was = button->key.current();
+		const auto now = result.value_or(was);
+		if (now == was) {
+			if (!result || !button->removed.current()) {
+				return;
+			}
+			was = QKeySequence();
+		}
+
+		auto changed = false;
+		const auto command = button->command;
+		for (auto &entry : state->entries) {
+			const auto i = ranges::find(
+				entry.buttons,
+				button,
+				&std::unique_ptr<Button>::get);
+			if (i != end(entry.buttons)) {
+				const auto index = i - begin(entry.buttons);
+				if (now.isEmpty()) {
+					entry.now.erase(begin(entry.now) + index);
+				} else {
+					const auto i = ranges::find(entry.now, now);
+					if (i == end(entry.now)) {
+						entry.now[index] = now;
+					} else if (i != begin(entry.now) + index) {
+						std::swap(entry.now[index], *i);
+						entry.now.erase(i);
+					}
+				}
+				fill(entry);
+				checkModified();
+			} else if (now != was) {
+				const auto i = now.isEmpty()
+					? end(entry.now)
+					: ranges::find(entry.now, now);
+				if (i != end(entry.now)) {
+					entry.buttons[i - begin(entry.now)]->removed = true;
+				}
+				const auto j = was.isEmpty()
+					? end(entry.now)
+					: ranges::find(entry.now, was);
+				if (j != end(entry.now)) {
+					entry.buttons[j - begin(entry.now)]->removed = false;
+					S::Change(was, now, command, entry.command);
+					was = QKeySequence();
+					changed = true;
+				}
+			}
+		}
+		if (!changed) {
+			S::Change(was, now, command);
+		}
 	};
 	base::install_event_filter(content, qApp, [=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::ShortcutOverride && state->recording.current()) {
+			if (!content->window()->isActiveWindow()) {
+				return base::EventFilterResult::Continue;
+			}
 			const auto key = static_cast<QKeyEvent*>(e.get());
 			const auto m = key->modifiers();
 			const auto k = key->key();
@@ -325,7 +340,10 @@ struct Labeled {
 			}
 			stopRecording(clear ? QKeySequence() : QKeySequence(k | m));
 			return base::EventFilterResult::Cancel;
-		} else if (type == QEvent::KeyPress) {
+		} else if (type == QEvent::KeyPress && state->recording.current()) {
+			if (!content->window()->isActiveWindow()) {
+				return base::EventFilterResult::Continue;
+			}
 			if (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape) {
 				stopRecording();
 				return base::EventFilterResult::Cancel;
