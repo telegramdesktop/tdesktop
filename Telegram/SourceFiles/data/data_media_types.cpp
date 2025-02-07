@@ -447,16 +447,17 @@ Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
 	result.finishReason = [&] {
 		if (const auto reason = call.vreason()) {
-			switch (reason->type()) {
-			case mtpc_phoneCallDiscardReasonBusy:
+			return reason->match([](const MTPDphoneCallDiscardReasonBusy &) {
 				return CallFinishReason::Busy;
-			case mtpc_phoneCallDiscardReasonDisconnect:
+			}, [](const MTPDphoneCallDiscardReasonDisconnect &) {
 				return CallFinishReason::Disconnected;
-			case mtpc_phoneCallDiscardReasonHangup:
+			}, [](const MTPDphoneCallDiscardReasonHangup &) {
 				return CallFinishReason::Hangup;
-			case mtpc_phoneCallDiscardReasonMissed:
+			}, [](const MTPDphoneCallDiscardReasonMissed &) {
 				return CallFinishReason::Missed;
-			}
+			}, [](const MTPDphoneCallDiscardReasonAllowGroupCall &) {
+				return CallFinishReason::AllowGroupCall;
+			});
 			Unexpected("Call reason type.");
 		}
 		return CallFinishReason::Hangup;

@@ -46,6 +46,7 @@ enum class CallFinishReason : char {
 	Busy,
 	Disconnected,
 	Hangup,
+	AllowGroupCall,
 };
 
 struct SharedContact final {
