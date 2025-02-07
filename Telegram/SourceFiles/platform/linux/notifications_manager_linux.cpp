@@ -284,6 +284,7 @@ bool NotificationData::init(const Info &info) {
 		return false;
 	}
 
+	const auto &text = info.message;
 	if (HasCapability("body-markup")) {
 		if (qEnvironmentVariable("XDG_CURRENT_DESKTOP").toLower().contains("gnome")) {
 			_title = subtitle.isEmpty()
