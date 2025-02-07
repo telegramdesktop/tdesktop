@@ -1509,7 +1509,7 @@ void AddStarGiftTable(
 						std::move(amount),
 						Ui::Text::WithEntities)));
 	}
-	if (!unique && !entry.soldOutInfo) {
+	if (!unique && !entry.soldOutInfo && startUpgrade) {
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_status(),
