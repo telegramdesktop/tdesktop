@@ -14,9 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
@@ -135,6 +137,7 @@ struct Labeled {
 		rpl::variable<bool> modified;
 		rpl::variable<Button*> recording;
 		rpl::variable<QKeySequence> lastKey;
+		Fn<void(S::Command command)> showMenuFor;
 	};
 	const auto state = content->lifetime().make_state<State>();
 	const auto labeled = Entries();
@@ -144,17 +147,21 @@ struct Labeled {
 		return Entry{ labeled.command, std::move(labeled.label) };
 	}) | ranges::to_vector;
 
-	for (const auto &[keys, command] : defaults) {
-		const auto i = ranges::find(entries, command, &Entry::command);
-		if (i != end(entries)) {
-			i->original.push_back(keys);
+	for (const auto &[keys, commands] : defaults) {
+		for (const auto command : commands) {
+			const auto i = ranges::find(entries, command, &Entry::command);
+			if (i != end(entries)) {
+				i->original.push_back(keys);
+			}
 		}
 	}
 
-	for (const auto &[keys, command] : currents) {
-		const auto i = ranges::find(entries, command, &Entry::command);
-		if (i != end(entries)) {
-			i->now.push_back(keys);
+	for (const auto &[keys, commands] : currents) {
+		for (const auto command : commands) {
+			const auto i = ranges::find(entries, command, &Entry::command);
+			if (i != end(entries)) {
+				i->now.push_back(keys);
+			}
 		}
 	}
 
@@ -173,6 +180,7 @@ struct Labeled {
 	};
 	checkModified();
 
+	const auto menu = std::make_shared<QPointer<Ui::PopupMenu>>();
 	const auto fill = [=](Entry &entry) {
 		auto index = 0;
 		if (entry.original.empty()) {
@@ -184,6 +192,7 @@ struct Labeled {
 		for (const auto &now : entry.now) {
 			if (index < entry.buttons.size()) {
 				entry.buttons[index]->key = now;
+				entry.buttons[index]->removed = false;
 			} else {
 				auto button = std::make_unique<Button>(Button{
 					.command = entry.command,
@@ -239,10 +248,21 @@ struct Labeled {
 				}, keys->lifetime());
 				keys->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-				widget->setClickedCallback([=] {
-					S::Pause();
-					state->recording = raw;
-				});
+				widget->setAcceptBoth(true);
+				widget->clicks(
+				) | rpl::start_with_next([=](Qt::MouseButton button) {
+					if (const auto strong = *menu) {
+						strong->hideMenu();
+						return;
+					}
+					if (button == Qt::RightButton) {
+						state->showMenuFor(raw->command);
+					} else {
+						S::Pause();
+						state->recording = raw;
+					}
+				}, widget->lifetime());
+
 				button->widget.reset(widget);
 				entry.buttons.push_back(std::move(button));
 			}
@@ -251,6 +271,29 @@ struct Labeled {
 		while (entry.wrap->count() > index) {
 			entry.buttons.pop_back();
 		}
+	};
+	state->showMenuFor = [=](S::Command command) {
+		*menu = Ui::CreateChild<Ui::PopupMenu>(
+			content,
+			st::popupMenuWithIcons);
+		(*menu)->addAction(tr::lng_shortcuts_add_another(tr::now), [=] {
+			const auto i = ranges::find(
+				state->entries,
+				command,
+				&Entry::command);
+			if (i != end(state->entries)) {
+				S::Pause();
+				const auto j = ranges::find(i->now, QKeySequence());
+				if (j != end(i->now)) {
+					state->recording = i->buttons[j - begin(i->now)].get();
+				} else {
+					i->now.push_back(QKeySequence());
+					fill(*i);
+					state->recording = i->buttons.back().get();
+				}
+			}
+		}, &st::menuIconTopics);
+		(*menu)->popup(QCursor::pos());
 	};
 
 	const auto stopRecording = [=](std::optional<QKeySequence> result = {}) {
@@ -268,10 +311,11 @@ struct Labeled {
 		auto was = button->key.current();
 		const auto now = result.value_or(was);
 		if (now == was) {
-			if (!result || !button->removed.current()) {
+			if (!now.isEmpty() && (!result || !button->removed.current())) {
 				return;
 			}
 			was = QKeySequence();
+			button->removed = false;
 		}
 
 		auto changed = false;
@@ -335,7 +379,10 @@ struct Labeled {
 				|| k == Qt::Key_Meta) {
 				return base::EventFilterResult::Cancel;
 			} else if (!m && !clear && !S::AllowWithoutModifiers(k)) {
-				stopRecording();
+				if (k != Qt::Key_Escape) {
+					// Intercept this KeyPress event.
+					stopRecording();
+				}
 				return base::EventFilterResult::Cancel;
 			}
 			stopRecording(clear ? QKeySequence() : QKeySequence(k | m));
@@ -372,6 +419,7 @@ struct Labeled {
 			}
 		}
 		checkModified();
+		S::ResetToDefaults();
 	});
 	AddSkip(modifiedInner);
 	AddDivider(modifiedInner);

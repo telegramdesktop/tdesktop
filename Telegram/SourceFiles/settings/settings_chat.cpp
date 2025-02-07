@@ -1009,7 +1009,7 @@ void SetupMessages(
 		inner,
 		tr::lng_settings_shortcuts(),
 		st::settingsButton,
-		{ &st::menuIconBotCommands }
+		{ &st::menuIconShortcut }
 	)->addClickHandler([=] {
 		showOther(Shortcuts::Id());
 	});

@@ -643,7 +643,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_chat_corner_reaction" = "Reaction button on messages";
 
 "lng_settings_shortcuts" = "Keyboard shortcuts";
+
 "lng_shortcuts_reset" = "Reset to default";
+"lng_shortcuts_recording" = "Recording...";
+"lng_shortcuts_add_another" = "Add another";
+
 "lng_shortcuts_close" = "Close the window";
 "lng_shortcuts_lock" = "Lock the application";
 "lng_shortcuts_minimize" = "Minimize the window";
@@ -677,7 +681,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_shortcuts_archive_chat" = "Archive chat";
 "lng_shortcuts_media_fullscreen" = "Toggle video fullscreen";
 "lng_shortcuts_show_chat_menu" = "Show chat menu";
-"lng_shortcuts_recording" = "Recording...";
 
 "lng_settings_chat_reactions_title" = "Quick Reaction";
 "lng_settings_chat_reactions_subtitle" = "Choose your favorite reaction";

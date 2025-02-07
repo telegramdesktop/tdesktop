@@ -142,14 +142,17 @@ void ToggleSupportShortcuts(bool toggled);
 void Pause();
 void Unpause();
 
-[[nodiscard]] base::flat_map<QKeySequence, Command> KeysDefaults();
-[[nodiscard]] base::flat_map<QKeySequence, Command> KeysCurrents();
+[[nodiscard]] auto KeysDefaults()
+-> base::flat_map<QKeySequence, base::flat_set<Command>>;
+[[nodiscard]] auto KeysCurrents()
+-> base::flat_map<QKeySequence, base::flat_set<Command>>;
 
 void Change(
 	QKeySequence was,
 	QKeySequence now,
 	Command command,
 	std::optional<Command> restore = {});
+void ResetToDefaults();
 
 [[nodiscard]] bool AllowWithoutModifiers(int key);
 
