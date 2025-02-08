@@ -385,6 +385,7 @@ QByteArray SerializeMessage(
 	};
 	const auto pushPhoto = [&](const Image &image) {
 		pushPath(image.file, "photo");
+		push("photo_file_size", image.file.size);
 		if (image.width && image.height) {
 			push("width", image.width);
 			push("height", image.height);
@@ -696,8 +697,10 @@ QByteArray SerializeMessage(
 	}, [&](const Document &data) {
 		pushPath(data.file, "file");
 		push("file_name", data.name);
+		push("file_size", data.file.size);
 		if (data.thumb.width > 0) {
 			pushPath(data.thumb.file, "thumbnail");
+			push("thumbnail_file_size", data.thumb.file.size);
 		}
 		const auto pushType = [&](const QByteArray &value) {
 			push("media_type", value);
@@ -739,6 +742,7 @@ QByteArray SerializeMessage(
 		}));
 		if (!data.vcard.content.isEmpty()) {
 			pushPath(data.vcard, "contact_vcard");
+			push("contact_vcard_file_size", data.vcard.size);
 		}
 	}, [&](const GeoPoint &data) {
 		pushBare(
