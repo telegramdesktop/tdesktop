@@ -834,8 +834,7 @@ void SetupStickersEmoji(
 
 void SetupMessages(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container,
-		Fn<void(Type)> showOther) {
+		not_null<Ui::VerticalLayout*> container) {
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 
@@ -1005,22 +1004,23 @@ void SetupMessages(
 		Core::App().saveSettingsDelayed();
 	}, inner->lifetime());
 
+	Ui::AddSkip(inner);
+}
+
+void SetupArchive(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
+	Ui::AddSkip(container);
+
 	AddButtonWithIcon(
-		inner,
+		container,
 		tr::lng_settings_shortcuts(),
 		st::settingsButton,
 		{ &st::menuIconShortcut }
 	)->addClickHandler([=] {
 		showOther(Shortcuts::Id());
 	});
-
-	Ui::AddSkip(inner);
-}
-
-void SetupArchive(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	Ui::AddSkip(container);
 
 	PreloadArchiveSettings(&controller->session());
 	AddButtonWithIcon(
@@ -1804,10 +1804,10 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);
-	SetupMessages(controller, content, showOtherMethod());
+	SetupMessages(controller, content);
 	Ui::AddDivider(content);
 	SetupSensitiveContent(controller, content, std::move(updateOnTick));
-	SetupArchive(controller, content);
+	SetupArchive(controller, content, showOtherMethod());
 
 	Ui::ResizeFitChild(this, content);
 }
