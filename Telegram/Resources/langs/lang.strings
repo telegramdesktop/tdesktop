@@ -2591,6 +2591,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_double_limits_subtitle_accounts" = "Connected Accounts";
 "lng_premium_double_limits_about_accounts#one" = "Connect {count} account with different mobile numbers";
 "lng_premium_double_limits_about_accounts#other" = "Connect {count} accounts with different mobile numbers";
+
+"lng_premium_double_limits_subtitle_similar_channels" = "Similar Channel";
+"lng_premium_double_limits_about_similar_channels#one" = "View up to {count} similar channel";
+"lng_premium_double_limits_about_similar_channels#other" = "View up to {count} similar channels";
 //
 
 "lng_premium_gift_title" = "Gift Telegram Premium";
