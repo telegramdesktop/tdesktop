@@ -1200,6 +1200,9 @@ void Filler::addThemeEdit() {
 	if (!user || user->isInaccessible()) {
 		return;
 	}
+	if (user->meRequiresPremiumToWrite() && !user->session().premium()) {
+		return;
+	}
 	const auto controller = _controller;
 	_addAction(
 		tr::lng_chat_theme_wallpaper(tr::now),
