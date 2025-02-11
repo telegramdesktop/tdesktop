@@ -111,6 +111,9 @@ private:
 
 	[[nodiscard]] bool handleClose() const;
 
+	void requestControlsHidden(bool hidden);
+	void controlsShownForce(bool shown);
+	void updateControlsShown();
 	void updateControlsGeometry();
 	void updateHangupGeometry();
 	void updateStatusGeometry();
@@ -177,7 +180,18 @@ private:
 	std::unique_ptr<VideoBubble> _outgoingVideoBubble;
 	QPixmap _bottomShadow;
 	int _bodyTop = 0;
+	int _buttonsTopShown = 0;
 	int _buttonsTop = 0;
+
+	base::Timer _hideControlsTimer;
+	base::Timer _controlsShownForceTimer;
+	std::unique_ptr<QObject> _hideControlsFilter;
+	bool _hideControlsRequested = false;
+	rpl::variable<bool> _fullScreenOrMaximized;
+	Ui::Animations::Simple _controlsShownAnimation;
+	bool _controlsShownForce = false;
+	bool _controlsShown = true;
+	bool _mouseInside = false;
 
 	base::unique_qptr<Ui::PopupMenu> _devicesMenu;
 
