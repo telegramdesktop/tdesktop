@@ -22,6 +22,12 @@ void PaintOutlineSegments(
 	const std::vector<OutlineSegment> &segments,
 	float64 fromFullProgress = 1.);
 
+void PaintOutlineSegments(
+	QPainter &p,
+	QRectF rect,
+	float64 radius,
+	const std::vector<OutlineSegment> &segments);
+
 [[nodiscard]] QLinearGradient UnreadStoryOutlineGradient(QRectF rect = {});
 
 } // namespace Ui

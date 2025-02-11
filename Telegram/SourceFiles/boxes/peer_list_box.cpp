@@ -912,7 +912,13 @@ void PeerListRow::paintDisabledCheckUserpic(
 
 		p.setPen(userpicBorderPen);
 		p.setBrush(Qt::NoBrush);
-		p.drawEllipse(userpicEllipse);
+		if (peer()->forum()) {
+			const auto radius = userpicDiameter
+				* Ui::ForumUserpicRadiusMultiplier();
+			p.drawRoundedRect(userpicEllipse, radius, radius);
+		} else {
+			p.drawEllipse(userpicEllipse);
+		}
 
 		p.setPen(iconBorderPen);
 		p.setBrush(st.disabledCheckFg);
