@@ -610,7 +610,6 @@ void UserData::setCallsStatus(CallsStatus callsStatus) {
 	}
 }
 
-
 Data::Birthday UserData::birthday() const {
 	return _birthday;
 }

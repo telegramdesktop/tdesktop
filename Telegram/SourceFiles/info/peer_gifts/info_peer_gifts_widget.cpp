@@ -630,7 +630,7 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 		});
 	}, filter.skipUnique ? nullptr : &st::mediaPlayerMenuCheck);
 
-	if (_inner->peer()->canManageGifts() && _inner->peer()->isChannel()) {
+	if (_inner->peer()->canManageGifts()) {
 		addAction({ .isSeparator = true });
 
 		addAction(tr::lng_peer_gifts_filter_saved(tr::now), [=] {

@@ -114,7 +114,8 @@ void GlobalPrivacy::updateHideReadTime(bool hide) {
 		archiveAndMuteCurrent(),
 		unarchiveOnNewMessageCurrent(),
 		hide,
-		newRequirePremiumCurrent());
+		newRequirePremiumCurrent(),
+		newChargeStarsCurrent());
 }
 
 bool GlobalPrivacy::hideReadTimeCurrent() const {
@@ -125,20 +126,31 @@ rpl::producer<bool> GlobalPrivacy::hideReadTime() const {
 	return _hideReadTime.value();
 }
 
-void GlobalPrivacy::updateNewRequirePremium(bool value) {
-	update(
-		archiveAndMuteCurrent(),
-		unarchiveOnNewMessageCurrent(),
-		hideReadTimeCurrent(),
-		value);
-}
-
 bool GlobalPrivacy::newRequirePremiumCurrent() const {
 	return _newRequirePremium.current();
 }
 
 rpl::producer<bool> GlobalPrivacy::newRequirePremium() const {
 	return _newRequirePremium.value();
+}
+
+int GlobalPrivacy::newChargeStarsCurrent() const {
+	return _newChargeStars.current();
+}
+
+rpl::producer<int> GlobalPrivacy::newChargeStars() const {
+	return _newChargeStars.value();
+}
+
+void GlobalPrivacy::updateMessagesPrivacy(
+		bool requirePremium,
+		int chargeStars) {
+	update(
+		archiveAndMuteCurrent(),
+		unarchiveOnNewMessageCurrent(),
+		hideReadTimeCurrent(),
+		requirePremium,
+		chargeStars);
 }
 
 void GlobalPrivacy::loadPaidReactionShownPeer() {
@@ -169,7 +181,8 @@ void GlobalPrivacy::updateArchiveAndMute(bool value) {
 		value,
 		unarchiveOnNewMessageCurrent(),
 		hideReadTimeCurrent(),
-		newRequirePremiumCurrent());
+		newRequirePremiumCurrent(),
+		newChargeStarsCurrent());
 }
 
 void GlobalPrivacy::updateUnarchiveOnNewMessage(
@@ -178,14 +191,16 @@ void GlobalPrivacy::updateUnarchiveOnNewMessage(
 		archiveAndMuteCurrent(),
 		value,
 		hideReadTimeCurrent(),
-		newRequirePremiumCurrent());
+		newRequirePremiumCurrent(),
+		newChargeStarsCurrent());
 }
 
 void GlobalPrivacy::update(
 		bool archiveAndMute,
 		UnarchiveOnNewMessage unarchiveOnNewMessage,
 		bool hideReadTime,
-		bool newRequirePremium) {
+		bool newRequirePremium,
+		int newChargeStars) {
 	using Flag = MTPDglobalPrivacySettings::Flag;
 
 	_api.request(_requestId).cancel();
@@ -204,38 +219,44 @@ void GlobalPrivacy::update(
 		| (hideReadTime ? Flag::f_hide_read_marks : Flag())
 		| ((newRequirePremium && newRequirePremiumAllowed)
 			? Flag::f_new_noncontact_peers_require_premium
-			: Flag());
-	auto nonContactPaidStars = int64(0);
+			: Flag())
+		| Flag::f_noncontact_peers_paid_stars;
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
 		MTP_globalPrivacySettings(
 			MTP_flags(flags),
-			MTP_long(nonContactPaidStars))
+			MTP_long(newChargeStars))
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.type() == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
-			update(archiveAndMute, unarchiveOnNewMessage, hideReadTime, {});
+			update(
+				archiveAndMute,
+				unarchiveOnNewMessage,
+				hideReadTime,
+				false,
+				0);
 		}
 	}).send();
 	_archiveAndMute = archiveAndMute;
 	_unarchiveOnNewMessage = unarchiveOnNewMessage;
 	_hideReadTime = hideReadTime;
 	_newRequirePremium = newRequirePremium;
+	_newChargeStars = newChargeStars;
 }
 
-void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &data) {
-	data.match([&](const MTPDglobalPrivacySettings &data) {
-		_archiveAndMute = data.is_archive_and_mute_new_noncontact_peers();
-		_unarchiveOnNewMessage = data.is_keep_archived_unmuted()
-			? UnarchiveOnNewMessage::None
-			: data.is_keep_archived_folders()
-			? UnarchiveOnNewMessage::NotInFoldersUnmuted
-			: UnarchiveOnNewMessage::AnyUnmuted;
-		_hideReadTime = data.is_hide_read_marks();
-		_newRequirePremium = data.is_new_noncontact_peers_require_premium();
-	});
+void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
+	const auto &data = settings.data();
+	_archiveAndMute = data.is_archive_and_mute_new_noncontact_peers();
+	_unarchiveOnNewMessage = data.is_keep_archived_unmuted()
+		? UnarchiveOnNewMessage::None
+		: data.is_keep_archived_folders()
+		? UnarchiveOnNewMessage::NotInFoldersUnmuted
+		: UnarchiveOnNewMessage::AnyUnmuted;
+	_hideReadTime = data.is_hide_read_marks();
+	_newRequirePremium = data.is_new_noncontact_peers_require_premium();
+	_newChargeStars = data.vnoncontact_peers_paid_stars().value_or_empty();
 }
 
 } // namespace Api

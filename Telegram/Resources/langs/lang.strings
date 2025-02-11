@@ -1218,6 +1218,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_contacts" = "My contacts";
 "lng_edit_privacy_close_friends" = "Close friends";
 "lng_edit_privacy_contacts_and_premium" = "Contacts & Premium";
+"lng_edit_privacy_paid" = "Paid";
 "lng_edit_privacy_contacts_and_miniapps" = "Contacts & Mini Apps";
 "lng_edit_privacy_nobody" = "Nobody";
 "lng_edit_privacy_premium" = "Premium users";
@@ -1356,6 +1357,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_messages_privacy_premium_about" = "Subscribe now to change this setting and get access to other exclusive features of Telegram Premium.";
 "lng_messages_privacy_premium" = "Only subscribers of {link} can select this option.";
 "lng_messages_privacy_premium_link" = "Telegram Premium";
+"lng_messages_privacy_charge" = "Charge for messages";
+"lng_messages_privacy_charge_about" = "Charge a fee for messages from people outside your contacts or those you haven't messaged first.";
+"lng_messages_privacy_price" = "Set your price per message";
+"lng_messages_privacy_price_about" = "You will receive {percent} of the selected fee ({amount}) for each incoming message.";
+"lng_messages_privacy_exceptions" = "Exceptions";
+"lng_messages_privacy_remove_fee" = "Remove Fee";
+"lng_messages_privacy_remove_about" = "Add users or entire groups who won't be charged for sending messages to you.";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
@@ -2158,6 +2166,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_boost_apply#other" = "{from} boosted the group {count} times";
 "lng_action_set_chat_intro" = "{from} added the message below for all empty chats. How?";
 "lng_action_payment_refunded" = "{peer} refunded {amount}";
+"lng_action_paid_message_sent#one" = "You paid {count} Star to send a message";
+"lng_action_paid_message_sent#other" = "You paid {count} Stars to send a message";
+"lng_action_paid_message_got#one" = "You received {count} Star from {name}";
+"lng_action_paid_message_got#other" = "You received {count} Stars from {name}";
 
 "lng_similar_channels_title" = "Similar channels";
 "lng_similar_channels_view_all" = "View all";
@@ -4798,12 +4810,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_boosts_no_restrict" = "Do not restrict boosters";
 "lng_rights_boosts_about" = "Turn this on to always allow users who boosted your group to send messages and media.";
 "lng_rights_boosts_about_on" = "Choose how many boosts a user must give to the group to bypass restrictions on sending messages.";
+"lng_rights_charge_stars" = "Charge Stars for Messages";
+"lng_rights_charge_stars_about" = "If you turn this on, regular members of the group will have to pay Stars to send messages.";
+"lng_rights_charge_price" = "Set price per message";
+"lng_rights_charge_price_about" = "Your group will receive {percent} of the selected fee ({amount}) for each incoming message.";
 
 "lng_slowmode_enabled" = "Slow Mode is active.\nYou can send your next message in {left}.";
 "lng_slowmode_no_many" = "Slow mode is enabled. You can't send more than one message at a time.";
 "lng_slowmode_too_long" = "This text is too long to send as one message.\n\nSlow mode is active. You can't send more than one message at once.";
 "lng_slowmode_seconds#one" = "{count} second";
 "lng_slowmode_seconds#other" = "{count} seconds";
+
+"lng_payment_for_message#one" = "Pay {star}{count} for 1 Message";
+"lng_payment_for_message#other" = "Pay {star}{count} for 1 Message";
+"lng_payment_confirm_title" = "Confirm payment";
+"lng_payment_confirm_text#one" = "{name} charges **{count}** Star per message.";
+"lng_payment_confirm_text#other" = "{name} charges **{count}** Stars per message.";
+"lng_payment_confirm_sure#one" = "Would you like to pay **{count}** Star to send one message?";
+"lng_payment_confirm_sure#other" = "Would you like to pay **{count}** Stars to send one message?";
+"lng_payment_confirm_dont_ask" = "Don't ask me again";
+"lng_payment_confirm_button" = "Pay for 1 Message";
+"lng_payment_bar_text#one" = "{name} must pay {star}{count} for each message to you.";
+"lng_payment_bar_text#other" = "{name} must pay {star}{count} for each message to you.";
+"lng_payment_bar_button" = "Remove Fee";
+"lng_payment_refund_title" = "Remove Fee";
+"lng_payment_refund_text" = "Are you sure you want to allow {name} to message you for free?";
+"lng_payment_refund_also#one" = "Refund already paid {count} Star";
+"lng_payment_refund_also#other" = "Refund already paid {count} Stars";
+"lng_payment_refund_confirm" = "Confirm";
 
 "lng_rights_gigagroup_title" = "Broadcast group";
 "lng_rights_gigagroup_convert" = "Convert to Broadcast Group";

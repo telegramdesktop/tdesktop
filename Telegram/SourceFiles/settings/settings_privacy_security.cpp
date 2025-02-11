@@ -356,10 +356,16 @@ void AddMessagesPrivacyButton(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto session = &controller->session();
 	const auto privacy = &session->api().globalPrivacy();
-	auto label = rpl::conditional(
+	auto label = rpl::combine(
 		privacy->newRequirePremium(),
-		tr::lng_edit_privacy_contacts_and_premium(),
-		tr::lng_edit_privacy_everyone());
+		privacy->newChargeStars()
+	) | rpl::map([=](bool requirePremium, int chargeStars) {
+		return chargeStars
+			? tr::lng_edit_privacy_paid()
+			: requirePremium
+			? tr::lng_edit_privacy_contacts_and_premium()
+			: tr::lng_edit_privacy_everyone();
+	}) | rpl::flatten_latest();
 	const auto &st = st::settingsButtonNoIcon;
 	const auto button = AddButtonWithLabel(
 		container,

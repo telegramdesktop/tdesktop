@@ -535,6 +535,7 @@ inputPrivacyKeyVoiceMessages#aee69d68 = InputPrivacyKey;
 inputPrivacyKeyAbout#3823cc40 = InputPrivacyKey;
 inputPrivacyKeyBirthday#d65a11cc = InputPrivacyKey;
 inputPrivacyKeyStarGiftsAutoSave#e1732341 = InputPrivacyKey;
+inputPrivacyKeyNoPaidMessages#bdc597b4 = InputPrivacyKey;
 
 privacyKeyStatusTimestamp#bc2eab30 = PrivacyKey;
 privacyKeyChatInvite#500e6dfa = PrivacyKey;
