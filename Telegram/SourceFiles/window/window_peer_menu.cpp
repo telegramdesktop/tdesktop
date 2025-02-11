@@ -144,6 +144,7 @@ void ShareBotGame(
 			MTP_int(0), // schedule_date
 			MTPInputPeer(), // send_as
 			MTPInputQuickReplyShortcut(),
+			MTPlong(),
 			MTPlong()
 		), [=](const MTPUpdates &, const MTP::Response &) {
 	}, [=](const MTP::Error &error, const MTP::Response &) {

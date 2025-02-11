@@ -5574,6 +5574,13 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto preparePaidMessage = [&](
+			const MTPDmessageActionPaidMessage &action) {
+		auto result = PreparedServiceText();
+		result.text.text = u"paid for message"_q; AssertIsDebug();
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -5622,7 +5629,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareStarGift,
 		prepareStarGiftUnique,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
-		PrepareErrorText<MTPDmessageActionEmpty>));
+		PrepareErrorText<MTPDmessageActionEmpty>,
+		preparePaidMessage));
 
 	// Additional information.
 	applyAction(action);

@@ -3384,7 +3384,8 @@ void ApiWrap::forwardMessages(
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(_session, action.options.shortcutId),
-				MTPint() // video_timestamp
+				MTPint(), // video_timestamp
+				MTPlong() // allow_paid_stars
 			)).done([=](const MTPUpdates &result) {
 				if (!scheduled) {
 					this->updates().checkForSentToScheduled(result);
@@ -3882,6 +3883,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_effect;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_effect;
 		}
+		if (action.options.paidByStars) {
+			sendFlags |= MTPmessages_SendMessage::Flag::f_allow_paid_stars;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+		}
 		lastMessage = history->addNewLocalMessage({
 			.id = newId.msg,
 			.flags = flags,
@@ -3937,7 +3942,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTP_int(action.options.scheduled),
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 					mtpShortcut,
-					MTP_long(action.options.effectId)
+					MTP_long(action.options.effectId),
+					MTP_long(action.options.paidByStars)
 				), done, fail);
 		} else {
 			histories.sendPreparedMessage(
@@ -3955,7 +3961,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTP_int(action.options.scheduled),
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 					mtpShortcut,
-					MTP_long(action.options.effectId)
+					MTP_long(action.options.effectId),
+					MTP_long(action.options.paidByStars)
 				), done, fail);
 		}
 		isFirst = false;
@@ -4052,6 +4059,9 @@ void ApiWrap::sendInlineResult(
 	if (action.options.hideViaBot) {
 		sendFlags |= SendFlag::f_hide_via;
 	}
+	if (action.options.paidByStars) {
+		sendFlags |= SendFlag::f_allow_paid_stars;
+	}
 
 	const auto sendAs = action.options.sendAs;
 	if (sendAs) {
@@ -4089,7 +4099,8 @@ void ApiWrap::sendInlineResult(
 			MTP_string(data->getId()),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-			Data::ShortcutIdToMTP(_session, action.options.shortcutId)
+			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
+			MTP_long(action.options.paidByStars)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		history->finishSavingCloudDraft(
 			topicRootId,
@@ -4242,7 +4253,8 @@ void ApiWrap::sendMediaWithRandomId(
 		| (options.sendAs ? Flag::f_send_as : Flag(0))
 		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
 		| (options.effectId ? Flag::f_effect : Flag(0))
-		| (options.invertCaption ? Flag::f_invert_media : Flag(0));
+		| (options.invertCaption ? Flag::f_invert_media : Flag(0))
+		| (options.paidByStars ? Flag::f_allow_paid_stars : Flag(0));
 
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
@@ -4269,7 +4281,8 @@ void ApiWrap::sendMediaWithRandomId(
 			MTP_int(options.scheduled),
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
-			MTP_long(options.effectId)
+			MTP_long(options.effectId),
+			MTP_long(options.paidByStars)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (done) done(true);
 		if (updateRecentStickers) {
@@ -4317,7 +4330,8 @@ void ApiWrap::sendMultiPaidMedia(
 		| (options.sendAs ? Flag::f_send_as : Flag(0))
 		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
 		| (options.effectId ? Flag::f_effect : Flag(0))
-		| (options.invertCaption ? Flag::f_invert_media : Flag(0));
+		| (options.invertCaption ? Flag::f_invert_media : Flag(0))
+		| (options.paidByStars ? Flag::f_allow_paid_stars : Flag(0));
 
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
@@ -4343,7 +4357,8 @@ void ApiWrap::sendMultiPaidMedia(
 			MTP_int(options.scheduled),
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
-			MTP_long(options.effectId)
+			MTP_long(options.effectId),
+			MTP_long(options.paidByStars)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (const auto album = _sendingAlbums.take(groupId)) {
 			const auto copy = (*album)->items;

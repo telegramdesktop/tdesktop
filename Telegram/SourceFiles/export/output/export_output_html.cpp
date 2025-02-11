@@ -1367,6 +1367,11 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " sent you a gift of "
 			+ QByteArray::number(data.stars)
 			+ " Telegram Stars.";
+	}, [&](const ActionPaidMessage &data) {
+		return serviceFrom
+			+ " paid for the message "
+			+ QString::number(data.stars).toUtf8()
+			+ " Telegram Stars.";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

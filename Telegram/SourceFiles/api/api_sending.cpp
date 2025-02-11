@@ -111,6 +111,9 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 		flags |= MessageFlag::InvertMedia;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
+	if (action.options.paidByStars) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+	}
 
 	auto &histories = history->owner().histories();
 	histories.sendPreparedMessage(
@@ -129,7 +132,8 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(session, action.options.shortcutId),
-			MTP_long(action.options.effectId)
+			MTP_long(action.options.effectId),
+			MTP_long(action.options.paidByStars)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		api->sendMessageFail(error, peer, randomId);
@@ -206,6 +210,9 @@ void SendExistingMedia(
 		flags |= MessageFlag::InvertMedia;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
+	if (action.options.paidByStars) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -240,7 +247,8 @@ void SendExistingMedia(
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(session, action.options.shortcutId),
-				MTP_long(action.options.effectId)
+				MTP_long(action.options.effectId),
+				MTP_long(action.options.paidByStars)
 			), [=](const MTPUpdates &result, const MTP::Response &response) {
 		}, [=](const MTP::Error &error, const MTP::Response &response) {
 			if (error.code() == 400
@@ -380,6 +388,9 @@ bool SendDice(MessageToSend &message) {
 		flags |= MessageFlag::InvertMedia;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
+	if (action.options.paidByStars) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -411,7 +422,8 @@ bool SendDice(MessageToSend &message) {
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(session, action.options.shortcutId),
-			MTP_long(action.options.effectId)
+			MTP_long(action.options.effectId),
+			MTP_long(action.options.paidByStars)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		api->sendMessageFail(error, peer, randomId, newId);

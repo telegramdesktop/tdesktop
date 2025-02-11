@@ -131,6 +131,9 @@ namespace Media::Stories {
 			if (options.invertCaption) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 			}
+			if (options.paidByStars) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+			}
 			const auto done = [=] {
 				if (!--state->requests) {
 					if (show->valid()) {
@@ -155,7 +158,8 @@ namespace Media::Stories {
 					MTP_int(options.scheduled),
 					MTP_inputPeerEmpty(),
 					Data::ShortcutIdToMTP(session, options.shortcutId),
-					MTP_long(options.effectId)
+					MTP_long(options.effectId),
+					MTP_long(options.paidByStars)
 				), [=](
 						const MTPUpdates &result,
 						const MTP::Response &response) {

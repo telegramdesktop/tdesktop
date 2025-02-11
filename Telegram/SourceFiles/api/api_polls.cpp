@@ -71,6 +71,9 @@ void Polls::create(
 	if (action.options.effectId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
 	}
+	if (action.options.paidByStars) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+	}
 	const auto sendAs = action.options.sendAs;
 	if (sendAs) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
@@ -93,7 +96,8 @@ void Polls::create(
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
-			MTP_long(action.options.effectId)
+			MTP_long(action.options.effectId),
+			MTP_long(action.options.paidByStars)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(

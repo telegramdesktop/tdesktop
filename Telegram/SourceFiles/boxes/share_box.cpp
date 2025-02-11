@@ -1582,7 +1582,10 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						: Flag(0))
 					| (options.shortcutId
 						? Flag::f_quick_reply_shortcut
-						: Flag(0));
+						: Flag(0))
+					| (options.paidByStars
+						? Flag::f_allow_paid_stars
+						: Flag());
 				threadHistory->sendRequestId = api.request(
 					MTPmessages_ForwardMessages(
 						MTP_flags(sendFlags),
@@ -1594,7 +1597,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty(), // send_as
 						Data::ShortcutIdToMTP(session, options.shortcutId),
-						MTP_int(videoTimestamp.value_or(0))
+						MTP_int(videoTimestamp.value_or(0)),
+						MTP_long(options.paidByStars)
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					threadHistory->session().api().applyUpdates(updates);
 					state->requests.remove(reqId);

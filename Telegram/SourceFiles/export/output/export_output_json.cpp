@@ -663,6 +663,10 @@ QByteArray SerializeMessage(
 		push("is_limited", data.limited);
 		push("is_anonymous", data.anonymous);
 		pushBare("gift_text", SerializeText(context, data.text));
+	}, [&](const ActionPaidMessage &data) {
+		pushActor();
+		pushAction("send_paid_message");
+		push("stars", data.stars);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

@@ -205,8 +205,11 @@ void GlobalPrivacy::update(
 		| ((newRequirePremium && newRequirePremiumAllowed)
 			? Flag::f_new_noncontact_peers_require_premium
 			: Flag());
+	auto nonContactPaidStars = int64(0);
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
-		MTP_globalPrivacySettings(MTP_flags(flags))
+		MTP_globalPrivacySettings(
+			MTP_flags(flags),
+			MTP_long(nonContactPaidStars))
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
