@@ -112,6 +112,17 @@ struct Labeled {
 	};
 }
 
+[[nodiscard]] QString ToString(const QKeySequence &key) {
+	auto result = key.toString();
+#ifdef Q_OS_MAC
+	result = result.replace(u"Ctrl+"_q, QString() + QChar(0x2318));
+	result = result.replace(u"Meta+"_q, QString() + QChar(0x2303));
+	result = result.replace(u"Alt+"_q, QString() + QChar(0x2325));
+	result = result.replace(u"Shift+"_q, QString() + QChar(0x21E7));
+#endif // Q_OS_MAC
+	return result;
+}
+
 [[nodiscard]] Fn<void()> SetupShortcutsContent(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> content) {
@@ -233,9 +244,9 @@ struct Labeled {
 						? TextWithEntities()
 						: removed
 						? Ui::Text::Wrapped(
-							TextWithEntities{ key.toString() },
+							TextWithEntities{ ToString(key) },
 							EntityType::StrikeOut)
-						: TextWithEntities{ key.toString() });
+						: TextWithEntities{ ToString(key) });
 					keys->setTextColorOverride((recording == raw)
 						? st::boxTextFgGood->c
 						: removed
