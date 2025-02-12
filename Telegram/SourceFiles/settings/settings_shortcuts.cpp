@@ -124,8 +124,8 @@ struct Labeled {
 }
 
 [[nodiscard]] Fn<void()> SetupShortcutsContent(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> content) {
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> content) {
 	const auto &defaults = S::KeysDefaults();
 	const auto &currents = S::KeysCurrents();
 

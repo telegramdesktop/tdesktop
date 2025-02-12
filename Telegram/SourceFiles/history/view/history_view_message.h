@@ -300,6 +300,7 @@ private:
 
 	void refreshRightBadge();
 	void validateFromNameText(PeerData *from) const;
+	void ensureFromNameStatusLink(not_null<PeerData*> peer) const;
 
 	mutable std::unique_ptr<RightAction> _rightAction;
 	mutable ClickHandlerPtr _fastReplyLink;
