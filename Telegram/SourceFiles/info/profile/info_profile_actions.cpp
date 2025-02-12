@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_message_view.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_item_preview.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
@@ -2360,7 +2361,7 @@ void ActionsFiller::addDeleteContactAction(not_null<UserData*> user) {
 void ActionsFiller::addFastButtonsMode(not_null<UserData*> user) {
 	Expects(user->isBot());
 
-	const auto helper = &user->session().supportHelper();
+	const auto bots = &user->session().fastButtonsBots();
 	const auto button = _wrap->add(object_ptr<Ui::SettingsButton>(
 		_wrap,
 		rpl::single(u"Fast buttons mode"_q),
@@ -2374,17 +2375,17 @@ void ActionsFiller::addFastButtonsMode(not_null<UserData*> user) {
 	AddDivider(_wrap);
 	AddSkip(_wrap);
 
-	button->toggleOn(helper->fastButtonModeValue(user));
+	button->toggleOn(bots->enabledValue(user));
 	button->toggledValue(
 	) | rpl::filter([=](bool value) {
-		return value != helper->fastButtonMode(user);
+		return value != bots->enabled(user);
 	}) | rpl::start_with_next([=](bool value) {
-		helper->setFastButtonMode(user, value);
+		bots->setEnabled(user, value);
 	}, button->lifetime());
 }
 
 void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
-	if (user->session().supportMode()) {
+	if (FastButtonsMode()) {
 		addFastButtonsMode(user);
 	}
 	const auto window = _controller->parentController();

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/options.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/spoiler_mess.h"
@@ -63,7 +64,19 @@ namespace {
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
 
+base::options::toggle FastButtonsModeOption({
+	.id = kOptionFastButtonsMode,
+	.name = "Fast buttons mode",
+	.description = "Trigger inline keyboard buttons by 1-9 keyboard keys.",
+});
+
 } // namespace
+
+const char kOptionFastButtonsMode[] = "fast-buttons-mode";
+
+bool FastButtonsMode() {
+	return FastButtonsModeOption.value();
+}
 
 void HistoryMessageVia::create(
 		not_null<Data::Session*> owner,
@@ -924,10 +937,10 @@ void ReplyKeyboard::paint(
 }
 
 bool ReplyKeyboard::hasFastButtonMode() const {
-	return _item->inlineReplyKeyboard()
+	return FastButtonsMode()
+		&& _item->inlineReplyKeyboard()
 		&& (_item == _item->history()->lastMessage())
-		&& _item->history()->session().supportMode()
-		&& _item->history()->session().supportHelper().fastButtonMode(
+		&& _item->history()->session().fastButtonsBots().enabled(
 			_item->history()->peer);
 }
 

@@ -2911,14 +2911,12 @@ void HistoryWidget::refreshSilentToggle() {
 }
 
 void HistoryWidget::setupFastButtonMode() {
-	if (!session().supportMode()) {
-		return;
-	}
 	const auto field = _field->rawTextEdit();
 	base::install_event_filter(field, [=](not_null<QEvent*> e) {
 		if (e->type() != QEvent::KeyPress
 			|| !_history
-			|| !session().supportHelper().fastButtonMode(_history->peer)
+			|| !FastButtonsMode()
+			|| !session().fastButtonsBots().enabled(_history->peer)
 			|| !_field->getLastText().isEmpty()) {
 			return base::EventFilterResult::Continue;
 		}

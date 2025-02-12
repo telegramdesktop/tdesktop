@@ -26,6 +26,7 @@ struct ConfigFields;
 namespace Support {
 class Helper;
 class Templates;
+class FastButtonsBots;
 } // namespace Support
 
 namespace Data {
@@ -233,6 +234,7 @@ public:
 	[[nodiscard]] bool supportMode() const;
 	[[nodiscard]] Support::Helper &supportHelper() const;
 	[[nodiscard]] Support::Templates &supportTemplates() const;
+	[[nodiscard]] Support::FastButtonsBots &fastButtonsBots() const;
 
 	[[nodiscard]] auto colorIndicesValue()
 		-> rpl::producer<Ui::ColorIndicesCompressed>;
@@ -275,6 +277,7 @@ private:
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
+	const std::unique_ptr<Support::FastButtonsBots> _fastButtonsBots;
 
 	std::shared_ptr<QImage> _selfUserpicView;
 	rpl::variable<bool> _premiumPossible = false;

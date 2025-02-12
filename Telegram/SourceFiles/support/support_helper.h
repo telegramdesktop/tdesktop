@@ -65,11 +65,6 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> user);
 
-	[[nodiscard]] bool fastButtonMode(not_null<PeerData*> peer) const;
-	[[nodiscard]] rpl::producer<bool> fastButtonModeValue(
-		not_null<PeerData*> peer) const;
-	void setFastButtonMode(not_null<PeerData*> peer, bool fast);
-
 	Templates &templates();
 
 private:
@@ -97,10 +92,7 @@ private:
 		TextWithEntities text,
 		Fn<void(bool success)> done);
 
-	void writeFastButtonModeBots();
-	void readFastButtonModeBots();
-
-	not_null<Main::Session*> _session;
+	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	Templates _templates;
 	QString _supportName;
@@ -117,11 +109,28 @@ private:
 		base::weak_ptr<Window::SessionController>> _userInfoEditPending;
 	base::flat_map<not_null<UserData*>, SavingInfo> _userInfoSaving;
 
-	base::flat_set<PeerId> _fastButtonModeBots;
-	rpl::event_stream<PeerId> _fastButtonModeBotsChanges;
-	bool _readFastButtonModeBots = false;
-
 	rpl::lifetime _lifetime;
+
+};
+
+class FastButtonsBots final {
+public:
+	explicit FastButtonsBots(not_null<Main::Session*> session);
+
+	[[nodiscard]] bool enabled(not_null<PeerData*> peer) const;
+	[[nodiscard]] rpl::producer<bool> enabledValue(
+		not_null<PeerData*> peer) const;
+	void setEnabled(not_null<PeerData*> peer, bool value);
+
+private:
+	void write();
+	void read();
+
+	const not_null<Main::Session*> _session;
+
+	base::flat_set<PeerId> _bots;
+	rpl::event_stream<PeerId> _changes;
+	bool _read = false;
 
 };
 
