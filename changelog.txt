@@ -1,3 +1,9 @@
+5.11 (12.02.25)
+
+- Copy video links at current time.
+- Set custom video covers when posting to channels.
+- Send paid reactions from the name of your channels.
+
 5.10.8 beta (12.02.25)
 
 - Edit keyboard shortcuts in Settings > Chat Settings.

@@ -1901,7 +1901,7 @@ void Gif::updateStatusText() const {
 				statusSize = -1 - int((state.length - position) / state.frequency + 1);
 			}
 			_videoPosition = std::max(
-				position * crl::time(1000) / state.frequency,
+				crl::time(position * crl::time(1000) / state.frequency),
 				crl::time(1));
 		} else {
 			if (!frozen) {
