@@ -1,3 +1,9 @@
+5.10.8 beta (12.02.25)
+
+- Edit keyboard shortcuts in Settings > Chat Settings.
+- Hide controls in calls with incoming video.
+- Fix several crashes.
+
 5.10.7 (27.01.25)
 
 - Fix some phrases for collectible gifts.
