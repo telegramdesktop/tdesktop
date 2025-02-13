@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#include <qpa/qplatformintegration.h>
+#include <private/qguiapplication_p.h>
+
 namespace Settings {
 namespace {
 
@@ -381,6 +384,7 @@ struct Labeled {
 			}
 			const auto key = static_cast<QKeyEvent*>(e.get());
 			const auto m = key->modifiers();
+			const auto integration = QGuiApplicationPrivate::platformIntegration();
 			const auto k = key->key();
 			const auto clear = !m
 				&& (k == Qt::Key_Backspace || k == Qt::Key_Delete);
@@ -396,7 +400,19 @@ struct Labeled {
 				}
 				return base::EventFilterResult::Cancel;
 			}
-			stopRecording(clear ? QKeySequence() : QKeySequence(k | m));
+			const auto r = [&] {
+				auto result = k;
+				if (m & Qt::ShiftModifier) {
+					const auto keys = integration->possibleKeys(key);
+					for (const auto possible : keys) {
+						if (possible > m) {
+							return possible - m;
+						}
+					}
+				}
+				return result;
+			}();
+			stopRecording(clear ? QKeySequence() : QKeySequence(r | m));
 			return base::EventFilterResult::Cancel;
 		} else if (type == QEvent::KeyPress && state->recording.current()) {
 			if (!content->window()->isActiveWindow()) {
