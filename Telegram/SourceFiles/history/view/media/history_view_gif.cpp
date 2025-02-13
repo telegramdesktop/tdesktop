@@ -1887,7 +1887,7 @@ void Gif::updateStatusText() const {
 	const auto round = activeRoundStreamed();
 	const auto own = activeOwnStreamed();
 	if (round || (own && _data->isVideoFile())) {
-		const auto frozen = !own->frozenFrame.isNull();
+		const auto frozen = own && !own->frozenFrame.isNull();
 		const auto streamed = round ? round : &own->instance;
 		const auto state = streamed->player().prepareLegacyState();
 		if (state.length) {
