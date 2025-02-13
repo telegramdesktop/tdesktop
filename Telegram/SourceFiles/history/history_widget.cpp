@@ -1015,6 +1015,18 @@ void HistoryWidget::refreshJoinChannelText() {
 	}
 }
 
+void HistoryWidget::refreshGiftToChannelShown() {
+	if (!_giftToChannelIn || !_giftToChannelOut) {
+		return;
+	}
+	const auto channel = _peer->asChannel();
+	const auto shown = channel
+		&& channel->isBroadcast()
+		&& channel->stargiftsAvailable();
+	_giftToChannelIn->setVisible(shown);
+	_giftToChannelOut->setVisible(shown);
+}
+
 void HistoryWidget::refreshTopBarActiveChat() {
 	const auto state = computeDialogsEntryState();
 	_topBar->setActiveChat(state, _history->sendActionPainter());
@@ -2036,17 +2048,22 @@ void HistoryWidget::setupShortcuts() {
 }
 
 void HistoryWidget::setupGiftToChannelButton() {
-	_giftToChannel = Ui::CreateChild<Ui::IconButton>(
-		_muteUnmute.data(),
-		st::historyGiftToChannel);
-	_muteUnmute->widthValue() | rpl::start_with_next([=](int width) {
-		_giftToChannel->moveToRight(0, 0);
-	}, _giftToChannel->lifetime());
-	_giftToChannel->setClickedCallback([=] {
-		if (_peer) {
-			Ui::ShowStarGiftBox(controller(), _peer);
-		}
-	});
+	const auto setupButton = [=](not_null<Ui::RpWidget*> parent) {
+		auto *button = Ui::CreateChild<Ui::IconButton>(
+			parent.get(),
+			st::historyGiftToChannel);
+		parent->widthValue() | rpl::start_with_next([=](int width) {
+			button->moveToRight(0, 0);
+		}, button->lifetime());
+		button->setClickedCallback([=] {
+			if (_peer) {
+				Ui::ShowStarGiftBox(controller(), _peer);
+			}
+		});
+		return button;
+	};
+	_giftToChannelIn = setupButton(_muteUnmute);
+	_giftToChannelOut = setupButton(_joinChannel);
 }
 
 void HistoryWidget::pushReplyReturn(not_null<HistoryItem*> item) {
@@ -2409,6 +2426,8 @@ void HistoryWidget::showHistory(
 		) | rpl::start_with_next([=] {
 			updateControlsGeometry();
 		}, _contactStatus->bar().lifetime());
+
+		refreshGiftToChannelShown();
 		if (const auto user = _peer->asUser()) {
 			_businessBotStatus = std::make_unique<BusinessBotStatus>(
 				controller(),
@@ -2418,8 +2437,6 @@ void HistoryWidget::showHistory(
 			) | rpl::start_with_next([=] {
 				updateControlsGeometry();
 			}, _businessBotStatus->bar().lifetime());
-		} else if (const auto channel = _peer->asChannel()) {
-			_giftToChannel->setVisible(channel->stargiftsAvailable());
 		}
 		orderWidgets();
 		controller()->tabbedSelector()->setCurrentPeer(_peer);
@@ -8372,10 +8389,7 @@ void HistoryWidget::fullInfoUpdated() {
 		if (readyForBotStart && clearMaybeSendStart() && hasNonEmpty) {
 			sendBotStartCommand();
 		}
-
-		if (const auto channel = _peer->asChannel()) {
-			_giftToChannel->setVisible(channel->stargiftsAvailable());
-		}
+		refreshGiftToChannelShown();
 	}
 	if (updateCmdStartShown()) {
 		refresh = true;
