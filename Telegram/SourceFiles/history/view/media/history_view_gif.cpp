@@ -607,7 +607,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		validateThumbCache({ usew, painth }, isRound, rounding);
 		p.drawImage(rthumb, _thumbCache);
 	}
-	paintTimestampMark(p, rthumb, rounding);
+	if (!isRound) {
+		paintTimestampMark(p, rthumb, rounding);
+	}
 
 	if (revealed < 1.) {
 		p.setOpacity(1. - revealed);
