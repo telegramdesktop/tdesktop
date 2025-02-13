@@ -1,3 +1,9 @@
+5.11.1 (13.02.25)
+
+- Fix arbitrary cropping support in the image editor.
+- Fix crash on round video message playback.
+- Fix complex custom keyboard shortcuts.
+
 5.11 (12.02.25)
 
 - Copy video links at current time.
