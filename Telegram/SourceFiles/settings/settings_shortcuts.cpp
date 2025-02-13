@@ -24,6 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <qpa/qplatformintegration.h>
 #include <private/qguiapplication_p.h>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#include <qpa/qplatformkeymapper.h>
+#endif
+
 namespace Settings {
 namespace {
 
@@ -401,14 +405,24 @@ struct Labeled {
 				return base::EventFilterResult::Cancel;
 			}
 			const auto r = [&] {
-				auto result = k;
+				auto result = int(k);
 				if (m & Qt::ShiftModifier) {
-					const auto keys = integration->possibleKeys(key);
-					for (const auto possible : keys) {
-						if (possible > m) {
-							return possible - m;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+					const auto mapper = integration->keyMapper();
+					const auto list = mapper->possibleKeyCombinations(key);
+					for (const auto &possible : list) {
+						if (possible.keyboardModifiers() == m) {
+							return int(possible.key());
 						}
 					}
+#else // Qt >= 6.7.0
+					const auto keys = integration->possibleKeys(key);
+					for (const auto possible : keys) {
+						if (possible > int(m)) {
+							return possible - int(m);
+						}
+					}
+#endif // Qt < 6.7.0
 				}
 				return result;
 			}();
