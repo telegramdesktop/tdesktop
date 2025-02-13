@@ -219,6 +219,33 @@ void SaveSlowmodeSeconds(
 	api->registerModifyRequest(key, requestId);
 }
 
+void SaveStarsPerMessage(
+		not_null<ChannelData*> channel,
+		int starsPerMessage,
+		Fn<void()> done) {
+	const auto api = &channel->session().api();
+	const auto key = Api::RequestKey("stars_per_message", channel->id);
+
+	const auto requestId = api->request(MTPchannels_UpdatePaidMessagesPrice(
+		channel->inputChannel,
+		MTP_long(starsPerMessage)
+	)).done([=](const MTPUpdates &result) {
+		api->clearModifyRequest(key);
+		api->applyUpdates(result);
+		channel->setStarsPerMessage(starsPerMessage);
+		done();
+	}).fail([=](const MTP::Error &error) {
+		api->clearModifyRequest(key);
+		if (error.type() != u"CHAT_NOT_MODIFIED"_q) {
+			return;
+		}
+		channel->setStarsPerMessage(starsPerMessage);
+		done();
+	}).send();
+
+	api->registerModifyRequest(key, requestId);
+}
+
 void SaveBoostsUnrestrict(
 		not_null<ChannelData*> channel,
 		int boostsUnrestrict,
@@ -271,6 +298,7 @@ void ShowEditPermissions(
 					channel,
 					result.boostsUnrestrict,
 					close);
+				SaveStarsPerMessage(channel, result.starsPerMessage, close);
 			}
 		};
 		auto done = [=](EditPeerPermissionsBoxResult result) {
@@ -282,7 +310,9 @@ void ShowEditPermissions(
 			const auto saveFor = peer->migrateToOrMe();
 			const auto chat = saveFor->asChat();
 			if (!chat
-				|| (!result.slowmodeSeconds && !result.boostsUnrestrict)) {
+				|| (!result.slowmodeSeconds
+					&& !result.boostsUnrestrict
+					&& !result.starsPerMessage)) {
 				save(saveFor, result);
 				return;
 			}

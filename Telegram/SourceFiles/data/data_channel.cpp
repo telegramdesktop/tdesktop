@@ -859,6 +859,21 @@ void ChannelData::growSlowmodeLastMessage(TimeId when) {
 	session().changes().peerUpdated(this, UpdateFlag::Slowmode);
 }
 
+int ChannelData::starsPerMessage() const {
+	if (const auto info = mgInfo.get()) {
+		return info->starsPerMessage;
+	}
+	return 0;
+}
+
+void ChannelData::setStarsPerMessage(int stars) {
+	if (!mgInfo || starsPerMessage() == stars) {
+		return;
+	}
+	mgInfo->starsPerMessage = stars;
+	session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+}
+
 int ChannelData::peerGiftsCount() const {
 	return _peerGiftsCount;
 }
@@ -1209,6 +1224,8 @@ void ApplyChannelUpdate(
 	} else {
 		channel->setLinkedChat(nullptr);
 	}
+	channel->setStarsPerMessage(
+		update.vsend_paid_messages_stars().value_or_empty());
 	if (const auto history = channel->owner().historyLoaded(channel)) {
 		if (const auto available = update.vavailable_min_id()) {
 			history->clearUpTill(available->v);

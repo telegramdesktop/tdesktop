@@ -179,6 +179,9 @@ public:
 	[[nodiscard]] bool canSendIgnoreRequirePremium() const;
 	[[nodiscard]] bool readDatesPrivate() const;
 
+	[[nodiscard]] int starsPerMessage() const;
+	void setStarsPerMessage(int stars);
+
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
 
@@ -268,6 +271,7 @@ private:
 	Data::Birthday _birthday;
 	int _commonChatsCount = 0;
 	int _peerGiftsCount = 0;
+	int _starsPerMessage = 0;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 

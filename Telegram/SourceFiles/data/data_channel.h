@@ -145,6 +145,8 @@ public:
 	int slowmodeSeconds = 0;
 	TimeId slowmodeLastMessage = 0;
 
+	int starsPerMessage = 0;
+
 private:
 	ChatData *_migratedFrom = nullptr;
 	ChannelLocation _location;
@@ -455,6 +457,9 @@ public:
 	void setSlowmodeSeconds(int seconds);
 	[[nodiscard]] TimeId slowmodeLastMessage() const;
 	void growSlowmodeLastMessage(TimeId when);
+
+	[[nodiscard]] int starsPerMessage() const;
+	void setStarsPerMessage(int stars);
 
 	[[nodiscard]] int peerGiftsCount() const;
 	void setPeerGiftsCount(int count);

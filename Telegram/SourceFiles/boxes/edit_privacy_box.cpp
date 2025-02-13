@@ -45,9 +45,9 @@ namespace {
 constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
 constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
 constexpr auto kGetPercent = 85;
-constexpr auto kStarsMin = 10;
+constexpr auto kStarsMin = 1;
 constexpr auto kStarsMax = 9000;
-constexpr auto kDefaultChargeStars = 200;
+constexpr auto kDefaultChargeStars = 10;
 
 using Exceptions = Api::UserPrivacy::Exceptions;
 
@@ -934,7 +934,9 @@ void EditMessagesPrivacyBox(
 	Ui::AddSkip(inner, st::messagePrivacyTopSkip);
 	Ui::AddSubsectionTitle(inner, tr::lng_messages_privacy_subtitle());
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(
-		(privacy->newRequirePremiumCurrent()
+		(!allowed()
+			? kOptionAll
+			: privacy->newRequirePremiumCurrent()
 			? kOptionPremium
 			: privacy->newChargeStarsCurrent()
 			? kOptionCharge
@@ -984,66 +986,17 @@ void EditMessagesPrivacyBox(
 	const auto chargeInner = chargeWrap->entity();
 
 	Ui::AddSkip(chargeInner);
-	Ui::AddSubsectionTitle(chargeInner, tr::lng_messages_privacy_price());
 
 	struct State {
 		rpl::variable<int> stars;
 	};
 	const auto state = std::make_shared<State>();
 	const auto savedValue = privacy->newChargeStarsCurrent();
-	const auto chargeStars = savedValue ? savedValue : kDefaultChargeStars;
-	state->stars = chargeStars;
 
-	auto values = std::vector<int>();
-	if (chargeStars < kStarsMin) {
-		values.push_back(chargeStars);
-	}
-	for (auto i = kStarsMin; i < 100; ++i) {
-		values.push_back(i);
-	}
-	for (auto i = 100; i < 1000; i += 10) {
-		if (i < chargeStars + 10 && chargeStars < i) {
-			values.push_back(chargeStars);
-		}
-		values.push_back(i);
-	}
-	for (auto i = 1000; i < kStarsMax + 1; i += 100) {
-		if (i < chargeStars + 100 && chargeStars < i) {
-			values.push_back(chargeStars);
-		}
-		values.push_back(i);
-	}
-	const auto valuesCount = int(values.size());
-	const auto setStars = [=](int value) {
-		state->stars = value;
-	};
-	chargeInner->add(
-		MakeChargeStarsSlider(
-			chargeInner,
-			&st::settingsScale,
-			&st::settingsScaleLabel,
-			valuesCount,
-			[=](int index) { return values[index]; },
-			chargeStars,
-			setStars,
-			setStars),
-		st::boxRowPadding);
-	Ui::AddSkip(chargeInner);
-
-	auto dollars = state->stars.value() | rpl::map([=](int stars) {
-		const auto ratio = controller->session().appConfig().get<float64>(
-			u"stars_usd_withdraw_rate_x1000"_q,
-			1200);
-		const auto dollars = int(base::SafeRound(stars * (ratio / 1000.)));
-		return '~' + Ui::FillAmountAndCurrency(dollars, u"USD"_q);
-	});
-	Ui::AddDividerText(
+	state->stars = SetupChargeSlider(
 		chargeInner,
-		tr::lng_messages_privacy_price_about(
-			lt_percent,
-			rpl::single(QString::number(kGetPercent) + '%'),
-			lt_amount,
-			std::move(dollars)));
+		controller->session().user(),
+		savedValue);
 
 	Ui::AddSkip(chargeInner);
 	Ui::AddSubsectionTitle(
@@ -1136,4 +1089,78 @@ void EditMessagesPrivacyBox(
 			box->closeBox();
 		});
 	}
+}
+
+rpl::producer<int> SetupChargeSlider(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<PeerData*> peer,
+		int savedValue) {
+	struct State {
+		rpl::variable<int> stars;
+	};
+	const auto group = !peer->isUser();
+	const auto state = container->lifetime().make_state<State>();
+	const auto chargeStars = savedValue ? savedValue : kDefaultChargeStars;
+	state->stars = chargeStars;
+
+	Ui::AddSubsectionTitle(container, group
+		? tr::lng_rights_charge_price()
+		: tr::lng_messages_privacy_price());
+
+	auto values = std::vector<int>();
+	if (chargeStars < kStarsMin) {
+		values.push_back(chargeStars);
+	}
+	for (auto i = kStarsMin; i < 100; ++i) {
+		values.push_back(i);
+	}
+	for (auto i = 100; i < 1000; i += 10) {
+		if (i < chargeStars + 10 && chargeStars < i) {
+			values.push_back(chargeStars);
+		}
+		values.push_back(i);
+	}
+	for (auto i = 1000; i < kStarsMax + 1; i += 100) {
+		if (i < chargeStars + 100 && chargeStars < i) {
+			values.push_back(chargeStars);
+		}
+		values.push_back(i);
+	}
+	const auto valuesCount = int(values.size());
+	const auto setStars = [=](int value) {
+		state->stars = value;
+	};
+	container->add(
+		MakeChargeStarsSlider(
+			container,
+			&st::settingsScale,
+			&st::settingsScaleLabel,
+			valuesCount,
+			[=](int index) { return values[index]; },
+			chargeStars,
+			setStars,
+			setStars),
+		st::boxRowPadding);
+
+	const auto skip = 2 * st::defaultVerticalListSkip;
+	Ui::AddSkip(container, skip);
+
+	auto dollars = state->stars.value() | rpl::map([=](int stars) {
+		const auto ratio = peer->session().appConfig().get<float64>(
+			u"stars_usd_withdraw_rate_x1000"_q,
+			1200);
+		const auto dollars = int(base::SafeRound(stars * (ratio / 1000.)));
+		return '~' + Ui::FillAmountAndCurrency(dollars, u"USD"_q);
+	});
+	Ui::AddDividerText(
+		container,
+		(group
+			? tr::lng_rights_charge_price_about
+			: tr::lng_messages_privacy_price_about)(
+			lt_percent,
+			rpl::single(QString::number(kGetPercent) + '%'),
+			lt_amount,
+			std::move(dollars)));
+
+	return state->stars.value();
 }

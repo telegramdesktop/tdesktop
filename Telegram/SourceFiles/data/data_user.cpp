@@ -532,6 +532,17 @@ bool UserData::readDatesPrivate() const {
 	return (flags() & UserDataFlag::ReadDatesPrivate);
 }
 
+int UserData::starsPerMessage() const {
+	return _starsPerMessage;
+}
+
+void UserData::setStarsPerMessage(int stars) {
+	if (_starsPerMessage != stars) {
+		_starsPerMessage = stars;
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+	}
+}
+
 bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
 }
@@ -722,6 +733,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setTranslationDisabled(update.is_translations_disabled());
 	user->setPrivateForwardName(
 		update.vprivate_forward_name().value_or_empty());
+	user->setStarsPerMessage(
+		update.vsend_paid_messages_stars().value_or_empty());
 
 	if (const auto info = user->botInfo.get()) {
 		const auto group = update.vbot_group_admin_rights()
