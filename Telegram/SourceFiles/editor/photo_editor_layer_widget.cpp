@@ -59,13 +59,14 @@ void OpenWithPreparedFile(
 	};
 	auto copy = image->data;
 	const auto fileImage = std::make_shared<Image>(std::move(copy));
+	const auto keepRatio = !exactSize.isEmpty();
 	auto editor = base::make_unique_q<PhotoEditor>(
 		parent,
 		show,
 		show,
 		fileImage,
 		image->modifications,
-		EditorData{ .exactSize = exactSize, .keepAspectRatio = true });
+		EditorData{ .exactSize = exactSize, .keepAspectRatio = keepRatio });
 	const auto raw = editor.get();
 	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
 	InitEditorLayer(layer.get(), raw, std::move(callback));
