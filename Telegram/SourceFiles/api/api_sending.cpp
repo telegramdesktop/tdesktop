@@ -95,6 +95,7 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name()
 		: QString();
+	const auto starsPaid = peer->commitStarsForMessage();
 
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -111,7 +112,7 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 		flags |= MessageFlag::InvertMedia;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
-	if (action.options.paidByStars) {
+	if (starsPaid) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 
@@ -133,7 +134,7 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
-			MTP_long(action.options.paidByStars)
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		api->sendMessageFail(error, peer, randomId);
@@ -194,6 +195,7 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}
 	const auto captionText = caption.text;
+	const auto starsPaid = peer->commitStarsForMessage();
 
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -210,7 +212,7 @@ void SendExistingMedia(
 		flags |= MessageFlag::InvertMedia;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
-	if (action.options.paidByStars) {
+	if (starsPaid) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 
@@ -248,7 +250,7 @@ void SendExistingMedia(
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(session, action.options.shortcutId),
 				MTP_long(action.options.effectId),
-				MTP_long(action.options.paidByStars)
+				MTP_long(starsPaid)
 			), [=](const MTPUpdates &result, const MTP::Response &response) {
 		}, [=](const MTP::Error &error, const MTP::Response &response) {
 			if (error.code() == 400
@@ -388,7 +390,8 @@ bool SendDice(MessageToSend &message) {
 		flags |= MessageFlag::InvertMedia;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
-	if (action.options.paidByStars) {
+	const auto starsPaid = peer->commitStarsForMessage();
+	if (starsPaid) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 
@@ -423,7 +426,7 @@ bool SendDice(MessageToSend &message) {
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
-			MTP_long(action.options.paidByStars)
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		api->sendMessageFail(error, peer, randomId, newId);

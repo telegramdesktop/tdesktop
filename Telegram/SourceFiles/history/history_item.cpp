@@ -5577,7 +5577,23 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto preparePaidMessage = [&](
 			const MTPDmessageActionPaidMessage &action) {
 		auto result = PreparedServiceText();
-		result.text.text = u"paid for message"_q; AssertIsDebug();
+		const auto stars = action.vstars().v;
+		if (_from->isSelf()) {
+			result.text = tr::lng_action_paid_message_sent(
+				tr::now,
+				lt_count,
+				stars,
+				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(_from->createOpenLink());
+			result.text = tr::lng_action_paid_message_got(
+				tr::now,
+				lt_count,
+				stars,
+				lt_name,
+				Ui::Text::Link(_from->shortName(), 1),
+				Ui::Text::WithEntities);
+		}
 		return result;
 	};
 

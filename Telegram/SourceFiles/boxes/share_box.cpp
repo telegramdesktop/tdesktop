@@ -1571,6 +1571,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				: topicRootId;
 			const auto peer = thread->peer();
 			const auto threadHistory = thread->owningHistory();
+			const auto starsPaid = peer->commitStarsForMessage();
 			histories.sendRequest(threadHistory, requestType, [=](
 					Fn<void()> finish) {
 				const auto session = &threadHistory->session();
@@ -1583,9 +1584,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					| (options.shortcutId
 						? Flag::f_quick_reply_shortcut
 						: Flag(0))
-					| (options.paidByStars
-						? Flag::f_allow_paid_stars
-						: Flag());
+					| (starsPaid ? Flag::f_allow_paid_stars : Flag());
 				threadHistory->sendRequestId = api.request(
 					MTPmessages_ForwardMessages(
 						MTP_flags(sendFlags),
@@ -1598,7 +1597,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						MTP_inputPeerEmpty(), // send_as
 						Data::ShortcutIdToMTP(session, options.shortcutId),
 						MTP_int(videoTimestamp.value_or(0)),
-						MTP_long(options.paidByStars)
+						MTP_long(starsPaid)
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					threadHistory->session().api().applyUpdates(updates);
 					state->requests.remove(reqId);

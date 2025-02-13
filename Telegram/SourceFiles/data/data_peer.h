@@ -268,6 +268,12 @@ public:
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canManageGroupCall() const;
 
+	[[nodiscard]] int starsPerMessage() const;
+	[[nodiscard]] int starsForMessageLocked() const;
+	void lockStarsForMessage();
+	[[nodiscard]] int commitStarsForMessage();
+	void cancelStarsForMessage();
+
 	[[nodiscard]] UserData *asBot();
 	[[nodiscard]] const UserData *asBot() const;
 	[[nodiscard]] UserData *asUser();

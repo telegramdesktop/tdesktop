@@ -3883,7 +3883,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_effect;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_effect;
 		}
-		if (action.options.paidByStars) {
+		const auto starsPaid = peer->commitStarsForMessage();
+		if (starsPaid) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_allow_paid_stars;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 		}
@@ -3943,7 +3944,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 					mtpShortcut,
 					MTP_long(action.options.effectId),
-					MTP_long(action.options.paidByStars)
+					MTP_long(starsPaid)
 				), done, fail);
 		} else {
 			histories.sendPreparedMessage(
@@ -3962,7 +3963,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 					mtpShortcut,
 					MTP_long(action.options.effectId),
-					MTP_long(action.options.paidByStars)
+					MTP_long(starsPaid)
 				), done, fail);
 		}
 		isFirst = false;
@@ -4059,7 +4060,8 @@ void ApiWrap::sendInlineResult(
 	if (action.options.hideViaBot) {
 		sendFlags |= SendFlag::f_hide_via;
 	}
-	if (action.options.paidByStars) {
+	const auto starsPaid = peer->commitStarsForMessage();
+	if (starsPaid) {
 		sendFlags |= SendFlag::f_allow_paid_stars;
 	}
 
@@ -4100,7 +4102,7 @@ void ApiWrap::sendInlineResult(
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
-			MTP_long(action.options.paidByStars)
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		history->finishSavingCloudDraft(
 			topicRootId,
@@ -4232,6 +4234,7 @@ void ApiWrap::sendMediaWithRandomId(
 		Fn<void(bool)> done) {
 	const auto history = item->history();
 	const auto replyTo = item->replyTo();
+	const auto peer = history->peer;
 
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
@@ -4241,6 +4244,7 @@ void ApiWrap::sendMediaWithRandomId(
 		Api::ConvertOption::SkipLocal);
 
 	const auto updateRecentStickers = Api::HasAttachedStickers(media);
+	const auto starsPaid = peer->commitStarsForMessage();
 
 	using Flag = MTPmessages_SendMedia::Flag;
 	const auto flags = Flag(0)
@@ -4254,10 +4258,9 @@ void ApiWrap::sendMediaWithRandomId(
 		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
 		| (options.effectId ? Flag::f_effect : Flag(0))
 		| (options.invertCaption ? Flag::f_invert_media : Flag(0))
-		| (options.paidByStars ? Flag::f_allow_paid_stars : Flag(0));
+		| (starsPaid ? Flag::f_allow_paid_stars : Flag(0));
 
 	auto &histories = history->owner().histories();
-	const auto peer = history->peer;
 	const auto itemId = item->fullId();
 	histories.sendPreparedMessage(
 		history,
@@ -4282,7 +4285,7 @@ void ApiWrap::sendMediaWithRandomId(
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
 			MTP_long(options.effectId),
-			MTP_long(options.paidByStars)
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (done) done(true);
 		if (updateRecentStickers) {
@@ -4311,6 +4314,7 @@ void ApiWrap::sendMultiPaidMedia(
 
 	const auto history = item->history();
 	const auto replyTo = item->replyTo();
+	const auto peer = history->peer;
 
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
@@ -4318,6 +4322,7 @@ void ApiWrap::sendMultiPaidMedia(
 		_session,
 		caption.entities,
 		Api::ConvertOption::SkipLocal);
+	const auto starsPaid = peer->commitStarsForMessage();
 
 	using Flag = MTPmessages_SendMedia::Flag;
 	const auto flags = Flag(0)
@@ -4331,10 +4336,9 @@ void ApiWrap::sendMultiPaidMedia(
 		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
 		| (options.effectId ? Flag::f_effect : Flag(0))
 		| (options.invertCaption ? Flag::f_invert_media : Flag(0))
-		| (options.paidByStars ? Flag::f_allow_paid_stars : Flag(0));
+		| (starsPaid ? Flag::f_allow_paid_stars : Flag(0));
 
 	auto &histories = history->owner().histories();
-	const auto peer = history->peer;
 	const auto itemId = item->fullId();
 	album->sent = true;
 	histories.sendPreparedMessage(
@@ -4358,7 +4362,7 @@ void ApiWrap::sendMultiPaidMedia(
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
 			MTP_long(options.effectId),
-			MTP_long(options.paidByStars)
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (const auto album = _sendingAlbums.take(groupId)) {
 			const auto copy = (*album)->items;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 
 #include "api/api_global_privacy.h"
+#include "data/components/credits.h"
 #include "data/data_changes.h"
 #include "data/data_channel_admins.h"
 #include "data/data_user.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
+#include "storage/storage_account.h"
 #include "ui/unread_badge.h"
 #include "window/notifications_manager.h"
 
@@ -861,7 +863,7 @@ void ChannelData::growSlowmodeLastMessage(TimeId when) {
 
 int ChannelData::starsPerMessage() const {
 	if (const auto info = mgInfo.get()) {
-		return info->starsPerMessage;
+		return info->_starsPerMessage;
 	}
 	return 0;
 }
@@ -870,8 +872,54 @@ void ChannelData::setStarsPerMessage(int stars) {
 	if (!mgInfo || starsPerMessage() == stars) {
 		return;
 	}
-	mgInfo->starsPerMessage = stars;
+	const auto removed = mgInfo->_starsPerMessage && !stars;
+	mgInfo->_starsPerMessage = stars;
 	session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+	if (removed) {
+		session().local().clearPeerTrusted(id);
+	}
+}
+
+int ChannelData::starsForMessageLocked() const {
+	if (const auto info = mgInfo.get()) {
+		return info->_starsForMessageLocked;
+	}
+	return 0;
+}
+
+void ChannelData::lockStarsForMessage() {
+	const auto info = mgInfo.get();
+	if (!info || info->_starsForMessageLocked == info->_starsPerMessage) {
+		return;
+	}
+	cancelStarsForMessage();
+	if (info->_starsPerMessage) {
+		info->_starsForMessageLocked = info->_starsPerMessage;
+		session().credits().lock(StarsAmount(info->_starsPerMessage));
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+	}
+}
+
+int ChannelData::commitStarsForMessage() {
+	const auto info = mgInfo.get();
+	if (!info) {
+		return 0;
+	} else if (const auto stars = base::take(info->_starsForMessageLocked)) {
+		session().credits().withdrawLocked(StarsAmount(stars));
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+		return stars;
+	}
+	return 0;
+}
+
+void ChannelData::cancelStarsForMessage() {
+	const auto info = mgInfo.get();
+	if (!info) {
+		return;
+	} else if (const auto stars = base::take(info->_starsForMessageLocked)) {
+		session().credits().unlock(StarsAmount(stars));
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+	}
 }
 
 int ChannelData::peerGiftsCount() const {

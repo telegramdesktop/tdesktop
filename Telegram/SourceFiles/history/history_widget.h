@@ -422,6 +422,8 @@ private:
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();
 	void reportSelectedMessages();
+	void payForMessage();
+	void payForMessageSure(bool trust = false);
 	void showKeyboardHideButton();
 	void toggleKeyboard(bool manual = true);
 	void startBotCommand();
@@ -640,6 +642,7 @@ private:
 	[[nodiscard]] bool isJoinChannel() const;
 	[[nodiscard]] bool isMuteUnmute() const;
 	[[nodiscard]] bool isReportMessages() const;
+	[[nodiscard]] bool isPayForMessage() const;
 	bool updateCmdStartShown();
 	void updateSendButtonType();
 	[[nodiscard]] bool showRecordButton() const;
@@ -778,6 +781,8 @@ private:
 	QPointer<Ui::IconButton> _giftToChannelIn;
 	QPointer<Ui::IconButton> _giftToChannelOut;
 	object_ptr<Ui::FlatButton> _reportMessages;
+	object_ptr<Ui::FlatButton> _payForMessage;
+	mutable rpl::variable<int> _payForMessageStars;
 	struct {
 		object_ptr<Ui::RoundButton> button = { nullptr };
 		QString text;

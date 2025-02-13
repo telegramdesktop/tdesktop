@@ -59,6 +59,7 @@ void Polls::create(
 		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
+	const auto starsPaid = peer->commitStarsForMessage();
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
@@ -71,7 +72,7 @@ void Polls::create(
 	if (action.options.effectId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
 	}
-	if (action.options.paidByStars) {
+	if (starsPaid) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 	const auto sendAs = action.options.sendAs;
@@ -97,7 +98,7 @@ void Polls::create(
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
-			MTP_long(action.options.paidByStars)
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(

@@ -855,6 +855,10 @@ historyComposeButton: FlatButton {
 		color: historyComposeButtonBgRipple;
 	}
 }
+historyComposeButtonText: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+}
 historyGiftToChannel: IconButton(defaultIconButton) {
 	width: 46px;
 	height: 46px;

@@ -200,12 +200,16 @@ struct SmallBalanceDeepLink {
 struct SmallBalanceStarGift {
 	PeerId recipientId;
 };
+struct SmallBalanceForMessage {
+	PeerId recipientId;
+};
 struct SmallBalanceSource : std::variant<
 	SmallBalanceBot,
 	SmallBalanceReaction,
 	SmallBalanceSubscription,
 	SmallBalanceDeepLink,
-	SmallBalanceStarGift> {
+	SmallBalanceStarGift,
+	SmallBalanceForMessage> {
 	using variant::variant;
 };
 

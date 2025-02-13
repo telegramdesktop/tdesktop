@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 #include "api/api_statistics.h"
 #include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/storage_user_photos.h"
 #include "main/main_session.h"
 #include "data/business/data_business_common.h"
@@ -538,7 +539,43 @@ int UserData::starsPerMessage() const {
 
 void UserData::setStarsPerMessage(int stars) {
 	if (_starsPerMessage != stars) {
+		const auto removed = _starsPerMessage && !stars;
 		_starsPerMessage = stars;
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+		if (removed) {
+			session().local().clearPeerTrusted(id);
+		}
+	}
+}
+
+int UserData::starsForMessageLocked() const {
+	return _starsForMessageLocked;
+}
+
+void UserData::lockStarsForMessage() {
+	if (_starsPerMessage == _starsForMessageLocked) {
+		return;
+	}
+	cancelStarsForMessage();
+	if (_starsPerMessage) {
+		_starsForMessageLocked = _starsPerMessage;
+		session().credits().lock(StarsAmount(_starsPerMessage));
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+	}
+}
+
+int UserData::commitStarsForMessage() {
+	if (const auto stars = base::take(_starsForMessageLocked)) {
+		session().credits().withdrawLocked(StarsAmount(stars));
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+		return stars;
+	}
+	return 0;
+}
+
+void UserData::cancelStarsForMessage() {
+	if (const auto stars = base::take(_starsForMessageLocked)) {
+		session().credits().unlock(StarsAmount(stars));
 		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
 	}
 }

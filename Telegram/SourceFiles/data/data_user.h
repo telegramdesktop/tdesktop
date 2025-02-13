@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/stars_amount.h"
+#include "data/components/credits.h"
 #include "data/data_birthday.h"
 #include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
@@ -179,8 +180,12 @@ public:
 	[[nodiscard]] bool canSendIgnoreRequirePremium() const;
 	[[nodiscard]] bool readDatesPrivate() const;
 
-	[[nodiscard]] int starsPerMessage() const;
 	void setStarsPerMessage(int stars);
+	[[nodiscard]] int starsPerMessage() const;
+	[[nodiscard]] int starsForMessageLocked() const;
+	void lockStarsForMessage();
+	[[nodiscard]] int commitStarsForMessage();
+	void cancelStarsForMessage();
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
@@ -272,6 +277,7 @@ private:
 	int _commonChatsCount = 0;
 	int _peerGiftsCount = 0;
 	int _starsPerMessage = 0;
+	int _starsForMessageLocked = 0;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 

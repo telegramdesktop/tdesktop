@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_bot_commands.h"
 #include "data/data_user_names.h"
 
+class ChannelData;
+
 struct ChannelLocation {
 	QString address;
 	Data::LocationPoint point;
@@ -145,13 +147,15 @@ public:
 	int slowmodeSeconds = 0;
 	TimeId slowmodeLastMessage = 0;
 
-	int starsPerMessage = 0;
-
 private:
 	ChatData *_migratedFrom = nullptr;
 	ChannelLocation _location;
 	Data::ChatBotCommands _botCommands;
 	std::unique_ptr<Data::Forum> _forum;
+	int _starsPerMessage = 0;
+	int _starsForMessageLocked = 0;
+
+	friend class ChannelData;
 
 };
 
@@ -458,8 +462,12 @@ public:
 	[[nodiscard]] TimeId slowmodeLastMessage() const;
 	void growSlowmodeLastMessage(TimeId when);
 
-	[[nodiscard]] int starsPerMessage() const;
 	void setStarsPerMessage(int stars);
+	[[nodiscard]] int starsPerMessage() const;
+	[[nodiscard]] int starsForMessageLocked() const;
+	void lockStarsForMessage();
+	[[nodiscard]] int commitStarsForMessage();
+	void cancelStarsForMessage();
 
 	[[nodiscard]] int peerGiftsCount() const;
 	void setPeerGiftsCount(int count);

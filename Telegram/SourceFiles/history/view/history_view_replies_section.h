@@ -348,6 +348,7 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<ComposeSearch> _composeSearch;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
+	std::unique_ptr<Ui::FlatButton> _payForMessage;
 	std::unique_ptr<TopicReopenBar> _topicReopenBar;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
 	bool _skipScrollEvent = false;

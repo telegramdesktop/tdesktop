@@ -904,7 +904,7 @@ void Form::submit() {
 	if (index < list.size() && password.isEmpty()) {
 		_updates.fire(TmpPasswordRequired{});
 		return;
-	} else if (!_session->local().isBotTrustedPayment(_details.botId)) {
+	} else if (!_session->local().isPeerTrustedPayment(_details.botId)) {
 		_updates.fire(BotTrustRequired{
 			.bot = _session->data().user(_details.botId),
 			.provider = _session->data().user(_details.providerId),
@@ -1307,7 +1307,7 @@ void Form::acceptTerms() {
 }
 
 void Form::trustBot() {
-	_session->local().markBotTrustedPayment(_details.botId);
+	_session->local().markPeerTrustedPayment(_details.botId);
 }
 
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {

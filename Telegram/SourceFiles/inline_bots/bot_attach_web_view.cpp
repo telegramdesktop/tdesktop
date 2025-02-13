@@ -1015,12 +1015,12 @@ void WebViewInstance::resolveApp(
 
 void WebViewInstance::confirmOpen(Fn<void()> done) {
 	if (_bot->isVerified()
-		|| _session->local().isBotTrustedOpenWebView(_bot->id)) {
+		|| _session->local().isPeerTrustedOpenWebView(_bot->id)) {
 		done();
 		return;
 	}
 	const auto callback = [=](Fn<void()> close) {
-		_session->local().markBotTrustedOpenWebView(_bot->id);
+		_session->local().markPeerTrustedOpenWebView(_bot->id);
 		close();
 		done();
 	};
@@ -1052,14 +1052,14 @@ void WebViewInstance::confirmAppOpen(
 		bool forceConfirmation) {
 	if (!forceConfirmation
 		&& (_bot->isVerified()
-			|| _session->local().isBotTrustedOpenWebView(_bot->id))) {
+			|| _session->local().isPeerTrustedOpenWebView(_bot->id))) {
 		done(writeAccess);
 		return;
 	}
 	_parentShow->show(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto allowed = std::make_shared<Ui::Checkbox*>();
 		const auto callback = [=](Fn<void()> close) {
-			_session->local().markBotTrustedOpenWebView(_bot->id);
+			_session->local().markPeerTrustedOpenWebView(_bot->id);
 			done((*allowed) && (*allowed)->checked());
 			close();
 		};
