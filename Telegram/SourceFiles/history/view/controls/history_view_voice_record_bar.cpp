@@ -1562,7 +1562,7 @@ void VoiceRecordBar::init() {
 			if (value == 0. && !show) {
 				_lock->hide();
 			} else if (value == 1. && show) {
-				computeAndSetLockProgress(QCursor::pos());
+				_lock->requestPaintProgress(calcLockProgress(QCursor::pos()));
 			}
 			if (_fullRecord && !show) {
 				updateTTLGeometry(TTLAnimationType::RightLeft, 1.);
@@ -1867,6 +1867,52 @@ void VoiceRecordBar::startRecording() {
 
 	_inField = true;
 
+	struct FloatingState {
+		Ui::Animations::Basic animation;
+		float64 animationProgress = 0;
+		float64 cursorProgress = 0;
+		bool lockCapturedByInput = false;
+		float64 frameCounter = 0;
+		rpl::lifetime lifetime;
+	};
+	const auto stateOwned
+		= _recordingLifetime.make_state<std::unique_ptr<FloatingState>>(
+			std::make_unique<FloatingState>());
+	const auto state = stateOwned->get();
+
+	_lock->locks() | rpl::start_with_next([=] {
+		stateOwned->reset();
+	}, state->lifetime);
+
+	constexpr auto kAnimationThreshold = 0.35;
+	const auto calcStateRatio = [=](float64 counter) {
+		return (1 - std::cos(std::fmod(counter, 2 * M_PI))) * 0.5;
+	};
+	state->animation.init([=](crl::time now) {
+		if (state->cursorProgress > kAnimationThreshold) {
+			state->lockCapturedByInput = true;
+		}
+		if (state->lockCapturedByInput) {
+			if (state->cursorProgress < 0.01) {
+				state->lockCapturedByInput = false;
+				state->frameCounter = 0;
+			} else {
+				_lock->requestPaintProgress(state->cursorProgress);
+				return;
+			}
+		}
+		const auto progress = anim::interpolateF(
+			state->cursorProgress,
+			kAnimationThreshold,
+			calcStateRatio(state->frameCounter));
+		state->frameCounter += 0.01;
+		_lock->requestPaintProgress(progress);
+	});
+	state->animation.start();
+	if (hasDuration()) {
+		stateOwned->reset();
+	}
+
 	_send->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
 		return (e->type() == QEvent::MouseMove
@@ -1887,7 +1933,10 @@ void VoiceRecordBar::startRecording() {
 			if (_showLockAnimation.animating() || !hasDuration()) {
 				return;
 			}
-			computeAndSetLockProgress(mouse->globalPos());
+			const auto inputProgress = calcLockProgress(mouse->globalPos());
+			if (inputProgress > state->animationProgress) {
+				state->cursorProgress = inputProgress;
+			}
 		} else if (type == QEvent::MouseButtonRelease) {
 			checkTipRequired();
 			stop(_inField.current());
@@ -2273,10 +2322,14 @@ float64 VoiceRecordBar::showListenAnimationRatio() const {
 }
 
 void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
+	_lock->requestPaintProgress(calcLockProgress(globalPos));
+}
+
+float64 VoiceRecordBar::calcLockProgress(QPoint globalPos) {
 	const auto localPos = mapFromGlobal(globalPos);
 	const auto lower = _lock->height();
 	const auto higher = 0;
-	_lock->requestPaintProgress(Progress(localPos.y(), higher - lower));
+	return Progress(localPos.y(), higher - lower);
 }
 
 bool VoiceRecordBar::peekTTLState() const {
