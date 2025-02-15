@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/calendar_box.h"
+#include "ui/boxes/choose_time.h"
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/file_utilities.h"
@@ -388,7 +389,7 @@ void SettingsWidget::addFormatAndLocationLabel(
 
 void SettingsWidget::addLimitsLabel(
 		not_null<Ui::VerticalLayout*> container) {
-	auto fromLink = value() | rpl::map([](const Settings &data) {
+	auto fromDateLink = value() | rpl::map([](const Settings &data) {
 		return data.singlePeerFrom;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](TimeId from) {
@@ -399,7 +400,34 @@ void SettingsWidget::addLimitsLabel(
 		) | Ui::Text::ToLink(u"internal:edit_from"_q);
 	}) | rpl::flatten_latest();
 
-	auto tillLink = value() | rpl::map([](const Settings &data) {
+	const auto mapToTime = [](TimeId id, const QString &link) {
+		return rpl::single(id
+			? QLocale().toString(
+				base::unixtime::parse(id).time(),
+				QLocale::ShortFormat)
+			: QString()
+		) | Ui::Text::ToLink(link);
+	};
+
+	const auto concat = [](TextWithEntities date, TextWithEntities link) {
+		return link.text.isEmpty()
+			? date
+			: date.append(u", "_q).append(std::move(link));
+	};
+
+	auto fromTimeLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerFrom;
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([=](TimeId from) {
+		return mapToTime(from, u"internal:edit_from_time"_q);
+	}) | rpl::flatten_latest();
+
+	auto fromLink = rpl::combine(
+		std::move(fromDateLink),
+		std::move(fromTimeLink)
+	) | rpl::map(concat);
+
+	auto tillDateLink = value() | rpl::map([](const Settings &data) {
 		return data.singlePeerTill;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](TimeId till) {
@@ -409,6 +437,18 @@ void SettingsWidget::addLimitsLabel(
 			: tr::lng_export_end()
 		) | Ui::Text::ToLink(u"internal:edit_till"_q);
 	}) | rpl::flatten_latest();
+
+	auto tillTimeLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerTill;
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([=](TimeId till) {
+		return mapToTime(till, u"internal:edit_till_time"_q);
+	}) | rpl::flatten_latest();
+
+	auto tillLink = rpl::combine(
+		std::move(tillDateLink),
+		std::move(tillTimeLink)
+	) | rpl::map(concat);
 
 	auto datesText = tr::lng_export_limits(
 		lt_from,
@@ -424,8 +464,47 @@ void SettingsWidget::addLimitsLabel(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(datesText),
-			st::exportLocationLabel),
+			st::boxLabel),
 		st::exportLimitsPadding);
+
+	const auto removeTime = [](TimeId dateTime) {
+		return base::unixtime::serialize(
+			QDateTime(
+				base::unixtime::parse(dateTime).date(),
+				QTime()));
+	};
+
+	const auto editTimeLimit = [=](Fn<TimeId()> now, Fn<void(TimeId)> done) {
+		_showBoxCallback(Box([=](not_null<Ui::GenericBox*> box) {
+			auto result = Ui::ChooseTimeWidget(
+				box->verticalLayout(),
+				[&] {
+					const auto time = base::unixtime::parse(now()).time();
+					return time.hour() * 3600
+						+ time.minute() * 60
+						+ time.second();
+				}(),
+				true);
+			const auto widget = box->addRow(std::move(result.widget));
+			const auto toSave = widget->lifetime().make_state<TimeId>(0);
+			std::move(
+				result.secondsValue
+			) | rpl::start_with_next([=](TimeId t) {
+				*toSave = t;
+			}, box->lifetime());
+			box->addButton(tr::lng_settings_save(), [=] {
+				done(*toSave);
+				box->closeBox();
+			});
+			box->addButton(tr::lng_cancel(), [=] {
+				box->closeBox();
+			});
+			box->setTitle(tr::lng_settings_ttl_after_custom());
+		}));
+	};
+
+	constexpr auto kOffset = 600;
+
 	label->overrideLinkClickHandler([=](const QString &url) {
 		if (url == u"internal:edit_from"_q) {
 			const auto done = [=](TimeId limit) {
@@ -439,10 +518,38 @@ void SettingsWidget::addLimitsLabel(
 				readData().singlePeerTill,
 				tr::lng_export_from_beginning(),
 				done);
+		} else if (url == u"internal:edit_from_time"_q) {
+			const auto now = [=] {
+				auto result = TimeId(0);
+				changeData([&](Settings &settings) {
+					result = settings.singlePeerFrom;
+				});
+				return result;
+			};
+			const auto done = [=](TimeId time) {
+				changeData([&](Settings &settings) {
+					const auto result = time
+						+ removeTime(settings.singlePeerFrom);
+					if (result >= settings.singlePeerTill
+							&& settings.singlePeerTill) {
+						settings.singlePeerFrom = settings.singlePeerTill
+							- kOffset;
+					} else {
+						settings.singlePeerFrom = result;
+					}
+				});
+			};
+			editTimeLimit(now, done);
 		} else if (url == u"internal:edit_till"_q) {
 			const auto done = [=](TimeId limit) {
 				changeData([&](Settings &settings) {
-					settings.singlePeerTill = limit;
+					if (limit <= settings.singlePeerFrom
+							&& settings.singlePeerFrom) {
+						settings.singlePeerTill = settings.singlePeerFrom
+							+ kOffset;
+					} else {
+						settings.singlePeerTill = limit;
+					}
 				});
 			};
 			editDateLimit(
@@ -451,6 +558,28 @@ void SettingsWidget::addLimitsLabel(
 				0,
 				tr::lng_export_till_end(),
 				done);
+		} else if (url == u"internal:edit_till_time"_q) {
+			const auto now = [=] {
+				auto result = TimeId(0);
+				changeData([&](Settings &settings) {
+					result = settings.singlePeerTill;
+				});
+				return result;
+			};
+			const auto done = [=](TimeId time) {
+				changeData([&](Settings &settings) {
+					const auto result = time
+						+ removeTime(settings.singlePeerTill);
+					if (result <= settings.singlePeerFrom
+							&& settings.singlePeerFrom) {
+						settings.singlePeerTill = settings.singlePeerFrom
+							+ kOffset;
+					} else {
+						settings.singlePeerTill = result;
+					}
+				});
+			};
+			editTimeLimit(now, done);
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
 		}
