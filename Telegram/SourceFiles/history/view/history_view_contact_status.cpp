@@ -308,6 +308,9 @@ void ContactStatus::Bar::showState(
 		_emojiStatusInfo->entity()->overrideLinkClickHandler([=] {
 			_emojiStatusClicks.fire({});
 		});
+		_emojiStatusInfo->entity()->setAnimationsPausedCallback([] {
+			return Ui::FlatLabel::WhichAnimationsPaused::CustomEmoji;
+		});
 	}
 	_emojiStatusInfo->setVisible(has);
 	_add->setText((type == Type::Add)
