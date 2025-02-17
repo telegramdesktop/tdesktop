@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Ui {
+class ElasticScroll;
 class RpWidget;
 class ScrollArea;
 } // namespace Ui
@@ -24,9 +25,14 @@ struct SwipeHandlerFinishData {
 	int64 msgBareId = 0;
 };
 
+using Scroll = std::variant<
+	v::null_t,
+	not_null<Ui::ScrollArea*>,
+	not_null<Ui::ElasticScroll*>>;
+
 void SetupSwipeHandler(
 	not_null<Ui::RpWidget*> widget,
-	not_null<Ui::ScrollArea*> scroll,
+	Scroll scroll,
 	Fn<void(ChatPaintGestureHorizontalData)> update,
 	Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinishByTop,
 	rpl::producer<bool> dontStart = nullptr);

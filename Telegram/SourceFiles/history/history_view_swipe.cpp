@@ -31,7 +31,7 @@ constexpr auto kSwipeSlow = 0.2;
 
 void SetupSwipeHandler(
 		not_null<Ui::RpWidget*> widget,
-		not_null<Ui::ScrollArea*> scroll,
+		Scroll scroll,
 		Fn<void(ChatPaintGestureHorizontalData)> update,
 		Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinish,
 		rpl::producer<bool> dontStart) {
@@ -88,10 +88,15 @@ void SetupSwipeHandler(
 	const auto setOrientation = [=](std::optional<Qt::Orientation> o) {
 		state->orientation = o;
 		const auto isHorizontal = (o == Qt::Horizontal);
-		scroll->viewport()->setAttribute(
-			Qt::WA_AcceptTouchEvents,
-			!isHorizontal);
-		scroll->disableScroll(isHorizontal);
+		v::match(scroll, [](v::null_t) {
+		}, [&](const auto &scroll) {
+			if (const auto viewport = scroll->viewport()) {
+				viewport->setAttribute(
+					Qt::WA_AcceptTouchEvents,
+					!isHorizontal);
+			}
+			scroll->disableScroll(isHorizontal);
+		});
 	};
 	const auto processEnd = [=](std::optional<QPointF> delta = {}) {
 		if (state->orientation == Qt::Horizontal) {
@@ -120,11 +125,14 @@ void SetupSwipeHandler(
 		state->startAt = {};
 		state->delta = {};
 	};
-	scroll->scrolls() | rpl::start_with_next([=] {
-		if (state->orientation != Qt::Vertical) {
-			processEnd();
-		}
-	}, state->lifetime);
+	v::match(scroll, [](v::null_t) {
+	}, [&](const auto &scroll) {
+		scroll->scrolls() | rpl::start_with_next([=] {
+			if (state->orientation != Qt::Vertical) {
+				processEnd();
+			}
+		}, state->lifetime);
+	});
 	const auto animationReachCallback = [=](float64 value) {
 		state->data.reachRatio = value;
 		update(state->data);
