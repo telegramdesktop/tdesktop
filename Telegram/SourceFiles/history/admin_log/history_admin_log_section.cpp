@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/admin_log/history_admin_log_inner.h"
 #include "history/admin_log/history_admin_log_filter.h"
+#include "history/history_view_swipe.h"
 #include "profile/profile_back_button.h"
 #include "core/shortcuts.h"
+#include "ui/chat/chat_style.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -341,6 +343,7 @@ Widget::Widget(
 	});
 
 	setupShortcuts();
+	setupSwipeReply();
 }
 
 void Widget::showFilter() {
@@ -414,6 +417,37 @@ void Widget::setupShortcuts() {
 			return true;
 		});
 	}, lifetime());
+}
+
+void Widget::setupSwipeReply() {
+	HistoryView::SetupSwipeHandler(this, _scroll.data(), [=](
+			HistoryView::ChatPaintGestureHorizontalData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = HistoryView::SetupSwipeBack(
+					this,
+					[=]() -> std::pair<QColor, QColor> {
+						auto context = _inner->preparePaintContext({});
+						return {
+							context.st->msgServiceBg()->c,
+							context.st->msgServiceFg()->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	}, [=](int, Qt::LayoutDirection direction) {
+		if (direction == Qt::RightToLeft) {
+			return HistoryView::SwipeHandlerFinishData{
+				.callback = [=] { controller()->showBackFromStack(); },
+				.msgBareId = HistoryView::kMsgBareIdSwipeBack,
+			};
+		}
+		return HistoryView::SwipeHandlerFinishData();
+	}, nullptr);
 }
 
 std::shared_ptr<Window::SectionMemento> Widget::createMemento() {

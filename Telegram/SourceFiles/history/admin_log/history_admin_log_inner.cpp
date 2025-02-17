@@ -1039,6 +1039,16 @@ void InnerWidget::restoreScrollPosition() {
 	_scrollToSignal.fire_copy(newVisibleTop);
 }
 
+Ui::ChatPaintContext InnerWidget::preparePaintContext(QRect clip) const {
+	return _controller->preparePaintContext({
+		.theme = _theme.get(),
+		.clip = clip,
+		.visibleAreaPositionGlobal = mapToGlobal(QPoint(0, _visibleTop)),
+		.visibleAreaTop = _visibleTop,
+		.visibleAreaWidth = width(),
+	});
+}
+
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	if (_controller->contentOverlapped(this, e)) {
 		return;
@@ -1051,13 +1061,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto clip = e->rect();
-	auto context = _controller->preparePaintContext({
-		.theme = _theme.get(),
-		.clip = clip,
-		.visibleAreaPositionGlobal = mapToGlobal(QPoint(0, _visibleTop)),
-		.visibleAreaTop = _visibleTop,
-		.visibleAreaWidth = width(),
-	});
+	auto context = preparePaintContext(clip);
 	if (_items.empty() && _upLoaded && _downLoaded) {
 		paintEmpty(p, context.st);
 	} else {
