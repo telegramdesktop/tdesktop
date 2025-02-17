@@ -1704,10 +1704,6 @@ ServiceAction ParseServiceAction(
 				.giftId = uint64(gift.vid().v),
 			};
 		});
-	}, [&](const MTPDmessageActionPaidMessage &data) {
-		result.content = ActionPaidMessage{
-			.stars = int64(data.vstars().v),
-		};
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

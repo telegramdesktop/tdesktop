@@ -662,10 +662,6 @@ struct ActionStarGift {
 	bool limited = false;
 };
 
-struct ActionPaidMessage {
-	int64 stars = 0;
-};
-
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -711,8 +707,7 @@ struct ServiceAction {
 		ActionPaymentRefunded,
 		ActionGiftStars,
 		ActionPrizeStars,
-		ActionStarGift,
-		ActionPaidMessage> content;
+		ActionStarGift> content;
 };
 
 ServiceAction ParseServiceAction(

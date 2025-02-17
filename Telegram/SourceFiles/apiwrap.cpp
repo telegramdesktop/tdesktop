@@ -4452,6 +4452,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	const auto history = sample->history();
 	const auto replyTo = sample->replyTo();
 	const auto sendAs = album->options.sendAs;
+	const auto starsPaid = history->peer->commitStarsForMessage();
 	using Flag = MTPmessages_SendMultiMedia::Flag;
 	const auto flags = Flag(0)
 		| (replyTo ? Flag::f_reply_to : Flag(0))
@@ -4464,7 +4465,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			? Flag::f_quick_reply_shortcut
 			: Flag(0))
 		| (album->options.effectId ? Flag::f_effect : Flag(0))
-		| (album->options.invertCaption ? Flag::f_invert_media : Flag(0));
+		| (album->options.invertCaption ? Flag::f_invert_media : Flag(0))
+		| (starsPaid ? Flag::f_allow_paid_stars : Flag(0));
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
 	album->sent = true;
@@ -4480,7 +4482,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			MTP_int(album->options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, album->options.shortcutId),
-			MTP_long(album->options.effectId)
+			MTP_long(album->options.effectId),
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		_sendingAlbums.remove(groupId);
 	}, [=](const MTP::Error &error, const MTP::Response &response) {

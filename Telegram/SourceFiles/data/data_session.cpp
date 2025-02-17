@@ -4690,7 +4690,8 @@ void Session::insertCheckedServiceNotification(
 				MTPint(), // quick_reply_shortcut_id
 				MTPlong(), // effect
 				MTPFactCheck(),
-				MTPint()), // report_delivery_until_date
+				MTPint(), // report_delivery_until_date
+				MTPlong()), // paid_message_stars
 			localFlags,
 			NewMessageType::Unread);
 	}
