@@ -48,6 +48,8 @@ void SetupSwipeHandler(
 		ChatPaintGestureHorizontalData data;
 		SwipeHandlerFinishData finishByTopData;
 		std::optional<Qt::Orientation> orientation;
+		std::optional<Qt::LayoutDirection> direction;
+		int directionInt = 1.;
 		QPointF startAt;
 		QPointF delta;
 		int cursorTop = 0;
@@ -75,7 +77,8 @@ void SetupSwipeHandler(
 			base::SafeRound(-overscrollRatio * threshold)
 		));
 		state->data.msgBareId = state->finishByTopData.msgBareId;
-		state->data.translation = translation;
+		state->data.translation = translation
+			* state->directionInt;
 		state->data.cursorTop = state->cursorTop;
 		update(state->data);
 	};
@@ -90,7 +93,9 @@ void SetupSwipeHandler(
 	const auto processEnd = [=](std::optional<QPointF> delta = {}) {
 		if (state->orientation == Qt::Horizontal) {
 			const auto ratio = std::clamp(
-				delta.value_or(state->delta).x() / threshold,
+				delta.value_or(state->delta).x()
+					/ threshold
+					* state->directionInt,
 				0.,
 				kMaxRatio);
 			if ((ratio >= 1) && state->finishByTopData.callback) {
@@ -108,6 +113,9 @@ void SetupSwipeHandler(
 		setOrientation(std::nullopt);
 		state->started = false;
 		state->reached = false;
+		state->direction = std::nullopt;
+		state->startAt = {};
+		state->delta = {};
 	};
 	scroll->scrolls() | rpl::start_with_next([=] {
 		if (state->orientation != Qt::Vertical) {
@@ -119,7 +127,19 @@ void SetupSwipeHandler(
 		update(state->data);
 	};
 	const auto updateWith = [=](UpdateArgs args) {
-		if (!state->started || state->touch != args.touch) {
+		if (!state->started
+			|| state->touch != args.touch
+			|| !state->direction) {
+			state->direction = (args.delta.x() == 0)
+				? std::nullopt
+				: args.delta.x() < 0
+				? std::make_optional(Qt::RightToLeft)
+				: std::make_optional(Qt::LeftToRight);
+			state->directionInt = (!state->direction
+					|| (*state->direction) == Qt::LeftToRight)
+				? 1
+				: -1;
+
 			state->started = true;
 			state->touch = args.touch;
 			state->startAt = args.position;
@@ -146,7 +166,9 @@ void SetupSwipeHandler(
 			}
 		} else if (*state->orientation == Qt::Horizontal) {
 			state->delta = args.delta;
-			const auto ratio = args.delta.x() / threshold;
+			const auto ratio = args.delta.x()
+				* state->directionInt
+				/ threshold;
 			updateRatio(ratio);
 			constexpr auto kResetReachedOn = 0.95;
 			constexpr auto kBounceDuration = crl::time(500);
