@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
+#include "history/history_view_swipe_back_session.h"
 #include "menu/menu_send.h" // SendMenu::Type.
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/tooltip.h"
@@ -245,6 +246,7 @@ ScheduledWidget::ScheduledWidget(
 		_inner->setEmptyInfoWidget(std::move(emptyInfo));
 	}
 	setupComposeControls();
+	Window::SetupSwipeBackSection(this, _scroll, _inner);
 }
 
 ScheduledWidget::~ScheduledWidget() = default;
