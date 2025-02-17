@@ -705,25 +705,22 @@ void Widget::setupSwipeBack() {
 				&& !controller()->openedFolder().current())) {
 			return HistoryView::SwipeHandlerFinishData();
 		}
-		return HistoryView::SwipeHandlerFinishData{
-			.callback = [=] {
-				_swipeBackData = {};
-				if (const auto forum = controller()->shownForum().current()) {
-					const auto id = controller()->windowId();
-					const auto initial = id.forum();
-					if (!initial) {
-						controller()->closeForum();
-					} else if (initial != forum) {
-						controller()->showForum(initial);
-					}
-				} else if (controller()->openedFolder().current()) {
-					if (!controller()->windowId().folder()) {
-						controller()->closeFolder();
-					}
+		return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			_swipeBackData = {};
+			if (const auto forum = controller()->shownForum().current()) {
+				const auto id = controller()->windowId();
+				const auto initial = id.forum();
+				if (!initial) {
+					controller()->closeForum();
+				} else if (initial != forum) {
+					controller()->showForum(initial);
 				}
-			},
-			.msgBareId = HistoryView::kMsgBareIdSwipeBack,
-		};
+			} else if (controller()->openedFolder().current()) {
+				if (!controller()->windowId().folder()) {
+					controller()->closeFolder();
+				}
+			}
+		});
 	}, nullptr);
 
 }

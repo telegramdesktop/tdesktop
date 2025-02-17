@@ -563,10 +563,9 @@ void HistoryInner::setupSwipeReplyAndBack() {
 			int cursorTop,
 			Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
-			return HistoryView::SwipeHandlerFinishData{
-				.callback = [=] { _controller->showBackFromStack(); },
-				.msgBareId = HistoryView::kMsgBareIdSwipeBack,
-			};
+			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+				_controller->showBackFromStack();
+			});
 		}
 		auto result = HistoryView::SwipeHandlerFinishData();
 		if (inSelectionMode().inSelectionMode

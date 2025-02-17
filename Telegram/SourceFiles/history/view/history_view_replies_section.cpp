@@ -927,10 +927,9 @@ void RepliesWidget::setupSwipeReplyAndBack() {
 			int cursorTop,
 			Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
-			return HistoryView::SwipeHandlerFinishData{
-				.callback = [=] { controller()->showBackFromStack(); },
-				.msgBareId = HistoryView::kMsgBareIdSwipeBack,
-			};
+			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+				controller()->showBackFromStack();
+			});
 		}
 		auto result = HistoryView::SwipeHandlerFinishData();
 		if (_inner->elementInSelectionMode(nullptr).inSelectionMode) {

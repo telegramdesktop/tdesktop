@@ -27,6 +27,9 @@ namespace {
 
 constexpr auto kSwipeSlow = 0.2;
 
+constexpr auto kMsgBareIdSwipeBack = std::numeric_limits<int64>::max() - 77;
+constexpr auto kSwipedBackSpeedRatio = 0.35;
+
 } // namespace
 
 void SetupSwipeHandler(
@@ -37,7 +40,6 @@ void SetupSwipeHandler(
 		rpl::producer<bool> dontStart) {
 	constexpr auto kThresholdWidth = 50;
 	constexpr auto kMaxRatio = 1.5;
-	const auto threshold = style::ConvertFloatScale(kThresholdWidth);
 	struct UpdateArgs {
 		QPoint globalCursor;
 		QPointF position;
@@ -52,6 +54,7 @@ void SetupSwipeHandler(
 		SwipeHandlerFinishData finishByTopData;
 		std::optional<Qt::Orientation> orientation;
 		std::optional<Qt::LayoutDirection> direction;
+		float64 threshold = style::ConvertFloatScale(kThresholdWidth);
 		int directionInt = 1.;
 		QPointF startAt;
 		QPointF delta;
@@ -75,9 +78,9 @@ void SetupSwipeHandler(
 		state->data.ratio = ratio;
 		const auto overscrollRatio = std::max(ratio - 1., 0.);
 		const auto translation = int(
-			base::SafeRound(-std::min(ratio, 1.) * threshold)
+			base::SafeRound(-std::min(ratio, 1.) * state->threshold)
 		) + Ui::OverscrollFromAccumulated(int(
-			base::SafeRound(-overscrollRatio * threshold)
+			base::SafeRound(-overscrollRatio * state->threshold)
 		));
 		state->data.msgBareId = state->finishByTopData.msgBareId;
 		state->data.translation = translation
@@ -102,7 +105,7 @@ void SetupSwipeHandler(
 		if (state->orientation == Qt::Horizontal) {
 			const auto ratio = std::clamp(
 				delta.value_or(state->delta).x()
-					/ threshold
+					/ state->threshold
 					* state->directionInt,
 				0.,
 				kMaxRatio);
@@ -159,6 +162,8 @@ void SetupSwipeHandler(
 			state->finishByTopData = generateFinish(
 				state->cursorTop,
 				state->direction.value_or(Qt::RightToLeft));
+			state->threshold = style::ConvertFloatScale(kThresholdWidth)
+				* state->finishByTopData.speedRatio;
 			if (!state->finishByTopData.callback) {
 				setOrientation(Qt::Vertical);
 			}
@@ -180,7 +185,7 @@ void SetupSwipeHandler(
 			state->delta = args.delta;
 			const auto ratio = args.delta.x()
 				* state->directionInt
-				/ threshold;
+				/ state->threshold;
 			updateRatio(ratio);
 			constexpr auto kResetReachedOn = 0.95;
 			constexpr auto kBounceDuration = crl::time(500);
@@ -412,6 +417,15 @@ SwipeBackResult SetupSwipeBack(
 		}
 	});
 	return { std::move(lifetime), std::move(callback) };
+}
+
+SwipeHandlerFinishData DefaultSwipeBackHandlerFinishData(
+		Fn<void(void)> callback) {
+	return {
+		.callback = std::move(callback),
+		.msgBareId = kMsgBareIdSwipeBack,
+		.speedRatio = kSwipedBackSpeedRatio,
+	};
 }
 
 } // namespace HistoryView

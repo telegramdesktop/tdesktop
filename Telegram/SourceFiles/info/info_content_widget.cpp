@@ -408,10 +408,9 @@ void ContentWidget::setupSwipeReply() {
 			|| direction != Qt::RightToLeft) {
 			return HistoryView::SwipeHandlerFinishData();
 		}
-		return HistoryView::SwipeHandlerFinishData{
-			.callback = [=] { _controller->showBackFromStack(); },
-			.msgBareId = HistoryView::kMsgBareIdSwipeBack,
-		};
+		return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			_controller->showBackFromStack();
+		});
 	}, nullptr);
 }
 

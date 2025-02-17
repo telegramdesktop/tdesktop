@@ -441,10 +441,9 @@ void Widget::setupSwipeReply() {
 		}
 	}, [=](int, Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
-			return HistoryView::SwipeHandlerFinishData{
-				.callback = [=] { controller()->showBackFromStack(); },
-				.msgBareId = HistoryView::kMsgBareIdSwipeBack,
-			};
+			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+				controller()->showBackFromStack();
+			});
 		}
 		return HistoryView::SwipeHandlerFinishData();
 	}, nullptr);

@@ -18,11 +18,10 @@ namespace HistoryView {
 struct ChatPaintGestureHorizontalData;
 struct SwipeBackResult;
 
-constexpr auto kMsgBareIdSwipeBack = std::numeric_limits<int64>::max() - 77;
-
 struct SwipeHandlerFinishData {
 	Fn<void(void)> callback;
 	int64 msgBareId = 0;
+	float64 speedRatio = 1.0;
 };
 
 using Scroll = std::variant<
@@ -37,8 +36,11 @@ void SetupSwipeHandler(
 	Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinishByTop,
 	rpl::producer<bool> dontStart = nullptr);
 
-SwipeBackResult SetupSwipeBack(
+[[nodiscard]] SwipeBackResult SetupSwipeBack(
 	not_null<Ui::RpWidget*> widget,
 	Fn<std::pair<QColor, QColor>()> colors);
+
+[[nodiscard]] SwipeHandlerFinishData DefaultSwipeBackHandlerFinishData(
+	Fn<void(void)> callback);
 
 } // namespace HistoryView

@@ -45,10 +45,9 @@ void SetupSwipeBackSection(
 		if (direction != Qt::RightToLeft) {
 			return HistoryView::SwipeHandlerFinishData();
 		}
-		return HistoryView::SwipeHandlerFinishData{
-			.callback = [=] { list->controller()->showBackFromStack(); },
-			.msgBareId = HistoryView::kMsgBareIdSwipeBack,
-		};
+		return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			list->controller()->showBackFromStack();
+		});
 	}, list->touchMaybeSelectingValue());
 }
 
