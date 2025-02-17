@@ -407,7 +407,7 @@ RepliesWidget::RepliesWidget(
 
 	setupTopicViewer();
 	setupComposeControls();
-	setupSwipeReply();
+	setupSwipeReplyAndBack();
 	orderWidgets();
 
 	if (_pinnedBar) {
@@ -877,7 +877,7 @@ void RepliesWidget::setupComposeControls() {
 	}
 }
 
-void RepliesWidget::setupSwipeReply() {
+void RepliesWidget::setupSwipeReplyAndBack() {
 	const auto can = [=](not_null<HistoryItem*> still) {
 		const auto canSendReply = _topic
 			? Data::CanSendAnything(_topic)
@@ -892,6 +892,25 @@ void RepliesWidget::setupSwipeReply() {
 	};
 	HistoryView::SetupSwipeHandler(_inner, _scroll.get(), [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = HistoryView::SetupSwipeBack(
+					this,
+					[=]() -> std::pair<QColor, QColor> {
+						const auto context = listPreparePaintContext({
+							.theme = listChatTheme(),
+						});
+						return {
+							context.st->msgServiceBg()->c,
+							context.st->msgServiceFg()->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
 		const auto changed = (_gestureHorizontal.msgBareId != data.msgBareId)
 			|| (_gestureHorizontal.translation != data.translation)
 			|| (_gestureHorizontal.reachRatio != data.reachRatio);
@@ -907,6 +926,12 @@ void RepliesWidget::setupSwipeReply() {
 	}, [=, show = controller()->uiShow()](
 			int cursorTop,
 			Qt::LayoutDirection direction) {
+		if (direction == Qt::RightToLeft) {
+			return HistoryView::SwipeHandlerFinishData{
+				.callback = [=] { controller()->showBackFromStack(); },
+				.msgBareId = HistoryView::kMsgBareIdSwipeBack,
+			};
+		}
 		auto result = HistoryView::SwipeHandlerFinishData();
 		if (_inner->elementInSelectionMode(nullptr).inSelectionMode) {
 			return result;

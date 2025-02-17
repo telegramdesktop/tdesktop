@@ -234,7 +234,7 @@ private:
 	void finishSending();
 
 	void setupComposeControls();
-	void setupSwipeReply();
+	void setupSwipeReplyAndBack();
 
 	void setupRoot();
 	void setupRootView();
@@ -394,6 +394,7 @@ private:
 	rpl::lifetime _topicLifetime;
 
 	HistoryView::ChatPaintGestureHorizontalData _gestureHorizontal;
+	HistoryView::SwipeBackResult _swipeBackData;
 
 	SendPaymentHelper _sendPayment;
 
