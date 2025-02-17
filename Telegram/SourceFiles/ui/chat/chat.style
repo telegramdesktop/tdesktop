@@ -1245,3 +1245,5 @@ newPeerUserpics: GroupCallUserpics {
 }
 newPeerUserpicsPadding: margins(0px, 3px, 0px, 0px);
 newPeerWidth: 320px;
+
+swipeBackSize: 150px;

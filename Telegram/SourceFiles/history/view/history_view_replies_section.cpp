@@ -904,7 +904,9 @@ void RepliesWidget::setupSwipeReply() {
 				_history->owner().requestItemRepaint(item);
 			}
 		}
-	}, [=, show = controller()->uiShow()](int cursorTop) {
+	}, [=, show = controller()->uiShow()](
+			int cursorTop,
+			Qt::LayoutDirection direction) {
 		auto result = HistoryView::SwipeHandlerFinishData();
 		if (_inner->elementInSelectionMode(nullptr).inSelectionMode) {
 			return result;

@@ -13,9 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "history/history_view_swipe_data.h"
 #include "ui/chat/chat_style.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/scroll_area.h"
+#include "styles/style_chat.h"
 
 #include <QtWidgets/QApplication>
 
@@ -30,7 +33,7 @@ void SetupSwipeHandler(
 		not_null<Ui::RpWidget*> widget,
 		not_null<Ui::ScrollArea*> scroll,
 		Fn<void(ChatPaintGestureHorizontalData)> update,
-		Fn<SwipeHandlerFinishData(int)> generateFinishByTop,
+		Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinish,
 		rpl::producer<bool> dontStart) {
 	constexpr auto kThresholdWidth = 50;
 	constexpr auto kMaxRatio = 1.5;
@@ -145,8 +148,9 @@ void SetupSwipeHandler(
 			state->startAt = args.position;
 			state->delta = QPointF();
 			state->cursorTop = widget->mapFromGlobal(args.globalCursor).y();
-			state->finishByTopData = generateFinishByTop(
-				state->cursorTop);
+			state->finishByTopData = generateFinish(
+				state->cursorTop,
+				state->direction.value_or(Qt::RightToLeft));
 			if (!state->finishByTopData.callback) {
 				setOrientation(Qt::Vertical);
 			}
@@ -277,6 +281,129 @@ void SetupSwipeHandler(
 	};
 	state->filter = base::make_unique_q<QObject>(
 		base::install_event_filter(widget, filter));
+}
+
+SwipeBackResult SetupSwipeBack(
+		not_null<Ui::RpWidget*> widget,
+		Fn<std::pair<QColor, QColor>()> colors) {
+	struct State {
+		base::unique_qptr<Ui::RpWidget> back;
+		ChatPaintGestureHorizontalData data;
+	};
+
+	constexpr auto kMaxRightOffset = 0.5;
+	constexpr auto kMaxLeftOffset = 0.8;
+	constexpr auto kIdealSize = 100;
+	const auto maxOffset = st::swipeBackSize * kMaxRightOffset;
+	const auto sizeRatio = st::swipeBackSize
+		/ style::ConvertFloatScale(kIdealSize);
+
+	auto lifetime = rpl::lifetime();
+	const auto state = lifetime.make_state<State>();
+
+	const auto paintCallback = [=] {
+		const auto [bg, fg] = colors();
+		const auto arrowPen = QPen(
+			fg,
+			st::lineWidth * 3 * sizeRatio,
+			Qt::SolidLine,
+			Qt::RoundCap);
+		return [=] {
+			auto p = QPainter(state->back);
+
+			constexpr auto kBouncePart = 0.25;
+			constexpr auto kStrokeWidth = 2.;
+			constexpr auto kWaveWidth = 10.;
+			const auto ratio = std::min(state->data.ratio, 1.);
+			const auto reachRatio = state->data.reachRatio;
+			const auto rect = state->back->rect()
+				- Margins(state->back->width() / 4);
+			const auto center = rect::center(rect);
+			const auto strokeWidth = style::ConvertFloatScale(kStrokeWidth)
+				* sizeRatio;
+
+			const auto reachScale = std::clamp(
+				(reachRatio > kBouncePart)
+					? (kBouncePart * 2 - reachRatio)
+					: reachRatio,
+				0.,
+				1.);
+			auto pen = QPen(bg);
+			pen.setWidthF(strokeWidth - (1. * (reachScale / kBouncePart)));
+			const auto arcRect = rect - Margins(strokeWidth);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setOpacity(ratio);
+			if (reachScale) {
+				const auto scale = (1. + 1. * reachScale);
+				p.translate(center);
+				p.scale(scale, scale);
+				p.translate(-center);
+			}
+			{
+				p.setPen(Qt::NoPen);
+				p.setBrush(bg);
+				p.drawEllipse(rect);
+				p.drawEllipse(rect);
+				p.setPen(arrowPen);
+				p.setBrush(Qt::NoBrush);
+				const auto halfSize = rect.width() / 2;
+				const auto arrowSize = halfSize / 2;
+				const auto arrowHalf = arrowSize / 2;
+				const auto arrowX = st::swipeBackSize / 8
+					+ rect.x()
+					+ halfSize
+					- arrowHalf;
+				const auto arrowY = rect.y() + halfSize;
+
+				auto arrowPath = QPainterPath();
+				arrowPath.moveTo(arrowX + arrowSize, arrowY);
+				arrowPath.lineTo(arrowX, arrowY);
+				arrowPath.lineTo(arrowX + arrowHalf, arrowY - arrowHalf);
+				arrowPath.moveTo(arrowX, arrowY);
+				arrowPath.lineTo(arrowX + arrowHalf, arrowY + arrowHalf);
+
+				p.drawPath(arrowPath);
+			}
+			if (reachRatio) {
+				p.setPen(pen);
+				p.setBrush(Qt::NoBrush);
+				const auto w = style::ConvertFloatScale(kWaveWidth)
+					* sizeRatio;
+				p.setOpacity(ratio - reachRatio);
+				p.drawArc(
+					arcRect + Margins(reachRatio * reachRatio * w),
+					arc::kQuarterLength,
+					arc::kFullLength);
+			}
+		};
+	};
+
+	const auto callback = ([=](ChatPaintGestureHorizontalData data) {
+		const auto ratio = std::min(1.0, data.ratio);
+		state->data = std::move(data);
+		if (ratio > 0) {
+			if (!state->back) {
+				state->back = base::make_unique_q<Ui::RpWidget>(widget);
+				const auto raw = state->back.get();
+				raw->paintRequest(
+				) | rpl::start_with_next(paintCallback(), raw->lifetime());
+				raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+				raw->resize(Size(st::swipeBackSize));
+				raw->show();
+				raw->raise();
+			}
+			state->back->moveToLeft(
+				anim::interpolate(
+					-st::swipeBackSize * kMaxLeftOffset,
+					maxOffset - st::swipeBackSize,
+					ratio),
+				(widget->height() - state->back->height()) / 2);
+			state->back->update();
+		} else if (state->back) {
+			state->back = nullptr;
+		}
+	});
+	return { std::move(lifetime), std::move(callback) };
 }
 
 } // namespace HistoryView

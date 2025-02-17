@@ -17,4 +17,9 @@ struct ChatPaintGestureHorizontalData {
 	int cursorTop = 0;
 };
 
+struct SwipeBackResult final {
+	rpl::lifetime lifetime;
+	Fn<void(ChatPaintGestureHorizontalData)> callback;
+};
+
 } // namespace HistoryView

@@ -15,6 +15,9 @@ class ScrollArea;
 namespace HistoryView {
 
 struct ChatPaintGestureHorizontalData;
+struct SwipeBackResult;
+
+constexpr auto kMsgBareIdSwipeBack = std::numeric_limits<int64>::max() - 77;
 
 struct SwipeHandlerFinishData {
 	Fn<void(void)> callback;
@@ -25,7 +28,11 @@ void SetupSwipeHandler(
 	not_null<Ui::RpWidget*> widget,
 	not_null<Ui::ScrollArea*> scroll,
 	Fn<void(ChatPaintGestureHorizontalData)> update,
-	Fn<SwipeHandlerFinishData(int)> generateFinishByTop,
+	Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinishByTop,
 	rpl::producer<bool> dontStart = nullptr);
+
+SwipeBackResult SetupSwipeBack(
+	not_null<Ui::RpWidget*> widget,
+	Fn<std::pair<QColor, QColor>()> colors);
 
 } // namespace HistoryView

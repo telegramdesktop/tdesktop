@@ -428,7 +428,7 @@ private:
 	void reactionChosen(const ChosenReaction &reaction);
 
 	void setupSharingDisallowed();
-	void setupSwipeReply();
+	void setupSwipeReplyAndBack();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
 	[[nodiscard]] bool hasCopyMediaRestriction(
 		not_null<HistoryItem*> item) const;
@@ -544,6 +544,7 @@ private:
 	base::Timer _touchScrollTimer;
 
 	HistoryView::ChatPaintGestureHorizontalData _gestureHorizontal;
+	HistoryView::SwipeBackResult _swipeBackData;
 
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;

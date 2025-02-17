@@ -440,7 +440,7 @@ HistoryInner::HistoryInner(
 	}, _scroll->lifetime());
 
 	setupSharingDisallowed();
-	setupSwipeReply();
+	setupSwipeReplyAndBack();
 }
 
 void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
@@ -523,12 +523,30 @@ void HistoryInner::setupSharingDisallowed() {
 	}, lifetime());
 }
 
-void HistoryInner::setupSwipeReply() {
-	if (_peer && _peer->isChannel() && !_peer->isMegagroup()) {
+void HistoryInner::setupSwipeReplyAndBack() {
+	if (!_peer) {
 		return;
 	}
+	const auto peer = _peer;
 	HistoryView::SetupSwipeHandler(this, _scroll, [=, history = _history](
 			HistoryView::ChatPaintGestureHorizontalData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = HistoryView::SetupSwipeBack(
+					_widget,
+					[=]() -> std::pair<QColor, QColor> {
+						auto context = preparePaintContext({});
+						return {
+							context.st->msgServiceBg()->c,
+							context.st->msgServiceFg()->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
 		const auto changed = (_gestureHorizontal.msgBareId != data.msgBareId)
 			|| (_gestureHorizontal.translation != data.translation)
 			|| (_gestureHorizontal.reachRatio != data.reachRatio);
@@ -541,9 +559,18 @@ void HistoryInner::setupSwipeReply() {
 				repaintItem(item);
 			}
 		}
-	}, [=, show = _controller->uiShow()](int cursorTop) {
+	}, [=, show = _controller->uiShow()](
+			int cursorTop,
+			Qt::LayoutDirection direction) {
+		if (direction == Qt::RightToLeft) {
+			return HistoryView::SwipeHandlerFinishData{
+				.callback = [=] { _controller->showBackFromStack(); },
+				.msgBareId = HistoryView::kMsgBareIdSwipeBack,
+			};
+		}
 		auto result = HistoryView::SwipeHandlerFinishData();
-		if (inSelectionMode().inSelectionMode) {
+		if (inSelectionMode().inSelectionMode
+			|| (peer->isChannel() && !peer->isMegagroup())) {
 			return result;
 		}
 		enumerateItems<EnumItemsDirection::BottomToTop>([&](
