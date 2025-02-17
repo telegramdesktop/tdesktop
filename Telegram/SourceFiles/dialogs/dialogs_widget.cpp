@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_view_swipe.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_requests_bar.h"
@@ -666,12 +667,65 @@ Widget::Widget(
 		setupMoreChatsBar();
 		setupDownloadBar();
 	}
+	setupSwipeBack();
 
 	if (session().settings().dialogsFiltersEnabled()
 		&& (Core::App().settings().chatFiltersHorizontal()
 			|| !controller->enoughSpaceForFilters())) {
 		toggleFiltersMenu(true);
 	}
+}
+
+void Widget::setupSwipeBack() {
+	HistoryView::SetupSwipeHandler(_scroll.data(), _scroll.data(), [=](
+			HistoryView::ChatPaintGestureHorizontalData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = HistoryView::SetupSwipeBack(
+					this,
+					[]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else {
+			if (_swipeBackData.lifetime) {
+				_swipeBackData = {};
+			}
+		}
+	}, [=](int, Qt::LayoutDirection direction) {
+		if ((direction != Qt::RightToLeft)
+			|| _childListShown.current()
+			|| (!controller()->isPrimary() && (_layout != Layout::Child))
+			|| (!controller()->shownForum().current()
+				&& !controller()->openedFolder().current())) {
+			return HistoryView::SwipeHandlerFinishData();
+		}
+		return HistoryView::SwipeHandlerFinishData{
+			.callback = [=] {
+				_swipeBackData = {};
+				if (const auto forum = controller()->shownForum().current()) {
+					const auto id = controller()->windowId();
+					const auto initial = id.forum();
+					if (!initial) {
+						controller()->closeForum();
+					} else if (initial != forum) {
+						controller()->showForum(initial);
+					}
+				} else if (controller()->openedFolder().current()) {
+					if (!controller()->windowId().folder()) {
+						controller()->closeFolder();
+					}
+				}
+			},
+			.msgBareId = HistoryView::kMsgBareIdSwipeBack,
+		};
+	}, nullptr);
+
 }
 
 void Widget::chosenRow(const ChosenRow &row) {

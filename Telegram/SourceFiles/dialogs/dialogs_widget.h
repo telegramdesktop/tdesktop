@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
+#include "history/history_view_swipe_data.h"
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/userpic_view.h"
@@ -206,6 +207,7 @@ private:
 	void setupDownloadBar();
 	void setupShortcuts();
 	void setupStories();
+	void setupSwipeBack();
 	void storiesExplicitCollapse();
 	void collectStoriesUserpicsViews(Data::StorySourcesList list);
 	void storiesToggleExplicitExpand(bool expand);
@@ -382,6 +384,8 @@ private:
 	std::vector<Data::ReactionId> _searchQueryTags;
 	ChatSearchTab _searchQueryTab = {};
 	ChatTypeFilter _searchQueryFilter = {};
+
+	HistoryView::SwipeBackResult _swipeBackData;
 
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;
