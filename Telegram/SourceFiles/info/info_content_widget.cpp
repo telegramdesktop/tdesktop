@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_layer_widget.h"
+#include "history/history_view_swipe.h"
 #include "info/info_section_widget.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
@@ -76,6 +77,8 @@ ContentWidget::ContentWidget(
 	) | rpl::start_with_next([this] {
 		updateControlsGeometry();
 	}, lifetime());
+
+	setupSwipeReply();
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
@@ -379,6 +382,37 @@ rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() {
 
 not_null<Ui::ScrollArea*> ContentWidget::scroll() const {
 	return _scroll.data();
+}
+
+void ContentWidget::setupSwipeReply() {
+	HistoryView::SetupSwipeHandler(this, _scroll.data(), [=](
+			HistoryView::ChatPaintGestureHorizontalData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = HistoryView::SetupSwipeBack(
+					this,
+					[]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	}, [=](int, Qt::LayoutDirection direction) {
+		if (_controller->wrap() != Wrap::Narrow
+			|| direction != Qt::RightToLeft) {
+			return HistoryView::SwipeHandlerFinishData();
+		}
+		return HistoryView::SwipeHandlerFinishData{
+			.callback = [=] { _controller->showBackFromStack(); },
+			.msgBareId = HistoryView::kMsgBareIdSwipeBack,
+		};
+	}, nullptr);
 }
 
 Key ContentMemento::key() const {

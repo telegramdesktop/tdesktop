@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_wrap_widget.h"
 #include "info/statistics/info_statistics_tag.h"
+#include "history/history_view_swipe_data.h"
 
 namespace Api {
 struct WhoReadList;
@@ -167,6 +168,7 @@ private:
 	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
 	void updateControlsGeometry();
 	void refreshSearchField(bool shown);
+	void setupSwipeReply();
 
 	virtual std::shared_ptr<ContentMemento> doCreateMemento() = 0;
 
@@ -189,6 +191,8 @@ private:
 
 	// To paint round edges from content.
 	style::margins _paintPadding;
+
+	HistoryView::SwipeBackResult _swipeBackData;
 
 };
 
