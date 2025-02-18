@@ -404,13 +404,24 @@ void ContentWidget::setupSwipeReply() {
 			_swipeBackData = {};
 		}
 	}, [=](int, Qt::LayoutDirection direction) {
-		if (_controller->wrap() != Wrap::Narrow
-			|| direction != Qt::RightToLeft) {
-			return HistoryView::SwipeHandlerFinishData();
-		}
-		return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
-			_controller->showBackFromStack();
-		});
+		const auto can = [&] {
+			using Type = Section::Type;
+			if (direction != Qt::RightToLeft) {
+				return false;
+			} else if (_controller->wrap() == Wrap::Side) {
+				return (_controller->section().type() != Type::Profile);
+			} else if (_controller->wrap() == Wrap::Narrow) {
+				return true;
+			} else {
+				return false;
+			}
+		}();
+
+		return !can
+			? HistoryView::SwipeHandlerFinishData()
+			: HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+				_controller->showBackFromStack();
+			});
 	}, nullptr);
 }
 
