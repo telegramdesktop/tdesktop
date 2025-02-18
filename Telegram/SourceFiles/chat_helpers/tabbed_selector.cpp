@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h" // AllowEmojiWithoutPremium.
 #include "boxes/premium_preview_box.h"
+#include "history/history_view_swipe.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -522,6 +523,7 @@ TabbedSelector::TabbedSelector(
 	if (hasEmojiTab()) {
 		emoji()->refreshEmoji();
 	}
+	setupSwipe();
 	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
@@ -529,6 +531,48 @@ TabbedSelector::TabbedSelector(
 }
 
 TabbedSelector::~TabbedSelector() = default;
+
+void TabbedSelector::setupSwipe() {
+	HistoryView::SetupSwipeHandler(this, _scroll.data(), [=](
+			HistoryView::ChatPaintGestureHorizontalData data) {
+		if (data.translation != 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = HistoryView::SetupSwipeBack(
+					this,
+					[=]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					},
+					data.translation < 0);
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	}, [=](int, Qt::LayoutDirection direction) {
+		if (!_tabsSlider) {
+			return HistoryView::SwipeHandlerFinishData();
+		}
+		const auto activeSection = _tabsSlider->activeSection();
+		const auto isToLeft = direction == Qt::RightToLeft;
+		if ((isToLeft && activeSection > 0)
+			|| (!isToLeft && activeSection < _tabs.size() - 1)) {
+			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+				if (_tabsSlider
+					&& _tabsSlider->activeSection() == activeSection) {
+					_swipeBackData = {};
+					_tabsSlider->setActiveSection(isToLeft
+						? activeSection - 1
+						: activeSection + 1);
+				}
+			});
+		}
+		return HistoryView::SwipeHandlerFinishData();
+	}, nullptr);
+}
 
 const style::EmojiPan &TabbedSelector::st() const {
 	return _st;
