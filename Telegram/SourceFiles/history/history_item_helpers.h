@@ -115,6 +115,7 @@ struct SendingErrorRequest {
 	const Data::Story *story = nullptr;
 	const TextWithTags *text = nullptr;
 	bool ignoreSlowmodeCountdown = false;
+	bool mediaMessage = false;
 };
 [[nodiscard]] Data::SendError GetErrorForSending(
 	not_null<PeerData*> peer,

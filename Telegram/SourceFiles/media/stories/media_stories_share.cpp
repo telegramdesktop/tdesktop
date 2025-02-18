@@ -111,29 +111,33 @@ namespace Media::Stories {
 			const auto threadPeer = thread->peer();
 			const auto threadHistory = thread->owningHistory();
 			const auto randomId = base::RandomValue<uint64>();
-			auto sendFlags = MTPmessages_SendMedia::Flags(0);
+			using SendFlag = MTPmessages_SendMedia::Flag;
+			auto sendFlags = SendFlag(0) | SendFlag(0);
 			if (action.replyTo) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
+				sendFlags |= SendFlag::f_reply_to;
 			}
 			const auto silentPost = ShouldSendSilent(threadPeer, options);
 			if (silentPost) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+				sendFlags |= SendFlag::f_silent;
 			}
 			if (options.scheduled) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+				sendFlags |= SendFlag::f_schedule_date;
 			}
 			if (options.shortcutId) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
+				sendFlags |= SendFlag::f_quick_reply_shortcut;
 			}
 			if (options.effectId) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+				sendFlags |= SendFlag::f_effect;
 			}
 			if (options.invertCaption) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+				sendFlags |= SendFlag::f_invert_media;
 			}
-			const auto starsPaid = peer->commitStarsForMessage();
+			const auto starsPaid = std::min(
+				peer->starsPerMessageChecked(),
+				options.starsApproved);
 			if (starsPaid) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+				options.starsApproved -= starsPaid;
+				sendFlags |= SendFlag::f_allow_paid_stars;
 			}
 			const auto done = [=] {
 				if (!--state->requests) {

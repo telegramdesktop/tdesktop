@@ -3883,8 +3883,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_effect;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_effect;
 		}
-		const auto starsPaid = peer->commitStarsForMessage();
+		const auto starsPaid = std::min(
+			peer->starsPerMessageChecked(),
+			action.options.starsApproved);
 		if (starsPaid) {
+			action.options.starsApproved -= starsPaid;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_allow_paid_stars;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 		}
@@ -4020,7 +4023,7 @@ void ApiWrap::sendBotStart(
 void ApiWrap::sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
-		const SendAction &action,
+		SendAction action,
 		std::optional<MsgId> localMessageId,
 		Fn<void(bool)> done) {
 	sendAction(action);
@@ -4060,8 +4063,11 @@ void ApiWrap::sendInlineResult(
 	if (action.options.hideViaBot) {
 		sendFlags |= SendFlag::f_hide_via;
 	}
-	const auto starsPaid = peer->commitStarsForMessage();
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
 	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
 		sendFlags |= SendFlag::f_allow_paid_stars;
 	}
 
@@ -4244,7 +4250,12 @@ void ApiWrap::sendMediaWithRandomId(
 		Api::ConvertOption::SkipLocal);
 
 	const auto updateRecentStickers = Api::HasAttachedStickers(media);
-	const auto starsPaid = peer->commitStarsForMessage();
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		options.starsApproved);
+	if (starsPaid) {
+		options.starsApproved -= starsPaid;
+	}
 
 	using Flag = MTPmessages_SendMedia::Flag;
 	const auto flags = Flag(0)
@@ -4304,7 +4315,7 @@ void ApiWrap::sendMultiPaidMedia(
 	Expects(album->options.price > 0);
 
 	const auto groupId = album->groupId;
-	const auto &options = album->options;
+	auto &options = album->options;
 	const auto randomId = album->items.front().randomId;
 	auto medias = album->items | ranges::view::transform([](
 			const SendingAlbum::Item &part) {
@@ -4322,7 +4333,12 @@ void ApiWrap::sendMultiPaidMedia(
 		_session,
 		caption.entities,
 		Api::ConvertOption::SkipLocal);
-	const auto starsPaid = peer->commitStarsForMessage();
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		options.starsApproved);
+	if (starsPaid) {
+		options.starsApproved -= starsPaid;
+	}
 
 	using Flag = MTPmessages_SendMedia::Flag;
 	const auto flags = Flag(0)
@@ -4452,7 +4468,12 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	const auto history = sample->history();
 	const auto replyTo = sample->replyTo();
 	const auto sendAs = album->options.sendAs;
-	const auto starsPaid = history->peer->commitStarsForMessage();
+	const auto starsPaid = std::min(
+		history->peer->starsPerMessageChecked(),
+		album->options.starsApproved);
+	if (starsPaid) {
+		album->options.starsApproved -= starsPaid;
+	}
 	using Flag = MTPmessages_SendMultiMedia::Flag;
 	const auto flags = Flag(0)
 		| (replyTo ? Flag::f_reply_to : Flag(0))

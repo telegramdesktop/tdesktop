@@ -184,10 +184,6 @@ public:
 
 	void setStarsPerMessage(int stars);
 	[[nodiscard]] int starsPerMessage() const;
-	[[nodiscard]] int starsForMessageLocked() const;
-	void lockStarsForMessage();
-	[[nodiscard]] int commitStarsForMessage();
-	void cancelStarsForMessage();
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
@@ -279,7 +275,6 @@ private:
 	int _commonChatsCount = 0;
 	int _peerGiftsCount = 0;
 	int _starsPerMessage = 0;
-	int _starsForMessageLocked = 0;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 

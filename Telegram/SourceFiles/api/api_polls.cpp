@@ -37,7 +37,7 @@ Polls::Polls(not_null<ApiWrap*> api)
 
 void Polls::create(
 		const PollData &data,
-		const SendAction &action,
+		SendAction action,
 		Fn<void()> done,
 		Fn<void()> fail) {
 	_session->api().sendAction(action);
@@ -59,7 +59,9 @@ void Polls::create(
 		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
-	const auto starsPaid = peer->commitStarsForMessage();
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
@@ -73,6 +75,7 @@ void Polls::create(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
 	}
 	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 	const auto sendAs = action.options.sendAs;

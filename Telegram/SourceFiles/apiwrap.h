@@ -368,7 +368,7 @@ public:
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
-		const SendAction &action,
+		SendAction action,
 		std::optional<MsgId> localMessageId,
 		Fn<void(bool)> done = nullptr);
 	void sendMessageFail(

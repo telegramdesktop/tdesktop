@@ -25,6 +25,7 @@ struct SendOptions {
 	TimeId scheduled = 0;
 	BusinessShortcutId shortcutId = 0;
 	EffectId effectId = 0;
+	int starsApproved = 0;
 	bool silent = false;
 	bool handleSupportSwitch = false;
 	bool invertCaption = false;

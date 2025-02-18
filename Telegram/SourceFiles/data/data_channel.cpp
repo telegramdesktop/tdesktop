@@ -880,48 +880,6 @@ void ChannelData::setStarsPerMessage(int stars) {
 	}
 }
 
-int ChannelData::starsForMessageLocked() const {
-	if (const auto info = mgInfo.get()) {
-		return info->_starsForMessageLocked;
-	}
-	return 0;
-}
-
-void ChannelData::lockStarsForMessage() {
-	const auto info = mgInfo.get();
-	if (!info || info->_starsForMessageLocked == info->_starsPerMessage) {
-		return;
-	}
-	cancelStarsForMessage();
-	if (info->_starsPerMessage) {
-		info->_starsForMessageLocked = info->_starsPerMessage;
-		session().credits().lock(StarsAmount(info->_starsPerMessage));
-		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-	}
-}
-
-int ChannelData::commitStarsForMessage() {
-	const auto info = mgInfo.get();
-	if (!info) {
-		return 0;
-	} else if (const auto stars = base::take(info->_starsForMessageLocked)) {
-		session().credits().withdrawLocked(StarsAmount(stars));
-		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-		return stars;
-	}
-	return 0;
-}
-
-void ChannelData::cancelStarsForMessage() {
-	const auto info = mgInfo.get();
-	if (!info) {
-		return;
-	} else if (const auto stars = base::take(info->_starsForMessageLocked)) {
-		session().credits().unlock(StarsAmount(stars));
-		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-	}
-}
-
 int ChannelData::peerGiftsCount() const {
 	return _peerGiftsCount;
 }

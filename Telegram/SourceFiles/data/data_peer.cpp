@@ -1459,38 +1459,13 @@ int PeerData::starsPerMessage() const {
 	return 0;
 }
 
-int PeerData::starsForMessageLocked() const {
-	if (const auto user = asUser()) {
-		return user->starsForMessageLocked();
-	} else if (const auto channel = asChannel()) {
-		return channel->starsForMessageLocked();
+int PeerData::starsPerMessageChecked() const {
+	if (const auto channel = asChannel()) {
+		return (channel->adminRights() || channel->amCreator())
+			? 0
+			: channel->starsPerMessage();
 	}
-	return 0;
-}
-
-void PeerData::lockStarsForMessage() {
-	if (const auto user = asUser()) {
-		user->lockStarsForMessage();
-	} else if (const auto channel = asChannel()) {
-		channel->lockStarsForMessage();
-	}
-}
-
-int PeerData::commitStarsForMessage() {
-	if (const auto user = asUser()) {
-		return user->commitStarsForMessage();
-	} else if (const auto channel = asChannel()) {
-		return channel->commitStarsForMessage();
-	}
-	return 0;
-}
-
-void PeerData::cancelStarsForMessage() {
-	if (const auto user = asUser()) {
-		user->cancelStarsForMessage();
-	} else if (const auto channel = asChannel()) {
-		channel->cancelStarsForMessage();
-	}
+	return starsPerMessage();
 }
 
 Data::GroupCall *PeerData::groupCall() const {

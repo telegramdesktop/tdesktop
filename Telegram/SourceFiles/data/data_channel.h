@@ -153,7 +153,6 @@ private:
 	Data::ChatBotCommands _botCommands;
 	std::unique_ptr<Data::Forum> _forum;
 	int _starsPerMessage = 0;
-	int _starsForMessageLocked = 0;
 
 	friend class ChannelData;
 
@@ -464,10 +463,6 @@ public:
 
 	void setStarsPerMessage(int stars);
 	[[nodiscard]] int starsPerMessage() const;
-	[[nodiscard]] int starsForMessageLocked() const;
-	void lockStarsForMessage();
-	[[nodiscard]] int commitStarsForMessage();
-	void cancelStarsForMessage();
 
 	[[nodiscard]] int peerGiftsCount() const;
 	void setPeerGiftsCount(int count);

@@ -95,8 +95,9 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name()
 		: QString();
-	const auto starsPaid = peer->commitStarsForMessage();
-
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
@@ -113,6 +114,7 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
 	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 
@@ -165,7 +167,7 @@ void SendExistingMedia(
 			? (*localMessageId)
 			: session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
-	const auto &action = message.action;
+	auto &action = message.action;
 
 	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
@@ -195,8 +197,9 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}
 	const auto captionText = caption.text;
-	const auto starsPaid = peer->commitStarsForMessage();
-
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
@@ -213,6 +216,7 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
 	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 
@@ -351,7 +355,7 @@ bool SendDice(MessageToSend &message) {
 	message.action.generateLocal = true;
 
 
-	const auto &action = message.action;
+	auto &action = message.action;
 	api->sendAction(action);
 
 	const auto newId = FullMsgId(
@@ -390,8 +394,11 @@ bool SendDice(MessageToSend &message) {
 		flags |= MessageFlag::InvertMedia;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
 	}
-	const auto starsPaid = peer->commitStarsForMessage();
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
 	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 

@@ -269,10 +269,7 @@ public:
 	[[nodiscard]] bool canManageGroupCall() const;
 
 	[[nodiscard]] int starsPerMessage() const;
-	[[nodiscard]] int starsForMessageLocked() const;
-	void lockStarsForMessage();
-	[[nodiscard]] int commitStarsForMessage();
-	void cancelStarsForMessage();
+	[[nodiscard]] int starsPerMessageChecked() const;
 
 	[[nodiscard]] UserData *asBot();
 	[[nodiscard]] const UserData *asBot() const;

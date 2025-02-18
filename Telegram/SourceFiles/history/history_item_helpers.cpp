@@ -93,10 +93,33 @@ Data::SendError GetErrorForSending(
 			return tr::lng_forward_cant(tr::now);
 		}
 	}
-	if (peer->slowmodeApplied()) {
-		const auto count = (hasText ? 1 : 0)
+	const auto countMessages = [&] {
+		auto result = 0;
+		if (hasText) {
+			auto sending = TextWithEntities();
+			auto left = TextWithEntities{
+				request.text->text,
+				TextUtilities::ConvertTextTagsToEntities(request.text->tags)
+			};
+			auto prepareFlags = Ui::ItemTextOptions(
+				thread->owningHistory(),
+				peer->session().user()).flags;
+			TextUtilities::PrepareForSending(left, prepareFlags);
+
+			while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+				++result;
+			}
+			if (!result) {
+				++result;
+			}
+		}
+		return result
 			+ (request.story ? 1 : 0)
+			+ (request.mediaMessage ? 1 : 0)
 			+ (request.forward ? int(request.forward->size()) : 0);
+	};
+	if (peer->slowmodeApplied()) {
+		const auto count = countMessages();
 		if (const auto history = peer->owner().historyLoaded(peer)) {
 			if (!request.ignoreSlowmodeCountdown
 				&& (history->latestSendingMessage() != nullptr)
@@ -135,6 +158,28 @@ Data::SendError GetErrorForSending(
 		}
 	}
 
+	if (const auto user = peer->asUser()) {
+		if (user->hasStarsPerMessage()
+			&& !user->messageMoneyRestrictionsKnown()) {
+			user->updateFull();
+			return Data::SendError({ .resolving = true });
+		}
+	} else if (const auto channel = peer->asChannel()) {
+		if (!channel->isFullLoaded()) {
+			channel->updateFull();
+			return Data::SendError({ .resolving = true });
+		}
+	}
+	if (!peer->session().credits().loaded()) {
+		peer->session().credits().load();
+		return Data::SendError({ .resolving = true });
+	} else if (const auto perMessage = peer->starsPerMessageChecked()) {
+		const auto count = countMessages();
+		return Data::SendError({
+			.paidStars = count * perMessage,
+			.paidMessages = count,
+		});
+	}
 	return {};
 }
 

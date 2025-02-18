@@ -115,6 +115,7 @@ class TTLButton;
 class WebpageProcessor;
 class CharactersLimitLabel;
 class PhotoEditSpoilerManager;
+struct VoiceToSend;
 } // namespace HistoryView::Controls
 
 class BotKeyboard;
@@ -318,6 +319,7 @@ protected:
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
+	using VoiceToSend = HistoryView::Controls::VoiceToSend;
 	enum ScrollChangeType {
 		ScrollChangeNone,
 
@@ -401,6 +403,7 @@ private:
 
 	[[nodiscard]] Api::SendAction prepareSendAction(
 		Api::SendOptions options) const;
+	void sendVoice(const VoiceToSend &data);
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
 	void sendScheduled(Api::SendOptions initialOptions);
@@ -422,7 +425,6 @@ private:
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();
 	void reportSelectedMessages();
-	void payForMessage();
 	void payForMessageSure(bool trust = false);
 	void showKeyboardHideButton();
 	void toggleKeyboard(bool manual = true);
@@ -468,7 +470,10 @@ private:
 		std::optional<bool> compress) const;
 	bool showSendMessageError(
 		const TextWithTags &textWithTags,
-		bool ignoreSlowmodeCountdown);
+		bool ignoreSlowmodeCountdown,
+		Fn<void(int starsApproved)> resend = nullptr,
+		int starsApproved = 0,
+		bool mediaMessage = false);
 
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,
@@ -642,7 +647,6 @@ private:
 	[[nodiscard]] bool isJoinChannel() const;
 	[[nodiscard]] bool isMuteUnmute() const;
 	[[nodiscard]] bool isReportMessages() const;
-	[[nodiscard]] bool isPayForMessage() const;
 	bool updateCmdStartShown();
 	void updateSendButtonType();
 	[[nodiscard]] bool showRecordButton() const;
@@ -761,6 +765,7 @@ private:
 	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 	std::unique_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
+	Fn<void()> _resendOnFullUpdated;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
@@ -781,8 +786,6 @@ private:
 	QPointer<Ui::IconButton> _giftToChannelIn;
 	QPointer<Ui::IconButton> _giftToChannelOut;
 	object_ptr<Ui::FlatButton> _reportMessages;
-	object_ptr<Ui::FlatButton> _payForMessage;
-	mutable rpl::variable<int> _payForMessageStars;
 	struct {
 		object_ptr<Ui::RoundButton> button = { nullptr };
 		QString text;

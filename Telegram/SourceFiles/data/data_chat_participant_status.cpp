@@ -17,10 +17,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "storage/storage_account.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/checkbox.h"
 #include "window/window_session_controller.h"
+#include "styles/style_widgets.h"
 
 namespace {
 
@@ -423,6 +428,61 @@ void ShowSendErrorToast(
 		.text = Ui::Text::Link(*error),
 		.filter = [=](const auto &...) { boost(); return false; },
 	});
+}
+
+void ShowSendPaidConfirm(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		SendError error,
+		Fn<void()> confirmed) {
+	return ShowSendPaidConfirm(navigation->uiShow(), peer, error, confirmed);
+}
+
+void ShowSendPaidConfirm(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		Data::SendError error,
+		Fn<void()> confirmed) {
+	const auto session = &peer->session();
+	if (session->local().isPeerTrustedPayForMessage(peer->id)) {
+		confirmed();
+		return;
+	}
+	//const auto messages = error.paidMessages;
+	const auto stars = error.paidStars;
+	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto trust = std::make_shared<QPointer<Ui::Checkbox>>();
+		const auto proceed = [=](Fn<void()> close) {
+			if ((*trust)->checked()) {
+				session->local().markPeerTrustedPayForMessage(peer->id);
+			}
+			confirmed();
+			close();
+		};
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_payment_confirm_text(
+				tr::now,
+				lt_count,
+				stars,
+				lt_name,
+				Ui::Text::Bold(peer->shortName()),
+				Ui::Text::RichLangValue).append(' ').append(
+					tr::lng_payment_confirm_sure(
+						tr::now,
+						lt_count,
+						stars,
+						Ui::Text::RichLangValue)),
+			.confirmed = proceed,
+			.confirmText = tr::lng_payment_confirm_button(),
+			.title = tr::lng_payment_confirm_title(),
+		});
+		const auto skip = st::defaultCheckbox.margin.top();
+		*trust = box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_payment_confirm_dont_ask(tr::now)),
+			st::boxRowPadding + QMargins(0, skip, 0, skip));
+	}));
 }
 
 } // namespace Data

@@ -189,17 +189,26 @@ struct SendError {
 
 	struct Args {
 		QString text;
+		int paidStars = 0;
+		int paidMessages = 0;
 		int boostsToLift = 0;
+		bool resolving = false;
 		bool premiumToLift = false;
 	};
 	SendError(Args &&args)
 	: text(std::move(args.text))
+	, paidStars(args.paidStars)
+	, paidMessages(args.paidMessages)
 	, boostsToLift(args.boostsToLift)
+	, resolving(args.resolving)
 	, premiumToLift(args.premiumToLift) {
 	}
 
 	QString text;
+	int paidStars = 0;
+	int paidMessages = 0;
 	int boostsToLift = 0;
+	bool resolving = false;
 	bool premiumToLift = false;
 
 	[[nodiscard]] SendError value_or(SendError other) const {
@@ -243,5 +252,16 @@ void ShowSendErrorToast(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
 	SendError error);
+
+void ShowSendPaidConfirm(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	SendError error,
+	Fn<void()> confirmed);
+void ShowSendPaidConfirm(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	SendError error,
+	Fn<void()> confirmed);
 
 } // namespace Data

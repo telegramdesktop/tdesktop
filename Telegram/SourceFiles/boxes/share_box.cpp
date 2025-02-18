@@ -1568,7 +1568,12 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				: topicRootId;
 			const auto peer = thread->peer();
 			const auto threadHistory = thread->owningHistory();
-			const auto starsPaid = peer->commitStarsForMessage();
+			const auto starsPaid = std::min(
+				peer->starsPerMessageChecked(),
+				options.starsApproved);
+			if (starsPaid) {
+				options.starsApproved -= starsPaid;
+			}
 			histories.sendRequest(threadHistory, requestType, [=](
 					Fn<void()> finish) {
 				const auto session = &threadHistory->session();

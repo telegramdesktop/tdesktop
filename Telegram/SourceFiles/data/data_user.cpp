@@ -552,38 +552,6 @@ void UserData::setStarsPerMessage(int stars) {
 	}
 }
 
-int UserData::starsForMessageLocked() const {
-	return _starsForMessageLocked;
-}
-
-void UserData::lockStarsForMessage() {
-	if (_starsPerMessage == _starsForMessageLocked) {
-		return;
-	}
-	cancelStarsForMessage();
-	if (_starsPerMessage) {
-		_starsForMessageLocked = _starsPerMessage;
-		session().credits().lock(StarsAmount(_starsPerMessage));
-		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-	}
-}
-
-int UserData::commitStarsForMessage() {
-	if (const auto stars = base::take(_starsForMessageLocked)) {
-		session().credits().withdrawLocked(StarsAmount(stars));
-		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-		return stars;
-	}
-	return 0;
-}
-
-void UserData::cancelStarsForMessage() {
-	if (const auto stars = base::take(_starsForMessageLocked)) {
-		session().credits().unlock(StarsAmount(stars));
-		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-	}
-}
-
 bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
 }

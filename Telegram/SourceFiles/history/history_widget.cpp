@@ -266,7 +266,6 @@ HistoryWidget::HistoryWidget(
 	tr::lng_channel_mute(tr::now).toUpper(),
 	st::historyComposeButton)
 , _reportMessages(this, QString(), st::historyComposeButton)
-, _payForMessage(this, QString(), st::historyComposeButton)
 , _attachToggle(this, st::historyAttach)
 , _tabbedSelectorToggle(this, st::historyAttachEmoji)
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
@@ -384,7 +383,6 @@ HistoryWidget::HistoryWidget(
 	_muteUnmute->addClickHandler([=] { toggleMuteUnmute(); });
 	setupGiftToChannelButton();
 	_reportMessages->addClickHandler([=] { reportSelectedMessages(); });
-	_payForMessage->addClickHandler([=] { payForMessage(); });
 	_field->submits(
 	) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
 		sendWithModifiers(modifiers);
@@ -525,7 +523,6 @@ HistoryWidget::HistoryWidget(
 	_joinChannel->hide();
 	_muteUnmute->hide();
 	_reportMessages->hide();
-	_payForMessage->hide();
 
 	initVoiceRecordBar();
 
@@ -816,7 +813,7 @@ HistoryWidget::HistoryWidget(
 
 			const auto was = (_sendAs != nullptr);
 			refreshSendAsToggle();
-			if (was != (_sendAs != nullptr) || _peer->starsPerMessage()) {
+			if (was != (_sendAs != nullptr)) {
 				updateControlsVisibility();
 				updateControlsGeometry();
 				orderWidgets();
@@ -839,8 +836,10 @@ HistoryWidget::HistoryWidget(
 				return;
 			}
 		}
-		if ((flags & PeerUpdateFlag::BotStartToken)
-			|| (flags & PeerUpdateFlag::StarsPerMessage)) {
+		if (flags & PeerUpdateFlag::StarsPerMessage) {
+			updateFieldPlaceholder();
+		}
+		if (flags & PeerUpdateFlag::BotStartToken) {
 			updateControlsVisibility();
 			updateControlsGeometry();
 		}
@@ -878,11 +877,22 @@ HistoryWidget::HistoryWidget(
 		}
 		if (flags & PeerUpdateFlag::FullInfo) {
 			fullInfoUpdated();
-			if (const auto channel = _peer->asChannel()) {
+			if (_peer->starsPerMessageChecked()) {
+				session().credits().load();
+			} else if (const auto channel = _peer->asChannel()) {
 				if (channel->allowedReactions().paidEnabled) {
 					session().credits().load();
 				}
 			}
+		}
+	}, lifetime());
+
+	session().credits().loadedValue(
+	) | rpl::filter(
+		rpl::mappers::_1
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		if (const auto callback = base::take(_resendOnFullUpdated)) {
+			callback();
 		}
 	}, lifetime());
 
@@ -1100,19 +1110,8 @@ void HistoryWidget::initVoiceRecordBar() {
 	}, lifetime());
 
 	_voiceRecordBar->sendVoiceRequests(
-	) | rpl::start_with_next([=](const auto &data) {
-		if (!canWriteMessage() || data.bytes.isEmpty() || !_history) {
-			return;
-		}
-
-		auto action = prepareSendAction(data.options);
-		session().api().sendVoiceMessage(
-			data.bytes,
-			data.waveform,
-			data.duration,
-			data.video,
-			action);
-		_voiceRecordBar->clearListenState();
+	) | rpl::start_with_next([=](const VoiceToSend &data) {
+		sendVoice(data);
 	}, lifetime());
 
 	_voiceRecordBar->cancelRequests(
@@ -1965,7 +1964,6 @@ void HistoryWidget::setInnerFocus() {
 			|| isRecording()
 			|| isJoinChannel()
 			|| isBotStart()
-			|| isPayForMessage()
 			|| isBlocked()
 			|| (!_canSendTexts && !_editMsgId)) {
 			if (_scroll->isHidden()) {
@@ -2388,10 +2386,8 @@ void HistoryWidget::showHistory(
 
 		setHistory(nullptr);
 		_list = nullptr;
-		if (_peer) {
-			_peer->cancelStarsForMessage();
-		}
 		_peer = nullptr;
+		_resendOnFullUpdated = nullptr;
 		_topicsRequested.clear();
 		_canSendMessages = false;
 		_canSendTexts = false;
@@ -3035,7 +3031,6 @@ bool HistoryWidget::canWriteMessage() const {
 		&& !isJoinChannel()
 		&& !isMuteUnmute()
 		&& !isBotStart()
-		&& !isPayForMessage()
 		&& !isSearching();
 }
 
@@ -3096,7 +3091,6 @@ void HistoryWidget::updateControlsVisibility() {
 				|| isJoinChannel()
 				|| isMuteUnmute()
 				|| isBotStart()
-				|| isPayForMessage()
 				|| isReportMessages()))) {
 		const auto toggle = [&](Ui::FlatButton *shown) {
 			const auto toggleOne = [&](not_null<Ui::FlatButton*> button) {
@@ -3108,7 +3102,6 @@ void HistoryWidget::updateControlsVisibility() {
 				}
 			};
 			toggleOne(_reportMessages);
-			toggleOne(_payForMessage);
 			toggleOne(_joinChannel);
 			toggleOne(_muteUnmute);
 			toggleOne(_botStart);
@@ -3122,8 +3115,6 @@ void HistoryWidget::updateControlsVisibility() {
 			toggle(_reportMessages);
 		} else if (isBlocked()) {
 			toggle(_unblock);
-		} else if (isPayForMessage()) {
-			toggle(_payForMessage);
 		} else if (isJoinChannel()) {
 			toggle(_joinChannel);
 		} else if (isMuteUnmute()) {
@@ -3186,7 +3177,6 @@ void HistoryWidget::updateControlsVisibility() {
 		_joinChannel->hide();
 		_muteUnmute->hide();
 		_reportMessages->hide();
-		_payForMessage->hide();
 		_send->show();
 		updateSendButtonType();
 
@@ -3300,7 +3290,6 @@ void HistoryWidget::updateControlsVisibility() {
 		_joinChannel->hide();
 		_muteUnmute->hide();
 		_reportMessages->hide();
-		_payForMessage->hide();
 		_attachToggle->hide();
 		if (_silent) {
 			_silent->hide();
@@ -4352,6 +4341,36 @@ Api::SendAction HistoryWidget::prepareSendAction(
 	return result;
 }
 
+void HistoryWidget::sendVoice(const VoiceToSend &data) {
+	if (!canWriteMessage() || data.bytes.isEmpty() || !_history) {
+		return;
+	}
+
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = data;
+		copy.options.starsApproved = approved;
+		sendVoice(copy);
+	};
+	const auto ignoreSlowmodeCountdown = data.options.scheduled != 0;
+	if (showSendMessageError(
+			{},
+			ignoreSlowmodeCountdown,
+			crl::guard(this, withPaymentApproved),
+			data.options.starsApproved,
+			true)) {
+		return;
+	}
+
+	auto action = prepareSendAction(data.options);
+	session().api().sendVoiceMessage(
+		data.bytes,
+		data.waveform,
+		data.duration,
+		data.video,
+		action);
+	_voiceRecordBar->clearListenState();
+}
+
 void HistoryWidget::send(Api::SendOptions options) {
 	if (!_history) {
 		return;
@@ -4360,9 +4379,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 		return;
 	} else if (!options.scheduled && showSlowmodeError()) {
 		return;
-	}
-
-	if (_voiceRecordBar->isListenState()) {
+	} else if (_voiceRecordBar->isListenState()) {
 		_voiceRecordBar->requestToSendWithOptions(options);
 		return;
 	}
@@ -4376,9 +4393,16 @@ void HistoryWidget::send(Api::SendOptions options) {
 	message.webPage = _preview->draft();
 
 	const auto ignoreSlowmodeCountdown = (options.scheduled != 0);
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		send(copy);
+	};
 	if (showSendMessageError(
 			message.textWithTags,
-			ignoreSlowmodeCountdown)) {
+			ignoreSlowmodeCountdown,
+			crl::guard(this, withPaymentApproved),
+			options.starsApproved)) {
 		return;
 	}
 
@@ -4541,53 +4565,7 @@ void HistoryWidget::reportSelectedMessages() {
 	}
 }
 
-void HistoryWidget::payForMessage() {
-	if (!_peer || !session().credits().loaded()) {
-		return;
-	} else if (!_peer->starsPerMessage() || _peer->starsForMessageLocked()) {
-		updateControlsVisibility();
-	} else if (session().local().isPeerTrustedPayForMessage(_peer->id)) {
-		payForMessageSure();
-	} else {
-		const auto peer = _peer;
-		const auto count = peer->starsPerMessage();
-		controller()->show(Box([=](not_null<Ui::GenericBox*> box) {
-			const auto trust = std::make_shared<QPointer<Ui::Checkbox>>();
-			const auto confirmed = [=](Fn<void()> close) {
-				payForMessageSure((*trust)->checked());
-				close();
-			};
-			Ui::ConfirmBox(box, {
-				.text = tr::lng_payment_confirm_text(
-					tr::now,
-					lt_count,
-					count,
-					lt_name,
-					Ui::Text::Bold(peer->shortName()),
-					Ui::Text::RichLangValue).append(' ').append(
-						tr::lng_payment_confirm_sure(
-							tr::now,
-							lt_count,
-							count,
-							Ui::Text::RichLangValue)),
-				.confirmed = confirmed,
-				.confirmText = tr::lng_payment_confirm_button(),
-				.title = tr::lng_payment_confirm_title(),
-			});
-			const auto skip = st::defaultCheckbox.margin.top();
-			*trust = box->addRow(
-				object_ptr<Ui::Checkbox>(
-					box,
-					tr::lng_payment_confirm_dont_ask(tr::now)),
-				st::boxRowPadding + QMargins(0, skip, 0, skip));
-		}));
-	}
-}
-
 void HistoryWidget::payForMessageSure(bool trust) {
-	if (trust) {
-		session().local().markPeerTrustedPayForMessage(_peer->id);
-	}
 	const auto required = _peer->starsPerMessage();
 	if (!required) {
 		return;
@@ -4595,7 +4573,6 @@ void HistoryWidget::payForMessageSure(bool trust) {
 	const auto done = [=](Settings::SmallBalanceResult result) {
 		if (result == Settings::SmallBalanceResult::Success
 			|| result == Settings::SmallBalanceResult::Already) {
-			_peer->lockStarsForMessage();
 			if (canWriteMessage()) {
 				setInnerFocus();
 			}
@@ -5154,40 +5131,6 @@ bool HistoryWidget::isSearching() const {
 	return _composeSearch != nullptr;
 }
 
-bool HistoryWidget::isPayForMessage() const {
-	const auto stars = _peer ? _peer->starsPerMessage() : 0;
-	const auto locked = _peer ? _peer->starsForMessageLocked() : 0;
-	if (!stars || locked) {
-		return false;
-	} else if (const auto channel = _peer->asChannel()) {
-		if (channel->amCreator() || channel->adminRights()) {
-			return false;
-		}
-	}
-
-	const auto creating = !_payForMessageStars.current();
-	_payForMessageStars = stars;
-	if (creating) {
-		session().credits().load();
-
-		auto text = _payForMessageStars.value(
-		) | rpl::map([session = &session()](int stars) {
-			return tr::lng_payment_for_message(
-				tr::now,
-				lt_cost,
-				Ui::CreditsEmojiSmall(session).append(
-					Lang::FormatCountDecimal(stars)),
-				Ui::Text::WithEntities);
-		});
-		Ui::SetButtonMarkedLabel(
-			_payForMessage,
-			std::move(text),
-			&session(),
-			st::historyComposeButtonText);
-	}
-	return true;
-}
-
 bool HistoryWidget::showRecordButton() const {
 	return (_recordAvailability != Webrtc::RecordAvailability::None)
 		&& !_voiceRecordBar->isListenState()
@@ -5245,7 +5188,6 @@ bool HistoryWidget::updateCmdStartShown() {
 				&& _peer->asChannel()->mgInfo->botStatus > 0))) {
 		if (!isBotStart()
 			&& !isBlocked()
-			&& !isPayForMessage()
 			&& !_keyboard->hasMarkup()
 			&& !_keyboard->forceReply()
 			&& !_editMsgId) {
@@ -5659,7 +5601,7 @@ void HistoryWidget::moveFieldControls() {
 
 // (_botMenu.button) (_attachToggle|_replaceMedia) (_sendAs) ---- _inlineResults ------------------------------ _tabbedPanel ------ _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
-// (_botStart|_unblock|_joinChannel|_muteUnmute|_reportMessages|_payForMessage)
+// (_botStart|_unblock|_joinChannel|_muteUnmute|_reportMessages)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
 	auto left = st::historySendRight;
@@ -5733,7 +5675,6 @@ void HistoryWidget::moveFieldControls() {
 	_joinChannel->setGeometry(fullWidthButtonRect);
 	_muteUnmute->setGeometry(fullWidthButtonRect);
 	_reportMessages->setGeometry(fullWidthButtonRect);
-	_payForMessage->setGeometry(fullWidthButtonRect);
 	if (_sendRestriction) {
 		_sendRestriction->setGeometry(fullWidthButtonRect);
 	}
@@ -5824,14 +5765,21 @@ void HistoryWidget::updateFieldPlaceholder() {
 	}
 
 	_field->setPlaceholder([&]() -> rpl::producer<QString> {
+		const auto peer = _history ? _history->peer.get() : nullptr;
 		if (_editMsgId) {
 			return tr::lng_edit_message_text();
-		} else if (!_history) {
+		} else if (!peer) {
 			return tr::lng_message_ph();
 		} else if ((_kbShown || _keyboard->forceReply())
 			&& !_keyboard->placeholder().isEmpty()) {
 			return rpl::single(_keyboard->placeholder());
-		} else if (const auto channel = _history->peer->asChannel()) {
+		} else if (const auto stars = peer->starsPerMessageChecked()) {
+			return tr::lng_message_paid_ph(
+				lt_amount,
+				tr::lng_prize_credits_amount(
+					lt_count,
+					rpl::single(stars * 1.)));
+		} else if (const auto channel = peer->asChannel()) {
 			const auto topic = resolveReplyToTopic();
 			const auto topicRootId = topic
 				? topic->rootId()
@@ -5948,7 +5896,10 @@ Data::ForumTopic *HistoryWidget::resolveReplyToTopic() {
 
 bool HistoryWidget::showSendMessageError(
 		const TextWithTags &textWithTags,
-		bool ignoreSlowmodeCountdown) {
+		bool ignoreSlowmodeCountdown,
+		Fn<void(int starsApproved)> resend,
+		int starsApproved,
+		bool mediaMessage) {
 	if (!_canSendMessages) {
 		return false;
 	}
@@ -5960,8 +5911,17 @@ bool HistoryWidget::showSendMessageError(
 			.forward = &_forwardPanel->items(),
 			.text = &textWithTags,
 			.ignoreSlowmodeCountdown = ignoreSlowmodeCountdown,
+			.mediaMessage = mediaMessage,
 		});
-	if (!error) {
+	if (resend && error.resolving) {
+		_resendOnFullUpdated = [=] { resend(starsApproved); };
+		return true;
+	} else if (resend && error.paidStars > starsApproved) {
+		Data::ShowSendPaidConfirm(controller(), _peer, error, [=] {
+			resend(error.paidStars);
+		});
+		return true;
+	} else if (!error) {
 		return false;
 	}
 	Data::ShowSendErrorToast(controller(), _peer, error);
@@ -6174,25 +6134,18 @@ void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
 			const auto joinChannel = isJoinChannel();
 			const auto muteUnmute = isMuteUnmute();
 			const auto reportMessages = isReportMessages();
-			const auto payForMessage = isPayForMessage();
 			const auto update = false
 				|| (_reportMessages->isHidden() == reportMessages)
 				|| (!reportMessages && _unblock->isHidden() == unblock)
 				|| (!reportMessages
 					&& !unblock
-					&& _payForMessage->isHidden() == payForMessage)
-				|| (!reportMessages
-					&& !unblock
-					&& !payForMessage
 					&& _botStart->isHidden() == botStart)
 				|| (!reportMessages
 					&& !unblock
-					&& !payForMessage
 					&& !botStart
 					&& _joinChannel->isHidden() == joinChannel)
 				|| (!reportMessages
 					&& !unblock
-					&& !payForMessage
 					&& !botStart
 					&& !joinChannel
 					&& _muteUnmute->isHidden() == muteUnmute);
@@ -6556,7 +6509,6 @@ void HistoryWidget::updateHistoryGeometry(
 	} else if (!editingMessage()
 		&& (isSearching()
 			|| isBlocked()
-			|| isPayForMessage()
 			|| isBotStart()
 			|| isJoinChannel()
 			|| isMuteUnmute()
@@ -6866,7 +6818,6 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		if (!isSearching()
 			&& !isBotStart()
 			&& !isBlocked()
-			&& !isPayForMessage()
 			&& _canSendMessages
 			&& (wasVisible
 				|| (_replyTo && _replyEditMsg)
@@ -8528,6 +8479,9 @@ void HistoryWidget::fullInfoUpdated() {
 		updateControlsVisibility();
 		updateControlsGeometry();
 	}
+	if (const auto callback = base::take(_resendOnFullUpdated)) {
+		callback();
+	}
 }
 
 void HistoryWidget::handlePeerUpdate() {
@@ -8743,7 +8697,6 @@ void HistoryWidget::updateTopBarSelection() {
 			|| (_list && _list->wasSelectedText())
 			|| isRecording()
 			|| isBotStart()
-			|| isPayForMessage()
 			|| isBlocked()
 			|| (!_canSendTexts && !_editMsgId)) {
 			_list->setFocus();
