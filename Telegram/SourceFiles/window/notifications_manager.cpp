@@ -212,11 +212,6 @@ void System::setManager(Fn<std::unique_ptr<Manager>()> create) {
 	}
 }
 
-Manager &System::manager() const {
-	Expects(_manager != nullptr);
-	return *_manager;
-}
-
 Main::Session *System::findSession(uint64 sessionId) const {
 	for (const auto &[index, account] : Core::App().domain().accounts()) {
 		if (const auto session = account->maybeSession()) {
