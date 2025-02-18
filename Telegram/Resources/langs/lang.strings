@@ -4826,10 +4826,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payment_confirm_title" = "Confirm payment";
 "lng_payment_confirm_text#one" = "{name} charges **{count}** Star per message.";
 "lng_payment_confirm_text#other" = "{name} charges **{count}** Stars per message.";
-"lng_payment_confirm_sure#one" = "Would you like to pay **{count}** Star to send one message?";
-"lng_payment_confirm_sure#other" = "Would you like to pay **{count}** Stars to send one message?";
+"lng_payment_confirm_amount#one" = "**{count}** Star";
+"lng_payment_confirm_amount#other" = "**{count}** Stars";
+"lng_payment_confirm_sure#one" = "Would you like to pay {amount} to send **{count}** message?";
+"lng_payment_confirm_sure#other" = "Would you like to pay {amount} to send **{count}** messages?";
 "lng_payment_confirm_dont_ask" = "Don't ask me again";
-"lng_payment_confirm_button" = "Pay for 1 Message";
+"lng_payment_confirm_button#one" = "Pay for {count} Message";
+"lng_payment_confirm_button#other" = "Pay for {count} Messages";
 "lng_payment_bar_text" = "{name} must pay {cost} for each message to you.";
 "lng_payment_bar_button" = "Remove Fee";
 "lng_payment_refund_title" = "Remove Fee";

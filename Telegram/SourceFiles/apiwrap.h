@@ -306,7 +306,7 @@ public:
 	void finishForwarding(const SendAction &action);
 	void forwardMessages(
 		Data::ResolvedForwardDraft &&draft,
-		const SendAction &action,
+		SendAction action,
 		FnMut<void()> &&successCallback = nullptr);
 	void shareContact(
 		const QString &phone,

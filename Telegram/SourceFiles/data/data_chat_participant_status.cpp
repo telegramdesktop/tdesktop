@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -443,12 +444,30 @@ void ShowSendPaidConfirm(
 		not_null<PeerData*> peer,
 		Data::SendError error,
 		Fn<void()> confirmed) {
+	const auto check = [=] {
+		const auto required = error.paidStars;
+		if (!required) {
+			return;
+		}
+		const auto done = [=](Settings::SmallBalanceResult result) {
+			if (result == Settings::SmallBalanceResult::Success
+				|| result == Settings::SmallBalanceResult::Already) {
+				confirmed();
+			}
+		};
+		Settings::MaybeRequestBalanceIncrease(
+			show,
+			required,
+			Settings::SmallBalanceForMessage{ .recipientId = peer->id },
+			done);
+	};
+
 	const auto session = &peer->session();
 	if (session->local().isPeerTrustedPayForMessage(peer->id)) {
-		confirmed();
+		check();
 		return;
 	}
-	//const auto messages = error.paidMessages;
+	const auto messages = error.paidMessages;
 	const auto stars = error.paidStars;
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto trust = std::make_shared<QPointer<Ui::Checkbox>>();
@@ -456,24 +475,32 @@ void ShowSendPaidConfirm(
 			if ((*trust)->checked()) {
 				session->local().markPeerTrustedPayForMessage(peer->id);
 			}
-			confirmed();
+			check();
 			close();
 		};
 		Ui::ConfirmBox(box, {
 			.text = tr::lng_payment_confirm_text(
 				tr::now,
 				lt_count,
-				stars,
+				stars / messages,
 				lt_name,
 				Ui::Text::Bold(peer->shortName()),
 				Ui::Text::RichLangValue).append(' ').append(
 					tr::lng_payment_confirm_sure(
 						tr::now,
 						lt_count,
-						stars,
+						messages,
+						lt_amount,
+						tr::lng_payment_confirm_amount(
+							tr::now,
+							lt_count,
+							stars,
+							Ui::Text::RichLangValue),
 						Ui::Text::RichLangValue)),
 			.confirmed = proceed,
-			.confirmText = tr::lng_payment_confirm_button(),
+			.confirmText = tr::lng_payment_confirm_button(
+				lt_count,
+				rpl::single(messages * 1.)),
 			.title = tr::lng_payment_confirm_title(),
 		});
 		const auto skip = st::defaultCheckbox.margin.top();

@@ -3298,7 +3298,7 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 
 void ApiWrap::forwardMessages(
 		Data::ResolvedForwardDraft &&draft,
-		const SendAction &action,
+		SendAction action,
 		FnMut<void()> &&successCallback) {
 	Expects(!draft.items.empty());
 
@@ -3373,9 +3373,17 @@ void ApiWrap::forwardMessages(
 		const auto requestType = Data::Histories::RequestType::Send;
 		const auto idsCopy = localIds;
 		const auto scheduled = action.options.scheduled;
+		auto paidStars = std::min(
+			action.options.starsApproved,
+			int(ids.size() * peer->starsPerMessageChecked()));
+		auto oneFlags = sendFlags;
+		if (paidStars) {
+			action.options.starsApproved -= paidStars;
+			oneFlags |= SendFlag::f_allow_paid_stars;
+		}
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 			history->sendRequestId = request(MTPmessages_ForwardMessages(
-				MTP_flags(sendFlags),
+				MTP_flags(oneFlags),
 				forwardFrom->input,
 				MTP_vector<MTPint>(ids),
 				MTP_vector<MTPlong>(randomIds),
@@ -3385,7 +3393,7 @@ void ApiWrap::forwardMessages(
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 				MTPint(), // video_timestamp
-				MTPlong() // allow_paid_stars
+				MTP_long(paidStars)
 			)).done([=](const MTPUpdates &result) {
 				if (!scheduled) {
 					this->updates().checkForSentToScheduled(result);
