@@ -891,7 +891,7 @@ void RepliesWidget::setupSwipeReplyAndBack() {
 		return false;
 	};
 	Ui::Controls::SetupSwipeHandler(_inner, _scroll.get(), [=](
-			HistoryView::ChatPaintGestureHorizontalData data) {
+			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
 				_swipeBackData = Ui::Controls::SetupSwipeBack(

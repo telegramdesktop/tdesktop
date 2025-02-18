@@ -129,7 +129,6 @@ PRIVATE
     history/admin_log/history_admin_log_filter_value.h
     history/history_view_top_toast.cpp
     history/history_view_top_toast.h
-    history/history_view_swipe_data.h
     history/view/controls/history_view_characters_limit.cpp
     history/view/controls/history_view_characters_limit.h
     history/view/controls/history_view_voice_record_button.cpp
@@ -382,6 +381,7 @@ PRIVATE
     ui/controls/send_button.h
     ui/controls/swipe_handler.cpp
     ui/controls/swipe_handler.h
+    ui/controls/swipe_handler_data.h
     ui/controls/tabbed_search.cpp
     ui/controls/tabbed_search.h
     ui/controls/who_reacted_context_action.cpp

@@ -529,7 +529,7 @@ void HistoryInner::setupSwipeReplyAndBack() {
 	}
 	const auto peer = _peer;
 	Ui::Controls::SetupSwipeHandler(this, _scroll, [=, history = _history](
-			HistoryView::ChatPaintGestureHorizontalData data) {
+			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
 				_swipeBackData = Ui::Controls::SetupSwipeBack(

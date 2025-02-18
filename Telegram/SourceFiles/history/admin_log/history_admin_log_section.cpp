@@ -421,7 +421,7 @@ void Widget::setupShortcuts() {
 
 void Widget::setupSwipeReply() {
 	Ui::Controls::SetupSwipeHandler(this, _scroll.data(), [=](
-			HistoryView::ChatPaintGestureHorizontalData data) {
+			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
 				_swipeBackData = Ui::Controls::SetupSwipeBack(

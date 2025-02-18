@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history_item_helpers.h"
-#include "history/history_view_swipe_data.h"
 #include "data/data_messages.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "base/timer.h"
 
 class History;
@@ -393,8 +393,8 @@ private:
 	HistoryView::CornerButtons _cornerButtons;
 	rpl::lifetime _topicLifetime;
 
-	HistoryView::ChatPaintGestureHorizontalData _gestureHorizontal;
-	HistoryView::SwipeBackResult _swipeBackData;
+	Ui::Controls::SwipeContextData _gestureHorizontal;
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	SendPaymentHelper _sendPayment;
 

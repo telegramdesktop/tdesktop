@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "chat_helpers/compose/compose_features.h"
 #include "ui/rp_widget.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/panel_animation.h"
-#include "history/history_view_swipe_data.h"
 #include "ui/cached_round_corners.h"
 #include "mtproto/sender.h"
 #include "base/object_ptr.h"
@@ -296,7 +296,7 @@ private:
 	const PauseReason _level = {};
 	const Fn<QColor()> _customTextColor;
 
-	HistoryView::SwipeBackResult _swipeBackData;
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;

@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace HistoryView {
+namespace Ui::Controls {
 
-struct ChatPaintGestureHorizontalData {
+struct SwipeContextData final {
 	float64 ratio = 0.;
 	float64 reachRatio = 0.;
 	int64 msgBareId = 0;
@@ -19,7 +19,7 @@ struct ChatPaintGestureHorizontalData {
 
 struct SwipeBackResult final {
 	rpl::lifetime lifetime;
-	Fn<void(ChatPaintGestureHorizontalData)> callback;
+	Fn<void(SwipeContextData)> callback;
 };
 
-} // namespace HistoryView
+} // namespace Ui::Controls

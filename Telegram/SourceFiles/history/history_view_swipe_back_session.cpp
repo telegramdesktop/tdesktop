@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_view_swipe_back_session.h"
 
-#include "history/history_view_swipe_data.h"
 #include "history/view/history_view_list_widget.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/swipe_handler.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "window/window_session_controller.h"
 
 namespace Window {
@@ -20,9 +20,9 @@ void SetupSwipeBackSection(
 		not_null<Ui::ScrollArea*> scroll,
 		not_null<HistoryView::ListWidget*> list) {
 	const auto swipeBackData
-		= list->lifetime().make_state<HistoryView::SwipeBackResult>();
+		= list->lifetime().make_state<Ui::Controls::SwipeBackResult>();
 	Ui::Controls::SetupSwipeHandler(parent, scroll, [=](
-			HistoryView::ChatPaintGestureHorizontalData data) {
+			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!swipeBackData->callback) {
 				const auto color = [=]() -> std::pair<QColor, QColor> {

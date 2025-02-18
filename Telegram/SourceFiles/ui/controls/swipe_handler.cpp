@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/event_filter.h"
-#include "history/history_view_swipe_data.h"
 #include "ui/chat/chat_style.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
@@ -30,16 +30,12 @@ constexpr auto kSwipeSlow = 0.2;
 constexpr auto kMsgBareIdSwipeBack = std::numeric_limits<int64>::max() - 77;
 constexpr auto kSwipedBackSpeedRatio = 0.35;
 
-using ChatPaintGestureHorizontalData
-	= HistoryView::ChatPaintGestureHorizontalData;
-using SwipeBackResult = HistoryView::SwipeBackResult;
-
 } // namespace
 
 void SetupSwipeHandler(
 		not_null<Ui::RpWidget*> widget,
 		Scroll scroll,
-		Fn<void(ChatPaintGestureHorizontalData)> update,
+		Fn<void(SwipeContextData)> update,
 		Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinish,
 		rpl::producer<bool> dontStart) {
 	constexpr auto kThresholdWidth = 50;
@@ -54,7 +50,7 @@ void SetupSwipeHandler(
 		base::unique_qptr<QObject> filter;
 		Ui::Animations::Simple animationReach;
 		Ui::Animations::Simple animationEnd;
-		ChatPaintGestureHorizontalData data;
+		SwipeContextData data;
 		SwipeHandlerFinishData finishByTopData;
 		std::optional<Qt::Orientation> orientation;
 		std::optional<Qt::LayoutDirection> direction;
@@ -306,7 +302,7 @@ SwipeBackResult SetupSwipeBack(
 		bool mirrored) {
 	struct State {
 		base::unique_qptr<Ui::RpWidget> back;
-		ChatPaintGestureHorizontalData data;
+		SwipeContextData data;
 	};
 
 	constexpr auto kMaxInnerOffset = 0.5;
@@ -396,7 +392,7 @@ SwipeBackResult SetupSwipeBack(
 		};
 	};
 
-	const auto callback = ([=](ChatPaintGestureHorizontalData data) {
+	const auto callback = ([=](SwipeContextData data) {
 		const auto ratio = std::min(1.0, data.ratio);
 		state->data = std::move(data);
 		if (ratio > 0) {

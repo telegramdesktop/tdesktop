@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_wrap_widget.h"
 #include "info/statistics/info_statistics_tag.h"
-#include "history/history_view_swipe_data.h"
+#include "ui/controls/swipe_handler_data.h"
 
 namespace Api {
 struct WhoReadList;
@@ -192,7 +192,7 @@ private:
 	// To paint round edges from content.
 	style::margins _paintPadding;
 
-	HistoryView::SwipeBackResult _swipeBackData;
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 };
 

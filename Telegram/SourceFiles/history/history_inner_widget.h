@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_report.h"
 #include "ui/rp_widget.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
-#include "history/history_view_swipe_data.h"
 #include "history/view/history_view_top_bar_widget.h"
 
 #include <QtGui/QPainterPath>
@@ -543,8 +543,8 @@ private:
 	crl::time _touchTime = 0;
 	base::Timer _touchScrollTimer;
 
-	HistoryView::ChatPaintGestureHorizontalData _gestureHorizontal;
-	HistoryView::SwipeBackResult _swipeBackData;
+	Ui::Controls::SwipeContextData _gestureHorizontal;
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;

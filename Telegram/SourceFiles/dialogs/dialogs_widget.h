@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
-#include "history/history_view_swipe_data.h"
 #include "window/section_widget.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/userpic_view.h"
 #include "mtproto/sender.h"
@@ -385,7 +385,7 @@ private:
 	ChatSearchTab _searchQueryTab = {};
 	ChatTypeFilter _searchQueryFilter = {};
 
-	HistoryView::SwipeBackResult _swipeBackData;
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;
