@@ -511,16 +511,16 @@ void NotificationData::close() {
 
 void NotificationData::setImage(QImage image) {
 	if (_notification) {
-		const auto imageData = std::make_shared<QByteArray>();
-		QBuffer buffer(imageData.get());
+		QByteArray imageData;
+		QBuffer buffer(&imageData);
 		buffer.open(QIODevice::WriteOnly);
 		image.save(&buffer, "PNG");
 
 		_notification.set_icon(
 			Gio::BytesIcon::new_(
 				GLib::Bytes::new_with_free_func(
-					reinterpret_cast<const uchar*>(imageData->constData()),
-					imageData->size(),
+					reinterpret_cast<const uchar*>(imageData.constData()),
+					imageData.size(),
 					[imageData] {})));
 
 		return;
