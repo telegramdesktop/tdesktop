@@ -186,8 +186,6 @@ private:
 	ulong _notificationRepliedSignalId = 0;
 	ulong _notificationClosedSignalId = 0;
 
-	rpl::lifetime _lifetime;
-
 };
 
 using Notification = std::unique_ptr<NotificationData>;
@@ -214,57 +212,6 @@ bool NotificationData::init(const Info &info) {
 	const auto &subtitle = info.subtitle;
 
 	if (_application) {
-		auto actionMap = Gio::ActionMap(_application);
-
-		const auto dictToNotificationId = [](GLib::VariantDict dict) {
-			using ContextId = Window::Notifications::Manager::ContextId;
-			return NotificationId{
-				.contextId = ContextId{
-					.sessionId = dict.lookup_value("session").get_uint64(),
-					.peerId = PeerId(dict.lookup_value("peer").get_uint64()),
-					.topicRootId = dict.lookup_value("topic").get_int64(),
-				},
-				.msgId = dict.lookup_value("msgid").get_int64(),
-			};
-		};
-
-		auto activate = gi::wrap(
-			G_SIMPLE_ACTION(
-				actionMap.lookup_action("notification-activate").gobj_()),
-			gi::transfer_none);
-
-		const auto activateSig = activate.signal_activate().connect([=](
-				Gio::SimpleAction,
-				GLib::Variant parameter) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				_manager->notificationActivated(
-					dictToNotificationId(GLib::VariantDict::new_(parameter)));
-			});
-		});
-
-		_lifetime.add([=]() mutable {
-			activate.disconnect(activateSig);
-		});
-
-		auto markAsRead = gi::wrap(
-			G_SIMPLE_ACTION(
-				actionMap.lookup_action("notification-mark-as-read").gobj_()),
-			gi::transfer_none);
-
-		const auto markAsReadSig = markAsRead.signal_activate().connect([=](
-				Gio::SimpleAction,
-				GLib::Variant parameter) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				_manager->notificationReplied(
-					dictToNotificationId(GLib::VariantDict::new_(parameter)),
-					{});
-			});
-		});
-
-		_lifetime.add([=]() mutable {
-			markAsRead.disconnect(markAsReadSig);
-		});
-
 		_notification = Gio::Notification::new_(
 			subtitle.isEmpty()
 				? title.toStdString()
@@ -632,6 +579,7 @@ private:
 
 	XdgNotifications::NotificationsProxy _proxy;
 	XdgNotifications::Notifications _interface;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -809,6 +757,56 @@ Manager::Private::Private(not_null<Manager*> manager)
 				[](const std::string &a, const std::string &b) {
 					return a + (a.empty() ? "" : ", ") + b;
 				}).c_str()));
+	}
+
+	if (auto actionMap = Gio::ActionMap(Gio::Application::get_default())) {
+		const auto dictToNotificationId = [](GLib::VariantDict dict) {
+			return NotificationId{
+				.contextId = ContextId{
+					.sessionId = dict.lookup_value("session").get_uint64(),
+					.peerId = PeerId(dict.lookup_value("peer").get_uint64()),
+					.topicRootId = dict.lookup_value("topic").get_int64(),
+				},
+				.msgId = dict.lookup_value("msgid").get_int64(),
+			};
+		};
+
+		auto activate = gi::wrap(
+			G_SIMPLE_ACTION(
+				actionMap.lookup_action("notification-activate").gobj_()),
+			gi::transfer_none);
+
+		const auto activateSig = activate.signal_activate().connect([=](
+				Gio::SimpleAction,
+				GLib::Variant parameter) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				_manager->notificationActivated(
+					dictToNotificationId(GLib::VariantDict::new_(parameter)));
+			});
+		});
+
+		_lifetime.add([=]() mutable {
+			activate.disconnect(activateSig);
+		});
+
+		auto markAsRead = gi::wrap(
+			G_SIMPLE_ACTION(
+				actionMap.lookup_action("notification-mark-as-read").gobj_()),
+			gi::transfer_none);
+
+		const auto markAsReadSig = markAsRead.signal_activate().connect([=](
+				Gio::SimpleAction,
+				GLib::Variant parameter) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				_manager->notificationReplied(
+					dictToNotificationId(GLib::VariantDict::new_(parameter)),
+					{});
+			});
+		});
+
+		_lifetime.add([=]() mutable {
+			markAsRead.disconnect(markAsReadSig);
+		});
 	}
 }
 
