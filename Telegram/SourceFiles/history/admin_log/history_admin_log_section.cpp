@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/admin_log/history_admin_log_inner.h"
 #include "history/admin_log/history_admin_log_filter.h"
-#include "history/history_view_swipe.h"
 #include "profile/profile_back_button.h"
 #include "core/shortcuts.h"
 #include "ui/chat/chat_style.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -420,11 +420,11 @@ void Widget::setupShortcuts() {
 }
 
 void Widget::setupSwipeReply() {
-	HistoryView::SetupSwipeHandler(this, _scroll.data(), [=](
+	Ui::Controls::SetupSwipeHandler(this, _scroll.data(), [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
-				_swipeBackData = HistoryView::SetupSwipeBack(
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
 					this,
 					[=]() -> std::pair<QColor, QColor> {
 						auto context = _inner->preparePaintContext({});
@@ -441,11 +441,11 @@ void Widget::setupSwipeReply() {
 		}
 	}, [=](int, Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
-			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				controller()->showBackFromStack();
 			});
 		}
-		return HistoryView::SwipeHandlerFinishData();
+		return Ui::Controls::SwipeHandlerFinishData();
 	}, nullptr);
 }
 

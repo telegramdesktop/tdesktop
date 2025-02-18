@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_view_swipe.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_requests_bar.h"
@@ -36,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/more_chats_bar.h"
 #include "ui/controls/download_bar.h"
 #include "ui/controls/jump_down_button.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
@@ -677,11 +677,11 @@ Widget::Widget(
 }
 
 void Widget::setupSwipeBack() {
-	HistoryView::SetupSwipeHandler(_scroll.data(), _scroll.data(), [=](
+	Ui::Controls::SetupSwipeHandler(_scroll.data(), _scroll.data(), [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
-				_swipeBackData = HistoryView::SetupSwipeBack(
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
 					this,
 					[]() -> std::pair<QColor, QColor> {
 						return {
@@ -703,9 +703,9 @@ void Widget::setupSwipeBack() {
 			|| (!controller()->isPrimary() && (_layout != Layout::Child))
 			|| (!controller()->shownForum().current()
 				&& !controller()->openedFolder().current())) {
-			return HistoryView::SwipeHandlerFinishData();
+			return Ui::Controls::SwipeHandlerFinishData();
 		}
-		return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+		return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 			_swipeBackData = {};
 			if (const auto forum = controller()->shownForum().current()) {
 				const auto id = controller()->windowId();

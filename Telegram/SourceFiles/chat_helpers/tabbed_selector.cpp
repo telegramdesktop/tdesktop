@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
 #include "menu/menu_send.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/controls/tabbed_search.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -35,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h" // AllowEmojiWithoutPremium.
 #include "boxes/premium_preview_box.h"
-#include "history/history_view_swipe.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -533,11 +533,11 @@ TabbedSelector::TabbedSelector(
 TabbedSelector::~TabbedSelector() = default;
 
 void TabbedSelector::setupSwipe() {
-	HistoryView::SetupSwipeHandler(this, _scroll.data(), [=](
+	Ui::Controls::SetupSwipeHandler(this, _scroll.data(), [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		if (data.translation != 0) {
 			if (!_swipeBackData.callback) {
-				_swipeBackData = HistoryView::SetupSwipeBack(
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
 					this,
 					[=]() -> std::pair<QColor, QColor> {
 						return {
@@ -554,13 +554,13 @@ void TabbedSelector::setupSwipe() {
 		}
 	}, [=](int, Qt::LayoutDirection direction) {
 		if (!_tabsSlider) {
-			return HistoryView::SwipeHandlerFinishData();
+			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto activeSection = _tabsSlider->activeSection();
 		const auto isToLeft = direction == Qt::RightToLeft;
 		if ((isToLeft && activeSection > 0)
 			|| (!isToLeft && activeSection < _tabs.size() - 1)) {
-			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				if (_tabsSlider
 					&& _tabsSlider->activeSection() == activeSection) {
 					_swipeBackData = {};
@@ -570,7 +570,7 @@ void TabbedSelector::setupSwipe() {
 				}
 			});
 		}
-		return HistoryView::SwipeHandlerFinishData();
+		return Ui::Controls::SwipeHandlerFinishData();
 	}, nullptr);
 }
 

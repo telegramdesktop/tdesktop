@@ -18,11 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_layer_widget.h"
-#include "history/history_view_swipe.h"
 #include "info/info_section_widget.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/padding_wrap.h"
@@ -385,11 +385,11 @@ not_null<Ui::ScrollArea*> ContentWidget::scroll() const {
 }
 
 void ContentWidget::setupSwipeReply() {
-	HistoryView::SetupSwipeHandler(this, _scroll.data(), [=](
+	Ui::Controls::SetupSwipeHandler(this, _scroll.data(), [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
-				_swipeBackData = HistoryView::SetupSwipeBack(
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
 					this,
 					[]() -> std::pair<QColor, QColor> {
 						return {
@@ -418,8 +418,8 @@ void ContentWidget::setupSwipeReply() {
 		}();
 
 		return !can
-			? HistoryView::SwipeHandlerFinishData()
-			: HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			? Ui::Controls::SwipeHandlerFinishData()
+			: Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				_controller->showBackFromStack();
 			});
 	}, nullptr);

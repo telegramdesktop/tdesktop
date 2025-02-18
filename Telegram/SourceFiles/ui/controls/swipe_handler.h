@@ -7,16 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace HistoryView {
+struct ChatPaintGestureHorizontalData;
+struct SwipeBackResult;
+} // namespace HistoryView
+
 namespace Ui {
 class ElasticScroll;
 class RpWidget;
 class ScrollArea;
 } // namespace Ui
 
-namespace HistoryView {
-
-struct ChatPaintGestureHorizontalData;
-struct SwipeBackResult;
+namespace Ui::Controls {
 
 struct SwipeHandlerFinishData {
 	Fn<void(void)> callback;
@@ -32,11 +34,11 @@ using Scroll = std::variant<
 void SetupSwipeHandler(
 	not_null<Ui::RpWidget*> widget,
 	Scroll scroll,
-	Fn<void(ChatPaintGestureHorizontalData)> update,
+	Fn<void(HistoryView::ChatPaintGestureHorizontalData)> update,
 	Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinishByTop,
 	rpl::producer<bool> dontStart = nullptr);
 
-[[nodiscard]] SwipeBackResult SetupSwipeBack(
+[[nodiscard]] HistoryView::SwipeBackResult SetupSwipeBack(
 	not_null<Ui::RpWidget*> widget,
 	Fn<std::pair<QColor, QColor>()> colors,
 	bool mirrored = false);
@@ -44,4 +46,4 @@ void SetupSwipeHandler(
 [[nodiscard]] SwipeHandlerFinishData DefaultSwipeBackHandlerFinishData(
 	Fn<void(void)> callback);
 
-} // namespace HistoryView
+} // namespace Ui::Controls

@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_swipe_back_session.h"
 
 #include "history/history_view_swipe_data.h"
-#include "history/history_view_swipe.h"
 #include "history/view/history_view_list_widget.h"
 #include "ui/chat/chat_style.h"
+#include "ui/controls/swipe_handler.h"
 #include "window/window_session_controller.h"
 
 namespace Window {
@@ -21,7 +21,7 @@ void SetupSwipeBackSection(
 		not_null<HistoryView::ListWidget*> list) {
 	const auto swipeBackData
 		= list->lifetime().make_state<HistoryView::SwipeBackResult>();
-	HistoryView::SetupSwipeHandler(parent, scroll, [=](
+	Ui::Controls::SetupSwipeHandler(parent, scroll, [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		if (data.translation > 0) {
 			if (!swipeBackData->callback) {
@@ -34,7 +34,9 @@ void SetupSwipeBackSection(
 						c.st->msgServiceFg()->c,
 					};
 				};
-				(*swipeBackData) = HistoryView::SetupSwipeBack(parent, color);
+				(*swipeBackData) = Ui::Controls::SetupSwipeBack(
+					parent,
+					color);
 			}
 			swipeBackData->callback(data);
 			return;
@@ -43,9 +45,9 @@ void SetupSwipeBackSection(
 		}
 	}, [=](int, Qt::LayoutDirection direction) {
 		if (direction != Qt::RightToLeft) {
-			return HistoryView::SwipeHandlerFinishData();
+			return Ui::Controls::SwipeHandlerFinishData();
 		}
-		return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+		return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 			list->controller()->showBackFromStack();
 		});
 	}, list->touchMaybeSelectingValue());

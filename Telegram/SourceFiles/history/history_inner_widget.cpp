@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
-#include "history/history_view_swipe.h"
 #include "payments/payments_reaction_process.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
@@ -42,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/edit_factcheck_box.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/controls/delete_message_context_action.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/inactive_press.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -528,11 +528,11 @@ void HistoryInner::setupSwipeReplyAndBack() {
 		return;
 	}
 	const auto peer = _peer;
-	HistoryView::SetupSwipeHandler(this, _scroll, [=, history = _history](
+	Ui::Controls::SetupSwipeHandler(this, _scroll, [=, history = _history](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
-				_swipeBackData = HistoryView::SetupSwipeBack(
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
 					_widget,
 					[=]() -> std::pair<QColor, QColor> {
 						auto context = preparePaintContext({});
@@ -563,11 +563,11 @@ void HistoryInner::setupSwipeReplyAndBack() {
 			int cursorTop,
 			Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
-			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				_controller->showBackFromStack();
 			});
 		}
-		auto result = HistoryView::SwipeHandlerFinishData();
+		auto result = Ui::Controls::SwipeHandlerFinishData();
 		if (inSelectionMode().inSelectionMode
 			|| (peer->isChannel() && !peer->isMegagroup())) {
 			return result;

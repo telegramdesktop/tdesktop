@@ -25,9 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
-#include "history/history_view_swipe.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -890,11 +890,11 @@ void RepliesWidget::setupSwipeReplyAndBack() {
 		}
 		return false;
 	};
-	HistoryView::SetupSwipeHandler(_inner, _scroll.get(), [=](
+	Ui::Controls::SetupSwipeHandler(_inner, _scroll.get(), [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
-				_swipeBackData = HistoryView::SetupSwipeBack(
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
 					this,
 					[=]() -> std::pair<QColor, QColor> {
 						const auto context = listPreparePaintContext({
@@ -927,11 +927,11 @@ void RepliesWidget::setupSwipeReplyAndBack() {
 			int cursorTop,
 			Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
-			return HistoryView::DefaultSwipeBackHandlerFinishData([=] {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				controller()->showBackFromStack();
 			});
 		}
-		auto result = HistoryView::SwipeHandlerFinishData();
+		auto result = Ui::Controls::SwipeHandlerFinishData();
 		if (_inner->elementInSelectionMode(nullptr).inSelectionMode) {
 			return result;
 		}

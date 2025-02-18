@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/history_view_swipe.h"
+#include "ui/controls/swipe_handler.h"
 
 #include "base/platform/base_platform_haptic.h"
 #include "base/platform/base_platform_info.h"
@@ -22,13 +22,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
-namespace HistoryView {
+namespace Ui::Controls {
 namespace {
 
 constexpr auto kSwipeSlow = 0.2;
 
 constexpr auto kMsgBareIdSwipeBack = std::numeric_limits<int64>::max() - 77;
 constexpr auto kSwipedBackSpeedRatio = 0.35;
+
+using ChatPaintGestureHorizontalData
+	= HistoryView::ChatPaintGestureHorizontalData;
+using SwipeBackResult = HistoryView::SwipeBackResult;
 
 } // namespace
 
@@ -438,4 +442,4 @@ SwipeHandlerFinishData DefaultSwipeBackHandlerFinishData(
 	};
 }
 
-} // namespace HistoryView
+} // namespace Ui::Controls
