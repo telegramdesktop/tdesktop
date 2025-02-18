@@ -298,16 +298,17 @@ void SetupSwipeHandler(
 
 SwipeBackResult SetupSwipeBack(
 		not_null<Ui::RpWidget*> widget,
-		Fn<std::pair<QColor, QColor>()> colors) {
+		Fn<std::pair<QColor, QColor>()> colors,
+		bool mirrored) {
 	struct State {
 		base::unique_qptr<Ui::RpWidget> back;
 		ChatPaintGestureHorizontalData data;
 	};
 
-	constexpr auto kMaxRightOffset = 0.5;
-	constexpr auto kMaxLeftOffset = 0.8;
+	constexpr auto kMaxInnerOffset = 0.5;
+	constexpr auto kMaxOuterOffset = 0.8;
 	constexpr auto kIdealSize = 100;
-	const auto maxOffset = st::swipeBackSize * kMaxRightOffset;
+	const auto maxOffset = st::swipeBackSize * kMaxInnerOffset;
 	const auto sizeRatio = st::swipeBackSize
 		/ style::ConvertFloatScale(kIdealSize);
 
@@ -346,10 +347,10 @@ SwipeBackResult SetupSwipeBack(
 			const auto arcRect = rect - Margins(strokeWidth);
 			auto hq = PainterHighQualityEnabler(p);
 			p.setOpacity(ratio);
-			if (reachScale) {
+			if (reachScale || mirrored) {
 				const auto scale = (1. + 1. * reachScale);
 				p.translate(center);
-				p.scale(scale, scale);
+				p.scale(scale * (mirrored ? -1 : 1), scale);
 				p.translate(-center);
 			}
 			{
@@ -405,12 +406,21 @@ SwipeBackResult SetupSwipeBack(
 				raw->show();
 				raw->raise();
 			}
-			state->back->moveToLeft(
-				anim::interpolate(
-					-st::swipeBackSize * kMaxLeftOffset,
-					maxOffset - st::swipeBackSize,
-					ratio),
-				(widget->height() - state->back->height()) / 2);
+			if (!mirrored) {
+				state->back->moveToLeft(
+					anim::interpolate(
+						-st::swipeBackSize * kMaxOuterOffset,
+						maxOffset - st::swipeBackSize,
+						ratio),
+					(widget->height() - state->back->height()) / 2);
+			} else {
+				state->back->moveToLeft(
+					anim::interpolate(
+						widget->width() + st::swipeBackSize * kMaxOuterOffset,
+						widget->width() - maxOffset,
+						ratio),
+					(widget->height() - state->back->height()) / 2);
+			}
 			state->back->update();
 		} else if (state->back) {
 			state->back = nullptr;
