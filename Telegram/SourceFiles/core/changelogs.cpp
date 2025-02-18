@@ -37,7 +37,7 @@ std::map<int, const char*> BetaLogs() {
 		"- Nice looking code blocks with syntax highlight.\n"
 
 		"- Copy full code block by click on its header.\n"
-		
+
 		"- Send a highlighted code block using ```language syntax.\n"
 	}
 	};
