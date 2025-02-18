@@ -261,7 +261,7 @@ bool GenerateDesktopFile(
 		-1,
 		GLib::KeyFileFlags::KEEP_COMMENTS_
 			| GLib::KeyFileFlags::KEEP_TRANSLATIONS_);
-	
+
 	if (!loaded) {
 		if (!silent) {
 			LOG(("App Error: %1").arg(loaded.error().message_().c_str()));
