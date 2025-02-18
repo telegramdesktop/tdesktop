@@ -4350,15 +4350,14 @@ void HistoryInner::refreshAboutView(bool force) {
 			if (!info->inited) {
 				session().api().requestFullPeer(user);
 			}
-		} else if (user->meRequiresPremiumToWrite()
-			&& !user->session().premium()
-			&& !historyHeight()) {
-			refresh();
 		} else if (!historyHeight()) {
-			if (!user->isFullLoaded()) {
-				session().api().requestFullPeer(user);
-			} else {
+			if (user->starsPerMessage() > 0
+				|| (user->requiresPremiumToWrite()
+					&& !user->session().premium())
+				|| user->isFullLoaded()) {
 				refresh();
+			} else {
+				session().api().requestFullPeer(user);
 			}
 		}
 	}

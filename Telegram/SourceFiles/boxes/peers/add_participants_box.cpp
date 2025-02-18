@@ -584,8 +584,8 @@ void AddParticipantsBoxController::subscribeToMigration() {
 }
 
 void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
-	const auto premiumRequiredError = WritePremiumRequiredError;
-	if (RecipientRow::ShowLockedError(this, row, premiumRequiredError)) {
+	const auto moneyRestrictionError = WriteMoneyRestrictionError;
+	if (RecipientRow::ShowLockedError(this, row, moneyRestrictionError)) {
 		return;
 	}
 	const auto &serverConfig = session().serverConfig();
@@ -614,7 +614,7 @@ void AddParticipantsBoxController::itemDeselectedHook(
 void AddParticipantsBoxController::prepareViewHook() {
 	updateTitle();
 
-	TrackPremiumRequiredChanges(this, lifetime());
+	TrackMessageMoneyRestrictionsChanges(this, lifetime());
 }
 
 int AddParticipantsBoxController::alreadyInCount() const {

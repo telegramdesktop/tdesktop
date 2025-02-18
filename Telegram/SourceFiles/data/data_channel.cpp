@@ -1272,8 +1272,6 @@ void ApplyChannelUpdate(
 	} else {
 		channel->setLinkedChat(nullptr);
 	}
-	channel->setStarsPerMessage(
-		update.vsend_paid_messages_stars().value_or_empty());
 	if (const auto history = channel->owner().historyLoaded(channel)) {
 		if (const auto available = update.vavailable_min_id()) {
 			history->clearUpTill(available->v);

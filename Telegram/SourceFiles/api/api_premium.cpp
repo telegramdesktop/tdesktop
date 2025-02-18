@@ -377,15 +377,15 @@ const Data::PremiumSubscriptionOptions &Premium::subscriptionOptions() const {
 	return _subscriptionOptions;
 }
 
-rpl::producer<> Premium::somePremiumRequiredResolved() const {
-	return _somePremiumRequiredResolved.events();
+rpl::producer<> Premium::someMessageMoneyRestrictionsResolved() const {
+	return _someMessageMoneyRestrictionsResolved.events();
 }
 
-void Premium::resolvePremiumRequired(not_null<UserData*> user) {
-	_resolvePremiumRequiredUsers.emplace(user);
-	if (!_premiumRequiredRequestScheduled
-		&& _resolvePremiumRequestedUsers.empty()) {
-		_premiumRequiredRequestScheduled = true;
+void Premium::resolveMessageMoneyRestrictions(not_null<UserData*> user) {
+	_resolveMessageMoneyRequiredUsers.emplace(user);
+	if (!_messageMoneyRequestScheduled
+		&& _resolveMessageMoneyRequestedUsers.empty()) {
+		_messageMoneyRequestScheduled = true;
 		crl::on_main(_session, [=] {
 			requestPremiumRequiredSlice();
 		});
@@ -393,50 +393,65 @@ void Premium::resolvePremiumRequired(not_null<UserData*> user) {
 }
 
 void Premium::requestPremiumRequiredSlice() {
-	_premiumRequiredRequestScheduled = false;
-	if (!_resolvePremiumRequestedUsers.empty()
-		|| _resolvePremiumRequiredUsers.empty()) {
+	_messageMoneyRequestScheduled = false;
+	if (!_resolveMessageMoneyRequestedUsers.empty()
+		|| _resolveMessageMoneyRequiredUsers.empty()) {
 		return;
 	}
 	constexpr auto kPerRequest = 100;
-	auto users = MTP_vector_from_range(_resolvePremiumRequiredUsers
+	auto users = MTP_vector_from_range(_resolveMessageMoneyRequiredUsers
 		| ranges::views::transform(&UserData::inputUser));
 	if (users.v.size() > kPerRequest) {
 		auto shortened = users.v;
 		shortened.resize(kPerRequest);
 		users = MTP_vector<MTPInputUser>(std::move(shortened));
-		const auto from = begin(_resolvePremiumRequiredUsers);
-		_resolvePremiumRequestedUsers = { from, from + kPerRequest };
-		_resolvePremiumRequiredUsers.erase(from, from + kPerRequest);
+		const auto from = begin(_resolveMessageMoneyRequiredUsers);
+		_resolveMessageMoneyRequestedUsers = { from, from + kPerRequest };
+		_resolveMessageMoneyRequiredUsers.erase(from, from + kPerRequest);
 	} else {
-		_resolvePremiumRequestedUsers
-			= base::take(_resolvePremiumRequiredUsers);
+		_resolveMessageMoneyRequestedUsers
+			= base::take(_resolveMessageMoneyRequiredUsers);
 	}
-	const auto finish = [=](const QVector<MTPBool> &list) {
-		constexpr auto me = UserDataFlag::MeRequiresPremiumToWrite;
-		constexpr auto known = UserDataFlag::RequirePremiumToWriteKnown;
-		constexpr auto mask = me | known;
+	const auto finish = [=](const QVector<MTPRequirementToContact> &list) {
 
 		auto index = 0;
-		for (const auto &user : base::take(_resolvePremiumRequestedUsers)) {
-			const auto require = (index < list.size())
-				&& mtpIsTrue(list[index++]);
-			user->setFlags((user->flags() & ~mask)
-				| known
-				| (require ? me : UserDataFlag()));
+		for (const auto &user : base::take(_resolveMessageMoneyRequestedUsers)) {
+			const auto set = [&](bool requirePremium, int stars) {
+				using Flag = UserDataFlag;
+				constexpr auto me = Flag::RequiresPremiumToWrite;
+				constexpr auto known = Flag::MessageMoneyRestrictionsKnown;
+				constexpr auto hasPrem = Flag::HasRequirePremiumToWrite;
+				constexpr auto hasStars = Flag::HasStarsPerMessage;
+				user->setStarsPerMessage(stars);
+				user->setFlags((user->flags() & ~(me | hasPrem | hasStars))
+					| known
+					| (requirePremium ? (me | hasPrem) : Flag())
+					| (stars ? hasStars : Flag()));
+			};
+			if (index >= list.size()) {
+				set(false, 0);
+				continue;
+			}
+			list[index++].match([&](const MTPDrequirementToContactEmpty &) {
+				set(false, 0);
+			}, [&](const MTPDrequirementToContactPremium &) {
+				set(true, 0);
+			}, [&](const MTPDrequirementToContactPaidMessages &data) {
+				set(false, data.vstars_amount().v);
+			});
 		}
-		if (!_premiumRequiredRequestScheduled
-			&& !_resolvePremiumRequiredUsers.empty()) {
-			_premiumRequiredRequestScheduled = true;
+		if (!_messageMoneyRequestScheduled
+			&& !_resolveMessageMoneyRequiredUsers.empty()) {
+			_messageMoneyRequestScheduled = true;
 			crl::on_main(_session, [=] {
 				requestPremiumRequiredSlice();
 			});
 		}
-		_somePremiumRequiredResolved.fire({});
+		_someMessageMoneyRestrictionsResolved.fire({});
 	};
 	_session->api().request(
-		MTPusers_GetIsPremiumRequiredToContact(std::move(users))
-	).done([=](const MTPVector<MTPBool> &result) {
+		MTPusers_GetRequirementsToContact(std::move(users))
+	).done([=](const MTPVector<MTPRequirementToContact> &result) {
 		finish(result.v);
 	}).fail([=] {
 		finish({});
@@ -694,28 +709,32 @@ rpl::producer<rpl::no_value, QString> SponsoredToggle::setToggled(bool v) {
 	};
 }
 
-RequirePremiumState ResolveRequiresPremiumToWrite(
+MessageMoneyRestriction ResolveMessageMoneyRestrictions(
 		not_null<PeerData*> peer,
 		History *maybeHistory) {
 	const auto user = peer->asUser();
-	if (!user
-		|| !user->someRequirePremiumToWrite()
-		|| user->session().premium()) {
-		return RequirePremiumState::No;
-	} else if (user->requirePremiumToWriteKnown()) {
-		return user->meRequiresPremiumToWrite()
-			? RequirePremiumState::Yes
-			: RequirePremiumState::No;
+	if (!user) {
+		return { .known = true };
+	} else if (user->messageMoneyRestrictionsKnown()) {
+		return {
+			.starsPerMessage = user->starsPerMessage(),
+			.premiumRequired = (user->requiresPremiumToWrite()
+				&& !user->session().premium()),
+			.known = true,
+		};
+	} else if (user->hasStarsPerMessage()) {
+		return {};
+	} else if (!user->hasRequirePremiumToWrite()) {
+		return { .known = true };
 	} else if (user->flags() & UserDataFlag::MutualContact) {
-		return RequirePremiumState::No;
+		return { .known = true };
 	} else if (!maybeHistory) {
-		return RequirePremiumState::Unknown;
+		return {};
 	}
-
 	const auto update = [&](bool require) {
 		using Flag = UserDataFlag;
-		constexpr auto known = Flag::RequirePremiumToWriteKnown;
-		constexpr auto me = Flag::MeRequiresPremiumToWrite;
+		constexpr auto known = Flag::MessageMoneyRestrictionsKnown;
+		constexpr auto me = Flag::RequiresPremiumToWrite;
 		user->setFlags((user->flags() & ~me)
 			| known
 			| (require ? me : Flag()));
@@ -727,16 +746,19 @@ RequirePremiumState ResolveRequiresPremiumToWrite(
 			const auto item = view->data();
 			if (!item->out() && !item->isService()) {
 				update(false);
-				return RequirePremiumState::No;
+				return { .known = true };
 			}
 		}
 	}
 	if (user->isContact() // Here we know, that we're not in his contacts.
 		&& maybeHistory->loadedAtTop() // And no incoming messages.
 		&& maybeHistory->loadedAtBottom()) {
-		update(true);
+		return {
+			.premiumRequired = !user->session().premium(),
+			.known = true,
+		};
 	}
-	return RequirePremiumState::Unknown;
+	return {};
 }
 
 rpl::producer<DocumentData*> RandomHelloStickerValue(

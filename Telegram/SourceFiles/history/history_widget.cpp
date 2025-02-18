@@ -780,7 +780,7 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next([=](UserData::Flags::Change change) {
 		if (change.diff & UserData::Flag::Premium) {
 			if (const auto user = _peer ? _peer->asUser() : nullptr) {
-				if (user->meRequiresPremiumToWrite()) {
+				if (user->requiresPremiumToWrite()) {
 					handlePeerUpdate();
 				}
 			}

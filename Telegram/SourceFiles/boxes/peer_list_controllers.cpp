@@ -283,8 +283,9 @@ RecipientRow::RecipientRow(
 , _maybeHistory(maybeHistory)
 , _resolvePremiumRequired(maybeLockedSt != nullptr) {
 	if (maybeLockedSt
-		&& (Api::ResolveRequiresPremiumToWrite(peer, maybeHistory)
-			== Api::RequirePremiumState::Yes)) {
+		&& Api::ResolveMessageMoneyRestrictions(
+			peer,
+			maybeHistory).premiumRequired) {
 		_lockedSt = maybeLockedSt;
 	}
 }
@@ -305,8 +306,9 @@ bool RecipientRow::refreshLock(
 		not_null<const style::PeerListItem*> maybeLockedSt) {
 	if (const auto user = peer()->asUser()) {
 		const auto locked = _resolvePremiumRequired
-			&& (Api::ResolveRequiresPremiumToWrite(user, _maybeHistory)
-				== Api::RequirePremiumState::Yes);
+			&& Api::ResolveMessageMoneyRestrictions(
+				user,
+				_maybeHistory).premiumRequired;
 		if (this->locked() != locked) {
 			setLocked(locked ? maybeLockedSt.get() : nullptr);
 			return true;
@@ -320,20 +322,22 @@ void RecipientRow::preloadUserpic() {
 
 	if (!_resolvePremiumRequired) {
 		return;
-	} else if (Api::ResolveRequiresPremiumToWrite(peer(), _maybeHistory)
-		== Api::RequirePremiumState::Unknown) {
+	} else if (!Api::ResolveMessageMoneyRestrictions(
+			peer(),
+			_maybeHistory).known) {
 		const auto user = peer()->asUser();
-		user->session().api().premium().resolvePremiumRequired(user);
+		user->session().api().premium().resolveMessageMoneyRestrictions(
+			user);
 	}
 }
 
-void TrackPremiumRequiredChanges(
+void TrackMessageMoneyRestrictionsChanges(
 		not_null<PeerListController*> controller,
 		rpl::lifetime &lifetime) {
 	const auto session = &controller->session();
 	rpl::merge(
 		Data::AmPremiumValue(session) | rpl::to_empty,
-		session->api().premium().somePremiumRequiredResolved()
+		session->api().premium().someMessageMoneyRestrictionsResolved()
 	) | rpl::start_with_next([=] {
 		const auto st = &controller->computeListSt().item;
 		const auto delegate = controller->delegate();
@@ -726,7 +730,7 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createRow(
 	return std::make_unique<PeerListRow>(user);
 }
 
-RecipientPremiumRequiredError WritePremiumRequiredError(
+RecipientMoneyRestrictionError WriteMoneyRestrictionError(
 		not_null<UserData*> user) {
 	return {
 		.text = tr::lng_send_non_premium_message_toast(
@@ -759,7 +763,7 @@ ChooseRecipientBoxController::ChooseRecipientBoxController(
 , _session(args.session)
 , _callback(std::move(args.callback))
 , _filter(std::move(args.filter))
-, _premiumRequiredError(std::move(args.premiumRequiredError)) {
+, _moneyRestrictionError(std::move(args.moneyRestrictionError)) {
 }
 
 Main::Session &ChooseRecipientBoxController::session() const {
@@ -769,14 +773,17 @@ Main::Session &ChooseRecipientBoxController::session() const {
 void ChooseRecipientBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_forward_choose());
 
-	if (_premiumRequiredError) {
-		TrackPremiumRequiredChanges(this, lifetime());
+	if (_moneyRestrictionError) {
+		TrackMessageMoneyRestrictionsChanges(this, lifetime());
 	}
 }
 
 bool ChooseRecipientBoxController::showLockedError(
 		not_null<PeerListRow*> row) {
-	return RecipientRow::ShowLockedError(this, row, _premiumRequiredError);
+	return RecipientRow::ShowLockedError(
+		this,
+		row,
+		_moneyRestrictionError);
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -836,7 +843,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 bool RecipientRow::ShowLockedError(
 		not_null<PeerListController*> controller,
 		not_null<PeerListRow*> row,
-		Fn<RecipientPremiumRequiredError(not_null<UserData*>)> error) {
+		Fn<RecipientMoneyRestrictionError(not_null<UserData*>)> error) {
 	if (!static_cast<RecipientRow*>(row.get())->locked()) {
 		return false;
 	}
@@ -860,15 +867,15 @@ auto ChooseRecipientBoxController::createRow(
 		: ((peer->isBroadcast() && !Data::CanSendAnything(peer))
 			|| peer->isRepliesChat()
 			|| peer->isVerifyCodes()
-			|| (peer->isUser() && (_premiumRequiredError
-				? !peer->asUser()->canSendIgnoreRequirePremium()
+			|| (peer->isUser() && (_moneyRestrictionError
+				? !peer->asUser()->canSendIgnoreMoneyRestrictions()
 				: !Data::CanSendAnything(peer))));
 	if (skip) {
 		return nullptr;
 	}
 	auto result = std::make_unique<Row>(
 		history,
-		_premiumRequiredError ? &computeListSt().item : nullptr);
+		_moneyRestrictionError ? &computeListSt().item : nullptr);
 	return result;
 }
 

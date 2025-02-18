@@ -224,11 +224,11 @@ inline auto DefaultRestrictionValue(
 			| ChatRestriction::SendVideoMessages);
 		auto allowedAny = PeerFlagsValue(
 			user,
-			(UserDataFlag::Deleted | UserDataFlag::MeRequiresPremiumToWrite)
+			(UserDataFlag::Deleted | UserDataFlag::RequiresPremiumToWrite)
 		) | rpl::map([=](UserDataFlags flags) {
 			return (flags & UserDataFlag::Deleted)
 				? rpl::single(false)
-				: !(flags & UserDataFlag::MeRequiresPremiumToWrite)
+				: !(flags & UserDataFlag::RequiresPremiumToWrite)
 				? rpl::single(true)
 				: AmPremiumValue(&user->session());
 		}) | rpl::flatten_latest();

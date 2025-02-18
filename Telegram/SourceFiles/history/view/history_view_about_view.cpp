@@ -259,7 +259,9 @@ bool AboutView::refresh() {
 		if (user && !user->isSelf() && _history->isDisplayedEmpty()) {
 			if (_item) {
 				return false;
-			} else if (user->meRequiresPremiumToWrite()
+			//} else if (user->starsPerMessage() > 0) {
+			//	setItem(makeStarsPerMessage(), nullptr);
+			} else if (user->requiresPremiumToWrite()
 				&& !user->session().premium()) {
 				setItem(makePremiumRequired(), nullptr);
 			} else if (user->isBlocked()) {

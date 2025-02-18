@@ -120,7 +120,7 @@ bool CanSendAnyOf(
 			|| user->isRepliesChat()
 			|| user->isVerifyCodes()) {
 			return false;
-		} else if (user->meRequiresPremiumToWrite()
+		} else if (user->requiresPremiumToWrite()
 			&& !user->session().premium()) {
 			return false;
 		} else if (rights
@@ -177,7 +177,7 @@ SendError RestrictionError(
 	using Flag = ChatRestriction;
 	if (const auto restricted = peer->amRestricted(restriction)) {
 		if (const auto user = peer->asUser()) {
-			if (user->meRequiresPremiumToWrite()
+			if (user->requiresPremiumToWrite()
 				&& !user->session().premium()) {
 				return SendError({
 					.text = tr::lng_restricted_send_non_premium(

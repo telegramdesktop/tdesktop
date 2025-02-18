@@ -110,10 +110,11 @@ enum class UserDataFlag : uint32 {
 	StoriesHidden = (1 << 18),
 	HasActiveStories = (1 << 19),
 	HasUnreadStories = (1 << 20),
-	MeRequiresPremiumToWrite = (1 << 21),
-	SomeRequirePremiumToWrite = (1 << 22),
-	RequirePremiumToWriteKnown = (1 << 23),
-	ReadDatesPrivate = (1 << 24),
+	RequiresPremiumToWrite = (1 << 21),
+	HasRequirePremiumToWrite = (1 << 22),
+	HasStarsPerMessage = (1 << 23),
+	MessageMoneyRestrictionsKnown = (1 << 24),
+	ReadDatesPrivate = (1 << 25),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -174,10 +175,11 @@ public:
 	[[nodiscard]] bool applyMinPhoto() const;
 	[[nodiscard]] bool hasPersonalPhoto() const;
 	[[nodiscard]] bool hasStoriesHidden() const;
-	[[nodiscard]] bool someRequirePremiumToWrite() const;
-	[[nodiscard]] bool meRequiresPremiumToWrite() const;
-	[[nodiscard]] bool requirePremiumToWriteKnown() const;
-	[[nodiscard]] bool canSendIgnoreRequirePremium() const;
+	[[nodiscard]] bool hasRequirePremiumToWrite() const;
+	[[nodiscard]] bool hasStarsPerMessage() const;
+	[[nodiscard]] bool requiresPremiumToWrite() const;
+	[[nodiscard]] bool messageMoneyRestrictionsKnown() const;
+	[[nodiscard]] bool canSendIgnoreMoneyRestrictions() const;
 	[[nodiscard]] bool readDatesPrivate() const;
 
 	void setStarsPerMessage(int stars);

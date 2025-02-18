@@ -1201,7 +1201,8 @@ void Filler::addThemeEdit() {
 	if (!user || user->isInaccessible()) {
 		return;
 	}
-	if (user->meRequiresPremiumToWrite() && !user->session().premium()) {
+	if ((user->requiresPremiumToWrite() && !user->session().premium())
+		|| user->starsPerMessage() > 0) {
 		return;
 	}
 	const auto controller = _controller;
@@ -1709,7 +1710,7 @@ void PeerMenuShareContactBox(
 				ChooseRecipientArgs{
 					.session = &navigation->session(),
 					.callback = std::move(callback),
-					.premiumRequiredError = WritePremiumRequiredError,
+					.moneyRestrictionError = WriteMoneyRestrictionError,
 				}),
 			[](not_null<PeerListBox*> box) {
 				box->addButton(tr::lng_cancel(), [=] {
@@ -1924,7 +1925,7 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 			.session = session,
 			.callback = std::move(callback),
 			.filter = filter,
-			.premiumRequiredError = WritePremiumRequiredError,
+			.moneyRestrictionError = WriteMoneyRestrictionError,
 		})
 		, _selectable(selectable) {
 		}
@@ -2145,7 +2146,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			.callback = [=](Chosen thread) {
 				_singleChosen.fire_copy(thread);
 			},
-			.premiumRequiredError = WritePremiumRequiredError,
+			.moneyRestrictionError = WriteMoneyRestrictionError,
 		}) {
 		}
 
@@ -2555,7 +2556,7 @@ QPointer<Ui::BoxContent> ShowShareGameBox(
 			.session = &navigation->session(),
 			.callback = std::move(chosen),
 			.filter = std::move(filter),
-			.premiumRequiredError = WritePremiumRequiredError,
+			.moneyRestrictionError = WriteMoneyRestrictionError,
 		}),
 		std::move(initBox)));
 	return weak->data();

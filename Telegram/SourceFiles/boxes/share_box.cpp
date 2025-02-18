@@ -721,11 +721,11 @@ ShareBox::Inner::Inner(
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	if (_descriptor.premiumRequiredError) {
+	if (_descriptor.moneyRestrictionError) {
 		const auto session = _descriptor.session;
 		rpl::merge(
 			Data::AmPremiumValue(session) | rpl::to_empty,
-			session->api().premium().somePremiumRequiredResolved()
+			session->api().premium().someMessageMoneyRestrictionsResolved()
 		) | rpl::start_with_next([=] {
 			refreshLockedRows();
 		}, lifetime());
@@ -794,7 +794,7 @@ bool ShareBox::Inner::showLockedError(not_null<Chat*> chat) {
 	::Settings::ShowPremiumPromoToast(
 		Main::MakeSessionShow(_show, _descriptor.session),
 		ChatHelpers::ResolveWindowDefault(),
-		_descriptor.premiumRequiredError(chat->peer->asUser()).text,
+		_descriptor.moneyRestrictionError(chat->peer->asUser()).text,
 		u"require_premium"_q);
 	return true;
 }
@@ -803,10 +803,9 @@ void ShareBox::Inner::refreshLockedRows() {
 	auto changed = false;
 	for (const auto &[peer, data] : _dataMap) {
 		const auto history = data->history;
-		const auto locked = (Api::ResolveRequiresPremiumToWrite(
+		const auto locked = Api::ResolveMessageMoneyRestrictions(
 			history->peer,
-			history
-		) == Api::RequirePremiumState::Yes);
+			history).premiumRequired;
 		if (data->locked != locked) {
 			data->locked = locked;
 			changed = true;
@@ -814,10 +813,9 @@ void ShareBox::Inner::refreshLockedRows() {
 	}
 	for (const auto &data : d_byUsernameFiltered) {
 		const auto history = data->history;
-		const auto locked = (Api::ResolveRequiresPremiumToWrite(
+		const auto locked = Api::ResolveMessageMoneyRestrictions(
 			history->peer,
-			history
-		) == Api::RequirePremiumState::Yes);
+			history).premiumRequired;
 		if (data->locked != locked) {
 			data->locked = locked;
 			changed = true;
@@ -887,12 +885,11 @@ void ShareBox::Inner::updateChatName(not_null<Chat*> chat) {
 }
 
 void ShareBox::Inner::initChatLocked(not_null<Chat*> chat) {
-	if (_descriptor.premiumRequiredError) {
+	if (_descriptor.moneyRestrictionError) {
 		const auto history = chat->history;
-		if (Api::ResolveRequiresPremiumToWrite(
-			history->peer,
-			history
-		) == Api::RequirePremiumState::Yes) {
+		if (Api::ResolveMessageMoneyRestrictions(
+				history->peer,
+				history).premiumRequired) {
 			chat->locked = true;
 		}
 	}
@@ -1019,14 +1016,14 @@ void ShareBox::Inner::loadProfilePhotos() {
 void ShareBox::Inner::preloadUserpic(not_null<Dialogs::Entry*> entry) {
 	entry->chatListPreloadData();
 	const auto history = entry->asHistory();
-	if (!_descriptor.premiumRequiredError || !history) {
+	if (!_descriptor.moneyRestrictionError || !history) {
 		return;
-	} else if (Api::ResolveRequiresPremiumToWrite(
-		history->peer,
-		history
-	) == Api::RequirePremiumState::Unknown) {
+	} else if (!Api::ResolveMessageMoneyRestrictions(
+			history->peer,
+			history).known) {
 		const auto user = history->peer->asUser();
-		_descriptor.session->api().premium().resolvePremiumRequired(user);
+		_descriptor.session->api().premium().resolveMessageMoneyRestrictions(
+			user);
 	}
 }
 
@@ -1707,7 +1704,7 @@ void FastShareMessage(
 	const auto requiresInline = item->requiresSendInlineRight();
 	auto filterCallback = [=](not_null<Data::Thread*> thread) {
 		if (const auto user = thread->peer()->asUser()) {
-			if (user->canSendIgnoreRequirePremium()) {
+			if (user->canSendIgnoreMoneyRestrictions()) {
 				return true;
 			}
 		}
@@ -1733,7 +1730,7 @@ void FastShareMessage(
 			.captionsCount = ItemsForwardCaptionsCount(items),
 			.show = !hasOnlyForcedForwardedInfo,
 		},
-		.premiumRequiredError = SharePremiumRequiredError(),
+		.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
 	}), Ui::LayerOption::CloseOther);
 }
 
@@ -1806,7 +1803,7 @@ void FastShareLink(
 	};
 	auto filterCallback = [](not_null<::Data::Thread*> thread) {
 		if (const auto user = thread->peer()->asUser()) {
-			if (user->canSendIgnoreRequirePremium()) {
+			if (user->canSendIgnoreMoneyRestrictions()) {
 				return true;
 			}
 		}
@@ -1819,13 +1816,13 @@ void FastShareLink(
 			.submitCallback = std::move(submitCallback),
 			.filterCallback = std::move(filterCallback),
 			.st = st,
-			.premiumRequiredError = SharePremiumRequiredError(),
+			.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
 		}),
 		Ui::LayerOption::KeepOther,
 		anim::type::normal);
 }
 
-auto SharePremiumRequiredError()
--> Fn<RecipientPremiumRequiredError(not_null<UserData*>)> {
-	return WritePremiumRequiredError;
+auto ShareMessageMoneyRestrictionError()
+-> Fn<RecipientMoneyRestrictionError(not_null<UserData*>)> {
+	return WriteMoneyRestrictionError;
 }

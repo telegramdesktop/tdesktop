@@ -66,7 +66,7 @@ namespace Media::Stories {
 	const auto state = std::make_shared<State>();
 	auto filterCallback = [=](not_null<Data::Thread*> thread) {
 		if (const auto user = thread->peer()->asUser()) {
-			if (user->canSendIgnoreRequirePremium()) {
+			if (user->canSendIgnoreMoneyRestrictions()) {
 				return true;
 			}
 		}
@@ -183,7 +183,7 @@ namespace Media::Stories {
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
 		.st = st.shareBox ? *st.shareBox : ShareBoxStyleOverrides(),
-		.premiumRequiredError = SharePremiumRequiredError(),
+		.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
 	});
 }
 
@@ -232,7 +232,7 @@ object_ptr<Ui::BoxContent> PrepareShareAtTimeBox(
 	const auto requiresInline = item->requiresSendInlineRight();
 	auto filterCallback = [=](not_null<Data::Thread*> thread) {
 		if (const auto user = thread->peer()->asUser()) {
-			if (user->canSendIgnoreRequirePremium()) {
+			if (user->canSendIgnoreMoneyRestrictions()) {
 				return true;
 			}
 		}
@@ -262,7 +262,7 @@ object_ptr<Ui::BoxContent> PrepareShareAtTimeBox(
 			.captionsCount = ItemsForwardCaptionsCount({ item }),
 			.show = !hasOnlyForcedForwardedInfo,
 		},
-		.premiumRequiredError = SharePremiumRequiredError(),
+		.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
 	});
 }
 

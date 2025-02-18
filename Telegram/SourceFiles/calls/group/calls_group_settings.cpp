@@ -178,7 +178,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
 		if (const auto user = thread->peer()->asUser()) {
-			if (user->canSendIgnoreRequirePremium()) {
+			if (user->canSendIgnoreMoneyRestrictions()) {
 				return true;
 			}
 		}
@@ -199,7 +199,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			tr::lng_group_call_copy_speaker_link(),
 			tr::lng_group_call_copy_listener_link()),
 		.st = st.shareBox ? *st.shareBox : ShareBoxStyleOverrides(),
-		.premiumRequiredError = SharePremiumRequiredError(),
+		.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
 	});
 	*box = result.data();
 	return result;

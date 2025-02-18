@@ -93,11 +93,11 @@ private:
 
 };
 
-struct RecipientPremiumRequiredError {
+struct RecipientMoneyRestrictionError {
 	TextWithEntities text;
 };
 
-[[nodiscard]] RecipientPremiumRequiredError WritePremiumRequiredError(
+[[nodiscard]] RecipientMoneyRestrictionError WriteMoneyRestrictionError(
 	not_null<UserData*> user);
 
 class RecipientRow : public PeerListRow {
@@ -112,7 +112,7 @@ public:
 	[[nodiscard]] static bool ShowLockedError(
 		not_null<PeerListController*> controller,
 		not_null<PeerListRow*> row,
-		Fn<RecipientPremiumRequiredError(not_null<UserData*>)> error);
+		Fn<RecipientMoneyRestrictionError(not_null<UserData*>)> error);
 
 	[[nodiscard]] History *maybeHistory() const {
 		return _maybeHistory;
@@ -135,7 +135,7 @@ private:
 
 };
 
-void TrackPremiumRequiredChanges(
+void TrackMessageMoneyRestrictionsChanges(
 	not_null<PeerListController*> controller,
 	rpl::lifetime &lifetime);
 
@@ -261,8 +261,8 @@ struct ChooseRecipientArgs {
 	FnMut<void(not_null<Data::Thread*>)> callback;
 	Fn<bool(not_null<Data::Thread*>)> filter;
 
-	using PremiumRequiredError = RecipientPremiumRequiredError;
-	Fn<PremiumRequiredError(not_null<UserData*>)> premiumRequiredError;
+	using MoneyRestrictionError = RecipientMoneyRestrictionError;
+	Fn<MoneyRestrictionError(not_null<UserData*>)> moneyRestrictionError;
 };
 
 class ChooseRecipientBoxController
@@ -290,8 +290,8 @@ private:
 	const not_null<Main::Session*> _session;
 	FnMut<void(not_null<Data::Thread*>)> _callback;
 	Fn<bool(not_null<Data::Thread*>)> _filter;
-	Fn<RecipientPremiumRequiredError(
-		not_null<UserData*>)> _premiumRequiredError;
+	Fn<RecipientMoneyRestrictionError(
+		not_null<UserData*>)> _moneyRestrictionError;
 
 };
 

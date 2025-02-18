@@ -705,7 +705,7 @@ void ReplyArea::show(
 		using namespace HistoryView::Controls;
 		return (can
 			|| !user
-			|| !user->meRequiresPremiumToWrite()
+			|| !user->requiresPremiumToWrite()
 			|| user->session().premium())
 			? WriteRestriction()
 			: WriteRestriction{
