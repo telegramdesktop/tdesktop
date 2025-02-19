@@ -114,15 +114,26 @@ struct SendingErrorRequest {
 	const HistoryItemsList *forward = nullptr;
 	const Data::Story *story = nullptr;
 	const TextWithTags *text = nullptr;
+	int messagesCount = 0;
 	bool ignoreSlowmodeCountdown = false;
-	bool mediaMessage = false;
 };
+[[nodiscard]] int ComputeSendingMessagesCount(
+	not_null<History*> history,
+	const SendingErrorRequest &request);
 [[nodiscard]] Data::SendError GetErrorForSending(
 	not_null<PeerData*> peer,
 	SendingErrorRequest request);
 [[nodiscard]] Data::SendError GetErrorForSending(
 	not_null<Data::Thread*> thread,
 	SendingErrorRequest request);
+
+struct SendPaymentDetails {
+	int messages = 0;
+	int stars = 0;
+};
+[[nodiscard]] std::optional<SendPaymentDetails> ComputePaymentDetails(
+	not_null<PeerData*> peer,
+	int messagesCount);
 
 [[nodiscard]] Data::SendErrorWithThread GetErrorForSending(
 	const std::vector<not_null<Data::Thread*>> &threads,

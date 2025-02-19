@@ -4351,13 +4351,11 @@ void HistoryWidget::sendVoice(const VoiceToSend &data) {
 		copy.options.starsApproved = approved;
 		sendVoice(copy);
 	};
-	const auto ignoreSlowmodeCountdown = data.options.scheduled != 0;
-	if (showSendMessageError(
-			{},
-			ignoreSlowmodeCountdown,
-			crl::guard(this, withPaymentApproved),
-			data.options.starsApproved,
-			true)) {
+	const auto checked = checkSendPayment(
+		1 + int(_forwardPanel->items().size()),
+		data.options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
 		return;
 	}
 
@@ -5904,28 +5902,38 @@ bool HistoryWidget::showSendMessageError(
 		return false;
 	}
 	const auto topicRootId = resolveReplyToTopicRootId();
-	const auto error = GetErrorForSending(
-		_peer,
-		{
-			.topicRootId = topicRootId,
-			.forward = &_forwardPanel->items(),
-			.text = &textWithTags,
-			.ignoreSlowmodeCountdown = ignoreSlowmodeCountdown,
-			.mediaMessage = mediaMessage,
-		});
-	if (resend && error.resolving) {
+	auto request = SendingErrorRequest{
+		.topicRootId = topicRootId,
+		.forward = &_forwardPanel->items(),
+		.text = &textWithTags,
+		.ignoreSlowmodeCountdown = ignoreSlowmodeCountdown,
+	};
+	request.messagesCount = ComputeSendingMessagesCount(_history, request)
+		+ (mediaMessage ? 1 : 0);
+	const auto error = GetErrorForSending(_peer, request);
+	if (error) {
+		Data::ShowSendErrorToast(controller(), _peer, error);
+		return true;
+	}
+	return resend
+		&& !checkSendPayment(request.messagesCount, starsApproved, resend);
+}
+
+bool HistoryWidget::checkSendPayment(
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int starsApproved)> resend) {
+	const auto details = ComputePaymentDetails(_peer, messagesCount);
+	if (!details) {
 		_resendOnFullUpdated = [=] { resend(starsApproved); };
 		return true;
-	} else if (resend && error.paidStars > starsApproved) {
+	} else if (const auto stars = details->stars) {
 		Data::ShowSendPaidConfirm(controller(), _peer, error, [=] {
-			resend(error.paidStars);
+			resend(stars);
 		});
 		return true;
-	} else if (!error) {
-		return false;
 	}
-	Data::ShowSendErrorToast(controller(), _peer, error);
-	return true;
+	return false;
 }
 
 bool HistoryWidget::confirmSendingFiles(const QStringList &files) {

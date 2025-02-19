@@ -474,6 +474,10 @@ private:
 		Fn<void(int starsApproved)> resend = nullptr,
 		int starsApproved = 0,
 		bool mediaMessage = false);
+	bool checkSendPayment(
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int starsApproved)> resend);
 
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,

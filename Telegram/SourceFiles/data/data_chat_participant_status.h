@@ -189,26 +189,17 @@ struct SendError {
 
 	struct Args {
 		QString text;
-		int paidStars = 0;
-		int paidMessages = 0;
 		int boostsToLift = 0;
-		bool resolving = false;
 		bool premiumToLift = false;
 	};
 	SendError(Args &&args)
 	: text(std::move(args.text))
-	, paidStars(args.paidStars)
-	, paidMessages(args.paidMessages)
 	, boostsToLift(args.boostsToLift)
-	, resolving(args.resolving)
 	, premiumToLift(args.premiumToLift) {
 	}
 
 	QString text;
-	int paidStars = 0;
-	int paidMessages = 0;
 	int boostsToLift = 0;
-	bool resolving = false;
 	bool premiumToLift = false;
 
 	[[nodiscard]] SendError value_or(SendError other) const {

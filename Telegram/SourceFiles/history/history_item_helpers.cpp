@@ -60,6 +60,33 @@ bool PeerCallKnown(not_null<PeerData*> peer) {
 
 } // namespace
 
+int ComputeSendingMessagesCount(
+		not_null<History*> history,
+		const SendingErrorRequest &request) {
+	auto result = 0;
+	if (request.text && !request.text->empty()) {
+		auto sending = TextWithEntities();
+		auto left = TextWithEntities{
+			request.text->text,
+			TextUtilities::ConvertTextTagsToEntities(request.text->tags)
+		};
+		auto prepareFlags = Ui::ItemTextOptions(
+			history,
+			history->session().user()).flags;
+		TextUtilities::PrepareForSending(left, prepareFlags);
+
+		while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+			++result;
+		}
+		if (!result) {
+			++result;
+		}
+	}
+	return result
+		+ (request.story ? 1 : 0)
+		+ (request.forward ? int(request.forward->size()) : 0);
+}
+
 Data::SendError GetErrorForSending(
 		not_null<PeerData*> peer,
 		SendingErrorRequest request) {
@@ -93,33 +120,10 @@ Data::SendError GetErrorForSending(
 			return tr::lng_forward_cant(tr::now);
 		}
 	}
-	const auto countMessages = [&] {
-		auto result = 0;
-		if (hasText) {
-			auto sending = TextWithEntities();
-			auto left = TextWithEntities{
-				request.text->text,
-				TextUtilities::ConvertTextTagsToEntities(request.text->tags)
-			};
-			auto prepareFlags = Ui::ItemTextOptions(
-				thread->owningHistory(),
-				peer->session().user()).flags;
-			TextUtilities::PrepareForSending(left, prepareFlags);
-
-			while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-				++result;
-			}
-			if (!result) {
-				++result;
-			}
-		}
-		return result
-			+ (request.story ? 1 : 0)
-			+ (request.mediaMessage ? 1 : 0)
-			+ (request.forward ? int(request.forward->size()) : 0);
-	};
 	if (peer->slowmodeApplied()) {
-		const auto count = countMessages();
+		const auto count = request.messagesCount
+			? request.messagesCount
+			: ComputeSendingMessagesCount(thread->owningHistory(), request);
 		if (const auto history = peer->owner().historyLoaded(peer)) {
 			if (!request.ignoreSlowmodeCountdown
 				&& (history->latestSendingMessage() != nullptr)
@@ -157,29 +161,6 @@ Data::SendError GetErrorForSending(
 				Ui::FormatDurationWordsSlowmode(left));
 		}
 	}
-
-	if (const auto user = peer->asUser()) {
-		if (user->hasStarsPerMessage()
-			&& !user->messageMoneyRestrictionsKnown()) {
-			user->updateFull();
-			return Data::SendError({ .resolving = true });
-		}
-	} else if (const auto channel = peer->asChannel()) {
-		if (!channel->isFullLoaded()) {
-			channel->updateFull();
-			return Data::SendError({ .resolving = true });
-		}
-	}
-	if (!peer->session().credits().loaded()) {
-		peer->session().credits().load();
-		return Data::SendError({ .resolving = true });
-	} else if (const auto perMessage = peer->starsPerMessageChecked()) {
-		const auto count = countMessages();
-		return Data::SendError({
-			.paidStars = count * perMessage,
-			.paidMessages = count,
-		});
-	}
 	return {};
 }
 
@@ -201,6 +182,34 @@ Data::SendErrorWithThread GetErrorForSending(
 	}
 	return {};
 }
+
+std::optional<SendPaymentDetails> ComputePaymentDetails(
+		not_null<PeerData*> peer,
+		int messagesCount) {
+	if (const auto user = peer->asUser()) {
+		if (user->hasStarsPerMessage()
+			&& !user->messageMoneyRestrictionsKnown()) {
+			user->updateFull();
+			return {};
+		}
+	} else if (const auto channel = peer->asChannel()) {
+		if (!channel->isFullLoaded()) {
+			channel->updateFull();
+			return {};
+		}
+	}
+	if (!peer->session().credits().loaded()) {
+		peer->session().credits().load();
+		return {};
+	} else if (const auto perMessage = peer->starsPerMessageChecked()) {
+		return SendPaymentDetails{
+			.messages = messagesCount,
+			.stars = messagesCount * perMessage,
+		};
+	}
+	return SendPaymentDetails();
+}
+
 object_ptr<Ui::BoxContent> MakeSendErrorBox(
 		const Data::SendErrorWithThread &error,
 		bool withTitle) {
