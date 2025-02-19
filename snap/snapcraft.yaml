@@ -94,7 +94,6 @@ parts:
       - libasound2-dev
       - libavif-dev
       - libboost-regex-dev
-      - libfmt-dev
       - libgirepository1.0-dev
       - libglib2.0-dev
       - libheif-dev
