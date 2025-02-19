@@ -30,6 +30,33 @@ constexpr auto kSwipeSlow = 0.2;
 constexpr auto kMsgBareIdSwipeBack = std::numeric_limits<int64>::max() - 77;
 constexpr auto kSwipedBackSpeedRatio = 0.35;
 
+float64 InterpolationRatio(float64 from, float64 to, float64 result) {
+	return (result - from) / (to - from);
+};
+
+class RatioRange final {
+public:
+	[[nodiscard]] float64 calcRatio(float64 value) {
+		if (value < _min) {
+			const auto shift = _min - value;
+			_min -= shift;
+			_max -= shift;
+			_max = _min + 1;
+		} else if (value > _max) {
+			const auto shift = value - _max;
+			_min += shift;
+			_max += shift;
+			_max = _min + 1;
+		}
+		return InterpolationRatio(_min, _max, value);
+	}
+
+private:
+	float64 _min = 0;
+	float64 _max = 1;
+
+};
+
 } // namespace
 
 void SetupSwipeHandler(
@@ -55,6 +82,7 @@ void SetupSwipeHandler(
 		std::optional<Qt::Orientation> orientation;
 		std::optional<Qt::LayoutDirection> direction;
 		float64 threshold = style::ConvertFloatScale(kThresholdWidth);
+		RatioRange ratioRange;
 		int directionInt = 1.;
 		QPointF startAt;
 		QPointF delta;
@@ -103,10 +131,13 @@ void SetupSwipeHandler(
 	};
 	const auto processEnd = [=](std::optional<QPointF> delta = {}) {
 		if (state->orientation == Qt::Horizontal) {
+			const auto rawRatio = delta.value_or(state->delta).x()
+				/ state->threshold
+				* state->directionInt;
 			const auto ratio = std::clamp(
-				delta.value_or(state->delta).x()
-					/ state->threshold
-					* state->directionInt,
+				state->finishByTopData.keepRatioWithinRange
+					? state->ratioRange.calcRatio(rawRatio)
+					: rawRatio,
 				0.,
 				kMaxRatio);
 			if ((ratio >= 1) && state->finishByTopData.callback) {
@@ -183,9 +214,11 @@ void SetupSwipeHandler(
 			}
 		} else if (*state->orientation == Qt::Horizontal) {
 			state->delta = args.delta;
-			const auto ratio = args.delta.x()
-				* state->directionInt
-				/ state->threshold;
+			const auto rawRatio = 0
+				+ args.delta.x() * state->directionInt / state->threshold;
+			const auto ratio = state->finishByTopData.keepRatioWithinRange
+				? state->ratioRange.calcRatio(rawRatio)
+				: rawRatio;
 			updateRatio(ratio);
 			constexpr auto kResetReachedOn = 0.95;
 			constexpr auto kBounceDuration = crl::time(500);
@@ -435,6 +468,7 @@ SwipeHandlerFinishData DefaultSwipeBackHandlerFinishData(
 		.callback = std::move(callback),
 		.msgBareId = kMsgBareIdSwipeBack,
 		.speedRatio = kSwipedBackSpeedRatio,
+		.keepRatioWithinRange = true,
 	};
 }
 
