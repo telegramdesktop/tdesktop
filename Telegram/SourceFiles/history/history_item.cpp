@@ -2266,6 +2266,10 @@ void HistoryItem::setRealId(MsgId newId) {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		incrementReplyToTopCounter();
 	}
+
+	if (out() && starsPaid()) {
+		_history->session().credits().load(true);
+	}
 }
 
 bool HistoryItem::canPin() const {
