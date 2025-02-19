@@ -3373,12 +3373,12 @@ void ApiWrap::forwardMessages(
 		const auto requestType = Data::Histories::RequestType::Send;
 		const auto idsCopy = localIds;
 		const auto scheduled = action.options.scheduled;
-		auto paidStars = std::min(
+		const auto starsPaid = std::min(
 			action.options.starsApproved,
 			int(ids.size() * peer->starsPerMessageChecked()));
 		auto oneFlags = sendFlags;
-		if (paidStars) {
-			action.options.starsApproved -= paidStars;
+		if (starsPaid) {
+			action.options.starsApproved -= starsPaid;
 			oneFlags |= SendFlag::f_allow_paid_stars;
 		}
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
@@ -3393,7 +3393,7 @@ void ApiWrap::forwardMessages(
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 				MTPint(), // video_timestamp
-				MTP_long(paidStars)
+				MTP_long(starsPaid)
 			)).done([=](const MTPUpdates &result) {
 				if (!scheduled) {
 					this->updates().checkForSentToScheduled(result);
@@ -3438,6 +3438,7 @@ void ApiWrap::forwardMessages(
 				.replyTo = { .topicRootId = topMsgId },
 				.date = NewMessageDate(action.options),
 				.shortcutId = action.options.shortcutId,
+				.starsPaid = action.options.starsApproved,
 				.postAuthor = NewMessagePostAuthor(action),
 
 				// forwarded messages don't have effects
@@ -3906,6 +3907,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			.replyTo = action.replyTo,
 			.date = NewMessageDate(action.options),
 			.shortcutId = action.options.shortcutId,
+			.starsPaid = starsPaid,
 			.postAuthor = NewMessagePostAuthor(action),
 			.effectId = action.options.effectId,
 		}, sending, media);
@@ -4092,6 +4094,7 @@ void ApiWrap::sendInlineResult(
 		.replyTo = action.replyTo,
 		.date = NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
+		.starsPaid = starsPaid,
 		.viaBotId = ((bot && !action.options.hideViaBot)
 			? peerToUser(bot->id)
 			: UserId()),

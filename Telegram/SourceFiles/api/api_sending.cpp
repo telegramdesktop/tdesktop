@@ -229,6 +229,7 @@ void SendExistingMedia(
 		.replyTo = action.replyTo,
 		.date = NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
+		.starsPaid = starsPaid,
 		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
 	}, media, caption);
@@ -411,6 +412,7 @@ bool SendDice(MessageToSend &message) {
 		.replyTo = action.replyTo,
 		.date = NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
+		.starsPaid = starsPaid,
 		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
 	}, TextWithEntities(), MTP_messageMediaDice(

@@ -431,6 +431,35 @@ Message::Message(
 			_rightAction->second->link = ReportSponsoredClickHandler(data);
 		}
 	}
+	if (const auto stars = data->starsPaid()) {
+		auto text = PreparedServiceText{
+			.text = data->out()
+				? tr::lng_action_paid_message_sent(
+					tr::now,
+					lt_count,
+					stars,
+					Ui::Text::WithEntities)
+				: history()->peer->isUser()
+				? tr::lng_action_paid_message_got(
+					tr::now,
+					lt_count,
+					stars,
+					lt_name,
+					Ui::Text::Link(data->from()->shortName(), 1),
+					Ui::Text::WithEntities)
+				: tr::lng_action_paid_message_group(
+					tr::now,
+					lt_count,
+					stars,
+					lt_from,
+					Ui::Text::Link(data->from()->shortName(), 1),
+					Ui::Text::WithEntities),
+		};
+		if (!data->out()) {
+			text.links.push_back(data->from()->createOpenLink());
+		}
+		setServicePreMessage(std::move(text));
+	}
 }
 
 Message::~Message() {
@@ -2446,6 +2475,13 @@ TextState Message::textState(
 	auto g = countGeometry();
 	if (g.width() < 1 || isHidden()) {
 		return result;
+	}
+
+	if (const auto service = Get<ServicePreMessage>()) {
+		result.link = service->textState(point, request, g);
+		if (result.link) {
+			return result;
+		}
 	}
 
 	const auto bubble = drawBubble();

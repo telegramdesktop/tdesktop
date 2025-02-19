@@ -16,6 +16,7 @@ class History;
 class HistoryBlock;
 class HistoryItem;
 struct HistoryMessageReply;
+struct PreparedServiceText;
 
 namespace Data {
 struct Reaction;
@@ -260,7 +261,7 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 // displaying some text in layout of a service message above the message.
 struct ServicePreMessage
 	: public RuntimeComponent<ServicePreMessage, Element> {
-	void init(TextWithEntities string);
+	void init(PreparedServiceText string);
 
 	int resizeToWidth(int newWidth, bool chatWide);
 
@@ -269,6 +270,10 @@ struct ServicePreMessage
 		const PaintContext &context,
 		QRect g,
 		bool chatWide) const;
+	[[nodiscard]] ClickHandlerPtr textState(
+		QPoint point,
+		const StateRequest &request,
+		QRect g) const;
 
 	Ui::Text::String text;
 	int width = 0;
@@ -403,7 +408,7 @@ public:
 
 	// For blocks context this should be called only from recountDisplayDate().
 	void setDisplayDate(bool displayDate);
-	void setServicePreMessage(TextWithEntities text);
+	void setServicePreMessage(PreparedServiceText text);
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
 

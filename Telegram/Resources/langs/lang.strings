@@ -2170,6 +2170,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_paid_message_sent#other" = "You paid {count} Stars to send a message";
 "lng_action_paid_message_got#one" = "You received {count} Star from {name}";
 "lng_action_paid_message_got#other" = "You received {count} Stars from {name}";
+"lng_action_paid_message_group#one" = "{from} paid {count} Star to send a message";
+"lng_action_paid_message_group#other" = "{from} paid {count} Stars to send a message";
 
 "lng_similar_channels_title" = "Similar channels";
 "lng_similar_channels_view_all" = "View all";

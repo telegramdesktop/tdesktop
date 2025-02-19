@@ -460,6 +460,9 @@ not_null<HistoryItem*> History::createItem(
 	});
 	if (newMessage && result->out() && result->isRegular()) {
 		session().topPeers().increment(peer, result->date());
+		if (result->starsPaid()) {
+			session().credits().load(true);
+		}
 	}
 	return result;
 }
