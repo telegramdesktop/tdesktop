@@ -29,6 +29,7 @@ struct SendErrorWithThread;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Ui {
@@ -149,10 +150,31 @@ void ShowSendPaidConfirm(
 	SendPaymentDetails details,
 	Fn<void()> confirmed);
 void ShowSendPaidConfirm(
-	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> peer,
 	SendPaymentDetails details,
 	Fn<void()> confirmed);
+
+class SendPaymentHelper final {
+public:
+	[[nodiscard]] bool check(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> resend);
+	[[nodiscard]] bool check(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<PeerData*> peer,
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> resend);
+
+private:
+	Fn<void()> _resend;
+	rpl::lifetime _lifetime;
+
+};
 
 [[nodiscard]] Data::SendErrorWithThread GetErrorForSending(
 	const std::vector<not_null<Data::Thread*>> &threads,

@@ -226,10 +226,12 @@ const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 } // namespace
 
 struct HistoryWidget::SendingFiles {
-	Ui::PreparedList list;
+	std::vector<Ui::PreparedGroup> groups;
 	Ui::SendFilesWay way;
 	TextWithTags caption;
 	Api::SendOptions options;
+	int totalCount = 0;
+	bool sendComment = false;
 	bool ctrlShiftEnter = false;
 };
 
@@ -895,14 +897,16 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	session().credits().loadedValue(
-	) | rpl::filter(
-		rpl::mappers::_1
-	) | rpl::take(1) | rpl::start_with_next([=] {
-		if (const auto callback = base::take(_resendOnFullUpdated)) {
-			callback();
-		}
-	}, lifetime());
+	if (!session().credits().loaded()) {
+		session().credits().loadedValue(
+		) | rpl::filter(
+			rpl::mappers::_1
+		) | rpl::take(1) | rpl::start_with_next([=] {
+			if (const auto callback = base::take(_resendOnFullUpdated)) {
+				callback();
+			}
+		}, lifetime());
+	}
 
 	using Type = Data::DefaultNotify;
 	rpl::merge(
@@ -6037,11 +6041,20 @@ void HistoryWidget::sendingFilesConfirmed(
 		return;
 	}
 
+	const auto filesCount = int(list.files.size());
+	auto groups = DivideByGroups(
+		std::move(list),
+		way,
+		_peer->slowmodeApplied());
+	const auto sendComment = !caption.text.isEmpty()
+		&& (groups.size() != 1 || !groups.front().sentWithCaption());
 	sendingFilesConfirmed(std::make_shared<SendingFiles>(SendingFiles{
-		.list = std::move(list),
+		.groups = std::move(groups),
 		.way = way,
 		.caption = std::move(caption),
 		.options = options,
+		.totalCount = filesCount + (sendComment ? 1 : 0),
+		.sendComment = sendComment,
 		.ctrlShiftEnter = ctrlShiftEnter,
 	}));
 }
@@ -6053,28 +6066,23 @@ void HistoryWidget::sendingFilesConfirmed(
 		sendingFilesConfirmed(args);
 	};
 	const auto checked = checkSendPayment(
-		args->list.files.size(),
+		args->totalCount,
 		args->options.starsApproved,
 		withPaymentApproved);
 	if (!checked) {
 		return;
 	}
 
-	auto groups = DivideByGroups(
-		std::move(args->list),
-		args->way,
-		_peer->slowmodeApplied());
 	const auto compress = args->way.sendImagesAsPhotos();
 	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
 	auto action = prepareSendAction(args->options);
 	action.clearDraft = false;
-	if ((groups.size() != 1 || !groups.front().sentWithCaption())
-		&& !args->caption.text.isEmpty()) {
+	if (args->sendComment) {
 		auto message = Api::MessageToSend(action);
 		message.textWithTags = base::take(args->caption);
 		session().api().sendMessage(std::move(message));
 	}
-	for (auto &group : groups) {
+	for (auto &group : args->groups) {
 		const auto album = (group.type != Ui::AlbumType::None)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;

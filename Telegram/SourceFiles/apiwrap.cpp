@@ -577,6 +577,11 @@ void ApiWrap::sendMessageFail(
 		if (show) {
 			show->showToast(tr::lng_error_schedule_limit(tr::now));
 		}
+	} else if (error.startsWith(u"ALLOW_PAYMENT_REQUIRED_"_q)) {
+		if (show) {
+			show->showToast(
+				u"Payment requirements changed. Please, try again."_q);
+		}
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);

@@ -1737,11 +1737,27 @@ void PeerMenuCreatePoll(
 		disabled,
 		sendType,
 		sendMenuDetails);
-	const auto weak = Ui::MakeWeak(box.data());
-	const auto lock = box->lifetime().make_state<bool>(false);
-	box->submitRequests(
-	) | rpl::start_with_next([=](const CreatePollBox::Result &result) {
-		if (std::exchange(*lock, true)) {
+	struct State {
+		QPointer<CreatePollBox> weak;
+		Fn<void(const CreatePollBox::Result &)> create;
+		SendPaymentHelper sendPayment;
+		bool lock = false;
+	};
+	const auto state = std::make_shared<State>();
+	state->weak = box;
+	state->create = [=](const CreatePollBox::Result &result) {
+		const auto withPaymentApproved = [=](int stars) {
+			auto copy = result;
+			copy.options.starsApproved = stars;
+			state->create(copy);
+		};
+		const auto checked = state->sendPayment.check(
+			controller,
+			peer,
+			1,
+			result.options.starsApproved,
+			withPaymentApproved);
+		if (!checked || std::exchange(state->lock, true)) {
 			return;
 		}
 		auto action = Api::SendAction(
@@ -1755,13 +1771,16 @@ void PeerMenuCreatePoll(
 			action.clearDraft = false;
 		}
 		const auto api = &peer->session().api();
+		const auto weak = state->weak;
 		api->polls().create(result.poll, action, crl::guard(weak, [=] {
 			weak->closeBox();
 		}), crl::guard(weak, [=] {
-			*lock = false;
+			state->lock = false;
 			weak->submitFailed(tr::lng_attach_failed(tr::now));
 		}));
-	}, box->lifetime());
+	};
+	box->submitRequests(
+	) | rpl::start_with_next(state->create, box->lifetime());
 	controller->show(std::move(box), Ui::LayerOption::CloseOther);
 }
 

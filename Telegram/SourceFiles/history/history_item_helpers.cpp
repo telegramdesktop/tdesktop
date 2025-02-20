@@ -258,7 +258,7 @@ void ShowSendPaidConfirm(
 }
 
 void ShowSendPaidConfirm(
-		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<PeerData*> peer,
 		SendPaymentDetails details,
 		Fn<void()> confirmed) {
@@ -328,6 +328,61 @@ void ShowSendPaidConfirm(
 				tr::lng_payment_confirm_dont_ask(tr::now)),
 			st::boxRowPadding + QMargins(0, skip, 0, skip));
 	}));
+}
+
+bool SendPaymentHelper::check(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> resend) {
+	return check(
+		navigation->uiShow(),
+		peer,
+		messagesCount,
+		starsApproved,
+		std::move(resend));
+}
+
+bool SendPaymentHelper::check(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<PeerData*> peer,
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> resend) {
+	_lifetime.destroy();
+	const auto details = ComputePaymentDetails(peer, messagesCount);
+	if (!details) {
+		_resend = [=] { resend(starsApproved); };
+
+		if (!peer->session().credits().loaded()) {
+			peer->session().credits().loadedValue(
+			) | rpl::filter(
+				rpl::mappers::_1
+			) | rpl::take(1) | rpl::start_with_next([=] {
+				if (const auto callback = base::take(_resend)) {
+					callback();
+				}
+			}, _lifetime);
+		}
+
+		peer->session().changes().peerUpdates(
+			peer,
+			Data::PeerUpdate::Flag::FullInfo
+		) | rpl::start_with_next([=] {
+			if (const auto callback = base::take(_resend)) {
+				callback();
+			}
+		}, _lifetime);
+
+		return false;
+	} else if (const auto stars = details->stars; stars > starsApproved) {
+		ShowSendPaidConfirm(show, peer, *details, [=] {
+			resend(stars);
+		});
+		return false;
+	}
+	return true;
 }
 
 void RequestDependentMessageItem(
