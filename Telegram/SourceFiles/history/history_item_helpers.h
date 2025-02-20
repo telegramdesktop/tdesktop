@@ -16,6 +16,10 @@ struct SendOptions;
 struct SendAction;
 } // namespace Api
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 class Story;
 class Thread;
@@ -30,6 +34,10 @@ class Session;
 namespace Ui {
 class BoxContent;
 } // namespace Ui
+
+namespace Window {
+class SessionNavigation;
+} // namespace Window
 
 struct PreparedServiceText {
 	TextWithEntities text;
@@ -134,6 +142,17 @@ struct SendPaymentDetails {
 [[nodiscard]] std::optional<SendPaymentDetails> ComputePaymentDetails(
 	not_null<PeerData*> peer,
 	int messagesCount);
+
+void ShowSendPaidConfirm(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	SendPaymentDetails details,
+	Fn<void()> confirmed);
+void ShowSendPaidConfirm(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	SendPaymentDetails details,
+	Fn<void()> confirmed);
 
 [[nodiscard]] Data::SendErrorWithThread GetErrorForSending(
 	const std::vector<not_null<Data::Thread*>> &threads,

@@ -225,6 +225,14 @@ const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
 } // namespace
 
+struct HistoryWidget::SendingFiles {
+	Ui::PreparedList list;
+	Ui::SendFilesWay way;
+	TextWithTags caption;
+	Api::SendOptions options;
+	bool ctrlShiftEnter = false;
+};
+
 HistoryWidget::HistoryWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -5896,8 +5904,7 @@ bool HistoryWidget::showSendMessageError(
 		const TextWithTags &textWithTags,
 		bool ignoreSlowmodeCountdown,
 		Fn<void(int starsApproved)> resend,
-		int starsApproved,
-		bool mediaMessage) {
+		int starsApproved) {
 	if (!_canSendMessages) {
 		return false;
 	}
@@ -5908,8 +5915,7 @@ bool HistoryWidget::showSendMessageError(
 		.text = &textWithTags,
 		.ignoreSlowmodeCountdown = ignoreSlowmodeCountdown,
 	};
-	request.messagesCount = ComputeSendingMessagesCount(_history, request)
-		+ (mediaMessage ? 1 : 0);
+	request.messagesCount = ComputeSendingMessagesCount(_history, request);
 	const auto error = GetErrorForSending(_peer, request);
 	if (error) {
 		Data::ShowSendErrorToast(controller(), _peer, error);
@@ -5926,14 +5932,14 @@ bool HistoryWidget::checkSendPayment(
 	const auto details = ComputePaymentDetails(_peer, messagesCount);
 	if (!details) {
 		_resendOnFullUpdated = [=] { resend(starsApproved); };
-		return true;
-	} else if (const auto stars = details->stars) {
-		Data::ShowSendPaidConfirm(controller(), _peer, error, [=] {
+		return false;
+	} else if (const auto stars = details->stars; stars > starsApproved) {
+		ShowSendPaidConfirm(controller(), _peer, *details, [=] {
 			resend(stars);
 		});
-		return true;
+		return false;
 	}
-	return false;
+	return true;
 }
 
 bool HistoryWidget::confirmSendingFiles(const QStringList &files) {
@@ -6019,28 +6025,53 @@ bool HistoryWidget::confirmSendingFiles(
 }
 
 void HistoryWidget::sendingFilesConfirmed(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter) {
+	Ui::PreparedList &&list,
+	Ui::SendFilesWay way,
+	TextWithTags &&caption,
+	Api::SendOptions options,
+	bool ctrlShiftEnter) {
 	Expects(list.filesToProcess.empty());
 
 	const auto compress = way.sendImagesAsPhotos();
 	if (showSendingFilesError(list, compress)) {
 		return;
 	}
+
+	sendingFilesConfirmed(std::make_shared<SendingFiles>(SendingFiles{
+		.list = std::move(list),
+		.way = way,
+		.caption = std::move(caption),
+		.options = options,
+		.ctrlShiftEnter = ctrlShiftEnter,
+	}));
+}
+
+void HistoryWidget::sendingFilesConfirmed(
+		std::shared_ptr<SendingFiles> args) {
+	const auto withPaymentApproved = [=](int approved) {
+		args->options.starsApproved = approved;
+		sendingFilesConfirmed(args);
+	};
+	const auto checked = checkSendPayment(
+		args->list.files.size(),
+		args->options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+
 	auto groups = DivideByGroups(
-		std::move(list),
-		way,
+		std::move(args->list),
+		args->way,
 		_peer->slowmodeApplied());
+	const auto compress = args->way.sendImagesAsPhotos();
 	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
-	auto action = prepareSendAction(options);
+	auto action = prepareSendAction(args->options);
 	action.clearDraft = false;
 	if ((groups.size() != 1 || !groups.front().sentWithCaption())
-		&& !caption.text.isEmpty()) {
+		&& !args->caption.text.isEmpty()) {
 		auto message = Api::MessageToSend(action);
-		message.textWithTags = base::take(caption);
+		message.textWithTags = base::take(args->caption);
 		session().api().sendMessage(std::move(message));
 	}
 	for (auto &group : groups) {
@@ -6050,7 +6081,7 @@ void HistoryWidget::sendingFilesConfirmed(
 		session().api().sendFiles(
 			std::move(group.list),
 			type,
-			base::take(caption),
+			base::take(args->caption),
 			album,
 			action);
 	}

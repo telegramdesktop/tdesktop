@@ -38,10 +38,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
+#include "settings/settings_credits_graphics.h"
+#include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/item_text_options.h"
 #include "lang/lang_keys.h"
 
@@ -240,6 +243,91 @@ object_ptr<Ui::BoxContent> MakeSendErrorBox(
 		.text = text,
 		.labelFilter = filter,
 	});
+}
+
+void ShowSendPaidConfirm(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		SendPaymentDetails details,
+		Fn<void()> confirmed) {
+	return ShowSendPaidConfirm(
+		navigation->uiShow(),
+		peer,
+		details,
+		confirmed);
+}
+
+void ShowSendPaidConfirm(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		SendPaymentDetails details,
+		Fn<void()> confirmed) {
+	const auto check = [=] {
+		const auto required = details.stars;
+		if (!required) {
+			return;
+		}
+		const auto done = [=](Settings::SmallBalanceResult result) {
+			if (result == Settings::SmallBalanceResult::Success
+				|| result == Settings::SmallBalanceResult::Already) {
+				confirmed();
+			}
+		};
+		Settings::MaybeRequestBalanceIncrease(
+			show,
+			required,
+			Settings::SmallBalanceForMessage{ .recipientId = peer->id },
+			done);
+	};
+
+	const auto session = &peer->session();
+	if (session->local().isPeerTrustedPayForMessage(peer->id)) {
+		check();
+		return;
+	}
+	const auto messages = details.messages;
+	const auto stars = details.stars;
+	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto trust = std::make_shared<QPointer<Ui::Checkbox>>();
+		const auto proceed = [=](Fn<void()> close) {
+			if ((*trust)->checked()) {
+				session->local().markPeerTrustedPayForMessage(peer->id);
+			}
+			check();
+			close();
+		};
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_payment_confirm_text(
+				tr::now,
+				lt_count,
+				stars / messages,
+				lt_name,
+				Ui::Text::Bold(peer->shortName()),
+				Ui::Text::RichLangValue).append(' ').append(
+					tr::lng_payment_confirm_sure(
+						tr::now,
+						lt_count,
+						messages,
+						lt_amount,
+						tr::lng_payment_confirm_amount(
+							tr::now,
+							lt_count,
+							stars,
+							Ui::Text::RichLangValue),
+						Ui::Text::RichLangValue)),
+			.confirmed = proceed,
+			.confirmText = tr::lng_payment_confirm_button(
+				lt_count,
+				rpl::single(messages * 1.)),
+			.title = tr::lng_payment_confirm_title(),
+		});
+		const auto skip = st::defaultCheckbox.margin.top();
+		*trust = box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_payment_confirm_dont_ask(tr::now)),
+			st::boxRowPadding + QMargins(0, skip, 0, skip));
+	}));
 }
 
 void RequestDependentMessageItem(

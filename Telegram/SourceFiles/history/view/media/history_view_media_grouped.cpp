@@ -867,6 +867,15 @@ QPoint GroupedMedia::resolveCustomInfoRightBottom() const {
 	return QPoint(width() - skipx, height() - skipy);
 }
 
+std::optional<PaidInformation> GroupedMedia::paidInformation() const {
+	auto result = PaidInformation();
+	for (const auto &part : _parts) {
+		++result.messages;
+		result.stars += part.item->starsPaid();
+	}
+	return result;
+}
+
 bool GroupedMedia::enforceBubbleWidth() const {
 	return _mode == Mode::Grid;
 }

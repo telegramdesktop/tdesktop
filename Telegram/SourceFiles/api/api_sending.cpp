@@ -634,7 +634,9 @@ void SendConfirmedFile(
 			.replyTo = file->to.replyTo,
 			.date = NewMessageDate(file->to.options),
 			.shortcutId = file->to.options.shortcutId,
-			.starsPaid = file->to.options.starsApproved,
+			.starsPaid = std::min(
+				history->peer->starsPerMessageChecked(),
+				file->to.options.starsApproved),
 			.postAuthor = NewMessagePostAuthor(action),
 			.groupedId = groupId,
 			.effectId = file->to.options.effectId,

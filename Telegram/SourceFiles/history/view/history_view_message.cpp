@@ -431,35 +431,7 @@ Message::Message(
 			_rightAction->second->link = ReportSponsoredClickHandler(data);
 		}
 	}
-	if (const auto stars = data->starsPaid()) {
-		auto text = PreparedServiceText{
-			.text = data->out()
-				? tr::lng_action_paid_message_sent(
-					tr::now,
-					lt_count,
-					stars,
-					Ui::Text::WithEntities)
-				: history()->peer->isUser()
-				? tr::lng_action_paid_message_got(
-					tr::now,
-					lt_count,
-					stars,
-					lt_name,
-					Ui::Text::Link(data->from()->shortName(), 1),
-					Ui::Text::WithEntities)
-				: tr::lng_action_paid_message_group(
-					tr::now,
-					lt_count,
-					stars,
-					lt_from,
-					Ui::Text::Link(data->from()->shortName(), 1),
-					Ui::Text::WithEntities),
-		};
-		if (!data->out()) {
-			text.links.push_back(data->from()->createOpenLink());
-		}
-		setServicePreMessage(std::move(text));
-	}
+	initPaidInformation();
 }
 
 Message::~Message() {
@@ -468,6 +440,61 @@ Message::~Message() {
 		_fromNameStatus = nullptr;
 		checkHeavyPart();
 	}
+}
+
+void Message::initPaidInformation() {
+	const auto item = data();
+	const auto media = this->media();
+	const auto mine = PaidInformation{
+		.messages = 1,
+		.stars = item->starsPaid(),
+	};
+	auto info = media ? media->paidInformation().value_or(mine) : mine;
+	if (!info) {
+		return;
+	}
+	const auto action = [&] {
+		return (info.messages == 1)
+			? tr::lng_action_paid_message_one(
+				tr::now,
+				Ui::Text::WithEntities)
+			: tr::lng_action_paid_message_some(
+				tr::now,
+				lt_count,
+				info.messages,
+				Ui::Text::WithEntities);
+	};
+	auto text = PreparedServiceText{
+		.text = item->out()
+			? tr::lng_action_paid_message_sent(
+				tr::now,
+				lt_count,
+				info.stars,
+				lt_action,
+				action(),
+				Ui::Text::WithEntities)
+			: history()->peer->isUser()
+			? tr::lng_action_paid_message_got(
+				tr::now,
+				lt_count,
+				info.stars,
+				lt_name,
+				Ui::Text::Link(item->from()->shortName(), 1),
+				Ui::Text::WithEntities)
+			: tr::lng_action_paid_message_group(
+				tr::now,
+				lt_count,
+				info.stars,
+				lt_from,
+				Ui::Text::Link(item->from()->shortName(), 1),
+				lt_action,
+				action(),
+				Ui::Text::WithEntities),
+	};
+	if (!item->out()) {
+		text.links.push_back(item ->from()->createOpenLink());
+	}
+	setServicePreMessage(std::move(text));
 }
 
 void Message::refreshRightBadge() {

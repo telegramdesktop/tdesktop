@@ -244,15 +244,4 @@ void ShowSendErrorToast(
 	not_null<PeerData*> peer,
 	SendError error);
 
-void ShowSendPaidConfirm(
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	SendError error,
-	Fn<void()> confirmed);
-void ShowSendPaidConfirm(
-	std::shared_ptr<ChatHelpers::Show> show,
-	not_null<PeerData*> peer,
-	SendError error,
-	Fn<void()> confirmed);
-
 } // namespace Data

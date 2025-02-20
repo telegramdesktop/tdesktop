@@ -320,6 +320,7 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using VoiceToSend = HistoryView::Controls::VoiceToSend;
+	struct SendingFiles;
 	enum ScrollChangeType {
 		ScrollChangeNone,
 
@@ -472,8 +473,7 @@ private:
 		const TextWithTags &textWithTags,
 		bool ignoreSlowmodeCountdown,
 		Fn<void(int starsApproved)> resend = nullptr,
-		int starsApproved = 0,
-		bool mediaMessage = false);
+		int starsApproved = 0);
 	bool checkSendPayment(
 		int messagesCount,
 		int starsApproved,
@@ -485,6 +485,7 @@ private:
 		TextWithTags &&caption,
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
+	void sendingFilesConfirmed(std::shared_ptr<SendingFiles> args);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	void itemRemoved(not_null<const HistoryItem*> item);

@@ -4481,7 +4481,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	const auto replyTo = sample->replyTo();
 	const auto sendAs = album->options.sendAs;
 	const auto starsPaid = std::min(
-		history->peer->starsPerMessageChecked(),
+		history->peer->starsPerMessageChecked() * int(medias.size()),
 		album->options.starsApproved);
 	if (starsPaid) {
 		album->options.starsApproved -= starsPaid;
