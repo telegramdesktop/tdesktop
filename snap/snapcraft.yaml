@@ -401,7 +401,6 @@ parts:
       - -./usr/doc
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/metatypes
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.la
