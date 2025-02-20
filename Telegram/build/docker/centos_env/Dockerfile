@@ -486,11 +486,9 @@ COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 	&& cd FFmpeg \
 	&& ./configure \
-		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
-		--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
+		--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
+		--extra-cxxflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
 		--disable-debug \
-		--disable-optimizations \
-		--disable-inline-asm \
 		--disable-programs \
 		--disable-doc \
 		--disable-network \
