@@ -465,6 +465,7 @@ std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
 			st::defaultPopupMenu,
 			makeContext),
 		style::margins(st::normalFont->spacew, 0, 0, 0));
+	emoji->entity()->resizeToWidth(emoji->entity()->textMaxWidth());
 
 	auto result = Info::BotStarRef::MakePeerBubbleButton(
 		parent,

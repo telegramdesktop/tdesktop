@@ -916,7 +916,7 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 			userpic->moveToLeft(left, 0, outer.width());
 			if (right) {
 				right->moveToLeft(
-					left + *width - padding.right() - right->width(),
+					left + *width - padding.right() - rwidth,
 					padding.top(),
 					outer.width());
 			}

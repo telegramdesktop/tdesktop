@@ -1188,6 +1188,7 @@ botEmojiStatusName: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 }
 botEmojiStatusEmoji: FlatLabel(botEmojiStatusName) {
+	margin: margins(4px, 4px, 4px, 4px);
 	textFg: profileVerifiedCheckBg;
 }
 
