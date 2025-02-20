@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "info/bot/starref/info_bot_starref_common.h" // MakePeerBubbleButton
 #include "info/profile/info_profile_values.h"
 #include "inline_bots/inline_bot_result.h"
@@ -2482,17 +2483,45 @@ void ChooseAndSendLocation(
 		not_null<Window::SessionController*> controller,
 		const Ui::LocationPickerConfig &config,
 		Api::SendAction action) {
+	const auto weak = base::make_weak(controller);
 	const auto session = &controller->session();
 	if (const auto picker = session->locationPickers().lookup(action)) {
 		picker->activate();
 		return;
 	}
-	const auto callback = [=](Data::InputVenue venue) {
+	struct State {
+		SendPaymentHelper sendPayment;
+		Fn<void(Data::InputVenue, Api::SendAction)> send;
+	};
+	const auto state = std::make_shared<State>();
+	state->send = [=](Data::InputVenue venue, Api::SendAction action) {
+		if (const auto strong = weak.get()) {
+			const auto withPaymentApproved = [=](int stars) {
+				if (const auto onstack = state->send) {
+					auto copy = action;
+					copy.options.starsApproved = stars;
+					onstack(venue, copy);
+				}
+			};
+			const auto checked = state->sendPayment.check(
+				strong,
+				action.history->peer,
+				1,
+				action.options.starsApproved,
+				withPaymentApproved);
+			if (!checked) {
+				return;
+			}
+		}
+		state->send = nullptr;
 		if (venue.justLocation()) {
 			Api::SendLocation(action, venue.lat, venue.lon);
 		} else {
 			Api::SendVenue(action, venue);
 		}
+	};
+	const auto callback = [=](Data::InputVenue venue) {
+		state->send(venue, action);
 	};
 	const auto picker = Ui::LocationPicker::Show({
 		.parent = controller->widget(),

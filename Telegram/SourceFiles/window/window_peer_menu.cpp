@@ -1684,20 +1684,23 @@ void PeerMenuShareContactBox(
 			: ('\xAB' + title + '\xBB');
 		struct State {
 			base::weak_ptr<Data::Thread> weak;
-			FnMut<void(Api::SendOptions)> share;
+			Fn<void(Api::SendOptions)> share;
 			SendPaymentHelper sendPayment;
 		};
-		auto state = std::make_shared<State>();
+		const auto state = std::make_shared<State>();
 		state->weak = thread;
-		state->share = [=](Api::SendOptions options) mutable {
+		state->share = [=](Api::SendOptions options) {
 			const auto strong = state->weak.get();
 			if (!strong) {
+				state->share = nullptr;
 				return;
 			}
 			const auto withPaymentApproved = [=](int stars) {
-				auto copy = options;
-				copy.starsApproved = stars;
-				state->share(copy);
+				if (const auto onstack = state->share) {
+					auto copy = options;
+					copy.starsApproved = stars;
+					onstack(copy);
+				}
 			};
 			const auto checked = state->sendPayment.check(
 				navigation,
@@ -1715,7 +1718,7 @@ void PeerMenuShareContactBox(
 			auto action = Api::SendAction(strong, options);
 			action.clearDraft = false;
 			strong->session().api().shareContact(user, action);
-			state = nullptr;
+			state->share = nullptr;
 		};
 
 		navigation->parentController()->show(
@@ -1765,19 +1768,20 @@ void PeerMenuCreatePoll(
 		sendType,
 		sendMenuDetails);
 	struct State {
-		QPointer<CreatePollBox> weak;
 		Fn<void(const CreatePollBox::Result &)> create;
 		SendPaymentHelper sendPayment;
 		bool lock = false;
 	};
-	const auto state = std::make_shared<State>();
-	state->weak = box;
+	const auto weak = QPointer<CreatePollBox>(box);
+	const auto state = box->lifetime().make_state<State>();
 	state->create = [=](const CreatePollBox::Result &result) {
-		const auto withPaymentApproved = [=](int stars) {
-			auto copy = result;
-			copy.options.starsApproved = stars;
-			state->create(copy);
-		};
+		const auto withPaymentApproved = crl::guard(weak, [=](int stars) {
+			if (const auto onstack = state->create) {
+				auto copy = result;
+				copy.options.starsApproved = stars;
+				onstack(copy);
+			}
+		});
 		const auto checked = state->sendPayment.check(
 			controller,
 			peer,
@@ -1798,8 +1802,8 @@ void PeerMenuCreatePoll(
 			action.clearDraft = false;
 		}
 		const auto api = &peer->session().api();
-		const auto weak = state->weak;
 		api->polls().create(result.poll, action, crl::guard(weak, [=] {
+			state->create = nullptr;
 			weak->closeBox();
 		}), crl::guard(weak, [=] {
 			state->lock = false;
