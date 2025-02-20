@@ -1682,23 +1682,49 @@ void PeerMenuShareContactBox(
 		auto recipient = peer->isUser()
 			? title
 			: ('\xAB' + title + '\xBB');
-		const auto weak = base::make_weak(thread);
+		struct State {
+			base::weak_ptr<Data::Thread> weak;
+			Fn<void(Api::SendOptions)> share;
+			SendPaymentHelper sendPayment;
+		};
+		const auto state = std::make_shared<State>();
+		state->weak = thread;
+		state->share = [=](Api::SendOptions options) {
+			const auto strong = state->weak.get();
+			if (!strong) {
+				return;
+			}
+			const auto withPaymentApproved = [=](int stars) {
+				auto copy = options;
+				copy.starsApproved = stars;
+				state->share(copy);
+			};
+			const auto checked = state->sendPayment.check(
+				navigation,
+				peer,
+				1,
+				options.starsApproved,
+				withPaymentApproved);
+			if (!checked) {
+				return;
+			}
+			navigation->showThread(
+				strong,
+				ShowAtTheEndMsgId,
+				Window::SectionShow::Way::ClearStack);
+			auto action = Api::SendAction(strong, options);
+			action.clearDraft = false;
+			strong->session().api().shareContact(user, action);
+		};
+
 		navigation->parentController()->show(
 			Ui::MakeConfirmBox({
 				.text = tr::lng_forward_share_contact(
 					tr::now,
 					lt_recipient,
 					recipient),
-				.confirmed = [weak, user, navigation](Fn<void()> &&close) {
-					if (const auto strong = weak.get()) {
-						navigation->showThread(
-							strong,
-							ShowAtTheEndMsgId,
-							Window::SectionShow::Way::ClearStack);
-						auto action = Api::SendAction(strong);
-						action.clearDraft = false;
-						strong->session().api().shareContact(user, action);
-					}
+				.confirmed = [state](Fn<void()> &&close) {
+					state->share({});
 					close();
 				},
 				.confirmText = tr::lng_forward_send(),
