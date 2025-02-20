@@ -48,7 +48,6 @@ parts:
       - libxcb-screensaver0-dev
     stage-packages:
       - libavif16
-      - libgeoclue-2-0
       - libopenal1
       - libxcb-record0
       - libxcb-screensaver0
@@ -88,6 +87,7 @@ parts:
     after:
       - ada
       - ffmpeg
+      - geoclue
       - libjxl
       - protobuf
       - qt
@@ -148,6 +148,13 @@ parts:
       rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/blas"
       mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/lapack/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
       rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/lapack"
+
+  geoclue:
+    plugin: nil
+    stage-packages:
+      - libgeoclue-2-0
+    stage:
+      - ./usr/lib/x86_64-linux-gnu/libgeoclue-2.so*
 
   libjxl:
     source: https://github.com/libjxl/libjxl.git
