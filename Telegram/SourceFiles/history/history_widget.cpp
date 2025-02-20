@@ -7329,10 +7329,21 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 		return;
 	} else if (showSlowmodeError()) {
 		return;
+	} else if (const auto error = result.result->getErrorOnSend(_history)) {
+		Data::ShowSendErrorToast(controller(), _peer, error);
+		return;
 	}
 
-	if (const auto error = result.result->getErrorOnSend(_history)) {
-		Data::ShowSendErrorToast(controller(), _peer, error);
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = result;
+		copy.options.starsApproved = approved;
+		sendInlineResult(copy);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		result.options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
 		return;
 	}
 
@@ -7343,7 +7354,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 	action.generateLocal = true;
 	session().api().sendInlineResult(
 		result.bot,
-		result.result,
+		result.result.get(),
 		action,
 		result.messageSendingFrom.localId);
 
@@ -7984,6 +7995,18 @@ bool HistoryWidget::sendExistingDocument(
 		|| ShowSendPremiumError(controller(), document)) {
 		return false;
 	}
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = messageToSend;
+		copy.action.options.starsApproved = approved;
+		sendExistingDocument(document, std::move(copy), localId);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		messageToSend.action.options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return false;
+	}
 
 	Api::SendExistingDocument(
 		std::move(messageToSend),
@@ -8018,6 +8041,19 @@ bool HistoryWidget::sendExistingPhoto(
 	} else if (!_peer || !_canSendMessages) {
 		return false;
 	} else if (showSlowmodeError()) {
+		return false;
+	}
+
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendExistingPhoto(photo, copy);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
 		return false;
 	}
 

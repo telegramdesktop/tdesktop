@@ -131,7 +131,7 @@ private:
 	};
 
 	using InlineResult = InlineBots::Result;
-	using InlineResults = std::vector<std::unique_ptr<InlineResult>>;
+	using InlineResults = std::vector<std::shared_ptr<InlineResult>>;
 	using LayoutItem = InlineBots::Layout::ItemBase;
 
 	struct InlineCacheEntry {
@@ -162,7 +162,8 @@ private:
 
 	void clearInlineRows(bool resultsDeleted);
 	LayoutItem *layoutPrepareSavedGif(not_null<DocumentData*> document);
-	LayoutItem *layoutPrepareInlineResult(not_null<InlineResult*> result);
+	LayoutItem *layoutPrepareInlineResult(
+		std::shared_ptr<InlineResult> result);
 
 	void deleteUnusedGifLayouts();
 

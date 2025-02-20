@@ -307,7 +307,7 @@ bool ReplyArea::sendExistingPhoto(
 }
 
 void ReplyArea::sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot) {
 	if (const auto error = result->getErrorOnSend(history())) {
 		const auto show = _controller->uiShow();
@@ -318,13 +318,17 @@ void ReplyArea::sendInlineResult(
 }
 
 void ReplyArea::sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
 	auto action = prepareSendAction(options);
 	action.generateLocal = true;
-	session().api().sendInlineResult(bot, result, action, localMessageId);
+	session().api().sendInlineResult(
+		bot,
+		result.get(),
+		action,
+		localMessageId);
 
 	auto &bots = cRefRecentInlineBots();
 	const auto index = bots.indexOf(bot);

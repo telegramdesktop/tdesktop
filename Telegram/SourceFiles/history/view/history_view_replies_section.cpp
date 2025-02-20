@@ -1458,13 +1458,13 @@ bool RepliesWidget::sendExistingPhoto(
 }
 
 void RepliesWidget::sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot) {
 	if (const auto error = result->getErrorOnSend(_history)) {
 		Data::ShowSendErrorToast(controller(), _history->peer, error);
 		return;
 	}
-	sendInlineResult(result, bot, {}, std::nullopt);
+	sendInlineResult(std::move(result), bot, {}, std::nullopt);
 	//const auto callback = [=](Api::SendOptions options) {
 	//	sendInlineResult(result, bot, options);
 	//};
@@ -1474,13 +1474,17 @@ void RepliesWidget::sendInlineResult(
 }
 
 void RepliesWidget::sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
 	auto action = prepareSendAction(options);
 	action.generateLocal = true;
-	session().api().sendInlineResult(bot, result, action, localMessageId);
+	session().api().sendInlineResult(
+		bot,
+		result.get(),
+		action,
+		localMessageId);
 
 	_composeControls->clear();
 	//_saveDraftText = true;

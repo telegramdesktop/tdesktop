@@ -318,10 +318,10 @@ private:
 		not_null<PhotoData*> photo,
 		Api::SendOptions options);
 	void sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot);
 	void sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId);

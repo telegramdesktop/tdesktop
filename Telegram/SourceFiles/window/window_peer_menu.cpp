@@ -1684,12 +1684,12 @@ void PeerMenuShareContactBox(
 			: ('\xAB' + title + '\xBB');
 		struct State {
 			base::weak_ptr<Data::Thread> weak;
-			Fn<void(Api::SendOptions)> share;
+			FnMut<void(Api::SendOptions)> share;
 			SendPaymentHelper sendPayment;
 		};
-		const auto state = std::make_shared<State>();
+		auto state = std::make_shared<State>();
 		state->weak = thread;
-		state->share = [=](Api::SendOptions options) {
+		state->share = [=](Api::SendOptions options) mutable {
 			const auto strong = state->weak.get();
 			if (!strong) {
 				return;
@@ -1715,6 +1715,7 @@ void PeerMenuShareContactBox(
 			auto action = Api::SendAction(strong, options);
 			action.clearDraft = false;
 			strong->session().api().shareContact(user, action);
+			state = nullptr;
 		};
 
 		navigation->parentController()->show(
