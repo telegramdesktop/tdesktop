@@ -409,8 +409,10 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.prl
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/libexec
+      - -./usr/metatypes
       - -./usr/mkspecs
       - -./usr/modules
+      - -./**/objects-*
     after:
       - libjxl
       - patches
