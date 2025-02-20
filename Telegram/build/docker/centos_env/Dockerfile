@@ -489,8 +489,6 @@ RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
 		--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
 		--disable-debug \
-		--disable-optimizations \
-		--disable-inline-asm \
 		--disable-programs \
 		--disable-doc \
 		--disable-network \
