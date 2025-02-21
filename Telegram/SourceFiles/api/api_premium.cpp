@@ -482,6 +482,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 				const auto token = Token{ data.vusers().v, data.vmonths().v };
 				_stores[token] = Store{
 					.amount = data.vamount().v,
+					.currency = qs(data.vcurrency()),
 					.product = qs(data.vstore_product().value_or_empty()),
 					.quantity = data.vstore_quantity().value_or_empty(),
 				};
@@ -490,14 +491,14 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 				}
 			}
 			for (const auto &[amount, tlOptions] : tlMapOptions) {
-				if (amount == 1 && _optionsForOnePerson.currency.isEmpty()) {
-					_optionsForOnePerson.currency = qs(
-						tlOptions.front().data().vcurrency());
+				if (amount == 1 && _optionsForOnePerson.currencies.empty()) {
 					for (const auto &option : tlOptions) {
 						_optionsForOnePerson.months.push_back(
 							option.data().vmonths().v);
 						_optionsForOnePerson.totalCosts.push_back(
 							option.data().vamount().v);
+						_optionsForOnePerson.currencies.push_back(
+							qs(option.data().vcurrency()));
 					}
 				}
 				_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
@@ -555,7 +556,7 @@ Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 	const auto token = Token{ users, months };
 	const auto &store = _stores[token];
 	return Payments::InvoicePremiumGiftCode{
-		.currency = _optionsForOnePerson.currency,
+		.currency = store.currency,
 		.storeProduct = store.product,
 		.randomId = randomId,
 		.amount = store.amount,
@@ -568,14 +569,15 @@ Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 std::vector<GiftOptionData> PremiumGiftCodeOptions::optionsForPeer() const {
 	auto result = std::vector<GiftOptionData>();
 
-	if (!_optionsForOnePerson.currency.isEmpty()) {
+	if (!_optionsForOnePerson.currencies.empty()) {
 		const auto count = int(_optionsForOnePerson.months.size());
 		result.reserve(count);
 		for (auto i = 0; i != count; ++i) {
 			Assert(i < _optionsForOnePerson.totalCosts.size());
+			Assert(i < _optionsForOnePerson.currencies.size());
 			result.push_back({
 				.cost = _optionsForOnePerson.totalCosts[i],
-				.currency = _optionsForOnePerson.currency,
+				.currency = _optionsForOnePerson.currencies[i],
 				.months = _optionsForOnePerson.months[i],
 			});
 		}
@@ -596,7 +598,7 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 				MTP_int(_optionsForOnePerson.months[i]),
 				MTPstring(),
 				MTPint(),
-				MTP_string(_optionsForOnePerson.currency),
+				MTP_string(_optionsForOnePerson.currencies[i]),
 				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
 		}
 		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);

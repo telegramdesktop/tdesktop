@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/ui_integration.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_credits.h"
 #include "data/data_document.h"
@@ -80,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
@@ -622,14 +624,27 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			list.reserve(options.size());
 			auto minMonthsGift = GiftTypePremium();
 			for (const auto &option : options) {
-				list.push_back({
-					.cost = option.cost,
-					.currency = option.currency,
-					.months = option.months,
-				});
-				if (!minMonthsGift.months
-					|| option.months < minMonthsGift.months) {
-					minMonthsGift = list.back();
+				if (option.currency != kCreditsCurrency) {
+					list.push_back({
+						.cost = option.cost,
+						.currency = option.currency,
+						.months = option.months,
+					});
+					if (!minMonthsGift.months
+						|| option.months < minMonthsGift.months) {
+						minMonthsGift = list.back();
+					}
+				}
+			}
+			for (const auto &option : options) {
+				if (option.currency == kCreditsCurrency) {
+					const auto i = ranges::find(
+						list,
+						option.months,
+						&GiftTypePremium::months);
+					if (i != end(list)) {
+						i->stars = option.cost;
+					}
 				}
 			}
 			for (auto &gift : list) {
@@ -1424,6 +1439,7 @@ void SendGiftBox(
 
 	struct State {
 		rpl::variable<GiftDetails> details;
+		rpl::variable<bool> messageAllowed;
 		std::shared_ptr<Data::DocumentMedia> media;
 		bool submitting = false;
 	};
@@ -1432,6 +1448,13 @@ void SendGiftBox(
 		.descriptor = descriptor,
 		.randomId = base::RandomValue<uint64>(),
 	};
+	peer->updateFull();
+	state->messageAllowed = peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked() == 0;
+	});
 
 	auto cost = state->details.value(
 	) | rpl::map([session](const GiftDetails &details) {
@@ -1462,10 +1485,17 @@ void SendGiftBox(
 		peer,
 		state->details.value()));
 
+	const auto messageWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	messageWrap->toggleOn(state->messageAllowed.value());
+	messageWrap->finishAnimating();
+	const auto messageInner = messageWrap->entity();
 	const auto limit = StarGiftMessageLimit(session);
 	const auto text = AddPartInput(
 		window,
-		container,
+		messageInner,
 		box->getDelegate()->outerContainer(),
 		tr::lng_gift_send_message(),
 		QString(),
@@ -1509,7 +1539,6 @@ void SendGiftBox(
 		text,
 		session,
 		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
-
 	if (stars) {
 		const auto cost = stars->info.starsToUpgrade;
 		if (cost > 0 && !peer->isSelf()) {
@@ -1552,7 +1581,7 @@ void SendGiftBox(
 		AddSkip(container);
 	}
 	v::match(descriptor, [&](const GiftTypePremium &) {
-		AddDividerText(container, tr::lng_gift_send_premium_about(
+		AddDividerText(messageInner, tr::lng_gift_send_premium_about(
 			lt_user,
 			rpl::single(peer->shortName())));
 	}, [&](const GiftTypeStars &) {
@@ -1560,11 +1589,18 @@ void SendGiftBox(
 			? tr::lng_gift_send_anonymous_self()
 			: peer->isBroadcast()
 			? tr::lng_gift_send_anonymous_about_channel()
-			: tr::lng_gift_send_anonymous_about(
-				lt_user,
-				rpl::single(peer->shortName()),
-				lt_recipient,
-				rpl::single(peer->shortName())));
+			: rpl::conditional(
+				state->messageAllowed.value(),
+				tr::lng_gift_send_anonymous_about(
+					lt_user,
+					rpl::single(peer->shortName()),
+					lt_recipient,
+					rpl::single(peer->shortName())),
+				tr::lng_gift_send_anonymous_about_paid(
+					lt_user,
+					rpl::single(peer->shortName()),
+					lt_recipient,
+					rpl::single(peer->shortName()))));
 	});
 
 	const auto buttonWidth = st::boxWideWidth
@@ -1575,7 +1611,10 @@ void SendGiftBox(
 			return;
 		}
 		state->submitting = true;
-		const auto details = state->details.current();
+		auto details = state->details.current();
+		if (!state->messageAllowed.current()) {
+			details.text = {};
+		}
 		const auto weak = MakeWeak(box);
 		const auto done = [=](Payments::CheckoutResult result) {
 			if (result == Payments::CheckoutResult::Paid) {

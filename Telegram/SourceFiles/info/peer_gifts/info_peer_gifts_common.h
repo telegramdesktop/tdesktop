@@ -44,6 +44,7 @@ namespace Info::PeerGifts {
 struct GiftTypePremium {
 	int64 cost = 0;
 	QString currency;
+	int stars = 0;
 	int months = 0;
 	int discountPercent = 0;
 

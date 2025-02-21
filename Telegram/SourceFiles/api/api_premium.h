@@ -209,6 +209,7 @@ private:
 	};
 	struct Store final {
 		uint64 amount = 0;
+		QString currency;
 		QString product;
 		int quantity = 0;
 	};
@@ -219,7 +220,7 @@ private:
 	struct {
 		std::vector<int> months;
 		std::vector<int64> totalCosts;
-		QString currency;
+		std::vector<QString> currencies;
 	} _optionsForOnePerson;
 
 	std::vector<int> _availablePresets;

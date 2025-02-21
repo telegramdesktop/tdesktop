@@ -3341,6 +3341,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_send_anonymous" = "Hide My Name";
 "lng_gift_send_anonymous_self" = "Hide my name and message from visitors to my profile.";
 "lng_gift_send_anonymous_about" = "You can hide your name and message from visitors to {user}'s profile. {recipient} will still see your name and message.";
+"lng_gift_send_anonymous_about_paid" = "You can hide your name from visitors to {user}'s profile. {recipient} will still see your name.";
 "lng_gift_send_anonymous_about_channel" = "You can hide your name and message from all visitors of this channel except its admins.";
 "lng_gift_send_unique" = "Make Unique for {price}";
 "lng_gift_send_unique_about" = "Enable this to let {user} turn your gift into a unique collectible. {link}";
