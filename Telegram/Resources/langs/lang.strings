@@ -2795,6 +2795,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_small_balance_subscribe" = "Buy **Stars** and subscribe to **{channel}** and other channels.";
 "lng_credits_small_balance_star_gift" = "Buy **Stars** to send gifts to {user} and other contacts.";
 "lng_credits_small_balance_for_message" = "Buy **Stars** to send messages to {user}.";
+"lng_credits_small_balance_for_messages" = "Buy **Stars** to send messages.";
 "lng_credits_small_balance_fallback" = "Buy **Stars** to unlock content and services on Telegram.";
 "lng_credits_purchase_blocked" = "Sorry, you can't purchase this item with Telegram Stars.";
 "lng_credits_enough" = "You have enough stars at the moment. {link}";
@@ -4834,6 +4835,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payment_confirm_text#other" = "{name} charges **{count}** Stars per message.";
 "lng_payment_confirm_amount#one" = "**{count}** Star";
 "lng_payment_confirm_amount#other" = "**{count}** Stars";
+"lng_payment_confirm_users#one" = "You selected **{count}** user who charge Stars for messages.";
+"lng_payment_confirm_users#other" = "You selected **{count}** users who charge Stars for messages.";
+"lng_payment_confirm_chats#one" = "You selected **{count}** chat where you pay Stars for messages.";
+"lng_payment_confirm_chats#other" = "You selected **{count}** chats where you pay Stars for messages.";
 "lng_payment_confirm_sure#one" = "Would you like to pay {amount} to send **{count}** message?";
 "lng_payment_confirm_sure#other" = "Would you like to pay {amount} to send **{count}** messages?";
 "lng_payment_confirm_dont_ask" = "Don't ask me again";

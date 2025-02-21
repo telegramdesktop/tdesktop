@@ -78,6 +78,7 @@ namespace Media::Stories {
 		: Fn<void()>();
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
+			Fn<bool(int messages)> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions forwardOptions) {
@@ -94,6 +95,8 @@ namespace Media::Stories {
 			{ .story = story, .text = &comment });
 		if (error.error) {
 			show->showBox(MakeSendErrorBox(error, result.size() > 1));
+			return;
+		} else if (!checkPaid(comment.text.isEmpty() ? 1 : 2)) {
 			return;
 		}
 
@@ -133,7 +136,7 @@ namespace Media::Stories {
 				sendFlags |= SendFlag::f_invert_media;
 			}
 			const auto starsPaid = std::min(
-				peer->starsPerMessageChecked(),
+				threadHistory->peer->starsPerMessageChecked(),
 				options.starsApproved);
 			if (starsPaid) {
 				options.starsApproved -= starsPaid;

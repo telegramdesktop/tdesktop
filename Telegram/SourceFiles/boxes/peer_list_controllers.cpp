@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 
 #include "api/api_chat_participants.h"
-#include "api/api_premium.h"
+#include "api/api_premium.h" // MessageMoneyRestriction.
 #include "base/random.h"
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "settings/settings_premium.h"
@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "dialogs/dialogs_main_list.h"
+#include "payments/ui/payments_reaction_box.h"
 #include "ui/effects/outline_segments.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_separate_id.h"
@@ -275,28 +276,56 @@ bool PeerListGlobalSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
 }
 
+struct RecipientRow::Restriction {
+	Api::MessageMoneyRestriction value;
+	RestrictionBadgeCache cache;
+};
+
 RecipientRow::RecipientRow(
 	not_null<PeerData*> peer,
 	const style::PeerListItem *maybeLockedSt,
 	History *maybeHistory)
 : PeerListRow(peer)
 , _maybeHistory(maybeHistory)
-, _resolvePremiumRequired(maybeLockedSt != nullptr) {
-	if (maybeLockedSt
-		&& Api::ResolveMessageMoneyRestrictions(
+, _maybeLockedSt(maybeLockedSt) {
+	if (_maybeLockedSt) {
+		setRestriction(Api::ResolveMessageMoneyRestrictions(
 			peer,
-			maybeHistory).premiumRequired) {
-		_lockedSt = maybeLockedSt;
+			maybeHistory));
 	}
+}
+
+Api::MessageMoneyRestriction RecipientRow::restriction() const {
+	return _restriction
+		? _restriction->value
+		: Api::MessageMoneyRestriction();
+}
+
+void RecipientRow::setRestriction(Api::MessageMoneyRestriction restriction) {
+	if (!restriction) {
+		_restriction = nullptr;
+		return;
+	} else if (!_restriction) {
+		_restriction = std::make_unique<Restriction>();
+	}
+	_restriction->value = restriction;
 }
 
 PaintRoundImageCallback RecipientRow::generatePaintUserpicCallback(
 		bool forceRound) {
 	auto result = PeerListRow::generatePaintUserpicCallback(forceRound);
-	if (const auto st = _lockedSt) {
+	if (const auto &r = _restriction) {
 		return [=](Painter &p, int x, int y, int outerWidth, int size) {
 			result(p, x, y, outerWidth, size);
-			PaintPremiumRequiredLock(p, st, x, y, outerWidth, size);
+			PaintRestrictionBadge(
+				p,
+				_maybeLockedSt,
+				r->value.starsPerMessage,
+				r->cache,
+				x,
+				y,
+				outerWidth,
+				size);
 		};
 	}
 	return result;
@@ -305,12 +334,14 @@ PaintRoundImageCallback RecipientRow::generatePaintUserpicCallback(
 bool RecipientRow::refreshLock(
 		not_null<const style::PeerListItem*> maybeLockedSt) {
 	if (const auto user = peer()->asUser()) {
-		const auto locked = _resolvePremiumRequired
-			&& Api::ResolveMessageMoneyRestrictions(
+		using Restriction = Api::MessageMoneyRestriction;
+		const auto r = _maybeLockedSt
+			? Api::ResolveMessageMoneyRestrictions(
 				user,
-				_maybeHistory).premiumRequired;
-		if (this->locked() != locked) {
-			setLocked(locked ? maybeLockedSt.get() : nullptr);
+				_maybeHistory)
+			: Restriction();
+		if ((_restriction ? _restriction->value : Restriction()) != r) {
+			setRestriction(r);
 			return true;
 		}
 	}
@@ -320,14 +351,20 @@ bool RecipientRow::refreshLock(
 void RecipientRow::preloadUserpic() {
 	PeerListRow::preloadUserpic();
 
-	if (!_resolvePremiumRequired) {
+	if (!_maybeLockedSt) {
 		return;
-	} else if (!Api::ResolveMessageMoneyRestrictions(
-			peer(),
-			_maybeHistory).known) {
-		const auto user = peer()->asUser();
-		user->session().api().premium().resolveMessageMoneyRestrictions(
-			user);
+	}
+	const auto peer = this->peer();
+	const auto known = Api::ResolveMessageMoneyRestrictions(
+		peer,
+		_maybeHistory).known;
+	if (known) {
+		return;
+	} else if (const auto user = peer->asUser()) {
+		const auto api = &user->session().api();
+		api->premium().resolveMessageMoneyRestrictions(user);
+	} else if (const auto group = peer->asChannel()) {
+		group->updateFull();
 	}
 }
 
@@ -844,7 +881,8 @@ bool RecipientRow::ShowLockedError(
 		not_null<PeerListController*> controller,
 		not_null<PeerListRow*> row,
 		Fn<RecipientMoneyRestrictionError(not_null<UserData*>)> error) {
-	if (!static_cast<RecipientRow*>(row.get())->locked()) {
+	const auto recipient = static_cast<RecipientRow*>(row.get());
+	if (!recipient->restriction().premiumRequired) {
 		return false;
 	}
 	::Settings::ShowPremiumPromoToast(
@@ -1100,25 +1138,61 @@ auto ChooseTopicBoxController::createRow(not_null<Data::ForumTopic*> topic)
 	return skip ? nullptr : std::make_unique<Row>(topic);
 };
 
-void PaintPremiumRequiredLock(
+void PaintRestrictionBadge(
 		Painter &p,
 		not_null<const style::PeerListItem*> st,
+		int stars,
+		RestrictionBadgeCache &cache,
 		int x,
 		int y,
 		int outerWidth,
 		int size) {
-	auto hq = PainterHighQualityEnabler(p);
+	const auto paletteVersion = style::PaletteVersion();
+	const auto good = !cache.badge.isNull()
+		&& (cache.stars == stars)
+		&& (cache.paletteVersion == paletteVersion);
 	const auto &check = st->checkbox.check;
-	auto pen = check.border->p;
-	pen.setWidthF(check.width);
-	p.setPen(pen);
-	p.setBrush(st::premiumButtonBg2);
-	const auto &icon = st::stickersPremiumLock;
-	const auto width = icon.width();
-	const auto height = icon.height();
-	const auto rect = QRect(
-		QPoint(x + size - width, y + size - height),
-		icon.size());
-	p.drawEllipse(rect);
-	icon.paintInCenter(p, rect);
+	const auto add = check.width;
+	if (!good) {
+		cache.stars = stars;
+		cache.paletteVersion = paletteVersion;
+		if (stars) {
+			const auto text = (stars >= 1000)
+				? (QString::number(stars / 1000) + 'K')
+				: QString::number(stars);
+			cache.badge = Ui::GenerateSmallBadgeImage(
+				text,
+				st::paidReactTopStarIcon,
+				check.bgActive->c,
+				st::premiumButtonFg->c,
+				&check);
+		} else {
+			auto hq = PainterHighQualityEnabler(p);
+			const auto &icon = st::stickersPremiumLock;
+			const auto width = icon.width();
+			const auto height = icon.height();
+			const auto rect = QRect(
+				QPoint(x + size - width, y + size - height),
+				icon.size());
+			const auto added = QMargins(add, add, add, add);
+			const auto ratio = style::DevicePixelRatio();
+			cache.badge = QImage(
+				(rect + added).size() * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			cache.badge.setDevicePixelRatio(ratio);
+			cache.badge.fill(Qt::transparent);
+			const auto inner = QRect(add, add, rect.width(), rect.height());
+			auto q = QPainter(&cache.badge);
+			auto pen = check.border->p;
+			pen.setWidthF(check.width);
+			q.setPen(pen);
+			q.setBrush(st::premiumButtonBg2);
+			q.drawEllipse(inner);
+			icon.paintInCenter(q, inner);
+		}
+	}
+	const auto cached = cache.badge.size() / cache.badge.devicePixelRatio();
+	const auto left = x + size + add - cached.width();
+	const auto top = stars ? (y - add) : (y + size + add - cached.height());
+	p.drawImage(left, top, cache.badge);
 }

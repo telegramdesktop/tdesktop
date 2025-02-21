@@ -426,7 +426,6 @@ private:
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();
 	void reportSelectedMessages();
-	void payForMessageSure(bool trust = false);
 	void showKeyboardHideButton();
 	void toggleKeyboard(bool manual = true);
 	void startBotCommand();

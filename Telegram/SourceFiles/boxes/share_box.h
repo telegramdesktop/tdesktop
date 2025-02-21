@@ -66,6 +66,7 @@ struct ShareBoxStyleOverrides {
 	const style::InputField *comment = nullptr;
 	const style::PeerList *peerList = nullptr;
 	const style::InputField *label = nullptr;
+	const style::Checkbox *checkbox = nullptr;
 	std::shared_ptr<HistoryView::ScheduleBoxStyleArgs> scheduleBox;
 };
 [[nodiscard]] ShareBoxStyleOverrides DarkShareBoxStyle();
@@ -96,6 +97,7 @@ public:
 	using CopyCallback = Fn<void()>;
 	using SubmitCallback = Fn<void(
 		std::vector<not_null<Data::Thread*>>&&,
+		Fn<bool(int messages)> checkPaid,
 		TextWithTags&&,
 		Api::SendOptions,
 		Data::ForwardOptions)>;
@@ -196,5 +198,6 @@ private:
 	PeopleQueries _peopleQueries;
 
 	Ui::Animations::Simple _scrollAnimation;
+	rpl::lifetime _submitLifetime;
 
 };

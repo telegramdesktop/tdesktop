@@ -118,12 +118,13 @@ private:
 		Ui::RoundImageCheckbox checkbox;
 		Ui::Text::String name;
 		Ui::Animations::Simple nameActive;
-		bool locked = false;
+		Api::MessageMoneyRestriction restriction;
+		RestrictionBadgeCache badgeCache;
 	};
 
 	void invalidateCache();
 	bool showLockedError(not_null<Chat*> chat);
-	void refreshLockedRows();
+	void refreshRestrictedRows();
 
 	[[nodiscard]] int displayedChatsCount() const;
 	[[nodiscard]] not_null<Data::Thread*> chatThread(
@@ -132,7 +133,7 @@ private:
 	void paintChat(Painter &p, not_null<Chat*> chat, int index);
 	void updateChat(not_null<PeerData*> peer);
 	void updateChatName(not_null<Chat*> chat);
-	void initChatLocked(not_null<Chat*> chat);
+	void initChatRestriction(not_null<Chat*> chat);
 	void repaintChat(not_null<PeerData*> peer);
 	int chatIndex(not_null<PeerData*> peer) const;
 	void repaintChatAtIndex(int index);
@@ -652,6 +653,67 @@ void ShareBox::innerSelectedChanged(
 }
 
 void ShareBox::submit(Api::SendOptions options) {
+	_submitLifetime.destroy();
+
+	auto threads = _inner->selected();
+	const auto weak = Ui::MakeWeak(this);
+	const auto checkPaid = [=](int messagesCount) {
+		const auto withPaymentApproved = crl::guard(weak, [=](int approved) {
+			auto copy = options;
+			copy.starsApproved = approved;
+			submit(copy);
+		});
+
+		const auto alreadyApproved = options.starsApproved;
+		auto paid = std::vector<not_null<Data::Thread*>>();
+		auto waiting = base::flat_set<not_null<PeerData*>>();
+		auto totalStars = 0;
+		for (const auto &thread : threads) {
+			const auto peer = thread->peer();
+			const auto details = ComputePaymentDetails(peer, messagesCount);
+			if (!details) {
+				waiting.emplace(peer);
+			} else if (details->stars > 0) {
+				totalStars += details->stars;
+				paid.push_back(thread);
+			}
+		}
+		if (!waiting.empty()) {
+			_descriptor.session->changes().peerUpdates(
+				Data::PeerUpdate::Flag::FullInfo
+			) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+				if (waiting.contains(update.peer)) {
+					withPaymentApproved(alreadyApproved);
+				}
+			}, _submitLifetime);
+
+			if (!_descriptor.session->credits().loaded()) {
+				_descriptor.session->credits().loadedValue(
+				) | rpl::filter(
+					rpl::mappers::_1
+				) | rpl::take(1) | rpl::start_with_next([=] {
+					withPaymentApproved(alreadyApproved);
+				}, _submitLifetime);
+			}
+			return false;
+		} else if (totalStars > alreadyApproved) {
+			const auto show = uiShow();
+			const auto session = _descriptor.session;
+			const auto sessionShow = Main::MakeSessionShow(show, session);
+			const auto scheduleBoxSt = _descriptor.st.scheduleBox.get();
+			ShowSendPaidConfirm(sessionShow, paid, SendPaymentDetails{
+				.messages = messagesCount,
+				.stars = totalStars,
+			}, [=] { withPaymentApproved(totalStars); }, PaidConfirmStyles{
+				.label = (scheduleBoxSt
+					? scheduleBoxSt->chooseDateTimeArgs.labelStyle
+					: nullptr),
+				.checkbox = _descriptor.st.checkbox,
+			});
+			return false;
+		}
+		return true;
+	};
 	if (const auto onstack = _descriptor.submitCallback) {
 		const auto forwardOptions = (_forwardOptions.captionsCount
 			&& _forwardOptions.dropCaptions)
@@ -660,7 +722,8 @@ void ShareBox::submit(Api::SendOptions options) {
 			? Data::ForwardOptions::NoSenderNames
 			: Data::ForwardOptions::PreserveInfo;
 		onstack(
-			_inner->selected(),
+			std::move(threads),
+			checkPaid,
 			_comment->entity()->getTextWithAppliedMarkdown(),
 			options,
 			forwardOptions);
@@ -727,7 +790,7 @@ ShareBox::Inner::Inner(
 			Data::AmPremiumValue(session) | rpl::to_empty,
 			session->api().premium().someMessageMoneyRestrictionsResolved()
 		) | rpl::start_with_next([=] {
-			refreshLockedRows();
+			refreshRestrictedRows();
 		}, lifetime());
 	}
 
@@ -788,7 +851,7 @@ void ShareBox::Inner::invalidateCache() {
 }
 
 bool ShareBox::Inner::showLockedError(not_null<Chat*> chat) {
-	if (!chat->locked) {
+	if (!chat->restriction.premiumRequired) {
 		return false;
 	}
 	::Settings::ShowPremiumPromoToast(
@@ -799,25 +862,25 @@ bool ShareBox::Inner::showLockedError(not_null<Chat*> chat) {
 	return true;
 }
 
-void ShareBox::Inner::refreshLockedRows() {
+void ShareBox::Inner::refreshRestrictedRows() {
 	auto changed = false;
 	for (const auto &[peer, data] : _dataMap) {
 		const auto history = data->history;
-		const auto locked = Api::ResolveMessageMoneyRestrictions(
+		const auto restriction = Api::ResolveMessageMoneyRestrictions(
 			history->peer,
-			history).premiumRequired;
-		if (data->locked != locked) {
-			data->locked = locked;
+			history);
+		if (data->restriction != restriction) {
+			data->restriction = restriction;
 			changed = true;
 		}
 	}
 	for (const auto &data : d_byUsernameFiltered) {
 		const auto history = data->history;
-		const auto locked = Api::ResolveMessageMoneyRestrictions(
+		const auto restriction = Api::ResolveMessageMoneyRestrictions(
 			history->peer,
-			history).premiumRequired;
-		if (data->locked != locked) {
-			data->locked = locked;
+			history);
+		if (data->restriction != restriction) {
+			data->restriction = restriction;
 			changed = true;
 		}
 	}
@@ -884,13 +947,14 @@ void ShareBox::Inner::updateChatName(not_null<Chat*> chat) {
 	chat->name.setText(_st.item.nameStyle, text, Ui::NameTextOptions());
 }
 
-void ShareBox::Inner::initChatLocked(not_null<Chat*> chat) {
+void ShareBox::Inner::initChatRestriction(not_null<Chat*> chat) {
 	if (_descriptor.moneyRestrictionError) {
 		const auto history = chat->history;
-		if (Api::ResolveMessageMoneyRestrictions(
-				history->peer,
-				history).premiumRequired) {
-			chat->locked = true;
+		const auto restriction = Api::ResolveMessageMoneyRestrictions(
+			history->peer,
+			history);
+		if (restriction) {
+			chat->restriction = restriction;
 		}
 	}
 }
@@ -1021,9 +1085,10 @@ void ShareBox::Inner::preloadUserpic(not_null<Dialogs::Entry*> entry) {
 	} else if (!Api::ResolveMessageMoneyRestrictions(
 			history->peer,
 			history).known) {
-		const auto user = history->peer->asUser();
-		_descriptor.session->api().premium().resolveMessageMoneyRestrictions(
-			user);
+		if (const auto user = history->peer->asUser()) {
+			const auto api = &_descriptor.session->api();
+			api->premium().resolveMessageMoneyRestrictions(user);
+		}
 	}
 }
 
@@ -1046,7 +1111,7 @@ auto ShareBox::Inner::getChat(not_null<Dialogs::Row*> row)
 			repaintChat(peer);
 		}));
 	updateChatName(i->second.get());
-	initChatLocked(i->second.get());
+	initChatRestriction(i->second.get());
 	row->attached = i->second.get();
 	return i->second.get();
 }
@@ -1080,10 +1145,12 @@ void ShareBox::Inner::paintChat(
 	auto photoTop = st::sharePhotoTop;
 	chat->checkbox.paint(p, x + photoLeft, y + photoTop, outerWidth);
 
-	if (chat->locked) {
-		PaintPremiumRequiredLock(
+	if (chat->restriction) {
+		PaintRestrictionBadge(
 			p,
 			&_st.item,
+			chat->restriction.starsPerMessage,
+			chat->badgeCache,
 			x + photoLeft,
 			y + photoTop,
 			outerWidth,
@@ -1438,7 +1505,7 @@ void ShareBox::Inner::peopleReceived(
 					_st.item,
 					[=] { repaintChat(peer); }));
 				updateChatName(d_byUsernameFiltered.back().get());
-				initChatLocked(d_byUsernameFiltered.back().get());
+				initChatRestriction(d_byUsernameFiltered.back().get());
 			}
 		}
 	};
@@ -1502,23 +1569,28 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 	const auto state = std::make_shared<State>();
 	return [=](
 			std::vector<not_null<Data::Thread*>> &&result,
-			TextWithTags &&comment,
+			Fn<bool(int messagesCount)> checkPaid,
+			TextWithTags comment,
 			Api::SendOptions options,
 			Data::ForwardOptions forwardOptions) {
 		if (!state->requests.empty()) {
 			return; // Share clicked already.
 		}
+
 		const auto items = history->owner().idsToItems(msgIds);
 		const auto existingIds = history->owner().itemsToIds(items);
 		if (existingIds.empty() || result.empty()) {
 			return;
 		}
 
+		auto messagesCount = int(items.size()) + (comment.empty() ? 0 : 1);
 		const auto error = GetErrorForSending(
 			result,
 			{ .forward = &items, .text = &comment });
 		if (error.error) {
 			show->showBox(MakeSendErrorBox(error, result.size() > 1));
+			return;
+		} else if (!checkPaid(messagesCount)) {
 			return;
 		}
 
@@ -1614,7 +1686,11 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					}
 					finish();
 				}).fail([=](const MTP::Error &error) {
-					if (error.type() == u"VOICE_MESSAGES_FORBIDDEN"_q) {
+					const auto type = error.type();
+					if (type.startsWith(u"ALLOW_PAYMENT_REQUIRED_"_q)) {
+						show->showToast(u"Payment requirements changed. "
+							"Please, try again."_q);
+					} else if (type == u"VOICE_MESSAGES_FORBIDDEN"_q) {
 						show->showToast(
 							tr::lng_restricted_send_voice_messages(
 								tr::now,
@@ -1653,6 +1729,7 @@ ShareBoxStyleOverrides DarkShareBoxStyle() {
 		.comment = &st::groupCallShareBoxComment,
 		.peerList = &st::groupCallShareBoxList,
 		.label = &st::groupCallField,
+		.checkbox = &st::groupCallCheckbox,
 		.scheduleBox = std::make_shared<ScheduleBoxStyleArgs>(schedule()),
 	};
 }
@@ -1765,6 +1842,7 @@ void FastShareLink(
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<::Data::Thread*>> &&result,
+			Fn<bool(int messages)> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			::Data::ForwardOptions) {
@@ -1780,6 +1858,8 @@ void FastShareLink(
 				weak->getDelegate()->show(
 					MakeSendErrorBox(error, result.size() > 1));
 			}
+			return;
+		} else if (!checkPaid(1)) {
 			return;
 		}
 

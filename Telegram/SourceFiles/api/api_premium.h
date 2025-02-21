@@ -250,6 +250,14 @@ struct MessageMoneyRestriction {
 	int starsPerMessage = 0;
 	bool premiumRequired = false;
 	bool known = false;
+
+	explicit operator bool() const {
+		return starsPerMessage != 0 || premiumRequired;
+	}
+
+	friend inline bool operator==(
+		const MessageMoneyRestriction &,
+		const MessageMoneyRestriction &) = default;
 };
 [[nodiscard]] MessageMoneyRestriction ResolveMessageMoneyRestrictions(
 	not_null<PeerData*> peer,

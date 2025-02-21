@@ -46,7 +46,7 @@ constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
 constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
 constexpr auto kGetPercent = 85;
 constexpr auto kStarsMin = 1;
-constexpr auto kStarsMax = 9000;
+constexpr auto kStarsMax = 10000;
 constexpr auto kDefaultChargeStars = 10;
 
 using Exceptions = Api::UserPrivacy::Exceptions;

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
@@ -714,12 +715,18 @@ rpl::producer<rpl::no_value, QString> SponsoredToggle::setToggled(bool v) {
 MessageMoneyRestriction ResolveMessageMoneyRestrictions(
 		not_null<PeerData*> peer,
 		History *maybeHistory) {
+	if (const auto channel = peer->asChannel()) {
+		return {
+			.starsPerMessage = channel->starsPerMessageChecked(),
+			.known = true,
+		};
+	}
 	const auto user = peer->asUser();
 	if (!user) {
 		return { .known = true };
 	} else if (user->messageMoneyRestrictionsKnown()) {
 		return {
-			.starsPerMessage = user->starsPerMessage(),
+			.starsPerMessage = user->starsPerMessageChecked(),
 			.premiumRequired = (user->requiresPremiumToWrite()
 				&& !user->session().premium()),
 			.known = true,

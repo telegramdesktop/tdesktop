@@ -4575,26 +4575,6 @@ void HistoryWidget::reportSelectedMessages() {
 	}
 }
 
-void HistoryWidget::payForMessageSure(bool trust) {
-	const auto required = _peer->starsPerMessage();
-	if (!required) {
-		return;
-	}
-	const auto done = [=](Settings::SmallBalanceResult result) {
-		if (result == Settings::SmallBalanceResult::Success
-			|| result == Settings::SmallBalanceResult::Already) {
-			if (canWriteMessage()) {
-				setInnerFocus();
-			}
-		}
-	};
-	Settings::MaybeRequestBalanceIncrease(
-		controller()->uiShow(),
-		required,
-		Settings::SmallBalanceForMessage{ .recipientId = _peer->id },
-		crl::guard(this, done));
-}
-
 History *HistoryWidget::history() const {
 	return _history;
 }

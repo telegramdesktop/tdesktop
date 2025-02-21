@@ -249,19 +249,42 @@ void ShowSendPaidConfirm(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		SendPaymentDetails details,
-		Fn<void()> confirmed) {
+		Fn<void()> confirmed,
+		PaidConfirmStyles styles) {
 	return ShowSendPaidConfirm(
 		navigation->uiShow(),
 		peer,
 		details,
-		confirmed);
+		confirmed,
+		styles);
 }
 
 void ShowSendPaidConfirm(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<PeerData*> peer,
 		SendPaymentDetails details,
-		Fn<void()> confirmed) {
+		Fn<void()> confirmed,
+		PaidConfirmStyles styles) {
+	ShowSendPaidConfirm(
+		std::move(show),
+		std::vector<not_null<Data::Thread*>>{ peer->owner().history(peer) },
+		details,
+		confirmed,
+		styles);
+}
+
+void ShowSendPaidConfirm(
+		std::shared_ptr<Main::SessionShow> show,
+		const std::vector<not_null<Data::Thread*>> &threads,
+		SendPaymentDetails details,
+		Fn<void()> confirmed,
+		PaidConfirmStyles styles) {
+	Expects(!threads.empty());
+
+	const auto singlePeer = (threads.size() > 1)
+		? (PeerData*)nullptr
+		: threads.front()->peer().get();
+	const auto recipientId = singlePeer ? singlePeer->id : PeerId();
 	const auto check = [=] {
 		const auto required = details.stars;
 		if (!required) {
@@ -276,57 +299,81 @@ void ShowSendPaidConfirm(
 		Settings::MaybeRequestBalanceIncrease(
 			show,
 			required,
-			Settings::SmallBalanceForMessage{ .recipientId = peer->id },
+			Settings::SmallBalanceForMessage{ .recipientId = recipientId },
 			done);
 	};
-
-	const auto session = &peer->session();
-	if (session->local().isPeerTrustedPayForMessage(peer->id)) {
-		check();
-		return;
+	auto usersOnly = true;
+	for (const auto &thread : threads) {
+		if (!thread->peer()->isUser()) {
+			usersOnly = false;
+			break;
+		}
+	}
+	if (singlePeer) {
+		const auto session = &singlePeer->session();
+		if (session->local().isPeerTrustedPayForMessage(recipientId)) {
+			check();
+			return;
+		}
 	}
 	const auto messages = details.messages;
 	const auto stars = details.stars;
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto trust = std::make_shared<QPointer<Ui::Checkbox>>();
 		const auto proceed = [=](Fn<void()> close) {
-			if ((*trust)->checked()) {
-				session->local().markPeerTrustedPayForMessage(peer->id);
+			if (singlePeer && (*trust)->checked()) {
+				const auto session = &singlePeer->session();
+				session->local().markPeerTrustedPayForMessage(recipientId);
 			}
 			check();
 			close();
 		};
 		Ui::ConfirmBox(box, {
-			.text = tr::lng_payment_confirm_text(
-				tr::now,
-				lt_count,
-				stars / messages,
-				lt_name,
-				Ui::Text::Bold(peer->shortName()),
-				Ui::Text::RichLangValue).append(' ').append(
-					tr::lng_payment_confirm_sure(
+			.text = (singlePeer
+				? tr::lng_payment_confirm_text(
+					tr::now,
+					lt_count,
+					stars / messages,
+					lt_name,
+					Ui::Text::Bold(singlePeer->shortName()),
+					Ui::Text::RichLangValue)
+				: (usersOnly
+					? tr::lng_payment_confirm_users
+					: tr::lng_payment_confirm_chats)(
 						tr::now,
 						lt_count,
-						messages,
-						lt_amount,
-						tr::lng_payment_confirm_amount(
-							tr::now,
-							lt_count,
-							stars,
-							Ui::Text::RichLangValue),
-						Ui::Text::RichLangValue)),
+						int(threads.size()),
+						Ui::Text::RichLangValue)).append(' ').append(
+							tr::lng_payment_confirm_sure(
+								tr::now,
+								lt_count,
+								messages,
+								lt_amount,
+								tr::lng_payment_confirm_amount(
+									tr::now,
+									lt_count,
+									stars,
+									Ui::Text::RichLangValue),
+								Ui::Text::RichLangValue)),
 			.confirmed = proceed,
 			.confirmText = tr::lng_payment_confirm_button(
 				lt_count,
 				rpl::single(messages * 1.)),
+			.labelStyle = styles.label,
 			.title = tr::lng_payment_confirm_title(),
 		});
-		const auto skip = st::defaultCheckbox.margin.top();
-		*trust = box->addRow(
-			object_ptr<Ui::Checkbox>(
-				box,
-				tr::lng_payment_confirm_dont_ask(tr::now)),
-			st::boxRowPadding + QMargins(0, skip, 0, skip));
+		if (singlePeer) {
+			const auto skip = st::defaultCheckbox.margin.top();
+			*trust = box->addRow(
+				object_ptr<Ui::Checkbox>(
+					box,
+					tr::lng_payment_confirm_dont_ask(tr::now),
+					false,
+					(styles.checkbox
+						? *styles.checkbox
+						: st::defaultCheckbox)),
+				st::boxRowPadding + QMargins(0, skip, 0, skip));
+		}
 	}));
 }
 

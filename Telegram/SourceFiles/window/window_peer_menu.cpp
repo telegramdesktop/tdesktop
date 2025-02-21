@@ -2409,6 +2409,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 					not_null<PeerData*> peer) -> Controller::Chosen {
 				return peer->owner().history(peer);
 			}) | ranges::to_vector,
+			[](int messagesCount) { return true; },
 			comment->entity()->getTextWithAppliedMarkdown(),
 			options,
 			state->box->forwardOptionsData());

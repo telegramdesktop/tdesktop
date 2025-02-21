@@ -2091,7 +2091,9 @@ void SmallBalanceBox(
 	}, [&](SmallBalanceStarGift value) {
 		return owner->peer(value.recipientId)->shortName();
 	}, [&](SmallBalanceForMessage value) {
-		return owner->peer(value.recipientId)->shortName();
+		return value.recipientId
+			? owner->peer(value.recipientId)->shortName()
+			: QString();
 	});
 
 	auto needed = show->session().credits().balanceValue(
@@ -2131,10 +2133,13 @@ void SmallBalanceBox(
 						rpl::single(Ui::Text::Bold(name)),
 						Ui::Text::RichLangValue)
 					: v::is<SmallBalanceForMessage>(source)
-					? tr::lng_credits_small_balance_for_message(
-						lt_user,
-						rpl::single(Ui::Text::Bold(name)),
-						Ui::Text::RichLangValue)
+					? (name.isEmpty()
+						? tr::lng_credits_small_balance_for_messages(
+							Ui::Text::RichLangValue)
+						: tr::lng_credits_small_balance_for_message(
+							lt_user,
+							rpl::single(Ui::Text::Bold(name)),
+							Ui::Text::RichLangValue))
 					: name.isEmpty()
 					? tr::lng_credits_small_balance_fallback(
 						Ui::Text::RichLangValue)

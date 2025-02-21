@@ -147,53 +147,11 @@ void PaidReactionSlider(
 }
 
 [[nodiscard]] QImage GenerateBadgeImage(int count) {
-	const auto text = Lang::FormatCountDecimal(count);
-	const auto length = st::chatSimilarBadgeFont->width(text);
-	const auto contents = st::chatSimilarLockedIconPosition.x()
-		+ st::paidReactTopStarIcon.width()
-		+ st::paidReactTopStarSkip
-		+ length;
-	const auto badge = QRect(
-		st::chatSimilarBadgePadding.left(),
-		st::chatSimilarBadgePadding.top(),
-		contents,
-		st::chatSimilarBadgeFont->height);
-	const auto rect = badge.marginsAdded(st::chatSimilarBadgePadding);
-
-	auto result = QImage(
-		rect.size() * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
-	result.fill(Qt::transparent);
-	auto q = QPainter(&result);
-
-	const auto &font = st::chatSimilarBadgeFont;
-	const auto textTop = badge.y() + font->ascent;
-	const auto icon = &st::paidReactTopStarIcon;
-	const auto position = st::chatSimilarLockedIconPosition;
-
-	auto hq = PainterHighQualityEnabler(q);
-	q.setBrush(st::creditsBg3);
-	q.setPen(Qt::NoPen);
-	const auto radius = rect.height() / 2.;
-	q.drawRoundedRect(rect, radius, radius);
-
-	auto textLeft = 0;
-	if (icon) {
-		icon->paint(
-			q,
-			badge.x() + position.x(),
-			badge.y() + position.y(),
-			rect.width());
-		textLeft += position.x() + icon->width() + st::paidReactTopStarSkip;
-	}
-
-	q.setFont(font);
-	q.setPen(st::premiumButtonFg);
-	q.drawText(textLeft, textTop, text);
-	q.end();
-
-	return result;
+	return GenerateSmallBadgeImage(
+		Lang::FormatCountDecimal(count),
+		st::paidReactTopStarIcon,
+		st::creditsBg3->c,
+		st::premiumButtonFg->c);
 }
 
 void AddArrowDown(not_null<RpWidget*> widget) {
@@ -321,7 +279,6 @@ void SelectShownPeer(
 		updateUserpic();
 	}
 	(*menu)->popup(QCursor::pos());
-
 }
 
 void FillTopReactors(
@@ -631,6 +588,67 @@ void PaidReactionsBox(
 
 object_ptr<BoxContent> MakePaidReactionBox(PaidReactionBoxArgs &&args) {
 	return Box(PaidReactionsBox, std::move(args));
+}
+
+QImage GenerateSmallBadgeImage(
+		QString text,
+		const style::icon &icon,
+		QColor bg,
+		QColor fg,
+		const style::RoundCheckbox *borderSt) {
+	const auto length = st::chatSimilarBadgeFont->width(text);
+	const auto contents = st::chatSimilarLockedIconPosition.x()
+		+ icon.width()
+		+ st::paidReactTopStarSkip
+		+ length;
+	const auto badge = QRect(
+		st::chatSimilarBadgePadding.left(),
+		st::chatSimilarBadgePadding.top(),
+		contents,
+		st::chatSimilarBadgeFont->height);
+	const auto rect = badge.marginsAdded(st::chatSimilarBadgePadding);
+	const auto add = borderSt ? borderSt->width : 0;
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		(rect + QMargins(add, add, add, add)).size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto q = QPainter(&result);
+
+	const auto &font = st::chatSimilarBadgeFont;
+	const auto textTop = badge.y() + font->ascent;
+	const auto position = st::chatSimilarLockedIconPosition;
+
+	auto hq = PainterHighQualityEnabler(q);
+	q.translate(add, add);
+	q.setBrush(bg);
+	if (borderSt) {
+		q.setPen(QPen(borderSt->border->c, borderSt->width));
+	} else {
+		q.setPen(Qt::NoPen);
+	}
+	const auto radius = rect.height() / 2.;
+	const auto shift = add / 2.;
+	q.drawRoundedRect(
+		QRectF(rect) + QMarginsF(shift, shift, shift, shift),
+		radius,
+		radius);
+
+	auto textLeft = 0;
+	icon.paint(
+		q,
+		badge.x() + position.x(),
+		badge.y() + position.y(),
+		rect.width());
+	textLeft += position.x() + icon.width() + st::paidReactTopStarSkip;
+
+	q.setFont(font);
+	q.setPen(fg);
+	q.drawText(textLeft, textTop, text);
+	q.end();
+
+	return result;
 }
 
 } // namespace Ui

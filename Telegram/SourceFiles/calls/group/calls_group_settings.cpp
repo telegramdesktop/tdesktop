@@ -134,6 +134,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
+			Fn<bool(int messages)> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions) {
@@ -149,6 +150,8 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 				weak->getDelegate()->show(
 					MakeSendErrorBox(error, result.size() > 1));
 			}
+			return;
+		} else if (!checkPaid(1)) {
 			return;
 		}
 

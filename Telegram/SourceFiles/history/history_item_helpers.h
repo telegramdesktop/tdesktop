@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace style {
+struct FlatLabel;
+struct Checkbox;
+} // namespace style
+
 namespace Api {
 struct SendOptions;
 struct SendAction;
@@ -144,16 +149,28 @@ struct SendPaymentDetails {
 	not_null<PeerData*> peer,
 	int messagesCount);
 
+struct PaidConfirmStyles {
+	const style::FlatLabel *label = nullptr;
+	const style::Checkbox *checkbox = nullptr;
+};
 void ShowSendPaidConfirm(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	SendPaymentDetails details,
-	Fn<void()> confirmed);
+	Fn<void()> confirmed,
+	PaidConfirmStyles styles = {});
 void ShowSendPaidConfirm(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> peer,
 	SendPaymentDetails details,
-	Fn<void()> confirmed);
+	Fn<void()> confirmed,
+	PaidConfirmStyles styles = {});
+void ShowSendPaidConfirm(
+	std::shared_ptr<Main::SessionShow> show,
+	const std::vector<not_null<Data::Thread*>> &threads,
+	SendPaymentDetails details,
+	Fn<void()> confirmed,
+	PaidConfirmStyles styles = {});
 
 class SendPaymentHelper final {
 public:

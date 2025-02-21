@@ -1486,6 +1486,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
+			Fn<bool(int messages)> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions) {
@@ -1502,6 +1503,8 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 					errorWithThread,
 					result.size() > 1));
 			}
+			return;
+		} else if (!checkPaid(1)) {
 			return;
 		}
 

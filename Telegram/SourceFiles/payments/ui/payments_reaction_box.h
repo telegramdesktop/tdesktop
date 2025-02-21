@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 
+namespace style {
+struct RoundCheckbox;
+} // namespace style
+
 namespace Ui {
 
 class BoxContent;
@@ -47,5 +51,12 @@ void PaidReactionsBox(
 
 [[nodiscard]] object_ptr<BoxContent> MakePaidReactionBox(
 	PaidReactionBoxArgs &&args);
+
+[[nodiscard]] QImage GenerateSmallBadgeImage(
+	QString text,
+	const style::icon &icon,
+	QColor bg,
+	QColor fg,
+	const style::RoundCheckbox *borderSt = nullptr);
 
 } // namespace Ui
