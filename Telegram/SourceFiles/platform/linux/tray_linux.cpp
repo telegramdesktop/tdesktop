@@ -44,66 +44,49 @@ public:
 	explicit IconGraphic();
 	~IconGraphic();
 
-	[[nodiscard]] bool isRefreshNeeded(
-		const QIcon &systemIcon,
-		const QString &iconThemeName,
-		int counter,
-		bool muted) const;
-	[[nodiscard]] QIcon systemIcon(
-		const QString &iconThemeName,
-		bool monochrome,
-		int counter,
-		bool muted) const;
-	[[nodiscard]] QIcon trayIcon(
-		const QIcon &systemIcon,
-		const QString &iconThemeName,
-		bool monochrome,
-		int counter,
-		bool muted);
+	void updateState();
+	[[nodiscard]] bool isRefreshNeeded() const;
+	[[nodiscard]] QIcon trayIcon();
 
 private:
+	struct State {
+		QIcon systemIcon;
+		QString iconThemeName;
+		bool monochrome = false;
+		int32 counter = 0;
+		bool muted = false;
+	};
+
+	[[nodiscard]] QIcon systemIcon() const;
 	[[nodiscard]] int counterSlice(int counter) const;
-	void updateIconRegenerationNeeded(
-		const QIcon &icon,
-		const QIcon &systemIcon,
-		const QString &iconThemeName,
-		bool monochrome,
-		int counter,
-		bool muted);
 	[[nodiscard]] QSize dprSize(const QImage &image) const;
 
 	const int _iconSizes[7];
 
-	bool _muted = true;
-	int32 _count = 0;
 	base::flat_map<int, QImage> _imageBack;
 	QIcon _trayIcon;
-	QIcon _systemIcon;
-	QString _themeName;
-	bool _monochrome;
+	State _current;
+	State _new;
 
 };
 
 IconGraphic::IconGraphic()
 : _iconSizes{ 16, 22, 32, 48, 64, 128, 256 } {
+	updateState();
 }
 
 IconGraphic::~IconGraphic() = default;
 
-QIcon IconGraphic::systemIcon(
-		const QString &iconThemeName,
-		bool monochrome,
-		int counter,
-		bool muted) const {
-	if (iconThemeName == _themeName
-		&& monochrome == _monochrome
-		&& (counter > 0) == (_count > 0)
-		&& muted == _muted) {
-		return _systemIcon;
+QIcon IconGraphic::systemIcon() const {
+	if (_new.iconThemeName == _current.iconThemeName
+		&& _new.monochrome == _current.monochrome
+		&& (_new.counter > 0) == (_current.counter > 0)
+		&& _new.muted == _current.muted) {
+		return _current.systemIcon;
 	}
 
 	const auto candidates = {
-		monochrome ? PanelIconName(counter, muted) : QString(),
+		_new.monochrome ? PanelIconName(_new.counter, _new.muted) : QString(),
 		base::IconName(),
 	};
 
@@ -120,80 +103,63 @@ QIcon IconGraphic::systemIcon(
 	return QIcon();
 }
 
-
 int IconGraphic::counterSlice(int counter) const {
 	return (counter >= 1000)
 		? (1000 + (counter % 100))
 		: counter;
 }
 
-bool IconGraphic::isRefreshNeeded(
-		const QIcon &systemIcon,
-		const QString &iconThemeName,
-		int counter,
-		bool muted) const {
-	return _trayIcon.isNull()
-		|| iconThemeName != _themeName
-		|| systemIcon.name() != _systemIcon.name()
-		|| (systemIcon.name() != PanelIconName(counter, muted)
-			? muted != _muted || counterSlice(counter) != _count
-			: false);
-}
-
-void IconGraphic::updateIconRegenerationNeeded(
-		const QIcon &icon,
-		const QIcon &systemIcon,
-		const QString &iconThemeName,
-		bool monochrome,
-		int counter,
-		bool muted) {
-	_trayIcon = icon;
-	_systemIcon = systemIcon;
-	_themeName = iconThemeName;
-	_monochrome = monochrome;
-	_count = counterSlice(counter);
-	_muted = muted;
-}
-
 QSize IconGraphic::dprSize(const QImage &image) const {
 	return image.size() / image.devicePixelRatio();
 }
 
-QIcon IconGraphic::trayIcon(
-		const QIcon &systemIcon,
-		const QString &iconThemeName,
-		bool monochrome,
-		int counter,
-		bool muted) {
-	if (!isRefreshNeeded(systemIcon, iconThemeName, counter, muted)) {
+void IconGraphic::updateState() {
+	_new.iconThemeName = QIcon::themeName();
+	_new.monochrome = Core::App().settings().trayIconMonochrome();
+	_new.counter = Core::App().unreadBadge();
+	_new.muted = Core::App().unreadBadgeMuted();
+	_new.systemIcon = systemIcon();
+}
+
+bool IconGraphic::isRefreshNeeded() const {
+	return _trayIcon.isNull()
+		|| _new.iconThemeName != _current.iconThemeName
+		|| _new.systemIcon.name() != _current.systemIcon.name()
+		|| (_new.systemIcon.name() != PanelIconName(_new.counter, _new.muted)
+			? _new.muted != _current.muted
+				|| counterSlice(_new.counter) != counterSlice(
+						_current.counter)
+			: false);
+}
+
+QIcon IconGraphic::trayIcon() {
+	if (!isRefreshNeeded()) {
 		return _trayIcon;
 	}
 
-	if (systemIcon.name() == PanelIconName(counter, muted)) {
-		updateIconRegenerationNeeded(
-			systemIcon,
-			systemIcon,
-			iconThemeName,
-			monochrome,
-			counter,
-			muted);
+	const auto guard = gsl::finally([&] {
+		_current = _new;
+	});
 
-		return systemIcon;
+	if (_new.systemIcon.name() == PanelIconName(
+			_new.counter,
+			_new.muted)) {
+		_trayIcon = _new.systemIcon;
+		return _trayIcon;
 	}
 
 	QIcon result;
-
 	for (const auto iconSize : _iconSizes) {
 		auto &currentImageBack = _imageBack[iconSize];
 		const auto desiredSize = QSize(iconSize, iconSize);
 
 		if (currentImageBack.isNull()
-			|| iconThemeName != _themeName
-			|| systemIcon.name() != _systemIcon.name()) {
-			if (!systemIcon.isNull()) {
+			|| _new.iconThemeName != _current.iconThemeName
+			|| _new.systemIcon.name() != _current.systemIcon.name()) {
+			if (!_new.systemIcon.isNull()) {
 				// We can't use QIcon::actualSize here
 				// since it works incorrectly with svg icon themes
-				currentImageBack = systemIcon
+				currentImageBack = _new.systemIcon
 					.pixmap(desiredSize)
 					.toImage();
 
@@ -202,7 +168,8 @@ QIcon IconGraphic::trayIcon(
 				// if current icon theme is not a svg one, Qt can return
 				// a pixmap that less in size even if there are a bigger one
 				if (firstAttemptSize.width() < desiredSize.width()) {
-					const auto availableSizes = systemIcon.availableSizes();
+					const auto availableSizes
+						= _new.systemIcon.availableSizes();
 
 					const auto biggestSize = ranges::max_element(
 						availableSizes,
@@ -210,7 +177,7 @@ QIcon IconGraphic::trayIcon(
 						&QSize::width);
 
 					if (biggestSize->width() > firstAttemptSize.width()) {
-						currentImageBack = systemIcon
+						currentImageBack = _new.systemIcon
 							.pixmap(*biggestSize)
 							.toImage();
 					}
@@ -227,24 +194,17 @@ QIcon IconGraphic::trayIcon(
 			}
 		}
 
-		result.addPixmap(Ui::PixmapFromImage(counter > 0
+		result.addPixmap(Ui::PixmapFromImage(_new.counter > 0
 			? Window::WithSmallCounter(std::move(currentImageBack), {
 				.size = iconSize,
-				.count = counter,
-				.bg = muted ? st::trayCounterBgMute : st::trayCounterBg,
+				.count = _new.counter,
+				.bg = _new.muted ? st::trayCounterBgMute : st::trayCounterBg,
 				.fg = st::trayCounterFg,
 			}) : std::move(currentImageBack)));
 	}
 
-	updateIconRegenerationNeeded(
-		result,
-		systemIcon,
-		iconThemeName,
-		monochrome,
-		counter,
-		muted);
-
-	return result;
+	_trayIcon = result;
+	return _trayIcon;
 }
 
 class TrayEventFilter final : public QObject {
@@ -321,22 +281,8 @@ void Tray::createIcon() {
 			});
 		};
 
-		const auto iconThemeName = QIcon::themeName();
-		const auto monochrome = Core::App().settings().trayIconMonochrome();
-		const auto counter = Core::App().unreadBadge();
-		const auto muted = Core::App().unreadBadgeMuted();
-
 		_icon = base::make_unique_q<QSystemTrayIcon>(nullptr);
-		_icon->setIcon(_iconGraphic->trayIcon(
-			_iconGraphic->systemIcon(
-				iconThemeName,
-				monochrome,
-				counter,
-				muted),
-			iconThemeName,
-			monochrome,
-			counter,
-			muted));
+		_icon->setIcon(_iconGraphic->trayIcon());
 		_icon->setToolTip(AppName.utf16());
 
 		using Reason = QSystemTrayIcon::ActivationReason;
@@ -375,27 +321,10 @@ void Tray::updateIcon() {
 	if (!_icon || !_iconGraphic) {
 		return;
 	}
-	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
-	const auto monochrome = Core::App().settings().trayIconMonochrome();
-	const auto iconThemeName = QIcon::themeName();
-	const auto systemIcon = _iconGraphic->systemIcon(
-		iconThemeName,
-		monochrome,
-		counter,
-		muted);
 
-	if (_iconGraphic->isRefreshNeeded(
-		systemIcon,
-		iconThemeName,
-		counter,
-		muted)) {
-		_icon->setIcon(_iconGraphic->trayIcon(
-			systemIcon,
-			iconThemeName,
-			monochrome,
-			counter,
-			muted));
+	_iconGraphic->updateState();
+	if (_iconGraphic->isRefreshNeeded()) {
+		_icon->setIcon(_iconGraphic->trayIcon());
 	}
 }
 
