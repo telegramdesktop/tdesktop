@@ -546,9 +546,10 @@ SwresamplePointer MakeSwresamplePointer(
 	}
 
 	// Initialize audio resampler
+	AvErrorWrap error;
 #if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	auto result = (SwrContext*)nullptr;
-	auto error = AvErrorWrap(swr_alloc_set_opts2(
+	error = AvErrorWrap(swr_alloc_set_opts2(
 		&result,
 		dstLayout,
 		dstFormat,
@@ -564,7 +565,7 @@ SwresamplePointer MakeSwresamplePointer(
 	}
 #else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	auto result = swr_alloc_set_opts(
-		existing ? existing.get() : nullptr,
+		existing ? existing->get() : nullptr,
 		dstLayout,
 		dstFormat,
 		dstRate,

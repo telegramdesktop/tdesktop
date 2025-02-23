@@ -341,10 +341,10 @@ bool RoundVideoRecorder::Private::initAudio() {
 		&_swrContext);
 #else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_swrContext = MakeSwresamplePointer(
-		&_audioCodec->channel_layout,
+		_audioCodec->channel_layout,
 		AV_SAMPLE_FMT_S16,
 		_audioCodec->sample_rate,
-		&_audioCodec->channel_layout,
+		_audioCodec->channel_layout,
 		_audioCodec->sample_fmt,
 		_audioCodec->sample_rate,
 		&_swrContext);

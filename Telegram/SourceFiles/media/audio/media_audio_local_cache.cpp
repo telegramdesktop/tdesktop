@@ -44,7 +44,13 @@ constexpr auto kFrameSize = 4096;
 		return {};
 	}
 
+
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(58, 79, 100)
 	auto inCodec = (const AVCodec*)nullptr;
+#else
+	auto inCodec = (AVCodec*)nullptr;
+#endif
+
 	const auto streamId = av_find_best_stream(
 		input.get(),
 		AVMEDIA_TYPE_AUDIO,
@@ -152,10 +158,10 @@ constexpr auto kFrameSize = 4096;
 		inCodecContext->sample_rate,
 		&outCodecContext->ch_layout,
 #else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-		&inCodecContext->channel_layout,
+		inCodecContext->channel_layout,
 		inCodecContext->sample_fmt,
 		inCodecContext->sample_rate,
-		&outCodecContext->channel_layout,
+		outCodecContext->channel_layout,
 #endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		outCodecContext->sample_fmt,
 		outCodecContext->sample_rate);
