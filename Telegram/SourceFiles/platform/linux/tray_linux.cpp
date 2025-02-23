@@ -58,6 +58,7 @@ private:
 	};
 
 	[[nodiscard]] QIcon systemIcon() const;
+	[[nodiscard]] bool isCounterNeeded(const State &state) const;
 	[[nodiscard]] int counterSlice(int counter) const;
 	[[nodiscard]] QSize dprSize(const QImage &image) const;
 
@@ -103,6 +104,12 @@ QIcon IconGraphic::systemIcon() const {
 	return QIcon();
 }
 
+bool IconGraphic::isCounterNeeded(const State &state) const {
+	return state.systemIcon.name() != PanelIconName(
+		state.counter,
+		state.muted);
+}
+
 int IconGraphic::counterSlice(int counter) const {
 	return (counter >= 1000)
 		? (1000 + (counter % 100))
@@ -125,7 +132,7 @@ bool IconGraphic::isRefreshNeeded() const {
 	return _trayIcon.isNull()
 		|| _new.iconThemeName != _current.iconThemeName
 		|| _new.systemIcon.name() != _current.systemIcon.name()
-		|| (_new.systemIcon.name() != PanelIconName(_new.counter, _new.muted)
+		|| (isCounterNeeded(_new)
 			? _new.muted != _current.muted
 				|| counterSlice(_new.counter) != counterSlice(
 						_current.counter)
@@ -141,9 +148,7 @@ QIcon IconGraphic::trayIcon() {
 		_current = _new;
 	});
 
-	if (_new.systemIcon.name() == PanelIconName(
-			_new.counter,
-			_new.muted)) {
+	if (!isCounterNeeded(_new)) {
 		_trayIcon = _new.systemIcon;
 		return _trayIcon;
 	}
