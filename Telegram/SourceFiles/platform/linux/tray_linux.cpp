@@ -111,8 +111,8 @@ bool IconGraphic::isCounterNeeded(const State &state) const {
 }
 
 int IconGraphic::counterSlice(int counter) const {
-	return (counter >= 1000)
-		? (1000 + (counter % 100))
+	return (counter >= 100)
+		? (100 + (counter % 10))
 		: counter;
 }
 
