@@ -6102,7 +6102,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		auto textState = _saveMsgText.getState(pos - _saveMsg.topLeft() - QPoint(st::mediaviewSaveMsgPadding.left(), st::mediaviewSaveMsgPadding.top()), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
 		lnk = textState.link;
 		lnkhost = this;
-	} else if (_captionRect.contains(pos)) {
+	} else if (_captionRect.contains(pos) && !_fullScreenVideo) {
 		auto request = Ui::Text::StateRequestElided();
 		const auto lineHeight = st::mediaviewCaptionStyle.font->height;
 		request.lines = _captionRect.height() / lineHeight;
