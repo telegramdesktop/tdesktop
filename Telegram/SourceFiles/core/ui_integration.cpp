@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "iv/iv_instance.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
@@ -275,6 +276,9 @@ bool UiIntegration::copyPreOnClick(const QVariant &context) {
 std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 		QStringView data,
 		const std::any &context) {
+	if (auto simple = Ui::Text::TryMakeSimpleEmoji(data)) {
+		return simple;
+	}
 	const auto my = std::any_cast<MarkedTextContext>(&context);
 	if (!my || !my->session) {
 		return nullptr;

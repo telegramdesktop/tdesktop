@@ -1175,7 +1175,8 @@ void Filler::addCreatePoll() {
 		: Api::SendType::Normal;
 	const auto sendMenuType = (_request.section == Section::Scheduled)
 		? SendMenu::Type::Disabled
-		: (_request.section == Section::Replies)
+		: (_request.section == Section::Replies
+			|| _peer->starsPerMessageChecked())
 		? SendMenu::Type::SilentOnly
 		: SendMenu::Type::Scheduled;
 	const auto flag = PollData::Flags();
@@ -2420,7 +2421,17 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 
 	const auto sendMenuType = [=] {
 		const auto selected = state->box->collectSelectedRows();
-		return ranges::all_of(selected, HistoryView::CanScheduleUntilOnline)
+		const auto hasPaid = [&] {
+			for (const auto peer : selected) {
+				if (peer->starsPerMessageChecked()) {
+					return true;
+				}
+			}
+			return false;
+		}();
+		return hasPaid
+			? SendMenu::Type::SilentOnly
+			: ranges::all_of(selected, HistoryView::CanScheduleUntilOnline)
 			? SendMenu::Type::ScheduledToUser
 			: ((selected.size() == 1) && selected.front()->isSelf())
 			? SendMenu::Type::Reminder

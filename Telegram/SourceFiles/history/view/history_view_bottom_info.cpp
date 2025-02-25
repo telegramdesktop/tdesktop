@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "history/view/media/history_view_media.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {
@@ -431,9 +433,14 @@ void BottomInfo::layoutDateText() {
 		: name.isEmpty()
 		? date
 		: (name + afterAuthor);
-	_authorEditedDate.setText(
+	auto marked = TextWithEntities{ full };
+	if (const auto count = _data.stars) {
+		marked.append(Ui::Text::IconEmoji(&st::starIconEmoji));
+		marked.append(QString::number(count));
+	}
+	_authorEditedDate.setMarkedText(
 		st::msgDateTextStyle,
-		full,
+		marked,
 		Ui::NameTextOptions());
 }
 
@@ -598,6 +605,17 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	}
 	if (item->isSending() || item->hasFailed()) {
 		result.flags |= Flag::Sending;
+	}
+	if (item->out() && !item->history()->peer->isUser()) {
+		const auto media = message->media();
+		const auto mine = PaidInformation{
+			.messages = 1,
+			.stars = item->starsPaid(),
+		};
+		auto info = media ? media->paidInformation().value_or(mine) : mine;
+		if (const auto total = info.stars) {
+			result.stars = total;
+		}
 	}
 	const auto forwarded = item->Get<HistoryMessageForwarded>();
 	if (forwarded && forwarded->imported) {

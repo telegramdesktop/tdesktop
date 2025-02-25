@@ -62,6 +62,10 @@ creditsBoxButtonLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
 
+starIconEmoji: IconEmoji {
+	icon: icon{{ "payments/small_star", windowFg }};
+	padding: margins(0px, -3px, 0px, 0px);
+}
 starIconSmall: icon{{ "payments/small_star", windowFg }};
 starIconSmallPadding: margins(0px, -3px, 0px, 0px);
 

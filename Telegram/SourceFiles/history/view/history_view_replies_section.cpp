@@ -1507,7 +1507,9 @@ void RepliesWidget::sendInlineResult(
 
 SendMenu::Details RepliesWidget::sendMenuDetails() const {
 	using Type = SendMenu::Type;
-	const auto type = _topic ? Type::Scheduled : Type::SilentOnly;
+	const auto type = (_topic && !_history->peer->starsPerMessageChecked())
+		? Type::Scheduled
+		: Type::SilentOnly;
 	return SendMenu::Details{ .type = type };
 }
 

@@ -62,7 +62,8 @@ bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
 		return !user->isSelf()
 			&& !user->isBot()
-			&& !user->lastseen().isHidden();
+			&& !user->lastseen().isHidden()
+			&& !user->starsPerMessageChecked();
 	}
 	return false;
 }

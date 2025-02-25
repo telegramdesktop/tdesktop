@@ -444,6 +444,9 @@ Message::~Message() {
 
 void Message::initPaidInformation() {
 	const auto item = data();
+	if (!item->history()->peer->isUser()) {
+		return;
+	}
 	const auto media = this->media();
 	const auto mine = PaidInformation{
 		.messages = 1,

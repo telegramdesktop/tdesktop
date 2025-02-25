@@ -513,9 +513,19 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 
 SendMenu::Details ShareBox::sendMenuDetails() const {
 	const auto selected = _inner->selected();
-	const auto type = ranges::all_of(
-		selected | ranges::views::transform(&Data::Thread::peer),
-		HistoryView::CanScheduleUntilOnline)
+	const auto hasPaid = [&] {
+		for (const auto &thread : selected) {
+			if (thread->peer()->starsPerMessageChecked()) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	const auto type = hasPaid
+		? SendMenu::Type::SilentOnly
+		: ranges::all_of(
+			selected | ranges::views::transform(&Data::Thread::peer),
+			HistoryView::CanScheduleUntilOnline)
 		? SendMenu::Type::ScheduledToUser
 		: (selected.size() == 1 && selected.front()->peer()->isSelf())
 		? SendMenu::Type::Reminder
