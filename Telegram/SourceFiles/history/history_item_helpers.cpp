@@ -382,13 +382,15 @@ bool SendPaymentHelper::check(
 		not_null<PeerData*> peer,
 		int messagesCount,
 		int starsApproved,
-		Fn<void(int)> resend) {
+		Fn<void(int)> resend,
+		PaidConfirmStyles styles) {
 	return check(
 		navigation->uiShow(),
 		peer,
 		messagesCount,
 		starsApproved,
-		std::move(resend));
+		std::move(resend),
+		styles);
 }
 
 bool SendPaymentHelper::check(
@@ -396,8 +398,10 @@ bool SendPaymentHelper::check(
 		not_null<PeerData*> peer,
 		int messagesCount,
 		int starsApproved,
-		Fn<void(int)> resend) {
-	_lifetime.destroy();
+		Fn<void(int)> resend,
+		PaidConfirmStyles styles) {
+	clear();
+
 	const auto details = ComputePaymentDetails(peer, messagesCount);
 	if (!details) {
 		_resend = [=] { resend(starsApproved); };
@@ -426,10 +430,15 @@ bool SendPaymentHelper::check(
 	} else if (const auto stars = details->stars; stars > starsApproved) {
 		ShowSendPaidConfirm(show, peer, *details, [=] {
 			resend(stars);
-		});
+		}, styles);
 		return false;
 	}
 	return true;
+}
+
+void SendPaymentHelper::clear() {
+	_lifetime.destroy();
+	_resend = nullptr;
 }
 
 void RequestDependentMessageItem(

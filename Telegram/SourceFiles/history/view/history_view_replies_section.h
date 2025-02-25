@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/history_item_helpers.h"
 #include "history/history_view_swipe_data.h"
 #include "data/data_messages.h"
 #include "base/timer.h"
@@ -38,6 +39,7 @@ class PlainShadow;
 class FlatButton;
 class PinnedBar;
 struct PreparedList;
+struct PreparedBundle;
 class SendFilesWay;
 } // namespace Ui
 
@@ -207,6 +209,11 @@ private:
 	void checkActivation() override;
 	void doSetInnerFocus() override;
 
+	[[nodiscard]] bool checkSendPayment(
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> withPaymentApproved);
+
 	void onScroll();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
@@ -251,7 +258,7 @@ private:
 		Api::SendOptions options) const;
 	void send();
 	void send(Api::SendOptions options);
-	void sendVoice(Controls::VoiceToSend &&data);
+	void sendVoice(const Controls::VoiceToSend &data);
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
@@ -308,6 +315,9 @@ private:
 		TextWithTags &&caption,
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
+	void sendingFilesConfirmed(
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options);
 
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
@@ -379,6 +389,8 @@ private:
 	rpl::lifetime _topicLifetime;
 
 	HistoryView::ChatPaintGestureHorizontalData _gestureHorizontal;
+
+	SendPaymentHelper _sendPayment;
 
 	int _lastScrollTop = 0;
 	int _topicReopenBarHeight = 0;

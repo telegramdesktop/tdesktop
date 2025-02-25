@@ -384,6 +384,9 @@ QString DateTooltipText(not_null<Element*> view) {
 	if (item->isScheduled() && item->isSilent()) {
 		dateText += '\n' + QChar(0xD83D) + QChar(0xDD15);
 	}
+	if (const auto stars = item->out() ? item->starsPaid() : 0) {
+		dateText += '\n' + tr::lng_you_paid_stars(tr::now, lt_count, stars);
+	}
 	return dateText;
 }
 

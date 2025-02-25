@@ -266,6 +266,27 @@ bool PreparedList::hasSpoilerMenu(bool compress) const {
 	return allAreVideo || (allAreMedia && compress);
 }
 
+std::shared_ptr<PreparedBundle> PrepareFilesBundle(
+		std::vector<PreparedGroup> groups,
+		SendFilesWay way,
+		TextWithTags caption,
+		bool ctrlShiftEnter) {
+	auto totalCount = 0;
+	for (const auto &group : groups) {
+		totalCount += group.list.files.size();
+	}
+	const auto sendComment = !caption.text.isEmpty()
+		&& (groups.size() != 1 || !groups.front().sentWithCaption());
+	return std::make_shared<PreparedBundle>(PreparedBundle{
+		.groups = std::move(groups),
+		.way = way,
+		.caption = std::move(caption),
+		.totalCount = totalCount + (sendComment ? 1 : 0),
+		.sendComment = sendComment,
+		.ctrlShiftEnter = ctrlShiftEnter,
+	});
+}
+
 int MaxAlbumItems() {
 	return kMaxAlbumCount;
 }

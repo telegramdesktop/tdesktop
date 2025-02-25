@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/view/history_view_corner_buttons.h"
 #include "history/history_drag_area.h"
+#include "history/history_item_helpers.h"
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
 #include "history/history.h"
@@ -69,6 +70,7 @@ class PinnedBar;
 class GroupCallBar;
 class RequestsBar;
 struct PreparedList;
+struct PreparedBundle;
 class SendFilesWay;
 class SendAsButton;
 class SpoilerAnimation;
@@ -320,7 +322,6 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using VoiceToSend = HistoryView::Controls::VoiceToSend;
-	struct SendingFiles;
 	enum ScrollChangeType {
 		ScrollChangeNone,
 
@@ -358,6 +359,11 @@ private:
 	std::optional<bool> cornerButtonsDownShown() override;
 	bool cornerButtonsUnreadMayBeShown() override;
 	bool cornerButtonsHas(HistoryView::CornerButtonType type) override;
+
+	[[nodiscard]] bool checkSendPayment(
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> withPaymentApproved);
 
 	void checkSuggestToGigagroup();
 	void processReply();
@@ -471,12 +477,8 @@ private:
 	bool showSendMessageError(
 		const TextWithTags &textWithTags,
 		bool ignoreSlowmodeCountdown,
-		Fn<void(int starsApproved)> resend = nullptr,
+		Fn<void(int starsApproved)> withPaymentApproved = nullptr,
 		int starsApproved = 0);
-	bool checkSendPayment(
-		int messagesCount,
-		int starsApproved,
-		Fn<void(int starsApproved)> resend);
 
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,
@@ -484,7 +486,9 @@ private:
 		TextWithTags &&caption,
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
-	void sendingFilesConfirmed(std::shared_ptr<SendingFiles> args);
+	void sendingFilesConfirmed(
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	void itemRemoved(not_null<const HistoryItem*> item);
@@ -769,7 +773,6 @@ private:
 	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 	std::unique_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
-	Fn<void()> _resendOnFullUpdated;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
@@ -873,6 +876,8 @@ private:
 	bool _inGrab = false;
 
 	int _topDelta = 0;
+
+	SendPaymentHelper _sendPayment;
 
 	rpl::event_stream<> _cancelRequests;
 

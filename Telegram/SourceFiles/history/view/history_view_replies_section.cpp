@@ -733,8 +733,8 @@ void RepliesWidget::setupComposeControls() {
 	}, lifetime());
 
 	_composeControls->sendVoiceRequests(
-	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
-		sendVoice(std::move(data));
+	) | rpl::start_with_next([=](const ComposeControls::VoiceToSend &data) {
+		sendVoice(data);
 	}, lifetime());
 
 	_composeControls->sendCommandRequests(
@@ -1070,25 +1070,59 @@ void RepliesWidget::sendingFilesConfirmed(
 		std::move(list),
 		way,
 		_history->peer->slowmodeApplied());
-	const auto type = way.sendImagesAsPhotos()
-		? SendMediaType::Photo
-		: SendMediaType::File;
+	auto bundle = PrepareFilesBundle(
+		std::move(groups),
+		way,
+		std::move(caption),
+		ctrlShiftEnter);
+	sendingFilesConfirmed(std::move(bundle), options);
+}
+
+bool RepliesWidget::checkSendPayment(
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> withPaymentApproved) {
+	return _sendPayment.check(
+		controller(),
+		_history->peer,
+		messagesCount,
+		starsApproved,
+		std::move(withPaymentApproved));
+}
+
+void RepliesWidget::sendingFilesConfirmed(
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options) {
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendingFilesConfirmed(bundle, copy);
+	};
+	const auto checked = checkSendPayment(
+		bundle->totalCount,
+		options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+
+	const auto compress = bundle->way.sendImagesAsPhotos();
+	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
 	auto action = prepareSendAction(options);
 	action.clearDraft = false;
-	if ((groups.size() != 1 || !groups.front().sentWithCaption())
-		&& !caption.text.isEmpty()) {
+	if (bundle->sendComment) {
 		auto message = Api::MessageToSend(action);
-		message.textWithTags = base::take(caption);
+		message.textWithTags = base::take(bundle->caption);
 		session().api().sendMessage(std::move(message));
 	}
-	for (auto &group : groups) {
+	for (auto &group : bundle->groups) {
 		const auto album = (group.type != Ui::AlbumType::None)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
 		session().api().sendFiles(
 			std::move(group.list),
 			type,
-			base::take(caption),
+			base::take(bundle->caption),
 			album,
 			action);
 	}
@@ -1227,7 +1261,20 @@ void RepliesWidget::send() {
 	send({});
 }
 
-void RepliesWidget::sendVoice(ComposeControls::VoiceToSend &&data) {
+void RepliesWidget::sendVoice(const ComposeControls::VoiceToSend &data) {
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = data;
+		copy.options.starsApproved = approved;
+		sendVoice(copy);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		data.options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+
 	auto action = prepareSendAction(data.options);
 	session().api().sendVoiceMessage(
 		data.bytes,
@@ -1254,19 +1301,32 @@ void RepliesWidget::send(Api::SendOptions options) {
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	message.webPage = _composeControls->webPageDraft();
 
-	const auto error = GetErrorForSending(
-		_history->peer,
-		{
-			.topicRootId = _topic ? _topic->rootId() : MsgId(0),
-			.forward = &_composeControls->forwardItems(),
-			.text = &message.textWithTags,
-			.ignoreSlowmodeCountdown = (options.scheduled != 0),
-		});
+	auto request = SendingErrorRequest{
+		.topicRootId = _topic ? _topic->rootId() : MsgId(0),
+		.forward = &_composeControls->forwardItems(),
+		.text = &message.textWithTags,
+		.ignoreSlowmodeCountdown = (options.scheduled != 0),
+	};
+	request.messagesCount = ComputeSendingMessagesCount(_history, request);
+	const auto error = GetErrorForSending(_history->peer, request);
 	if (error) {
 		Data::ShowSendErrorToast(controller(), _history->peer, error);
 		return;
 	}
-
+	if (!options.scheduled) {
+		const auto withPaymentApproved = [=](int approved) {
+			auto copy = options;
+			copy.starsApproved = approved;
+			send(copy);
+		};
+		const auto checked = checkSendPayment(
+			request.messagesCount,
+			options.starsApproved,
+			withPaymentApproved);
+		if (!checked) {
+			return;
+		}
+	}
 	session().api().sendMessage(std::move(message));
 
 	_composeControls->clear();
@@ -1420,6 +1480,18 @@ bool RepliesWidget::sendExistingDocument(
 		|| ShowSendPremiumError(controller(), document)) {
 		return false;
 	}
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = messageToSend;
+		copy.action.options.starsApproved = approved;
+		sendExistingDocument(document, std::move(copy), localId);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		messageToSend.action.options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return false;
+	}
 
 	Api::SendExistingDocument(
 		std::move(messageToSend),
@@ -1445,6 +1517,19 @@ bool RepliesWidget::sendExistingPhoto(
 		Data::ShowSendErrorToast(controller(), _history->peer, error);
 		return false;
 	} else if (showSlowmodeError()) {
+		return false;
+	}
+
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendExistingPhoto(photo, copy);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
 		return false;
 	}
 
@@ -1478,6 +1563,19 @@ void RepliesWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendInlineResult(result, bot, copy, localMessageId);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+
 	auto action = prepareSendAction(options);
 	action.generateLocal = true;
 	session().api().sendInlineResult(

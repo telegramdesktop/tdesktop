@@ -179,13 +179,17 @@ public:
 		not_null<PeerData*> peer,
 		int messagesCount,
 		int starsApproved,
-		Fn<void(int)> resend);
+		Fn<void(int)> resend,
+		PaidConfirmStyles styles = {});
 	[[nodiscard]] bool check(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<PeerData*> peer,
 		int messagesCount,
 		int starsApproved,
-		Fn<void(int)> resend);
+		Fn<void(int)> resend,
+		PaidConfirmStyles styles = {});
+
+	void clear();
 
 private:
 	Fn<void()> _resend;

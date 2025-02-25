@@ -225,16 +225,6 @@ const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
 } // namespace
 
-struct HistoryWidget::SendingFiles {
-	std::vector<Ui::PreparedGroup> groups;
-	Ui::SendFilesWay way;
-	TextWithTags caption;
-	Api::SendOptions options;
-	int totalCount = 0;
-	bool sendComment = false;
-	bool ctrlShiftEnter = false;
-};
-
 HistoryWidget::HistoryWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -897,17 +887,6 @@ HistoryWidget::HistoryWidget(
 			}
 		}
 	}, lifetime());
-
-	if (!session().credits().loaded()) {
-		session().credits().loadedValue(
-		) | rpl::filter(
-			rpl::mappers::_1
-		) | rpl::take(1) | rpl::start_with_next([=] {
-			if (const auto callback = base::take(_resendOnFullUpdated)) {
-				callback();
-			}
-		}, lifetime());
-	}
 
 	using Type = Data::DefaultNotify;
 	rpl::merge(
@@ -2400,7 +2379,7 @@ void HistoryWidget::showHistory(
 		setHistory(nullptr);
 		_list = nullptr;
 		_peer = nullptr;
-		_resendOnFullUpdated = nullptr;
+		_sendPayment.clear();
 		_topicsRequested.clear();
 		_canSendMessages = false;
 		_canSendTexts = false;
@@ -4412,7 +4391,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (showSendMessageError(
 			message.textWithTags,
 			ignoreSlowmodeCountdown,
-			crl::guard(this, withPaymentApproved),
+			withPaymentApproved,
 			options.starsApproved)) {
 		return;
 	}
@@ -4733,6 +4712,19 @@ FullMsgId HistoryWidget::cornerButtonsCurrentId() {
 		: (_history && _showAtMsgId > 0)
 		? FullMsgId(_history->peer->id, _showAtMsgId)
 		: FullMsgId();
+}
+
+bool HistoryWidget::checkSendPayment(
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> withPaymentApproved) {
+	return _peer
+		&& _sendPayment.check(
+			controller(),
+			_peer,
+			messagesCount,
+			starsApproved,
+			std::move(withPaymentApproved));
 }
 
 void HistoryWidget::checkSuggestToGigagroup() {
@@ -5890,7 +5882,7 @@ Data::ForumTopic *HistoryWidget::resolveReplyToTopic() {
 bool HistoryWidget::showSendMessageError(
 		const TextWithTags &textWithTags,
 		bool ignoreSlowmodeCountdown,
-		Fn<void(int starsApproved)> resend,
+		Fn<void(int starsApproved)> withPaymentApproved,
 		int starsApproved) {
 	if (!_canSendMessages) {
 		return false;
@@ -5908,25 +5900,12 @@ bool HistoryWidget::showSendMessageError(
 		Data::ShowSendErrorToast(controller(), _peer, error);
 		return true;
 	}
-	return resend
-		&& !checkSendPayment(request.messagesCount, starsApproved, resend);
-}
 
-bool HistoryWidget::checkSendPayment(
-		int messagesCount,
-		int starsApproved,
-		Fn<void(int starsApproved)> resend) {
-	const auto details = ComputePaymentDetails(_peer, messagesCount);
-	if (!details) {
-		_resendOnFullUpdated = [=] { resend(starsApproved); };
-		return false;
-	} else if (const auto stars = details->stars; stars > starsApproved) {
-		ShowSendPaidConfirm(controller(), _peer, *details, [=] {
-			resend(stars);
-		});
-		return false;
-	}
-	return true;
+	return withPaymentApproved
+		&& !checkSendPayment(
+			request.messagesCount,
+			starsApproved,
+			withPaymentApproved);
 }
 
 bool HistoryWidget::confirmSendingFiles(const QStringList &files) {
@@ -6012,11 +5991,11 @@ bool HistoryWidget::confirmSendingFiles(
 }
 
 void HistoryWidget::sendingFilesConfirmed(
-	Ui::PreparedList &&list,
-	Ui::SendFilesWay way,
-	TextWithTags &&caption,
-	Api::SendOptions options,
-	bool ctrlShiftEnter) {
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
+		TextWithTags &&caption,
+		Api::SendOptions options,
+		bool ctrlShiftEnter) {
 	Expects(list.filesToProcess.empty());
 
 	const auto compress = way.sendImagesAsPhotos();
@@ -6024,55 +6003,51 @@ void HistoryWidget::sendingFilesConfirmed(
 		return;
 	}
 
-	const auto filesCount = int(list.files.size());
 	auto groups = DivideByGroups(
 		std::move(list),
 		way,
 		_peer->slowmodeApplied());
-	const auto sendComment = !caption.text.isEmpty()
-		&& (groups.size() != 1 || !groups.front().sentWithCaption());
-	sendingFilesConfirmed(std::make_shared<SendingFiles>(SendingFiles{
-		.groups = std::move(groups),
-		.way = way,
-		.caption = std::move(caption),
-		.options = options,
-		.totalCount = filesCount + (sendComment ? 1 : 0),
-		.sendComment = sendComment,
-		.ctrlShiftEnter = ctrlShiftEnter,
-	}));
+	auto bundle = PrepareFilesBundle(
+		std::move(groups),
+		way,
+		std::move(caption),
+		ctrlShiftEnter);
+	sendingFilesConfirmed(std::move(bundle), options);
 }
 
 void HistoryWidget::sendingFilesConfirmed(
-		std::shared_ptr<SendingFiles> args) {
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options) {
 	const auto withPaymentApproved = [=](int approved) {
-		args->options.starsApproved = approved;
-		sendingFilesConfirmed(args);
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendingFilesConfirmed(bundle, copy);
 	};
 	const auto checked = checkSendPayment(
-		args->totalCount,
-		args->options.starsApproved,
+		bundle->totalCount,
+		options.starsApproved,
 		withPaymentApproved);
 	if (!checked) {
 		return;
 	}
 
-	const auto compress = args->way.sendImagesAsPhotos();
+	const auto compress = bundle->way.sendImagesAsPhotos();
 	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
-	auto action = prepareSendAction(args->options);
+	auto action = prepareSendAction(options);
 	action.clearDraft = false;
-	if (args->sendComment) {
+	if (bundle->sendComment) {
 		auto message = Api::MessageToSend(action);
-		message.textWithTags = base::take(args->caption);
+		message.textWithTags = base::take(bundle->caption);
 		session().api().sendMessage(std::move(message));
 	}
-	for (auto &group : args->groups) {
+	for (auto &group : bundle->groups) {
 		const auto album = (group.type != Ui::AlbumType::None)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
 		session().api().sendFiles(
 			std::move(group.list),
 			type,
-			base::take(args->caption),
+			base::take(bundle->caption),
 			album,
 			action);
 	}
@@ -8544,9 +8519,6 @@ void HistoryWidget::fullInfoUpdated() {
 	if (refresh) {
 		updateControlsVisibility();
 		updateControlsGeometry();
-	}
-	if (const auto callback = base::take(_resendOnFullUpdated)) {
-		callback();
 	}
 }
 

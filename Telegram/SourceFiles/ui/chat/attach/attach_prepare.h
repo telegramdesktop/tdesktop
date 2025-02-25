@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/photo_editor_common.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/rect_part.h"
 
 #include <QtCore/QSemaphore>
@@ -152,6 +153,20 @@ struct PreparedGroup {
 	PreparedList &&list,
 	SendFilesWay way,
 	bool slowmode);
+
+struct PreparedBundle {
+	std::vector<PreparedGroup> groups;
+	SendFilesWay way;
+	TextWithTags caption;
+	int totalCount = 0;
+	bool sendComment = false;
+	bool ctrlShiftEnter = false;
+};
+[[nodiscard]] std::shared_ptr<PreparedBundle> PrepareFilesBundle(
+	std::vector<PreparedGroup> groups,
+	SendFilesWay way,
+	TextWithTags caption,
+	bool ctrlShiftEnter);
 
 [[nodiscard]] int MaxAlbumItems();
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);

@@ -476,22 +476,12 @@ void Message::initPaidInformation() {
 				lt_action,
 				action(),
 				Ui::Text::WithEntities)
-			: history()->peer->isUser()
-			? tr::lng_action_paid_message_got(
+			: tr::lng_action_paid_message_got(
 				tr::now,
 				lt_count,
 				info.stars,
 				lt_name,
 				Ui::Text::Link(item->from()->shortName(), 1),
-				Ui::Text::WithEntities)
-			: tr::lng_action_paid_message_group(
-				tr::now,
-				lt_count,
-				info.stars,
-				lt_from,
-				Ui::Text::Link(item->from()->shortName(), 1),
-				lt_action,
-				action(),
 				Ui::Text::WithEntities),
 	};
 	if (!item->out()) {
