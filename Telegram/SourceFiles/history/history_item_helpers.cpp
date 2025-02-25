@@ -267,7 +267,7 @@ void ShowSendPaidConfirm(
 		PaidConfirmStyles styles) {
 	ShowSendPaidConfirm(
 		std::move(show),
-		std::vector<not_null<Data::Thread*>>{ peer->owner().history(peer) },
+		std::vector<not_null<PeerData*>>{ peer },
 		details,
 		confirmed,
 		styles);
@@ -275,15 +275,15 @@ void ShowSendPaidConfirm(
 
 void ShowSendPaidConfirm(
 		std::shared_ptr<Main::SessionShow> show,
-		const std::vector<not_null<Data::Thread*>> &threads,
+		const std::vector<not_null<PeerData*>> &peers,
 		SendPaymentDetails details,
 		Fn<void()> confirmed,
 		PaidConfirmStyles styles) {
-	Expects(!threads.empty());
+	Expects(!peers.empty());
 
-	const auto singlePeer = (threads.size() > 1)
+	const auto singlePeer = (peers.size() > 1)
 		? (PeerData*)nullptr
-		: threads.front()->peer().get();
+		: peers.front().get();
 	const auto recipientId = singlePeer ? singlePeer->id : PeerId();
 	const auto check = [=] {
 		const auto required = details.stars;
@@ -303,8 +303,8 @@ void ShowSendPaidConfirm(
 			done);
 	};
 	auto usersOnly = true;
-	for (const auto &thread : threads) {
-		if (!thread->peer()->isUser()) {
+	for (const auto &peer : peers) {
+		if (!peer->isUser()) {
 			usersOnly = false;
 			break;
 		}
@@ -342,7 +342,7 @@ void ShowSendPaidConfirm(
 					: tr::lng_payment_confirm_chats)(
 						tr::now,
 						lt_count,
-						int(threads.size()),
+						int(peers.size()),
 						Ui::Text::RichLangValue)).append(' ').append(
 							tr::lng_payment_confirm_sure(
 								tr::now,

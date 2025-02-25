@@ -311,24 +311,23 @@ void RecipientRow::setRestriction(Api::MessageMoneyRestriction restriction) {
 	_restriction->value = restriction;
 }
 
-PaintRoundImageCallback RecipientRow::generatePaintUserpicCallback(
-		bool forceRound) {
-	auto result = PeerListRow::generatePaintUserpicCallback(forceRound);
+void RecipientRow::paintUserpicOverlay(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth) {
 	if (const auto &r = _restriction) {
-		return [=](Painter &p, int x, int y, int outerWidth, int size) {
-			result(p, x, y, outerWidth, size);
-			PaintRestrictionBadge(
-				p,
-				_maybeLockedSt,
-				r->value.starsPerMessage,
-				r->cache,
-				x,
-				y,
-				outerWidth,
-				size);
-		};
+		PaintRestrictionBadge(
+			p,
+			_maybeLockedSt,
+			r->value.starsPerMessage,
+			r->cache,
+			x,
+			y,
+			outerWidth,
+			st.photoSize);
 	}
-	return result;
 }
 
 bool RecipientRow::refreshLock(

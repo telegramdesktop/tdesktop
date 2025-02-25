@@ -167,7 +167,7 @@ void ShowSendPaidConfirm(
 	PaidConfirmStyles styles = {});
 void ShowSendPaidConfirm(
 	std::shared_ptr<Main::SessionShow> show,
-	const std::vector<not_null<Data::Thread*>> &threads,
+	const std::vector<not_null<PeerData*>> &peers,
 	SendPaymentDetails details,
 	Fn<void()> confirmed,
 	PaidConfirmStyles styles = {});

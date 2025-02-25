@@ -436,7 +436,7 @@ void BottomInfo::layoutDateText() {
 	auto marked = TextWithEntities{ full };
 	if (const auto count = _data.stars) {
 		marked.append(Ui::Text::IconEmoji(&st::starIconEmoji));
-		marked.append(QString::number(count));
+		marked.append(Lang::FormatCountToShort(count).string);
 	}
 	_authorEditedDate.setMarkedText(
 		st::msgDateTextStyle,

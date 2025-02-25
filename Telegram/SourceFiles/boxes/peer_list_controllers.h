@@ -136,8 +136,12 @@ public:
 	[[nodiscard]] History *maybeHistory() const {
 		return _maybeHistory;
 	}
-	PaintRoundImageCallback generatePaintUserpicCallback(
-		bool forceRound) override;
+	void paintUserpicOverlay(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth) override;
 
 	void preloadUserpic() override;
 

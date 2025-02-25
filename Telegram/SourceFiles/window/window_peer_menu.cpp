@@ -1960,7 +1960,9 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 		rpl::producer<QString> titleOverride,
 		FnMut<void()> &&successCallback,
 		InlineBots::PeerTypes typesRestriction,
-		Fn<void(std::vector<not_null<Data::Thread*>>)> sendMany) {
+		Fn<void(
+			std::vector<not_null<Data::Thread*>>,
+			Api::SendOptions)> sendMany) {
 	const auto weak = std::make_shared<QPointer<PeerListBox>>();
 	const auto selectable = (sendMany != nullptr);
 	class Controller final : public ChooseRecipientBoxController {
@@ -2073,19 +2075,82 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 		std::move(filter),
 		selectable);
 	const auto raw = controller.get();
+
+	struct State {
+		Fn<void(Api::SendOptions)> submit;
+		rpl::lifetime submitLifetime;
+	};
+	const auto state = std::make_shared<State>();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		raw->hasSelectedChanges(
 		) | rpl::start_with_next([=](bool shown) {
 			box->clearButtons();
 			if (shown) {
-				box->addButton(tr::lng_send_button(), [=] {
+				const auto weak = Ui::MakeWeak(box);
+				state->submit = [=](Api::SendOptions options) {
+					state->submitLifetime.destroy();
+					const auto show = box->peerListUiShow();
 					const auto peers = box->collectSelectedRows();
+					const auto withPaymentApproved = crl::guard(weak, [=](
+							int approved) {
+						auto copy = options;
+						copy.starsApproved = approved;
+						if (const auto onstack = state->submit) {
+							onstack(copy);
+						}
+					});
+
+					const auto alreadyApproved = options.starsApproved;
+					auto paid = std::vector<not_null<PeerData*>>();
+					auto waiting = base::flat_set<not_null<PeerData*>>();
+					auto totalStars = 0;
+					for (const auto &peer : peers) {
+						const auto details = ComputePaymentDetails(peer, 1);
+						if (!details) {
+							waiting.emplace(peer);
+						} else if (details->stars > 0) {
+							totalStars += details->stars;
+							paid.push_back(peer);
+						}
+					}
+					if (!waiting.empty()) {
+						session->changes().peerUpdates(
+							Data::PeerUpdate::Flag::FullInfo
+						) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+							if (waiting.contains(update.peer)) {
+								withPaymentApproved(alreadyApproved);
+							}
+						}, state->submitLifetime);
+
+						if (!session->credits().loaded()) {
+							session->credits().loadedValue(
+							) | rpl::filter(
+								rpl::mappers::_1
+							) | rpl::take(1) | rpl::start_with_next([=] {
+								withPaymentApproved(alreadyApproved);
+							}, state->submitLifetime);
+						}
+						return;
+					} else if (totalStars > alreadyApproved) {
+						ShowSendPaidConfirm(show, paid, SendPaymentDetails{
+							.messages = 1,
+							.stars = totalStars,
+						}, [=] { withPaymentApproved(totalStars); });
+						return;
+					}
+					state->submit = nullptr;
+
 					sendMany(ranges::views::all(
 						peers
 					) | ranges::views::transform([&](
 						not_null<PeerData*> peer) -> Controller::Chosen {
 						return peer->owner().history(peer);
-					}) | ranges::to_vector);
+					}) | ranges::to_vector, options);
+				};
+				box->addButton(tr::lng_send_button(), [=] {
+					if (const auto onstack = state->submit) {
+						onstack({});
+					}
 				});
 			}
 			box->addButton(tr::lng_cancel(), [=] {
@@ -2257,6 +2322,8 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<ListBox*> box;
 		not_null<Controller*> controller;
 		base::unique_qptr<Ui::PopupMenu> menu;
+		Fn<void(Api::SendOptions options)> submit;
+		rpl::lifetime submitLifetime;
 	};
 
 	const auto applyFilter = [=](not_null<ListBox*> box, FilterId id) {
@@ -2401,8 +2468,62 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		session->data().message(msgIds.front())->history(),
 		msgIds);
 
-	const auto submit = [=](Api::SendOptions options) {
+	const auto weak = Ui::MakeWeak(state->box);
+	state->submit = [=](Api::SendOptions options) {
 		const auto peers = state->box->collectSelectedRows();
+		const auto checkPaid = [=](int messagesCount) {
+			const auto withPaymentApproved = crl::guard(weak, [=](
+					int approved) {
+				auto copy = options;
+				copy.starsApproved = approved;
+				if (const auto onstack = state->submit) {
+					onstack(copy);
+				}
+			});
+
+			const auto alreadyApproved = options.starsApproved;
+			auto paid = std::vector<not_null<PeerData*>>();
+			auto waiting = base::flat_set<not_null<PeerData*>>();
+			auto totalStars = 0;
+			for (const auto &peer : peers) {
+				const auto details = ComputePaymentDetails(
+					peer,
+					messagesCount);
+				if (!details) {
+					waiting.emplace(peer);
+				} else if (details->stars > 0) {
+					totalStars += details->stars;
+					paid.push_back(peer);
+				}
+			}
+			if (!waiting.empty()) {
+				session->changes().peerUpdates(
+					Data::PeerUpdate::Flag::FullInfo
+				) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+					if (waiting.contains(update.peer)) {
+						withPaymentApproved(alreadyApproved);
+					}
+				}, state->submitLifetime);
+
+				if (!session->credits().loaded()) {
+					session->credits().loadedValue(
+					) | rpl::filter(
+						rpl::mappers::_1
+					) | rpl::take(1) | rpl::start_with_next([=] {
+						withPaymentApproved(alreadyApproved);
+					}, state->submitLifetime);
+				}
+				return false;
+			} else if (totalStars > alreadyApproved) {
+				ShowSendPaidConfirm(show, paid, SendPaymentDetails{
+					.messages = messagesCount,
+					.stars = totalStars,
+				}, [=] { withPaymentApproved(totalStars); });
+				return false;
+			}
+			state->submit = nullptr;
+			return true;
+		};
 		send(
 			ranges::views::all(
 				peers
@@ -2410,11 +2531,11 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 					not_null<PeerData*> peer) -> Controller::Chosen {
 				return peer->owner().history(peer);
 			}) | ranges::to_vector,
-			[](int messagesCount) { return true; },
+			checkPaid,
 			comment->entity()->getTextWithAppliedMarkdown(),
 			options,
 			state->box->forwardOptionsData());
-		if (successCallback) {
+		if (!state->submit && successCallback) {
 			successCallback();
 		}
 	};
@@ -2483,7 +2604,12 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			state->menu.get(),
 			show,
 			SendMenu::Details{ sendMenuType() },
-			SendMenu::DefaultCallback(show, crl::guard(parent, submit)));
+			SendMenu::DefaultCallback(show, crl::guard(parent, [=](
+					Api::SendOptions options) {
+				if (const auto onstack = state->submit) {
+					onstack(options);
+				}
+			})));
 		if (showForwardOptions || !state->menu->empty()) {
 			state->menu->popup(QCursor::pos());
 		}
@@ -2505,7 +2631,11 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	const auto field = comment->entity();
 
 	field->submits(
-	) | rpl::start_with_next([=] { submit({}); }, field->lifetime());
+	) | rpl::start_with_next([=] {
+		if (const auto onstack = state->submit) {
+			onstack({});
+		}
+	}, field->lifetime());
 	InitMessageFieldHandlers({
 		.session = session,
 		.show = show,
@@ -2529,9 +2659,12 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	) | rpl::start_with_next([=](bool shown) {
 		state->box->clearButtons();
 		if (shown) {
-			const auto send = state->box->addButton(
-				tr::lng_send_button(),
-				[=] { submit({}); });
+			auto text = tr::lng_send_button();
+			const auto send = state->box->addButton(std::move(text), [=] {
+				if (const auto onstack = state->submit) {
+					onstack({});
+				}
+			});
 			send->setAcceptBoth();
 			send->clicks(
 			) | rpl::start_with_next([=](Qt::MouseButton button) {

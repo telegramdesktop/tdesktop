@@ -1809,11 +1809,15 @@ void WebViewInstance::botSendPreparedMessage(
 			QPointer<Ui::BoxContent> preview;
 			QPointer<Ui::BoxContent> choose;
 			rpl::event_stream<not_null<Data::Thread*>> recipient;
+			Fn<void(Api::SendOptions)> send;
+			SendPaymentHelper sendPayment;
 			bool sent = false;
 		};
 		const auto state = std::make_shared<State>();
 		auto recipient = state->recipient.events();
-		const auto send = [=](std::vector<not_null<Data::Thread*>> list) {
+		const auto send = [=](
+				std::vector<not_null<Data::Thread*>> list,
+				Api::SendOptions options) {
 			if (state->sent) {
 				return;
 			}
@@ -1852,7 +1856,7 @@ void WebViewInstance::botSendPreparedMessage(
 				bot->session().api().sendInlineResult(
 					bot,
 					parsed.get(),
-					Api::SendAction(thread),
+					Api::SendAction(thread, options),
 					std::nullopt,
 					done);
 			}
@@ -1881,7 +1885,33 @@ void WebViewInstance::botSendPreparedMessage(
 			state->choose = box.data();
 			panel->showBox(std::move(box));
 		}, [=](not_null<Data::Thread*> thread) {
-			send({ thread });
+			const auto weak = base::make_weak(thread);
+			state->send = [=](Api::SendOptions options) {
+				const auto strong = weak.get();
+				if (!strong) {
+					state->send = nullptr;
+					return;
+				}
+				const auto withPaymentApproved = [=](int stars) {
+					if (const auto onstack = state->send) {
+						auto copy = options;
+						copy.starsApproved = stars;
+						onstack(copy);
+					}
+				};
+				const auto checked = state->sendPayment.check(
+					uiShow(),
+					strong->peer(),
+					1,
+					options.starsApproved,
+					withPaymentApproved);
+				if (!checked) {
+					return;
+				}
+				state->send = nullptr;
+				send({ strong }, options);
+			};
+			state->send({});
 		});
 		box->boxClosing() | rpl::start_with_next([=] {
 			if (!state->sent) {

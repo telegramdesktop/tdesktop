@@ -675,7 +675,7 @@ void ShareBox::submit(Api::SendOptions options) {
 		});
 
 		const auto alreadyApproved = options.starsApproved;
-		auto paid = std::vector<not_null<Data::Thread*>>();
+		auto paid = std::vector<not_null<PeerData*>>();
 		auto waiting = base::flat_set<not_null<PeerData*>>();
 		auto totalStars = 0;
 		for (const auto &thread : threads) {
@@ -685,7 +685,7 @@ void ShareBox::submit(Api::SendOptions options) {
 				waiting.emplace(peer);
 			} else if (details->stars > 0) {
 				totalStars += details->stars;
-				paid.push_back(thread);
+				paid.push_back(peer);
 			}
 		}
 		if (!waiting.empty()) {
@@ -963,7 +963,7 @@ void ShareBox::Inner::initChatRestriction(not_null<Chat*> chat) {
 		const auto restriction = Api::ResolveMessageMoneyRestrictions(
 			history->peer,
 			history);
-		if (restriction) {
+		if (restriction || restriction.known) {
 			chat->restriction = restriction;
 		}
 	}
