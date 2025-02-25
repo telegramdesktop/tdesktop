@@ -362,6 +362,7 @@ void PipPanel::init() {
 	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
 		// Workaround Qt's forced transient parent.
 		Ui::Platform::ClearTransientParent(widget());
+		Ui::Platform::SetWindowMargins(widget(), _padding);
 	}, rp()->lifetime());
 
 	rp()->screenValue(
@@ -878,6 +879,9 @@ void PipPanel::updateDecorations() {
 	_padding = padding;
 	_useTransparency = use;
 	widget()->setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
+	if (widget()->windowHandle()) {
+		Ui::Platform::SetWindowMargins(widget(), _padding);
+	}
 	setGeometry(newGeometry);
 	update();
 }
