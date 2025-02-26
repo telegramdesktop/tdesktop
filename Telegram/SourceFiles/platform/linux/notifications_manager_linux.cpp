@@ -174,7 +174,7 @@ private:
 	XdgNotifications::Notifications _interface;
 	std::string _title;
 	std::string _body;
-	std::vector<std::string> _actions;
+	std::vector<gi::cstring> _actions;
 	GLib::VariantDict _hints;
 	std::string _imageKey;
 
@@ -362,6 +362,8 @@ bool NotificationData::init(const Info &info) {
 		_lifetime.add([=] {
 			_interface.disconnect(activationTokenSignalId);
 		});
+
+		_actions.push_back({});
 	}
 
 	if (HasCapability("action-icons")) {
@@ -441,11 +443,6 @@ void NotificationData::show() {
 	// a hack for snap's activation restriction
 	const auto weak = base::make_weak(this);
 	StartServiceAsync(_proxy.get_connection(), crl::guard(weak, [=] {
-		auto actions = _actions
-			| ranges::views::transform(&std::string::c_str)
-			| ranges::to_vector;
-		actions.push_back(nullptr);
-
 		const auto callbackWrap = gi::unwrap(
 			Gio::AsyncReadyCallback(
 				crl::guard(weak, [=](GObject::Object, Gio::AsyncResult res) {
@@ -476,7 +473,11 @@ void NotificationData::show() {
 				: std::string()).c_str(),
 			_title.c_str(),
 			_body.c_str(),
-			actions.data(),
+			!_actions.empty()
+				? (_actions
+					| ranges::views::transform(&gi::cstring::c_str)
+					| ranges::to_vector).data()
+				: nullptr,
 			_hints.end().gobj_(),
 			-1,
 			nullptr,
