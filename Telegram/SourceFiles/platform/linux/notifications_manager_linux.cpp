@@ -147,9 +147,8 @@ public:
 	NotificationData(
 		not_null<Manager*> manager,
 		XdgNotifications::NotificationsProxy proxy,
-		NotificationId id);
-
-	[[nodiscard]] bool init(const Info &info);
+		NotificationId id,
+		const Info &info);
 
 	NotificationData(const NotificationData &other) = delete;
 	NotificationData &operator=(const NotificationData &other) = delete;
@@ -188,7 +187,8 @@ using Notification = std::unique_ptr<NotificationData>;
 NotificationData::NotificationData(
 	not_null<Manager*> manager,
 	XdgNotifications::NotificationsProxy proxy,
-	NotificationId id)
+	NotificationId id,
+	const Info &info)
 : _manager(manager)
 , _id(id)
 , _sounds(cWorkingDir() + u"tdata/audio_cache"_q)
@@ -200,9 +200,6 @@ NotificationData::NotificationData(
 , _interface(proxy)
 , _hints(GLib::VariantDict::new_())
 , _imageKey(GetImageKey()) {
-}
-
-bool NotificationData::init(const Info &info) {
 	const auto &title = info.title;
 	const auto &subtitle = info.subtitle;
 
@@ -268,12 +265,6 @@ bool NotificationData::init(const Info &info) {
 				"app.notification-mark-as-read",
 				notificationVariant);
 		}
-
-		return true;
-	}
-
-	if (!_interface) {
-		return false;
 	}
 
 	const auto &text = info.message;
@@ -430,8 +421,6 @@ bool NotificationData::init(const Info &info) {
 	_lifetime.add([=] {
 		_interface.disconnect(notificationClosedSignalId);
 	});
-
-	return true;
 }
 
 void NotificationData::show() {
@@ -816,11 +805,8 @@ void Manager::Private::showNotification(
 	auto notification = std::make_unique<NotificationData>(
 		_manager,
 		_proxy,
-		notificationId);
-	const auto inited = notification->init(info);
-	if (!inited) {
-		return;
-	}
+		notificationId,
+		info);
 
 	if (!options.hideNameAndPhoto) {
 		notification->setImage(
