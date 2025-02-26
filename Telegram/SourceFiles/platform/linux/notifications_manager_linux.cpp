@@ -540,7 +540,7 @@ void NotificationData::setImage(QImage image) {
 
 } // namespace
 
-class Manager::Private : public base::has_weak_ptr {
+class Manager::Private {
 public:
 	explicit Private(not_null<Manager*> manager);
 
