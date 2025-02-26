@@ -516,19 +516,14 @@ void NotificationData::setImage(QImage image) {
 		return;
 	}
 
-	if (image.hasAlphaChannel()) {
-		image.convertTo(QImage::Format_RGBA8888);
-	} else {
-		image.convertTo(QImage::Format_RGB888);
-	}
-
+	image.convertTo(QImage::Format_RGBA8888);
 	_hints.insert_value(_imageKey, GLib::Variant::new_tuple({
 		GLib::Variant::new_int32(image.width()),
 		GLib::Variant::new_int32(image.height()),
 		GLib::Variant::new_int32(image.bytesPerLine()),
-		GLib::Variant::new_boolean(image.hasAlphaChannel()),
+		GLib::Variant::new_boolean(true),
 		GLib::Variant::new_int32(8),
-		GLib::Variant::new_int32(image.hasAlphaChannel() ? 4 : 3),
+		GLib::Variant::new_int32(4),
 		GLib::Variant::new_from_data(
 			GLib::VariantType::new_("ay"),
 			reinterpret_cast<const uchar*>(image.constBits()),
