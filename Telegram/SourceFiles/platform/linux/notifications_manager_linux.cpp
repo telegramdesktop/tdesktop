@@ -156,8 +156,6 @@ public:
 	NotificationData(NotificationData &&other) = delete;
 	NotificationData &operator=(NotificationData &&other) = delete;
 
-	~NotificationData();
-
 	void show();
 	void close();
 	void setImage(QImage image);
@@ -181,10 +179,7 @@ private:
 	std::string _imageKey;
 
 	uint _notificationId = 0;
-	ulong _actionInvokedSignalId = 0;
-	ulong _activationTokenSignalId = 0;
-	ulong _notificationRepliedSignalId = 0;
-	ulong _notificationClosedSignalId = 0;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -315,7 +310,7 @@ bool NotificationData::init(const Info &info) {
 			_actions.push_back(
 				tr::lng_notification_reply(tr::now).toStdString());
 
-			_notificationRepliedSignalId
+			const auto notificationRepliedSignalId
 				= _interface.signal_notification_replied().connect([=](
 						XdgNotifications::Notifications,
 						uint id,
@@ -328,10 +323,14 @@ bool NotificationData::init(const Info &info) {
 						}
 					});
 				});
+
+			_lifetime.add([=] {
+				_interface.disconnect(notificationRepliedSignalId);
+			});
 		}
 
-		_actionInvokedSignalId = _interface.signal_action_invoked().connect(
-			[=](
+		const auto actionInvokedSignalId
+			 = _interface.signal_action_invoked().connect([=](
 					XdgNotifications::Notifications,
 					uint id,
 					std::string actionName) {
@@ -346,7 +345,11 @@ bool NotificationData::init(const Info &info) {
 				});
 			});
 
-		_activationTokenSignalId
+		_lifetime.add([=] {
+			_interface.disconnect(actionInvokedSignalId);
+		});
+
+		const auto activationTokenSignalId
 			= _interface.signal_activation_token().connect([=](
 					XdgNotifications::Notifications,
 					uint id,
@@ -355,6 +358,10 @@ bool NotificationData::init(const Info &info) {
 					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
 				}
 			});
+
+		_lifetime.add([=] {
+			_interface.disconnect(activationTokenSignalId);
+		});
 	}
 
 	if (HasCapability("action-icons")) {
@@ -392,7 +399,7 @@ bool NotificationData::init(const Info &info) {
 	_hints.insert_value("desktop-entry", GLib::Variant::new_string(
 		QGuiApplication::desktopFileName().toStdString()));
 
-	_notificationClosedSignalId =
+	const auto notificationClosedSignalId =
 		_interface.signal_notification_closed().connect([=](
 				XdgNotifications::Notifications,
 				uint id,
@@ -418,27 +425,11 @@ bool NotificationData::init(const Info &info) {
 			});
 		});
 
+	_lifetime.add([=] {
+		_interface.disconnect(notificationClosedSignalId);
+	});
+
 	return true;
-}
-
-NotificationData::~NotificationData() {
-	if (_interface) {
-		if (_actionInvokedSignalId != 0) {
-			_interface.disconnect(_actionInvokedSignalId);
-		}
-
-		if (_activationTokenSignalId != 0) {
-			_interface.disconnect(_activationTokenSignalId);
-		}
-
-		if (_notificationRepliedSignalId != 0) {
-			_interface.disconnect(_notificationRepliedSignalId);
-		}
-
-		if (_notificationClosedSignalId != 0) {
-			_interface.disconnect(_notificationClosedSignalId);
-		}
-	}
 }
 
 void NotificationData::show() {
