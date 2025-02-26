@@ -165,10 +165,6 @@ private:
 
 	Media::Audio::LocalDiskCache _sounds;
 
-	Gio::Application _application;
-	Gio::Notification _notification;
-	const std::string _guid;
-
 	XdgNotifications::NotificationsProxy _proxy;
 	XdgNotifications::Notifications _interface;
 	std::string _title;
@@ -192,81 +188,12 @@ NotificationData::NotificationData(
 : _manager(manager)
 , _id(id)
 , _sounds(cWorkingDir() + u"tdata/audio_cache"_q)
-, _application(UseGNotification()
-		? Gio::Application::get_default()
-		: nullptr)
-, _guid(_application ? std::string(Gio::dbus_generate_guid()) : std::string())
 , _proxy(proxy)
 , _interface(proxy)
 , _hints(GLib::VariantDict::new_())
 , _imageKey(GetImageKey()) {
 	const auto &title = info.title;
 	const auto &subtitle = info.subtitle;
-
-	if (_application) {
-		_notification = Gio::Notification::new_(
-			subtitle.isEmpty()
-				? title.toStdString()
-				: subtitle.toStdString() + " (" + title.toStdString() + ')');
-
-		_notification.set_body(info.message.toStdString());
-
-		_notification.set_icon(
-			Gio::ThemedIcon::new_(base::IconName().toStdString()));
-
-		// for chat messages, according to
-		// https://docs.gtk.org/gio/enum.NotificationPriority.html
-		_notification.set_priority(Gio::NotificationPriority::HIGH_);
-
-		// glib 2.70+, we keep glib 2.56+ compatibility
-		static const auto set_category = [] {
-			// reset dlerror after dlsym call
-			const auto guard = gsl::finally([] { dlerror(); });
-			return reinterpret_cast<void(*)(GNotification*, const gchar*)>(
-				dlsym(RTLD_DEFAULT, "g_notification_set_category"));
-		}();
-
-		if (set_category) {
-			set_category(_notification.gobj_(), "im.received");
-		}
-
-		const auto peer = info.peer;
-
-		const auto notificationVariant = GLib::Variant::new_array({
-			GLib::Variant::new_dict_entry(
-				GLib::Variant::new_string("session"),
-				GLib::Variant::new_variant(
-					GLib::Variant::new_uint64(peer->session().uniqueId()))),
-			GLib::Variant::new_dict_entry(
-				GLib::Variant::new_string("peer"),
-				GLib::Variant::new_variant(
-					GLib::Variant::new_uint64(peer->id.value))),
-			GLib::Variant::new_dict_entry(
-				GLib::Variant::new_string("peer"),
-				GLib::Variant::new_variant(
-					GLib::Variant::new_uint64(peer->id.value))),
-			GLib::Variant::new_dict_entry(
-				GLib::Variant::new_string("topic"),
-				GLib::Variant::new_variant(
-					GLib::Variant::new_int64(info.topicRootId.bare))),
-			GLib::Variant::new_dict_entry(
-				GLib::Variant::new_string("msgid"),
-				GLib::Variant::new_variant(
-					GLib::Variant::new_int64(info.itemId.bare))),
-		});
-
-		_notification.set_default_action_and_target(
-			"app.notification-activate",
-			notificationVariant);
-
-		if (!info.options.hideMarkAsRead) {
-			_notification.add_button_with_target(
-				tr::lng_context_mark_read(tr::now).toStdString(),
-				"app.notification-mark-as-read",
-				notificationVariant);
-		}
-	}
-
 	const auto &text = info.message;
 	if (HasCapability("body-markup")) {
 		_title = title.toStdString();
@@ -424,11 +351,6 @@ NotificationData::NotificationData(
 }
 
 void NotificationData::show() {
-	if (_application && _notification) {
-		_application.send_notification(_guid, _notification);
-		return;
-	}
-
 	// a hack for snap's activation restriction
 	const auto weak = base::make_weak(this);
 	StartServiceAsync(_proxy.get_connection(), crl::guard(weak, [=] {
@@ -476,31 +398,11 @@ void NotificationData::show() {
 }
 
 void NotificationData::close() {
-	if (_application) {
-		_application.withdraw_notification(_guid);
-	} else {
-		_interface.call_close_notification(_notificationId, nullptr);
-	}
+	_interface.call_close_notification(_notificationId, nullptr);
 	_manager->clearNotification(_id);
 }
 
 void NotificationData::setImage(QImage image) {
-	if (_notification) {
-		QByteArray imageData;
-		QBuffer buffer(&imageData);
-		buffer.open(QIODevice::WriteOnly);
-		image.save(&buffer, "PNG");
-
-		_notification.set_icon(
-			Gio::BytesIcon::new_(
-				GLib::Bytes::new_with_free_func(
-					reinterpret_cast<const uchar*>(imageData.constData()),
-					imageData.size(),
-					[imageData] {})));
-
-		return;
-	}
-
 	if (_imageKey.empty()) {
 		return;
 	}
@@ -548,8 +450,10 @@ private:
 
 	base::flat_map<
 		ContextId,
-		base::flat_map<MsgId, Notification>> _notifications;
+		base::flat_map<MsgId,
+			std::variant<Notification, std::string>>> _notifications;
 
+	Gio::Application _application;
 	XdgNotifications::NotificationsProxy _proxy;
 	XdgNotifications::Notifications _interface;
 	rpl::lifetime _lifetime;
@@ -699,7 +603,10 @@ void Create(Window::Notifications::System *system) {
 }
 
 Manager::Private::Private(not_null<Manager*> manager)
-: _manager(manager) {
+: _manager(manager)
+, _application(UseGNotification()
+		? Gio::Application::get_default()
+		: nullptr) {
 	const auto &serverInformation = CurrentServerInformation;
 
 	if (!serverInformation.name.empty()) {
@@ -732,7 +639,7 @@ Manager::Private::Private(not_null<Manager*> manager)
 				}).c_str()));
 	}
 
-	if (auto actionMap = Gio::ActionMap(Gio::Application::get_default())) {
+	if (auto actionMap = Gio::ActionMap(_application)) {
 		const auto dictToNotificationId = [](GLib::VariantDict dict) {
 			return NotificationId{
 				.contextId = ContextId{
@@ -802,15 +709,98 @@ void Manager::Private::showNotification(
 		.contextId = key,
 		.msgId = info.itemId,
 	};
-	auto notification = std::make_unique<NotificationData>(
-		_manager,
-		_proxy,
-		notificationId,
-		info);
+	auto notification = _application
+		? std::variant<Notification, Gio::Notification>(
+			Gio::Notification::new_(
+				info.subtitle.isEmpty()
+					? info.title.toStdString()
+					: info.subtitle.toStdString()
+						+ " (" + info.title.toStdString() + ')'))
+		: std::variant<Notification, Gio::Notification>(
+			std::make_unique<NotificationData>(
+				_manager,
+				_proxy,
+				notificationId,
+				info));
+
+	if (const auto ptr = std::get_if<Gio::Notification>(&notification)) {
+		auto &notification = *ptr;
+
+		notification.set_body(info.message.toStdString());
+
+		notification.set_icon(
+			Gio::ThemedIcon::new_(base::IconName().toStdString()));
+
+		// for chat messages, according to
+		// https://docs.gtk.org/gio/enum.NotificationPriority.html
+		notification.set_priority(Gio::NotificationPriority::HIGH_);
+
+		// glib 2.70+, we keep glib 2.56+ compatibility
+		static const auto set_category = [] {
+			// reset dlerror after dlsym call
+			const auto guard = gsl::finally([] { dlerror(); });
+			return reinterpret_cast<void(*)(GNotification*, const gchar*)>(
+				dlsym(RTLD_DEFAULT, "g_notification_set_category"));
+		}();
+
+		if (set_category) {
+			set_category(notification.gobj_(), "im.received");
+		}
+
+		const auto notificationVariant = GLib::Variant::new_array({
+			GLib::Variant::new_dict_entry(
+				GLib::Variant::new_string("session"),
+				GLib::Variant::new_variant(
+					GLib::Variant::new_uint64(peer->session().uniqueId()))),
+			GLib::Variant::new_dict_entry(
+				GLib::Variant::new_string("peer"),
+				GLib::Variant::new_variant(
+					GLib::Variant::new_uint64(peer->id.value))),
+			GLib::Variant::new_dict_entry(
+				GLib::Variant::new_string("peer"),
+				GLib::Variant::new_variant(
+					GLib::Variant::new_uint64(peer->id.value))),
+			GLib::Variant::new_dict_entry(
+				GLib::Variant::new_string("topic"),
+				GLib::Variant::new_variant(
+					GLib::Variant::new_int64(info.topicRootId.bare))),
+			GLib::Variant::new_dict_entry(
+				GLib::Variant::new_string("msgid"),
+				GLib::Variant::new_variant(
+					GLib::Variant::new_int64(info.itemId.bare))),
+		});
+
+		notification.set_default_action_and_target(
+			"app.notification-activate",
+			notificationVariant);
+
+		if (!options.hideMarkAsRead) {
+			notification.add_button_with_target(
+				tr::lng_context_mark_read(tr::now).toStdString(),
+				"app.notification-mark-as-read",
+				notificationVariant);
+		}
+	}
 
 	if (!options.hideNameAndPhoto) {
-		notification->setImage(
-			Window::Notifications::GenerateUserpic(peer, userpicView));
+		v::match(notification, [&](Gio::Notification &notification) {
+			QByteArray imageData;
+			QBuffer buffer(&imageData);
+			buffer.open(QIODevice::WriteOnly);
+			Window::Notifications::GenerateUserpic(peer, userpicView).save(
+				&buffer,
+				"PNG");
+
+			notification.set_icon(
+				Gio::BytesIcon::new_(
+					GLib::Bytes::new_with_free_func(
+						reinterpret_cast<const uchar*>(imageData.constData()),
+						imageData.size(),
+						[imageData] {})));
+		}, [&](const Notification &notification) {
+			notification->setImage(
+				Window::Notifications::GenerateUserpic(peer, userpicView));
+		});
 	}
 
 	auto i = _notifications.find(key);
@@ -819,25 +809,47 @@ void Manager::Private::showNotification(
 		if (j != end(i->second)) {
 			auto oldNotification = std::move(j->second);
 			i->second.erase(j);
-			oldNotification->close();
+			v::match(oldNotification, [&](
+					const std::string &oldNotification) {
+				_application.withdraw_notification(oldNotification);
+				clearNotification(notificationId);
+			}, [&](const Notification &oldNotification) {
+				oldNotification->close();
+			});
 			i = _notifications.find(key);
 		}
 	}
 	if (i == end(_notifications)) {
-		i = _notifications.emplace(
-			key,
-			base::flat_map<MsgId, Notification>()).first;
+		i = _notifications.emplace(key).first;
 	}
-	const auto j = i->second.emplace(
-		info.itemId,
-		std::move(notification)).first;
-	j->second->show();
+	v::match(notification, [&](Gio::Notification &notification) {
+		const auto j = i->second.emplace(
+			info.itemId,
+			Gio::dbus_generate_guid()).first;
+		_application.send_notification(
+			v::get<std::string>(j->second),
+			notification);
+	}, [&](Notification &notification) {
+		const auto j = i->second.emplace(
+			info.itemId,
+			std::move(notification)).first;
+		v::get<Notification>(j->second)->show();
+	});
 }
 
 void Manager::Private::clearAll() {
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
-			notification->close();
+			v::match(notification, [&](const std::string &notification) {
+				const auto notificationId = NotificationId{
+					.contextId = key,
+					.msgId = msgId,
+				};
+				_application.withdraw_notification(notification);
+				clearNotification(notificationId);
+			}, [&](const Notification &notification) {
+				notification->close();
+			});
 		}
 	}
 }
@@ -847,6 +859,10 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id,
 		.topicRootId = item->topicRootId(),
+	};
+	const auto notificationId = NotificationId{
+		.contextId = key,
+		.msgId = item->id,
 	};
 	const auto i = _notifications.find(key);
 	if (i == _notifications.cend()) {
@@ -861,7 +877,12 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 	if (i->second.empty()) {
 		_notifications.erase(i);
 	}
-	taken->close();
+	v::match(taken, [&](const std::string &taken) {
+		_application.withdraw_notification(taken);
+		clearNotification(notificationId);
+	}, [&](const Notification &taken) {
+		taken->close();
+	});
 }
 
 void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
@@ -875,7 +896,16 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		_notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			notification->close();
+			v::match(notification, [&](const std::string &notification) {
+				const auto notificationId = NotificationId{
+					.contextId = key,
+					.msgId = msgId,
+				};
+				_application.withdraw_notification(notification);
+				clearNotification(notificationId);
+			}, [&](const Notification &notification) {
+				notification->close();
+			});
 		}
 	}
 }
@@ -883,10 +913,11 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 void Manager::Private::clearFromHistory(not_null<History*> history) {
 	const auto sessionId = history->session().uniqueId();
 	const auto peerId = history->peer->id;
-	auto i = _notifications.lower_bound(ContextId{
+	const auto key = ContextId{
 		.sessionId = sessionId,
 		.peerId = peerId,
-	});
+	};
+	auto i = _notifications.lower_bound(key);
 	while (i != _notifications.cend()
 		&& i->first.sessionId == sessionId
 		&& i->first.peerId == peerId) {
@@ -894,22 +925,41 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 		i = _notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			notification->close();
+			v::match(notification, [&](const std::string &notification) {
+				const auto notificationId = NotificationId{
+					.contextId = key,
+					.msgId = msgId,
+				};
+				_application.withdraw_notification(notification);
+				clearNotification(notificationId);
+			}, [&](const Notification &notification) {
+				notification->close();
+			});
 		}
 	}
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	const auto sessionId = session->uniqueId();
-	auto i = _notifications.lower_bound(ContextId{
+	const auto key = ContextId{
 		.sessionId = sessionId,
-	});
+	};
+	auto i = _notifications.lower_bound(key);
 	while (i != _notifications.cend() && i->first.sessionId == sessionId) {
 		const auto temp = base::take(i->second);
 		i = _notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			notification->close();
+			v::match(notification, [&](const std::string &notification) {
+				const auto notificationId = NotificationId{
+					.contextId = key,
+					.msgId = msgId,
+				};
+				_application.withdraw_notification(notification);
+				clearNotification(notificationId);
+			}, [&](const Notification &notification) {
+				notification->close();
+			});
 		}
 	}
 }
