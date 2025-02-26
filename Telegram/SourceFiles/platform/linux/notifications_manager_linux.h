@@ -15,7 +15,6 @@ namespace Notifications {
 class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager(not_null<Window::Notifications::System*> system);
-	void clearNotification(NotificationId id);
 	~Manager();
 
 protected:
