@@ -441,11 +441,6 @@ void NotificationData::show() {
 	// a hack for snap's activation restriction
 	const auto weak = base::make_weak(this);
 	StartServiceAsync(_proxy.get_connection(), crl::guard(weak, [=] {
-		const auto iconName = _imageKey.empty()
-			|| !_hints.lookup_value(_imageKey)
-				? base::IconName().toStdString()
-				: std::string();
-
 		auto actions = _actions
 			| ranges::views::transform(&std::string::c_str)
 			| ranges::to_vector;
@@ -476,7 +471,9 @@ void NotificationData::show() {
 			_interface.gobj_(),
 			AppName.data(),
 			0,
-			iconName.c_str(),
+			(_imageKey.empty() || !_hints.lookup_value(_imageKey)
+				? base::IconName().toStdString()
+				: std::string()).c_str(),
 			_title.c_str(),
 			_body.c_str(),
 			actions.data(),
