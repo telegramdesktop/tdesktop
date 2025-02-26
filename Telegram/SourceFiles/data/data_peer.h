@@ -504,6 +504,7 @@ protected:
 	void updateUserpic(PhotoId photoId, MTP::DcId dcId, bool hasVideo);
 	void clearUserpic();
 	void invalidateEmptyUserpic();
+	void checkTrustedPayForMessage();
 
 private:
 	void fillNames();
@@ -538,9 +539,10 @@ private:
 	crl::time _lastFullUpdate = 0;
 
 	QString _name;
-	uint32 _nameVersion : 30 = 1;
+	uint32 _nameVersion : 29 = 1;
 	uint32 _sensitiveContent : 1 = 0;
 	uint32 _wallPaperOverriden : 1 = 0;
+	uint32 _checkedTrustedPayForMessage : 1 = 0;
 
 	TimeId _ttlPeriod = 0;
 

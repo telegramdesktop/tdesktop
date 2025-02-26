@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "boxes/peer_list_controllers.h"
 #include "settings/settings_premium.h"
+#include "settings/settings_privacy_controllers.h"
 #include "settings/settings_privacy_security.h"
 #include "calls/calls_instance.h"
 #include "lang/lang_keys.h"
@@ -561,6 +562,39 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 	return result;
 }
 
+void EditNoPaidMessagesExceptions(
+		not_null<Window::SessionController*> window,
+		const Api::UserPrivacy::Rule &value) {
+	auto controller = std::make_unique<PrivacyExceptionsBoxController>(
+		&window->session(),
+		tr::lng_messages_privacy_remove_fee(),
+		value.always,
+		std::optional<SpecialRowType>());
+	auto initBox = [=, controller = controller.get()](
+			not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_settings_save(), [=] {
+			auto copy = value;
+			auto &setTo = copy.always;
+			setTo.peers = box->collectSelectedRows();
+			setTo.premiums = false;
+			setTo.miniapps = false;
+			auto &removeFrom = copy.never;
+			for (const auto peer : setTo.peers) {
+				removeFrom.peers.erase(
+					ranges::remove(removeFrom.peers, peer),
+					end(removeFrom.peers));
+			}
+			window->session().api().userPrivacy().save(
+				Api::UserPrivacy::Key::NoPaidMessages,
+				copy);
+			box->closeBox();
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	};
+	window->show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)));
+}
+
 } // namespace
 
 bool EditPrivacyController::hasOption(Option option) const {
@@ -923,11 +957,12 @@ void EditMessagesPrivacyBox(
 	constexpr auto kOptionPremium = 1;
 	constexpr auto kOptionCharge = 2;
 
+	const auto session = &controller->session();
 	const auto allowed = [=] {
-		return controller->session().premium()
-			|| controller->session().appConfig().newRequirePremiumFree();
+		return session->premium()
+			|| session->appConfig().newRequirePremiumFree();
 	};
-	const auto privacy = &controller->session().api().globalPrivacy();
+	const auto privacy = &session->api().globalPrivacy();
 	const auto inner = box->verticalLayout();
 	inner->add(object_ptr<Ui::PlainShadow>(box));
 
@@ -995,18 +1030,45 @@ void EditMessagesPrivacyBox(
 
 	state->stars = SetupChargeSlider(
 		chargeInner,
-		controller->session().user(),
+		session->user(),
 		savedValue);
 
 	Ui::AddSkip(chargeInner);
 	Ui::AddSubsectionTitle(
 		chargeInner,
 		tr::lng_messages_privacy_exceptions());
+
+	const auto key = Api::UserPrivacy::Key::NoPaidMessages;
+	session->api().userPrivacy().reload(key);
+	auto label = session->api().userPrivacy().value(
+		key
+	) | rpl::map([=](const Api::UserPrivacy::Rule &value) {
+		using namespace Settings;
+		const auto always = ExceptionUsersCount(value.always.peers);
+		return always
+			? tr::lng_edit_privacy_exceptions_count(
+				tr::now,
+				lt_count,
+				always)
+			: QString();
+	});
+
 	const auto exceptions = Settings::AddButtonWithLabel(
 		chargeInner,
 		tr::lng_messages_privacy_remove_fee(),
-		rpl::single(u""_q),
+		std::move(label),
 		st::settingsButtonNoIcon);
+
+	const auto shower = exceptions->lifetime().make_state<rpl::lifetime>();
+	exceptions->setClickedCallback([=] {
+		*shower = session->api().userPrivacy().value(
+			key
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=](const Api::UserPrivacy::Rule &value) {
+			EditNoPaidMessagesExceptions(controller, value);
+		});
+	});
 	Ui::AddSkip(chargeInner);
 	Ui::AddDividerText(chargeInner, tr::lng_messages_privacy_remove_about());
 

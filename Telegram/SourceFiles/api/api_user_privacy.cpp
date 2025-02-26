@@ -210,6 +210,7 @@ MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 	case Key::About: return MTP_inputPrivacyKeyAbout();
 	case Key::Birthday: return MTP_inputPrivacyKeyBirthday();
 	case Key::GiftsAutoSave: return MTP_inputPrivacyKeyStarGiftsAutoSave();
+	case Key::NoPaidMessages: return MTP_inputPrivacyKeyNoPaidMessages();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -241,6 +242,8 @@ std::optional<UserPrivacy::Key> TLToKey(mtpTypeId type) {
 	case mtpc_inputPrivacyKeyBirthday: return Key::Birthday;
 	case mtpc_privacyKeyStarGiftsAutoSave:
 	case mtpc_inputPrivacyKeyStarGiftsAutoSave: return Key::GiftsAutoSave;
+	case mtpc_privacyKeyNoPaidMessages:
+	case mtpc_inputPrivacyKeyNoPaidMessages: return Key::NoPaidMessages;
 	}
 	return std::nullopt;
 }

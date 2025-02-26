@@ -173,9 +173,13 @@ public:
 	[[nodiscard]] bool isPeerTrustedPayment(PeerId peerId);
 	void markPeerTrustedOpenWebView(PeerId peerId);
 	[[nodiscard]] bool isPeerTrustedOpenWebView(PeerId peerId);
-	void markPeerTrustedPayForMessage(PeerId peerId);
-	[[nodiscard]] bool isPeerTrustedPayForMessage(PeerId peerId);
-	void clearPeerTrusted(PeerId peerId);
+	void markPeerTrustedPayForMessage(PeerId peerId, int starsPerMessage);
+	[[nodiscard]] bool isPeerTrustedPayForMessage(
+		PeerId peerId,
+		int starsPerMessage);
+	[[nodiscard]] bool peerTrustedPayForMessageRead() const;
+	[[nodiscard]] bool hasPeerTrustedPayForMessageEntry(PeerId peerId) const;
+	void clearPeerTrustedPayForMessage(PeerId peerId);
 
 	void enforceModernStorageIdBots();
 	[[nodiscard]] Webview::StorageId resolveStorageIdBots();
@@ -210,7 +214,6 @@ private:
 		NoOpenGame        = (1 << 0),
 		Payment           = (1 << 1),
 		OpenWebView       = (1 << 2),
-		PayForMessage     = (1 << 3),
 	};
 	friend inline constexpr bool is_flag_type(PeerTrustFlag) { return true; };
 
@@ -329,6 +332,7 @@ private:
 	qint32 _cacheBigFileTotalTimeLimit = 0;
 
 	base::flat_map<PeerId, base::flags<PeerTrustFlag>> _trustedPeers;
+	base::flat_map<PeerId, int> _trustedPayPerMessage;
 	bool _trustedPeersRead = false;
 	bool _readingUserSettings = false;
 	bool _recentHashtagsAndBotsWereRead = false;

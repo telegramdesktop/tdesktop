@@ -869,15 +869,11 @@ int ChannelData::starsPerMessage() const {
 }
 
 void ChannelData::setStarsPerMessage(int stars) {
-	if (!mgInfo || starsPerMessage() == stars) {
-		return;
+	if (mgInfo && starsPerMessage() != stars) {
+		mgInfo->_starsPerMessage = stars;
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
 	}
-	const auto removed = mgInfo->_starsPerMessage && !stars;
-	mgInfo->_starsPerMessage = stars;
-	session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-	if (removed) {
-		session().local().clearPeerTrusted(id);
-	}
+	checkTrustedPayForMessage();
 }
 
 int ChannelData::peerGiftsCount() const {

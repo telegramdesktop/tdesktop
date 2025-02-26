@@ -523,6 +523,7 @@ void ApiWrap::sendMessageFail(
 		uint64 randomId,
 		FullMsgId itemId) {
 	const auto show = ShowForPeer(peer);
+	const auto paidStarsPrefix = u"ALLOW_PAYMENT_REQUIRED_"_q;
 	if (show && error == u"PEER_FLOOD"_q) {
 		show->showBox(
 			Ui::MakeInformBox(
@@ -577,11 +578,19 @@ void ApiWrap::sendMessageFail(
 		if (show) {
 			show->showToast(tr::lng_error_schedule_limit(tr::now));
 		}
-	} else if (error.startsWith(u"ALLOW_PAYMENT_REQUIRED_"_q)) {
+	} else if (error.startsWith(paidStarsPrefix)) {
 		if (show) {
 			show->showToast(
 				u"Payment requirements changed. Please, try again."_q);
 		}
+		if (const auto stars = error.mid(paidStarsPrefix.size()).toInt()) {
+			if (const auto user = peer->asUser()) {
+				user->setStarsPerMessage(stars);
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setStarsPerMessage(stars);
+			}
+		}
+		peer->updateFull();
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);

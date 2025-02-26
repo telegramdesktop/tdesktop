@@ -284,7 +284,7 @@ void ShowSendPaidConfirm(
 	const auto singlePeer = (peers.size() > 1)
 		? (PeerData*)nullptr
 		: peers.front().get();
-	const auto recipientId = singlePeer ? singlePeer->id : PeerId();
+	const auto singlePeerId = singlePeer ? singlePeer->id : PeerId();
 	const auto check = [=] {
 		const auto required = details.stars;
 		if (!required) {
@@ -299,7 +299,7 @@ void ShowSendPaidConfirm(
 		Settings::MaybeRequestBalanceIncrease(
 			show,
 			required,
-			Settings::SmallBalanceForMessage{ .recipientId = recipientId },
+			Settings::SmallBalanceForMessage{ .recipientId = singlePeerId },
 			done);
 	};
 	auto usersOnly = true;
@@ -309,9 +309,15 @@ void ShowSendPaidConfirm(
 			break;
 		}
 	}
+	const auto singlePeerStars = singlePeer
+		? singlePeer->starsPerMessageChecked()
+		: 0;
 	if (singlePeer) {
 		const auto session = &singlePeer->session();
-		if (session->local().isPeerTrustedPayForMessage(recipientId)) {
+		const auto trusted = session->local().isPeerTrustedPayForMessage(
+			singlePeerId,
+			singlePeerStars);
+		if (trusted) {
 			check();
 			return;
 		}
@@ -323,7 +329,9 @@ void ShowSendPaidConfirm(
 		const auto proceed = [=](Fn<void()> close) {
 			if (singlePeer && (*trust)->checked()) {
 				const auto session = &singlePeer->session();
-				session->local().markPeerTrustedPayForMessage(recipientId);
+				session->local().markPeerTrustedPayForMessage(
+					singlePeerId,
+					singlePeerStars);
 			}
 			check();
 			close();

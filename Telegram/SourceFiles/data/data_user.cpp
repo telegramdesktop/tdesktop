@@ -543,13 +543,10 @@ int UserData::starsPerMessage() const {
 
 void UserData::setStarsPerMessage(int stars) {
 	if (_starsPerMessage != stars) {
-		const auto removed = _starsPerMessage && !stars;
 		_starsPerMessage = stars;
 		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
-		if (removed) {
-			session().local().clearPeerTrusted(id);
-		}
 	}
+	checkTrustedPayForMessage();
 }
 
 bool UserData::canAddContact() const {

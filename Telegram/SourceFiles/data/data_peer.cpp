@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "storage/file_download.h"
+#include "storage/storage_account.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 
@@ -339,6 +340,17 @@ not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 
 void PeerData::invalidateEmptyUserpic() {
 	_userpicEmpty = nullptr;
+}
+
+void PeerData::checkTrustedPayForMessage() {
+	if (!_checkedTrustedPayForMessage
+		&& !starsPerMessage()
+		&& session().local().peerTrustedPayForMessageRead()) {
+		_checkedTrustedPayForMessage = 1;
+		if (session().local().hasPeerTrustedPayForMessageEntry(id)) {
+			session().local().clearPeerTrustedPayForMessage(id);
+		}
+	}
 }
 
 ClickHandlerPtr PeerData::createOpenLink() {
