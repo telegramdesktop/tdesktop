@@ -161,17 +161,12 @@ public:
 	~Private();
 
 private:
-	struct NotificationData : public base::has_weak_ptr {
-		uint id = 0;
-	};
-	using Notification = std::unique_ptr<NotificationData>;
-
 	const not_null<Manager*> _manager;
 
 	base::flat_map<
 		ContextId,
 		base::flat_map<MsgId,
-			std::variant<Notification, std::string>>> _notifications;
+			std::variant<uint, std::string>>> _notifications;
 
 	Gio::Application _application;
 	XdgNotifications::NotificationsProxy _proxy;
@@ -427,7 +422,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					if (id == v::get<Notification>(notification)->id) {
+					if (id == v::get<uint>(notification)) {
 						if (actionName == "default") {
 							_manager->notificationActivated({ key, msgId });
 						} else if (actionName == "mail-mark-read") {
@@ -451,7 +446,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					if (id == v::get<Notification>(notification)->id) {
+					if (id == v::get<uint>(notification)) {
 						_manager->notificationReplied(
 							{ key, msgId },
 							{ QString::fromStdString(text), {} });
@@ -472,7 +467,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 			std::string token) {
 		for (const auto &[key, notifications] : _notifications) {
 			for (const auto &[msgId, notification] : notifications) {
-				if (id == v::get<Notification>(notification)->id) {
+				if (id == v::get<uint>(notification)) {
 					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
 					return;
 				}
@@ -505,8 +500,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 					* In all other cases we keep the notification reference so that we may clear the notification later from history,
 					* if the message for that notification is read (e.g. chat is opened or read from another device).
 					*/
-					if (id == v::get<Notification>(notification)->id
-							&& reason == 2) {
+					if (id == v::get<uint>(notification) && reason == 2) {
 						clearNotification({ key, msgId });
 						return;
 					}
@@ -530,19 +524,14 @@ void Manager::Private::showNotification(
 		.peerId = peer->id,
 		.topicRootId = info.topicRootId,
 	};
-	const auto notificationId = NotificationId{
-		.contextId = key,
-		.msgId = info.itemId,
-	};
 	auto notification = _application
-		? std::variant<Notification, Gio::Notification>(
+		? std::variant<v::null_t, Gio::Notification>(
 			Gio::Notification::new_(
 				info.subtitle.isEmpty()
 					? info.title.toStdString()
 					: info.subtitle.toStdString()
 						+ " (" + info.title.toStdString() + ')'))
-		: std::variant<Notification, Gio::Notification>(
-			std::make_unique<NotificationData>());
+		: std::variant<v::null_t, Gio::Notification>();
 
 	std::vector<gi::cstring> actions;
 	auto hints = GLib::VariantDict::new_();
@@ -601,7 +590,7 @@ void Manager::Private::showNotification(
 				"app.notification-mark-as-read",
 				notificationVariant);
 		}
-	}, [&](const Notification &notification) {
+	}, [&](v::null_t) {
 		if (HasCapability("actions")) {
 			actions.push_back("default");
 			actions.push_back(tr::lng_open_link(tr::now).toStdString());
@@ -679,7 +668,7 @@ void Manager::Private::showNotification(
 						reinterpret_cast<const uchar*>(imageData.constData()),
 						imageData.size(),
 						[imageData] {})));
-		}, [&](const Notification &notification) {
+		}, [&](v::null_t) {
 			if (imageKey.empty()) {
 				return;
 			}
@@ -706,43 +695,29 @@ void Manager::Private::showNotification(
 		});
 	}
 
-	auto i = _notifications.find(key);
-	if (i != end(_notifications)) {
-		auto j = i->second.find(info.itemId);
-		if (j != end(i->second)) {
-			auto oldNotification = std::move(j->second);
-			i->second.erase(j);
-			v::match(oldNotification, [&](
-					const std::string &oldNotification) {
-				_application.withdraw_notification(oldNotification);
-			}, [&](const Notification &oldNotification) {
-				_interface.call_close_notification(
-					oldNotification->id,
-					nullptr);
-			});
-		}
-	} else {
-		i = _notifications.emplace(key).first;
-	}
 	v::match(notification, [&](Gio::Notification &notification) {
+		auto i = _notifications.find(key);
+		if (i != end(_notifications)) {
+			auto j = i->second.find(info.itemId);
+			if (j != end(i->second)) {
+				auto oldNotification = v::get<std::string>(j->second);
+				i->second.erase(j);
+				_application.withdraw_notification(oldNotification);
+			}
+		} else {
+			i = _notifications.emplace(key).first;
+		}
 		const auto j = i->second.emplace(
 			info.itemId,
 			Gio::dbus_generate_guid()).first;
 		_application.send_notification(
 			v::get<std::string>(j->second),
 			notification);
-	}, [&](Notification &notification) {
-		const auto j = i->second.emplace(
-			info.itemId,
-			std::move(notification)).first;
-
-		const auto weak = base::make_weak(
-			v::get<Notification>(j->second).get());
-
+	}, [&](v::null_t) {
 		// work around snap's activation restriction
 		StartServiceAsync(
 			_proxy.get_connection(),
-			crl::guard(weak, [=]() mutable {
+			crl::guard(this, [=]() mutable {
 				const auto hasBodyMarkup = HasCapability("body-markup");
 
 				const auto callbackWrap = gi::unwrap(
@@ -760,18 +735,26 @@ void Manager::Private::showNotification(
 										result.error());
 									LOG(("Native Notification Error: %1").arg(
 										result.error().message_().c_str()));
-									clearNotification(notificationId);
 									return;
 								}
 
-								if (!weak) {
-									_interface.call_close_notification(
-										std::get<1>(*result),
-										nullptr);
-									return;
+								auto i = _notifications.find(key);
+								if (i != end(_notifications)) {
+									auto j = i->second.find(info.itemId);
+									if (j != end(i->second)) {
+										auto oldNotification = v::get<uint>(
+											j->second);
+										i->second.erase(j);
+										_interface.call_close_notification(
+											oldNotification,
+											nullptr);
+									}
+								} else {
+									i = _notifications.emplace(key).first;
 								}
-
-								weak->id = std::get<1>(*result);
+								i->second.emplace(
+									info.itemId,
+									std::get<1>(*result));
 							});
 						})),
 					gi::scope_async);
@@ -813,8 +796,8 @@ void Manager::Private::clearAll() {
 		for (const auto &[msgId, notification] : notifications) {
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
-			}, [&](const Notification &notification) {
-				_interface.call_close_notification(notification->id, nullptr);
+			}, [&](uint notification) {
+				_interface.call_close_notification(notification, nullptr);
 			});
 		}
 	}
@@ -841,8 +824,8 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 	}
 	v::match(taken, [&](const std::string &taken) {
 		_application.withdraw_notification(taken);
-	}, [&](const Notification &taken) {
-		_interface.call_close_notification(taken->id, nullptr);
+	}, [&](uint taken) {
+		_interface.call_close_notification(taken, nullptr);
 	});
 }
 
@@ -859,8 +842,8 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		for (const auto &[msgId, notification] : temp) {
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
-			}, [&](const Notification &notification) {
-				_interface.call_close_notification(notification->id, nullptr);
+			}, [&](uint notification) {
+				_interface.call_close_notification(notification, nullptr);
 			});
 		}
 	}
@@ -882,8 +865,8 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 		for (const auto &[msgId, notification] : temp) {
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
-			}, [&](const Notification &notification) {
-				_interface.call_close_notification(notification->id, nullptr);
+			}, [&](uint notification) {
+				_interface.call_close_notification(notification, nullptr);
 			});
 		}
 	}
@@ -901,8 +884,8 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 		for (const auto &[msgId, notification] : temp) {
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
-			}, [&](const Notification &notification) {
-				_interface.call_close_notification(notification->id, nullptr);
+			}, [&](uint notification) {
+				_interface.call_close_notification(notification, nullptr);
 			});
 		}
 	}
