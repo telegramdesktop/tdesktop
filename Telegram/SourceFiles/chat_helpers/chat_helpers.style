@@ -149,6 +149,7 @@ EmojiButton {
 
 SendButton {
 	inner: IconButton;
+	stars: RoundButton;
 	record: icon;
 	recordOver: icon;
 	round: icon;
@@ -1292,6 +1293,12 @@ historySend: SendButton {
 	inner: IconButton(historyAttach) {
 		icon: historySendIcon;
 		iconOver: historySendIconOver;
+	}
+	stars: RoundButton(defaultActiveButton) {
+		height: 28px;
+		padding: margins(0px, 0px, 6px, 0px);
+		textTop: 5px;
+		width: -8px;
 	}
 	record: historyRecordVoice;
 	recordOver: historyRecordVoiceOver;

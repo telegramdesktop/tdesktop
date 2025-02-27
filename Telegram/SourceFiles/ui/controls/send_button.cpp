@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/send_button.h"
 
+#include "lang/lang_tag.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_credits.h" // starIconEmoji
 
 namespace Ui {
 namespace {
@@ -22,47 +25,58 @@ constexpr int kWideScale = 5;
 SendButton::SendButton(QWidget *parent, const style::SendButton &st)
 : RippleButton(parent, st.inner.ripple)
 , _st(st) {
-	resize(_st.inner.width, _st.inner.height);
+	updateSize();
 }
 
-void SendButton::setType(Type type) {
-	Expects(isSlowmode() || type != Type::Slowmode);
-
-	if (isSlowmode() && type != Type::Slowmode) {
-		_afterSlowmodeType = type;
+void SendButton::setState(State state) {
+	if (_state == state) {
 		return;
 	}
-	if (_type != type) {
+	const auto hasSlowmode = (_state.slowmodeDelay > 0);
+	const auto hasSlowmodeChanged = hasSlowmode != (state.slowmodeDelay > 0);
+	auto withSameSlowmode = state;
+	withSameSlowmode.slowmodeDelay = _state.slowmodeDelay;
+	const auto animate = hasSlowmodeChanged
+		|| (!hasSlowmode && withSameSlowmode != _state);
+	if (animate) {
 		_contentFrom = grabContent();
-		_type = type;
-		_a_typeChanged.stop();
+	}
+	if (_state.slowmodeDelay != state.slowmodeDelay) {
+		const auto seconds = state.slowmodeDelay;
+		const auto minutes = seconds / 60;
+		_slowmodeDelayText = seconds
+			? u"%1:%2"_q.arg(minutes).arg(seconds % 60, 2, 10, QChar('0'))
+			: QString();
+	}
+	if (!state.starsToSend || state.type != Type::Send) {
+		_starsToSendText = Text::String();
+	} else if (_starsToSendText.isEmpty()
+		|| _state.starsToSend != state.starsToSend) {
+		_starsToSendText.setMarkedText(
+			_st.stars.style,
+			Text::IconEmoji(&st::starIconEmoji).append(
+				Lang::FormatCountToShort(state.starsToSend).string),
+			kMarkupTextOptions);
+	}
+	_state = state;
+	if (animate) {
+		_stateChangeFromWidth = width();
+		_stateChangeAnimation.stop();
+		updateSize();
 		_contentTo = grabContent();
-		_a_typeChanged.start(
-			[=] { update(); },
+		_stateChangeAnimation.start(
+			[=] { updateSize(); update(); },
 			0.,
 			1.,
 			st::universalDuration);
-		setPointerCursor(_type != Type::Slowmode);
+		setPointerCursor(_state.type != Type::Slowmode);
+		updateSize();
 		update();
 	}
 }
 
-void SendButton::setSlowmodeDelay(int seconds) {
-	Expects(seconds >= 0 && seconds < kSlowmodeDelayLimit);
-
-	if (_slowmodeDelay == seconds) {
-		return;
-	}
-	_slowmodeDelay = seconds;
-	_slowmodeDelayText = isSlowmode()
-		? u"%1:%2"_q.arg(seconds / 60).arg(seconds % 60, 2, 10, QChar('0'))
-		: QString();
-	setType(isSlowmode() ? Type::Slowmode : _afterSlowmodeType);
-	update();
-}
-
 void SendButton::finishAnimating() {
-	_a_typeChanged.stop();
+	_stateChangeAnimation.stop();
 	update();
 }
 
@@ -70,26 +84,60 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	auto over = (isDown() || isOver());
-	auto changed = _a_typeChanged.value(1.);
+	auto changed = _stateChangeAnimation.value(1.);
 	if (changed < 1.) {
 		PainterHighQualityEnabler hq(p);
+		const auto ratio = style::DevicePixelRatio();
+
 		p.setOpacity(1. - changed);
-		auto targetRect = QRect((1 - kWideScale) / 2 * width(), (1 - kWideScale) / 2 * height(), kWideScale * width(), kWideScale * height());
-		auto hiddenWidth = anim::interpolate(0, (1 - kWideScale) / 2 * width(), changed);
-		auto hiddenHeight = anim::interpolate(0, (1 - kWideScale) / 2 * height(), changed);
-		p.drawPixmap(targetRect.marginsAdded(QMargins(hiddenWidth, hiddenHeight, hiddenWidth, hiddenHeight)), _contentFrom);
+		const auto fromSize = _contentFrom.size() / (kWideScale * ratio);
+		const auto fromShift = QPoint(
+			(width() - fromSize.width()) / 2,
+			(height() - fromSize.height()) / 2);
+		auto fromRect = QRect(
+			(1 - kWideScale) / 2 * fromSize.width(),
+			(1 - kWideScale) / 2 * fromSize.height(),
+			kWideScale * fromSize.width(),
+			kWideScale * fromSize.height()
+		).translated(fromShift);
+		auto hiddenWidth = anim::interpolate(0, (1 - kWideScale) / 2 * fromSize.width(), changed);
+		auto hiddenHeight = anim::interpolate(0, (1 - kWideScale) / 2 * fromSize.height(), changed);
+		p.drawPixmap(
+			fromRect.marginsAdded(
+				{ hiddenWidth, hiddenHeight, hiddenWidth, hiddenHeight }),
+			_contentFrom);
+
 		p.setOpacity(changed);
+		const auto toSize = _contentTo.size() / (kWideScale * ratio);
+		const auto toShift = QPoint(
+			(width() - toSize.width()) / 2,
+			(height() - toSize.height()) / 2);
+		auto toRect = QRect(
+			(1 - kWideScale) / 2 * toSize.width(),
+			(1 - kWideScale) / 2 * toSize.height(),
+			kWideScale * toSize.width(),
+			kWideScale * toSize.height()
+		).translated(toShift);
 		auto shownWidth = anim::interpolate((1 - kWideScale) / 2 * width(), 0, changed);
-		auto shownHeight = anim::interpolate((1 - kWideScale) / 2 * height(), 0, changed);
-		p.drawPixmap(targetRect.marginsAdded(QMargins(shownWidth, shownHeight, shownWidth, shownHeight)), _contentTo);
+		auto shownHeight = anim::interpolate((1 - kWideScale) / 2 * toSize.height(), 0, changed);
+		p.drawPixmap(
+			toRect.marginsAdded(
+				{ shownWidth, shownHeight, shownWidth, shownHeight }),
+			_contentTo);
 		return;
 	}
-	switch (_type) {
+	switch (_state.type) {
 	case Type::Record: paintRecord(p, over); break;
 	case Type::Round: paintRound(p, over); break;
 	case Type::Save: paintSave(p, over); break;
 	case Type::Cancel: paintCancel(p, over); break;
-	case Type::Send: paintSend(p, over); break;
+	case Type::Send:
+		if (_starsToSendText.isEmpty()) {
+			paintSend(p, over);
+		} else {
+			paintStarsToSend(p, over);
+		}
+		break;
 	case Type::Schedule: paintSchedule(p, over); break;
 	case Type::Slowmode: paintSlowmode(p); break;
 	}
@@ -152,6 +200,23 @@ void SendButton::paintSend(QPainter &p, bool over) {
 	}
 }
 
+void SendButton::paintStarsToSend(QPainter &p, bool over) {
+	const auto geometry = starsGeometry();
+	{
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(over ? _st.stars.textBgOver : _st.stars.textBg);
+		const auto radius = geometry.rounded.height() / 2;
+		p.drawRoundedRect(geometry.rounded, radius, radius);
+	}
+	p.setPen(over ? _st.stars.textFgOver : _st.stars.textFg);
+	_starsToSendText.draw(p, {
+		.position = geometry.inner.topLeft(),
+		.outerWidth = width(),
+		.availableWidth = geometry.inner.width(),
+	});
+}
+
 void SendButton::paintSchedule(QPainter &p, bool over) {
 	{
 		PainterHighQualityEnabler hq(p);
@@ -178,8 +243,40 @@ void SendButton::paintSlowmode(QPainter &p) {
 		style::al_center);
 }
 
-bool SendButton::isSlowmode() const {
-	return (_slowmodeDelay > 0);
+SendButton::StarsGeometry SendButton::starsGeometry() const {
+	const auto &st = _st.stars;
+	const auto inner = QRect(
+		0,
+		0,
+		_starsToSendText.maxWidth(),
+		st.style.font->height);
+	const auto rounded = inner.marginsAdded(QMargins(
+		st.padding.left() - st.width / 2,
+		st.padding.top() + st.textTop,
+		st.padding.right() - st.width / 2,
+		st.height - st.padding.top() - st.textTop - st.style.font->height));
+	const auto add = (_st.inner.height - rounded.height()) / 2;
+	const auto outer = rounded.marginsAdded(QMargins(
+		add,
+		add,
+		add,
+		_st.inner.height - add - rounded.height()));
+	const auto shift = -outer.topLeft();
+	return {
+		.inner = inner.translated(shift),
+		.rounded = rounded.translated(shift),
+		.outer = outer.translated(shift),
+	};
+}
+
+void SendButton::updateSize() {
+	const auto finalWidth = _starsToSendText.isEmpty()
+		? _st.inner.width
+		: starsGeometry().outer.width();
+	const auto progress = _stateChangeAnimation.value(1.);
+	resize(
+		anim::interpolate(_stateChangeFromWidth, finalWidth, progress),
+		_st.inner.height);
 }
 
 QPixmap SendButton::grabContent() {
@@ -195,7 +292,7 @@ QPixmap SendButton::grabContent() {
 			(kWideScale - 1) / 2 * height(),
 			GrabWidget(this));
 	}
-	return Ui::PixmapFromImage(std::move(result));
+	return PixmapFromImage(std::move(result));
 }
 
 QImage SendButton::prepareRippleMask() const {

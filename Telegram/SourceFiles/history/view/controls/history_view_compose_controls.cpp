@@ -2164,6 +2164,10 @@ void ComposeControls::initSendButton() {
 		_recordAvailability = value;
 		updateSendButtonType();
 	}, _send->lifetime());
+
+	_send->widthValue() | rpl::skip(1) | rpl::start_with_next([=] {
+		updateControlsGeometry(_wrap->size());
+	}, _send->lifetime());
 }
 
 void ComposeControls::initSendAsButton(not_null<PeerData*> peer) {
@@ -2550,14 +2554,18 @@ SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 void ComposeControls::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
 	const auto type = computeSendButtonType();
-	_send->setType(type);
-
 	const auto delay = [&] {
 		return (type != Type::Cancel && type != Type::Save)
 			? _slowmodeSecondsLeft.current()
 			: 0;
 	}();
-	_send->setSlowmodeDelay(delay);
+	const auto peer = _history ? _history->peer.get() : nullptr;
+	const auto stars = peer ? peer->starsPerMessageChecked() : 0;
+	_send->setState({
+		.type = type,
+		.slowmodeDelay = delay,
+		.starsToSend = stars,
+	});
 	_send->setDisabled(_sendDisabledBySlowmode.current()
 		&& (type == Type::Send
 			|| type == Type::Record

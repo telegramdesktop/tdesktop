@@ -491,6 +491,11 @@ HistoryWidget::HistoryWidget(
 		moveFieldControls();
 	}, lifetime());
 
+	_send->widthValue() | rpl::skip(1) | rpl::start_with_next([=] {
+		updateFieldSize();
+		moveFieldControls();
+	}, _send->lifetime());
+
 	_keyboard->sendCommandRequests(
 	) | rpl::start_with_next([=](Bot::SendCommandRequest r) {
 		sendBotCommand(r);
@@ -810,6 +815,7 @@ HistoryWidget::HistoryWidget(
 	}) | rpl::start_with_next([=](Data::PeerUpdate::Flags flags) {
 		if (flags & PeerUpdateFlag::Rights) {
 			updateFieldPlaceholder();
+			updateSendButtonType();
 			_preview->checkNow(false);
 
 			const auto was = (_sendAs != nullptr);
@@ -839,6 +845,7 @@ HistoryWidget::HistoryWidget(
 		}
 		if (flags & PeerUpdateFlag::StarsPerMessage) {
 			updateFieldPlaceholder();
+			updateSendButtonType();
 		}
 		if (flags & PeerUpdateFlag::BotStartToken) {
 			updateControlsVisibility();
@@ -4138,7 +4145,7 @@ void HistoryWidget::checkReplyReturns() {
 }
 
 void HistoryWidget::cancelInlineBot() {
-	auto &textWithTags = _field->getTextWithTags();
+	const auto &textWithTags = _field->getTextWithTags();
 	if (textWithTags.text.size() > _inlineBotUsername.size() + 2) {
 		setFieldText(
 			{ '@' + _inlineBotUsername + ' ', TextWithTags::Tags() },
@@ -5134,19 +5141,27 @@ void HistoryWidget::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
 
 	const auto type = computeSendButtonType();
-	_send->setType(type);
-
 	// This logic is duplicated in RepliesWidget.
 	const auto disabledBySlowmode = _peer
 		&& _peer->slowmodeApplied()
 		&& (_history->latestSendingMessage() != nullptr);
-
 	const auto delay = [&] {
 		return (type != Type::Cancel && type != Type::Save && _peer)
 			? _peer->slowmodeSecondsLeft()
 			: 0;
 	}();
-	_send->setSlowmodeDelay(delay);
+	const auto perMessage = _peer ? _peer->starsPerMessageChecked() : 0;
+	const auto stars = perMessage
+		? perMessage * ComputeSendingMessagesCount(_history, {
+			.forward = &_forwardPanel->items(),
+			.text = &_field->getTextWithTags(),
+		})
+		: 0;
+	_send->setState({
+		.type = (delay > 0) ? Type::Slowmode : type,
+		.slowmodeDelay = delay,
+		.starsToSend = stars,
+	});
 	_send->setDisabled(disabledBySlowmode
 		&& (type == Type::Send
 			|| type == Type::Record
