@@ -1762,10 +1762,18 @@ void PeerMenuCreatePoll(
 		chosen &= ~PollData::Flag::PublicVotes;
 		disabled |= PollData::Flag::PublicVotes;
 	}
+	auto starsRequired = peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::FullInfo
+		| Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked();
+	});
 	auto box = Box<CreatePollBox>(
 		controller,
 		chosen,
 		disabled,
+		std::move(starsRequired),
 		sendType,
 		sendMenuDetails);
 	struct State {
@@ -1996,8 +2004,7 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 				ChooseRecipientBoxController::rowClicked(row);
 			} else {
 				delegate()->peerListSetRowChecked(row, !row->checked());
-				_hasSelectedChanges.fire(
-					delegate()->peerListSelectedRowsCount() > 0);
+				_selectionChanges.fire({});
 			}
 		}
 
@@ -2015,16 +2022,18 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 					st::popupMenuWithIcons);
 				menu->addAction(tr::lng_bot_choose_chat(tr::now), [=] {
 					delegate()->peerListSetRowChecked(row, true);
-					_hasSelectedChanges.fire(
-						delegate()->peerListSelectedRowsCount() > 0);
+					_selectionChanges.fire({});
 				}, &st::menuIconSelect);
 				return menu;
 			}
 			return nullptr;
 		}
 
-		[[nodiscard]] rpl::producer<bool> hasSelectedChanges() const {
-			return _hasSelectedChanges.events_starting_with(false);
+		[[nodiscard]] rpl::producer<> selectionChanges() const {
+			return _selectionChanges.events_starting_with({});
+		}
+		[[nodiscard]] bool hasSelected() const {
+			return delegate()->peerListSelectedRowsCount() > 0;
 		}
 
 		[[nodiscard]] rpl::producer<Chosen> singleChosen() const {
@@ -2033,7 +2042,7 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 
 	private:
 		rpl::event_stream<Chosen> _singleChosen;
-		rpl::event_stream<bool> _hasSelectedChanges;
+		rpl::event_stream<> _selectionChanges;
 		bool _selectable = false;
 
 	};
@@ -2078,13 +2087,24 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 
 	struct State {
 		Fn<void(Api::SendOptions)> submit;
+		rpl::variable<int> starsToSend;
+		Fn<void()> refreshStarsToSend;
 		rpl::lifetime submitLifetime;
 	};
 	const auto state = std::make_shared<State>();
 	auto initBox = [=](not_null<PeerListBox*> box) {
-		raw->hasSelectedChanges(
-		) | rpl::start_with_next([=](bool shown) {
+		state->refreshStarsToSend = [=] {
+			auto perMessage = 0;
+			for (const auto &peer : box->collectSelectedRows()) {
+				perMessage += peer->starsPerMessageChecked();
+			}
+			state->starsToSend = perMessage;
+		};
+		raw->selectionChanges(
+		) | rpl::start_with_next([=] {
 			box->clearButtons();
+			state->refreshStarsToSend();
+			const auto shown = raw->hasSelected();
 			if (shown) {
 				const auto weak = Ui::MakeWeak(box);
 				state->submit = [=](Api::SendOptions options) {
@@ -2147,11 +2167,21 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 						return peer->owner().history(peer);
 					}) | ranges::to_vector, options);
 				};
-				box->addButton(tr::lng_send_button(), [=] {
-					if (const auto onstack = state->submit) {
-						onstack({});
-					}
-				});
+				const auto send = box->addButton(
+					tr::lng_send_button(),
+					[=] {
+						if (const auto onstack = state->submit) {
+							onstack({});
+						}
+					});
+				send->setText(state->starsToSend.value(
+				) | rpl::map([=](int stars) {
+					using namespace Ui;
+					return stars
+						? Text::IconEmoji(&st::boxStarIconEmoji).append(
+							Lang::FormatCountToShort(stars).string)
+						: tr::lng_send_button(tr::now, Text::WithEntities);
+				}));
 			}
 			box->addButton(tr::lng_cancel(), [=] {
 				box->closeBox();
@@ -2282,8 +2312,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 				ChooseRecipientBoxController::rowClicked(row);
 			} else if (count) {
 				delegate()->peerListSetRowChecked(row, !row->checked());
-				_hasSelectedChanges.fire(
-					delegate()->peerListSelectedRowsCount() > 0);
+				_selectionChanges.fire({});
 			}
 		}
 
@@ -2296,16 +2325,18 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 					st::popupMenuWithIcons);
 				menu->addAction(tr::lng_bot_choose_chat(tr::now), [=] {
 					delegate()->peerListSetRowChecked(row, true);
-					_hasSelectedChanges.fire(
-						delegate()->peerListSelectedRowsCount() > 0);
+					_selectionChanges.fire({});
 				}, &st::menuIconSelect);
 				return menu;
 			}
 			return nullptr;
 		}
 
-		[[nodiscard]] rpl::producer<bool> hasSelectedChanges() const {
-			return _hasSelectedChanges.events_starting_with(false);
+		[[nodiscard]] rpl::producer<> selectionChanges() const {
+			return _selectionChanges.events_starting_with({});
+		}
+		[[nodiscard]] bool hasSelected() const {
+			return delegate()->peerListSelectedRowsCount() > 0;
 		}
 
 		[[nodiscard]] rpl::producer<Chosen> singleChosen() const{
@@ -2314,7 +2345,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 
 	private:
 		rpl::event_stream<Chosen> _singleChosen;
-		rpl::event_stream<bool> _hasSelectedChanges;
+		rpl::event_stream<> _selectionChanges;
 
 	};
 
@@ -2323,6 +2354,8 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<Controller*> controller;
 		base::unique_qptr<Ui::PopupMenu> menu;
 		Fn<void(Api::SendOptions options)> submit;
+		rpl::variable<int> starsToSend;
+		Fn<void()> refreshStarsToSend;
 		rpl::lifetime submitLifetime;
 	};
 
@@ -2622,8 +2655,20 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		}
 	};
 
+	state->refreshStarsToSend = [=] {
+		auto perMessage = 0;
+		for (const auto &peer : state->box->collectSelectedRows()) {
+			perMessage += peer->starsPerMessageChecked();
+		}
+		state->starsToSend = perMessage
+			* countMessages(field->getTextWithTags());
+	};
+
 	comment->hide(anim::type::instant);
-	comment->toggleOn(state->controller->hasSelectedChanges());
+	comment->toggleOn(state->controller->selectionChanges(
+	) | rpl::map([=] {
+		return state->controller->hasSelected();
+	}));
 
 	rpl::combine(
 		state->box->sizeValue(),
@@ -2650,6 +2695,9 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		},
 	});
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
+	field->changes() | rpl::start_with_next([=] {
+		state->refreshStarsToSend();
+	}, field->lifetime());
 
 	Ui::SendPendingMoveResizeEvents(comment);
 
@@ -2660,16 +2708,20 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		}
 	}, comment->lifetime());
 
-	state->controller->hasSelectedChanges(
-	) | rpl::start_with_next([=](bool shown) {
+	state->controller->selectionChanges(
+	) | rpl::start_with_next([=] {
+		const auto shown = state->controller->hasSelected();
+
 		state->box->clearButtons();
+		state->refreshStarsToSend();
 		if (shown) {
-			auto text = tr::lng_send_button();
-			const auto send = state->box->addButton(std::move(text), [=] {
-				if (const auto onstack = state->submit) {
-					onstack({});
-				}
-			});
+			const auto send = state->box->addButton(
+				tr::lng_send_button(),
+				[=] {
+					if (const auto onstack = state->submit) {
+						onstack({});
+					}
+				});
 			send->setAcceptBoth();
 			send->clicks(
 			) | rpl::start_with_next([=](Qt::MouseButton button) {
@@ -2677,6 +2729,14 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 					showMenu(send);
 				}
 			}, send->lifetime());
+			send->setText(state->starsToSend.value(
+			) | rpl::map([=](int stars) {
+				using namespace Ui;
+				return stars
+					? Text::IconEmoji(&st::boxStarIconEmoji).append(
+						Lang::FormatCountToShort(stars).string)
+					: tr::lng_send_button(tr::now, Text::WithEntities);
+			}));
 		}
 		state->box->addButton(tr::lng_cancel(), [=] {
 			state->box->closeBox();

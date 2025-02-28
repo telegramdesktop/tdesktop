@@ -30,6 +30,11 @@ ShortInfoBox {
 	labeledOneLine: FlatLabel;
 }
 
+boxStarIconEmoji: IconEmoji {
+	icon: icon{{ "payments/small_star", windowFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
+
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
 countryRowNameFg: boxTextFg;
