@@ -918,6 +918,10 @@ historyBusinessBotSettings: IconButton(defaultIconButton) {
 	height: 58px;
 	width: 48px;
 }
+paysStatusLabel: FlatLabel(historyBusinessBotStatus) {
+	align: align(top);
+	minWidth: 240px;
+}
 
 historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
 historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};

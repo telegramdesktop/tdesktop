@@ -177,6 +177,7 @@ struct PeerBarDetails {
 	TimeId requestChatDate;
 	UserData *businessBot = nullptr;
 	QString businessBotManageUrl;
+	int paysPerMessage = 0;
 };
 
 class PeerData {
@@ -412,6 +413,8 @@ public:
 			? _barSettings.changes()
 			: (_barSettings.value() | rpl::type_erased());
 	}
+	[[nodiscard]] int paysPerMessage() const;
+	void clearPaysPerMessage();
 	[[nodiscard]] QString requestChatTitle() const;
 	[[nodiscard]] TimeId requestChatDate() const;
 	[[nodiscard]] UserData *businessBot() const;

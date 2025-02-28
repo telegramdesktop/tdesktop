@@ -734,7 +734,7 @@ void PeerData::checkFolder(FolderId folderId) {
 
 void PeerData::clearBusinessBot() {
 	if (const auto details = _barDetails.get()) {
-		if (details->requestChatDate) {
+		if (details->requestChatDate || details->paysPerMessage) {
 			details->businessBot = nullptr;
 			details->businessBotManageUrl = QString();
 		} else {
@@ -777,7 +777,10 @@ void PeerData::saveTranslationDisabled(bool disabled) {
 
 void PeerData::setBarSettings(const MTPPeerSettings &data) {
 	data.match([&](const MTPDpeerSettings &data) {
-		if (!data.vbusiness_bot_id() && !data.vrequest_chat_title()) {
+		const auto wasPaysPerMessage = paysPerMessage();
+		if (!data.vbusiness_bot_id()
+			&& !data.vrequest_chat_title()
+			&& !data.vcharge_paid_message_stars()) {
 			_barDetails = nullptr;
 		} else if (!_barDetails) {
 			_barDetails = std::make_unique<PeerBarDetails>();
@@ -792,6 +795,8 @@ void PeerData::setBarSettings(const MTPPeerSettings &data) {
 				: nullptr;
 			_barDetails->businessBotManageUrl
 				= qs(data.vbusiness_bot_manage_url().value_or_empty());
+			_barDetails->paysPerMessage
+				= data.vcharge_paid_message_stars().value_or_empty();
 		}
 		using Flag = PeerBarSetting;
 		setBarSettings((data.is_add_contact() ? Flag::AddContact : Flag())
@@ -815,8 +820,33 @@ void PeerData::setBarSettings(const MTPPeerSettings &data) {
 			| (data.is_business_bot_can_reply()
 				? Flag::BusinessBotCanReply
 				: Flag()));
+		if (wasPaysPerMessage != paysPerMessage()) {
+			session().changes().peerUpdated(
+				this,
+				UpdateFlag::PaysPerMessage);
+		}
 	});
 }
+
+int PeerData::paysPerMessage() const {
+	return _barDetails ? _barDetails->paysPerMessage : 0;
+}
+
+void PeerData::clearPaysPerMessage() {
+	if (const auto details = _barDetails.get()) {
+		if (details->paysPerMessage) {
+			if (details->businessBot || details->requestChatDate) {
+				details->paysPerMessage = 0;
+			} else {
+				_barDetails = nullptr;
+			}
+			session().changes().peerUpdated(
+				this,
+				UpdateFlag::PaysPerMessage);
+		}
+	}
+}
+
 QString PeerData::requestChatTitle() const {
 	return _barDetails ? _barDetails->requestChatTitle : QString();
 }

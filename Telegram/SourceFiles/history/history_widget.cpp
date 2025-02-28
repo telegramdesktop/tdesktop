@@ -1693,6 +1693,9 @@ void HistoryWidget::orderWidgets() {
 	if (_contactStatus) {
 		_contactStatus->bar().raise();
 	}
+	if (_paysStatus) {
+		_paysStatus->bar().raise();
+	}
 	if (_translateBar) {
 		_translateBar->raise();
 	}
@@ -2416,6 +2419,7 @@ void HistoryWidget::showHistory(
 	_showAtMsgId = showAtMsgId;
 	_showAtMsgParams = params;
 	_historyInited = false;
+	_paysStatus = nullptr;
 	_contactStatus = nullptr;
 	_businessBotStatus = nullptr;
 
@@ -2436,6 +2440,14 @@ void HistoryWidget::showHistory(
 
 		refreshGiftToChannelShown();
 		if (const auto user = _peer->asUser()) {
+			_paysStatus = std::make_unique<PaysStatus>(
+				controller(),
+				this,
+				user);
+			_paysStatus->bar().heightValue(
+			) | rpl::start_with_next([=] {
+				updateControlsGeometry();
+			}, _paysStatus->bar().lifetime());
 			_businessBotStatus = std::make_unique<BusinessBotStatus>(
 				controller(),
 				this,
@@ -3076,6 +3088,9 @@ void HistoryWidget::updateControlsVisibility() {
 	}
 	if (_requestsBar) {
 		_requestsBar->show();
+	}
+	if (_paysStatus) {
+		_paysStatus->show();
 	}
 	if (_contactStatus) {
 		_contactStatus->show();
@@ -4304,6 +4319,9 @@ void HistoryWidget::hideChildWidgets() {
 	}
 	if (_chooseTheme) {
 		_chooseTheme->hide();
+	}
+	if (_paysStatus) {
+		_paysStatus->hide();
 	}
 	if (_contactStatus) {
 		_contactStatus->hide();
@@ -6266,8 +6284,13 @@ void HistoryWidget::updateControlsGeometry() {
 		_translateBar->move(0, translateTop);
 		_translateBar->resizeToWidth(width());
 	}
-	const auto contactStatusTop = translateTop
+	const auto paysStatusTop = translateTop
 		+ (_translateBar ? _translateBar->height() : 0);
+	if (_paysStatus) {
+		_paysStatus->bar().move(0, paysStatusTop);
+	}
+	const auto contactStatusTop = paysStatusTop
+		+ (_paysStatus ? _paysStatus->bar().height() : 0);
 	if (_contactStatus) {
 		_contactStatus->bar().move(0, contactStatusTop);
 	}
@@ -6517,6 +6540,9 @@ void HistoryWidget::updateHistoryGeometry(
 	}
 	if (_requestsBar) {
 		newScrollHeight -= _requestsBar->height();
+	}
+	if (_paysStatus) {
+		newScrollHeight -= _paysStatus->bar().height();
 	}
 	if (_contactStatus) {
 		newScrollHeight -= _contactStatus->bar().height();
@@ -6940,6 +6966,7 @@ void HistoryWidget::botCallbackSent(not_null<HistoryItem*> item) {
 int HistoryWidget::computeMaxFieldHeight() const {
 	const auto available = height()
 		- _topBar->height()
+		- (_paysStatus ? _paysStatus->bar().height() : 0)
 		- (_contactStatus ? _contactStatus->bar().height() : 0)
 		- (_businessBotStatus ? _businessBotStatus->bar().height() : 0)
 		- (_sponsoredMessageBar ? _sponsoredMessageBar->height() : 0)

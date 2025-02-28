@@ -100,6 +100,7 @@ namespace HistoryView {
 class StickerToast;
 class PaidReactionToast;
 class TopBarWidget;
+class PaysStatus;
 class ContactStatus;
 class BusinessBotStatus;
 class Element;
@@ -782,6 +783,7 @@ private:
 
 	Webrtc::RecordAvailability _recordAvailability = {};
 
+	std::unique_ptr<HistoryView::PaysStatus> _paysStatus;
 	std::unique_ptr<HistoryView::ContactStatus> _contactStatus;
 	std::unique_ptr<HistoryView::BusinessBotStatus> _businessBotStatus;
 
