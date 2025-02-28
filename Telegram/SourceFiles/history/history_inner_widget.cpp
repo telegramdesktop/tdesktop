@@ -1577,7 +1577,6 @@ void HistoryInner::mouseMoveEvent(QMouseEvent *e) {
 		mouseReleaseEvent(e);
 	}
 	if (reallyMoved) {
-		_mouseActive = true;
 		lastGlobalPosition = e->globalPos();
 		if (!buttonsPressed || (_scrollDateLink && ClickHandler::getPressed() == _scrollDateLink)) {
 			keepScrollDateForNow();
@@ -1624,7 +1623,6 @@ void HistoryInner::mousePressEvent(QMouseEvent *e) {
 		e->accept();
 		return; // ignore mouse press, that was hiding context menu
 	}
-	_mouseActive = true;
 	mouseActionStart(e->globalPos(), e->button());
 }
 
@@ -3528,7 +3526,6 @@ void HistoryInner::setShownPinned(HistoryItem *item) {
 }
 
 void HistoryInner::enterEventHook(QEnterEvent *e) {
-	_mouseActive = true;
 	mouseActionUpdate(QCursor::pos());
 	return TWidget::enterEventHook(e);
 }
@@ -3545,7 +3542,6 @@ void HistoryInner::leaveEventHook(QEvent *e) {
 		_cursor = style::cur_default;
 		setCursor(_cursor);
 	}
-	_mouseActive = false;
 	return TWidget::leaveEventHook(e);
 }
 
@@ -3896,7 +3892,7 @@ auto HistoryInner::reactionButtonParameters(
 }
 
 void HistoryInner::mouseActionUpdate() {
-	if (hasPendingResizedItems() || !_mouseActive) {
+	if (hasPendingResizedItems()) {
 		return;
 	}
 
