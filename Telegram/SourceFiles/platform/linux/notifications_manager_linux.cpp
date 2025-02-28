@@ -163,7 +163,6 @@ public:
 private:
 	struct NotificationData : public base::has_weak_ptr {
 		uint id = 0;
-		rpl::lifetime lifetime;
 	};
 	using Notification = std::unique_ptr<NotificationData>;
 
@@ -416,6 +415,109 @@ Manager::Private::Private(not_null<Manager*> manager)
 void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 	_proxy = proxy;
 	_interface = proxy;
+
+	if (_application || !_interface) {
+		return;
+	}
+
+	const auto actionInvoked = _interface.signal_action_invoked().connect([=](
+			XdgNotifications::Notifications,
+			uint id,
+			std::string actionName) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			for (const auto &[key, notifications] : _notifications) {
+				for (const auto &[msgId, notification] : notifications) {
+					if (id == v::get<Notification>(notification)->id) {
+						if (actionName == "default") {
+							_manager->notificationActivated({ key, msgId });
+						} else if (actionName == "mail-mark-read") {
+							_manager->notificationReplied({ key, msgId }, {});
+						}
+						return;
+					}
+				}
+			}
+		});
+	});
+
+	_lifetime.add([=] {
+		_interface.disconnect(actionInvoked);
+	});
+
+	const auto replied = _interface.signal_notification_replied().connect([=](
+			XdgNotifications::Notifications,
+			uint id,
+			std::string text) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			for (const auto &[key, notifications] : _notifications) {
+				for (const auto &[msgId, notification] : notifications) {
+					if (id == v::get<Notification>(notification)->id) {
+						_manager->notificationReplied(
+							{ key, msgId },
+							{ QString::fromStdString(text), {} });
+						return;
+					}
+				}
+			}
+		});
+	});
+
+	_lifetime.add([=] {
+		_interface.disconnect(replied);
+	});
+
+	const auto tokenSignal = _interface.signal_activation_token().connect([=](
+			XdgNotifications::Notifications,
+			uint id,
+			std::string token) {
+		for (const auto &[key, notifications] : _notifications) {
+			for (const auto &[msgId, notification] : notifications) {
+				if (id == v::get<Notification>(notification)->id) {
+					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
+					return;
+				}
+			}
+		}
+	});
+
+	_lifetime.add([=] {
+		_interface.disconnect(tokenSignal);
+	});
+
+	const auto closed = _interface.signal_notification_closed().connect([=](
+			XdgNotifications::Notifications,
+			uint id,
+			uint reason) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			for (const auto &[key, notifications] : _notifications) {
+				for (const auto &[msgId, notification] : notifications) {
+					/*
+					* From: https://specifications.freedesktop.org/notification-spec/latest/ar01s09.html
+					* The reason the notification was closed
+					* 1 - The notification expired.
+					* 2 - The notification was dismissed by the user.
+					* 3 - The notification was closed by a call to CloseNotification.
+					* 4 - Undefined/reserved reasons.
+					*
+					* If the notification was dismissed by the user (reason == 2), the notification is not kept in notification history.
+					* We do not need to send a "CloseNotification" call later to clear it from history.
+					* Therefore we can drop the notification reference now.
+					* In all other cases we keep the notification reference so that we may clear the notification later from history,
+					* if the message for that notification is read (e.g. chat is opened or read from another device).
+					*/
+					if (id == v::get<Notification>(notification)->id
+							&& reason == 2) {
+						clearNotification({ key, msgId });
+						return;
+					}
+				}
+			}
+		});
+	});
+
+	_lifetime.add([=] {
+		_interface.disconnect(closed);
+	});
 }
 
 void Manager::Private::showNotification(
@@ -498,9 +600,7 @@ void Manager::Private::showNotification(
 				"app.notification-mark-as-read",
 				notificationVariant);
 		}
-	}, [&](const Notification &owned) {
-		const auto notification = owned.get();
-
+	}, [&](const Notification &notification) {
 		if (HasCapability("actions")) {
 			actions.push_back("default");
 			actions.push_back(tr::lng_open_link(tr::now).toStdString());
@@ -517,63 +617,7 @@ void Manager::Private::showNotification(
 				actions.push_back("inline-reply");
 				actions.push_back(
 					tr::lng_notification_reply(tr::now).toStdString());
-
-				const auto notificationRepliedSignalId
-					= _interface.signal_notification_replied().connect([=](
-							XdgNotifications::Notifications,
-							uint id,
-							std::string text) {
-						Core::Sandbox::Instance().customEnterFromEventLoop(
-							[&] {
-								if (id == notification->id) {
-									_manager->notificationReplied(
-										notificationId,
-										{ QString::fromStdString(text), {} });
-								}
-							});
-					});
-
-				notification->lifetime.add([=] {
-					_interface.disconnect(notificationRepliedSignalId);
-				});
 			}
-
-			const auto actionInvokedSignalId
-				 = _interface.signal_action_invoked().connect([=](
-						XdgNotifications::Notifications,
-						uint id,
-						std::string actionName) {
-					Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-						if (id == notification->id) {
-							if (actionName == "default") {
-								_manager->notificationActivated(
-									notificationId);
-							} else if (actionName == "mail-mark-read") {
-								_manager->notificationReplied(
-									notificationId,
-									{});
-							}
-						}
-					});
-				});
-
-			notification->lifetime.add([=] {
-				_interface.disconnect(actionInvokedSignalId);
-			});
-
-			const auto activationTokenSignalId
-				= _interface.signal_activation_token().connect([=](
-						XdgNotifications::Notifications,
-						uint id,
-						std::string token) {
-					if (id == notification->id) {
-						GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
-					}
-				});
-
-			notification->lifetime.add([=] {
-				_interface.disconnect(activationTokenSignalId);
-			});
 
 			actions.push_back({});
 		}
@@ -616,36 +660,6 @@ void Manager::Private::showNotification(
 
 		hints.insert_value("desktop-entry", GLib::Variant::new_string(
 			QGuiApplication::desktopFileName().toStdString()));
-
-		const auto notificationClosedSignalId =
-			_interface.signal_notification_closed().connect([=](
-					XdgNotifications::Notifications,
-					uint id,
-					uint reason) {
-				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-					/*
-					* From: https://specifications.freedesktop.org/notification-spec/latest/ar01s09.html
-					* The reason the notification was closed
-					* 1 - The notification expired.
-					* 2 - The notification was dismissed by the user.
-					* 3 - The notification was closed by a call to CloseNotification.
-					* 4 - Undefined/reserved reasons.
-					*
-					* If the notification was dismissed by the user (reason == 2), the notification is not kept in notification history.
-					* We do not need to send a "CloseNotification" call later to clear it from history.
-					* Therefore we can drop the notification reference now.
-					* In all other cases we keep the notification reference so that we may clear the notification later from history,
-					* if the message for that notification is read (e.g. chat is opened or read from another device).
-					*/
-					if (id == notification->id && reason == 2) {
-						clearNotification(notificationId);
-					}
-				});
-			});
-
-		notification->lifetime.add([=] {
-			_interface.disconnect(notificationClosedSignalId);
-		});
 	});
 
 	const auto imageKey = GetImageKey();
