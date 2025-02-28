@@ -740,12 +740,8 @@ void SendFilesBox::refreshButtons() {
 		? _captionToPeer->starsPerMessageChecked()
 		: 0;
 	if (perMessage > 0) {
-		_send->setText(_messagesCount.value(
-		) | rpl::map([=](int count) {
-			const auto stars = count * perMessage;
-			return Ui::Text::IconEmoji(&st::boxStarIconEmoji).append(
-				Lang::FormatCountToShort(stars).string);
-		}));
+		_send->setText(PaidSendButtonText(_messagesCount.value(
+		) | rpl::map(rpl::mappers::_1 * perMessage)));
 	}
 	if (_sendType == Api::SendType::Normal) {
 		SendMenu::SetupMenuAndShortcuts(

@@ -19,6 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QClipboard>
 
+namespace tr {
+struct now_t;
+} // namespace tr
+
 namespace Main {
 class Session;
 class SessionShow;
@@ -169,3 +173,8 @@ private:
 void SelectTextInFieldWithMargins(
 	not_null<Ui::InputField*> field,
 	const TextSelection &selection);
+
+[[nodiscard]] TextWithEntities PaidSendButtonText(tr::now_t, int stars);
+[[nodiscard]] rpl::producer<TextWithEntities> PaidSendButtonText(
+	rpl::producer<int> stars,
+	rpl::producer<QString> fallback = nullptr);

@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_credits.h" // starIconEmoji
 
 namespace Ui {
 namespace {
@@ -54,7 +54,7 @@ void SendButton::setState(State state) {
 		|| _state.starsToSend != state.starsToSend) {
 		_starsToSendText.setMarkedText(
 			_st.stars.style,
-			Text::IconEmoji(&st::starIconEmoji).append(
+			Text::IconEmoji(&st::boxStarIconEmoji).append(
 				Lang::FormatCountToShort(state.starsToSend).string),
 			kMarkupTextOptions);
 	}

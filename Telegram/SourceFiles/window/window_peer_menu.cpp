@@ -2174,14 +2174,9 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 							onstack({});
 						}
 					});
-				send->setText(state->starsToSend.value(
-				) | rpl::map([=](int stars) {
-					using namespace Ui;
-					return stars
-						? Text::IconEmoji(&st::boxStarIconEmoji).append(
-							Lang::FormatCountToShort(stars).string)
-						: tr::lng_send_button(tr::now, Text::WithEntities);
-				}));
+				send->setText(PaidSendButtonText(
+					state->starsToSend.value(),
+					tr::lng_send_button()));
 			}
 			box->addButton(tr::lng_cancel(), [=] {
 				box->closeBox();
@@ -2729,14 +2724,9 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 					showMenu(send);
 				}
 			}, send->lifetime());
-			send->setText(state->starsToSend.value(
-			) | rpl::map([=](int stars) {
-				using namespace Ui;
-				return stars
-					? Text::IconEmoji(&st::boxStarIconEmoji).append(
-						Lang::FormatCountToShort(stars).string)
-					: tr::lng_send_button(tr::now, Text::WithEntities);
-			}));
+			send->setText(PaidSendButtonText(
+				state->starsToSend.value(),
+				tr::lng_send_button()));
 		}
 		state->box->addButton(tr::lng_cancel(), [=] {
 			state->box->closeBox();

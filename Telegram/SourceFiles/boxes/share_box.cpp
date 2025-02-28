@@ -620,13 +620,9 @@ void ShareBox::createButtons() {
 				showMenu(send);
 			}
 		}, send->lifetime());
-		send->setText(_starsToSend.value() | rpl::map([=](int stars) {
-			using namespace Ui;
-			return stars
-				? Text::IconEmoji(&st::boxStarIconEmoji).append(
-					Lang::FormatCountToShort(stars).string)
-				: tr::lng_share_confirm(tr::now, Text::WithEntities);
-		}));
+		send->setText(PaidSendButtonText(
+			_starsToSend.value(),
+			tr::lng_share_confirm()));
 	} else if (_descriptor.copyCallback) {
 		addButton(_copyLinkText.value(), [=] { copyLink(); });
 	}

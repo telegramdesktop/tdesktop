@@ -1230,16 +1230,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto submit = addButton(
 		tr::lng_polls_create_button(),
 		[=] { isNormal ? send({}) : schedule(); });
-	submit->setText(_starsRequired.value() | rpl::map([=](int stars) {
-		using namespace Ui;
-		if (!stars) {
-			return (isNormal
-				? tr::lng_polls_create_button
-				: tr::lng_schedule_button)(tr::now, Text::WithEntities);
-		}
-		return Text::IconEmoji(&st::boxStarIconEmoji).append(
-			Lang::FormatCountToShort(stars).string);
-	}));
+	submit->setText(PaidSendButtonText(_starsRequired.value(), isNormal
+		? tr::lng_polls_create_button()
+		: tr::lng_schedule_button()));
 	const auto sendMenuDetails = [=] {
 		collectError();
 		return (*error) ? SendMenu::Details() : _sendMenuDetails();

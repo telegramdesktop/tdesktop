@@ -1280,3 +1280,26 @@ void SelectTextInFieldWithMargins(
 	textCursor.setPosition(selection.to, QTextCursor::KeepAnchor);
 	field->setTextCursor(textCursor);
 }
+
+TextWithEntities PaidSendButtonText(tr::now_t, int stars) {
+	return Ui::Text::IconEmoji(&st::boxStarIconEmoji).append(
+		Lang::FormatCountToShort(stars).string);
+}
+
+rpl::producer<TextWithEntities> PaidSendButtonText(
+		rpl::producer<int> stars,
+		rpl::producer<QString> fallback) {
+	if (fallback) {
+		return rpl::combine(
+			std::move(fallback),
+			std::move(stars)
+		) | rpl::map([=](QString zero, int count) {
+			return count
+				? PaidSendButtonText(tr::now, count)
+				: TextWithEntities{ zero };
+		});
+	}
+	return std::move(stars) | rpl::map([=](int count) {
+		return PaidSendButtonText(tr::now, count);
+	});
+}
