@@ -524,18 +524,13 @@ void Manager::Private::showNotification(
 		.peerId = peer->id,
 		.topicRootId = info.topicRootId,
 	};
-	auto notification = _application
-		? std::variant<v::null_t, Gio::Notification>(
-			Gio::Notification::new_(
-				info.subtitle.isEmpty()
-					? info.title.toStdString()
-					: info.subtitle.toStdString()
-						+ " (" + info.title.toStdString() + ')'))
-		: std::variant<v::null_t, Gio::Notification>();
+	if (_application) {
+		auto notification = Gio::Notification::new_(
+			info.subtitle.isEmpty()
+				? info.title.toStdString()
+				: info.subtitle.toStdString()
+					+ " (" + info.title.toStdString() + ')');
 
-	std::vector<gi::cstring> actions;
-	auto hints = GLib::VariantDict::new_();
-	v::match(notification, [&](Gio::Notification &notification) {
 		notification.set_body(info.message.toStdString());
 
 		notification.set_icon(
@@ -590,7 +585,44 @@ void Manager::Private::showNotification(
 				"app.notification-mark-as-read",
 				notificationVariant);
 		}
-	}, [&](v::null_t) {
+
+		if (!options.hideNameAndPhoto) {
+			QByteArray imageData;
+			QBuffer buffer(&imageData);
+			buffer.open(QIODevice::WriteOnly);
+			Window::Notifications::GenerateUserpic(peer, userpicView).save(
+				&buffer,
+				"PNG");
+
+			notification.set_icon(
+				Gio::BytesIcon::new_(
+					GLib::Bytes::new_with_free_func(
+						reinterpret_cast<const uchar*>(imageData.constData()),
+						imageData.size(),
+						[imageData] {})));
+		}
+
+		auto i = _notifications.find(key);
+		if (i != end(_notifications)) {
+			auto j = i->second.find(info.itemId);
+			if (j != end(i->second)) {
+				auto oldNotification = v::get<std::string>(j->second);
+				i->second.erase(j);
+				_application.withdraw_notification(oldNotification);
+			}
+		} else {
+			i = _notifications.emplace(key).first;
+		}
+		const auto j = i->second.emplace(
+			info.itemId,
+			Gio::dbus_generate_guid()).first;
+		_application.send_notification(
+			v::get<std::string>(j->second),
+			notification);
+	} else {
+		std::vector<gi::cstring> actions;
+		auto hints = GLib::VariantDict::new_();
+
 		if (HasCapability("actions")) {
 			actions.push_back("default");
 			actions.push_back(tr::lng_open_link(tr::now).toStdString());
@@ -650,29 +682,9 @@ void Manager::Private::showNotification(
 
 		hints.insert_value("desktop-entry", GLib::Variant::new_string(
 			QGuiApplication::desktopFileName().toStdString()));
-	});
 
-	const auto imageKey = GetImageKey();
-	if (!options.hideNameAndPhoto) {
-		v::match(notification, [&](Gio::Notification &notification) {
-			QByteArray imageData;
-			QBuffer buffer(&imageData);
-			buffer.open(QIODevice::WriteOnly);
-			Window::Notifications::GenerateUserpic(peer, userpicView).save(
-				&buffer,
-				"PNG");
-
-			notification.set_icon(
-				Gio::BytesIcon::new_(
-					GLib::Bytes::new_with_free_func(
-						reinterpret_cast<const uchar*>(imageData.constData()),
-						imageData.size(),
-						[imageData] {})));
-		}, [&](v::null_t) {
-			if (imageKey.empty()) {
-				return;
-			}
-
+		const auto imageKey = GetImageKey();
+		if (!options.hideNameAndPhoto && !imageKey.empty()) {
 			const auto image = Window::Notifications::GenerateUserpic(
 				peer,
 				userpicView
@@ -692,28 +704,8 @@ void Manager::Private::showNotification(
 					true,
 					[image] {}),
 			}));
-		});
-	}
-
-	v::match(notification, [&](Gio::Notification &notification) {
-		auto i = _notifications.find(key);
-		if (i != end(_notifications)) {
-			auto j = i->second.find(info.itemId);
-			if (j != end(i->second)) {
-				auto oldNotification = v::get<std::string>(j->second);
-				i->second.erase(j);
-				_application.withdraw_notification(oldNotification);
-			}
-		} else {
-			i = _notifications.emplace(key).first;
 		}
-		const auto j = i->second.emplace(
-			info.itemId,
-			Gio::dbus_generate_guid()).first;
-		_application.send_notification(
-			v::get<std::string>(j->second),
-			notification);
-	}, [&](v::null_t) {
+
 		// work around snap's activation restriction
 		StartServiceAsync(
 			_proxy.get_connection(),
@@ -788,7 +780,7 @@ void Manager::Private::showNotification(
 					&callbackWrap->wrapper,
 					callbackWrap);
 			}));
-	});
+	}
 }
 
 void Manager::Private::clearAll() {
