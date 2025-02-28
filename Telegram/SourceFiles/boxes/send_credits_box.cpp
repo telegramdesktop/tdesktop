@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/peer_bubble.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h" // inviteLinkSubscribeBoxTerms
@@ -511,11 +512,8 @@ TextWithEntities CreditsEmoji(not_null<Main::Session*> session) {
 }
 
 TextWithEntities CreditsEmojiSmall(not_null<Main::Session*> session) {
-	return Ui::Text::SingleCustomEmoji(
-		session->data().customEmojiManager().registerInternalEmoji(
-			st::starIconSmall,
-			st::starIconSmallPadding,
-			true),
+	return Ui::Text::IconEmoji(
+		&st::boxStarIconEmoji,
 		QString(QChar(0x2B50)));
 }
 

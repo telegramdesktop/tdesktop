@@ -1364,6 +1364,11 @@ defaultComposeControls: ComposeControls {
 	restrictionLabel: defaultRestrictionLabel;
 }
 
+boxStarIconEmoji: IconEmoji {
+	icon: icon{{ "payments/small_star", windowFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
+
 moreChatsBarHeight: 48px;
 moreChatsBarTextPosition: point(12px, 4px);
 moreChatsBarStatusPosition: point(12px, 24px);

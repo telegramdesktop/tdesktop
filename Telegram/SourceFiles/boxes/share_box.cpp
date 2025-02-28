@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
@@ -620,6 +621,13 @@ void ShareBox::createButtons() {
 				showMenu(send);
 			}
 		}, send->lifetime());
+		send->setText(_starsToSend.value() | rpl::map([=](int stars) {
+			using namespace Ui;
+			return stars
+				? Text::IconEmoji(&st::boxStarIconEmoji).append(
+					Lang::FormatCountToShort(stars).string)
+				: tr::lng_share_confirm(tr::now, Text::WithEntities);
+		}));
 	} else if (_descriptor.copyCallback) {
 		addButton(_copyLinkText.value(), [=] { copyLink(); });
 	}
@@ -667,13 +675,19 @@ void ShareBox::submit(Api::SendOptions options) {
 
 	auto threads = _inner->selected();
 	const auto weak = Ui::MakeWeak(this);
-	const auto checkPaid = [=](int messagesCount) {
+	const auto field = _comment->entity();
+	auto comment = field->getTextWithAppliedMarkdown();
+	const auto checkPaid = [=] {
+		if (!_descriptor.countMessagesCallback) {
+			return true;
+		}
 		const auto withPaymentApproved = crl::guard(weak, [=](int approved) {
 			auto copy = options;
 			copy.starsApproved = approved;
 			submit(copy);
 		});
-
+		const auto messagesCount = _descriptor.countMessagesCallback(
+			comment);
 		const auto alreadyApproved = options.starsApproved;
 		auto paid = std::vector<not_null<PeerData*>>();
 		auto waiting = base::flat_set<not_null<PeerData*>>();
@@ -734,7 +748,7 @@ void ShareBox::submit(Api::SendOptions options) {
 		onstack(
 			std::move(threads),
 			checkPaid,
-			_comment->entity()->getTextWithAppliedMarkdown(),
+			std::move(comment),
 			options,
 			forwardOptions);
 	}
@@ -754,7 +768,21 @@ void ShareBox::selectedChanged() {
 		_comment->toggle(_hasSelected, anim::type::normal);
 		_comment->resizeToWidth(st::boxWideWidth);
 	}
+	computeStarsCount();
 	update();
+}
+
+void ShareBox::computeStarsCount() {
+	auto perMessage = 0;
+	for (const auto &thread : _inner->selected()) {
+		perMessage += thread->peer()->starsPerMessageChecked();
+	}
+	const auto messagesCount = _descriptor.countMessagesCallback
+		? _descriptor.countMessagesCallback(_comment
+			? _comment->entity()->getTextWithTags()
+			: TextWithTags())
+		: 0;
+	_starsToSend = perMessage * messagesCount;
 }
 
 void ShareBox::scrollTo(Ui::ScrollToRequest request) {
@@ -1568,6 +1596,15 @@ ChatHelpers::ForwardedMessagePhraseArgs CreateForwardedMessagePhraseArgs(
 	};
 }
 
+ShareBox::CountMessagesCallback ShareBox::DefaultForwardCountMessages(
+		not_null<History*> history,
+		MessageIdsList msgIds) {
+	return [=](const TextWithTags &comment) {
+		const auto items = history->owner().idsToItems(msgIds);
+		return int(items.size()) + (comment.empty() ? 0 : 1);
+	};
+}
+
 ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 		std::shared_ptr<Ui::Show> show,
 		not_null<History*> history,
@@ -1579,7 +1616,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 	const auto state = std::make_shared<State>();
 	return [=](
 			std::vector<not_null<Data::Thread*>> &&result,
-			Fn<bool(int messagesCount)> checkPaid,
+			Fn<bool()> checkPaid,
 			TextWithTags comment,
 			Api::SendOptions options,
 			Data::ForwardOptions forwardOptions) {
@@ -1593,14 +1630,13 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			return;
 		}
 
-		auto messagesCount = int(items.size()) + (comment.empty() ? 0 : 1);
 		const auto error = GetErrorForSending(
 			result,
 			{ .forward = &items, .text = &comment });
 		if (error.error) {
 			show->showBox(MakeSendErrorBox(error, result.size() > 1));
 			return;
-		} else if (!checkPaid(messagesCount)) {
+		} else if (!checkPaid()) {
 			return;
 		}
 
@@ -1811,6 +1847,9 @@ void FastShareMessage(
 	show->show(Box<ShareBox>(ShareBox::Descriptor{
 		.session = session,
 		.copyCallback = std::move(copyLinkCallback),
+		.countMessagesCallback = ShareBox::DefaultForwardCountMessages(
+			history,
+			msgIds),
 		.submitCallback = ShareBox::DefaultForwardCallback(
 			show,
 			history,
@@ -1850,9 +1889,12 @@ void FastShareLink(
 		QGuiApplication::clipboard()->setText(url);
 		show->showToast(tr::lng_background_link_copied(tr::now));
 	};
+	auto countMessagesCallback = [=](const TextWithTags &comment) {
+		return 1;
+	};
 	auto submitCallback = [=](
 			std::vector<not_null<::Data::Thread*>> &&result,
-			Fn<bool(int messages)> checkPaid,
+			Fn<bool()> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			::Data::ForwardOptions) {
@@ -1869,7 +1911,7 @@ void FastShareLink(
 					MakeSendErrorBox(error, result.size() > 1));
 			}
 			return;
-		} else if (!checkPaid(1)) {
+		} else if (!checkPaid()) {
 			return;
 		}
 
@@ -1908,6 +1950,7 @@ void FastShareLink(
 		Box<ShareBox>(ShareBox::Descriptor{
 			.session = &show->session(),
 			.copyCallback = std::move(copyCallback),
+			.countMessagesCallback = std::move(countMessagesCallback),
 			.submitCallback = std::move(submitCallback),
 			.filterCallback = std::move(filterCallback),
 			.st = st,

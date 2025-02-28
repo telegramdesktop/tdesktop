@@ -2463,15 +2463,21 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			tr::lng_photos_comment()),
 		st::shareCommentPadding);
 
+	const auto history = session->data().message(msgIds.front())->history();
 	const auto send = ShareBox::DefaultForwardCallback(
 		show,
-		session->data().message(msgIds.front())->history(),
+		history,
+		msgIds);
+	const auto countMessages = ShareBox::DefaultForwardCountMessages(
+		history,
 		msgIds);
 
 	const auto weak = Ui::MakeWeak(state->box);
+	const auto field = comment->entity();
 	state->submit = [=](Api::SendOptions options) {
 		const auto peers = state->box->collectSelectedRows();
-		const auto checkPaid = [=](int messagesCount) {
+		auto comment = field->getTextWithAppliedMarkdown();
+		const auto checkPaid = [=] {
 			const auto withPaymentApproved = crl::guard(weak, [=](
 					int approved) {
 				auto copy = options;
@@ -2482,6 +2488,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			});
 
 			const auto alreadyApproved = options.starsApproved;
+			const auto messagesCount = countMessages(comment);
 			auto paid = std::vector<not_null<PeerData*>>();
 			auto waiting = base::flat_set<not_null<PeerData*>>();
 			auto totalStars = 0;
@@ -2532,7 +2539,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 				return peer->owner().history(peer);
 			}) | ranges::to_vector,
 			checkPaid,
-			comment->entity()->getTextWithAppliedMarkdown(),
+			std::move(comment),
 			options,
 			state->box->forwardOptionsData());
 		if (!state->submit && successCallback) {
@@ -2627,8 +2634,6 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 
 		state->box->setBottomSkip(comment->isHidden() ? 0 : commentHeight);
 	}, comment->lifetime());
-
-	const auto field = comment->entity();
 
 	field->submits(
 	) | rpl::start_with_next([=] {

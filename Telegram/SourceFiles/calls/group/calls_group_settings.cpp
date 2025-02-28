@@ -132,9 +132,12 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		QGuiApplication::clipboard()->setText(currentLink());
 		show->showToast(tr::lng_group_invite_copied(tr::now));
 	};
+	auto countMessagesCallback = [=](const TextWithTags &comment) {
+		return 1;
+	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
-			Fn<bool(int messages)> checkPaid,
+			Fn<bool()> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions) {
@@ -151,7 +154,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 					MakeSendErrorBox(error, result.size() > 1));
 			}
 			return;
-		} else if (!checkPaid(1)) {
+		} else if (!checkPaid()) {
 			return;
 		}
 
@@ -192,6 +195,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	auto result = Box<ShareBox>(ShareBox::Descriptor{
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
+		.countMessagesCallback = std::move(countMessagesCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
 		.bottomWidget = std::move(bottom),

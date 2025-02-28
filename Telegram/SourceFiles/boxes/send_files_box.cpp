@@ -59,9 +59,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
 
 #include <QtCore/QMimeData>
 
@@ -714,6 +714,18 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 		crl::guard(this, callback));
 }
 
+void SendFilesBox::refreshMessagesCount() {
+	const auto way = _sendWay.current();
+	const auto withCaption = _list.canAddCaption(
+		way.groupFiles() && way.sendImagesAsPhotos(),
+		way.sendImagesAsPhotos());
+	const auto withComment = !withCaption
+		&& _caption
+		&& !_caption->isHidden()
+		&& !_caption->getTextWithTags().text.isEmpty();
+	_messagesCount = _list.files.size() + (withComment ? 1 : 0);
+}
+
 void SendFilesBox::refreshButtons() {
 	clearButtons();
 
@@ -722,6 +734,19 @@ void SendFilesBox::refreshButtons() {
 			? tr::lng_send_button()
 			: tr::lng_create_group_next()),
 		[=] { send({}); });
+	refreshMessagesCount();
+
+	const auto perMessage = _captionToPeer
+		? _captionToPeer->starsPerMessageChecked()
+		: 0;
+	if (perMessage > 0) {
+		_send->setText(_messagesCount.value(
+		) | rpl::map([=](int count) {
+			const auto stars = count * perMessage;
+			return Ui::Text::IconEmoji(&st::boxStarIconEmoji).append(
+				Lang::FormatCountToShort(stars).string);
+		}));
+	}
 	if (_sendType == Api::SendType::Normal) {
 		SendMenu::SetupMenuAndShortcuts(
 			_send,
@@ -1451,6 +1476,7 @@ void SendFilesBox::setupCaption() {
 		_caption->changes()
 	) | rpl::start_with_next([=] {
 		checkCharsLimitation();
+		refreshMessagesCount();
 	}, _caption->lifetime());
 }
 

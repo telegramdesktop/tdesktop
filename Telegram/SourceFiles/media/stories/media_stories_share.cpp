@@ -76,9 +76,12 @@ namespace Media::Stories {
 	auto copyLinkCallback = canCopyLink
 		? Fn<void()>(std::move(copyCallback))
 		: Fn<void()>();
+	auto countMessagesCallback = [=](const TextWithTags &comment) {
+		return comment.text.isEmpty() ? 1 : 2;
+	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
-			Fn<bool(int messages)> checkPaid,
+			Fn<bool()> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions forwardOptions) {
@@ -96,7 +99,7 @@ namespace Media::Stories {
 		if (error.error) {
 			show->showBox(MakeSendErrorBox(error, result.size() > 1));
 			return;
-		} else if (!checkPaid(comment.text.isEmpty() ? 1 : 2)) {
+		} else if (!checkPaid()) {
 			return;
 		}
 
@@ -187,6 +190,7 @@ namespace Media::Stories {
 	return Box<ShareBox>(ShareBox::Descriptor{
 		.session = session,
 		.copyCallback = std::move(copyLinkCallback),
+		.countMessagesCallback = std::move(countMessagesCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
 		.st = st.shareBox ? *st.shareBox : ShareBoxStyleOverrides(),
@@ -254,6 +258,9 @@ object_ptr<Ui::BoxContent> PrepareShareAtTimeBox(
 	return Box<ShareBox>(ShareBox::Descriptor{
 		.session = session,
 		.copyCallback = std::move(copyLinkCallback),
+		.countMessagesCallback = ShareBox::DefaultForwardCountMessages(
+			history,
+			{ id }),
 		.submitCallback = ShareBox::DefaultForwardCallback(
 			show,
 			history,

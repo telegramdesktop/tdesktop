@@ -246,6 +246,7 @@ private:
 	void addPreparedAsyncFile(Ui::PreparedFile &&file);
 
 	void checkCharsLimitation();
+	void refreshMessagesCount();
 
 	[[nodiscard]] Fn<MenuDetails()> prepareSendMenuDetails(
 		const SendFilesBoxDescriptor &descriptor);
@@ -261,6 +262,7 @@ private:
 
 	Ui::PreparedList _list;
 	std::optional<int> _removingIndex;
+	rpl::variable<int> _messagesCount;
 
 	SendFilesLimits _limits = {};
 	Fn<MenuDetails()> _sendMenuDetails;
