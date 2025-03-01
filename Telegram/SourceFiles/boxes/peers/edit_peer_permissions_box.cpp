@@ -1160,34 +1160,39 @@ void ShowEditPeerPermissionsBox(
 		rpl::variable<int> starsPerMessage;
 	};
 	const auto state = inner->lifetime().make_state<State>();
+	const auto channel = peer->asChannel();
+	const auto available = channel && channel->paidMessagesAvailable();
 
 	Ui::AddSkip(inner);
 	Ui::AddDivider(inner);
-	Ui::AddSkip(inner);
-	const auto starsPerMessage = peer->isChannel()
-		? peer->asChannel()->starsPerMessage()
-		: 0;
-	const auto charging = inner->add(object_ptr<Ui::SettingsButton>(
-		inner,
-		tr::lng_rights_charge_stars(),
-		st::settingsButtonNoIcon));
-	charging->toggleOn(rpl::single(starsPerMessage > 0));
-	Ui::AddSkip(inner);
-	Ui::AddDividerText(inner, tr::lng_rights_charge_stars_about());
-
-	const auto chargeWrap = inner->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+	auto charging = (Ui::SettingsButton*)nullptr;
+	if (available) {
+		Ui::AddSkip(inner);
+		const auto starsPerMessage = peer->isChannel()
+			? peer->asChannel()->starsPerMessage()
+			: 0;
+		charging = inner->add(object_ptr<Ui::SettingsButton>(
 			inner,
-			object_ptr<Ui::VerticalLayout>(inner)));
-	chargeWrap->toggleOn(charging->toggledValue());
-	chargeWrap->finishAnimating();
-	const auto chargeInner = chargeWrap->entity();
+			tr::lng_rights_charge_stars(),
+			st::settingsButtonNoIcon));
+		charging->toggleOn(rpl::single(starsPerMessage > 0));
+		Ui::AddSkip(inner);
+		Ui::AddDividerText(inner, tr::lng_rights_charge_stars_about());
 
-	Ui::AddSkip(chargeInner);
-	state->starsPerMessage = SetupChargeSlider(
-		chargeInner,
-		peer,
-		starsPerMessage);
+		const auto chargeWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		chargeWrap->toggleOn(charging->toggledValue());
+		chargeWrap->finishAnimating();
+		const auto chargeInner = chargeWrap->entity();
+
+		Ui::AddSkip(chargeInner);
+		state->starsPerMessage = SetupChargeSlider(
+			chargeInner,
+			peer,
+			starsPerMessage);
+	}
 
 	static constexpr auto kSendRestrictions = Flag::EmbedLinks
 		| Flag::SendGames
@@ -1242,7 +1247,7 @@ void ShowEditPeerPermissionsBox(
 		const auto boostsUnrestrict = hasRestrictions
 			? state->boostsUnrestrict.current()
 			: 0;
-		const auto starsPerMessage = charging->toggled()
+		const auto starsPerMessage = (charging && charging->toggled())
 			? state->starsPerMessage.current()
 			: 0;
 		done({

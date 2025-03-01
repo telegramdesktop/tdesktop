@@ -72,6 +72,7 @@ enum class ChannelDataFlag : uint64 {
 	CanViewCreditsRevenue = (1ULL << 34),
 	SignatureProfiles = (1ULL << 35),
 	StargiftsAvailable = (1ULL << 36),
+	PaidMessagesAvailable = (1ULL << 37),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -261,6 +262,9 @@ public:
 	}
 	[[nodiscard]] bool stargiftsAvailable() const {
 		return flags() & Flag::StargiftsAvailable;
+	}
+	[[nodiscard]] bool paidMessagesAvailable() const {
+		return flags() & Flag::PaidMessagesAvailable;
 	}
 
 	[[nodiscard]] static ChatRestrictionsInfo KickedRestrictedRights(

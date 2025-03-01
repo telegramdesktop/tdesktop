@@ -37,10 +37,7 @@ void Credits::apply(const MTPDupdateStarsBalance &data) {
 
 rpl::producer<float64> Credits::rateValue(
 		not_null<PeerData*> ownedBotOrChannel) {
-	return rpl::single(
-		_session->appConfig().get<float64>(
-			u"stars_usd_withdraw_rate_x1000"_q,
-			1200) / 1000.);
+	return rpl::single(_session->appConfig().starsWithdrawRate());
 }
 
 void Credits::load(bool force) {

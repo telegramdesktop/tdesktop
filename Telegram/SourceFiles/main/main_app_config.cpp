@@ -73,6 +73,22 @@ int AppConfig::starrefCommissionMax() const {
 	return get<int>(u"starref_max_commission_permille"_q, 900);
 }
 
+float64 AppConfig::starsWithdrawRate() const {
+	return get<float64>(u"stars_usd_withdraw_rate_x1000"_q, 1300) / 1000.;
+}
+
+bool AppConfig::paidMessagesAvailable() const {
+	return get<bool>(u"stars_paid_messages_available"_q, false);
+}
+
+int AppConfig::paidMessageStarsMax() const {
+	return get<int>(u"stars_paid_message_amount_max"_q, 10'000);
+}
+
+int AppConfig::paidMessageCommission() const {
+	return get<int>(u"stars_paid_message_commission_permille"_q, 850);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

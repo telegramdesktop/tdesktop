@@ -45,9 +45,7 @@ namespace {
 
 constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
 constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
-constexpr auto kGetPercent = 85;
 constexpr auto kStarsMin = 1;
-constexpr auto kStarsMax = 10000;
 constexpr auto kDefaultChargeStars = 10;
 
 using Exceptions = Api::UserPrivacy::Exceptions;
@@ -466,6 +464,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		int valuesCount,
 		Fn<int(int)> valueByIndex,
 		int value,
+		int maxValue,
 		Fn<void(int)> valueProgress,
 		Fn<void(int)> valueFinished) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
@@ -478,7 +477,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		*labelStyle);
 	const auto max = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		QString::number(kStarsMax),
+		QString::number(maxValue),
 		*labelStyle);
 	const auto current = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
@@ -999,28 +998,22 @@ void EditMessagesPrivacyBox(
 
 	Ui::AddDividerText(inner, tr::lng_messages_privacy_about());
 
-	const auto charged = inner->add(
-		object_ptr<Ui::Radiobutton>(
-			inner,
-			group,
-			kOptionCharge,
-			tr::lng_messages_privacy_charge(tr::now),
-			st::messagePrivacyCheck),
-		st::settingsSendTypePadding + style::margins(
-			0,
-			st::messagePrivacyBottomSkip,
-			0,
-			st::messagePrivacyBottomSkip));
+	const auto available = session->appConfig().paidMessagesAvailable();
 
-	Ui::AddDividerText(inner, tr::lng_messages_privacy_charge_about());
-
-	const auto chargeWrap = inner->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			inner,
-			object_ptr<Ui::VerticalLayout>(inner)));
-	const auto chargeInner = chargeWrap->entity();
-
-	Ui::AddSkip(chargeInner);
+	const auto charged = available
+		? inner->add(
+			object_ptr<Ui::Radiobutton>(
+				inner,
+				group,
+				kOptionCharge,
+				tr::lng_messages_privacy_charge(tr::now),
+				st::messagePrivacyCheck),
+			st::settingsSendTypePadding + style::margins(
+				0,
+				st::messagePrivacyBottomSkip,
+				0,
+				st::messagePrivacyBottomSkip))
+		: nullptr;
 
 	struct State {
 		rpl::variable<int> stars;
@@ -1028,54 +1021,67 @@ void EditMessagesPrivacyBox(
 	const auto state = std::make_shared<State>();
 	const auto savedValue = privacy->newChargeStarsCurrent();
 
-	state->stars = SetupChargeSlider(
-		chargeInner,
-		session->user(),
-		savedValue);
+	if (available) {
+		Ui::AddDividerText(inner, tr::lng_messages_privacy_charge_about());
 
-	Ui::AddSkip(chargeInner);
-	Ui::AddSubsectionTitle(
-		chargeInner,
-		tr::lng_messages_privacy_exceptions());
+		const auto chargeWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto chargeInner = chargeWrap->entity();
 
-	const auto key = Api::UserPrivacy::Key::NoPaidMessages;
-	session->api().userPrivacy().reload(key);
-	auto label = session->api().userPrivacy().value(
-		key
-	) | rpl::map([=](const Api::UserPrivacy::Rule &value) {
-		using namespace Settings;
-		const auto always = ExceptionUsersCount(value.always.peers);
-		return always
-			? tr::lng_edit_privacy_exceptions_count(
-				tr::now,
-				lt_count,
-				always)
-			: QString();
-	});
+		Ui::AddSkip(chargeInner);
 
-	const auto exceptions = Settings::AddButtonWithLabel(
-		chargeInner,
-		tr::lng_messages_privacy_remove_fee(),
-		std::move(label),
-		st::settingsButtonNoIcon);
+		state->stars = SetupChargeSlider(
+			chargeInner,
+			session->user(),
+			savedValue);
 
-	const auto shower = exceptions->lifetime().make_state<rpl::lifetime>();
-	exceptions->setClickedCallback([=] {
-		*shower = session->api().userPrivacy().value(
+		Ui::AddSkip(chargeInner);
+		Ui::AddSubsectionTitle(
+			chargeInner,
+			tr::lng_messages_privacy_exceptions());
+
+		const auto key = Api::UserPrivacy::Key::NoPaidMessages;
+		session->api().userPrivacy().reload(key);
+		auto label = session->api().userPrivacy().value(
 			key
-		) | rpl::take(
-			1
-		) | rpl::start_with_next([=](const Api::UserPrivacy::Rule &value) {
-			EditNoPaidMessagesExceptions(controller, value);
+		) | rpl::map([=](const Api::UserPrivacy::Rule &value) {
+			using namespace Settings;
+			const auto always = ExceptionUsersCount(value.always.peers);
+			return always
+				? tr::lng_edit_privacy_exceptions_count(
+					tr::now,
+					lt_count,
+					always)
+				: QString();
 		});
-	});
-	Ui::AddSkip(chargeInner);
-	Ui::AddDividerText(chargeInner, tr::lng_messages_privacy_remove_about());
 
-	using namespace rpl::mappers;
-	chargeWrap->toggleOn(group->value() | rpl::map(_1 == kOptionCharge));
-	chargeWrap->finishAnimating();
+		const auto exceptions = Settings::AddButtonWithLabel(
+			chargeInner,
+			tr::lng_messages_privacy_remove_fee(),
+			std::move(label),
+			st::settingsButtonNoIcon);
 
+		const auto shower = exceptions->lifetime().make_state<rpl::lifetime>();
+		exceptions->setClickedCallback([=] {
+			*shower = session->api().userPrivacy().value(
+				key
+			) | rpl::take(
+				1
+			) | rpl::start_with_next([=](const Api::UserPrivacy::Rule &value) {
+				EditNoPaidMessagesExceptions(controller, value);
+			});
+		});
+		Ui::AddSkip(chargeInner);
+		Ui::AddDividerText(
+			chargeInner,
+			tr::lng_messages_privacy_remove_about());
+
+		using namespace rpl::mappers;
+		chargeWrap->toggleOn(group->value() | rpl::map(_1 == kOptionCharge));
+		chargeWrap->finishAnimating();
+	}
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
 	const auto toast = std::make_shared<WeakToast>();
 	const auto showToast = [=] {
@@ -1108,7 +1114,9 @@ void EditMessagesPrivacyBox(
 
 	if (!allowed()) {
 		CreateRadiobuttonLock(restricted, st::messagePrivacyCheck);
-		CreateRadiobuttonLock(charged, st::messagePrivacyCheck);
+		if (charged) {
+			CreateRadiobuttonLock(charged, st::messagePrivacyCheck);
+		}
 
 		group->setChangedCallback([=](int value) {
 			if (value == kOptionPremium || value == kOptionCharge) {
@@ -1170,19 +1178,20 @@ rpl::producer<int> SetupChargeSlider(
 		: tr::lng_messages_privacy_price());
 
 	auto values = std::vector<int>();
+	const auto maxStars = peer->session().appConfig().paidMessageStarsMax();
 	if (chargeStars < kStarsMin) {
 		values.push_back(chargeStars);
 	}
-	for (auto i = kStarsMin; i < 100; ++i) {
+	for (auto i = kStarsMin; i < std::min(100, maxStars); ++i) {
 		values.push_back(i);
 	}
-	for (auto i = 100; i < 1000; i += 10) {
+	for (auto i = 100; i < std::min(1000, maxStars); i += 10) {
 		if (i < chargeStars + 10 && chargeStars < i) {
 			values.push_back(chargeStars);
 		}
 		values.push_back(i);
 	}
-	for (auto i = 1000; i < kStarsMax + 1; i += 100) {
+	for (auto i = 1000; i < maxStars + 1; i += 100) {
 		if (i < chargeStars + 100 && chargeStars < i) {
 			values.push_back(chargeStars);
 		}
@@ -1200,6 +1209,7 @@ rpl::producer<int> SetupChargeSlider(
 			valuesCount,
 			[=](int index) { return values[index]; },
 			chargeStars,
+			maxStars,
 			setStars,
 			setStars),
 		st::boxRowPadding);
@@ -1208,19 +1218,18 @@ rpl::producer<int> SetupChargeSlider(
 	Ui::AddSkip(container, skip);
 
 	auto dollars = state->stars.value() | rpl::map([=](int stars) {
-		const auto ratio = peer->session().appConfig().get<float64>(
-			u"stars_usd_withdraw_rate_x1000"_q,
-			1200);
-		const auto dollars = int(base::SafeRound(stars * (ratio / 1000.)));
+		const auto ratio = peer->session().appConfig().starsWithdrawRate();
+		const auto dollars = int(base::SafeRound(stars * ratio));
 		return '~' + Ui::FillAmountAndCurrency(dollars, u"USD"_q);
 	});
+	const auto percent = peer->session().appConfig().paidMessageCommission();
 	Ui::AddDividerText(
 		container,
 		(group
 			? tr::lng_rights_charge_price_about
 			: tr::lng_messages_privacy_price_about)(
 			lt_percent,
-			rpl::single(QString::number(kGetPercent) + '%'),
+			rpl::single(QString::number(percent / 10.) + '%'),
 			lt_amount,
 			std::move(dollars)));
 
