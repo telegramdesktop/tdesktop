@@ -117,6 +117,28 @@ HBITMAP IconToBitmap(LPWSTR icon, int iconindex) {
 	return (HBITMAP)CopyImage(result, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE | LR_CREATEDIBSECTION);
 }
 
+bool ShouldSaveZoneInformation() {
+	// Check if the "Do not preserve zone information in file attachments" policy is enabled.
+	const auto keyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments";
+	const auto valueName = L"SaveZoneInformation";
+	auto key = HKEY();
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, keyName, 0, KEY_READ, &key);
+	if (result != ERROR_SUCCESS) {
+		// If the registry key cannot be opened, assume the default behavior:
+		// Windows preserves zone information for downloaded files.
+		return true;
+	}
+
+	DWORD value = 0, type = 0, size = sizeof(value);
+	result = RegQueryValueEx(key, valueName, 0, &type, (LPBYTE)&value, &size);
+	RegCloseKey(key);
+
+	if (result != ERROR_SUCCESS || type != REG_DWORD) {
+		return true;
+	}
+
+	return (value != 1);
+}
 } // namespace
 
 void UnsafeOpenEmailLink(const QString &email) {
@@ -277,6 +299,11 @@ void UnsafeLaunch(const QString &filepath) {
 }
 
 void PostprocessDownloaded(const QString &filepath) {
+	// Mark file saved to the NTFS file system as originating from the Internet security zone
+	// unless this feature is disabled by Group Policy.
+	if (!ShouldSaveZoneInformation()) {
+		return;
+	}
 	auto wstringZoneFile = QDir::toNativeSeparators(filepath).toStdWString() + L":Zone.Identifier";
 	auto f = CreateFile(wstringZoneFile.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 	if (f == INVALID_HANDLE_VALUE) { // :(
