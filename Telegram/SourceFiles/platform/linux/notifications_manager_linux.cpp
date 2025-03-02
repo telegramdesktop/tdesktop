@@ -720,11 +720,8 @@ void Manager::Private::showNotification(
 					oldNotification->id,
 					nullptr);
 			});
-			clearNotification(notificationId);
-			i = _notifications.find(key);
 		}
-	}
-	if (i == end(_notifications)) {
+	} else {
 		i = _notifications.emplace(key).first;
 	}
 	v::match(notification, [&](Gio::Notification &notification) {
@@ -814,16 +811,11 @@ void Manager::Private::showNotification(
 void Manager::Private::clearAll() {
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
-			const auto notificationId = NotificationId{
-				.contextId = key,
-				.msgId = msgId,
-			};
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
 			}, [&](const Notification &notification) {
 				_interface.call_close_notification(notification->id, nullptr);
 			});
-			clearNotification(notificationId);
 		}
 	}
 }
@@ -833,10 +825,6 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id,
 		.topicRootId = item->topicRootId(),
-	};
-	const auto notificationId = NotificationId{
-		.contextId = key,
-		.msgId = item->id,
 	};
 	const auto i = _notifications.find(key);
 	if (i == _notifications.cend()) {
@@ -856,7 +844,6 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 	}, [&](const Notification &taken) {
 		_interface.call_close_notification(taken->id, nullptr);
 	});
-	clearNotification(notificationId);
 }
 
 void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
@@ -870,16 +857,11 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		_notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			const auto notificationId = NotificationId{
-				.contextId = key,
-				.msgId = msgId,
-			};
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
 			}, [&](const Notification &notification) {
 				_interface.call_close_notification(notification->id, nullptr);
 			});
-			clearNotification(notificationId);
 		}
 	}
 }
@@ -887,11 +869,10 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 void Manager::Private::clearFromHistory(not_null<History*> history) {
 	const auto sessionId = history->session().uniqueId();
 	const auto peerId = history->peer->id;
-	const auto key = ContextId{
+	auto i = _notifications.lower_bound(ContextId{
 		.sessionId = sessionId,
 		.peerId = peerId,
-	};
-	auto i = _notifications.lower_bound(key);
+	});
 	while (i != _notifications.cend()
 		&& i->first.sessionId == sessionId
 		&& i->first.peerId == peerId) {
@@ -899,41 +880,30 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 		i = _notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			const auto notificationId = NotificationId{
-				.contextId = key,
-				.msgId = msgId,
-			};
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
 			}, [&](const Notification &notification) {
 				_interface.call_close_notification(notification->id, nullptr);
 			});
-			clearNotification(notificationId);
 		}
 	}
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	const auto sessionId = session->uniqueId();
-	const auto key = ContextId{
+	auto i = _notifications.lower_bound(ContextId{
 		.sessionId = sessionId,
-	};
-	auto i = _notifications.lower_bound(key);
+	});
 	while (i != _notifications.cend() && i->first.sessionId == sessionId) {
 		const auto temp = base::take(i->second);
 		i = _notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			const auto notificationId = NotificationId{
-				.contextId = key,
-				.msgId = msgId,
-			};
 			v::match(notification, [&](const std::string &notification) {
 				_application.withdraw_notification(notification);
 			}, [&](const Notification &notification) {
 				_interface.call_close_notification(notification->id, nullptr);
 			});
-			clearNotification(notificationId);
 		}
 	}
 }
