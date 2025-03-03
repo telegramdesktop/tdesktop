@@ -326,6 +326,9 @@ void InnerWidget::load() {
 		) | rpl::start_with_error_done([=](const QString &error) {
 			if (isMegagroup) {
 				_state.currencyEarn = {};
+				if (error == u"BROADCAST_REQUIRED"_q) {
+					_state.canViewCurrencyMegagroupEarn = false;
+				}
 				nextRequests();
 			} else {
 				show->showToast(error);
@@ -343,10 +346,17 @@ void InnerWidget::fill() {
 		? _peer->asUser()
 		: nullptr;
 	const auto channel = _peer->asChannel();
-	const auto canViewCurrencyEarn = channel
-		? ((channel->flags() & ChannelDataFlag::CanViewRevenue)
-			&& !channel->isMegagroup())
-		: true;
+	const auto canViewCurrencyEarn = [&] {
+		if (!channel) {
+			return true;
+		} else if (!(channel->flags() & ChannelDataFlag::CanViewRevenue)) {
+			return false;
+		} else if (channel->isMegagroup()) {
+			return _state.canViewCurrencyMegagroupEarn;
+		} else {
+			return true;
+		}
+	}();
 	const auto &data = canViewCurrencyEarn
 		? _state.currencyEarn
 		: Data::EarnStatistics();
@@ -625,9 +635,11 @@ void InnerWidget::fill() {
 			st::defaultBoxDividerLabelPadding,
 			RectPart::Top | RectPart::Bottom));
 	};
-	addAboutWithLearn(bot
-		? tr::lng_channel_earn_about_bot
-		: tr::lng_channel_earn_about);
+	if (canViewCurrencyEarn) {
+		addAboutWithLearn(bot
+			? tr::lng_channel_earn_about_bot
+			: tr::lng_channel_earn_about);
+	}
 	{
 		using Type = Statistic::ChartViewType;
 		Ui::AddSkip(container);
