@@ -1768,6 +1768,10 @@ void VoiceRecordBar::setTTLFilter(FilterCallback &&callback) {
 	_hasTTLFilter = std::move(callback);
 }
 
+void VoiceRecordBar::setPauseInsteadSend(bool pauseInsteadSend) {
+	_pauseInsteadSend = pauseInsteadSend;
+}
+
 void VoiceRecordBar::initLockGeometry() {
 	const auto parent = static_cast<Ui::RpWidget*>(parentWidget());
 	rpl::merge(
@@ -1917,6 +1921,11 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 
 void VoiceRecordBar::stop(bool send) {
 	if (isHidden() && !send) {
+		return;
+	} else if (send && _pauseInsteadSend) {
+		_fullRecord = true;
+		stopRecording(StopType::Listen);
+		_lockShowing = false;
 		return;
 	}
 	const auto ttlBeforeHide = peekTTLState();

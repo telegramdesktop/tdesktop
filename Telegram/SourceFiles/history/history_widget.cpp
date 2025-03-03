@@ -5169,12 +5169,13 @@ void HistoryWidget::updateSendButtonType() {
 			: 0;
 	}();
 	const auto perMessage = _peer ? _peer->starsPerMessageChecked() : 0;
-	const auto stars = perMessage
-		? perMessage * ComputeSendingMessagesCount(_history, {
+	const auto messages = _voiceRecordBar->isListenState()
+		? 1
+		: ComputeSendingMessagesCount(_history, {
 			.forward = &_forwardPanel->items(),
 			.text = &_field->getTextWithTags(),
-		})
-		: 0;
+		});
+	const auto stars = perMessage ? (perMessage * messages) : 0;
 	_send->setState({
 		.type = (delay > 0) ? Type::Slowmode : type,
 		.slowmodeDelay = delay,
@@ -5775,6 +5776,9 @@ void HistoryWidget::fieldFocused() {
 }
 
 void HistoryWidget::updateFieldPlaceholder() {
+	_voiceRecordBar->setPauseInsteadSend(_history
+		&& _history->peer->starsPerMessageChecked() > 0);
+
 	if (!_editMsgId && _inlineBot && !_inlineLookingUpBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
