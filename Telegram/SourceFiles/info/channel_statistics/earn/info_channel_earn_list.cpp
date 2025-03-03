@@ -1001,7 +1001,8 @@ void InnerWidget::fill() {
 	const auto sectionIndex = container->lifetime().make_state<int>(0);
 	const auto rebuildLists = [=](
 			const Memento::SavedState &data,
-			not_null<Ui::VerticalLayout*> listsContainer) {
+			not_null<Ui::VerticalLayout*> listsContainer,
+			not_null<Ui::VerticalLayout*> historyDividerContainer) {
 		const auto hasCurrencyTab
 			= !data.currencyEarn.firstHistorySlice.list.empty();
 		const auto hasCreditsTab = !data.creditsStatusSlice.list.empty();
@@ -1385,9 +1386,9 @@ void InnerWidget::fill() {
 				true);
 		}
 		if (hasCurrencyTab || hasCreditsTab) {
-			Ui::AddSkip(listsContainer);
-			Ui::AddDivider(listsContainer);
-			Ui::AddSkip(listsContainer);
+			Ui::AddSkip(historyDividerContainer);
+			Ui::AddDivider(historyDividerContainer);
+			Ui::AddSkip(historyDividerContainer);
 		}
 
 		listsContainer->resizeToWidth(width());
@@ -1395,18 +1396,20 @@ void InnerWidget::fill() {
 
 	const auto historyContainer = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
+	const auto historyDividerContainer = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
 	rpl::single(rpl::empty) | rpl::then(
 		_stateUpdated.events()
 	) | rpl::start_with_next([=] {
 		const auto listsContainer = historyContainer->add(
 			object_ptr<Ui::VerticalLayout>(container));
-		rebuildLists(_state, listsContainer);
+		rebuildLists(_state, listsContainer, historyDividerContainer);
 		while (historyContainer->count() > 1) {
 			delete historyContainer->widgetAt(0);
 		}
 	}, historyContainer->lifetime());
 
-	if (channel) {
+	if (channel && !channel->isMegagroup()) {
 		//constexpr auto kMaxCPM = 50; // Debug.
 		const auto requiredLevel = Data::LevelLimits(session)
 			.channelRestrictSponsoredLevelMin();
@@ -1463,6 +1466,10 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 		Ui::AddDividerText(container, tr::lng_channel_earn_off_about());
+	} else {
+		while (historyDividerContainer->count() > 1) {
+			delete historyDividerContainer->widgetAt(0);
+		}
 	}
 	Ui::AddSkip(container);
 
