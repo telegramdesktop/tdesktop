@@ -1203,8 +1203,7 @@ void Filler::addThemeEdit() {
 	if (!user || user->isInaccessible()) {
 		return;
 	}
-	if ((user->requiresPremiumToWrite() && !user->session().premium())
-		|| user->starsPerMessage() > 0) {
+	if (user->requiresPremiumToWrite() && !user->session().premium()) {
 		return;
 	}
 	const auto controller = _controller;
