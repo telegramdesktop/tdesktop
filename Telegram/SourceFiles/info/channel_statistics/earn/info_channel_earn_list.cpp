@@ -297,9 +297,7 @@ void InnerWidget::load() {
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
-		state->api.request(
-		) | rpl::start_with_error_done(fail, [=] {
-			_state.currencyEarn = state->api.data();
+		const auto nextRequests = [=] {
 			state->apiCreditsHistory.request({}, [=](
 					const Data::CreditsStatusSlice &data) {
 				_state.creditsStatusSlice = data;
@@ -322,6 +320,19 @@ void InnerWidget::load() {
 					state->apiPremiumBotLifetime.destroy();
 				}, state->apiPremiumBotLifetime);
 			});
+		};
+		const auto isMegagroup = _peer->isMegagroup();
+		state->api.request(
+		) | rpl::start_with_error_done([=](const QString &error) {
+			if (isMegagroup) {
+				_state.currencyEarn = {};
+				nextRequests();
+			} else {
+				show->showToast(error);
+			}
+		}, [=] {
+			_state.currencyEarn = state->api.data();
+			nextRequests();
 		}, state->apiLifetime);
 	}, lifetime());
 }
@@ -333,7 +344,8 @@ void InnerWidget::fill() {
 		: nullptr;
 	const auto channel = _peer->asChannel();
 	const auto canViewCurrencyEarn = channel
-		? (channel->flags() & ChannelDataFlag::CanViewRevenue)
+		? ((channel->flags() & ChannelDataFlag::CanViewRevenue)
+			&& !channel->isMegagroup())
 		: true;
 	const auto &data = canViewCurrencyEarn
 		? _state.currencyEarn
