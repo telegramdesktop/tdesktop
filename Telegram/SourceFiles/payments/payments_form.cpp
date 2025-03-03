@@ -178,7 +178,7 @@ MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 
 MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 		const InvoicePremiumGiftCode &invoice) {
-	Expects(invoice.creditsAmount.has_value());
+	Expects(invoice.giveawayCredits.has_value());
 	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
 		invoice.purpose);
 	using Flag = MTPDinputStorePaymentStarsGiveaway::Flag;
@@ -199,7 +199,7 @@ MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 			| (giveaway.additionalPrize.isEmpty()
 				? Flag()
 				: Flag::f_prize_description)),
-		MTP_long(*invoice.creditsAmount),
+		MTP_long(*invoice.giveawayCredits),
 		giveaway.boostPeer->input,
 		MTP_vector_from_range(ranges::views::all(
 			giveaway.additionalChannels
@@ -222,7 +222,7 @@ MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 bool IsPremiumForStarsInvoice(const InvoiceId &id) {
 	const auto giftCode = std::get_if<InvoicePremiumGiftCode>(&id.value);
 	return giftCode
-		&& !giftCode->creditsAmount
+		&& !giftCode->giveawayCredits
 		&& (giftCode->currency == ::Ui::kCreditsCurrency);
 }
 
@@ -402,7 +402,7 @@ MTPInputInvoice Form::inputInvoice() const {
 					Api::ConvertOption::SkipLocal)));
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
-	if (giftCode.creditsAmount) {
+	if (giftCode.giveawayCredits) {
 		return MTP_inputInvoiceStars(InvoiceCreditsGiveawayToTL(giftCode));
 	}
 	using Flag = MTPDpremiumGiftCodeOption::Flag;

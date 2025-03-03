@@ -153,7 +153,7 @@ struct InvoicePremiumGiftCode {
 
 	QString currency;
 	QString storeProduct;
-	std::optional<uint64> creditsAmount;
+	std::optional<uint64> giveawayCredits;
 	uint64 randomId = 0;
 	uint64 amount = 0;
 	int storeQuantity = 0;
