@@ -743,6 +743,9 @@ void Manager::Private::showNotification(
 		StartServiceAsync(
 			_proxy.get_connection(),
 			crl::guard(weak, [=]() mutable {
+				const auto hasImage = !imageKey.empty()
+					&& hints.lookup_value(imageKey);
+
 				const auto hasBodyMarkup = HasCapability("body-markup");
 
 				const auto callbackWrap = gi::unwrap(
@@ -780,9 +783,9 @@ void Manager::Private::showNotification(
 					_interface.gobj_(),
 					AppName.data(),
 					0,
-					(imageKey.empty() || !hints.lookup_value(imageKey)
-							? base::IconName().toStdString()
-							: std::string()).c_str(),
+					(!hasImage
+						? base::IconName().toStdString()
+						: std::string()).c_str(),
 					(hasBodyMarkup || info.subtitle.isEmpty()
 						? info.title.toStdString()
 						: info.subtitle.toStdString()
