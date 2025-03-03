@@ -541,7 +541,8 @@ void Manager::Private::showNotification(
 					? info.title.toStdString()
 					: info.subtitle.toStdString()
 						+ " (" + info.title.toStdString() + ')'))
-		: std::variant<Notification, Gio::Notification>(Notification{});
+		: std::variant<Notification, Gio::Notification>(
+			std::make_unique<NotificationData>());
 
 	std::vector<gi::cstring> actions;
 	auto hints = GLib::VariantDict::new_();
