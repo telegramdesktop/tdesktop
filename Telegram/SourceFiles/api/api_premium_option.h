@@ -24,15 +24,26 @@ template<typename Option>
 	if (tlOpts.isEmpty()) {
 		return {};
 	}
+	auto monthlyAmountPerCurrency = base::flat_map<QString, int>();
 	auto result = Data::PremiumSubscriptionOptions();
-	const auto monthlyAmount = [&] {
+	const auto monthlyAmount = [&](const QString &currency) -> int {
+		const auto it = monthlyAmountPerCurrency.find(currency);
+		if (it != end(monthlyAmountPerCurrency)) {
+			return it->second;
+		}
 		const auto &min = ranges::min_element(
 			tlOpts,
 			ranges::less(),
-			[](const Option &o) { return o.data().vamount().v; }
+			[&](const Option &o) {
+				return currency == qs(o.data().vcurrency())
+					? o.data().vamount().v
+					: std::numeric_limits<int64_t>::max();
+			}
 		)->data();
-		return min.vamount().v / float64(min.vmonths().v);
-	}();
+		const auto monthly = min.vamount().v / float64(min.vmonths().v);
+		monthlyAmountPerCurrency.emplace(currency, monthly);
+		return monthly;
+	};
 	result.reserve(tlOpts.size());
 	for (const auto &tlOption : tlOpts) {
 		const auto &option = tlOption.data();
@@ -45,7 +56,7 @@ template<typename Option>
 		const auto currency = qs(option.vcurrency());
 		result.push_back(CreateSubscriptionOption(
 			months,
-			monthlyAmount,
+			monthlyAmount(currency),
 			amount,
 			currency,
 			botUrl));
