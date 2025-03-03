@@ -1127,3 +1127,10 @@ profileQrBackgroundRadius: 12px;
 profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
 profileQrBackgroundMargins: margins(36px, 12px, 36px, 12px);
 profileQrBackgroundPadding: margins(0px, 24px, 0px, 24px);
+
+foldersMenu: PopupMenu(popupMenuWithIcons) {
+	maxHeight: 320px;
+	menu: Menu(menuWithIcons) {
+		itemPadding: margins(54px, 8px, 44px, 8px);
+	}
+}

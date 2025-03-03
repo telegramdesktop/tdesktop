@@ -789,7 +789,3 @@ dialogsPopularAppsPadding: margins(10px, 8px, 10px, 12px);
 dialogsPopularAppsAbout: FlatLabel(boxDividerLabel) {
 	minWidth: 128px;
 }
-
-foldersMenu: Menu(menuWithIcons) {
-	itemPadding: margins(54px, 8px, 44px, 8px);
-}

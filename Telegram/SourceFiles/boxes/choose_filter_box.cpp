@@ -290,7 +290,7 @@ void FillChooseFilterMenu(
 		const auto title = filter.title();
 		auto item = base::make_unique_q<FilterAction>(
 			menu.get(),
-			st::foldersMenu,
+			menu->st().menu,
 			Ui::Menu::CreateAction(
 				menu.get(),
 				Ui::Text::FixAmpersandInAction(title.text.text),

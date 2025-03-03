@@ -633,6 +633,7 @@ void Filler::addToggleFolder() {
 		.fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
 			FillChooseFilterMenu(controller, menu, history);
 		},
+		.submenuSt = &st::foldersMenu,
 	});
 }
 
