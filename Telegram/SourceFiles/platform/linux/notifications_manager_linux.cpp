@@ -141,7 +141,7 @@ bool UseGNotification() {
 
 } // namespace
 
-class Manager::Private {
+class Manager::Private : public base::has_weak_ptr {
 public:
 	explicit Private(not_null<Manager*> manager);
 
@@ -750,7 +750,7 @@ void Manager::Private::showNotification(
 
 				const auto callbackWrap = gi::unwrap(
 					Gio::AsyncReadyCallback(
-						crl::guard(weak, [=](
+						crl::guard(this, [=](
 								GObject::Object,
 								Gio::AsyncResult res) {
 							auto &sandbox = Core::Sandbox::Instance();
@@ -764,6 +764,13 @@ void Manager::Private::showNotification(
 									LOG(("Native Notification Error: %1").arg(
 										result.error().message_().c_str()));
 									clearNotification(notificationId);
+									return;
+								}
+
+								if (!weak) {
+									_interface.call_close_notification(
+										std::get<1>(*result),
+										nullptr);
 									return;
 								}
 
