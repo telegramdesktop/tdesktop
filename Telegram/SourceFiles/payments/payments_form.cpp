@@ -219,6 +219,13 @@ MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 		MTP_int(invoice.users));
 }
 
+bool IsPremiumForStarsInvoice(const InvoiceId &id) {
+	const auto giftCode = std::get_if<InvoicePremiumGiftCode>(&id.value);
+	return giftCode
+		&& !giftCode->creditsAmount
+		&& (giftCode->currency == ::Ui::kCreditsCurrency);
+}
+
 Form::Form(InvoiceId id, bool receipt)
 : _id(id)
 , _session(SessionFromId(id))
@@ -412,12 +419,29 @@ MTPInputInvoice Form::inputInvoice() const {
 		MTP_long(giftCode.amount));
 	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
 		&giftCode.purpose);
-	if (users) {
+	auto message = (users && !users->message.empty())
+		? MTP_textWithEntities(
+			MTP_string(users->message.text),
+			Api::EntitiesToMTP(
+				&users->users.front()->session(),
+				users->message.entities,
+				Api::ConvertOption::SkipLocal))
+		: std::optional<MTPTextWithEntities>();
+	if (users
+		&& users->users.size() == 1
+		&& giftCode.currency == ::Ui::kCreditsCurrency) {
+		using Flag = MTPDinputInvoicePremiumGiftStars::Flag;
+		return MTP_inputInvoicePremiumGiftStars(
+			MTP_flags(message ? Flag::f_message : Flag()),
+			users->users.front()->inputUser,
+			MTP_int(giftCode.months),
+			message.value_or(MTPTextWithEntities()));
+	} else if (users) {
 		using Flag = MTPDinputStorePaymentPremiumGiftCode::Flag;
 		return MTP_inputInvoicePremiumGiftCode(
 			MTP_inputStorePaymentPremiumGiftCode(
 				MTP_flags((users->boostPeer ? Flag::f_boost_peer : Flag())
-					| (users->message.empty() ? Flag(0) : Flag::f_message)),
+					| (message ? Flag::f_message : Flag())),
 				MTP_vector_from_range(ranges::views::all(
 					users->users
 				) | ranges::views::transform([](not_null<UserData*> user) {
@@ -426,12 +450,7 @@ MTPInputInvoice Form::inputInvoice() const {
 				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
 				MTP_string(giftCode.currency),
 				MTP_long(giftCode.amount),
-				MTP_textWithEntities(
-					MTP_string(users->message.text),
-					Api::EntitiesToMTP(
-						&users->users.front()->session(),
-						users->message.entities,
-						Api::ConvertOption::SkipLocal))),
+				message.value_or(MTPTextWithEntities())),
 			option);
 	} else {
 		return MTP_inputInvoicePremiumGiftCode(

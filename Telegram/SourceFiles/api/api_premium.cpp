@@ -479,6 +479,9 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 			for (const auto &tlOption : result.v) {
 				const auto &data = tlOption.data();
 				tlMapOptions[data.vusers().v].push_back(tlOption);
+				if (qs(data.vcurrency()) == Ui::kCreditsCurrency) {
+					continue;
+				}
 
 				const auto token = Token{ data.vusers().v, data.vmonths().v };
 				_stores[token] = Store{

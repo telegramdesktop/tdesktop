@@ -287,6 +287,8 @@ struct FormUpdate : std::variant<
 [[nodiscard]] MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 	const InvoicePremiumGiftCode &invoice);
 
+[[nodiscard]] bool IsPremiumForStarsInvoice(const InvoiceId &id);
+
 class Form final : public base::has_weak_ptr {
 public:
 	Form(InvoiceId id, bool receipt);

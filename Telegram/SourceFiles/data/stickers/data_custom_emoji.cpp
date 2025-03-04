@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_credits.h" // giftBoxByStarsStyle
 
 namespace Data {
 namespace {
@@ -1023,6 +1024,14 @@ TextWithEntities CustomEmojiManager::creditsEmoji(QMargins padding) {
 	return Ui::Text::SingleCustomEmoji(
 		registerInternalEmoji(
 			Ui::GenerateStars(st::normalFont->height, 1),
+			padding,
+			false));
+}
+
+TextWithEntities CustomEmojiManager::ministarEmoji(QMargins padding) {
+	return Ui::Text::SingleCustomEmoji(
+		registerInternalEmoji(
+			Ui::GenerateStars(st::giftBoxByStarsStyle.font->height, 1),
 			padding,
 			false));
 }

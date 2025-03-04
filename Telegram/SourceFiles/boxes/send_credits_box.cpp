@@ -512,7 +512,7 @@ TextWithEntities CreditsEmoji(not_null<Main::Session*> session) {
 
 TextWithEntities CreditsEmojiSmall(not_null<Main::Session*> session) {
 	return Ui::Text::IconEmoji(
-		&st::boxStarIconEmoji,
+		&st::starIconEmoji,
 		QString(QChar(0x2B50)));
 }
 
@@ -570,7 +570,7 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 	}, st, textFg);
 }
 
-void SendStarGift(
+void SendStarsForm(
 		not_null<Main::Session*> session,
 		std::shared_ptr<Payments::CreditsFormData> data,
 		Fn<void(std::optional<QString>)> done) {

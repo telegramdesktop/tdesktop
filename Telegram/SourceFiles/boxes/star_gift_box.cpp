@@ -128,6 +128,7 @@ struct GiftDetails {
 	uint64 randomId = 0;
 	bool anonymous = false;
 	bool upgraded = false;
+	bool byStars = false;
 };
 
 class PreviewDelegate final : public DefaultElementDelegate {
@@ -497,7 +498,14 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 	std::move(details) | rpl::start_with_next([=](GiftDetails details) {
 		const auto &descriptor = details.descriptor;
 		const auto cost = v::match(descriptor, [&](GiftTypePremium data) {
-			return FillAmountAndCurrency(data.cost, data.currency, true);
+			const auto stars = (details.byStars && data.stars)
+				? data.stars
+				: (data.currency == kCreditsCurrency)
+				? data.cost
+				: 0;
+			return stars
+				? tr::lng_gift_stars_title(tr::now, lt_count, stars)
+				: FillAmountAndCurrency(data.cost, data.currency, true);
 		}, [&](GiftTypeStars data) {
 			const auto stars = data.info.stars
 				+ (details.upgraded ? data.info.starsToUpgrade : 0);
@@ -1118,16 +1126,35 @@ void SendGift(
 		std::shared_ptr<Api::PremiumGiftCodeOptions> api,
 		const GiftDetails &details,
 		Fn<void(Payments::CheckoutResult)> done) {
+	const auto processNonPanelPaymentFormFactory
+		= Payments::ProcessNonPanelPaymentFormFactory(window, done);
 	v::match(details.descriptor, [&](const GiftTypePremium &gift) {
-		auto invoice = api->invoice(1, gift.months);
-		invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{
-			.users = { peer->asUser() },
-			.message = details.text,
-		};
-		Payments::CheckoutProcess::Start(std::move(invoice), done);
+		if (details.byStars && gift.stars) {
+			auto invoice = Payments::InvoicePremiumGiftCode{
+				.purpose = Payments::InvoicePremiumGiftCodeUsers{
+					.users = { peer->asUser() },
+					.message = details.text,
+				},
+				.currency = Ui::kCreditsCurrency,
+				.randomId = details.randomId,
+				.amount = uint64(gift.stars),
+				.storeQuantity = 1,
+				.users = 1,
+				.months = gift.months,
+			};
+			Payments::CheckoutProcess::Start(
+				std::move(invoice),
+				done,
+				processNonPanelPaymentFormFactory);
+		} else {
+			auto invoice = api->invoice(1, gift.months);
+			invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{
+				.users = { peer->asUser() },
+				.message = details.text,
+			};
+			Payments::CheckoutProcess::Start(std::move(invoice), done);
+		}
 	}, [&](const GiftTypeStars &gift) {
-		const auto processNonPanelPaymentFormFactory
-			= Payments::ProcessNonPanelPaymentFormFactory(window, done);
 		Payments::CheckoutProcess::Start(Payments::InvoiceStarGift{
 			.giftId = gift.info.id,
 			.randomId = details.randomId,
@@ -1459,9 +1486,14 @@ void SendGiftBox(
 	auto cost = state->details.value(
 	) | rpl::map([session](const GiftDetails &details) {
 		return v::match(details.descriptor, [&](const GiftTypePremium &data) {
-			if (data.currency == kCreditsCurrency) {
+			const auto stars = (details.byStars && data.stars)
+				? data.stars
+				: (data.currency == kCreditsCurrency)
+				? data.cost
+				: 0;
+			if (stars) {
 				return CreditsEmojiSmall(session).append(
-					Lang::FormatCountDecimal(std::abs(data.cost)));
+					Lang::FormatCountDecimal(std::abs(stars)));
 			}
 			return TextWithEntities{
 				FillAmountAndCurrency(data.cost, data.currency),
@@ -1580,10 +1612,56 @@ void SendGiftBox(
 		}, container->lifetime());
 		AddSkip(container);
 	}
-	v::match(descriptor, [&](const GiftTypePremium &) {
+	v::match(descriptor, [&](const GiftTypePremium &data) {
 		AddDividerText(messageInner, tr::lng_gift_send_premium_about(
 			lt_user,
 			rpl::single(peer->shortName())));
+
+		if (const auto byStars = data.stars) {
+			const auto star = Ui::Text::IconEmoji(&st::starIconEmojiColored);
+			AddSkip(container);
+			container->add(
+				object_ptr<SettingsButton>(
+					container,
+					tr::lng_gift_send_pay_with_stars(
+						lt_amount,
+						rpl::single(base::duplicate(star).append(Lang::FormatCountDecimal(byStars))),
+						Ui::Text::WithEntities),
+						st::settingsButtonNoIcon)
+			)->toggleOn(rpl::single(false))->toggledValue(
+			) | rpl::start_with_next([=](bool toggled) {
+				auto now = state->details.current();
+				now.byStars = toggled;
+				state->details = std::move(now);
+			}, container->lifetime());
+			AddSkip(container);
+
+			const auto balance = AddDividerText(
+				container,
+				tr::lng_gift_send_stars_balance(
+					lt_amount,
+					peer->session().credits().balanceValue(
+					) | rpl::map([=](StarsAmount amount) {
+						return base::duplicate(star).append(
+							Lang::FormatStarsAmountDecimal(amount));
+					}),
+					lt_link,
+					tr::lng_gift_send_stars_balance_link(
+					) | Ui::Text::ToLink(),
+					Ui::Text::WithEntities));
+			struct State {
+				Settings::BuyStarsHandler buyStars;
+				rpl::variable<bool> loading;
+			};
+			const auto state = balance->lifetime().make_state<State>();
+			state->loading = state->buyStars.loadingValue();
+			balance->setClickHandlerFilter([=](const auto &...) {
+				if (!state->loading.current()) {
+					state->buyStars.handler(window->uiShow())();
+				}
+				return false;
+			});
+		}
 	}, [&](const GiftTypeStars &) {
 		AddDividerText(container, peer->isSelf()
 			? tr::lng_gift_send_anonymous_self()
@@ -1618,9 +1696,13 @@ void SendGiftBox(
 		const auto weak = MakeWeak(box);
 		const auto done = [=](Payments::CheckoutResult result) {
 			if (result == Payments::CheckoutResult::Paid) {
+				if (details.byStars
+					|| v::is<GiftTypeStars>(details.descriptor)) {
+					window->session().credits().load(true);
+				}
 				const auto copy = state->media;
 				window->showPeerHistory(peer);
-				ShowSentToast(window, descriptor, details);
+				ShowSentToast(window, details.descriptor, details);
 			}
 			if (const auto strong = weak.data()) {
 				box->closeBox();
@@ -1852,6 +1934,8 @@ void GiftBox(
 	box->setNoContentMargin(true);
 	box->setCustomCornersFilling(RectPart::FullTop);
 	box->addButton(tr::lng_create_group_back(), [=] { box->closeBox(); });
+
+	window->session().credits().load();
 
 	FillBg(box);
 

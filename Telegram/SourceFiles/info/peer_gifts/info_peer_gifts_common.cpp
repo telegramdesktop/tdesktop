@@ -85,13 +85,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	unsubscribe();
 	v::match(descriptor, [&](const GiftTypePremium &data) {
 		const auto months = data.months;
-		const auto years = (months % 12) ? 0 : months / 12;
 		_text = Ui::Text::String(st::giftBoxGiftHeight / 4);
 		_text.setMarkedText(
 			st::defaultTextStyle,
-			Ui::Text::Bold(years
-				? tr::lng_years(tr::now, lt_count, years)
-				: tr::lng_months(tr::now, lt_count, months)
+			Ui::Text::Bold(
+				tr::lng_months(tr::now, lt_count, months)
 			).append('\n').append(
 				tr::lng_gift_premium_label(tr::now)
 			));
@@ -101,6 +99,18 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 				data.cost,
 				data.currency,
 				true));
+		if (const auto stars = data.stars) {
+			const auto starsText = QString::number(stars);
+			_byStars.setMarkedText(
+				st::giftBoxByStarsStyle,
+				tr::lng_gift_premium_by_stars(
+					tr::now,
+					lt_amount,
+					_delegate->ministar().append(' ' + starsText),
+					Ui::Text::WithEntities),
+				kMarkupTextOptions,
+				_delegate->textContext());
+		}
 		_userpic = nullptr;
 		if (!_stars) {
 			_stars.emplace(this, true, starsType);
@@ -170,7 +180,9 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		QSize(buttonw, buttonh)
 	).marginsAdded(st::giftBoxButtonPadding);
 	const auto skipy = _delegate->buttonSize().height()
-		- st::giftBoxButtonBottom
+		- (_byStars.isEmpty()
+			? st::giftBoxButtonBottom
+			: st::giftBoxButtonBottomByStars)
 		- inner.height();
 	const auto skipx = (width() - inner.width()) / 2;
 	const auto outer = (width() - 2 * skipx);
@@ -355,7 +367,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 					? st::giftBoxSmallStickerTop
 					: _text.isEmpty()
 					? st::giftBoxStickerStarTop
-					: st::giftBoxStickerTop),
+					: _byStars.isEmpty()
+					? st::giftBoxStickerTop
+					: st::giftBoxStickerTopByStars),
 				size.width(),
 				size.height()),
 			frame);
@@ -367,7 +381,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				? st::giftBoxSmallStickerTop
 				: _text.isEmpty()
 				? st::giftBoxStickerStarTop
-				: st::giftBoxStickerTop));
+				: _byStars.isEmpty()
+				? st::giftBoxStickerTop
+				: st::giftBoxStickerTopByStars));
 		_delegate->hiddenMark()->paint(
 			p,
 			frame,
@@ -473,8 +489,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	if (!_text.isEmpty()) {
 		p.setPen(st::windowFg);
 		_text.draw(p, {
-			.position = (position
-				+ QPoint(0, st::giftBoxPremiumTextTop)),
+			.position = (position + QPoint(0, _byStars.isEmpty()
+				? st::giftBoxPremiumTextTop
+				: st::giftBoxPremiumTextTopByStars)),
 			.availableWidth = singlew,
 			.align = style::al_top,
 		});
@@ -492,6 +509,17 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				+ QPoint(padding.left(), padding.top())),
 			.availableWidth = _price.maxWidth(),
 		});
+
+		if (!_byStars.isEmpty()) {
+			p.setPen(st::creditsFg);
+			_byStars.draw(p, {
+				.position = QPoint(
+					position.x(),
+					_button.y() + _button.height() + st::giftBoxByStarsSkip),
+				.availableWidth = singlew,
+				.align = style::al_top,
+			});
+		}
 	}
 }
 
@@ -513,6 +541,12 @@ Delegate::~Delegate() = default;
 TextWithEntities Delegate::star() {
 	const auto owner = &_window->session().data();
 	return owner->customEmojiManager().creditsEmoji();
+}
+
+TextWithEntities Delegate::ministar() {
+	const auto owner = &_window->session().data();
+	const auto top = st::giftBoxByStarsStarTop;
+	return owner->customEmojiManager().ministarEmoji({ 0, top, 0, 0 });
 }
 
 std::any Delegate::textContext() {

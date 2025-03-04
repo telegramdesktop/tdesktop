@@ -88,7 +88,8 @@ public:
 		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess);
 	static void Start(
 		InvoicePremiumGiftCode giftCodeInvoice,
-		Fn<void(CheckoutResult)> reactivate);
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess = nullptr);
 	static void Start(
 		InvoiceCredits creditsInvoice,
 		Fn<void(CheckoutResult)> reactivate);

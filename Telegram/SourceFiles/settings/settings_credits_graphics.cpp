@@ -569,8 +569,8 @@ void FillCreditOptions(
 					if (const auto strong = weak.data()) {
 						strong->window()->setFocus();
 						if (result == Payments::CheckoutResult::Paid) {
-							if (paid) {
-								paid();
+							if (const auto onstack = paid) {
+								onstack();
 							}
 						}
 					}

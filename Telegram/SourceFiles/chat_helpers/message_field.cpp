@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_credits.h"
 #include "styles/style_settings.h"
 #include "base/qt/qt_common_adapters.h"
 
@@ -1282,7 +1283,7 @@ void SelectTextInFieldWithMargins(
 }
 
 TextWithEntities PaidSendButtonText(tr::now_t, int stars) {
-	return Ui::Text::IconEmoji(&st::boxStarIconEmoji).append(
+	return Ui::Text::IconEmoji(&st::starIconEmoji).append(
 		Lang::FormatCountToShort(stars).string);
 }
 

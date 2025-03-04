@@ -52,7 +52,7 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 	const style::FlatLabel &st,
 	const style::color *textFg = nullptr);
 
-void SendStarGift(
+void SendStarsForm(
 	not_null<Main::Session*> session,
 	std::shared_ptr<Payments::CreditsFormData> data,
 	Fn<void(std::optional<QString>)> done);

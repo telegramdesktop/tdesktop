@@ -102,6 +102,7 @@ enum class GiftButtonMode {
 class GiftButtonDelegate {
 public:
 	[[nodiscard]] virtual TextWithEntities star() = 0;
+	[[nodiscard]] virtual TextWithEntities ministar() = 0;
 	[[nodiscard]] virtual std::any textContext() = 0;
 	[[nodiscard]] virtual QSize buttonSize() = 0;
 	[[nodiscard]] virtual QMargins buttonExtend() = 0;
@@ -144,6 +145,7 @@ private:
 	GiftDescriptor _descriptor;
 	Ui::Text::String _text;
 	Ui::Text::String _price;
+	Ui::Text::String _byStars;
 	std::shared_ptr<Ui::DynamicImage> _userpic;
 	QImage _uniqueBackgroundCache;
 	std::unique_ptr<Ui::Text::CustomEmoji> _uniquePatternEmoji;
@@ -170,6 +172,7 @@ public:
 	~Delegate();
 
 	TextWithEntities star() override;
+	TextWithEntities ministar() override;
 	std::any textContext() override;
 	QSize buttonSize() override;
 	QMargins buttonExtend() override;

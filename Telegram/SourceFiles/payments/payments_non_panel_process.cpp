@@ -57,7 +57,8 @@ void ProcessCreditsPayment(
 				onstack(CheckoutResult::Cancelled);
 			}
 			return;
-		} else if (form->starGiftForm) {
+		} else if (form->starGiftForm
+			|| IsPremiumForStarsInvoice(form->id)) {
 			const auto done = [=](std::optional<QString> error) {
 				const auto onstack = maybeReturnToBot;
 				if (error) {
@@ -86,7 +87,7 @@ void ProcessCreditsPayment(
 					onstack(CheckoutResult::Paid);
 				}
 			};
-			Ui::SendStarGift(&show->session(), form, done);
+			Ui::SendStarsForm(&show->session(), form, done);
 			return;
 		}
 		const auto unsuccessful = std::make_shared<bool>(true);

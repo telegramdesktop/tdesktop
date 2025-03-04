@@ -100,6 +100,7 @@ public:
 	[[nodiscard]] uint64 coloredSetId() const;
 
 	[[nodiscard]] TextWithEntities creditsEmoji(QMargins padding = {});
+	[[nodiscard]] TextWithEntities ministarEmoji(QMargins padding = {});
 
 private:
 	static constexpr auto kSizeCount = int(SizeTag::kCount);
