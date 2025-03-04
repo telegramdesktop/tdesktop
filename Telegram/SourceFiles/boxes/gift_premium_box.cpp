@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
 #include "boxes/star_gift_box.h" // ShowStarGiftBox.
 #include "boxes/transfer_gift_box.h" // ShowTransferGiftBox.
+#include "core/ui_integration.h"
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -58,7 +59,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h" // ShowChooseRecipientBox.
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -1272,8 +1273,8 @@ void AddStarGiftTable(
 	const auto selfBareId = session->userPeerId().value;
 	const auto giftToSelf = (peerId == session->userPeerId())
 		&& (entry.in || entry.bareGiftOwnerId == selfBareId);
-	const auto giftToChannel = entry.giftSavedId
-		&& peerIsChannel(PeerId(entry.bareGiftListPeerId));
+	const auto giftToChannel = entry.giftChannelSavedId
+		&& peerIsChannel(PeerId(entry.bareEntryOwnerId));
 
 	const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
 	const auto showTooltip = [=](
@@ -1394,14 +1395,14 @@ void AddStarGiftTable(
 				? MakePeerTableValue(table, show, PeerId(entry.bareActorId))
 				: MakeHiddenPeerTableValue(table)),
 			st::giveawayGiftCodePeerMargin);
-		if (entry.bareGiftListPeerId) {
+		if (entry.bareEntryOwnerId) {
 			AddTableRow(
 				table,
 				tr::lng_credits_box_history_entry_peer(),
 				MakePeerTableValue(
 					table,
 					show,
-					PeerId(entry.bareGiftListPeerId)),
+					PeerId(entry.bareEntryOwnerId)),
 				st::giveawayGiftCodePeerMargin);
 		}
 	} else if (peerId && !giftToSelf) {
@@ -1773,6 +1774,25 @@ void AddCreditsHistoryEntryTable(
 			table,
 			tr::lng_gift_link_label_reason(),
 			tr::lng_credits_box_history_entry_subscription(
+				Ui::Text::WithEntities));
+	}
+	if (entry.paidMessagesAmount) {
+		auto value = Ui::Text::IconEmoji(&st::starIconEmojiColored);
+		const auto full = (entry.in ? 1 : -1)
+			* (entry.credits + entry.paidMessagesAmount);
+		const auto starsText = Lang::FormatStarsAmountDecimal(full);
+		AddTableRow(
+			table,
+			tr::lng_credits_paid_messages_full(),
+			rpl::single(value.append(' ' + starsText)));
+	}
+	if (const auto months = entry.premiumMonthsForStars) {
+		AddTableRow(
+			table,
+			tr::lng_credits_premium_gift_duration(),
+			tr::lng_months(
+				lt_count,
+				rpl::single(1. * months),
 				Ui::Text::WithEntities));
 	}
 	if (!entry.id.isEmpty()) {

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/edit_birthday_box.h"
 #include "ui/integration.h"
 #include "payments/payments_non_panel_process.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/gift_premium_box.h"
@@ -1014,6 +1015,25 @@ bool CopyUsername(
 	return true;
 }
 
+bool EditPaidMessagesFee(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto peerId = PeerId(match->captured(1).toULongLong());
+	if (const auto id = peerToChannel(peerId)) {
+		const auto channel = controller->session().data().channelLoaded(id);
+		if (channel && channel->canEditPermissions()) {
+			ShowEditChatPermissions(controller, channel);
+		}
+	} else {
+		controller->show(Box(EditMessagesPrivacyBox, controller));
+	}
+	return true;
+}
+
 bool ShowStarsExamples(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1516,6 +1536,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^username_regular/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
 			CopyUsername,
+		},
+		{
+			u"^edit_paid_messages_fee/([0-9]+)$"_q,
+			EditPaidMessagesFee,
 		},
 		{
 			u"^stars_examples$"_q,

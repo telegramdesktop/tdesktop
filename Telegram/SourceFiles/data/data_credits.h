@@ -66,8 +66,8 @@ struct CreditsHistoryEntry final {
 	uint64 bareGiftStickerId = 0;
 	uint64 bareGiftOwnerId = 0;
 	uint64 bareActorId = 0;
-	uint64 bareGiftListPeerId = 0;
-	uint64 giftSavedId = 0;
+	uint64 bareEntryOwnerId = 0;
+	uint64 giftChannelSavedId = 0;
 	uint64 stargiftId = 0;
 	std::shared_ptr<UniqueGift> uniqueGift;
 	StarsAmount starrefAmount;
@@ -77,11 +77,15 @@ struct CreditsHistoryEntry final {
 	QDateTime subscriptionUntil;
 	QDateTime successDate;
 	QString successLink;
+	int paidMessagesCount = 0;
+	StarsAmount paidMessagesAmount;
+	int paidMessagesCommission = 0;
 	int limitedCount = 0;
 	int limitedLeft = 0;
 	int starsConverted = 0;
 	int starsToUpgrade = 0;
 	int starsUpgradedBySender = 0;
+	int premiumMonthsForStars = 0;
 	int floodSkip = 0;
 	bool converted : 1 = false;
 	bool anonymous : 1 = false;

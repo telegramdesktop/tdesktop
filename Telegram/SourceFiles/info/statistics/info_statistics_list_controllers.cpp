@@ -797,7 +797,6 @@ private:
 
 	PaintRoundImageCallback _paintUserpicCallback;
 	std::optional<Settings::SubscriptionRightLabel> _rightLabel;
-	QString _title;
 	QString _name;
 
 	Ui::Text::String _description;
@@ -850,9 +849,13 @@ void CreditsRow::init() {
 	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
-	_name = _entry.title.isEmpty()
-		? name
-		: (!_entry.subscriptionUntil.isNull() && !isSpecial)
+	_name = _entry.paidMessagesCount
+		? tr::lng_credits_paid_messages_fee(
+			tr::now,
+			lt_count,
+			_entry.paidMessagesCount)
+		: ((!_entry.subscriptionUntil.isNull() && !isSpecial)
+			|| _entry.title.isEmpty())
 		? name
 		: _entry.title;
 	setSkipPeerBadge(true);
@@ -861,6 +864,8 @@ void CreditsRow::init() {
 			tr::now,
 			lt_count_decimal,
 			_entry.floodSkip)
+		: _entry.paidMessagesCount
+		? name
 		: (!_entry.subscriptionUntil.isNull() && !_entry.title.isEmpty())
 		? _entry.title
 		: _entry.refunded
@@ -943,11 +948,7 @@ const Data::SubscriptionEntry &CreditsRow::subscription() const {
 }
 
 QString CreditsRow::generateName() {
-	return (!_entry.title.isEmpty() && !_entry.subscriptionUntil.isNull())
-		? _name
-		: _entry.title.isEmpty()
-		? _name
-		: _entry.title;
+	return _name;
 }
 
 PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {

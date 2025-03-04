@@ -100,7 +100,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 				data.currency,
 				true));
 		if (const auto stars = data.stars) {
-			const auto starsText = QString::number(stars);
+			const auto starsText = Lang::FormatCountDecimal(stars);
 			_byStars.setMarkedText(
 				st::giftBoxByStarsStyle,
 				tr::lng_gift_premium_by_stars(
@@ -139,7 +139,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 			(unique
 				? tr::lng_gift_price_unique(tr::now, Ui::Text::WithEntities)
 				: _delegate->star().append(
-					' ' + QString::number(data.info.stars))),
+					' ' + Lang::FormatCountDecimal(data.info.stars))),
 			kMarkupTextOptions,
 			_delegate->textContext());
 		if (!_stars) {

@@ -2681,6 +2681,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_summary_history_entry_inner_in" = "In-App Purchase";
 "lng_credits_summary_balance" = "Balance";
 "lng_credits_commission" = "{amount} commission";
+"lng_credits_paid_messages_fee#one" = "Fee for {count} Message";
+"lng_credits_paid_messages_fee#other" = "Fee for {count} Messages";
+"lng_credits_paid_messages_fee_about" = "You receive {percent} of the price that you charge for each incoming message. {link}";
+"lng_credits_paid_messages_fee_about_link" = "Change Fee {emoji}";
+"lng_credits_paid_messages_full" = "Full Price";
+"lng_credits_premium_gift_duration" = "Duration";
 "lng_credits_more_options" = "More Options";
 "lng_credits_balance_me" = "your balance";
 "lng_credits_buy_button" = "Buy More Stars";

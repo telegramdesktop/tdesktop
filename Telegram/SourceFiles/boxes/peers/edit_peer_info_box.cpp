@@ -2724,3 +2724,9 @@ bool EditPeerInfoBox::Available(not_null<PeerData*> peer) {
 		return false;
 	}
 }
+
+void ShowEditChatPermissions(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer) {
+	ShowEditPermissions(navigation, peer);
+}
