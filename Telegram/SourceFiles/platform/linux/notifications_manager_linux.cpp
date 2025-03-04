@@ -159,11 +159,10 @@ public:
 	void invokeIfNotInhibited(Fn<void()> callback);
 
 private:
-	struct NotificationData : public base::has_weak_ptr {
+	struct Notification : public base::has_weak_ptr {
 		std::variant<v::null_t, uint, std::string> id;
 		rpl::lifetime lifetime;
 	};
-	using Notification = std::unique_ptr<NotificationData>;
 
 	const not_null<Manager*> _manager;
 	Gio::Application _application;
@@ -423,7 +422,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					if (id == v::get<uint>(notification->id)) {
+					if (id == v::get<uint>(notification.id)) {
 						if (actionName == "default") {
 							_manager->notificationActivated({ key, msgId });
 						} else if (actionName == "mail-mark-read") {
@@ -447,7 +446,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					if (id == v::get<uint>(notification->id)) {
+					if (id == v::get<uint>(notification.id)) {
 						_manager->notificationReplied(
 							{ key, msgId },
 							{ QString::fromStdString(text), {} });
@@ -468,7 +467,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 			std::string token) {
 		for (const auto &[key, notifications] : _notifications) {
 			for (const auto &[msgId, notification] : notifications) {
-				if (id == v::get<uint>(notification->id)) {
+				if (id == v::get<uint>(notification.id)) {
 					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
 					return;
 				}
@@ -501,7 +500,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 					* In all other cases we keep the notification reference so that we may clear the notification later from history,
 					* if the message for that notification is read (e.g. chat is opened or read from another device).
 					*/
-					if (id == v::get<uint>(notification->id) && reason == 2) {
+					if (id == v::get<uint>(notification.id) && reason == 2) {
 						clearNotification({ key, msgId });
 						return;
 					}
@@ -695,10 +694,8 @@ void Manager::Private::showNotification(
 		}
 	}
 
-	const auto &data
-		= _notifications[key][info.itemId]
-			= std::make_unique<NotificationData>();
-	data->lifetime.add([=, notification = data.get()] {
+	auto &data = _notifications[key][info.itemId] = {};
+	data.lifetime.add([=, notification = &data] {
 		v::match(notification->id, [&](const std::string &id) {
 			_application.withdraw_notification(id);
 		}, [&](uint id) {
@@ -708,11 +705,11 @@ void Manager::Private::showNotification(
 
 	if (notification) {
 		const auto id = Gio::dbus_generate_guid();
-		data->id = id;
+		data.id = id;
 		_application.send_notification(id, notification);
 	} else {
 		// work around snap's activation restriction
-		const auto weak = base::make_weak(data);
+		const auto weak = base::make_weak(&data);
 		StartServiceAsync(
 			_proxy.get_connection(),
 			crl::guard(weak, [=]() mutable {
