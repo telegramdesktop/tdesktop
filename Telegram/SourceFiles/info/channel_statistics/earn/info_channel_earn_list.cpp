@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "dialogs/ui/chat_search_empty.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/bot/starref/info_bot_starref_setup_widget.h"
@@ -342,6 +343,15 @@ void InnerWidget::load() {
 
 void InnerWidget::fill() {
 	const auto container = this;
+	if (!_state.currencyEarn && !_state.creditsEarn) {
+		const auto empty = container->add(object_ptr<Dialogs::SearchEmpty>(
+			container,
+			Dialogs::SearchEmptyIcon::NoResults,
+			tr::lng_search_tab_no_results(Ui::Text::Bold)));
+		empty->setMinimalHeight(st::changePhoneIconSize);
+		empty->animate();
+		return;
+	}
 	const auto bot = (peerIsUser(_peer->id) && _peer->asUser()->botInfo)
 		? _peer->asUser()
 		: nullptr;

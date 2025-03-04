@@ -16,7 +16,10 @@ namespace Data {
 
 struct CreditsEarnStatistics final {
 	explicit operator bool() const {
-		return !!usdRate;
+		return usdRate
+			&& currentBalance
+			&& availableBalance
+			&& overallRevenue;
 	}
 	Data::StatisticalGraph revenueGraph;
 	StarsAmount currentBalance;
