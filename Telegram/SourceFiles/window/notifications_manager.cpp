@@ -378,6 +378,12 @@ void System::schedule(Data::ItemNotification notification) {
 		registerThread(thread);
 		_whenAlerts[thread].emplace(timing.when, notifyBy);
 	}
+	if (const auto user = item->history()->peer->asUser()) {
+		if (user->hasStarsPerMessage()
+			&& !user->messageMoneyRestrictionsKnown()) {
+			user->updateFull();
+		}
+	}
 	if (Core::App().settings().desktopNotify()
 		&& !_manager->skipToast()) {
 		registerThread(thread);
@@ -944,7 +950,8 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| (!Data::CanSendTexts(peer)
 			&& (!topic || !Data::CanSendTexts(topic)))
 		|| peer->isBroadcast()
-		|| (peer->slowmodeSecondsLeft() > 0);
+		|| (peer->slowmodeSecondsLeft() > 0)
+		|| (peer->starsPerMessageChecked() > 0);
 	result.spoilerLoginCode = item
 		&& !item->out()
 		&& peer->isNotificationsUser()
