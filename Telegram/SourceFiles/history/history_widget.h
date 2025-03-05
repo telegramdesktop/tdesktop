@@ -491,6 +491,10 @@ private:
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options);
 
+	void sendBotCommand(
+		const Bot::SendCommandRequest &request,
+		Api::SendOptions options);
+
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	void itemRemoved(not_null<const HistoryItem*> item);
 

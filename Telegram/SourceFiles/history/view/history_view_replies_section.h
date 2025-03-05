@@ -319,6 +319,11 @@ private:
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options);
 
+	void sendBotCommandWithOptions(
+		const QString &command,
+		const FullMsgId &context,
+		Api::SendOptions options);
+
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,

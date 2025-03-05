@@ -2724,11 +2724,31 @@ bool RepliesWidget::listIsGoodForAroundPosition(
 void RepliesWidget::listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
+	sendBotCommandWithOptions(command, context, {});
+}
+
+void RepliesWidget::sendBotCommandWithOptions(
+		const QString &command,
+		const FullMsgId &context,
+		Api::SendOptions options) {
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendBotCommandWithOptions(command, context, copy);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+
 	const auto text = Bot::WrapCommandInChat(
 		_history->peer,
 		command,
 		context);
-	auto message = Api::MessageToSend(prepareSendAction({}));
+	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = { text };
 	session().api().sendMessage(std::move(message));
 	finishSending();

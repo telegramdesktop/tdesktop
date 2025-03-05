@@ -4917,10 +4917,29 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void HistoryWidget::sendBotCommand(const Bot::SendCommandRequest &request) {
-// replyTo != 0 from ReplyKeyboardMarkup, == 0 from command links
+	sendBotCommand(request, {});
+}
+
+void HistoryWidget::sendBotCommand(
+		const Bot::SendCommandRequest &request,
+		Api::SendOptions options) {
+	// replyTo != 0 from ReplyKeyboardMarkup, == 0 from command links
 	if (_peer != request.peer.get()) {
 		return;
 	} else if (showSlowmodeError()) {
+		return;
+	}
+
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendBotCommand(request, copy);
+	};
+	const auto checked = checkSendPayment(
+		1,
+		options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
 		return;
 	}
 
@@ -4933,7 +4952,7 @@ void HistoryWidget::sendBotCommand(const Bot::SendCommandRequest &request) {
 		? request.command
 		: Bot::WrapCommandInChat(_peer, request.command, request.context);
 
-	auto message = Api::MessageToSend(prepareSendAction({}));
+	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = { toSend, TextWithTags::Tags() };
 	message.action.replyTo = request.replyTo
 		? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/)
