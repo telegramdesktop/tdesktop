@@ -108,6 +108,7 @@ constexpr auto kSentToastDuration = 3 * crl::time(1000);
 constexpr auto kSwitchUpgradeCoverInterval = 3 * crl::time(1000);
 constexpr auto kCrossfadeDuration = crl::time(400);
 constexpr auto kUpgradeDoneToastDuration = 4 * crl::time(1000);
+constexpr auto kGiftsPreloadTimeout = 3 * crl::time(1000);
 
 using namespace HistoryView;
 using namespace Info::PeerGifts;
@@ -2193,7 +2194,66 @@ void ChooseStarGiftRecipient(
 void ShowStarGiftBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
-	controller->show(Box(GiftBox, controller, peer));
+	struct Session {
+		PeerData *peer = nullptr;
+		bool premiumGiftsReady = false;
+		bool starsGiftsReady = false;
+		rpl::lifetime lifetime;
+	};
+	static auto Map = base::flat_map<not_null<Main::Session*>, Session>();
+
+	const auto session = &controller->session();
+	auto i = Map.find(session);
+	if (i == end(Map)) {
+		i = Map.emplace(session).first;
+		session->lifetime().add([=] { Map.remove(session); });
+	} else if (i->second.peer == peer) {
+		return;
+	}
+	i->second = Session{ .peer = peer };
+
+	const auto weak = base::make_weak(controller);
+	const auto show = [=] {
+		Map[session] = Session();
+		if (const auto strong = weak.get()) {
+			strong->show(Box(GiftBox, strong, peer));
+		}
+	};
+
+	base::timer_once(
+		kGiftsPreloadTimeout
+	) | rpl::start_with_next(show, i->second.lifetime);
+
+	const auto user = peer->asUser();
+	if (user && !user->isSelf()) {
+		GiftsPremium(
+			session,
+			peer
+		) | rpl::start_with_next([=](PremiumGiftsDescriptor &&gifts) {
+			if (!gifts.list.empty()) {
+				auto &entry = Map[session];
+				entry.premiumGiftsReady = true;
+				if (entry.starsGiftsReady) {
+					show();
+				}
+			}
+		}, i->second.lifetime);
+	} else {
+		i->second.premiumGiftsReady = true;
+	}
+
+	GiftsStars(
+		session,
+		peer
+	) | rpl::start_with_next([=](std::vector<GiftTypeStars> &&gifts) {
+		if (!gifts.empty()) {
+			auto &entry = Map[session];
+			entry.starsGiftsReady = true;
+			if (entry.premiumGiftsReady) {
+				show();
+			}
+		}
+	}, i->second.lifetime);
 }
 
 void AddUniqueGiftCover(

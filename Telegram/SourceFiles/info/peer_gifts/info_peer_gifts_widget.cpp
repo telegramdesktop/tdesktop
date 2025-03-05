@@ -199,6 +199,8 @@ void InnerWidget::subscribeToUpdates() {
 		} else if (update.action == Action::Save
 			|| update.action == Action::Unsave) {
 			i->gift.hidden = (update.action == Action::Unsave);
+
+			const auto unpin = i->gift.hidden && i->gift.pinned;
 			v::match(i->descriptor, [](GiftTypePremium &) {
 			}, [&](GiftTypeStars &data) {
 				data.hidden = i->gift.hidden;
@@ -208,6 +210,9 @@ void InnerWidget::subscribeToUpdates() {
 					view.index = -1;
 					view.manageId = {};
 				}
+			}
+			if (unpin) {
+				markUnpinned(i);
 			}
 		} else if (update.action == Action::Pin
 			|| update.action == Action::Unpin) {
