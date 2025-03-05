@@ -132,6 +132,7 @@ struct SavedStarGift {
 	TimeId date = 0;
 	bool upgradable = false;
 	bool anonymous = false;
+	bool pinned = false;
 	bool hidden = false;
 	bool mine = false;
 };

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "window/window_session_controller.h"
@@ -50,7 +51,9 @@ constexpr auto kPerPage = 50;
 		.from = ((gift.anonymous || !gift.fromId)
 			? nullptr
 			: to->owner().peer(gift.fromId).get()),
+		.date = gift.date,
 		.userpic = !gift.info.unique,
+		.pinned = gift.pinned,
 		.hidden = gift.hidden,
 		.mine = to->isSelf(),
 	};
@@ -103,6 +106,9 @@ private:
 	void showGift(int index);
 	void showMenuFor(not_null<GiftButton*> button, QPoint point);
 	void refreshAbout();
+
+	void markPinned(std::vector<Entry>::iterator i);
+	void markUnpinned(std::vector<Entry>::iterator i);
 
 	int resizeGetHeight(int width) override;
 
@@ -203,11 +209,77 @@ void InnerWidget::subscribeToUpdates() {
 					view.manageId = {};
 				}
 			}
+		} else if (update.action == Action::Pin
+			|| update.action == Action::Unpin) {
+			if (update.action == Action::Pin) {
+				markPinned(i);
+			} else {
+				markUnpinned(i);
+			}
 		} else {
 			return;
 		}
 		refreshButtons();
 	}, lifetime());
+}
+
+void InnerWidget::markPinned(std::vector<Entry>::iterator i) {
+	const auto index = int(i - begin(_entries));
+
+	i->gift.pinned = true;
+	v::match(i->descriptor, [](const GiftTypePremium &) {
+	}, [&](GiftTypeStars &data) {
+		data.pinned = true;
+	});
+	if (index) {
+		std::rotate(begin(_entries), i, i + 1);
+	}
+	auto unpin = end(_entries);
+	const auto session = &_window->session();
+	const auto limit = session->appConfig().pinnedGiftsLimit();
+	if (limit < _entries.size()) {
+		const auto j = begin(_entries) + limit;
+		if (j->gift.pinned) {
+			unpin = j;
+		}
+	}
+	for (auto &view : _views) {
+		if (view.index <= index) {
+			view.index = -1;
+			view.manageId = {};
+		}
+	}
+	if (unpin != end(_entries)) {
+		markUnpinned(unpin);
+	}
+}
+
+void InnerWidget::markUnpinned(std::vector<Entry>::iterator i) {
+	const auto index = int(i - begin(_entries));
+
+	i->gift.pinned = false;
+	v::match(i->descriptor, [](const GiftTypePremium &) {
+	}, [&](GiftTypeStars &data) {
+		data.pinned = false;
+	});
+	auto after = index + 1;
+	for (auto j = i + 1; j != end(_entries); ++j) {
+		if (!j->gift.pinned && j->gift.date <= i->gift.date) {
+			break;
+		}
+		++after;
+	}
+	if (after == _entries.size()) {
+		_entries.erase(i);
+	} else if (after > index + 1) {
+		std::rotate(i, i + 1, begin(_entries) + after);
+	}
+	for (auto &view : _views) {
+		if (view.index >= index) {
+			view.index = -1;
+			view.manageId = {};
+		}
+	}
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -412,9 +484,30 @@ void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 		return;
 	}
 
-	const auto entry = ::Settings::SavedStarGiftEntry(
+	auto entry = ::Settings::SavedStarGiftEntry(
 		_peer,
 		_entries[index].gift);
+	auto pinnedIds = std::vector<Data::SavedStarGiftId>();
+	for (const auto &entry : _entries) {
+		if (entry.gift.pinned) {
+			pinnedIds.push_back(entry.gift.manageId);
+		} else {
+			break;
+		}
+	}
+	entry.pinnedSavedGifts = [pinnedIds, peer = _peer] {
+		auto result = std::vector<Data::CreditsHistoryEntry>();
+		result.reserve(pinnedIds.size());
+		for (const auto &id : pinnedIds) {
+			result.push_back({
+				.bareMsgId = uint64(id.userMessageId().bare),
+				.bareEntryOwnerId = id.chat() ? id.chat()->id.value : 0,
+				.giftChannelSavedId = id.chatSavedId(),
+				.stargift = true,
+			});
+		}
+		return result;
+	};
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	::Settings::FillSavedStarGiftMenu(
 		_controller->uiShow(),

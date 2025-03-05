@@ -3428,6 +3428,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_display_done_channel" = "The gift is now shown in channel's Gifts.";
 "lng_gift_display_done_hide" = "The gift is now hidden from your profile page.";
 "lng_gift_display_done_hide_channel" = "The gift is now hidden from channel's Gifts.";
+"lng_gift_pinned_done" = "The gift will always be shown on top.";
 "lng_gift_got_stars#one" = "You got **{count} Star** for this gift.";
 "lng_gift_got_stars#other" = "You got **{count} Stars** for this gift.";
 "lng_gift_channel_got#one" = "Channel got **{count} Star** for this gift.";

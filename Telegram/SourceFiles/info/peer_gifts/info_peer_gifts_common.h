@@ -56,7 +56,9 @@ struct GiftTypePremium {
 struct GiftTypeStars {
 	Data::StarGift info;
 	PeerData *from = nullptr;
+	TimeId date = 0;
 	bool userpic = false;
+	bool pinned = false;
 	bool hidden = false;
 	bool mine = false;
 

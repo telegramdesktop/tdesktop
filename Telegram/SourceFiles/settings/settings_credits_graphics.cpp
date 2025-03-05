@@ -221,6 +221,55 @@ void ToggleStarGiftSaved(
 	}).send();
 }
 
+void ToggleStarGiftPinned(
+		std::shared_ptr<ChatHelpers::Show> show,
+		Data::SavedStarGiftId savedId,
+		std::vector<Data::SavedStarGiftId> already,
+		bool pinned,
+		Fn<void(bool)> done = nullptr) {
+	already.erase(ranges::remove(already, savedId), end(already));
+	if (pinned) {
+		already.insert(begin(already), savedId);
+		const auto limit = show->session().appConfig().pinnedGiftsLimit();
+		if (already.size() > limit) {
+			already.erase(begin(already) + limit, end(already));
+		}
+	}
+
+	auto inputs = QVector<MTPInputSavedStarGift>();
+	inputs.reserve(already.size());
+	for (const auto &id : already) {
+		inputs.push_back(Api::InputSavedStarGiftId(id));
+	}
+
+	const auto api = &show->session().api();
+	const auto peer = savedId.chat()
+		? savedId.chat()
+		: show->session().user();
+	api->request(MTPpayments_ToggleStarGiftsPinnedToTop(
+		peer->input,
+		MTP_vector<MTPInputSavedStarGift>(std::move(inputs))
+	)).done([=] {
+		using GiftAction = Data::GiftUpdate::Action;
+		show->session().data().notifyGiftUpdate({
+			.id = savedId,
+			.action = (pinned ? GiftAction::Pin : GiftAction::Unpin),
+		});
+
+		if (const auto onstack = done) {
+			onstack(true);
+		}
+		if (pinned) {
+			show->showToast(tr::lng_gift_pinned_done(tr::now));
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (const auto onstack = done) {
+			onstack(false);
+		}
+		show->showToast(error.type());
+	}).send();
+}
+
 void ConfirmConvertStarGift(
 		std::shared_ptr<Ui::Show> show,
 		rpl::producer<TextWithEntities> confirmText,
@@ -861,7 +910,41 @@ void FillUniqueGiftMenu(
 		const Data::CreditsHistoryEntry &e,
 		SavedStarGiftMenuType type,
 		CreditsEntryBoxStyleOverrides st) {
+	const auto session = &show->session();
+	const auto savedId = EntryToSavedStarGiftId(session, e);
+	const auto giftChannel = savedId.chat();
+	const auto canToggle = savedId
+		&& e.id.isEmpty()
+		&& (e.in || (giftChannel && giftChannel->canManageGifts()))
+		&& !e.giftTransferred
+		&& !e.giftRefunded;
+
 	const auto unique = e.uniqueGift;
+	if (unique
+		&& canToggle
+		&& e.savedToProfile
+		&& type == SavedStarGiftMenuType::List) {
+		const auto already = [session, entries = e.pinnedSavedGifts] {
+			Expects(entries != nullptr);
+
+			auto list = entries();
+			auto result = std::vector<Data::SavedStarGiftId>();
+			result.reserve(list.size());
+			for (const auto &entry : list) {
+				result.push_back(EntryToSavedStarGiftId(session, entry));
+			}
+			return result;
+		};
+		if (e.giftPinned) {
+			menu->addAction(tr::lng_context_unpin_from_top(tr::now), [=] {
+				ToggleStarGiftPinned(show, savedId, already(), false);
+			}, st.unpin ? st.unpin : &st::menuIconUnpin);
+		} else {
+			menu->addAction(tr::lng_context_pin_to_top(tr::now), [=] {
+				ToggleStarGiftPinned(show, savedId, already(), true);
+			}, st.pin ? st.pin : &st::menuIconPin);
+		}
+	}
 	if (unique) {
 		const auto local = u"nft/"_q + unique->slug;
 		const auto url = show->session().createInternalLinkFull(local);
@@ -879,14 +962,7 @@ void FillUniqueGiftMenu(
 		}, st.share ? st.share : &st::menuIconShare);
 	}
 
-	const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
-	const auto giftChannel = savedId.chat();
-	const auto canToggleVisibility = savedId
-		&& e.id.isEmpty()
-		&& (e.in || (giftChannel && giftChannel->canManageGifts()))
-		&& !e.giftTransferred
-		&& !e.giftRefunded;
-	if (canToggleVisibility && type == SavedStarGiftMenuType::List) {
+	if (canToggle && type == SavedStarGiftMenuType::List) {
 		if (e.savedToProfile) {
 			menu->addAction(tr::lng_gift_menu_hide(tr::now), [=] {
 				ToggleStarGiftSaved(show, savedId, false);
@@ -958,6 +1034,8 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.takeoff = &st::darkGiftNftTakeOff,
 		.show = &st::darkGiftShow,
 		.hide = &st::darkGiftHide,
+		.pin = &st::darkGiftPin,
+		.unpin = &st::darkGiftUnpin,
 		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
 			DarkShareBoxStyle()),
 		.giftWearBox = std::make_shared<GiftWearBoxStyleOverride>(
@@ -1951,6 +2029,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 		.converted = false,
 		.anonymous = data.anonymous,
 		.stargift = true,
+		.giftPinned = data.pinned,
 		.savedToProfile = !data.hidden,
 		.fromGiftsList = true,
 		.canUpgradeGift = data.upgradable,

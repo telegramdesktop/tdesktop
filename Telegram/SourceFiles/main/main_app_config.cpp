@@ -89,6 +89,10 @@ int AppConfig::paidMessageCommission() const {
 	return get<int>(u"stars_paid_message_commission_permille"_q, 850);
 }
 
+int AppConfig::pinnedGiftsLimit() const {
+	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

@@ -463,6 +463,24 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			position.y() - rubberOut,
 			cached);
 	}
+
+	v::match(_descriptor, [](const GiftTypePremium &) {
+	}, [&](const GiftTypeStars &data) {
+		if (unique && data.pinned) {
+			auto hq = PainterHighQualityEnabler(p);
+			const auto &icon = st::giftBoxPinIcon;
+			const auto skip = st::giftBoxUserpicSkip;
+			const auto add = (st::giftBoxUserpicSize - icon.width()) / 2;
+			p.setPen(Qt::NoPen);
+			p.setBrush(unique->backdrop.patternColor);
+			const auto rect = QRect(
+				QPoint(_extend.left() + skip, _extend.top() + skip),
+				QSize(icon.width() + 2 * add, icon.height() + 2 * add));
+			p.drawEllipse(rect);
+			icon.paintInCenter(p, rect);
+		}
+	});
+
 	if (!_button.isEmpty()) {
 		p.setBrush(unique
 			? QBrush(QColor(255, 255, 255, .2 * 255))

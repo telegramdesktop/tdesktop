@@ -70,6 +70,7 @@ struct CreditsHistoryEntry final {
 	uint64 giftChannelSavedId = 0;
 	uint64 stargiftId = 0;
 	std::shared_ptr<UniqueGift> uniqueGift;
+	Fn<std::vector<CreditsHistoryEntry>()> pinnedSavedGifts;
 	StarsAmount starrefAmount;
 	int starrefCommission = 0;
 	uint64 starrefRecipientId = 0;
@@ -93,6 +94,7 @@ struct CreditsHistoryEntry final {
 	bool giftTransferred : 1 = false;
 	bool giftRefunded : 1 = false;
 	bool giftUpgraded : 1 = false;
+	bool giftPinned : 1 = false;
 	bool savedToProfile : 1 = false;
 	bool fromGiftsList : 1 = false;
 	bool fromGiftSlug : 1 = false;

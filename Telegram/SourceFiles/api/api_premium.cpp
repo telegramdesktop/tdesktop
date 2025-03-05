@@ -904,6 +904,7 @@ std::optional<Data::SavedStarGift> FromTL(
 		.date = data.vdate().v,
 		.upgradable = data.is_can_upgrade(),
 		.anonymous = data.is_name_hidden(),
+		.pinned = data.is_pinned_to_top(),
 		.hidden = data.is_unsaved(),
 		.mine = to->isSelf(),
 	};

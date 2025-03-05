@@ -87,6 +87,8 @@ struct GiftUpdate {
 		Convert,
 		Transfer,
 		Delete,
+		Pin,
+		Unpin,
 	};
 
 	Data::SavedStarGiftId id;

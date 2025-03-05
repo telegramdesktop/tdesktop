@@ -77,6 +77,8 @@ public:
 	[[nodiscard]] int paidMessageStarsMax() const;
 	[[nodiscard]] int paidMessageCommission() const;
 
+	[[nodiscard]] int pinnedGiftsLimit() const;
+
 	void refresh(bool force = false);
 
 private:

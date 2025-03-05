@@ -178,6 +178,7 @@ giftListAboutMargin: margins(12px, 24px, 12px, 24px);
 giftBoxEmojiToggleTop: 7px;
 giftBoxLimitTop: 28px;
 giftBoxLockMargins: margins(-2px, 1px, 0px, 0px);
+giftBoxPinIcon: icon {{ "dialogs/dialogs_pinned", premiumButtonFg }};
 
 creditsHistoryEntriesList: PeerList(defaultPeerList) {
 	padding: margins(
