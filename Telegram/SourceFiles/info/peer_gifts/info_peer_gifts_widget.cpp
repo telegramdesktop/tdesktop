@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "apiwrap.h"
 #include "data/data_channel.h"
+#include "data/data_credits.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
@@ -99,6 +101,7 @@ private:
 	void refreshButtons();
 	void validateButtons();
 	void showGift(int index);
+	void showMenuFor(not_null<GiftButton*> button, QPoint point);
 	void refreshAbout();
 
 	int resizeGetHeight(int width) override;
@@ -130,6 +133,8 @@ private:
 	int _perRow = 0;
 	int _visibleFrom = 0;
 	int _visibleTill = 0;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 };
 
@@ -355,7 +360,12 @@ void InnerWidget::validateButtons() {
 				views.push_back(base::take(*unused));
 			} else {
 				auto button = std::make_unique<GiftButton>(this, &_delegate);
-				button->show();
+				const auto raw = button.get();
+				raw->contextMenuRequests(
+				) | rpl::start_with_next([=](QPoint point) {
+					showMenuFor(raw, point);
+				}, raw->lifetime());
+				raw->show();
 				views.push_back({ .button = std::move(button) });
 			}
 		}
@@ -384,6 +394,37 @@ void InnerWidget::validateButtons() {
 		y += oneh;
 	}
 	std::swap(_views, views);
+}
+
+void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
+	if (_menu) {
+		return;
+	}
+	const auto index = [&] {
+		for (const auto &view : _views) {
+			if (view.button.get() == button) {
+				return view.index;
+			}
+		}
+		return -1;
+	}();
+	if (index < 0) {
+		return;
+	}
+
+	const auto entry = ::Settings::SavedStarGiftEntry(
+		_peer,
+		_entries[index].gift);
+	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	::Settings::FillSavedStarGiftMenu(
+		_controller->uiShow(),
+		_menu.get(),
+		entry,
+		::Settings::SavedStarGiftMenuType::List);
+	if (_menu->empty()) {
+		return;
+	}
+	_menu->popup(point);
 }
 
 void InnerWidget::showGift(int index) {

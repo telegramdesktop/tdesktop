@@ -189,7 +189,7 @@ void ToggleStarGiftSaved(
 		std::shared_ptr<ChatHelpers::Show> show,
 		Data::SavedStarGiftId savedId,
 		bool save,
-		Fn<void(bool)> done) {
+		Fn<void(bool)> done = nullptr) {
 	using Flag = MTPpayments_SaveStarGift::Flag;
 	const auto api = &show->session().api();
 	const auto channelGift = savedId.chat();
@@ -197,7 +197,15 @@ void ToggleStarGiftSaved(
 		MTP_flags(save ? Flag(0) : Flag::f_unsave),
 		Api::InputSavedStarGiftId(savedId)
 	)).done([=] {
-		done(true);
+		using GiftAction = Data::GiftUpdate::Action;
+		show->session().data().notifyGiftUpdate({
+			.id = savedId,
+			.action = (save ? GiftAction::Save : GiftAction::Unsave),
+		});
+
+		if (const auto onstack = done) {
+			onstack(true);
+		}
 		show->showToast((save
 			? (channelGift
 				? tr::lng_gift_display_done_channel
@@ -206,7 +214,9 @@ void ToggleStarGiftSaved(
 				? tr::lng_gift_display_done_hide_channel
 				: tr::lng_gift_display_done_hide))(tr::now));
 	}).fail([=](const MTP::Error &error) {
-		done(false);
+		if (const auto onstack = done) {
+			onstack(false);
+		}
 		show->showToast(error.type());
 	}).send();
 }
@@ -849,26 +859,48 @@ void FillUniqueGiftMenu(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::PopupMenu*> menu,
 		const Data::CreditsHistoryEntry &e,
+		SavedStarGiftMenuType type,
 		CreditsEntryBoxStyleOverrides st) {
-	Expects(e.uniqueGift != nullptr);
-
 	const auto unique = e.uniqueGift;
-	const auto local = u"nft/"_q + unique->slug;
-	const auto url = show->session().createInternalLinkFull(local);
-	menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
-		TextUtilities::SetClipboardText({ url });
-		show->showToast(tr::lng_channel_public_link_copied(tr::now));
-	}, st.link ? st.link : &st::menuIconLink);
+	if (unique) {
+		const auto local = u"nft/"_q + unique->slug;
+		const auto url = show->session().createInternalLinkFull(local);
+		menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
+			TextUtilities::SetClipboardText({ url });
+			show->showToast(tr::lng_channel_public_link_copied(tr::now));
+		}, st.link ? st.link : &st::menuIconLink);
 
-	const auto shareBoxSt = st.shareBox;
-	menu->addAction(tr::lng_chat_link_share(tr::now), [=] {
-		FastShareLink(
-			show,
-			url,
-			shareBoxSt ? *shareBoxSt : ShareBoxStyleOverrides());
-	}, st.share ? st.share : &st::menuIconShare);
+		const auto shareBoxSt = st.shareBox;
+		menu->addAction(tr::lng_chat_link_share(tr::now), [=] {
+			FastShareLink(
+				show,
+				url,
+				shareBoxSt ? *shareBoxSt : ShareBoxStyleOverrides());
+		}, st.share ? st.share : &st::menuIconShare);
+	}
 
 	const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
+	const auto giftChannel = savedId.chat();
+	const auto canToggleVisibility = savedId
+		&& e.id.isEmpty()
+		&& (e.in || (giftChannel && giftChannel->canManageGifts()))
+		&& !e.giftTransferred
+		&& !e.giftRefunded;
+	if (canToggleVisibility && type == SavedStarGiftMenuType::List) {
+		if (e.savedToProfile) {
+			menu->addAction(tr::lng_gift_menu_hide(tr::now), [=] {
+				ToggleStarGiftSaved(show, savedId, false);
+			}, st.hide ? st.hide : &st::menuIconStealth);
+		} else {
+			menu->addAction(tr::lng_gift_menu_show(tr::now), [=] {
+				ToggleStarGiftSaved(show, savedId, true);
+			}, st.show ? st.show : &st::menuIconShowInChat);
+		}
+	}
+
+	if (!unique) {
+		return;
+	}
 	const auto transfer = savedId
 		&& (savedId.isUser() ? e.in : savedId.chat()->canTransferGifts())
 		&& (unique->starsForTransfer >= 0);
@@ -924,6 +956,8 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.transfer = &st::darkGiftTransfer,
 		.wear = &st::darkGiftNftWear,
 		.takeoff = &st::darkGiftNftTakeOff,
+		.show = &st::darkGiftShow,
+		.hide = &st::darkGiftHide,
 		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
 			DarkShareBoxStyle()),
 		.giftWearBox = std::make_shared<GiftWearBoxStyleOverride>(
@@ -1029,7 +1063,8 @@ void GenericCreditsEntryBox(
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 
 		AddUniqueCloseButton(box, st, [=](not_null<Ui::PopupMenu*> menu) {
-			FillUniqueGiftMenu(show, menu, e, st);
+			const auto type = SavedStarGiftMenuType::View;
+			FillUniqueGiftMenu(show, menu, e, type, st);
 		});
 	} else if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
 		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
@@ -1464,21 +1499,12 @@ void GenericCreditsEntryBox(
 		const auto showSection = !e.fromGiftsList;
 		const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
 		const auto done = [=](bool ok) {
-			if (ok) {
-				using GiftAction = Data::GiftUpdate::Action;
-				show->session().data().notifyGiftUpdate({
-					.id = savedId,
-					.action = (save
-						? GiftAction::Save
-						: GiftAction::Unsave),
-				});
-				if (showSection) {
-					if (const auto window = show->resolveWindow()) {
-						window->showSection(
-							std::make_shared<Info::Memento>(
-								window->session().user(),
-								Info::Section::Type::PeerGifts));
-					}
+			if (ok && showSection) {
+				if (const auto window = show->resolveWindow()) {
+					window->showSection(
+						std::make_shared<Info::Memento>(
+							window->session().user(),
+							Info::Section::Type::PeerGifts));
 				}
 			}
 			if (const auto strong = weak.data()) {
@@ -1899,44 +1925,59 @@ void GlobalStarGiftBox(
 		st);
 }
 
+Data::CreditsHistoryEntry SavedStarGiftEntry(
+		not_null<PeerData*> owner,
+		const Data::SavedStarGift &data) {
+	const auto chatGiftPeer = data.manageId.chat();
+	return {
+		.description = data.message,
+		.date = base::unixtime::parse(data.date),
+		.credits = StarsAmount(data.info.stars),
+		.bareMsgId = uint64(data.manageId.userMessageId().bare),
+		.barePeerId = data.fromId.value,
+		.bareGiftStickerId = data.info.document->id,
+		.bareGiftOwnerId = owner->id.value,
+		.bareActorId = data.fromId.value,
+		.bareEntryOwnerId = chatGiftPeer ? chatGiftPeer->id.value : 0,
+		.giftChannelSavedId = data.manageId.chatSavedId(),
+		.stargiftId = data.info.id,
+		.uniqueGift = data.info.unique,
+		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
+		.limitedCount = data.info.limitedCount,
+		.limitedLeft = data.info.limitedLeft,
+		.starsConverted = int(data.starsConverted),
+		.starsToUpgrade = int(data.info.starsToUpgrade),
+		.starsUpgradedBySender = int(data.starsUpgradedBySender),
+		.converted = false,
+		.anonymous = data.anonymous,
+		.stargift = true,
+		.savedToProfile = !data.hidden,
+		.fromGiftsList = true,
+		.canUpgradeGift = data.upgradable,
+		.in = data.mine,
+		.gift = true,
+	};
+}
+
 void SavedStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> owner,
 		const Data::SavedStarGift &data) {
-	const auto chatGiftPeer = data.manageId.chat();
 	Settings::ReceiptCreditsBox(
 		box,
 		controller,
-		Data::CreditsHistoryEntry{
-			.description = data.message,
-			.date = base::unixtime::parse(data.date),
-			.credits = StarsAmount(data.info.stars),
-			.bareMsgId = uint64(data.manageId.userMessageId().bare),
-			.barePeerId = data.fromId.value,
-			.bareGiftStickerId = data.info.document->id,
-			.bareGiftOwnerId = owner->id.value,
-			.bareActorId = data.fromId.value,
-			.bareEntryOwnerId = chatGiftPeer ? chatGiftPeer->id.value : 0,
-			.giftChannelSavedId = data.manageId.chatSavedId(),
-			.stargiftId = data.info.id,
-			.uniqueGift = data.info.unique,
-			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
-			.limitedCount = data.info.limitedCount,
-			.limitedLeft = data.info.limitedLeft,
-			.starsConverted = int(data.starsConverted),
-			.starsToUpgrade = int(data.info.starsToUpgrade),
-			.starsUpgradedBySender = int(data.starsUpgradedBySender),
-			.converted = false,
-			.anonymous = data.anonymous,
-			.stargift = true,
-			.savedToProfile = !data.hidden,
-			.fromGiftsList = true,
-			.canUpgradeGift = data.upgradable,
-			.in = data.mine,
-			.gift = true,
-		},
+		SavedStarGiftEntry(owner, data),
 		Data::SubscriptionEntry());
+}
+
+void FillSavedStarGiftMenu(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<Ui::PopupMenu*> menu,
+		const Data::CreditsHistoryEntry &e,
+		SavedStarGiftMenuType type,
+		CreditsEntryBoxStyleOverrides st) {
+	FillUniqueGiftMenu(show, menu, e, type, st);
 }
 
 void StarGiftViewBox(

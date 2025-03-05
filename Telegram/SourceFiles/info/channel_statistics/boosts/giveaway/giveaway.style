@@ -221,6 +221,8 @@ darkGiftShare: icon {{ "menu/share", groupCallMembersFg }};
 darkGiftTransfer: icon {{ "chat/input_replace", groupCallMembersFg }};
 darkGiftNftWear: icon {{ "menu/nft_wear", groupCallMembersFg }};
 darkGiftNftTakeOff: icon {{ "menu/nft_takeoff", groupCallMembersFg }};
+darkGiftHide: icon {{ "menu/stealth", groupCallMembersFg }};
+darkGiftShow: icon {{ "menu/show_in_chat", groupCallMembersFg }};
 darkGiftPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
 	monoFg: groupCallMembersFg;

@@ -126,9 +126,14 @@ public:
 	void setDescriptor(const GiftDescriptor &descriptor, Mode mode);
 	void setGeometry(QRect inner, QMargins extend);
 
+	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const {
+		return _contextMenuRequests.events();
+	}
+
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void cacheUniqueBackground(
 		not_null<Data::UniqueGift*> unique,
@@ -141,6 +146,7 @@ private:
 	void unsubscribe();
 
 	const not_null<GiftButtonDelegate*> _delegate;
+	rpl::event_stream<QPoint> _contextMenuRequests;
 	QImage _hiddenBgCache;
 	GiftDescriptor _descriptor;
 	Ui::Text::String _text;

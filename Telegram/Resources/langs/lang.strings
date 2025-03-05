@@ -3486,6 +3486,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_button_for" = "Transfer for {price}";
 "lng_gift_transfer_wear" = "Wear";
 "lng_gift_transfer_take_off" = "Take Off";
+"lng_gift_menu_show" = "Show";
+"lng_gift_menu_hide" = "Hide";
 "lng_gift_wear_title" = "Wear {name}";
 "lng_gift_wear_about" = "and get these benefits:";
 "lng_gift_wear_badge_title" = "Radiant Badge";

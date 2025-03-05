@@ -250,6 +250,12 @@ void GiftButton::resizeEvent(QResizeEvent *e) {
 	}
 }
 
+void GiftButton::contextMenuEvent(QContextMenuEvent *e) {
+	_contextMenuRequests.fire_copy((e->reason() == QContextMenuEvent::Mouse)
+		? e->globalPos()
+		: QCursor::pos());
+}
+
 void GiftButton::cacheUniqueBackground(
 		not_null<Data::UniqueGift*> unique,
 		int width,
