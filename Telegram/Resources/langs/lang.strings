@@ -4996,6 +4996,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_non_premium_message_toast" = "**{user}** only accepts messages from contacts and {link} subscribers.";
 "lng_send_non_premium_message_toast_link" = "Telegram Premium";
 
+"lng_send_charges_stars_text" = "{user} charges {amount} for each message.";
+"lng_send_charges_stars_go" = "Buy Stars";
+
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";
 

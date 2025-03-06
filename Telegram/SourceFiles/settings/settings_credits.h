@@ -23,6 +23,9 @@ namespace Settings {
 
 class BuyStarsHandler final : public base::has_weak_ptr {
 public:
+	BuyStarsHandler();
+	~BuyStarsHandler();
+
 	[[nodiscard]] Fn<void()> handler(
 		std::shared_ptr<::Main::SessionShow> show,
 		Fn<void()> paid = nullptr);

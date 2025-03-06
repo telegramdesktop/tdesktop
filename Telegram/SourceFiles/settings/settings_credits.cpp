@@ -659,6 +659,10 @@ Type CreditsId() {
 	return Credits::Id();
 }
 
+BuyStarsHandler::BuyStarsHandler() = default;
+
+BuyStarsHandler::~BuyStarsHandler() = default;
+
 Fn<void()> BuyStarsHandler::handler(
 		std::shared_ptr<::Main::SessionShow> show,
 		Fn<void()> paid) {

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/business/settings_chat_intro.h"
+#include "settings/settings_credits.h" // BuyStarsHandler
 #include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_utilities.h"
@@ -37,14 +38,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 
 namespace HistoryView {
 namespace {
 
-class PremiumRequiredBox final : public ServiceBoxContent {
+class EmptyChatLockedBox final
+	: public ServiceBoxContent
+	, public base::has_weak_ptr {
 public:
-	explicit PremiumRequiredBox(not_null<Element*> parent);
-	~PremiumRequiredBox();
+	enum class Type {
+		PremiumRequired,
+		StarsCharged,
+	};
+
+	EmptyChatLockedBox(not_null<Element*> parent, Type type);
+	~EmptyChatLockedBox();
 
 	int width() override;
 	int top() override;
@@ -74,6 +83,9 @@ public:
 
 private:
 	const not_null<Element*> _parent;
+	Settings::BuyStarsHandler _buyStars;
+	rpl::variable<bool> _buyStarsLoading;
+	Type _type = {};
 
 };
 
@@ -144,54 +156,63 @@ auto GenerateChatIntro(
 	};
 }
 
-PremiumRequiredBox::PremiumRequiredBox(not_null<Element*> parent)
-: _parent(parent) {
+EmptyChatLockedBox::EmptyChatLockedBox(not_null<Element*> parent, Type type)
+: _parent(parent)
+, _type(type) {
 }
 
-PremiumRequiredBox::~PremiumRequiredBox() = default;
+EmptyChatLockedBox::~EmptyChatLockedBox() = default;
 
-int PremiumRequiredBox::width() {
+int EmptyChatLockedBox::width() {
 	return st::premiumRequiredWidth;
 }
 
-int PremiumRequiredBox::top() {
+int EmptyChatLockedBox::top() {
 	return st::msgServiceGiftBoxButtonMargins.top();
 }
 
-QSize PremiumRequiredBox::size() {
+QSize EmptyChatLockedBox::size() {
 	return { st::msgServicePhotoWidth, st::msgServicePhotoWidth };
 }
 
-TextWithEntities PremiumRequiredBox::title() {
+TextWithEntities EmptyChatLockedBox::title() {
 	return {};
 }
 
-int PremiumRequiredBox::buttonSkip() {
+int EmptyChatLockedBox::buttonSkip() {
 	return st::storyMentionButtonSkip;
 }
 
-rpl::producer<QString> PremiumRequiredBox::button() {
-	return tr::lng_send_non_premium_go();
+rpl::producer<QString> EmptyChatLockedBox::button() {
+	return (_type == Type::PremiumRequired)
+		? tr::lng_send_non_premium_go()
+		: tr::lng_send_charges_stars_go();
 }
 
-bool PremiumRequiredBox::buttonMinistars() {
+bool EmptyChatLockedBox::buttonMinistars() {
 	return true;
 }
 
-TextWithEntities PremiumRequiredBox::subtitle() {
+TextWithEntities EmptyChatLockedBox::subtitle() {
 	return _parent->data()->notificationText();
 }
 
-ClickHandlerPtr PremiumRequiredBox::createViewLink() {
-	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+ClickHandlerPtr EmptyChatLockedBox::createViewLink() {
+	_buyStarsLoading = _buyStars.loadingValue();
+	const auto handler = [=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			Settings::ShowPremium(controller, u"require_premium"_q);
+			if (_type == Type::PremiumRequired) {
+				Settings::ShowPremium(controller, u"require_premium"_q);
+			} else if (!_buyStarsLoading.current()) {
+				_buyStars.handler(controller->uiShow())();
+			}
 		}
-	});
+	};
+	return std::make_shared<LambdaClickHandler>(crl::guard(this, handler));
 }
 
-void PremiumRequiredBox::draw(
+void EmptyChatLockedBox::draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &geometry) {
@@ -201,20 +222,20 @@ void PremiumRequiredBox::draw(
 	st::premiumRequiredIcon.paintInCenter(p, geometry);
 }
 
-void PremiumRequiredBox::stickerClearLoopPlayed() {
+void EmptyChatLockedBox::stickerClearLoopPlayed() {
 }
 
-std::unique_ptr<StickerPlayer> PremiumRequiredBox::stickerTakePlayer(
+std::unique_ptr<StickerPlayer> EmptyChatLockedBox::stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {
 	return nullptr;
 }
 
-bool PremiumRequiredBox::hasHeavyPart() {
+bool EmptyChatLockedBox::hasHeavyPart() {
 	return false;
 }
 
-void PremiumRequiredBox::unloadHeavyPart() {
+void EmptyChatLockedBox::unloadHeavyPart() {
 }
 
 } // namespace
@@ -259,13 +280,15 @@ bool AboutView::refresh() {
 		if (user && !user->isSelf() && _history->isDisplayedEmpty()) {
 			if (_item) {
 				return false;
-			//} else if (user->starsPerMessage() > 0) {
-			//	setItem(makeStarsPerMessage(), nullptr);
 			} else if (user->requiresPremiumToWrite()
 				&& !user->session().premium()) {
 				setItem(makePremiumRequired(), nullptr);
 			} else if (user->isBlocked()) {
 				setItem(makeBlocked(), nullptr);
+			} else if (user->businessDetails().intro) {
+				makeIntro(user);
+			} else if (const auto stars = user->starsPerMessageChecked()) {
+				setItem(makeStarsPerMessage(stars), nullptr);
 			} else {
 				makeIntro(user);
 			}
@@ -424,7 +447,35 @@ AdminLog::OwnedItem AboutView::makePremiumRequired() {
 	auto result = AdminLog::OwnedItem(_delegate, item);
 	result->overrideMedia(std::make_unique<ServiceBox>(
 		result.get(),
-		std::make_unique<PremiumRequiredBox>(result.get())));
+		std::make_unique<EmptyChatLockedBox>(
+			result.get(),
+			EmptyChatLockedBox::Type::PremiumRequired)));
+	return result;
+}
+
+AdminLog::OwnedItem AboutView::makeStarsPerMessage(int stars) {
+	const auto item = _history->makeMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeAboutView
+			| MessageFlag::FakeHistoryItem
+			| MessageFlag::Local),
+		.from = _history->peer->id,
+	}, PreparedServiceText{ tr::lng_send_charges_stars_text(
+		tr::now,
+		lt_user,
+		Ui::Text::Bold(_history->peer->shortName()),
+		lt_amount,
+		Ui::Text::IconEmoji(
+			&st::starIconEmoji
+		).append(Ui::Text::Bold(Lang::FormatCountDecimal(stars))),
+		Ui::Text::RichLangValue),
+	});
+	auto result = AdminLog::OwnedItem(_delegate, item);
+	result->overrideMedia(std::make_unique<ServiceBox>(
+		result.get(),
+		std::make_unique<EmptyChatLockedBox>(
+			result.get(),
+			EmptyChatLockedBox::Type::StarsCharged)));
 	return result;
 }
 
