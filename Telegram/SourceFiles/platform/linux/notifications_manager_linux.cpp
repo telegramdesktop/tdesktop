@@ -811,7 +811,8 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 	const auto key = ContextId{
 		.sessionId = topic->session().uniqueId(),
-		.peerId = topic->history()->peer->id
+		.peerId = topic->history()->peer->id,
+		.topicRootId = topic->rootId(),
 	};
 	const auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
