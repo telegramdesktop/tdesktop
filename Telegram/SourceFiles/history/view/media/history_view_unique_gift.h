@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/media/history_view_media_generic.h"
+
 class Painter;
 
 namespace Data {
@@ -54,5 +56,63 @@ class MediaGenericPart;
 	Fn<void()> repaint,
 	ClickHandlerPtr link,
 	QColor bg = QColor(0, 0, 0, 0));
+
+
+class TextPartColored : public MediaGenericTextPart {
+public:
+	TextPartColored(
+		TextWithEntities text,
+		QMargins margins,
+		Fn<QColor(const PaintContext &)> color,
+		const style::TextStyle &st = st::defaultTextStyle,
+		const base::flat_map<uint16, ClickHandlerPtr> &links = {},
+		const std::any &context = {});
+
+private:
+	void setupPen(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context) const override;
+
+	Fn<QColor(const PaintContext &)> _color;
+
+};
+
+class AttributeTable final : public MediaGenericPart {
+public:
+	struct Entry {
+		QString label;
+		TextWithEntities value;
+	};
+
+	AttributeTable(
+		std::vector<Entry> entries,
+		QMargins margins,
+		Fn<QColor(const PaintContext &)> labelColor,
+		Fn<QColor(const PaintContext &)> valueColor,
+		const std::any &context = {});
+
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+private:
+	struct Part {
+		Ui::Text::String label;
+		Ui::Text::String value;
+	};
+
+	std::vector<Part> _parts;
+	QMargins _margins;
+	Fn<QColor(const PaintContext &)> _labelColor;
+	Fn<QColor(const PaintContext &)> _valueColor;
+	int _valueLeft = 0;
+
+};
 
 } // namespace HistoryView

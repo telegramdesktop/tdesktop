@@ -4350,6 +4350,9 @@ void HistoryInner::refreshAboutView(bool force) {
 			if (!info->inited) {
 				session().api().requestFullPeer(user);
 			}
+		} else if (!user->isContact()
+			&& !user->phoneCountryCode().isEmpty()) {
+			refresh();
 		} else if (!historyHeight()) {
 			if (user->starsPerMessage() > 0
 				|| (user->requiresPremiumToWrite()

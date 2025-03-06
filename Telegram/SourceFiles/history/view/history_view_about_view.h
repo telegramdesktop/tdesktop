@@ -42,6 +42,8 @@ private:
 		PhotoData *photo = nullptr);
 	[[nodiscard]] AdminLog::OwnedItem makePremiumRequired();
 	[[nodiscard]] AdminLog::OwnedItem makeStarsPerMessage(int stars);
+	[[nodiscard]] AdminLog::OwnedItem makeNewPeerInfo(
+		not_null<UserData*> user);
 	[[nodiscard]] AdminLog::OwnedItem makeBlocked();
 	void makeIntro(not_null<UserData*> user);
 	void setItem(AdminLog::OwnedItem item, DocumentData *sticker);

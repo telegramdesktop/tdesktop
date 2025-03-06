@@ -14,7 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
+#include "countries/countries_instance.h"
 #include "data/business/data_business_common.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -22,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_service_box.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
 #include "history/view/media/history_view_sticker.h"
+#include "history/view/media/history_view_unique_gift.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -42,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
+
+constexpr auto kLabelOpacity = 0.85;
 
 class EmptyChatLockedBox final
 	: public ServiceBoxContent
@@ -153,6 +159,79 @@ auto GenerateChatIntro(
 			replacing,
 			sticker,
 			st::chatIntroStickerPadding));
+	};
+}
+
+auto GenerateNewPeerInfo(
+	not_null<Element*> parent,
+	Element *replacing,
+	not_null<UserData*> user)
+-> Fn<void(
+		not_null<MediaGeneric*>,
+		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	return [=](
+			not_null<MediaGeneric*> media,
+			Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
+		const auto normalFg = [](const PaintContext &context) {
+			return context.st->msgServiceFg()->c;
+		};
+		const auto fadedFg = [](const PaintContext &context) {
+			auto result = context.st->msgServiceFg()->c;
+			result.setAlphaF(result.alphaF() * kLabelOpacity);
+			return result;
+		};
+		push(std::make_unique<MediaGenericTextPart>(
+			Ui::Text::Bold(user->name()),
+			st::newPeerTitleMargin));
+		push(std::make_unique<TextPartColored>(
+			tr::lng_new_contact_not_contact(tr::now, Ui::Text::WithEntities),
+			st::newPeerSubtitleMargin,
+			fadedFg));
+
+		auto entries = std::vector<AttributeTable::Entry>();
+		const auto country = user->phoneCountryCode();
+		if (!country.isEmpty()) {
+			const auto &countries = Countries::Instance();
+			const auto name = countries.countryNameByISO2(country);
+			const auto flag = countries.flagEmojiByISO2(country);
+			entries.push_back({
+				tr::lng_new_contact_phone_number(tr::now),
+				Ui::Text::Bold(flag + QChar(0xA0) + name),
+			});
+		}
+		const auto month = user->registrationMonth();
+		const auto year = user->registrationYear();
+		if (month && year) {
+			entries.push_back({
+				tr::lng_new_contact_registration(tr::now),
+				Ui::Text::Bold(langMonthOfYearFull(month, year)),
+			});
+		}
+
+		push(std::make_unique<AttributeTable>(
+			std::move(entries),
+			st::newPeerSubtitleMargin,
+			fadedFg,
+			normalFg));
+
+		const auto context = Core::MarkedTextContext{
+			.session = &parent->history()->session(),
+			.customEmojiRepaint = [parent] { parent->repaint(); },
+		};
+		const auto details = user->botVerifyDetails();
+		const auto text = details
+			? Data::SingleCustomEmoji(
+				details->iconId
+			).append(' ').append(details->description)
+			: TextWithEntities().append(
+				tr::lng_new_contact_not_official(tr::now));
+		push(std::make_unique<TextPartColored>(
+			text,
+			st::newPeerSubtitleMargin,
+			fadedFg,
+			st::defaultTextStyle,
+			base::flat_map<uint16, ClickHandlerPtr>(),
+			context));
 	};
 }
 
@@ -277,7 +356,15 @@ bool AboutView::refresh() {
 	const auto user = _history->peer->asUser();
 	const auto info = user ? user->botInfo.get() : nullptr;
 	if (!info) {
-		if (user && !user->isSelf() && _history->isDisplayedEmpty()) {
+		if (user
+			&& !user->isContact()
+			&& !user->phoneCountryCode().isEmpty()) {
+			if (_item) {
+				return false;
+			}
+			setItem(makeNewPeerInfo(user), nullptr);
+			return true;
+		} else if (user && !user->isSelf() && _history->isDisplayedEmpty()) {
 			if (_item) {
 				return false;
 			} else if (user->requiresPremiumToWrite()
@@ -394,6 +481,27 @@ void AboutView::setItem(AdminLog::OwnedItem item, DocumentData *sticker) {
 	_item = std::move(item);
 	_sticker = sticker;
 	toggleStickerRegistered(true);
+}
+
+AdminLog::OwnedItem AboutView::makeNewPeerInfo(not_null<UserData*> user) {
+	const auto text = user->name();
+	const auto item = _history->makeMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeAboutView
+			| MessageFlag::FakeHistoryItem
+			| MessageFlag::Local),
+		.from = _history->peer->id,
+	}, PreparedServiceText{ { text }});
+
+	auto owned = AdminLog::OwnedItem(_delegate, item);
+	owned->overrideMedia(std::make_unique<HistoryView::MediaGeneric>(
+		owned.get(),
+		GenerateNewPeerInfo(owned.get(), _item.get(), user),
+		HistoryView::MediaGenericDescriptor{
+			.service = true,
+			.hideServiceText = true,
+		}));
+	return owned;
 }
 
 AdminLog::OwnedItem AboutView::makeAboutVerifyCodes() {

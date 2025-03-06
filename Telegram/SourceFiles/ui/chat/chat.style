@@ -1225,3 +1225,6 @@ chatUniqueRowSkip: 4px;
 chatUniqueButtonPadding: margins(12px, 4px, 12px, 16px);
 
 markupWebview: icon {{ "chat/markup_webview", windowFg }};
+
+newPeerTitleMargin: margins(11px, 16px, 11px, 6px);
+newPeerSubtitleMargin: margins(11px, 0px, 11px, 16px);

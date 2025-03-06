@@ -173,6 +173,10 @@ inline constexpr bool is_flag_type(PeerBarSetting) { return true; };
 using PeerBarSettings = base::flags<PeerBarSetting>;
 
 struct PeerBarDetails {
+	QString phoneCountryCode;
+	int registrationDate = 0; // YYYYMM or 0, YYYY > 2012, MM > 0.
+	TimeId nameChangeDate = 0;
+	TimeId photoChangeDate = 0;
 	QString requestChatTitle;
 	TimeId requestChatDate;
 	UserData *businessBot = nullptr;
@@ -420,6 +424,11 @@ public:
 	[[nodiscard]] UserData *businessBot() const;
 	[[nodiscard]] QString businessBotManageUrl() const;
 	void clearBusinessBot();
+	[[nodiscard]] QString phoneCountryCode() const;
+	[[nodiscard]] int registrationMonth() const;
+	[[nodiscard]] int registrationYear() const;
+	[[nodiscard]] TimeId nameChangeDate() const;
+	[[nodiscard]] TimeId photoChangeDate() const;
 
 	enum class TranslationFlag : uchar {
 		Unknown,
