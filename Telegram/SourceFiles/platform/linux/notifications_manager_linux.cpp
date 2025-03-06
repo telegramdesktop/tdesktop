@@ -789,35 +789,24 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	const auto key = ContextId{
+	const auto i = _notifications.find(ContextId{
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id,
 		.topicRootId = item->topicRootId(),
-	};
-	const auto i = _notifications.find(key);
-	if (i == _notifications.cend()) {
-		return;
-	}
-	const auto j = i->second.find(item->id);
-	if (j == i->second.end()) {
-		return;
-	}
-	i->second.erase(j);
-	if (i->second.empty()) {
+	});
+	if (i != _notifications.cend()
+			&& i->second.remove(item->id)
+			&& i->second.empty()) {
 		_notifications.erase(i);
 	}
 }
 
 void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
-	const auto key = ContextId{
+	_notifications.remove(ContextId{
 		.sessionId = topic->session().uniqueId(),
 		.peerId = topic->history()->peer->id,
 		.topicRootId = topic->rootId(),
-	};
-	const auto i = _notifications.find(key);
-	if (i != _notifications.cend()) {
-		_notifications.erase(i);
-	}
+	});
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
@@ -846,10 +835,10 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 
 void Manager::Private::clearNotification(NotificationId id) {
 	auto i = _notifications.find(id.contextId);
-	if (i != _notifications.cend()) {
-		if (i->second.remove(id.msgId) && i->second.empty()) {
-			_notifications.erase(i);
-		}
+	if (i != _notifications.cend()
+			&& i->second.remove(id.msgId)
+			&& i->second.empty()) {
+		_notifications.erase(i);
 	}
 }
 
