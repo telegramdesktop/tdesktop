@@ -1171,10 +1171,10 @@ void Element::validateText() {
 void Element::setTextWithLinks(
 		const TextWithEntities &text,
 		const std::vector<ClickHandlerPtr> &links) {
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &history()->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
+		.repaint = [=] { customEmojiRepaint(); },
+	});
 	if (_flags & Flag::ServiceMessage) {
 		const auto &options = Ui::ItemTextServiceOptions();
 		_text.setMarkedText(st::serviceTextStyle, text, options, context);

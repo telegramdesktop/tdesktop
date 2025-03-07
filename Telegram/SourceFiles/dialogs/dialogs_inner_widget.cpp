@@ -4308,10 +4308,7 @@ QImage *InnerWidget::cacheChatsFilterTag(
 	const auto color = Ui::EmptyUserpic::UserpicColor(colorIndex).color2;
 	entry.context.color = color->c;
 	entry.context.active = active;
-	entry.context.textContext = Core::MarkedTextContext{
-		.session = &session(),
-		.customEmojiRepaint = [] {},
-	};
+	entry.context.textContext = Core::TextContext({ .session = &session() });
 	entry.frame = Ui::ChatsFilterTag(roundedText, entry.context);
 	return &entry.frame;
 }

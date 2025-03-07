@@ -234,10 +234,10 @@ auto GenerateNewPeerInfo(
 			fadedFg,
 			normalFg));
 
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &parent->history()->session(),
-			.customEmojiRepaint = [parent] { parent->repaint(); },
-		};
+			.repaint = [parent] { parent->repaint(); },
+		});
 		const auto details = user->botVerifyDetails();
 		const auto text = details
 			? Data::SingleCustomEmoji(

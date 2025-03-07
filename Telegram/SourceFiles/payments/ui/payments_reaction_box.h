@@ -21,7 +21,7 @@ class DynamicImage;
 
 struct TextWithContext {
 	TextWithEntities text;
-	std::any context;
+	Text::MarkedContext context;
 };
 
 struct PaidReactionTop {

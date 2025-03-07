@@ -54,7 +54,7 @@ ChatsFiltersTabs::ChatsFiltersTabs(
 
 bool ChatsFiltersTabs::setSectionsAndCheckChanged(
 		std::vector<TextWithEntities> &&sections,
-		const std::any &context,
+		const Text::MarkedContext &context,
 		Fn<bool()> paused) {
 	const auto &was = sectionsRef();
 	const auto changed = [&] {

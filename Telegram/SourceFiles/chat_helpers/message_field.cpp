@@ -433,12 +433,9 @@ void InitMessageFieldHandlers(MessageFieldHandlersArgs &&args) {
 	const auto session = args.session;
 	field->setTagMimeProcessor(
 		FieldTagMimeProcessor(session, args.allowPremiumEmoji));
-	field->setCustomTextContext([=](Fn<void()> repaint) {
-		return std::any(Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = std::move(repaint),
-		});
-	}, [paused] {
+	field->setCustomTextContext(Core::TextContext({
+		.session = session
+	}), [paused] {
 		return On(PowerSaving::kEmojiChat) || paused();
 	}, [paused] {
 		return On(PowerSaving::kChatSpoiler) || paused();

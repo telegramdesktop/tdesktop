@@ -428,10 +428,10 @@ void FieldHeader::init() {
 void FieldHeader::updateShownMessageText() {
 	Expects(_shownMessage != nullptr);
 
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &_data->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
+		.repaint = [=] { customEmojiRepaint(); },
+	});
 	const auto reply = replyingToMessage();
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
@@ -464,11 +464,10 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 			tr::lng_edit_message(tr::now),
 			Ui::NameTextOptions());
 	} else if (item) {
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &_history->session(),
-			.customEmojiRepaint = [] {},
 			.customEmojiLoopLimit = 1,
-		};
+		});
 		const auto replyTo = _replyTo.current();
 		const auto quote = replyTo && !replyTo.quote.empty();
 		_shownMessageName.setMarkedText(

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/ui_integration.h" // TextContext
 #include "data/components/sponsored_messages.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -191,11 +192,7 @@ void AboutBox(
 	}
 	Ui::AddSkip(content);
 	{
-		const auto arrow = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::topicButtonArrow,
-				st::channelEarnLearnArrowMargins,
-				true));
+		const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 		const auto available = box->width()
 			- rect::m::sum::h(st::boxRowPadding);
 		box->addRow(
@@ -213,7 +210,7 @@ void AboutBox(
 							return Ui::Text::Link(std::move(t), kUrl.utf16());
 						}),
 						Ui::Text::RichLangValue),
-				{ .session = session },
+				Core::TextContext({ .session = session }),
 				st::channelEarnLearnDescription))->resizeToWidth(available);
 	}
 	Ui::AddSkip(content);

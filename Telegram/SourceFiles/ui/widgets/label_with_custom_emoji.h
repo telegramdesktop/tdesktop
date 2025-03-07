@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/ui_integration.h" // Core::MarkedTextContext.
-
 template <typename Object>
 class object_ptr;
 
@@ -20,16 +18,18 @@ namespace style {
 struct FlatLabel;
 } // namespace style
 
-namespace Ui {
-class FlatLabel;
-} // namespace Ui
+namespace Ui::Text {
+struct MarkedContext;
+} // namespace Ui::Text
 
 namespace Ui {
+
+class FlatLabel;
 
 [[nodiscard]] object_ptr<Ui::FlatLabel> CreateLabelWithCustomEmoji(
 	QWidget *parent,
 	rpl::producer<TextWithEntities> &&text,
-	Core::MarkedTextContext context,
+	Text::MarkedContext context,
 	const style::FlatLabel &st);
 
 } // namespace Ui

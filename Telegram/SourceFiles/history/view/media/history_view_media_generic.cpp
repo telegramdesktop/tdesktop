@@ -236,7 +236,7 @@ MediaGenericTextPart::MediaGenericTextPart(
 	QMargins margins,
 	const style::TextStyle &st,
 	const base::flat_map<uint16, ClickHandlerPtr> &links,
-	const std::any &context)
+	const Ui::Text::MarkedContext &context)
 : _text(st::msgMinWidth)
 , _margins(margins) {
 	_text.setMarkedText(

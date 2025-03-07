@@ -105,7 +105,7 @@ class GiftButtonDelegate {
 public:
 	[[nodiscard]] virtual TextWithEntities star() = 0;
 	[[nodiscard]] virtual TextWithEntities ministar() = 0;
-	[[nodiscard]] virtual std::any textContext() = 0;
+	[[nodiscard]] virtual Ui::Text::MarkedContext textContext() = 0;
 	[[nodiscard]] virtual QSize buttonSize() = 0;
 	[[nodiscard]] virtual QMargins buttonExtend() = 0;
 	[[nodiscard]] virtual auto buttonPatternEmoji(
@@ -181,7 +181,7 @@ public:
 
 	TextWithEntities star() override;
 	TextWithEntities ministar() override;
-	std::any textContext() override;
+	Ui::Text::MarkedContext textContext() override;
 	QSize buttonSize() override;
 	QMargins buttonExtend() override;
 	auto buttonPatternEmoji(

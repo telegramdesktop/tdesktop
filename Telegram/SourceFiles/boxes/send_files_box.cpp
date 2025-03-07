@@ -859,10 +859,9 @@ void SendFilesBox::refreshPriceTag() {
 			QString(),
 			st::paidTagLabel);
 		std::move(text) | rpl::start_with_next([=](TextWithEntities &&text) {
-			label->setMarkedText(text, Core::MarkedTextContext{
+			label->setMarkedText(text, Core::TextContext({
 				.session = session,
-				.customEmojiRepaint = [=] { label->update(); },
-			});
+			}));
 		}, label->lifetime());
 		label->show();
 		label->sizeValue() | rpl::start_with_next([=](QSize size) {

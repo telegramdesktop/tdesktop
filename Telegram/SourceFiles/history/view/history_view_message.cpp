@@ -550,11 +550,10 @@ void Message::refreshRightBadge() {
 	if (badge.empty()) {
 		_rightBadge.clear();
 	} else {
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &item->history()->session(),
-			.customEmojiRepaint = [] {},
 			.customEmojiLoopLimit = 1,
-		};
+		});
 		_rightBadge.setMarkedText(
 			st::defaultTextStyle,
 			badge,
@@ -1049,11 +1048,11 @@ void Message::refreshTopicButton() {
 		_topicButton->link = MakeTopicButtonLink(topic, jumpToId);
 		if (_topicButton->nameVersion != topic->titleVersion()) {
 			_topicButton->nameVersion = topic->titleVersion();
-			const auto context = Core::MarkedTextContext{
+			const auto context = Core::TextContext({
 				.session = &history()->session(),
-				.customEmojiRepaint = [=] { customEmojiRepaint(); },
+				.repaint = [=] { customEmojiRepaint(); },
 				.customEmojiLoopLimit = 1,
-			};
+			});
 			_topicButton->name.setMarkedText(
 				st::fwdTextStyle,
 				topic->titleWithIcon(),

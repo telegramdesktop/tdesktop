@@ -163,7 +163,7 @@ public:
 	void showState(
 		State state,
 		TextWithEntities status,
-		Fn<std::any(Fn<void()> customEmojiRepaint)> context);
+		Ui::Text::MarkedContext context);
 
 	[[nodiscard]] rpl::producer<> unarchiveClicks() const;
 	[[nodiscard]] rpl::producer<> addClicks() const;
@@ -272,7 +272,7 @@ ContactStatus::Bar::Bar(
 void ContactStatus::Bar::showState(
 		State state,
 		TextWithEntities status,
-		Fn<std::any(Fn<void()> customEmojiRepaint)> context) {
+		Ui::Text::MarkedContext context) {
 	using Type = State::Type;
 	const auto type = state.type;
 	_add->setVisible(type == Type::AddOrBlock || type == Type::Add);
@@ -294,6 +294,7 @@ void ContactStatus::Bar::showState(
 	_emojiStatusShadow->setVisible(
 		has && (type == Type::AddOrBlock || type == Type::UnarchiveOrBlock));
 	if (has) {
+		context.repaint = [=] { emojiStatusRepaint(); };
 		_emojiStatusInfo->entity()->setMarkedText(
 			tr::lng_new_contact_about_status(
 				tr::now,
@@ -303,7 +304,7 @@ void ContactStatus::Bar::showState(
 				Ui::Text::Link(
 					tr::lng_new_contact_about_status_link(tr::now)),
 				Ui::Text::WithEntities),
-			context([=] { emojiStatusRepaint(); }));
+			context);
 		_emojiStatusInfo->entity()->overrideLinkClickHandler([=] {
 			_emojiStatusClicks.fire({});
 		});
@@ -628,12 +629,7 @@ void ContactStatus::setupState(not_null<PeerData*> peer, bool showInForum) {
 		peer->session().api().requestPeerSettings(peer);
 	}
 
-	_context = [=](Fn<void()> customEmojiRepaint) {
-		return Core::MarkedTextContext{
-			.session = &peer->session(),
-			.customEmojiRepaint = customEmojiRepaint,
-		};
-	};
+	_context = Core::TextContext({ .session = &peer->session() });
 	_inner->showState({}, {}, _context);
 	const auto channel = peer->asChannel();
 	rpl::combine(

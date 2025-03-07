@@ -469,10 +469,7 @@ SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
 			.append(QChar::Space)
 			.append(Lang::FormatCountDecimal(amount)),
 		kMarkupTextOptions,
-		Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [] {},
-		});
+		Core::TextContext({ .session = session }));
 	const auto &font = text->style()->font;
 	const auto &statusFont = st::contactsStatusFont;
 	const auto status = tr::lng_group_invite_joined_right(tr::now);
@@ -821,10 +818,10 @@ void BoostCreditsBox(
 			st,
 			std::move(textWithEntities),
 			kMarkupTextOptions,
-			Core::MarkedTextContext{
+			Core::TextContext({
 				.session = session,
-				.customEmojiRepaint = [=] { badge->update(); },
-			});
+				.repaint = [=] { badge->update(); },
+			}));
 		badge->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = QPainter(badge);
@@ -1328,10 +1325,10 @@ void GenericCreditsEntryBox(
 			object_ptr<Ui::FixedHeightWidget>(
 				content,
 				st::defaultTextStyle.font->height));
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = session,
-			.customEmojiRepaint = [=] { amount->update(); },
-		};
+			.repaint = [=] { amount->update(); },
+		});
 		if (e.soldOutInfo) {
 			text->setText(
 				st::defaultTextStyle,
@@ -1438,11 +1435,7 @@ void GenericCreditsEntryBox(
 				st::creditsBoxAbout)));
 	}
 
-	const auto arrowEmoji = Ui::Text::SingleCustomEmoji(
-		owner->customEmojiManager().registerInternalEmoji(
-			st::topicButtonArrow,
-			st::channelEarnLearnArrowMargins,
-			true));
+	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	if (!uniqueGift && starGiftCanManage) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
@@ -1510,7 +1503,7 @@ void GenericCreditsEntryBox(
 		Ui::AddSkip(content);
 		auto link = tr::lng_credits_box_history_entry_gift_about_link(
 			lt_emoji,
-			rpl::single(arrowEmoji),
+			rpl::single(arrow),
 			Ui::Text::RichLangValue
 		) | rpl::map([](TextWithEntities text) {
 			return Ui::Text::Link(
@@ -1532,13 +1525,13 @@ void GenericCreditsEntryBox(
 						lt_link,
 						std::move(link),
 						Ui::Text::RichLangValue),
-				{ .session = session },
+				Core::TextContext({ .session = session }),
 				st::creditsBoxAbout)));
 	} else if (e.paidMessagesCommission && e.barePeerId) {
 		Ui::AddSkip(content);
 		auto link = tr::lng_credits_paid_messages_fee_about_link(
 			lt_emoji,
-			rpl::single(arrowEmoji),
+			rpl::single(arrow),
 			Ui::Text::RichLangValue
 		) | rpl::map([id = e.barePeerId](TextWithEntities text) {
 			return Ui::Text::Link(
@@ -1557,7 +1550,7 @@ void GenericCreditsEntryBox(
 					lt_link,
 					std::move(link),
 					Ui::Text::RichLangValue),
-				{ .session = session },
+				Core::TextContext({ .session = session }),
 				st::creditsBoxAbout)));
 	}
 
@@ -2475,10 +2468,6 @@ void AddWithdrawalWidget(
 				st::settingsPremiumIconStar,
 				{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
 				true));
-		const auto context = Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [=] { label->update(); },
-		};
 		using Balance = rpl::variable<StarsAmount>;
 		const auto currentBalance = input->lifetime().make_state<Balance>(
 			rpl::duplicate(availableBalanceValue));
@@ -2496,7 +2485,7 @@ void AddWithdrawalWidget(
 						lt_emoji,
 						buttonEmoji,
 						Ui::Text::RichLangValue),
-					context);
+					Core::TextContext({ .session = session }));
 			}
 		};
 		QObject::connect(input, &Ui::MaskedInputField::changed, process);
@@ -2564,10 +2553,10 @@ void AddWithdrawalWidget(
 		constexpr auto kDateUpdateInterval = crl::time(250);
 		const auto was = base::unixtime::serialize(dt);
 
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = session,
-			.customEmojiRepaint = [=] { lockedLabel->update(); },
-		};
+			.repaint = [=] { lockedLabel->update(); },
+		});
 		const auto emoji = Ui::Text::SingleCustomEmoji(
 			session->data().customEmojiManager().registerInternalEmoji(
 				st::chatSimilarLockedIcon,
@@ -2644,11 +2633,7 @@ void AddWithdrawalWidget(
 	Ui::AddSkip(container);
 	Ui::AddSkip(container);
 
-	const auto arrow = Ui::Text::SingleCustomEmoji(
-		session->data().customEmojiManager().registerInternalEmoji(
-			st::topicButtonArrow,
-			st::channelEarnLearnArrowMargins,
-			true));
+	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	auto about = Ui::CreateLabelWithCustomEmoji(
 		container,
 		tr::lng_bot_earn_learn_credits_out_about(
@@ -2663,7 +2648,7 @@ void AddWithdrawalWidget(
 					tr::lng_bot_earn_balance_about_url(tr::now));
 			}),
 			Ui::Text::RichLangValue),
-		{ .session = session },
+		Core::TextContext({ .session = session }),
 		st::boxDividerLabel);
 	Ui::AddSkip(container);
 	container->add(object_ptr<Ui::DividerLabel>(

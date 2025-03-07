@@ -3346,12 +3346,12 @@ void OverlayWidget::refreshCaption() {
 		}
 		update(captionGeometry());
 	};
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = (_stories
 			? _storiesSession
 			: &_message->history()->session()),
-		.customEmojiRepaint = captionRepaint,
-	};
+		.repaint = captionRepaint,
+	});
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
 		(base.isEmpty()

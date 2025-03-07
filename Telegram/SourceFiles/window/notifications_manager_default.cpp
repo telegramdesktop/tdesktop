@@ -949,10 +949,10 @@ void Notification::updateNotifyDisplay() {
 				0,
 				Qt::LayoutDirectionAuto,
 			};
-			const auto context = Core::MarkedTextContext{
+			const auto context = Core::TextContext({
 				.session = &_history->session(),
-				.customEmojiRepaint = [=] { customEmojiCallback(); },
-			};
+				.repaint = [=] { customEmojiCallback(); },
+			});
 			_textCache.setMarkedText(
 				st::dialogsTextStyle,
 				text,
@@ -988,10 +988,10 @@ void Notification::updateNotifyDisplay() {
 		const auto fullTitle = manager()->addTargetAccountName(
 			std::move(title),
 			&_history->session());
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &_history->session(),
-			.customEmojiRepaint = [=] { customEmojiCallback(); },
-		};
+			.repaint = [=] { customEmojiCallback(); },
+		});
 		_titleCache.setMarkedText(
 			st::semiboldTextStyle,
 			fullTitle,

@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_box.h"
 #include "boxes/stickers_box.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "core/ui_integration.h" // Core::MarkedTextContext.
+#include "core/ui_integration.h" // TextContext
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_changes.h"
@@ -165,7 +165,7 @@ private:
 
 	const uint32 _level;
 	const TextWithEntities _icon;
-	const Core::MarkedTextContext _context;
+	const Ui::Text::MarkedContext _context;
 	Ui::Text::String _text;
 	bool _minimal = false;
 
@@ -466,7 +466,10 @@ LevelBadge::LevelBadge(
 		st::settingsLevelBadgeLock,
 		QMargins(0, st::settingsLevelBadgeLockSkip, 0, 0),
 		false)))
-, _context({ .session = session }) {
+, _context(Core::TextContext({
+	.session = session,
+	.repaint = [this] { update(); },
+})) {
 	updateText();
 }
 

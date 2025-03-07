@@ -298,7 +298,7 @@ void PeerBadge::set(
 	if (details->iconId) {
 		_botVerifiedData->icon = factory(
 			Data::SerializeCustomEmojiId(details->iconId),
-			repaint);
+			{ .repaint = repaint });
 	}
 }
 

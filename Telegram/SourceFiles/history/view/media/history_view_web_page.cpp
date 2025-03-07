@@ -379,11 +379,10 @@ QSize WebPage::countOptimalSize() {
 	// Detect _openButtonWidth before counting paddings.
 	_openButton = Ui::Text::String();
 	if (HasButton(_data)) {
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &_data->session(),
-			.customEmojiRepaint = [] {},
 			.customEmojiLoopLimit = 1,
-		};
+		});
 		_openButton.setMarkedText(
 			st::semiboldTextStyle,
 			PageToPhrase(_data),
@@ -539,16 +538,18 @@ QSize WebPage::countOptimalSize() {
 			_description = Ui::Text::String(st::minPhotoSize
 				- rect::m::sum::h(padding));
 		}
-		using MarkedTextContext = Core::MarkedTextContext;
-		auto context = MarkedTextContext{
+		using Type = Core::TextContextDetails::HashtagMentionType;
+		auto context = Core::TextContext({
 			.session = &history()->session(),
-			.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
-		};
-		if (_data->siteName == u"Twitter"_q) {
-			context.type = MarkedTextContext::HashtagMentionType::Twitter;
-		} else if (_data->siteName == u"Instagram"_q) {
-			context.type = MarkedTextContext::HashtagMentionType::Instagram;
-		}
+			.details = {
+				.type = ((_data->siteName == u"Twitter"_q)
+					? Type::Twitter
+					: (_data->siteName == u"Instagram"_q)
+					? Type::Instagram
+					: Type::Telegram),
+			},
+			.repaint = [=] { _parent->customEmojiRepaint(); },
+		});
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
 			text,

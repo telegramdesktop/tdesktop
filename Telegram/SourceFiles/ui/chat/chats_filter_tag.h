@@ -8,16 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "emoji.h"
-
-namespace Ui::Text {
-class CustomEmoji;
-} // namespace Ui::Text
+#include "ui/text/text.h"
 
 namespace Ui {
 
 struct ChatsFilterTagContext {
 	base::flat_map<QString, std::unique_ptr<Text::CustomEmoji>> emoji;
-	std::any textContext;
+	Text::MarkedContext textContext;
 	QColor color;
 	bool active = false;
 	bool loading = false;

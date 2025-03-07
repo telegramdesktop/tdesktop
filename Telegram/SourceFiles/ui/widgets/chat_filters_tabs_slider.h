@@ -29,7 +29,7 @@ public:
 
 	bool setSectionsAndCheckChanged(
 		std::vector<TextWithEntities> &&sections,
-		const std::any &context,
+		const Text::MarkedContext &context,
 		Fn<bool()> paused);
 
 	void fitWidthToSections() override;

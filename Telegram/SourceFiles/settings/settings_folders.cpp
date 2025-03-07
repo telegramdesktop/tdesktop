@@ -199,11 +199,11 @@ void FilterRowButton::updateData(
 		st::contactsNameStyle,
 		title.text,
 		kMarkupTextOptions,
-		Core::MarkedTextContext{
+		Core::TextContext({
 			.session = _session,
-			.customEmojiRepaint = [=] { update(); },
+			.repaint = [=] { update(); },
 			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
-		});
+		}));
 	_icon = Ui::ComputeFilterIcon(filter);
 	_colorIndex = filter.colorIndex();
 	if (!ignoreCount) {

@@ -143,10 +143,7 @@ void SetupHeader(
 					content,
 					v::text::take_marked(std::move(about)),
 					st,
-					st::defaultPopupMenu,
-					[=](Fn<void()> update) {
-						return CommonTextContext{ std::move(update) };
-					})),
+					st::defaultPopupMenu)),
 			st::changePhoneDescriptionPadding);
 		wrap->setAttribute(Qt::WA_TransparentForMouseEvents);
 		wrap->resize(

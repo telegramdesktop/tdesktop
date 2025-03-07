@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/local_url_handlers.h"
 #include "core/shortcuts.h"
+#include "core/ui_integration.h" // TextContext
 #include "data/components/location_pickers.h"
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
@@ -380,21 +381,16 @@ void FillBotUsepic(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> bot,
 		base::weak_ptr<Window::SessionController> weak) {
-	auto arrow = Ui::Text::SingleCustomEmoji(
-		bot->owner().customEmojiManager().registerInternalEmoji(
-			st::topicButtonArrow,
-			st::channelEarnLearnArrowMargins,
-			true));
 	auto aboutLabel = Ui::CreateLabelWithCustomEmoji(
 		box->verticalLayout(),
 		tr::lng_allow_bot_webview_details(
 			lt_emoji,
-			rpl::single(std::move(arrow)),
+			rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
 			Ui::Text::RichLangValue
 		) | rpl::map([](TextWithEntities text) {
 			return Ui::Text::Link(std::move(text), u"internal:"_q);
 		}),
-		{ .session = &bot->session() },
+		Core::TextContext({ .session = &bot->session() }),
 		st::defaultFlatLabel);
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 		box->verticalLayout(),
@@ -446,12 +442,6 @@ std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
 		not_null<QWidget*> parent,
 		not_null<PeerData*> peer,
 		not_null<DocumentData*> document) {
-	const auto makeContext = [=](Fn<void()> update) {
-		return Core::MarkedTextContext{
-			.session = &peer->session(),
-			.customEmojiRepaint = update,
-		};
-	};
 	const auto emoji = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 		parent,
 		object_ptr<Ui::FlatLabel>(
@@ -464,7 +454,7 @@ std::unique_ptr<Ui::RpWidget> MakeEmojiSetStatusPreview(
 						: QString()))),
 			st::botEmojiStatusEmoji,
 			st::defaultPopupMenu,
-			makeContext),
+			Core::TextContext({ .session = &peer->session() })),
 		style::margins(st::normalFont->spacew, 0, 0, 0));
 	emoji->entity()->resizeToWidth(emoji->entity()->textMaxWidth());
 

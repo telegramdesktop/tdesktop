@@ -104,13 +104,7 @@ Step::Step(
 			text.entities,
 			EntityType::Spoiler,
 			&EntityInText::type);
-		if (hasSpoiler) {
-			label->setMarkedText(
-				text,
-				CommonTextContext{ [=] { label->update(); } });
-		} else {
-			label->setMarkedText(text);
-		}
+		label->setMarkedText(text);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents, hasSpoiler);
 		updateLabelsPosition();
 	}, lifetime());

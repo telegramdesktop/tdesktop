@@ -573,11 +573,8 @@ TextWithEntities Delegate::ministar() {
 	return owner->customEmojiManager().ministarEmoji({ 0, top, 0, 0 });
 }
 
-std::any Delegate::textContext() {
-	return Core::MarkedTextContext{
-		.session = &_window->session(),
-		.customEmojiRepaint = [] {},
-	};
+Ui::Text::MarkedContext Delegate::textContext() {
+	return Core::TextContext({ .session = &_window->session() });
 }
 
 QSize Delegate::buttonSize() {

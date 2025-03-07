@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/share_box.h"
 #include "core/application.h"
-#include "core/ui_integration.h" // Core::MarkedTextContext.
+#include "core/ui_integration.h" // TextContext
 #include "data/components/credits.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -740,10 +740,10 @@ void Controller::setupAboveJoinedWidget() {
 					{ QString::number(current.subscription.credits) },
 					Ui::Text::WithEntities),
 			kMarkupTextOptions,
-			Core::MarkedTextContext{
+			Core::TextContext({
 				.session = &session(),
-				.customEmojiRepaint = [=] { widget->update(); },
-			});
+				.repaint = [=] { widget->update(); },
+			}));
 		auto &lifetime = widget->lifetime();
 		const auto rateValue = lifetime.make_state<rpl::variable<float64>>(
 			session().credits().rateValue(_peer));
@@ -994,10 +994,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 				lt_cost,
 				{ QString::number(data.subscription.credits) },
 				Ui::Text::WithEntities),
-			Core::MarkedTextContext{
-				.session = session,
-				.customEmojiRepaint = [=] { subtitle1->update(); },
-			});
+			Core::TextContext({ .session = session }));
 		const auto subtitle2 = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 				box,

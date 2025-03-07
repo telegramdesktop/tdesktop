@@ -1169,12 +1169,6 @@ void History::applyServiceChanges(
 			}
 			if (paid) {
 				// Toast on a current active window.
-				const auto context = [=](not_null<QWidget*> toast) {
-					return Core::MarkedTextContext{
-						.session = &session(),
-						.customEmojiRepaint = [=] { toast->update(); },
-					};
-				};
 				Ui::Toast::Show({
 					.text = tr::lng_payments_success(
 						tr::now,
@@ -1185,7 +1179,9 @@ void History::applyServiceChanges(
 						lt_title,
 						Ui::Text::Bold(paid->title),
 						Ui::Text::WithEntities),
-					.textContext = context,
+					.textContext = Core::TextContext({
+						.session = &session(),
+					}),
 				});
 			}
 		}

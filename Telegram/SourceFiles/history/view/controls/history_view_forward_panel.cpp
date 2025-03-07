@@ -190,10 +190,10 @@ void ForwardPanel::updateTexts() {
 		}
 	}
 	_from.setText(st::msgNameStyle, from, Ui::NameTextOptions());
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &_to->session(),
-		.customEmojiRepaint = _repaint,
-	};
+		.repaint = _repaint,
+	});
 	_text.setMarkedText(
 		st::defaultTextStyle,
 		text,

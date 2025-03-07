@@ -224,7 +224,9 @@ void CollectibleInfoBox(
 		object_ptr<Ui::FlatLabel>(box, st::collectibleInfo),
 		st::collectibleInfoPadding);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	label->setMarkedText(text, details.tonEmojiContext());
+	auto context = details.tonEmojiContext;
+	context.repaint = [label] { label->update(); };
+	label->setMarkedText(text, context);
 
 	const auto more = box->addRow(
 		object_ptr<Ui::RoundButton>(

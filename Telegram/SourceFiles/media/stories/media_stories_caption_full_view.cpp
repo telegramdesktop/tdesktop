@@ -30,10 +30,9 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		object_ptr<Ui::FlatLabel>(_scroll.get(), st::storiesCaptionFull),
 		st::mediaviewCaptionPadding + _controller->repostCaptionPadding())))
 , _text(_wrap->entity()) {
-	_text->setMarkedText(controller->captionText(), Core::MarkedTextContext{
+	_text->setMarkedText(controller->captionText(), Core::TextContext({
 		.session = &controller->uiShow()->session(),
-		.customEmojiRepaint = [=] { _text->update(); },
-	});
+	}));
 
 	startAnimation();
 	_controller->layoutValue(

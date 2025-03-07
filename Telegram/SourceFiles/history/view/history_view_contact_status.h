@@ -117,7 +117,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	State _state;
 	TextWithEntities _status;
-	Fn<std::any(Fn<void()> customEmojiRepaint)> _context;
+	Ui::Text::MarkedContext _context;
 	QPointer<Bar> _inner;
 	SlidingBar _bar;
 	bool _hiddenByForum = false;

@@ -66,7 +66,7 @@ public:
 		Fn<QColor(const PaintContext &)> color,
 		const style::TextStyle &st = st::defaultTextStyle,
 		const base::flat_map<uint16, ClickHandlerPtr> &links = {},
-		const std::any &context = {});
+		const Ui::Text::MarkedContext &context = {});
 
 private:
 	void setupPen(
@@ -90,7 +90,7 @@ public:
 		QMargins margins,
 		Fn<QColor(const PaintContext &)> labelColor,
 		Fn<QColor(const PaintContext &)> valueColor,
-		const std::any &context = {});
+		const Ui::Text::MarkedContext &context = {});
 
 	void draw(
 		Painter &p,

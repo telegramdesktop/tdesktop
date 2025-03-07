@@ -441,7 +441,7 @@ TextPartColored::TextPartColored(
 	Fn<QColor(const PaintContext &)> color,
 	const style::TextStyle &st,
 	const base::flat_map<uint16, ClickHandlerPtr> &links,
-	const std::any &context)
+	const Ui::Text::MarkedContext &context)
 : MediaGenericTextPart(text, margins, st, links, context)
 , _color(std::move(color)) {
 }
@@ -458,7 +458,7 @@ AttributeTable::AttributeTable(
 	QMargins margins,
 	Fn<QColor(const PaintContext &)> labelColor,
 	Fn<QColor(const PaintContext &)> valueColor,
-	const std::any &context)
+	const Ui::Text::MarkedContext &context)
 : _margins(margins)
 , _labelColor(std::move(labelColor))
 , _valueColor(std::move(valueColor)) {

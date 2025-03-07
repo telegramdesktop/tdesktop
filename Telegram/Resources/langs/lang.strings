@@ -3646,6 +3646,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_phone_number" = "Phone number";
 "lng_new_contact_registration" = "Registration";
 "lng_new_contact_common_groups" = "Common groups";
+"lng_new_contact_groups#one" = "{count} group {emoji} {arrow}";
+"lng_new_contact_groups#other" = "{count} groups {emoji} {arrow}";
 "lng_new_contact_not_official" = "Not an official account";
 "lng_new_contact_updated_name" = "User updated name {when}";
 "lng_new_contact_updated_photo" = "User updated photo {when}";

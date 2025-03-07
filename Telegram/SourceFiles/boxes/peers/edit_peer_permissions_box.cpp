@@ -890,11 +890,10 @@ void AddBoostsUnrestrictLabels(
 		manager->registerInternalEmoji(
 			st::boostsMessageIcon,
 			st::boostsMessageIconPadding));
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = session,
-		.customEmojiRepaint = [] {},
 		.customEmojiLoopLimit = 1,
-	};
+	});
 	for (auto i = 0; i != kBoostsUnrestrictValues; ++i) {
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			labels,

@@ -231,7 +231,7 @@ auto GenerateGiftMedia(
 				TextWithEntities text,
 				QMargins margins = {},
 				const base::flat_map<uint16, ClickHandlerPtr> &links = {},
-				const std::any &context = {}) {
+				Ui::Text::MarkedContext context = {}) {
 			if (text.empty()) {
 				return;
 			}
@@ -240,7 +240,7 @@ auto GenerateGiftMedia(
 				margins,
 				st::defaultTextStyle,
 				links,
-				context));
+				std::move(context)));
 		};
 
 		const auto sticker = [=] {
@@ -310,10 +310,10 @@ auto GenerateGiftMedia(
 		auto description = data.text.empty()
 			? std::move(textFallback)
 			: data.text;
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &parent->history()->session(),
-			.customEmojiRepaint = [parent] { parent->repaint(); },
-		};
+			.repaint = [parent] { parent->repaint(); },
+		});
 		pushText(
 			std::move(title),
 			st::giftBoxPreviewTitlePadding,
@@ -759,15 +759,11 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	}
 	auto &manager = session->data().customEmojiManager();
 	auto result = Text::String();
-	const auto context = Core::MarkedTextContext{
-		.session = session,
-		.customEmojiRepaint = [] {},
-	};
 	result.setMarkedText(
 		st::semiboldTextStyle,
 		manager.creditsEmoji().append(QString::number(price)),
 		kMarkupTextOptions,
-		context);
+		Core::TextContext({ .session = session }));
 	return result;
 }
 
@@ -1322,12 +1318,6 @@ void AddUpgradeButton(
 	button->toggleOn(rpl::single(false))->toggledValue(
 	) | rpl::start_with_next(toggled, button->lifetime());
 
-	const auto makeContext = [session](Fn<void()> update) {
-		return Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = std::move(update),
-		};
-	};
 	auto star = session->data().customEmojiManager().creditsEmoji();
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
@@ -1339,7 +1329,7 @@ void AddUpgradeButton(
 			Text::WithEntities),
 		st::boxLabel,
 		st::defaultPopupMenu,
-		std::move(makeContext));
+		Core::TextContext({ .session = session }));
 	label->show();
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	button->widthValue() | rpl::start_with_next([=](int outer) {

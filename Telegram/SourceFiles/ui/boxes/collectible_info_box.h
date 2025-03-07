@@ -34,7 +34,7 @@ struct CollectibleInfo {
 
 struct CollectibleDetails {
 	TextWithEntities tonEmoji;
-	Fn<std::any()> tonEmojiContext;
+	Text::MarkedContext tonEmojiContext;
 };
 
 void CollectibleInfoBox(

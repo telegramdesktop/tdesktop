@@ -205,7 +205,9 @@ void HistoryMessageForwarded::create(
 		const HistoryMessageVia *via,
 		not_null<const HistoryItem*> item) const {
 	auto phrase = TextWithEntities();
-	auto context = Core::MarkedTextContext{};
+	auto context = Core::TextContext({
+		.session = &item->history()->session(),
+	});
 	const auto fromChannel = originalSender
 		&& originalSender->isChannel()
 		&& !originalSender->isMegagroup();
@@ -215,8 +217,7 @@ void HistoryMessageForwarded::create(
 			: originalHiddenSenderInfo->name)
 	};
 	if (const auto copy = originalSender) {
-		context.session = &copy->owner().session();
-		context.customEmojiRepaint = [=] {
+		context.repaint = [=] {
 			// It is important to capture here originalSender by value,
 			// not capture the HistoryMessageForwarded* and read the
 			// originalSender field, because the components themselves
@@ -225,7 +226,7 @@ void HistoryMessageForwarded::create(
 			copy->owner().requestItemRepaint(item);
 		};
 		phrase = Ui::Text::SingleCustomEmoji(
-			context.session->data().customEmojiManager().peerUserpicEmojiData(
+			copy->owner().customEmojiManager().peerUserpicEmojiData(
 				copy,
 				st::fwdTextUserpicPadding));
 	}
@@ -755,10 +756,10 @@ ReplyKeyboard::ReplyKeyboard(
 						_st->textStyle(),
 						TextUtilities::SingleLine(textWithEntities),
 						kMarkupTextOptions,
-						Core::MarkedTextContext{
+						Core::TextContext({
 							.session = &item->history()->owner().session(),
-							.customEmojiRepaint = [=] { _st->repaint(item); },
-						});
+							.repaint = [=] { _st->repaint(item); },
+						}));
 				} else {
 					button.text.setText(
 						_st->textStyle(),

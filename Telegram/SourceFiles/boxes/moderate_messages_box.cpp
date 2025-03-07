@@ -453,10 +453,7 @@ void CreateModerateMessagesBox(
 		) | rpl::start_with_next([=](const TextWithEntities &text) {
 			raw->setMarkedText(
 				Ui::Text::Link(text, u"internal:"_q),
-				Core::MarkedTextContext{
-					.session = session,
-					.customEmojiRepaint = [=] { raw->update(); },
-				});
+				Core::TextContext({ .session = session }));
 		}, label->lifetime());
 
 		Ui::AddSkip(inner);

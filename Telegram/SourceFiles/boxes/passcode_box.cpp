@@ -1154,8 +1154,7 @@ RecoverBox::RecoverBox(
 		rpl::single(Ui::Text::WrapEmailPattern(pattern)),
 		Ui::Text::WithEntities),
 	st::termsContent,
-	st::defaultPopupMenu,
-	[=](Fn<void()> update) { return CommonTextContext{ std::move(update) }; })
+	st::defaultPopupMenu)
 , _closeParent(std::move(closeParent)) {
 	_patternLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (_cloudFields.pendingResetDate != 0 || !session) {

@@ -16,13 +16,12 @@ namespace Ui {
 object_ptr<Ui::FlatLabel> CreateLabelWithCustomEmoji(
 		QWidget *parent,
 		rpl::producer<TextWithEntities> &&text,
-		Core::MarkedTextContext context,
+		Text::MarkedContext context,
 		const style::FlatLabel &st) {
 	auto label = object_ptr<Ui::FlatLabel>(parent, st);
 	const auto raw = label.data();
-	if (!context.customEmojiRepaint) {
-		context.customEmojiRepaint = [=] { raw->update(); };
-	}
+
+	context.repaint = [=] { raw->update(); };
 	std::move(text) | rpl::start_with_next([=](const TextWithEntities &text) {
 		raw->setMarkedText(text, context);
 	}, label->lifetime());

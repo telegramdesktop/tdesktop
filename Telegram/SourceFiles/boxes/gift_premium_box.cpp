@@ -517,13 +517,13 @@ not_null<Ui::FlatLabel*> AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
 		rpl::producer<TextWithEntities> value,
-		const Fn<std::any(Fn<void()>)> &makeContext = nullptr) {
+		const Ui::Text::MarkedContext &context = {}) {
 	auto widget = object_ptr<Ui::FlatLabel>(
 		table,
 		std::move(value),
 		table->st().defaultValue,
 		st::defaultPopupMenu,
-		std::move(makeContext));
+		context);
 	const auto result = widget.data();
 	AddTableRow(
 		table,
@@ -1527,12 +1527,6 @@ void AddStarGiftTable(
 				: nullptr;
 			const auto date = base::unixtime::parse(original.date).date();
 			const auto dateText = TextWithEntities{ langDayOfMonth(date) };
-			const auto makeContext = [=](Fn<void()> update) {
-				return Core::MarkedTextContext{
-					.session = session,
-					.customEmojiRepaint = std::move(update),
-				};
-			};
 			auto label = object_ptr<Ui::FlatLabel>(
 				table,
 				(from
@@ -1574,7 +1568,7 @@ void AddStarGiftTable(
 					? *st.tableValueMessage
 					: st::giveawayGiftMessage),
 				st::defaultPopupMenu,
-				makeContext);
+				Core::TextContext({ .session = session }));
 			const auto showBoxLink = [=](not_null<PeerData*> peer) {
 				return std::make_shared<LambdaClickHandler>([=] {
 					show->showBox(PrepareShortInfoBox(peer, show));
@@ -1592,12 +1586,6 @@ void AddStarGiftTable(
 				st::giveawayGiftCodeValueMargin);
 		}
 	} else if (!entry.description.empty()) {
-		const auto makeContext = [=](Fn<void()> update) {
-			return Core::MarkedTextContext{
-				.session = session,
-				.customEmojiRepaint = std::move(update),
-			};
-		};
 		auto label = object_ptr<Ui::FlatLabel>(
 			table,
 			rpl::single(entry.description),
@@ -1605,7 +1593,7 @@ void AddStarGiftTable(
 				? *st.tableValueMessage
 				: st::giveawayGiftMessage),
 			st::defaultPopupMenu,
-			makeContext);
+			Core::TextContext({ .session = session }));
 		label->setSelectable(true);
 		table->addRow(
 			nullptr,

@@ -163,10 +163,10 @@ ExceptionRow::ExceptionRow(
 			st::defaultTextStyle,
 			filters,
 			kMarkupTextOptions,
-			Core::MarkedTextContext{
+			Core::TextContext({
 				.session = &history->session(),
-				.customEmojiRepaint = repaint,
-			});
+				.repaint = repaint,
+			}));
 	} else if (peer()->isSelf()) {
 		setCustomStatus(tr::lng_saved_forward_here(tr::now));
 	}

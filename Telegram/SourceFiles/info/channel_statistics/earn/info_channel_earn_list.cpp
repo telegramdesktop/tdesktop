@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
+#include "core/ui_integration.h" // TextContext.
 #include "data/components/credits.h"
 #include "data/data_channel.h"
 #include "data/data_premium_limits.h"
@@ -402,12 +403,6 @@ void InnerWidget::fill() {
 
 	const auto session = &_peer->session();
 	const auto withdrawalEnabled = WithdrawalEnabled(session);
-	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
-		return Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [=] { l->update(); },
-		};
-	};
 	const auto addEmojiToMajor = [=](
 			not_null<Ui::FlatLabel*> label,
 			rpl::producer<EarnInt> value,
@@ -433,7 +428,7 @@ void InnerWidget::fill() {
 		) | rpl::start_with_next([=](EarnInt v) {
 			label->setMarkedText(
 				base::duplicate(prepended).append(icon).append(MajorPart(v)),
-				makeContext(label));
+				Core::TextContext({ .session = session }));
 		}, label->lifetime());
 	};
 
@@ -445,11 +440,7 @@ void InnerWidget::fill() {
 			st::channelEarnCurrencyLearnMargins,
 			false));
 
-	const auto arrow = Ui::Text::SingleCustomEmoji(
-		session->data().customEmojiManager().registerInternalEmoji(
-			st::topicButtonArrow,
-			st::channelEarnLearnArrowMargins,
-			true));
+	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
 		auto label = Ui::CreateLabelWithCustomEmoji(
 			container,
@@ -463,7 +454,7 @@ void InnerWidget::fill() {
 					return Ui::Text::Link(std::move(text), 1);
 				}),
 				Ui::Text::RichLangValue),
-			{ .session = session },
+			Core::TextContext({ .session = session }),
 			st::boxDividerLabel);
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
@@ -580,7 +571,7 @@ void InnerWidget::fill() {
 										Ui::Text::Link(bigCurrencyIcon, 1)),
 									Ui::Text::RichLangValue
 								),
-								{ .session = session },
+								Core::TextContext({ .session = session }),
 								st::boxTitle)))->entity();
 					const auto diamonds = l->lifetime().make_state<int>(0);
 					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {
@@ -610,7 +601,7 @@ void InnerWidget::fill() {
 								}),
 								Ui::Text::RichLangValue
 							),
-							{ .session = session },
+							Core::TextContext({ .session = session }),
 							st::channelEarnLearnDescription));
 					label->resizeToWidth(box->width()
 						- rect::m::sum::h(st::boxRowPadding));
@@ -1522,4 +1513,3 @@ not_null<PeerData*> InnerWidget::peer() const {
 }
 
 } // namespace Info::ChannelEarn
-

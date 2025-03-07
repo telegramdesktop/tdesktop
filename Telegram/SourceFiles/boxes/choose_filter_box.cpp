@@ -172,13 +172,6 @@ void ChangeFilterById(
 			const auto account = not_null(&history->session().account());
 			if (const auto controller = Core::App().windowFor(account)) {
 				const auto isStatic = name.isStatic;
-				const auto textContext = [=](not_null<QWidget*> widget) {
-					return Core::MarkedTextContext{
-						.session = &history->session(),
-						.customEmojiRepaint = [=] { widget->update(); },
-						.customEmojiLoopLimit = isStatic ? -1 : 0,
-					};
-				};
 				controller->showToast({
 					.text = (add
 						? tr::lng_filters_toast_add
@@ -189,7 +182,10 @@ void ChangeFilterById(
 							lt_folder,
 							Ui::Text::Wrapped(name.text, EntityType::Bold),
 							Ui::Text::WithEntities),
-					.textContext = textContext,
+					.textContext = Core::TextContext({
+						.session = &history->session(),
+						.customEmojiLoopLimit = isStatic ? -1 : 0,
+					}),
 				});
 			}
 		}).fail([=](const MTP::Error &error) {
@@ -297,12 +293,10 @@ void FillChooseFilterMenu(
 				std::move(callback)),
 			contains ? &st::mediaPlayerMenuCheck : nullptr,
 			contains ? &st::mediaPlayerMenuCheck : nullptr);
-		const auto context = Core::MarkedTextContext{
+		item->setMarkedText(title.text, QString(), Core::TextContext({
 			.session = &history->session(),
-			.customEmojiRepaint = [raw = item.get()] { raw->update(); },
 			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
-		};
-		item->setMarkedText(title.text, QString(), context);
+		}));
 
 		item->setIcon(Icon(showColors ? filter : filter.withColorIndex({})));
 		const auto action = menu->addAction(std::move(item));

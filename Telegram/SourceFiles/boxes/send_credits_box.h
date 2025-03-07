@@ -41,7 +41,7 @@ void SendCreditsBox(
 not_null<FlatLabel*> SetButtonMarkedLabel(
 	not_null<RpWidget*> button,
 	rpl::producer<TextWithEntities> text,
-	Fn<std::any(Fn<void()> update)> context,
+	Text::MarkedContext context,
 	const style::FlatLabel &st,
 	const style::color *textFg = nullptr);
 

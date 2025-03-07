@@ -244,10 +244,11 @@ void Media::drawPurchasedTag(
 		const auto session = &item->history()->session();
 		auto text = Ui::Text::Colorized(Ui::CreditsEmojiSmall(session));
 		text.append(Lang::FormatCountDecimal(amount));
-		purchased->text.setMarkedText(st::defaultTextStyle, text, kMarkupTextOptions, Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [] {},
-		});
+		purchased->text.setMarkedText(
+			st::defaultTextStyle,
+			text,
+			kMarkupTextOptions,
+			Core::TextContext({ .session = session }));
 	}
 
 	const auto st = context.st;
@@ -413,10 +414,7 @@ void Media::drawSpoilerTag(
 					price,
 					Ui::Text::WithEntities),
 				kMarkupTextOptions,
-				Core::MarkedTextContext{
-					.session = session,
-					.customEmojiRepaint = [] {},
-				});
+				Core::TextContext({ .session = session }));
 		}
 		const auto width = iconSkip + text.maxWidth();
 		const auto inner = QRect(0, 0, width, text.minHeight());
@@ -541,10 +539,10 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 		- st::msgPadding.left()
 		- st::msgPadding.right();
 	auto result = Ui::Text::String(minResizeWidth);
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &history()->session(),
-		.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
-	};
+		.repaint = [=] { _parent->customEmojiRepaint(); },
+	});
 	result.setMarkedText(
 		st::messageTextStyle,
 		item->translatedTextWithLocalEntities(),

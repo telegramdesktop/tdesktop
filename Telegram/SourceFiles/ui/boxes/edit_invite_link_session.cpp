@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/edit_invite_link_session.h"
 
+#include "core/ui_integration.h" // TextContext
 #include "data/components/credits.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -128,18 +129,13 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 
 	state->usdRate = peer->session().credits().rateValue(peer);
 
-	const auto arrow = Ui::Text::SingleCustomEmoji(
-		peer->owner().customEmojiManager().registerInternalEmoji(
-			st::topicButtonArrow,
-			st::channelEarnLearnArrowMargins,
-			true));
 	auto about = Ui::CreateLabelWithCustomEmoji(
 		container,
 		tr::lng_group_invite_subscription_about(
 			lt_link,
 			tr::lng_group_invite_subscription_about_link(
 				lt_emoji,
-				rpl::single(arrow),
+				rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
 				Ui::Text::RichLangValue
 			) | rpl::map([](TextWithEntities text) {
 				return Ui::Text::Link(
@@ -147,7 +143,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 					tr::lng_group_invite_subscription_about_url(tr::now));
 			}),
 			Ui::Text::RichLangValue),
-		{ .session = &peer->session() },
+		Core::TextContext({ .session = &peer->session() }),
 		st::boxDividerLabel);
 	Ui::AddSkip(wrap->entity());
 	Ui::AddSkip(wrap->entity());

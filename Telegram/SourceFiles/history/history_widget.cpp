@@ -8829,10 +8829,10 @@ void HistoryWidget::messageDataReceived(
 }
 
 void HistoryWidget::updateReplyEditText(not_null<HistoryItem*> item) {
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &session(),
-		.customEmojiRepaint = [=] { updateField(); },
-	};
+		.repaint = [=] { updateField(); },
+	});
 	_replyEditMsgText.setMarkedText(
 		st::defaultTextStyle,
 		((_editMsgId || _replyTo.quote.empty())
@@ -8918,11 +8918,10 @@ void HistoryWidget::updateReplyToName() {
 	} else if (!_replyEditMsg && (_replyTo || !_kbReplyTo)) {
 		return;
 	}
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &_history->session(),
-		.customEmojiRepaint = [] {},
 		.customEmojiLoopLimit = 1,
-	};
+	});
 	const auto to = _replyEditMsg ? _replyEditMsg : _kbReplyTo;
 	const auto replyToQuote = _replyTo && !_replyTo.quote.empty();
 	_replyToName.setMarkedText(
