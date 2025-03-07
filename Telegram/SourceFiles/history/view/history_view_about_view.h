@@ -30,6 +30,8 @@ public:
 
 	void make(Data::ChatIntro data, bool preview = false);
 
+	[[nodiscard]] auto sendIntroSticker() const
+		-> rpl::producer<not_null<DocumentData*>>;
 	[[nodiscard]] rpl::producer<> refreshRequests() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -62,6 +64,8 @@ private:
 	DocumentData *_helloChosen = nullptr;
 	DocumentData *_sticker = nullptr;
 	int _version = 0;
+
+	rpl::event_stream<not_null<DocumentData*>> _sendIntroSticker;
 
 	bool _commonGroupsStale = false;
 	bool _commonGroupsRequested = false;

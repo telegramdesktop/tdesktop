@@ -199,7 +199,8 @@ auto GenerateChatIntro(
 	not_null<Element*> parent,
 	Element *replacing,
 	const Data::ChatIntro &data,
-	Fn<void(not_null<DocumentData*>)> helloChosen)
+	Fn<void(not_null<DocumentData*>)> helloChosen,
+	Fn<void(not_null<DocumentData*>)> sendIntroSticker)
 -> Fn<void(
 		not_null<MediaGeneric*>,
 		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
@@ -243,9 +244,7 @@ auto GenerateChatIntro(
 				}
 			}
 			const auto send = [=] {
-				Api::SendExistingDocument(Api::MessageToSend(
-					Api::SendAction(parent->history())
-				), sticker);
+				sendIntroSticker(sticker);
 			};
 			return StickerInBubblePart::Data{
 				.sticker = sticker,
@@ -598,9 +597,17 @@ void AboutView::make(Data::ChatIntro data, bool preview) {
 			}
 		}
 	};
+	const auto sendIntroSticker = [=](not_null<DocumentData*> sticker) {
+		_sendIntroSticker.fire_copy(sticker);
+	};
 	owned->overrideMedia(std::make_unique<HistoryView::MediaGeneric>(
 		owned.get(),
-		GenerateChatIntro(owned.get(), _item.get(), data, helloChosen),
+		GenerateChatIntro(
+			owned.get(),
+			_item.get(),
+			data,
+			helloChosen,
+			sendIntroSticker),
 		HistoryView::MediaGenericDescriptor{
 			.maxWidth = st::chatIntroWidth,
 			.serviceLink = std::make_shared<LambdaClickHandler>(handler),
@@ -611,6 +618,10 @@ void AboutView::make(Data::ChatIntro data, bool preview) {
 		data.sticker = _helloChosen;
 	}
 	setItem(std::move(owned), data.sticker);
+}
+
+rpl::producer<not_null<DocumentData*>> AboutView::sendIntroSticker() const {
+	return _sendIntroSticker.events();
 }
 
 rpl::producer<> AboutView::refreshRequests() const {

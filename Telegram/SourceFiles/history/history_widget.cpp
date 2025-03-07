@@ -2525,6 +2525,12 @@ void HistoryWidget::showHistory(
 		_scroll->hide();
 		_list = _scroll->setOwnedWidget(
 			object_ptr<HistoryInner>(this, _scroll, controller(), _history));
+		_list->sendIntroSticker(
+		) | rpl::start_with_next([=](not_null<DocumentData*> sticker) {
+			sendExistingDocument(
+				sticker,
+				Api::MessageToSend(prepareSendAction({})));
+		}, _list->lifetime());
 		_list->show();
 
 		if (const auto channel = _peer->asChannel()) {

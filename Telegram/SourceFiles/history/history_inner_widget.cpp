@@ -4346,6 +4346,9 @@ void HistoryInner::refreshAboutView(bool force) {
 			_aboutView->refreshRequests() | rpl::start_with_next([=] {
 				updateBotInfo();
 			}, _aboutView->lifetime());
+			_aboutView->sendIntroSticker() | rpl::start_to_stream(
+				_sendIntroSticker,
+				_aboutView->lifetime());
 		}
 	};
 	if (const auto user = _peer->asUser()) {
@@ -4775,6 +4778,11 @@ ClickContext HistoryInner::prepareClickContext(
 		button,
 		QVariant::fromValue(prepareClickHandlerContext(itemId)),
 	};
+}
+
+auto HistoryInner::sendIntroSticker() const
+-> rpl::producer<not_null<DocumentData*>> {
+	return _sendIntroSticker.events();
 }
 
 auto HistoryInner::DelegateMixin()
