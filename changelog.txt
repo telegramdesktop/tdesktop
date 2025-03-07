@@ -1,3 +1,10 @@
+5.12 (07.03.25)
+
+- Set a fee for incoming messages from unknown users.
+- Set a fee for messages in groups or channel comments.
+- Show some information about who's messaging you.
+- Pin gifts on your profile.
+
 5.11.1 (13.02.25)
 
 - Fix arbitrary cropping support in the image editor.
