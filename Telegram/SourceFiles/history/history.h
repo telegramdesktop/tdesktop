@@ -82,6 +82,7 @@ public:
 	[[nodiscard]] HistoryItem *joinedMessageInstance() const;
 	void checkLocalMessages();
 	void removeJoinedMessage();
+	void removeNewPeerMessages();
 
 	void reactionsEnabledChanged(bool enabled);
 
@@ -545,6 +546,7 @@ private:
 
 	HistoryItem *insertJoinedMessage();
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
+	void checkNewPeerMessages();
 
 	[[nodiscard]] Dialogs::BadgesState computeBadgesState() const;
 	[[nodiscard]] Dialogs::BadgesState adjustBadgesStateByFolder(
@@ -563,6 +565,8 @@ private:
 	Element *_unreadBarView = nullptr;
 	Element *_firstUnreadView = nullptr;
 	HistoryItem *_joinedMessage = nullptr;
+	HistoryItem *_newPeerNameChange = nullptr;
+	HistoryItem *_newPeerPhotoChange = nullptr;
 	bool _loadedAtTop = false;
 	bool _loadedAtBottom = true;
 

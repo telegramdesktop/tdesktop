@@ -1427,6 +1427,9 @@ bool Element::countIsTopicRootReply() const {
 
 void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
+	if (item->hideDisplayDate()) {
+		displayDate = false;
+	}
 	if (displayDate && !Has<DateBadge>()) {
 		AddComponents(DateBadge::Bit());
 		Get<DateBadge>()->init(

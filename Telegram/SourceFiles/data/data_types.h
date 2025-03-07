@@ -349,6 +349,8 @@ enum class MessageFlag : uint64 {
 	EstimatedDate         = (1ULL << 49),
 
 	ReactionsAllowed      = (1ULL << 50),
+
+	HideDisplayDate       = (1ULL << 51),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;
