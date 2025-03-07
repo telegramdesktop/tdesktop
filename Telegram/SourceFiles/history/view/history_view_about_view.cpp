@@ -208,6 +208,26 @@ auto GenerateNewPeerInfo(
 			});
 		}
 
+		if (const auto count = user->commonChatsCount()) {
+			const auto url = u"internal:common_groups/"_q
+				+ QString::number(user->id.value);
+			entries.push_back({
+				tr::lng_new_contact_common_groups(tr::now),
+				Ui::Text::Wrapped(
+					tr::lng_new_contact_groups(
+						tr::now,
+						lt_count,
+						count,
+						lt_emoji,
+						TextWithEntities(),
+						lt_arrow,
+						Ui::Text::IconEmoji(&st::textMoreIconEmoji),
+						Ui::Text::Bold),
+					EntityType::CustomUrl,
+					url),
+			});
+		}
+
 		push(std::make_unique<AttributeTable>(
 			std::move(entries),
 			st::newPeerSubtitleMargin,
@@ -223,8 +243,9 @@ auto GenerateNewPeerInfo(
 			? Data::SingleCustomEmoji(
 				details->iconId
 			).append(' ').append(details->description)
-			: TextWithEntities().append(
-				tr::lng_new_contact_not_official(tr::now));
+			: Ui::Text::IconEmoji(
+				&st::newPeerNonOfficial
+			).append(' ').append(tr::lng_new_contact_not_official(tr::now));
 		push(std::make_unique<TextPartColored>(
 			text,
 			st::newPeerSubtitleMargin,

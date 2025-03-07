@@ -327,6 +327,11 @@ topicButtonArrowSkip: 8px;
 topicButtonArrowPosition: point(3px, 3px);
 topicButtonArrow: icon{{ "dialogs/dialogs_topic_arrow", historyReplyIconFg }};
 
+textMoreIconEmoji: IconEmoji {
+	icon: topicButtonArrow;
+	padding: margins(-2px, 5px, 0px, 0px);
+}
+
 msgBotKbIconPadding: 4px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
@@ -1228,3 +1233,7 @@ markupWebview: icon {{ "chat/markup_webview", windowFg }};
 
 newPeerTitleMargin: margins(11px, 16px, 11px, 6px);
 newPeerSubtitleMargin: margins(11px, 0px, 11px, 16px);
+newPeerNonOfficial: IconEmoji {
+	icon: icon{{ "chat/mini_info_alert", windowFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
