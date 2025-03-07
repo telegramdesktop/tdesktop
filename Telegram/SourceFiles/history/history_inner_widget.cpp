@@ -3896,7 +3896,8 @@ auto HistoryInner::reactionButtonParameters(
 }
 
 void HistoryInner::mouseActionUpdate() {
-	if (hasPendingResizedItems() || !_mouseActive) {
+	if (hasPendingResizedItems()
+		|| (!_mouseActive && !window()->isActiveWindow())) {
 		return;
 	}
 
