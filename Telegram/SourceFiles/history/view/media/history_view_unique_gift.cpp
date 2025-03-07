@@ -511,6 +511,26 @@ void AttributeTable::draw(
 	}
 }
 
+TextState AttributeTable::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	auto top = _margins.top();
+	for (const auto &part : _parts) {
+		const auto height = st::normalFont->height + st::chatUniqueRowSkip;
+		if (point.y() >= top && point.y() < top + height) {
+			point -= QPoint((outerWidth - width()) / 2 + _valueLeft, top);
+			auto result = TextState();
+			auto forText = request.forText();
+			forText.align = style::al_topleft;
+			result.link = part.value.getState(point, width(), forText).link;
+			return result;
+		}
+		top += height;
+	}
+	return {};
+}
+
 QSize AttributeTable::countOptimalSize() {
 	auto maxLabel = 0;
 	auto maxValue = 0;

@@ -4342,6 +4342,9 @@ void HistoryInner::refreshAboutView(bool force) {
 			_aboutView = std::make_unique<HistoryView::AboutView>(
 				_history,
 				_history->delegateMixin()->delegate());
+			_aboutView->refreshRequests() | rpl::start_with_next([=] {
+				updateBotInfo();
+			}, _aboutView->lifetime());
 		}
 	};
 	if (const auto user = _peer->asUser()) {

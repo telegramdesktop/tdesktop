@@ -69,6 +69,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -1034,6 +1036,26 @@ bool EditPaidMessagesFee(
 	return true;
 }
 
+bool ShowCommonGroups(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto peerId = PeerId(match->captured(1).toULongLong());
+	if (const auto id = peerToUser(peerId)) {
+		const auto user = controller->session().data().userLoaded(id);
+		if (user) {
+			controller->showSection(
+				std::make_shared<Info::Memento>(
+					user,
+					Info::Section::Type::CommonGroups));
+		}
+	}
+	return true;
+}
+
 bool ShowStarsExamples(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1540,6 +1562,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^edit_paid_messages_fee/([0-9]+)$"_q,
 			EditPaidMessagesFee,
+		},
+		{
+			u"^common_groups/([0-9]+)$"_q,
+			ShowCommonGroups,
 		},
 		{
 			u"^stars_examples$"_q,

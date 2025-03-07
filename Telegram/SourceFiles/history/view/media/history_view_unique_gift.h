@@ -97,6 +97,10 @@ public:
 		not_null<const MediaGeneric*> owner,
 		const PaintContext &context,
 		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const override;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;

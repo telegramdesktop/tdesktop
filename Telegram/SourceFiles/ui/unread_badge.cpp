@@ -296,9 +296,10 @@ void PeerBadge::set(
 		_botVerifiedData = std::make_unique<BotVerifiedData>();
 	}
 	if (details->iconId) {
-		_botVerifiedData->icon = factory(
-			Data::SerializeCustomEmojiId(details->iconId),
-			{ .repaint = repaint });
+		_botVerifiedData->icon = std::make_unique<Ui::Text::FirstFrameEmoji>(
+			factory(
+				Data::SerializeCustomEmojiId(details->iconId),
+				{ .repaint = repaint }));
 	}
 }
 

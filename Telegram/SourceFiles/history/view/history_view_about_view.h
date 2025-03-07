@@ -30,6 +30,9 @@ public:
 
 	void make(Data::ChatIntro data, bool preview = false);
 
+	[[nodiscard]] rpl::producer<> refreshRequests() const;
+	[[nodiscard]] rpl::lifetime &lifetime();
+
 	int top = 0;
 	int height = 0;
 
@@ -50,12 +53,21 @@ private:
 	void setHelloChosen(not_null<DocumentData*> sticker);
 	void toggleStickerRegistered(bool registered);
 
+	void loadCommonGroups();
+
 	const not_null<History*> _history;
 	const not_null<ElementDelegate*> _delegate;
 	AdminLog::OwnedItem _item;
+
 	DocumentData *_helloChosen = nullptr;
 	DocumentData *_sticker = nullptr;
 	int _version = 0;
+
+	bool _commonGroupsStale = false;
+	bool _commonGroupsRequested = false;
+	std::vector<not_null<PeerData*>> _commonGroups;
+	rpl::event_stream<> _refreshRequests;
+	rpl::lifetime _lifetime;
 
 };
 

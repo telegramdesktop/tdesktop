@@ -1237,3 +1237,10 @@ newPeerNonOfficial: IconEmoji {
 	icon: icon{{ "chat/mini_info_alert", windowFg }};
 	padding: margins(0px, 2px, 0px, 0px);
 }
+newPeerUserpics: GroupCallUserpics {
+	size: 16px;
+	shift: 5px;
+	stroke: 1px;
+	align: align(left);
+}
+newPeerUserpicsPadding: margins(0px, 3px, 0px, 0px);

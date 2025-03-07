@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/view/history_view_group_call_bar.h"
 #include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_service_box.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
@@ -37,17 +38,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h" // BuyStarsHandler
 #include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
+#include "ui/text/custom_emoji_instance.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
+#include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h" // GroupCallUserpics
 #include "styles/style_credits.h"
 
 namespace HistoryView {
 namespace {
 
 constexpr auto kLabelOpacity = 0.85;
+constexpr auto kMaxCommonChatsUserpics = 3;
 
 class EmptyChatLockedBox final
 	: public ServiceBoxContent
@@ -94,6 +99,101 @@ private:
 	Type _type = {};
 
 };
+
+class UserpicsList final : public Ui::DynamicImage {
+public:
+	UserpicsList(
+		std::vector<not_null<PeerData*>> peers,
+		const style::GroupCallUserpics &st,
+		int countOverride = 0);
+
+	[[nodiscard]] int width() const;
+
+	std::shared_ptr<Ui::DynamicImage> clone() override;
+
+	QImage image(int size) override;
+	void subscribeToUpdates(Fn<void()> callback) override;
+
+private:
+	struct Subscribed {
+		explicit Subscribed(Fn<void()> callback)
+		: callback(std::move(callback)) {
+		}
+
+		std::vector<HistoryView::UserpicInRow> list;
+		bool someNotLoaded = false;
+		Fn<void()> callback;
+		int paletteVersion = 0;
+	};
+
+	const std::vector<not_null<PeerData*>> _peers;
+	const style::GroupCallUserpics &_st;
+	const int _countOverride = 0;
+
+	QImage _frame;
+	std::unique_ptr<Subscribed> _subscribed;
+
+};
+
+UserpicsList::UserpicsList(
+	std::vector<not_null<PeerData*>> peers,
+	const style::GroupCallUserpics &st,
+	int countOverride)
+: _peers(std::move(peers))
+, _st(st)
+, _countOverride(countOverride) {
+}
+
+std::shared_ptr<Ui::DynamicImage> UserpicsList::clone() {
+	return std::make_shared<UserpicsList>(_peers, _st);
+}
+
+QImage UserpicsList::image(int size) {
+	Expects(_subscribed != nullptr);
+
+	const auto regenerate = [&] {
+		const auto version = style::PaletteVersion();
+		if (_frame.isNull() || _subscribed->paletteVersion != version) {
+			_subscribed->paletteVersion = version;
+			return true;
+		}
+		for (auto &entry : _subscribed->list) {
+			const auto peer = entry.peer;
+			auto &view = entry.view;
+			const auto wasView = view.cloud.get();
+			if (peer->userpicUniqueKey(view) != entry.uniqueKey
+				|| view.cloud.get() != wasView) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (regenerate) {
+		const auto max = std::max(_countOverride, int(_peers.size()));
+		GenerateUserpicsInRow(_frame, _subscribed->list, _st, max);
+	}
+	return _frame;
+}
+
+void UserpicsList::subscribeToUpdates(Fn<void()> callback) {
+	if (!callback) {
+		_subscribed = nullptr;
+		return;
+	}
+	_subscribed = std::make_unique<Subscribed>(std::move(callback));
+	for (const auto peer : _peers) {
+		_subscribed->list.push_back({ .peer = peer });
+	}
+}
+
+int UserpicsList::width() const {
+	const auto count = std::max(_countOverride, int(_peers.size()));
+	if (!count) {
+		return 0;
+	}
+	const auto shifted = count - 1;
+	return _st.size + (shifted * (_st.size - _st.shift));
+}
 
 auto GenerateChatIntro(
 	not_null<Element*> parent,
@@ -165,7 +265,8 @@ auto GenerateChatIntro(
 auto GenerateNewPeerInfo(
 	not_null<Element*> parent,
 	Element *replacing,
-	not_null<UserData*> user)
+	not_null<UserData*> user,
+	std::vector<not_null<PeerData*>> commonGroups)
 -> Fn<void(
 		not_null<MediaGeneric*>,
 		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
@@ -208,9 +309,22 @@ auto GenerateNewPeerInfo(
 			});
 		}
 
+		const auto context = Core::TextContext({
+			.session = &parent->history()->session(),
+			.repaint = [parent] { parent->repaint(); },
+		});
+		const auto kUserpicsPrefix = u"userpics-list/"_q;
 		if (const auto count = user->commonChatsCount()) {
 			const auto url = u"internal:common_groups/"_q
 				+ QString::number(user->id.value);
+			auto ids = QStringList();
+			const auto userpics = std::min(count, kMaxCommonChatsUserpics);
+			for (auto i = 0; i != userpics; ++i) {
+				ids.push_back(QString::number(i < commonGroups.size()
+					? commonGroups[i]->id.value
+					: 0));
+			}
+			auto userpicsData = kUserpicsPrefix + ids.join(',');
 			entries.push_back({
 				tr::lng_new_contact_common_groups(tr::now),
 				Ui::Text::Wrapped(
@@ -219,7 +333,7 @@ auto GenerateNewPeerInfo(
 						lt_count,
 						count,
 						lt_emoji,
-						TextWithEntities(),
+						Ui::Text::SingleCustomEmoji(userpicsData),
 						lt_arrow,
 						Ui::Text::IconEmoji(&st::textMoreIconEmoji),
 						Ui::Text::Bold),
@@ -228,16 +342,40 @@ auto GenerateNewPeerInfo(
 			});
 		}
 
+		auto copy = context;
+		copy.customEmojiFactory = [=, old = copy.customEmojiFactory](
+			QStringView data,
+			const Ui::Text::MarkedContext &context
+		) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+			if (!data.startsWith(kUserpicsPrefix)) {
+				return old(data, context);
+			}
+			const auto ids = data.mid(kUserpicsPrefix.size()).split(',');
+			auto peers = std::vector<not_null<PeerData*>>();
+			for (const auto &id : ids) {
+				if (const auto peerId = PeerId(id.toULongLong())) {
+					peers.push_back(user->owner().peer(peerId));
+				}
+			}
+			auto image = std::make_shared<UserpicsList>(
+				std::move(peers),
+				st::newPeerUserpics,
+				ids.size());
+			const auto size = image->width();
+			return std::make_unique<Ui::CustomEmoji::DynamicImageEmoji>(
+				data.toString(),
+				std::move(image),
+				context.repaint,
+				st::newPeerUserpicsPadding,
+				size);
+		};
 		push(std::make_unique<AttributeTable>(
 			std::move(entries),
 			st::newPeerSubtitleMargin,
 			fadedFg,
-			normalFg));
+			normalFg,
+			copy));
 
-		const auto context = Core::TextContext({
-			.session = &parent->history()->session(),
-			.repaint = [parent] { parent->repaint(); },
-		});
 		const auto details = user->botVerifyDetails();
 		const auto text = details
 			? Data::SingleCustomEmoji(
@@ -380,9 +518,10 @@ bool AboutView::refresh() {
 		if (user
 			&& !user->isContact()
 			&& !user->phoneCountryCode().isEmpty()) {
-			if (_item) {
+			if (_item && !_commonGroupsStale) {
 				return false;
 			}
+			loadCommonGroups();
 			setItem(makeNewPeerInfo(user), nullptr);
 			return true;
 		} else if (user && !user->isSelf() && _history->isDisplayedEmpty()) {
@@ -474,6 +613,14 @@ void AboutView::make(Data::ChatIntro data, bool preview) {
 	setItem(std::move(owned), data.sticker);
 }
 
+rpl::producer<> AboutView::refreshRequests() const {
+	return _refreshRequests.events();
+}
+
+rpl::lifetime &AboutView::lifetime() {
+	return _lifetime;
+}
+
 void AboutView::toggleStickerRegistered(bool registered) {
 	if (const auto item = _item ? _item->data().get() : nullptr) {
 		if (_sticker) {
@@ -488,6 +635,75 @@ void AboutView::toggleStickerRegistered(bool registered) {
 	if (!registered) {
 		_sticker = nullptr;
 	}
+}
+
+void AboutView::loadCommonGroups() {
+	if (_commonGroupsRequested) {
+		return;
+	}
+	_commonGroupsRequested = true;
+
+	const auto user = _history->peer->asUser();
+	if (!user) {
+		return;
+	}
+
+	struct Cached {
+		std::vector<not_null<PeerData*>> list;
+	};
+	struct Session {
+		base::flat_map<not_null<UserData*>, Cached> data;
+	};
+	static auto Map = base::flat_map<not_null<Main::Session*>, Session>();
+	const auto session = &_history->session();
+	auto i = Map.find(session);
+	if (i == end(Map)) {
+		i = Map.emplace(session).first;
+		session->lifetime().add([session] {
+			Map.remove(session);
+		});
+	}
+	auto &cached = i->second.data[user];
+
+	const auto count = user->commonChatsCount();
+	if (!count) {
+		cached = {};
+		return;
+	} else while (cached.list.size() > count) {
+		cached.list.pop_back();
+	}
+	_commonGroups = cached.list;
+	const auto requestId = _history->session().api().request(
+		MTPmessages_GetCommonChats(
+			user->inputUser,
+			MTP_long(0),
+			MTP_int(kMaxCommonChatsUserpics))
+	).done([=](const MTPmessages_Chats &result) {
+		const auto chats = result.match([](const auto &data) {
+			return &data.vchats().v;
+		});
+		auto &owner = user->session().data();
+		auto list = std::vector<not_null<PeerData*>>();
+		list.reserve(chats->size());
+		for (const auto &chat : *chats) {
+			if (const auto peer = owner.processChat(chat)) {
+				list.push_back(peer);
+				if (list.size() == kMaxCommonChatsUserpics) {
+					break;
+				}
+			}
+		}
+		if (_commonGroups != list) {
+			Map[session].data[user].list = list;
+			_commonGroups = std::move(list);
+			_commonGroupsStale = true;
+			_refreshRequests.fire({});
+		}
+	}).send();
+
+	_lifetime.add([=] {
+		_history->session().api().request(requestId).cancel();
+	});
 }
 
 void AboutView::setHelloChosen(not_null<DocumentData*> sticker) {
@@ -505,6 +721,8 @@ void AboutView::setItem(AdminLog::OwnedItem item, DocumentData *sticker) {
 }
 
 AdminLog::OwnedItem AboutView::makeNewPeerInfo(not_null<UserData*> user) {
+	_commonGroupsStale = false;
+
 	const auto text = user->name();
 	const auto item = _history->makeMessage({
 		.id = _history->nextNonHistoryEntryId(),
@@ -517,7 +735,7 @@ AdminLog::OwnedItem AboutView::makeNewPeerInfo(not_null<UserData*> user) {
 	auto owned = AdminLog::OwnedItem(_delegate, item);
 	owned->overrideMedia(std::make_unique<HistoryView::MediaGeneric>(
 		owned.get(),
-		GenerateNewPeerInfo(owned.get(), _item.get(), user),
+		GenerateNewPeerInfo(owned.get(), _item.get(), user, _commonGroups),
 		HistoryView::MediaGenericDescriptor{
 			.service = true,
 			.hideServiceText = true,
