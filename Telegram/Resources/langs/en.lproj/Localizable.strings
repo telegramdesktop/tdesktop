@@ -1,7 +1,41 @@
-/*
-This file is part of Telegram Desktop,
-the official desktop application for the Telegram messaging service.
-
-For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
-*/
+{
+  "lng_settings": "设置（别瞎鸡巴点）",
+  "lng_about": "关于（我是谁？我在哪？）",
+  "lng_contacts": "联系人（看看谁在摸鱼）",
+  "lng_telegram_faq": "Telegram 常见问题（不懂就问）",
+  "lng_telegram_version": "Telegram 版本（最新版，不更新就out了）",
+  "lng_telegram_license": "Telegram 许可证（反正你也看不懂）",
+  "lng_telegram_privacy": "Telegram 隐私政策（我们不会偷看你的聊天记录，真的）",
+  "lng_telegram_terms": "Telegram 服务条款（点了就是同意了，别后悔）",
+  "lng_send_message": "发送消息（丢个粑粑给你）",
+  "lng_online": "在线（在做春梦）",
+  "lng_typing": "正在输入...（不知道在打什么逼东西）",
+  "lng_search": "搜索（找啥呢？）",
+  "lng_new_group": "新建群组（创个码头）",
+  "lng_logout": "退出登录（溜了溜了）",
+  "lng_delete_account": "删除账号（真的要跑路了吗？）",
+  "lng_clear_history": "清空聊天记录（毁尸灭迹）",
+  "lng_block_user": "拉黑用户（滚你妈的）",
+  "lng_report_spam": "举报垃圾信息（干得漂亮）",
+  "lng_edit": "编辑（改来改去真麻烦）",
+  "lng_forward": "转发（分享快乐）",
+  "lng_reply": "回复（怼回去）",
+  "lng_save_to_gallery": "保存到相册（存图狂魔）",
+  "lng_delete": "删除（滚犊子）",
+  "lng_select_chat": "选择聊天（找怨种聊天）",
+  "lng_voice_message": "语音消息（听我说，别打字）",
+  "lng_sticker": "贴纸（发点黄图给你）",
+  "lng_attach_file": "附件（发点好东西）",
+  "lng_photo": "照片（来张自拍）",
+  "lng_video": "视频（拍个小电影）",
+  "lng_music": "音乐（来点BGM）",
+  "lng_location": "位置（我在哪？）",
+  "lng_contact": "联系人（加个秋秋）",
+  "lng_create_group": "创建群组（创建一个社团）",
+  "lng_invite_friends": "邀请好友（快来一起玩）",
+  "lng_theme": "主题（换身行头）",
+  "lng_notifications": "通知（搁这儿吵你妈呢）",
+  "lng_privacy": "隐私（偷窥隐私犯法！）",
+  "lng_data_and_storage": "数据和存储（省点流量吧）",
+  "lng_language": "语言（狗吠）"
+}
