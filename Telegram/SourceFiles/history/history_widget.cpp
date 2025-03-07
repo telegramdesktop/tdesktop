@@ -5194,7 +5194,9 @@ void HistoryWidget::updateSendButtonType() {
 			: 0;
 	}();
 	const auto perMessage = _peer ? _peer->starsPerMessageChecked() : 0;
-	const auto messages = _voiceRecordBar->isListenState()
+	const auto messages = !_peer
+		? 0
+		: _voiceRecordBar->isListenState()
 		? 1
 		: ComputeSendingMessagesCount(_history, {
 			.forward = &_forwardPanel->items(),
