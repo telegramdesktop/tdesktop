@@ -386,6 +386,7 @@ private:
 	ChatTypeFilter _searchQueryFilter = {};
 
 	Ui::Controls::SwipeBackResult _swipeBackData;
+	bool _swipeBackIconMirrored = false;
 
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;

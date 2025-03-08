@@ -677,6 +677,14 @@ Widget::Widget(
 }
 
 void Widget::setupSwipeBack() {
+	const auto isMainList = [=] {
+		const auto current = controller()->activeChatsFilterCurrent();
+		const auto &chatsFilters = session().data().chatsFilters();
+		if (chatsFilters.has()) {
+			return chatsFilters.defaultId() == current;
+		}
+		return !current;
+	};
 	Ui::Controls::SetupSwipeHandler(_scroll.data(), _scroll.data(), [=](
 			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
@@ -688,7 +696,9 @@ void Widget::setupSwipeBack() {
 							st::historyForwardChooseBg->c,
 							st::historyForwardChooseFg->c,
 						};
-					});
+					},
+					false,
+					_swipeBackIconMirrored);
 			}
 			_swipeBackData.callback(data);
 			return;
@@ -698,29 +708,45 @@ void Widget::setupSwipeBack() {
 			}
 		}
 	}, [=](int, Qt::LayoutDirection direction) {
-		if ((direction != Qt::RightToLeft)
-			|| _childListShown.current()
-			|| (!controller()->isPrimary() && (_layout != Layout::Child))
-			|| (!controller()->shownForum().current()
-				&& !controller()->openedFolder().current())) {
+		_swipeBackIconMirrored = false;
+		if (_childListShown.current()) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
-		return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
-			_swipeBackData = {};
-			if (const auto forum = controller()->shownForum().current()) {
-				const auto id = controller()->windowId();
-				const auto initial = id.forum();
-				if (!initial) {
-					controller()->closeForum();
-				} else if (initial != forum) {
-					controller()->showForum(initial);
+		const auto isRightToLeft = direction == Qt::RightToLeft;
+		if (isRightToLeft && controller()->openedFolder().current()) {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				_swipeBackData = {};
+				if (controller()->openedFolder().current()) {
+					if (!controller()->windowId().folder()) {
+						controller()->closeFolder();
+					}
 				}
-			} else if (controller()->openedFolder().current()) {
-				if (!controller()->windowId().folder()) {
-					controller()->closeFolder();
-				}
+			});
+		}
+		if (isRightToLeft && (controller()->shownForum().current())) {
+			const auto id = controller()->windowId();
+			const auto initial = id.forum();
+			if (initial) {
+				return Ui::Controls::SwipeHandlerFinishData();
 			}
-		});
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				_swipeBackData = {};
+				if (const auto forum = controller()->shownForum().current()) {
+					controller()->closeForum();
+				}
+			});
+		}
+		if (isRightToLeft && isMainList()) {
+			_swipeBackIconMirrored = true;
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				_swipeBackIconMirrored = false;
+				_swipeBackData = {};
+				if (isMainList()) {
+					showMainMenu();
+				}
+			});
+		}
+		return Ui::Controls::SwipeHandlerFinishData();
 	}, nullptr);
 
 }
