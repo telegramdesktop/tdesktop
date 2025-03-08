@@ -104,7 +104,7 @@ void PreviewPainter::setDocument(
 		}
 		if (_player) {
 			_player->setRepaintCallback(updateCallback);
-		} else {
+		} else if (updateCallback) {
 			updateCallback();
 		}
 	}, _lifetime);
