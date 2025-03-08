@@ -1333,6 +1333,9 @@ void Widget::toggleFiltersMenu(bool enabled) {
 	if (_layout == Layout::Child) {
 		enabled = false;
 	}
+	if (const auto id = controller()->windowId(); id.forum() || id.folder()) {
+		enabled = false;
+	}
 	if (!enabled == !_chatFilters) {
 		return;
 	} else if (enabled) {
