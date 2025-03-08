@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "data/data_web_page.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -3249,7 +3250,8 @@ bool CheckAndJumpToNearChatsFilter(
 		bool isNext,
 		bool jump) {
 	const auto id = controller->activeChatsFilterCurrent();
-	const auto list = &controller->session().data().chatsFilters().list();
+	const auto session = &controller->session();
+	const auto list = &session->data().chatsFilters().list();
 	const auto index = int(ranges::find(
 		*list,
 		id,
@@ -3260,6 +3262,9 @@ bool CheckAndJumpToNearChatsFilter(
 	}
 	const auto changed = index + (isNext ? 1 : -1);
 	if (changed >= int(list->size()) || changed < 0) {
+		return false;
+	}
+	if (changed > Data::PremiumLimits(session).dialogFiltersCurrent()) {
 		return false;
 	}
 	if (jump) {
