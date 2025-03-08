@@ -687,7 +687,7 @@ void Widget::setupSwipeBack() {
 	};
 	Ui::Controls::SetupSwipeHandler(_scroll.data(), _scroll.data(), [=](
 			Ui::Controls::SwipeContextData data) {
-		if (data.translation > 0) {
+		if (data.translation != 0) {
 			if (!_swipeBackData.callback) {
 				_swipeBackData = Ui::Controls::SetupSwipeBack(
 					this,
@@ -697,7 +697,7 @@ void Widget::setupSwipeBack() {
 							st::historyForwardChooseFg->c,
 						};
 					},
-					false,
+					_swipeBackMirrored,
 					_swipeBackIconMirrored);
 			}
 			_swipeBackData.callback(data);
@@ -709,11 +709,15 @@ void Widget::setupSwipeBack() {
 		}
 	}, [=](int, Qt::LayoutDirection direction) {
 		_swipeBackIconMirrored = false;
+		_swipeBackMirrored = false;
 		if (_childListShown.current()) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto isRightToLeft = direction == Qt::RightToLeft;
-		if (isRightToLeft && controller()->openedFolder().current()) {
+		if (controller()->openedFolder().current()) {
+			if (!isRightToLeft) {
+				return Ui::Controls::SwipeHandlerFinishData();
+			}
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				_swipeBackData = {};
 				if (controller()->openedFolder().current()) {
@@ -723,7 +727,10 @@ void Widget::setupSwipeBack() {
 				}
 			});
 		}
-		if (isRightToLeft && (controller()->shownForum().current())) {
+		if (controller()->shownForum().current()) {
+			if (!isRightToLeft) {
+				return Ui::Controls::SwipeHandlerFinishData();
+			}
 			const auto id = controller()->windowId();
 			const auto initial = id.forum();
 			if (initial) {
@@ -745,6 +752,17 @@ void Widget::setupSwipeBack() {
 					showMainMenu();
 				}
 			});
+		}
+		if (_chatFilters && session().data().chatsFilters().has()) {
+			_swipeBackMirrored = !isRightToLeft;
+			using namespace Window;
+			const auto next = !isRightToLeft;
+			if (CheckAndJumpToNearChatsFilter(controller(), next, false)) {
+				return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+					_swipeBackData = {};
+					CheckAndJumpToNearChatsFilter(controller(), next, true);
+				});
+			}
 		}
 		return Ui::Controls::SwipeHandlerFinishData();
 	}, nullptr);
