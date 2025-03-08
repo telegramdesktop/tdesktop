@@ -500,7 +500,7 @@ void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 			break;
 		}
 	}
-	entry.pinnedSavedGifts = [pinnedIds, peer = _peer] {
+	entry.pinnedSavedGifts = [pinnedIds] {
 		auto result = std::vector<Data::CreditsHistoryEntry>();
 		result.reserve(pinnedIds.size());
 		for (const auto &id : pinnedIds) {
