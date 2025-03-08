@@ -332,7 +332,8 @@ void SetupSwipeHandler(
 SwipeBackResult SetupSwipeBack(
 		not_null<Ui::RpWidget*> widget,
 		Fn<std::pair<QColor, QColor>()> colors,
-		bool mirrored) {
+		bool mirrored,
+		bool iconMirrored) {
 	struct State {
 		base::unique_qptr<Ui::RpWidget> back;
 		SwipeContextData data;
@@ -398,17 +399,22 @@ SwipeBackResult SetupSwipeBack(
 				const auto arrowHalf = arrowSize / 2;
 				const auto arrowX = st::swipeBackSize / 8
 					+ rect.x()
-					+ halfSize
-					- arrowHalf;
+					+ halfSize;
 				const auto arrowY = rect.y() + halfSize;
 
 				auto arrowPath = QPainterPath();
-				arrowPath.moveTo(arrowX + arrowSize, arrowY);
-				arrowPath.lineTo(arrowX, arrowY);
-				arrowPath.lineTo(arrowX + arrowHalf, arrowY - arrowHalf);
-				arrowPath.moveTo(arrowX, arrowY);
-				arrowPath.lineTo(arrowX + arrowHalf, arrowY + arrowHalf);
+				const auto direction = iconMirrored ? -1 : 1;
 
+				arrowPath.moveTo(arrowX + direction * arrowSize, arrowY);
+				arrowPath.lineTo(arrowX, arrowY);
+				arrowPath.lineTo(
+					arrowX + direction * arrowHalf,
+					arrowY - arrowHalf);
+				arrowPath.moveTo(arrowX, arrowY);
+				arrowPath.lineTo(
+					arrowX + direction * arrowHalf,
+					arrowY + arrowHalf);
+				arrowPath.translate(-direction * arrowHalf, 0);
 				p.drawPath(arrowPath);
 			}
 			if (reachRatio) {
