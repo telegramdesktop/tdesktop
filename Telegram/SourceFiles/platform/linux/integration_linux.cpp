@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "core/sandbox.h"
 #include "core/application.h"
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+#include "core/core_settings.h"
+#endif
 #include "base/random.h"
 
 #include <QtCore/QAbstractEventDispatcher>
