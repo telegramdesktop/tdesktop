@@ -72,8 +72,8 @@ void SendButton::setState(State state) {
 			st::universalDuration);
 		setPointerCursor(_state.type != Type::Slowmode);
 		updateSize();
-		update();
 	}
+	update();
 }
 
 void SendButton::finishAnimating() {
