@@ -1148,10 +1148,19 @@ depends:yasm/yasm
 """)
 
 stage('liblcms2', """
-mac:
     git clone -b lcms2.16 https://github.com/mm2/Little-CMS.git liblcms2
     cd liblcms2
-
+win:
+depends:python/Scripts/activate.bat
+    %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
+    meson setup --default-library=static --buildtype=debug -Db_vscrt=mtd out/Debug
+    meson compile -C out/Debug
+release:
+    meson setup --default-library=static --buildtype=release -Db_vscrt=mt out/Release
+    meson compile -C out/Release
+win:
+    deactivate
+mac:
     buildOneArch() {
         arch=$1
         folder=`pwd`/$2
@@ -1689,6 +1698,7 @@ win:
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
+    SET LCMS2_DIR=%LIBS_DIR%\\liblcms2
     configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
@@ -1726,7 +1736,10 @@ win:
         -D WebP_mux_INCLUDE_DIR="%WEBP_DIR%\\src" ^
         -D WebP_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webp.lib" ^
         -D WebP_demux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpdemux.lib" ^
-        -D WebP_mux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpmux.lib"
+        -D WebP_mux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpmux.lib" ^
+        -D LCMS2_FOUND=1 ^
+        -D LCMS2_INCLUDE_DIR="%LCMS2_DIR%\\include" ^
+        -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\Release\\src\\liblcms2.a"
 
     cmake --build . --config Debug --parallel
     cmake --install . --config Debug
