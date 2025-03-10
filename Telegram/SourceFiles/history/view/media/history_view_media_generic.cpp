@@ -304,7 +304,7 @@ QSize MediaGenericTextPart::countCurrentSize(int newWidth) {
 	const auto size = CountOptimalTextSize(
 		_text,
 		st::msgMinWidth,
-		newWidth - skip);
+		std::max(st::msgMinWidth, newWidth - skip));
 	return {
 		size.width() + skip,
 		_margins.top() + size.height() + _margins.bottom(),
