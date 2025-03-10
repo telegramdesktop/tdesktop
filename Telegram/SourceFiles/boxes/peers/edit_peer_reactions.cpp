@@ -363,15 +363,17 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 	const auto customEmojiPaused = [controller = args.controller] {
 		return controller->isGifPausedAtLeastFor(PauseReason::Layer);
 	};
-	auto context = Core::TextContext({
+	auto simpleContext = Core::TextContext({
 		.session = session,
+		.repaint = [=] { raw->update(); },
 	});
+	auto context = simpleContext;
 	context.customEmojiFactory = [=](
 		QStringView data,
 		const Ui::Text::MarkedContext &context
 	) -> std::unique_ptr<Ui::Text::CustomEmoji> {
 		const auto id = Data::ParseCustomEmojiData(data);
-		auto result = Ui::Text::MakeCustomEmoji(data, context);
+		auto result = Ui::Text::MakeCustomEmoji(data, simpleContext);
 		if (state->unifiedFactoryOwner->lookupReactionId(id).custom()) {
 			return std::make_unique<MaybeDisabledEmoji>(
 				std::move(result),
