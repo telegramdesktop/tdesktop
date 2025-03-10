@@ -748,6 +748,7 @@ AdminLog::OwnedItem AboutView::makeNewPeerInfo(not_null<UserData*> user) {
 		owned.get(),
 		GenerateNewPeerInfo(owned.get(), _item.get(), user, _commonGroups),
 		HistoryView::MediaGenericDescriptor{
+			.maxWidth = st::newPeerWidth,
 			.service = true,
 			.hideServiceText = true,
 		}));

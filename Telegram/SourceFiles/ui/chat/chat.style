@@ -1244,3 +1244,4 @@ newPeerUserpics: GroupCallUserpics {
 	align: align(left);
 }
 newPeerUserpicsPadding: margins(0px, 3px, 0px, 0px);
+newPeerWidth: 320px;
