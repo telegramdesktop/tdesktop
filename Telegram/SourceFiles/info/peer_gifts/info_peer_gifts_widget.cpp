@@ -274,7 +274,10 @@ void InnerWidget::markUnpinned(std::vector<Entry>::iterator i) {
 		}
 		++after;
 	}
-	if (after == _entries.size()) {
+	if (after == _entries.size() && !_allLoaded) {
+		// We don't know if the correct position is exactly in the end
+		// of the loaded part or later, so we hide it for now, let it
+		// be loaded later while scrolling.
 		_entries.erase(i);
 	} else if (after > index + 1) {
 		std::rotate(i, i + 1, begin(_entries) + after);
