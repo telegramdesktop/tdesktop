@@ -150,6 +150,9 @@ void ConfirmPhone::resolve(
 		}, [](const MTPDauth_sentCodeSuccess &) {
 			LOG(("API Error: Unexpected auth.sentCodeSuccess "
 				"(Api::ConfirmPhone)."));
+		}, [](const MTPDauth_sentCodePaymentRequired &) {
+			LOG(("API Error: Unexpected auth.sentCodePaymentRequired "
+				"(Api::ConfirmPhone)."));
 		});
 	}).fail([=](const MTP::Error &error) {
 		_sendRequestId = 0;

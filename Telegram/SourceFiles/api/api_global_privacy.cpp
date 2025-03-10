@@ -224,7 +224,8 @@ void GlobalPrivacy::update(
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
 		MTP_globalPrivacySettings(
 			MTP_flags(flags),
-			MTP_long(newChargeStars))
+			MTP_long(newChargeStars),
+			MTPDisallowedStarGiftsSettings())
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);

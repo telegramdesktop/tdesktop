@@ -5585,6 +5585,45 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto preparePaidMessagesRefunded = [&](const MTPDmessageActionPaidMessagesRefunded &action) {
+		auto result = PreparedServiceText();
+		if (_from->isSelf()) {
+			result.links.push_back(_history->peer->createOpenLink());
+			result.text = tr::lng_action_paid_message_refund_self(
+				tr::now,
+				lt_count,
+				action.vstars().v,
+				lt_name,
+				Ui::Text::Link(_history->peer->shortName(), 1),
+				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(_from->createOpenLink());
+			result.text = tr::lng_action_paid_message_refund(
+				tr::now,
+				lt_count,
+				action.vstars().v,
+				lt_from,
+				Ui::Text::Link(_from->shortName(), 1),
+				Ui::Text::WithEntities);
+		}
+		return result;
+	};
+
+	auto preparePaidMessagesPrice = [&](const MTPDmessageActionPaidMessagesPrice &action) {
+		const auto stars = action.vstars().v;
+		auto result = PreparedServiceText();
+		result.text = stars
+			? tr::lng_action_message_price_paid(
+				tr::now,
+				lt_count,
+				stars,
+				Ui::Text::WithEntities)
+			: tr::lng_action_message_price_free(
+				tr::now,
+				Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -5632,6 +5671,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGiftPrize,
 		prepareStarGift,
 		prepareStarGiftUnique,
+		preparePaidMessagesRefunded,
+		preparePaidMessagesPrice,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

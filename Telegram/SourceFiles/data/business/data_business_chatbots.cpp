@@ -41,7 +41,7 @@ void Chatbots::preload() {
 			_settings = ChatbotsSettings{
 				.bot = _owner->session().data().user(botId),
 				.recipients = FromMTP(_owner, bot.vrecipients()),
-				.repliesAllowed = bot.is_can_reply(),
+				.repliesAllowed = bot.vrights().data().is_reply(),
 			};
 		} else {
 			_settings.force_assign(ChatbotsSettings());
@@ -79,13 +79,13 @@ void Chatbots::save(
 		return;
 	} else if (was.bot || settings.bot) {
 		using Flag = MTPaccount_UpdateConnectedBot::Flag;
+		using RightFlag = MTPDbusinessBotRights::Flag;
 		const auto api = &_owner->session().api();
 		api->request(MTPaccount_UpdateConnectedBot(
-			MTP_flags(!settings.bot
-				? Flag::f_deleted
-				: settings.repliesAllowed
-				? Flag::f_can_reply
-				: Flag()),
+			MTP_flags(!settings.bot ? Flag::f_deleted : Flag::f_rights),
+			MTP_businessBotRights(MTP_flags(settings.repliesAllowed
+				? RightFlag::f_reply
+				: RightFlag())),
 			(settings.bot ? settings.bot : was.bot)->inputUser,
 			ForBotsToMTP(settings.recipients)
 		)).done([=](const MTPUpdates &result) {

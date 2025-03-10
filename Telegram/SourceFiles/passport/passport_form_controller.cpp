@@ -2229,6 +2229,9 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 		}, [](const MTPDauth_sentCodeSuccess &) {
 			LOG(("API Error: Unexpected auth.sentCodeSuccess "
 				"(FormController::startPhoneVerification)."));
+		}, [](const MTPDauth_sentCodePaymentRequired &) {
+			LOG(("API Error: Unexpected auth.sentCodePaymentRequired "
+				"(FormController::startPhoneVerification)."));
 		});
 	}).fail([=](const MTP::Error &error) {
 		value->verification.requestId = 0;

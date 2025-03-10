@@ -293,6 +293,9 @@ void CodeWidget::callDone(const MTPauth_SentCode &result) {
 		}
 	}, [&](const MTPDauth_sentCodeSuccess &data) {
 		finish(data.vauthorization());
+	}, [](const MTPDauth_sentCodePaymentRequired &) {
+		LOG(("API Error: Unexpected auth.sentCodePaymentRequired "
+			"(CodeWidget::callDone)."));
 	});
 }
 
@@ -408,6 +411,9 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 		updateDescText();
 	}, [&](const MTPDauth_sentCodeSuccess &data) {
 		finish(data.vauthorization());
+	}, [](const MTPDauth_sentCodePaymentRequired &) {
+		LOG(("API Error: Unexpected auth.sentCodePaymentRequired "
+			"(CodeWidget::noTelegramCodeDone)."));
 	});
 }
 

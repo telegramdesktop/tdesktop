@@ -2189,6 +2189,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_paid_message_some#other" = "send {count} messages";
 "lng_action_paid_message_got#one" = "You received {count} Star from {name}";
 "lng_action_paid_message_got#other" = "You received {count} Stars from {name}";
+"lng_action_paid_message_refund#one" = "{from} refunded {count} Star to you";
+"lng_action_paid_message_refund#other" = "{from} refunded {count} Stars to you";
+"lng_action_paid_message_refund_self#one" = "You refunded {count} Star to {name}";
+"lng_action_paid_message_refund_self#other" = "You refunded {count} Stars to {name}";
+"lng_action_message_price_free" = "Messages are now free in this group.";
+"lng_action_message_price_paid#one" = "Messages now cost {count} Star each in this group.";
+"lng_action_message_price_paid#other" = "Messages now cost {count} Stars each in this group.";
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
 

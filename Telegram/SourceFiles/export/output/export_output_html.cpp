@@ -1367,6 +1367,26 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " sent you a gift of "
 			+ QByteArray::number(data.stars)
 			+ " Telegram Stars.";
+	}, [&](const ActionPaidMessagesRefunded &data) {
+		auto result = message.out
+			? ("You refunded "
+				+ QString::number(data.stars).toUtf8()
+				+ " Stars for "
+				+ QString::number(data.messages).toUtf8()
+				+ " messages to "
+				+ peers.wrapPeerName(dialog.peerId))
+			: (peers.wrapPeerName(dialog.peerId)
+				+ " refunded "
+				+ QString::number(data.stars).toUtf8()
+				+ " Stars for "
+				+ QString::number(data.messages).toUtf8()
+				+ " messages to you");
+		return result;
+	}, [&](const ActionPaidMessagesPrice &data) {
+		auto result = "Price per messages changed to "
+			+ QString::number(data.stars).toUtf8()
+			+ " Telegram Stars.";
+		return result;
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

@@ -245,6 +245,9 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 		goNext<CodeWidget>();
 	}, [&](const MTPDauth_sentCodeSuccess &data) {
 		finish(data.vauthorization());
+	}, [](const MTPDauth_sentCodePaymentRequired &) {
+		LOG(("API Error: Unexpected auth.sentCodePaymentRequired "
+			"(PhoneWidget::phoneSubmitDone)."));
 	});
 }
 
