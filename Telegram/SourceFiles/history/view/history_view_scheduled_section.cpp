@@ -268,15 +268,22 @@ void ScheduledWidget::setupComposeControls() {
 					: tr::lng_forum_topic_closed(tr::now);
 			});
 			return rpl::combine(
+				session().frozenValue(),
 				session().changes().peerFlagsValue(
 					_history->peer,
 					Data::PeerUpdate::Flag::Rights),
 				Data::CanSendAnythingValue(_history->peer),
 				std::move(topicWriteRestrictions)
 			) | rpl::map([=](
+					const Main::FreezeInfo &info,
 					auto,
 					auto,
 					Data::SendError topicRestriction) {
+				if (info) {
+					return Controls::WriteRestriction{
+						.type = Controls::WriteRestrictionType::Frozen,
+					};
+				}
 				const auto allWithoutPolls = Data::AllSendRestrictions()
 					& ~ChatRestriction::SendPolls;
 				const auto canSendAnything = Data::CanSendAnyOf(
@@ -303,11 +310,17 @@ void ScheduledWidget::setupComposeControls() {
 		}()
 		: [&] {
 			return rpl::combine(
+				session().frozenValue(),
 				session().changes().peerFlagsValue(
 					_history->peer,
 					Data::PeerUpdate::Flag::Rights),
 				Data::CanSendAnythingValue(_history->peer)
-			) | rpl::map([=] {
+			) | rpl::map([=](const Main::FreezeInfo &info, auto, auto) {
+				if (info) {
+					return Controls::WriteRestriction{
+						.type = Controls::WriteRestrictionType::Frozen,
+					};
+				}
 				const auto allWithoutPolls = Data::AllSendRestrictions()
 					& ~ChatRestriction::SendPolls;
 				const auto canSendAnything = Data::CanSendAnyOf(

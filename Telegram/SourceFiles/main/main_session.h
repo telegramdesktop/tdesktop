@@ -80,6 +80,19 @@ class Domain;
 class SessionSettings;
 class SendAsPeers;
 
+struct FreezeInfo {
+	TimeId since = 0;
+	TimeId until = 0;
+	QString appealUrl;
+
+	explicit operator bool() const {
+		return since != 0;
+	}
+	friend inline bool operator==(
+		const FreezeInfo &,
+		const FreezeInfo &) = default;
+};
+
 class Session final : public base::has_weak_ptr {
 public:
 	Session(
@@ -236,11 +249,16 @@ public:
 	[[nodiscard]] Support::Templates &supportTemplates() const;
 	[[nodiscard]] Support::FastButtonsBots &fastButtonsBots() const;
 
+	[[nodiscard]] FreezeInfo frozen() const;
+	[[nodiscard]] rpl::producer<FreezeInfo> frozenValue() const;
+
 	[[nodiscard]] auto colorIndicesValue()
 		-> rpl::producer<Ui::ColorIndicesCompressed>;
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+
+	void appConfigRefreshed();
 
 	const UserId _userId;
 	const not_null<Account*> _account;
@@ -287,6 +305,8 @@ private:
 
 	base::flat_set<not_null<Window::SessionController*>> _windows;
 	base::Timer _saveSettingsTimer;
+
+	rpl::variable<FreezeInfo> _frozen;
 
 	QByteArray _tmpPassword;
 	TimeId _tmpPasswordValidUntil = 0;

@@ -11,38 +11,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h" // History::session
 #include "history/history_item.h" // HistoryItem::originalText
 #include "history/history_item_helpers.h" // DropDisallowedCustomEmoji
+#include "base/unixtime.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/event_filter.h"
 #include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/rect.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/ui_integration.h"
+#include "lottie/lottie_icon.h"
+#include "info/profile/info_profile_icon.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
 #include "ui/power_saving.h"
+#include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "history/view/controls/compose_controls_common.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h"
 #include "settings/settings_premium.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "base/qt/qt_common_adapters.h"
 
@@ -1187,10 +1197,10 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 	return result;
 }
 
-base::unique_qptr<Ui::RpWidget> TextErrorSendRestriction(
+std::unique_ptr<Ui::RpWidget> TextErrorSendRestriction(
 		QWidget *parent,
 		const QString &text) {
-	auto result = base::make_unique_q<Ui::RpWidget>(parent);
+	auto result = std::make_unique<Ui::RpWidget>(parent);
 	const auto raw = result.get();
 	const auto label = CreateChild<Ui::FlatLabel>(
 		result.get(),
@@ -1215,11 +1225,11 @@ base::unique_qptr<Ui::RpWidget> TextErrorSendRestriction(
 	return result;
 }
 
-base::unique_qptr<Ui::RpWidget> PremiumRequiredSendRestriction(
+std::unique_ptr<Ui::RpWidget> PremiumRequiredSendRestriction(
 		QWidget *parent,
 		not_null<UserData*> user,
 		not_null<Window::SessionController*> controller) {
-	auto result = base::make_unique_q<Ui::RpWidget>(parent);
+	auto result = std::make_unique<Ui::RpWidget>(parent);
 	const auto raw = result.get();
 	const auto label = CreateChild<Ui::FlatLabel>(
 		result.get(),
@@ -1250,6 +1260,196 @@ base::unique_qptr<Ui::RpWidget> PremiumRequiredSendRestriction(
 	}, label->lifetime());
 	link->setClickedCallback([=] {
 		Settings::ShowPremium(controller, u"require_premium"_q);
+	});
+	return result;
+}
+
+std::unique_ptr<Ui::AbstractButton> BoostsToLiftWriteRestriction(
+		not_null<QWidget*> parent,
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		int boosts) {
+	auto result = std::make_unique<Ui::FlatButton>(
+		parent,
+		tr::lng_restricted_boost_group(tr::now),
+		st::historyComposeButton);
+	result->setClickedCallback([=] {
+		const auto window = show->resolveWindow();
+		window->resolveBoostState(peer->asChannel(), boosts);
+	});
+	return result;
+}
+
+std::unique_ptr<Ui::AbstractButton> FrozenWriteRestriction(
+		not_null<QWidget*> parent,
+		std::shared_ptr<ChatHelpers::Show> show,
+		FrozenWriteRestrictionType type,
+		FreezeInfoStyleOverride st) {
+	using namespace Ui;
+
+	auto result = std::make_unique<FlatButton>(
+		parent,
+		QString(),
+		st::historyComposeButton);
+	const auto raw = result.get();
+
+	const auto bar = (type == FrozenWriteRestrictionType::DialogsList);
+	const auto title = CreateChild<FlatLabel>(
+		raw,
+		(bar ? tr::lng_frozen_bar_title : tr::lng_frozen_restrict_title)(
+			tr::now),
+		bar ? st::frozenBarTitle : st::frozenRestrictionTitle);
+	title->setAttribute(Qt::WA_TransparentForMouseEvents);
+	title->show();
+	const auto subtitle = CreateChild<FlatLabel>(
+		raw,
+		(bar
+			? tr::lng_frozen_bar_text(
+				lt_arrow,
+				rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
+				Ui::Text::WithEntities)
+			: tr::lng_frozen_restrict_text(Ui::Text::WithEntities)),
+		bar ? st::frozenBarSubtitle : st::frozenRestrictionSubtitle);
+	subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
+	subtitle->show();
+
+	const auto shadow = bar ? CreateChild<PlainShadow>(raw) : nullptr;
+	const auto icon = bar ? CreateChild<RpWidget>(raw) : nullptr;
+	if (icon) {
+		icon->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(icon);
+			st::menuIconDisableAttention.paintInCenter(p, icon->rect());
+		}, icon->lifetime());
+		icon->show();
+	}
+
+	raw->sizeValue() | rpl::start_with_next([=](QSize size) {
+		if (bar) {
+			const auto toggle = [&](auto &&widget, bool shown) {
+				if (widget->isHidden() == shown) {
+					widget->setVisible(shown);
+				}
+			};
+			const auto small = 2 * st::defaultDialogRow.photoSize;
+			const auto shown = (size.width() > small);
+			toggle(icon, !shown);
+			toggle(title, shown);
+			toggle(subtitle, shown);
+			icon->setGeometry(0, 0, size.width(), size.height());
+		}
+		const auto skip = bar
+			? st::defaultDialogRow.padding.left()
+			: 2 * st::normalFont->spacew;
+		const auto available = size.width() - skip * 2;
+		title->resizeToWidth(available);
+		subtitle->resizeToWidth(available);
+		const auto height = title->height() + subtitle->height();
+		const auto top = (size.height() - height) / 2;
+		title->moveToLeft(skip, top, size.width());
+		subtitle->moveToLeft(skip, top + title->height(), size.width());
+
+		const auto line = st::lineWidth;
+		if (shadow) {
+			shadow->setGeometry(0, size.height() - line, size.width(), line);
+		}
+	}, title->lifetime());
+
+	const auto info = show->session().frozen();
+	const auto detailsBox = [=](not_null<GenericBox*> box) {
+		box->setWidth(st::boxWideWidth);
+		box->setStyle(st::frozenInfoBox);
+		box->setNoContentMargin(true);
+		box->addTopButton(st::boxTitleClose, [=] {
+			box->closeBox();
+		});
+
+		const auto content = box->verticalLayout();
+		auto icon = Settings::CreateLottieIcon(
+			content,
+			{
+				.name = u"media_forbidden"_q,
+				.sizeOverride = {
+					st::changePhoneIconSize,
+					st::changePhoneIconSize,
+				},
+			},
+			st::settingLocalPasscodeIconPadding);
+		content->add(std::move(icon.widget));
+		box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+			animate(anim::repeat::once);
+		});
+
+		Ui::AddSkip(content);
+
+		const auto infoRow = [&](
+				rpl::producer<QString> title,
+				rpl::producer<TextWithEntities> text,
+				not_null<const style::icon*> icon) {
+			auto raw = content->add(
+				object_ptr<Ui::VerticalLayout>(content));
+			raw->add(
+				object_ptr<Ui::FlatLabel>(
+					raw,
+					std::move(title) | Ui::Text::ToBold(),
+					st.infoTitle ? *st.infoTitle : st::defaultFlatLabel),
+				st::settingsPremiumRowTitlePadding);
+			raw->add(
+				object_ptr<Ui::FlatLabel>(
+					raw,
+					std::move(text),
+					st.infoAbout ? *st.infoAbout : st::upgradeGiftSubtext),
+				st::settingsPremiumRowAboutPadding);
+			object_ptr<Info::Profile::FloatingIcon>(
+				raw,
+				*icon,
+				st::starrefInfoIconPosition);
+		};
+
+		content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_frozen_title(),
+				st.title ? *st.title : st::uniqueGiftTitle),
+			st::settingsPremiumRowTitlePadding);
+
+		Ui::AddSkip(content, st::defaultVerticalListSkip * 3);
+
+		infoRow(
+			tr::lng_frozen_subtitle1(),
+			tr::lng_frozen_text1(Text::WithEntities),
+			st.violationIcon ? st.violationIcon : &st::menuIconBlock);
+		infoRow(
+			tr::lng_frozen_subtitle2(),
+			tr::lng_frozen_text2(Text::WithEntities),
+			st.readOnlyIcon ? st.readOnlyIcon : &st::menuIconLock);
+		infoRow(
+			tr::lng_frozen_subtitle3(),
+			tr::lng_frozen_text3(
+				lt_link,
+				rpl::single(Text::Link(u"@SpamBot"_q, info.appealUrl)),
+				lt_date,
+				rpl::single(TextWithEntities{
+					langDayOfMonthFull(
+						base::unixtime::parse(info.until).date()),
+				}),
+				Text::WithEntities),
+			st.appealIcon ? st.appealIcon : &st::menuIconHourglass);
+
+		const auto button = box->addButton(
+			tr::lng_frozen_appeal_button(),
+			[url = info.appealUrl] { UrlClickHandler::Open(url); });
+		const auto buttonPadding = st::frozenInfoBox.buttonPadding;
+		const auto buttonWidth = st::boxWideWidth
+			- buttonPadding.left()
+			- buttonPadding.right();
+		button->widthValue() | rpl::filter([=] {
+			return (button->widthNoMargins() != buttonWidth);
+		}) | rpl::start_with_next([=] {
+			button->resizeToWidth(buttonWidth);
+		}, button->lifetime());
+	};
+	raw->setClickedCallback([=] {
+		show->show(Box(detailsBox));
 	});
 	return result;
 }

@@ -6268,6 +6268,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_qr_box_transparent_background" = "Transparent Background";
 "lng_qr_box_font_size" = "Font size";
 
+"lng_frozen_bar_title" = "Your account is frozen!";
+"lng_frozen_bar_text" = "Click to view details {arrow}";
+"lng_frozen_restrict_title" = "Your account is frozen";
+"lng_frozen_restrict_text" = "Click to view details";
+"lng_frozen_title" = "Your Account is Frozen";
+"lng_frozen_subtitle1" = "Violation of Terms";
+"lng_frozen_text1" = "Your account was frozen for breaking Telegram's Terms and Conditions.";
+"lng_frozen_subtitle2" = "Read-Only Mode";
+"lng_frozen_text2" = "You can access your account but can't send messages or take actions.";
+"lng_frozen_subtitle3" = "Appeal Before Deactivation";
+"lng_frozen_text3" = "Appeal via {link} before {date}, or your account will be deleted.";
+"lng_frozen_appeal_button" = "Submit an Appeal";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

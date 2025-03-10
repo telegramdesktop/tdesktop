@@ -671,12 +671,22 @@ void RepliesWidget::setupComposeControls() {
 			: tr::lng_forum_topic_closed(tr::now);
 	});
 	auto writeRestriction = rpl::combine(
+		session().frozenValue(),
 		session().changes().peerFlagsValue(
 			_history->peer,
 			Data::PeerUpdate::Flag::Rights),
 		Data::CanSendAnythingValue(_history->peer),
 		std::move(topicWriteRestrictions)
-	) | rpl::map([=](auto, auto, Data::SendError topicRestriction) {
+	) | rpl::map([=](
+			const Main::FreezeInfo &info,
+			auto,
+			auto,
+			Data::SendError topicRestriction) {
+		if (info) {
+			return Controls::WriteRestriction{
+				.type = Controls::WriteRestrictionType::Frozen,
+			};
+		}
 		const auto allWithoutPolls = Data::AllSendRestrictions()
 			& ~ChatRestriction::SendPolls;
 		const auto canSendAnything = _topic

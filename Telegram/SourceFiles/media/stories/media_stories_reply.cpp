@@ -841,7 +841,9 @@ void ReplyArea::show(
 		peer
 	) | rpl::map([=](bool can) {
 		using namespace HistoryView::Controls;
-		return (can
+		return user->session().frozen()
+			? WriteRestriction{ .type = WriteRestrictionType::Frozen }
+			: (can
 			|| !user
 			|| !user->requiresPremiumToWrite()
 			|| user->session().premium())

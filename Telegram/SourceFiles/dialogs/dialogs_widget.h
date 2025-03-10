@@ -201,6 +201,7 @@ private:
 
 	void setupSupportMode();
 	void setupTouchChatPreview();
+	void setupFrozenAccountBar();
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
 	void setupMoreChatsBar();
@@ -223,6 +224,7 @@ private:
 	void showMainMenu();
 	void clearSearchCache(bool clearPosts);
 	void setSearchQuery(const QString &query, int cursorPosition = -1);
+	void updateFrozenAccountBar();
 	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility(
 		anim::type animated = anim::type::instant);
@@ -300,6 +302,9 @@ private:
 
 	const Layout _layout = Layout::Main;
 	int _narrowWidth = 0;
+
+	std::unique_ptr<Ui::AbstractButton> _frozenAccountBar;
+
 	object_ptr<Ui::RpWidget> _searchControls;
 	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr };
 	struct {

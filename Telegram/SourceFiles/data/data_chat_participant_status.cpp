@@ -118,7 +118,10 @@ bool CanSendAnyOf(
 		not_null<const PeerData*> peer,
 		ChatRestrictions rights,
 		bool forbidInForums) {
-	if (const auto user = peer->asUser()) {
+	if (peer->session().frozen()
+		&& !peer->isFreezeAppealChat()) {
+		return false;
+	} else if (const auto user = peer->asUser()) {
 		if (user->isInaccessible()
 			|| user->isRepliesChat()
 			|| user->isVerifyCodes()) {
@@ -178,7 +181,13 @@ SendError RestrictionError(
 		not_null<PeerData*> peer,
 		ChatRestriction restriction) {
 	using Flag = ChatRestriction;
-	if (const auto restricted = peer->amRestricted(restriction)) {
+	if (peer->session().frozen()
+		&& !peer->isFreezeAppealChat()) {
+		return SendError({
+			.text = tr::lng_frozen_restrict_title(tr::now),
+			.frozen = true,
+		});
+	} else if (const auto restricted = peer->amRestricted(restriction)) {
 		if (const auto user = peer->asUser()) {
 			if (user->requiresPremiumToWrite()
 				&& !user->session().premium()) {

@@ -37,6 +37,10 @@ enum class PauseReason;
 class Show;
 } // namespace ChatHelpers
 
+namespace HistoryView::Controls {
+struct WriteRestriction;
+} // namespace HistoryView::Controls
+
 namespace Ui {
 class PopupMenu;
 class Show;
@@ -162,13 +166,41 @@ private:
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 	QWidget *parent,
 	not_null<PeerData*> peer);
-[[nodiscard]] base::unique_qptr<Ui::RpWidget> TextErrorSendRestriction(
+[[nodiscard]] std::unique_ptr<Ui::RpWidget> TextErrorSendRestriction(
 	QWidget *parent,
 	const QString &text);
-[[nodiscard]] base::unique_qptr<Ui::RpWidget> PremiumRequiredSendRestriction(
+[[nodiscard]] std::unique_ptr<Ui::RpWidget> PremiumRequiredSendRestriction(
 	QWidget *parent,
 	not_null<UserData*> user,
 	not_null<Window::SessionController*> controller);
+[[nodiscard]] auto BoostsToLiftWriteRestriction(
+	not_null<QWidget*> parent,
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	int boosts)
+-> std::unique_ptr<Ui::AbstractButton>;
+
+struct FreezeInfoStyleOverride {
+	const style::Box *box = nullptr;
+	const style::FlatLabel *title = nullptr;
+	const style::FlatLabel *subtitle = nullptr;
+	const style::icon *violationIcon = nullptr;
+	const style::icon *readOnlyIcon = nullptr;
+	const style::icon *appealIcon = nullptr;
+	const style::FlatLabel *infoTitle = nullptr;
+	const style::FlatLabel *infoAbout = nullptr;
+};
+[[nodiscard]] FreezeInfoStyleOverride DarkFreezeInfoStyle();
+
+enum class FrozenWriteRestrictionType {
+	MessageField,
+	DialogsList,
+};
+[[nodiscard]] std::unique_ptr<Ui::AbstractButton> FrozenWriteRestriction(
+	not_null<QWidget*> parent,
+	std::shared_ptr<ChatHelpers::Show> show,
+	FrozenWriteRestrictionType type,
+	FreezeInfoStyleOverride st = {});
 
 void SelectTextInFieldWithMargins(
 	not_null<Ui::InputField*> field,

@@ -124,6 +124,9 @@ private:
 
 	std::vector<QString> _startRefPrefixes;
 
+	crl::time _lastFrozenRefresh = 0;
+	rpl::lifetime _frozenTrackLifetime;
+
 	rpl::lifetime _lifetime;
 
 };

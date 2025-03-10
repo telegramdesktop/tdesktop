@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "api/api_chat_filters.h"
 #include "apiwrap.h"
+#include "chat_helpers/message_field.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
 #include "core/update_checker.h"
@@ -680,6 +681,8 @@ Widget::Widget(
 			|| !controller->enoughSpaceForFilters())) {
 		toggleFiltersMenu(true);
 	}
+
+	setupFrozenAccountBar();
 }
 
 void Widget::setupSwipeBack() {
@@ -988,6 +991,29 @@ void Widget::setupTouchChatPreview() {
 		ev.setTimestamp(crl::now());
 		QGuiApplication::sendEvent(_scroll, &ev);
 	}, _inner->lifetime());
+}
+
+void Widget::setupFrozenAccountBar() {
+	session().frozenValue(
+	) | rpl::start_with_next([=] {
+		updateFrozenAccountBar();
+		updateControlsGeometry();
+	}, lifetime());
+}
+
+void Widget::updateFrozenAccountBar() {
+	if (_layout == Layout::Child
+		|| _openedForum
+		|| _openedFolder
+		|| !session().frozen()) {
+		_frozenAccountBar = nullptr;
+	} else if (!_frozenAccountBar) {
+		_frozenAccountBar = FrozenWriteRestriction(
+			this,
+			controller()->uiShow(),
+			FrozenWriteRestrictionType::DialogsList);
+		_frozenAccountBar->show();
+	}
 }
 
 void Widget::setupMoreChatsBar() {
@@ -1418,6 +1444,9 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_moreChatsBar) {
 		_moreChatsBar->show();
 	}
+	if (_frozenAccountBar) {
+		_frozenAccountBar->show();
+	}
 	if (_chatFilters) {
 		_chatFilters->show();
 	}
@@ -1736,6 +1765,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		if (_stories) {
 			storiesExplicitCollapse();
 		}
+		updateFrozenAccountBar();
 	}, (folder != nullptr), animated);
 }
 
@@ -1792,6 +1822,7 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_inner->changeOpenedForum(forum);
 		storiesToggleExplicitExpand(false);
+		updateFrozenAccountBar();
 		updateStoriesVisibility();
 	}, (forum != nullptr), animated);
 }
@@ -2123,6 +2154,9 @@ void Widget::startWidthAnimation() {
 	}
 	_widthAnimationCache = grabNonNarrowScrollFrame();
 	_scroll->hide();
+	if (_frozenAccountBar) {
+		_frozenAccountBar->hide();
+	}
 	if (_chatFilters) {
 		_chatFilters->hide();
 	}
@@ -2133,6 +2167,9 @@ void Widget::stopWidthAnimation() {
 	_widthAnimationCache = QPixmap();
 	if (!_showAnimation) {
 		_scroll->setVisible(!_suggestions);
+		if (_frozenAccountBar) {
+			_frozenAccountBar->setVisible(!_suggestions);
+		}
 		if (_chatFilters) {
 			_chatFilters->setVisible(!_suggestions);
 		}
@@ -2229,6 +2266,9 @@ void Widget::startSlideAnimation(
 	}
 	if (_moreChatsBar) {
 		_moreChatsBar->hide();
+	}
+	if (_frozenAccountBar) {
+		_frozenAccountBar->hide();
 	}
 	if (_chatFilters) {
 		_chatFilters->hide();
@@ -3813,9 +3853,17 @@ void Widget::updateControlsGeometry() {
 	if (_chatFilters) {
 		_chatFilters->resizeToWidth(barw);
 	}
+	if (_frozenAccountBar) {
+		_frozenAccountBar->resize(barw, _frozenAccountBar->height());
+	}
 	_updateScrollGeometryCached = [=] {
-		const auto moreChatsBarTop = expandedStoriesTop
+		const auto frozenBarTop = expandedStoriesTop
 			+ ((!_stories || _stories->isHidden()) ? 0 : _aboveScrollAdded);
+		if (_frozenAccountBar) {
+			_frozenAccountBar->move(0, frozenBarTop);
+		}
+		const auto moreChatsBarTop = frozenBarTop
+			+ (_frozenAccountBar ? _frozenAccountBar->height() : 0);
 		if (_moreChatsBar) {
 			_moreChatsBar->move(0, moreChatsBarTop);
 		}

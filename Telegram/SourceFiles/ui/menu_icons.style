@@ -177,6 +177,7 @@ menuIconUnique: icon {{ "menu/unique", menuIconColor }};
 menuIconNftWear: icon {{ "menu/nft_wear", menuIconColor }};
 menuIconNftTakeOff: icon {{ "menu/nft_takeoff", menuIconColor }};
 menuIconShortcut: icon {{ "menu/shortcut", menuIconColor }};
+menuIconHourglass: icon {{ "menu/hourglass", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

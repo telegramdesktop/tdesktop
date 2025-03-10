@@ -6514,21 +6514,24 @@ void HistoryWidget::updateSendRestriction() {
 	_sendRestrictionKey = restriction.text;
 	if (!restriction) {
 		_sendRestriction = nullptr;
+	} else if (restriction.frozen) {
+		const auto show = controller()->uiShow();
+		_sendRestriction = FrozenWriteRestriction(
+			this,
+			show,
+			FrozenWriteRestrictionType::MessageField);
 	} else if (restriction.premiumToLift) {
 		_sendRestriction = PremiumRequiredSendRestriction(
 			this,
 			_peer->asUser(),
 			controller());
 	} else if (const auto lifting = restriction.boostsToLift) {
-		auto button = base::make_unique_q<Ui::FlatButton>(
+		const auto show = controller()->uiShow();
+		_sendRestriction = BoostsToLiftWriteRestriction(
 			this,
-			restriction.text,
-			st::historyComposeButton);
-		const auto channel = _peer->asChannel();
-		button->setClickedCallback([=] {
-			controller()->resolveBoostState(channel, lifting);
-		});
-		_sendRestriction = std::move(button);
+			show,
+			_peer,
+			lifting);
 	} else {
 		_sendRestriction = TextErrorSendRestriction(this, restriction.text);
 	}
