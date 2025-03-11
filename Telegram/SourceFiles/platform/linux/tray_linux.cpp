@@ -279,10 +279,10 @@ void Tray::createIcon() {
 			_iconGraphic = std::make_unique<IconGraphic>();
 		}
 
-		const auto showXEmbed = [=] {
+		const auto showCustom = [=] {
 			_aboutToShowRequests.fire({});
-			InvokeQueued(_menuXEmbed.get(), [=] {
-				_menuXEmbed->popup(QCursor::pos());
+			InvokeQueued(_menuCustom.get(), [=] {
+				_menuCustom->popup(QCursor::pos());
 			});
 		};
 
@@ -296,7 +296,7 @@ void Tray::createIcon() {
 			&QSystemTrayIcon::activated
 		) | rpl::start_with_next([=](Reason reason) {
 			if (reason == QSystemTrayIcon::Context) {
-				showXEmbed();
+				showCustom();
 			} else {
 				_iconClicks.fire({});
 			}
@@ -309,7 +309,7 @@ void Tray::createIcon() {
 				QCoreApplication::instance());
 			_eventFilter->contextMenuFilters(
 			) | rpl::start_with_next([=] {
-				showXEmbed();
+				showCustom();
 			}, _lifetime);
 		}
 	}
@@ -337,14 +337,14 @@ void Tray::createMenu() {
 	if (!_menu) {
 		_menu = base::make_unique_q<QMenu>(nullptr);
 	}
-	if (!_menuXEmbed) {
-		_menuXEmbed = base::make_unique_q<Ui::PopupMenu>(nullptr);
-		_menuXEmbed->deleteOnHide(false);
+	if (!_menuCustom) {
+		_menuCustom = base::make_unique_q<Ui::PopupMenu>(nullptr);
+		_menuCustom->deleteOnHide(false);
 	}
 }
 
 void Tray::destroyMenu() {
-	_menuXEmbed = nullptr;
+	_menuCustom = nullptr;
 	if (_menu) {
 		_menu->clear();
 	}
@@ -352,12 +352,12 @@ void Tray::destroyMenu() {
 }
 
 void Tray::addAction(rpl::producer<QString> text, Fn<void()> &&callback) {
-	if (_menuXEmbed) {
-		const auto XEAction = _menuXEmbed->addAction(QString(), callback);
+	if (_menuCustom) {
+		const auto action = _menuCustom->addAction(QString(), callback);
 		rpl::duplicate(
 			text
 		) | rpl::start_with_next([=](const QString &text) {
-			XEAction->setText(text);
+			action->setText(text);
 		}, _actionsLifetime);
 	}
 
