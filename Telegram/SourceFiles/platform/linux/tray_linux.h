@@ -60,7 +60,7 @@ private:
 
 	base::unique_qptr<QSystemTrayIcon> _icon;
 	base::unique_qptr<QMenu> _menu;
-	base::unique_qptr<Ui::PopupMenu> _menuXEmbed;
+	base::unique_qptr<Ui::PopupMenu> _menuCustom;
 
 	base::unique_qptr<TrayEventFilter> _eventFilter;
 
