@@ -149,8 +149,6 @@ parts:
       version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
 
       craftctl set version="$version"
-
-      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/org.telegram.desktop.desktop
     override-build: |
       craftctl default
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"

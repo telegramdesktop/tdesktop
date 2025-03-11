@@ -30,11 +30,11 @@ namespace {
 using namespace gi::repository;
 
 [[nodiscard]] QString PanelIconName(int counter, bool muted) {
-	return (counter > 0)
+	return ApplicationIconName() + ((counter > 0)
 		? (muted
-			? u"telegram-mute-panel"_q
-			: u"telegram-attention-panel"_q)
-		: u"telegram-panel"_q;
+			? u"-mute"_q
+			: u"-attention"_q)
+		: QString()) + u"-panel"_q;
 }
 
 } // namespace
