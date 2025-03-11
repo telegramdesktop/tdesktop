@@ -47,6 +47,7 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done = nullptr);
 void WriteCrashDumpDetails();
 void NewVersionLaunched(int oldVersion);
 [[nodiscard]] QImage DefaultApplicationIcon();
+[[nodiscard]] QString ApplicationIconName();
 [[nodiscard]] bool PreventsQuit(Core::QuitReason reason);
 [[nodiscard]] QString ExecutablePathForShortcuts();
 

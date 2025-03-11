@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
+#include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "core/core_settings.h"
@@ -26,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 #include <QtCore/QVersionNumber>
 #include <QtGui/QGuiApplication>
+
+#include <ksandbox.h>
 
 #include <xdgnotifications/xdgnotifications.hpp>
 
@@ -547,7 +550,7 @@ void Manager::Private::showNotification(
 		notification.set_body(info.message.toStdString());
 
 		notification.set_icon(
-			Gio::ThemedIcon::new_(base::IconName().toStdString()));
+			Gio::ThemedIcon::new_(ApplicationIconName().toStdString()));
 
 		// for chat messages, according to
 		// https://docs.gtk.org/gio/enum.NotificationPriority.html
@@ -761,7 +764,7 @@ void Manager::Private::showNotification(
 					AppName.data(),
 					0,
 					(!hasImage
-						? base::IconName().toStdString()
+						? ApplicationIconName().toStdString()
 						: std::string()).c_str(),
 					(hasBodyMarkup || info.subtitle.isEmpty()
 						? info.title.toStdString()

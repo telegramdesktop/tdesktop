@@ -486,7 +486,7 @@ void InstallLauncher() {
 
 	if (!QDir(icons).exists()) QDir().mkpath(icons);
 
-	const auto icon = icons + base::IconName() + u".png"_q;
+	const auto icon = icons + ApplicationIconName() + u".png"_q;
 	QFile::remove(icon);
 	if (QFile::copy(u":/gui/art/logo_256.png"_q, icon)) {
 		DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
@@ -684,7 +684,9 @@ void start() {
 	}
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
-	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
+	qputenv(
+		"PULSE_PROP_application.icon_name",
+		ApplicationIconName().toUtf8());
 
 	GLib::set_prgname(cExeName().toStdString());
 	GLib::set_application_name(AppName.data());
@@ -753,6 +755,13 @@ void NewVersionLaunched(int oldVersion) {
 
 QImage DefaultApplicationIcon() {
 	return Window::Logo();
+}
+
+QString ApplicationIconName() {
+	static const auto Result = KSandbox::isFlatpak()
+		? qEnvironmentVariable("FLATPAK_ID")
+		: u"telegram"_q;
+	return Result;
 }
 
 namespace ThirdParty {

@@ -93,6 +93,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QScreen>
 #include <QtGui/QWindow>
 
+#include <ksandbox.h>
+
 namespace Core {
 namespace {
 

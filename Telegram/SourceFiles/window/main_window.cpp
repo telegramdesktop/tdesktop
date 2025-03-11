@@ -219,7 +219,7 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 	}
 
 	const auto iconFromTheme = QIcon::fromTheme(
-		base::IconName(),
+		Platform::ApplicationIconName(),
 		result);
 
 	result = QIcon();
