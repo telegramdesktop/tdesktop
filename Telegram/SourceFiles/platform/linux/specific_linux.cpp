@@ -497,10 +497,11 @@ void InstallLauncher() {
 	});
 }
 
-[[nodiscard]] QByteArray HashForSocketPath(const QByteArray &data) {
+[[nodiscard]] QByteArray HashForSocketPath() {
 	constexpr auto kHashForSocketPathLength = 24;
 
-	const auto binary = openssl::Sha256(bytes::make_span(data));
+	const auto binary = openssl::Sha256(
+		bytes::make_span(Core::Launcher::Instance().instanceHash()));
 	const auto base64 = QByteArray(
 		reinterpret_cast<const char*>(binary.data()),
 		binary.size()).toBase64(QByteArray::Base64UrlEncoding);
@@ -656,10 +657,6 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
-	char h[33] = { 0 };
-	hashMd5Hex(d.constData(), d.size(), h);
-
 	QGuiApplication::setDesktopFileName([&] {
 		if (KSandbox::isFlatpak()) {
 			return qEnvironmentVariable("FLATPAK_ID");
@@ -672,18 +669,8 @@ void start() {
 		}
 
 		if (!Core::UpdaterDisabled()) {
-			QByteArray md5Hash(h);
-			if (!Core::Launcher::Instance().customWorkingDir()) {
-				const auto exePath = QFile::encodeName(
-					cExeDir() + cExeName());
-
-				hashMd5Hex(
-					exePath.constData(),
-					exePath.size(),
-					md5Hash.data());
-			}
-
-			return u"org.telegram.desktop._%1"_q.arg(md5Hash.constData());
+			return u"org.telegram.desktop._%1"_q.arg(
+				Core::Launcher::Instance().instanceHash().constData());
 		}
 
 		return u"org.telegram.desktop"_q;
@@ -704,7 +691,7 @@ void start() {
 
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
-		HashForSocketPath(d),
+		HashForSocketPath(),
 		u"TD"_q,//QCoreApplication::applicationName(), - make path smaller.
 		u"%1"_q).toStdString());
 
