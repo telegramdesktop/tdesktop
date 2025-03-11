@@ -488,6 +488,7 @@ void InstallLauncher() {
 
 	const auto icon = icons + ApplicationIconName() + u".png"_q;
 	QFile::remove(icon);
+	QFile::remove(icons + u"telegram.png"_q);
 	if (QFile::copy(u":/gui/art/logo_256.png"_q, icon)) {
 		DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
 	}
@@ -771,9 +772,8 @@ QImage DefaultApplicationIcon() {
 }
 
 QString ApplicationIconName() {
-	static const auto Result = KSandbox::isFlatpak()
-		? qEnvironmentVariable("FLATPAK_ID")
-		: u"telegram"_q;
+	static const auto Result = QGuiApplication::desktopFileName().remove(
+		u"._"_q + Core::Launcher::Instance().instanceHash());
 	return Result;
 }
 
