@@ -848,9 +848,10 @@ void Filler::addExportChat() {
 		return;
 	}
 	const auto peer = _peer;
+	const auto navigation = _controller;
 	_addAction(
 		tr::lng_profile_export_chat(tr::now),
-		[=] { PeerMenuExportChat(peer); },
+		[=] { PeerMenuExportChat(navigation, peer); },
 		&st::menuIconExport);
 }
 
@@ -1516,7 +1517,9 @@ void Filler::fillSavedSublistActions() {
 
 } // namespace
 
-void PeerMenuExportChat(not_null<PeerData*> peer) {
+void PeerMenuExportChat(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
 	base::call_delayed(st::defaultPopupMenu.showDuration, [=] {
 		Core::App().exportManager().start(peer);
 	});
@@ -3126,14 +3129,20 @@ Fn<void()> ClearHistoryHandler(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
 	return [=] {
-		controller->show(Box<DeleteMessagesBox>(peer, true));
+		if (!controller->showFrozenError()) {
+			controller->show(Box<DeleteMessagesBox>(peer, true));
+		}
 	};
 }
 
 Fn<void()> DeleteAndLeaveHandler(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
-	return [=] { controller->show(Box(DeleteChatBox, peer)); };
+	return [=] {
+		if (!controller->showFrozenError()) {
+			controller->show(Box(DeleteChatBox, peer));
+		}
+	};
 }
 
 void FillDialogsEntryMenu(

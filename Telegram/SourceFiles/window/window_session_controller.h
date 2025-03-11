@@ -180,6 +180,8 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
+	bool showFrozenError();
+
 	virtual void showSection(
 		std::shared_ptr<SectionMemento> memento,
 		const SectionShow &params = SectionShow()) = 0;

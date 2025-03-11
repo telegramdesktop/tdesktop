@@ -89,7 +89,9 @@ void MenuAddMarkAsReadChatListAction(
 	const PeerMenuCallback &addAction,
 	Fn<Dialogs::UnreadState()> customUnreadState = nullptr);
 
-void PeerMenuExportChat(not_null<PeerData*> peer);
+void PeerMenuExportChat(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
 void PeerMenuDeleteContact(
 	not_null<Window::SessionController*> controller,
 	not_null<UserData*> user);

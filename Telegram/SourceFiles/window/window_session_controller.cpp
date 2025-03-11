@@ -364,6 +364,10 @@ Main::Session &SessionNavigation::session() const {
 	return *_session;
 }
 
+bool SessionNavigation::showFrozenError() {
+	return uiShow()->showFrozenError();
+}
+
 void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 	Core::App().hideMediaView();
 	if (!info.phone.isEmpty()) {

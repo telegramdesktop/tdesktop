@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/session/session_show.h"
 
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+
 namespace Main {
 namespace {
 
@@ -69,6 +72,14 @@ Session &SimpleSessionShow::session() const {
 }
 
 } // namespace
+
+bool SessionShow::showFrozenError() {
+	if (!session().frozen()) {
+		return false;
+	}
+	showToast(tr::lng_frozen_bar_title(tr::now));
+	return true;
+}
 
 std::shared_ptr<SessionShow> MakeSessionShow(
 		std::shared_ptr<Ui::Show> show,
