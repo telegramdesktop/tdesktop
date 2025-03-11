@@ -759,7 +759,9 @@ QImage DefaultApplicationIcon() {
 }
 
 QString ApplicationIconName() {
-	static const auto Result = QGuiApplication::desktopFileName().remove(
+	static const auto Result = (KSandbox::isSnap()
+		? u"snap.%1."_q.arg(qEnvironmentVariable("SNAP_INSTANCE_NAME"))
+		: QString()) + QGuiApplication::desktopFileName().remove(
 		u"._"_q + Core::Launcher::Instance().instanceHash());
 	return Result;
 }
