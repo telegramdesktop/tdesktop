@@ -21,10 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <set>
 #include <filesystem>
 
-#if __has_include(<ksandbox.h>)
-#include <ksandbox.h>
-#endif
-
 #define qsl(s) QStringLiteral(s)
 
 namespace base {
@@ -33,15 +29,6 @@ template <typename Value, typename From, typename Till>
 inline bool in_range(Value &&value, From &&from, Till &&till) {
 	return (value >= from) && (value < till);
 }
-
-#if __has_include(<ksandbox.h>)
-inline QString IconName() {
-	static const auto Result = KSandbox::isFlatpak()
-		? qEnvironmentVariable("FLATPAK_ID")
-		: u"telegram"_q;
-	return Result;
-}
-#endif
 
 inline bool CanReadDirectory(const QString &path) {
 #ifndef Q_OS_MAC // directory_iterator since 10.15

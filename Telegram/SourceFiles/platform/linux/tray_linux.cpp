@@ -88,7 +88,7 @@ QIcon IconGraphic::systemIcon() const {
 
 	const auto candidates = {
 		_new.monochrome ? PanelIconName(_new.counter, _new.muted) : QString(),
-		base::IconName(),
+		ApplicationIconName(),
 	};
 
 	for (const auto &candidate : candidates) {
