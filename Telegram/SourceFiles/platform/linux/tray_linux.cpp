@@ -34,7 +34,7 @@ using namespace gi::repository;
 		? (muted
 			? u"-mute"_q
 			: u"-attention"_q)
-		: QString()) + u"-panel"_q;
+		: QString()) + u"-symbolic"_q;
 }
 
 } // namespace
