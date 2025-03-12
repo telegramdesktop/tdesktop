@@ -484,9 +484,10 @@ void InstallLauncher() {
 	const auto icons = QStandardPaths::writableLocation(
 		QStandardPaths::GenericDataLocation) + u"/icons/"_q;
 
-	if (!QDir(icons).exists()) QDir().mkpath(icons);
+	const auto appIcons = icons + u"/hicolor/256x256/apps/"_q;
+	if (!QDir(appIcons).exists()) QDir().mkpath(appIcons);
 
-	const auto icon = icons + ApplicationIconName() + u".png"_q;
+	const auto icon = appIcons + ApplicationIconName() + u".png"_q;
 	QFile::remove(icon);
 	QFile::remove(icons + u"telegram.png"_q);
 	if (QFile::copy(u":/gui/art/logo_256.png"_q, icon)) {
