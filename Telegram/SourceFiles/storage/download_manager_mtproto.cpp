@@ -19,18 +19,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 namespace {
 
+// 终止会话的超时时间,15秒
 constexpr auto kKillSessionTimeout = 15 * crl::time(1000);
-constexpr auto kStartWaitedInSession = 4 * kDownloadPartSize;
-constexpr auto kMaxWaitedInSession = 16 * kDownloadPartSize;
-constexpr auto kStartSessionsCount = 1;
-constexpr auto kMaxSessionsCount = 8;
+
+// 单个会话中初始等待的数据量,为4个下载分片大小
+constexpr auto kStartWaitedInSession = 2 * 4 * kDownloadPartSize;
+
+// 单个会话中最大等待的数据量,为16个下载分片大小
+constexpr auto kMaxWaitedInSession = 2 * 16 * kDownloadPartSize;
+
+// 初始下载会话数量为1
+constexpr auto kStartSessionsCount = 4;
+
+// 最大下载会话数量为8
+constexpr auto kMaxSessionsCount = 8 +4;
+
+// 最大跟踪的会话移除次数为64
 constexpr auto kMaxTrackedSessionRemoves = 64;
+
+// 重试添加会话的超时时间,8秒
 constexpr auto kRetryAddSessionTimeout = 8 * crl::time(1000);
+
+// 重试添加会话所需的成功次数为3
 constexpr auto kRetryAddSessionSuccesses = 3;
+
+// 最大跟踪的成功次数,为重试成功次数与最大跟踪移除次数的乘积
 constexpr auto kMaxTrackedSuccesses = kRetryAddSessionSuccesses
-	* kMaxTrackedSessionRemoves;
+    * kMaxTrackedSessionRemoves;
+
+// 超时4次后移除会话
 constexpr auto kRemoveSessionAfterTimeouts = 4;
+
+// 重置下载优先级的超时时间,200毫秒
 constexpr auto kResetDownloadPrioritiesTimeout = crl::time(200);
+
+// 判定为错误请求的时间阈值,8秒
 constexpr auto kBadRequestDurationThreshold = 8 * crl::time(1000);
 
 // Each (session remove by timeouts) we wait for time:
