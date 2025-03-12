@@ -122,6 +122,7 @@ public:
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
 
+	[[nodiscard]] bool hasBackButton() const;
 	[[nodiscard]] bool closeByOutsideClick() const;
 
 	void updateGeometry(
@@ -181,7 +182,6 @@ private:
 	void highlightTopBar();
 	void setupShortcuts();
 
-	[[nodiscard]] bool hasBackButton() const;
 	[[nodiscard]] bool willHaveBackButton(
 		const Window::SectionShow &params) const;
 

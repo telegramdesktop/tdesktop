@@ -311,6 +311,7 @@ public:
 	[[nodiscard]] rpl::producer<Wrap> wrapValue() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> wrapWidget() const;
 	void setSection(not_null<ContentMemento*> memento);
+	[[nodiscard]] bool hasBackButton() const;
 
 	Ui::SearchFieldController *searchFieldController() const {
 		return _searchFieldController.get();

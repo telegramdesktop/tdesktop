@@ -358,6 +358,10 @@ void Controller::setSection(not_null<ContentMemento*> memento) {
 	updateSearchControllers(memento);
 }
 
+bool Controller::hasBackButton() const {
+	return _widget->hasBackButton();
+}
+
 void Controller::updateSearchControllers(
 		not_null<ContentMemento*> memento) {
 	using Type = Section::Type;
