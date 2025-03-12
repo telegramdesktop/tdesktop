@@ -65,8 +65,9 @@ void SetupSwipeHandler(
 		Fn<void(SwipeContextData)> update,
 		Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinish,
 		rpl::producer<bool> dontStart) {
-	constexpr auto kThresholdWidth = 50;
-	constexpr auto kMaxRatio = 1.5;
+	static constexpr auto kThresholdWidth = 50;
+	static constexpr auto kMaxRatio = 1.5;
+
 	struct UpdateArgs {
 		QPoint globalCursor;
 		QPointF position;
