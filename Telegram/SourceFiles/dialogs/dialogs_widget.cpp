@@ -1314,6 +1314,14 @@ void Widget::setupShortcuts() {
 				}
 				return true;
 			});
+			request->check(Command::ShowChatPreview, 1)
+			&& request->handle([=] {
+				if (_inner) {
+					Window::ActivateWindow(controller());
+					return _inner->showChatPreview();
+				}
+				return true;
+			});
 		}
 	}, lifetime());
 }

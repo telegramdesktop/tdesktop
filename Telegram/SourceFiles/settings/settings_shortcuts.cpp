@@ -98,6 +98,7 @@ struct Labeled {
 		{ C::ArchiveChat, tr::lng_shortcuts_archive_chat() },
 		{ C::ShowScheduled, tr::lng_shortcuts_scheduled() },
 		{ C::ShowChatMenu, tr::lng_shortcuts_show_chat_menu() },
+		{ C::ShowChatPreview, tr::lng_shortcuts_show_chat_preview() },
 		separator,
 		{ C::JustSendMessage, tr::lng_shortcuts_just_send() },
 		{ C::SendSilentMessage, tr::lng_shortcuts_silent_send() },
