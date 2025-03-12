@@ -1739,7 +1739,7 @@ win:
         -D WebP_mux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpmux.lib" ^
         -D LCMS2_FOUND=1 ^
         -D LCMS2_INCLUDE_DIR="%LCMS2_DIR%\\include" ^
-        -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\Release\\src\\liblcms2.a"
+        -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\\Release\\src\\liblcms2.a"
 
     cmake --build . --config Debug --parallel
     cmake --install . --config Debug
