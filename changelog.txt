@@ -1,3 +1,10 @@
+5.12.4 beta (12.03.25)
+
+- Touchpad swipe back to go back in navigation history.
+- Touchpad swipe between folders if they're horizontal.
+- Out-of-the-box monochrome tray icon on Linux.
+- (more information about Linux icon changes in the commit message).
+
 5.12.3 (10.03.25)
 
 - Fix a couple more crashes.
