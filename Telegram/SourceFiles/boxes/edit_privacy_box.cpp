@@ -1054,7 +1054,7 @@ void EditMessagesPrivacyBox(
 					tr::now,
 					lt_count,
 					always)
-				: QString();
+				: tr::lng_edit_privacy_exceptions_add(tr::now);
 		});
 
 		const auto exceptions = Settings::AddButtonWithLabel(
