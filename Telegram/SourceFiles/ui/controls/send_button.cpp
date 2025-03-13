@@ -78,6 +78,7 @@ void SendButton::setState(State state) {
 
 void SendButton::finishAnimating() {
 	_stateChangeAnimation.stop();
+	updateSize();
 	update();
 }
 
