@@ -69,6 +69,10 @@ starIconEmoji: IconEmoji {
 starIconEmojiColored: IconEmoji(starIconEmoji) {
 	useIconColor: true;
 }
+starIconEmojiSmall: IconEmoji {
+	icon: icon{{ "chat/mini_stars", creditsBg1 }};
+	padding: margins(0px, 4px, 0px, 0px);
+}
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
 
