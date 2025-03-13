@@ -271,7 +271,8 @@ void DeleteMessagesBox::prepare() {
 				appendDetails({
 					tr::lng_delete_for_me_chat_hint(tr::now, lt_count, count)
 				});
-			} else if (!peer->isSelf()) {
+			} else if (!peer->isSelf()
+				&& (!peer->isUser() || !peer->asUser()->isInaccessible())) {
 				if (const auto user = peer->asUser(); user && user->isBot()) {
 					_revokeForBot = true;
 				}
