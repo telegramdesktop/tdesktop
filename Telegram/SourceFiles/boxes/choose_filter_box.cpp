@@ -295,6 +295,7 @@ void FillChooseFilterMenu(
 			contains ? &st::mediaPlayerMenuCheck : nullptr);
 		item->setMarkedText(title.text, QString(), Core::TextContext({
 			.session = &history->session(),
+			.repaint = [raw = item.get()] { raw->update(); },
 			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
 		}));
 
