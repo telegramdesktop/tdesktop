@@ -1261,7 +1261,7 @@ void EmojiListWidget::fillEmojiStatusMenu(
 		int section,
 		int index) {
 	const auto chosen = lookupCustomEmoji(index, section);
-	if (!chosen || chosen.collectible) {
+	if (!chosen) {
 		return;
 	}
 	const auto selectWith = [=](TimeId scheduled) {
