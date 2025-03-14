@@ -523,8 +523,6 @@ TabbedSelector::TabbedSelector(
 	if (hasEmojiTab()) {
 		emoji()->refreshEmoji();
 	}
-	setupSwipe();
-	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
 	hide();
@@ -532,8 +530,10 @@ TabbedSelector::TabbedSelector(
 
 TabbedSelector::~TabbedSelector() = default;
 
-void TabbedSelector::setupSwipe() {
-	Ui::Controls::SetupSwipeHandler(this, _scroll.data(), [=](
+void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
+	_swipeLifetime.destroy();
+
+	Ui::Controls::SetupSwipeHandler(widget, _scroll.data(), [=](
 			Ui::Controls::SwipeContextData data) {
 		if (data.translation != 0) {
 			if (!_swipeBackData.callback) {
@@ -571,7 +571,7 @@ void TabbedSelector::setupSwipe() {
 			});
 		}
 		return Ui::Controls::SwipeHandlerFinishData();
-	}, nullptr);
+	}, nullptr, &_swipeLifetime);
 }
 
 const style::EmojiPan &TabbedSelector::st() const {
@@ -1344,6 +1344,10 @@ void TabbedSelector::setWidgetToScrollArea() {
 	inner->setMinimalHeight(innerWidth, scrollHeight);
 	inner->moveToLeft(0, 0);
 	inner->show();
+
+	if (_tabs.size() > 1) {
+		reinstallSwipe(inner);
+	}
 
 	_scroll->disableScroll(false);
 	scrollToY(currentTab()->getScrollTop());

@@ -21,7 +21,7 @@ void SetupSwipeBackSection(
 		not_null<HistoryView::ListWidget*> list) {
 	const auto swipeBackData
 		= list->lifetime().make_state<Ui::Controls::SwipeBackResult>();
-	Ui::Controls::SetupSwipeHandler(parent, scroll, [=](
+	Ui::Controls::SetupSwipeHandler(list, scroll, [=](
 			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!swipeBackData->callback) {

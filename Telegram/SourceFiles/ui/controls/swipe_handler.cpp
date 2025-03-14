@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/swipe_handler.h"
 
+#include "base/debug_log.h"
+
 #include "base/platform/base_platform_haptic.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
@@ -64,7 +66,8 @@ void SetupSwipeHandler(
 		Scroll scroll,
 		Fn<void(SwipeContextData)> update,
 		Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinish,
-		rpl::producer<bool> dontStart) {
+		rpl::producer<bool> dontStart,
+		rpl::lifetime *onLifetime) {
 	static constexpr auto kThresholdWidth = 50;
 	static constexpr auto kMaxRatio = 1.5;
 
@@ -95,12 +98,23 @@ void SetupSwipeHandler(
 
 		rpl::lifetime lifetime;
 	};
-	const auto state = widget->lifetime().make_state<State>();
-	std::move(
-		dontStart
-	) | rpl::start_with_next([=](bool dontStart) {
-		state->dontStart = dontStart;
-	}, state->lifetime);
+	auto &useLifetime = onLifetime ? *onLifetime : widget->lifetime();
+	const auto state = useLifetime.make_state<State>();
+	if (dontStart) {
+		std::move(
+			dontStart
+		) | rpl::start_with_next([=](bool dontStart) {
+			state->dontStart = dontStart;
+		}, state->lifetime);
+	} else {
+		v::match(scroll, [](v::null_t) {
+		}, [&](const auto &scroll) {
+			scroll->touchMaybePressing(
+			) | rpl::start_with_next([=](bool maybePressing) {
+				state->dontStart = maybePressing;
+			}, state->lifetime);
+		});
+	}
 
 	const auto updateRatio = [=](float64 ratio) {
 		ratio = std::max(ratio, 0.);
@@ -123,9 +137,11 @@ void SetupSwipeHandler(
 		v::match(scroll, [](v::null_t) {
 		}, [&](const auto &scroll) {
 			if (const auto viewport = scroll->viewport()) {
-				viewport->setAttribute(
-					Qt::WA_AcceptTouchEvents,
-					!isHorizontal);
+				if (viewport != widget) {
+					viewport->setAttribute(
+						Qt::WA_AcceptTouchEvents,
+						!isHorizontal);
+				}
 			}
 			scroll->disableScroll(isHorizontal);
 		});
@@ -173,37 +189,52 @@ void SetupSwipeHandler(
 		update(state->data);
 	};
 	const auto updateWith = [=](UpdateArgs args) {
-		if (!state->started
-			|| state->touch != args.touch
-			|| !state->direction) {
-			state->direction = (args.delta.x() == 0)
-				? std::nullopt
-				: args.delta.x() < 0
-				? std::make_optional(Qt::RightToLeft)
-				: std::make_optional(Qt::LeftToRight);
-			state->directionInt = (!state->direction
-					|| (*state->direction) == Qt::LeftToRight)
+		const auto fillFinishByTop = [&] {
+			if (!args.delta.x()) {
+				LOG(("SKIPPING fillFinishByTop."));
+				return;
+			}
+			LOG(("SETTING DIRECTION"));
+			state->direction = (args.delta.x() < 0)
+				? Qt::RightToLeft
+				: Qt::LeftToRight;
+			state->directionInt = (state->direction == Qt::LeftToRight)
 				? 1
 				: -1;
-
-			state->started = true;
-			state->touch = args.touch;
-			state->startAt = args.position;
-			state->delta = QPointF();
-			state->cursorTop = widget->mapFromGlobal(args.globalCursor).y();
 			state->finishByTopData = generateFinish(
 				state->cursorTop,
-				state->direction.value_or(Qt::RightToLeft));
+				*state->direction);
 			state->threshold = style::ConvertFloatScale(kThresholdWidth)
 				* state->finishByTopData.speedRatio;
 			if (!state->finishByTopData.callback) {
 				setOrientation(Qt::Vertical);
 			}
+		};
+		if (!state->started || state->touch != args.touch) {
+			LOG(("STARTING"));
+			state->started = true;
+			state->touch = args.touch;
+			state->startAt = args.position;
+			state->cursorTop = widget->mapFromGlobal(args.globalCursor).y();
+			if (!state->touch) {
+				// args.delta already is valid.
+				fillFinishByTop();
+			} else {
+				// args.delta depends on state->startAt, so it's invalid.
+				state->direction = std::nullopt;
+			}
+			state->delta = QPointF();
+		} else if (!state->direction) {
+			fillFinishByTop();
 		} else if (!state->orientation) {
 			state->delta = args.delta;
 			const auto diffXtoY = std::abs(args.delta.x())
 				- std::abs(args.delta.y());
 			constexpr auto kOrientationThreshold = 1.;
+			LOG(("SETTING ORIENTATION WITH: %1,%2, diff %3"
+				).arg(args.delta.x()
+				).arg(args.delta.y()
+				).arg(diffXtoY));
 			if (diffXtoY > kOrientationThreshold) {
 				if (!state->dontStart) {
 					setOrientation(Qt::Horizontal);
@@ -239,6 +270,9 @@ void SetupSwipeHandler(
 		}
 	};
 	const auto filter = [=](not_null<QEvent*> e) {
+		if (!widget->testAttribute(Qt::WA_AcceptTouchEvents)) {
+			[[maybe_unused]] int a = 0;
+		}
 		const auto type = e->type();
 		switch (type) {
 		case QEvent::Leave: {
@@ -262,7 +296,7 @@ void SetupSwipeHandler(
 			const auto t = static_cast<QTouchEvent*>(e.get());
 			const auto touchscreen = t->device()
 				&& (t->device()->type() == base::TouchDevice::TouchScreen);
-			if (!touchscreen) {
+			if (!touchscreen && type != QEvent::TouchCancel) {
 				break;
 			} else if (type == QEvent::TouchBegin) {
 				// Reset state in case we lost some TouchEnd.
@@ -292,8 +326,10 @@ void SetupSwipeHandler(
 					.delta = state->startAt - touches[0].pos(),
 					.touch = true,
 				};
+				LOG(("ORIENTATION UPDATING WITH: %1, %2").arg(args.delta.x()).arg(args.delta.y()));
 				updateWith(args);
 			}
+			LOG(("ORIENTATION: %1").arg(!state->orientation ? "none" : (state->orientation == Qt::Horizontal) ? "horizontal" : "vertical"));
 			return (touchscreen && state->orientation != Qt::Horizontal)
 				? base::EventFilterResult::Continue
 				: base::EventFilterResult::Cancel;
@@ -326,6 +362,7 @@ void SetupSwipeHandler(
 		}
 		return base::EventFilterResult::Continue;
 	};
+	widget->setAttribute(Qt::WA_AcceptTouchEvents);
 	state->filter = base::make_unique_q<QObject>(
 		base::install_event_filter(widget, filter));
 }

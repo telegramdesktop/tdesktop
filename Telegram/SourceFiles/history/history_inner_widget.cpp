@@ -1525,6 +1525,11 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	} break;
 
 	case QEvent::TouchUpdate: {
+		LOG(("UPDATE: %1,%2 -> %3,%4"
+			).arg(_touchStart.x()
+			).arg(_touchStart.y()
+			).arg(_touchPos.x()
+			).arg(_touchPos.y()));
 		if (!_touchInProgress) {
 			return;
 		} else if (_touchSelect) {

@@ -77,8 +77,6 @@ ContentWidget::ContentWidget(
 	) | rpl::start_with_next([this] {
 		updateControlsGeometry();
 	}, lifetime());
-
-	setupSwipeReply();
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
@@ -157,12 +155,25 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		object_ptr<RpWidget> inner) {
 	using namespace rpl::mappers;
 
+	const auto tmp = new Ui::RpWidget(this);
+	tmp->raise();
+	tmp->show();
+	tmp->setAttribute(Qt::WA_TransparentForMouseEvents);
+	tmp->paintRequest() | rpl::start_with_next([=] {
+		QPainter(tmp).fillRect(tmp->rect(), QColor(255, 0, 0, 64));
+	}, tmp->lifetime());
+	_scroll->geometryValue() | rpl::start_with_next([=] {
+		tmp->setGeometry(_scroll->geometry());
+	}, tmp->lifetime());
+
 	_innerWrap = _scroll->setOwnedWidget(
 		object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
 			this,
 			std::move(inner),
 			_innerWrap ? _innerWrap->padding() : style::margins()));
 	_innerWrap->move(0, 0);
+
+	setupSwipeHandler(_innerWrap);
 
 	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	rpl::combine(
@@ -178,6 +189,24 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		_innerWrap->setVisibleTopBottom(top, bottom);
 		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
 	}, _innerWrap->lifetime());
+
+	rpl::combine(
+		_scroll->heightValue(),
+		_innerWrap->entity()->heightValue(),
+		_controller->wrapValue()
+	) | rpl::start_with_next([=](
+			int scrollHeight,
+			int innerHeight,
+			Wrap wrap) {
+		const auto added = (wrap == Wrap::Layer)
+			? 0
+			: std::max(scrollHeight - innerHeight, 0);
+		if (_addedHeight != added) {
+			_addedHeight = added;
+			updateInnerPadding();
+		}
+	}, _innerWrap->lifetime());
+	updateInnerPadding();
 
 	return _innerWrap->entity();
 }
@@ -208,9 +237,17 @@ rpl::producer<int> ContentWidget::scrollHeightValue() const {
 }
 
 void ContentWidget::applyAdditionalScroll(int additionalScroll) {
-	if (_innerWrap) {
-		_innerWrap->setPadding({ 0, 0, 0, additionalScroll });
+	if (_additionalScroll != additionalScroll) {
+		_additionalScroll = additionalScroll;
+		if (_innerWrap) {
+			updateInnerPadding();
+		}
 	}
+}
+
+void ContentWidget::updateInnerPadding() {
+	const auto addedToBottom = std::max(_additionalScroll, _addedHeight);
+	_innerWrap->setPadding({ 0, 0, 0, addedToBottom });
 }
 
 void ContentWidget::applyMaxVisibleHeight(int maxVisibleHeight) {
@@ -384,8 +421,8 @@ not_null<Ui::ScrollArea*> ContentWidget::scroll() const {
 	return _scroll.data();
 }
 
-void ContentWidget::setupSwipeReply() {
-	Ui::Controls::SetupSwipeHandler(this, _scroll.data(), [=](
+void ContentWidget::setupSwipeHandler(not_null<Ui::RpWidget*> widget) {
+	Ui::Controls::SetupSwipeHandler(widget, _scroll.data(), [=](
 			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
@@ -412,7 +449,7 @@ void ContentWidget::setupSwipeReply() {
 				}));
 			})
 			: Ui::Controls::SwipeHandlerFinishData();
-	}, nullptr);
+	});
 }
 
 Key ContentMemento::key() const {

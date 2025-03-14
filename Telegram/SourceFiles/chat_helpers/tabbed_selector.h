@@ -288,7 +288,7 @@ private:
 	not_null<GifsListWidget*> gifs() const;
 	not_null<StickersListWidget*> masks() const;
 
-	void setupSwipe();
+	void reinstallSwipe(not_null<Ui::RpWidget*> widget);
 
 	const style::EmojiPan &_st;
 	const ComposeFeatures _features;
@@ -333,6 +333,8 @@ private:
 
 	rpl::event_stream<> _showRequests;
 	rpl::event_stream<> _slideFinished;
+
+	rpl::lifetime _swipeLifetime;
 
 };
 

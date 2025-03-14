@@ -2972,7 +2972,7 @@ bool InnerWidget::processTouchEvent(not_null<QTouchEvent*> e) {
 		}
 		if (_chatPreviewTouchGlobal) {
 			const auto delta = (*_chatPreviewTouchGlobal - *point);
-			if (delta.manhattanLength() > _st->photoSize) {
+			if (delta.manhattanLength() >= QApplication::startDragDistance()) {
 				cancelChatPreview();
 			}
 		}
@@ -2981,7 +2981,7 @@ bool InnerWidget::processTouchEvent(not_null<QTouchEvent*> e) {
 			return _dragging != nullptr;
 		} else if (_touchDragStartGlobal) {
 			const auto delta = (*_touchDragStartGlobal - *point);
-			if (delta.manhattanLength() > QApplication::startDragDistance()) {
+			if (delta.manhattanLength() >= QApplication::startDragDistance()) {
 				if (_touchDragPinnedTimer.isActive()) {
 					_touchDragPinnedTimer.cancel();
 					_touchDragStartGlobal = {};

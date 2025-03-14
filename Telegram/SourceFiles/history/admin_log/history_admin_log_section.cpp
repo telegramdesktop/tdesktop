@@ -420,7 +420,7 @@ void Widget::setupShortcuts() {
 }
 
 void Widget::setupSwipeReply() {
-	Ui::Controls::SetupSwipeHandler(this, _scroll.data(), [=](
+	Ui::Controls::SetupSwipeHandler(_inner.data(), _scroll.data(), [=](
 			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
@@ -446,7 +446,7 @@ void Widget::setupSwipeReply() {
 			});
 		}
 		return Ui::Controls::SwipeHandlerFinishData();
-	}, nullptr);
+	});
 }
 
 std::shared_ptr<Window::SectionMemento> Widget::createMemento() {

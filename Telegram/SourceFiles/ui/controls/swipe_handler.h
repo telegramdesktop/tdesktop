@@ -35,7 +35,8 @@ void SetupSwipeHandler(
 	Scroll scroll,
 	Fn<void(SwipeContextData)> update,
 	Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> generateFinishByTop,
-	rpl::producer<bool> dontStart = nullptr);
+	rpl::producer<bool> dontStart = nullptr,
+	rpl::lifetime *onLifetime = nullptr);
 
 [[nodiscard]] SwipeBackResult SetupSwipeBack(
 	not_null<Ui::RpWidget*> widget,
