@@ -1,3 +1,8 @@
+5.12.5 beta (14.03.25)
+
+- Support swipe navigation on touchscreens.
+- Close main menu by swipe navigation.
+
 5.12.4 beta (12.03.25)
 
 - Touchpad swipe back to go back in navigation history.
