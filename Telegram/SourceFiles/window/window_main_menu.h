@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/binary_guard.h"
 #include "ui/rp_widget.h"
 #include "ui/unread_badge.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/layers/layer_widget.h"
 
 namespace Ui {
@@ -49,17 +50,17 @@ public:
 	void parentResized() override;
 	void showFinished() override;
 
-protected:
+private:
+	class ToggleAccountsButton;
+	class ResetScaleButton;
+
+	bool eventHook(QEvent *event) override;
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void doSetInnerFocus() override {
 		setFocus();
 	}
-
-private:
-	class ToggleAccountsButton;
-	class ResetScaleButton;
 
 	void moveBadge();
 	void setupUserpicButton();
@@ -73,6 +74,7 @@ private:
 	void initResetScaleButton();
 	void toggleAccounts();
 	void chooseEmojiStatus();
+	void setupSwipe();
 
 	void drawName(Painter &p);
 
@@ -98,6 +100,8 @@ private:
 	rpl::event_stream<bool> _nightThemeSwitches;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	rpl::variable<bool> _showFinished = false;
 
