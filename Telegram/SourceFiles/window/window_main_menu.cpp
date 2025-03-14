@@ -907,9 +907,7 @@ bool MainMenu::eventHook(QEvent *event) {
 		|| type == QEvent::TouchUpdate
 		|| type == QEvent::TouchEnd
 		|| type == QEvent::TouchCancel) {
-		QTouchEvent ev = *static_cast<QTouchEvent*>(event);
-		ev.setTimestamp(crl::now());
-		QGuiApplication::sendEvent(_inner, &ev);
+		QGuiApplication::sendEvent(_inner, event);
 	}
 	return RpWidget::eventHook(event);
 }
