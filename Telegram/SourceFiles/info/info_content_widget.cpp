@@ -155,17 +155,6 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		object_ptr<RpWidget> inner) {
 	using namespace rpl::mappers;
 
-	const auto tmp = new Ui::RpWidget(this);
-	tmp->raise();
-	tmp->show();
-	tmp->setAttribute(Qt::WA_TransparentForMouseEvents);
-	tmp->paintRequest() | rpl::start_with_next([=] {
-		QPainter(tmp).fillRect(tmp->rect(), QColor(255, 0, 0, 64));
-	}, tmp->lifetime());
-	_scroll->geometryValue() | rpl::start_with_next([=] {
-		tmp->setGeometry(_scroll->geometry());
-	}, tmp->lifetime());
-
 	_innerWrap = _scroll->setOwnedWidget(
 		object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
 			this,
