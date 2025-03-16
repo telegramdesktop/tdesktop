@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_search_tags.h"
+#include "dialogs/dialogs_swipe_action.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -5037,17 +5038,8 @@ void InnerWidget::prepareSwipeAction(
 		int64 key,
 		Dialogs::Ui::SwipeDialogAction action) {
 	if (key) {
-		auto name = (action == Dialogs::Ui::SwipeDialogAction::Mute)
-			? u"swipe_mute"_q
-			: (action == Dialogs::Ui::SwipeDialogAction::Pin)
-			? u"swipe_pin"_q
-			: (action == Dialogs::Ui::SwipeDialogAction::Read)
-			? u"swipe_read"_q
-			: (action == Dialogs::Ui::SwipeDialogAction::Archive)
-			? u"swipe_archive"_q
-			: (action == Dialogs::Ui::SwipeDialogAction::Delete)
-			? u"swipe_delete"_q
-			: u"swipe_disabled"_q;
+		const auto peer = session().data().peer(PeerId(key));
+		auto name = ResolveSwipeDialogLottieIconName(peer, action, _filterId);
 		_swipeLottieIcon = Lottie::MakeIcon({
 			.name = std::move(name),
 			.sizeOverride = Size(st::dialogsSwipeActionSize),

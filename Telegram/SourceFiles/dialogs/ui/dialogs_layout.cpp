@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_list.h"
 #include "dialogs/dialogs_three_state_icon.h"
+#include "dialogs/dialogs_swipe_action.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -69,23 +70,11 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 	return !history->isForum();
 }
 
-[[nodiscard]] QString SwipeActionText(Dialogs::Ui::SwipeDialogAction type) {
-	return (type == Dialogs::Ui::SwipeDialogAction::Archive)
-		? tr::lng_settings_swipe_archive(tr::now)
-		: (type == Dialogs::Ui::SwipeDialogAction::Delete)
-		? tr::lng_settings_swipe_delete(tr::now)
-		: (type == Dialogs::Ui::SwipeDialogAction::Read)
-		? tr::lng_settings_swipe_read(tr::now)
-		: (type == Dialogs::Ui::SwipeDialogAction::Pin)
-		? tr::lng_settings_swipe_pin(tr::now)
-		: tr::lng_settings_swipe_mute(tr::now);
-}
-
 const style::font &SwipeActionFont(
-		Dialogs::Ui::SwipeDialogAction action,
+		Dialogs::Ui::SwipeDialogActionLabel action,
 		int availableWidth) {
 	struct Entry final {
-		Dialogs::Ui::SwipeDialogAction action;
+		Dialogs::Ui::SwipeDialogActionLabel action;
 		QString langId;
 		style::font font;
 	};
@@ -104,7 +93,7 @@ const style::font &SwipeActionFont(
 			style::ConvertScale(i, style::Scale()),
 			st::semiboldFont->flags(),
 			st::semiboldFont->family());
-		if (font->width(SwipeActionText(action)) <= availableWidth
+		if (font->width(ResolveSwipeDialogLabel(action)) <= availableWidth
 			|| i == kMinFontSize) {
 			Fonts.emplace_back(Entry{
 				.action = action,
@@ -920,11 +909,14 @@ void PaintRow(
 				- iconOffset * 2
 				- st::dialogsSwipeActionSize;
 			const auto availableWidth = geometry.width() - left;
-			p.setFont(
-				SwipeActionFont(context.swipeContext.action, availableWidth));
+			const auto labelType = ResolveSwipeDialogLabel(
+				history,
+				context.swipeContext.action,
+				context.filter);
+			p.setFont(SwipeActionFont(labelType, availableWidth));
 			p.drawText(
 				QRect(left, 0, availableWidth, geometry.height()),
-				SwipeActionText(context.swipeContext.action),
+				ResolveSwipeDialogLabel(labelType),
 				style::al_bottom);
 		}
 		p.translate(0, topTranslation);

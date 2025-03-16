@@ -26,6 +26,19 @@ enum class SwipeDialogAction {
 	Disabled,
 };
 
+enum class SwipeDialogActionLabel {
+	Mute,
+	Unmute,
+	Pin,
+	Unpin,
+	Read,
+	Unread,
+	Archive,
+	Unarchive,
+	Delete,
+	Disabled,
+};
+
 struct SwipeContext {
 	::Ui::Controls::SwipeContextData data;
 	Lottie::Icon *icon = nullptr;

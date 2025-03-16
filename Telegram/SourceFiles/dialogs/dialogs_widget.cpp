@@ -690,10 +690,11 @@ void Widget::setupSwipeBack() {
 	Ui::Controls::SetupSwipeHandler(_inner, _scroll.data(), [=](
 			Ui::Controls::SwipeContextData data) {
 		if (data.translation != 0) {
-			if (data.translation < 0) {
-				if (_inner) {
-					_inner->setSwipeContextData(std::move(data));
-				}
+			if (data.translation < 0
+				&& _inner
+				&& (Core::App().settings().swipeDialogAction()
+					!= Ui::SwipeDialogAction::Disabled)) {
+				_inner->setSwipeContextData(std::move(data));
 			} else {
 				if (!_swipeBackData.callback) {
 					_swipeBackData = Ui::Controls::SetupSwipeBack(
@@ -726,16 +727,21 @@ void Widget::setupSwipeBack() {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto isRightToLeft = direction == Qt::RightToLeft;
+		const auto action = Core::App().settings().swipeDialogAction();
+		const auto isDisabled = action == Ui::SwipeDialogAction::Disabled;
 		if (!isRightToLeft && _inner) {
-			if (const auto key = _inner->calcSwipeKey(top)) {
-				const auto action
-					= Core::App().settings().swipeDialogAction();
+			if (const auto key = _inner->calcSwipeKey(top);
+					key && !isDisabled) {
 				_inner->prepareSwipeAction(key, action);
 				return Ui::Controls::SwipeHandlerFinishData{
 					.callback = [=, session = &session()] {
 						auto callback = [=, peerId = PeerId(key)] {
 							const auto peer = session->data().peer(peerId);
-							PerformSwipeDialogAction(peer, action);
+							PerformSwipeDialogAction(
+								controller(),
+								peer,
+								action,
+								_inner->filterId());
 						};
 						base::call_delayed(
 							st::slideWrapDuration,
@@ -788,7 +794,9 @@ void Widget::setupSwipeBack() {
 				}
 			});
 		}
-		if (_chatFilters && session().data().chatsFilters().has()) {
+		if (_chatFilters
+			&& session().data().chatsFilters().has()
+			&& isDisabled) {
 			_swipeBackMirrored = !isRightToLeft;
 			using namespace Window;
 			const auto next = !isRightToLeft;
