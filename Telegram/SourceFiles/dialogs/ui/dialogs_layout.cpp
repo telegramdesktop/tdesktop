@@ -28,12 +28,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_send_action.h"
+#include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
 #include "support/support_helper.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
@@ -64,6 +67,54 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 		return !user->lastseen().isHidden();
 	}
 	return !history->isForum();
+}
+
+[[nodiscard]] QString SwipeActionText(Dialogs::Ui::SwipeDialogAction type) {
+	return (type == Dialogs::Ui::SwipeDialogAction::Archive)
+		? tr::lng_settings_swipe_archive(tr::now)
+		: (type == Dialogs::Ui::SwipeDialogAction::Delete)
+		? tr::lng_settings_swipe_delete(tr::now)
+		: (type == Dialogs::Ui::SwipeDialogAction::Read)
+		? tr::lng_settings_swipe_read(tr::now)
+		: (type == Dialogs::Ui::SwipeDialogAction::Pin)
+		? tr::lng_settings_swipe_pin(tr::now)
+		: tr::lng_settings_swipe_mute(tr::now);
+}
+
+const style::font &SwipeActionFont(
+		Dialogs::Ui::SwipeDialogAction action,
+		int availableWidth) {
+	struct Entry final {
+		Dialogs::Ui::SwipeDialogAction action;
+		QString langId;
+		style::font font;
+	};
+	static auto Fonts = std::vector<Entry>();
+	for (auto &entry : Fonts) {
+		if (entry.action == action) {
+			if (entry.langId == Lang::GetInstance().id()) {
+				return entry.font;
+			}
+		}
+	}
+	constexpr auto kNormalFontSize = 13;
+	constexpr auto kMinFontSize = 5;
+	for (auto i = kNormalFontSize; i >= kMinFontSize; --i) {
+		auto font = style::font(
+			style::ConvertScale(i, style::Scale()),
+			st::semiboldFont->flags(),
+			st::semiboldFont->family());
+		if (font->width(SwipeActionText(action)) <= availableWidth
+			|| i == kMinFontSize) {
+			Fonts.emplace_back(Entry{
+				.action = action,
+				.langId = Lang::GetInstance().id(),
+				.font = std::move(font),
+			});
+			return Fonts.back().font;
+		}
+	}
+	Unexpected("SwipeActionFont: can't find font.");
 }
 
 void PaintRowTopRight(
@@ -344,11 +395,25 @@ void PaintRow(
 		draft = nullptr;
 	}
 
+	const auto history = entry->asHistory();
+	const auto thread = entry->asThread();
+	const auto sublist = entry->asSublist();
+
 	auto bg = context.active
 		? st::dialogsBgActive
 		: context.selected
 		? st::dialogsBgOver
 		: context.currentBg;
+	auto swipeTranslation = 0;
+	if (history
+		&& history->peer->id.value == context.swipeContext.data.msgBareId) {
+		if (context.swipeContext.data.translation != 0) {
+			swipeTranslation = context.swipeContext.data.translation * -2;
+		}
+	}
+	if (swipeTranslation) {
+		p.translate(-swipeTranslation, 0);
+	}
 	p.fillRect(geometry, bg);
 	if (!(flags & Flag::TopicJumpRipple)) {
 		auto ripple = context.active
@@ -356,10 +421,6 @@ void PaintRow(
 			: st::dialogsRippleBg;
 		row->paintRipple(p, 0, 0, context.width, &ripple->c);
 	}
-
-	const auto history = entry->asHistory();
-	const auto thread = entry->asThread();
-	const auto sublist = entry->asSublist();
 
 	if (flags & Flag::SavedMessages) {
 		EmptyUserpic::PaintSavedMessages(
@@ -820,6 +881,54 @@ void PaintRow(
 			left += st::dialogRowFilterTagSkip
 				+ (tag->width() / style::DevicePixelRatio());
 		}
+	}
+	if (swipeTranslation) {
+		p.translate(swipeTranslation, 0);
+		const auto swipeActionRect = QRect(
+			geometry.x() + geometry.width() - swipeTranslation,
+			geometry.y(),
+			swipeTranslation,
+			geometry.height());
+		p.setClipRegion(swipeActionRect);
+		p.fillRect(swipeActionRect, st::attentionButtonFg);
+		if (context.swipeContext.data.reachRatio) {
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::windowBgActive);
+			const auto r = swipeTranslation
+				* context.swipeContext.data.reachRatio;
+			const auto offset = st::dialogsSwipeActionSize
+				+ st::dialogsSwipeActionSize / 2.;
+			p.drawEllipse(QPointF(geometry.width() - offset, offset), r, r);
+		}
+		const auto iconOffset = (geometry.height()
+			- st::dialogsSwipeActionSize) / 2;
+		const auto topTranslation = iconOffset / 2.;
+		p.translate(0, -topTranslation);
+		if (context.swipeContext.icon) {
+			context.swipeContext.icon->paint(
+				p,
+				rect::right(geometry)
+					- iconOffset
+					- st::dialogsSwipeActionSize,
+				iconOffset,
+				st::premiumButtonFg->c);
+		}
+		{
+			p.setPen(st::premiumButtonFg);
+			p.setBrush(Qt::NoBrush);
+			const auto left = rect::right(geometry)
+				- iconOffset * 2
+				- st::dialogsSwipeActionSize;
+			const auto availableWidth = geometry.width() - left;
+			p.setFont(
+				SwipeActionFont(context.swipeContext.action, availableWidth));
+			p.drawText(
+				QRect(left, 0, availableWidth, geometry.height()),
+				SwipeActionText(context.swipeContext.action),
+				style::al_bottom);
+		}
+		p.translate(0, topTranslation);
+		p.setClipRegion(QRegion());
 	}
 }
 

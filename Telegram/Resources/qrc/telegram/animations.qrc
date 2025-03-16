@@ -49,5 +49,16 @@
     <file alias="star_reaction_effect1.tgs">../../animations/star_reaction/effect1.tgs</file>
     <file alias="star_reaction_effect2.tgs">../../animations/star_reaction/effect2.tgs</file>
     <file alias="star_reaction_effect3.tgs">../../animations/star_reaction/effect3.tgs</file>
+
+    <file alias="swipe_archive.tgs">../../animations/swipe_action/archive.tgs</file>
+    <file alias="swipe_unarchive.tgs">../../animations/swipe_action/unarchive.tgs</file>
+    <file alias="swipe_delete.tgs">../../animations/swipe_action/delete.tgs</file>
+    <file alias="swipe_disabled.tgs">../../animations/swipe_action/disabled.tgs</file>
+    <file alias="swipe_mute.tgs">../../animations/swipe_action/mute.tgs</file>
+    <file alias="swipe_unmute.tgs">../../animations/swipe_action/unmute.tgs</file>
+    <file alias="swipe_pin.tgs">../../animations/swipe_action/pin.tgs</file>
+    <file alias="swipe_unpin.tgs">../../animations/swipe_action/unpin.tgs</file>
+    <file alias="swipe_read.tgs">../../animations/swipe_action/read.tgs</file>
+    <file alias="swipe_unread.tgs">../../animations/swipe_action/unread.tgs</file>
   </qresource>
 </RCC>

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/ui/dialogs_swipe_context.h"
 #include "data/data_messages.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
@@ -25,6 +26,10 @@ namespace MTP {
 class Error;
 } // namespace MTP
 
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -34,6 +39,9 @@ class IconButton;
 class PopupMenu;
 class FlatLabel;
 struct ScrollToRequest;
+namespace Controls {
+enum class SwipeDialogAction;
+} // namespace Controls
 } // namespace Ui
 
 namespace Window {
@@ -207,6 +215,10 @@ public:
 	}
 
 	[[nodiscard]] rpl::producer<UserId> openBotMainAppRequests() const;
+
+	void setSwipeContextData(Ui::Controls::SwipeContextData data);
+	[[nodiscard]] int64 calcSwipeKey(int top);
+	void prepareSwipeAction(int64 key, Dialogs::Ui::SwipeDialogAction);
 
 protected:
 	void visibleTopBottomUpdated(
@@ -610,6 +622,9 @@ private:
 	rpl::event_stream<QString> _completeHashtagRequests;
 	rpl::event_stream<> _refreshHashtagsRequests;
 	rpl::event_stream<UserId> _openBotMainAppRequests;
+
+	Dialogs::Ui::SwipeContext _swipeContext;
+	std::unique_ptr<Lottie::Icon> _swipeLottieIcon = nullptr;
 
 	RowDescriptor _chatPreviewRow;
 	bool _chatPreviewScheduled = false;

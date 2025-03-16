@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "dialogs/ui/dialogs_swipe_context.h"
 #include "ui/cached_round_corners.h"
 
 namespace style {
@@ -17,9 +18,6 @@ struct VerifiedBadge;
 namespace st {
 extern const style::DialogRow &defaultDialogRow;
 } // namespace st
-
-namespace Ui {
-} // namespace Ui
 
 namespace Data {
 class Forum;
@@ -57,6 +55,7 @@ struct TopicJumpCache {
 struct PaintContext {
 	RightButton *rightButton = nullptr;
 	std::vector<QImage*> *chatsFilterTags = nullptr;
+	SwipeContext swipeContext;
 	not_null<const style::DialogRow*> st;
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;

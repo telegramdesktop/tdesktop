@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/options.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "storage/storage_account.h"
@@ -808,6 +809,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	const auto ms = crl::now();
 	const auto childListShown = _childListShown.current();
 	auto context = Ui::PaintContext{
+		.swipeContext = _swipeContext,
 		.st = _st,
 		.topicJumpCache = _topicJumpCache.get(),
 		.folder = _openedFolder,
@@ -4990,6 +4992,76 @@ bool InnerWidget::jumpToDialogRow(RowDescriptor to) {
 
 rpl::producer<UserId> InnerWidget::openBotMainAppRequests() const {
 	return _openBotMainAppRequests.events();
+}
+
+void InnerWidget::setSwipeContextData(Ui::Controls::SwipeContextData data) {
+	_swipeContext.data = std::move(data);
+	if (_swipeContext.data.msgBareId) {
+		constexpr auto kStartAnimateThreshold = 0.32;
+		constexpr auto kResetAnimateThreshold = 0.24;
+		if (_swipeContext.data.ratio > kStartAnimateThreshold) {
+			if (_swipeContext.icon
+				&& !_swipeContext.icon->frameIndex()
+				&& !_swipeContext.icon->animating()) {
+				_swipeContext.icon->animate(
+					[=] { update(); },
+					0,
+					_swipeContext.icon->framesCount());
+			}
+		} else if (_swipeContext.data.ratio < kResetAnimateThreshold) {
+			if (_swipeContext.icon && _swipeContext.icon->frameIndex()) {
+				_swipeContext.icon->jumpTo(0, [=] { update(); });
+			}
+		}
+		update();
+	}
+}
+
+int64 InnerWidget::calcSwipeKey(int top) {
+	top -= dialogsOffset();
+	for (auto it = _shownList->begin(); it != _shownList->end(); ++it) {
+		const auto row = it->get();
+		const auto from = row->top();
+		const auto to = from + row->height();
+		if (top >= from && top < to) {
+			if (const auto peer = row->key().peer()) {
+				return peer->id.value;
+			}
+			return 0;
+		}
+	}
+	return 0;
+}
+
+void InnerWidget::prepareSwipeAction(
+		int64 key,
+		Dialogs::Ui::SwipeDialogAction action) {
+	if (key) {
+		auto name = (action == Dialogs::Ui::SwipeDialogAction::Mute)
+			? u"swipe_mute"_q
+			: (action == Dialogs::Ui::SwipeDialogAction::Pin)
+			? u"swipe_pin"_q
+			: (action == Dialogs::Ui::SwipeDialogAction::Read)
+			? u"swipe_read"_q
+			: (action == Dialogs::Ui::SwipeDialogAction::Archive)
+			? u"swipe_archive"_q
+			: (action == Dialogs::Ui::SwipeDialogAction::Delete)
+			? u"swipe_delete"_q
+			: u"swipe_disabled"_q;
+		_swipeLottieIcon = Lottie::MakeIcon({
+			.name = std::move(name),
+			.sizeOverride = Size(st::dialogsSwipeActionSize),
+		});
+		_swipeContext.icon = _swipeLottieIcon.get();
+		_swipeContext.action = action;
+	} else {
+		if (_swipeContext.icon) {
+			_swipeContext = {};
+		}
+		if (_swipeLottieIcon) {
+			_swipeLottieIcon.reset();
+		}
+	}
 }
 
 } // namespace Dialogs

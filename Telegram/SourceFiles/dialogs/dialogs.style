@@ -789,3 +789,5 @@ dialogsPopularAppsPadding: margins(10px, 8px, 10px, 12px);
 dialogsPopularAppsAbout: FlatLabel(boxDividerLabel) {
 	minWidth: 128px;
 }
+
+dialogsSwipeActionSize: 20px;

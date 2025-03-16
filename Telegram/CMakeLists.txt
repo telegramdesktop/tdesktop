@@ -688,6 +688,8 @@ PRIVATE
     dialogs/dialogs_search_from_controllers.h
     dialogs/dialogs_search_tags.cpp
     dialogs/dialogs_search_tags.h
+    dialogs/dialogs_swipe_action.cpp
+    dialogs/dialogs_swipe_action.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
     editor/color_picker.cpp
