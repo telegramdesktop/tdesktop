@@ -262,7 +262,9 @@ void SetupSwipeHandler(
 					animationReachCallback,
 					0.,
 					1.,
-					kBounceDuration);
+					state->finishByTopData.reachRatioDuration
+						? state->finishByTopData.reachRatioDuration
+						: kBounceDuration);
 				base::Platform::Haptic();
 			} else if (state->reached
 				&& ratio < kResetReachedOn) {
@@ -272,7 +274,9 @@ void SetupSwipeHandler(
 						animationReachCallback,
 						1.,
 						0.,
-						kBounceDuration);
+						state->finishByTopData.reachRatioDuration
+							? state->finishByTopData.reachRatioDuration
+							: kBounceDuration);
 				}
 				state->reached = false;
 			}
