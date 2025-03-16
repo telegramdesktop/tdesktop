@@ -213,6 +213,7 @@ void SetupSwipeHandler(
 		if (!state->started || state->touch != args.touch) {
 			LOG(("STARTING"));
 			state->started = true;
+			state->data.reachRatio = 0.;
 			state->touch = args.touch;
 			state->startAt = args.position;
 			state->cursorTop = widget->mapFromGlobal(args.globalCursor).y();
@@ -265,6 +266,14 @@ void SetupSwipeHandler(
 				base::Platform::Haptic();
 			} else if (state->reached
 				&& ratio < kResetReachedOn) {
+				if (state->finishByTopData.provideReachOutRatio) {
+					state->animationReach.stop();
+					state->animationReach.start(
+						animationReachCallback,
+						1.,
+						0.,
+						kBounceDuration);
+				}
 				state->reached = false;
 			}
 		}
