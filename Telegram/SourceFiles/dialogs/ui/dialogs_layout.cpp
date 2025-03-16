@@ -928,7 +928,7 @@ void PaintRow(
 				style::al_bottom);
 		}
 		p.translate(0, topTranslation);
-		p.setClipRegion(QRegion());
+		p.setClipping(false);
 	}
 }
 

@@ -1273,6 +1273,62 @@ void SetupChatBackground(
 	}, adaptive->lifetime());
 }
 
+void SetupChatListSwipe(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_swipe_subsection());
+
+	using Type = Dialogs::Ui::SwipeDialogAction;
+	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(
+		Core::App().settings().swipeDialogAction());
+	container->add(
+		object_ptr<Ui::SettingsButton>(
+			container,
+			group->value() | rpl::map([](Type value) {
+				return ((value == Dialogs::Ui::SwipeDialogAction::Mute)
+					? tr::lng_settings_swipe_mute
+					: (value == Dialogs::Ui::SwipeDialogAction::Pin)
+					? tr::lng_settings_swipe_pin
+					: (value == Dialogs::Ui::SwipeDialogAction::Read)
+					? tr::lng_settings_swipe_read
+					: (value == Dialogs::Ui::SwipeDialogAction::Archive)
+					? tr::lng_settings_swipe_archive
+					: tr::lng_settings_swipe_disabled)();
+			}) | rpl::flatten_latest(),
+			st::settingsButtonNoIcon)
+	)->setClickedCallback([=] {
+		controller->uiShow()->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(tr::lng_settings_swipe_subsection());
+			const auto addRadio = [&](Type value, tr::phrase<> phrase) {
+				box->verticalLayout()->add(
+					object_ptr<Ui::Radioenum<Type>>(
+						box->verticalLayout(),
+						group,
+						value,
+						phrase(tr::now),
+						st::settingsSendType),
+					st::settingsSendTypePadding);
+			};
+			addRadio(Type::Mute, tr::lng_settings_swipe_mute);
+			addRadio(Type::Pin, tr::lng_settings_swipe_pin);
+			addRadio(Type::Read, tr::lng_settings_swipe_read);
+			addRadio(Type::Archive, tr::lng_settings_swipe_archive);
+			addRadio(Type::Delete, tr::lng_settings_swipe_delete);
+			addRadio(Type::Disabled, tr::lng_settings_swipe_disabled);
+			box->addButton(tr::lng_settings_save(), [=] {
+				Core::App().settings().setSwipeDialogAction(
+					group->current());
+				Core::App().saveSettingsDelayed();
+				box->closeBox();
+			});
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		}));
+	});
+	Ui::AddSkip(container);
+}
+
 void SetupDefaultThemes(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container) {
@@ -1803,6 +1859,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	SetupThemeSettings(controller, content);
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
+	SetupChatListSwipe(controller, content);
 	SetupStickersEmoji(controller, content);
 	SetupMessages(controller, content);
 	Ui::AddDivider(content);

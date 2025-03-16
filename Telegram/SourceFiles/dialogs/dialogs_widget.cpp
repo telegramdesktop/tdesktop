@@ -728,7 +728,8 @@ void Widget::setupSwipeBack() {
 		const auto isRightToLeft = direction == Qt::RightToLeft;
 		if (!isRightToLeft && _inner) {
 			if (const auto key = _inner->calcSwipeKey(top)) {
-				const auto action = Dialogs::Ui::SwipeDialogAction::Mute;
+				const auto action
+					= Core::App().settings().swipeDialogAction();
 				_inner->prepareSwipeAction(key, action);
 				return Ui::Controls::SwipeHandlerFinishData{
 					.callback = [=, session = &session()] {

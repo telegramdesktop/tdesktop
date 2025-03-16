@@ -1180,6 +1180,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_restart_now" = "Restart";
 "lng_settings_restart_later" = "Later";
 
+"lng_settings_swipe_subsection" = "Chat list swipe gesture";
 "lng_settings_swipe_mute" = "Mute";
 "lng_settings_swipe_unmute" = "Unmute";
 "lng_settings_swipe_pin" = "Pin";
