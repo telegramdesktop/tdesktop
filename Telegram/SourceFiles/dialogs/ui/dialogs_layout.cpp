@@ -879,10 +879,14 @@ void PaintRow(
 			swipeTranslation,
 			geometry.height());
 		p.setClipRegion(swipeActionRect);
-		p.fillRect(swipeActionRect, st::attentionButtonFg);
+		const auto labelType = ResolveSwipeDialogLabel(
+			history,
+			context.swipeContext.action,
+			context.filter);
+		p.fillRect(swipeActionRect, ResolveSwipeActionBg(labelType));
 		if (context.swipeContext.data.reachRatio) {
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::windowBgActive);
+			p.setBrush(ResolveSwipeActionBgActive(labelType));
 			const auto r = swipeTranslation
 				* context.swipeContext.data.reachRatio;
 			const auto offset = st::dialogsSwipeActionSize
@@ -909,10 +913,6 @@ void PaintRow(
 				- iconOffset * 2
 				- st::dialogsSwipeActionSize;
 			const auto availableWidth = geometry.width() - left;
-			const auto labelType = ResolveSwipeDialogLabel(
-				history,
-				context.swipeContext.action,
-				context.filter);
 			p.setFont(SwipeActionFont(labelType, availableWidth));
 			p.drawText(
 				QRect(left, 0, availableWidth, geometry.height()),

@@ -39,4 +39,9 @@ void PerformSwipeDialogAction(
 
 [[nodiscard]] QString ResolveSwipeDialogLabel(Ui::SwipeDialogActionLabel);
 
+[[nodiscard]] const style::color &ResolveSwipeActionBg(
+	Ui::SwipeDialogActionLabel);
+[[nodiscard]] const style::color &ResolveSwipeActionBgActive(
+	Ui::SwipeDialogActionLabel);
+
 } // namespace Dialogs

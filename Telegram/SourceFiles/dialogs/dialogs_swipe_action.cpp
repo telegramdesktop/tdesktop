@@ -138,4 +138,29 @@ QString ResolveSwipeDialogLabel(Ui::SwipeDialogActionLabel action) {
 	};
 }
 
+const style::color &ResolveSwipeActionBg(
+		Ui::SwipeDialogActionLabel action) {
+	switch (action) {
+	case Ui::SwipeDialogActionLabel::Delete:
+		return st::attentionButtonFg;
+	case Ui::SwipeDialogActionLabel::Disabled:
+		return st::windowSubTextFgOver;
+	case Ui::SwipeDialogActionLabel::Mute:
+	case Ui::SwipeDialogActionLabel::Unmute:
+	case Ui::SwipeDialogActionLabel::Pin:
+	case Ui::SwipeDialogActionLabel::Unpin:
+	case Ui::SwipeDialogActionLabel::Read:
+	case Ui::SwipeDialogActionLabel::Unread:
+	case Ui::SwipeDialogActionLabel::Archive:
+	case Ui::SwipeDialogActionLabel::Unarchive:
+	default:
+		return st::windowBgActive;
+	};
+}
+
+const style::color &ResolveSwipeActionBgActive(
+		Ui::SwipeDialogActionLabel action) {
+	return st::windowSubTextFgOver;
+}
+
 } // namespace Dialogs
