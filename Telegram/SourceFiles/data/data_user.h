@@ -15,11 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_lastseen_status.h"
 #include "data/data_user_names.h"
 #include "dialogs/dialogs_key.h"
+#include "base/flags.h"
 
 namespace Data {
 struct BotCommand;
 struct BusinessDetails;
 } // namespace Data
+
+namespace Api {
+enum class DisallowedGiftType;
+using DisallowedGiftTypes = base::flags<DisallowedGiftType>;
+} // namespace Api
 
 struct StarRefProgram {
 	StarsAmount revenuePerUser;
@@ -262,6 +268,11 @@ public:
 
 	std::unique_ptr<BotInfo> botInfo;
 
+	[[nodiscard]] Api::DisallowedGiftTypes disallowedGiftTypes() const {
+		return _disallowedGiftTypes;
+	}
+	void setDisallowedGiftTypes(Api::DisallowedGiftTypes types);
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
@@ -292,6 +303,8 @@ private:
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld
 		= 0xFFFFFFFFFFFFFFFFULL;
+
+	Api::DisallowedGiftTypes _disallowedGiftTypes;
 
 };
 

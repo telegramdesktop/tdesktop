@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "api/api_credits.h"
+#include "api/api_global_privacy.h"
 #include "api/api_premium.h"
 #include "base/event_filter.h"
 #include "base/random.h"
@@ -686,6 +687,24 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	};
 }
 
+[[nodiscard]] bool AllowedToSend(
+		const GiftTypeStars &gift,
+		not_null<PeerData*> peer) {
+	using Type = Api::DisallowedGiftType;
+	const auto user = peer->asUser();
+	if (!user || user->isSelf()) {
+		return true;
+	}
+	const auto disallowedTypes = user ? user->disallowedGiftTypes() : Type();
+	const auto allowLimited = !(disallowedTypes & Type::Limited);
+	const auto allowUnlimited = !(disallowedTypes & Type::Unlimited);
+	const auto allowUnique = !(disallowedTypes & Type::Unique);
+	if (!gift.info.limitedCount) {
+		return allowUnlimited;
+	}
+	return allowLimited || (gift.info.starsToUpgrade && allowUnique);
+}
+
 [[nodiscard]] rpl::producer<std::vector<GiftTypeStars>> GiftsStars(
 		not_null<Main::Session*> session,
 		not_null<PeerData*> peer) {
@@ -694,6 +713,12 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	};
 	static auto Map = base::flat_map<not_null<Main::Session*>, Session>();
 
+	const auto filtered = [=](std::vector<GiftTypeStars> list) {
+		list.erase(ranges::remove_if(list, [&](const GiftTypeStars &gift) {
+			return !AllowedToSend(gift, peer);
+		}), end(list));
+		return list;
+	};
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
@@ -703,7 +728,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			session->lifetime().add([=] { Map.remove(session); });
 		}
 		if (!i->second.last.empty()) {
-			consumer.put_next_copy(i->second.last);
+			consumer.put_next(filtered(i->second.last));
 		}
 
 		using namespace Api;
@@ -725,7 +750,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			auto &map = Map[session];
 			if (map.last != list) {
 				map.last = list;
-				consumer.put_next_copy(list);
+				consumer.put_next(filtered(std::move(list)));
 			}
 		}, lifetime);
 
@@ -1897,6 +1922,7 @@ void AddBlock(
 				? IsSoldOut(gift.info)
 				: (price && gift.info.stars != price);
 		}), end(gifts));
+
 		return GiftsDescriptor{
 			gifts | ranges::to<std::vector<GiftDescriptor>>(),
 		};
@@ -1924,6 +1950,24 @@ void GiftBox(
 
 	AddSkip(content, st::defaultVerticalListSkip * 5);
 
+	// Check disallowed gift types
+	const auto user = peer->asUser();
+	using Type = Api::DisallowedGiftType;
+	const auto disallowedTypes = user
+		? user->disallowedGiftTypes()
+		: Type::Premium;
+	const auto premiumDisallowed = peer->isSelf()
+		|| (disallowedTypes & Type::Premium);
+	const auto limitedDisallowed = !peer->isSelf()
+		&& (disallowedTypes & Type::Limited);
+	const auto unlimitedDisallowed = !peer->isSelf()
+		&& (disallowedTypes & Type::Unlimited);
+	const auto uniqueDisallowed = !peer->isSelf()
+		&& (disallowedTypes & Type::Unique);
+	const auto allStarsDisallowed = limitedDisallowed
+		&& unlimitedDisallowed
+		&& uniqueDisallowed;
+
 	content->add(
 		object_ptr<CenterWrap<>>(
 			content,
@@ -1945,11 +1989,12 @@ void GiftBox(
 		window->showSettings(Settings::CreditsId());
 		return false;
 	};
-	if (peer->isUser() && !peer->isSelf()) {
+	if (peer->isUser() && !peer->isSelf() && !premiumDisallowed) {
 		const auto premiumClickHandlerFilter = [=](const auto &...) {
 			Settings::ShowPremium(window, u"gift_send"_q);
 			return false;
 		};
+
 		AddBlock(content, window, {
 			.subtitle = tr::lng_gift_premium_subtitle(),
 			.about = tr::lng_gift_premium_about(
@@ -1962,28 +2007,32 @@ void GiftBox(
 			.content = MakePremiumGifts(window, peer),
 		});
 	}
-	AddBlock(content, window, {
-		.subtitle = (peer->isSelf()
-			? tr::lng_gift_self_title()
-			: peer->isBroadcast()
-			? tr::lng_gift_channel_title()
-			: tr::lng_gift_stars_subtitle()),
-		.about = (peer->isSelf()
-			? tr::lng_gift_self_about(Text::WithEntities)
-			: peer->isBroadcast()
-			? tr::lng_gift_channel_about(
-				lt_name,
-				rpl::single(Text::Bold(peer->name())),
-				Text::WithEntities)
-			: tr::lng_gift_stars_about(
-				lt_name,
-				rpl::single(Text::Bold(peer->shortName())),
-				lt_link,
-				tr::lng_gift_stars_link() | Text::ToLink(),
-				Text::WithEntities)),
-		.aboutFilter = starsClickHandlerFilter,
-		.content = MakeStarsGifts(window, peer),
-	});
+
+	// Only add star gifts if at least one type is allowed
+	if (!allStarsDisallowed) {
+		AddBlock(content, window, {
+			.subtitle = (peer->isSelf()
+				? tr::lng_gift_self_title()
+				: peer->isBroadcast()
+				? tr::lng_gift_channel_title()
+				: tr::lng_gift_stars_subtitle()),
+			.about = (peer->isSelf()
+				? tr::lng_gift_self_about(Text::WithEntities)
+				: peer->isBroadcast()
+				? tr::lng_gift_channel_about(
+					lt_name,
+					rpl::single(Text::Bold(peer->name())),
+					Text::WithEntities)
+				: tr::lng_gift_stars_about(
+					lt_name,
+					rpl::single(Text::Bold(peer->shortName())),
+					lt_link,
+					tr::lng_gift_stars_link() | Text::ToLink(),
+					Text::WithEntities)),
+			.aboutFilter = starsClickHandlerFilter,
+			.content = MakeStarsGifts(window, peer),
+		});
+	}
 }
 
 struct SelfOption {
@@ -2195,6 +2244,19 @@ void ShowStarGiftBox(
 	const auto show = [=] {
 		Map[session] = Session();
 		if (const auto strong = weak.get()) {
+			if (const auto user = peer->asUser()) {
+				using Type = Api::DisallowedGiftType;
+				const auto disallowedTypes = user->disallowedGiftTypes();
+				const auto premium = (disallowedTypes & Type::Premium)
+					|| peer->isSelf();
+				const auto limited = (disallowedTypes & Type::Limited);
+				const auto unlimited = (disallowedTypes & Type::Unlimited);
+				const auto unique = (disallowedTypes & Type::Unique);
+				if (premium && limited && unlimited && unique) {
+					strong->showToast(tr::lng_edit_privacy_gifts_restricted(tr::now));
+					return;
+				}
+			}
 			strong->show(Box(GiftBox, strong, peer));
 		}
 	};

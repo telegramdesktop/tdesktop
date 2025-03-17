@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 
 #include "api/api_credits.h"
+#include "api/api_global_privacy.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_statistics.h"
 #include "storage/localstorage.h"
@@ -659,6 +660,13 @@ bool UserData::hasCalls() const {
 		&& (callsStatus() != CallsStatus::Unknown);
 }
 
+void UserData::setDisallowedGiftTypes(Api::DisallowedGiftTypes types) {
+	if (_disallowedGiftTypes != types) {
+		_disallowedGiftTypes = types;
+		session().changes().peerUpdated(this, UpdateFlag::GiftSettings);
+	}
+}
+
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
@@ -814,6 +822,22 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	}
 	user->setBotVerifyDetails(
 		ParseBotVerifyDetails(update.vbot_verification()));
+
+	if (const auto gifts = update.vdisallowed_stargifts()) {
+		const auto &data = gifts->data();
+		user->setDisallowedGiftTypes(Api::DisallowedGiftType()
+			| ((data.is_disallow_unlimited_stargifts()
+				? Api::DisallowedGiftType::Unlimited
+				: Api::DisallowedGiftType()))
+			| ((data.is_disallow_limited_stargifts()
+				? Api::DisallowedGiftType::Limited
+				: Api::DisallowedGiftType()))
+			| ((data.is_disallow_unique_stargifts()
+				? Api::DisallowedGiftType::Unique
+				: Api::DisallowedGiftType())));
+	} else {
+		user->setDisallowedGiftTypes(Api::DisallowedGiftTypes());
+	}
 
 	user->owner().stories().apply(user, update.vstories());
 
