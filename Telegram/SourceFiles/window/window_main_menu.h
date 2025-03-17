@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/layers/layer_widget.h"
 
+namespace base {
+enum class EventFilterResult;
+} // namespace base
+
 namespace Ui {
 class IconButton;
 class FlatLabel;
@@ -76,6 +80,9 @@ private:
 	void chooseEmojiStatus();
 	void setupSwipe();
 
+	[[nodiscard]] base::EventFilterResult redirectToInnerChecked(
+		not_null<QEvent*> e);
+
 	void drawName(Painter &p);
 
 	const not_null<SessionController*> _controller;
@@ -104,6 +111,7 @@ private:
 	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	rpl::variable<bool> _showFinished = false;
+	bool _insideEventRedirect = false;
 
 };
 
