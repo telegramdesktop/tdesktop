@@ -1195,6 +1195,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_quick_dialog_action_delete" = "Delete";
 "lng_settings_quick_dialog_action_disabled" = "Change folder";
 
+"lng_settings_generic_subscribe" = "Subscribe to {link} to use this setting.";
+"lng_settings_generic_subscribe_link" = "Telegram Premium";
+
 "lng_sessions_header" = "This device";
 "lng_sessions_other_header" = "Active Devices";
 "lng_sessions_other_desc" = "You can log in to Telegram from other mobile, tablet and desktop devices, using the same phone number. All your data will be instantly synchronized.";
@@ -1309,6 +1312,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_gifts_exceptions" = "Choose whether gifts from specific senders need your approval before they're visible to others on your profile.";
 "lng_edit_privacy_gifts_always_title" = "Always allow";
 "lng_edit_privacy_gifts_never_title" = "Never allow";
+
+"lng_edit_privacy_gifts_types" = "Accepted Gift Types";
+"lng_edit_privacy_gifts_premium" = "Premium Subscriptions";
+"lng_edit_privacy_gifts_unlimited" = "Unlimited";
+"lng_edit_privacy_gifts_limited" = "Limited-Edition";
+"lng_edit_privacy_gifts_unique" = "Unique";
+"lng_edit_privacy_gifts_types_about" = "Choose the types of gifts that you accept.";
+"lng_edit_privacy_gifts_show_icon" = "Show Gift Icon in Chats";
+"lng_edit_privacy_gifts_show_icon_about" = "Display the {emoji}Gift icon in the message input field for both participants in all chats.";
 
 "lng_edit_privacy_calls_title" = "Calls";
 "lng_edit_privacy_calls_header" = "Who can call me";

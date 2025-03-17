@@ -115,7 +115,9 @@ void GlobalPrivacy::updateHideReadTime(bool hide) {
 		unarchiveOnNewMessageCurrent(),
 		hide,
 		newRequirePremiumCurrent(),
-		newChargeStarsCurrent());
+		newChargeStarsCurrent(),
+		showGiftIconCurrent(),
+		disallowedGiftTypesCurrent());
 }
 
 bool GlobalPrivacy::hideReadTimeCurrent() const {
@@ -150,7 +152,39 @@ void GlobalPrivacy::updateMessagesPrivacy(
 		unarchiveOnNewMessageCurrent(),
 		hideReadTimeCurrent(),
 		requirePremium,
-		chargeStars);
+		chargeStars,
+		showGiftIconCurrent(),
+		disallowedGiftTypesCurrent());
+}
+
+bool GlobalPrivacy::showGiftIconCurrent() const {
+	return _showGiftIcon.current();
+}
+
+rpl::producer<bool> GlobalPrivacy::showGiftIcon() const {
+	return _showGiftIcon.value();
+}
+
+DisallowedGiftTypes GlobalPrivacy::disallowedGiftTypesCurrent() const {
+	return _disallowedGiftTypes.current();
+}
+
+auto GlobalPrivacy::disallowedGiftTypes() const
+		-> rpl::producer<DisallowedGiftTypes> {
+	return _disallowedGiftTypes.value();
+}
+
+void GlobalPrivacy::updateAdditionalGiftPrivacy(
+		DisallowedGiftTypes types,
+		bool showGiftIcon) {
+	update(
+		archiveAndMuteCurrent(),
+		unarchiveOnNewMessageCurrent(),
+		hideReadTimeCurrent(),
+		newRequirePremiumCurrent(),
+		newChargeStarsCurrent(),
+		showGiftIcon,
+		types);
 }
 
 void GlobalPrivacy::loadPaidReactionShownPeer() {
@@ -182,7 +216,9 @@ void GlobalPrivacy::updateArchiveAndMute(bool value) {
 		unarchiveOnNewMessageCurrent(),
 		hideReadTimeCurrent(),
 		newRequirePremiumCurrent(),
-		newChargeStarsCurrent());
+		newChargeStarsCurrent(),
+		showGiftIconCurrent(),
+		disallowedGiftTypesCurrent());
 }
 
 void GlobalPrivacy::updateUnarchiveOnNewMessage(
@@ -192,7 +228,9 @@ void GlobalPrivacy::updateUnarchiveOnNewMessage(
 		value,
 		hideReadTimeCurrent(),
 		newRequirePremiumCurrent(),
-		newChargeStarsCurrent());
+		newChargeStarsCurrent(),
+		showGiftIconCurrent(),
+		disallowedGiftTypesCurrent());
 }
 
 void GlobalPrivacy::update(
@@ -200,8 +238,11 @@ void GlobalPrivacy::update(
 		UnarchiveOnNewMessage unarchiveOnNewMessage,
 		bool hideReadTime,
 		bool newRequirePremium,
-		int newChargeStars) {
+		int newChargeStars,
+		bool showGiftIcon,
+		DisallowedGiftTypes disallowedGiftTypes) {
 	using Flag = MTPDglobalPrivacySettings::Flag;
+	using DisallowedFlag = MTPDdisallowedStarGiftsSettings::Flag;
 
 	_api.request(_requestId).cancel();
 	const auto newRequirePremiumAllowed = _session->premium()
@@ -220,12 +261,27 @@ void GlobalPrivacy::update(
 		| ((newRequirePremium && newRequirePremiumAllowed)
 			? Flag::f_new_noncontact_peers_require_premium
 			: Flag())
-		| Flag::f_noncontact_peers_paid_stars;
+		| Flag::f_noncontact_peers_paid_stars
+		| (showGiftIcon ? Flag::f_display_gifts_button : Flag())
+		| Flag::f_disallowed_stargifts;
+	const auto disallowedFlags = DisallowedFlag()
+		| ((disallowedGiftTypes & DisallowedGiftType::Premium)
+			? DisallowedFlag() AssertIsDebug()
+			: DisallowedFlag())
+		| ((disallowedGiftTypes & DisallowedGiftType::Unlimited)
+			? DisallowedFlag::f_disallow_unlimited_stargifts
+			: DisallowedFlag())
+		| ((disallowedGiftTypes & DisallowedGiftType::Limited)
+			? DisallowedFlag::f_disallow_limited_stargifts
+			: DisallowedFlag())
+		| ((disallowedGiftTypes & DisallowedGiftType::Unique)
+			? DisallowedFlag::f_disallow_unique_stargifts
+			: DisallowedFlag());
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
 		MTP_globalPrivacySettings(
 			MTP_flags(flags),
 			MTP_long(newChargeStars),
-			MTPDisallowedStarGiftsSettings())
+			MTP_disallowedStarGiftsSettings(MTP_flags(disallowedFlags)))
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
@@ -237,7 +293,9 @@ void GlobalPrivacy::update(
 				unarchiveOnNewMessage,
 				hideReadTime,
 				false,
-				0);
+				0,
+				false,
+				DisallowedGiftTypes());
 		}
 	}).send();
 	_archiveAndMute = archiveAndMute;
@@ -245,6 +303,8 @@ void GlobalPrivacy::update(
 	_hideReadTime = hideReadTime;
 	_newRequirePremium = newRequirePremium;
 	_newChargeStars = newChargeStars;
+	_disallowedGiftTypes = disallowedGiftTypes;
+	_showGiftIcon = showGiftIcon;
 }
 
 void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
@@ -258,6 +318,22 @@ void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
 	_hideReadTime = data.is_hide_read_marks();
 	_newRequirePremium = data.is_new_noncontact_peers_require_premium();
 	_newChargeStars = data.vnoncontact_peers_paid_stars().value_or_empty();
+	_showGiftIcon = data.is_display_gifts_button();
+	if (const auto gifts = data.vdisallowed_stargifts()) {
+		const auto &data = gifts->data();
+		_disallowedGiftTypes = DisallowedGiftType()
+			| (data.is_disallow_unlimited_stargifts()
+				? DisallowedGiftType::Unlimited
+				: DisallowedGiftType())
+			| (data.is_disallow_limited_stargifts()
+				? DisallowedGiftType::Limited
+				: DisallowedGiftType())
+			| (data.is_disallow_unique_stargifts()
+				? DisallowedGiftType::Unique
+				: DisallowedGiftType());
+	} else {
+		_disallowedGiftTypes = DisallowedGiftTypes();
+	}
 }
 
 } // namespace Api

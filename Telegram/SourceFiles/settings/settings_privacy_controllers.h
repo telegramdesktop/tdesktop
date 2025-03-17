@@ -356,6 +356,16 @@ public:
 	rpl::producer<QString> exceptionsDescription() const override;
 	bool allowMiniAppsToggle(Exception exception) const override;
 
+	object_ptr<Ui::RpWidget> setupBelowWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent,
+		rpl::producer<Option> option) override;
+
+	void saveAdditional() override;
+
+private:
+	Fn<void()> _saveAdditional;
+
 };
 
 } // namespace Settings

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
 #include "mtproto/sender.h"
 
 class ApiWrap;
@@ -22,6 +23,16 @@ enum class UnarchiveOnNewMessage {
 	NotInFoldersUnmuted,
 	AnyUnmuted,
 };
+
+enum class DisallowedGiftType {
+	Premium   = 0x01,
+	Unlimited = 0x02,
+	Limited   = 0x04,
+	Unique    = 0x08,
+};
+inline constexpr bool is_flag_type(DisallowedGiftType) { return true; }
+
+using DisallowedGiftTypes = base::flags<DisallowedGiftType>;
 
 [[nodiscard]] PeerId ParsePaidReactionShownPeer(
 	not_null<Main::Session*> session,
@@ -57,6 +68,15 @@ public:
 
 	void updateMessagesPrivacy(bool requirePremium, int chargeStars);
 
+	[[nodiscard]] bool showGiftIconCurrent() const;
+	[[nodiscard]] rpl::producer<bool> showGiftIcon() const;
+	[[nodiscard]] DisallowedGiftTypes disallowedGiftTypesCurrent() const;
+	[[nodiscard]] auto disallowedGiftTypes() const
+		-> rpl::producer<DisallowedGiftTypes>;
+	void updateAdditionalGiftPrivacy(
+		DisallowedGiftTypes types,
+		bool showGiftIcon);
+
 	void loadPaidReactionShownPeer();
 	void updatePaidReactionShownPeer(PeerId shownPeer);
 	[[nodiscard]] PeerId paidReactionShownPeerCurrent() const;
@@ -70,7 +90,9 @@ private:
 		UnarchiveOnNewMessage unarchiveOnNewMessage,
 		bool hideReadTime,
 		bool newRequirePremium,
-		int newChargeStars);
+		int newChargeStars,
+		bool showGiftIcon,
+		DisallowedGiftTypes disallowedGiftTypes);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -82,6 +104,8 @@ private:
 	rpl::variable<bool> _hideReadTime = false;
 	rpl::variable<bool> _newRequirePremium = false;
 	rpl::variable<int> _newChargeStars = 0;
+	rpl::variable<bool> _showGiftIcon = false;
+	rpl::variable<DisallowedGiftTypes> _disallowedGiftTypes;
 	rpl::variable<PeerId> _paidReactionShownPeer = false;
 	std::vector<Fn<void()>> _callbacks;
 	bool _paidReactionShownPeerLoaded = false;

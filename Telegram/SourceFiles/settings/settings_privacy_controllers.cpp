@@ -616,8 +616,8 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 }
 
 void PhoneNumberPrivacyController::saveAdditional() {
-	if (_saveAdditional) {
-		_saveAdditional();
+	if (const auto onstack = _saveAdditional) {
+		onstack();
 	}
 }
 
@@ -1296,8 +1296,8 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupMiddleWidget(
 }
 
 void ProfilePhotoPrivacyController::saveAdditional() {
-	if (_saveAdditional) {
-		_saveAdditional();
+	if (const auto onstack = _saveAdditional) {
+		onstack();
 	}
 }
 
@@ -1624,6 +1624,134 @@ auto GiftsAutoSavePrivacyController::exceptionsDescription() const
 bool GiftsAutoSavePrivacyController::allowMiniAppsToggle(
 		Exception exception) const {
 	return true;
+}
+
+object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent,
+		rpl::producer<Option> option) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	const auto content = result.data();
+
+	const auto session = &controller->session();
+	auto premium = Data::AmPremiumValue(session);
+	const auto globalPrivacy = &session->api().globalPrivacy();
+
+	struct State {
+		Api::DisallowedGiftTypes disallowed;
+		bool showGiftIcon = false;
+		rpl::event_stream<> disables;
+		Fn<void()> promo;
+	};
+	const auto state = content->lifetime().make_state<State>();
+	state->disallowed = globalPrivacy->disallowedGiftTypesCurrent();
+	state->showGiftIcon = globalPrivacy->showGiftIconCurrent();
+	state->promo = [=] {
+		state->disables.fire({});
+		const auto link = Ui::Text::Bold(
+			tr::lng_settings_generic_subscribe_link(tr::now));
+		Settings::ShowPremiumPromoToast(
+			controller->uiShow(),
+			tr::lng_settings_generic_subscribe(
+				tr::now,
+				lt_link,
+				Ui::Text::Link(link),
+				Ui::Text::WithEntities),
+			u"gifts_privacy"_q);
+	};
+
+	Ui::AddSkip(content, st::settingsPeerToPeerSkip);
+	Ui::AddSubsectionTitle(
+		content,
+		tr::lng_edit_privacy_gifts_types());
+	using Type = Api::DisallowedGiftType;
+	const auto types = base::flat_map<Type, rpl::producer<QString>>{
+		{ Type::Premium, tr::lng_edit_privacy_gifts_premium() },
+		{ Type::Unlimited, tr::lng_edit_privacy_gifts_unlimited() },
+		{ Type::Limited, tr::lng_edit_privacy_gifts_limited() },
+		{ Type::Unique, tr::lng_edit_privacy_gifts_unique() },
+	};
+	for (const auto &[type, title] : types) {
+		const auto button = content->add(object_ptr<Ui::SettingsButton>(
+			content,
+			rpl::duplicate(title),
+			st::settingsButtonNoIconLocked));
+		button->toggleOn(rpl::single(
+			!session->premium() || !(state->disallowed & type)
+		) | rpl::then(state->disables.events() | rpl::map([=] {
+			return true;
+		})));
+		rpl::duplicate(premium) | rpl::start_with_next([=](bool value) {
+			button->setToggleLocked(!value);
+		}, button->lifetime());
+		button->toggledValue() | rpl::start_with_next([=](bool enable) {
+			if (enable) {
+				state->disallowed &= ~type;
+			} else if (!session->premium()) {
+				state->promo();
+			} else {
+				state->disallowed |= type;
+			}
+		}, button->lifetime());
+	}
+	Ui::AddSkip(content);
+	Ui::AddDividerText(content, tr::lng_edit_privacy_gifts_types_about());
+
+	Ui::AddSkip(content);
+	const auto icon = content->add(object_ptr<Ui::SettingsButton>(
+		content,
+		tr::lng_edit_privacy_gifts_show_icon(),
+		st::settingsButtonNoIconLocked));
+	icon->toggleOn(rpl::single(
+		session->premium() && state->showGiftIcon
+	) | rpl::then(state->disables.events() | rpl::map([=] {
+		return false;
+	})));
+	rpl::duplicate(premium) | rpl::start_with_next([=](bool value) {
+		icon->setToggleLocked(!value);
+		if (!value) {
+			state->disables.fire({});
+		}
+	}, icon->lifetime());
+	icon->toggledValue() | rpl::start_with_next([=](bool enable) {
+		if (!enable) {
+			state->showGiftIcon = false;
+		} else if (!session->premium()) {
+			state->promo();
+		} else {
+			state->showGiftIcon = true;
+		}
+	}, icon->lifetime());
+	Ui::AddSkip(content);
+	Ui::AddDividerText(
+		content,
+		tr::lng_edit_privacy_gifts_show_icon_about(
+			lt_emoji,
+			rpl::single(Ui::Text::IconEmoji(&st::settingsGiftIconEmoji)),
+			Ui::Text::WithEntities));
+
+	_saveAdditional = [=] {
+		const auto disallowed = state->disallowed;
+		const auto showGiftIcon = state->showGiftIcon;
+		if (!session->premium()) {
+			return;
+		} else if (globalPrivacy->showGiftIconCurrent() == showGiftIcon
+			&& globalPrivacy->disallowedGiftTypesCurrent() == disallowed) {
+			return;
+		} else {
+			globalPrivacy->updateAdditionalGiftPrivacy(
+				disallowed,
+				showGiftIcon);
+		}
+	};
+
+	return result;
+}
+
+void GiftsAutoSavePrivacyController::saveAdditional() {
+	if (const auto onstack = _saveAdditional) {
+		onstack();
+	}
 }
 
 } // namespace Settings
