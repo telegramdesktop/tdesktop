@@ -807,12 +807,13 @@ RUN cmake --build out --config Debug --parallel \
 {%- endif %}
 
 FROM builder AS ada
-RUN git clone -b v2.9.0 --depth=1 {{ GIT }}/ada-url/ada.git \
+RUN git clone -b v3.2.1 --depth=1 {{ GIT }}/ada-url/ada.git \
 	&& cd ada \
 	&& cmake -GNinja -B build . \
 		-D CMAKE_BUILD_TYPE=None \
         -D ADA_TESTING=OFF \
         -D ADA_TOOLS=OFF \
+        -D ADA_INCLUDE_URL_PATTERN=OFF \
 	&& cmake --build build --parallel \
 	&& DESTDIR="{{ LibrariesPath }}/ada-cache" cmake --install build \
 	&& cd .. \
