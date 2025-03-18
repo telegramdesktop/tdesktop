@@ -1101,7 +1101,9 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	auto images = std::vector<ItemPreviewImage>();
 	auto context = std::any();
 	const auto existing = options.existing;
-	if (auto found = FindCachedPreview(existing, _document, _spoiler)) {
+	const auto spoilered = _spoiler
+		|| (_document->isVideoMessage() && ttlSeconds());
+	if (auto found = FindCachedPreview(existing, _document, spoilered)) {
 		images.push_back(std::move(found));
 	} else if (TryFilePreview(_document)) {
 		const auto media = _document->createMediaView();
@@ -1112,7 +1114,7 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 				parent(),
 				media,
 				radius,
-				_spoiler)
+				spoilered)
 			; prepared || !prepared.cacheKey) {
 			images.push_back(std::move(prepared));
 			if (!prepared.cacheKey) {
