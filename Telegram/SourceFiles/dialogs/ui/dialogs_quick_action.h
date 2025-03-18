@@ -7,34 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "dialogs/ui/dialogs_quick_action.h"
-#include "ui/controls/swipe_handler_data.h"
-
-namespace Lottie {
-class Icon;
-} // namespace Lottie
-
 namespace Dialogs::Ui {
 
 using namespace ::Ui;
 
-enum class QuickDialogActionLabel {
+enum class QuickDialogAction {
 	Mute,
-	Unmute,
 	Pin,
-	Unpin,
 	Read,
-	Unread,
 	Archive,
-	Unarchive,
 	Delete,
 	Disabled,
-};
-
-struct QuickActionContext {
-	::Ui::Controls::SwipeContextData data;
-	Lottie::Icon *icon = nullptr;
-	QuickDialogAction action;
 };
 
 } // namespace Dialogs::Ui

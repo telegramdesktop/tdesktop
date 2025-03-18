@@ -102,6 +102,7 @@ PRIVATE
     dialogs/ui/chat_search_in.cpp
     dialogs/ui/chat_search_in.h
     dialogs/ui/dialogs_quick_action_context.h
+    dialogs/ui/dialogs_quick_action.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
     dialogs/ui/top_peers_strip.cpp
