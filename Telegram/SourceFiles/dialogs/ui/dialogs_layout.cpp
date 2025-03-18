@@ -396,6 +396,7 @@ void PaintRow(
 	auto swipeTranslation = 0;
 	if (history
 		&& context.quickActionContext
+		&& !context.quickActionContext->ripple
 		&& (history->peer->id.value
 			== context.quickActionContext->data.msgBareId)) {
 		if (context.quickActionContext->data.translation != 0) {

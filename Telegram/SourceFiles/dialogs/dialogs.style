@@ -791,3 +791,4 @@ dialogsPopularAppsAbout: FlatLabel(boxDividerLabel) {
 }
 
 dialogsQuickActionSize: 20px;
+dialogsQuickActionRippleSize: 80px;

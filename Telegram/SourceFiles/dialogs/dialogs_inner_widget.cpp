@@ -840,9 +840,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		context.rightButton = maybeCacheRightButton(row);
 		if (key.history()) {
 			const auto it = _quickActions.find(key.history()->peer->id.value);
-			if (it != _quickActions.end()) {
-				context.quickActionContext = it->second.get();
-			}
+			context.quickActionContext = (it != _quickActions.end())
+				? it->second.get()
+				: nullptr;
 		}
 
 		context.st = (forum ? &st::forumDialogRow : _st.get());
@@ -1850,7 +1850,9 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		};
 		const auto origin = e->pos()
 			- QPoint(0, dialogsOffset() + _pressed->top());
-		if (addBotAppRipple(origin, updateCallback)) {
+		if ((_pressButton == Qt::MiddleButton)
+			&& addQuickActionRipple(row, updateCallback)) {
+		} else if (addBotAppRipple(origin, updateCallback)) {
 		} else if (_pressedTopicJump) {
 			row->addTopicJumpRipple(
 				origin,
@@ -1922,12 +1924,49 @@ bool InnerWidget::addBotAppRipple(QPoint origin, Fn<void()> updateCallback) {
 		_pressedBotAppData->ripple = std::make_unique<Ui::RippleAnimation>(
 			st::defaultRippleAnimation,
 			Ui::RippleAnimation::RoundRectMask(size, size.height() / 2),
-			updateCallback);
+			std::move(updateCallback));
 	}
 	const auto shift = QPoint(
 		width() - size.width() - st::dialogRowOpenBotRight,
 		st::dialogRowOpenBotTop);
 	_pressedBotAppData->ripple->add(origin - shift);
+	return true;
+}
+
+bool InnerWidget::addQuickActionRipple(
+		not_null<Row*> row,
+		Fn<void()> updateCallback) {
+	const auto action = Core::App().settings().quickDialogAction();
+	if (action == Dialogs::Ui::QuickDialogAction::Disabled) {
+		return false;
+	}
+	const auto history = row->history();
+	if (!history) {
+		return false;
+	}
+	const auto key = history->peer->id.value;
+	const auto context = ensureQuickAction(key);
+
+	auto name = ResolveQuickDialogLottieIconName(
+		history->peer,
+		action,
+		_filterId);
+	context->icon = Lottie::MakeIcon({
+		.name = std::move(name),
+		.sizeOverride = Size(st::dialogsQuickActionSize),
+	});
+	context->action = action;
+	const auto size = QSize(
+		st::dialogsQuickActionRippleSize,
+		row->height());
+	if (!context->ripple) {
+		context->ripple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			Ui::RippleAnimation::RectMask(size),
+			std::move(updateCallback));
+	}
+	context->ripple->add(QPoint(size.width() / 2, size.height() / 2));
+
 	return true;
 }
 
@@ -2235,6 +2274,16 @@ void InnerWidget::mousePressReleased(
 	}
 	if (_pressedBotAppData && _pressedBotAppData->ripple) {
 		_pressedBotAppData->ripple->lastStop();
+	}
+	if (!_quickActions.empty() && pressed) {
+		if (const auto history = pressed->history()) {
+			const auto it = _quickActions.find(history->peer->id.value);
+			if (it != _quickActions.end()) {
+				if (it->second->ripple) {
+					it->second->ripple->lastStop();
+				}
+			}
+		}
 	}
 	updateSelectedRow();
 	if (!wasDragging && button == Qt::LeftButton) {
@@ -5010,15 +5059,7 @@ void InnerWidget::setSwipeContextData(
 		_quickActions.remove(key);
 		return;
 	}
-	const auto it = _quickActions.find(key);
-	auto context = (Ui::QuickActionContext*)(nullptr);
-	if (it == _quickActions.end()) {
-		context = _quickActions.emplace(
-			key,
-			std::make_unique<Ui::QuickActionContext>()).first->second.get();
-	} else {
-		context = it->second.get();
-	}
+	const auto context = ensureQuickAction(key);
 
 	context->data = base::take(*data);
 	if (context->data.msgBareId) {
@@ -5043,6 +5084,19 @@ void InnerWidget::setSwipeContextData(
 	}
 }
 
+not_null<Ui::QuickActionContext*> InnerWidget::ensureQuickAction(int64 key) {
+	Expects(key != 0);
+
+	const auto it = _quickActions.find(key);
+	if (it == _quickActions.end()) {
+		return _quickActions.emplace(
+			key,
+			std::make_unique<Ui::QuickActionContext>()).first->second.get();
+	} else {
+		return it->second.get();
+	}
+}
+
 int64 InnerWidget::calcSwipeKey(int top) {
 	top -= dialogsOffset();
 	for (auto it = _shownList->begin(); it != _shownList->end(); ++it) {
@@ -5064,21 +5118,12 @@ void InnerWidget::prepareQuickAction(
 		Dialogs::Ui::QuickDialogAction action) {
 	Expects(key != 0);
 
-	const auto it = _quickActions.find(key);
-	auto context = (Ui::QuickActionContext*)(nullptr);
-	if (it == _quickActions.end()) {
-		context = _quickActions.emplace(
-			key,
-			std::make_unique<Ui::QuickActionContext>()).first->second.get();
-	} else {
-		context = it->second.get();
-	}
-
+	const auto context = ensureQuickAction(key);
 	const auto peer = session().data().peer(PeerId(key));
 	auto name = ResolveQuickDialogLottieIconName(peer, action, _filterId);
 	context->icon = Lottie::MakeIcon({
 		.name = std::move(name),
-		.sizeOverride = Size(st::dialogsSwipeActionSize),
+		.sizeOverride = Size(st::dialogsQuickActionSize),
 	});
 	context->action = action;
 }

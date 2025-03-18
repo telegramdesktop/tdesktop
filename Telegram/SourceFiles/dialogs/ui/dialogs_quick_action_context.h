@@ -14,6 +14,10 @@ namespace Lottie {
 class Icon;
 } // namespace Lottie
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace Dialogs::Ui {
 
 using namespace ::Ui;
@@ -34,6 +38,7 @@ enum class QuickDialogActionLabel {
 struct QuickActionContext {
 	::Ui::Controls::SwipeContextData data;
 	std::unique_ptr<Lottie::Icon> icon;
+	std::unique_ptr<Ui::RippleAnimation> ripple;
 	QuickDialogAction action;
 };
 

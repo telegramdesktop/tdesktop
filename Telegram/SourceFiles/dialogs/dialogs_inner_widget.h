@@ -352,6 +352,7 @@ private:
 	void repaintDialogRowCornerStatus(not_null<History*> history);
 
 	bool addBotAppRipple(QPoint origin, Fn<void()> updateCallback);
+	bool addQuickActionRipple(not_null<Row*> row, Fn<void()> updateCallback);
 
 	void setupShortcuts();
 	RowDescriptor computeJump(
@@ -482,7 +483,8 @@ private:
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
 
-	[[nodiscard]] Ui::QuickActionContext *ensureQuickAction(int64 key);
+	[[nodiscard]] not_null<Ui::QuickActionContext*> ensureQuickAction(
+		int64 key);
 
 	[[nodiscard]] bool lookupIsInBotAppButton(
 		Row *row,
