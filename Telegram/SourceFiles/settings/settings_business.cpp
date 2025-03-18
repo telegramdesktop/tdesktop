@@ -148,7 +148,6 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chat_intro(),
 				tr::lng_business_about_chat_intro(),
 				PremiumFeature::ChatIntro,
-				true,
 			},
 		},
 		{
@@ -158,7 +157,6 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chat_links(),
 				tr::lng_business_about_chat_links(),
 				PremiumFeature::ChatLinks,
-				true,
 			},
 		},
 		{
@@ -168,7 +166,6 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_filter_tags(),
 				tr::lng_premium_summary_about_filter_tags(),
 				PremiumFeature::FilterTags,
-				true,
 			},
 		},
 	};

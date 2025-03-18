@@ -159,6 +159,47 @@ BusinessRecipients FromMTP(
 	return result;
 }
 
+ChatbotsPermissions FromMTP(const MTPBusinessBotRights &rights) {
+	using Flag = ChatbotsPermission;
+	const auto &data = rights.data();
+
+	return Flag::ViewMessages
+		| (data.is_reply() ? Flag::ReplyToMessages : Flag())
+		| (data.is_read_messages() ? Flag::MarkAsRead : Flag())
+		| (data.is_delete_sent_messages() ? Flag::DeleteSent : Flag())
+		| (data.is_delete_received_messages() ? Flag::DeleteReceived : Flag())
+		| (data.is_edit_name() ? Flag::EditName : Flag())
+		| (data.is_edit_bio() ? Flag::EditBio : Flag())
+		| (data.is_edit_profile_photo() ? Flag::EditUserpic : Flag())
+		| (data.is_edit_username() ? Flag::EditUsername : Flag())
+		| (data.is_view_gifts() ? Flag::ViewGifts : Flag())
+		| (data.is_sell_gifts() ? Flag::SellGifts : Flag())
+		| (data.is_change_gift_settings() ? Flag::GiftSettings : Flag())
+		| (data.is_transfer_and_upgrade_gifts() ? Flag::TransferGifts : Flag())
+		| (data.is_transfer_stars() ? Flag::TransferStars : Flag())
+		| (data.is_manage_stories() ? Flag::ManageStories : Flag());
+}
+
+MTPBusinessBotRights ToMTP(ChatbotsPermissions rights) {
+	using Flag = MTPDbusinessBotRights::Flag;
+	using Right = ChatbotsPermission;
+	return MTP_businessBotRights(MTP_flags(Flag()
+		| ((rights & Right::ReplyToMessages) ? Flag::f_reply : Flag())
+		| ((rights & Right::MarkAsRead) ? Flag::f_read_messages : Flag())
+		| ((rights & Right::DeleteSent) ? Flag::f_delete_sent_messages : Flag())
+		| ((rights & Right::DeleteReceived) ? Flag::f_delete_received_messages : Flag())
+		| ((rights & Right::EditName) ? Flag::f_edit_name : Flag())
+		| ((rights & Right::EditBio) ? Flag::f_edit_bio : Flag())
+		| ((rights & Right::EditUserpic) ? Flag::f_edit_profile_photo : Flag())
+		| ((rights & Right::EditUsername) ? Flag::f_edit_username : Flag())
+		| ((rights & Right::ViewGifts) ? Flag::f_view_gifts : Flag())
+		| ((rights & Right::SellGifts) ? Flag::f_sell_gifts : Flag())
+		| ((rights & Right::GiftSettings) ? Flag::f_change_gift_settings : Flag())
+		| ((rights & Right::TransferGifts) ? Flag::f_transfer_and_upgrade_gifts : Flag())
+		| ((rights & Right::TransferStars) ? Flag::f_transfer_stars : Flag())
+		| ((rights & Right::ManageStories) ? Flag::f_manage_stories : Flag())));
+}
+
 BusinessDetails FromMTP(
 		not_null<Session*> owner,
 		const tl::conditional<MTPBusinessWorkHours> &hours,

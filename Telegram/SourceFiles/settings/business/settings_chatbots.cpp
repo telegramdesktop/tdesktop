@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/business/settings_chatbots.h"
 
 #include "apiwrap.h"
+#include "boxes/peers/edit_peer_permissions_box.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/peer_list_box.h"
 #include "core/application.h"
@@ -47,6 +48,25 @@ struct BotState {
 	LookupState state = LookupState::Empty;
 };
 
+[[nodiscard]] constexpr Data::ChatbotsPermissions Defaults() {
+	using Flag = Data::ChatbotsPermission;
+	return Flag::ViewMessages
+		| Flag::ReplyToMessages
+		| Flag::MarkAsRead
+		| Flag::DeleteSent
+		| Flag::DeleteReceived
+		| Flag::EditName
+		| Flag::EditBio
+		| Flag::EditUserpic
+		| Flag::EditUsername
+		| Flag::ViewGifts
+		| Flag::SellGifts
+		| Flag::GiftSettings
+		| Flag::TransferGifts
+		| Flag::TransferStars
+		| Flag::ManageStories;
+}
+
 class Chatbots final : public BusinessSection<Chatbots> {
 public:
 	Chatbots(
@@ -70,7 +90,8 @@ private:
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<QString> _usernameValue;
 	rpl::variable<BotState> _botValue;
-	rpl::variable<bool> _repliesAllowed = true;
+	rpl::variable<Data::ChatbotsPermissions> _permissions = Defaults();
+	Fn<Data::ChatbotsPermissions()> _resolvePermissions;
 
 };
 
@@ -410,7 +431,7 @@ void Chatbots::setupContent(
 	const auto current = controller->session().data().chatbots().current();
 
 	_recipients = Data::BusinessRecipients::MakeValid(current.recipients);
-	_repliesAllowed = current.repliesAllowed;
+	_permissions = current.permissions;
 
 	AddDividerTextWithLottie(content, {
 		.lottie = u"robot"_q,
@@ -472,21 +493,14 @@ void Chatbots::setupContent(
 
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_chatbots_permissions_title());
-	content->add(object_ptr<Ui::SettingsButton>(
-		content,
-		tr::lng_chatbots_reply(),
-		st::settingsButtonNoIcon
-	))->toggleOn(_repliesAllowed.value())->toggledChanges(
-	) | rpl::start_with_next([=](bool value) {
-		_repliesAllowed = value;
-	}, content->lifetime());
-	Ui::AddSkip(content);
 
-	Ui::AddDividerText(
+	auto permissions = CreateEditChatbotPermissions(
 		content,
-		tr::lng_chatbots_reply_about(),
-		st::settingsChatbotsBottomTextMargin,
-		RectPart::Top);
+		_permissions.current());
+	content->add(std::move(permissions.widget));
+	_resolvePermissions = permissions.value;
+
+	Ui::AddSkip(content);
 
 	Ui::ResizeFitChild(this, content);
 }
@@ -503,7 +517,7 @@ void Chatbots::save() {
 	controller()->session().data().chatbots().save({
 		.bot = _botValue.current().bot,
 		.recipients = _recipients.current(),
-		.repliesAllowed = _repliesAllowed.current(),
+		.permissions = _resolvePermissions(),
 	}, [=] {
 	}, fail);
 }

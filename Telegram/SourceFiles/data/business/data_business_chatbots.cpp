@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_chatbots.h"
 
 #include "apiwrap.h"
+#include "boxes/peers/edit_peer_permissions_box.h"
 #include "data/business/data_business_common.h"
 #include "data/business/data_business_info.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 
 namespace Data {
@@ -41,7 +43,7 @@ void Chatbots::preload() {
 			_settings = ChatbotsSettings{
 				.bot = _owner->session().data().user(botId),
 				.recipients = FromMTP(_owner, bot.vrecipients()),
-				.repliesAllowed = bot.vrights().data().is_reply(),
+				.permissions = FromMTP(bot.vrights()),
 			};
 		} else {
 			_settings.force_assign(ChatbotsSettings());
@@ -83,9 +85,7 @@ void Chatbots::save(
 		const auto api = &_owner->session().api();
 		api->request(MTPaccount_UpdateConnectedBot(
 			MTP_flags(!settings.bot ? Flag::f_deleted : Flag::f_rights),
-			MTP_businessBotRights(MTP_flags(settings.repliesAllowed
-				? RightFlag::f_reply
-				: RightFlag())),
+			ToMTP(settings.permissions),
 			(settings.bot ? settings.bot : was.bot)->inputUser,
 			ForBotsToMTP(settings.recipients)
 		)).done([=](const MTPUpdates &result) {
@@ -178,6 +178,41 @@ void Chatbots::reload() {
 	_loaded = false;
 	_owner->session().api().request(base::take(_requestId)).cancel();
 	preload();
+}
+
+EditFlagsDescriptor<ChatbotsPermissions> ChatbotsPermissionsLabels() {
+	using Flag = ChatbotsPermission;
+
+	using PermissionLabel = EditFlagsLabel<ChatbotsPermissions>;
+	auto messages = std::vector<PermissionLabel>{
+		{ Flag::ViewMessages, tr::lng_chatbots_read(tr::now) },
+		{ Flag::ReplyToMessages, tr::lng_chatbots_reply(tr::now) },
+		{ Flag::MarkAsRead, tr::lng_chatbots_mark_as_read(tr::now) },
+		{ Flag::DeleteSent, tr::lng_chatbots_delete_sent(tr::now) },
+		{ Flag::DeleteReceived, tr::lng_chatbots_delete_received(tr::now) },
+	};
+	auto manage = std::vector<PermissionLabel>{
+		{ Flag::EditName, tr::lng_chatbots_edit_name(tr::now) },
+		{ Flag::EditBio, tr::lng_chatbots_edit_bio(tr::now) },
+		{ Flag::EditUserpic, tr::lng_chatbots_edit_userpic(tr::now) },
+		{ Flag::EditUsername, tr::lng_chatbots_edit_username(tr::now) },
+	};
+	auto gifts = std::vector<PermissionLabel>{
+		{ Flag::ViewGifts, tr::lng_chatbots_view_gifts(tr::now) },
+		{ Flag::SellGifts, tr::lng_chatbots_sell_gifts(tr::now) },
+		{ Flag::GiftSettings, tr::lng_chatbots_gift_settings(tr::now) },
+		{ Flag::TransferGifts, tr::lng_chatbots_transfer_gifts(tr::now) },
+		{ Flag::TransferStars, tr::lng_chatbots_transfer_stars(tr::now) },
+	};
+	auto stories = std::vector<PermissionLabel>{
+		{ Flag::ManageStories, tr::lng_chatbots_manage_stories(tr::now) },
+	};
+	return { .labels = {
+		{ tr::lng_chatbots_manage_messages(), std::move(messages) },
+		{ tr::lng_chatbots_manage_profile(), std::move(manage) },
+		{ tr::lng_chatbots_manage_gifts(), std::move(gifts) },
+		{ std::nullopt, std::move(stories) },
+	}, .st = nullptr };
 }
 
 } // namespace Data

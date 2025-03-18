@@ -2942,8 +2942,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chatbots_include_button" = "Select Chats";
 "lng_chatbots_exclude_about" = "Select chats or entire chat categories which the bot will not have access to.";
 "lng_chatbots_permissions_title" = "Bot permissions";
+
+"lng_chatbots_manage_messages" = "Manage Messages";
+"lng_chatbots_read" = "Read Messages";
 "lng_chatbots_reply" = "Reply to Messages";
-"lng_chatbots_reply_about" = "The bot can only reply on your behalf in chats that were active during the last 24h.";
+"lng_chatbots_mark_as_read" = "Mark Messages as Read";
+"lng_chatbots_delete_sent" = "Delete Sent Messages";
+"lng_chatbots_delete_received" = "Delete Received Messages";
+
+"lng_chatbots_manage_profile" = "Manage Profile";
+"lng_chatbots_edit_name" = "Edit Name";
+"lng_chatbots_edit_bio" = "Edit Bio";
+"lng_chatbots_edit_userpic" = "Edit Profile Picture";
+"lng_chatbots_edit_username" = "Edit Username";
+
+"lng_chatbots_manage_gifts" = "Manage Gifts and Stars";
+"lng_chatbots_view_gifts" = "View Gifts";
+"lng_chatbots_sell_gifts" = "Sell Gifts";
+"lng_chatbots_gift_settings" = "Change Gift Settings";
+"lng_chatbots_transfer_gifts" = "Transfer and Upgrade Gifts";
+"lng_chatbots_transfer_stars" = "Transfer Stars";
+
+"lng_chatbots_manage_stories" = "Manage Stories";
+
 "lng_chatbots_remove" = "Remove Bot";
 "lng_chatbots_not_found" = "Chatbot not found.";
 "lng_chatbots_not_supported" = "This bot doesn't support Telegram Business yet.";

@@ -57,6 +57,26 @@ enum class BusinessRecipientsType : uchar {
 	Bots,
 };
 
+enum class ChatbotsPermission {
+	ViewMessages    = 0x0001,
+	ReplyToMessages = 0x0002,
+	MarkAsRead      = 0x0004,
+	DeleteSent      = 0x0008,
+	DeleteReceived  = 0x0010,
+	EditName        = 0x0020,
+	EditBio         = 0x0040,
+	EditUserpic     = 0x0080,
+	EditUsername    = 0x0100,
+	ViewGifts       = 0x0200,
+	SellGifts       = 0x0400,
+	GiftSettings    = 0x0800,
+	TransferGifts   = 0x1000,
+	TransferStars   = 0x2000,
+	ManageStories   = 0x4000,
+};
+inline constexpr bool is_flag_type(ChatbotsPermission) { return true; }
+using ChatbotsPermissions = base::flags<ChatbotsPermission>;
+
 [[nodiscard]] MTPInputBusinessRecipients ForMessagesToMTP(
 	const BusinessRecipients &data);
 [[nodiscard]] MTPInputBusinessBotRecipients ForBotsToMTP(
@@ -67,6 +87,9 @@ enum class BusinessRecipientsType : uchar {
 [[nodiscard]] BusinessRecipients FromMTP(
 	not_null<Session*> owner,
 	const MTPBusinessBotRecipients &recipients);
+[[nodiscard]] ChatbotsPermissions FromMTP(
+	const MTPBusinessBotRights &rights);
+[[nodiscard]] MTPBusinessBotRights ToMTP(ChatbotsPermissions rights);
 
 struct Timezone {
 	QString id;

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_filter.h"
 #include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/business/data_business_chatbots.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
@@ -60,6 +61,11 @@ constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 
 [[nodiscard]] auto Dependencies(AdminLog::FilterValue::Flags) {
 	using Flag = AdminLog::FilterValue::Flag;
+	return std::vector<std::pair<Flag, Flag>>{};
+}
+
+[[nodiscard]] auto Dependencies(Data::ChatbotsPermissions) {
+	using Flag = Data::ChatbotsPermission;
 	return std::vector<std::pair<Flag, Flag>>{};
 }
 
@@ -678,7 +684,7 @@ template <typename Flags>
 				checkView->setChecked(false, anim::type::instant);
 			} else if (locked.has_value()) {
 				if (checked != toggled) {
-					if (!state->toast) {
+					if (!state->toast && !locked->isEmpty()) {
 						state->toast = Ui::Toast::Show(container, {
 							.text = { *locked },
 							.duration = kForceDisableTooltipDuration,
@@ -1483,6 +1489,23 @@ EditFlagsControl<AdminLog::FilterValue::Flags> CreateEditAdminLogFilter(
 	auto result = CreateEditFlags(
 		widget.data(),
 		flags,
+		std::move(descriptor));
+	result.widget = std::move(widget);
+
+	return result;
+}
+
+EditFlagsControl<Data::ChatbotsPermissions> CreateEditChatbotPermissions(
+		QWidget *parent,
+		Data::ChatbotsPermissions flags) {
+	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	auto descriptor = Data::ChatbotsPermissionsLabels();
+	descriptor.disabledMessages.emplace(
+		Data::ChatbotsPermission::ViewMessages,
+		QString());
+	auto result = CreateEditFlags(
+		widget.data(),
+		flags | Data::ChatbotsPermission::ViewMessages,
 		std::move(descriptor));
 	result.widget = std::move(widget);
 

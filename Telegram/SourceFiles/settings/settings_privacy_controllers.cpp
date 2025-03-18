@@ -1734,10 +1734,10 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
 		content,
 		tr::lng_edit_privacy_gifts_types());
 	const auto types = base::flat_map<Type, rpl::producer<QString>>{
-		{ Type::Premium, tr::lng_edit_privacy_gifts_premium() },
 		{ Type::Unlimited, tr::lng_edit_privacy_gifts_unlimited() },
 		{ Type::Limited, tr::lng_edit_privacy_gifts_limited() },
 		{ Type::Unique, tr::lng_edit_privacy_gifts_unique() },
+		{ Type::Premium, tr::lng_edit_privacy_gifts_premium() },
 	};
 	for (const auto &[type, title] : types) {
 		const auto button = content->add(object_ptr<Ui::SettingsButton>(
