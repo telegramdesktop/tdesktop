@@ -515,11 +515,7 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 		return;
 	}
 	request.requestId = _session->api().request(
-		MTPmessages_ViewSponsoredMessage(
-			entryPtr->item
-				? entryPtr->item->history()->peer->input
-				: _session->data().peer(fullId.peer)->input,
-			MTP_bytes(randomId))
+		MTPmessages_ViewSponsoredMessage(MTP_bytes(randomId))
 	).done([=] {
 		auto &request = _viewRequests[randomId];
 		request.lastReceived = crl::now();
@@ -574,9 +570,6 @@ void SponsoredMessages::clicked(
 		MTP_flags(Flag(0)
 			| (isMedia ? Flag::f_media : Flag(0))
 			| (isFullscreen ? Flag::f_fullscreen : Flag(0))),
-		entryPtr->item
-			? entryPtr->item->history()->peer->input
-			: _session->data().peer(fullId.peer)->input,
 		MTP_bytes(randomId)
 	)).send();
 }
@@ -625,7 +618,6 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 
 		state->requestId = _session->api().request(
 			MTPmessages_ReportSponsoredMessage(
-				history->peer->input,
 				MTP_bytes(entry->sponsored.randomId),
 				MTP_bytes(optionId))
 		).done([=](

@@ -823,7 +823,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setBotVerifyDetails(
 		ParseBotVerifyDetails(update.vbot_verification()));
 
-	if (const auto gifts = update.vdisallowed_stargifts()) {
+	if (const auto gifts = update.vdisallowed_gifts()) {
 		const auto &data = gifts->data();
 		user->setDisallowedGiftTypes(Api::DisallowedGiftType()
 			| ((data.is_disallow_unlimited_stargifts()
@@ -834,6 +834,9 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				: Api::DisallowedGiftType()))
 			| ((data.is_disallow_unique_stargifts()
 				? Api::DisallowedGiftType::Unique
+				: Api::DisallowedGiftType()))
+			| ((data.is_disallow_premium_gifts()
+				? Api::DisallowedGiftType::Premium
 				: Api::DisallowedGiftType())));
 	} else {
 		user->setDisallowedGiftTypes(Api::DisallowedGiftTypes());

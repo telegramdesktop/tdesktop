@@ -242,7 +242,7 @@ void GlobalPrivacy::update(
 		bool showGiftIcon,
 		DisallowedGiftTypes disallowedGiftTypes) {
 	using Flag = MTPDglobalPrivacySettings::Flag;
-	using DisallowedFlag = MTPDdisallowedStarGiftsSettings::Flag;
+	using DisallowedFlag = MTPDdisallowedGiftsSettings::Flag;
 
 	_api.request(_requestId).cancel();
 	const auto newRequirePremiumAllowed = _session->premium()
@@ -263,10 +263,10 @@ void GlobalPrivacy::update(
 			: Flag())
 		| Flag::f_noncontact_peers_paid_stars
 		| (showGiftIcon ? Flag::f_display_gifts_button : Flag())
-		| Flag::f_disallowed_stargifts;
+		| Flag::f_disallowed_gifts;
 	const auto disallowedFlags = DisallowedFlag()
 		| ((disallowedGiftTypes & DisallowedGiftType::Premium)
-			? DisallowedFlag() AssertIsDebug()
+			? DisallowedFlag::f_disallow_premium_gifts
 			: DisallowedFlag())
 		| ((disallowedGiftTypes & DisallowedGiftType::Unlimited)
 			? DisallowedFlag::f_disallow_unlimited_stargifts
@@ -281,7 +281,7 @@ void GlobalPrivacy::update(
 		MTP_globalPrivacySettings(
 			MTP_flags(flags),
 			MTP_long(newChargeStars),
-			MTP_disallowedStarGiftsSettings(MTP_flags(disallowedFlags)))
+			MTP_disallowedGiftsSettings(MTP_flags(disallowedFlags)))
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
@@ -319,7 +319,7 @@ void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
 	_newRequirePremium = data.is_new_noncontact_peers_require_premium();
 	_newChargeStars = data.vnoncontact_peers_paid_stars().value_or_empty();
 	_showGiftIcon = data.is_display_gifts_button();
-	if (const auto gifts = data.vdisallowed_stargifts()) {
+	if (const auto gifts = data.vdisallowed_gifts()) {
 		const auto &data = gifts->data();
 		_disallowedGiftTypes = DisallowedGiftType()
 			| (data.is_disallow_unlimited_stargifts()
@@ -330,6 +330,9 @@ void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
 				: DisallowedGiftType())
 			| (data.is_disallow_unique_stargifts()
 				? DisallowedGiftType::Unique
+				: DisallowedGiftType())
+			| (data.is_disallow_premium_gifts()
+				? DisallowedGiftType::Premium
 				: DisallowedGiftType());
 	} else {
 		_disallowedGiftTypes = DisallowedGiftTypes();
