@@ -2015,6 +2015,11 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
 	}
+	if ((_pressButton == Qt::MiddleButton)
+		&& (Core::App().settings().quickDialogAction()
+			!= Dialogs::Ui::QuickDialogAction::Disabled)) {
+		return;
+	}
 	_dragging = _pressed;
 	startReorderPinned(localPosition);
 }
@@ -2307,11 +2312,13 @@ void InnerWidget::mousePressReleased(
 					it->second->ripple->lastStop();
 					it->second->rippleFg->lastStop();
 				}
-				PerformQuickDialogAction(
-					_controller,
-					history->peer,
-					it->second->action,
-					_filterId);
+				if (pressed == _selected) {
+					PerformQuickDialogAction(
+						_controller,
+						history->peer,
+						it->second->action,
+						_filterId);
+				}
 			}
 		}
 	}
