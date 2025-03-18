@@ -484,8 +484,6 @@ public:
 	[[nodiscard]] virtual int minWidthForMedia() const {
 		return 0;
 	}
-	[[nodiscard]] virtual bool hasFastReply() const;
-	[[nodiscard]] virtual bool displayFastReply() const;
 	[[nodiscard]] virtual std::optional<QSize> rightActionSize() const;
 	virtual void drawRightAction(
 		Painter &p,
