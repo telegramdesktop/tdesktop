@@ -790,4 +790,4 @@ dialogsPopularAppsAbout: FlatLabel(boxDividerLabel) {
 	minWidth: 128px;
 }
 
-dialogsSwipeActionSize: 20px;
+dialogsQuickActionSize: 20px;

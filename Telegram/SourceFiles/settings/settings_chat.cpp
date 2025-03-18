@@ -1280,20 +1280,20 @@ void SetupChatListSwipe(
 	Ui::AddSkip(container);
 	Ui::AddSubsectionTitle(container, tr::lng_settings_swipe_subsection());
 
-	using Type = Dialogs::Ui::SwipeDialogAction;
+	using Type = Dialogs::Ui::QuickDialogAction;
 	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(
-		Core::App().settings().swipeDialogAction());
+		Core::App().settings().quickDialogAction());
 	container->add(
 		object_ptr<Ui::SettingsButton>(
 			container,
 			group->value() | rpl::map([](Type value) {
-				return ((value == Dialogs::Ui::SwipeDialogAction::Mute)
+				return ((value == Dialogs::Ui::QuickDialogAction::Mute)
 					? tr::lng_settings_swipe_mute
-					: (value == Dialogs::Ui::SwipeDialogAction::Pin)
+					: (value == Dialogs::Ui::QuickDialogAction::Pin)
 					? tr::lng_settings_swipe_pin
-					: (value == Dialogs::Ui::SwipeDialogAction::Read)
+					: (value == Dialogs::Ui::QuickDialogAction::Read)
 					? tr::lng_settings_swipe_read
-					: (value == Dialogs::Ui::SwipeDialogAction::Archive)
+					: (value == Dialogs::Ui::QuickDialogAction::Archive)
 					? tr::lng_settings_swipe_archive
 					: tr::lng_settings_swipe_disabled)();
 			}) | rpl::flatten_latest(),
@@ -1318,7 +1318,7 @@ void SetupChatListSwipe(
 			addRadio(Type::Delete, tr::lng_settings_swipe_delete);
 			addRadio(Type::Disabled, tr::lng_settings_swipe_disabled);
 			box->addButton(tr::lng_settings_save(), [=] {
-				Core::App().settings().setSwipeDialogAction(
+				Core::App().settings().setQuickDialogAction(
 					group->current());
 				Core::App().saveSettingsDelayed();
 				box->closeBox();

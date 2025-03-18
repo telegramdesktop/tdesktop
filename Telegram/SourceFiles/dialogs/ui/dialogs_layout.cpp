@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_list.h"
 #include "dialogs/dialogs_three_state_icon.h"
-#include "dialogs/dialogs_swipe_action.h"
+#include "dialogs/dialogs_quick_action.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -71,10 +71,10 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 }
 
 const style::font &SwipeActionFont(
-		Dialogs::Ui::SwipeDialogActionLabel action,
+		Dialogs::Ui::QuickDialogActionLabel action,
 		int availableWidth) {
 	struct Entry final {
-		Dialogs::Ui::SwipeDialogActionLabel action;
+		Dialogs::Ui::QuickDialogActionLabel action;
 		QString langId;
 		style::font font;
 	};
@@ -93,7 +93,7 @@ const style::font &SwipeActionFont(
 			style::ConvertScale(i, style::Scale()),
 			st::semiboldFont->flags(),
 			st::semiboldFont->family());
-		if (font->width(ResolveSwipeDialogLabel(action)) <= availableWidth
+		if (font->width(ResolveQuickDialogLabel(action)) <= availableWidth
 			|| i == kMinFontSize) {
 			Fonts.emplace_back(Entry{
 				.action = action,
@@ -395,9 +395,11 @@ void PaintRow(
 		: context.currentBg;
 	auto swipeTranslation = 0;
 	if (history
-		&& history->peer->id.value == context.swipeContext.data.msgBareId) {
-		if (context.swipeContext.data.translation != 0) {
-			swipeTranslation = context.swipeContext.data.translation * -2;
+		&& (history->peer->id.value
+			== context.quickActionContext.data.msgBareId)) {
+		if (context.quickActionContext.data.translation != 0) {
+			swipeTranslation = context.quickActionContext.data.translation
+				* -2;
 		}
 	}
 	if (swipeTranslation) {
@@ -879,30 +881,30 @@ void PaintRow(
 			swipeTranslation,
 			geometry.height());
 		p.setClipRegion(swipeActionRect);
-		const auto labelType = ResolveSwipeDialogLabel(
+		const auto labelType = ResolveQuickDialogLabel(
 			history,
-			context.swipeContext.action,
+			context.quickActionContext.action,
 			context.filter);
-		p.fillRect(swipeActionRect, ResolveSwipeActionBg(labelType));
-		if (context.swipeContext.data.reachRatio) {
+		p.fillRect(swipeActionRect, ResolveQuickActionBg(labelType));
+		if (context.quickActionContext.data.reachRatio) {
 			p.setPen(Qt::NoPen);
-			p.setBrush(ResolveSwipeActionBgActive(labelType));
+			p.setBrush(ResolveQuickActionBgActive(labelType));
 			const auto r = swipeTranslation
-				* context.swipeContext.data.reachRatio;
-			const auto offset = st::dialogsSwipeActionSize
-				+ st::dialogsSwipeActionSize / 2.;
+				* context.quickActionContext.data.reachRatio;
+			const auto offset = st::dialogsQuickActionSize
+				+ st::dialogsQuickActionSize / 2.;
 			p.drawEllipse(QPointF(geometry.width() - offset, offset), r, r);
 		}
 		const auto iconOffset = (geometry.height()
-			- st::dialogsSwipeActionSize) / 2;
+			- st::dialogsQuickActionSize) / 2;
 		const auto topTranslation = iconOffset / 2.;
 		p.translate(0, -topTranslation);
-		if (context.swipeContext.icon) {
-			context.swipeContext.icon->paint(
+		if (context.quickActionContext.icon) {
+			context.quickActionContext.icon->paint(
 				p,
 				rect::right(geometry)
 					- iconOffset
-					- st::dialogsSwipeActionSize,
+					- st::dialogsQuickActionSize,
 				iconOffset,
 				st::premiumButtonFg->c);
 		}
@@ -911,12 +913,12 @@ void PaintRow(
 			p.setBrush(Qt::NoBrush);
 			const auto left = rect::right(geometry)
 				- iconOffset * 2
-				- st::dialogsSwipeActionSize;
+				- st::dialogsQuickActionSize;
 			const auto availableWidth = geometry.width() - left;
 			p.setFont(SwipeActionFont(labelType, availableWidth));
 			p.drawText(
 				QRect(left, 0, availableWidth, geometry.height()),
-				ResolveSwipeDialogLabel(labelType),
+				ResolveQuickDialogLabel(labelType),
 				style::al_bottom);
 		}
 		p.translate(0, topTranslation);

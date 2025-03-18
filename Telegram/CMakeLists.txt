@@ -682,14 +682,14 @@ PRIVATE
     dialogs/dialogs_main_list.h
     dialogs/dialogs_pinned_list.cpp
     dialogs/dialogs_pinned_list.h
+    dialogs/dialogs_quick_action.cpp
+    dialogs/dialogs_quick_action.h
     dialogs/dialogs_row.cpp
     dialogs/dialogs_row.h
     dialogs/dialogs_search_from_controllers.cpp
     dialogs/dialogs_search_from_controllers.h
     dialogs/dialogs_search_tags.cpp
     dialogs/dialogs_search_tags.h
-    dialogs/dialogs_swipe_action.cpp
-    dialogs/dialogs_swipe_action.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
     editor/color_picker.cpp

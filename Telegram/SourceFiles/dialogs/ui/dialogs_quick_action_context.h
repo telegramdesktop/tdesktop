@@ -17,7 +17,7 @@ namespace Dialogs::Ui {
 
 using namespace ::Ui;
 
-enum class SwipeDialogAction {
+enum class QuickDialogAction {
 	Mute,
 	Pin,
 	Read,
@@ -26,7 +26,7 @@ enum class SwipeDialogAction {
 	Disabled,
 };
 
-enum class SwipeDialogActionLabel {
+enum class QuickDialogActionLabel {
 	Mute,
 	Unmute,
 	Pin,
@@ -39,10 +39,10 @@ enum class SwipeDialogActionLabel {
 	Disabled,
 };
 
-struct SwipeContext {
+struct QuickActionContext {
 	::Ui::Controls::SwipeContextData data;
 	Lottie::Icon *icon = nullptr;
-	SwipeDialogAction action;
+	QuickDialogAction action;
 };
 
 } // namespace Dialogs::Ui

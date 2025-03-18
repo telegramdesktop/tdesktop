@@ -101,9 +101,9 @@ PRIVATE
     dialogs/ui/chat_search_empty.h
     dialogs/ui/chat_search_in.cpp
     dialogs/ui/chat_search_in.h
+    dialogs/ui/dialogs_quick_action_context.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
-    dialogs/ui/dialogs_swipe_context.h
     dialogs/ui/top_peers_strip.cpp
     dialogs/ui/top_peers_strip.h
 

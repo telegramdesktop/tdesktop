@@ -402,7 +402,7 @@ QByteArray Settings::serialize() const {
 			<< SerializeVideoQuality(_videoQuality)
 			<< qint32(_ivZoom.current())
 			<< qint32(_systemDarkModeEnabled.current() ? 1 : 0)
-			<< qint32(_swipeDialogAction);
+			<< qint32(_quickDialogAction);
 	}
 
 	Ensures(result.size() == size);
@@ -531,7 +531,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 recordVideoMessages = _recordVideoMessages ? 1 : 0;
 	quint32 videoQuality = SerializeVideoQuality(_videoQuality);
 	quint32 chatFiltersHorizontal = _chatFiltersHorizontal.current() ? 1 : 0;
-	quint32 swipeDialogAction = quint32(_swipeDialogAction);
+	quint32 quickDialogAction = quint32(_quickDialogAction);
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -861,7 +861,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> systemDarkModeEnabled;
 	}
 	if (!stream.atEnd()) {
-		stream >> swipeDialogAction;
+		stream >> quickDialogAction;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -1084,7 +1084,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_recordVideoMessages = (recordVideoMessages == 1);
 	_videoQuality = DeserializeVideoQuality(videoQuality);
 	_chatFiltersHorizontal = (chatFiltersHorizontal == 1);
-	_swipeDialogAction = Dialogs::Ui::SwipeDialogAction(swipeDialogAction);
+	_quickDialogAction = Dialogs::Ui::QuickDialogAction(quickDialogAction);
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1476,7 +1476,7 @@ void Settings::resetOnLastLogout() {
 	_recordVideoMessages = false;
 	_videoQuality = {};
 	_chatFiltersHorizontal = false;
-	_swipeDialogAction = Dialogs::Ui::SwipeDialogAction::Disabled;
+	_quickDialogAction = Dialogs::Ui::QuickDialogAction::Disabled;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();
@@ -1664,12 +1664,12 @@ void Settings::setChatFiltersHorizontal(bool value) {
 	_chatFiltersHorizontal = value;
 }
 
-Dialogs::Ui::SwipeDialogAction Settings::swipeDialogAction() const {
-	return _swipeDialogAction;
+Dialogs::Ui::QuickDialogAction Settings::quickDialogAction() const {
+	return _quickDialogAction;
 }
 
-void Settings::setSwipeDialogAction(Dialogs::Ui::SwipeDialogAction action) {
-	_swipeDialogAction = action;
+void Settings::setQuickDialogAction(Dialogs::Ui::QuickDialogAction action) {
+	_quickDialogAction = action;
 }
 
 } // namespace Core

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/core_settings_proxy.h"
 #include "media/media_common.h"
-#include "dialogs/ui/dialogs_swipe_context.h"
+#include "dialogs/ui/dialogs_quick_action_context.h"
 #include "window/themes/window_themes_embedded.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "base/flags.h"
@@ -947,8 +947,8 @@ public:
 	[[nodiscard]] static PlaybackSpeed DeserializePlaybackSpeed(
 		qint32 speed);
 
-	[[nodiscard]] Dialogs::Ui::SwipeDialogAction swipeDialogAction() const;
-	void setSwipeDialogAction(Dialogs::Ui::SwipeDialogAction);
+	[[nodiscard]] Dialogs::Ui::QuickDialogAction quickDialogAction() const;
+	void setQuickDialogAction(Dialogs::Ui::QuickDialogAction);
 
 	void resetOnLastLogout();
 
@@ -1090,8 +1090,8 @@ private:
 
 	bool _recordVideoMessages = false;
 
-	Dialogs::Ui::SwipeDialogAction _swipeDialogAction
-		= Dialogs::Ui::SwipeDialogAction::Disabled;
+	Dialogs::Ui::QuickDialogAction _quickDialogAction
+		= Dialogs::Ui::QuickDialogAction::Disabled;
 
 	QByteArray _photoEditorBrush;
 

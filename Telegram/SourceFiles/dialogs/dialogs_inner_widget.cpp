@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_search_tags.h"
-#include "dialogs/dialogs_swipe_action.h"
+#include "dialogs/dialogs_quick_action.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -810,7 +810,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	const auto ms = crl::now();
 	const auto childListShown = _childListShown.current();
 	auto context = Ui::PaintContext{
-		.swipeContext = _swipeContext,
+		.quickActionContext = _quickActionContext,
 		.st = _st,
 		.topicJumpCache = _topicJumpCache.get(),
 		.folder = _openedFolder,
@@ -4996,22 +4996,23 @@ rpl::producer<UserId> InnerWidget::openBotMainAppRequests() const {
 }
 
 void InnerWidget::setSwipeContextData(Ui::Controls::SwipeContextData data) {
-	_swipeContext.data = std::move(data);
-	if (_swipeContext.data.msgBareId) {
+	_quickActionContext.data = std::move(data);
+	if (_quickActionContext.data.msgBareId) {
 		constexpr auto kStartAnimateThreshold = 0.32;
 		constexpr auto kResetAnimateThreshold = 0.24;
-		if (_swipeContext.data.ratio > kStartAnimateThreshold) {
-			if (_swipeContext.icon
-				&& !_swipeContext.icon->frameIndex()
-				&& !_swipeContext.icon->animating()) {
-				_swipeContext.icon->animate(
+		if (_quickActionContext.data.ratio > kStartAnimateThreshold) {
+			if (_quickActionContext.icon
+				&& !_quickActionContext.icon->frameIndex()
+				&& !_quickActionContext.icon->animating()) {
+				_quickActionContext.icon->animate(
 					[=] { update(); },
 					0,
-					_swipeContext.icon->framesCount());
+					_quickActionContext.icon->framesCount());
 			}
-		} else if (_swipeContext.data.ratio < kResetAnimateThreshold) {
-			if (_swipeContext.icon && _swipeContext.icon->frameIndex()) {
-				_swipeContext.icon->jumpTo(0, [=] { update(); });
+		} else if (_quickActionContext.data.ratio < kResetAnimateThreshold) {
+			if (_quickActionContext.icon
+				&& _quickActionContext.icon->frameIndex()) {
+				_quickActionContext.icon->jumpTo(0, [=] { update(); });
 			}
 		}
 		update();
@@ -5034,24 +5035,24 @@ int64 InnerWidget::calcSwipeKey(int top) {
 	return 0;
 }
 
-void InnerWidget::prepareSwipeAction(
+void InnerWidget::prepareQuickAction(
 		int64 key,
-		Dialogs::Ui::SwipeDialogAction action) {
+		Dialogs::Ui::QuickDialogAction action) {
 	if (key) {
 		const auto peer = session().data().peer(PeerId(key));
-		auto name = ResolveSwipeDialogLottieIconName(peer, action, _filterId);
-		_swipeLottieIcon = Lottie::MakeIcon({
+		auto name = ResolveQuickDialogLottieIconName(peer, action, _filterId);
+		_quickActionLottieIcon = Lottie::MakeIcon({
 			.name = std::move(name),
-			.sizeOverride = Size(st::dialogsSwipeActionSize),
+			.sizeOverride = Size(st::dialogsQuickActionSize),
 		});
-		_swipeContext.icon = _swipeLottieIcon.get();
-		_swipeContext.action = action;
+		_quickActionContext.icon = _quickActionLottieIcon.get();
+		_quickActionContext.action = action;
 	} else {
-		if (_swipeContext.icon) {
-			_swipeContext = {};
+		if (_quickActionContext.icon) {
+			_quickActionContext = {};
 		}
-		if (_swipeLottieIcon) {
-			_swipeLottieIcon.reset();
+		if (_quickActionLottieIcon) {
+			_quickActionLottieIcon.reset();
 		}
 	}
 }

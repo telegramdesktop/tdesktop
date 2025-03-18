@@ -11,8 +11,8 @@ class History;
 class PeerData;
 
 namespace Dialogs::Ui {
-enum class SwipeDialogAction;
-enum class SwipeDialogActionLabel;
+enum class QuickDialogAction;
+enum class QuickDialogActionLabel;
 } // namespace Dialogs::Ui
 
 namespace Window {
@@ -21,27 +21,27 @@ class SessionController;
 
 namespace Dialogs {
 
-void PerformSwipeDialogAction(
+void PerformQuickDialogAction(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
-	Ui::SwipeDialogAction action,
+	Ui::QuickDialogAction action,
 	FilterId filterId);
 
-[[nodiscard]] QString ResolveSwipeDialogLottieIconName(
+[[nodiscard]] QString ResolveQuickDialogLottieIconName(
 	not_null<PeerData*> peer,
-	Ui::SwipeDialogAction action,
+	Ui::QuickDialogAction action,
 	FilterId filterId);
 
-[[nodiscard]] Ui::SwipeDialogActionLabel ResolveSwipeDialogLabel(
+[[nodiscard]] Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
 	not_null<History*> history,
-	Ui::SwipeDialogAction action,
+	Ui::QuickDialogAction action,
 	FilterId filterId);
 
-[[nodiscard]] QString ResolveSwipeDialogLabel(Ui::SwipeDialogActionLabel);
+[[nodiscard]] QString ResolveQuickDialogLabel(Ui::QuickDialogActionLabel);
 
-[[nodiscard]] const style::color &ResolveSwipeActionBg(
-	Ui::SwipeDialogActionLabel);
-[[nodiscard]] const style::color &ResolveSwipeActionBgActive(
-	Ui::SwipeDialogActionLabel);
+[[nodiscard]] const style::color &ResolveQuickActionBg(
+	Ui::QuickDialogActionLabel);
+[[nodiscard]] const style::color &ResolveQuickActionBgActive(
+	Ui::QuickDialogActionLabel);
 
 } // namespace Dialogs

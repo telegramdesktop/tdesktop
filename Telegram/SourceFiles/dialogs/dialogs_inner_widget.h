@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
-#include "dialogs/ui/dialogs_swipe_context.h"
+#include "dialogs/ui/dialogs_quick_action_context.h"
 #include "data/data_messages.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
@@ -40,7 +40,7 @@ class PopupMenu;
 class FlatLabel;
 struct ScrollToRequest;
 namespace Controls {
-enum class SwipeDialogAction;
+enum class QuickDialogAction;
 } // namespace Controls
 } // namespace Ui
 
@@ -218,7 +218,7 @@ public:
 
 	void setSwipeContextData(Ui::Controls::SwipeContextData data);
 	[[nodiscard]] int64 calcSwipeKey(int top);
-	void prepareSwipeAction(int64 key, Dialogs::Ui::SwipeDialogAction);
+	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
 
 protected:
 	void visibleTopBottomUpdated(
@@ -623,8 +623,8 @@ private:
 	rpl::event_stream<> _refreshHashtagsRequests;
 	rpl::event_stream<UserId> _openBotMainAppRequests;
 
-	Dialogs::Ui::SwipeContext _swipeContext;
-	std::unique_ptr<Lottie::Icon> _swipeLottieIcon = nullptr;
+	Dialogs::Ui::QuickActionContext _quickActionContext;
+	std::unique_ptr<Lottie::Icon> _quickActionLottieIcon = nullptr;
 
 	RowDescriptor _chatPreviewRow;
 	bool _chatPreviewScheduled = false;

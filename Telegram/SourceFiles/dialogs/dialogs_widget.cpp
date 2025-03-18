@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_suggestions.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
-#include "dialogs/dialogs_swipe_action.h"
+#include "dialogs/dialogs_quick_action.h"
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -692,8 +692,8 @@ void Widget::setupSwipeBack() {
 		if (data.translation != 0) {
 			if (data.translation < 0
 				&& _inner
-				&& (Core::App().settings().swipeDialogAction()
-					!= Ui::SwipeDialogAction::Disabled)) {
+				&& (Core::App().settings().quickDialogAction()
+					!= Ui::QuickDialogAction::Disabled)) {
 				_inner->setSwipeContextData(std::move(data));
 			} else {
 				if (!_swipeBackData.callback) {
@@ -727,17 +727,17 @@ void Widget::setupSwipeBack() {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto isRightToLeft = direction == Qt::RightToLeft;
-		const auto action = Core::App().settings().swipeDialogAction();
-		const auto isDisabled = action == Ui::SwipeDialogAction::Disabled;
+		const auto action = Core::App().settings().quickDialogAction();
+		const auto isDisabled = action == Ui::QuickDialogAction::Disabled;
 		if (!isRightToLeft && _inner) {
 			if (const auto key = _inner->calcSwipeKey(top);
 					key && !isDisabled) {
-				_inner->prepareSwipeAction(key, action);
+				_inner->prepareQuickAction(key, action);
 				return Ui::Controls::SwipeHandlerFinishData{
 					.callback = [=, session = &session()] {
 						auto callback = [=, peerId = PeerId(key)] {
 							const auto peer = session->data().peer(peerId);
-							PerformSwipeDialogAction(
+							PerformQuickDialogAction(
 								controller(),
 								peer,
 								action,

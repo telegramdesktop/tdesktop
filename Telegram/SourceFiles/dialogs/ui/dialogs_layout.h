@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "dialogs/ui/dialogs_swipe_context.h"
+#include "dialogs/ui/dialogs_quick_action_context.h"
 #include "ui/cached_round_corners.h"
 
 namespace style {
@@ -55,7 +55,7 @@ struct TopicJumpCache {
 struct PaintContext {
 	RightButton *rightButton = nullptr;
 	std::vector<QImage*> *chatsFilterTags = nullptr;
-	SwipeContext swipeContext;
+	QuickActionContext quickActionContext;
 	not_null<const style::DialogRow*> st;
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;
