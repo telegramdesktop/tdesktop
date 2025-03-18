@@ -878,7 +878,7 @@ void PaintRow(
 	if (swipeTranslation) {
 		p.translate(swipeTranslation, 0);
 		const auto swipeActionRect = QRect(
-			geometry.x() + geometry.width() - swipeTranslation,
+			rect::right(geometry) - swipeTranslation,
 			geometry.y(),
 			swipeTranslation,
 			geometry.height());
@@ -897,34 +897,35 @@ void PaintRow(
 				+ st::dialogsQuickActionSize / 2.;
 			p.drawEllipse(QPointF(geometry.width() - offset, offset), r, r);
 		}
-		const auto iconOffset = (geometry.height()
-			- st::dialogsQuickActionSize) / 2;
-		const auto topTranslation = iconOffset / 2.;
-		p.translate(0, -topTranslation);
-		if (context.quickActionContext->icon) {
-			context.quickActionContext->icon->paint(
-				p,
-				rect::right(geometry)
-					- iconOffset
-					- st::dialogsQuickActionSize,
-				iconOffset,
-				st::premiumButtonFg->c);
-		}
-		{
-			p.setPen(st::premiumButtonFg);
-			p.setBrush(Qt::NoBrush);
-			const auto left = rect::right(geometry)
-				- iconOffset * 2
-				- st::dialogsQuickActionSize;
-			const auto availableWidth = geometry.width() - left;
-			p.setFont(SwipeActionFont(labelType, availableWidth));
-			p.drawText(
-				QRect(left, 0, availableWidth, geometry.height()),
-				ResolveQuickDialogLabel(labelType),
-				style::al_bottom);
-		}
-		p.translate(0, topTranslation);
+		const auto quickWidth = st::dialogsQuickActionSize * 3;
+		DrawQuickAction(
+			p,
+			QRect(
+				rect::right(geometry) - quickWidth,
+				geometry.y(),
+				quickWidth,
+				geometry.height()),
+			context.quickActionContext->icon.get(),
+			labelType);
 		p.setClipping(false);
+	}
+	if (const auto quick = context.quickActionContext;
+			quick && quick->ripple && quick->rippleFg) {
+		const auto labelType = ResolveQuickDialogLabel(
+			history,
+			context.quickActionContext->action,
+			context.filter);
+		const auto ripple = ResolveQuickActionBg(labelType);
+		const auto size = st::dialogsQuickActionRippleSize;
+		const auto x = geometry.width() - size;
+		quick->ripple->paint(p, x, 0, size, &ripple->c);
+		quick->rippleFg->paint(p, x, 0, size, &st::premiumButtonFg->c);
+		if (quick->ripple->empty()) {
+			quick->ripple.reset();
+		}
+		if (quick->rippleFg->empty()) {
+			quick->rippleFg.reset();
+		}
 	}
 }
 

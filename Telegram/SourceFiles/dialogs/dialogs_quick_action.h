@@ -15,6 +15,10 @@ enum class QuickDialogAction;
 enum class QuickDialogActionLabel;
 } // namespace Dialogs::Ui
 
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -43,5 +47,11 @@ void PerformQuickDialogAction(
 	Ui::QuickDialogActionLabel);
 [[nodiscard]] const style::color &ResolveQuickActionBgActive(
 	Ui::QuickDialogActionLabel);
+
+void DrawQuickAction(
+	QPainter &p,
+	const QRect &rect,
+	not_null<Lottie::Icon*> icon,
+	Ui::QuickDialogActionLabel label);
 
 } // namespace Dialogs

@@ -1956,16 +1956,40 @@ bool InnerWidget::addQuickActionRipple(
 		.sizeOverride = Size(st::dialogsQuickActionSize),
 	});
 	context->action = action;
-	const auto size = QSize(
-		st::dialogsQuickActionRippleSize,
-		row->height());
-	if (!context->ripple) {
-		context->ripple = std::make_unique<Ui::RippleAnimation>(
-			st::defaultRippleAnimation,
-			Ui::RippleAnimation::RectMask(size),
-			std::move(updateCallback));
-	}
-	context->ripple->add(QPoint(size.width() / 2, size.height() / 2));
+	context->icon->jumpTo(context->icon->framesCount() - 1, [=] {
+		const auto size = QSize(
+			st::dialogsQuickActionRippleSize,
+			row->height());
+		if (!context->ripple) {
+			context->ripple = std::make_unique<Ui::RippleAnimation>(
+				st::defaultRippleAnimation,
+				Ui::RippleAnimation::RectMask(size),
+				updateCallback);
+		}
+		if (!context->rippleFg) {
+			context->rippleFg = std::make_unique<Ui::RippleAnimation>(
+				st::defaultRippleAnimation,
+				Ui::RippleAnimation::MaskByDrawer(
+					size,
+					true,
+					[&](QPainter &p) {
+						p.setCompositionMode(
+							QPainter::CompositionMode_Source);
+						p.fillRect(Rect(size), Qt::transparent);
+						DrawQuickAction(
+							p,
+							Rect(size),
+							context->icon.get(),
+							ResolveQuickDialogLabel(
+								row->history(),
+								action,
+								_filterId));
+					}),
+				std::move(updateCallback));
+		}
+		context->ripple->add(QPoint(size.width() / 2, size.height() / 2));
+		context->rippleFg->add(QPoint(size.width() / 2, size.height() / 2));
+	});
 
 	return true;
 }
@@ -2281,7 +2305,13 @@ void InnerWidget::mousePressReleased(
 			if (it != _quickActions.end()) {
 				if (it->second->ripple) {
 					it->second->ripple->lastStop();
+					it->second->rippleFg->lastStop();
 				}
+				PerformQuickDialogAction(
+					_controller,
+					history->peer,
+					it->second->action,
+					_filterId);
 			}
 		}
 	}

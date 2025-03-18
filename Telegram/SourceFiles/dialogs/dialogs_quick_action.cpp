@@ -14,13 +14,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
+#include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+#include "styles/style_dialogs.h"
 
 namespace Dialogs {
+namespace {
+
+const style::font &SwipeActionFont(
+		Dialogs::Ui::QuickDialogActionLabel action,
+		int availableWidth) {
+	struct Entry final {
+		Dialogs::Ui::QuickDialogActionLabel action;
+		QString langId;
+		style::font font;
+	};
+	static auto Fonts = std::vector<Entry>();
+	for (auto &entry : Fonts) {
+		if (entry.action == action) {
+			if (entry.langId == Lang::GetInstance().id()) {
+				return entry.font;
+			}
+		}
+	}
+	constexpr auto kNormalFontSize = 13;
+	constexpr auto kMinFontSize = 5;
+	for (auto i = kNormalFontSize; i >= kMinFontSize; --i) {
+		auto font = style::font(
+			style::ConvertScale(i, style::Scale()),
+			st::semiboldFont->flags(),
+			st::semiboldFont->family());
+		if (font->width(ResolveQuickDialogLabel(action)) <= availableWidth
+			|| i == kMinFontSize) {
+			Fonts.emplace_back(Entry{
+				.action = action,
+				.langId = Lang::GetInstance().id(),
+				.font = std::move(font),
+			});
+			return Fonts.back().font;
+		}
+	}
+	Unexpected("SwipeActionFont: can't find font.");
+}
+
+} // namespace
 
 void PerformQuickDialogAction(
 		not_null<Window::SessionController*> controller,
@@ -161,6 +203,25 @@ const style::color &ResolveQuickActionBg(
 const style::color &ResolveQuickActionBgActive(
 		Ui::QuickDialogActionLabel action) {
 	return st::windowSubTextFgOver;
+}
+
+void DrawQuickAction(
+		QPainter &p,
+		const QRect &rect,
+		not_null<Lottie::Icon*> icon,
+		Ui::QuickDialogActionLabel label) {
+	const auto iconSize = st::dialogsQuickActionSize;
+	const auto innerHeight = iconSize * 2;
+	const auto top = (rect.height() - innerHeight) / 2;
+	icon->paint(p, rect.x() + (rect.width() - iconSize) / 2, top);
+	p.setPen(st::premiumButtonFg);
+	p.setBrush(Qt::NoBrush);
+	const auto availableWidth = rect.width();
+	p.setFont(SwipeActionFont(label, availableWidth));
+	p.drawText(
+		QRect(rect.x(), top, availableWidth, innerHeight),
+		ResolveQuickDialogLabel(label),
+		style::al_bottom);
 }
 
 } // namespace Dialogs

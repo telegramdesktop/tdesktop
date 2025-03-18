@@ -39,6 +39,7 @@ struct QuickActionContext {
 	::Ui::Controls::SwipeContextData data;
 	std::unique_ptr<Lottie::Icon> icon;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
+	std::unique_ptr<Ui::RippleAnimation> rippleFg;
 	QuickDialogAction action;
 };
 
