@@ -55,7 +55,7 @@ struct TopicJumpCache {
 struct PaintContext {
 	RightButton *rightButton = nullptr;
 	std::vector<QImage*> *chatsFilterTags = nullptr;
-	QuickActionContext quickActionContext;
+	QuickActionContext *quickActionContext = nullptr;
 	not_null<const style::DialogRow*> st;
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;

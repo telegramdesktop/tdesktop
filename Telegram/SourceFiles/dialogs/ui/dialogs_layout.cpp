@@ -395,10 +395,11 @@ void PaintRow(
 		: context.currentBg;
 	auto swipeTranslation = 0;
 	if (history
+		&& context.quickActionContext
 		&& (history->peer->id.value
-			== context.quickActionContext.data.msgBareId)) {
-		if (context.quickActionContext.data.translation != 0) {
-			swipeTranslation = context.quickActionContext.data.translation
+			== context.quickActionContext->data.msgBareId)) {
+		if (context.quickActionContext->data.translation != 0) {
+			swipeTranslation = context.quickActionContext->data.translation
 				* -2;
 		}
 	}
@@ -883,14 +884,14 @@ void PaintRow(
 		p.setClipRegion(swipeActionRect);
 		const auto labelType = ResolveQuickDialogLabel(
 			history,
-			context.quickActionContext.action,
+			context.quickActionContext->action,
 			context.filter);
 		p.fillRect(swipeActionRect, ResolveQuickActionBg(labelType));
-		if (context.quickActionContext.data.reachRatio) {
+		if (context.quickActionContext->data.reachRatio) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(ResolveQuickActionBgActive(labelType));
 			const auto r = swipeTranslation
-				* context.quickActionContext.data.reachRatio;
+				* context.quickActionContext->data.reachRatio;
 			const auto offset = st::dialogsQuickActionSize
 				+ st::dialogsQuickActionSize / 2.;
 			p.drawEllipse(QPointF(geometry.width() - offset, offset), r, r);
@@ -899,8 +900,8 @@ void PaintRow(
 			- st::dialogsQuickActionSize) / 2;
 		const auto topTranslation = iconOffset / 2.;
 		p.translate(0, -topTranslation);
-		if (context.quickActionContext.icon) {
-			context.quickActionContext.icon->paint(
+		if (context.quickActionContext->icon) {
+			context.quickActionContext->icon->paint(
 				p,
 				rect::right(geometry)
 					- iconOffset

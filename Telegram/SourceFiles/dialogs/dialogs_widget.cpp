@@ -694,7 +694,7 @@ void Widget::setupSwipeBack() {
 				&& _inner
 				&& (Core::App().settings().quickDialogAction()
 					!= Ui::QuickDialogAction::Disabled)) {
-				_inner->setSwipeContextData(std::move(data));
+				_inner->setSwipeContextData(data.msgBareId, std::move(data));
 			} else {
 				if (!_swipeBackData.callback) {
 					_swipeBackData = Ui::Controls::SetupSwipeBack(
@@ -716,7 +716,7 @@ void Widget::setupSwipeBack() {
 				_swipeBackData = {};
 			}
 			if (_inner) {
-				_inner->setSwipeContextData({});
+				_inner->setSwipeContextData(data.msgBareId, std::nullopt);
 				_inner->update();
 			}
 		}

@@ -810,7 +810,6 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	const auto ms = crl::now();
 	const auto childListShown = _childListShown.current();
 	auto context = Ui::PaintContext{
-		.quickActionContext = _quickActionContext,
 		.st = _st,
 		.topicJumpCache = _topicJumpCache.get(),
 		.folder = _openedFolder,
@@ -839,6 +838,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		const auto expanding = forum
 			&& (key.history()->peer->id == childListShown.peerId);
 		context.rightButton = maybeCacheRightButton(row);
+		if (key.history()) {
+			const auto it = _quickActions.find(key.history()->peer->id.value);
+			if (it != _quickActions.end()) {
+				context.quickActionContext = it->second.get();
+			}
+		}
 
 		context.st = (forum ? &st::forumDialogRow : _st.get());
 
@@ -4995,24 +5000,43 @@ rpl::producer<UserId> InnerWidget::openBotMainAppRequests() const {
 	return _openBotMainAppRequests.events();
 }
 
-void InnerWidget::setSwipeContextData(Ui::Controls::SwipeContextData data) {
-	_quickActionContext.data = std::move(data);
-	if (_quickActionContext.data.msgBareId) {
+void InnerWidget::setSwipeContextData(
+		int64 key,
+		std::optional<Ui::Controls::SwipeContextData> data) {
+	if (!key) {
+		return;
+	}
+	if (!data) {
+		_quickActions.remove(key);
+		return;
+	}
+	const auto it = _quickActions.find(key);
+	auto context = (Ui::QuickActionContext*)(nullptr);
+	if (it == _quickActions.end()) {
+		context = _quickActions.emplace(
+			key,
+			std::make_unique<Ui::QuickActionContext>()).first->second.get();
+	} else {
+		context = it->second.get();
+	}
+
+	context->data = base::take(*data);
+	if (context->data.msgBareId) {
 		constexpr auto kStartAnimateThreshold = 0.32;
 		constexpr auto kResetAnimateThreshold = 0.24;
-		if (_quickActionContext.data.ratio > kStartAnimateThreshold) {
-			if (_quickActionContext.icon
-				&& !_quickActionContext.icon->frameIndex()
-				&& !_quickActionContext.icon->animating()) {
-				_quickActionContext.icon->animate(
+		if (context->data.ratio > kStartAnimateThreshold) {
+			if (context->icon
+				&& !context->icon->frameIndex()
+				&& !context->icon->animating()) {
+				context->icon->animate(
 					[=] { update(); },
 					0,
-					_quickActionContext.icon->framesCount());
+					context->icon->framesCount());
 			}
-		} else if (_quickActionContext.data.ratio < kResetAnimateThreshold) {
-			if (_quickActionContext.icon
-				&& _quickActionContext.icon->frameIndex()) {
-				_quickActionContext.icon->jumpTo(0, [=] { update(); });
+		} else if (context->data.ratio < kResetAnimateThreshold) {
+			if (context->icon
+				&& context->icon->frameIndex()) {
+				context->icon->jumpTo(0, [=] { update(); });
 			}
 		}
 		update();
@@ -5038,23 +5062,25 @@ int64 InnerWidget::calcSwipeKey(int top) {
 void InnerWidget::prepareQuickAction(
 		int64 key,
 		Dialogs::Ui::QuickDialogAction action) {
-	if (key) {
-		const auto peer = session().data().peer(PeerId(key));
-		auto name = ResolveQuickDialogLottieIconName(peer, action, _filterId);
-		_quickActionLottieIcon = Lottie::MakeIcon({
-			.name = std::move(name),
-			.sizeOverride = Size(st::dialogsQuickActionSize),
-		});
-		_quickActionContext.icon = _quickActionLottieIcon.get();
-		_quickActionContext.action = action;
+	Expects(key != 0);
+
+	const auto it = _quickActions.find(key);
+	auto context = (Ui::QuickActionContext*)(nullptr);
+	if (it == _quickActions.end()) {
+		context = _quickActions.emplace(
+			key,
+			std::make_unique<Ui::QuickActionContext>()).first->second.get();
 	} else {
-		if (_quickActionContext.icon) {
-			_quickActionContext = {};
-		}
-		if (_quickActionLottieIcon) {
-			_quickActionLottieIcon.reset();
-		}
+		context = it->second.get();
 	}
+
+	const auto peer = session().data().peer(PeerId(key));
+	auto name = ResolveQuickDialogLottieIconName(peer, action, _filterId);
+	context->icon = Lottie::MakeIcon({
+		.name = std::move(name),
+		.sizeOverride = Size(st::dialogsSwipeActionSize),
+	});
+	context->action = action;
 }
 
 } // namespace Dialogs

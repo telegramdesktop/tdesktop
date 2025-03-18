@@ -33,7 +33,7 @@ enum class QuickDialogActionLabel {
 
 struct QuickActionContext {
 	::Ui::Controls::SwipeContextData data;
-	Lottie::Icon *icon = nullptr;
+	std::unique_ptr<Lottie::Icon> icon;
 	QuickDialogAction action;
 };
 

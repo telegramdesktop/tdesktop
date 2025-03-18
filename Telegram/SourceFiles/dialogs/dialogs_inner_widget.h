@@ -216,7 +216,9 @@ public:
 
 	[[nodiscard]] rpl::producer<UserId> openBotMainAppRequests() const;
 
-	void setSwipeContextData(Ui::Controls::SwipeContextData data);
+	void setSwipeContextData(
+		int64 key,
+		std::optional<Ui::Controls::SwipeContextData> data);
 	[[nodiscard]] int64 calcSwipeKey(int top);
 	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
 
@@ -480,6 +482,8 @@ private:
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
 
+	[[nodiscard]] Ui::QuickActionContext *ensureQuickAction(int64 key);
+
 	[[nodiscard]] bool lookupIsInBotAppButton(
 		Row *row,
 		QPoint localPosition);
@@ -623,8 +627,8 @@ private:
 	rpl::event_stream<> _refreshHashtagsRequests;
 	rpl::event_stream<UserId> _openBotMainAppRequests;
 
-	Dialogs::Ui::QuickActionContext _quickActionContext;
-	std::unique_ptr<Lottie::Icon> _quickActionLottieIcon = nullptr;
+	using QuickActionPtr = std::unique_ptr<Ui::QuickActionContext>;
+	base::flat_map<int64, QuickActionPtr> _quickActions;
 
 	RowDescriptor _chatPreviewRow;
 	bool _chatPreviewScheduled = false;
