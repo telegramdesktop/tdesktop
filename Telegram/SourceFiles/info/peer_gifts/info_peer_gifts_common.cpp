@@ -142,7 +142,9 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		_price.setMarkedText(
 			st::semiboldTextStyle,
 			(unique
-				? tr::lng_gift_price_unique(tr::now, Ui::Text::WithEntities)
+				? tr::lng_gift_transfer_button(
+					tr::now,
+					Ui::Text::WithEntities)
 				: _delegate->star().append(
 					' ' + Lang::FormatCountDecimal(data.info.stars))),
 			kMarkupTextOptions,

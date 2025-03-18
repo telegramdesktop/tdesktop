@@ -3378,6 +3378,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_stars_limited" = "limited";
 "lng_gift_stars_sold_out" = "sold out";
 "lng_gift_stars_tabs_all" = "All Gifts";
+"lng_gift_stars_tabs_my" = "My Gifts";
 "lng_gift_stars_tabs_limited" = "Limited";
 "lng_gift_stars_tabs_in_stock" = "In Stock";
 "lng_gift_send_title" = "Send a Gift";
@@ -3407,7 +3408,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_limited_of_one" = "unique";
 "lng_gift_limited_of_count" = "1 of {amount}";
 "lng_gift_collectible_tag" = "gift";
-"lng_gift_price_unique" = "Unique";
 "lng_gift_view_unpack" = "Unpack";
 "lng_gift_anonymous_hint" = "Only you can see the sender's name.";
 "lng_gift_anonymous_hint_channel" = "Only admins of this channel can see the sender's name.";

@@ -16,6 +16,13 @@ struct UniqueGift;
 class SavedStarGiftId;
 } // namespace Data
 
+void ShowTransferToBox(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	std::shared_ptr<Data::UniqueGift> gift,
+	Data::SavedStarGiftId savedId,
+	Fn<void()> closeParentBox);
+
 void ShowTransferGiftBox(
 	not_null<Window::SessionController*> window,
 	std::shared_ptr<Data::UniqueGift> gift,
