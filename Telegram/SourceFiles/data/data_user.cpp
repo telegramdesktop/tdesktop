@@ -826,20 +826,26 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (const auto gifts = update.vdisallowed_gifts()) {
 		const auto &data = gifts->data();
 		user->setDisallowedGiftTypes(Api::DisallowedGiftType()
-			| ((data.is_disallow_unlimited_stargifts()
+			| (data.is_disallow_unlimited_stargifts()
 				? Api::DisallowedGiftType::Unlimited
-				: Api::DisallowedGiftType()))
-			| ((data.is_disallow_limited_stargifts()
+				: Api::DisallowedGiftType())
+			| (data.is_disallow_limited_stargifts()
 				? Api::DisallowedGiftType::Limited
-				: Api::DisallowedGiftType()))
-			| ((data.is_disallow_unique_stargifts()
+				: Api::DisallowedGiftType())
+			| (data.is_disallow_unique_stargifts()
 				? Api::DisallowedGiftType::Unique
-				: Api::DisallowedGiftType()))
-			| ((data.is_disallow_premium_gifts()
+				: Api::DisallowedGiftType())
+			| (data.is_disallow_premium_gifts()
 				? Api::DisallowedGiftType::Premium
-				: Api::DisallowedGiftType())));
+				: Api::DisallowedGiftType())
+			| (update.is_display_gifts_button()
+				? Api::DisallowedGiftType::SendHide
+				: Api::DisallowedGiftType()));
 	} else {
-		user->setDisallowedGiftTypes(Api::DisallowedGiftTypes());
+		user->setDisallowedGiftTypes(Api::DisallowedGiftTypes()
+			| (update.is_display_gifts_button()
+				? Api::DisallowedGiftType::SendHide
+				: Api::DisallowedGiftType()));
 	}
 
 	user->owner().stories().apply(user, update.vstories());

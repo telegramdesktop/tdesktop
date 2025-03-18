@@ -1639,13 +1639,11 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
 
 	struct State {
 		Api::DisallowedGiftTypes disallowed;
-		bool showGiftIcon = false;
 		rpl::event_stream<> disables;
 		Fn<void()> promo;
 	};
 	const auto state = content->lifetime().make_state<State>();
 	state->disallowed = globalPrivacy->disallowedGiftTypesCurrent();
-	state->showGiftIcon = globalPrivacy->showGiftIconCurrent();
 	state->promo = [=] {
 		state->disables.fire({});
 		const auto link = Ui::Text::Bold(
@@ -1703,7 +1701,7 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
 		tr::lng_edit_privacy_gifts_show_icon(),
 		st::settingsButtonNoIconLocked));
 	icon->toggleOn(rpl::single(
-		session->premium() && state->showGiftIcon
+		session->premium() && (state->disallowed & Type::SendHide)
 	) | rpl::then(state->disables.events() | rpl::map([=] {
 		return false;
 	})));
@@ -1715,11 +1713,11 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
 	}, icon->lifetime());
 	icon->toggledValue() | rpl::start_with_next([=](bool enable) {
 		if (!enable) {
-			state->showGiftIcon = false;
+			state->disallowed &= ~Type::SendHide;
 		} else if (!session->premium()) {
 			state->promo();
 		} else {
-			state->showGiftIcon = true;
+			state->disallowed |= Type::SendHide;
 		}
 	}, icon->lifetime());
 	Ui::AddSkip(content);
@@ -1731,17 +1729,13 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
 			Ui::Text::WithEntities));
 
 	_saveAdditional = [=] {
-		const auto disallowed = state->disallowed;
-		const auto showGiftIcon = state->showGiftIcon;
+		const auto now = state->disallowed;
 		if (!session->premium()) {
 			return;
-		} else if (globalPrivacy->showGiftIconCurrent() == showGiftIcon
-			&& globalPrivacy->disallowedGiftTypesCurrent() == disallowed) {
+		} else if (globalPrivacy->disallowedGiftTypesCurrent() == now) {
 			return;
 		} else {
-			globalPrivacy->updateAdditionalGiftPrivacy(
-				disallowed,
-				showGiftIcon);
+			globalPrivacy->updateDisallowedGiftTypes(now);
 		}
 	};
 

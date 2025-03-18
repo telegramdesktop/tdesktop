@@ -116,7 +116,6 @@ void GlobalPrivacy::updateHideReadTime(bool hide) {
 		hide,
 		newRequirePremiumCurrent(),
 		newChargeStarsCurrent(),
-		showGiftIconCurrent(),
 		disallowedGiftTypesCurrent());
 }
 
@@ -153,16 +152,7 @@ void GlobalPrivacy::updateMessagesPrivacy(
 		hideReadTimeCurrent(),
 		requirePremium,
 		chargeStars,
-		showGiftIconCurrent(),
 		disallowedGiftTypesCurrent());
-}
-
-bool GlobalPrivacy::showGiftIconCurrent() const {
-	return _showGiftIcon.current();
-}
-
-rpl::producer<bool> GlobalPrivacy::showGiftIcon() const {
-	return _showGiftIcon.value();
 }
 
 DisallowedGiftTypes GlobalPrivacy::disallowedGiftTypesCurrent() const {
@@ -174,16 +164,13 @@ auto GlobalPrivacy::disallowedGiftTypes() const
 	return _disallowedGiftTypes.value();
 }
 
-void GlobalPrivacy::updateAdditionalGiftPrivacy(
-		DisallowedGiftTypes types,
-		bool showGiftIcon) {
+void GlobalPrivacy::updateDisallowedGiftTypes(DisallowedGiftTypes types) {
 	update(
 		archiveAndMuteCurrent(),
 		unarchiveOnNewMessageCurrent(),
 		hideReadTimeCurrent(),
 		newRequirePremiumCurrent(),
 		newChargeStarsCurrent(),
-		showGiftIcon,
 		types);
 }
 
@@ -217,7 +204,6 @@ void GlobalPrivacy::updateArchiveAndMute(bool value) {
 		hideReadTimeCurrent(),
 		newRequirePremiumCurrent(),
 		newChargeStarsCurrent(),
-		showGiftIconCurrent(),
 		disallowedGiftTypesCurrent());
 }
 
@@ -229,7 +215,6 @@ void GlobalPrivacy::updateUnarchiveOnNewMessage(
 		hideReadTimeCurrent(),
 		newRequirePremiumCurrent(),
 		newChargeStarsCurrent(),
-		showGiftIconCurrent(),
 		disallowedGiftTypesCurrent());
 }
 
@@ -239,7 +224,6 @@ void GlobalPrivacy::update(
 		bool hideReadTime,
 		bool newRequirePremium,
 		int newChargeStars,
-		bool showGiftIcon,
 		DisallowedGiftTypes disallowedGiftTypes) {
 	using Flag = MTPDglobalPrivacySettings::Flag;
 	using DisallowedFlag = MTPDdisallowedGiftsSettings::Flag;
@@ -247,6 +231,8 @@ void GlobalPrivacy::update(
 	_api.request(_requestId).cancel();
 	const auto newRequirePremiumAllowed = _session->premium()
 		|| _session->appConfig().newRequirePremiumFree();
+	const auto showGiftIcon
+		= (disallowedGiftTypes & DisallowedGiftType::SendHide);
 	const auto flags = Flag()
 		| (archiveAndMute
 			? Flag::f_archive_and_mute_new_noncontact_peers
@@ -294,7 +280,6 @@ void GlobalPrivacy::update(
 				hideReadTime,
 				false,
 				0,
-				false,
 				DisallowedGiftTypes());
 		}
 	}).send();
@@ -304,7 +289,6 @@ void GlobalPrivacy::update(
 	_newRequirePremium = newRequirePremium;
 	_newChargeStars = newChargeStars;
 	_disallowedGiftTypes = disallowedGiftTypes;
-	_showGiftIcon = showGiftIcon;
 }
 
 void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
@@ -318,24 +302,28 @@ void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
 	_hideReadTime = data.is_hide_read_marks();
 	_newRequirePremium = data.is_new_noncontact_peers_require_premium();
 	_newChargeStars = data.vnoncontact_peers_paid_stars().value_or_empty();
-	_showGiftIcon = data.is_display_gifts_button();
 	if (const auto gifts = data.vdisallowed_gifts()) {
-		const auto &data = gifts->data();
+		const auto &disallow = gifts->data();
 		_disallowedGiftTypes = DisallowedGiftType()
-			| (data.is_disallow_unlimited_stargifts()
+			| (disallow.is_disallow_unlimited_stargifts()
 				? DisallowedGiftType::Unlimited
 				: DisallowedGiftType())
-			| (data.is_disallow_limited_stargifts()
+			| (disallow.is_disallow_limited_stargifts()
 				? DisallowedGiftType::Limited
 				: DisallowedGiftType())
-			| (data.is_disallow_unique_stargifts()
+			| (disallow.is_disallow_unique_stargifts()
 				? DisallowedGiftType::Unique
 				: DisallowedGiftType())
-			| (data.is_disallow_premium_gifts()
+			| (disallow.is_disallow_premium_gifts()
 				? DisallowedGiftType::Premium
+				: DisallowedGiftType())
+			| (data.is_display_gifts_button()
+				? DisallowedGiftType::SendHide
 				: DisallowedGiftType());
 	} else {
-		_disallowedGiftTypes = DisallowedGiftTypes();
+		_disallowedGiftTypes = data.is_display_gifts_button()
+			? DisallowedGiftType::SendHide
+			: DisallowedGiftType();
 	}
 }
 

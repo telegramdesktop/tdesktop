@@ -24,11 +24,12 @@ enum class UnarchiveOnNewMessage {
 	AnyUnmuted,
 };
 
-enum class DisallowedGiftType {
+enum class DisallowedGiftType : uchar {
 	Premium   = 0x01,
 	Unlimited = 0x02,
 	Limited   = 0x04,
 	Unique    = 0x08,
+	SendHide  = 0x10,
 };
 inline constexpr bool is_flag_type(DisallowedGiftType) { return true; }
 
@@ -68,14 +69,10 @@ public:
 
 	void updateMessagesPrivacy(bool requirePremium, int chargeStars);
 
-	[[nodiscard]] bool showGiftIconCurrent() const;
-	[[nodiscard]] rpl::producer<bool> showGiftIcon() const;
 	[[nodiscard]] DisallowedGiftTypes disallowedGiftTypesCurrent() const;
 	[[nodiscard]] auto disallowedGiftTypes() const
 		-> rpl::producer<DisallowedGiftTypes>;
-	void updateAdditionalGiftPrivacy(
-		DisallowedGiftTypes types,
-		bool showGiftIcon);
+	void updateDisallowedGiftTypes(DisallowedGiftTypes types);
 
 	void loadPaidReactionShownPeer();
 	void updatePaidReactionShownPeer(PeerId shownPeer);
@@ -91,7 +88,6 @@ private:
 		bool hideReadTime,
 		bool newRequirePremium,
 		int newChargeStars,
-		bool showGiftIcon,
 		DisallowedGiftTypes disallowedGiftTypes);
 
 	const not_null<Main::Session*> _session;
@@ -104,7 +100,6 @@ private:
 	rpl::variable<bool> _hideReadTime = false;
 	rpl::variable<bool> _newRequirePremium = false;
 	rpl::variable<int> _newChargeStars = 0;
-	rpl::variable<bool> _showGiftIcon = false;
 	rpl::variable<DisallowedGiftTypes> _disallowedGiftTypes;
 	rpl::variable<PeerId> _paidReactionShownPeer = false;
 	std::vector<Fn<void()>> _callbacks;

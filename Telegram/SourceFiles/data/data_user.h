@@ -23,7 +23,7 @@ struct BusinessDetails;
 } // namespace Data
 
 namespace Api {
-enum class DisallowedGiftType;
+enum class DisallowedGiftType : uchar;
 using DisallowedGiftTypes = base::flags<DisallowedGiftType>;
 } // namespace Api
 
