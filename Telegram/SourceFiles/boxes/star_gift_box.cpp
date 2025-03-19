@@ -1725,7 +1725,7 @@ void SendGiftBox(
 		bool sending = false;
 	};
 	const auto state = raw->lifetime().make_state<State>(State{
-		.delegate = Delegate(window, GiftButtonMode::Full),
+		.delegate = Delegate(&window->session(), GiftButtonMode::Full),
 	});
 	const auto single = state->delegate.buttonSize();
 	const auto shadow = st::defaultDropdownMenu.wrap.shadow;

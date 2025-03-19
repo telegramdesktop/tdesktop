@@ -149,6 +149,7 @@ giftBoxStickerStarTop: 24px;
 giftBoxSmallStickerTop: 16px;
 giftBoxStickerTopByStars: -4px;
 giftBoxStickerSize: size(80px, 80px);
+giftBoxSelectSkip: 5px;
 giftBoxUserpicSize: 24px;
 giftBoxUserpicSkip: 2px;
 giftBoxTextField: InputField(defaultInputField) {
@@ -255,4 +256,11 @@ darkUpgradeGiftInfoTitle: FlatLabel(defaultFlatLabel) {
 }
 darkUpgradeGiftInfoAbout: FlatLabel(upgradeGiftSubtext) {
 	textFg: groupCallMemberNotJoinedStatus;
+}
+
+giftTooManyPinnedBox: Box(giftBox) {
+	buttonPadding: margins(11px, 11px, 11px, 11px);
+}
+giftTooManyPinnedChoose: FlatLabel(giftBoxAbout) {
+	textFg: windowSubTextFg;
 }

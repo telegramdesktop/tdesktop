@@ -24,6 +24,7 @@ struct SubscriptionEntry;
 struct GiftCode;
 struct CreditTopupOption;
 struct SavedStarGift;
+class SavedStarGiftId;
 struct StarGift;
 } // namespace Data
 
@@ -158,11 +159,15 @@ void GlobalStarGiftBox(
 [[nodiscard]] Data::CreditsHistoryEntry SavedStarGiftEntry(
 	not_null<PeerData*> owner,
 	const Data::SavedStarGift &data);
+[[nodiscard]] Data::SavedStarGiftId EntryToSavedStarGiftId(
+	not_null<Main::Session*> session,
+	const Data::CreditsHistoryEntry &entry);
 void SavedStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> owner,
-	const Data::SavedStarGift &data);
+	const Data::SavedStarGift &data,
+	Fn<std::vector<Data::CreditsHistoryEntry>()> pinned = nullptr);
 enum class SavedStarGiftMenuType {
 	List,
 	View,

@@ -112,6 +112,9 @@ private:
 
 	int resizeGetHeight(int width) override;
 
+	[[nodiscard]] auto pinnedSavedGifts()
+		-> Fn<std::vector<Data::CreditsHistoryEntry>()>;
+
 	const not_null<Window::SessionController*> _window;
 	rpl::variable<Filter> _filter;
 	Delegate _delegate;
@@ -152,7 +155,7 @@ InnerWidget::InnerWidget(
 : BoxContentDivider(parent)
 , _window(controller->parentController())
 , _filter(std::move(filter))
-, _delegate(_window, GiftButtonMode::Minimal)
+, _delegate(&_window->session(), GiftButtonMode::Minimal)
 , _controller(controller)
 , _peer(peer)
 , _totalCount(_peer->peerGiftsCount())
@@ -225,6 +228,9 @@ void InnerWidget::subscribeToUpdates() {
 			return;
 		}
 		refreshButtons();
+		if (update.action == Action::Pin) {
+			_scrollToTop.fire({});
+		}
 	}, lifetime());
 }
 
@@ -476,6 +482,41 @@ void InnerWidget::validateButtons() {
 	std::swap(_views, views);
 }
 
+auto InnerWidget::pinnedSavedGifts()
+-> Fn<std::vector<Data::CreditsHistoryEntry>()> {
+	struct Entry {
+		Data::SavedStarGiftId id;
+		std::shared_ptr<Data::UniqueGift> unique;
+	};
+	auto entries = std::vector<Entry>();
+	for (const auto &entry : _entries) {
+		if (entry.gift.pinned) {
+			Assert(entry.gift.info.unique != nullptr);
+			entries.push_back({
+				entry.gift.manageId,
+				entry.gift.info.unique,
+			});
+		} else {
+			break;
+		}
+	}
+	return [entries] {
+		auto result = std::vector<Data::CreditsHistoryEntry>();
+		result.reserve(entries.size());
+		for (const auto &entry : entries) {
+			const auto &id = entry.id;
+			result.push_back({
+				.bareMsgId = uint64(id.userMessageId().bare),
+				.bareEntryOwnerId = id.chat() ? id.chat()->id.value : 0,
+				.giftChannelSavedId = id.chatSavedId(),
+				.uniqueGift = entry.unique,
+				.stargift = true,
+			});
+		}
+		return result;
+	};
+}
+
 void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 	if (_menu) {
 		return;
@@ -495,27 +536,7 @@ void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 	auto entry = ::Settings::SavedStarGiftEntry(
 		_peer,
 		_entries[index].gift);
-	auto pinnedIds = std::vector<Data::SavedStarGiftId>();
-	for (const auto &entry : _entries) {
-		if (entry.gift.pinned) {
-			pinnedIds.push_back(entry.gift.manageId);
-		} else {
-			break;
-		}
-	}
-	entry.pinnedSavedGifts = [pinnedIds] {
-		auto result = std::vector<Data::CreditsHistoryEntry>();
-		result.reserve(pinnedIds.size());
-		for (const auto &id : pinnedIds) {
-			result.push_back({
-				.bareMsgId = uint64(id.userMessageId().bare),
-				.bareEntryOwnerId = id.chat() ? id.chat()->id.value : 0,
-				.giftChannelSavedId = id.chatSavedId(),
-				.stargift = true,
-			});
-		}
-		return result;
-	};
+	entry.pinnedSavedGifts = pinnedSavedGifts();
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	::Settings::FillSavedStarGiftMenu(
 		_controller->uiShow(),
@@ -535,7 +556,8 @@ void InnerWidget::showGift(int index) {
 		::Settings::SavedStarGiftBox,
 		_window,
 		_peer,
-		_entries[index].gift));
+		_entries[index].gift,
+		pinnedSavedGifts()));
 }
 
 void InnerWidget::refreshAbout() {

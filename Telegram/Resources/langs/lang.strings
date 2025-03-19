@@ -3429,7 +3429,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_display_done_channel" = "The gift is now shown in channel's Gifts.";
 "lng_gift_display_done_hide" = "The gift is now hidden from your profile page.";
 "lng_gift_display_done_hide_channel" = "The gift is now hidden from channel's Gifts.";
+"lng_gift_pinned_done_title" = "{gift} pinned";
 "lng_gift_pinned_done" = "The gift will always be shown on top.";
+"lng_gift_pinned_done_replaced" = "replacing {gift}";
 "lng_gift_got_stars#one" = "You got **{count} Star** for this gift.";
 "lng_gift_got_stars#other" = "You got **{count} Stars** for this gift.";
 "lng_gift_channel_got#one" = "Channel got **{count} Star** for this gift.";
@@ -3502,6 +3504,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_wear_subscribe" = "Subscribe to {link} to wear collectibles.";
 "lng_gift_wear_start_toast" = "You put on {name}";
 "lng_gift_wear_end_toast" = "You took off {name}";
+"lng_gift_many_pinned_title" = "Too Many Pinned Gifts";
+"lng_gift_many_pinned_choose" = "Select a gift to unpin below";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";
