@@ -204,7 +204,7 @@ RecentRow::RecentRow(not_null<PeerData*> peer)
 	if (const auto user = peer->asUser()) {
 		if (user->botInfo && user->botInfo->hasMainApp) {
 			return std::make_unique<Ui::Text::String>(
-				st::dialogRowOpenBotTextStyle,
+				st::dialogRowOpenBotRecent.button.style,
 				tr::lng_profile_open_app_short(tr::now));
 		}
 	}
@@ -275,20 +275,15 @@ QSize RecentRow::rightActionSize() const {
 	if (_mainAppText && _badgeSize.isEmpty()) {
 		return QSize(
 			_mainAppText->maxWidth() + _mainAppText->minHeight(),
-			st::dialogRowOpenBotHeight);
+			st::dialogRowOpenBotRecent.button.height);
 	}
 	return _badgeSize;
 }
 
 QMargins RecentRow::rightActionMargins() const {
 	if (_mainAppText && _badgeSize.isEmpty()) {
-		return QMargins(
-			0,
-			st::dialogRowOpenBotRecentTop,
-			st::dialogRowOpenBotRight,
-			0);
-	}
-	if (_badgeSize.isEmpty()) {
+		return st::dialogRowOpenBotRecent.margin;
+	} else if (_badgeSize.isEmpty()) {
 		return {};
 	}
 	const auto x = st::recentPeersItem.photoPosition.x();
@@ -321,8 +316,7 @@ void RecentRow::rightActionPaint(
 		p.setPen(actionSelected
 			? st::activeButtonFgOver
 			: st::activeButtonFg);
-		const auto top = 0
-			+ (st::dialogRowOpenBotHeight - _mainAppText->minHeight()) / 2;
+		const auto top = st::dialogRowOpenBotRecent.button.textTop;
 		_mainAppText->draw(p, {
 			.position = QPoint(x + size.height() / 2, y + top),
 			.outerWidth = outerWidth,

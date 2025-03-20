@@ -42,15 +42,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Menu {
 namespace {
 
+[[nodiscard]] SponsoredPhrases PhrasesForMessage(FullMsgId fullId) {
+	return peerIsChannel(fullId.peer)
+		? SponsoredPhrases::Channel
+		: SponsoredPhrases::Bot;
+}
+
 void AboutBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
-		const FullMsgId &fullId) {
+		SponsoredPhrases phrases,
+		const Data::SponsoredMessages::Details &details,
+		Data::SponsoredReportAction report) {
 	constexpr auto kUrl = "https://promote.telegram.org"_cs;
 
-	box->setNoContentMargin(true);
+	box->setWidth(st::boxWideWidth);
 
-	const auto isChannel = peerIsChannel(fullId.peer);
+	const auto isChannel = (phrases == SponsoredPhrases::Channel);
+	const auto isSearch = (phrases == SponsoredPhrases::Search);
 	const auto session = &show->session();
 
 	const auto content = box->verticalLayout().get();
@@ -138,20 +147,24 @@ void AboutBox(
 			tr::lng_sponsored_revenued_info1_title(),
 			(isChannel
 				? tr::lng_sponsored_revenued_info1_description
+				: isSearch
+				? tr::lng_sponsored_revenued_info1_search_description
 				: tr::lng_sponsored_revenued_info1_bot_description)(
 					Ui::Text::RichLangValue),
 			st::sponsoredAboutPrivacyIcon);
-		Ui::AddSkip(content);
-		Ui::AddSkip(content);
-		addEntry(
-			(isChannel
-				? tr::lng_sponsored_revenued_info2_title
-				: tr::lng_sponsored_revenued_info2_bot_title)(),
-			(isChannel
-				? tr::lng_sponsored_revenued_info2_description
-				: tr::lng_sponsored_revenued_info2_bot_description)(
-					Ui::Text::RichLangValue),
-			st::sponsoredAboutSplitIcon);
+		if (!isSearch) {
+			Ui::AddSkip(content);
+			Ui::AddSkip(content);
+			addEntry(
+				(isChannel
+					? tr::lng_sponsored_revenued_info2_title
+					: tr::lng_sponsored_revenued_info2_bot_title)(),
+				(isChannel
+					? tr::lng_sponsored_revenued_info2_description
+					: tr::lng_sponsored_revenued_info2_bot_description)(
+						Ui::Text::RichLangValue),
+				st::sponsoredAboutSplitIcon);
+		}
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 		auto link = tr::lng_settings_privacy_premium_link(
@@ -160,17 +173,32 @@ void AboutBox(
 		});
 		addEntry(
 			tr::lng_sponsored_revenued_info3_title(),
-			isChannel
+			(isChannel
 				? tr::lng_sponsored_revenued_info3_description(
 					lt_count,
 					rpl::single(float64(levels)),
 					lt_link,
 					std::move(link),
 					Ui::Text::RichLangValue)
+				: isSearch
+				? tr::lng_sponsored_revenued_info3_search_description(
+					lt_link,
+					tr::lng_sponsored_revenued_info3_search_link(
+						lt_arrow,
+						rpl::single(
+							Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
+						Ui::Text::WithEntities
+					) | rpl::map([](TextWithEntities &&link) {
+						return Ui::Text::Wrapped(
+							std::move(link),
+							EntityType::CustomUrl,
+							u"internal:"_q);
+					}),
+					Ui::Text::RichLangValue)
 				: tr::lng_sponsored_revenued_info3_bot_description(
 					lt_link,
 					std::move(link),
-					Ui::Text::RichLangValue),
+					Ui::Text::RichLangValue)),
 			st::sponsoredAboutRemoveIcon)->setClickHandlerFilter([=](
 					const auto &...) {
 				ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
@@ -200,6 +228,8 @@ void AboutBox(
 				content,
 				(isChannel
 					? tr::lng_sponsored_revenued_footer_description
+					: isSearch
+					? tr::lng_sponsored_revenued_footer_search_description
 					: tr::lng_sponsored_revenued_footer_bot_description)(
 						lt_link,
 						tr::lng_channel_earn_about_link(
@@ -256,7 +286,9 @@ void AboutBox(
 				top,
 				Ui::Menu::CreateAddActionCallback(menu->get()),
 				show,
-				fullId,
+				phrases,
+				details,
+				report,
 				false,
 				true);
 			const auto global = top->mapToGlobal(
@@ -269,14 +301,11 @@ void AboutBox(
 			return true;
 		});
 	}
-
 }
 
 void ShowReportSponsoredBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		const FullMsgId &fullId) {
-	auto &sponsoredMessages = show->session().sponsoredMessages();
-	const auto report = sponsoredMessages.createReportCallback(fullId);
+		Data::SponsoredReportAction report) {
 	const auto guideLink = Ui::Text::Link(
 		tr::lng_report_sponsored_reported_link(tr::now),
 		u"https://promote.telegram.org/guidelines"_q);
@@ -284,7 +313,7 @@ void ShowReportSponsoredBox(
 	auto performRequest = [=](
 			const auto &repeatRequest,
 			Data::SponsoredReportResult::Id id) -> void {
-		report(id, [=](const Data::SponsoredReportResult &result) {
+		report.callback(id, [=](const Data::SponsoredReportResult &result) {
 			if (!result.error.isEmpty()) {
 				show->showToast(result.error);
 			}
@@ -360,11 +389,12 @@ void FillSponsored(
 		not_null<Ui::RpWidget*> parent,
 		const Ui::Menu::MenuCallback &addAction,
 		std::shared_ptr<ChatHelpers::Show> show,
-		const FullMsgId &fullId,
+		SponsoredPhrases phrases,
+		const Data::SponsoredMessages::Details &details,
+		Data::SponsoredReportAction report,
 		bool mediaViewer,
 		bool skipAbout) {
 	const auto session = &show->session();
-	const auto details = session->sponsoredMessages().lookupDetails(fullId);
 	const auto &info = details.info;
 
 	if (!mediaViewer && !info.empty()) {
@@ -408,12 +438,12 @@ void FillSponsored(
 	if (details.canReport) {
 		if (!skipAbout) {
 			addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
-				show->show(Box(AboutBox, show, fullId));
+				show->show(Box(AboutBox, show, phrases, details, report));
 			}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
 		}
 
 		addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
-			ShowReportSponsoredBox(show, fullId);
+			ShowReportSponsoredBox(show, report);
 		}, (mediaViewer ? &st::mediaMenuIconBlock : &st::menuIconBlock));
 
 		addAction({
@@ -426,12 +456,30 @@ void FillSponsored(
 	addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
 		if (session->premium()) {
 			using Result = Data::SponsoredReportResult;
-			session->sponsoredMessages().createReportCallback(
-				fullId)(Result::Id("-1"), [](const auto &) {});
+			report.callback(Result::Id("-1"), [](const auto &) {});
 		} else {
 			ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
 		}
 	}, (mediaViewer ? &st::mediaMenuIconCancel : &st::menuIconCancel));
+}
+
+void FillSponsored(
+		not_null<Ui::RpWidget*> parent,
+		const Ui::Menu::MenuCallback &addAction,
+		std::shared_ptr<ChatHelpers::Show> show,
+		const FullMsgId &fullId,
+		bool mediaViewer,
+		bool skipAbout) {
+	const auto session = &show->session();
+	FillSponsored(
+		parent,
+		addAction,
+		show,
+		PhrasesForMessage(fullId),
+		session->sponsoredMessages().lookupDetails(fullId),
+		session->sponsoredMessages().createReportCallback(fullId),
+		mediaViewer,
+		skipAbout);
 }
 
 void ShowSponsored(
@@ -455,8 +503,14 @@ void ShowSponsored(
 void ShowSponsoredAbout(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const FullMsgId &fullId) {
+	const auto session = &show->session();
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-		AboutBox(box, show, fullId);
+		AboutBox(
+			box,
+			show,
+			PhrasesForMessage(fullId),
+			session->sponsoredMessages().lookupDetails(fullId),
+			session->sponsoredMessages().createReportCallback(fullId));
 	}));
 }
 

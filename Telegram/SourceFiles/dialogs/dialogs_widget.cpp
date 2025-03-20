@@ -835,7 +835,10 @@ void Widget::setupSwipeBack() {
 void Widget::chosenRow(const ChosenRow &row) {
 	storiesToggleExplicitExpand(false);
 
-	if (!_searchState.query.isEmpty()) {
+	if (!row.sponsoredRandomId.isEmpty()) {
+		auto &messages = session().sponsoredMessages();
+		messages.clicked(row.sponsoredRandomId, false, false);
+	} else if (!_searchState.query.isEmpty()) {
 		if (const auto history = row.key.history()) {
 			session().recentPeers().bump(history->peer);
 		}
@@ -845,11 +848,6 @@ void Widget::chosenRow(const ChosenRow &row) {
 	const auto topicJump = history
 		? history->peer->forumTopicFor(row.message.fullId.msg)
 		: nullptr;
-
-	if (!row.sponsoredRandomId.isEmpty()) {
-		auto &messages = session().sponsoredMessages();
-		messages.clicked(row.sponsoredRandomId, false, false);
-	}
 
 	if (topicJump) {
 		if (controller()->shownForum().current() == topicJump->forum()) {

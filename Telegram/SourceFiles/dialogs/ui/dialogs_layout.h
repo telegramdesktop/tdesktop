@@ -110,4 +110,6 @@ void PaintCollapsedRow(
 	int unread,
 	const PaintContext &context);
 
+int PaintRightButton(QPainter &p, const PaintContext &context);
+
 } // namespace Dialogs::Ui

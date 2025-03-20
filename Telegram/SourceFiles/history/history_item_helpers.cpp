@@ -699,7 +699,8 @@ ClickHandlerPtr HideSponsoredClickHandler() {
 			if (session.premium()) {
 				using Result = Data::SponsoredReportResult;
 				session.sponsoredMessages().createReportCallback(
-					my.itemId)(Result::Id("-1"), [](const auto &) {});
+					my.itemId
+				).callback(Result::Id("-1"), [](const auto &) {});
 			} else {
 				ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
 			}

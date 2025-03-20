@@ -106,9 +106,10 @@ void PeerSearch::requestSponsored() {
 				parsed.sponsored.push_back({
 					.peer = _session->data().peer(peerId),
 					.randomId = data.vrandom_id().v,
-					.sponsorInfo = qs(data.vsponsor_info().value_or_empty()),
-					.additionalInfo = qs(
-						data.vadditional_info().value_or_empty()),
+					.sponsorInfo = TextWithEntities::Simple(
+						qs(data.vsponsor_info().value_or_empty())),
+					.additionalInfo = TextWithEntities::Simple(
+						qs(data.vadditional_info().value_or_empty())),
 				});
 			}
 			finishSponsored(requestId, std::move(parsed));

@@ -16,8 +16,8 @@ namespace Api {
 struct SponsoredSearchResult {
     not_null<PeerData*> peer;
     QByteArray randomId;
-    QString sponsorInfo;
-    QString additionalInfo;
+    TextWithEntities sponsorInfo;
+    TextWithEntities additionalInfo;
 };
 
 struct PeerSearchResult {

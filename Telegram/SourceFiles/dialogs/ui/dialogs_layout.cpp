@@ -125,16 +125,18 @@ void PaintRowTopRight(
 		text);
 }
 
-int PaintRightButton(QPainter &p, const PaintContext &context) {
+int PaintRightButtonImpl(QPainter &p, const PaintContext &context) {
 	if (context.width < st::columnMinimalWidthLeft) {
 		return 0;
 	}
 	if (const auto rightButton = context.rightButton) {
+		Assert(rightButton->st != nullptr);
+
 		const auto size = rightButton->bg.size() / style::DevicePixelRatio();
 		const auto left = context.width
 			- size.width()
-			- st::dialogRowOpenBotRight;
-		const auto top = st::dialogRowOpenBotTop;
+			- rightButton->st->margin.right();
+		const auto top = rightButton->st->margin.top();
 		p.drawImage(
 			left,
 			top,
@@ -149,22 +151,22 @@ int PaintRightButton(QPainter &p, const PaintContext &context) {
 				left,
 				top,
 				size.width() - size.height() / 2,
-				context.active
+				(context.active
 					? &st::universalRippleAnimation.color->c
-					: &st::activeButtonBgRipple->c);
+					: &rightButton->st->button.ripple.color->c));
 			if (rightButton->ripple->empty()) {
 				rightButton->ripple.reset();
 			}
 		}
 		p.setPen(context.active
-			? st::activeButtonBg
+			? rightButton->st->button.textBg
 			: context.selected
-			? st::activeButtonFgOver
-			: st::activeButtonFg);
+			? rightButton->st->button.textFgOver
+			: rightButton->st->button.textFg);
 		rightButton->text.draw(p, {
 			.position = QPoint(
 				left + size.height() / 2,
-				top + (st::dialogRowOpenBotHeight - rightButton->text.minHeight()) / 2),
+				top + rightButton->st->button.textTop),
 			.outerWidth = size.width() - size.height() / 2,
 			.availableWidth = size.width() - size.height() / 2,
 			.elisionLines = 1,
@@ -1283,6 +1285,10 @@ void PaintCollapsedRow(
 			unreadTop,
 			st);
 	}
+}
+
+int PaintRightButton(QPainter &p, const PaintContext &context) {
+	return PaintRightButtonImpl(p, context);
 }
 
 } // namespace Dialogs::Ui

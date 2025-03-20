@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "menu/menu_sponsored.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -241,12 +242,17 @@ struct InnerWidget::HashtagResult {
 	BasicRow row;
 };
 
+struct InnerWidget::SponsoredSearchResult {
+	Api::SponsoredSearchResult data;
+	RightButton button;
+};
+
 struct InnerWidget::PeerSearchResult {
 	explicit PeerSearchResult(not_null<PeerData*> peer) : peer(peer) {
 	}
 
 	not_null<PeerData*> peer;
-	std::unique_ptr<Api::SponsoredSearchResult> sponsored;
+	std::unique_ptr<SponsoredSearchResult> sponsored;
 	mutable Ui::Text::String name;
 	mutable Ui::PeerBadge badge;
 	BasicRow row;
@@ -287,6 +293,12 @@ InnerWidget::InnerWidget(
 		_topicJumpCache = nullptr;
 		_chatsFilterTags.clear();
 		_rightButtons.clear();
+		_pressedRightButtonData = nullptr;
+		for (const auto &result : _peerSearchResults) {
+			if (const auto sponsored = result->sponsored.get()) {
+				sponsored->button = {};
+			}
+		}
 	}, lifetime());
 
 	session().downloaderTaskFinished(
@@ -1139,17 +1151,32 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						&& r.y() <= (skip + from * st::dialogsRowHeight)
 						&& r.y() + r.height() >= (skip + (from + 1) * st::dialogsRowHeight)) {
 						session().sponsoredMessages().view(
-							result->sponsored->randomId);
+							result->sponsored->data.randomId);
 					}
 					const auto peer = result->peer;
 					const auto active = !activeEntry.fullId
 						&& activePeer
 						&& ((peer == activePeer)
 							|| (peer->migrateTo() == activePeer));
-					const auto selected = (from == (isPressed()
+					const auto selected = (from == ((_peerSearchMenu >= 0)
+						? _peerSearchMenu
+						: isPressed()
 						? _peerSearchPressed
 						: _peerSearchSelected));
+					if (result->sponsored
+						&& result->sponsored->button.text.isEmpty()) {
+						fillRightButton(
+							result->sponsored->button,
+							tr::lng_search_sponsored_button(
+								tr::now,
+								Ui::Text::WithEntities),
+							st::dialogsSponsoredButton);
+					}
+
 					paintPeerSearchResult(p, result.get(), {
+						.rightButton = (result->sponsored
+							? &result->sponsored->button
+							: nullptr),
 						.st = &st::defaultDialogRow,
 						.currentBg = currentBg(),
 						.now = ms,
@@ -1307,36 +1334,47 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void InnerWidget::fillRightButton(
+		RightButton &button,
+		const TextWithEntities &text,
+		const style::DialogRightButton &st) {
+	button.st = &st;
+	button.text.setMarkedText(st.button.style, text);
+	const auto size = QSize(
+		button.text.maxWidth() + button.text.minHeight(),
+		st.button.height);
+	const auto generateBg = [&](const style::color &c) {
+		auto bg = QImage(
+			style::DevicePixelRatio() * size,
+			QImage::Format_ARGB32_Premultiplied);
+		bg.setDevicePixelRatio(style::DevicePixelRatio());
+		bg.fill(Qt::transparent);
+		{
+			auto p = QPainter(&bg);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(c);
+			const auto r = size.height() / 2;
+			p.drawRoundedRect(Rect(size), r, r);
+		}
+		return bg;
+	};
+	button.bg = generateBg(st.button.textBg);
+	button.selectedBg = generateBg(st.button.textBgOver);
+	button.activeBg = generateBg(st.button.textFg);
+}
+
 [[nodiscard]] RightButton *InnerWidget::maybeCacheRightButton(Row *row) {
 	if (const auto user = MaybeBotWithApp(row)) {
 		const auto it = _rightButtons.find(user->id);
 		if (it == _rightButtons.end()) {
 			auto rightButton = RightButton();
-			const auto text = tr::lng_profile_open_app_short(tr::now);
-			rightButton.text.setText(st::dialogRowOpenBotTextStyle, text);
-			const auto size = QSize(
-				rightButton.text.maxWidth()
-					+ rightButton.text.minHeight(),
-				st::dialogRowOpenBotHeight);
-			const auto generateBg = [&](const style::color &c) {
-				auto bg = QImage(
-					style::DevicePixelRatio() * size,
-					QImage::Format_ARGB32_Premultiplied);
-				bg.setDevicePixelRatio(style::DevicePixelRatio());
-				bg.fill(Qt::transparent);
-				{
-					auto p = QPainter(&bg);
-					auto hq = PainterHighQualityEnabler(p);
-					p.setPen(Qt::NoPen);
-					p.setBrush(c);
-					const auto r = size.height() / 2;
-					p.drawRoundedRect(Rect(size), r, r);
-				}
-				return bg;
-			};
-			rightButton.bg = generateBg(st::activeButtonBg);
-			rightButton.selectedBg = generateBg(st::activeButtonBgOver);
-			rightButton.activeBg = generateBg(st::activeButtonFg);
+			fillRightButton(
+				rightButton,
+				tr::lng_profile_open_app_short(
+					tr::now,
+					Ui::Text::WithEntities),
+				st::dialogRowOpenBot);
 			return &(_rightButtons.emplace(
 				user->id,
 				std::move(rightButton)).first->second);
@@ -1459,7 +1497,11 @@ void InnerWidget::paintPeerSearchResult(
 		context.st->photoSize);
 
 	auto nameleft = context.st->nameLeft;
-	auto namewidth = context.width - nameleft - context.st->padding.right();
+	auto available = context.width - nameleft - context.st->padding.right();
+	auto namewidth = available;
+	if (const auto used = Ui::PaintRightButton(p, context)) {
+		namewidth -= used - st::dialogsUnreadPadding;
+	}
 	QRect rectForName(nameleft, context.st->nameTop, namewidth, st::semiboldFont->height);
 
 	if (result->name.isEmpty()) {
@@ -1611,7 +1653,7 @@ void InnerWidget::clearIrrelevantState() {
 		_filteredSelected = -1;
 		setFilteredPressed(-1, false, false);
 		_peerSearchSelected = -1;
-		setPeerSearchPressed(-1);
+		setPeerSearchPressed(-1, false);
 		_previewSelected = -1;
 		setPreviewPressed(-1);
 		_searchedSelected = -1;
@@ -1630,18 +1672,26 @@ bool InnerWidget::lookupIsInBotAppButton(
 	if (const auto user = MaybeBotWithApp(row)) {
 		const auto it = _rightButtons.find(user->id);
 		if (it != _rightButtons.end()) {
-			const auto s = it->second.bg.size() / style::DevicePixelRatio();
-			const auto r = QRect(
-				width() - s.width() - st::dialogRowOpenBotRight,
-				st::dialogRowOpenBotTop,
-				s.width(),
-				s.height());
-			if (r.contains(localPosition)) {
-				return true;
-			}
+			return lookupIsInRightButton(it->second, localPosition);
 		}
 	}
 	return false;
+}
+
+bool InnerWidget::lookupIsInRightButton(
+		const RightButton &button,
+		QPoint localPosition) {
+	if (!button.st) {
+		return false;
+	}
+
+	const auto s = button.bg.size() / style::DevicePixelRatio();
+	const auto r = QRect(
+		width() - s.width() - button.st->margin.right(),
+		button.st->margin.top(),
+		s.width(),
+		s.height());
+	return r.contains(localPosition);
 }
 
 void InnerWidget::selectByMouse(QPoint globalPosition) {
@@ -1687,16 +1737,16 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 		const auto mappedY = selected ? mouseY - offset - selected->top() : 0;
 		const auto selectedTopicJump = selected
 			&& selected->lookupIsInTopicJump(local.x(), mappedY);
-		const auto selectedBotApp = selected
+		const auto selectedRightButton = selected
 			&& lookupIsInBotAppButton(selected, QPoint(local.x(), mappedY));
 		if (_collapsedSelected != collapsedSelected
 			|| _selected != selected
 			|| _selectedTopicJump != selectedTopicJump
-			|| _selectedBotApp != selectedBotApp) {
+			|| _selectedRightButton != selectedRightButton) {
 			updateSelectedRow();
 			_selected = selected;
 			_selectedTopicJump = selectedTopicJump;
-			_selectedBotApp = selectedBotApp;
+			_selectedRightButton = selectedRightButton;
 			_collapsedSelected = collapsedSelected;
 			updateSelectedRow();
 			setCursor((_selected || _collapsedSelected >= 0)
@@ -1736,29 +1786,39 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 				&& _filterResults[filteredSelected].row->lookupIsInTopicJump(
 					local.x(),
 					mappedY);
-			const auto selectedBotApp = (filteredSelected >= 0)
+			const auto selectedRightButton = (filteredSelected >= 0)
 				&& lookupIsInBotAppButton(
 					_filterResults[filteredSelected].row,
 					QPoint(local.x(), mappedY));
 			if (_filteredSelected != filteredSelected
 				|| _selectedTopicJump != selectedTopicJump
-				|| _selectedBotApp != selectedBotApp) {
+				|| _selectedRightButton != selectedRightButton) {
 				updateSelectedRow();
 				_filteredSelected = filteredSelected;
 				_selectedTopicJump = selectedTopicJump;
-				_selectedBotApp = selectedBotApp;
+				_selectedRightButton = selectedRightButton;
 				updateSelectedRow();
 			}
 		}
 		if (!_peerSearchResults.empty()) {
-			auto skip = peerSearchOffset();
+			const auto skip = peerSearchOffset();
 			auto peerSearchSelected = (mouseY >= skip) ? ((mouseY - skip) / st::dialogsRowHeight) : -1;
 			if (peerSearchSelected < 0 || peerSearchSelected >= _peerSearchResults.size()) {
 				peerSearchSelected = -1;
 			}
-			if (_peerSearchSelected != peerSearchSelected) {
+			const auto mappedY = (peerSearchSelected >= 0)
+				? mouseY - skip - (peerSearchSelected * st::dialogsRowHeight)
+				: 0;
+			const auto selectedRightButton = (peerSearchSelected >= 0)
+				&& _peerSearchResults[peerSearchSelected]->sponsored
+				&& lookupIsInRightButton(
+					_peerSearchResults[peerSearchSelected]->sponsored->button,
+					QPoint(local.x(), mappedY));
+			if (_peerSearchSelected != peerSearchSelected
+				|| _selectedRightButton != selectedRightButton) {
 				updateSelectedRow();
 				_peerSearchSelected = peerSearchSelected;
+				_selectedRightButton = selectedRightButton;
 				updateSelectedRow();
 			}
 		}
@@ -1845,12 +1905,15 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	selectByMouse(e->globalPos());
 
 	_pressButton = e->button();
-	setPressed(_selected, _selectedTopicJump, _selectedBotApp);
+	setPressed(_selected, _selectedTopicJump, _selectedRightButton);
 	setCollapsedPressed(_collapsedSelected);
 	setHashtagPressed(_hashtagSelected);
 	_hashtagDeletePressed = _hashtagDeleteSelected;
-	setFilteredPressed(_filteredSelected, _selectedTopicJump, _selectedBotApp);
-	setPeerSearchPressed(_peerSearchSelected);
+	setFilteredPressed(
+		_filteredSelected,
+		_selectedTopicJump,
+		_selectedRightButton);
+	setPeerSearchPressed(_peerSearchSelected, _selectedRightButton);
 	setPreviewPressed(_previewSelected);
 	setSearchedPressed(_searchedSelected);
 	_pressedMorePosts = _selectedMorePosts;
@@ -1881,7 +1944,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 			- QPoint(0, dialogsOffset() + _pressed->top());
 		if ((_pressButton == Qt::MiddleButton)
 			&& addQuickActionRipple(row, updateCallback)) {
-		} else if (addBotAppRipple(origin, updateCallback)) {
+		} else if (addRightButtonRipple(origin, updateCallback)) {
 		} else if (_pressedTopicJump) {
 			row->addTopicJumpRipple(
 				origin,
@@ -1908,7 +1971,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		const auto origin = e->pos()
 			- QPoint(0, filteredOffset() + result.top);
 		const auto updateCallback = [=] { repaintDialogRow(filterId, row); };
-		if (addBotAppRipple(origin, updateCallback)) {
+		if (addRightButtonRipple(origin, updateCallback)) {
 		} else if (_pressedTopicJump) {
 			row->addTopicJumpRipple(
 				origin,
@@ -1923,11 +1986,19 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		}
 	} else if (base::in_range(_peerSearchPressed, 0, _peerSearchResults.size())) {
 		auto &result = _peerSearchResults[_peerSearchPressed];
-		auto row = &result->row;
-		row->addRipple(
-			e->pos() - QPoint(0, peerSearchOffset() + _peerSearchPressed * st::dialogsRowHeight),
-			QSize(width(), st::dialogsRowHeight),
-			[this, peer = result->peer] { updateSearchResult(peer); });
+		const auto row = &result->row;
+		const auto origin = e->pos()
+			- QPoint(0, peerSearchOffset() + _peerSearchPressed * st::dialogsRowHeight);
+		const auto updateCallback = [this, peer = result->peer] {
+			updateSearchResult(peer);
+		};
+		if (addRightButtonRipple(origin, updateCallback)) {
+		} else {
+			row->addRipple(
+				origin,
+				QSize(width(), st::dialogsRowHeight),
+				updateCallback);
+		}
 	} else if (base::in_range(_searchedPressed, 0, _searchResults.size())) {
 		auto &row = _searchResults[_searchedPressed];
 		row->addRipple(
@@ -1943,22 +2014,22 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-bool InnerWidget::addBotAppRipple(QPoint origin, Fn<void()> updateCallback) {
-	if (!(_pressedBotApp && _pressedBotAppData)) {
+bool InnerWidget::addRightButtonRipple(QPoint origin, Fn<void()> updateCallback) {
+	if (!(_pressedRightButton && _pressedRightButtonData)) {
 		return false;
 	}
-	const auto size = _pressedBotAppData->bg.size()
+	const auto size = _pressedRightButtonData->bg.size()
 		/ style::DevicePixelRatio();
-	if (!_pressedBotAppData->ripple) {
-		_pressedBotAppData->ripple = std::make_unique<Ui::RippleAnimation>(
-			st::defaultRippleAnimation,
+	if (!_pressedRightButtonData->ripple) {
+		_pressedRightButtonData->ripple = std::make_unique<Ui::RippleAnimation>(
+			_pressedRightButtonData->st->button.ripple,
 			Ui::RippleAnimation::RoundRectMask(size, size.height() / 2),
 			std::move(updateCallback));
 	}
 	const auto shift = QPoint(
-		width() - size.width() - st::dialogRowOpenBotRight,
-		st::dialogRowOpenBotTop);
-	_pressedBotAppData->ripple->add(origin - shift);
+		width() - size.width() - _pressedRightButtonData->st->margin.right(),
+		_pressedRightButtonData->st->margin.top());
+	_pressedRightButtonData->ripple->add(origin - shift);
 	return true;
 }
 
@@ -2051,7 +2122,7 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	if (!_pressed
 		|| _dragging
 		|| (_state != WidgetState::Default)
-		|| _pressedBotApp) {
+		|| _pressedRightButtonData) {
 		return;
 	} else if (qAbs(localPosition.y() - _dragStart.y())
 		< style::ConvertScale(kStartReorderThreshold)) {
@@ -2321,7 +2392,7 @@ void InnerWidget::mousePressReleased(
 	setCollapsedPressed(-1);
 	const auto pressedTopicRootId = _pressedTopicJumpRootId;
 	const auto pressedTopicJump = _pressedTopicJump;
-	const auto pressedBotApp = _pressedBotApp;
+	const auto pressedRightButton = _pressedRightButton;
 	auto pressed = _pressed;
 	clearPressed();
 	auto hashtagPressed = _hashtagPressed;
@@ -2331,7 +2402,7 @@ void InnerWidget::mousePressReleased(
 	auto filteredPressed = _filteredPressed;
 	setFilteredPressed(-1, false, false);
 	auto peerSearchPressed = _peerSearchPressed;
-	setPeerSearchPressed(-1);
+	setPeerSearchPressed(-1, false);
 	auto previewPressed = _previewPressed;
 	setPreviewPressed(-1);
 	auto searchedPressed = _searchedPressed;
@@ -2343,8 +2414,8 @@ void InnerWidget::mousePressReleased(
 	if (wasDragging) {
 		selectByMouse(globalPosition);
 	}
-	if (_pressedBotAppData && _pressedBotAppData->ripple) {
-		_pressedBotAppData->ripple->lastStop();
+	if (_pressedRightButtonData && _pressedRightButtonData->ripple) {
+		_pressedRightButtonData->ripple->lastStop();
 	}
 	if (_activeQuickAction && pressed && !_activeQuickAction->data) {
 		if (const auto history = pressed->history()) {
@@ -2372,13 +2443,14 @@ void InnerWidget::mousePressReleased(
 			|| (pressed
 				&& pressed == _selected
 				&& pressedTopicJump == _selectedTopicJump
-				&& pressedBotApp == _selectedBotApp)
+				&& pressedRightButton == _selectedRightButton)
 			|| (hashtagPressed >= 0
 				&& hashtagPressed == _hashtagSelected
 				&& hashtagDeletePressed == _hashtagDeleteSelected)
 			|| (filteredPressed >= 0 && filteredPressed == _filteredSelected)
 			|| (peerSearchPressed >= 0
-				&& peerSearchPressed == _peerSearchSelected)
+				&& peerSearchPressed == _peerSearchSelected
+				&& pressedRightButton == _selectedRightButton)
 			|| (previewPressed >= 0
 				&& previewPressed == _previewSelected)
 			|| (searchedPressed >= 0
@@ -2387,13 +2459,15 @@ void InnerWidget::mousePressReleased(
 				&& pressedMorePosts == _selectedMorePosts)
 			|| (pressedChatTypeFilter
 				&& pressedChatTypeFilter == _selectedChatTypeFilter)) {
-			if (pressedBotApp && (pressed || filteredPressed >= 0)) {
+			if (pressedRightButton && (pressed || filteredPressed >= 0)) {
 				const auto &row = pressed
 					? pressed
 					: _filterResults[filteredPressed].row.get();
 				if (const auto user = MaybeBotWithApp(row)) {
 					_openBotMainAppRequests.fire(peerToUser(user->id));
 				}
+			} else if (pressedRightButton && peerSearchPressed >= 0) {
+				showSponsoredMenu(peerSearchPressed, globalPosition);
 			} else {
 				chooseRow(modifiers, pressedTopicRootId);
 			}
@@ -2420,25 +2494,25 @@ void InnerWidget::setCollapsedPressed(int pressed) {
 void InnerWidget::setPressed(
 		Row *pressed,
 		bool pressedTopicJump,
-		bool pressedBotApp) {
+		bool pressedRightButton) {
 	if ((_pressed != pressed)
 		|| (pressed && _pressedTopicJump != pressedTopicJump)
-		|| (pressed && _pressedBotApp != pressedBotApp)) {
+		|| (pressed && _pressedRightButton != pressedRightButton)) {
 		if (_pressed) {
 			_pressed->stopLastRipple();
 		}
-		if (_pressedBotAppData && _pressedBotAppData->ripple) {
-			_pressedBotAppData->ripple->lastStop();
+		if (_pressedRightButtonData && _pressedRightButtonData->ripple) {
+			_pressedRightButtonData->ripple->lastStop();
 		}
 		_pressed = pressed;
-		if (pressed || !pressedTopicJump || !pressedBotApp) {
+		if (pressed || !pressedTopicJump || !pressedRightButton) {
 			_pressedTopicJump = pressedTopicJump;
-			_pressedBotApp = pressedBotApp;
-			if (pressedBotApp) {
+			_pressedRightButton = pressedRightButton;
+			if (pressedRightButton) {
 				if (const auto user = MaybeBotWithApp(pressed)) {
 					const auto it = _rightButtons.find(user->id);
 					if (it != _rightButtons.end()) {
-						_pressedBotAppData = &(it->second);
+						_pressedRightButtonData = &(it->second);
 					}
 				}
 			}
@@ -2465,26 +2539,26 @@ void InnerWidget::setHashtagPressed(int pressed) {
 void InnerWidget::setFilteredPressed(
 		int pressed,
 		bool pressedTopicJump,
-		bool pressedBotApp) {
+		bool pressedRightButton) {
 	if (_filteredPressed != pressed
 		|| (pressed >= 0 && _pressedTopicJump != pressedTopicJump)
-		|| (pressed >= 0 && _pressedBotApp != pressedBotApp)) {
+		|| (pressed >= 0 && _pressedRightButton != pressedRightButton)) {
 		if (base::in_range(_filteredPressed, 0, _filterResults.size())) {
 			_filterResults[_filteredPressed].row->stopLastRipple();
 		}
-		if (_pressedBotAppData && _pressedBotAppData->ripple) {
-			_pressedBotAppData->ripple->lastStop();
+		if (_pressedRightButtonData && _pressedRightButtonData->ripple) {
+			_pressedRightButtonData->ripple->lastStop();
 		}
 		_filteredPressed = pressed;
-		if (pressed >= 0 || !pressedTopicJump || !pressedBotApp) {
+		if (pressed >= 0 || !pressedTopicJump || !pressedRightButton) {
 			_pressedTopicJump = pressedTopicJump;
-			_pressedBotApp = pressedBotApp;
-			if (pressed >= 0 && pressedBotApp) {
+			_pressedRightButton = pressedRightButton;
+			if (pressed >= 0 && pressedRightButton) {
 				const auto &row = _filterResults[pressed].row;
 				if (const auto history = row->history()) {
 					const auto it = _rightButtons.find(history->peer->id);
 					if (it != _rightButtons.end()) {
-						_pressedBotAppData = &(it->second);
+						_pressedRightButtonData = &(it->second);
 					}
 				}
 			}
@@ -2497,11 +2571,26 @@ void InnerWidget::setFilteredPressed(
 	}
 }
 
-void InnerWidget::setPeerSearchPressed(int pressed) {
-	if (base::in_range(_peerSearchPressed, 0, _peerSearchResults.size())) {
-		_peerSearchResults[_peerSearchPressed]->row.stopLastRipple();
+void InnerWidget::setPeerSearchPressed(int pressed, bool pressedRightButton) {
+	if (_peerSearchPressed != pressed
+		|| (pressed >= 0 && _pressedRightButton != pressedRightButton)) {
+		if (base::in_range(_peerSearchPressed, 0, _peerSearchResults.size())) {
+			_peerSearchResults[_peerSearchPressed]->row.stopLastRipple();
+		}
+		if (_pressedRightButtonData && _pressedRightButtonData->ripple) {
+			_pressedRightButtonData->ripple->lastStop();
+		}
+		_peerSearchPressed = pressed;
+		if (pressed >= 0 || !pressedRightButton) {
+			_pressedRightButton = pressedRightButton;
+			if (pressed >= 0 && pressedRightButton) {
+				const auto &entry = _peerSearchResults[pressed];
+				if (entry->sponsored) {
+					_pressedRightButtonData = &entry->sponsored->button;
+				}
+			}
+		}
 	}
-	_peerSearchPressed = pressed;
 }
 
 void InnerWidget::setPreviewPressed(int pressed) {
@@ -2564,7 +2653,7 @@ void InnerWidget::dialogRowReplaced(
 		_selected = newRow;
 	}
 	if (_pressed == oldRow) {
-		setPressed(newRow, _pressedTopicJump, _pressedBotApp);
+		setPressed(newRow, _pressedTopicJump, _pressedRightButton);
 	}
 	if (_dragging == oldRow) {
 		if (newRow) {
@@ -3081,6 +3170,62 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
+void InnerWidget::showSponsoredMenu(int peerSearchIndex, QPoint globalPos) {
+	_menu = nullptr;
+
+	const auto count = int(_peerSearchResults.size());
+	const auto entry = (peerSearchIndex >= 0 && peerSearchIndex < count)
+		? _peerSearchResults[peerSearchIndex].get()
+		: nullptr;
+	if (!entry || !entry->sponsored) {
+		return;
+	}
+
+	_peerSearchMenu = peerSearchIndex;
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuExpandedSeparator);
+	const auto peer = entry->peer;
+	const auto remove = crl::guard(this, [=] {
+		_sponsoredRemoved.emplace(peer);
+		_peerSearchResults.erase(
+			ranges::remove(
+				_peerSearchResults,
+				peer,
+				&PeerSearchResult::peer),
+			end(_peerSearchResults));
+		refresh();
+	});
+	Menu::FillSponsored(
+		this,
+		Ui::Menu::CreateAddActionCallback(_menu),
+		_controller->uiShow(),
+		Menu::SponsoredPhrases::Search,
+		session().sponsoredMessages().lookupDetails(entry->sponsored->data),
+		session().sponsoredMessages().createReportCallback(
+			entry->sponsored->data.randomId,
+			remove),
+		false,
+		false);
+	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
+		if (_peerSearchMenu >= 0
+			&& _peerSearchMenu < _peerSearchResults.size()) {
+			const auto index = std::exchange(_peerSearchMenu, -1);
+			updateSearchResult(_peerSearchResults[index]->peer);
+		}
+		const auto globalPosition = QCursor::pos();
+		if (rect().contains(mapFromGlobal(globalPosition))) {
+			setMouseTracking(true);
+			selectByMouse(globalPosition);
+		}
+	});
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(globalPos);
+	}
+}
+
 void InnerWidget::parentGeometryChanged() {
 	const auto globalPosition = QCursor::pos();
 	if (rect().contains(mapFromGlobal(globalPosition))) {
@@ -3362,12 +3507,21 @@ InnerWidget::~InnerWidget() {
 	clearSearchResults();
 }
 
-void InnerWidget::clearSearchResults(bool clearPeerSearchResults) {
-	if (clearPeerSearchResults) {
-		_peerSearchResults.clear();
+void InnerWidget::clearSearchResults(bool alsoPeerSearchResults) {
+	if (alsoPeerSearchResults) {
+		clearPeerSearchResults();
 	}
 	_searchResults.clear();
 	_searchedCount = _searchedMigratedCount = 0;
+}
+
+void InnerWidget::clearPeerSearchResults() {
+	_peerSearchResults.clear();
+	if (_pressedRightButtonSponsored) {
+		_pressedRightButtonData = nullptr;
+		_pressedRightButtonSponsored = false;
+		_pressedRightButton = false;
+	}
 }
 
 void InnerWidget::clearPreviewResults() {
@@ -3691,7 +3845,7 @@ void InnerWidget::peerSearchReceived(Api::PeerSearchResult result) {
 	}
 
 	_peerSearchQuery = result.query.toLower().trimmed();
-	_peerSearchResults.clear();
+	clearPeerSearchResults();
 	_peerSearchResults.reserve(result.peers.size()
 		+ result.sponsored.size());
 	for	(const auto &peer : result.my) {
@@ -3706,14 +3860,17 @@ void InnerWidget::peerSearchReceived(Api::PeerSearchResult result) {
 	};
 	auto added = base::flat_set<not_null<PeerData*>>();
 	for (const auto &sponsored : result.sponsored) {
-		if (inlist(sponsored.peer)) {
+		const auto peer = sponsored.peer;
+		if (inlist(peer) || _sponsoredRemoved.contains(peer)) {
 			continue;
 		}
 		_peerSearchResults.push_back(
-			std::make_unique<PeerSearchResult>(sponsored.peer));
+			std::make_unique<PeerSearchResult>(peer));
 		_peerSearchResults.back()->sponsored
-			= std::make_unique<Api::SponsoredSearchResult>(sponsored);
-		added.emplace(sponsored.peer);
+			= std::make_unique<SponsoredSearchResult>(SponsoredSearchResult{
+				.data = sponsored,
+			});
+		added.emplace(peer);
 	}
 	for (const auto &peer : result.peers) {
 		if (added.contains(peer) || inlist(peer)) {
@@ -4054,7 +4211,7 @@ void InnerWidget::clearFilter() {
 		_hashtagResults.clear();
 		_filterResults.clear();
 		_filterResultsGlobal.clear();
-		_peerSearchResults.clear();
+		clearPeerSearchResults();
 		_searchResults.clear();
 		_previewResults.clear();
 		_trackedHistories.clear();
@@ -4515,7 +4672,7 @@ ChosenRow InnerWidget::computeChosenRow() const {
 				.key = session().data().history(row->peer),
 				.message = Data::UnreadMessagePosition,
 				.sponsoredRandomId = (row->sponsored
-					? row->sponsored->randomId
+					? row->sponsored->data.randomId
 					: QByteArray()),
 			};
 		} else if (base::in_range(_previewSelected, 0, _previewResults.size())) {
