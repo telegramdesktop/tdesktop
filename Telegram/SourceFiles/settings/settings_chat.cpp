@@ -706,7 +706,6 @@ void ChooseFromFile(
 void SetupStickersEmoji(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 
 	Ui::AddSubsectionTitle(container, tr::lng_settings_stickers_emoji());
@@ -1285,6 +1284,10 @@ void SetupChatListSwipe(
 	using Type = Dialogs::Ui::QuickDialogAction;
 	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(
 		Core::App().settings().quickDialogAction());
+	group->setChangedCallback([=](Type value) {
+		Core::App().settings().setQuickDialogAction(value);
+		Core::App().saveSettings();
+	});
 	container->add(
 		object_ptr<Ui::SettingsButton>(
 			container,
@@ -1325,13 +1328,7 @@ void SetupChatListSwipe(
 			addRadio(
 				Type::Disabled,
 				tr::lng_settings_quick_dialog_action_disabled);
-			box->addButton(tr::lng_settings_save(), [=] {
-				Core::App().settings().setQuickDialogAction(
-					group->current());
-				Core::App().saveSettingsDelayed();
-				box->closeBox();
-			});
-			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+			box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 		}));
 	});
 	Ui::AddSkip(container);
