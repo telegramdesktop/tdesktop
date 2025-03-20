@@ -567,7 +567,13 @@ void SponsoredMessages::clicked(
 	if (!entryPtr) {
 		return;
 	}
-	const auto randomId = entryPtr->sponsored.randomId;
+	clicked(entryPtr->sponsored.randomId, isMedia, isFullscreen);
+}
+
+void SponsoredMessages::clicked(
+		const QByteArray &randomId,
+		bool isMedia,
+		bool isFullscreen) {
 	using Flag = MTPmessages_ClickSponsoredMessage::Flag;
 	_session->api().request(MTPmessages_ClickSponsoredMessage(
 		MTP_flags(Flag(0)

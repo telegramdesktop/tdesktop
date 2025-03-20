@@ -104,6 +104,10 @@ public:
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
 	void clicked(const FullMsgId &fullId, bool isMedia, bool isFullscreen);
+	void clicked(
+		const QByteArray &randomId,
+		bool isMedia,
+		bool isFullscreen);
 	[[nodiscard]] FullMsgId fillTopBar(
 		not_null<History*> history,
 		not_null<Ui::RpWidget*> widget);

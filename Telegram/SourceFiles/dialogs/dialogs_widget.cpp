@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "data/components/recent_peers.h"
+#include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -844,6 +845,12 @@ void Widget::chosenRow(const ChosenRow &row) {
 	const auto topicJump = history
 		? history->peer->forumTopicFor(row.message.fullId.msg)
 		: nullptr;
+
+	if (!row.sponsoredRandomId.isEmpty()) {
+		auto &messages = session().sponsoredMessages();
+		messages.clicked(row.sponsoredRandomId, false, false);
+	}
+
 	if (topicJump) {
 		if (controller()->shownForum().current() == topicJump->forum()) {
 			controller()->closeForum();

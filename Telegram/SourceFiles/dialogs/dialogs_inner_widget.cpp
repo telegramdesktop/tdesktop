@@ -2962,6 +2962,11 @@ bool InnerWidget::showChatPreview() {
 void InnerWidget::chatPreviewShown(bool shown, RowDescriptor row) {
 	_chatPreviewScheduled = false;
 	if (shown) {
+		const auto chosen = computeChosenRow();
+		if (!chosen.sponsoredRandomId.isEmpty() && row.key == chosen.key) {
+			auto &messages = session().sponsoredMessages();
+			messages.clicked(chosen.sponsoredRandomId, false, false);
+		}
 		_chatPreviewRow = row;
 		if (base::take(_chatPreviewTouchGlobal)) {
 			_touchCancelRequests.fire({});
@@ -3692,8 +3697,18 @@ void InnerWidget::peerSearchReceived(Api::PeerSearchResult result) {
 	for	(const auto &peer : result.my) {
 		appendToFiltered(peer->owner().history(peer));
 	}
+	const auto inlist = [&](not_null<PeerData*> peer) {
+		if (const auto history = peer->owner().historyLoaded(peer)) {
+			// Skip existing chats.
+			return history->inChatList();
+		}
+		return false;
+	};
 	auto added = base::flat_set<not_null<PeerData*>>();
 	for (const auto &sponsored : result.sponsored) {
+		if (inlist(sponsored.peer)) {
+			continue;
+		}
 		_peerSearchResults.push_back(
 			std::make_unique<PeerSearchResult>(sponsored.peer));
 		_peerSearchResults.back()->sponsored
@@ -3701,12 +3716,8 @@ void InnerWidget::peerSearchReceived(Api::PeerSearchResult result) {
 		added.emplace(sponsored.peer);
 	}
 	for (const auto &peer : result.peers) {
-		if (added.contains(peer)) {
+		if (added.contains(peer) || inlist(peer)) {
 			continue;
-		} else if (const auto history = peer->owner().historyLoaded(peer)) {
-			if (history->inChatList()) {
-				continue; // skip existing chats
-			}
 		}
 		_peerSearchResults.push_back(
 			std::make_unique<PeerSearchResult>(peer));
@@ -4499,10 +4510,13 @@ ChosenRow InnerWidget::computeChosenRow() const {
 				.filteredRow = true,
 			};
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
-			const auto peer = _peerSearchResults[_peerSearchSelected]->peer;
+			const auto row = _peerSearchResults[_peerSearchSelected].get();
 			return {
-				.key = session().data().history(peer),
-				.message = Data::UnreadMessagePosition
+				.key = session().data().history(row->peer),
+				.message = Data::UnreadMessagePosition,
+				.sponsoredRandomId = (row->sponsored
+					? row->sponsored->randomId
+					: QByteArray()),
 			};
 		} else if (base::in_range(_previewSelected, 0, _previewResults.size())) {
 			const auto result = _previewResults[_previewSelected].get();

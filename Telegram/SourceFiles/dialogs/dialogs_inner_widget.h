@@ -82,6 +82,7 @@ enum class ChatTypeFilter : uchar;
 struct ChosenRow {
 	Key key;
 	Data::MessagePosition message;
+	QByteArray sponsoredRandomId;
 	bool userpicClick : 1 = false;
 	bool filteredRow : 1 = false;
 	bool newWindow : 1 = false;
