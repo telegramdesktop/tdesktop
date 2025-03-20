@@ -370,7 +370,18 @@ void MessageView::paint(
 			if (image.hasSpoiler()) {
 				const auto frame = DefaultImageSpoiler().frame(
 					_spoiler->index(context.now, pausedSpoiler));
-				FillSpoilerRect(p, mini, frame);
+				if (image.isEllipse()) {
+					const auto radius = st::dialogsMiniPreview / 2;
+					static auto mask = Images::CornersMask(radius);
+					FillSpoilerRect(
+						p,
+						mini,
+						Images::CornersMaskRef(mask),
+						frame,
+						_cornersCache);
+				} else {
+					FillSpoilerRect(p, mini, frame);
+				}
 			}
 		}
 		rect.setLeft(rect.x() + w);

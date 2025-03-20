@@ -95,6 +95,7 @@ private:
 	mutable std::unique_ptr<SpoilerAnimation> _spoiler;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 	mutable const style::DialogsMiniIcon *_leftIcon = nullptr;
+	mutable QImage _cornersCache;
 	mutable bool _hasPlainLinkAtBegin = false;
 
 };
