@@ -1697,17 +1697,28 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 			const auto preview = Ui::CreateChild<Ui::RpWidget>(line);
 			auto &lifetime = preview->lifetime();
 			using namespace Dialogs::Ui;
-			const auto previewView = lifetime.make_state<MessageView>();
-			const auto previewUpdate = [=] { preview->update(); };
+			struct State {
+				MessageView view;
+				HistoryItem *item = nullptr;
+				rpl::lifetime lifetime;
+			};
+			const auto state = lifetime.make_state<State>();
+			state->item = item;
+			item->history()->session().changes().realtimeMessageUpdates(
+				Data::MessageUpdate::Flag::Destroyed
+			) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+				if (update.item == state->item) {
+					state->lifetime.destroy();
+					state->item = nullptr;
+					preview->update();
+				}
+			}, state->lifetime);
+
 			preview->resize(0, st::infoLabeled.style.font->height);
-			if (!previewView->dependsOn(item)) {
-				previewView->prepare(item, nullptr, previewUpdate, {});
-			}
 			preview->paintRequest(
-			) | rpl::start_with_next([=, fullId = item->fullId()](
-					const QRect &rect) {
+			) | rpl::start_with_next([=] {
 				auto p = Painter(preview);
-				const auto item = user->session().data().message(fullId);
+				const auto item = state->item;
 				if (!item) {
 					p.setPen(st::infoPersonalChannelDateLabel.textFg);
 					p.setBrush(Qt::NoBrush);
@@ -1718,22 +1729,14 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 						style::al_left);
 					return;
 				}
-				if (previewView->prepared(item, nullptr)) {
-					previewView->paint(p, preview->rect(), {
-						.st = &st::defaultDialogRow,
-						.currentBg = st::boxBg->b,
-					});
-				} else if (!previewView->dependsOn(item)) {
-					p.setPen(st::infoPersonalChannelDateLabel.textFg);
-					p.setBrush(Qt::NoBrush);
-					p.setFont(st::infoPersonalChannelDateLabel.style.font);
-					p.drawText(
-						preview->rect(),
-						tr::lng_contacts_loading(tr::now),
-						style::al_left);
-					previewView->prepare(item, nullptr, previewUpdate, {});
-					preview->update();
+				if (!state->view.prepared(item, nullptr)) {
+					const auto repaint = [=] { preview->update(); };
+					state->view.prepare(item, nullptr, repaint, {});
 				}
+				state->view.paint(p, preview->rect(), {
+					.st = &st::defaultDialogRow,
+					.currentBg = st::boxBg->b,
+				});
 			}, preview->lifetime());
 
 			line->sizeValue() | rpl::filter_size(
