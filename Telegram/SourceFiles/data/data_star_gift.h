@@ -69,6 +69,7 @@ struct StarGift {
 	TimeId lastSaleDate = 0;
 	bool upgradable = false;
 	bool birthday = false;
+	bool soldOut = false;
 
 	friend inline bool operator==(
 		const StarGift &,

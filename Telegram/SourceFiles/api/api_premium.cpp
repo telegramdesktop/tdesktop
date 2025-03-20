@@ -816,6 +816,7 @@ std::optional<Data::StarGift> FromTL(
 			.lastSaleDate = data.vlast_sale_date().value_or_empty(),
 			.upgradable = data.vupgrade_stars().has_value(),
 			.birthday = data.is_birthday(),
+			.soldOut = data.is_sold_out(),
 		});
 	}, [&](const MTPDstarGiftUnique &data) {
 		const auto total = data.vavailability_total().v;
