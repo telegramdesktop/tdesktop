@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/polls/info_polls_results_widget.h"
 #include "lang/lang_keys.h"
+#include "core/ui_integration.h"
 #include "data/data_peer.h"
 #include "data/data_poll.h"
 #include "data/data_session.h"
@@ -461,7 +462,9 @@ ListController *CreateAnswerRows(
 					.append(QString::fromUtf8(" \xe2\x80\x94 "))
 					.append(QString::number(percent))
 					.append('%')),
-			st::boxDividerLabel),
+			st::boxDividerLabel,
+			st::defaultPopupMenu,
+			Core::TextContext({ .session = session })),
 		style::margins(
 			st::pollResultsHeaderPadding.left(),
 			st::pollResultsHeaderPadding.top(),
@@ -610,7 +613,9 @@ void InnerWidget::setupContent() {
 		object_ptr<Ui::FlatLabel>(
 			_content,
 			rpl::single(_poll->question),
-			st::pollResultsQuestion),
+			st::pollResultsQuestion,
+			st::defaultPopupMenu,
+			Core::TextContext({ .session = &_controller->session() })),
 		st::boxRowPadding);
 	Ui::AddSkip(_content, st::boxLittleSkip / 2);
 	_content->add(
