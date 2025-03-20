@@ -117,6 +117,7 @@ public:
 		int fallbackWidth);
 
 	void view(const FullMsgId &fullId);
+	void view(const QByteArray &randomId);
 
 	[[nodiscard]] State state(not_null<History*> history) const;
 

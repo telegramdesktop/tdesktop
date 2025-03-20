@@ -509,7 +509,10 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	if (!entryPtr) {
 		return;
 	}
-	const auto randomId = entryPtr->sponsored.randomId;
+	view(entryPtr->sponsored.randomId);
+}
+
+void SponsoredMessages::view(const QByteArray &randomId) {
 	auto &request = _viewRequests[randomId];
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
