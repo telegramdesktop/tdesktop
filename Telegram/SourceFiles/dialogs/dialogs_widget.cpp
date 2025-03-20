@@ -794,9 +794,7 @@ void Widget::setupSwipeBack() {
 				}
 			});
 		}
-		if (_chatFilters
-			&& session().data().chatsFilters().has()
-			&& isDisabled) {
+		if (session().data().chatsFilters().has() && isDisabled) {
 			_swipeBackMirrored = !isRightToLeft;
 			using namespace Window;
 			const auto next = !isRightToLeft;
