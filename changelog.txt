@@ -1,3 +1,9 @@
+5.12.6 beta (20.03.25)
+
+- Allow customizing chats list swipe left action.
+- Fix custom emoji in poll results view.
+- Fix crash in main menu swipe closing.
+
 5.12.5 beta (14.03.25)
 
 - Support swipe navigation on touchscreens.
