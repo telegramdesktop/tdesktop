@@ -1698,18 +1698,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 			auto &lifetime = preview->lifetime();
 			using namespace Dialogs::Ui;
 			const auto previewView = lifetime.make_state<MessageView>();
+			const auto previewUpdate = [=] { preview->update(); };
 			preview->resize(0, st::infoLabeled.style.font->height);
-			const auto prepare = [previewView, preview](
-					not_null<HistoryItem*> item) {
-				previewView->prepare(
-					item,
-					nullptr,
-					[=] { preview->update(); },
-					{},
-					[]{});
-			};
 			if (!previewView->dependsOn(item)) {
-				prepare(item);
+				previewView->prepare(item, nullptr, previewUpdate, {});
 			}
 			preview->paintRequest(
 			) | rpl::start_with_next([=, fullId = item->fullId()](
@@ -1739,7 +1731,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 						preview->rect(),
 						tr::lng_contacts_loading(tr::now),
 						style::al_left);
-					prepare(item);
+					previewView->prepare(item, nullptr, previewUpdate, {});
 					preview->update();
 				}
 			}, preview->lifetime());

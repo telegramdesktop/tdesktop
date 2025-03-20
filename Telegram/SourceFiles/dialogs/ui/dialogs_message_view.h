@@ -61,8 +61,7 @@ public:
 		not_null<const HistoryItem*> item,
 		Data::Forum *forum,
 		Fn<void()> customEmojiRepaint,
-		ToPreviewOptions options,
-		Fn<void()> customLoadingFinishCallback = nullptr);
+		ToPreviewOptions options);
 
 	void paint(
 		Painter &p,
