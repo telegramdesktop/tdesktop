@@ -22,6 +22,10 @@ namespace style {
 struct DialogRow;
 } // namespace style
 
+namespace Api {
+struct PeerSearchResult;
+} // namespace Api
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -126,10 +130,7 @@ public:
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount);
-	void peerSearchReceived(
-		const QString &query,
-		const QVector<MTPPeer> &my,
-		const QVector<MTPPeer> &result);
+	void peerSearchReceived(Api::PeerSearchResult result);
 
 	[[nodiscard]] FilterId filterId() const;
 

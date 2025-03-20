@@ -365,6 +365,7 @@ Widget::Widget(
 		_storiesContents.events() | rpl::flatten_latest())
 	: nullptr)
 , _searchTimer([=] { search(); })
+, _peerSearch(&controller->session(), Api::PeerSearch::Type::WithSponsored)
 , _singleMessageSearch(&controller->session()) {
 	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
 		return InnerWidget::ChildListShown{ peerId, shown };
@@ -1730,7 +1731,7 @@ void Widget::changeOpenedSubsection(
 	change();
 	refreshTopBars();
 	updateControlsVisibility(true);
-	_peerSearchRequest = 0;
+	_peerSearch.clear();
 	_api.request(base::take(_topicSearchRequest)).cancel();
 	if (animated == anim::type::normal) {
 		if (_connecting) {
@@ -2434,10 +2435,9 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				{ .posts = true, .start = true },
 				&_postsProcess);
 		}
-		_api.request(base::take(_peerSearchRequest)).cancel();
-		_peerSearchQuery = QString();
-		peerSearchApplyEmpty(0);
+		_peerSearch.clear();
 		_api.request(base::take(_topicSearchRequest)).cancel();
+		peerSearchReceived({});
 		return true;
 	} else if (inCache) {
 		const auto success = _singleMessageSearch.lookup(query, [=] {
@@ -2542,35 +2542,18 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 	} else {
 		_inner->searchRequested(false);
 	}
-	const auto peerQuery = Api::ConvertPeerSearchQuery(query);
-	if (searchForPeersRequired(peerQuery)) {
-		if (inCache) {
-			auto i = _peerSearchCache.find(peerQuery);
-			if (i != _peerSearchCache.end()) {
-				_peerSearchQuery = peerQuery;
-				_peerSearchRequest = 0;
-				peerSearchReceived(i->second, 0);
-			}
-		} else if (_peerSearchQuery != peerQuery) {
-			_peerSearchQuery = peerQuery;
-			_peerSearchFull = false;
-			_peerSearchRequest = _api.request(MTPcontacts_Search(
-				MTP_string(_peerSearchQuery),
-				MTP_int(SearchPeopleLimit)
-			)).done([=](
-					const MTPcontacts_Found &result,
-					mtpRequestId requestId) {
-				peerSearchReceived(result, requestId);
-			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
-				peerSearchFailed(error, requestId);
-			}).send();
-			_peerSearchQueries.emplace(_peerSearchRequest, _peerSearchQuery);
-		}
+	if (peerSearchRequired()) {
+		const auto requestType = inCache
+			? Api::PeerSearch::RequestType::CacheOnly
+			: Api::PeerSearch::RequestType::CacheOrRemote;
+		_peerSearch.request(query, [=](Api::PeerSearchResult result) {
+			peerSearchReceived(result);
+		}, requestType);
 	} else {
-		_api.request(base::take(_peerSearchRequest)).cancel();
-		_peerSearchQuery = peerQuery;
-		peerSearchApplyEmpty(0);
+		_peerSearch.clear();
+		peerSearchReceived({});
 	}
+	const auto peerQuery = Api::ConvertPeerSearchQuery(query);
 	if (searchForTopicsRequired(peerQuery)) {
 		if (inCache) {
 			if (_topicSearchQuery != peerQuery) {
@@ -2589,11 +2572,8 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 	return result;
 }
 
-bool Widget::searchForPeersRequired(const QString &query) const {
-	return _searchState.filterChatsList()
-		&& !_openedForum
-		&& !query.isEmpty()
-		&& (IsHashOrCashtagSearchQuery(query) == HashOrCashtag::None);
+bool Widget::peerSearchRequired() const {
+	return _searchState.filterChatsList() && !_openedForum;
 }
 
 bool Widget::searchForTopicsRequired(const QString &query) const {
@@ -2993,31 +2973,10 @@ void Widget::searchReceived(
 	update();
 }
 
-void Widget::peerSearchReceived(
-		const MTPcontacts_Found &result,
-		mtpRequestId requestId) {
-	const auto state = _inner->state();
-	auto q = _peerSearchQuery;
-	if (state == WidgetState::Filtered) {
-		auto i = _peerSearchQueries.find(requestId);
-		if (i != _peerSearchQueries.end()) {
-			_peerSearchCache[i->second] = result;
-			_peerSearchQueries.erase(i);
-		}
-	}
-	if (_peerSearchRequest == requestId) {
-		switch (result.type()) {
-		case mtpc_contacts_found: {
-			auto &d = result.c_contacts_found();
-			session().data().processUsers(d.vusers());
-			session().data().processChats(d.vchats());
-			_inner->peerSearchReceived(q, d.vmy_results().v, d.vresults().v);
-		} break;
-		}
-
-		_peerSearchRequest = 0;
-		listScrollUpdated();
-	}
+void Widget::peerSearchReceived(Api::PeerSearchResult result) {
+	_inner->peerSearchReceived(std::move(result));
+	listScrollUpdated();
+	update();
 }
 
 void Widget::searchApplyEmpty(
@@ -3033,17 +2992,6 @@ void Widget::searchApplyEmpty(
 		process);
 }
 
-void Widget::peerSearchApplyEmpty(mtpRequestId id) {
-	_peerSearchFull = true;
-	peerSearchReceived(
-		MTP_contacts_found(
-			MTP_vector<MTPPeer>(0),
-			MTP_vector<MTPPeer>(0),
-			MTP_vector<MTPChat>(0),
-			MTP_vector<MTPUser>(0)),
-		id);
-}
-
 void Widget::searchFailed(
 		SearchRequestType type,
 		const MTP::Error &error,
@@ -3053,13 +3001,6 @@ void Widget::searchFailed(
 	} else {
 		process->requestId = 0;
 		process->full = true;
-	}
-}
-
-void Widget::peerSearchFailed(const MTP::Error &error, mtpRequestId id) {
-	if (_peerSearchRequest == id) {
-		_peerSearchRequest = 0;
-		_peerSearchFull = true;
 	}
 }
 
@@ -3487,12 +3428,7 @@ bool Widget::applySearchState(SearchState state) {
 		clearSearchCache(searchCleared);
 	}
 	if (state.query.isEmpty()) {
-		_peerSearchCache.clear();
-		const auto queries = base::take(_peerSearchQueries);
-		for (const auto &[requestId, query] : queries) {
-			_api.request(requestId).cancel();
-		}
-		_peerSearchQuery = QString();
+		_peerSearch.clear();
 	}
 
 	if (_searchState.query != currentSearchQuery()) {
@@ -3550,8 +3486,8 @@ void Widget::clearSearchCache(bool clearPosts) {
 	_topicSearchQuery = QString();
 	_topicSearchOffsetDate = 0;
 	_topicSearchOffsetId = _topicSearchOffsetTopicId = 0;
-	_api.request(base::take(_peerSearchRequest)).cancel();
 	_api.request(base::take(_topicSearchRequest)).cancel();
+	_peerSearch.clear();
 	cancelSearchRequest();
 }
 

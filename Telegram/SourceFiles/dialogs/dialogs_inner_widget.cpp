@@ -243,7 +243,9 @@ struct InnerWidget::HashtagResult {
 struct InnerWidget::PeerSearchResult {
 	explicit PeerSearchResult(not_null<PeerData*> peer) : peer(peer) {
 	}
+
 	not_null<PeerData*> peer;
+	std::unique_ptr<Api::SponsoredSearchResult> sponsored;
 	mutable Ui::Text::String name;
 	mutable Ui::PeerBadge badge;
 	BasicRow row;
@@ -3671,40 +3673,36 @@ void InnerWidget::searchReceived(
 	refresh();
 }
 
-void InnerWidget::peerSearchReceived(
-		const QString &query,
-		const QVector<MTPPeer> &my,
-		const QVector<MTPPeer> &result) {
+void InnerWidget::peerSearchReceived(Api::PeerSearchResult result) {
 	if (_state != WidgetState::Filtered) {
 		return;
 	}
 
-	_peerSearchQuery = query.toLower().trimmed();
+	_peerSearchQuery = result.query.toLower().trimmed();
 	_peerSearchResults.clear();
-	_peerSearchResults.reserve(result.size());
-	for	(const auto &mtpPeer : my) {
-		if (const auto peer = session().data().peerLoaded(peerFromMTP(mtpPeer))) {
-			appendToFiltered(peer->owner().history(peer));
-		} else {
-			LOG(("API Error: "
-				"user %1 was not loaded in InnerWidget::peopleReceived()"
-				).arg(peerFromMTP(mtpPeer).value));
-		}
+	_peerSearchResults.reserve(result.peers.size()
+		+ result.sponsored.size());
+	for	(const auto &peer : result.my) {
+		appendToFiltered(peer->owner().history(peer));
 	}
-	for (const auto &mtpPeer : result) {
-		if (const auto peer = session().data().peerLoaded(peerFromMTP(mtpPeer))) {
-			if (const auto history = peer->owner().historyLoaded(peer)) {
-				if (history->inChatList()) {
-					continue; // skip existing chats
-				}
+	auto added = base::flat_set<not_null<PeerData*>>();
+	for (const auto &sponsored : result.sponsored) {
+		_peerSearchResults.push_back(
+			std::make_unique<PeerSearchResult>(sponsored.peer));
+		_peerSearchResults.back()->sponsored
+			= std::make_unique<Api::SponsoredSearchResult>(sponsored);
+		added.emplace(sponsored.peer);
+	}
+	for (const auto &peer : result.peers) {
+		if (added.contains(peer)) {
+			continue;
+		} else if (const auto history = peer->owner().historyLoaded(peer)) {
+			if (history->inChatList()) {
+				continue; // skip existing chats
 			}
-			_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(
-				peer));
-		} else {
-			LOG(("API Error: "
-				"user %1 was not loaded in InnerWidget::peopleReceived()"
-				).arg(peerFromMTP(mtpPeer).value));
 		}
+		_peerSearchResults.push_back(
+			std::make_unique<PeerSearchResult>(peer));
 	}
 	refresh();
 }
