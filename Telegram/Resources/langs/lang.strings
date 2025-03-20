@@ -1180,17 +1180,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_restart_now" = "Restart";
 "lng_settings_restart_later" = "Later";
 
-"lng_settings_swipe_subsection" = "Chat list swipe gesture";
-"lng_settings_swipe_mute" = "Mute";
-"lng_settings_swipe_unmute" = "Unmute";
-"lng_settings_swipe_pin" = "Pin";
-"lng_settings_swipe_unpin" = "Unpin";
-"lng_settings_swipe_read" = "Read";
-"lng_settings_swipe_unread" = "Unread";
-"lng_settings_swipe_archive" = "Archive";
-"lng_settings_swipe_unarchive" = "Unarchive";
-"lng_settings_swipe_delete" = "Delete";
-"lng_settings_swipe_disabled" = "Change folder";
+"lng_settings_quick_dialog_action_title" = "Chat list quick action";
+"lng_settings_quick_dialog_action_about" = "Choose the action you want to perform when you middle-click or swipe left in the chat list.";
+"lng_settings_quick_dialog_action_mute" = "Mute";
+"lng_settings_quick_dialog_action_unmute" = "Unmute";
+"lng_settings_quick_dialog_action_pin" = "Pin";
+"lng_settings_quick_dialog_action_unpin" = "Unpin";
+"lng_settings_quick_dialog_action_read" = "Read";
+"lng_settings_quick_dialog_action_unread" = "Unread";
+"lng_settings_quick_dialog_action_archive" = "Archive";
+"lng_settings_quick_dialog_action_unarchive" = "Unarchive";
+"lng_settings_quick_dialog_action_delete" = "Delete";
+"lng_settings_quick_dialog_action_disabled" = "Change folder";
 
 "lng_sessions_header" = "This device";
 "lng_sessions_other_header" = "Active Devices";

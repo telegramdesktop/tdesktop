@@ -158,25 +158,25 @@ Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
 QString ResolveQuickDialogLabel(Ui::QuickDialogActionLabel action) {
 	switch (action) {
 	case Ui::QuickDialogActionLabel::Mute:
-		return tr::lng_settings_swipe_mute(tr::now);
+		return tr::lng_settings_quick_dialog_action_mute(tr::now);
 	case Ui::QuickDialogActionLabel::Unmute:
-		return tr::lng_settings_swipe_unmute(tr::now);
+		return tr::lng_settings_quick_dialog_action_unmute(tr::now);
 	case Ui::QuickDialogActionLabel::Pin:
-		return tr::lng_settings_swipe_pin(tr::now);
+		return tr::lng_settings_quick_dialog_action_pin(tr::now);
 	case Ui::QuickDialogActionLabel::Unpin:
-		return tr::lng_settings_swipe_unpin(tr::now);
+		return tr::lng_settings_quick_dialog_action_unpin(tr::now);
 	case Ui::QuickDialogActionLabel::Read:
-		return tr::lng_settings_swipe_read(tr::now);
+		return tr::lng_settings_quick_dialog_action_read(tr::now);
 	case Ui::QuickDialogActionLabel::Unread:
-		return tr::lng_settings_swipe_unread(tr::now);
+		return tr::lng_settings_quick_dialog_action_unread(tr::now);
 	case Ui::QuickDialogActionLabel::Archive:
-		return tr::lng_settings_swipe_archive(tr::now);
+		return tr::lng_settings_quick_dialog_action_archive(tr::now);
 	case Ui::QuickDialogActionLabel::Unarchive:
-		return tr::lng_settings_swipe_unarchive(tr::now);
+		return tr::lng_settings_quick_dialog_action_unarchive(tr::now);
 	case Ui::QuickDialogActionLabel::Delete:
-		return tr::lng_settings_swipe_delete(tr::now);
+		return tr::lng_settings_quick_dialog_action_delete(tr::now);
 	default:
-		return tr::lng_settings_swipe_disabled(tr::now);
+		return tr::lng_settings_quick_dialog_action_disabled(tr::now);
 	};
 }
 
