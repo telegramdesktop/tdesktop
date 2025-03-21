@@ -1849,7 +1849,9 @@ void SendGiftBox(
 	auto &packs = window->session().giftBoxStickersPacks();
 	packs.updated() | rpl::start_with_next([=] {
 		for (const auto &button : state->buttons) {
-			button->update();
+			if (const auto raw = button.get()) {
+				raw->update();
+			}
 		}
 	}, raw->lifetime());
 
