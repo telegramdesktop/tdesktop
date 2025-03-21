@@ -684,12 +684,8 @@ void Filler::addToggleArchive() {
 	}
 	const auto peer = _peer;
 	const auto history = _request.key.history();
-	if (history && history->useTopPromotion()) {
+	if (!CanArchive(history, peer)) {
 		return;
-	} else if (peer->isNotificationsUser() || peer->isSelf()) {
-		if (!history || !history->folder()) {
-			return;
-		}
 	}
 	const auto isArchived = [=] {
 		return IsArchived(history);
@@ -3318,6 +3314,17 @@ void TogglePinnedThread(
 
 bool IsArchived(not_null<History*> history) {
 	return (history->folder() != nullptr);
+}
+
+bool CanArchive(History *history, PeerData *peer) {
+	if (history && history->useTopPromotion()) {
+		return false;
+	} else if (peer && (peer->isNotificationsUser() || peer->isSelf())) {
+		if (!history || !history->folder()) {
+			return false;
+		}
+	}
+	return true;
 }
 
 } // namespace Window

@@ -125,6 +125,9 @@ Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
 		Ui::QuickDialogAction action,
 		FilterId filterId) {
 	if (action == Dialogs::Ui::QuickDialogAction::Mute) {
+		if (history->peer->isSelf()) {
+			return Ui::QuickDialogActionLabel::Disabled;
+		}
 		const auto isMuted = rpl::variable<bool>(
 			MuteMenu::ThreadDescriptor(history).isMutedValue()).current();
 		return isMuted
@@ -136,10 +139,17 @@ Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
 			? Ui::QuickDialogActionLabel::Unpin
 			: Ui::QuickDialogActionLabel::Pin;
 	} else if (action == Dialogs::Ui::QuickDialogAction::Read) {
-		return Window::IsUnreadThread(history)
+		const auto unread = Window::IsUnreadThread(history);
+		if (history->isForum() && !unread) {
+			return Ui::QuickDialogActionLabel::Disabled;
+		}
+		return unread
 			? Ui::QuickDialogActionLabel::Read
 			: Ui::QuickDialogActionLabel::Unread;
 	} else if (action == Dialogs::Ui::QuickDialogAction::Archive) {
+		if (!Window::CanArchive(history, history->peer)) {
+			return Ui::QuickDialogActionLabel::Disabled;
+		}
 		return Window::IsArchived(history)
 			? Ui::QuickDialogActionLabel::Unarchive
 			: Ui::QuickDialogActionLabel::Archive;
