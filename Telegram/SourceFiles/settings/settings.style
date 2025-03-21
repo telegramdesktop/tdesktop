@@ -682,3 +682,5 @@ settingsChatLinkField: InputField(defaultInputField) {
 
 	style: defaultTextStyle;
 }
+
+settingsQuickDialogActionsTriggerFont: font(11px);

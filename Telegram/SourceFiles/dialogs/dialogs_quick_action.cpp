@@ -213,8 +213,10 @@ void DrawQuickAction(
 		QPainter &p,
 		const QRect &rect,
 		not_null<Lottie::Icon*> icon,
-		Ui::QuickDialogActionLabel label) {
-	const auto iconSize = st::dialogsQuickActionSize;
+		Ui::QuickDialogActionLabel label,
+		float64 iconRatio,
+		bool twoLines) {
+	const auto iconSize = st::dialogsQuickActionSize * iconRatio;
 	const auto innerHeight = iconSize * 2;
 	const auto top = (rect.height() - innerHeight) / 2;
 	icon->paint(p, rect.x() + (rect.width() - iconSize) / 2, top);
@@ -222,10 +224,22 @@ void DrawQuickAction(
 	p.setBrush(Qt::NoBrush);
 	const auto availableWidth = rect.width();
 	p.setFont(SwipeActionFont(label, availableWidth));
-	p.drawText(
-		QRect(rect.x(), top, availableWidth, innerHeight),
-		ResolveQuickDialogLabel(label),
-		style::al_bottom);
+	if (twoLines) {
+		auto text = ResolveQuickDialogLabel(label);
+		const auto index = text.indexOf(' ');
+		if (index != -1) {
+			text = text.replace(index, 1, '\n');
+		}
+		p.drawText(
+			QRect(rect.x(), top, availableWidth, innerHeight),
+			std::move(text),
+			style::al_bottom);
+	} else {
+		p.drawText(
+			QRect(rect.x(), top, availableWidth, innerHeight),
+			ResolveQuickDialogLabel(label),
+			style::al_bottom);
+	}
 }
 
 } // namespace Dialogs

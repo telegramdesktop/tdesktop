@@ -1182,6 +1182,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_quick_dialog_action_title" = "Chat list quick action";
 "lng_settings_quick_dialog_action_about" = "Choose the action you want to perform when you middle-click or swipe left in the chat list.";
+"lng_settings_quick_dialog_action_both" = "Swipe left and Middle-click";
+"lng_settings_quick_dialog_action_swipe" = "Swipe left";
 "lng_settings_quick_dialog_action_mute" = "Mute";
 "lng_settings_quick_dialog_action_unmute" = "Unmute";
 "lng_settings_quick_dialog_action_pin" = "Pin";

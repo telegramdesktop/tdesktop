@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
+#include "dialogs/ui/dialogs_quick_action_context.h"
+#include "dialogs/dialogs_quick_action.h"
 #include "ui/boxes/choose_font_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
@@ -39,11 +41,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "export/export_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
@@ -76,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
+#include "styles/style_dialogs.h"
 
 namespace Settings {
 namespace {
@@ -1272,7 +1277,7 @@ void SetupChatBackground(
 	}, adaptive->lifetime());
 }
 
-void SetupChatListSwipe(
+void SetupChatListQuickAction(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	Ui::AddDivider(container);
@@ -1282,13 +1287,141 @@ void SetupChatListSwipe(
 		tr::lng_settings_quick_dialog_action_title());
 
 	using Type = Dialogs::Ui::QuickDialogAction;
+	using LabelType = Dialogs::Ui::QuickDialogActionLabel;
 	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(
 		Core::App().settings().quickDialogAction());
 	group->setChangedCallback([=](Type value) {
 		Core::App().settings().setQuickDialogAction(value);
 		Core::App().saveSettings();
 	});
-	container->add(
+
+	const auto actionToLabel = [](Type value) {
+		switch (value) {
+		case Type::Mute: return LabelType::Mute;
+		case Type::Pin: return LabelType::Pin;
+		case Type::Read: return LabelType::Read;
+		case Type::Archive: return LabelType::Archive;
+		case Type::Delete: return LabelType::Delete;
+		default: return LabelType::Disabled;
+		}
+	};
+	static constexpr auto kDisabledIconRatio = 1.25;
+
+	const auto addPreview = [=](not_null<Ui::VerticalLayout*> container) {
+		const auto widget = container->add(
+			object_ptr<Ui::RpWidget>(container));
+		widget->resize(0, st::dialogsRowHeight);
+		struct State {
+			std::unique_ptr<Lottie::Icon> icon;
+		};
+		const auto state = widget->lifetime().make_state<State>();
+		group->value() | rpl::start_with_next([=](Type value) {
+			const auto label = actionToLabel(value);
+			state->icon = Lottie::MakeIcon({
+				.name = Dialogs::ResolveQuickDialogLottieIconName(label),
+				.sizeOverride = Size((label == LabelType::Disabled)
+					? int(st::dialogsQuickActionSize * kDisabledIconRatio)
+					: st::dialogsQuickActionSize),
+			});
+			state->icon->animate(
+				[=] { widget->update(); },
+				0,
+				state->icon->framesCount() - 1);
+			widget->update();
+		}, widget->lifetime());
+		widget->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(widget);
+
+			const auto height = st::dialogsRowHeight;
+			const auto actionWidth = st::dialogsQuickActionRippleSize * 0.75;
+			const auto rightOffset = st::dialogsQuickActionRippleSize
+				+ st::dialogsQuickActionSize;
+			const auto rect = QRect(
+				widget->width()
+					- actionWidth
+					- st::boxRowPadding.right()
+					- rightOffset,
+				0,
+				actionWidth,
+				height);
+
+	        auto path = QPainterPath();
+	        path.addRoundedRect(
+	        	QRect(
+	        		-actionWidth,
+	        		0,
+	        		rect::right(rect) + actionWidth,
+	        		height),
+	        	st::roundRadiusLarge,
+	        	st::roundRadiusLarge);
+	        p.setClipPath(path);
+
+			const auto label = actionToLabel(group->current());
+			const auto isDisabled = (label == LabelType::Disabled);
+
+			auto hq = PainterHighQualityEnabler(p);
+			p.fillRect(
+				QRect(0, 0, rect::right(rect), st::lineWidth),
+				st::windowBgOver);
+			p.fillRect(
+				QRect(
+					0,
+					rect::bottom(rect) - st::lineWidth,
+					rect::right(rect),
+					st::lineWidth),
+				st::windowBgOver);
+			p.fillRect(rect, Dialogs::ResolveQuickActionBg(label));
+			if (state->icon) {
+				Dialogs::DrawQuickAction(
+					p,
+					rect,
+					state->icon.get(),
+					label,
+					isDisabled ? kDisabledIconRatio : 1.,
+					isDisabled);
+			}
+			p.translate(-height / 2, 0);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::windowBgOver);
+			p.drawEllipse(Rect(Size(height)) - Margins(height / 6));
+
+			const auto h = st::normalFont->ascent / 1.5;
+			p.drawRoundedRect(
+				height,
+				height / 2 - h * 1.5,
+				st::dialogsQuickActionRippleSize * 0.6,
+				h,
+				h / 2,
+				h / 2);
+			p.drawRoundedRect(
+				height,
+				height / 2 + h,
+				st::dialogsQuickActionRippleSize * 1.0,
+				h,
+				h / 2,
+				h / 2);
+
+			p.setClipping(false);
+			p.resetTransform();
+			p.setFont(st::settingsQuickDialogActionsTriggerFont);
+			p.setPen(st::windowSubTextFg);
+			p.drawText(
+				QRect(
+					widget->width()
+						- st::dialogsQuickActionRippleSize
+						- st::boxRowPadding.right(),
+					0,
+					st::dialogsQuickActionRippleSize,
+					height),
+				isDisabled
+					? tr::lng_settings_quick_dialog_action_swipe(tr::now)
+					: tr::lng_settings_quick_dialog_action_both(tr::now),
+				style::al_center);
+		}, widget->lifetime());
+	};
+
+	const auto &st = st::settingsButton;
+	const auto button = container->add(
 		object_ptr<Ui::SettingsButton>(
 			container,
 			group->value() | rpl::map([](Type value) {
@@ -1302,8 +1435,39 @@ void SetupChatListSwipe(
 					? tr::lng_settings_quick_dialog_action_archive
 					: tr::lng_settings_quick_dialog_action_disabled)();
 			}) | rpl::flatten_latest(),
-			st::settingsButtonNoIcon)
-	)->setClickedCallback([=] {
+			st));
+
+	{
+		const auto icon = button->lifetime().make_state<Ui::RpWidget>(button);
+		icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+		icon->resize(st::menuIconArchive.size());
+		icon->show();
+		button->sizeValue(
+		) | rpl::start_with_next([=, left = st.iconLeft](QSize size) {
+			icon->moveToLeft(
+				left,
+				(size.height() - icon->height()) / 2,
+				size.width());
+		}, icon->lifetime());
+		icon->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(icon);
+			const auto value = group->current();
+			((value == Dialogs::Ui::QuickDialogAction::Mute)
+				? st::menuIconMute
+				: (value == Dialogs::Ui::QuickDialogAction::Pin)
+				? st::menuIconPin
+				: (value == Dialogs::Ui::QuickDialogAction::Read)
+				? st::menuIconMarkRead
+				: (value == Dialogs::Ui::QuickDialogAction::Delete)
+				? st::menuIconDelete
+				: (value == Dialogs::Ui::QuickDialogAction::Archive)
+				? st::menuIconArchive
+				: st::menuIconShowInFolder).paintInCenter(p, icon->rect());
+		}, icon->lifetime());
+	}
+
+	button->setClickedCallback([=] {
 		controller->uiShow()->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 			box->setTitle(tr::lng_settings_quick_dialog_action_title());
 			const auto addRadio = [&](Type value, tr::phrase<> phrase) {
@@ -1316,6 +1480,9 @@ void SetupChatListSwipe(
 						st::settingsSendType),
 					st::settingsSendTypePadding);
 			};
+			addPreview(box->verticalLayout());
+			Ui::AddSkip(box->verticalLayout());
+			Ui::AddSkip(box->verticalLayout());
 			addRadio(Type::Mute, tr::lng_settings_quick_dialog_action_mute);
 			addRadio(Type::Pin, tr::lng_settings_quick_dialog_action_pin);
 			addRadio(Type::Read, tr::lng_settings_quick_dialog_action_read);
@@ -1868,7 +2035,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	SetupThemeSettings(controller, content);
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
-	SetupChatListSwipe(controller, content);
+	SetupChatListQuickAction(controller, content);
 	SetupStickersEmoji(controller, content);
 	SetupMessages(controller, content);
 	Ui::AddDivider(content);
