@@ -10,6 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui::Controls {
 
 struct SwipeContextData final {
+	[[nodiscard]] bool empty() const {
+		return !ratio
+			&& !reachRatio
+			&& !translation
+			&& !cursorTop;
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+
 	float64 ratio = 0.;
 	float64 reachRatio = 0.;
 	int64 msgBareId = 0;
