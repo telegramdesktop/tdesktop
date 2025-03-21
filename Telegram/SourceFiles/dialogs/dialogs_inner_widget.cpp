@@ -831,18 +831,34 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			bool mayBeActive) {
 		const auto &key = row->key();
 		const auto active = mayBeActive && isRowActive(row, activeEntry);
-		const auto forum = key.history() && key.history()->isForum();
+		const auto history = key.history();
+		const auto forum = history && history->isForum();
 		if (forum && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}
 		const auto expanding = forum
-			&& (key.history()->peer->id == childListShown.peerId);
+			&& (history->peer->id == childListShown.peerId);
 		context.rightButton = maybeCacheRightButton(row);
-		if (key.history()) {
-			const auto it = _quickActions.find(key.history()->peer->id.value);
-			context.quickActionContext = (it != _quickActions.end())
-				? it->second.get()
-				: nullptr;
+		if (history) {
+			if (_activeQuickAction
+				&& (_activeQuickAction->data.msgBareId
+					== history->peer->id.value)) {
+				context.quickActionContext = _activeQuickAction.get();
+			} else if (!_inactiveQuickActions.empty()) {
+				auto it = _inactiveQuickActions.begin();
+				while (it != _inactiveQuickActions.end()) {
+					const auto raw = it->get();
+					if ((!raw->ripple || raw->ripple->empty())
+						&& (!raw->rippleFg || raw->rippleFg->empty())) {
+						_inactiveQuickActions.erase(it);
+					} else {
+						if (raw->data.msgBareId == history->peer->id.value) {
+							context.quickActionContext = raw;
+						}
+						++it;
+					}
+				}
+			}
 		}
 
 		context.st = (forum ? &st::forumDialogRow : _st.get());
@@ -868,7 +884,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 				if (active
 					&& (filter.flags() & Data::ChatFilter::Flag::NoRead)
-					&& !filter.contains(key.history(), true)) {
+					&& !filter.contains(history, true)) {
 					// Hack for History::fakeUnreadWhileOpened().
 					continue;
 				}
@@ -923,6 +939,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			&& _selectedTopicJump
 			&& (!_pressed || _pressedTopicJump);
 		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), context);
+		if (context.quickActionContext) {
+			context.quickActionContext = nullptr;
+		}
 	};
 	if (_state == WidgetState::Default) {
 		const auto collapsedSkip = collapsedRowsOffset();
@@ -1936,6 +1955,9 @@ bool InnerWidget::addBotAppRipple(QPoint origin, Fn<void()> updateCallback) {
 bool InnerWidget::addQuickActionRipple(
 		not_null<Row*> row,
 		Fn<void()> updateCallback) {
+	if (_activeQuickAction) {
+		return false;
+	}
 	const auto action = Core::App().settings().quickDialogAction();
 	if (action == Dialogs::Ui::QuickDialogAction::Disabled) {
 		return false;
@@ -1950,6 +1972,9 @@ bool InnerWidget::addQuickActionRipple(
 	}
 	const auto key = history->peer->id.value;
 	const auto context = ensureQuickAction(key);
+	if (context->data) {
+		return false;
+	}
 
 	auto name = ResolveQuickDialogLottieIconName(type);
 	context->icon = Lottie::MakeIcon({
@@ -2305,22 +2330,25 @@ void InnerWidget::mousePressReleased(
 	if (_pressedBotAppData && _pressedBotAppData->ripple) {
 		_pressedBotAppData->ripple->lastStop();
 	}
-	if (!_quickActions.empty() && pressed) {
+	if (_activeQuickAction && pressed && !_activeQuickAction->data) {
 		if (const auto history = pressed->history()) {
-			const auto it = _quickActions.find(history->peer->id.value);
-			if (it != _quickActions.end()) {
-				if (it->second->ripple) {
-					it->second->ripple->lastStop();
-					it->second->rippleFg->lastStop();
-				}
-				if (pressed == _selected) {
-					PerformQuickDialogAction(
-						_controller,
-						history->peer,
-						it->second->action,
-						_filterId);
-				}
+			const auto raw = _activeQuickAction.get();
+			if (raw->ripple) {
+				raw->ripple->lastStop();
 			}
+			if (raw->rippleFg) {
+				raw->rippleFg->lastStop();
+			}
+
+			if (pressed == _selected) {
+				PerformQuickDialogAction(
+					_controller,
+					history->peer,
+					raw->action,
+					_filterId);
+			}
+			_inactiveQuickActions.push_back(
+				QuickActionPtr{ _activeQuickAction.release() });
 		}
 	}
 	updateSelectedRow();
@@ -5094,7 +5122,7 @@ void InnerWidget::setSwipeContextData(
 		return;
 	}
 	if (!data) {
-		_quickActions.remove(key);
+		_activeQuickAction = nullptr;
 		return;
 	}
 	const auto context = ensureQuickAction(key);
@@ -5125,14 +5153,17 @@ void InnerWidget::setSwipeContextData(
 not_null<Ui::QuickActionContext*> InnerWidget::ensureQuickAction(int64 key) {
 	Expects(key != 0);
 
-	const auto it = _quickActions.find(key);
-	if (it == _quickActions.end()) {
-		return _quickActions.emplace(
-			key,
-			std::make_unique<Ui::QuickActionContext>()).first->second.get();
-	} else {
-		return it->second.get();
+	if (_activeQuickAction) {
+		if (_activeQuickAction->data.msgBareId == key) {
+			return _activeQuickAction.get();
+		} else {
+			_inactiveQuickActions.push_back(
+				QuickActionPtr{ _activeQuickAction.release() });
+		}
 	}
+	_activeQuickAction = std::make_unique<Ui::QuickActionContext>();
+	_activeQuickAction->data.msgBareId = key;
+	return _activeQuickAction.get();
 }
 
 int64 InnerWidget::calcSwipeKey(int top) {
@@ -5167,6 +5198,10 @@ void InnerWidget::prepareQuickAction(
 		.sizeOverride = Size(st::dialogsQuickActionSize),
 	});
 	context->action = action;
+}
+
+void InnerWidget::clearQuickActions() {
+	_inactiveQuickActions.clear();
 }
 
 } // namespace Dialogs

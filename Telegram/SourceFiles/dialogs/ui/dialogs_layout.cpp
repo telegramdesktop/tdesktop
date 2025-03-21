@@ -898,15 +898,17 @@ void PaintRow(
 			p.drawEllipse(QPointF(geometry.width() - offset, offset), r, r);
 		}
 		const auto quickWidth = st::dialogsQuickActionSize * 3;
-		DrawQuickAction(
-			p,
-			QRect(
-				rect::right(geometry) - quickWidth,
-				geometry.y(),
-				quickWidth,
-				geometry.height()),
-			context.quickActionContext->icon.get(),
-			labelType);
+		if (context.quickActionContext->icon) {
+			DrawQuickAction(
+				p,
+				QRect(
+					rect::right(geometry) - quickWidth,
+					geometry.y(),
+					quickWidth,
+					geometry.height()),
+				context.quickActionContext->icon.get(),
+				labelType);
+		}
 		p.setClipping(false);
 	}
 	if (const auto quick = context.quickActionContext;

@@ -221,6 +221,7 @@ public:
 		std::optional<Ui::Controls::SwipeContextData> data);
 	[[nodiscard]] int64 calcSwipeKey(int top);
 	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
+	void clearQuickActions();
 
 protected:
 	void visibleTopBottomUpdated(
@@ -630,7 +631,8 @@ private:
 	rpl::event_stream<UserId> _openBotMainAppRequests;
 
 	using QuickActionPtr = std::unique_ptr<Ui::QuickActionContext>;
-	base::flat_map<int64, QuickActionPtr> _quickActions;
+	QuickActionPtr _activeQuickAction;
+	std::vector<QuickActionPtr> _inactiveQuickActions;
 
 	RowDescriptor _chatPreviewRow;
 	bool _chatPreviewScheduled = false;

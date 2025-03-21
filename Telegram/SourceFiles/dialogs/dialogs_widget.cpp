@@ -729,30 +729,33 @@ void Widget::setupSwipeBack() {
 		const auto isRightToLeft = direction == Qt::RightToLeft;
 		const auto action = Core::App().settings().quickDialogAction();
 		const auto isDisabled = action == Ui::QuickDialogAction::Disabled;
-		if (!isRightToLeft && _inner) {
-			if (const auto key = _inner->calcSwipeKey(top);
-					key && !isDisabled) {
-				_inner->prepareQuickAction(key, action);
-				return Ui::Controls::SwipeHandlerFinishData{
-					.callback = [=, session = &session()] {
-						auto callback = [=, peerId = PeerId(key)] {
-							const auto peer = session->data().peer(peerId);
-							PerformQuickDialogAction(
-								controller(),
-								peer,
-								action,
-								_inner->filterId());
-						};
-						base::call_delayed(
-							st::slideWrapDuration,
-							session,
-							std::move(callback));
-					},
-					.msgBareId = key,
-					.speedRatio = 1.,
-					.reachRatioDuration = crl::time(st::slideWrapDuration),
-					.provideReachOutRatio = true,
-				};
+		if (_inner) {
+			_inner->clearQuickActions();
+			if (!isRightToLeft) {
+				if (const auto key = _inner->calcSwipeKey(top);
+						key && !isDisabled) {
+					_inner->prepareQuickAction(key, action);
+					return Ui::Controls::SwipeHandlerFinishData{
+						.callback = [=, session = &session()] {
+							auto callback = [=, peerId = PeerId(key)] {
+								PerformQuickDialogAction(
+									controller(),
+									session->data().peer(peerId),
+									action,
+									_inner->filterId());
+							};
+							base::call_delayed(
+								st::slideWrapDuration,
+								session,
+								std::move(callback));
+						},
+						.msgBareId = key,
+						.speedRatio = 1.,
+						.reachRatioDuration = crl::time(
+							st::slideWrapDuration),
+						.provideReachOutRatio = true,
+					};
+				}
 			}
 		}
 		if (controller()->openedFolder().current()) {
