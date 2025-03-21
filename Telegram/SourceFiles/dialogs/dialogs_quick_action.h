@@ -32,9 +32,7 @@ void PerformQuickDialogAction(
 	FilterId filterId);
 
 [[nodiscard]] QString ResolveQuickDialogLottieIconName(
-	not_null<PeerData*> peer,
-	Ui::QuickDialogAction action,
-	FilterId filterId);
+	Ui::QuickDialogActionLabel action);
 
 [[nodiscard]] Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
 	not_null<History*> history,

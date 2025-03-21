@@ -1944,13 +1944,14 @@ bool InnerWidget::addQuickActionRipple(
 	if (!history) {
 		return false;
 	}
+	const auto type = ResolveQuickDialogLabel(history, action, _filterId);
+	if (type == Dialogs::Ui::QuickDialogActionLabel::Disabled) {
+		return false;
+	}
 	const auto key = history->peer->id.value;
 	const auto context = ensureQuickAction(key);
 
-	auto name = ResolveQuickDialogLottieIconName(
-		history->peer,
-		action,
-		_filterId);
+	auto name = ResolveQuickDialogLottieIconName(type);
 	context->icon = Lottie::MakeIcon({
 		.name = std::move(name),
 		.sizeOverride = Size(st::dialogsQuickActionSize),
@@ -5156,8 +5157,11 @@ void InnerWidget::prepareQuickAction(
 	Expects(key != 0);
 
 	const auto context = ensureQuickAction(key);
-	const auto peer = session().data().peer(PeerId(key));
-	auto name = ResolveQuickDialogLottieIconName(peer, action, _filterId);
+	auto name = ResolveQuickDialogLottieIconName(
+		ResolveQuickDialogLabel(
+			session().data().history(PeerId(key)),
+			action,
+			_filterId));
 	context->icon = Lottie::MakeIcon({
 		.name = std::move(name),
 		.sizeOverride = Size(st::dialogsQuickActionSize),

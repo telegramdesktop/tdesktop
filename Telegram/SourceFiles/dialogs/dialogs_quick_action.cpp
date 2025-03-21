@@ -95,35 +95,29 @@ void PerformQuickDialogAction(
 	}
 }
 
-QString ResolveQuickDialogLottieIconName(
-		not_null<PeerData*> peer,
-		Ui::QuickDialogAction action,
-		FilterId filterId) {
-	if (action == Dialogs::Ui::QuickDialogAction::Mute) {
-		const auto history = peer->owner().history(peer);
-		const auto isMuted = rpl::variable<bool>(
-			MuteMenu::ThreadDescriptor(history).isMutedValue()).current();
-		return isMuted ? u"swipe_unmute"_q : u"swipe_mute"_q;
-	} else if (action == Dialogs::Ui::QuickDialogAction::Pin) {
-		const auto history = peer->owner().history(peer);
-		const auto entry = (Dialogs::Entry*)(history);
-		return entry->isPinnedDialog(filterId)
-			? u"swipe_unpin"_q
-			: u"swipe_pin"_q;
-	} else if (action == Dialogs::Ui::QuickDialogAction::Read) {
-		const auto history = peer->owner().history(peer);
-		return Window::IsUnreadThread(history)
-			? u"swipe_read"_q
-			: u"swipe_unread"_q;
-	} else if (action == Dialogs::Ui::QuickDialogAction::Archive) {
-		const auto history = peer->owner().history(peer);
-		return Window::IsArchived(history)
-			? u"swipe_unarchive"_q
-			: u"swipe_archive"_q;
-	} else if (action == Dialogs::Ui::QuickDialogAction::Delete) {
+QString ResolveQuickDialogLottieIconName(Ui::QuickDialogActionLabel action) {
+	switch (action) {
+	case Ui::QuickDialogActionLabel::Mute:
+		return u"swipe_mute"_q;
+	case Ui::QuickDialogActionLabel::Unmute:
+		return u"swipe_unmute"_q;
+	case Ui::QuickDialogActionLabel::Pin:
+		return u"swipe_pin"_q;
+	case Ui::QuickDialogActionLabel::Unpin:
+		return u"swipe_unpin"_q;
+	case Ui::QuickDialogActionLabel::Read:
+		return u"swipe_read"_q;
+	case Ui::QuickDialogActionLabel::Unread:
+		return u"swipe_unread"_q;
+	case Ui::QuickDialogActionLabel::Archive:
+		return u"swipe_archive"_q;
+	case Ui::QuickDialogActionLabel::Unarchive:
+		return u"swipe_unarchive"_q;
+	case Ui::QuickDialogActionLabel::Delete:
 		return u"swipe_delete"_q;
+	default:
+		return u"swipe_disabled"_q;
 	}
-	return u"swipe_disabled"_q;
 }
 
 Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
