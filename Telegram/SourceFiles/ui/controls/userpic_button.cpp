@@ -276,6 +276,10 @@ void UserpicButton::setClickHandlerByRole() {
 void UserpicButton::choosePhotoLocally() {
 	if (!_window) {
 		return;
+	} else if (const auto controller = _window->sessionController()) {
+		if (controller->showFrozenError()) {
+			return;
+		}
 	}
 	const auto callback = [=](ChosenType type) {
 		return [=](QImage &&image) {
