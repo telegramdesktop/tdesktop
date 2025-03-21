@@ -1987,11 +1987,15 @@ bool InnerWidget::addQuickActionRipple(
 		const auto size = QSize(
 			st::dialogsQuickActionRippleSize,
 			row->height());
+		const auto isRemovingFromList
+			= (action == Dialogs::Ui::QuickDialogAction::Archive);
 		if (!context->ripple) {
 			context->ripple = std::make_unique<Ui::RippleAnimation>(
 				st::defaultRippleAnimation,
 				Ui::RippleAnimation::RectMask(size),
-				updateCallback);
+				isRemovingFromList
+					? Fn<void()>([=] { update(); })
+					: updateCallback);
 		}
 		if (!context->rippleFg) {
 			context->rippleFg = std::make_unique<Ui::RippleAnimation>(
@@ -2012,7 +2016,9 @@ bool InnerWidget::addQuickActionRipple(
 								action,
 								_filterId));
 					}),
-				std::move(updateCallback));
+				isRemovingFromList
+					? Fn<void()>([=] { update(); })
+					: std::move(updateCallback));
 		}
 		context->ripple->add(QPoint(size.width() / 2, size.height() / 2));
 		context->rippleFg->add(QPoint(size.width() / 2, size.height() / 2));
