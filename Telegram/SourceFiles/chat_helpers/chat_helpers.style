@@ -1132,8 +1132,8 @@ historyScheduledToggle: IconButton(historyAttach) {
 	};
 }
 historyGiftToUser: IconButton(historyAttach) {
-	icon: icon {{ "menu/gift_premium", historyComposeIconFg }};
-	iconOver: icon {{ "menu/gift_premium", historyComposeIconFgOver }};
+	icon: icon {{ "chat/input_gift", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_gift", historyComposeIconFgOver }};
 }
 
 historyAttachEmojiInner: IconButton(historyAttach) {

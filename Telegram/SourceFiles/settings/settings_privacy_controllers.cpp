@@ -1734,8 +1734,8 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
 		content,
 		tr::lng_edit_privacy_gifts_types());
 	const auto types = base::flat_map<Type, rpl::producer<QString>>{
-		{ Type::Unlimited, tr::lng_edit_privacy_gifts_unlimited() },
 		{ Type::Limited, tr::lng_edit_privacy_gifts_limited() },
+		{ Type::Unlimited, tr::lng_edit_privacy_gifts_unlimited() },
 		{ Type::Unique, tr::lng_edit_privacy_gifts_unique() },
 		{ Type::Premium, tr::lng_edit_privacy_gifts_premium() },
 	};

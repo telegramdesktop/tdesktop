@@ -3044,6 +3044,7 @@ void HistoryWidget::refreshSendGiftToggle() {
 		&& !user->isSelf()
 		&& !user->isBot()
 		&& ((disallowed & Type::SendHide)
+			|| (session().user()->disallowedGiftTypes() & Type::SendHide)
 			|| Data::IsBirthdayToday(user->birthday()))
 		&& ((disallowed & all) != all);
 	if (!_giftToUser && has) {
