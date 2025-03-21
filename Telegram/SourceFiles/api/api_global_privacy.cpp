@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 
 #include "apiwrap.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 
@@ -263,6 +264,8 @@ void GlobalPrivacy::update(
 		| ((disallowedGiftTypes & DisallowedGiftType::Unique)
 			? DisallowedFlag::f_disallow_unique_stargifts
 			: DisallowedFlag());
+	const auto typesWas = _disallowedGiftTypes.current();
+	const auto typesChanged = (typesWas != disallowedGiftTypes);
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
 		MTP_globalPrivacySettings(
 			MTP_flags(flags),
@@ -271,6 +274,9 @@ void GlobalPrivacy::update(
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
+		if (typesChanged) {
+			_session->user()->updateFullForced();
+		}
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.type() == u"PREMIUM_ACCOUNT_REQUIRED"_q) {

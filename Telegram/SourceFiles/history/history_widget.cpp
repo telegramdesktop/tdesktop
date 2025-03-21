@@ -814,7 +814,15 @@ HistoryWidget::HistoryWidget(
 		| PeerUpdateFlag::StarsPerMessage
 		| PeerUpdateFlag::GiftSettings
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
-		return (update.peer.get() == _peer);
+		if (update.peer.get() == _peer) {
+			return true;
+		} else if (update.peer->isSelf()
+			&& (update.flags & PeerUpdateFlag::GiftSettings)) {
+			refreshSendGiftToggle();
+			updateControlsVisibility();
+			updateControlsGeometry();
+		}
+		return false;
 	}) | rpl::map([](const Data::PeerUpdate &update) {
 		return update.flags;
 	}) | rpl::start_with_next([=](Data::PeerUpdate::Flags flags) {
