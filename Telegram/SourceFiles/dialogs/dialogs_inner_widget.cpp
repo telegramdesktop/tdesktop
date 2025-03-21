@@ -848,8 +848,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				auto it = _inactiveQuickActions.begin();
 				while (it != _inactiveQuickActions.end()) {
 					const auto raw = it->get();
-					if ((!raw->ripple || raw->ripple->empty())
-						&& (!raw->rippleFg || raw->rippleFg->empty())) {
+					if (raw->finishedAt
+						&& (ms - raw->finishedAt
+							> st::defaultRippleAnimation.hideDuration)) {
 						_inactiveQuickActions.erase(it);
 					} else {
 						if (raw->data.msgBareId == history->peer->id.value) {
@@ -2347,8 +2348,7 @@ void InnerWidget::mousePressReleased(
 					raw->action,
 					_filterId);
 			}
-			_inactiveQuickActions.push_back(
-				QuickActionPtr{ _activeQuickAction.release() });
+			deactivateQuickAction();
 		}
 	}
 	updateSelectedRow();
@@ -5157,8 +5157,7 @@ not_null<Ui::QuickActionContext*> InnerWidget::ensureQuickAction(int64 key) {
 		if (_activeQuickAction->data.msgBareId == key) {
 			return _activeQuickAction.get();
 		} else {
-			_inactiveQuickActions.push_back(
-				QuickActionPtr{ _activeQuickAction.release() });
+			deactivateQuickAction();
 		}
 	}
 	_activeQuickAction = std::make_unique<Ui::QuickActionContext>();
@@ -5202,6 +5201,14 @@ void InnerWidget::prepareQuickAction(
 
 void InnerWidget::clearQuickActions() {
 	_inactiveQuickActions.clear();
+}
+
+void InnerWidget::deactivateQuickAction() {
+	if (_activeQuickAction) {
+		_activeQuickAction->finishedAt = crl::now();
+		_inactiveQuickActions.push_back(
+			QuickActionPtr{ _activeQuickAction.release() });
+	}
 }
 
 } // namespace Dialogs

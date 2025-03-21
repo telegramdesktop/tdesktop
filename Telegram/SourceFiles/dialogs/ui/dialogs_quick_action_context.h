@@ -41,6 +41,7 @@ struct QuickActionContext {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	std::unique_ptr<Ui::RippleAnimation> rippleFg;
 	QuickDialogAction action;
+	crl::time finishedAt = 0;
 };
 
 } // namespace Dialogs::Ui
