@@ -111,6 +111,9 @@ void AddBotToGroupBoxController::Start(
 		Scope scope,
 		const QString &token,
 		ChatAdminRights requestedRights) {
+	if (controller->showFrozenError()) {
+		return;
+	}
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};

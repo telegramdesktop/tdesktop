@@ -781,7 +781,7 @@ void Filler::addBlockUser() {
 		|| user->isVerifyCodes()) {
 		return;
 	}
-	const auto window = &_controller->window();
+	const auto window = _controller;
 	const auto blockText = [](not_null<UserData*> user) {
 		return user->isBlocked()
 			? ((user->isBot() && !user->isSupport())
@@ -793,14 +793,16 @@ void Filler::addBlockUser() {
 	};
 	const auto blockAction = _addAction(blockText(user), [=] {
 		const auto show = window->uiShow();
-		if (user->isBlocked()) {
+		if (show->showFrozenError()) {
+			return;
+		} else if (user->isBlocked()) {
 			PeerMenuUnblockUserWithBotRestart(show, user);
 		} else if (user->isBot()) {
 			user->session().api().blockedPeers().block(user);
 		} else {
 			window->show(Box(
 				PeerMenuBlockUserBox,
-				window,
+				&window->window(),
 				user,
 				v::null,
 				v::null));
@@ -897,9 +899,15 @@ void Filler::addNewContact() {
 		return;
 	}
 	const auto controller = _controller;
+	const auto edit = [=] {
+		if (controller->showFrozenError()) {
+			return;
+		}
+		controller->show(Box(EditContactBox, controller, user));
+	};
 	_addAction(
 		tr::lng_info_add_as_contact(tr::now),
-		[=] { controller->show(Box(EditContactBox, controller, user)); },
+		edit,
 		&st::menuIconInvite);
 }
 
@@ -921,9 +929,15 @@ void Filler::addEditContact() {
 		return;
 	}
 	const auto controller = _controller;
+	const auto edit = [=] {
+		if (controller->showFrozenError()) {
+			return;
+		}
+		controller->show(Box(EditContactBox, controller, user));
+	};
 	_addAction(
 		tr::lng_info_edit_contact(tr::now),
-		[=] { controller->show(Box(EditContactBox, controller, user)); },
+		edit,
 		&st::menuIconEdit);
 }
 
@@ -1528,6 +1542,9 @@ void PeerMenuExportChat(
 void PeerMenuDeleteContact(
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> user) {
+	if (controller->showFrozenError()) {
+		return;
+	}
 	const auto text = tr::lng_sure_delete_contact(
 		tr::now,
 		lt_contact,
@@ -1624,6 +1641,9 @@ void PeerMenuDeleteTopic(
 void PeerMenuShareContactBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<UserData*> user) {
+	if (navigation->showFrozenError()) {
+		return;
+	}
 	// There is no async to make weak from controller.
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto callback = [=](not_null<Data::Thread*> thread) {

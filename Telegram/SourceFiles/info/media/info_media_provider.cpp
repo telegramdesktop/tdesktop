@@ -62,7 +62,9 @@ Type Provider::type() {
 }
 
 bool Provider::hasSelectRestriction() {
-	if (_peer->allowsForwarding()) {
+	if (_peer->session().frozen()) {
+		return true;
+	} else if (_peer->allowsForwarding()) {
 		return false;
 	} else if (const auto chat = _peer->asChat()) {
 		return !chat->canDeleteMessages();

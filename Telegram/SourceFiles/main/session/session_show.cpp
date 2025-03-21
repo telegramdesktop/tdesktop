@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/session/session_show.h"
 
+#include "chat_helpers/message_field.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/layers/generic_box.h"
 
 namespace Main {
 namespace {
@@ -77,7 +79,7 @@ bool SessionShow::showFrozenError() {
 	if (!session().frozen()) {
 		return false;
 	}
-	showToast(tr::lng_frozen_bar_title(tr::now));
+	showBox(Box(FrozenInfoBox, &session(), FreezeInfoStyleOverride()));
 	return true;
 }
 

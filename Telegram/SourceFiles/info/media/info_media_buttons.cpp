@@ -294,6 +294,9 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 		},
 		tracker)->entity();
 	result->addClickHandler([=] {
+		if (navigation->showFrozenError()) {
+			return;
+		}
 		navigation->showSection(
 			std::make_shared<Info::Memento>(
 				peer,

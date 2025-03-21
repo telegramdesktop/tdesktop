@@ -42,6 +42,7 @@ struct WriteRestriction;
 } // namespace HistoryView::Controls
 
 namespace Ui {
+class GenericBox;
 class PopupMenu;
 class Show;
 } // namespace Ui
@@ -210,3 +211,8 @@ void SelectTextInFieldWithMargins(
 [[nodiscard]] rpl::producer<TextWithEntities> PaidSendButtonText(
 	rpl::producer<int> stars,
 	rpl::producer<QString> fallback = nullptr);
+
+void FrozenInfoBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session,
+	FreezeInfoStyleOverride st);

@@ -1354,102 +1354,8 @@ std::unique_ptr<Ui::AbstractButton> FrozenWriteRestriction(
 		}
 	}, title->lifetime());
 
-	const auto info = show->session().frozen();
-	const auto detailsBox = [=](not_null<GenericBox*> box) {
-		box->setWidth(st::boxWideWidth);
-		box->setStyle(st::frozenInfoBox);
-		box->setNoContentMargin(true);
-		box->addTopButton(st::boxTitleClose, [=] {
-			box->closeBox();
-		});
-
-		const auto content = box->verticalLayout();
-		auto icon = Settings::CreateLottieIcon(
-			content,
-			{
-				.name = u"media_forbidden"_q,
-				.sizeOverride = {
-					st::changePhoneIconSize,
-					st::changePhoneIconSize,
-				},
-			},
-			st::settingLocalPasscodeIconPadding);
-		content->add(std::move(icon.widget));
-		box->setShowFinishedCallback([animate = std::move(icon.animate)] {
-			animate(anim::repeat::once);
-		});
-
-		Ui::AddSkip(content);
-
-		const auto infoRow = [&](
-				rpl::producer<QString> title,
-				rpl::producer<TextWithEntities> text,
-				not_null<const style::icon*> icon) {
-			auto raw = content->add(
-				object_ptr<Ui::VerticalLayout>(content));
-			raw->add(
-				object_ptr<Ui::FlatLabel>(
-					raw,
-					std::move(title) | Ui::Text::ToBold(),
-					st.infoTitle ? *st.infoTitle : st::defaultFlatLabel),
-				st::settingsPremiumRowTitlePadding);
-			raw->add(
-				object_ptr<Ui::FlatLabel>(
-					raw,
-					std::move(text),
-					st.infoAbout ? *st.infoAbout : st::upgradeGiftSubtext),
-				st::settingsPremiumRowAboutPadding);
-			object_ptr<Info::Profile::FloatingIcon>(
-				raw,
-				*icon,
-				st::starrefInfoIconPosition);
-		};
-
-		content->add(
-			object_ptr<Ui::FlatLabel>(
-				content,
-				tr::lng_frozen_title(),
-				st.title ? *st.title : st::uniqueGiftTitle),
-			st::settingsPremiumRowTitlePadding);
-
-		Ui::AddSkip(content, st::defaultVerticalListSkip * 3);
-
-		infoRow(
-			tr::lng_frozen_subtitle1(),
-			tr::lng_frozen_text1(Text::WithEntities),
-			st.violationIcon ? st.violationIcon : &st::menuIconBlock);
-		infoRow(
-			tr::lng_frozen_subtitle2(),
-			tr::lng_frozen_text2(Text::WithEntities),
-			st.readOnlyIcon ? st.readOnlyIcon : &st::menuIconLock);
-		infoRow(
-			tr::lng_frozen_subtitle3(),
-			tr::lng_frozen_text3(
-				lt_link,
-				rpl::single(Text::Link(u"@SpamBot"_q, info.appealUrl)),
-				lt_date,
-				rpl::single(TextWithEntities{
-					langDayOfMonthFull(
-						base::unixtime::parse(info.until).date()),
-				}),
-				Text::WithEntities),
-			st.appealIcon ? st.appealIcon : &st::menuIconHourglass);
-
-		const auto button = box->addButton(
-			tr::lng_frozen_appeal_button(),
-			[url = info.appealUrl] { UrlClickHandler::Open(url); });
-		const auto buttonPadding = st::frozenInfoBox.buttonPadding;
-		const auto buttonWidth = st::boxWideWidth
-			- buttonPadding.left()
-			- buttonPadding.right();
-		button->widthValue() | rpl::filter([=] {
-			return (button->widthNoMargins() != buttonWidth);
-		}) | rpl::start_with_next([=] {
-			button->resizeToWidth(buttonWidth);
-		}, button->lifetime());
-	};
 	raw->setClickedCallback([=] {
-		show->show(Box(detailsBox));
+		show->show(Box(FrozenInfoBox, &show->session(), st));
 	});
 	return result;
 }
@@ -1500,4 +1406,102 @@ rpl::producer<TextWithEntities> PaidSendButtonText(
 	return std::move(stars) | rpl::map([=](int count) {
 		return PaidSendButtonText(tr::now, count);
 	});
+}
+
+void FrozenInfoBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		FreezeInfoStyleOverride st) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::frozenInfoBox);
+	box->setNoContentMargin(true);
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
+	const auto info = session->frozen();
+	const auto content = box->verticalLayout();
+	auto icon = Settings::CreateLottieIcon(
+		content,
+		{
+			.name = u"media_forbidden"_q,
+			.sizeOverride = {
+				st::changePhoneIconSize,
+				st::changePhoneIconSize,
+			},
+		},
+		st::settingLocalPasscodeIconPadding);
+	content->add(std::move(icon.widget));
+	box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	});
+
+	Ui::AddSkip(content);
+
+	const auto infoRow = [&](
+			rpl::producer<QString> title,
+			rpl::producer<TextWithEntities> text,
+			not_null<const style::icon*> icon) {
+		auto raw = content->add(
+			object_ptr<Ui::VerticalLayout>(content));
+		raw->add(
+			object_ptr<Ui::FlatLabel>(
+				raw,
+				std::move(title) | Ui::Text::ToBold(),
+				st.infoTitle ? *st.infoTitle : st::defaultFlatLabel),
+			st::settingsPremiumRowTitlePadding);
+		raw->add(
+			object_ptr<Ui::FlatLabel>(
+				raw,
+				std::move(text),
+				st.infoAbout ? *st.infoAbout : st::upgradeGiftSubtext),
+			st::settingsPremiumRowAboutPadding);
+		object_ptr<Info::Profile::FloatingIcon>(
+			raw,
+			*icon,
+			st::starrefInfoIconPosition);
+	};
+
+	content->add(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_frozen_title(),
+			st.title ? *st.title : st::uniqueGiftTitle),
+		st::settingsPremiumRowTitlePadding);
+
+	Ui::AddSkip(content, st::defaultVerticalListSkip * 3);
+
+	infoRow(
+		tr::lng_frozen_subtitle1(),
+		tr::lng_frozen_text1(Ui::Text::WithEntities),
+		st.violationIcon ? st.violationIcon : &st::menuIconBlock);
+	infoRow(
+		tr::lng_frozen_subtitle2(),
+		tr::lng_frozen_text2(Ui::Text::WithEntities),
+		st.readOnlyIcon ? st.readOnlyIcon : &st::menuIconLock);
+	infoRow(
+		tr::lng_frozen_subtitle3(),
+		tr::lng_frozen_text3(
+			lt_link,
+			rpl::single(Ui::Text::Link(u"@SpamBot"_q, info.appealUrl)),
+			lt_date,
+			rpl::single(TextWithEntities{
+				langDayOfMonthFull(
+					base::unixtime::parse(info.until).date()),
+			}),
+			Ui::Text::WithEntities),
+		st.appealIcon ? st.appealIcon : &st::menuIconHourglass);
+
+	const auto button = box->addButton(
+		tr::lng_frozen_appeal_button(),
+		[url = info.appealUrl] { UrlClickHandler::Open(url); });
+	const auto buttonPadding = st::frozenInfoBox.buttonPadding;
+	const auto buttonWidth = st::boxWideWidth
+		- buttonPadding.left()
+		- buttonPadding.right();
+	button->widthValue() | rpl::filter([=] {
+		return (button->widthNoMargins() != buttonWidth);
+	}) | rpl::start_with_next([=] {
+		button->resizeToWidth(buttonWidth);
+	}, button->lifetime());
 }

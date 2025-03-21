@@ -2308,6 +2308,10 @@ void ChooseStarGiftRecipient(
 void ShowStarGiftBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
+	if (controller->showFrozenError()) {
+		return;
+	}
+
 	struct Session {
 		PeerData *peer = nullptr;
 		MyGiftsDescriptor my;
