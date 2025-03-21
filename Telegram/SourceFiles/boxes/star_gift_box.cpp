@@ -369,6 +369,30 @@ auto GenerateGiftMedia(
 	return Images::Round(std::move(result), mask, RectPart::FullTop);
 }
 
+struct VisibleRange {
+	int top = 0;
+	int bottom = 0;
+
+	friend inline bool operator==(VisibleRange, VisibleRange) = default;
+};
+class WidgetWithRange final : public RpWidget {
+public:
+	using RpWidget::RpWidget;
+
+	[[nodiscard]] rpl::producer<VisibleRange> visibleRange() const {
+		return _visibleRange.value();
+	}
+private:
+	void visibleTopBottomUpdated(
+			int visibleTop,
+			int visibleBottom) override {
+		_visibleRange = VisibleRange{ visibleTop, visibleBottom };
+	}
+
+	rpl::variable<VisibleRange> _visibleRange;
+
+};
+
 void PrepareImage(
 		QImage &image,
 		not_null<Text::CustomEmoji*> emoji,
@@ -767,7 +791,8 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 }
 
 [[nodiscard]] rpl::producer<MyGiftsDescriptor> UniqueGiftsSlice(
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session,
+		QString offset = QString()) {
 	return [=](auto consumer) {
 		using Flag = MTPpayments_GetSavedStarGifts::Flag;
 		const auto user = session->user();
@@ -775,7 +800,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			MTPpayments_GetSavedStarGifts(
 			MTP_flags(Flag::f_exclude_limited | Flag::f_exclude_unlimited),
 			user->input,
-			MTP_string(QString()),
+			MTP_string(offset),
 			MTP_int(kMyGiftsPerPage)
 		)).done([=](const MTPpayments_SavedStarGifts &result) {
 			auto gifts = MyGiftsDescriptor();
@@ -1798,14 +1823,21 @@ void SendGiftBox(
 [[nodiscard]] object_ptr<RpWidget> MakeGiftsList(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
-		rpl::producer<GiftsDescriptor> gifts) {
-	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
+		rpl::producer<GiftsDescriptor> gifts,
+		Fn<void()> loadMore) {
+	auto result = object_ptr<WidgetWithRange>((QWidget*)nullptr);
 	const auto raw = result.data();
 
 	struct State {
 		Delegate delegate;
+		std::vector<int> order;
+		std::vector<bool> validated;
+		std::vector<GiftDescriptor> list;
 		std::vector<std::unique_ptr<GiftButton>> buttons;
+		std::shared_ptr<Api::PremiumGiftCodeOptions> api;
+		rpl::variable<VisibleRange> visibleRange;
 		bool sending = false;
+		int perRow = 1;
 	};
 	const auto state = raw->lifetime().make_state<State>(State{
 		.delegate = Delegate(&window->session(), GiftButtonMode::Full),
@@ -1821,54 +1853,65 @@ void SendGiftBox(
 		}
 	}, raw->lifetime());
 
-	std::move(
-		gifts
-	) | rpl::start_with_next([=](const GiftsDescriptor &gifts) {
+	const auto rebuild = [=] {
 		const auto width = st::boxWideWidth;
 		const auto padding = st::giftBoxPadding;
 		const auto available = width - padding.left() - padding.right();
-		const auto perRow = available / single.width();
-		const auto count = int(gifts.list.size());
+		const auto range = state->visibleRange.current();
+		const auto count = int(state->list.size());
 
-		auto order = ranges::views::ints
-			| ranges::views::take(count)
-			| ranges::to_vector;
-
-		if (SortForBirthday(peer)) {
-			ranges::stable_partition(order, [&](int i) {
-				const auto &gift = gifts.list[i];
-				const auto stars = std::get_if<GiftTypeStars>(&gift);
-				return stars && stars->info.birthday;
-			});
+		auto &buttons = state->buttons;
+		if (buttons.size() < count) {
+			buttons.resize(count);
 		}
+		auto &validated = state->validated;
+		validated.resize(count);
 
 		auto x = padding.left();
 		auto y = padding.top();
-		state->buttons.resize(count);
-		for (auto &button : state->buttons) {
+		const auto perRow = state->perRow;
+		const auto singlew = single.width() + st::giftBoxGiftSkip.x();
+		const auto singleh = single.height() + st::giftBoxGiftSkip.y();
+		const auto rowFrom = std::max(range.top - y, 0) / singleh;
+		const auto rowTill = (std::max(range.bottom - y + st::giftBoxGiftSkip.y(), 0) + singleh - 1)
+			/ singleh;
+		Assert(rowTill >= rowFrom);
+		const auto first = rowFrom * perRow;
+		const auto last = std::min(rowTill * perRow, count);
+		auto checkedFrom = 0;
+		auto checkedTill = int(buttons.size());
+		const auto ensureButton = [&](int index) {
+			auto &button = buttons[index];
 			if (!button) {
-				button = std::make_unique<GiftButton>(raw, &state->delegate);
-				button->show();
+				validated[index] = false;
+				for (; checkedFrom != first; ++checkedFrom) {
+					if (buttons[checkedFrom]) {
+						button = std::move(buttons[checkedFrom]);
+						break;
+					}
+				}
 			}
-		}
-		const auto api = gifts.api;
-		for (auto i = 0; i != count; ++i) {
-			const auto button = state->buttons[i].get();
-			const auto &descriptor = gifts.list[order[i]];
+			if (!button) {
+				for (; checkedTill != last; ) {
+					--checkedTill;
+					if (buttons[checkedTill]) {
+						button = std::move(buttons[checkedTill]);
+						break;
+					}
+				}
+			}
+			if (!button) {
+				button = std::make_unique<GiftButton>(
+					raw,
+					&state->delegate);
+			}
+			if (validated[index]) {
+				return;
+			}
+			button->show();
+			validated[index] = true;
+			const auto &descriptor = state->list[state->order[index]];
 			button->setDescriptor(descriptor, GiftButton::Mode::Full);
-
-			const auto last = !((i + 1) % perRow);
-			if (last) {
-				x = padding.left() + available - single.width();
-			}
-			button->setGeometry(QRect(QPoint(x, y), single), extend);
-			if (last) {
-				x = padding.left();
-				y += single.height() + st::giftBoxGiftSkip.y();
-			} else {
-				x += single.width() + st::giftBoxGiftSkip.x();
-			}
-
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
 				if (star && star->info.unique) {
@@ -1885,17 +1928,84 @@ void SendGiftBox(
 				} else if (star && IsSoldOut(star->info)) {
 					window->show(Box(SoldOutBox, window, *star));
 				} else {
-					window->show(
-						Box(SendGiftBox, window, peer, api, descriptor));
+					window->show(Box(
+						SendGiftBox,
+						window,
+						peer,
+						state->api,
+						descriptor));
 				}
 			});
+			button->setGeometry(QRect(QPoint(x, y), single), extend);
+		};
+		y += rowFrom * singleh;
+		for (auto row = rowFrom; row != rowTill; ++row) {
+			for (auto col = 0; col != perRow; ++col) {
+				const auto index = row * perRow + col;
+				if (index >= count) {
+					break;
+				}
+				const auto last = !((col + 1) % perRow);
+				if (last) {
+					x = padding.left() + available - single.width();
+				}
+				ensureButton(index);
+				if (last) {
+					x = padding.left();
+					y += singleh;
+				} else {
+					x += singlew;
+				}
+			}
 		}
-		if (count % perRow) {
-			y += padding.bottom() + single.height();
-		} else {
-			y += padding.bottom() - st::giftBoxGiftSkip.y();
+		const auto till = std::min(int(buttons.size()), rowTill * perRow);
+		for (auto i = count; i < till; ++i) {
+			if (const auto button = buttons[i].get()) {
+				button->hide();
+			}
 		}
-		raw->resize(raw->width(), count ? y : 0);
+
+		const auto page = range.bottom - range.top;
+		if (loadMore && page > 0 && range.bottom + page > raw->height()) {
+			loadMore();
+		}
+	};
+
+	state->visibleRange = raw->visibleRange();
+	state->visibleRange.value(
+	) | rpl::start_with_next(rebuild, raw->lifetime());
+
+	std::move(
+		gifts
+	) | rpl::start_with_next([=](const GiftsDescriptor &gifts) {
+		const auto width = st::boxWideWidth;
+		const auto padding = st::giftBoxPadding;
+		const auto available = width - padding.left() - padding.right();
+		state->perRow = available / single.width();
+		state->list = std::move(gifts.list);
+		state->api = gifts.api;
+
+		const auto count = int(state->list.size());
+		state->order = ranges::views::ints
+			| ranges::views::take(count)
+			| ranges::to_vector;
+		state->validated.clear();
+
+		if (SortForBirthday(peer)) {
+			ranges::stable_partition(state->order, [&](int i) {
+				const auto &gift = state->list[i];
+				const auto stars = std::get_if<GiftTypeStars>(&gift);
+				return stars && stars->info.birthday && !stars->info.unique;
+			});
+		}
+
+		const auto rows = (count + state->perRow - 1) / state->perRow;
+		const auto height = padding.top()
+			+ (rows * single.height())
+			+ ((rows - 1) * st::giftBoxGiftSkip.y())
+			+ padding.bottom();
+		raw->resize(raw->width(), height);
+		rebuild();
 	}, raw->lifetime());
 
 	return result;
@@ -1959,7 +2069,7 @@ void AddBlock(
 			gifts.list | ranges::to<std::vector<GiftDescriptor>>,
 			gifts.api,
 		};
-	}));
+	}), nullptr);
 	result->lifetime().add([state = std::move(state)] {});
 	return result;
 }
@@ -1973,8 +2083,12 @@ void AddBlock(
 	struct State {
 		rpl::variable<std::vector<GiftTypeStars>> gifts;
 		rpl::variable<int> priceTab = kPriceTabAll;
+		rpl::event_stream<> myUpdated;
+		MyGiftsDescriptor my;
+		rpl::lifetime myLoading;
 	};
 	const auto state = result->lifetime().make_state<State>();
+	state->my = std::move(my);
 
 	state->gifts = GiftsStars(&window->session(), peer);
 
@@ -1982,16 +2096,17 @@ void AddBlock(
 		window,
 		peer,
 		state->gifts.value(),
-		!my.list.empty());
+		!state->my.list.empty());
 	state->priceTab = std::move(tabs.priceTab);
 	result->add(std::move(tabs.widget));
 	result->add(MakeGiftsList(window, peer, rpl::combine(
 		state->gifts.value(),
-		state->priceTab.value()
-	) | rpl::map([=](std::vector<GiftTypeStars> &&gifts, int price) {
+		state->priceTab.value(),
+		rpl::single(rpl::empty) | rpl::then(state->myUpdated.events())
+	) | rpl::map([=](std::vector<GiftTypeStars> &&gifts, int price, auto) {
 		if (price == kPriceTabMy) {
 			gifts.clear();
-			for (const auto &gift : my.list) {
+			for (const auto &gift : state->my.list) {
 				gifts.push_back({
 					.transferId = gift.manageId,
 					.info = gift.info,
@@ -2011,7 +2126,26 @@ void AddBlock(
 		return GiftsDescriptor{
 			gifts | ranges::to<std::vector<GiftDescriptor>>(),
 		};
-	})));
+	}), [=] {
+		if (state->priceTab.current() == kPriceTabMy
+			&& !state->my.offset.isEmpty()
+			&& !state->myLoading) {
+			state->myLoading = UniqueGiftsSlice(
+				&peer->session(),
+				state->my.offset
+			) | rpl::start_with_next([=](MyGiftsDescriptor &&descriptor) {
+				state->myLoading.destroy();
+				state->my.offset = descriptor.list.empty()
+					? QString()
+					: descriptor.offset;
+				state->my.list.insert(
+					end(state->my.list),
+					std::make_move_iterator(begin(descriptor.list)),
+					std::make_move_iterator(end(descriptor.list)));
+				state->myUpdated.fire({});
+			});
+		}
+	}));
 
 	return result;
 }
