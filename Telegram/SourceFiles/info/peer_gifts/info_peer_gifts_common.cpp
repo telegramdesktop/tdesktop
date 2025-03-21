@@ -305,6 +305,9 @@ void GiftButton::paintBackground(QPainter &p, const QImage &background) {
 
 	auto hq = PainterHighQualityEnabler(p);
 	const auto progress = _selectedAnimation.value(_selected ? 1. : 0.);
+	if (progress < 0.01) {
+		return;
+	}
 	const auto pwidth = progress * st::defaultRoundCheckbox.width;
 	p.setPen(QPen(st::defaultRoundCheckbox.bgActive->c, pwidth));
 	p.setBrush(Qt::NoBrush);
