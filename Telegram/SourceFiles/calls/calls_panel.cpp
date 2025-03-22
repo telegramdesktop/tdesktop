@@ -715,18 +715,21 @@ void Panel::createRemoteLowBattery() {
 	}, _remoteLowBattery->lifetime());
 
 	constexpr auto kBatterySize = QSize(29, 13);
+	const auto scaledBatterySize = QSize(
+		style::ConvertScale(kBatterySize.width()),
+		style::ConvertScale(kBatterySize.height()));
 
 	const auto icon = [&] {
 		auto svg = QSvgRenderer(
 			BatterySvg(kBatterySize, st::videoPlayIconFg->c));
 		auto image = QImage(
-			kBatterySize * style::DevicePixelRatio(),
+			scaledBatterySize * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
 		image.setDevicePixelRatio(style::DevicePixelRatio());
 		image.fill(Qt::transparent);
 		{
 			auto p = QPainter(&image);
-			svg.render(&p, Rect(kBatterySize));
+			svg.render(&p, Rect(scaledBatterySize));
 		}
 		return image;
 	}();
@@ -745,7 +748,7 @@ void Panel::createRemoteLowBattery() {
 
 		p.drawImage(
 			st::callTooltipMutedIconPosition.x(),
-			(r.height() - kBatterySize.height()) / 2,
+			(r.height() - scaledBatterySize.height()) / 2,
 			icon);
 	}, _remoteLowBattery->lifetime());
 
