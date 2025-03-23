@@ -1560,7 +1560,9 @@ auto HtmlWriter::Wrap::pushMessage(
 		block.append(popTag());
 	}
 	if (!message.reactions.empty()) {
-		block.append(pushDiv("reactions"));
+		block.append(pushTag("span", {
+			{ "class", "reactions" },
+		}));
 		for (const auto &reaction : message.reactions) {
 			auto reactionClass = QByteArray("reaction");
 			for (const auto &recent : reaction.recent) {
@@ -1574,10 +1576,10 @@ auto HtmlWriter::Wrap::pushMessage(
 				reactionClass += " paid";
 			}
 
-			block.append(pushTag("div", {
+			block.append(pushTag("span", {
 				{ "class", reactionClass },
 			}));
-			block.append(pushTag("div", {
+			block.append(pushTag("span", {
 				{ "class", "emoji" },
 			}));
 			switch (reaction.type) {
@@ -1596,7 +1598,7 @@ auto HtmlWriter::Wrap::pushMessage(
 			}
 			block.append(popTag());
 			if (!reaction.recent.empty()) {
-				block.append(pushTag("div", {
+				block.append(pushTag("span", {
 					{ "class", "userpics" },
 				}));
 				for (const auto &recent : reaction.recent) {
@@ -1617,7 +1619,7 @@ auto HtmlWriter::Wrap::pushMessage(
 			}
 			if (reaction.recent.empty()
 				|| (reaction.count > reaction.recent.size())) {
-				block.append(pushTag("div", {
+				block.append(pushTag("span", {
 					{ "class", "count" },
 				}));
 				block.append(NumberToString(reaction.count));
