@@ -420,8 +420,7 @@ void Widget::setupShortcuts() {
 }
 
 void Widget::setupSwipeReply() {
-	Ui::Controls::SetupSwipeHandler(_inner.data(), _scroll.data(), [=](
-			Ui::Controls::SwipeContextData data) {
+	auto update = [=](Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
 				_swipeBackData = Ui::Controls::SetupSwipeBack(
@@ -439,13 +438,22 @@ void Widget::setupSwipeReply() {
 		} else if (_swipeBackData.lifetime) {
 			_swipeBackData = {};
 		}
-	}, [=](int, Qt::LayoutDirection direction) {
+	};
+
+	auto init = [=](int, Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				controller()->showBackFromStack();
 			});
 		}
 		return Ui::Controls::SwipeHandlerFinishData();
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = _inner.data(),
+		.scroll = _scroll.data(),
+		.update = std::move(update),
+		.init = std::move(init),
 	});
 }
 

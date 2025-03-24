@@ -21,8 +21,7 @@ void SetupSwipeBackSection(
 		not_null<HistoryView::ListWidget*> list) {
 	const auto swipeBackData
 		= list->lifetime().make_state<Ui::Controls::SwipeBackResult>();
-	Ui::Controls::SetupSwipeHandler(list, scroll, [=](
-			Ui::Controls::SwipeContextData data) {
+	auto update = [=](Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!swipeBackData->callback) {
 				const auto color = [=]() -> std::pair<QColor, QColor> {
@@ -43,14 +42,22 @@ void SetupSwipeBackSection(
 		} else if (swipeBackData->lifetime) {
 			(*swipeBackData) = {};
 		}
-	}, [=](int, Qt::LayoutDirection direction) {
+	};
+	auto init = [=](int, Qt::LayoutDirection direction) {
 		if (direction != Qt::RightToLeft) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 			list->controller()->showBackFromStack();
 		});
-	}, list->touchMaybeSelectingValue());
+	};
+	Ui::Controls::SetupSwipeHandler({
+		.widget = list,
+		.scroll = scroll,
+		.update = std::move(update),
+		.init = std::move(init),
+		.dontStart = list->touchMaybeSelectingValue(),
+	});
 }
 
 } // namespace Window

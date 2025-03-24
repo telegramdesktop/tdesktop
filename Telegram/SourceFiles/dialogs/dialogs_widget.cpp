@@ -691,8 +691,8 @@ void Widget::setupSwipeBack() {
 		}
 		return !current;
 	};
-	Ui::Controls::SetupSwipeHandler(_inner, _scroll.data(), [=](
-			Ui::Controls::SwipeContextData data) {
+
+	auto update = [=](Ui::Controls::SwipeContextData data) {
 		if (data.translation != 0) {
 			if (data.translation < 0
 				&& _inner
@@ -724,7 +724,9 @@ void Widget::setupSwipeBack() {
 				_inner->update();
 			}
 		}
-	}, [=](int top, Qt::LayoutDirection direction) {
+	};
+
+	auto init = [=](int top, Qt::LayoutDirection direction) {
 		_swipeBackIconMirrored = false;
 		_swipeBackMirrored = false;
 		if (_childListShown.current()) {
@@ -812,7 +814,15 @@ void Widget::setupSwipeBack() {
 				});
 			}
 		}
+
 		return Ui::Controls::SwipeHandlerFinishData();
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = _inner,
+		.scroll = _scroll.data(),
+		.update = std::move(update),
+		.init = std::move(init),
 	});
 
 }

@@ -533,8 +533,7 @@ TabbedSelector::~TabbedSelector() = default;
 void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
 	_swipeLifetime.destroy();
 
-	Ui::Controls::SetupSwipeHandler(widget, _scroll.data(), [=](
-			Ui::Controls::SwipeContextData data) {
+	auto update = [=](Ui::Controls::SwipeContextData data) {
 		if (data.translation != 0) {
 			if (!_swipeBackData.callback) {
 				_swipeBackData = Ui::Controls::SetupSwipeBack(
@@ -552,7 +551,9 @@ void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
 		} else if (_swipeBackData.lifetime) {
 			_swipeBackData = {};
 		}
-	}, [=](int, Qt::LayoutDirection direction) {
+	};
+
+	auto init = [=](int, Qt::LayoutDirection direction) {
 		if (!_tabsSlider) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
@@ -571,7 +572,16 @@ void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
 			});
 		}
 		return Ui::Controls::SwipeHandlerFinishData();
-	}, nullptr, &_swipeLifetime);
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = widget,
+		.scroll = _scroll.data(),
+		.update = std::move(update),
+		.init = std::move(init),
+		.dontStart = nullptr,
+		.onLifetime = &_swipeLifetime,
+	});
 }
 
 const style::EmojiPan &TabbedSelector::st() const {
