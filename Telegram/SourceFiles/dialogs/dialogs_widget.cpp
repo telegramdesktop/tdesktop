@@ -379,6 +379,10 @@ Widget::Widget(
 			_childListPeerId.value(),
 			_childListShown.value(),
 			makeChildListShown)));
+	_scroll->heightValue() | rpl::start_with_next([=](int height) {
+		_inner->setMinimumHeight(height);
+		_inner->refresh();
+	}, _inner->lifetime());
 	_scrollToTop->raise();
 	_lockUnlock->toggle(false, anim::type::instant);
 
