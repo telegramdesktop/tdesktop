@@ -24,6 +24,9 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
+namespace Controls {
+struct SwipeHandlerArgs;
+} // namespace Controls
 class RoundRect;
 class ScrollArea;
 class InputField;
@@ -135,6 +138,8 @@ public:
 	[[nodiscard]] virtual auto desiredBottomShadowVisibility()
 		-> rpl::producer<bool>;
 
+	void replaceSwipeHandler(Ui::Controls::SwipeHandlerArgs *incompleteArgs);
+
 protected:
 	template <typename Widget>
 	Widget *setInnerWidget(object_ptr<Widget> inner) {
@@ -196,6 +201,7 @@ private:
 	style::margins _paintPadding;
 
 	Ui::Controls::SwipeBackResult _swipeBackData;
+	rpl::lifetime _swipeHandlerLifetime;
 
 };
 

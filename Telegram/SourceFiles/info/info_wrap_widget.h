@@ -15,6 +15,9 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
+namespace Controls {
+struct SwipeHandlerArgs;
+} // namespace Controls
 class FadeShadow;
 class PlainShadow;
 class PopupMenu;
@@ -139,6 +142,8 @@ public:
 	[[nodiscard]] rpl::producer<> removeRequests() const override {
 		return _removeRequests.events();
 	}
+
+	void replaceSwipeHandler(Ui::Controls::SwipeHandlerArgs *incompleteArgs);
 
 	~WrapWidget();
 

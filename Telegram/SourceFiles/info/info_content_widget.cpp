@@ -410,7 +410,19 @@ not_null<Ui::ScrollArea*> ContentWidget::scroll() const {
 	return _scroll.data();
 }
 
+void ContentWidget::replaceSwipeHandler(
+		Ui::Controls::SwipeHandlerArgs *incompleteArgs) {
+	_swipeHandlerLifetime.destroy();
+	auto args = std::move(*incompleteArgs);
+	args.widget = _innerWrap;
+	args.scroll = _scroll.data();
+	args.onLifetime = &_swipeHandlerLifetime;
+	Ui::Controls::SetupSwipeHandler(std::move(args));
+}
+
 void ContentWidget::setupSwipeHandler(not_null<Ui::RpWidget*> widget) {
+	_swipeHandlerLifetime.destroy();
+
 	auto update = [=](Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
@@ -446,6 +458,7 @@ void ContentWidget::setupSwipeHandler(not_null<Ui::RpWidget*> widget) {
 		.scroll = _scroll.data(),
 		.update = std::move(update),
 		.init = std::move(init),
+		.onLifetime = &_swipeHandlerLifetime,
 	});
 }
 
