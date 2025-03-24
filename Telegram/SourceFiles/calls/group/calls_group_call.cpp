@@ -1091,6 +1091,8 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	inputCall.match([&](const MTPDinputGroupCall &data) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
+	}, [&](const MTPDinputGroupCallSlug &) {
+		Unexpected("inputGroupCallSlug in GroupCall::join.");
 	});
 	setState(_scheduleDate ? State::Waiting : State::Joining);
 
@@ -1377,7 +1379,8 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				inputCall(),
 				joinAs()->input,
 				MTP_string(_joinHash),
-				MTPlong(), // key_fingerprint
+				MTPint256(), // public_key
+				MTPint(), // invite_msg_id
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](
 					const MTPUpdates &updates,
@@ -1607,7 +1610,8 @@ void GroupCall::applyMeInCallLocally() {
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(raisedHandRating),
 					MTPGroupCallParticipantVideo(),
-					MTPGroupCallParticipantVideo())),
+					MTPGroupCallParticipantVideo(),
+					AssertIsDebug() MTPint256())), // public_key
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1654,7 +1658,8 @@ void GroupCall::applyParticipantLocally(
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(participant->raisedHandRating),
 					MTPGroupCallParticipantVideo(),
-					MTPGroupCallParticipantVideo())),
+					MTPGroupCallParticipantVideo(),
+					AssertIsDebug() MTPint256())), // public_key
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1966,8 +1971,11 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCall &data) {
 }
 
 void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
-	const auto callId = data.vcall().match([](const auto &data) {
+	const auto callId = data.vcall().match([](
+			const MTPDinputGroupCall &data) {
 		return data.vid().v;
+	}, [](const MTPDinputGroupCallSlug &) -> CallId {
+		Unexpected("inputGroupCallSlug in GroupCall::handleUpdate.");
 	});
 	if (_id != callId) {
 		return;

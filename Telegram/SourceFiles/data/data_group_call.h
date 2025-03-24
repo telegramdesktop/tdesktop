@@ -56,7 +56,7 @@ public:
 	GroupCall(
 		not_null<PeerData*> peer,
 		CallId id,
-		CallId accessHash,
+		uint64 accessHash,
 		TimeId scheduleDate,
 		bool rtmp);
 	~GroupCall();
@@ -201,7 +201,7 @@ private:
 	[[nodiscard]] Participant *findParticipant(not_null<PeerData*> peer);
 
 	const CallId _id = 0;
-	const CallId _accessHash = 0;
+	const uint64 _accessHash = 0;
 
 	not_null<PeerData*> _peer;
 	int _version = 0;

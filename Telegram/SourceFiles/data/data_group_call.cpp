@@ -60,7 +60,7 @@ bool GroupCallParticipant::screenPaused() const {
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	CallId id,
-	CallId accessHash,
+	uint64 accessHash,
 	TimeId scheduleDate,
 	bool rtmp)
 : _id(id)

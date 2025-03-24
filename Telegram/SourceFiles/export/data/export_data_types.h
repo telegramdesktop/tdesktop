@@ -671,6 +671,12 @@ struct ActionPaidMessagesPrice {
 	int stars = 0;
 };
 
+struct ActionConferenceCall {
+	int duration = 0;
+	bool active = false;
+	bool missed = false;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -718,7 +724,8 @@ struct ServiceAction {
 		ActionPrizeStars,
 		ActionStarGift,
 		ActionPaidMessagesRefunded,
-		ActionPaidMessagesPrice> content;
+		ActionPaidMessagesPrice,
+		ActionConferenceCall> content;
 };
 
 ServiceAction ParseServiceAction(

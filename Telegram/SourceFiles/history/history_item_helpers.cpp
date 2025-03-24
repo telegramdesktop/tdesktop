@@ -915,6 +915,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 [[nodiscard]] CallId CallIdFromInput(const MTPInputGroupCall &data) {
 	return data.match([&](const MTPDinputGroupCall &data) {
 		return data.vid().v;
+	}, [](const MTPDinputGroupCallSlug &) -> CallId {
+		Unexpected("inputGroupCallSlug in CallIdFromInput.");
 	});
 }
 

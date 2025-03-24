@@ -50,4 +50,23 @@ object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 #endif // Q_OS_MAC
 }
 
+void ConferenceCallJoinConfirm(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Data::GroupCall> call) {
+	box->setTitle(tr::lng_confcall_join_title());
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_confcall_join_text(),
+			st::boxLabel));
+
+	box->addButton(tr::lng_confcall_join_button(), [=] {
+
+	});
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
+}
+
 } // namespace Calls::Group

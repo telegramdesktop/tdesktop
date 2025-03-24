@@ -672,6 +672,12 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("paid_messages_price_change");
 		push("price_stars", data.stars);
+	}, [&](const ActionConferenceCall &data) {
+		pushActor();
+		pushAction("conference_call");
+		push("duration_seconds", data.duration);
+		push("is_missed", data.missed);
+		push("is_active", data.active);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

@@ -172,6 +172,8 @@ StorageFileLocation::StorageFileLocation(
 		data.vcall().match([&](const MTPDinputGroupCall &data) {
 			_id = data.vid().v;
 			_accessHash = data.vaccess_hash().v;
+		}, [](const auto &data) {
+			Unexpected("inputGroupCallSlug in inputGroupCallStream.");
 		});
 		_volumeId = data.vtime_ms().v;
 		_localId = data.vscale().v;

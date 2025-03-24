@@ -5624,6 +5624,19 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &action) {
+		auto result = PreparedServiceText();
+		const auto duration = action.vduration().value_or_empty();
+		result.text.text = action.is_missed()
+			? tr::lng_action_confcall_missed(tr::now)
+			: action.is_active()
+			? tr::lng_action_confcall_ongoing(tr::now)
+			: duration
+			? tr::lng_action_confcall_finished(tr::now)
+			: tr::lng_action_confcall_invitation(tr::now);
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -5673,6 +5686,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareStarGiftUnique,
 		preparePaidMessagesRefunded,
 		preparePaidMessagesPrice,
+		prepareConferenceCall,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

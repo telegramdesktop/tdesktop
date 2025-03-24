@@ -1387,6 +1387,16 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ QString::number(data.stars).toUtf8()
 			+ " Telegram Stars.";
 		return result;
+	}, [&](const ActionConferenceCall &data) {
+		return data.missed
+			? "Missed conference call"
+			: data.active
+			? "Ongoing conference call"
+			: data.duration
+			? "Conference call ("
+				+ NumberToString(data.duration)
+				+ " seconds)"
+			: "Declined conference call";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

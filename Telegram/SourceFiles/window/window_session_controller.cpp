@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_common.h"
 #include "ui/boxes/calendar_box.h"
 #include "ui/boxes/collectible_info_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -816,10 +817,9 @@ void SessionNavigation::resolveCollectible(
 		Fn<void(QString)> fail) {
 	if (_collectibleEntity == entity) {
 		return;
-	} else {
-		_api.request(base::take(_collectibleRequestId)).cancel();
 	}
 	_collectibleEntity = entity;
+	_api.request(base::take(_collectibleRequestId)).cancel();
 	_collectibleRequestId = _api.request(MTPfragment_GetCollectibleInfo(
 		((Ui::DetectCollectibleType(entity) == Ui::CollectibleType::Phone)
 			? MTP_inputCollectiblePhone(MTP_string(entity))
@@ -837,6 +837,39 @@ void SessionNavigation::resolveCollectible(
 		if (fail) {
 			fail(error.type());
 		}
+	}).send();
+}
+
+void SessionNavigation::resolveConferenceCall(const QString &slug) {
+	if (_conferenceCallSlug == slug) {
+		return;
+	}
+	_api.request(base::take(_conferenceCallRequestId)).cancel();
+	_conferenceCallSlug = slug;
+
+	const auto limit = 5;
+	_conferenceCallRequestId = _api.request(MTPphone_GetGroupCall(
+		MTP_inputGroupCallSlug(MTP_string(slug)),
+		MTP_int(limit)
+	)).done([=](const MTPphone_GroupCall &result) {
+		_conferenceCallRequestId = 0;
+		_conferenceCallSlug = QString();
+
+		result.data().vcall().match([&](const auto &data) {
+			const auto call = std::make_shared<Data::GroupCall>(
+				session().user(),
+				data.vid().v,
+				data.vaccess_hash().v,
+				TimeId(), // scheduleDate
+				false); // rtmp
+			call->processFullCall(result);
+			uiShow()->show(
+				Box(Calls::Group::ConferenceCallJoinConfirm, call));
+		});
+	}).fail([=] {
+		_conferenceCallRequestId = 0;
+		_conferenceCallSlug = QString();
+		showToast(tr::lng_group_invite_bad_link(tr::now));
 	}).send();
 }
 

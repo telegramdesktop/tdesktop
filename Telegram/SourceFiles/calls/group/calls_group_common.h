@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class UserData;
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 namespace Ui {
 class GenericBox;
 } // namespace Ui
@@ -92,5 +96,9 @@ constexpr inline bool is_flag_type(StickedTooltip) {
 using StickedTooltips = base::flags<StickedTooltip>;
 
 [[nodiscard]] object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox();
+
+void ConferenceCallJoinConfirm(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<Data::GroupCall> call);
 
 } // namespace Calls::Group

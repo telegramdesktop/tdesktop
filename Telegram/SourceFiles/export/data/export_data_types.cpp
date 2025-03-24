@@ -1713,6 +1713,12 @@ ServiceAction ParseServiceAction(
 		result.content = ActionPaidMessagesPrice{
 			.stars = int(data.vstars().v),
 		};
+	}, [&](const MTPDmessageActionConferenceCall &data) {
+		result.content = ActionConferenceCall{
+			.duration = data.vduration().value_or_empty(),
+			.active = data.is_active(),
+			.missed = data.is_missed(),
+		};
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

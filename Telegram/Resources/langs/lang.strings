@@ -2220,6 +2220,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_message_price_paid#other" = "Messages now cost {count} Stars each in this group.";
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
+"lng_action_confcall_invitation" = "Call invitation...";
+"lng_action_confcall_missed" = "Missed conference call";
+"lng_action_confcall_ongoing" = "Ongoing conference call";
+"lng_action_confcall_finished" = "Conference call";
 
 "lng_you_joined_group" = "You joined this group";
 
@@ -4903,6 +4907,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_rtmp_revoke_sure" = "Are you sure you want to revoke your Stream Key?";
 "lng_group_call_rtmp_viewers#one" = "{count} viewer";
 "lng_group_call_rtmp_viewers#other" = "{count} viewers";
+
+"lng_confcall_join_title" = "Group Call";
+"lng_confcall_join_text" = "You are invited to join a Telegram Call.";
+"lng_confcall_join_button" = "Join Group Call";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 
