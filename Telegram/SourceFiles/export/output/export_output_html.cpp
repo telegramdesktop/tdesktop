@@ -2323,10 +2323,12 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		} else if (data.isVideoFile) {
 			// At least try to pushVideoFileMedia.
 		} else if (data.isAudioFile) {
-			result.title = (data.songPerformer.isEmpty()
-				|| data.songTitle.isEmpty())
-				? QByteArray("Audio file")
-				: data.songPerformer + " \xe2\x80\x93 " + data.songTitle;
+			result.title = (!data.songPerformer.isEmpty()
+				&& !data.songTitle.isEmpty())
+				? (data.songPerformer + " \xe2\x80\x93 " + data.songTitle)
+				: !data.name.isEmpty()
+				? data.name
+				: QByteArray("Audio file");
 			result.status = FormatDuration(data.duration);
 			if (!hasFile) {
 				result.status += ", " + FormatFileSize(data.file.size);
