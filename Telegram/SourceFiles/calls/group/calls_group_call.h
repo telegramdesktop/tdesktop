@@ -42,6 +42,11 @@ struct GroupCallParticipant;
 class GroupCall;
 } // namespace Data
 
+namespace TdE2E {
+struct ParticipantState;
+struct CallState;
+} // namespace TdE2E
+
 namespace Calls {
 
 namespace Group {
@@ -49,6 +54,7 @@ struct MuteRequest;
 struct VolumeRequest;
 struct ParticipantState;
 struct JoinInfo;
+struct ConferenceInfo;
 struct RejoinEvent;
 struct RtmpInfo;
 enum class VideoQuality;
@@ -164,6 +170,8 @@ struct ParticipantVideoParams;
 	const tl::conditional<MTPGroupCallParticipantVideo> &camera,
 	const tl::conditional<MTPGroupCallParticipantVideo> &screen,
 	const std::shared_ptr<ParticipantVideoParams> &existing);
+[[nodiscard]] std::shared_ptr<TdE2E::ParticipantState> ParseParticipantState(
+	const MTPDgroupCallParticipant &data);
 
 [[nodiscard]] const std::string &GetCameraEndpoint(
 	const std::shared_ptr<ParticipantVideoParams> &params);
@@ -217,6 +225,9 @@ public:
 		not_null<Delegate*> delegate,
 		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
+	GroupCall(
+		not_null<Delegate*> delegate,
+		Group::ConferenceInfo info);
 	~GroupCall();
 
 	[[nodiscard]] CallId id() const {
@@ -469,6 +480,12 @@ private:
 		return true;
 	}
 
+	GroupCall(
+		not_null<Delegate*> delegate,
+		Group::JoinInfo join,
+		Group::ConferenceInfo conference,
+		const MTPInputGroupCall &inputCall);
+
 	void broadcastPartStart(std::shared_ptr<LoadPartTask> task);
 	void broadcastPartCancel(not_null<LoadPartTask*> task);
 	void mediaChannelDescriptionsStart(
@@ -575,6 +592,7 @@ private:
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
+	const std::shared_ptr<Data::GroupCall> _conferenceCall;
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
 	rpl::event_stream<PeerData*> _peerStream;
 	not_null<History*> _history; // Can change in legacy group migration.
@@ -601,8 +619,12 @@ private:
 	rpl::variable<not_null<PeerData*>> _joinAs;
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
 	QString _joinHash;
+	QString _conferenceLinkSlug;
+	MsgId _conferenceJoinMessageId;
 	int64 _serverTimeMs = 0;
 	crl::time _serverTimeMsGotAt = 0;
+
+	std::unique_ptr<TdE2E::CallState> _e2eState;
 
 	QString _rtmpUrl;
 	QString _rtmpKey;

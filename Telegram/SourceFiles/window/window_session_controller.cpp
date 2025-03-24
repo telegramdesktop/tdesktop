@@ -853,7 +853,7 @@ void SessionNavigation::resolveConferenceCall(const QString &slug) {
 		MTP_int(limit)
 	)).done([=](const MTPphone_GroupCall &result) {
 		_conferenceCallRequestId = 0;
-		_conferenceCallSlug = QString();
+		const auto slug = base::take(_conferenceCallSlug);
 
 		result.data().vcall().match([&](const auto &data) {
 			const auto call = std::make_shared<Data::GroupCall>(
@@ -863,8 +863,15 @@ void SessionNavigation::resolveConferenceCall(const QString &slug) {
 				TimeId(), // scheduleDate
 				false); // rtmp
 			call->processFullCall(result);
-			uiShow()->show(
-				Box(Calls::Group::ConferenceCallJoinConfirm, call));
+			const auto join = [=] {
+				Core::App().calls().startOrJoinConferenceCall(
+					uiShow(),
+					{ .call = call, .linkSlug = slug });
+			};
+			uiShow()->show(Box(
+				Calls::Group::ConferenceCallJoinConfirm,
+				call,
+				join));
 		});
 	}).fail([=] {
 		_conferenceCallRequestId = 0;

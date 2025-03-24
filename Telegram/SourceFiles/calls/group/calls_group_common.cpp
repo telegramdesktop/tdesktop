@@ -52,7 +52,8 @@ object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 
 void ConferenceCallJoinConfirm(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Data::GroupCall> call) {
+		std::shared_ptr<Data::GroupCall> call,
+		Fn<void()> join) {
 	box->setTitle(tr::lng_confcall_join_title());
 
 	box->addRow(
@@ -62,7 +63,11 @@ void ConferenceCallJoinConfirm(
 			st::boxLabel));
 
 	box->addButton(tr::lng_confcall_join_button(), [=] {
-
+		const auto weak = Ui::MakeWeak(box);
+		join();
+		if (const auto strong = weak.data()) {
+			strong->closeBox();
+		}
 	});
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();

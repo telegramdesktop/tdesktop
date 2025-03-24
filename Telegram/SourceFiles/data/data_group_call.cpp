@@ -622,15 +622,22 @@ void GroupCall::applyParticipantsSlice(
 			const auto existingVideoParams = (i != end(_participants))
 				? i->videoParams
 				: nullptr;
+			const auto existingState = (i != end(_participants))
+				? i->e2eState
+				: nullptr;
 			auto videoParams = localUpdate
 				? existingVideoParams
 				: Calls::ParseVideoParams(
 					data.vvideo(),
 					data.vpresentation(),
 					existingVideoParams);
+			auto e2eState = localUpdate
+				? existingState
+				: Calls::ParseParticipantState(data);
 			const auto value = Participant{
 				.peer = participantPeer,
 				.videoParams = std::move(videoParams),
+				.e2eState = std::move(e2eState),
 				.date = data.vdate().v,
 				.lastActive = lastActive,
 				.raisedHandRating = raisedHandRating,

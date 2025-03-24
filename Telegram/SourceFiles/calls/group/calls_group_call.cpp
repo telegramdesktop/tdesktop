@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
 #include "base/random.h"
+#include "tde2e/tde2e_api.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "webrtc/webrtc_environment.h"
@@ -418,6 +419,21 @@ std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
 	return data;
 }
 
+std::shared_ptr<TdE2E::ParticipantState> ParseParticipantState(
+		const MTPDgroupCallParticipant &data) {
+	if (!data.vpublic_key() || data.vpeer().type() != mtpc_peerUser) {
+		return nullptr;
+	}
+	const auto &v = *data.vpublic_key();
+	const auto userId = data.vpeer().c_peerUser().vuser_id().v;
+	using State = TdE2E::ParticipantState;
+	return std::make_shared<State>(State{
+		.id = uint64(userId),
+		.key = { .a = v.h.h, .b = v.h.l, .c = v.l.h, .d = v.l.l },
+	});
+
+}
+
 GroupCall::LoadPartTask::LoadPartTask(
 	base::weak_ptr<GroupCall> call,
 	int64 time,
@@ -569,18 +585,38 @@ GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
 	Group::JoinInfo info,
 	const MTPInputGroupCall &inputCall)
+: GroupCall(delegate, info, {}, inputCall) {
+}
+
+GroupCall::GroupCall(
+	not_null<Delegate*> delegate,
+	Group::ConferenceInfo info)
+: GroupCall(delegate, Group::JoinInfo{
+	.peer = info.call->peer(),
+	.joinAs = info.call->peer(),
+}, info, info.call->input()) {
+}
+
+GroupCall::GroupCall(
+	not_null<Delegate*> delegate,
+	Group::JoinInfo join,
+	Group::ConferenceInfo conference,
+	const MTPInputGroupCall &inputCall)
 : _delegate(delegate)
-, _peer(info.peer)
+, _conferenceCall(conference.call)
+, _peer(join.peer)
 , _history(_peer->owner().history(_peer))
 , _api(&_peer->session().mtp())
-, _joinAs(info.joinAs)
-, _possibleJoinAs(std::move(info.possibleJoinAs))
-, _joinHash(info.joinHash)
-, _rtmpUrl(info.rtmpInfo.url)
-, _rtmpKey(info.rtmpInfo.key)
+, _joinAs(join.joinAs)
+, _possibleJoinAs(std::move(join.possibleJoinAs))
+, _joinHash(join.joinHash)
+, _conferenceLinkSlug(conference.linkSlug)
+, _conferenceJoinMessageId(conference.joinMessageId)
+, _rtmpUrl(join.rtmpInfo.url)
+, _rtmpKey(join.rtmpInfo.key)
 , _canManage(Data::CanManageGroupCallValue(_peer))
 , _id(inputCall.c_inputGroupCall().vid().v)
-, _scheduleDate(info.scheduleDate)
+, _scheduleDate(join.scheduleDate)
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _playbackDeviceId(
@@ -601,9 +637,14 @@ GroupCall::GroupCall(
 	Webrtc::DeviceIdOrDefault(Core::App().settings().cameraDeviceIdValue()))
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
 , _connectingSoundTimer([=] { playConnectingSoundOnce(); })
-, _listenersHidden(info.rtmp)
-, _rtmp(info.rtmp)
+, _listenersHidden(join.rtmp)
+, _rtmp(join.rtmp)
 , _rtmpVolume(Group::kDefaultVolume) {
+	if (_conferenceCall) {
+		_e2eState = std::make_unique<TdE2E::CallState>(
+			TdE2E::CreateCallState());
+	}
+
 	_muted.value(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
@@ -657,9 +698,9 @@ GroupCall::GroupCall(
 	setupOutgoingVideo();
 
 	if (_id) {
-		join(inputCall);
+		this->join(inputCall);
 	} else {
-		start(info.scheduleDate, info.rtmp);
+		start(join.scheduleDate, join.rtmp);
 	}
 	if (_scheduleDate) {
 		saveDefaultJoinAs(joinAs());
@@ -1055,6 +1096,9 @@ void GroupCall::setRtmpInfo(const Calls::Group::RtmpInfo &value) {
 }
 
 Data::GroupCall *GroupCall::lookupReal() const {
+	if (_conferenceCall) {
+		return _conferenceCall.get();
+	}
 	const auto real = _peer->groupCall();
 	return (real && real->id() == _id) ? real : nullptr;
 }
@@ -1373,14 +1417,24 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 					: Flag::f_invite_hash)
 				| (wasVideoStopped
 					? Flag::f_video_stopped
-					: Flag(0));
+					: Flag(0))
+				| (_conferenceJoinMessageId ? Flag::f_invite_msg_id : Flag())
+				| (_e2eState ? Flag::f_public_key : Flag());
+			const auto publicKey = _e2eState
+				? _e2eState->myKey
+				: TdE2E::PublicKey();
 			_api.request(MTPphone_JoinGroupCall(
 				MTP_flags(flags),
-				inputCall(),
+				(_conferenceLinkSlug.isEmpty()
+					? inputCall()
+					: MTP_inputGroupCallSlug(
+						MTP_string(_conferenceLinkSlug))),
 				joinAs()->input,
 				MTP_string(_joinHash),
-				MTPint256(), // public_key
-				MTPint(), // invite_msg_id
+				MTP_int256(
+					MTP_int128(publicKey.a, publicKey.b),
+					MTP_int128(publicKey.c, publicKey.d)),
+				MTP_int(_conferenceJoinMessageId.bare),
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](
 					const MTPUpdates &updates,
@@ -1586,6 +1640,7 @@ void GroupCall::applyMeInCallLocally() {
 		: participant
 		? participant->raisedHandRating
 		: FindLocalRaisedHandRating(real->participants());
+	const auto publicKey = _e2eState ? _e2eState->myKey : TdE2E::PublicKey();
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_joinState.ssrc ? Flag(0) : Flag::f_left)
@@ -1594,7 +1649,8 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
-		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
+		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0))
+		| (_e2eState ? Flag::f_public_key : Flag(0));
 	real->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -1611,7 +1667,9 @@ void GroupCall::applyMeInCallLocally() {
 					MTP_long(raisedHandRating),
 					MTPGroupCallParticipantVideo(),
 					MTPGroupCallParticipantVideo(),
-					AssertIsDebug() MTPint256())), // public_key
+					MTP_int256(
+						MTP_int128(publicKey.a, publicKey.b),
+						MTP_int128(publicKey.c, publicKey.d)))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1642,7 +1700,11 @@ void GroupCall::applyParticipantLocally(
 		| (participantPeer == joinAs() ? Flag::f_self : Flag(0))
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
-			: Flag(0));
+			: Flag(0))
+		| (participant->e2eState ? Flag::f_public_key : Flag(0));
+	const auto publicKey = participant->e2eState
+		? participant->e2eState->key
+		: TdE2E::PublicKey();
 	_peer->groupCall()->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -1659,7 +1721,9 @@ void GroupCall::applyParticipantLocally(
 					MTP_long(participant->raisedHandRating),
 					MTPGroupCallParticipantVideo(),
 					MTPGroupCallParticipantVideo(),
-					AssertIsDebug() MTPint256())), // public_key
+					MTP_int256(
+						MTP_int128(publicKey.a, publicKey.b),
+						MTP_int128(publicKey.c, publicKey.d)))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 

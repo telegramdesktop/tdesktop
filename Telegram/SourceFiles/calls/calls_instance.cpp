@@ -230,6 +230,30 @@ void Instance::startOrJoinGroupCall(
 	});
 }
 
+void Instance::startOrJoinConferenceCall(
+		std::shared_ptr<Ui::Show> show,
+		StartConferenceCallArgs args) {
+	destroyCurrentCall();
+
+	auto call = std::make_unique<GroupCall>(
+		_delegate.get(),
+		Calls::Group::ConferenceInfo{
+			.call = args.call,
+			.linkSlug = args.linkSlug,
+			.joinMessageId = args.joinMessageId,
+		});
+	const auto raw = call.get();
+
+	args.call->peer()->session().account().sessionChanges(
+	) | rpl::start_with_next([=] {
+		destroyGroupCall(raw);
+	}, raw->lifetime());
+
+	_currentGroupCallPanel = std::make_unique<Group::Panel>(raw);
+	_currentGroupCall = std::move(call);
+	_currentGroupCallChanges.fire_copy(raw);
+}
+
 void Instance::confirmLeaveCurrent(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
@@ -400,6 +424,24 @@ void Instance::createGroupCall(
 	const auto raw = call.get();
 
 	info.peer->session().account().sessionChanges(
+	) | rpl::start_with_next([=] {
+		destroyGroupCall(raw);
+	}, raw->lifetime());
+
+	_currentGroupCallPanel = std::make_unique<Group::Panel>(raw);
+	_currentGroupCall = std::move(call);
+	_currentGroupCallChanges.fire_copy(raw);
+}
+
+void Instance::createConferenceCall(Group::ConferenceInfo info) {
+	destroyCurrentCall();
+
+	auto call = std::make_unique<GroupCall>(
+		_delegate.get(),
+		std::move(info));
+	const auto raw = call.get();
+
+	raw->peer()->session().account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		destroyGroupCall(raw);
 	}, raw->lifetime());

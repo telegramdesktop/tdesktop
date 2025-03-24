@@ -13,6 +13,10 @@ namespace crl {
 class semaphore;
 } // namespace crl
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 namespace Platform {
 enum class PermissionType;
 } // namespace Platform
@@ -31,6 +35,7 @@ class Show;
 
 namespace Calls::Group {
 struct JoinInfo;
+struct ConferenceInfo;
 class Panel;
 class ChooseJoinAsProcess;
 class StartRtmpProcess;
@@ -59,6 +64,12 @@ struct StartGroupCallArgs {
 	bool scheduleNeeded = false;
 };
 
+struct StartConferenceCallArgs {
+	std::shared_ptr<Data::GroupCall> call;
+	QString linkSlug;
+	MsgId joinMessageId;
+};
+
 class Instance final : public base::has_weak_ptr {
 public:
 	Instance();
@@ -69,6 +80,9 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		StartGroupCallArgs args);
+	void startOrJoinConferenceCall(
+		std::shared_ptr<Ui::Show> show,
+		StartConferenceCallArgs args);
 	void showStartWithRtmp(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
@@ -121,6 +135,7 @@ private:
 	void createGroupCall(
 		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
+	void createConferenceCall(Group::ConferenceInfo info);
 	void destroyGroupCall(not_null<GroupCall*> call);
 	void confirmLeaveCurrent(
 		std::shared_ptr<Ui::Show> show,

@@ -17,6 +17,10 @@ namespace Calls {
 struct ParticipantVideoParams;
 } // namespace Calls
 
+namespace TdE2E {
+struct ParticipantState;
+} // namespace TdE2E
+
 namespace Data {
 
 [[nodiscard]] const std::string &RtmpEndpointId();
@@ -29,6 +33,7 @@ struct LastSpokeTimes {
 struct GroupCallParticipant {
 	not_null<PeerData*> peer;
 	std::shared_ptr<Calls::ParticipantVideoParams> videoParams;
+	std::shared_ptr<TdE2E::ParticipantState> e2eState;
 	TimeId date = 0;
 	TimeId lastActive = 0;
 	uint64 raisedHandRating = 0;

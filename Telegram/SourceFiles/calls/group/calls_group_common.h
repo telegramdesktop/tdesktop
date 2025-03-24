@@ -65,6 +65,12 @@ struct JoinInfo {
 	bool rtmp = false;
 };
 
+struct ConferenceInfo {
+	std::shared_ptr<Data::GroupCall> call;
+	QString linkSlug;
+	MsgId joinMessageId;
+};
+
 enum class PanelMode {
 	Default,
 	Wide,
@@ -99,6 +105,7 @@ using StickedTooltips = base::flags<StickedTooltip>;
 
 void ConferenceCallJoinConfirm(
 	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<Data::GroupCall> call);
+	std::shared_ptr<Data::GroupCall> call,
+	Fn<void()> join);
 
 } // namespace Calls::Group
