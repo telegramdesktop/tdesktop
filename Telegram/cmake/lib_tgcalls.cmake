@@ -76,6 +76,8 @@ PRIVATE
     v2/InstanceV2Impl.h
     v2/NativeNetworkingImpl.cpp
     v2/NativeNetworkingImpl.h
+    v2/RawTcpSocket.cpp
+    v2/RawTcpSocket.h
     v2/ReflectorPort.cpp
     v2/ReflectorPort.h
     v2/ReflectorRelayPortFactory.cpp
@@ -86,8 +88,12 @@ PRIVATE
     v2/SignalingConnection.h
     v2/SignalingEncryption.cpp
     v2/SignalingEncryption.h
+    v2/SignalingKcpConnection.cpp
+    v2/SignalingKcpConnection.h
     v2/SignalingSctpConnection.cpp
     v2/SignalingSctpConnection.h
+    v2/ikcp.cpp
+    v2/ikcp.h
 
     # Desktop capturer
     desktop_capturer/DesktopCaptureSource.h
@@ -144,10 +150,6 @@ PRIVATE
     platform/darwin/DesktopSharingCapturer.mm
     platform/darwin/ExtractCVPixelBuffer.h
     platform/darwin/ExtractCVPixelBuffer.mm
-    platform/darwin/GLVideoView.h
-    platform/darwin/GLVideoView.mm
-    platform/darwin/GLVideoViewMac.h
-    platform/darwin/GLVideoViewMac.mm
     platform/darwin/h265_nalu_rewriter.cc
     platform/darwin/h265_nalu_rewriter.h
     platform/darwin/objc_video_encoder_factory.h
@@ -231,10 +233,6 @@ if (APPLE)
         -fobjc-arc
     )
     remove_target_sources(lib_tgcalls ${tgcalls_loc}
-        platform/darwin/GLVideoView.h
-        platform/darwin/GLVideoView.mm
-        platform/darwin/GLVideoViewMac.h
-        platform/darwin/GLVideoViewMac.mm
         platform/darwin/VideoCameraCapturer.h
         platform/darwin/VideoCameraCapturer.mm
         platform/darwin/VideoMetalView.h
