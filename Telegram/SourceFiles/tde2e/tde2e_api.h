@@ -55,6 +55,11 @@ public:
 	};
 	[[nodiscard]] ApplyResult apply(const Block &block);
 
+	[[nodiscard]] std::vector<uint8_t> encrypt(
+		const std::vector<uint8_t> &data) const;
+	[[nodiscard]] std::vector<uint8_t> decrypt(
+		const std::vector<uint8_t> &data) const;
+
 private:
 	CallId _id;
 	UserId _myUserId;

@@ -85,4 +85,36 @@ Call::ApplyResult Call::apply(const Block &block) {
 		: ApplyResult::BlockSkipped;
 }
 
+std::vector<uint8_t> Call::encrypt(const std::vector<uint8_t> &data) const {
+	const auto result = tde2e_api::call_encrypt(
+		std::int64_t(_id.v),
+		std::string_view{
+			reinterpret_cast<const char*>(data.data()),
+			data.size(),
+		});
+	if (!result.is_ok()) {
+		return {};
+	}
+	const auto &value = result.value();
+	const auto start = reinterpret_cast<const uint8_t*>(value.data());
+	const auto end = start + value.size();
+	return std::vector<uint8_t>{ start, end };
+}
+
+std::vector<uint8_t> Call::decrypt(const std::vector<uint8_t> &data) const {
+	const auto result = tde2e_api::call_decrypt(
+		std::int64_t(_id.v),
+		std::string_view{
+			reinterpret_cast<const char*>(data.data()),
+			data.size(),
+		});
+	if (!result.is_ok()) {
+		return {};
+	}
+	const auto &value = result.value();
+	const auto start = reinterpret_cast<const uint8_t*>(value.data());
+	const auto end = start + value.size();
+	return std::vector<uint8_t>{ start, end };
+}
+
 } // namespace TdE2E
