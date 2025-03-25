@@ -4911,6 +4911,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_join_title" = "Group Call";
 "lng_confcall_join_text" = "You are invited to join a Telegram Call.";
 "lng_confcall_join_button" = "Join Group Call";
+"lng_confcall_create_link" = "Create Call Link";
+"lng_confcall_create_link_description" = "You can create a link that will allow your friends on Telegram to join the call.";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 

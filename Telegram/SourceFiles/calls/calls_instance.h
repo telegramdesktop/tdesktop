@@ -45,6 +45,10 @@ namespace tgcalls {
 class VideoCaptureInterface;
 } // namespace tgcalls
 
+namespace TdE2E {
+class Call;
+} // namespace TdE2E
+
 namespace Calls {
 
 class Call;
@@ -66,6 +70,7 @@ struct StartGroupCallArgs {
 
 struct StartConferenceCallArgs {
 	std::shared_ptr<Data::GroupCall> call;
+	std::shared_ptr<TdE2E::Call> e2e;
 	QString linkSlug;
 	MsgId joinMessageId;
 };

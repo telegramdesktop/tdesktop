@@ -11,7 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace TdE2E {
 
+struct UserId {
+	uint64 v = 0;
+};
+
 struct PrivateKeyId {
+	uint64 v = 0;
+};
+
+struct CallId {
 	uint64 v = 0;
 };
 
@@ -23,15 +31,36 @@ struct PublicKey {
 };
 
 struct ParticipantState {
-	uint64 id = 0;
+	UserId id;
 	PublicKey key;
 };
 
-struct CallState {
-	PrivateKeyId myKeyId;
-	PublicKey myKey;
+struct Block {
+	QByteArray data;
 };
 
-[[nodiscard]] CallState CreateCallState();
+class Call final {
+public:
+	explicit Call(UserId myUserId);
+
+	[[nodiscard]] PublicKey myKey() const;
+
+	[[nodiscard]] Block makeZeroBlock() const;
+
+	void create(const Block &last);
+
+	enum class ApplyResult {
+		Success,
+		BlockSkipped
+	};
+	[[nodiscard]] ApplyResult apply(const Block &block);
+
+private:
+	CallId _id;
+	UserId _myUserId;
+	PrivateKeyId _myKeyId;
+	PublicKey _myKey;
+
+};
 
 } // namespace TdE2E

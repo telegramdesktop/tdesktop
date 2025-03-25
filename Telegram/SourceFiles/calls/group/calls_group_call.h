@@ -44,7 +44,7 @@ class GroupCall;
 
 namespace TdE2E {
 struct ParticipantState;
-struct CallState;
+class Call;
 } // namespace TdE2E
 
 namespace Calls {
@@ -437,6 +437,7 @@ private:
 	struct SinkPointer;
 
 	static constexpr uint32 kDisabledSsrc = uint32(-1);
+	static constexpr int kSubChainsCount = 2;
 
 	struct LoadingPart {
 		std::shared_ptr<LoadPartTask> task;
@@ -475,6 +476,12 @@ private:
 			ssrc = updatedSsrc;
 		}
 	};
+	struct SubChainState {
+		crl::time lastUpdate = 0;
+		base::Timer timer;
+		int height = 0;
+		mtpRequestId requestId = 0;
+	};
 
 	friend inline constexpr bool is_flag_type(SendUpdateType) {
 		return true;
@@ -507,6 +514,7 @@ private:
 	void handlePossibleDiscarded(const MTPDgroupCallDiscarded &data);
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
+	void handleUpdate(const MTPDupdateGroupCallChainBlocks &data);
 	bool tryCreateController();
 	void destroyController();
 	bool tryCreateScreencast();
@@ -535,6 +543,7 @@ private:
 	void rejoinPresentation();
 	void leavePresentation();
 	void checkNextJoinAction();
+	void checkChainBlocksRequest(int subchain);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
@@ -593,6 +602,8 @@ private:
 
 	const not_null<Delegate*> _delegate;
 	const std::shared_ptr<Data::GroupCall> _conferenceCall;
+	std::shared_ptr<TdE2E::Call> _e2e;
+
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
 	rpl::event_stream<PeerData*> _peerStream;
 	not_null<History*> _history; // Can change in legacy group migration.
@@ -623,8 +634,6 @@ private:
 	MsgId _conferenceJoinMessageId;
 	int64 _serverTimeMs = 0;
 	crl::time _serverTimeMsGotAt = 0;
-
-	std::unique_ptr<TdE2E::CallState> _e2eState;
 
 	QString _rtmpUrl;
 	QString _rtmpKey;
@@ -709,6 +718,8 @@ private:
 	bool _rtmp = false;
 	bool _reloadedStaleCall = false;
 	int _rtmpVolume = 0;
+
+	SubChainState _subchains[kSubChainsCount];
 
 	rpl::lifetime _lifetime;
 

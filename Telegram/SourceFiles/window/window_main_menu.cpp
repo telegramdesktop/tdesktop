@@ -14,17 +14,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_preview_box.h"
 #include "calls/calls_box_controller.h"
+#include "calls/calls_instance.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_changes.h"
 #include "data/data_document_media.h"
 #include "data/data_folder.h"
+#include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
+#include "info/profile/info_profile_icon.h"
 #include "info/stories/info_stories_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
@@ -38,6 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "support/support_templates.h"
+#include "tde2e/tde2e_api.h"
+#include "tde2e/tde2e_integration.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/swipe_handler.h"
@@ -92,6 +97,66 @@ constexpr auto kPlayStatusLimit = 2;
 		|| (now.month() == 1 && now.day() == 1);
 }
 
+[[nodiscard]] not_null<Ui::SettingsButton*> AddCreateCallLinkButton(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		Fn<void()> done) {
+	const auto result = container->add(object_ptr<Ui::SettingsButton>(
+		container,
+		tr::lng_confcall_create_link(),
+		st::inviteViaLinkButton), QMargins());
+	Ui::AddSkip(container);
+	Ui::AddDividerText(
+		container,
+		tr::lng_confcall_create_link_description(Ui::Text::WithEntities));
+
+	const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
+		result,
+		st::inviteViaLinkIcon,
+		QPoint());
+	result->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		icon->moveToLeft(
+			st::inviteViaLinkIconPosition.x(),
+			(height - st::inviteViaLinkIcon.height()) / 2);
+	}, icon->lifetime());
+
+	const auto creating = result->lifetime().make_state<bool>();
+	result->setClickedCallback([=] {
+		if (*creating) {
+			return;
+		}
+		*creating = true;
+		auto e2e = std::make_shared<TdE2E::Call>(
+			TdE2E::MakeUserId(controller->session().user()));
+		const auto session = &controller->session();
+		session->api().request(MTPphone_CreateConferenceCall(
+			TdE2E::PublicKeyToMTP(e2e->myKey()),
+			MTP_bytes(e2e->makeZeroBlock().data)
+		)).done(crl::guard(controller, [=](const MTPphone_GroupCall &result) {
+			result.data().vcall().match([&](const auto &data) {
+				const auto call = std::make_shared<Data::GroupCall>(
+					session->user(),
+					data.vid().v,
+					data.vaccess_hash().v,
+					TimeId(), // scheduleDate
+					false); // rtmp
+				call->processFullCall(result);
+				Core::App().calls().startOrJoinConferenceCall(
+					controller->uiShow(),
+					{ .call = call, .e2e = e2e });
+			});
+			if (const auto onstack = done) {
+				onstack();
+			}
+		})).fail(crl::guard(controller, [=](const MTP::Error &error) {
+			controller->uiShow()->showToast(error.type());
+			*creating = false;
+		})).send();
+	});
+	return result;
+}
+
 void ShowCallsBox(not_null<Window::SessionController*> window) {
 	struct State {
 		State(not_null<Window::SessionController*> window)
@@ -128,6 +193,17 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 		Ui::AddSkip(groupCalls->entity());
 		Ui::AddDivider(groupCalls->entity());
 		Ui::AddSkip(groupCalls->entity());
+
+		const auto button = AddCreateCallLinkButton(
+			box->verticalLayout(),
+			window,
+			crl::guard(box, [=] { box->closeBox(); }));
+		button->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return (e->type() == QEvent::Enter);
+		}) | rpl::start_with_next([=] {
+			state->callsDelegate.peerListMouseLeftGeometry();
+		}, button->lifetime());
 
 		const auto content = box->addRow(
 			object_ptr<PeerListContent>(box, &state->callsController),

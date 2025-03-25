@@ -19,6 +19,10 @@ namespace Ui {
 class GenericBox;
 } // namespace Ui
 
+namespace TdE2E {
+class Call;
+} // namespace TdE2E
+
 namespace Calls::Group {
 
 constexpr auto kDefaultVolume = 10000;
@@ -67,6 +71,7 @@ struct JoinInfo {
 
 struct ConferenceInfo {
 	std::shared_ptr<Data::GroupCall> call;
+	std::shared_ptr<TdE2E::Call> e2e;
 	QString linkSlug;
 	MsgId joinMessageId;
 };

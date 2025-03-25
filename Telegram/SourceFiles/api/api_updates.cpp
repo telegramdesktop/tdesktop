@@ -303,14 +303,19 @@ void Updates::feedUpdateVector(
 	auto list = updates.v;
 	const auto hasGroupCallParticipantUpdates = ranges::contains(
 		list,
-		mtpc_updateGroupCallParticipants,
-		&MTPUpdate::type);
+		true,
+		[](const MTPUpdate &update) {
+			return update.type() == mtpc_updateGroupCallParticipants
+				|| update.type() == mtpc_updateGroupCallChainBlocks;
+		});
 	if (hasGroupCallParticipantUpdates) {
 		ranges::stable_sort(list, std::less<>(), [](const MTPUpdate &entry) {
-			if (entry.type() == mtpc_updateGroupCallParticipants) {
+			if (entry.type() == mtpc_updateGroupCallChainBlocks) {
 				return 0;
-			} else {
+			} else if (entry.type() == mtpc_updateGroupCallParticipants) {
 				return 1;
+			} else {
+				return 2;
 			}
 		});
 	} else if (policy == SkipUpdatePolicy::SkipExceptGroupCallParticipants) {
@@ -324,7 +329,8 @@ void Updates::feedUpdateVector(
 		if ((policy == SkipUpdatePolicy::SkipMessageIds
 			&& type == mtpc_updateMessageID)
 			|| (policy == SkipUpdatePolicy::SkipExceptGroupCallParticipants
-				&& type != mtpc_updateGroupCallParticipants)) {
+				&& type != mtpc_updateGroupCallParticipants
+				&& type != mtpc_updateGroupCallChainBlocks)) {
 			continue;
 		}
 		feedUpdate(entry);
@@ -954,7 +960,8 @@ void Updates::applyGroupCallParticipantUpdates(const MTPUpdates &updates) {
 			data.vupdates(),
 			SkipUpdatePolicy::SkipExceptGroupCallParticipants);
 	}, [&](const MTPDupdateShort &data) {
-		if (data.vupdate().type() == mtpc_updateGroupCallParticipants) {
+		if (data.vupdate().type() == mtpc_updateGroupCallParticipants
+			|| data.vupdate().type() == mtpc_updateGroupCallChainBlocks) {
 			feedUpdate(data.vupdate());
 		}
 	}, [](const auto &) {
@@ -2110,6 +2117,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updatePhoneCall:
 	case mtpc_updatePhoneCallSignalingData:
 	case mtpc_updateGroupCallParticipants:
+	case mtpc_updateGroupCallChainBlocks:
 	case mtpc_updateGroupCallConnection:
 	case mtpc_updateGroupCall: {
 		Core::App().calls().handleUpdate(&session(), update);

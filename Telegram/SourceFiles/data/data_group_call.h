@@ -19,6 +19,7 @@ struct ParticipantVideoParams;
 
 namespace TdE2E {
 struct ParticipantState;
+struct UserId;
 } // namespace TdE2E
 
 namespace Data {

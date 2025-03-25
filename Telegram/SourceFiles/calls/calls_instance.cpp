@@ -235,16 +235,18 @@ void Instance::startOrJoinConferenceCall(
 		StartConferenceCallArgs args) {
 	destroyCurrentCall();
 
+	const auto session = &args.call->peer()->session();
 	auto call = std::make_unique<GroupCall>(
 		_delegate.get(),
 		Calls::Group::ConferenceInfo{
-			.call = args.call,
+			.call = std::move(args.call),
+			.e2e = std::move(args.e2e),
 			.linkSlug = args.linkSlug,
 			.joinMessageId = args.joinMessageId,
 		});
 	const auto raw = call.get();
 
-	args.call->peer()->session().account().sessionChanges(
+	session->account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		destroyGroupCall(raw);
 	}, raw->lifetime());
@@ -547,6 +549,8 @@ void Instance::handleUpdate(
 		handleGroupCallUpdate(session, update);
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
 		handleGroupCallUpdate(session, update);
+	}, [&](const MTPDupdateGroupCallChainBlocks &data) {
+		handleGroupCallUpdate(session, update);
 	}, [](const auto &) {
 		Unexpected("Update type in Calls::Instance::handleUpdate.");
 	});
@@ -672,6 +676,12 @@ void Instance::handleGroupCallUpdate(
 			return data.vid().v;
 		});
 	}, [](const MTPDupdateGroupCallParticipants &data) {
+		return data.vcall().match([&](const MTPDinputGroupCall &data) {
+			return data.vid().v;
+		}, [](const MTPDinputGroupCallSlug &) -> CallId {
+			Unexpected("slug in Instance::handleGroupCallUpdate");
+		});
+	}, [](const MTPDupdateGroupCallChainBlocks &data) {
 		return data.vcall().match([&](const MTPDinputGroupCall &data) {
 			return data.vid().v;
 		}, [](const MTPDinputGroupCallSlug &) -> CallId {

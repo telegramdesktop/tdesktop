@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/global_shortcuts.h"
 #include "base/random.h"
 #include "tde2e/tde2e_api.h"
+#include "tde2e/tde2e_integration.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "webrtc/webrtc_environment.h"
@@ -53,6 +54,10 @@ constexpr auto kFixManualLargeVideoDuration = 5 * crl::time(1000);
 constexpr auto kFixSpeakingLargeVideoDuration = 3 * crl::time(1000);
 constexpr auto kFullAsMediumsCount = 4; // 1 Full is like 4 Mediums.
 constexpr auto kMaxMediumQualities = 16; // 4 Fulls or 16 Mediums.
+constexpr auto kShortPollChainBlocksTimeout = 5 * crl::time(1000);
+constexpr auto kShortPollChainBlocksPerRequest = 50;
+constexpr auto kSubChain0 = 0;
+constexpr auto kSubChain1 = 1;
 
 [[nodiscard]] const Data::GroupCallParticipant *LookupParticipant(
 		not_null<PeerData*> peer,
@@ -603,7 +608,8 @@ GroupCall::GroupCall(
 	Group::ConferenceInfo conference,
 	const MTPInputGroupCall &inputCall)
 : _delegate(delegate)
-, _conferenceCall(conference.call)
+, _conferenceCall(std::move(conference.call))
+, _e2e(std::move(conference.e2e))
 , _peer(join.peer)
 , _history(_peer->owner().history(_peer))
 , _api(&_peer->session().mtp())
@@ -641,8 +647,15 @@ GroupCall::GroupCall(
 , _rtmp(join.rtmp)
 , _rtmpVolume(Group::kDefaultVolume) {
 	if (_conferenceCall) {
-		_e2eState = std::make_unique<TdE2E::CallState>(
-			TdE2E::CreateCallState());
+		if (!_e2e) {
+			_e2e = std::make_shared<TdE2E::Call>(
+				TdE2E::MakeUserId(_peer->session().user()));
+		}
+		for (auto i = 0; i != kSubChainsCount; ++i) {
+			_subchains[i].timer.setCallback([=] {
+				checkChainBlocksRequest(i);
+			});
+		}
 	}
 
 	_muted.value(
@@ -1419,10 +1432,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 					? Flag::f_video_stopped
 					: Flag(0))
 				| (_conferenceJoinMessageId ? Flag::f_invite_msg_id : Flag())
-				| (_e2eState ? Flag::f_public_key : Flag());
-			const auto publicKey = _e2eState
-				? _e2eState->myKey
-				: TdE2E::PublicKey();
+				| (_e2e ? Flag::f_public_key : Flag());
 			_api.request(MTPphone_JoinGroupCall(
 				MTP_flags(flags),
 				(_conferenceLinkSlug.isEmpty()
@@ -1431,9 +1441,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 						MTP_string(_conferenceLinkSlug))),
 				joinAs()->input,
 				MTP_string(_joinHash),
-				MTP_int256(
-					MTP_int128(publicKey.a, publicKey.b),
-					MTP_int128(publicKey.c, publicKey.d)),
+				(_e2e ? TdE2E::PublicKeyToMTP(_e2e->myKey()) : MTPint256()),
 				MTP_int(_conferenceJoinMessageId.bare),
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](
@@ -1470,6 +1478,8 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 						real->reloadIfStale();
 					}
 				}
+				checkChainBlocksRequest(kSubChain0);
+				checkChainBlocksRequest(kSubChain1);
 			}).fail([=](const MTP::Error &error) {
 				_joinState.finish();
 
@@ -1488,6 +1498,40 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 			}).send();
 		});
 	});
+}
+
+void GroupCall::checkChainBlocksRequest(int subchain) {
+	Expects(subchain >= 0 && subchain < kSubChainsCount);
+
+	auto &state = _subchains[subchain];
+	if (state.requestId) {
+		return;
+	}
+	const auto now = crl::now();
+	const auto left = state.lastUpdate + kShortPollChainBlocksTimeout - now;
+	if (left > 0) {
+		if (!state.timer.isActive()) {
+			state.timer.callOnce(left);
+		}
+		return;
+	}
+	state.requestId = _api.request(MTPphone_GetGroupCallChainBlocks(
+		inputCall(),
+		MTP_int(subchain),
+		MTP_int(state.height),
+		MTP_int(kShortPollChainBlocksPerRequest)
+	)).done([=](const MTPUpdates &result) {
+		auto &state = _subchains[subchain];
+		state.lastUpdate = crl::now();
+		state.requestId = 0;
+		_peer->session().api().applyUpdates(result);
+		state.timer.callOnce(kShortPollChainBlocksTimeout + 1);
+	}).fail([=](const MTP::Error &error) {
+		auto &state = _subchains[subchain];
+		state.lastUpdate = crl::now();
+		state.requestId = 0;
+		state.timer.callOnce(kShortPollChainBlocksTimeout + 1);
+	}).send();
 }
 
 void GroupCall::checkNextJoinAction() {
@@ -1640,7 +1684,6 @@ void GroupCall::applyMeInCallLocally() {
 		: participant
 		? participant->raisedHandRating
 		: FindLocalRaisedHandRating(real->participants());
-	const auto publicKey = _e2eState ? _e2eState->myKey : TdE2E::PublicKey();
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_joinState.ssrc ? Flag(0) : Flag::f_left)
@@ -1650,7 +1693,7 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
 		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0))
-		| (_e2eState ? Flag::f_public_key : Flag(0));
+		| (_e2e ? Flag::f_public_key : Flag(0));
 	real->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -1667,9 +1710,9 @@ void GroupCall::applyMeInCallLocally() {
 					MTP_long(raisedHandRating),
 					MTPGroupCallParticipantVideo(),
 					MTPGroupCallParticipantVideo(),
-					MTP_int256(
-						MTP_int128(publicKey.a, publicKey.b),
-						MTP_int128(publicKey.c, publicKey.d)))),
+					(_e2e
+						? TdE2E::PublicKeyToMTP(_e2e->myKey())
+						: MTPint256()))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -2022,6 +2065,8 @@ void GroupCall::handleUpdate(const MTPUpdate &update) {
 		handleUpdate(data);
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
 		handleUpdate(data);
+	}, [&](const MTPDupdateGroupCallChainBlocks &data) {
+		handleUpdate(data);
 	}, [](const auto &) {
 		Unexpected("Type in Instance::applyGroupCallUpdateChecked.");
 	});
@@ -2060,6 +2105,33 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				_queuedSelfUpdates.push_back(participant);
 			}
 		});
+	}
+}
+
+void GroupCall::handleUpdate(const MTPDupdateGroupCallChainBlocks &data) {
+	const auto callId = data.vcall().match([](
+			const MTPDinputGroupCall &data) {
+		return data.vid().v;
+	}, [](const MTPDinputGroupCallSlug &) -> CallId {
+		Unexpected("inputGroupCallSlug in GroupCall::handleUpdate.");
+	});
+	if (_id != callId || !_e2e) {
+		return;
+	}
+	const auto subchain = data.vsub_chain_id().v;
+	if (subchain < 0 || subchain >= kSubChainsCount) {
+		return;
+	}
+	auto &entry = _subchains[subchain];
+	entry.lastUpdate = crl::now();
+	entry.height = data.vnext_offset().v;
+	entry.timer.callOnce(kShortPollChainBlocksTimeout + 1);
+	for (const auto &block : data.vblocks().v) {
+		const auto result = _e2e->apply({ block.v });
+		if (result == TdE2E::Call::ApplyResult::BlockSkipped) {
+			AssertIsDebug();
+			return;
+		}
 	}
 }
 
