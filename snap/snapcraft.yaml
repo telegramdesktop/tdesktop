@@ -171,7 +171,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: fb35ec726cf0a99eead201ddf80e1e717b9fa7c2
+    source-commit: 7119a74e3f9b782f3cc29bf52fc78f2e8b0ca352
     plugin: dump
     override-pull: |
       craftctl default
@@ -382,7 +382,7 @@ parts:
       - mesa-vulkan-drivers
       - xkb-data
     override-pull: |
-      QT=6.8.2
+      QT=6.9.0
 
       git clone -b v${QT} --depth=1 https://github.com/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
