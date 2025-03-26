@@ -70,42 +70,6 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 	return !history->isForum();
 }
 
-const style::font &SwipeActionFont(
-		Dialogs::Ui::QuickDialogActionLabel action,
-		int availableWidth) {
-	struct Entry final {
-		Dialogs::Ui::QuickDialogActionLabel action;
-		QString langId;
-		style::font font;
-	};
-	static auto Fonts = std::vector<Entry>();
-	for (auto &entry : Fonts) {
-		if (entry.action == action) {
-			if (entry.langId == Lang::GetInstance().id()) {
-				return entry.font;
-			}
-		}
-	}
-	constexpr auto kNormalFontSize = 13;
-	constexpr auto kMinFontSize = 5;
-	for (auto i = kNormalFontSize; i >= kMinFontSize; --i) {
-		auto font = style::font(
-			style::ConvertScale(i, style::Scale()),
-			st::semiboldFont->flags(),
-			st::semiboldFont->family());
-		if (font->width(ResolveQuickDialogLabel(action)) <= availableWidth
-			|| i == kMinFontSize) {
-			Fonts.emplace_back(Entry{
-				.action = action,
-				.langId = Lang::GetInstance().id(),
-				.font = std::move(font),
-			});
-			return Fonts.back().font;
-		}
-	}
-	Unexpected("SwipeActionFont: can't find font.");
-}
-
 void PaintRowTopRight(
 		QPainter &p,
 		const QString &text,
