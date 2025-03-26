@@ -81,7 +81,6 @@ void Chatbots::save(
 		return;
 	} else if (was.bot || settings.bot) {
 		using Flag = MTPaccount_UpdateConnectedBot::Flag;
-		using RightFlag = MTPDbusinessBotRights::Flag;
 		const auto api = &_owner->session().api();
 		api->request(MTPaccount_UpdateConnectedBot(
 			MTP_flags(!settings.bot ? Flag::f_deleted : Flag::f_rights),
