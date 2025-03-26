@@ -477,9 +477,6 @@ private:
 		}
 	};
 	struct SubChainState {
-		crl::time lastUpdate = 0;
-		base::Timer timer;
-		int height = 0;
 		mtpRequestId requestId = 0;
 	};
 
@@ -543,7 +540,7 @@ private:
 	void rejoinPresentation();
 	void leavePresentation();
 	void checkNextJoinAction();
-	void checkChainBlocksRequest(int subchain);
+	void requestSubchainBlocks(int subchain, int height);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);

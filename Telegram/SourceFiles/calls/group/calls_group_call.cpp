@@ -54,10 +54,7 @@ constexpr auto kFixManualLargeVideoDuration = 5 * crl::time(1000);
 constexpr auto kFixSpeakingLargeVideoDuration = 3 * crl::time(1000);
 constexpr auto kFullAsMediumsCount = 4; // 1 Full is like 4 Mediums.
 constexpr auto kMaxMediumQualities = 16; // 4 Fulls or 16 Mediums.
-constexpr auto kShortPollChainBlocksTimeout = 5 * crl::time(1000);
 constexpr auto kShortPollChainBlocksPerRequest = 50;
-constexpr auto kSubChain0 = 0;
-constexpr auto kSubChain1 = 1;
 
 [[nodiscard]] const Data::GroupCallParticipant *LookupParticipant(
 		not_null<PeerData*> peer,
@@ -651,11 +648,10 @@ GroupCall::GroupCall(
 			_e2e = std::make_shared<TdE2E::Call>(
 				TdE2E::MakeUserId(_peer->session().user()));
 		}
-		for (auto i = 0; i != kSubChainsCount; ++i) {
-			_subchains[i].timer.setCallback([=] {
-				checkChainBlocksRequest(i);
-			});
-		}
+		_e2e->subchainRequests(
+		) | rpl::start_with_next([=](TdE2E::Call::SubchainRequest request) {
+			requestSubchainBlocks(request.subchain, request.height);
+		}, _lifetime);
 	}
 
 	_muted.value(
@@ -1478,8 +1474,8 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 						real->reloadIfStale();
 					}
 				}
-				checkChainBlocksRequest(kSubChain0);
-				checkChainBlocksRequest(kSubChain1);
+				requestSubchainBlocks(0, 0);
+				requestSubchainBlocks(1, 0);
 			}).fail([=](const MTP::Error &error) {
 				_joinState.finish();
 
@@ -1500,37 +1496,25 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	});
 }
 
-void GroupCall::checkChainBlocksRequest(int subchain) {
+void GroupCall::requestSubchainBlocks(int subchain, int height) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
 
 	auto &state = _subchains[subchain];
-	if (state.requestId) {
-		return;
-	}
-	const auto now = crl::now();
-	const auto left = state.lastUpdate + kShortPollChainBlocksTimeout - now;
-	if (left > 0) {
-		if (!state.timer.isActive()) {
-			state.timer.callOnce(left);
-		}
-		return;
-	}
+	_api.request(base::take(state.requestId)).cancel();
 	state.requestId = _api.request(MTPphone_GetGroupCallChainBlocks(
 		inputCall(),
 		MTP_int(subchain),
-		MTP_int(state.height),
+		MTP_int(height),
 		MTP_int(kShortPollChainBlocksPerRequest)
 	)).done([=](const MTPUpdates &result) {
 		auto &state = _subchains[subchain];
-		state.lastUpdate = crl::now();
-		state.requestId = 0;
 		_peer->session().api().applyUpdates(result);
-		state.timer.callOnce(kShortPollChainBlocksTimeout + 1);
+		state.requestId = 0;
+		_e2e->subchainBlocksRequestFinished(subchain);
 	}).fail([=](const MTP::Error &error) {
 		auto &state = _subchains[subchain];
-		state.lastUpdate = crl::now();
 		state.requestId = 0;
-		state.timer.callOnce(kShortPollChainBlocksTimeout + 1);
+		_e2e->subchainBlocksRequestFinished(subchain);
 	}).send();
 }
 
@@ -2123,15 +2107,11 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallChainBlocks &data) {
 		return;
 	}
 	auto &entry = _subchains[subchain];
-	entry.lastUpdate = crl::now();
-	entry.height = data.vnext_offset().v;
-	entry.timer.callOnce(kShortPollChainBlocksTimeout + 1);
+	const auto inpoll = entry.requestId != 0;
+	const auto next = data.vnext_offset().v;
+	auto now = next - int(data.vblocks().v.size());
 	for (const auto &block : data.vblocks().v) {
-		const auto result = _e2e->apply({ block.v });
-		if (result == TdE2E::Call::ApplyResult::BlockSkipped) {
-			AssertIsDebug();
-			return;
-		}
+		_e2e->apply(subchain, now++, { block.v }, inpoll);
 	}
 }
 
