@@ -490,11 +490,12 @@ void FillMenu(
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox) {
 	const auto weak = base::make_weak(call);
 	const auto resolveReal = [=] {
-		const auto real = peer->groupCall();
-		const auto strong = weak.get();
-		return (real && strong && (real->id() == strong->id()))
-			? real
-			: nullptr;
+		if (const auto strong = weak.get()) {
+			if (const auto real = strong->lookupReal()) {
+				return real;
+			}
+		}
+		return (Data::GroupCall*)nullptr;
 	};
 	const auto real = resolveReal();
 	if (!real) {

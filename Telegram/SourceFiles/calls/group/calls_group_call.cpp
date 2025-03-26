@@ -1428,7 +1428,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 					? Flag::f_video_stopped
 					: Flag(0))
 				| (_conferenceJoinMessageId ? Flag::f_invite_msg_id : Flag())
-				| (_e2e ? Flag::f_public_key : Flag());
+				| (_e2e ? (Flag::f_public_key | Flag::f_block) : Flag());
 			_api.request(MTPphone_JoinGroupCall(
 				MTP_flags(flags),
 				(_conferenceLinkSlug.isEmpty()
@@ -1438,6 +1438,10 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				joinAs()->input,
 				MTP_string(_joinHash),
 				(_e2e ? TdE2E::PublicKeyToMTP(_e2e->myKey()) : MTPint256()),
+				(_e2e
+					? MTP_bytes(
+						_e2e->lastBlock0().value_or(TdE2E::Block()).data)
+					: MTPbytes()),
 				MTP_int(_conferenceJoinMessageId.bare),
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](

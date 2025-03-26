@@ -503,7 +503,7 @@ struct ActionPhoneCall {
 		Disconnect,
 		Hangup,
 		Busy,
-		AllowGroupCall,
+		MigrateConferenceCall,
 	};
 	DiscardReason discardReason = DiscardReason::Unknown;
 	int duration = 0;

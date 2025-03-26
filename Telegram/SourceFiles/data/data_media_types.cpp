@@ -467,8 +467,8 @@ Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 				return CallFinishReason::Hangup;
 			}, [](const MTPDphoneCallDiscardReasonMissed &) {
 				return CallFinishReason::Missed;
-			}, [](const MTPDphoneCallDiscardReasonAllowGroupCall &) {
-				return CallFinishReason::AllowGroupCall;
+			}, [](const MTPDphoneCallDiscardReasonMigrateConferenceCall &) {
+				return CallFinishReason::MigrateConferenceCall;
 			});
 			Unexpected("Call reason type.");
 		}

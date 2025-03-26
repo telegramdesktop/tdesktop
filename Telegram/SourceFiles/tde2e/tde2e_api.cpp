@@ -109,6 +109,10 @@ void Call::apply(
 		bool fromShortPoll) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
 
+	if (!subchain && index >= _lastBlock0Height) {
+		_lastBlock0 = block;
+		_lastBlock0Height = index;
+	}
 	if (!subchain && !_id.v) {
 		create(block);
 	}
@@ -211,6 +215,10 @@ rpl::producer<CallFailure> Call::failures() const {
 		return rpl::single(*_failure);
 	}
 	return _failures.events();
+}
+
+const std::optional<Block> &Call::lastBlock0() const {
+	return _lastBlock0;
 }
 
 std::vector<uint8_t> Call::encrypt(const std::vector<uint8_t> &data) const {

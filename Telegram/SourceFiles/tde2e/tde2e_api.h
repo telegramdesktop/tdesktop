@@ -75,6 +75,8 @@ public:
 	[[nodiscard]] std::optional<CallFailure> failed() const;
 	[[nodiscard]] rpl::producer<CallFailure> failures() const;
 
+	[[nodiscard]] const std::optional<Block> &lastBlock0() const;
+
 	[[nodiscard]] std::vector<uint8_t> encrypt(
 		const std::vector<uint8_t> &data) const;
 	[[nodiscard]] std::vector<uint8_t> decrypt(
@@ -106,6 +108,9 @@ private:
 
 	SubChainState _subchains[kSubChainsCount];
 	rpl::event_stream<SubchainRequest> _subchainRequests;
+
+	std::optional<Block> _lastBlock0;
+	int _lastBlock0Height = 0;
 
 };
 

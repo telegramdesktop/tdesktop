@@ -472,6 +472,8 @@ QByteArray SerializeMessage(
 			case Reason::Disconnect: return "disconnect";
 			case Reason::Hangup: return "hangup";
 			case Reason::Missed: return "missed";
+			case Reason::MigrateConferenceCall:
+				return "migrate_conference_all";
 			}
 			return "";
 		}());

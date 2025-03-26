@@ -1471,8 +1471,8 @@ ServiceAction ParseServiceAction(
 				return Reason::Hangup;
 			}, [](const MTPDphoneCallDiscardReasonBusy &data) {
 				return Reason::Busy;
-			}, [](const MTPDphoneCallDiscardReasonAllowGroupCall &) {
-				return Reason::AllowGroupCall;
+			}, [](const MTPDphoneCallDiscardReasonMigrateConferenceCall &) {
+				return Reason::MigrateConferenceCall;
 			});
 		}
 		result.content = content;
