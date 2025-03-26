@@ -1,3 +1,7 @@
+5.13.1 (26.03.25)
+
+- Fix crash in group/channel stories.
+
 5.13 (26.03.25)
 
 - Allow transferring my unique gifts from Send Gift section.
