@@ -1,3 +1,10 @@
+5.13 (26.03.25)
+
+- Allow transferring my unique gifts from Send Gift section.
+- Edit type of gifts you accept in Settings > Privacy and Security.
+- Swipe navigation using swipe gesture on touchpads / touchscreens.
+- Choose chat list quick action for swipe or middle click.
+
 5.12.6 beta (20.03.25)
 
 - Allow customizing chats list swipe left action.
