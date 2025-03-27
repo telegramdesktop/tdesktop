@@ -95,7 +95,7 @@ QIcon IconGraphic::systemIcon() const {
 		if (candidate.isEmpty()) {
 			continue;
 		}
-		const auto icon = QIcon::fromTheme(candidate);
+		const auto icon = QIcon::fromTheme(candidate, QIcon());
 		if (icon.name() == candidate) {
 			return icon;
 		}
