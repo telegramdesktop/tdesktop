@@ -73,7 +73,7 @@ void ConnectStarRef(
 
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateLinkIcon(
 		not_null<QWidget*> parent,
-		not_null<UserData*> bot,
+		not_null<Main::Session*> session,
 		int users) {
 	auto result = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = result.data();
@@ -92,7 +92,7 @@ void ConnectStarRef(
 	const auto inner = QSize(innerSide, innerSide);
 	const auto state = raw->lifetime().make_state<State>(State{
 		.icon = ChatHelpers::GenerateLocalTgsSticker(
-			&bot->session(),
+			session,
 			u"starref_link"_q),
 	});
 	state->icon->overrideEmojiUsesTextColor(true);
@@ -419,7 +419,7 @@ object_ptr<Ui::AbstractButton> MakeLinkLabel(
 		p.drawText(
 			QRect(skip, margins.top(), available, font->height),
 			style::al_top,
-			font->elided(link, available));
+			font->elided(text, available));
 	}, raw->lifetime());
 
 	return result;
@@ -441,7 +441,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		});
 
 		box->addRow(
-			CreateLinkIcon(box, bot, row.state.users),
+			CreateLinkIcon(box, &bot->session(), row.state.users),
 			st::boxRowPadding + st::starrefJoinUserpicsPadding);
 		box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -1056,6 +1056,13 @@ ConnectedBots Parse(
 		});
 	}
 	return result;
+}
+
+object_ptr<Ui::RpWidget> CreateLinkHeaderIcon(
+		not_null<QWidget*> parent,
+		not_null<Main::Session*> session,
+		int usersCount) {
+	return CreateLinkIcon(parent, session, usersCount);
 }
 
 } // namespace Info::BotStarRef

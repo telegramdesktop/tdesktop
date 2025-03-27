@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
+#include "base/random.h"
 #include "boxes/about_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_preview_box.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/calls_box_controller.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
@@ -121,18 +123,16 @@ constexpr auto kPlayStatusLimit = 2;
 			(height - st::inviteViaLinkIcon.height()) / 2);
 	}, icon->lifetime());
 
-	const auto creating = result->lifetime().make_state<bool>();
+	const auto creating = result->lifetime().make_state<int32>();
 	result->setClickedCallback([=] {
 		if (*creating) {
 			return;
 		}
-		*creating = true;
-		auto e2e = std::make_shared<TdE2E::Call>(
-			TdE2E::MakeUserId(controller->session().user()));
+		*creating = base::RandomValue<int32>();
+		const auto show = controller->uiShow();
 		const auto session = &controller->session();
 		session->api().request(MTPphone_CreateConferenceCall(
-			TdE2E::PublicKeyToMTP(e2e->myKey()),
-			MTP_bytes(e2e->makeZeroBlock().data)
+			MTP_int(*creating)
 		)).done(crl::guard(controller, [=](const MTPphone_GroupCall &result) {
 			result.data().vcall().match([&](const auto &data) {
 				const auto call = std::make_shared<Data::GroupCall>(
@@ -140,18 +140,32 @@ constexpr auto kPlayStatusLimit = 2;
 					data.vid().v,
 					data.vaccess_hash().v,
 					TimeId(), // scheduleDate
-					false); // rtmp
+					false, // rtmp
+					true); // conference
 				call->processFullCall(result);
-				Core::App().calls().startOrJoinConferenceCall(
-					controller->uiShow(),
-					{ .call = call, .e2e = e2e });
+				using Flag = MTPphone_ExportGroupCallInvite::Flag;
+				session->api().request(MTPphone_ExportGroupCallInvite(
+					MTP_flags(Flag::f_can_self_unmute),
+					MTP_inputGroupCall(data.vid(), data.vaccess_hash())
+				)).done(crl::guard(controller, [=](
+						const MTPphone_ExportedGroupCallInvite &result) {
+					const auto link = qs(result.data().vlink());
+					Calls::Group::ShowConferenceCallLinkBox(
+						controller,
+						call,
+						link,
+						true);
+					if (const auto onstack = done) {
+						onstack();
+					}
+				})).fail(crl::guard(controller, [=](const MTP::Error &error) {
+					show->showToast(error.type());
+					*creating = 0;
+				})).send();
 			});
-			if (const auto onstack = done) {
-				onstack();
-			}
 		})).fail(crl::guard(controller, [=](const MTP::Error &error) {
-			controller->uiShow()->showToast(error.type());
-			*creating = false;
+			show->showToast(error.type());
+			*creating = 0;
 		})).send();
 	});
 	return result;

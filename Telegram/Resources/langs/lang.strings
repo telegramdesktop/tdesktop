@@ -4913,6 +4913,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_join_button" = "Join Group Call";
 "lng_confcall_create_link" = "Create Call Link";
 "lng_confcall_create_link_description" = "You can create a link that will allow your friends on Telegram to join the call.";
+"lng_confcall_link_title" = "Call Link";
+"lng_confcall_link_about" = "Anyone on Telegram can join your call by following the link below.";
+"lng_confcall_link_or" = "or";
+"lng_confcall_link_join" = "Be the first to join the call and add people from there. {link}";
+"lng_confcall_link_join_link" = "Open call {arrow}";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 

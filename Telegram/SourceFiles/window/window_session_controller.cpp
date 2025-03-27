@@ -861,7 +861,8 @@ void SessionNavigation::resolveConferenceCall(const QString &slug) {
 				data.vid().v,
 				data.vaccess_hash().v,
 				TimeId(), // scheduleDate
-				false); // rtmp
+				false, // rtmp
+				true); // conference
 			call->processFullCall(result);
 			const auto join = [=] {
 				Core::App().calls().startOrJoinConferenceCall(

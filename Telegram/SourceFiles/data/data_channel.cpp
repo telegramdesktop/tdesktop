@@ -1001,7 +1001,8 @@ void ChannelData::setGroupCall(
 			data.vid().v,
 			data.vaccess_hash().v,
 			scheduleDate,
-			rtmp);
+			rtmp,
+			false); // conference
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);

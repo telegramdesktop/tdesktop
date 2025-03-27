@@ -105,4 +105,12 @@ void FinishProgram(
 	not_null<Main::Session*> session,
 	const MTPpayments_ConnectedStarRefBots &bots);
 
+[[nodiscard]] object_ptr<Ui::AbstractButton> MakeLinkLabel(
+	not_null<QWidget*> parent,
+	const QString &link);
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateLinkHeaderIcon(
+	not_null<QWidget*> parent,
+	not_null<Main::Session*> session,
+	int usersCount = 0);
+
 } // namespace Info::BotStarRef

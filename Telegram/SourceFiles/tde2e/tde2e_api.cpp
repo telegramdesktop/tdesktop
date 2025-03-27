@@ -57,7 +57,15 @@ PublicKey Call::myKey() const {
 	return _myKey;
 }
 
-Block Call::makeZeroBlock() const {
+void Call::refreshLastBlock0(std::optional<Block> block) {
+	_lastBlock0 = std::move(block);
+}
+
+Block Call::makeJoinBlock() {
+	if (failed()) {
+		return {};
+	}
+
 	const auto publicKeyView = std::string_view{
 		reinterpret_cast<const char*>(&_myKey),
 		sizeof(_myKey),
@@ -66,22 +74,48 @@ Block Call::makeZeroBlock() const {
 	Assert(publicKeyId.is_ok());
 
 	const auto myKeyId = std::int64_t(_myKeyId.v);
-	const auto result = tde2e_api::call_create_zero_block(myKeyId, {
-		.height = 0,
-		.participants = { {
-		  .user_id = std::int64_t(_myUserId.v),
-		  .public_key_id = publicKeyId.value(),
-		  .permissions = kPermissionAdd | kPermissionRemove,
-		} },
-	});
-	Assert(result.is_ok());
+	const auto myParticipant = tde2e_api::CallParticipant{
+		.user_id = std::int64_t(_myUserId.v),
+		.public_key_id = publicKeyId.value(),
+		.permissions = kPermissionAdd | kPermissionRemove,
+	};
+
+	const auto result = _lastBlock0
+		? tde2e_api::call_create_self_add_block(
+			myKeyId,
+			Slice(_lastBlock0->data),
+			myParticipant)
+		: tde2e_api::call_create_zero_block(myKeyId, {
+			.height = 0,
+			.participants = { myParticipant },
+		});
+	if (!result.is_ok()) {
+		LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+		return {};
+	}
 
 	return {
 		.data = QByteArray::fromStdString(result.value()),
 	};
 }
 
-void Call::create(const Block &last) {
+void Call::joined() {
+	shortPoll(0);
+	if (_id.v) {
+		shortPoll(1);
+	}
+}
+
+void Call::apply(const Block &last) {
+	if (_id.v) {
+		const auto result = tde2e_api::call_apply_block(
+			std::int64_t(_id.v),
+			Slice(last.data));
+		if (!result.is_ok()) {
+			LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+		}
+		return;
+	}
 	const auto id = tde2e_api::call_create(
 		std::int64_t(_myKeyId.v),
 		Slice(last.data));
@@ -89,6 +123,7 @@ void Call::create(const Block &last) {
 		LOG_AND_FAIL(id.error(), CallFailure::Unknown);
 		return;
 	}
+	_id = CallId{ uint64(id.value()) };
 
 	for (auto i = 0; i != kSubChainsCount; ++i) {
 		auto &entry = _subchains[i];
@@ -98,7 +133,9 @@ void Call::create(const Block &last) {
 		entry.shortPollTimer.setCallback([=] {
 			shortPoll(i);
 		});
-		entry.shortPollTimer.callOnce(kShortPollChainBlocksTimeout);
+		if (!entry.waitingTimer.isActive()) {
+			entry.shortPollTimer.callOnce(kShortPollChainBlocksTimeout);
+		}
 	}
 }
 
@@ -108,13 +145,11 @@ void Call::apply(
 		const Block &block,
 		bool fromShortPoll) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
+	Expects(_id.v != 0 || !fromShortPoll || !subchain);
 
 	if (!subchain && index >= _lastBlock0Height) {
 		_lastBlock0 = block;
 		_lastBlock0Height = index;
-	}
-	if (!subchain && !_id.v) {
-		create(block);
 	}
 	if (failed()) {
 		return;
@@ -123,22 +158,19 @@ void Call::apply(
 	auto &entry = _subchains[subchain];
 	if (!fromShortPoll) {
 		entry.lastUpdate = crl::now();
-		if (index > entry.height + 1) {
+		if (index > entry.height || (!_id.v && subchain != 0)) {
 			entry.waiting.emplace(index, block);
 			checkWaitingBlocks(subchain);
 			return;
 		}
 	}
 
-	const auto result = tde2e_api::call_apply_block(
-		std::int64_t(_id.v),
-		Slice(block.data));
-	if (!result.is_ok()) {
-		LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+	if (failed()) {
 		return;
+	} else if (!_id.v || entry.height == index) {
+		apply(block);
 	}
-
-	entry.height = std::max(entry.height, index);
+	entry.height = index + 1;
 	checkWaitingBlocks(subchain);
 }
 
@@ -150,7 +182,10 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 	}
 
 	auto &entry = _subchains[subchain];
-	if (entry.shortPolling) {
+	if (!_id.v) {
+		entry.waitingTimer.callOnce(kShortPollChainBlocksWaitFor);
+		return;
+	} else if (entry.shortPolling) {
 		return;
 	}
 	auto &waiting = entry.waiting;
@@ -186,6 +221,11 @@ void Call::shortPoll(int subchain) {
 	auto &entry = _subchains[subchain];
 	entry.waitingTimer.cancel();
 	entry.shortPollTimer.cancel();
+	if (subchain && !_id.v) {
+		// Not ready.
+		entry.waitingTimer.callOnce(kShortPollChainBlocksWaitFor);
+		return;
+	}
 	entry.shortPolling = true;
 	_subchainRequests.fire({ subchain, entry.height });
 }
@@ -215,10 +255,6 @@ rpl::producer<CallFailure> Call::failures() const {
 		return rpl::single(*_failure);
 	}
 	return _failures.events();
-}
-
-const std::optional<Block> &Call::lastBlock0() const {
-	return _lastBlock0;
 }
 
 std::vector<uint8_t> Call::encrypt(const std::vector<uint8_t> &data) const {

@@ -466,9 +466,14 @@ private:
 		Joining,
 		Leaving,
 	};
+	struct JoinPayload {
+		uint32 ssrc = 0;
+		QByteArray json;
+	};
 	struct JoinState {
 		uint32 ssrc = 0;
 		JoinAction action = JoinAction::None;
+		JoinPayload payload;
 		bool nextActionPending = false;
 
 		void finish(uint32 updatedSsrc = 0) {
@@ -540,6 +545,8 @@ private:
 	void rejoinPresentation();
 	void leavePresentation();
 	void checkNextJoinAction();
+	void sendJoinRequest();
+	void refreshLastBlockAndJoin();
 	void requestSubchainBlocks(int subchain, int height);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);

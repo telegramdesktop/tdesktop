@@ -55,10 +55,7 @@ public:
 
 	[[nodiscard]] PublicKey myKey() const;
 
-	[[nodiscard]] Block makeZeroBlock() const;
-
-	void create(const Block &last);
-
+	void joined();
 	void apply(
 		int subchain,
 		int index,
@@ -75,7 +72,8 @@ public:
 	[[nodiscard]] std::optional<CallFailure> failed() const;
 	[[nodiscard]] rpl::producer<CallFailure> failures() const;
 
-	[[nodiscard]] const std::optional<Block> &lastBlock0() const;
+	void refreshLastBlock0(std::optional<Block> block);
+	[[nodiscard]] Block makeJoinBlock();
 
 	[[nodiscard]] std::vector<uint8_t> encrypt(
 		const std::vector<uint8_t> &data) const;
@@ -94,6 +92,7 @@ private:
 		int height = 0;
 	};
 
+	void apply(const Block &last);
 	void fail(CallFailure reason);
 
 	void checkWaitingBlocks(int subchain, bool waited = false);

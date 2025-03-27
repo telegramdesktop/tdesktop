@@ -1405,99 +1405,160 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	const auto weak = base::make_weak(&_instanceGuard);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)] {
-			if (state() != State::Joining) {
-				_joinState.finish();
-				checkNextJoinAction();
-				return;
-			}
-			const auto ssrc = payload.audioSsrc;
+			_joinState.payload = {
+				.ssrc = payload.audioSsrc,
+				.json = QByteArray::fromStdString(payload.json),
+			};
 			LOG(("Call Info: Join payload received, joining with ssrc: %1."
-				).arg(ssrc));
-
-			const auto json = QByteArray::fromStdString(payload.json);
-			const auto wasMuteState = muted();
-			const auto wasVideoStopped = !isSharingCamera();
-			using Flag = MTPphone_JoinGroupCall::Flag;
-			const auto flags = (wasMuteState != MuteState::Active
-				? Flag::f_muted
-				: Flag(0))
-				| (_joinHash.isEmpty()
-					? Flag(0)
-					: Flag::f_invite_hash)
-				| (wasVideoStopped
-					? Flag::f_video_stopped
-					: Flag(0))
-				| (_conferenceJoinMessageId ? Flag::f_invite_msg_id : Flag())
-				| (_e2e ? (Flag::f_public_key | Flag::f_block) : Flag());
-			_api.request(MTPphone_JoinGroupCall(
-				MTP_flags(flags),
-				(_conferenceLinkSlug.isEmpty()
-					? inputCall()
-					: MTP_inputGroupCallSlug(
-						MTP_string(_conferenceLinkSlug))),
-				joinAs()->input,
-				MTP_string(_joinHash),
-				(_e2e ? TdE2E::PublicKeyToMTP(_e2e->myKey()) : MTPint256()),
-				(_e2e
-					? MTP_bytes(
-						_e2e->lastBlock0().value_or(TdE2E::Block()).data)
-					: MTPbytes()),
-				MTP_int(_conferenceJoinMessageId.bare),
-				MTP_dataJSON(MTP_bytes(json))
-			)).done([=](
-					const MTPUpdates &updates,
-					const MTP::Response &response) {
-				_serverTimeMs = TimestampInMsFromMsgId(response.outerMsgId);
-				_serverTimeMsGotAt = crl::now();
-
-				_joinState.finish(ssrc);
-				_mySsrcs.emplace(ssrc);
-
-				setState((_instanceState.current()
-					== InstanceState::Disconnected)
-					? State::Connecting
-					: State::Joined);
-				applyMeInCallLocally();
-				maybeSendMutedUpdate(wasMuteState);
-				_peer->session().api().applyUpdates(updates);
-				applyQueuedSelfUpdates();
-				checkFirstTimeJoined();
-				_screenJoinState.nextActionPending = true;
-				checkNextJoinAction();
-				if (wasVideoStopped == isSharingCamera()) {
-					sendSelfUpdate(SendUpdateType::CameraStopped);
-				}
-				if (isCameraPaused()) {
-					sendSelfUpdate(SendUpdateType::CameraPaused);
-				}
-				sendPendingSelfUpdates();
-				if (!_reloadedStaleCall
-					&& _state.current() != State::Joining) {
-					if (const auto real = lookupReal()) {
-						_reloadedStaleCall = true;
-						real->reloadIfStale();
-					}
-				}
-				requestSubchainBlocks(0, 0);
-				requestSubchainBlocks(1, 0);
-			}).fail([=](const MTP::Error &error) {
-				_joinState.finish();
-
-				const auto type = error.type();
-				LOG(("Call Error: Could not join, error: %1").arg(type));
-
-				if (type == u"GROUPCALL_SSRC_DUPLICATE_MUCH") {
-					rejoin();
-					return;
-				}
-
-				hangup();
-				Ui::Toast::Show((type == u"GROUPCALL_FORBIDDEN"_q)
-					? tr::lng_group_not_accessible(tr::now)
-					: Lang::Hard::ServerError());
-			}).send();
+				).arg(_joinState.payload.ssrc));
+			sendJoinRequest();
 		});
 	});
+}
+
+void GroupCall::sendJoinRequest() {
+	if (state() != State::Joining) {
+		_joinState.finish();
+		checkNextJoinAction();
+		return;
+	}
+	auto joinBlock = _e2e ? _e2e->makeJoinBlock().data : QByteArray();
+	if (_e2e && joinBlock.isEmpty()) {
+		_joinState.finish();
+		LOG(("Call Error: Could not generate join block."));
+		hangup();
+		Ui::Toast::Show(u"Could not generate join block."_q);
+		return;
+	}
+	const auto wasMuteState = muted();
+	const auto wasVideoStopped = !isSharingCamera();
+	using Flag = MTPphone_JoinGroupCall::Flag;
+	const auto flags = (wasMuteState != MuteState::Active
+		? Flag::f_muted
+		: Flag(0))
+		| (_joinHash.isEmpty()
+			? Flag(0)
+			: Flag::f_invite_hash)
+		| (wasVideoStopped
+			? Flag::f_video_stopped
+			: Flag(0))
+		| (_conferenceJoinMessageId ? Flag::f_invite_msg_id : Flag())
+		| (_e2e ? (Flag::f_public_key | Flag::f_block) : Flag());
+	_api.request(MTPphone_JoinGroupCall(
+		MTP_flags(flags),
+		(_conferenceLinkSlug.isEmpty()
+			? inputCall()
+			: MTP_inputGroupCallSlug(
+				MTP_string(_conferenceLinkSlug))),
+		joinAs()->input,
+		MTP_string(_joinHash),
+		(_e2e ? TdE2E::PublicKeyToMTP(_e2e->myKey()) : MTPint256()),
+		MTP_bytes(joinBlock),
+		MTP_int(_conferenceJoinMessageId.bare),
+		MTP_dataJSON(MTP_bytes(_joinState.payload.json))
+	)).done([=](
+			const MTPUpdates &updates,
+			const MTP::Response &response) {
+		_serverTimeMs = TimestampInMsFromMsgId(response.outerMsgId);
+		_serverTimeMsGotAt = crl::now();
+
+		_joinState.finish(_joinState.payload.ssrc);
+		_mySsrcs.emplace(_joinState.ssrc);
+
+		setState((_instanceState.current()
+			== InstanceState::Disconnected)
+			? State::Connecting
+			: State::Joined);
+		applyMeInCallLocally();
+		maybeSendMutedUpdate(wasMuteState);
+		_peer->session().api().applyUpdates(updates);
+		applyQueuedSelfUpdates();
+		checkFirstTimeJoined();
+		_screenJoinState.nextActionPending = true;
+		checkNextJoinAction();
+		if (wasVideoStopped == isSharingCamera()) {
+			sendSelfUpdate(SendUpdateType::CameraStopped);
+		}
+		if (isCameraPaused()) {
+			sendSelfUpdate(SendUpdateType::CameraPaused);
+		}
+		sendPendingSelfUpdates();
+		if (!_reloadedStaleCall
+			&& _state.current() != State::Joining) {
+			if (const auto real = lookupReal()) {
+				_reloadedStaleCall = true;
+				real->reloadIfStale();
+			}
+		}
+		if (_e2e) {
+			_e2e->joined();
+		}
+	}).fail([=](const MTP::Error &error) {
+		const auto type = error.type();
+		if (_e2e) {
+			if (type == u"CONF_WRITE_CHAIN_INVALID"_q) {
+				refreshLastBlockAndJoin();
+				return;
+			}
+		}
+		_joinState.finish();
+
+		LOG(("Call Error: Could not join, error: %1").arg(type));
+
+		if (type == u"GROUPCALL_SSRC_DUPLICATE_MUCH") {
+			rejoin();
+			return;
+		}
+
+		hangup();
+		Ui::Toast::Show((type == u"GROUPCALL_FORBIDDEN"_q)
+			? tr::lng_group_not_accessible(tr::now)
+			: Lang::Hard::ServerError());
+	}).send();
+}
+
+void GroupCall::refreshLastBlockAndJoin() {
+	Expects(_e2e != nullptr);
+
+	if (state() != State::Joining) {
+		_joinState.finish();
+		checkNextJoinAction();
+		return;
+	}
+	_api.request(MTPphone_GetGroupCallChainBlocks(
+		inputCall(),
+		MTP_int(0),
+		MTP_int(-1),
+		MTP_int(1)
+	)).done([=](const MTPUpdates &result) {
+		if (result.type() != mtpc_updates) {
+			_joinState.finish();
+			LOG(("Call Error: Bad result in GroupCallChainBlocks."));
+			hangup();
+			Ui::Toast::Show(u"Bad Updates in GroupCallChainBlocks."_q);
+			return;
+		}
+		_e2e->refreshLastBlock0({});
+		const auto &data = result.c_updates();
+		for (const auto &update : data.vupdates().v) {
+			if (update.type() != mtpc_updateGroupCallChainBlocks) {
+				continue;
+			}
+			const auto &data = update.c_updateGroupCallChainBlocks();
+			const auto &blocks = data.vblocks().v;
+			if (!blocks.isEmpty()) {
+				_e2e->refreshLastBlock0(TdE2E::Block{ blocks.back().v });
+				break;
+			}
+		}
+		sendJoinRequest();
+	}).fail([=](const MTP::Error &error) {
+		_joinState.finish();
+		const auto &type = error.type();
+		LOG(("Call Error: Could not get last block, error: %1").arg(type));
+		hangup();
+		Ui::Toast::Show(error.type());
+	}).send();
 }
 
 void GroupCall::requestSubchainBlocks(int subchain, int height) {

@@ -62,7 +62,8 @@ GroupCall::GroupCall(
 	CallId id,
 	uint64 accessHash,
 	TimeId scheduleDate,
-	bool rtmp)
+	bool rtmp,
+	bool conference)
 : _id(id)
 , _accessHash(accessHash)
 , _peer(peer)
@@ -70,13 +71,24 @@ GroupCall::GroupCall(
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
 , _scheduleDate(scheduleDate)
 , _rtmp(rtmp)
+, _conference(conference)
 , _listenersHidden(rtmp) {
+	if (_conference) {
+		session().data().registerGroupCall(this);
+	}
 }
 
 GroupCall::~GroupCall() {
+	if (_conference) {
+		session().data().unregisterGroupCall(this);
+	}
 	api().request(_unknownParticipantPeersRequestId).cancel();
 	api().request(_participantsRequestId).cancel();
 	api().request(_reloadRequestId).cancel();
+}
+
+Main::Session &GroupCall::session() const {
+	return _peer->session();
 }
 
 CallId GroupCall::id() const {

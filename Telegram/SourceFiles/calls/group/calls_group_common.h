@@ -16,12 +16,17 @@ class GroupCall;
 } // namespace Data
 
 namespace Ui {
+class Show;
 class GenericBox;
 } // namespace Ui
 
 namespace TdE2E {
 class Call;
 } // namespace TdE2E
+
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Calls::Group {
 
@@ -112,5 +117,11 @@ void ConferenceCallJoinConfirm(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Data::GroupCall> call,
 	Fn<void()> join);
+
+void ShowConferenceCallLinkBox(
+	not_null<Window::SessionController*> controller,
+	std::shared_ptr<Data::GroupCall> call,
+	const QString &link,
+	bool initial = false);
 
 } // namespace Calls::Group

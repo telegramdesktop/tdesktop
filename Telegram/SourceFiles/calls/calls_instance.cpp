@@ -690,7 +690,14 @@ void Instance::handleGroupCallUpdate(
 	}, [](const auto &) -> CallId {
 		Unexpected("Type in Instance::handleGroupCallUpdate.");
 	});
-	if (const auto existing = session->data().groupCall(callId)) {
+	if (update.type() == mtpc_updateGroupCallChainBlocks) {
+		const auto existing = session->data().groupCall(callId);
+		if (existing
+			&& _currentGroupCall
+			&& _currentGroupCall->lookupReal() == existing) {
+			_currentGroupCall->handleUpdate(update);
+		}
+	} else if (const auto existing = session->data().groupCall(callId)) {
 		existing->enqueueUpdate(update);
 	} else {
 		applyGroupCallUpdateChecked(session, update);

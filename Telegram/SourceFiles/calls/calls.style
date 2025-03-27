@@ -1483,4 +1483,33 @@ groupCallCalendarColors: CalendarColors {
 
 	titleTextColor: groupCallMembersFg;
 }
-//
+
+confcallLinkButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+confcallLinkBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 64px);
+	buttonHeight: 42px;
+	button: confcallLinkButton;
+	shadowIgnoreTopSkip: true;
+}
+confcallLinkCopyButton: RoundButton(confcallLinkButton) {
+	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_copy", activeButtonFgOver }};
+	iconPosition: point(-1px, 5px);
+}
+confcallLinkShareButton: RoundButton(confcallLinkCopyButton) {
+	icon: icon {{ "info/edit/links_share", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
+}
+confcallLinkHeaderIconPadding: margins(0px, 32px, 0px, 10px);
+confcallLinkTitlePadding: margins(0px, 0px, 0px, 12px);
+confcallLinkCenteredText: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 40px;
+}
+confcallLinkFooterOr: FlatLabel(confcallLinkCenteredText) {
+	textFg: windowSubTextFg;
+}
