@@ -97,7 +97,7 @@ public:
 
 	void refreshLastBlock0(std::optional<Block> block);
 	[[nodiscard]] Block makeJoinBlock();
-	[[nodiscard]] Block makeRemoveBlock(UserId id);
+	[[nodiscard]] Block makeRemoveBlock(const base::flat_set<UserId> &ids);
 
 	[[nodiscard]] rpl::producer<ParticipantsSet> participantsSetValue() const;
 

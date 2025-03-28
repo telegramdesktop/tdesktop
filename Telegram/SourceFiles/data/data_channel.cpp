@@ -1006,7 +1006,7 @@ void ChannelData::setGroupCall(
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);
-	}, [&](const MTPDinputGroupCallSlug &) {
+	}, [&](const auto &) {
 		clearGroupCall();
 	});
 }

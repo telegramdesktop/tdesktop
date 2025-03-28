@@ -5640,13 +5640,12 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		}
 
 		const auto id = this->id;
-		const auto slug = qs(action.vslug());
 		setCustomServiceLink(std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {
 			const auto my = context.other.value<ClickHandlerContext>();
 			const auto weak = my.sessionWindow;
 			if (const auto strong = weak.get()) {
-				strong->resolveConferenceCall(slug, id);
+				strong->resolveConferenceCall(id);
 			}
 		}));
 

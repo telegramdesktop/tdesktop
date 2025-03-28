@@ -678,14 +678,14 @@ void Instance::handleGroupCallUpdate(
 	}, [](const MTPDupdateGroupCallParticipants &data) {
 		return data.vcall().match([&](const MTPDinputGroupCall &data) {
 			return data.vid().v;
-		}, [](const MTPDinputGroupCallSlug &) -> CallId {
-			Unexpected("slug in Instance::handleGroupCallUpdate");
+		}, [](const auto &) -> CallId {
+			Unexpected("slug/msg in Instance::handleGroupCallUpdate");
 		});
 	}, [](const MTPDupdateGroupCallChainBlocks &data) {
 		return data.vcall().match([&](const MTPDinputGroupCall &data) {
 			return data.vid().v;
-		}, [](const MTPDinputGroupCallSlug &) -> CallId {
-			Unexpected("slug in Instance::handleGroupCallUpdate");
+		}, [](const auto &) -> CallId {
+			Unexpected("slug/msg in Instance::handleGroupCallUpdate");
 		});
 	}, [](const auto &) -> CallId {
 		Unexpected("Type in Instance::handleGroupCallUpdate.");

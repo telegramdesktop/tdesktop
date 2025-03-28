@@ -264,7 +264,8 @@ public:
 		PeerId ownerId,
 		const QString &entity,
 		Fn<void(QString)> fail = nullptr);
-	void resolveConferenceCall(const QString &slug, MsgId inviteMsgId = 0);
+	void resolveConferenceCall(const QString &slug);
+	void resolveConferenceCall(MsgId inviteMsgId);
 
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		Ui::Toast::Config &&config);
@@ -291,6 +292,7 @@ private:
 	void resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done);
+	void resolveConferenceCall(const QString &slug, MsgId inviteMsgId);
 
 	void resolveDone(
 		const MTPcontacts_ResolvedPeer &result,

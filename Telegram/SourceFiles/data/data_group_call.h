@@ -150,7 +150,8 @@ public:
 		-> const base::flat_set<UserId> &;
 	[[nodiscard]] auto participantsWithAccessValue() const
 		-> rpl::producer<base::flat_set<UserId>>;
-	[[nodiscard]] rpl::producer<UserId> staleParticipantId() const;
+	[[nodiscard]] auto staleParticipantIds() const
+		-> rpl::producer<base::flat_set<UserId>>;
 	void setParticipantsLoaded();
 	void checkStaleParticipants();
 	void checkStaleRequest();
@@ -264,7 +265,7 @@ private:
 	rpl::event_stream<> _participantsReloaded;
 
 	rpl::variable<base::flat_set<UserId>> _participantsWithAccess;
-	rpl::event_stream<UserId> _staleParticipantId;
+	rpl::event_stream<base::flat_set<UserId>> _staleParticipantIds;
 	mtpRequestId _checkStaleRequestId = 0;
 	rpl::lifetime _checkStaleLifetime;
 

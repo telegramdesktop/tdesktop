@@ -840,6 +840,14 @@ void SessionNavigation::resolveCollectible(
 	}).send();
 }
 
+void SessionNavigation::resolveConferenceCall(const QString &slug) {
+	resolveConferenceCall(slug, 0);
+}
+
+void SessionNavigation::resolveConferenceCall(MsgId inviteMsgId) {
+	resolveConferenceCall(QString(), inviteMsgId);
+}
+
 void SessionNavigation::resolveConferenceCall(
 		const QString &slug,
 		MsgId inviteMsgId) {
@@ -853,11 +861,14 @@ void SessionNavigation::resolveConferenceCall(
 
 	const auto limit = 5;
 	_conferenceCallRequestId = _api.request(MTPphone_GetGroupCall(
-		MTP_inputGroupCallSlug(MTP_string(slug)),
+		(inviteMsgId
+			? MTP_inputGroupCallInviteMessage(MTP_int(inviteMsgId.bare))
+			: MTP_inputGroupCallSlug(MTP_string(slug))),
 		MTP_int(limit)
 	)).done([=](const MTPphone_GroupCall &result) {
 		_conferenceCallRequestId = 0;
 		const auto slug = base::take(_conferenceCallSlug);
+		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
 
 		result.data().vcall().match([&](const auto &data) {
 			const auto call = std::make_shared<Data::GroupCall>(
@@ -884,7 +895,7 @@ void SessionNavigation::resolveConferenceCall(
 			box->boxClosing() | rpl::start_with_next([=] {
 				if (inviteMsgId && !*confirmed) {
 					_api.request(MTPphone_DeclineConferenceCallInvite(
-						MTP_int(inviteMsgId)
+						MTP_int(inviteMsgId.bare)
 					)).send();
 				}
 			}, box->lifetime());

@@ -281,7 +281,7 @@ public:
 	void startScheduledNow();
 	void toggleScheduleStartSubscribed(bool subscribed);
 	void setNoiseSuppression(bool enabled);
-	void removeConferenceParticipant(UserId userId);
+	void removeConferenceParticipants(const base::flat_set<UserId> userIds);
 
 	bool emitShareScreenError();
 	bool emitShareCameraError();
@@ -545,6 +545,7 @@ private:
 		const std::optional<Data::GroupCallParticipant> &was,
 		const Data::GroupCallParticipant &now);
 	void applyMeInCallLocally();
+	void startRejoin();
 	void rejoin();
 	void leave();
 	void rejoin(not_null<PeerData*> as);
@@ -615,6 +616,7 @@ private:
 	[[nodiscard]] int activeVideoSendersCount() const;
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
+	[[nodiscard]] MTPInputGroupCall inputCallSafe() const;
 
 	const not_null<Delegate*> _delegate;
 	const std::shared_ptr<Data::GroupCall> _conferenceCall;

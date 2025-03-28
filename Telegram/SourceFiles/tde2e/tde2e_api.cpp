@@ -124,8 +124,8 @@ Block Call::makeJoinBlock() {
 	};
 }
 
-Block Call::makeRemoveBlock(UserId id) {
-	if (failed() || !_id || id == _myUserId) {
+Block Call::makeRemoveBlock(const base::flat_set<UserId> &ids) {
+	if (failed() || !_id) {
 		return {};
 	}
 
@@ -137,11 +137,13 @@ Block Call::makeRemoveBlock(UserId id) {
 	auto found = false;
 	auto updated = state.value();
 	auto &list = updated.participants;
-	for (auto i = begin(list); i != end(list); ++i) {
-		if (uint64(i->user_id) == id.v) {
-			list.erase(i);
+	for (auto i = begin(list); i != end(list);) {
+		const auto userId = UserId{ uint64(i->user_id) };
+		if (userId != _myUserId && ids.contains(userId)) {
+			i = list.erase(i);
 			found = true;
-			break;
+		} else {
+			++i;
 		}
 	}
 	if (!found) {

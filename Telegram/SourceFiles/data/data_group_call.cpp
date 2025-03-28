@@ -85,7 +85,7 @@ GroupCall::GroupCall(
 		}) | rpl::start_with_next([=](const ParticipantUpdate &update) {
 			if (const auto id = peerToUser(update.was->peer->id)) {
 				if (_participantsWithAccess.current().contains(id)) {
-					_staleParticipantId.fire_copy(id);
+					_staleParticipantIds.fire({ id });
 				}
 			}
 		}, _checkStaleLifetime);
@@ -262,11 +262,15 @@ void GroupCall::checkStaleRequest() {
 				existing.emplace(id);
 			}
 		}
+		auto stale = base::flat_set<UserId>();
 		for (const auto &id : list) {
 			if (!existing.contains(id)) {
-				_staleParticipantId.fire_copy(id);
-				return;
+				stale.reserve(list.size());
+				stale.emplace(id);
 			}
+		}
+		if (!stale.empty()) {
+			_staleParticipantIds.fire(std::move(stale));
 		}
 	}).fail([=] {
 		_checkStaleRequestId = 0;
@@ -402,8 +406,9 @@ auto GroupCall::participantsWithAccessValue() const
 	return _participantsWithAccess.value();
 }
 
-rpl::producer<UserId> GroupCall::staleParticipantId() const {
-	return _staleParticipantId.events();
+auto GroupCall::staleParticipantIds() const
+-> rpl::producer<base::flat_set<UserId>> {
+	return _staleParticipantIds.events();
 }
 
 void GroupCall::enqueueUpdate(const MTPUpdate &update) {

@@ -715,44 +715,55 @@ void GroupCall::setupConferenceCall() {
 		sendOutboundBlock(std::move(block));
 	}, _lifetime);
 
-	_conferenceCall->staleParticipantId(
-	) | rpl::start_with_next([=](UserId staleId) {
-		removeConferenceParticipant(staleId);
+	_conferenceCall->staleParticipantIds(
+	) | rpl::start_with_next([=](const base::flat_set<UserId> &staleIds) {
+		removeConferenceParticipants(staleIds);
 	}, _lifetime);
 	_e2e->participantsSetValue(
 	) | rpl::start_with_next([=](const TdE2E::ParticipantsSet &set) {
 		auto users = base::flat_set<UserId>();
 		users.reserve(set.list.size());
-		auto ids = QStringList();
 		for (const auto &id : set.list) {
 			users.emplace(UserId(id.v));
-			ids.push_back('"' + _peer->owner().user(UserId(id.v))->name() + '"');
 		}
-		LOG(("ACCESS: ") + ids.join(", "));
 		_conferenceCall->setParticipantsWithAccess(std::move(users));
 	}, _lifetime);
 }
 
-void GroupCall::removeConferenceParticipant(UserId id) {
+void GroupCall::removeConferenceParticipants(
+		const base::flat_set<UserId> userIds) {
 	Expects(_e2e != nullptr);
+	Expects(!userIds.empty());
 
-	const auto block = _e2e->makeRemoveBlock(TdE2E::MakeUserId(id));
+	const auto owner = &_peer->owner();
+	auto inputs = QVector<MTPInputPeer>();
+	inputs.reserve(userIds.size());
+	auto ids = base::flat_set<TdE2E::UserId>();
+	ids.reserve(userIds.size());
+	for (const auto &id : userIds) {
+		inputs.push_back(owner->user(id)->input);
+		ids.emplace(TdE2E::MakeUserId(id));
+	}
+	const auto block = _e2e->makeRemoveBlock(ids);
 	if (block.data.isEmpty()) {
 		return;
 	}
-	_api.request(MTPphone_DeleteConferenceCallParticipant(
+	_api.request(MTPphone_DeleteConferenceCallParticipants(
 		inputCall(),
-		_peer->owner().user(id)->input,
+		MTP_vector<MTPInputPeer>(std::move(inputs)),
 		MTP_bytes(block.data)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
 		if (type == u"GROUPCALL_FORBIDDEN"_q) {
-			setState(State::Joining);
-			rejoin();
+			LOG(("Call Info: "
+				"Rejoin after error '%1' in delete confcall participants"
+				).arg(type));
+			startRejoin();
 		} else {
-			LOG(("NOTREMOVED: %1").arg(type));
+			LOG(("Call Error: Could not remove confcall participants: %1"
+				).arg(type));
 		}
 	}).send();
 }
@@ -1187,8 +1198,8 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	inputCall.match([&](const MTPDinputGroupCall &data) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
-	}, [&](const MTPDinputGroupCallSlug &) {
-		Unexpected("inputGroupCallSlug in GroupCall::join.");
+	}, [&](const auto &) {
+		Unexpected("slug/msg in GroupCall::join.");
 	});
 	setState(_scheduleDate ? State::Waiting : State::Joining);
 
@@ -1391,6 +1402,14 @@ void GroupCall::markTrackPaused(const VideoEndpoint &endpoint, bool paused) {
 		: Webrtc::VideoState::Active);
 }
 
+void GroupCall::startRejoin() {
+	for (const auto &[task, part] : _broadcastParts) {
+		_api.request(part.requestId).cancel();
+	}
+	setState(State::Joining);
+	rejoin();
+}
+
 void GroupCall::rejoin() {
 	rejoin(joinAs());
 }
@@ -1489,10 +1508,7 @@ void GroupCall::sendJoinRequest() {
 		| (_e2e ? (Flag::f_public_key | Flag::f_block) : Flag());
 	_api.request(MTPphone_JoinGroupCall(
 		MTP_flags(flags),
-		(_conferenceLinkSlug.isEmpty()
-			? inputCall()
-			: MTP_inputGroupCallSlug(
-				MTP_string(_conferenceLinkSlug))),
+		inputCallSafe(),
 		joinAs()->input,
 		MTP_string(_joinHash),
 		(_e2e ? TdE2E::PublicKeyToMTP(_e2e->myKey()) : MTPint256()),
@@ -1573,7 +1589,7 @@ void GroupCall::refreshLastBlockAndJoin() {
 		return;
 	}
 	_api.request(MTPphone_GetGroupCallChainBlocks(
-		inputCall(),
+		inputCallSafe(),
 		MTP_int(0),
 		MTP_int(-1),
 		MTP_int(1)
@@ -1632,6 +1648,11 @@ void GroupCall::requestSubchainBlocks(int subchain, int height) {
 		auto &state = _subchains[subchain];
 		state.requestId = 0;
 		_e2e->subchainBlocksRequestFinished(subchain);
+		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
+			LOG(("Call Info: Rejoin after error '%1' in get chain blocks."
+				).arg(error.type()));
+			startRejoin();
+		}
 	}).send();
 }
 
@@ -1646,13 +1667,14 @@ void GroupCall::sendOutboundBlock(QByteArray block) {
 		const auto type = error.type();
 		if (type == u"GROUPCALL_FORBIDDEN"_q) {
 			_pendingOutboundBlock = block;
-			setState(State::Joining);
-			rejoin();
+			LOG(("Call Info: Rejoin after error '%1' in send confcall block."
+				).arg(type));
+			startRejoin();
 		} else if (type == u"BLOCK_INVALID"_q
 			|| type.startsWith(u"CONF_WRITE_CHAIN_INVALID"_q)) {
 			LOG(("Call Error: Could not broadcast block: %1").arg(type));
 		} else {
-			LOG(("HMM"));
+			LOG(("Call Error: Got '%1' in send confcall block.").arg(type));
 			sendOutboundBlock(block);
 		}
 	}).send();
@@ -2196,8 +2218,8 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 	const auto callId = data.vcall().match([](
 			const MTPDinputGroupCall &data) {
 		return data.vid().v;
-	}, [](const MTPDinputGroupCallSlug &) -> CallId {
-		Unexpected("inputGroupCallSlug in GroupCall::handleUpdate.");
+	}, [](const auto &) -> CallId {
+		Unexpected("slug/msg in GroupCall::handleUpdate.");
 	});
 	if (_id != callId) {
 		return;
@@ -2225,8 +2247,8 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallChainBlocks &data) {
 	const auto callId = data.vcall().match([](
 			const MTPDinputGroupCall &data) {
 		return data.vid().v;
-	}, [](const MTPDinputGroupCallSlug &) -> CallId {
-		Unexpected("inputGroupCallSlug in GroupCall::handleUpdate.");
+	}, [](const auto &) -> CallId {
+		Unexpected("slug/msg in GroupCall::handleUpdate.");
 	});
 	if (_id != callId || !_e2e) {
 		return;
@@ -2279,8 +2301,7 @@ void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
 			// I was removed from the call, rejoin.
 			LOG(("Call Info: "
 				"Rejoin after got 'left' with my ssrc."));
-			setState(State::Joining);
-			rejoin();
+			startRejoin();
 		}
 		return;
 	} else if (data.vsource().v != _joinState.ssrc) {
@@ -2307,8 +2328,7 @@ void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
 			: MuteState::ForceMuted);
 	} else if (_instanceMode == InstanceMode::Stream) {
 		LOG(("Call Info: Rejoin after unforcemute in stream mode."));
-		setState(State::Joining);
-		rejoin();
+		startRejoin();
 	} else if (mutedByAdmin()) {
 		setMuted(MuteState::Muted);
 		if (!_instanceTransitioning) {
@@ -2882,11 +2902,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 	}).fail([=](const MTP::Error &error, const MTP::Response &response) {
 		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q
 			|| error.type() == u"GROUPCALL_FORBIDDEN"_q) {
-			for (const auto &[task, part] : _broadcastParts) {
-				_api.request(part.requestId).cancel();
-			}
-			setState(State::Joining);
-			rejoin();
+			startRejoin();
 			return;
 		}
 		const auto status = (MTP::IsFloodError(error)
@@ -3005,11 +3021,7 @@ void GroupCall::requestCurrentTimeStart(
 
 		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q
 			|| error.type() == u"GROUPCALL_FORBIDDEN"_q) {
-			for (const auto &[task, part] : _broadcastParts) {
-				_api.request(part.requestId).cancel();
-			}
-			setState(State::Joining);
-			rejoin();
+			startRejoin();
 		}
 	}).handleAllErrors().toDC(
 		MTP::groupCallStreamDcId(_broadcastDcId)
@@ -3415,7 +3427,7 @@ void GroupCall::checkJoined() {
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Call Info: Full rejoin after error '%1' in checkGroupCall."
 			).arg(error.type()));
-		rejoin();
+		startRejoin();
 	}).send();
 }
 
@@ -3590,7 +3602,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
 				).arg(error.type()));
-			rejoin();
+			startRejoin();
 		}
 	}).send();
 }
@@ -3684,7 +3696,7 @@ void GroupCall::editParticipant(
 		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
 				).arg(error.type()));
-			rejoin();
+			startRejoin();
 		}
 	}).send();
 }
@@ -3700,7 +3712,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 	if (_conferenceCall) {
 		for (const auto &user : users) {
 			_api.request(MTPphone_InviteConferenceCallParticipant(
-				inputCall(),
+				inputCallSafe(),
 				user->inputUser
 			)).send();
 		}
@@ -3821,9 +3833,16 @@ auto GroupCall::otherParticipantStateValue() const
 MTPInputGroupCall GroupCall::inputCall() const {
 	Expects(_id != 0);
 
-	return MTP_inputGroupCall(
-		MTP_long(_id),
-		MTP_long(_accessHash));
+	return MTP_inputGroupCall(MTP_long(_id), MTP_long(_accessHash));
+}
+
+MTPInputGroupCall GroupCall::inputCallSafe() const {
+	const auto inviteMsgId = _conferenceJoinMessageId.bare;
+	return inviteMsgId
+		? MTP_inputGroupCallInviteMessage(MTP_int(inviteMsgId))
+		: _conferenceLinkSlug.isEmpty()
+		? inputCall()
+		: MTP_inputGroupCallSlug(MTP_string(_conferenceLinkSlug));
 }
 
 void GroupCall::destroyController() {

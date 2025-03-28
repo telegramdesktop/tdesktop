@@ -1227,9 +1227,9 @@ void History::applyServiceChanges(
 			}
 		}
 	}, [&](const MTPDmessageActionConferenceCall &data) {
-		if (!data.is_active() && !data.is_missed()) {
+		if (!data.is_active() && !data.is_missed() && !item->out()) {
 			if (const auto window = session().tryResolveWindow()) {
-				window->resolveConferenceCall(qs(data.vslug()), item->id);
+				window->resolveConferenceCall(item->id);
 			}
 		}
 	}, [](const auto &) {
