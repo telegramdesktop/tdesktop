@@ -101,13 +101,16 @@ public:
 
 	[[nodiscard]] rpl::producer<ParticipantsSet> participantsSetValue() const;
 
-	[[nodiscard]] std::vector<uint8_t> encrypt(
-		const std::vector<uint8_t> &data) const;
-	[[nodiscard]] std::vector<uint8_t> decrypt(
-		const std::vector<uint8_t> &data) const;
+	[[nodiscard]] auto callbackEncryptDecrypt()
+		-> Fn<std::vector<uint8_t>(const std::vector<uint8_t>&, bool)>;
 
 private:
 	static constexpr int kSubChainsCount = 2;
+
+	struct GuardedCallId {
+		CallId value;
+		std::atomic<bool> exists;
+	};
 
 	struct SubChainState {
 		base::Timer shortPollTimer;
@@ -118,6 +121,7 @@ private:
 		int height = 0;
 	};
 
+	void setId(CallId id);
 	void apply(int subchain, const Block &last);
 	void fail(CallFailure reason);
 
@@ -133,6 +137,7 @@ private:
 	PublicKey _myKey;
 	std::optional<CallFailure> _failure;
 	rpl::event_stream<CallFailure> _failures;
+	std::shared_ptr<GuardedCallId> _guardedId;
 
 	SubChainState _subchains[kSubChainsCount];
 	rpl::event_stream<SubchainRequest> _subchainRequests;

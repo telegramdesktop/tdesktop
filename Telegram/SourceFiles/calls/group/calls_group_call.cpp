@@ -2691,14 +2691,6 @@ bool GroupCall::tryCreateController() {
 			}
 		});
 	};
-	auto e2eEncryptDecrypt = Fn<std::vector<uint8_t>(
-		const std::vector<uint8_t>&,
-		bool)>();
-	if (_e2e) {
-		e2eEncryptDecrypt = [e2e = _e2e](const std::vector<uint8_t> &data, bool encrypt) {
-			return encrypt ? e2e->encrypt(data) : e2e->decrypt(data);
-		};
-	}
 
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.threads = tgcalls::StaticThreads::getThreads(),
@@ -2785,7 +2777,7 @@ bool GroupCall::tryCreateController() {
 			});
 			return result;
 		},
-		.e2eEncryptDecrypt = e2eEncryptDecrypt,
+		.e2eEncryptDecrypt = _e2e ? _e2e->callbackEncryptDecrypt() : nullptr,
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;

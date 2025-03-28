@@ -222,7 +222,7 @@ void Call::apply(int subchain, const Block &last) {
 		LOG_AND_FAIL(id.error(), CallFailure::Unknown);
 		return;
 	}
-	_id = CallId{ uint64(id.value()) };
+	setId({ uint64(id.value()) });
 
 	for (auto i = 0; i != kSubChainsCount; ++i) {
 		auto &entry = _subchains[i];
@@ -243,6 +243,16 @@ void Call::apply(int subchain, const Block &last) {
 		return;
 	}
 	_participantsSet = ParseParticipantsSet(state.value());
+}
+
+void Call::setId(CallId id) {
+	Expects(!_id);
+
+	_id = id;
+	if (const auto raw = _guardedId.get()) {
+		raw->value = id;
+		raw->exists = true;
+	}
 }
 
 void Call::checkForOutboundMessages() {
@@ -408,26 +418,32 @@ rpl::producer<QByteArray> Call::emojiHashValue() const {
 	return _emojiHash.value();
 }
 
-std::vector<uint8_t> Call::encrypt(const std::vector<uint8_t> &data) const {
-	const auto result = tde2e_api::call_encrypt(libId(), Slice(data));
-	if (!result.is_ok()) {
-		return {};
+auto Call::callbackEncryptDecrypt()
+-> Fn<std::vector<uint8_t>(const std::vector<uint8_t>&, bool)> {
+	if (!_guardedId) {
+		_guardedId = std::make_shared<GuardedCallId>();
+		if (const auto raw = _id ? _guardedId.get() : nullptr) {
+			raw->value = _id;
+			raw->exists = true;
+		}
 	}
-	const auto &value = result.value();
-	const auto start = reinterpret_cast<const uint8_t*>(value.data());
-	const auto end = start + value.size();
-	return std::vector<uint8_t>{ start, end };
-}
-
-std::vector<uint8_t> Call::decrypt(const std::vector<uint8_t> &data) const {
-	const auto result = tde2e_api::call_decrypt(libId(), Slice(data));
-	if (!result.is_ok()) {
-		return {};
-	}
-	const auto &value = result.value();
-	const auto start = reinterpret_cast<const uint8_t*>(value.data());
-	const auto end = start + value.size();
-	return std::vector<uint8_t>{ start, end };
+	return [v = _guardedId](const std::vector<uint8_t> &data, bool encrypt) {
+		if (!v->exists) {
+			return std::vector<uint8_t>();
+		}
+		const auto libId = std::int64_t(v->value.v);
+		const auto slice = Slice(data);
+		const auto result = encrypt
+			? tde2e_api::call_encrypt(libId, slice)
+			: tde2e_api::call_decrypt(libId, slice);
+		if (!result.is_ok()) {
+			return std::vector<uint8_t>();
+		}
+		const auto &value = result.value();
+		const auto start = reinterpret_cast<const uint8_t*>(value.data());
+		const auto end = start + value.size();
+		return std::vector<uint8_t>{ start, end };
+	};
 }
 
 } // namespace TdE2E
