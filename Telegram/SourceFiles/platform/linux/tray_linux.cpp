@@ -161,6 +161,8 @@ QIcon IconGraphic::trayIcon() {
 		if (currentImageBack.isNull()
 			|| _new.iconThemeName != _current.iconThemeName
 			|| _new.systemIcon.name() != _current.systemIcon.name()) {
+			currentImageBack = {};
+
 			if (!_new.systemIcon.isNull()) {
 				// We can't use QIcon::actualSize here
 				// since it works incorrectly with svg icon themes
@@ -187,7 +189,9 @@ QIcon IconGraphic::trayIcon() {
 							.toImage();
 					}
 				}
-			} else {
+			}
+
+			if (currentImageBack.isNull()) {
 				currentImageBack = Window::Logo();
 			}
 
