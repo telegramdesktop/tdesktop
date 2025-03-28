@@ -195,6 +195,7 @@ void Call::apply(int subchain, const Block &last) {
 	});
 
 	if (subchain) {
+		auto &entry = _subchains[subchain];
 		auto result = tde2e_api::call_receive_inbound_message(
 			libId(),
 			Slice(last.data));
@@ -299,7 +300,7 @@ void Call::apply(
 	} else if (!_id || entry.height == index) {
 		apply(subchain, block);
 	}
-	entry.height = index + 1;
+	entry.height = std::max(entry.height, index + 1);
 	checkWaitingBlocks(subchain);
 }
 
@@ -320,15 +321,15 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 	auto &waiting = entry.waiting;
 	entry.shortPollTimer.cancel();
 	while (!waiting.empty()) {
-		const auto level = waiting.begin()->first;
-		if (level > entry.height + 1) {
+		const auto index = waiting.begin()->first;
+		if (index > entry.height) {
 			if (waited) {
 				shortPoll(subchain);
 			} else {
 				entry.waitingTimer.callOnce(kShortPollChainBlocksWaitFor);
 			}
 			return;
-		} else if (level == entry.height + 1) {
+		} else if (index == entry.height) {
 			const auto slice = Slice(waiting.begin()->second.data);
 			if (subchain) {
 				auto result = tde2e_api::call_receive_inbound_message(
@@ -352,7 +353,7 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 				}
 				_participantsSet = ParseParticipantsSet(result.value());
 			}
-			entry.height = level;
+			entry.height = std::max(entry.height, index + 1);
 		}
 		waiting.erase(waiting.begin());
 	}
