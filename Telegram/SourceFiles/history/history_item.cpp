@@ -5634,6 +5634,22 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			: duration
 			? tr::lng_action_confcall_finished(tr::now)
 			: tr::lng_action_confcall_invitation(tr::now);
+
+		if (duration) {
+			result.text.text += " (" + QString::number(duration) + " seconds)";
+		}
+
+		const auto id = this->id;
+		const auto slug = qs(action.vslug());
+		setCustomServiceLink(std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto weak = my.sessionWindow;
+			if (const auto strong = weak.get()) {
+				strong->resolveConferenceCall(slug, id);
+			}
+		}));
+
 		return result;
 	};
 

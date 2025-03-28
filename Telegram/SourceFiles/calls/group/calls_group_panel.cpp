@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_invite_controller.h"
 #include "calls/group/ui/calls_group_scheduled_labels.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
+#include "calls/calls_emoji_fingerprint.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/controls/call_mute_button.h"
@@ -75,6 +76,19 @@ constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
 constexpr auto kHideControlsTimeout = 5 * crl::time(1000);
+
+[[nodiscard]] QString ComposeTitle(const QByteArray &hash) {
+	auto result = tr::lng_confcall_join_title(tr::now);
+	if (hash.size() >= 32) {
+		const auto fp = bytes::make_span(hash).subspan(0, 32);
+		const auto emoji = Calls::ComputeEmojiFingerprint(fp);
+		result += QString::fromUtf8(" \xc2\xb7 ");
+		for (const auto &single : emoji) {
+			result += single->text();
+		}
+	}
+	return result;
+}
 
 class Show final : public Main::SessionShow {
 public:
@@ -367,7 +381,13 @@ void Panel::initWindow() {
 	window()->setAttribute(Qt::WA_NoSystemBackground);
 	window()->setTitleStyle(st::groupCallTitle);
 
-	subscribeToPeerChanges();
+	if (_call->conference()) {
+		titleText() | rpl::start_with_next([=](const QString &text) {
+			window()->setTitle(text);
+		}, lifetime());
+	} else {
+		subscribeToPeerChanges();
+	}
 
 	base::install_event_filter(window().get(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close && handleClose()) {
@@ -2445,19 +2465,26 @@ void Panel::updateMembersGeometry() {
 	}
 }
 
+rpl::producer<QString> Panel::titleText() {
+	if (_call->conference()) {
+		return _call->emojiHashValue() | rpl::map(ComposeTitle);
+	}
+	return rpl::combine(
+		Info::Profile::NameValue(_peer),
+		rpl::single(
+			QString()
+		) | rpl::then(_call->real(
+		) | rpl::map([=](not_null<Data::GroupCall*> real) {
+		return real->titleValue();
+	}) | rpl::flatten_latest())
+	) | rpl::map([=](const QString &name, const QString &title) {
+		return title.isEmpty() ? name : title;
+	});
+}
+
 void Panel::refreshTitle() {
 	if (!_title) {
-		auto text = rpl::combine(
-			Info::Profile::NameValue(_peer),
-			rpl::single(
-				QString()
-			) | rpl::then(_call->real(
-			) | rpl::map([=](not_null<Data::GroupCall*> real) {
-				return real->titleValue();
-			}) | rpl::flatten_latest())
-		) | rpl::map([=](const QString &name, const QString &title) {
-			return title.isEmpty() ? name : title;
-		}) | rpl::after_next([=] {
+		auto text = titleText() | rpl::after_next([=] {
 			refreshTitleGeometry();
 		});
 		_title.create(

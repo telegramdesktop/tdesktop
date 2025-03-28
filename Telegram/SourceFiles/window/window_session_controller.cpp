@@ -840,12 +840,16 @@ void SessionNavigation::resolveCollectible(
 	}).send();
 }
 
-void SessionNavigation::resolveConferenceCall(const QString &slug) {
-	if (_conferenceCallSlug == slug) {
+void SessionNavigation::resolveConferenceCall(
+		const QString &slug,
+		MsgId inviteMsgId) {
+	if (_conferenceCallSlug == slug
+		&& _conferenceCallInviteMsgId == inviteMsgId) {
 		return;
 	}
 	_api.request(base::take(_conferenceCallRequestId)).cancel();
 	_conferenceCallSlug = slug;
+	_conferenceCallInviteMsgId = inviteMsgId;
 
 	const auto limit = 5;
 	_conferenceCallRequestId = _api.request(MTPphone_GetGroupCall(
@@ -864,15 +868,26 @@ void SessionNavigation::resolveConferenceCall(const QString &slug) {
 				false, // rtmp
 				true); // conference
 			call->processFullCall(result);
+			const auto confirmed = std::make_shared<bool>();
 			const auto join = [=] {
-				Core::App().calls().startOrJoinConferenceCall(
-					uiShow(),
-					{ .call = call, .linkSlug = slug });
+				*confirmed = true;
+				Core::App().calls().startOrJoinConferenceCall(uiShow(), {
+					.call = call,
+					.linkSlug = slug,
+					.joinMessageId = inviteMsgId,
+				});
 			};
-			uiShow()->show(Box(
+			const auto box = uiShow()->show(Box(
 				Calls::Group::ConferenceCallJoinConfirm,
 				call,
 				join));
+			box->boxClosing() | rpl::start_with_next([=] {
+				if (inviteMsgId && !*confirmed) {
+					_api.request(MTPphone_DeclineConferenceCallInvite(
+						MTP_int(inviteMsgId)
+					)).send();
+				}
+			}, box->lifetime());
 		});
 	}).fail([=] {
 		_conferenceCallRequestId = 0;

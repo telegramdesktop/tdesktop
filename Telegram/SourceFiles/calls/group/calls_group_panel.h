@@ -155,6 +155,7 @@ private:
 	void setupMembers();
 	void setupVideo(not_null<Viewport*> viewport);
 	void setupRealMuteButtonState(not_null<Data::GroupCall*> real);
+	[[nodiscard]] rpl::producer<QString> titleText();
 
 	bool handleClose();
 	void startScheduledNow();

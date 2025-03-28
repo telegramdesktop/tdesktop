@@ -19,6 +19,8 @@ class Call;
 
 [[nodiscard]] std::vector<EmojiPtr> ComputeEmojiFingerprint(
 	not_null<Call*> call);
+[[nodiscard]] std::vector<EmojiPtr> ComputeEmojiFingerprint(
+	bytes::const_span fingerprint);
 
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 	not_null<QWidget*> parent,

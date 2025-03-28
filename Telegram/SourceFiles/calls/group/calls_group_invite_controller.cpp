@@ -56,6 +56,43 @@ namespace {
 	return result;
 }
 
+class ConfInviteController final : public ContactsBoxController {
+public:
+	ConfInviteController(
+		not_null<Main::Session*> session,
+		base::flat_set<not_null<UserData*>> alreadyIn,
+		Fn<void(not_null<PeerData*>)> choose)
+	: ContactsBoxController(session)
+	, _alreadyIn(std::move(alreadyIn))
+	, _choose(std::move(choose)) {
+	}
+
+protected:
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<UserData*> user) override {
+		if (user->isSelf()
+			|| user->isBot()
+			|| user->isServiceUser()
+			|| user->isInaccessible()) {
+			return nullptr;
+		}
+		auto result = ContactsBoxController::createRow(user);
+		if (_alreadyIn.contains(user)) {
+			result->setDisabledState(PeerListRow::State::DisabledChecked);
+		}
+		return result;
+	}
+
+	void rowClicked(not_null<PeerListRow*> row) override {
+		_choose(row->peer());
+	}
+
+private:
+	const base::flat_set<not_null<UserData*>> _alreadyIn;
+	const Fn<void(not_null<PeerData*>)> _choose;
+
+};
+
 } // namespace
 
 InviteController::InviteController(
@@ -173,6 +210,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		return nullptr;
 	}
 	const auto peer = call->peer();
+	const auto weak = base::make_weak(call);
 	auto alreadyIn = peer->owner().invitedToCallUsers(real->id());
 	for (const auto &participant : real->participants()) {
 		if (const auto user = participant.peer->asUser()) {
@@ -180,6 +218,39 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		}
 	}
 	alreadyIn.emplace(peer->session().user());
+	if (call->conference()) {
+		const auto close = std::make_shared<Fn<void()>>();
+		const auto invite = [=](not_null<PeerData*> peer) {
+			Expects(peer->isUser());
+
+			const auto call = weak.get();
+			if (!call) {
+				return;
+			}
+			const auto user = peer->asUser();
+			call->inviteUsers({ user });
+			showToast(tr::lng_group_call_invite_done_user(
+				tr::now,
+				lt_user,
+				Ui::Text::Bold(user->firstName),
+				Ui::Text::WithEntities));
+			(*close)();
+		};
+		auto controller = std::make_unique<ConfInviteController>(
+			&real->session(),
+			alreadyIn,
+			invite);
+		controller->setStyleOverrides(
+			&st::groupCallInviteMembersList,
+			&st::groupCallMultiSelect);
+		auto initBox = [=](not_null<PeerListBox*> box) {
+			box->setTitle(tr::lng_group_call_invite_title());
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+			*close = [=] { box->closeBox(); };
+		};
+		return Box<PeerListBox>(std::move(controller), initBox);
+	}
+
 	auto controller = std::make_unique<InviteController>(peer, alreadyIn);
 	controller->setStyleOverrides(
 		&st::groupCallInviteMembersList,
@@ -194,7 +265,6 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		&st::groupCallInviteMembersList,
 		&st::groupCallMultiSelect);
 
-	const auto weak = base::make_weak(call);
 	const auto invite = [=](const std::vector<not_null<UserData*>> &users) {
 		const auto call = weak.get();
 		if (!call) {

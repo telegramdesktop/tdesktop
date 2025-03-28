@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
+#include "window/window_session_controller.h"
 #include "calls/calls_instance.h"
 #include "spellcheck/spellcheck_types.h"
 #include "storage/localstorage.h"
@@ -1223,6 +1224,12 @@ void History::applyServiceChanges(
 			}
 			if (const auto hidden = data.vhidden()) {
 				topic->setHidden(mtpIsTrue(*hidden));
+			}
+		}
+	}, [&](const MTPDmessageActionConferenceCall &data) {
+		if (!data.is_active() && !data.is_missed()) {
+			if (const auto window = session().tryResolveWindow()) {
+				window->resolveConferenceCall(qs(data.vslug()), item->id);
 			}
 		}
 	}, [](const auto &) {

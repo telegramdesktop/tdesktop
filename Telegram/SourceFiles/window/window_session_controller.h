@@ -264,7 +264,7 @@ public:
 		PeerId ownerId,
 		const QString &entity,
 		Fn<void(QString)> fail = nullptr);
-	void resolveConferenceCall(const QString &slug);
+	void resolveConferenceCall(const QString &slug, MsgId inviteMsgId = 0);
 
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		Ui::Toast::Config &&config);
@@ -331,6 +331,7 @@ private:
 	mtpRequestId _collectibleRequestId = 0;
 
 	QString _conferenceCallSlug;
+	MsgId _conferenceCallInviteMsgId;
 	mtpRequestId _conferenceCallRequestId = 0;
 
 };

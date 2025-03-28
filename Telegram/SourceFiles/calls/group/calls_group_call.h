@@ -245,6 +245,7 @@ public:
 	}
 	[[nodiscard]] bool scheduleStartSubscribed() const;
 	[[nodiscard]] bool rtmp() const;
+	[[nodiscard]] bool conference() const;
 	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] bool emptyRtmp() const;
 	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
@@ -256,6 +257,7 @@ public:
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
+	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
 
 	void start(TimeId scheduleDate, bool rtmp);
 	void hangup();
@@ -479,8 +481,14 @@ private:
 			ssrc = updatedSsrc;
 		}
 	};
+	struct SubChainPending {
+		QVector<MTPbytes> blocks;
+		int next = 0;
+	};
 	struct SubChainState {
+		std::vector<SubChainPending> pending;
 		mtpRequestId requestId = 0;
+		bool inShortPoll = false;
 	};
 
 	friend inline constexpr bool is_flag_type(SendUpdateType) {
@@ -515,6 +523,10 @@ private:
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 	void handleUpdate(const MTPDupdateGroupCallChainBlocks &data);
+	void applySubChainUpdate(
+		int subchain,
+		const QVector<MTPbytes> &blocks,
+		int next);
 	bool tryCreateController();
 	void destroyController();
 	bool tryCreateScreencast();

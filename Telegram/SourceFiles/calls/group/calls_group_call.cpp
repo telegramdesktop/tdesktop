@@ -1112,6 +1112,10 @@ bool GroupCall::rtmp() const {
 	return _rtmp;
 }
 
+bool GroupCall::conference() const {
+	return _conferenceCall != nullptr;
+}
+
 bool GroupCall::listenersHidden() const {
 	return _listenersHidden;
 }
@@ -1150,6 +1154,12 @@ rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
 		return rpl::single(not_null{ real });
 	}
 	return _realChanges.events();
+}
+
+rpl::producer<QByteArray> GroupCall::emojiHashValue() const {
+	Expects(_e2e != nullptr);
+
+	return _e2e->emojiHashValue();
 }
 
 void GroupCall::start(TimeId scheduleDate, bool rtmp) {
@@ -1610,8 +1620,13 @@ void GroupCall::requestSubchainBlocks(int subchain, int height) {
 		MTP_int(kShortPollChainBlocksPerRequest)
 	)).done([=](const MTPUpdates &result) {
 		auto &state = _subchains[subchain];
-		_peer->session().api().applyUpdates(result);
 		state.requestId = 0;
+		state.inShortPoll = true;
+		_peer->session().api().applyUpdates(result);
+		state.inShortPoll = false;
+		for (const auto &data : base::take(state.pending)) {
+			applySubChainUpdate(subchain, data.blocks, data.next);
+		}
 		_e2e->subchainBlocksRequestFinished(subchain);
 	}).fail([=](const MTP::Error &error) {
 		auto &state = _subchains[subchain];
@@ -2221,11 +2236,26 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallChainBlocks &data) {
 		return;
 	}
 	auto &entry = _subchains[subchain];
-	const auto inpoll = entry.requestId != 0;
+	const auto &blocks = data.vblocks().v;
 	const auto next = data.vnext_offset().v;
-	auto now = next - int(data.vblocks().v.size());
-	for (const auto &block : data.vblocks().v) {
-		_e2e->apply(subchain, now++, { block.v }, inpoll);
+	if (entry.requestId) {
+		Assert(!entry.inShortPoll);
+		entry.pending.push_back({ blocks, next });
+	} else {
+		applySubChainUpdate(subchain, blocks, next);
+	}
+}
+
+void GroupCall::applySubChainUpdate(
+		int subchain,
+		const QVector<MTPbytes> &blocks,
+		int next) {
+	Expects(subchain >= 0 && subchain < kSubChainsCount);
+
+	auto &entry = _subchains[subchain];
+	auto now = next - int(blocks.size());
+	for (const auto &block : blocks) {
+		_e2e->apply(subchain, now++, { block.v }, entry.inShortPoll);
 	}
 }
 
@@ -3666,6 +3696,22 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		return 0;
 	}
 	const auto owner = &_peer->owner();
+
+	if (_conferenceCall) {
+		for (const auto &user : users) {
+			_api.request(MTPphone_InviteConferenceCallParticipant(
+				inputCall(),
+				user->inputUser
+			)).send();
+		}
+		auto result = std::variant<int, not_null<UserData*>>(0);
+		if (users.size() != 1) {
+			result = int(users.size());
+		} else {
+			result = users.front();
+		}
+		return result;
+	}
 
 	auto count = 0;
 	auto slice = QVector<MTPInputUser>();
