@@ -43,7 +43,6 @@ class GroupCall;
 } // namespace Data
 
 namespace TdE2E {
-struct ParticipantState;
 class Call;
 } // namespace TdE2E
 
@@ -170,8 +169,6 @@ struct ParticipantVideoParams;
 	const tl::conditional<MTPGroupCallParticipantVideo> &camera,
 	const tl::conditional<MTPGroupCallParticipantVideo> &screen,
 	const std::shared_ptr<ParticipantVideoParams> &existing);
-[[nodiscard]] std::shared_ptr<TdE2E::ParticipantState> ParseParticipantState(
-	const MTPDgroupCallParticipant &data);
 
 [[nodiscard]] const std::string &GetCameraEndpoint(
 	const std::shared_ptr<ParticipantVideoParams> &params);
@@ -282,6 +279,7 @@ public:
 	void startScheduledNow();
 	void toggleScheduleStartSubscribed(bool subscribed);
 	void setNoiseSuppression(bool enabled);
+	void removeConferenceParticipant(UserId userId);
 
 	bool emitShareScreenError();
 	bool emitShareCameraError();
@@ -548,6 +546,7 @@ private:
 	void sendJoinRequest();
 	void refreshLastBlockAndJoin();
 	void requestSubchainBlocks(int subchain, int height);
+	void sendOutboundBlock(QByteArray block);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
@@ -588,6 +587,7 @@ private:
 
 	void setupMediaDevices();
 	void setupOutgoingVideo();
+	void setupConferenceCall();
 	void setScreenEndpoint(std::string endpoint);
 	void setCameraEndpoint(std::string endpoint);
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
@@ -607,6 +607,7 @@ private:
 	const not_null<Delegate*> _delegate;
 	const std::shared_ptr<Data::GroupCall> _conferenceCall;
 	std::shared_ptr<TdE2E::Call> _e2e;
+	QByteArray _pendingOutboundBlock;
 
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
 	rpl::event_stream<PeerData*> _peerStream;

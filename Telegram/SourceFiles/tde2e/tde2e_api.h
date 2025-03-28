@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "base/flat_set.h"
 #include "base/timer.h"
 
-#include <rpl/producer.h>
 #include <rpl/event_stream.h>
+#include <rpl/producer.h>
+#include <rpl/variable.h>
 
 #include <crl/crl_time.h>
 
@@ -19,6 +21,9 @@ namespace TdE2E {
 
 struct UserId {
 	uint64 v = 0;
+
+	friend inline constexpr auto operator<=>(UserId, UserId) = default;
+	friend inline constexpr bool operator==(UserId, UserId) = default;
 };
 
 struct PrivateKeyId {
@@ -27,6 +32,10 @@ struct PrivateKeyId {
 
 struct CallId {
 	uint64 v = 0;
+
+	explicit operator bool() const {
+		return v != 0;
+	}
 };
 
 struct PublicKey {
@@ -41,6 +50,14 @@ struct ParticipantState {
 	PublicKey key;
 };
 
+struct ParticipantsSet {
+	base::flat_set<UserId> list;
+
+	friend inline bool operator==(
+		const ParticipantsSet &,
+		const ParticipantsSet &) = default;
+};
+
 struct Block {
 	QByteArray data;
 };
@@ -52,6 +69,7 @@ enum class CallFailure {
 class Call final {
 public:
 	explicit Call(UserId myUserId);
+	~Call();
 
 	[[nodiscard]] PublicKey myKey() const;
 
@@ -69,11 +87,19 @@ public:
 	[[nodiscard]] rpl::producer<SubchainRequest> subchainRequests() const;
 	void subchainBlocksRequestFinished(int subchain);
 
+	[[nodiscard]] rpl::producer<QByteArray> sendOutboundBlock() const;
+
 	[[nodiscard]] std::optional<CallFailure> failed() const;
 	[[nodiscard]] rpl::producer<CallFailure> failures() const;
 
+	[[nodiscard]] QByteArray emojiHash() const;
+	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
+
 	void refreshLastBlock0(std::optional<Block> block);
 	[[nodiscard]] Block makeJoinBlock();
+	[[nodiscard]] Block makeRemoveBlock(UserId id);
+
+	[[nodiscard]] rpl::producer<ParticipantsSet> participantsSetValue() const;
 
 	[[nodiscard]] std::vector<uint8_t> encrypt(
 		const std::vector<uint8_t> &data) const;
@@ -92,11 +118,14 @@ private:
 		int height = 0;
 	};
 
-	void apply(const Block &last);
+	void apply(int subchain, const Block &last);
 	void fail(CallFailure reason);
 
+	void checkForOutboundMessages();
 	void checkWaitingBlocks(int subchain, bool waited = false);
 	void shortPoll(int subchain);
+
+	[[nodiscard]] std::int64_t libId() const;
 
 	CallId _id;
 	UserId _myUserId;
@@ -107,9 +136,13 @@ private:
 
 	SubChainState _subchains[kSubChainsCount];
 	rpl::event_stream<SubchainRequest> _subchainRequests;
+	rpl::event_stream<QByteArray> _outboundBlocks;
 
 	std::optional<Block> _lastBlock0;
 	int _lastBlock0Height = 0;
+
+	rpl::variable<ParticipantsSet> _participantsSet;
+	rpl::variable<QByteArray> _emojiHash;
 
 };
 

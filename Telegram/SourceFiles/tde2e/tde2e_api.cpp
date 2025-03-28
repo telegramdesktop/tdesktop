@@ -34,6 +34,24 @@ constexpr auto kShortPollChainBlocksWaitFor = crl::time(1000);
 	};
 }
 
+[[nodiscard]] tde2e_api::Slice Slice(const std::vector<uint8_t> &data) {
+	return {
+		reinterpret_cast<const char*>(data.data()),
+		std::string_view::size_type(data.size()),
+	};
+}
+
+[[nodiscard]] ParticipantsSet ParseParticipantsSet(
+		const tde2e_api::CallState &state) {
+	auto result = ParticipantsSet();
+	const auto &list = state.participants;
+	result.list.reserve(list.size());
+	for (const auto &entry : list) {
+		result.list.emplace(UserId{ uint64(entry.user_id) });
+	}
+	return result;
+}
+
 } // namespace
 
 Call::Call(UserId myUserId)
@@ -48,7 +66,14 @@ Call::Call(UserId myUserId)
 	memcpy(&_myKey, key.value().data(), sizeof(_myKey));
 }
 
+Call::~Call() {
+	if (const auto id = libId()) {
+		tde2e_api::call_destroy(id);
+	}
+}
+
 void Call::fail(CallFailure reason) {
+	_emojiHash = QByteArray();
 	_failure = reason;
 	_failures.fire_copy(reason);
 }
@@ -99,20 +124,92 @@ Block Call::makeJoinBlock() {
 	};
 }
 
+Block Call::makeRemoveBlock(UserId id) {
+	if (failed() || !_id || id == _myUserId) {
+		return {};
+	}
+
+	auto state = tde2e_api::call_get_state(libId());
+	if (!state.is_ok()) {
+		LOG_AND_FAIL(state.error(), CallFailure::Unknown);
+		return {};
+	}
+	auto found = false;
+	auto updated = state.value();
+	auto &list = updated.participants;
+	for (auto i = begin(list); i != end(list); ++i) {
+		if (uint64(i->user_id) == id.v) {
+			list.erase(i);
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		return {};
+	}
+	const auto result = tde2e_api::call_create_change_state_block(
+		libId(),
+		updated);
+	if (!result.is_ok()) {
+		LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+		return {};
+	}
+	return {
+		.data = QByteArray::fromStdString(result.value()),
+	};
+}
+
+rpl::producer<ParticipantsSet> Call::participantsSetValue() const {
+	return _participantsSet.value();
+}
+
 void Call::joined() {
 	shortPoll(0);
-	if (_id.v) {
+	if (_id) {
 		shortPoll(1);
 	}
 }
 
-void Call::apply(const Block &last) {
-	if (_id.v) {
-		const auto result = tde2e_api::call_apply_block(
-			std::int64_t(_id.v),
+void Call::apply(int subchain, const Block &last) {
+	Expects(_id || !subchain);
+
+	auto verification = std::optional<tde2e_api::CallVerificationState>();
+	const auto guard = gsl::finally([&] {
+		if (failed() || !_id) {
+			return;
+		} else if (!verification) {
+			const auto id = libId();
+			auto result = tde2e_api::call_get_verification_state(id);
+			if (!result.is_ok()) {
+				LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+				return;
+			}
+			verification = std::move(result.value());
+		}
+		_emojiHash = verification->emoji_hash.has_value()
+			? QByteArray::fromStdString(*verification->emoji_hash)
+			: QByteArray();
+		checkForOutboundMessages();
+	});
+
+	if (subchain) {
+		auto result = tde2e_api::call_receive_inbound_message(
+			libId(),
 			Slice(last.data));
 		if (!result.is_ok()) {
 			LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+		} else {
+			verification = std::move(result.value());
+		}
+		return;
+	} else if (_id) {
+		const auto result = tde2e_api::call_apply_block(
+			libId(),
+			Slice(last.data));
+		if (!result.is_ok()) {
+			LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+		} else {
+			_participantsSet = ParseParticipantsSet(result.value());
 		}
 		return;
 	}
@@ -137,6 +234,26 @@ void Call::apply(const Block &last) {
 			entry.shortPollTimer.callOnce(kShortPollChainBlocksTimeout);
 		}
 	}
+
+	const auto state = tde2e_api::call_get_state(libId());
+	if (!state.is_ok()) {
+		LOG_AND_FAIL(state.error(), CallFailure::Unknown);
+		return;
+	}
+	_participantsSet = ParseParticipantsSet(state.value());
+}
+
+void Call::checkForOutboundMessages() {
+	Expects(_id);
+
+	const auto result = tde2e_api::call_pull_outbound_messages(libId());
+	if (!result.is_ok()) {
+		LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+		return;
+	} else if (!result.value().empty()) {
+		_outboundBlocks.fire(
+			QByteArray::fromStdString(result.value().back()));
+	}
 }
 
 void Call::apply(
@@ -145,7 +262,7 @@ void Call::apply(
 		const Block &block,
 		bool fromShortPoll) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
-	Expects(_id.v != 0 || !fromShortPoll || !subchain);
+	Expects(_id || !fromShortPoll || !subchain);
 
 	if (!subchain && index >= _lastBlock0Height) {
 		_lastBlock0 = block;
@@ -158,7 +275,7 @@ void Call::apply(
 	auto &entry = _subchains[subchain];
 	if (!fromShortPoll) {
 		entry.lastUpdate = crl::now();
-		if (index > entry.height || (!_id.v && subchain != 0)) {
+		if (index > entry.height || (!_id && subchain != 0)) {
 			entry.waiting.emplace(index, block);
 			checkWaitingBlocks(subchain);
 			return;
@@ -167,8 +284,8 @@ void Call::apply(
 
 	if (failed()) {
 		return;
-	} else if (!_id.v || entry.height == index) {
-		apply(block);
+	} else if (!_id || entry.height == index) {
+		apply(subchain, block);
 	}
 	entry.height = index + 1;
 	checkWaitingBlocks(subchain);
@@ -182,7 +299,7 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 	}
 
 	auto &entry = _subchains[subchain];
-	if (!_id.v) {
+	if (!_id) {
 		entry.waitingTimer.callOnce(kShortPollChainBlocksWaitFor);
 		return;
 	} else if (entry.shortPolling) {
@@ -200,12 +317,28 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 			}
 			return;
 		} else if (level == entry.height + 1) {
-			const auto result = tde2e_api::call_apply_block(
-				std::int64_t(_id.v),
-				Slice(waiting.begin()->second.data));
-			if (!result.is_ok()) {
-				LOG_AND_FAIL(result.error(), CallFailure::Unknown);
-				return;
+			const auto slice = Slice(waiting.begin()->second.data);
+			if (subchain) {
+				auto result = tde2e_api::call_receive_inbound_message(
+					libId(),
+					slice);
+				if (!result.is_ok()) {
+					LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+					return;
+				}
+				_emojiHash = result.value().emoji_hash.has_value()
+					? QByteArray::fromStdString(*result.value().emoji_hash)
+					: QByteArray();
+				checkForOutboundMessages();
+			} else {
+				const auto result = tde2e_api::call_apply_block(
+					libId(),
+					slice);
+				if (!result.is_ok()) {
+					LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+					return;
+				}
+				_participantsSet = ParseParticipantsSet(result.value());
 			}
 			entry.height = level;
 		}
@@ -221,13 +354,17 @@ void Call::shortPoll(int subchain) {
 	auto &entry = _subchains[subchain];
 	entry.waitingTimer.cancel();
 	entry.shortPollTimer.cancel();
-	if (subchain && !_id.v) {
+	if (subchain && !_id) {
 		// Not ready.
 		entry.waitingTimer.callOnce(kShortPollChainBlocksWaitFor);
 		return;
 	}
 	entry.shortPolling = true;
 	_subchainRequests.fire({ subchain, entry.height });
+}
+
+std::int64_t Call::libId() const {
+	return std::int64_t(_id.v);
 }
 
 rpl::producer<Call::SubchainRequest> Call::subchainRequests() const {
@@ -246,6 +383,10 @@ void Call::subchainBlocksRequestFinished(int subchain) {
 	checkWaitingBlocks(subchain);
 }
 
+rpl::producer<QByteArray> Call::sendOutboundBlock() const {
+	return _outboundBlocks.events();
+}
+
 std::optional<CallFailure> Call::failed() const {
 	return _failure;
 }
@@ -257,13 +398,16 @@ rpl::producer<CallFailure> Call::failures() const {
 	return _failures.events();
 }
 
+QByteArray Call::emojiHash() const {
+	return _emojiHash.current();
+}
+
+rpl::producer<QByteArray> Call::emojiHashValue() const {
+	return _emojiHash.value();
+}
+
 std::vector<uint8_t> Call::encrypt(const std::vector<uint8_t> &data) const {
-	const auto result = tde2e_api::call_encrypt(
-		std::int64_t(_id.v),
-		std::string_view{
-			reinterpret_cast<const char*>(data.data()),
-			data.size(),
-		});
+	const auto result = tde2e_api::call_encrypt(libId(), Slice(data));
 	if (!result.is_ok()) {
 		return {};
 	}
@@ -274,12 +418,7 @@ std::vector<uint8_t> Call::encrypt(const std::vector<uint8_t> &data) const {
 }
 
 std::vector<uint8_t> Call::decrypt(const std::vector<uint8_t> &data) const {
-	const auto result = tde2e_api::call_decrypt(
-		std::int64_t(_id.v),
-		std::string_view{
-			reinterpret_cast<const char*>(data.data()),
-			data.size(),
-		});
+	const auto result = tde2e_api::call_decrypt(libId(), Slice(data));
 	if (!result.is_ok()) {
 		return {};
 	}

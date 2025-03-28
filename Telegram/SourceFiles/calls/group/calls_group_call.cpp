@@ -421,21 +421,6 @@ std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
 	return data;
 }
 
-std::shared_ptr<TdE2E::ParticipantState> ParseParticipantState(
-		const MTPDgroupCallParticipant &data) {
-	if (!data.vpublic_key() || data.vpeer().type() != mtpc_peerUser) {
-		return nullptr;
-	}
-	const auto &v = *data.vpublic_key();
-	const auto userId = data.vpeer().c_peerUser().vuser_id().v;
-	using State = TdE2E::ParticipantState;
-	return std::make_shared<State>(State{
-		.id = uint64(userId),
-		.key = { .a = v.h.h, .b = v.h.l, .c = v.l.h, .d = v.l.l },
-	});
-
-}
-
 GroupCall::LoadPartTask::LoadPartTask(
 	base::weak_ptr<GroupCall> call,
 	int64 time,
@@ -643,17 +628,6 @@ GroupCall::GroupCall(
 , _listenersHidden(join.rtmp)
 , _rtmp(join.rtmp)
 , _rtmpVolume(Group::kDefaultVolume) {
-	if (_conferenceCall) {
-		if (!_e2e) {
-			_e2e = std::make_shared<TdE2E::Call>(
-				TdE2E::MakeUserId(_peer->session().user()));
-		}
-		_e2e->subchainRequests(
-		) | rpl::start_with_next([=](TdE2E::Call::SubchainRequest request) {
-			requestSubchainBlocks(request.subchain, request.height);
-		}, _lifetime);
-	}
-
 	_muted.value(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
@@ -705,6 +679,9 @@ GroupCall::GroupCall(
 
 	setupMediaDevices();
 	setupOutgoingVideo();
+	if (_conferenceCall) {
+		setupConferenceCall();
+	}
 
 	if (_id) {
 		this->join(inputCall);
@@ -722,6 +699,62 @@ GroupCall::~GroupCall() {
 	if (!_rtmp) {
 		Core::App().mediaDevices().setCaptureMuteTracker(this, false);
 	}
+}
+
+void GroupCall::setupConferenceCall() {
+	if (!_e2e) {
+		_e2e = std::make_shared<TdE2E::Call>(
+			TdE2E::MakeUserId(_peer->session().user()));
+	}
+	_e2e->subchainRequests(
+	) | rpl::start_with_next([=](TdE2E::Call::SubchainRequest request) {
+		requestSubchainBlocks(request.subchain, request.height);
+	}, _lifetime);
+	_e2e->sendOutboundBlock(
+	) | rpl::start_with_next([=](QByteArray &&block) {
+		sendOutboundBlock(std::move(block));
+	}, _lifetime);
+
+	_conferenceCall->staleParticipantId(
+	) | rpl::start_with_next([=](UserId staleId) {
+		removeConferenceParticipant(staleId);
+	}, _lifetime);
+	_e2e->participantsSetValue(
+	) | rpl::start_with_next([=](const TdE2E::ParticipantsSet &set) {
+		auto users = base::flat_set<UserId>();
+		users.reserve(set.list.size());
+		auto ids = QStringList();
+		for (const auto &id : set.list) {
+			users.emplace(UserId(id.v));
+			ids.push_back('"' + _peer->owner().user(UserId(id.v))->name() + '"');
+		}
+		LOG(("ACCESS: ") + ids.join(", "));
+		_conferenceCall->setParticipantsWithAccess(std::move(users));
+	}, _lifetime);
+}
+
+void GroupCall::removeConferenceParticipant(UserId id) {
+	Expects(_e2e != nullptr);
+
+	const auto block = _e2e->makeRemoveBlock(TdE2E::MakeUserId(id));
+	if (block.data.isEmpty()) {
+		return;
+	}
+	_api.request(MTPphone_DeleteConferenceCallParticipant(
+		inputCall(),
+		_peer->owner().user(id)->input,
+		MTP_bytes(block.data)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).fail([=](const MTP::Error &error) {
+		const auto type = error.type();
+		if (type == u"GROUPCALL_FORBIDDEN"_q) {
+			setState(State::Joining);
+			rejoin();
+		} else {
+			LOG(("NOTREMOVED: %1").arg(type));
+		}
+	}).send();
 }
 
 bool GroupCall::isSharingScreen() const {
@@ -1492,11 +1525,15 @@ void GroupCall::sendJoinRequest() {
 		}
 		if (_e2e) {
 			_e2e->joined();
+			if (!_pendingOutboundBlock.isEmpty()) {
+				sendOutboundBlock(base::take(_pendingOutboundBlock));
+			}
 		}
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
 		if (_e2e) {
-			if (type == u"CONF_WRITE_CHAIN_INVALID"_q) {
+			if (type == u"BLOCK_INVALID"_q
+				|| type.startsWith(u"CONF_WRITE_CHAIN_INVALID"_q)) {
 				refreshLastBlockAndJoin();
 				return;
 			}
@@ -1580,6 +1617,29 @@ void GroupCall::requestSubchainBlocks(int subchain, int height) {
 		auto &state = _subchains[subchain];
 		state.requestId = 0;
 		_e2e->subchainBlocksRequestFinished(subchain);
+	}).send();
+}
+
+void GroupCall::sendOutboundBlock(QByteArray block) {
+	_pendingOutboundBlock = QByteArray();
+	_api.request(MTPphone_SendConferenceCallBroadcast(
+		inputCall(),
+		MTP_bytes(block)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).fail([=](const MTP::Error &error) {
+		const auto type = error.type();
+		if (type == u"GROUPCALL_FORBIDDEN"_q) {
+			_pendingOutboundBlock = block;
+			setState(State::Joining);
+			rejoin();
+		} else if (type == u"BLOCK_INVALID"_q
+			|| type.startsWith(u"CONF_WRITE_CHAIN_INVALID"_q)) {
+			LOG(("Call Error: Could not broadcast block: %1").arg(type));
+		} else {
+			LOG(("HMM"));
+			sendOutboundBlock(block);
+		}
 	}).send();
 }
 
@@ -1741,8 +1801,7 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
-		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0))
-		| (_e2e ? Flag::f_public_key : Flag(0));
+		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
 	real->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -1758,10 +1817,7 @@ void GroupCall::applyMeInCallLocally() {
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(raisedHandRating),
 					MTPGroupCallParticipantVideo(),
-					MTPGroupCallParticipantVideo(),
-					(_e2e
-						? TdE2E::PublicKeyToMTP(_e2e->myKey())
-						: MTPint256()))),
+					MTPGroupCallParticipantVideo())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1792,11 +1848,7 @@ void GroupCall::applyParticipantLocally(
 		| (participantPeer == joinAs() ? Flag::f_self : Flag(0))
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
-			: Flag(0))
-		| (participant->e2eState ? Flag::f_public_key : Flag(0));
-	const auto publicKey = participant->e2eState
-		? participant->e2eState->key
-		: TdE2E::PublicKey();
+			: Flag(0));
 	_peer->groupCall()->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -1812,10 +1864,7 @@ void GroupCall::applyParticipantLocally(
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(participant->raisedHandRating),
 					MTPGroupCallParticipantVideo(),
-					MTPGroupCallParticipantVideo(),
-					MTP_int256(
-						MTP_int128(publicKey.a, publicKey.b),
-						MTP_int128(publicKey.c, publicKey.d)))),
+					MTPGroupCallParticipantVideo())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 

@@ -27,6 +27,7 @@ constexpr auto kSpeakingAfterActive = crl::time(6000);
 constexpr auto kActiveAfterJoined = crl::time(1000);
 constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 constexpr auto kReloadStaleTimeout = 16 * crl::time(1000);
+constexpr auto kMaxConferenceMembers = 50;
 
 [[nodiscard]] QString ExtractNextOffset(const MTPphone_GroupCall &call) {
 	return call.match([&](const MTPDphone_groupCall &data) {
@@ -75,6 +76,30 @@ GroupCall::GroupCall(
 , _listenersHidden(rtmp) {
 	if (_conference) {
 		session().data().registerGroupCall(this);
+
+		_participantUpdates.events(
+		) | rpl::filter([=](const ParticipantUpdate &update) {
+			return !update.now
+				&& !update.was->peer->isSelf()
+				&& !_participantsWithAccess.current().empty();
+		}) | rpl::start_with_next([=](const ParticipantUpdate &update) {
+			if (const auto id = peerToUser(update.was->peer->id)) {
+				if (_participantsWithAccess.current().contains(id)) {
+					_staleParticipantId.fire_copy(id);
+				}
+			}
+		}, _checkStaleLifetime);
+
+		_participantsWithAccess.changes(
+		) | rpl::filter([=](const base::flat_set<UserId> &list) {
+			return !list.empty();
+		}) | rpl::start_with_next([=] {
+			if (_allParticipantsLoaded) {
+				checkStaleParticipants();
+			} else {
+				requestParticipants();
+			}
+		}, _checkStaleLifetime);
 	}
 }
 
@@ -84,6 +109,7 @@ GroupCall::~GroupCall() {
 	}
 	api().request(_unknownParticipantPeersRequestId).cancel();
 	api().request(_participantsRequestId).cancel();
+	api().request(_checkStaleRequestId).cancel();
 	api().request(_reloadRequestId).cancel();
 }
 
@@ -158,7 +184,7 @@ void GroupCall::requestParticipants() {
 					: ApplySliceSource::SliceLoaded));
 			setServerParticipantsCount(data.vcount().v);
 			if (data.vparticipants().v.isEmpty()) {
-				_allParticipantsLoaded = true;
+				setParticipantsLoaded();
 			}
 			finishParticipantsSliceRequest();
 			if (reloaded) {
@@ -169,11 +195,81 @@ void GroupCall::requestParticipants() {
 		_participantsRequestId = 0;
 		const auto reloaded = processSavedFullCall();
 		setServerParticipantsCount(_participants.size());
-		_allParticipantsLoaded = true;
+		setParticipantsLoaded();
 		finishParticipantsSliceRequest();
 		if (reloaded) {
 			_participantsReloaded.fire({});
 		}
+	}).send();
+}
+
+void GroupCall::setParticipantsLoaded() {
+	_allParticipantsLoaded = true;
+	checkStaleParticipants();
+}
+
+void GroupCall::checkStaleParticipants() {
+	if (_checkStaleRequestId) {
+		return;
+	}
+	const auto &list = _participantsWithAccess.current();
+	if (list.empty()) {
+		return;
+	}
+	auto existing = base::flat_set<UserId>();
+	existing.reserve(_participants.size() + 1);
+	existing.emplace(session().userId());
+	for (const auto &participant : _participants) {
+		if (const auto id = peerToUser(participant.peer->id)) {
+			existing.emplace(id);
+		}
+	}
+	if (list.size() > existing.size()) {
+		checkStaleRequest();
+		return;
+	}
+	for (const auto &id : list) {
+		if (!existing.contains(id)) {
+			checkStaleRequest();
+			return;
+		}
+	}
+}
+
+void GroupCall::checkStaleRequest() {
+	if (_checkStaleRequestId) {
+		return;
+	}
+	_checkStaleRequestId = api().request(MTPphone_GetGroupParticipants(
+		input(),
+		MTP_vector<MTPInputPeer>(), // ids
+		MTP_vector<MTPint>(), // ssrcs
+		MTP_string(QString()),
+		MTP_int(kMaxConferenceMembers)
+	)).done([=](const MTPphone_GroupParticipants &result) {
+		_checkStaleRequestId = 0;
+		const auto &list = _participantsWithAccess.current();
+		if (list.empty()) {
+			return;
+		}
+		auto existing = base::flat_set<UserId>();
+		const auto &data = result.data();
+		existing.reserve(data.vparticipants().v.size() + 1);
+		existing.emplace(session().userId());
+		for (const auto &participant : data.vparticipants().v) {
+			const auto peerId = peerFromMTP(participant.data().vpeer());
+			if (const auto id = peerToUser(peerId)) {
+				existing.emplace(id);
+			}
+		}
+		for (const auto &id : list) {
+			if (!existing.contains(id)) {
+				_staleParticipantId.fire_copy(id);
+				return;
+			}
+		}
+	}).fail([=] {
+		_checkStaleRequestId = 0;
 	}).send();
 }
 
@@ -285,6 +381,29 @@ auto GroupCall::participantUpdated() const
 auto GroupCall::participantSpeaking() const
 -> rpl::producer<not_null<Participant*>> {
 	return _participantSpeaking.events();
+}
+
+void GroupCall::setParticipantsWithAccess(base::flat_set<UserId> list) {
+	_participantsWithAccess = std::move(list);
+	if (_allParticipantsLoaded) {
+		checkStaleParticipants();
+	} else {
+		requestParticipants();
+	}
+}
+
+auto GroupCall::participantsWithAccessCurrent() const
+-> const base::flat_set<UserId> & {
+	return _participantsWithAccess.current();
+}
+
+auto GroupCall::participantsWithAccessValue() const
+-> rpl::producer<base::flat_set<UserId>> {
+	return _participantsWithAccess.value();
+}
+
+rpl::producer<UserId> GroupCall::staleParticipantId() const {
+	return _staleParticipantId.events();
 }
 
 void GroupCall::enqueueUpdate(const MTPUpdate &update) {
@@ -471,9 +590,7 @@ void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
 	}, [](const auto &) {
 		Unexpected("Type in GroupCall::applyEnqueuedUpdate.");
 	});
-	Core::App().calls().applyGroupCallUpdateChecked(
-		&_peer->session(),
-		update);
+	Core::App().calls().applyGroupCallUpdateChecked(&session(), update);
 }
 
 void GroupCall::processQueuedUpdates() {
@@ -634,22 +751,15 @@ void GroupCall::applyParticipantsSlice(
 			const auto existingVideoParams = (i != end(_participants))
 				? i->videoParams
 				: nullptr;
-			const auto existingState = (i != end(_participants))
-				? i->e2eState
-				: nullptr;
 			auto videoParams = localUpdate
 				? existingVideoParams
 				: Calls::ParseVideoParams(
 					data.vvideo(),
 					data.vpresentation(),
 					existingVideoParams);
-			auto e2eState = localUpdate
-				? existingState
-				: Calls::ParseParticipantState(data);
 			const auto value = Participant{
 				.peer = participantPeer,
 				.videoParams = std::move(videoParams),
-				.e2eState = std::move(e2eState),
 				.date = data.vdate().v,
 				.lastActive = lastActive,
 				.raisedHandRating = raisedHandRating,
@@ -1003,7 +1113,7 @@ bool GroupCall::joinedToTop() const {
 }
 
 ApiWrap &GroupCall::api() const {
-	return _peer->session().api();
+	return session().api();
 }
 
 } // namespace Data

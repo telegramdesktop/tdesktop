@@ -38,7 +38,6 @@ struct LastSpokeTimes {
 struct GroupCallParticipant {
 	not_null<PeerData*> peer;
 	std::shared_ptr<Calls::ParticipantVideoParams> videoParams;
-	std::shared_ptr<TdE2E::ParticipantState> e2eState;
 	TimeId date = 0;
 	TimeId lastActive = 0;
 	uint64 raisedHandRating = 0;
@@ -145,6 +144,16 @@ public:
 		-> rpl::producer<ParticipantUpdate>;
 	[[nodiscard]] auto participantSpeaking() const
 		-> rpl::producer<not_null<Participant*>>;
+
+	void setParticipantsWithAccess(base::flat_set<UserId> list);
+	[[nodiscard]] auto participantsWithAccessCurrent() const
+		-> const base::flat_set<UserId> &;
+	[[nodiscard]] auto participantsWithAccessValue() const
+		-> rpl::producer<base::flat_set<UserId>>;
+	[[nodiscard]] rpl::producer<UserId> staleParticipantId() const;
+	void setParticipantsLoaded();
+	void checkStaleParticipants();
+	void checkStaleRequest();
 
 	void enqueueUpdate(const MTPUpdate &update);
 	void applyLocalUpdate(
@@ -253,6 +262,11 @@ private:
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
 	rpl::event_stream<not_null<Participant*>> _participantSpeaking;
 	rpl::event_stream<> _participantsReloaded;
+
+	rpl::variable<base::flat_set<UserId>> _participantsWithAccess;
+	rpl::event_stream<UserId> _staleParticipantId;
+	mtpRequestId _checkStaleRequestId = 0;
+	rpl::lifetime _checkStaleLifetime;
 
 	bool _joinMuted : 1 = false;
 	bool _canChangeJoinMuted : 1 = true;
