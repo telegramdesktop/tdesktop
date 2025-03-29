@@ -3863,6 +3863,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_skip_archive_in_search" = "Skip results from archive";
 "lng_dialogs_show_archive_in_search" = "With results from archive";
 
+"lng_dialogs_top_bar_suggestions_birthday_title" = "Add your birthday! 🎂";
+"lng_dialogs_top_bar_suggestions_birthday_about" = "Let your contacts know when you’re celebrating.";
+
 "lng_about_random" = "Send a {emoji} emoji to any chat to try your luck.";
 "lng_about_random_send" = "Send";
 

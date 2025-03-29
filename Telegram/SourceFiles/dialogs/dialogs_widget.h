@@ -53,6 +53,8 @@ class JumpDownButton;
 class ElasticScroll;
 template <typename Widget>
 class FadeWrapScaled;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 namespace Window {
@@ -223,6 +225,7 @@ private:
 	void showMainMenu();
 	void clearSearchCache(bool clearPosts);
 	void setSearchQuery(const QString &query, int cursorPosition = -1);
+	void updateTopBarSuggestions();
 	void updateFrozenAccountBar();
 	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility(
@@ -313,7 +316,7 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
-	object_ptr< Ui::FadeWrapScaled<Ui::IconButton>> _lockUnlock;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _lockUnlock;
 
 	std::unique_ptr<Ui::MoreChatsBar> _moreChatsBar;
 
@@ -323,6 +326,8 @@ private:
 	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
 
 	base::unique_qptr<Ui::RpWidget> _chatFilters;
+
+	Ui::SlideWrap<Ui::RpWidget> *_topBarSuggestion = nullptr;
 
 	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<InnerWidget> _inner;

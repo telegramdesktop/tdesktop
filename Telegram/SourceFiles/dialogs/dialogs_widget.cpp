@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_suggestions.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
+#include "dialogs/dialogs_top_bar_suggestion.h"
 #include "dialogs/dialogs_quick_action.h"
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
@@ -375,19 +377,41 @@ Widget::Widget(
 	_scroll->setOverscrollTypes(
 		_stories ? OverscrollType::Virtual : OverscrollType::Real,
 		OverscrollType::Real);
-	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(
-		this,
+	const auto innerList = _scroll->setOwnedWidget(
+		object_ptr<Ui::VerticalLayout>(this));
+	if (_layout != Layout::Child) {
+		_topBarSuggestion = innerList->add(CreateTopBarSuggestion(
+			innerList,
+			&session()));
+		rpl::combine(
+			_topBarSuggestion->entity()->desiredHeightValue(),
+			_childListShown.value()
+		) | rpl::start_with_next([=](int desiredHeight, float64 shown) {
+			const auto newHeight = desiredHeight * (1. - shown);
+			_topBarSuggestion->entity()->setMaximumHeight(newHeight);
+			_topBarSuggestion->entity()->setMinimumWidth(width());
+			_topBarSuggestion->entity()->resize(width(), newHeight);
+		}, _topBarSuggestion->lifetime());
+	}
+	_inner = innerList->add(object_ptr<InnerWidget>(
+		innerList,
 		controller,
 		rpl::combine(
 			_childListPeerId.value(),
 			_childListShown.value(),
 			makeChildListShown)));
 	_scroll->heightValue() | rpl::start_with_next([=](int height) {
-		_inner->setMinimumHeight(height);
+		innerList->setMinimumHeight(height);
+		_inner->setMinimumHeight(height
+			- (_topBarSuggestion ? _topBarSuggestion->height() : 0));
 		_inner->refresh();
-	}, _inner->lifetime());
+	}, innerList->lifetime());
+	_scroll->widthValue() | rpl::start_with_next([=](int width) {
+		innerList->resizeToWidth(width);
+	}, innerList->lifetime());
 	_scrollToTop->raise();
 	_lockUnlock->toggle(false, anim::type::instant);
+
 
 	_inner->updated(
 	) | rpl::start_with_next([=] {
@@ -1022,6 +1046,18 @@ void Widget::updateFrozenAccountBar() {
 	}
 }
 
+void Widget::updateTopBarSuggestions() {
+	if (_topBarSuggestion) {
+		if ((_layout == Layout::Child)
+			|| _openedForum
+			|| _openedFolder) {
+			_topBarSuggestion->toggle(false, anim::type::instant);
+		} else {
+			_topBarSuggestion->toggle(true, anim::type::instant);
+		}
+	}
+}
+
 void Widget::setupMoreChatsBar() {
 	if (_layout == Layout::Child) {
 		return;
@@ -1454,7 +1490,7 @@ void Widget::updateControlsVisibility(bool fast) {
 		_frozenAccountBar->show();
 	}
 	if (_chatFilters) {
-		_chatFilters->show();
+		_chatFilters->setVisible(!_openedForum);
 	}
 	if (_openedFolder || _openedForum) {
 		_subsectionTopBar->show();
@@ -1772,6 +1808,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 			storiesExplicitCollapse();
 		}
 		updateFrozenAccountBar();
+		updateTopBarSuggestions();
 	}, (folder != nullptr), animated);
 }
 
@@ -1829,6 +1866,7 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 		_inner->changeOpenedForum(forum);
 		storiesToggleExplicitExpand(false);
 		updateFrozenAccountBar();
+		updateTopBarSuggestions();
 		updateStoriesVisibility();
 	}, (forum != nullptr), animated);
 }
@@ -3402,7 +3440,8 @@ bool Widget::applySearchState(SearchState state) {
 		: nullptr;
 	_searchState = state;
 	if (_chatFilters && queryEmptyChanged) {
-		_chatFilters->setVisible(_searchState.query.isEmpty());
+		_chatFilters->setVisible(_searchState.query.isEmpty()
+			&& !_openedForum);
 		updateControlsGeometry();
 	}
 	_searchWithPostsPreview = computeSearchWithPostsPreview();
@@ -3829,7 +3868,7 @@ void Widget::updateControlsGeometry() {
 			_chatFilters->move(0, chatFiltersTop);
 		}
 		const auto scrollTop = chatFiltersTop
-			+ ((_chatFilters && _searchState.query.isEmpty())
+			+ ((_chatFilters && _searchState.query.isEmpty() && !_openedForum)
 				? (_chatFilters->height() * (1. - narrowRatio))
 				: 0);
 		const auto scrollHeight = height() - scrollTop - bottomSkip;
