@@ -9,9 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/platform/base_platform_info.h"
+#include "base/random.h"
 #include "boxes/share_box.h"
+#include "calls/calls_instance.h"
+#include "core/application.h"
 #include "core/local_url_handlers.h"
 #include "data/data_group_call.h"
+#include "data/data_session.h"
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/widgets/buttons.h"
@@ -31,6 +35,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 
 namespace Calls::Group {
+namespace {
+
+[[nodiscard]] QString ExtractConferenceSlug(const QString &link) {
+	const auto local = Core::TryConvertUrlToLocal(link);
+	const auto parts1 = QStringView(local).split('#');
+	if (!parts1.isEmpty()) {
+		const auto parts2 = parts1.front().split('&');
+		if (!parts2.isEmpty()) {
+			const auto parts3 = parts2.front().split(u"slug="_q);
+			if (parts3.size() > 1) {
+				return parts3.back().toString();
+			}
+		}
+	}
+	return QString();
+}
+
+} // namespace
 
 object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 #ifdef Q_OS_MAC
@@ -107,7 +129,6 @@ void ShowConferenceCallLinkBox(
 		ConferenceCallLinkArgs &&args) {
 	const auto st = args.st;
 	const auto initial = args.initial;
-	const auto weakWindow = args.weakWindow;
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setStyle(st.box
 			? *st.box
@@ -151,7 +172,7 @@ void ShowConferenceCallLinkBox(
 
 		const auto copyCallback = [=] {
 			QApplication::clipboard()->setText(link);
-			box->uiShow()->showToast(tr::lng_username_copied(tr::now));
+			show->showToast(tr::lng_username_copied(tr::now));
 		};
 		const auto shareCallback = [=] {
 			FastShareLink(
@@ -218,12 +239,11 @@ void ShowConferenceCallLinkBox(
 				: st::confcallLinkCenteredText));
 		footer->setTryMakeSimilarLines(true);
 		footer->setClickHandlerFilter([=](const auto &...) {
-			const auto local = Core::TryConvertUrlToLocal(link);
-			if (const auto controller = weakWindow.get()) {
-				controller->resolveConferenceCall(
-					local,
-					crl::guard(box, [=](bool ok) { if (ok) box->closeBox(); }),
-					true);
+			if (auto slug = ExtractConferenceSlug(link); !slug.isEmpty()) {
+				Core::App().calls().startOrJoinConferenceCall({
+					.call = call,
+					.linkSlug = std::move(slug),
+				});
 			}
 			return false;
 		});
@@ -251,6 +271,7 @@ void ExportConferenceCallLink(
 		std::shared_ptr<Data::GroupCall> call,
 		ConferenceCallLinkArgs &&args) {
 	const auto session = &show->session();
+	const auto invite = std::move(args.invite);
 	const auto finished = std::move(args.finished);
 
 	using Flag = MTPphone_ExportGroupCallInvite::Flag;
@@ -259,18 +280,63 @@ void ExportConferenceCallLink(
 		call->input()
 	)).done([=](const MTPphone_ExportedGroupCallInvite &result) {
 		const auto link = qs(result.data().vlink());
+		if (args.joining) {
+			if (auto slug = ExtractConferenceSlug(link); !slug.isEmpty()) {
+				Core::App().calls().startOrJoinConferenceCall({
+					.call = call,
+					.linkSlug = std::move(slug),
+					.invite = invite,
+					.migrating = args.migrating,
+				});
+			}
+			if (const auto onstack = finished) {
+				finished(QString());
+			}
+			return;
+		}
 		Calls::Group::ShowConferenceCallLinkBox(
 			show,
 			call,
 			link,
 			base::duplicate(args));
 		if (const auto onstack = finished) {
-			finished(true);
+			finished(link);
 		}
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(error.type());
 		if (const auto onstack = finished) {
-			finished(false);
+			finished(QString());
+		}
+	}).send();
+}
+
+void MakeConferenceCall(ConferenceFactoryArgs &&args) {
+	const auto show = std::move(args.show);
+	const auto finished = std::move(args.finished);
+	const auto joining = args.joining;
+	const auto migrating = args.migrating;
+	const auto invite = std::move(args.invite);
+	const auto session = &show->session();
+	session->api().request(MTPphone_CreateConferenceCall(
+		MTP_int(base::RandomValue<int32>())
+	)).done([=](const MTPphone_GroupCall &result) {
+		result.data().vcall().match([&](const auto &data) {
+			const auto call = session->data().sharedConferenceCall(
+				data.vid().v,
+				data.vaccess_hash().v);
+			call->processFullCall(result);
+			Calls::Group::ExportConferenceCallLink(show, call, {
+				.initial = true,
+				.joining = joining,
+				.migrating = migrating,
+				.finished = finished,
+				.invite = invite,
+			});
+		});
+	}).fail([=](const MTP::Error &error) {
+		show->showToast(error.type());
+		if (const auto onstack = finished) {
+			onstack(QString());
 		}
 	}).send();
 }

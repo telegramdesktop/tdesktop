@@ -842,39 +842,20 @@ void SessionNavigation::resolveCollectible(
 
 void SessionNavigation::resolveConferenceCall(
 		QString slug,
-		Fn<void(bool)> finished,
-		bool skipConfirm) {
-	resolveConferenceCall(
-		std::move(slug),
-		0,
-		std::move(finished),
-		skipConfirm);
+		Fn<void(bool)> finished) {
+	resolveConferenceCall(std::move(slug), 0, std::move(finished));
 }
 
 void SessionNavigation::resolveConferenceCall(
 		MsgId inviteMsgId,
-		Fn<void(bool)> finished,
-		bool skipConfirm) {
-	resolveConferenceCall({}, inviteMsgId, std::move(finished), skipConfirm);
+		Fn<void(bool)> finished) {
+	resolveConferenceCall({}, inviteMsgId, std::move(finished));
 }
 
 void SessionNavigation::resolveConferenceCall(
 		QString slug,
 		MsgId inviteMsgId,
-		Fn<void(bool)> finished,
-		bool skipConfirm) {
-	// Accept tg://call?slug= links as well.
-	const auto parts1 = QStringView(slug).split('#');
-	if (!parts1.isEmpty()) {
-		const auto parts2 = parts1.front().split('&');
-		if (!parts2.isEmpty()) {
-			const auto parts3 = parts2.front().split(u"slug="_q);
-			if (parts3.size() > 1) {
-				slug = parts3.back().toString();
-			}
-		}
-	}
-
+		Fn<void(bool)> finished) {
 	_conferenceCallResolveFinished = std::move(finished);
 	if (_conferenceCallSlug == slug
 		&& _conferenceCallInviteMsgId == inviteMsgId) {
@@ -903,19 +884,12 @@ void SessionNavigation::resolveConferenceCall(
 			const auto confirmed = std::make_shared<bool>();
 			const auto join = [=] {
 				*confirmed = true;
-				Core::App().calls().startOrJoinConferenceCall(uiShow(), {
+				Core::App().calls().startOrJoinConferenceCall({
 					.call = call,
 					.linkSlug = slug,
 					.joinMessageId = inviteMsgId,
 				});
 			};
-			if (skipConfirm) {
-				join();
-				if (finished) {
-					finished(true);
-				}
-				return;
-			}
 			const auto box = uiShow()->show(Box(
 				Calls::Group::ConferenceCallJoinConfirm,
 				call,

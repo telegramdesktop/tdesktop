@@ -142,8 +142,10 @@ struct ConferenceCallLinkStyleOverrides {
 
 struct ConferenceCallLinkArgs {
 	bool initial = false;
-	Fn<void(bool)> finished;
-	base::weak_ptr<Window::SessionController> weakWindow = nullptr;
+	bool joining = false;
+	bool migrating = false;
+	Fn<void(QString)> finished;
+	std::vector<not_null<UserData*>> invite;
 	ConferenceCallLinkStyleOverrides st;
 };
 void ShowConferenceCallLinkBox(
@@ -156,5 +158,14 @@ void ExportConferenceCallLink(
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<Data::GroupCall> call,
 	ConferenceCallLinkArgs &&args);
+
+struct ConferenceFactoryArgs {
+	std::shared_ptr<Main::SessionShow> show;
+	Fn<void(QString)> finished;
+	std::vector<not_null<UserData*>> invite;
+	bool joining = false;
+	bool migrating = false;
+};
+void MakeConferenceCall(ConferenceFactoryArgs &&args);
 
 } // namespace Calls::Group

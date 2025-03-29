@@ -24,7 +24,7 @@ CallSignalBars {
 	inactiveOpacity: double;
 }
 
-callWidthMin: 300px;
+callWidthMin: 372px;
 callHeightMin: 440px;
 callWidth: 720px;
 callHeight: 540px;
@@ -182,6 +182,18 @@ callCameraUnmute: CallButton(callMicrophoneUnmute) {
 			color: callIconActiveRipple;
 		}
 	}
+}
+callAddPeople: CallButton(callAnswer) {
+	button: IconButton(callButton) {
+		icon: icon {{ "settings/group", callIconFgActive }};
+		iconPosition: point(-1px, 24px);
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callIconActiveRipple;
+		}
+	}
+	bg: callIconBgActive;
+	outerBg: callIconBgActive;
+	label: callButtonLabel;
 }
 callCornerButtonInner: IconButton {
 	width: 20px;

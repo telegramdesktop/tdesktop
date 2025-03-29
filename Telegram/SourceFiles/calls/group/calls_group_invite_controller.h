@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 
 namespace Calls {
+class Call;
 class GroupCall;
 } // namespace Calls
 
@@ -79,5 +80,10 @@ private:
 	not_null<GroupCall*> call,
 	Fn<void(TextWithEntities&&)> showToast,
 	Fn<void(Fn<void(bool)> finished)> shareConferenceLink = nullptr);
+
+[[nodiscard]] object_ptr<Ui::BoxContent> PrepareInviteBox(
+	not_null<Call*> call,
+	Fn<void(std::vector<not_null<UserData*>>)> inviteUsers,
+	Fn<void()> shareLink);
 
 } // namespace Calls::Group

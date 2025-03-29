@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_panel.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
@@ -527,20 +528,23 @@ crl::time Call::getDurationMs() const {
 	return _startTime ? (crl::now() - _startTime) : 0;
 }
 
-void Call::hangup() {
+void Call::hangup(Data::GroupCall *migrateCall, const QString &migrateSlug) {
 	const auto state = _state.current();
-	if (state == State::Busy) {
+	if (state == State::Busy || state == State::MigrationHangingUp) {
 		_delegate->callFinished(this);
 	} else {
 		const auto missed = (state == State::Ringing
 			|| (state == State::Waiting && _type == Type::Outgoing));
 		const auto declined = isIncomingWaiting();
-		const auto reason = missed
+		const auto reason = !migrateSlug.isEmpty()
+			? MTP_phoneCallDiscardReasonMigrateConferenceCall(
+				MTP_string(migrateSlug))
+			: missed
 			? MTP_phoneCallDiscardReasonMissed()
 			: declined
 			? MTP_phoneCallDiscardReasonBusy()
 			: MTP_phoneCallDiscardReasonHangup();
-		finish(FinishType::Ended, reason);
+		finish(FinishType::Ended, reason, migrateCall);
 	}
 }
 
@@ -740,7 +744,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			&& reason->type() == mtpc_phoneCallDiscardReasonDisconnect) {
 			LOG(("Call Info: Discarded with DISCONNECT reason."));
 		}
-		if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
+		if (reason && reason->type() == mtpc_phoneCallDiscardReasonMigrateConferenceCall) {
+			const auto slug = qs(reason->c_phoneCallDiscardReasonMigrateConferenceCall().vslug());
+			finishByMigration(slug);
+		} else if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
 		} else if (_type == Type::Outgoing
 			|| _state.current() == State::HangingUp) {
@@ -766,6 +773,32 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 	}
 
 	Unexpected("phoneCall type inside an existing call handleUpdate()");
+}
+
+void Call::finishByMigration(const QString &slug) {
+	if (_state.current() == State::MigrationHangingUp) {
+		return;
+	}
+	setState(State::MigrationHangingUp);
+	const auto limit = 5;
+	const auto session = &_user->session();
+	session->api().request(MTPphone_GetGroupCall(
+		MTP_inputGroupCallSlug(MTP_string(slug)),
+		MTP_int(limit)
+	)).done([=](const MTPphone_GroupCall &result) {
+		result.data().vcall().match([&](const auto &data) {
+			const auto call = session->data().sharedConferenceCall(
+				data.vid().v,
+				data.vaccess_hash().v);
+			call->processFullCall(result);
+			Core::App().calls().startOrJoinConferenceCall({
+				.call = call,
+				.linkSlug = slug,
+			});
+		});
+	}).fail(crl::guard(this, [=] {
+		setState(State::Failed);
+	})).send();
 }
 
 void Call::updateRemoteMediaState(
@@ -1059,6 +1092,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		const auto track = (state != State::FailedHangingUp)
 			&& (state != State::Failed)
 			&& (state != State::HangingUp)
+			&& (state != State::MigrationHangingUp)
 			&& (state != State::Ended)
 			&& (state != State::EndedByOtherDevice)
 			&& (state != State::Busy);
@@ -1172,6 +1206,11 @@ void Call::setState(State state) {
 		return;
 	}
 	if (was == State::FailedHangingUp
+		&& state != State::Failed) {
+		return;
+	}
+	if (was == State::MigrationHangingUp
+		&& state != State::Ended
 		&& state != State::Failed) {
 		return;
 	}
@@ -1323,7 +1362,10 @@ rpl::producer<Webrtc::DeviceResolvedId> Call::cameraDeviceIdValue() const {
 	return _cameraDeviceId.value();
 }
 
-void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
+void Call::finish(
+		FinishType type,
+		const MTPPhoneCallDiscardReason &reason,
+		Data::GroupCall *migrateCall) {
 	Expects(type != FinishType::None);
 
 	setSignalBarCount(kSignalBarFinished);
@@ -1371,6 +1413,12 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 
 	// We want to discard request still being sent and processed even if
 	// the call is already destroyed.
+	if (migrateCall) {
+		_user->owner().registerInvitedToCallUser(
+			migrateCall->id(),
+			migrateCall,
+			_user);
+	}
 	const auto session = &_user->session();
 	const auto weak = base::make_weak(this);
 	session->api().request(MTPphone_DiscardCall( // We send 'discard' here.

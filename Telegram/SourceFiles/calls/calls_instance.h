@@ -73,6 +73,8 @@ struct StartConferenceCallArgs {
 	std::shared_ptr<TdE2E::Call> e2e;
 	QString linkSlug;
 	MsgId joinMessageId;
+	std::vector<not_null<UserData*>> invite;
+	bool migrating = false;
 };
 
 class Instance final : public base::has_weak_ptr {
@@ -85,9 +87,7 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		StartGroupCallArgs args);
-	void startOrJoinConferenceCall(
-		std::shared_ptr<Ui::Show> show,
-		StartConferenceCallArgs args);
+	void startOrJoinConferenceCall(StartConferenceCallArgs args);
 	void showStartWithRtmp(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
@@ -140,7 +140,6 @@ private:
 	void createGroupCall(
 		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
-	void createConferenceCall(Group::ConferenceInfo info);
 	void destroyGroupCall(not_null<GroupCall*> call);
 	void confirmLeaveCurrent(
 		std::shared_ptr<Ui::Show> show,
@@ -156,7 +155,9 @@ private:
 	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
 
-	void destroyCurrentCall();
+	void destroyCurrentCall(
+		Data::GroupCall *migrateCall = nullptr,
+		const QString &migrateSlug = QString());
 	void handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call);

@@ -266,12 +266,10 @@ public:
 		Fn<void(QString)> fail = nullptr);
 	void resolveConferenceCall(
 		QString slug,
-		Fn<void(bool)> finished = nullptr,
-		bool skipConfirm = false);
+		Fn<void(bool)> finished = nullptr);
 	void resolveConferenceCall(
 		MsgId inviteMsgId,
-		Fn<void(bool)> finished = nullptr,
-		bool skipConfirm = false);
+		Fn<void(bool)> finished = nullptr);
 
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		Ui::Toast::Config &&config);
@@ -301,8 +299,7 @@ private:
 	void resolveConferenceCall(
 		QString slug,
 		MsgId inviteMsgId,
-		Fn<void(bool)> finished,
-		bool skipConfirm);
+		Fn<void(bool)> finished);
 
 	void resolveDone(
 		const MTPcontacts_ResolvedPeer &result,

@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_auth_key.h"
 #include "webrtc/webrtc_device_resolver.h"
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 namespace Media {
 namespace Audio {
 class Track;
@@ -122,6 +126,7 @@ public:
 		FailedHangingUp,
 		Failed,
 		HangingUp,
+		MigrationHangingUp,
 		Ended,
 		EndedByOtherDevice,
 		ExchangingKeys,
@@ -198,7 +203,9 @@ public:
 
 	void applyUserConfirmation();
 	void answer();
-	void hangup();
+	void hangup(
+		Data::GroupCall *migrateCall = nullptr,
+		const QString &migrateSlug = QString());
 	void redial();
 
 	bool isKeyShaForFingerprintReady() const;
@@ -246,7 +253,9 @@ private:
 	void finish(
 		FinishType type,
 		const MTPPhoneCallDiscardReason &reason
-			= MTP_phoneCallDiscardReasonDisconnect());
+			= MTP_phoneCallDiscardReasonDisconnect(),
+		Data::GroupCall *migrateCall = nullptr);
+	void finishByMigration(const QString &slug);
 	void startOutgoing();
 	void startIncoming();
 	void startWaitingTrack();

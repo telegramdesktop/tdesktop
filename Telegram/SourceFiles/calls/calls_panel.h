@@ -27,7 +27,15 @@ namespace Data {
 class PhotoMedia;
 } // namespace Data
 
+namespace Main {
+class SessionShow;
+} // namespace Main
+
 namespace Ui {
+class BoxContent;
+class LayerWidget;
+enum class LayerOption;
+using LayerOptions = base::flags<LayerOption>;
 class IconButton;
 class CallButton;
 class LayerManager;
@@ -38,13 +46,16 @@ template <typename Widget>
 class PaddingWrap;
 class RpWindow;
 class PopupMenu;
-namespace GL {
-enum class Backend;
-} // namespace GL
-namespace Platform {
-struct SeparateTitleControls;
-} // namespace Platform
 } // namespace Ui
+
+namespace Ui::Toast {
+class Instance;
+struct Config;
+} // namespace Ui::Toast
+
+namespace Ui::Platform {
+struct SeparateTitleControls;
+} // namespace Ui::Platform
 
 namespace style {
 struct CallSignalBars;
@@ -58,13 +69,39 @@ class SignalBars;
 class VideoBubble;
 struct DeviceSelection;
 
-class Panel final : private Group::Ui::DesktopCapture::ChooseSourceDelegate {
+class Panel final
+	: public base::has_weak_ptr
+	, private Group::Ui::DesktopCapture::ChooseSourceDelegate {
 public:
 	Panel(not_null<Call*> call);
 	~Panel();
 
+	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
+	[[nodiscard]] not_null<UserData*> user() const;
 	[[nodiscard]] bool isVisible() const;
 	[[nodiscard]] bool isActive() const;
+
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		const QString &text,
+		crl::time duration = 0);
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		TextWithEntities &&text,
+		crl::time duration = 0);
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		Ui::Toast::Config &&config);
+
+	void showBox(object_ptr<Ui::BoxContent> box);
+	void showBox(
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
+		anim::type animated = anim::type::normal);
+	void showLayer(
+		std::unique_ptr<Ui::LayerWidget> layer,
+		Ui::LayerOptions options,
+		anim::type animated = anim::type::normal);
+	void hideLayer(anim::type animated = anim::type::normal);
+	[[nodiscard]] bool isLayerShown() const;
+
 	void showAndActivate();
 	void minimize();
 	void toggleFullScreen();
@@ -83,6 +120,8 @@ public:
 
 	[[nodiscard]] rpl::producer<bool> startOutgoingRequests() const;
 
+	[[nodiscard]] std::shared_ptr<Main::SessionShow> uiShow();
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -97,7 +136,6 @@ private:
 	};
 
 	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
-	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	void paint(QRect clip);
 
@@ -170,6 +208,7 @@ private:
 	base::unique_qptr<Ui::CallButton> _startVideo;
 	object_ptr<Ui::FadeWrap<Ui::CallButton>> _mute;
 	Ui::CallButton *_audioDeviceToggle = nullptr;
+	object_ptr < Ui::FadeWrap<Ui::CallButton>> _addPeople;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };

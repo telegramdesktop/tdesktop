@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 #include "base/unixtime.h"
@@ -1162,6 +1163,15 @@ Data::GroupCall *GroupCall::lookupReal() const {
 
 std::shared_ptr<Data::GroupCall> GroupCall::conferenceCall() const {
 	return _conferenceCall;
+}
+
+QString GroupCall::existingConferenceLink() const {
+	Expects(!_conferenceLinkSlug.isEmpty());
+
+	const auto session = &_peer->session();
+	return !_conferenceLinkSlug.isEmpty()
+		? session->createInternalLinkFull("call/" + _conferenceLinkSlug)
+		: QString();
 }
 
 rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
@@ -3900,6 +3910,43 @@ void GroupCall::destroyScreencast() {
 			done();
 		});
 	}
+}
+
+TextWithEntities ComposeInviteResultToast(
+		const GroupCall::InviteResult &result) {
+	auto text = TextWithEntities();
+	const auto invited = int(result.invited.size());
+	const auto restricted = int(result.privacyRestricted.size());
+	if (invited == 1) {
+		text.append(tr::lng_confcall_invite_done_user(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(result.invited.front()->shortName()),
+			Ui::Text::RichLangValue));
+	} else if (invited > 1) {
+		text.append(tr::lng_confcall_invite_done_many(
+			tr::now,
+			lt_count,
+			invited,
+			Ui::Text::RichLangValue));
+	}
+	if (invited && restricted) {
+		text.append(u"\n\n"_q);
+	}
+	if (restricted == 1) {
+		text.append(tr::lng_confcall_invite_fail_user(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(result.privacyRestricted.front()->shortName()),
+			Ui::Text::RichLangValue));
+	} else if (restricted > 1) {
+		text.append(tr::lng_confcall_invite_fail_many(
+			tr::now,
+			lt_count,
+			restricted,
+			Ui::Text::RichLangValue));
+	}
+	return text;
 }
 
 } // namespace Calls

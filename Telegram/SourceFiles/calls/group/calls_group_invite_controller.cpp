@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_menu.h"
+#include "calls/calls_call.h"
 #include "boxes/peer_lists_box.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -80,7 +81,7 @@ protected:
 private:
 	[[nodiscard]] int fullCount() const;
 
-	base::flat_set<not_null<UserData*>> _alreadyIn;
+	const base::flat_set<not_null<UserData*>> _alreadyIn;
 	const Fn<void()> _shareLink;
 	rpl::variable<bool> _hasSelected;
 
@@ -93,7 +94,6 @@ ConfInviteController::ConfInviteController(
 : ContactsBoxController(session)
 , _alreadyIn(std::move(alreadyIn))
 , _shareLink(std::move(shareLink)) {
-	_alreadyIn.remove(session->user());
 }
 
 rpl::producer<bool> ConfInviteController::hasSelectedValue() const {
@@ -159,43 +159,6 @@ void ConfInviteController::prepareViewHook() {
 		delegate()->peerListMouseLeftGeometry();
 	}, button->lifetime());
 	delegate()->peerListSetAboveWidget(std::move(button));
-}
-
-[[nodiscard]] TextWithEntities ComposeInviteResultToast(
-		const GroupCall::InviteResult &result) {
-	auto text = TextWithEntities();
-	const auto invited = int(result.invited.size());
-	const auto restricted = int(result.privacyRestricted.size());
-	if (invited == 1) {
-		text.append(tr::lng_confcall_invite_done_user(
-			tr::now,
-			lt_user,
-			Ui::Text::Bold(result.invited.front()->shortName()),
-			Ui::Text::RichLangValue));
-	} else if (invited > 1) {
-		text.append(tr::lng_confcall_invite_done_many(
-			tr::now,
-			lt_count,
-			invited,
-			Ui::Text::RichLangValue));
-	}
-	if (invited && restricted) {
-		text.append(u"\n\n"_q);
-	}
-	if (restricted == 1) {
-		text.append(tr::lng_confcall_invite_fail_user(
-			tr::now,
-			lt_user,
-			Ui::Text::Bold(result.privacyRestricted.front()->shortName()),
-			Ui::Text::RichLangValue));
-	} else if (restricted > 1) {
-		text.append(tr::lng_confcall_invite_fail_many(
-			tr::now,
-			lt_count,
-			restricted,
-			Ui::Text::RichLangValue));
-	}
-	return text;
 }
 
 } // namespace
@@ -492,6 +455,46 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 	controllers.push_back(std::move(controller));
 	controllers.push_back(std::move(contactsController));
 	return Box<PeerListsBox>(std::move(controllers), initBox);
+}
+
+object_ptr<Ui::BoxContent> PrepareInviteBox(
+		not_null<Call*> call,
+		Fn<void(std::vector<not_null<UserData*>>)> inviteUsers,
+		Fn<void()> shareLink) {
+	const auto user = call->user();
+	const auto weak = base::make_weak(call);
+	auto alreadyIn = base::flat_set<not_null<UserData*>>{ user };
+	auto controller = std::make_unique<ConfInviteController>(
+		&user->session(),
+		alreadyIn,
+		shareLink);
+	const auto raw = controller.get();
+	raw->setStyleOverrides(
+		&st::groupCallInviteMembersList,
+		&st::groupCallMultiSelect);
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setTitle(tr::lng_group_call_invite_conf());
+		raw->hasSelectedValue() | rpl::start_with_next([=](bool has) {
+			box->clearButtons();
+			if (has) {
+				box->addButton(tr::lng_group_call_invite_button(), [=] {
+					const auto call = weak.get();
+					if (!call) {
+						return;
+					}
+					auto peers = box->collectSelectedRows();
+					auto users = ranges::views::all(
+						peers
+					) | ranges::views::transform([](not_null<PeerData*> peer) {
+						return not_null(peer->asUser());
+					}) | ranges::to_vector;
+					inviteUsers(std::move(users));
+				});
+			}
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		}, box->lifetime());
+	};
+	return Box<PeerListBox>(std::move(controller), initBox);
 }
 
 } // namespace Calls::Group

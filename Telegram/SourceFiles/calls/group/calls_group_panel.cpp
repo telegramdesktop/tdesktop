@@ -985,10 +985,10 @@ Fn<void(Fn<void(bool)> finished)> Panel::shareConferenceLinkCallback() {
 			return;
 		}
 		*exporting = true;
-		const auto done = [=](bool ok) {
+		const auto done = [=](QString link) {
 			*exporting = false;
 			if (const auto onstack = finished) {
-				onstack(ok);
+				onstack(!link.isEmpty());
 			}
 		};
 		ExportConferenceCallLink(uiShow(), _call->conferenceCall(), {
@@ -996,6 +996,21 @@ Fn<void(Fn<void(bool)> finished)> Panel::shareConferenceLinkCallback() {
 			.st = DarkConferenceCallLinkStyle(),
 		});
 	};
+}
+
+void Panel::migrationShowShareLink() {
+	ShowConferenceCallLinkBox(
+		uiShow(),
+		_call->conferenceCall(),
+		_call->existingConferenceLink(),
+		{ .st = DarkConferenceCallLinkStyle() });
+}
+
+void Panel::migrationInviteUsers(std::vector<not_null<UserData*>> users) {
+	const auto done = [=](GroupCall::InviteResult result) {
+		showToast({ ComposeInviteResultToast(result) });
+	};
+	_call->inviteUsers(std::move(users), crl::guard(this, done));
 }
 
 void Panel::enlargeVideo() {

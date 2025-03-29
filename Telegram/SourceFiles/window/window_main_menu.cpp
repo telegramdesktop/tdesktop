@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
-#include "base/random.h"
 #include "boxes/about_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_preview_box.h"
@@ -123,40 +122,23 @@ constexpr auto kPlayStatusLimit = 2;
 			(height - st::inviteViaLinkIcon.height()) / 2);
 	}, icon->lifetime());
 
-	const auto creating = std::make_shared<int32>();
+	const auto creating = std::make_shared<bool>();
 	result->setClickedCallback([=] {
 		if (*creating) {
 			return;
 		}
-		*creating = base::RandomValue<int32>();
-		const auto show = controller->uiShow();
-		const auto session = &controller->session();
-		session->api().request(MTPphone_CreateConferenceCall(
-			MTP_int(*creating)
-		)).done(crl::guard(controller, [=](const MTPphone_GroupCall &result) {
-			result.data().vcall().match([&](const auto &data) {
-				const auto call = session->data().sharedConferenceCall(
-					data.vid().v,
-					data.vaccess_hash().v);
-				call->processFullCall(result);
-				const auto finished = [=](bool ok) {
-					if (!ok) {
-						*creating = 0;
-					} else if (const auto onstack = done) {
-						onstack();
-					}
-				};
-				const auto show = controller->uiShow();
-				Calls::Group::ExportConferenceCallLink(show, call, {
-					.initial = true,
-					.finished = finished,
-					.weakWindow = controller,
-				});
-			});
-		})).fail(crl::guard(controller, [=](const MTP::Error &error) {
-			show->showToast(error.type());
-			*creating = 0;
-		})).send();
+		*creating = true;
+		const auto finished = [=](QString link) {
+			if (link.isEmpty()) {
+				*creating = false;
+			} else if (const auto onstack = done) {
+				onstack();
+			}
+		};
+		Calls::Group::MakeConferenceCall({
+			.show = controller->uiShow(),
+			.finished = finished,
+		});
 	});
 	return result;
 }

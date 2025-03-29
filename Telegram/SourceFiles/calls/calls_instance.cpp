@@ -230,12 +230,13 @@ void Instance::startOrJoinGroupCall(
 	});
 }
 
-void Instance::startOrJoinConferenceCall(
-		std::shared_ptr<Ui::Show> show,
-		StartConferenceCallArgs args) {
-	destroyCurrentCall();
+void Instance::startOrJoinConferenceCall(StartConferenceCallArgs args) {
+	destroyCurrentCall(
+		args.migrating ? args.call.get() : nullptr,
+		args.migrating ? args.linkSlug : QString());
 
 	const auto session = &args.call->peer()->session();
+	const auto showShareLink = args.migrating && args.invite.empty();
 	auto call = std::make_unique<GroupCall>(
 		_delegate.get(),
 		Calls::Group::ConferenceInfo{
@@ -254,6 +255,11 @@ void Instance::startOrJoinConferenceCall(
 	_currentGroupCallPanel = std::make_unique<Group::Panel>(raw);
 	_currentGroupCall = std::move(call);
 	_currentGroupCallChanges.fire_copy(raw);
+	if (!args.invite.empty()) {
+		_currentGroupCallPanel->migrationInviteUsers(std::move(args.invite));
+	} else if (args.migrating) {
+		_currentGroupCallPanel->migrationShowShareLink();
+	}
 }
 
 void Instance::confirmLeaveCurrent(
@@ -426,24 +432,6 @@ void Instance::createGroupCall(
 	const auto raw = call.get();
 
 	info.peer->session().account().sessionChanges(
-	) | rpl::start_with_next([=] {
-		destroyGroupCall(raw);
-	}, raw->lifetime());
-
-	_currentGroupCallPanel = std::make_unique<Group::Panel>(raw);
-	_currentGroupCall = std::move(call);
-	_currentGroupCallChanges.fire_copy(raw);
-}
-
-void Instance::createConferenceCall(Group::ConferenceInfo info) {
-	destroyCurrentCall();
-
-	auto call = std::make_unique<GroupCall>(
-		_delegate.get(),
-		std::move(info));
-	const auto raw = call.get();
-
-	raw->peer()->session().account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		destroyGroupCall(raw);
 	}, raw->lifetime());
@@ -744,9 +732,11 @@ bool Instance::inGroupCall() const {
 		&& (state != GroupCall::State::Failed);
 }
 
-void Instance::destroyCurrentCall() {
+void Instance::destroyCurrentCall(
+		Data::GroupCall *migrateCall,
+		const QString &migrateSlug) {
 	if (const auto current = currentCall()) {
-		current->hangup();
+		current->hangup(migrateCall, migrateSlug);
 		if (const auto still = currentCall()) {
 			destroyCall(still);
 		}

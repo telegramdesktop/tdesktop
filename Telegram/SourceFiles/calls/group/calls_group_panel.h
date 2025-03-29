@@ -115,6 +115,9 @@ public:
 	void hideLayer(anim::type animated = anim::type::normal);
 	[[nodiscard]] bool isLayerShown() const;
 
+	void migrationShowShareLink();
+	void migrationInviteUsers(std::vector<not_null<UserData*>> users);
+
 	void minimize();
 	void toggleFullScreen();
 	void close();
