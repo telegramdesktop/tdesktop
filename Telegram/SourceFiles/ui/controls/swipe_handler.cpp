@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/swipe_handler.h"
 
-#include "base/debug_log.h"
-
 #include "base/platform/base_platform_haptic.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
@@ -191,10 +189,8 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 	const auto updateWith = [=, generateFinish = args.init](UpdateArgs args) {
 		const auto fillFinishByTop = [&] {
 			if (!args.delta.x()) {
-				LOG(("SKIPPING fillFinishByTop."));
 				return;
 			}
-			LOG(("SETTING DIRECTION"));
 			state->direction = (args.delta.x() < 0)
 				? Qt::RightToLeft
 				: Qt::LeftToRight;
@@ -211,7 +207,6 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			}
 		};
 		if (!state->started || state->touch != args.touch) {
-			LOG(("STARTING"));
 			state->started = true;
 			state->data.reachRatio = 0.;
 			state->touch = args.touch;
@@ -232,10 +227,6 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			const auto diffXtoY = std::abs(args.delta.x())
 				- std::abs(args.delta.y());
 			constexpr auto kOrientationThreshold = 1.;
-			LOG(("SETTING ORIENTATION WITH: %1,%2, diff %3"
-				).arg(args.delta.x()
-				).arg(args.delta.y()
-				).arg(diffXtoY));
 			if (diffXtoY > kOrientationThreshold) {
 				if (!state->dontStart) {
 					setOrientation(Qt::Horizontal);
@@ -339,10 +330,8 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 					.delta = state->startAt - touches[0].pos(),
 					.touch = true,
 				};
-				LOG(("ORIENTATION UPDATING WITH: %1, %2").arg(args.delta.x()).arg(args.delta.y()));
 				updateWith(args);
 			}
-			LOG(("ORIENTATION: %1").arg(!state->orientation ? "none" : (state->orientation == Qt::Horizontal) ? "horizontal" : "vertical"));
 			return (touchscreen && state->orientation != Qt::Horizontal)
 				? base::EventFilterResult::Continue
 				: base::EventFilterResult::Cancel;
