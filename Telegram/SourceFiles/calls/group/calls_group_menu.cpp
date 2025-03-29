@@ -416,10 +416,13 @@ void LeaveBox(
 		not_null<GroupCall*> call,
 		bool discardChecked,
 		BoxContext context) {
+	const auto conference = call->conference();
 	const auto livestream = call->peer()->isBroadcast();
 	const auto scheduled = (call->scheduleDate() != 0);
 	if (!scheduled) {
-		box->setTitle(livestream
+		box->setTitle(conference
+			? tr::lng_group_call_leave_title_call()
+			: livestream
 			? tr::lng_group_call_leave_title_channel()
 			: tr::lng_group_call_leave_title());
 	}
@@ -431,7 +434,9 @@ void LeaveBox(
 				? (livestream
 					? tr::lng_group_call_close_sure_channel()
 					: tr::lng_group_call_close_sure())
-				: (livestream
+				: (conference
+					? tr::lng_group_call_leave_sure_call()
+					: livestream
 					? tr::lng_group_call_leave_sure_channel()
 					: tr::lng_group_call_leave_sure())),
 			(inCall ? st::groupCallBoxLabel : st::boxLabel)),

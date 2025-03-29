@@ -4722,8 +4722,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_connecting" = "Connecting...";
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave video chat";
+"lng_group_call_leave_title_call" = "Leave group call";
 "lng_group_call_leave_title_channel" = "Leave live stream";
 "lng_group_call_leave_sure" = "Do you want to leave this video chat?";
+"lng_group_call_leave_sure_call" = "Do you want to leave this group call?";
 "lng_group_call_leave_sure_channel" = "Are you sure you want to leave this live stream?";
 "lng_group_call_close" = "Close";
 "lng_group_call_close_sure" = "Video chat is scheduled. You can abort it or just close this panel.";
