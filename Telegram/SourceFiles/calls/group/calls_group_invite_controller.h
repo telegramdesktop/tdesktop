@@ -77,6 +77,7 @@ private:
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareInviteBox(
 	not_null<GroupCall*> call,
-	Fn<void(TextWithEntities&&)> showToast);
+	Fn<void(TextWithEntities&&)> showToast,
+	Fn<void(Fn<void(bool)> finished)> shareConferenceLink = nullptr);
 
 } // namespace Calls::Group

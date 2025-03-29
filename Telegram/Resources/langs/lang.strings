@@ -4765,6 +4765,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_add_to_group_all" = "Those users aren't members of «{group}». Add them to the group?";
 "lng_group_call_invite_members" = "Group members";
 "lng_group_call_invite_search_results" = "Search results";
+"lng_group_call_invite_limit" = "This is currently the maximum allowed number of participants.";
 "lng_group_call_new_muted" = "Mute new participants";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";
@@ -4921,6 +4922,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_link_or" = "or";
 "lng_confcall_link_join" = "Be the first to join the call and add people from there. {link}";
 "lng_confcall_link_join_link" = "Open call {arrow}";
+"lng_confcall_invite_done_user" = "You invited {user} to join the call.";
+"lng_confcall_invite_done_many#one" = "You invited **{count} person** to join the call.";
+"lng_confcall_invite_done_many#other" = "You invited **{count} people** to join the call.";
+"lng_confcall_invite_fail_user" = "You cannot call {user} because of their privacy settings.";
+"lng_confcall_invite_fail_many#one" = "You cannot call **{count} person** because of their privacy settings.";
+"lng_confcall_invite_fail_many#other" = "You cannot call **{count} people** because of their privacy settings.";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 

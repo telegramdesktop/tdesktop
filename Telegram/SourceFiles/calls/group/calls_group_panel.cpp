@@ -949,7 +949,9 @@ void Panel::setupMembers() {
 
 	_members->addMembersRequests(
 	) | rpl::start_with_next([=] {
-		if (!_peer->isBroadcast()
+		if (_call->conference()) {
+			addMembers();
+		} else if (!_peer->isBroadcast()
 			&& Data::CanSend(_peer, ChatRestriction::SendOther, false)
 			&& _call->joinAs()->isSelf()) {
 			addMembers();
@@ -960,19 +962,9 @@ void Panel::setupMembers() {
 		}
 	}, _callLifetime);
 
-	const auto exporting = std::make_shared<bool>();
 	_members->shareLinkRequests(
-	) | rpl::start_with_next([=] {
-		Expects(_call->conference());
-
-		if (*exporting) {
-			return;
-		}
-		*exporting = true;
-		ExportConferenceCallLink(uiShow(), _call->conferenceCall(), {
-			.st = DarkConferenceCallLinkStyle(),
-			.finished = [=](bool) { *exporting = false; },
-		});
+	) | rpl::start_with_next([cb = shareConferenceLinkCallback()] {
+		cb(nullptr);
 	}, _callLifetime);
 
 	_call->videoEndpointLargeValue(
@@ -982,6 +974,28 @@ void Panel::setupMembers() {
 		}
 		_viewport->showLarge(large);
 	}, _callLifetime);
+}
+
+Fn<void(Fn<void(bool)> finished)> Panel::shareConferenceLinkCallback() {
+	const auto exporting = std::make_shared<bool>();
+	return [=](Fn<void(bool)> finished) {
+		Expects(_call->conference());
+
+		if (*exporting) {
+			return;
+		}
+		*exporting = true;
+		const auto done = [=](bool ok) {
+			*exporting = false;
+			if (const auto onstack = finished) {
+				onstack(ok);
+			}
+		};
+		ExportConferenceCallLink(uiShow(), _call->conferenceCall(), {
+			.finished = done,
+			.st = DarkConferenceCallLinkStyle(),
+		});
+	};
 }
 
 void Panel::enlargeVideo() {
@@ -1536,10 +1550,17 @@ void Panel::showMainMenu() {
 }
 
 void Panel::addMembers() {
+	if (_call->conference()
+		&& _call->conferenceCall()->fullCount() >= Data::kMaxConferenceMembers) {
+		showToast({ tr::lng_group_call_invite_limit(tr::now) });
+	}
 	const auto showToastCallback = [=](TextWithEntities &&text) {
 		showToast(std::move(text));
 	};
-	if (auto box = PrepareInviteBox(_call, showToastCallback)) {
+	const auto link = _call->conference()
+		? shareConferenceLinkCallback()
+		: nullptr;
+	if (auto box = PrepareInviteBox(_call, showToastCallback, link)) {
 		showBox(std::move(box));
 	}
 }

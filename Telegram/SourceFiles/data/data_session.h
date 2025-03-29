@@ -230,7 +230,11 @@ public:
 
 	void registerGroupCall(not_null<GroupCall*> call);
 	void unregisterGroupCall(not_null<GroupCall*> call);
-	GroupCall *groupCall(CallId callId) const;
+	[[nodiscard]] GroupCall *groupCall(CallId callId) const;
+
+	[[nodiscard]] std::shared_ptr<GroupCall> sharedConferenceCall(
+		CallId id,
+		uint64 accessHash);
 
 	void watchForOffline(not_null<UserData*> user, TimeId now = 0);
 	void maybeStopWatchForOffline(not_null<UserData*> user);
@@ -241,7 +245,13 @@ public:
 		CallId callId,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user);
-	void unregisterInvitedToCallUser(CallId callId, not_null<UserData*> user);
+	void registerInvitedToCallUser(
+		CallId callId,
+		GroupCall *call,
+		not_null<UserData*> user);
+	void unregisterInvitedToCallUser(
+		CallId callId,
+		not_null<UserData*> user);
 
 	struct InviteToCall {
 		CallId id = 0;
@@ -1096,10 +1106,11 @@ private:
 
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
-	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
+	base::flat_map<CallId, not_null<GroupCall*>> _groupCalls;
+	base::flat_map<CallId, std::weak_ptr<GroupCall>> _conferenceCalls;
 	rpl::event_stream<InviteToCall> _invitesToCalls;
 	base::flat_map<
-		uint64,
+		CallId,
 		base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
 
 	base::flat_set<not_null<ViewElement*>> _shownSpoilers;

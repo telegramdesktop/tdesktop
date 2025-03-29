@@ -15,12 +15,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_group_call.h"
+#include "info/profile/info_profile_icon.h"
 #include "main/main_session.h"
+#include "main/session/session_show.h"
 #include "ui/text/text_utilities.h"
 #include "ui/layers/generic_box.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "styles/style_boxes.h" // membersMarginTop
 #include "styles/style_calls.h"
 #include "styles/style_dialogs.h" // searchedBarHeight
 
@@ -61,37 +65,138 @@ public:
 	ConfInviteController(
 		not_null<Main::Session*> session,
 		base::flat_set<not_null<UserData*>> alreadyIn,
-		Fn<void(not_null<PeerData*>)> choose)
-	: ContactsBoxController(session)
-	, _alreadyIn(std::move(alreadyIn))
-	, _choose(std::move(choose)) {
-	}
+		Fn<void()> shareLink);
+
+	[[nodiscard]] rpl::producer<bool> hasSelectedValue() const;
 
 protected:
-	std::unique_ptr<PeerListRow> createRow(
-		not_null<UserData*> user) override {
-		if (user->isSelf()
-			|| user->isBot()
-			|| user->isServiceUser()
-			|| user->isInaccessible()) {
-			return nullptr;
-		}
-		auto result = ContactsBoxController::createRow(user);
-		if (_alreadyIn.contains(user)) {
-			result->setDisabledState(PeerListRow::State::DisabledChecked);
-		}
-		return result;
-	}
+	void prepareViewHook() override;
 
-	void rowClicked(not_null<PeerListRow*> row) override {
-		_choose(row->peer());
-	}
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<UserData*> user) override;
+
+	void rowClicked(not_null<PeerListRow*> row) override;
 
 private:
-	const base::flat_set<not_null<UserData*>> _alreadyIn;
-	const Fn<void(not_null<PeerData*>)> _choose;
+	[[nodiscard]] int fullCount() const;
+
+	base::flat_set<not_null<UserData*>> _alreadyIn;
+	const Fn<void()> _shareLink;
+	rpl::variable<bool> _hasSelected;
 
 };
+
+ConfInviteController::ConfInviteController(
+	not_null<Main::Session*> session,
+	base::flat_set<not_null<UserData*>> alreadyIn,
+	Fn<void()> shareLink)
+: ContactsBoxController(session)
+, _alreadyIn(std::move(alreadyIn))
+, _shareLink(std::move(shareLink)) {
+	_alreadyIn.remove(session->user());
+}
+
+rpl::producer<bool> ConfInviteController::hasSelectedValue() const {
+	return _hasSelected.value();
+}
+
+std::unique_ptr<PeerListRow> ConfInviteController::createRow(
+		not_null<UserData*> user) {
+	if (user->isSelf()
+		|| user->isBot()
+		|| user->isServiceUser()
+		|| user->isInaccessible()) {
+		return nullptr;
+	}
+	auto result = ContactsBoxController::createRow(user);
+	if (_alreadyIn.contains(user)) {
+		result->setDisabledState(PeerListRow::State::DisabledChecked);
+	}
+	return result;
+}
+
+int ConfInviteController::fullCount() const {
+	return _alreadyIn.size() + delegate()->peerListSelectedRowsCount();
+}
+
+void ConfInviteController::rowClicked(not_null<PeerListRow*> row) {
+	auto count = fullCount();
+	auto limit = Data::kMaxConferenceMembers;
+	if (count < limit || row->checked()) {
+		delegate()->peerListSetRowChecked(row, !row->checked());
+		_hasSelected = (delegate()->peerListSelectedRowsCount() > 0);
+	} else {
+		delegate()->peerListUiShow()->showToast(
+			tr::lng_group_call_invite_limit(tr::now));
+	}
+}
+
+void ConfInviteController::prepareViewHook() {
+	auto button = object_ptr<Ui::PaddingWrap<Ui::SettingsButton>>(
+		nullptr,
+		object_ptr<Ui::SettingsButton>(
+			nullptr,
+			tr::lng_profile_add_via_link(),
+			st::groupCallInviteLink),
+		style::margins(0, st::membersMarginTop, 0, 0));
+
+	const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
+		button->entity(),
+		st::groupCallInviteLinkIcon,
+		QPoint());
+	button->entity()->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		icon->moveToLeft(
+			st::groupCallInviteLinkIconPosition.x(),
+			(height - st::groupCallInviteLinkIcon.height()) / 2);
+	}, icon->lifetime());
+
+	button->entity()->setClickedCallback(_shareLink);
+	button->entity()->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Enter);
+	}) | rpl::start_with_next([=] {
+		delegate()->peerListMouseLeftGeometry();
+	}, button->lifetime());
+	delegate()->peerListSetAboveWidget(std::move(button));
+}
+
+[[nodiscard]] TextWithEntities ComposeInviteResultToast(
+		const GroupCall::InviteResult &result) {
+	auto text = TextWithEntities();
+	const auto invited = int(result.invited.size());
+	const auto restricted = int(result.privacyRestricted.size());
+	if (invited == 1) {
+		text.append(tr::lng_confcall_invite_done_user(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(result.invited.front()->shortName()),
+			Ui::Text::RichLangValue));
+	} else if (invited > 1) {
+		text.append(tr::lng_confcall_invite_done_many(
+			tr::now,
+			lt_count,
+			invited,
+			Ui::Text::RichLangValue));
+	}
+	if (invited && restricted) {
+		text.append(u"\n\n"_q);
+	}
+	if (restricted == 1) {
+		text.append(tr::lng_confcall_invite_fail_user(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(result.privacyRestricted.front()->shortName()),
+			Ui::Text::RichLangValue));
+	} else if (restricted > 1) {
+		text.append(tr::lng_confcall_invite_fail_many(
+			tr::now,
+			lt_count,
+			restricted,
+			Ui::Text::RichLangValue));
+	}
+	return text;
+}
 
 } // namespace
 
@@ -204,7 +309,8 @@ std::unique_ptr<PeerListRow> InviteContactsController::createRow(
 
 object_ptr<Ui::BoxContent> PrepareInviteBox(
 		not_null<GroupCall*> call,
-		Fn<void(TextWithEntities&&)> showToast) {
+		Fn<void(TextWithEntities&&)> showToast,
+		Fn<void(Fn<void(bool)> finished)> shareConferenceLink) {
 	const auto real = call->lookupReal();
 	if (!real) {
 		return nullptr;
@@ -220,33 +326,44 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 	alreadyIn.emplace(peer->session().user());
 	if (call->conference()) {
 		const auto close = std::make_shared<Fn<void()>>();
-		const auto invite = [=](not_null<PeerData*> peer) {
-			Expects(peer->isUser());
-
-			const auto call = weak.get();
-			if (!call) {
-				return;
-			}
-			const auto user = peer->asUser();
-			call->inviteUsers({ user });
-			showToast(tr::lng_group_call_invite_done_user(
-				tr::now,
-				lt_user,
-				Ui::Text::Bold(user->firstName),
-				Ui::Text::WithEntities));
-			(*close)();
+		const auto shareLink = [=] {
+			Assert(shareConferenceLink != nullptr);
+			shareConferenceLink([=](bool ok) { if (ok) (*close)(); });
 		};
 		auto controller = std::make_unique<ConfInviteController>(
 			&real->session(),
 			alreadyIn,
-			invite);
-		controller->setStyleOverrides(
+			shareLink);
+		const auto raw = controller.get();
+		raw->setStyleOverrides(
 			&st::groupCallInviteMembersList,
 			&st::groupCallMultiSelect);
 		auto initBox = [=](not_null<PeerListBox*> box) {
-			box->setTitle(tr::lng_group_call_invite_title());
-			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-			*close = [=] { box->closeBox(); };
+			box->setTitle(tr::lng_group_call_invite_conf());
+			raw->hasSelectedValue() | rpl::start_with_next([=](bool has) {
+				box->clearButtons();
+				if (has) {
+					box->addButton(tr::lng_group_call_invite_button(), [=] {
+						const auto call = weak.get();
+						if (!call) {
+							return;
+						}
+						auto peers = box->collectSelectedRows();
+						auto users = ranges::views::all(
+							peers
+						) | ranges::views::transform([](not_null<PeerData*> peer) {
+							return not_null(peer->asUser());
+						}) | ranges::to_vector;
+						const auto done = [=](GroupCall::InviteResult result) {
+							(*close)();
+							showToast({ ComposeInviteResultToast(result) });
+						};
+						call->inviteUsers(users, done);
+					});
+				}
+				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+			}, box->lifetime());
+			*close = crl::guard(box, [=] { box->closeBox(); });
 		};
 		return Box<PeerListBox>(std::move(controller), initBox);
 	}
@@ -270,24 +387,23 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		if (!call) {
 			return;
 		}
-		const auto result = call->inviteUsers(users);
-		if (const auto user = std::get_if<not_null<UserData*>>(&result)) {
-			showToast(tr::lng_group_call_invite_done_user(
-				tr::now,
-				lt_user,
-				Ui::Text::Bold((*user)->firstName),
-				Ui::Text::WithEntities));
-		} else if (const auto count = std::get_if<int>(&result)) {
-			if (*count > 0) {
+		call->inviteUsers(users, [=](GroupCall::InviteResult result) {
+			if (result.invited.size() == 1) {
+				showToast(tr::lng_group_call_invite_done_user(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold(result.invited.front()->firstName),
+					Ui::Text::WithEntities));
+			} else if (result.invited.size() > 1) {
 				showToast(tr::lng_group_call_invite_done_many(
 					tr::now,
 					lt_count,
-					*count,
+					result.invited.size(),
 					Ui::Text::RichLangValue));
+			} else {
+				Unexpected("Result in GroupCall::inviteUsers.");
 			}
-		} else {
-			Unexpected("Result in GroupCall::inviteUsers.");
-		}
+		});
 	};
 	const auto inviteWithAdd = [=](
 			std::shared_ptr<Ui::Show> show,

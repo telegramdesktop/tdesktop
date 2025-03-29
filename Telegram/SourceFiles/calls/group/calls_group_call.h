@@ -416,8 +416,15 @@ public:
 
 	void toggleMute(const Group::MuteRequest &data);
 	void changeVolume(const Group::VolumeRequest &data);
-	std::variant<int, not_null<UserData*>> inviteUsers(
-		const std::vector<not_null<UserData*>> &users);
+
+	struct InviteResult {
+		std::vector<not_null<UserData*>> invited;
+		std::vector<not_null<UserData*>> alreadyIn;
+		std::vector<not_null<UserData*>> privacyRestricted;
+	};
+	void inviteUsers(
+		const std::vector<not_null<UserData*>> &users,
+		Fn<void(InviteResult)> done);
 
 	std::shared_ptr<GlobalShortcutManager> ensureGlobalShortcutManager();
 	void applyGlobalShortcutChanges();

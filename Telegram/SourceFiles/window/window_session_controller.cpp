@@ -896,13 +896,9 @@ void SessionNavigation::resolveConferenceCall(
 		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
 		const auto finished = base::take(_conferenceCallResolveFinished);
 		result.data().vcall().match([&](const auto &data) {
-			const auto call = std::make_shared<Data::GroupCall>(
-				session().user(),
+			const auto call = session().data().sharedConferenceCall(
 				data.vid().v,
-				data.vaccess_hash().v,
-				TimeId(), // scheduleDate
-				false, // rtmp
-				true); // conference
+				data.vaccess_hash().v);
 			call->processFullCall(result);
 			const auto confirmed = std::make_shared<bool>();
 			const auto join = [=] {

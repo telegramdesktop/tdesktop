@@ -1135,6 +1135,30 @@ GroupCall *Session::groupCall(CallId callId) const {
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
 }
 
+std::shared_ptr<GroupCall> Session::sharedConferenceCall(
+		CallId id,
+		uint64 accessHash) {
+	const auto i = _conferenceCalls.find(id);
+	if (i != end(_conferenceCalls)) {
+		if (auto result = i->second.lock()) {
+			return result;
+		}
+	}
+	auto result = std::make_shared<GroupCall>(
+		session().user(),
+		id,
+		accessHash,
+		TimeId(), // scheduledDate
+		false, // rtmp
+		true); // conference
+	if (i != end(_conferenceCalls)) {
+		i->second = result;
+	} else {
+		_conferenceCalls.emplace(id, result);
+	}
+	return result;
+}
+
 void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
 	if (!now) {
 		now = base::unixtime::now();
@@ -1205,7 +1229,13 @@ void Session::registerInvitedToCallUser(
 		CallId callId,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user) {
-	const auto call = peer->groupCall();
+	registerInvitedToCallUser(callId, peer->groupCall(), user);
+}
+
+void Session::registerInvitedToCallUser(
+		CallId callId,
+		GroupCall *call,
+		not_null<UserData*> user) {
 	if (call && call->id() == callId) {
 		const auto inCall = ranges::contains(
 			call->participants(),

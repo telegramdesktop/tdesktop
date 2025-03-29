@@ -135,13 +135,9 @@ constexpr auto kPlayStatusLimit = 2;
 			MTP_int(*creating)
 		)).done(crl::guard(controller, [=](const MTPphone_GroupCall &result) {
 			result.data().vcall().match([&](const auto &data) {
-				const auto call = std::make_shared<Data::GroupCall>(
-					session->user(),
+				const auto call = session->data().sharedConferenceCall(
 					data.vid().v,
-					data.vaccess_hash().v,
-					TimeId(), // scheduleDate
-					false, // rtmp
-					true); // conference
+					data.vaccess_hash().v);
 				call->processFullCall(result);
 				const auto finished = [=](bool ok) {
 					if (!ok) {

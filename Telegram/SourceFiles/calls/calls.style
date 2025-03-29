@@ -1538,3 +1538,20 @@ groupCallLinkPreview: InputField(defaultInputField) {
 	style: defaultTextStyle;
 	heightMin: 35px;
 }
+groupCallInviteLink: SettingsButton(defaultSettingsButton) {
+	textFg: mediaviewTextLinkFg;
+	textFgOver: mediaviewTextLinkFg;
+	textBg: groupCallMembersBg;
+	textBgOver: groupCallMembersBgOver;
+
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+
+	height: 20px;
+	padding: margins(63px, 8px, 8px, 9px);
+
+	ripple: groupCallRipple;
+}
+groupCallInviteLinkIcon: icon {{ "info/edit/group_manage_links", mediaviewTextLinkFg }};
+groupCallInviteLinkIconPosition: point(23px, 2px);

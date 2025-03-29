@@ -27,7 +27,6 @@ constexpr auto kSpeakingAfterActive = crl::time(6000);
 constexpr auto kActiveAfterJoined = crl::time(1000);
 constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 constexpr auto kReloadStaleTimeout = 16 * crl::time(1000);
-constexpr auto kMaxConferenceMembers = 50;
 
 [[nodiscard]] QString ExtractNextOffset(const MTPphone_GroupCall &call) {
 	return call.match([&](const MTPDphone_groupCall &data) {
@@ -245,7 +244,7 @@ void GroupCall::checkStaleRequest() {
 		MTP_vector<MTPInputPeer>(), // ids
 		MTP_vector<MTPint>(), // ssrcs
 		MTP_string(QString()),
-		MTP_int(kMaxConferenceMembers)
+		MTP_int(kMaxConferenceMembers + 10)
 	)).done([=](const MTPphone_GroupParticipants &result) {
 		_checkStaleRequestId = 0;
 		const auto &list = _participantsWithAccess.current();

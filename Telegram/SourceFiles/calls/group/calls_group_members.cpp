@@ -1742,13 +1742,15 @@ void Members::setMode(PanelMode mode) {
 }
 
 QRect Members::getInnerGeometry() const {
+	const auto shareLink = _shareLinkButton.current();
 	const auto addMembers = _addMemberButton.current();
+	const auto share = shareLink ? shareLink->height() : 0;
 	const auto add = addMembers ? addMembers->height() : 0;
 	return QRect(
 		0,
 		-_scroll->scrollTop(),
 		width(),
-		_list->y() + _list->height() + _bottomSkip->height() + add);
+		_list->y() + _list->height() + _bottomSkip->height() + add + share);
 }
 
 rpl::producer<int> Members::fullCountValue() const {
@@ -1923,16 +1925,22 @@ void Members::setupFakeRoundCorners() {
 	const auto bottomleft = create({ 0, shift });
 	const auto bottomright = create({ shift, shift });
 
+	const auto heightValue = [=](Ui::RpWidget *widget) {
+		topleft->raise();
+		topright->raise();
+		bottomleft->raise();
+		bottomright->raise();
+		return widget ? widget->heightValue() : rpl::single(0);
+	};
 	rpl::combine(
 		_list->geometryValue(),
-		_addMemberButton.value() | rpl::map([=](Ui::RpWidget *widget) {
-			topleft->raise();
-			topright->raise();
-			bottomleft->raise();
-			bottomright->raise();
-			return widget ? widget->heightValue() : rpl::single(0);
-		}) | rpl::flatten_latest()
-	) | rpl::start_with_next([=](QRect list, int addMembers) {
+		_addMemberButton.value() | rpl::map(
+			heightValue
+		) | rpl::flatten_latest(),
+		_shareLinkButton.value() | rpl::map(
+			heightValue
+		) | rpl::flatten_latest()
+	) | rpl::start_with_next([=](QRect list, int addMembers, int shareLink) {
 		const auto left = list.x();
 		const auto top = list.y() - _topSkip->height();
 		const auto right = left + list.width() - topright->width();
@@ -1941,6 +1949,7 @@ void Members::setupFakeRoundCorners() {
 			+ list.height()
 			+ _bottomSkip->height()
 			+ addMembers
+			+ shareLink
 			- bottomleft->height();
 		topleft->move(left, top);
 		topright->move(right, top);

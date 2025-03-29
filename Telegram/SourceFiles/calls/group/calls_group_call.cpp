@@ -3697,61 +3697,88 @@ void GroupCall::editParticipant(
 	}).send();
 }
 
-std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
-		const std::vector<not_null<UserData*>> &users) {
+void GroupCall::inviteUsers(
+		const std::vector<not_null<UserData*>> &users,
+		Fn<void(InviteResult)> done) {
 	const auto real = lookupReal();
 	if (!real) {
-		return 0;
+		if (done) {
+			done({});
+		}
+		return;
 	}
 	const auto owner = &_peer->owner();
 
-	if (_conferenceCall) {
+	struct State {
+		InviteResult result;
+		int requests = 0;
+	};
+	const auto state = std::make_shared<State>();
+	const auto finishRequest = [=] {
+		if (!--state->requests) {
+			if (done) {
+				done(std::move(state->result));
+			}
+		}
+	};
+
+	if (const auto call = _conferenceCall.get()) {
 		for (const auto &user : users) {
 			_api.request(MTPphone_InviteConferenceCallParticipant(
 				inputCallSafe(),
 				user->inputUser
-			)).send();
+			)).done([=](const MTPUpdates &result) {
+				owner->registerInvitedToCallUser(_id, call, user);
+				_peer->session().api().applyUpdates(result);
+				state->result.invited.push_back(user);
+				finishRequest();
+			}).fail([=](const MTP::Error &error) {
+				const auto type = error.type();
+				if (type == u"USER_PRIVACY_RESTRICTED"_q) {
+					state->result.privacyRestricted.push_back(user);
+				} else if (type == u"USER_ALREADY_PARTICIPANT"_q) {
+					state->result.alreadyIn.push_back(user);
+				}
+				finishRequest();
+			}).send();
+			++state->requests;
 		}
-		auto result = std::variant<int, not_null<UserData*>>(0);
-		if (users.size() != 1) {
-			result = int(users.size());
-		} else {
-			result = users.front();
-		}
-		return result;
+		return;
 	}
 
-	auto count = 0;
+	auto usersSlice = std::vector<not_null<UserData*>>();
+	usersSlice.reserve(kMaxInvitePerSlice);
 	auto slice = QVector<MTPInputUser>();
-	auto result = std::variant<int, not_null<UserData*>>(0);
 	slice.reserve(kMaxInvitePerSlice);
 	const auto sendSlice = [&] {
-		count += slice.size();
 		_api.request(MTPphone_InviteToGroupCall(
 			inputCall(),
 			MTP_vector<MTPInputUser>(slice)
 		)).done([=](const MTPUpdates &result) {
 			_peer->session().api().applyUpdates(result);
+			for (const auto &user : usersSlice) {
+				state->result.invited.push_back(user);
+			}
+			finishRequest();
+		}).fail([=](const MTP::Error &error) {
+			finishRequest();
 		}).send();
+		++state->requests;
+
 		slice.clear();
+		usersSlice.clear();
 	};
 	for (const auto &user : users) {
-		if (!count && slice.empty()) {
-			result = user;
-		}
 		owner->registerInvitedToCallUser(_id, _peer, user);
+		usersSlice.push_back(user);
 		slice.push_back(user->inputUser);
 		if (slice.size() == kMaxInvitePerSlice) {
 			sendSlice();
 		}
 	}
-	if (count != 0 || slice.size() != 1) {
-		result = int(count + slice.size());
-	}
 	if (!slice.empty()) {
 		sendSlice();
 	}
-	return result;
 }
 
 auto GroupCall::ensureGlobalShortcutManager()
