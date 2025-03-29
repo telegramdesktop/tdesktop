@@ -1669,6 +1669,9 @@ void InnerWidget::clearIrrelevantState() {
 bool InnerWidget::lookupIsInBotAppButton(
 		Row *row,
 		QPoint localPosition) {
+	if (_narrowRatio) {
+		return false;
+	}
 	if (const auto user = MaybeBotWithApp(row)) {
 		const auto it = _rightButtons.find(user->id);
 		if (it != _rightButtons.end()) {
