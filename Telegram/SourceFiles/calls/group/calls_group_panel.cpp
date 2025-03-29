@@ -934,16 +934,12 @@ void Panel::setupMembers() {
 
 	_members->toggleMuteRequests(
 	) | rpl::start_with_next([=](MuteRequest request) {
-		if (_call) {
-			_call->toggleMute(request);
-		}
+		_call->toggleMute(request);
 	}, _callLifetime);
 
 	_members->changeVolumeRequests(
 	) | rpl::start_with_next([=](VolumeRequest request) {
-		if (_call) {
-			_call->changeVolume(request);
-		}
+		_call->changeVolume(request);
 	}, _callLifetime);
 
 	_members->kickParticipantRequests(
@@ -962,6 +958,21 @@ void Panel::setupMembers() {
 				_callShareLinkCallback();
 			}
 		}
+	}, _callLifetime);
+
+	const auto exporting = std::make_shared<bool>();
+	_members->shareLinkRequests(
+	) | rpl::start_with_next([=] {
+		Expects(_call->conference());
+
+		if (*exporting) {
+			return;
+		}
+		*exporting = true;
+		ExportConferenceCallLink(uiShow(), _call->conferenceCall(), {
+			.st = DarkConferenceCallLinkStyle(),
+			.finished = [=](bool) { *exporting = false; },
+		});
 	}, _callLifetime);
 
 	_call->videoEndpointLargeValue(

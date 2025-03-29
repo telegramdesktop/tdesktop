@@ -804,6 +804,7 @@ groupCallAddMember: SettingsButton(defaultSettingsButton) {
 	ripple: groupCallRipple;
 }
 groupCallAddMemberIcon: icon {{ "info/info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
+groupCallShareLinkIcon: icon {{ "menu/links_profile", groupCallMemberInactiveIcon, point(4px, 3px) }};
 groupCallSubtitleLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: groupCallMemberNotJoinedStatus;
@@ -1489,11 +1490,14 @@ confcallLinkButton: RoundButton(defaultActiveButton) {
 	textTop: 12px;
 	style: semiboldTextStyle;
 }
-confcallLinkBox: Box(defaultBox) {
+confcallLinkBoxInitial: Box(defaultBox) {
 	buttonPadding: margins(12px, 11px, 24px, 96px);
 	buttonHeight: 42px;
 	button: confcallLinkButton;
 	shadowIgnoreTopSkip: true;
+}
+confcallLinkBox: Box(confcallLinkBoxInitial) {
+	buttonPadding: margins(12px, 11px, 24px, 24px);
 }
 confcallLinkCopyButton: RoundButton(confcallLinkButton) {
 	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
@@ -1516,3 +1520,21 @@ confcallLinkFooterOr: FlatLabel(confcallLinkCenteredText) {
 confcallLinkFooterOrTop: 12px;
 confcallLinkFooterOrSkip: 8px;
 confcallLinkFooterOrLineTop: 9px;
+
+groupCallLinkBox: Box(confcallLinkBox) {
+	bg: groupCallMembersBg;
+	title: FlatLabel(boxTitle) {
+		textFg: groupCallMembersFg;
+	}
+	titleAdditionalFg: groupCallMemberNotJoinedStatus;
+}
+groupCallLinkCenteredText: FlatLabel(confcallLinkCenteredText) {
+	textFg: groupCallMembersFg;
+}
+groupCallLinkPreview: InputField(defaultInputField) {
+	textBg: groupCallMembersBgOver;
+	textFg: groupCallMembersFg;
+	textMargins: margins(12px, 8px, 30px, 5px);
+	style: defaultTextStyle;
+	heightMin: 35px;
+}

@@ -4755,6 +4755,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_also_end_channel" = "End live stream";
 "lng_group_call_settings_title" = "Settings";
 "lng_group_call_invite" = "Invite Members";
+"lng_group_call_invite_conf" = "Add People";
 "lng_group_call_invited_status" = "invited";
 "lng_group_call_muted_by_me_status" = "muted for you";
 "lng_group_call_invite_title" = "Invite members";

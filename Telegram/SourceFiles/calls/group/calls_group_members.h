@@ -59,6 +59,9 @@ public:
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {
 		return _addMemberRequests.events();
 	}
+	[[nodiscard]] rpl::producer<> shareLinkRequests() const {
+		return _shareLinkRequests.events();
+	}
 
 	[[nodiscard]] MembersRow *lookupRow(not_null<PeerData*> peer) const;
 	[[nodiscard]] not_null<MembersRow*> rtmpFakeRow(
@@ -106,10 +109,12 @@ private:
 	const not_null<Ui::RpWidget*> _videoWrap;
 	std::unique_ptr<Viewport> _viewport;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
+	rpl::variable<Ui::RpWidget*> _shareLinkButton = nullptr;
 	RpWidget *_topSkip = nullptr;
 	RpWidget *_bottomSkip = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
+	rpl::event_stream<> _shareLinkRequests;
 
 	mutable std::unique_ptr<MembersRow> _rtmpFakeRow;
 

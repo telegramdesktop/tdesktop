@@ -1153,11 +1153,15 @@ void GroupCall::setRtmpInfo(const Calls::Group::RtmpInfo &value) {
 }
 
 Data::GroupCall *GroupCall::lookupReal() const {
-	if (_conferenceCall) {
-		return _conferenceCall.get();
+	if (const auto conference = _conferenceCall.get()) {
+		return conference;
 	}
 	const auto real = _peer->groupCall();
 	return (real && real->id() == _id) ? real : nullptr;
+}
+
+std::shared_ptr<Data::GroupCall> GroupCall::conferenceCall() const {
+	return _conferenceCall;
 }
 
 rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {

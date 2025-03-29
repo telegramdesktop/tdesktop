@@ -21,6 +21,7 @@ class Show;
 
 namespace style {
 struct RoundButton;
+struct InputField;
 } // namespace style
 
 namespace Main {
@@ -107,7 +108,8 @@ void FinishProgram(
 
 [[nodiscard]] object_ptr<Ui::AbstractButton> MakeLinkLabel(
 	not_null<QWidget*> parent,
-	const QString &link);
+	const QString &link,
+	const style::InputField *stOverride = nullptr);
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateLinkHeaderIcon(
 	not_null<QWidget*> parent,
 	not_null<Main::Session*> session,

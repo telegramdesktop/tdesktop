@@ -8,12 +8,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "base/weak_ptr.h"
 
 class UserData;
+struct ShareBoxStyleOverrides;
+
+namespace style {
+struct Box;
+struct FlatLabel;
+struct IconButton;
+struct InputField;
+} // namespace style
 
 namespace Data {
 class GroupCall;
 } // namespace Data
+
+namespace Main {
+class SessionShow;
+} // namespace Main
 
 namespace Ui {
 class Show;
@@ -118,10 +131,30 @@ void ConferenceCallJoinConfirm(
 	std::shared_ptr<Data::GroupCall> call,
 	Fn<void()> join);
 
+struct ConferenceCallLinkStyleOverrides {
+	const style::Box *box = nullptr;
+	const style::IconButton *close = nullptr;
+	const style::FlatLabel *centerLabel = nullptr;
+	const style::InputField *linkPreview = nullptr;
+	std::shared_ptr<ShareBoxStyleOverrides> shareBox;
+};
+[[nodiscard]] ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle();
+
+struct ConferenceCallLinkArgs {
+	bool initial = false;
+	Fn<void(bool)> finished;
+	base::weak_ptr<Window::SessionController> weakWindow = nullptr;
+	ConferenceCallLinkStyleOverrides st;
+};
 void ShowConferenceCallLinkBox(
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<Data::GroupCall> call,
 	const QString &link,
-	bool initial = false);
+	ConferenceCallLinkArgs &&args);
+
+void ExportConferenceCallLink(
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<Data::GroupCall> call,
+	ConferenceCallLinkArgs &&args);
 
 } // namespace Calls::Group

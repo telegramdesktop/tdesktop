@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_common.h"
 
+#include "apiwrap.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/share_box.h"
 #include "core/local_url_handlers.h"
@@ -19,8 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
+#include "styles/style_media_view.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 
@@ -86,16 +89,34 @@ void ConferenceCallJoinConfirm(
 	});
 }
 
+ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle() {
+	return {
+		.box = &st::groupCallLinkBox,
+		.close = &st::storiesStealthBoxClose,
+		.centerLabel = &st::groupCallLinkCenteredText,
+		.linkPreview = &st::groupCallLinkPreview,
+		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
+			DarkShareBoxStyle()),
+	};
+}
+
 void ShowConferenceCallLinkBox(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<Data::GroupCall> call,
 		const QString &link,
-		bool initial) {
-	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setStyle(st::confcallLinkBox);
+		ConferenceCallLinkArgs &&args) {
+	const auto st = args.st;
+	const auto initial = args.initial;
+	const auto weakWindow = args.weakWindow;
+	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setStyle(st.box
+			? *st.box
+			: initial
+			? st::confcallLinkBoxInitial
+			: st::confcallLinkBox);
 		box->setWidth(st::boxWideWidth);
 		box->setNoContentMargin(true);
-		box->addTopButton(st::boxTitleClose, [=] {
+		box->addTopButton(st.close ? *st.close : st::boxTitleClose, [=] {
 			box->closeBox();
 		});
 
@@ -108,19 +129,24 @@ void ShowConferenceCallLinkBox(
 				object_ptr<Ui::FlatLabel>(
 					box,
 					tr::lng_confcall_link_title(),
-					st::boxTitle)),
+					st.box ? st.box->title : st::boxTitle)),
 			st::boxRowPadding + st::confcallLinkTitlePadding);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_confcall_link_about(),
-				st::confcallLinkCenteredText),
+				(st.centerLabel
+					? *st.centerLabel
+					: st::confcallLinkCenteredText)),
 			st::boxRowPadding
 		)->setTryMakeSimilarLines(true);
 
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 2);
 		const auto preview = box->addRow(
-			Info::BotStarRef::MakeLinkLabel(box, link));
+			Info::BotStarRef::MakeLinkLabel(
+				box,
+				link,
+				st.linkPreview));
 		Ui::AddSkip(box->verticalLayout());
 
 		const auto copyCallback = [=] {
@@ -128,7 +154,10 @@ void ShowConferenceCallLinkBox(
 			box->uiShow()->showToast(tr::lng_username_copied(tr::now));
 		};
 		const auto shareCallback = [=] {
-			FastShareLink(controller, link);
+			FastShareLink(
+				show,
+				link,
+				st.shareBox ? *st.shareBox : ShareBoxStyleOverrides());
 		};
 		preview->setClickedCallback(copyCallback);
 		[[maybe_unused]] const auto share = box->addButton(
@@ -155,6 +184,10 @@ void ShowConferenceCallLinkBox(
 			share->moveToRight(padding.right(), share->y(), width);
 		}, box->lifetime());
 
+		if (!initial) {
+			return;
+		}
+
 		const auto sep = Ui::CreateChild<Ui::FlatLabel>(
 			copy->parentWidget(),
 			tr::lng_confcall_link_or(),
@@ -180,14 +213,18 @@ void ShowConferenceCallLinkBox(
 					rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
 					[](QString v) { return Ui::Text::Link(v); }),
 				Ui::Text::WithEntities),
-			st::confcallLinkCenteredText);
+			(st.centerLabel
+				? *st.centerLabel
+				: st::confcallLinkCenteredText));
 		footer->setTryMakeSimilarLines(true);
 		footer->setClickHandlerFilter([=](const auto &...) {
 			const auto local = Core::TryConvertUrlToLocal(link);
-			controller->resolveConferenceCall(
-				local,
-				crl::guard(box, [=](bool ok) { if (ok) box->closeBox(); }),
-				true);
+			if (const auto controller = weakWindow.get()) {
+				controller->resolveConferenceCall(
+					local,
+					crl::guard(box, [=](bool ok) { if (ok) box->closeBox(); }),
+					true);
+			}
 			return false;
 		});
 		copy->geometryValue() | rpl::start_with_next([=](QRect geometry) {
@@ -207,6 +244,35 @@ void ShowConferenceCallLinkBox(
 				top + sep->height() + st::confcallLinkFooterOrSkip);
 		}, footer->lifetime());
 	}));
+}
+
+void ExportConferenceCallLink(
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<Data::GroupCall> call,
+		ConferenceCallLinkArgs &&args) {
+	const auto session = &show->session();
+	const auto finished = std::move(args.finished);
+
+	using Flag = MTPphone_ExportGroupCallInvite::Flag;
+	session->api().request(MTPphone_ExportGroupCallInvite(
+		MTP_flags(Flag::f_can_self_unmute),
+		call->input()
+	)).done([=](const MTPphone_ExportedGroupCallInvite &result) {
+		const auto link = qs(result.data().vlink());
+		Calls::Group::ShowConferenceCallLinkBox(
+			show,
+			call,
+			link,
+			base::duplicate(args));
+		if (const auto onstack = finished) {
+			finished(true);
+		}
+	}).fail([=](const MTP::Error &error) {
+		show->showToast(error.type());
+		if (const auto onstack = finished) {
+			finished(false);
+		}
+	}).send();
 }
 
 } // namespace Calls::Group

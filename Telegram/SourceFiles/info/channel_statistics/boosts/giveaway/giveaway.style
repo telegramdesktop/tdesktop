@@ -259,3 +259,6 @@ darkGiftTableMessage: FlatLabel(giveawayGiftMessage) {
 	textFg: groupCallMembersFg;
 	palette: darkGiftPalette;
 }
+darkGiftCodeLink: FlatLabel(giveawayGiftCodeLink) {
+	textFg: mediaviewMenuFg;
+}

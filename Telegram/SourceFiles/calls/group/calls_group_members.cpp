@@ -1615,6 +1615,7 @@ rpl::producer<int> Members::desiredHeightValue() const {
 	return rpl::combine(
 		heightValue(),
 		_addMemberButton.value(),
+		_shareLinkButton.value(),
 		_listController->fullCountValue(),
 		_mode.value()
 	) | rpl::map([=] {
@@ -1626,8 +1627,11 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
 	const auto peer = call->peer();
+	const auto conference = call->conference();
 	const auto canAddByPeer = [=](not_null<PeerData*> peer) {
-		if (peer->isBroadcast()) {
+		if (conference) {
+			return rpl::single(true) | rpl::type_erased();
+		} else if (peer->isBroadcast()) {
 			return rpl::single(false) | rpl::type_erased();
 		}
 		return rpl::combine(
@@ -1638,6 +1642,9 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 		}) | rpl::type_erased();
 	};
 	const auto canInviteByLinkByPeer = [=](not_null<PeerData*> peer) {
+		if (conference) {
+			return rpl::single(true) | rpl::type_erased();
+		}
 		const auto channel = peer->asChannel();
 		if (!channel) {
 			return rpl::single(false) | rpl::type_erased();
@@ -1672,11 +1679,18 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 				_addMemberButton = nullptr;
 				updateControlsGeometry();
 			}
+			if (const auto old = _shareLinkButton.current()) {
+				delete old;
+				_shareLinkButton = nullptr;
+				updateControlsGeometry();
+			}
 			return;
 		}
 		auto addMember = Settings::CreateButtonWithIcon(
 			_layout.get(),
-			tr::lng_group_call_invite(),
+			(conference
+				? tr::lng_group_call_invite_conf()
+				: tr::lng_group_call_invite()),
 			st::groupCallAddMember,
 			{ .icon = &st::groupCallAddMemberIcon });
 		addMember->clicks(
@@ -1688,6 +1702,21 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 		delete _addMemberButton.current();
 		_addMemberButton = addMember.data();
 		_layout->insert(3, std::move(addMember));
+		if (conference) {
+			auto shareLink = Settings::CreateButtonWithIcon(
+				_layout.get(),
+				tr::lng_group_invite_share(),
+				st::groupCallAddMember,
+				{ .icon = &st::groupCallShareLinkIcon });
+			shareLink->clicks() | rpl::to_empty | rpl::start_to_stream(
+				_shareLinkRequests,
+				shareLink->lifetime());
+			shareLink->show();
+			shareLink->resizeToWidth(_layout->width());
+			delete _shareLinkButton.current();
+			_shareLinkButton = shareLink.data();
+			_layout->insert(4, std::move(shareLink));
+		}
 	}, lifetime());
 
 	updateControlsGeometry();
