@@ -840,17 +840,42 @@ void SessionNavigation::resolveCollectible(
 	}).send();
 }
 
-void SessionNavigation::resolveConferenceCall(const QString &slug) {
-	resolveConferenceCall(slug, 0);
-}
-
-void SessionNavigation::resolveConferenceCall(MsgId inviteMsgId) {
-	resolveConferenceCall(QString(), inviteMsgId);
+void SessionNavigation::resolveConferenceCall(
+		QString slug,
+		Fn<void(bool)> finished,
+		bool skipConfirm) {
+	resolveConferenceCall(
+		std::move(slug),
+		0,
+		std::move(finished),
+		skipConfirm);
 }
 
 void SessionNavigation::resolveConferenceCall(
-		const QString &slug,
-		MsgId inviteMsgId) {
+		MsgId inviteMsgId,
+		Fn<void(bool)> finished,
+		bool skipConfirm) {
+	resolveConferenceCall({}, inviteMsgId, std::move(finished), skipConfirm);
+}
+
+void SessionNavigation::resolveConferenceCall(
+		QString slug,
+		MsgId inviteMsgId,
+		Fn<void(bool)> finished,
+		bool skipConfirm) {
+	// Accept tg://call?slug= links as well.
+	const auto parts1 = QStringView(slug).split('#');
+	if (!parts1.isEmpty()) {
+		const auto parts2 = parts1.front().split('&');
+		if (!parts2.isEmpty()) {
+			const auto parts3 = parts2.front().split(u"slug="_q);
+			if (parts3.size() > 1) {
+				slug = parts3.back().toString();
+			}
+		}
+	}
+
+	_conferenceCallResolveFinished = std::move(finished);
 	if (_conferenceCallSlug == slug
 		&& _conferenceCallInviteMsgId == inviteMsgId) {
 		return;
@@ -869,7 +894,7 @@ void SessionNavigation::resolveConferenceCall(
 		_conferenceCallRequestId = 0;
 		const auto slug = base::take(_conferenceCallSlug);
 		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
-
+		const auto finished = base::take(_conferenceCallResolveFinished);
 		result.data().vcall().match([&](const auto &data) {
 			const auto call = std::make_shared<Data::GroupCall>(
 				session().user(),
@@ -888,6 +913,13 @@ void SessionNavigation::resolveConferenceCall(
 					.joinMessageId = inviteMsgId,
 				});
 			};
+			if (skipConfirm) {
+				join();
+				if (finished) {
+					finished(true);
+				}
+				return;
+			}
 			const auto box = uiShow()->show(Box(
 				Calls::Group::ConferenceCallJoinConfirm,
 				call,
@@ -899,11 +931,18 @@ void SessionNavigation::resolveConferenceCall(
 					)).send();
 				}
 			}, box->lifetime());
+			if (finished) {
+				finished(true);
+			}
 		});
 	}).fail([=] {
 		_conferenceCallRequestId = 0;
 		_conferenceCallSlug = QString();
+		const auto finished = base::take(_conferenceCallResolveFinished);
 		showToast(tr::lng_group_invite_bad_link(tr::now));
+		if (finished) {
+			finished(false);
+		}
 	}).send();
 }
 

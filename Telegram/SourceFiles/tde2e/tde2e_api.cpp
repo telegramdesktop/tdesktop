@@ -195,7 +195,6 @@ void Call::apply(int subchain, const Block &last) {
 	});
 
 	if (subchain) {
-		auto &entry = _subchains[subchain];
 		auto result = tde2e_api::call_receive_inbound_message(
 			libId(),
 			Slice(last.data));

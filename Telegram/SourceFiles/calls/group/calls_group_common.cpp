@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "boxes/share_box.h"
+#include "core/local_url_handlers.h"
 #include "data/data_group_call.h"
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "ui/boxes/boost_box.h"
@@ -130,19 +131,46 @@ void ShowConferenceCallLinkBox(
 			FastShareLink(controller, link);
 		};
 		preview->setClickedCallback(copyCallback);
-		[[maybe_unused]] const auto copy = box->addButton(
-			tr::lng_group_invite_copy(),
-			copyCallback,
-			st::confcallLinkCopyButton);
 		[[maybe_unused]] const auto share = box->addButton(
 			tr::lng_group_invite_share(),
 			shareCallback,
 			st::confcallLinkShareButton);
+		[[maybe_unused]] const auto copy = box->addButton(
+			tr::lng_group_invite_copy(),
+			copyCallback,
+			st::confcallLinkCopyButton);
+
+		rpl::combine(
+			box->widthValue(),
+			copy->widthValue(),
+			share->widthValue()
+		) | rpl::start_with_next([=] {
+			const auto width = st::boxWideWidth;
+			const auto padding = st::confcallLinkBox.buttonPadding;
+			const auto available = width - 2 * padding.right();
+			const auto buttonWidth = (available - padding.left()) / 2;
+			copy->resizeToWidth(buttonWidth);
+			share->resizeToWidth(buttonWidth);
+			copy->moveToLeft(padding.right(), copy->y(), width);
+			share->moveToRight(padding.right(), share->y(), width);
+		}, box->lifetime());
 
 		const auto sep = Ui::CreateChild<Ui::FlatLabel>(
 			copy->parentWidget(),
 			tr::lng_confcall_link_or(),
 			st::confcallLinkFooterOr);
+		sep->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(sep);
+			const auto text = sep->textMaxWidth();
+			const auto white = (sep->width() - 2 * text) / 2;
+			const auto line = st::lineWidth;
+			const auto top = st::confcallLinkFooterOrLineTop;
+			const auto fg = st::windowSubTextFg->b;
+			p.setOpacity(0.4);
+			p.fillRect(0, top, white, line, fg);
+			p.fillRect(sep->width() - white, top, white, line, fg);
+		}, sep->lifetime());
+
 		const auto footer = Ui::CreateChild<Ui::FlatLabel>(
 			copy->parentWidget(),
 			tr::lng_confcall_link_join(
@@ -154,22 +182,29 @@ void ShowConferenceCallLinkBox(
 				Ui::Text::WithEntities),
 			st::confcallLinkCenteredText);
 		footer->setTryMakeSimilarLines(true);
+		footer->setClickHandlerFilter([=](const auto &...) {
+			const auto local = Core::TryConvertUrlToLocal(link);
+			controller->resolveConferenceCall(
+				local,
+				crl::guard(box, [=](bool ok) { if (ok) box->closeBox(); }),
+				true);
+			return false;
+		});
 		copy->geometryValue() | rpl::start_with_next([=](QRect geometry) {
 			const auto width = st::boxWideWidth
 				- st::boxRowPadding.left()
 				- st::boxRowPadding.right();
 			footer->resizeToWidth(width);
-			const auto &st = box->getDelegate()->style();
-			const auto top = geometry.y() + geometry.height();
-			const auto available = st.buttonPadding.bottom();
-			const auto footerHeight = sep->height() + footer->height();
-			const auto skip = (available - footerHeight) / 2;
+			const auto top = geometry.y()
+				+ geometry.height()
+				+ st::confcallLinkFooterOrTop;
+			sep->resizeToWidth(width / 2);
 			sep->move(
 				st::boxRowPadding.left() + (width - sep->width()) / 2,
-				top + skip);
+				top);
 			footer->moveToLeft(
 				st::boxRowPadding.left(),
-				top + skip + sep->height());
+				top + sep->height() + st::confcallLinkFooterOrSkip);
 		}, footer->lifetime());
 	}));
 }

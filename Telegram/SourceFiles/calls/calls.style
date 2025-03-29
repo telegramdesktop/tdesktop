@@ -1490,7 +1490,7 @@ confcallLinkButton: RoundButton(defaultActiveButton) {
 	style: semiboldTextStyle;
 }
 confcallLinkBox: Box(defaultBox) {
-	buttonPadding: margins(22px, 11px, 22px, 64px);
+	buttonPadding: margins(12px, 11px, 24px, 96px);
 	buttonHeight: 42px;
 	button: confcallLinkButton;
 	shadowIgnoreTopSkip: true;
@@ -1513,3 +1513,6 @@ confcallLinkCenteredText: FlatLabel(defaultFlatLabel) {
 confcallLinkFooterOr: FlatLabel(confcallLinkCenteredText) {
 	textFg: windowSubTextFg;
 }
+confcallLinkFooterOrTop: 12px;
+confcallLinkFooterOrSkip: 8px;
+confcallLinkFooterOrLineTop: 9px;
