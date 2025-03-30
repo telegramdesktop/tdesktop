@@ -1233,8 +1233,11 @@ void Panel::updateOutgoingVideoBubbleGeometry() {
 }
 
 void Panel::updateHangupGeometry() {
+	const auto isBusy = (_call
+		&& _call->state() == State::Busy);
 	const auto isWaitingUser = (_call
 		&& _call->state() == State::WaitingUserConfirmation);
+	const auto incomingWaiting = _call && _call->isIncomingWaiting();
 	const auto hangupProgress = isWaitingUser
 		? 0.
 		: _hangupShownProgress.value(_hangupShown ? 1. : 0.);
@@ -1243,7 +1246,8 @@ void Panel::updateHangupGeometry() {
 	// Screencast - Camera - Cancel/Decline - Answer/Hangup/Redial - Mute.
 	const auto buttonWidth = st::callCancel.button.width;
 	const auto cancelWidth = buttonWidth * (1. - hangupProgress);
-	const auto cancelLeft = (widget()->width() - buttonWidth) / 2;
+	const auto cancelLeft = (widget()->width() - buttonWidth) / 2
+		- ((isBusy || incomingWaiting) ? buttonWidth : 0);
 
 	_cancel->moveToLeft(cancelLeft, _buttonsTop);
 	_decline->moveToLeft(cancelLeft, _buttonsTop);
