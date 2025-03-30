@@ -457,26 +457,40 @@ Invoice ComputeInvoiceData(
 
 Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
-	result.finishReason = [&] {
+	result.state = [&] {
 		if (const auto reason = call.vreason()) {
 			return reason->match([](const MTPDphoneCallDiscardReasonBusy &) {
-				return CallFinishReason::Busy;
+				return CallState::Busy;
 			}, [](const MTPDphoneCallDiscardReasonDisconnect &) {
-				return CallFinishReason::Disconnected;
+				return CallState::Disconnected;
 			}, [](const MTPDphoneCallDiscardReasonHangup &) {
-				return CallFinishReason::Hangup;
+				return CallState::Hangup;
 			}, [](const MTPDphoneCallDiscardReasonMissed &) {
-				return CallFinishReason::Missed;
+				return CallState::Missed;
 			}, [](const MTPDphoneCallDiscardReasonMigrateConferenceCall &) {
-				return CallFinishReason::MigrateConferenceCall;
+				return CallState::MigrateConferenceCall;
 			});
 			Unexpected("Call reason type.");
 		}
-		return CallFinishReason::Hangup;
+		return CallState::Hangup;
 	}();
 	result.duration = call.vduration().value_or_empty();
 	result.video = call.is_video();
 	return result;
+}
+
+Call ComputeCallData(const MTPDmessageActionConferenceCall &call) {
+	return {
+		.conferenceId = call.vcall_id().v,
+		.duration = call.vduration().value_or_empty(),
+		.state = (call.vduration().value_or_empty()
+			? CallState::Hangup
+			: call.is_missed()
+			? CallState::Missed
+			: call.is_active()
+			? CallState::Active
+			: CallState::Invitation),
+	};
 }
 
 GiveawayStart ComputeGiveawayStartData(
@@ -1686,7 +1700,7 @@ const Call *MediaCall::call() const {
 }
 
 TextWithEntities MediaCall::notificationText() const {
-	auto result = Text(parent(), _call.finishReason, _call.video);
+	auto result = Text(parent(), _call.state, _call.video);
 	if (_call.duration > 0) {
 		result = tr::lng_call_type_and_duration(
 			tr::now,
@@ -1727,21 +1741,25 @@ std::unique_ptr<HistoryView::Media> MediaCall::createView(
 
 QString MediaCall::Text(
 		not_null<HistoryItem*> item,
-		CallFinishReason reason,
+		CallState state,
 		bool video) {
-	if (item->out()) {
-		return ((reason == CallFinishReason::Missed)
+	if (state == CallState::Invitation) {
+		return tr::lng_call_invitation(tr::now);
+	} else if (state == CallState::Active) {
+		return tr::lng_call_ongoing(tr::now);
+	} else if (item->out()) {
+		return ((state == CallState::Missed)
 			? (video
 				? tr::lng_call_video_cancelled
 				: tr::lng_call_cancelled)
 			: (video
 				? tr::lng_call_video_outgoing
 				: tr::lng_call_outgoing))(tr::now);
-	} else if (reason == CallFinishReason::Missed) {
+	} else if (state == CallState::Missed) {
 		return (video
 			? tr::lng_call_video_missed
 			: tr::lng_call_missed)(tr::now);
-	} else if (reason == CallFinishReason::Busy) {
+	} else if (state == CallState::Busy) {
 		return (video
 			? tr::lng_call_video_declined
 			: tr::lng_call_declined)(tr::now);

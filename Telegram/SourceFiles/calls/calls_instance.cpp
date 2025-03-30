@@ -236,7 +236,6 @@ void Instance::startOrJoinConferenceCall(StartConferenceCallArgs args) {
 		args.migrating ? args.linkSlug : QString());
 
 	const auto session = &args.call->peer()->session();
-	const auto showShareLink = args.migrating && args.invite.empty();
 	auto call = std::make_unique<GroupCall>(
 		_delegate.get(),
 		Calls::Group::ConferenceInfo{

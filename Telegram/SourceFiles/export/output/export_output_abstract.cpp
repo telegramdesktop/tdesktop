@@ -408,7 +408,7 @@ Stats AbstractWriter::produceTestExample(
 		auto message = serviceMessage();
 		auto action = Data::ActionPhoneCall();
 		action.duration = counter();
-		action.discardReason = Data::ActionPhoneCall::DiscardReason::Busy;
+		action.state = Data::ActionPhoneCall::State::Busy;
 		message.action.content = action;
 		return message;
 	}());

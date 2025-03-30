@@ -1461,18 +1461,18 @@ ServiceAction ParseServiceAction(
 			content.duration = duration->v;
 		}
 		if (const auto reason = data.vreason()) {
-			using Reason = ActionPhoneCall::DiscardReason;
-			content.discardReason = reason->match(
+			using State = ActionPhoneCall::State;
+			content.state = reason->match(
 			[](const MTPDphoneCallDiscardReasonMissed &data) {
-				return Reason::Missed;
+				return State::Missed;
 			}, [](const MTPDphoneCallDiscardReasonDisconnect &data) {
-				return Reason::Disconnect;
+				return State::Disconnect;
 			}, [](const MTPDphoneCallDiscardReasonHangup &data) {
-				return Reason::Hangup;
+				return State::Hangup;
 			}, [](const MTPDphoneCallDiscardReasonBusy &data) {
-				return Reason::Busy;
+				return State::Busy;
 			}, [](const MTPDphoneCallDiscardReasonMigrateConferenceCall &) {
-				return Reason::MigrateConferenceCall;
+				return State::MigrateConferenceCall;
 			});
 		}
 		result.content = content;
@@ -1714,11 +1714,20 @@ ServiceAction ParseServiceAction(
 			.stars = int(data.vstars().v),
 		};
 	}, [&](const MTPDmessageActionConferenceCall &data) {
-		result.content = ActionConferenceCall{
-			.duration = data.vduration().value_or_empty(),
-			.active = data.is_active(),
-			.missed = data.is_missed(),
-		};
+		auto content = ActionPhoneCall();
+		using State = ActionPhoneCall::State;
+		content.conferenceId = data.vcall_id().v;
+		if (const auto duration = data.vduration()) {
+			content.duration = duration->v;
+		}
+		content.state = data.is_missed()
+			? State::Missed
+			: data.is_active()
+			? State::Active
+			: data.vduration().value_or_empty()
+			? State::Hangup
+			: State::Invitation;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

@@ -483,6 +483,12 @@ HistoryItem::HistoryItem(
 			this,
 			Data::ComputeCallData(data));
 		setTextValue({});
+	}, [&](const MTPDmessageActionConferenceCall &data) {
+		createComponents(CreateConfig());
+		_media = std::make_unique<Data::MediaCall>(
+			this,
+			Data::ComputeCallData(data));
+		setTextValue({});
 	}, [&](const auto &) {
 		createServiceFromMtp(data);
 	});
@@ -5624,32 +5630,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &action) {
-		auto result = PreparedServiceText();
-		const auto duration = action.vduration().value_or_empty();
-		result.text.text = action.is_missed()
-			? tr::lng_action_confcall_missed(tr::now)
-			: action.is_active()
-			? tr::lng_action_confcall_ongoing(tr::now)
-			: duration
-			? tr::lng_action_confcall_finished(tr::now)
-			: tr::lng_action_confcall_invitation(tr::now);
-
-		if (duration) {
-			result.text.text += " (" + QString::number(duration) + " seconds)";
-		}
-
-		const auto id = this->id;
-		setCustomServiceLink(std::make_shared<LambdaClickHandler>([=](
-				ClickContext context) {
-			const auto my = context.other.value<ClickHandlerContext>();
-			const auto weak = my.sessionWindow;
-			if (const auto strong = weak.get()) {
-				strong->resolveConferenceCall(id);
-			}
-		}));
-
-		return result;
+	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {
+		Unexpected("PhoneCall type in setServiceMessageFromMtp.");
 	};
 
 	setServiceText(action.match(

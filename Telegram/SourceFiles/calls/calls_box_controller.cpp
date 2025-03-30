@@ -430,9 +430,9 @@ BoxController::Row::Type BoxController::Row::ComputeType(
 		return Type::Out;
 	} else if (auto media = item->media()) {
 		if (const auto call = media->call()) {
-			const auto reason = call->finishReason;
-			if (reason == Data::Call::FinishReason::Busy
-				|| reason == Data::Call::FinishReason::Missed) {
+			using State = Data::CallState;
+			const auto state = call->state;
+			if (state == State::Busy || state == State::Missed) {
 				return Type::Missed;
 			}
 		}

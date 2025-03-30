@@ -2220,10 +2220,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_message_price_paid#other" = "Messages now cost {count} Stars each in this group.";
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
-"lng_action_confcall_invitation" = "Call invitation...";
-"lng_action_confcall_missed" = "Missed conference call";
-"lng_action_confcall_ongoing" = "Ongoing conference call";
-"lng_action_confcall_finished" = "Conference call";
 
 "lng_you_joined_group" = "You joined this group";
 
@@ -4684,6 +4680,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_video_declined" = "Declined video call";
 "lng_call_duration_info" = "{time}, {duration}";
 "lng_call_type_and_duration" = "{type} ({duration})";
+"lng_call_invitation" = "Call invitation";
+"lng_call_ongoing" = "Ongoing call";
 
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";

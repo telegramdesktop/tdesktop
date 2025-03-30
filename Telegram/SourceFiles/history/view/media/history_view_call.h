@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 
 namespace Data {
-enum class CallFinishReason : char;
+enum class CallState : char;
 struct Call;
 } // namespace Data
 
@@ -40,12 +40,13 @@ public:
 	}
 
 private:
-	using FinishReason = Data::CallFinishReason;
+	using State = Data::CallState;
 
 	QSize countOptimalSize() override;
 
 	const int _duration = 0;
-	const FinishReason _reason;
+	const State _state = {};
+	const bool _conference = false;
 	const bool _video = false;
 
 	QString _text;
