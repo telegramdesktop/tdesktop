@@ -2387,7 +2387,7 @@ void InnerWidget::mousePressReleased(
 	if (_chatPreviewScheduled) {
 		_controller->cancelScheduledPreview();
 	}
-	_pressButton = Qt::NoButton;
+	const auto pressButton = base::take(_pressButton);
 
 	const auto wasDragging = finishReorderOnRelease();
 
@@ -2420,7 +2420,10 @@ void InnerWidget::mousePressReleased(
 	if (_pressedRightButtonData && _pressedRightButtonData->ripple) {
 		_pressedRightButtonData->ripple->lastStop();
 	}
-	if (_activeQuickAction && pressed && !_activeQuickAction->data) {
+	if ((pressButton == Qt::MiddleButton)
+		&& _activeQuickAction
+		&& pressed
+		&& !_activeQuickAction->data) {
 		if (const auto history = pressed->history()) {
 			const auto raw = _activeQuickAction.get();
 			if (raw->ripple) {
