@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 
 #include "base/options.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager_default.h"
 #include "media/audio/media_audio_track.h"
@@ -1146,7 +1147,8 @@ void Manager::notificationActivated(
 				window->widget()->setInnerFocus();
 				system()->clearAll();
 			} else {
-				openNotificationMessage(history, id.msgId);
+				const auto openSeparated = base::IsCtrlPressed();
+				openNotificationMessage(history, id.msgId, openSeparated);
 			}
 			onAfterNotificationActivated(id, window);
 		}
@@ -1155,7 +1157,8 @@ void Manager::notificationActivated(
 
 void Manager::openNotificationMessage(
 		not_null<History*> history,
-		MsgId messageId) {
+		MsgId messageId,
+		bool openSeparated) {
 	const auto item = history->owner().message(history->peer, messageId);
 	const auto openExactlyMessage = !history->peer->isBroadcast()
 		&& item
@@ -1163,10 +1166,19 @@ void Manager::openNotificationMessage(
 		&& (item->out() || (item->mentionsMe() && !history->peer->isUser()));
 	const auto topic = item ? item->topic() : nullptr;
 	const auto separate = Core::App().separateWindowFor(history->peer);
+	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
 	const auto window = separate
 		? separate->sessionController()
+		: openSeparated
+		? [&] {
+			const auto window = Core::App().ensureSeparateWindowFor(
+				topic
+					? Window::SeparateId(Window::SeparateType::Forum, history)
+					: Window::SeparateId(history->peer),
+				itemId);
+			return window ? window->sessionController() : nullptr;
+		}()
 		: history->session().tryResolveWindow();
-	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
 	if (window) {
 		if (topic) {
 			window->showSection(
