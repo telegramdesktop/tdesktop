@@ -5856,6 +5856,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_stickerset" = "View stickers";
 "lng_view_button_emojipack" = "View emoji";
 "lng_view_button_collectible" = "View collectible";
+"lng_view_button_call" = "Join call";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";
