@@ -1900,6 +1900,16 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		applyServiceDateEdition(message);
 		finishEditionToEmpty();
 		_flags &= ~MessageFlag::DisplayFromChecked;
+	} else if (message.vaction().type() == mtpc_messageActionConferenceCall) {
+		removeFromSharedMediaIndex();
+		_media = nullptr;
+		_media = std::make_unique<Data::MediaCall>(
+			this,
+			Data::ComputeCallData(
+				message.vaction().c_messageActionConferenceCall()));
+		addToSharedMediaIndex();
+		finishEdition(-1);
+		_flags &= ~MessageFlag::DisplayFromChecked;
 	} else if (isService()) {
 		if (const auto reply = Get<HistoryMessageReply>()) {
 			reply->clearData(this);
