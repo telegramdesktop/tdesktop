@@ -75,11 +75,14 @@ public:
 		Muted,
 		RaisedHand,
 		Invited,
+		WithAccess,
 	};
 
 	void setAbout(const QString &about);
 	void setSkipLevelUpdate(bool value);
-	void updateState(const Data::GroupCallParticipant *participant);
+	void updateState(const Data::GroupCallParticipant &participant);
+	void updateStateInvited();
+	void updateStateWithAccess();
 	void updateLevel(float level);
 	void updateBlobAnimation(crl::time now);
 	void clearRaisedHandStatus();
@@ -122,6 +125,8 @@ public:
 		bool selected,
 		bool actionSelected) override;
 
+	QString generateName() override;
+	QString generateShortName() override;
 	PaintRoundImageCallback generatePaintUserpicCallback(
 		bool forceRound) override;
 	void paintComplexUserpic(

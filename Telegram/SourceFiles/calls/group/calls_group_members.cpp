@@ -108,6 +108,8 @@ private:
 		const Data::GroupCallParticipant &participant);
 	[[nodiscard]] std::unique_ptr<Row> createInvitedRow(
 		not_null<PeerData*> participantPeer);
+	[[nodiscard]] std::unique_ptr<Row> createWithAccessRow(
+		not_null<PeerData*> participantPeer);
 
 	[[nodiscard]] bool isMe(not_null<PeerData*> participantPeer) const;
 	void prepareRows(not_null<Data::GroupCall*> real);
@@ -128,7 +130,8 @@ private:
 	void updateRow(
 		not_null<Row*> row,
 		const std::optional<Data::GroupCallParticipant> &was,
-		const Data::GroupCallParticipant *participant);
+		const Data::GroupCallParticipant *participant,
+		Row::State noParticipantState = Row::State::Invited);
 	void updateRowInSoundingMap(
 		not_null<Row*> row,
 		bool wasSounding,
@@ -162,8 +165,13 @@ private:
 		const VideoEndpoint &endpoint,
 		bool active);
 
-	void appendInvitedUsers();
+	void partitionRows();
+	void setupInvitedUsers();
+	[[nodiscard]] bool appendInvitedUsers();
+	void setupWithAccessUsers();
+	[[nodiscard]] bool appendWithAccessUsers();
 	void scheduleRaisedHandStatusRemove();
+	void refreshWithAccessRows(base::flat_set<UserId> &&nowIds);
 
 	void hideRowsWithVideoExcept(const VideoEndpoint &large);
 	void showAllHiddenRows();
@@ -204,6 +212,8 @@ private:
 	Ui::RoundRect _narrowRoundRectSelected;
 	Ui::RoundRect _narrowRoundRect;
 	QImage _narrowShadow;
+
+	base::flat_set<UserId> _withAccess;
 
 	rpl::lifetime _lifetime;
 
@@ -414,6 +424,9 @@ void Members::Controller::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			if (const auto row = findRow(participantPeer)) {
 				if (isMe(participantPeer)) {
 					updateRow(row, update.was, nullptr);
+				} else if (_withAccess.contains(peerToUser(participantPeer->id))) {
+					updateRow(row, update.was, nullptr, Row::State::WithAccess);
+					partitionRows();
 				} else {
 					removeRow(row);
 					delegate()->peerListRefreshRows();
@@ -431,10 +444,6 @@ void Members::Controller::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	) | rpl::start_with_next([=](const VideoStateToggle &update) {
 		toggleVideoEndpointActive(update.endpoint, update.value);
 	}, _lifetime);
-
-	if (_prepared) {
-		appendInvitedUsers();
-	}
 }
 
 void Members::Controller::toggleVideoEndpointActive(
@@ -481,13 +490,21 @@ void Members::Controller::toggleVideoEndpointActive(
 
 }
 
-void Members::Controller::appendInvitedUsers() {
+bool Members::Controller::appendInvitedUsers() {
+	auto changed = false;
 	if (const auto id = _call->id()) {
 		for (const auto &user : _peer->owner().invitedToCallUsers(id)) {
 			if (auto row = createInvitedRow(user)) {
 				delegate()->peerListAppendRow(std::move(row));
+				changed = true;
 			}
 		}
+	}
+	return changed;
+}
+
+void Members::Controller::setupInvitedUsers() {
+	if (appendInvitedUsers()) {
 		delegate()->peerListRefreshRows();
 	}
 
@@ -503,15 +520,79 @@ void Members::Controller::appendInvitedUsers() {
 	}, _lifetime);
 }
 
+bool Members::Controller::appendWithAccessUsers() {
+	auto changed = false;
+	for (const auto id : _withAccess) {
+		if (auto row = createWithAccessRow(_peer->owner().user(id))) {
+			changed = true;
+			delegate()->peerListAppendRow(std::move(row));
+		}
+	}
+	return changed;
+}
+
+void Members::Controller::setupWithAccessUsers() {
+	const auto conference = _call->conferenceCall().get();
+	if (!conference) {
+		return;
+	}
+	conference->participantsWithAccessValue(
+	) | rpl::start_with_next([=](base::flat_set<UserId> &&nowIds) {
+		for (auto i = begin(_withAccess); i != end(_withAccess);) {
+			const auto oldId = *i;
+			if (nowIds.remove(oldId)) {
+				++i;
+				continue;
+			}
+			const auto user = _peer->owner().user(oldId);
+			if (const auto row = findRow(user)) {
+				if (row->state() == Row::State::WithAccess) {
+					removeRow(row);
+				}
+			}
+			i = _withAccess.erase(i);
+		}
+		auto partition = false;
+		auto partitionChecked = false;
+		for (const auto nowId : nowIds) {
+			const auto user = _peer->owner().user(nowId);
+			if (!findRow(user)) {
+				if (auto row = createWithAccessRow(user)) {
+					if (!partitionChecked) {
+						partitionChecked = true;
+						if (const auto count = delegate()->peerListFullRowsCount()) {
+							const auto last = delegate()->peerListRowAt(count - 1);
+							const auto state = static_cast<Row*>(last.get())->state();
+							if (state == Row::State::Invited) {
+								partition = true;
+							}
+						}
+					}
+					delegate()->peerListAppendRow(std::move(row));
+				}
+			}
+			_withAccess.emplace(nowId);
+		}
+		if (partition) {
+			delegate()->peerListPartitionRows([](const PeerListRow &row) {
+				const auto state = static_cast<const Row&>(row).state();
+				return (state != Row::State::Invited);
+			});
+		}
+		delegate()->peerListRefreshRows();
+	}, _lifetime);
+}
+
 void Members::Controller::updateRow(
 		const std::optional<Data::GroupCallParticipant> &was,
 		const Data::GroupCallParticipant &now) {
-	auto reorderIfInvitedBefore = 0;
+	auto reorderIfNonRealBefore = 0;
 	auto checkPosition = (Row*)nullptr;
 	auto addedToBottom = (Row*)nullptr;
 	if (const auto row = findRow(now.peer)) {
-		if (row->state() == Row::State::Invited) {
-			reorderIfInvitedBefore = row->absoluteIndex();
+		if (row->state() == Row::State::Invited
+			|| row->state() == Row::State::WithAccess) {
+			reorderIfNonRealBefore = row->absoluteIndex();
 		}
 		updateRow(row, was, &now);
 		if ((now.speaking && (!was || !was->speaking))
@@ -523,7 +604,7 @@ void Members::Controller::updateRow(
 		if (row->speaking()) {
 			delegate()->peerListPrependRow(std::move(row));
 		} else {
-			reorderIfInvitedBefore = delegate()->peerListFullRowsCount();
+			reorderIfNonRealBefore = delegate()->peerListFullRowsCount();
 			if (now.raisedHandRating != 0) {
 				checkPosition = row.get();
 			} else {
@@ -533,20 +614,19 @@ void Members::Controller::updateRow(
 		}
 		delegate()->peerListRefreshRows();
 	}
-	static constexpr auto kInvited = Row::State::Invited;
 	const auto reorder = [&] {
-		const auto count = reorderIfInvitedBefore;
+		const auto count = reorderIfNonRealBefore;
 		if (count <= 0) {
 			return false;
 		}
 		const auto row = delegate()->peerListRowAt(
-			reorderIfInvitedBefore - 1).get();
-		return (static_cast<Row*>(row)->state() == kInvited);
+			reorderIfNonRealBefore - 1).get();
+		using State = Row::State;
+		const auto state = static_cast<Row*>(row)->state();
+		return (state == State::Invited) || (state == State::WithAccess);
 	}();
 	if (reorder) {
-		delegate()->peerListPartitionRows([](const PeerListRow &row) {
-			return static_cast<const Row&>(row).state() != kInvited;
-		});
+		partitionRows();
 	}
 	if (checkPosition) {
 		checkRowPosition(checkPosition);
@@ -567,6 +647,24 @@ void Members::Controller::updateRow(
 				return proj(a) > proj(b);
 			});
 		}
+	}
+}
+
+void Members::Controller::partitionRows() {
+	auto hadWithAccess = false;
+	delegate()->peerListPartitionRows([&](const PeerListRow &row) {
+		using State = Row::State;
+		const auto state = static_cast<const Row&>(row).state();
+		if (state == State::WithAccess) {
+			hadWithAccess = true;
+		}
+		return (state != State::Invited) && (state != State::WithAccess);
+	});
+	if (hadWithAccess) {
+		delegate()->peerListPartitionRows([](const PeerListRow &row) {
+			const auto state = static_cast<const Row&>(row).state();
+			return (state != Row::State::Invited);
+		});
 	}
 }
 
@@ -692,14 +790,21 @@ void Members::Controller::checkRowPosition(not_null<Row*> row) {
 void Members::Controller::updateRow(
 		not_null<Row*> row,
 		const std::optional<Data::GroupCallParticipant> &was,
-		const Data::GroupCallParticipant *participant) {
+		const Data::GroupCallParticipant *participant,
+		Row::State noParticipantState) {
 	const auto wasSounding = row->sounding();
 	const auto wasSsrc = was ? was->ssrc : 0;
 	const auto wasAdditionalSsrc = was
 		? GetAdditionalAudioSsrc(was->videoParams)
 		: 0;
 	row->setSkipLevelUpdate(_skipRowLevelUpdate);
-	row->updateState(participant);
+	if (participant) {
+		row->updateState(*participant);
+	} else if (noParticipantState == Row::State::WithAccess) {
+		row->updateStateWithAccess();
+	} else {
+		row->updateStateInvited();
+	}
 
 	const auto wasNoSounding = _soundingRowBySsrc.empty();
 	updateRowInSoundingMap(
@@ -842,7 +947,8 @@ void Members::Controller::prepare() {
 	}
 
 	loadMoreRows();
-	appendInvitedUsers();
+	setupWithAccessUsers();
+	setupInvitedUsers();
 	_prepared = true;
 
 	setupListChangeViewers();
@@ -892,6 +998,12 @@ void Members::Controller::prepareRows(not_null<Data::GroupCall*> real) {
 			changed = true;
 			delegate()->peerListAppendRow(std::move(row));
 		}
+	}
+	if (appendWithAccessUsers()) {
+		changed = true;
+	}
+	if (appendInvitedUsers()) {
+		changed = true;
 	}
 	if (changed) {
 		delegate()->peerListRefreshRows();
@@ -1354,8 +1466,9 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 		}
 		const auto canKick = [&] {
 			const auto user = participantPeer->asUser();
-			if (static_cast<Row*>(row.get())->state()
-				== Row::State::Invited) {
+			const auto state = static_cast<Row*>(row.get())->state();
+			if (state == Row::State::Invited
+				|| state == Row::State::WithAccess) {
 				return false;
 			} else if (const auto chat = _peer->asChat()) {
 				return chat->amCreator()
@@ -1484,6 +1597,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 
 	const auto muteAction = [&]() -> QAction* {
 		if (muteState == Row::State::Invited
+			|| muteState == Row::State::WithAccess
 			|| _call->rtmp()
 			|| isMe(participantPeer)
 			|| (muteState == Row::State::Inactive
@@ -1544,6 +1658,16 @@ std::unique_ptr<Row> Members::Controller::createInvitedRow(
 	}
 	auto result = std::make_unique<Row>(this, participantPeer);
 	updateRow(result.get(), std::nullopt, nullptr);
+	return result;
+}
+
+std::unique_ptr<Row> Members::Controller::createWithAccessRow(
+		not_null<PeerData*> participantPeer) {
+	if (findRow(participantPeer)) {
+		return nullptr;
+	}
+	auto result = std::make_unique<Row>(this, participantPeer);
+	updateRow(result.get(), std::nullopt, nullptr, Row::State::WithAccess);
 	return result;
 }
 
