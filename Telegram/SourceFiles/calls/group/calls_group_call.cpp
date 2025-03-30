@@ -736,13 +736,12 @@ void GroupCall::removeConferenceParticipants(
 	Expects(_e2e != nullptr);
 	Expects(!userIds.empty());
 
-	const auto owner = &_peer->owner();
-	auto inputs = QVector<MTPInputPeer>();
+	auto inputs = QVector<MTPlong>();
 	inputs.reserve(userIds.size());
 	auto ids = base::flat_set<TdE2E::UserId>();
 	ids.reserve(userIds.size());
 	for (const auto &id : userIds) {
-		inputs.push_back(owner->user(id)->input);
+		inputs.push_back(MTP_long(peerToUser(id).bare));
 		ids.emplace(TdE2E::MakeUserId(id));
 	}
 	const auto block = _e2e->makeRemoveBlock(ids);
@@ -751,7 +750,7 @@ void GroupCall::removeConferenceParticipants(
 	}
 	_api.request(MTPphone_DeleteConferenceCallParticipants(
 		inputCall(),
-		MTP_vector<MTPInputPeer>(std::move(inputs)),
+		MTP_vector<MTPlong>(std::move(inputs)),
 		MTP_bytes(block.data)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
