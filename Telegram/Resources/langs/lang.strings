@@ -1195,6 +1195,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_quick_dialog_action_delete" = "Delete";
 "lng_settings_quick_dialog_action_disabled" = "Change folder";
 
+"lng_quick_dialog_action_toast_mute_success" = "Notifications for this chat have been muted.";
+"lng_quick_dialog_action_toast_unmute_success" = "Notifications enabled for this chat.";
+"lng_quick_dialog_action_toast_pin_success" = "The chat has been pinned.";
+"lng_quick_dialog_action_toast_unpin_success" = "The chat has been unpinned.";
+"lng_quick_dialog_action_toast_read_success" = "The chat has been marked as read.";
+"lng_quick_dialog_action_toast_unread_success" = "The chat has been marked as unread.";
+"lng_quick_dialog_action_toast_archive_success" = "The chat has been archived.";
+"lng_quick_dialog_action_toast_unarchive_success" = "The chat has been unarchived.";
+
 "lng_settings_generic_subscribe" = "Subscribe to {link} to use this setting.";
 "lng_settings_generic_subscribe_link" = "Telegram Premium";
 

@@ -390,7 +390,8 @@ bool PinnedLimitReached(
 
 void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
-		not_null<Dialogs::Entry*> entry) {
+		not_null<Dialogs::Entry*> entry,
+		Fn<void()> onToggled) {
 	if (!entry->folderKnown()) {
 		return;
 	}
@@ -410,6 +411,9 @@ void TogglePinnedThread(
 			MTP_inputDialogPeer(history->peer->input)
 		)).done([=] {
 			owner->notifyPinnedDialogsOrderUpdated();
+			if (onToggled) {
+				onToggled();
+			}
 		}).send();
 		if (isPinned) {
 			controller->content()->dialogsToUp();
@@ -421,6 +425,9 @@ void TogglePinnedThread(
 			MTP_bool(isPinned)
 		)).done([=](const MTPUpdates &result) {
 			owner->session().api().applyUpdates(result);
+			if (onToggled) {
+				onToggled();
+			}
 		}).send();
 	} else if (const auto sublist = entry->asSublist()) {
 		const auto flags = isPinned
@@ -431,6 +438,9 @@ void TogglePinnedThread(
 			MTP_inputDialogPeer(sublist->peer()->input)
 		)).done([=] {
 			owner->notifyPinnedDialogsOrderUpdated();
+			if (onToggled) {
+				onToggled();
+			}
 		}).send();
 		//if (isPinned) {
 		//	controller->content()->dialogsToUp();
@@ -499,7 +509,7 @@ void Filler::addTogglePin() {
 	const auto weak = base::make_weak(entry);
 	const auto pinToggle = [=] {
 		if (const auto strong = weak.get()) {
-			TogglePinnedThread(controller, strong, filterId);
+			TogglePinnedThread(controller, strong, filterId, nullptr);
 		}
 	};
 	_addAction(
@@ -3310,9 +3320,10 @@ void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction) {
 void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
 		not_null<Dialogs::Entry*> entry,
-		FilterId filterId) {
+		FilterId filterId,
+		Fn<void()> onToggled) {
 	if (!filterId) {
-		return TogglePinnedThread(controller, entry);
+		return TogglePinnedThread(controller, entry, onToggled);
 	}
 	const auto history = entry->asHistory();
 	if (!history) {
@@ -3338,6 +3349,9 @@ void TogglePinnedThread(
 	Api::SaveNewFilterPinned(&owner->session(), filterId);
 	if (isPinned) {
 		controller->content()->dialogsToUp();
+		if (onToggled) {
+			onToggled();
+		}
 	}
 }
 

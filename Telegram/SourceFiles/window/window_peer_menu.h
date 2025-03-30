@@ -202,7 +202,8 @@ void ToggleMessagePinned(
 void TogglePinnedThread(
 	not_null<Window::SessionController*> controller,
 	not_null<Dialogs::Entry*> entry,
-	FilterId filterId);
+	FilterId filterId,
+	Fn<void()> onToggled);
 void HidePinnedBar(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
