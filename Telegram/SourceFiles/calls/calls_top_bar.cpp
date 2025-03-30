@@ -424,7 +424,7 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			call->hangup();
 		} else if (const auto group = _groupCall.get()) {
-			if (!group->peer()->canManageGroupCall()) {
+			if (!group->canManage()) {
 				group->hangup();
 			} else {
 				_show->showBox(

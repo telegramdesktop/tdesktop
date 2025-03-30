@@ -1239,8 +1239,13 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 		}
 	}, _lifetime);
 
+	if (_conferenceCall) {
+		_canManage = _conferenceCall->canManage();
+		return;
+	}
 	_peer->session().updates().addActiveChat(
 		_peerStream.events_starting_with_copy(_peer));
+	_canManage = Data::CanManageGroupCallValue(_peer);
 	SubscribeToMigration(_peer, _lifetime, [=](not_null<ChannelData*> group) {
 		_peer = group;
 		_canManage = Data::CanManageGroupCallValue(_peer);

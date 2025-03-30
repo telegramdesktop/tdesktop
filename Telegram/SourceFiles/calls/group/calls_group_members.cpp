@@ -615,7 +615,7 @@ bool Members::Controller::needToReorder(not_null<Row*> row) const {
 
 	if (row->speaking()) {
 		return !allRowsAboveAreSpeaking(row);
-	} else if (!_peer->canManageGroupCall()) {
+	} else if (!_call->canManage()) {
 		// Raising hands reorder participants only for voice chat admins.
 		return false;
 	}
@@ -684,7 +684,7 @@ void Members::Controller::checkRowPosition(not_null<Row*> row) {
 			return proj(a) > proj(b);
 		};
 	};
-	delegate()->peerListSortRows(_peer->canManageGroupCall()
+	delegate()->peerListSortRows(_call->canManage()
 		? makeComparator(projForAdmin)
 		: makeComparator(projForOther));
 }
@@ -919,7 +919,7 @@ bool Members::Controller::rowIsMe(not_null<PeerData*> participantPeer) {
 }
 
 bool Members::Controller::rowCanMuteMembers() {
-	return _peer->canManageGroupCall();
+	return _call->canManage();
 }
 
 void Members::Controller::rowUpdateRow(not_null<Row*> row) {
@@ -1317,7 +1317,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 				false,
 				static_cast<Row*>(row.get()));
 		} else if (participant
-			&& (!isMe(participantPeer) || _peer->canManageGroupCall())
+			&& (!isMe(participantPeer) || _call->canManage())
 			&& (participant->ssrc != 0
 				|| GetAdditionalAudioSsrc(participant->videoParams) != 0)) {
 			addMuteActionsToContextMenu(
@@ -1387,11 +1387,11 @@ void Members::Controller::addMuteActionsToContextMenu(
 		bool participantIsCallAdmin,
 		not_null<Row*> row) {
 	const auto muteUnmuteString = [=](bool muted, bool mutedByMe) {
-		return (muted && _peer->canManageGroupCall())
+		return (muted && _call->canManage())
 			? tr::lng_group_call_context_unmute(tr::now)
 			: mutedByMe
 			? tr::lng_group_call_context_unmute_for_me(tr::now)
-			: _peer->canManageGroupCall()
+			: _call->canManage()
 			? tr::lng_group_call_context_mute(tr::now)
 			: tr::lng_group_call_context_mute_for_me(tr::now);
 	};
@@ -1488,7 +1488,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 			|| isMe(participantPeer)
 			|| (muteState == Row::State::Inactive
 				&& participantIsCallAdmin
-				&& _peer->canManageGroupCall())) {
+				&& _call->canManage())) {
 			return nullptr;
 		}
 		auto callback = [=] {

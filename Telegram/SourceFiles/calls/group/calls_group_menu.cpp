@@ -441,7 +441,7 @@ void LeaveBox(
 					: tr::lng_group_call_leave_sure())),
 			(inCall ? st::groupCallBoxLabel : st::boxLabel)),
 		scheduled ? st::boxPadding : st::boxRowPadding);
-	const auto discard = call->peer()->canManageGroupCall()
+	const auto discard = call->canManage()
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
 			(scheduled
@@ -507,9 +507,12 @@ void FillMenu(
 		return;
 	}
 
+	const auto conference = call->conference();
 	const auto addEditJoinAs = call->showChooseJoinAs();
-	const auto addEditTitle = call->canManage();
-	const auto addEditRecording = call->canManage() && !real->scheduleDate();
+	const auto addEditTitle = !conference && call->canManage();
+	const auto addEditRecording = !conference
+		&& call->canManage()
+		&& !real->scheduleDate();
 	const auto addScreenCast = !wide
 		&& call->videoIsWorking()
 		&& !real->scheduleDate();

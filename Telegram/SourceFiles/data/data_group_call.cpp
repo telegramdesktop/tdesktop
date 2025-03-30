@@ -128,6 +128,10 @@ bool GroupCall::rtmp() const {
 	return _rtmp;
 }
 
+bool GroupCall::canManage() const {
+	return _conference ? _creator : _peer->canManageGroupCall();
+}
+
 bool GroupCall::listenersHidden() const {
 	return _listenersHidden;
 }
@@ -539,6 +543,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 		_version = 1;
 	}
 	_rtmp = data.is_rtmp_stream();
+	_creator = data.is_creator();
 	_listenersHidden = data.is_listeners_hidden();
 	_joinMuted = data.is_join_muted();
 	_canChangeJoinMuted = data.is_can_change_join_muted();

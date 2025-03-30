@@ -78,6 +78,7 @@ public:
 	[[nodiscard]] CallId id() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool rtmp() const;
+	[[nodiscard]] bool canManage() const;
 	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
@@ -271,6 +272,7 @@ private:
 	mtpRequestId _checkStaleRequestId = 0;
 	rpl::lifetime _checkStaleLifetime;
 
+	bool _creator : 1 = false;
 	bool _joinMuted : 1 = false;
 	bool _canChangeJoinMuted : 1 = true;
 	bool _allParticipantsLoaded : 1 = false;
