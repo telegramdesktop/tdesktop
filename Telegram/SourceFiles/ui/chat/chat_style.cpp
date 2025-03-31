@@ -388,6 +388,12 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyCallCameraOutIcon,
 		st::historyCallCameraOutIconSelected);
 	make(
+		&MessageStyle::historyCallGroupIcon,
+		st::historyCallGroupInIcon,
+		st::historyCallGroupInIconSelected,
+		st::historyCallGroupOutIcon,
+		st::historyCallGroupOutIconSelected);
+	make(
 		&MessageStyle::historyFilePlay,
 		st::historyFileInPlay,
 		st::historyFileInPlaySelected,

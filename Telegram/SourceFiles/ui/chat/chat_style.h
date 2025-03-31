@@ -76,6 +76,7 @@ struct MessageStyle {
 	style::icon historyCallArrowMissed = { Qt::Uninitialized };
 	style::icon historyCallIcon = { Qt::Uninitialized };
 	style::icon historyCallCameraIcon = { Qt::Uninitialized };
+	style::icon historyCallGroupIcon = { Qt::Uninitialized };
 	style::icon historyFilePlay = { Qt::Uninitialized };
 	style::icon historyFileWaiting = { Qt::Uninitialized };
 	style::icon historyFileDownload = { Qt::Uninitialized };

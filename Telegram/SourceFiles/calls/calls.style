@@ -132,7 +132,6 @@ callHangup: CallButton(callAnswer) {
 	}
 	bg: callHangupBg;
 	outerBg: callHangupBg;
-	label: callButtonLabel;
 }
 callCancel: CallButton(callAnswer) {
 	button: IconButton(callButton) {
@@ -143,7 +142,6 @@ callCancel: CallButton(callAnswer) {
 	}
 	bg: callIconBgActive;
 	outerBg: callIconBgActive;
-	label: callButtonLabel;
 }
 callMicrophoneMute: CallButton(callAnswer) {
 	button: IconButton(callButton) {
@@ -154,7 +152,6 @@ callMicrophoneMute: CallButton(callAnswer) {
 	}
 	bg: callIconBg;
 	outerBg: callMuteRipple;
-	label: callButtonLabel;
 	cornerButtonPosition: point(40px, 4px);
 	cornerButtonBorder: 2px;
 }
@@ -185,15 +182,14 @@ callCameraUnmute: CallButton(callMicrophoneUnmute) {
 }
 callAddPeople: CallButton(callAnswer) {
 	button: IconButton(callButton) {
-		icon: icon {{ "settings/group", callIconFgActive }};
-		iconPosition: point(-1px, 24px);
+		icon: icon {{ "calls/calls_add_people", callIconFg }};
+		iconPosition: point(-1px, 22px);
 		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: callIconActiveRipple;
+			color: callMuteRipple;
 		}
 	}
-	bg: callIconBgActive;
-	outerBg: callIconBgActive;
-	label: callButtonLabel;
+	bg: callIconBg;
+	outerBg: callMuteRipple;
 }
 callCornerButtonInner: IconButton {
 	width: 20px;
@@ -930,7 +926,6 @@ groupCallHangup: CallButton(callHangup) {
 	button: groupCallHangupInner;
 	bg: groupCallLeaveBg;
 	outerBg: groupCallLeaveBg;
-	label: callButtonLabel;
 }
 groupCallSettingsSmall: CallButton(groupCallSettings) {
 	button: IconButton(groupCallSettingsInner) {

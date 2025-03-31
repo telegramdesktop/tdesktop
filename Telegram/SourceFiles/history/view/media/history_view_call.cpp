@@ -116,7 +116,9 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 	p.setPen(stm->mediaFg);
 	p.drawTextLeft(statusleft, statustop, paintw, _status);
 
-	const auto &icon = _video
+	const auto &icon = _conference
+		? stm->historyCallGroupIcon
+		: _video
 		? stm->historyCallCameraIcon
 		: stm->historyCallIcon;
 	icon.paint(p, paintw - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, paintw);
