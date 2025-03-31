@@ -77,6 +77,15 @@ struct StartConferenceCallArgs {
 	bool migrating = false;
 };
 
+struct ConferenceInviteMessages {
+	base::flat_set<MsgId> incoming;
+	base::flat_set<MsgId> outgoing;
+};
+
+struct ConferenceInvites {
+	base::flat_map<not_null<UserData*>, ConferenceInviteMessages> users;
+};
+
 class Instance final : public base::has_weak_ptr {
 public:
 	Instance();
@@ -121,6 +130,23 @@ public:
 		bool isScreenCapture = false)
 		-> std::shared_ptr<tgcalls::VideoCaptureInterface>;
 	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
+
+	[[nodiscard]] const ConferenceInvites &conferenceInvites(
+		CallId conferenceId) const;
+	void registerConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming);
+	void unregisterConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming);
+	void showConferenceInvite(
+		not_null<UserData*> user,
+		MsgId conferenceInviteMsgId);
+	void declineIncomingConferenceInvites(CallId conferenceId);
 
 	[[nodiscard]] FnMut<void()> addAsyncWaiter();
 
@@ -187,6 +213,8 @@ private:
 
 	const std::unique_ptr<Group::ChooseJoinAsProcess> _chooseJoinAs;
 	const std::unique_ptr<Group::StartRtmpProcess> _startWithRtmp;
+
+	base::flat_map<CallId, ConferenceInvites> _conferenceInvites;
 
 	base::flat_set<std::unique_ptr<crl::semaphore>> _asyncWaiters;
 

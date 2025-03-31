@@ -513,7 +513,14 @@ void Members::Controller::setupInvitedUsers() {
 	) | rpl::filter([=](const Invite &invite) {
 		return (invite.id == _call->id());
 	}) | rpl::start_with_next([=](const Invite &invite) {
-		if (auto row = createInvitedRow(invite.user)) {
+		if (invite.removed) {
+			if (const auto row = findRow(invite.user)) {
+				if (row->state() == Row::State::Invited) {
+					delegate()->peerListRemoveRow(row);
+					delegate()->peerListRefreshRows();
+				}
+			}
+		} else if (auto row = createInvitedRow(invite.user)) {
 			delegate()->peerListAppendRow(std::move(row));
 			delegate()->peerListRefreshRows();
 		}

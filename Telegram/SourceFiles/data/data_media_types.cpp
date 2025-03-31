@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "calls/calls_instance.h"
 #include "core/application.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "lang/lang_keys.h"
@@ -1684,11 +1685,32 @@ std::unique_ptr<HistoryView::Media> MediaLocation::createView(
 MediaCall::MediaCall(not_null<HistoryItem*> parent, const Call &call)
 : Media(parent)
 , _call(call) {
-	parent->history()->owner().registerCallItem(parent);
+	const auto peer = parent->history()->peer;
+	peer->owner().registerCallItem(parent);
+	if (const auto user = _call.conferenceId ? peer->asUser() : nullptr) {
+		if (_call.state == CallState::Invitation) {
+			Core::App().calls().registerConferenceInvite(
+				_call.conferenceId,
+				user,
+				parent->id,
+				!parent->out());
+		}
+	}
 }
 
 MediaCall::~MediaCall() {
-	parent()->history()->owner().unregisterCallItem(parent());
+	const auto parent = this->parent();
+	const auto peer = parent->history()->peer;
+	peer->owner().unregisterCallItem(parent);
+	if (const auto user = _call.conferenceId ? peer->asUser() : nullptr) {
+		if (_call.state == CallState::Invitation) {
+			Core::App().calls().unregisterConferenceInvite(
+				_call.conferenceId,
+				user,
+				parent->id,
+				!parent->out());
+		}
+	}
 }
 
 std::unique_ptr<Media> MediaCall::clone(not_null<HistoryItem*> parent) {

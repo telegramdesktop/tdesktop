@@ -52,7 +52,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
-#include "window/window_session_controller.h"
 #include "calls/calls_instance.h"
 #include "spellcheck/spellcheck_types.h"
 #include "storage/localstorage.h"
@@ -1228,8 +1227,8 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionConferenceCall &data) {
 		if (!data.is_active() && !data.is_missed() && !item->out()) {
-			if (const auto window = session().tryResolveWindow()) {
-				window->resolveConferenceCall(item->id);
+			if (const auto user = item->history()->peer->asUser()) {
+				Core::App().calls().showConferenceInvite(user, item->id);
 			}
 		}
 	}, [](const auto &) {

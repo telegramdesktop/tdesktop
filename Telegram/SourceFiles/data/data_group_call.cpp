@@ -789,7 +789,8 @@ void GroupCall::applyParticipantsSlice(
 				.videoJoined = videoJoined,
 				.applyVolumeFromMin = applyVolumeFromMin,
 			};
-			if (i == end(_participants)) {
+			const auto adding = (i == end(_participants));
+			if (adding) {
 				if (value.ssrc) {
 					_participantPeerByAudioSsrc.emplace(
 						value.ssrc,
@@ -802,9 +803,6 @@ void GroupCall::applyParticipantsSlice(
 						participantPeer);
 				}
 				_participants.push_back(value);
-				if (const auto user = participantPeer->asUser()) {
-					_peer->owner().unregisterInvitedToCallUser(_id, user);
-				}
 			} else {
 				if (i->ssrc != value.ssrc) {
 					_participantPeerByAudioSsrc.erase(i->ssrc);
@@ -835,6 +833,11 @@ void GroupCall::applyParticipantsSlice(
 					.was = was,
 					.now = value,
 				});
+			}
+			if (adding) {
+				if (const auto user = participantPeer->asUser()) {
+					_peer->owner().unregisterInvitedToCallUser(_id, user);
+				}
 			}
 		});
 	}

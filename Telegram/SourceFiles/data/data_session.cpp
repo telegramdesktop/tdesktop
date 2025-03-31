@@ -1257,6 +1257,7 @@ void Session::unregisterInvitedToCallUser(
 		i->second.remove(user);
 		if (i->second.empty()) {
 			_invitedToCallUsers.erase(i);
+			_invitesToCalls.fire({ callId, user, true });
 		}
 	}
 }

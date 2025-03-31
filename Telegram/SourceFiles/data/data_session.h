@@ -256,6 +256,7 @@ public:
 	struct InviteToCall {
 		CallId id = 0;
 		not_null<UserData*> user;
+		bool removed = false;
 	};
 	[[nodiscard]] rpl::producer<InviteToCall> invitesToCalls() const {
 		return _invitesToCalls.events();

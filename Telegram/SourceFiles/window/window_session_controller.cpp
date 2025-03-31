@@ -881,26 +881,17 @@ void SessionNavigation::resolveConferenceCall(
 				data.vid().v,
 				data.vaccess_hash().v);
 			call->processFullCall(result);
-			const auto confirmed = std::make_shared<bool>();
 			const auto join = [=] {
-				*confirmed = true;
 				Core::App().calls().startOrJoinConferenceCall({
 					.call = call,
 					.linkSlug = slug,
 					.joinMessageId = inviteMsgId,
 				});
 			};
-			const auto box = uiShow()->show(Box(
+			uiShow()->show(Box(
 				Calls::Group::ConferenceCallJoinConfirm,
 				call,
 				join));
-			box->boxClosing() | rpl::start_with_next([=] {
-				if (inviteMsgId && !*confirmed) {
-					_api.request(MTPphone_DeclineConferenceCallInvite(
-						MTP_int(inviteMsgId.bare)
-					)).send();
-				}
-			}, box->lifetime());
 			if (finished) {
 				finished(true);
 			}

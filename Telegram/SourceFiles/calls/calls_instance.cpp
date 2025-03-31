@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_rtmp.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -26,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_panel.h"
 #include "data/data_user.h"
 #include "data/data_group_call.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
@@ -103,6 +106,8 @@ void Instance::Delegate::callFailed(not_null<Call*> call) {
 }
 
 void Instance::Delegate::callRedial(not_null<Call*> call) {
+	Expects(!call->conferenceInvite());
+
 	if (_instance->_currentCall.get() == call) {
 		_instance->refreshDhConfig();
 	}
@@ -256,7 +261,7 @@ void Instance::startOrJoinConferenceCall(StartConferenceCallArgs args) {
 	_currentGroupCallChanges.fire_copy(raw);
 	if (!args.invite.empty()) {
 		_currentGroupCallPanel->migrationInviteUsers(std::move(args.invite));
-	} else if (args.migrating) {
+	} else if (args.migrating && !args.linkSlug.isEmpty()) {
 		_currentGroupCallPanel->migrationShowShareLink();
 	}
 }
@@ -442,6 +447,7 @@ void Instance::createGroupCall(
 
 void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
+	Expects(!_currentCall->conferenceInvite());
 
 	const auto weak = base::make_weak(_currentCall);
 	_currentCall->user()->session().api().request(MTPmessages_GetDhConfig(
@@ -898,5 +904,130 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 	_videoCapture = result;
 	return result;
 }
+
+const ConferenceInvites &Instance::conferenceInvites(
+		CallId conferenceId) const {
+	static const auto kEmpty = ConferenceInvites();
+	const auto i = _conferenceInvites.find(conferenceId);
+	return (i != end(_conferenceInvites)) ? i->second : kEmpty;
+}
+
+void Instance::registerConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming) {
+	auto &info = _conferenceInvites[conferenceId].users[user];
+	(incoming ? info.incoming : info.outgoing).emplace(messageId);
+}
+
+void Instance::unregisterConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming) {
+	const auto i = _conferenceInvites.find(conferenceId);
+	if (i == end(_conferenceInvites)) {
+		return;
+	}
+	const auto j = i->second.users.find(user);
+	if (j == end(i->second.users)) {
+		return;
+	}
+	auto &info = j->second;
+	(incoming ? info.incoming : info.outgoing).remove(messageId);
+	if (!incoming) {
+		user->owner().unregisterInvitedToCallUser(conferenceId, user);
+	}
+	if (info.incoming.empty() && info.outgoing.empty()) {
+		i->second.users.erase(j);
+		if (i->second.users.empty()) {
+			_conferenceInvites.erase(i);
+		}
+	}
+	if (_currentCall
+		&& _currentCall->user() == user
+		&& _currentCall->conferenceInviteMsgId() == messageId
+		&& _currentCall->state() == Call::State::WaitingIncoming) {
+		destroyCurrentCall();
+	}
+}
+
+void Instance::declineIncomingConferenceInvites(CallId conferenceId) {
+	const auto i = _conferenceInvites.find(conferenceId);
+	if (i == end(_conferenceInvites)) {
+		return;
+	}
+	for (auto j = begin(i->second.users); j != end(i->second.users);) {
+		const auto api = &j->first->session().api();
+		for (const auto &messageId : base::take(j->second.incoming)) {
+			api->request(MTPphone_DeclineConferenceCallInvite(
+				MTP_int(messageId.bare)
+			)).send();
+		}
+		if (j->second.outgoing.empty()) {
+			j = i->second.users.erase(j);
+		} else {
+			++j;
+		}
+	}
+	if (i->second.users.empty()) {
+		_conferenceInvites.erase(i);
+	}
+}
+
+void Instance::showConferenceInvite(
+		not_null<UserData*> user,
+		MsgId conferenceInviteMsgId) {
+	const auto item = user->owner().message(user, conferenceInviteMsgId);
+	const auto media = item ? item->media() : nullptr;
+	const auto call = media ? media->call() : nullptr;
+	const auto conferenceId = call ? call->conferenceId : 0;
+	if (!conferenceId
+		|| call->state != Data::CallState::Invitation
+		|| user->isSelf()) {
+		return;
+	} else if (_currentCall
+		&& _currentCall->conferenceId() == conferenceId) {
+		return;
+	} else if (inGroupCall()
+		&& _currentGroupCall->conference()
+		&& _currentGroupCall->conferenceCall()->id() == conferenceId) {
+		return;
+	}
+
+	const auto &config = user->session().serverConfig();
+	if (inCall() || inGroupCall()) {
+		declineIncomingConferenceInvites(conferenceId);
+	} else if (item->date() + (config.callRingTimeoutMs / 1000)
+		< base::unixtime::now()) {
+		declineIncomingConferenceInvites(conferenceId);
+		LOG(("Ignoring too old conference call invitation."));
+	} else {
+		const auto delegate = _delegate.get();
+		auto call = std::make_unique<Call>(
+			delegate,
+			user,
+			conferenceId,
+			conferenceInviteMsgId);
+		const auto raw = call.get();
+
+		user->session().account().sessionChanges(
+		) | rpl::start_with_next([=] {
+			destroyCall(raw);
+		}, raw->lifetime());
+
+		if (_currentCall) {
+			_currentCallPanel->replaceCall(raw);
+			std::swap(_currentCall, call);
+			call->hangup();
+		} else {
+			_currentCallPanel = std::make_unique<Panel>(raw);
+			_currentCall = std::move(call);
+		}
+		_currentCallChanges.fire_copy(raw);
+	}
+}
+
 
 } // namespace Calls

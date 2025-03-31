@@ -102,6 +102,11 @@ public:
 		not_null<UserData*> user,
 		Type type,
 		bool video);
+	Call(
+		not_null<Delegate*> delegate,
+		not_null<UserData*> user,
+		CallId conferenceId,
+		MsgId conferenceInviteMsgId);
 
 	[[nodiscard]] Type type() const {
 		return _type;
@@ -111,6 +116,15 @@ public:
 	}
 	[[nodiscard]] CallId id() const {
 		return _id;
+	}
+	[[nodiscard]] bool conferenceInvite() const {
+		return _conferenceId != 0;
+	}
+	[[nodiscard]] CallId conferenceId() const {
+		return _conferenceId;
+	}
+	[[nodiscard]] MsgId conferenceInviteMsgId() const {
+		return _conferenceInviteMsgId;
 	}
 	[[nodiscard]] bool isIncomingWaiting() const;
 
@@ -272,6 +286,7 @@ private:
 	bool checkCallFields(const MTPDphoneCallAccepted &call);
 
 	void actuallyAnswer();
+	void acceptConferenceInvite();
 	void confirmAcceptedCall(const MTPDphoneCallAccepted &call);
 	void startConfirmedCall(const MTPDphoneCall &call);
 	void setState(State state);
@@ -324,6 +339,9 @@ private:
 	CallId _id = 0;
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
+
+	CallId _conferenceId = 0;
+	MsgId _conferenceInviteMsgId = 0;
 
 	std::unique_ptr<tgcalls::Instance> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
