@@ -976,6 +976,33 @@ void Instance::declineIncomingConferenceInvites(CallId conferenceId) {
 	}
 }
 
+void Instance::declineOutgoingConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user) {
+	const auto i = _conferenceInvites.find(conferenceId);
+	if (i == end(_conferenceInvites)) {
+		return;
+	}
+	const auto j = i->second.users.find(user);
+	if (j == end(i->second.users)) {
+		return;
+	}
+	const auto api = &user->session().api();
+	for (const auto &messageId : base::take(j->second.outgoing)) {
+		api->request(MTPphone_DeclineConferenceCallInvite(
+			MTP_int(messageId.bare)
+		)).send();
+	}
+	if (!j->second.incoming.empty()) {
+		return;
+	}
+	i->second.users.erase(j);
+	if (i->second.users.empty()) {
+		_conferenceInvites.erase(i);
+	}
+	user->owner().unregisterInvitedToCallUser(conferenceId, user);
+}
+
 void Instance::showConferenceInvite(
 		not_null<UserData*> user,
 		MsgId conferenceInviteMsgId) {

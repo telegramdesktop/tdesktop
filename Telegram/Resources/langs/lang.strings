@@ -4805,6 +4805,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_pin_screen" = "Pin screencast";
 "lng_group_call_context_unpin_screen" = "Unpin screencast";
 "lng_group_call_context_remove" = "Remove";
+"lng_group_call_context_cancel_invite" = "Cancel invitation";
 "lng_group_call_remove_channel" = "Remove {channel} from the video chat and ban them?";
 "lng_group_call_remove_channel_from_channel" = "Remove {channel} from the live stream?";
 "lng_group_call_mac_access" = "Telegram Desktop does not have access to system wide keyboard input required for Push to Talk.";

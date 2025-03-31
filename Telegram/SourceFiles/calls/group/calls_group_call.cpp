@@ -3739,6 +3739,7 @@ void GroupCall::inviteUsers(
 	if (const auto call = _conferenceCall.get()) {
 		for (const auto &user : users) {
 			_api.request(MTPphone_InviteConferenceCallParticipant(
+				MTP_flags(0),
 				inputCallSafe(),
 				user->inputUser
 			)).done([=](const MTPUpdates &result) {
@@ -3752,6 +3753,8 @@ void GroupCall::inviteUsers(
 					state->result.privacyRestricted.push_back(user);
 				} else if (type == u"USER_ALREADY_PARTICIPANT"_q) {
 					state->result.alreadyIn.push_back(user);
+				} else if (type == u"GROUPCALL_FORBIDDEN"_q) {
+					startRejoin();
 				}
 				finishRequest();
 			}).send();

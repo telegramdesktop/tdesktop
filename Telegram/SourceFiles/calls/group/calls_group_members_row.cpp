@@ -639,6 +639,7 @@ void MembersRow::paintComplexStatusText(
 	const auto &font = st::normalFont;
 	const auto useAbout = !_about.isEmpty()
 		&& (_state != State::WithAccess)
+		&& (_state != State::Invited)
 		&& (style != MembersRowStyle::Video)
 		&& ((_state == State::RaisedHand && !_raisedHandStatus)
 			|| (_state != State::RaisedHand && !_speaking));

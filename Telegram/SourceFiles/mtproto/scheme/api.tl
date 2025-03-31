@@ -187,7 +187,7 @@ messageActionStarGift#4717e8a4 flags:# name_hidden:flags.0?true saved:flags.2?tr
 messageActionStarGiftUnique#acdfcb81 flags:# upgrade:flags.0?true transferred:flags.1?true saved:flags.2?true refunded:flags.5?true gift:StarGift can_export_at:flags.3?int transfer_stars:flags.4?long from_id:flags.6?Peer peer:flags.7?Peer saved_id:flags.7?long = MessageAction;
 messageActionPaidMessagesRefunded#ac1f1fcd count:int stars:long = MessageAction;
 messageActionPaidMessagesPrice#bcd71419 stars:long = MessageAction;
-messageActionConferenceCall#2ffe2f7a flags:# missed:flags.0?true active:flags.1?true call_id:long duration:flags.2?int other_participants:flags.3?Vector<Peer> = MessageAction;
+messageActionConferenceCall#2ffe2f7a flags:# missed:flags.0?true active:flags.1?true video:flags.4?true call_id:long duration:flags.2?int other_participants:flags.3?Vector<Peer> = MessageAction;
 
 dialog#d58a08c6 flags:# pinned:flags.2?true unread_mark:flags.3?true view_forum_as_messages:flags.6?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -2610,7 +2610,7 @@ phone.saveCallLog#41248786 peer:InputPhoneCall file:InputFile = Bool;
 phone.createConferenceCall#fbcefee6 random_id:int = phone.GroupCall;
 phone.deleteConferenceCallParticipants#f9231114 call:InputGroupCall ids:Vector<long> block:bytes = Updates;
 phone.sendConferenceCallBroadcast#c6701900 call:InputGroupCall block:bytes = Updates;
-phone.inviteConferenceCallParticipant#3e9cf7ee call:InputGroupCall user_id:InputUser = Updates;
+phone.inviteConferenceCallParticipant#bcf22685 flags:# video:flags.0?true call:InputGroupCall user_id:InputUser = Updates;
 phone.declineConferenceCallInvite#3c479971 msg_id:int = Updates;
 phone.getGroupCallChainBlocks#ee9f88a6 call:InputGroupCall sub_chain_id:int offset:int limit:int = Updates;
 

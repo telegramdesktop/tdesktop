@@ -319,6 +319,10 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 						}) | ranges::to_vector;
 						const auto done = [=](GroupCall::InviteResult result) {
 							(*close)();
+							if (result.invited.empty()
+								&& result.privacyRestricted.empty()) {
+								return;
+							}
 							showToast({ ComposeInviteResultToast(result) });
 						};
 						call->inviteUsers(users, done);

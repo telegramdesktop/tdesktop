@@ -147,6 +147,9 @@ public:
 		not_null<UserData*> user,
 		MsgId conferenceInviteMsgId);
 	void declineIncomingConferenceInvites(CallId conferenceId);
+	void declineOutgoingConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user);
 
 	[[nodiscard]] FnMut<void()> addAsyncWaiter();
 

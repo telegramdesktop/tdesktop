@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_volume_item.h"
 #include "calls/group/calls_group_members_row.h"
 #include "calls/group/calls_group_viewport.h"
+#include "calls/calls_instance.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -1308,6 +1309,9 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto participantPeer = row->peer();
 	const auto real = static_cast<Row*>(row.get());
 	const auto muteState = real->state();
+	if (muteState == Row::State::WithAccess) {
+		return nullptr;
+	}
 	const auto muted = (muteState == Row::State::Muted)
 		|| (muteState == Row::State::RaisedHand);
 	const auto addCover = !_call->rtmp();
@@ -1459,6 +1463,20 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 				removeHand);
 		}
 	} else {
+		const auto conference = _call->conferenceCall().get();
+		if (muteState == Row::State::Invited
+			&& participantPeer->isUser()
+			&& conference) {
+			const auto id = conference->id();
+			const auto cancelInvite = [=] {
+				Core::App().calls().declineOutgoingConferenceInvite(
+					id,
+					participantPeer->asUser());
+			};
+			result->addAction(
+				tr::lng_group_call_context_cancel_invite(tr::now),
+				cancelInvite);
+		}
 		result->addAction(
 			(participantPeer->isUser()
 				? tr::lng_context_view_profile(tr::now)
@@ -1473,9 +1491,8 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 		}
 		const auto canKick = [&] {
 			const auto user = participantPeer->asUser();
-			const auto state = static_cast<Row*>(row.get())->state();
-			if (state == Row::State::Invited
-				|| state == Row::State::WithAccess) {
+			if (muteState == Row::State::Invited
+				|| muteState == Row::State::WithAccess) {
 				return false;
 			} else if (const auto chat = _peer->asChat()) {
 				return chat->amCreator()

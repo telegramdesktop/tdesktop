@@ -1489,8 +1489,12 @@ void Call::finish(
 		|| state == State::Failed) {
 		return;
 	} else if (conferenceInvite()) {
-		Core::App().calls().declineIncomingConferenceInvites(_conferenceId);
-		setState(finalState);
+		if (migrateCall) {
+			_delegate->callFinished(this);
+		} else {
+			Core::App().calls().declineIncomingConferenceInvites(_conferenceId);
+			setState(finalState);
+		}
 		return;
 	} else if (!_id) {
 		setState(finalState);
