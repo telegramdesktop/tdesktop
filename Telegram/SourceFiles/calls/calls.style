@@ -1527,6 +1527,22 @@ confcallLinkFooterOr: FlatLabel(confcallLinkCenteredText) {
 confcallLinkFooterOrTop: 12px;
 confcallLinkFooterOrSkip: 8px;
 confcallLinkFooterOrLineTop: 9px;
+confcallJoinBox: Box(confcallLinkBox) {
+	buttonPadding: margins(24px, 24px, 24px, 24px);
+}
+confcallJoinLogo: icon {{ "calls/group_call_logo", windowFgActive }};
+confcallJoinLogoPadding: margins(8px, 8px, 8px, 8px);
+confcallJoinSepPadding: margins(0px, 8px, 0px, 8px);
+confcallJoinUserpics: UserpicsRow {
+	button: UserpicButton(defaultUserpicButton) {
+		size: size(36px, 36px);
+		photoSize: 36px;
+	}
+	shift: 16px;
+	stroke: 2px;
+	invert: true;
+}
+confcallJoinUserpicsPadding: margins(0px, 0px, 0px, 16px);
 
 groupCallLinkBox: Box(confcallLinkBox) {
 	bg: groupCallMembersBg;

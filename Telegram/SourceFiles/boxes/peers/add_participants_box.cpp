@@ -179,6 +179,7 @@ void FillUpgradeToPremiumCover(
 		CreateUserpicsWithMoreBadge(
 			container,
 			rpl::single(std::move(userpicPeers)),
+			st::boostReplaceUserpicsRow,
 			kUserpicsLimit),
 		st::inviteForbiddenUserpicsPadding)
 	)->entity()->setAttribute(Qt::WA_TransparentForMouseEvents);

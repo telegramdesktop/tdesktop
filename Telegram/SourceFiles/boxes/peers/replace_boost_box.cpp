@@ -550,13 +550,13 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		rpl::variable<int> count = 0;
 		bool painting = false;
 	};
-	const auto full = st::boostReplaceUserpic.size.height()
+	const auto st = &st::boostReplaceUserpicsRow;
+	const auto full = st->button.size.height()
 		+ st::boostReplaceIconAdd.y()
 		+ st::lineWidth;
 	auto result = object_ptr<Ui::FixedHeightWidget>(parent, full);
 	const auto raw = result.data();
-	const auto &st = st::boostReplaceUserpic;
-	const auto right = CreateChild<Ui::UserpicButton>(raw, to, st);
+	const auto right = CreateChild<Ui::UserpicButton>(raw, to, st->button);
 	const auto overlay = CreateChild<Ui::RpWidget>(raw);
 
 	const auto state = raw->lifetime().make_state<State>();
@@ -564,7 +564,6 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		from
 	) | rpl::start_with_next([=](
 			const std::vector<not_null<PeerData*>> &list) {
-		const auto &st = st::boostReplaceUserpic;
 		auto was = base::take(state->from);
 		auto buttons = base::take(state->buttons);
 		state->from.reserve(list.size());
@@ -578,7 +577,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 				state->buttons.push_back(std::move(buttons[index]));
 			} else {
 				state->buttons.push_back(
-					std::make_unique<Ui::UserpicButton>(raw, peer, st));
+					std::make_unique<Ui::UserpicButton>(raw, peer, st->button));
 				const auto raw = state->buttons.back().get();
 				base::install_event_filter(raw, [=](not_null<QEvent*> e) {
 					return (e->type() == QEvent::Paint && !state->painting)
@@ -598,7 +597,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		const auto skip = st::boostReplaceUserpicsSkip;
 		const auto left = width - 2 * right->width() - skip;
 		const auto shift = std::min(
-			st::boostReplaceUserpicsShift,
+			st->shift,
 			(count > 1 ? (left / (count - 1)) : width));
 		const auto total = right->width()
 			+ (count ? (skip + right->width() + (count - 1) * shift) : 0);
@@ -630,7 +629,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 
 		auto q = QPainter(&state->layer);
 		auto hq = PainterHighQualityEnabler(q);
-		const auto stroke = st::boostReplaceIconOutline;
+		const auto stroke = st->stroke;
 		const auto half = stroke / 2.;
 		auto pen = st::windowBg->p;
 		pen.setWidthF(stroke * 2.);
@@ -684,6 +683,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<std::vector<not_null<PeerData*>>> peers,
+		const style::UserpicsRow &st,
 		int limit) {
 	struct State {
 		std::vector<not_null<PeerData*>> from;
@@ -693,7 +693,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 		rpl::variable<int> count = 0;
 		bool painting = false;
 	};
-	const auto full = st::boostReplaceUserpic.size.height()
+	const auto full = st.button.size.height()
 		+ st::boostReplaceIconAdd.y()
 		+ st::lineWidth;
 	auto result = object_ptr<Ui::FixedHeightWidget>(parent, full);
@@ -703,9 +703,8 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 	const auto state = raw->lifetime().make_state<State>();
 	std::move(
 		peers
-	) | rpl::start_with_next([=](
+	) | rpl::start_with_next([=, &st](
 			const std::vector<not_null<PeerData*>> &list) {
-		const auto &st = st::boostReplaceUserpic;
 		auto was = base::take(state->from);
 		auto buttons = base::take(state->buttons);
 		state->from.reserve(list.size());
@@ -719,7 +718,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 				state->buttons.push_back(std::move(buttons[index]));
 			} else {
 				state->buttons.push_back(
-					std::make_unique<Ui::UserpicButton>(raw, peer, st));
+					std::make_unique<Ui::UserpicButton>(raw, peer, st.button));
 				const auto raw = state->buttons.back().get();
 				base::install_event_filter(raw, [=](not_null<QEvent*> e) {
 					return (e->type() == QEvent::Paint && !state->painting)
@@ -735,13 +734,12 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 	rpl::combine(
 		raw->widthValue(),
 		state->count.value()
-	) | rpl::start_with_next([=](int width, int count) {
-		const auto &st = st::boostReplaceUserpic;
-		const auto single = st.size.width();
+	) | rpl::start_with_next([=, &st](int width, int count) {
+		const auto single = st.button.size.width();
 		const auto left = width - single;
 		const auto used = std::min(count, int(state->buttons.size()));
 		const auto shift = std::min(
-			st::boostReplaceUserpicsShift,
+			st.shift,
 			(used > 1 ? (left / (used - 1)) : width));
 		const auto total = used ? (single + (used - 1) * shift) : 0;
 		auto x = (width - total) / 2;
@@ -755,7 +753,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 	overlay->paintRequest(
 	) | rpl::filter([=] {
 		return !state->buttons.empty();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::start_with_next([=, &st] {
 		const auto outerw = overlay->width();
 		const auto ratio = style::DevicePixelRatio();
 		if (state->layer.size() != QSize(outerw, full) * ratio) {
@@ -768,17 +766,26 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 
 		auto q = QPainter(&state->layer);
 		auto hq = PainterHighQualityEnabler(q);
-		const auto stroke = st::boostReplaceIconOutline;
+		const auto stroke = st.stroke;
 		const auto half = stroke / 2.;
 		auto pen = st::windowBg->p;
 		pen.setWidthF(stroke * 2.);
 		state->painting = true;
-		for (const auto &button : state->buttons) {
+		const auto paintOne = [&](not_null<Ui::UserpicButton*> button) {
 			q.setPen(pen);
 			q.setBrush(Qt::NoBrush);
 			q.drawEllipse(button->geometry());
 			const auto position = button->pos();
 			button->render(&q, position, QRegion(), QWidget::DrawChildren);
+		};
+		if (st.invert) {
+			for (const auto &button : ranges::views::reverse(state->buttons)) {
+				paintOne(button.get());
+			}
+		} else {
+			for (const auto &button : state->buttons) {
+				paintOne(button.get());
+			}
 		}
 		state->painting = false;
 		const auto last = state->buttons.back().get();

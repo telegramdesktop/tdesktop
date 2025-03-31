@@ -4916,6 +4916,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_confcall_join_title" = "Group Call";
 "lng_confcall_join_text" = "You are invited to join a Telegram Call.";
+"lng_confcall_join_text_inviter" = "{user} is inviting you to join a Telegram Call.";
+"lng_confcall_already_joined_one" = "{user} already joined this call.";
+"lng_confcall_already_joined_two" = "{user} and {other} already joined this call.";
+"lng_confcall_already_joined_three" = "{user}, {other} and {third} already joined this call.";
+"lng_confcall_already_joined_many#one" = "{user}, {other} and **{count}** other person already joined this call.";
+"lng_confcall_already_joined_many#other" = "{user}, {other} and **{count}** other people already joined this call.";
 "lng_confcall_join_button" = "Join Group Call";
 "lng_confcall_create_link" = "Create Call Link";
 "lng_confcall_create_link_description" = "You can create a link that will allow your friends on Telegram to join the call.";

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/platform/base_platform_info.h"
 #include "base/random.h"
+#include "boxes/peers/replace_boost_box.h" // CreateUserpicsWithMoreBadge
 #include "boxes/share_box.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -90,25 +92,144 @@ object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 void ConferenceCallJoinConfirm(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Data::GroupCall> call,
+		UserData *maybeInviter,
 		Fn<void()> join) {
-	box->setTitle(tr::lng_confcall_join_title());
+	box->setStyle(st::confcallJoinBox);
+	box->setWidth(st::boxWideWidth);
+	box->setNoContentMargin(true);
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
 
+	const auto logoSize = st::confcallJoinLogo.size();
+	const auto logoOuter = logoSize.grownBy(st::confcallJoinLogoPadding);
+	const auto logo = box->addRow(
+		object_ptr<Ui::RpWidget>(box),
+		st::boxRowPadding + st::confcallLinkHeaderIconPadding);
+	logo->resize(logo->width(), logoOuter.height());
+	logo->paintRequest() | rpl::start_with_next([=] {
+		if (logo->width() < logoOuter.width()) {
+			return;
+		}
+		auto p = QPainter(logo);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto x = (logo->width() - logoOuter.width()) / 2;
+		const auto outer = QRect(QPoint(x, 0), logoOuter);
+		p.setBrush(st::windowBgActive);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(outer);
+		st::confcallJoinLogo.paintInCenter(p, outer);
+	}, logo->lifetime());
+
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_confcall_join_title(),
+				st::boxTitle)),
+		st::boxRowPadding + st::confcallLinkTitlePadding);
+	const auto wrapName = [&](not_null<PeerData*> peer) {
+		return rpl::single(Ui::Text::Bold(peer->shortName()));
+	};
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
-			tr::lng_confcall_join_text(),
-			st::boxLabel));
+			(maybeInviter
+				? tr::lng_confcall_join_text_inviter(
+					lt_user,
+					wrapName(maybeInviter),
+					Ui::Text::RichLangValue)
+				: tr::lng_confcall_join_text(Ui::Text::RichLangValue)),
+			st::confcallLinkCenteredText),
+		st::boxRowPadding
+	)->setTryMakeSimilarLines(true);
 
-	box->addButton(tr::lng_confcall_join_button(), [=] {
+	const auto &participants = call->participants();
+	const auto known = int(participants.size());
+	if (known) {
+		const auto sep = box->addRow(
+			object_ptr<Ui::RpWidget>(box),
+			st::boxRowPadding + st::confcallJoinSepPadding);
+		sep->resize(sep->width(), st::normalFont->height);
+		sep->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(sep);
+			const auto line = st::lineWidth;
+			const auto top = st::confcallLinkFooterOrLineTop;
+			const auto fg = st::windowSubTextFg->b;
+			p.setOpacity(0.2);
+			p.fillRect(0, top, sep->width(), line, fg);
+		}, sep->lifetime());
+
+		auto peers = std::vector<not_null<PeerData*>>();
+		for (const auto &participant : participants) {
+			peers.push_back(participant.peer);
+			if (peers.size() == 3) {
+				break;
+			}
+		}
+		box->addRow(
+			CreateUserpicsWithMoreBadge(
+				box,
+				rpl::single(peers),
+				st::confcallJoinUserpics,
+				known),
+			st::boxRowPadding + st::confcallJoinUserpicsPadding);
+
+		const auto wrapByIndex = [&](int index) {
+			Expects(index >= 0 && index < known);
+
+			return wrapName(participants[index].peer);
+		};
+		auto text = (known == 1)
+			? tr::lng_confcall_already_joined_one(
+				lt_user,
+				wrapByIndex(0),
+				Ui::Text::RichLangValue)
+			: (known == 2)
+			? tr::lng_confcall_already_joined_two(
+				lt_user,
+				wrapByIndex(0),
+				lt_other,
+				wrapByIndex(1),
+				Ui::Text::RichLangValue)
+			: (known == 3)
+			? tr::lng_confcall_already_joined_three(
+				lt_user,
+				wrapByIndex(0),
+				lt_other,
+				wrapByIndex(1),
+				lt_third,
+				wrapByIndex(2),
+				Ui::Text::RichLangValue)
+			: tr::lng_confcall_already_joined_many(
+				lt_count,
+				rpl::single(1. * (std::max(known, call->fullCount()) - 2)),
+				lt_user,
+				wrapByIndex(0),
+				lt_other,
+				wrapByIndex(1),
+				Ui::Text::RichLangValue);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				std::move(text),
+				st::confcallLinkCenteredText),
+			st::boxRowPadding
+		)->setTryMakeSimilarLines(true);
+	}
+	const auto joinAndClose = [=] {
 		const auto weak = Ui::MakeWeak(box);
 		join();
 		if (const auto strong = weak.data()) {
 			strong->closeBox();
 		}
-	});
-	box->addButton(tr::lng_cancel(), [=] {
-		box->closeBox();
-	});
+	};
+	Info::BotStarRef::AddFullWidthButton(
+		box,
+		tr::lng_confcall_join_button(),
+		joinAndClose,
+		&st::confcallLinkButton);
 }
 
 ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle() {

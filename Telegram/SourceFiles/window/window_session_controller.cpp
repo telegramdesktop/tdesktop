@@ -842,21 +842,21 @@ void SessionNavigation::resolveCollectible(
 
 void SessionNavigation::resolveConferenceCall(
 		QString slug,
-		Fn<void(bool)> finished) {
-	resolveConferenceCall(std::move(slug), 0, std::move(finished));
+		FullMsgId contextId) {
+	resolveConferenceCall(std::move(slug), 0, contextId);
 }
 
 void SessionNavigation::resolveConferenceCall(
 		MsgId inviteMsgId,
-		Fn<void(bool)> finished) {
-	resolveConferenceCall({}, inviteMsgId, std::move(finished));
+		FullMsgId contextId) {
+	resolveConferenceCall({}, inviteMsgId, contextId);
 }
 
 void SessionNavigation::resolveConferenceCall(
 		QString slug,
 		MsgId inviteMsgId,
-		Fn<void(bool)> finished) {
-	_conferenceCallResolveFinished = std::move(finished);
+		FullMsgId contextId) {
+	_conferenceCallResolveContextId = contextId;
 	if (_conferenceCallSlug == slug
 		&& _conferenceCallInviteMsgId == inviteMsgId) {
 		return;
@@ -875,7 +875,7 @@ void SessionNavigation::resolveConferenceCall(
 		_conferenceCallRequestId = 0;
 		const auto slug = base::take(_conferenceCallSlug);
 		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
-		const auto finished = base::take(_conferenceCallResolveFinished);
+		const auto contextId = base::take(_conferenceCallResolveContextId);
 		result.data().vcall().match([&](const auto &data) {
 			const auto call = session().data().sharedConferenceCall(
 				data.vid().v,
@@ -888,22 +888,21 @@ void SessionNavigation::resolveConferenceCall(
 					.joinMessageId = inviteMsgId,
 				});
 			};
+			const auto context = session().data().message(contextId);
+			const auto inviter = context
+				? context->from()->asUser()
+				: nullptr;
 			uiShow()->show(Box(
 				Calls::Group::ConferenceCallJoinConfirm,
 				call,
+				(inviter && !inviter->isSelf()) ? inviter : nullptr,
 				join));
-			if (finished) {
-				finished(true);
-			}
 		});
 	}).fail([=] {
 		_conferenceCallRequestId = 0;
 		_conferenceCallSlug = QString();
-		const auto finished = base::take(_conferenceCallResolveFinished);
+		_conferenceCallResolveContextId = FullMsgId();
 		showToast(tr::lng_group_invite_bad_link(tr::now));
-		if (finished) {
-			finished(false);
-		}
 	}).send();
 }
 

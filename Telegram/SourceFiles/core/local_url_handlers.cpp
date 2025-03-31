@@ -1459,8 +1459,9 @@ bool ResolveConferenceCall(
 	if (slug.isEmpty()) {
 		return false;
 	}
+	const auto myContext = context.value<ClickHandlerContext>();
 	controller->window().activate();
-	controller->resolveConferenceCall(match->captured(1));
+	controller->resolveConferenceCall(match->captured(1), myContext.itemId);
 	return true;
 }
 } // namespace

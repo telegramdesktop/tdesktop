@@ -65,13 +65,15 @@ QSize Call::countOptimalSize() {
 	const auto user = _parent->history()->peer->asUser();
 	const auto conference = _conference;
 	const auto video = _video;
+	const auto contextId = _parent->data()->fullId();
 	const auto id = _parent->data()->id;
 	_link = std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		if (conference) {
 			const auto my = context.other.value<ClickHandlerContext>();
 			const auto weak = my.sessionWindow;
 			if (const auto strong = weak.get()) {
-				strong->resolveConferenceCall(id);
+				QSize();
+				strong->resolveConferenceCall(id, contextId);
 			}
 		} else if (user) {
 			Core::App().calls().startOutgoingCall(user, video);

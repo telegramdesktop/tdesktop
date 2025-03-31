@@ -129,6 +129,7 @@ using StickedTooltips = base::flags<StickedTooltip>;
 void ConferenceCallJoinConfirm(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Data::GroupCall> call,
+	UserData *maybeInviter,
 	Fn<void()> join);
 
 struct ConferenceCallLinkStyleOverrides {

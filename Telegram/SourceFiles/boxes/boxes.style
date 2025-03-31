@@ -24,6 +24,12 @@ UserpicButton {
 	uploadIcon: icon;
 	uploadIconPosition: point;
 }
+UserpicsRow {
+	button: UserpicButton;
+	shift: pixels;
+	stroke: pixels;
+	invert: bool;
+}
 ShortInfoBox {
 	label: FlatLabel;
 	labeled: FlatLabel;

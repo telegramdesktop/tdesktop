@@ -55,7 +55,7 @@ using ConnectedBots = std::vector<ConnectedBot>;
 	rpl::producer<QString> subtitle,
 	bool newBadge = false);
 
-[[nodiscard]] not_null<Ui::RoundButton*> AddFullWidthButton(
+not_null<Ui::RoundButton*> AddFullWidthButton(
 	not_null<Ui::BoxContent*> box,
 	rpl::producer<QString> text,
 	Fn<void()> callback = nullptr,
