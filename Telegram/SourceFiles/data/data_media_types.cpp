@@ -491,6 +491,7 @@ Call ComputeCallData(const MTPDmessageActionConferenceCall &call) {
 			: call.is_active()
 			? CallState::Active
 			: CallState::Invitation),
+		.video = call.is_video(),
 	};
 }
 

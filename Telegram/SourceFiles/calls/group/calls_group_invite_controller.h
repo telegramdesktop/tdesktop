@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 class Call;
 class GroupCall;
+struct InviteRequest;
 } // namespace Calls
 
 namespace Calls::Group {
@@ -83,7 +84,7 @@ private:
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareInviteBox(
 	not_null<Call*> call,
-	Fn<void(std::vector<not_null<UserData*>>)> inviteUsers,
+	Fn<void(std::vector<InviteRequest>)> inviteUsers,
 	Fn<void()> shareLink);
 
 } // namespace Calls::Group

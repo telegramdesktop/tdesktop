@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_menu.h"
 #include "calls/calls_call.h"
 #include "boxes/peer_lists_box.h"
@@ -19,10 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "main/main_session.h"
 #include "main/session/session_show.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/painter.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h" // membersMarginTop
@@ -61,6 +64,36 @@ namespace {
 	return result;
 }
 
+class ConfInviteRow final : public PeerListRow {
+public:
+	using PeerListRow::PeerListRow;
+
+	void setAlreadyIn(bool alreadyIn);
+	void setVideo(bool video);
+
+	int elementsCount() const override;
+	QRect elementGeometry(int element, int outerWidth) const override;
+	bool elementDisabled(int element) const override;
+	bool elementOnlySelect(int element) const override;
+	void elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void elementsStopLastRipple() override;
+	void elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) override;
+
+private:
+	std::unique_ptr<Ui::RippleAnimation> _videoRipple;
+	std::unique_ptr<Ui::RippleAnimation> _audioRipple;
+	bool _alreadyIn = false;
+	bool _video = false;
+
+};
+
 class ConfInviteController final : public ContactsBoxController {
 public:
 	ConfInviteController(
@@ -69,6 +102,8 @@ public:
 		Fn<void()> shareLink);
 
 	[[nodiscard]] rpl::producer<bool> hasSelectedValue() const;
+	[[nodiscard]] std::vector<InviteRequest> requests(
+		const std::vector<not_null<PeerData*>> &peers) const;
 
 protected:
 	void prepareViewHook() override;
@@ -77,15 +112,131 @@ protected:
 		not_null<UserData*> user) override;
 
 	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
 
 private:
 	[[nodiscard]] int fullCount() const;
+	void toggleRowSelected(not_null<PeerListRow*> row, bool video);
 
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
 	const Fn<void()> _shareLink;
 	rpl::variable<bool> _hasSelected;
+	base::flat_set<not_null<UserData*>> _withVideo;
+	bool _lastSelectWithVideo = false;
 
 };
+
+void ConfInviteRow::setAlreadyIn(bool alreadyIn) {
+	_alreadyIn = alreadyIn;
+	setDisabledState(alreadyIn ? State::DisabledChecked : State::Active);
+}
+
+void ConfInviteRow::setVideo(bool video) {
+	_video = video;
+}
+
+int ConfInviteRow::elementsCount() const {
+	return _alreadyIn ? 0 : 2;
+}
+
+QRect ConfInviteRow::elementGeometry(int element, int outerWidth) const {
+	if (_alreadyIn || (element != 1 && element != 2)) {
+		return QRect();
+	}
+	const auto &st = (element == 1)
+		? st::confcallInviteVideo
+		: st::confcallInviteAudio;
+	const auto size = QSize(st.width, st.height);
+	const auto margins = (element == 1)
+		? st::confcallInviteVideoMargins
+		: st::confcallInviteAudioMargins;
+	const auto right = margins.right();
+	const auto top = margins.top();
+	const auto side = (element == 1)
+		? outerWidth
+		: elementGeometry(1, outerWidth).x();
+	const auto left = side - right - size.width();
+	return QRect(QPoint(left, top), size);
+}
+
+bool ConfInviteRow::elementDisabled(int element) const {
+	return _alreadyIn
+		|| (checked()
+			&& ((_video && element == 1) || (!_video && element == 2)));
+}
+
+bool ConfInviteRow::elementOnlySelect(int element) const {
+	return false;
+}
+
+void ConfInviteRow::elementAddRipple(
+		int element,
+		QPoint point,
+		Fn<void()> updateCallback) {
+	if (_alreadyIn || (element != 1 && element != 2)) {
+		return;
+	}
+	auto &ripple = (element == 1) ? _videoRipple : _audioRipple;
+	const auto &st = (element == 1)
+		? st::confcallInviteVideo
+		: st::confcallInviteAudio;
+	if (!ripple) {
+		auto mask = Ui::RippleAnimation::EllipseMask(QSize(
+				st.rippleAreaSize,
+				st.rippleAreaSize));
+		ripple = std::make_unique<Ui::RippleAnimation>(
+			st.ripple,
+			std::move(mask),
+			std::move(updateCallback));
+	}
+	ripple->add(point - st.rippleAreaPosition);
+}
+
+void ConfInviteRow::elementsStopLastRipple() {
+	if (_videoRipple) {
+		_videoRipple->lastStop();
+	}
+	if (_audioRipple) {
+		_audioRipple->lastStop();
+	}
+}
+
+void ConfInviteRow::elementsPaint(
+		Painter &p,
+		int outerWidth,
+		bool selected,
+		int selectedElement) {
+	if (_alreadyIn) {
+		return;
+	}
+	const auto paintElement = [&](int element) {
+		const auto &st = (element == 1)
+			? st::confcallInviteVideo
+			: st::confcallInviteAudio;
+		auto &ripple = (element == 1) ? _videoRipple : _audioRipple;
+		const auto active = checked() && ((element == 1) ? _video : !_video);
+		const auto geometry = elementGeometry(element, outerWidth);
+		if (ripple) {
+			ripple->paint(
+				p,
+				geometry.x() + st.rippleAreaPosition.x(),
+				geometry.y() + st.rippleAreaPosition.y(),
+				outerWidth);
+			if (ripple->empty()) {
+				ripple.reset();
+			}
+		}
+		const auto selected = (element == selectedElement);
+		const auto &icon = active
+			? (element == 1
+				? st::confcallInviteVideoActive
+				: st::confcallInviteAudioActive)
+			: (selected ? st.iconOver : st.icon);
+		icon.paintInCenter(p, geometry);
+	};
+	paintElement(1);
+	paintElement(2);
+}
 
 ConfInviteController::ConfInviteController(
 	not_null<Main::Session*> session,
@@ -100,6 +251,18 @@ rpl::producer<bool> ConfInviteController::hasSelectedValue() const {
 	return _hasSelected.value();
 }
 
+std::vector<InviteRequest> ConfInviteController::requests(
+		const std::vector<not_null<PeerData*>> &peers) const {
+	auto result = std::vector<InviteRequest>();
+	result.reserve(peers.size());
+	for (const auto &peer : peers) {
+		if (const auto user = peer->asUser()) {
+			result.push_back({ user, _withVideo.contains(user) });
+		}
+	}
+	return result;
+}
+
 std::unique_ptr<PeerListRow> ConfInviteController::createRow(
 		not_null<UserData*> user) {
 	if (user->isSelf()
@@ -108,9 +271,12 @@ std::unique_ptr<PeerListRow> ConfInviteController::createRow(
 		|| user->isInaccessible()) {
 		return nullptr;
 	}
-	auto result = ContactsBoxController::createRow(user);
+	auto result = std::make_unique<ConfInviteRow>(user);
 	if (_alreadyIn.contains(user)) {
-		result->setDisabledState(PeerListRow::State::DisabledChecked);
+		result->setAlreadyIn(true);
+	}
+	if (_withVideo.contains(user)) {
+		result->setVideo(true);
 	}
 	return result;
 }
@@ -120,10 +286,42 @@ int ConfInviteController::fullCount() const {
 }
 
 void ConfInviteController::rowClicked(not_null<PeerListRow*> row) {
+	toggleRowSelected(row, _lastSelectWithVideo);
+}
+
+void ConfInviteController::rowElementClicked(
+		not_null<PeerListRow*> row,
+		int element) {
+	if (row->checked()) {
+		static_cast<ConfInviteRow*>(row.get())->setVideo(element == 1);
+		_lastSelectWithVideo = (element == 1);
+	} else if (element == 1) {
+		toggleRowSelected(row, true);
+	} else if (element == 2) {
+		toggleRowSelected(row, false);
+	}
+}
+
+void ConfInviteController::toggleRowSelected(
+		not_null<PeerListRow*> row,
+		bool video) {
 	auto count = fullCount();
 	auto limit = Data::kMaxConferenceMembers;
 	if (count < limit || row->checked()) {
+		const auto real = static_cast<ConfInviteRow*>(row.get());
+		if (!row->checked()) {
+			real->setVideo(video);
+			_lastSelectWithVideo = video;
+		}
+		const auto user = row->peer()->asUser();
+		if (!row->checked() && video) {
+			_withVideo.emplace(user);
+		} else {
+			_withVideo.remove(user);
+		}
 		delegate()->peerListSetRowChecked(row, !row->checked());
+
+		// row may have been destroyed here, from search.
 		_hasSelected = (delegate()->peerListSelectedRowsCount() > 0);
 	} else {
 		delegate()->peerListUiShow()->showToast(
@@ -311,13 +509,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 						if (!call) {
 							return;
 						}
-						auto peers = box->collectSelectedRows();
-						auto users = ranges::views::all(
-							peers
-						) | ranges::views::transform([](not_null<PeerData*> peer) {
-							return not_null(peer->asUser());
-						}) | ranges::to_vector;
-						const auto done = [=](GroupCall::InviteResult result) {
+						const auto done = [=](InviteResult result) {
 							(*close)();
 							if (result.invited.empty()
 								&& result.privacyRestricted.empty()) {
@@ -325,7 +517,9 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 							}
 							showToast({ ComposeInviteResultToast(result) });
 						};
-						call->inviteUsers(users, done);
+						call->inviteUsers(
+							raw->requests(box->collectSelectedRows()),
+							done);
 					});
 				}
 				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -354,7 +548,12 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		if (!call) {
 			return;
 		}
-		call->inviteUsers(users, [=](GroupCall::InviteResult result) {
+		auto requests = ranges::views::all(
+			users
+		) | ranges::views::transform([](not_null<UserData*> user) {
+			return InviteRequest{ user };
+		}) | ranges::to_vector;
+		call->inviteUsers(std::move(requests), [=](InviteResult result) {
 			if (result.invited.size() == 1) {
 				showToast(tr::lng_group_call_invite_done_user(
 					tr::now,
@@ -463,7 +662,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 
 object_ptr<Ui::BoxContent> PrepareInviteBox(
 		not_null<Call*> call,
-		Fn<void(std::vector<not_null<UserData*>>)> inviteUsers,
+		Fn<void(std::vector<InviteRequest>)> inviteUsers,
 		Fn<void()> shareLink) {
 	const auto user = call->user();
 	const auto weak = base::make_weak(call);
@@ -486,13 +685,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 					if (!call) {
 						return;
 					}
-					auto peers = box->collectSelectedRows();
-					auto users = ranges::views::all(
-						peers
-					) | ranges::views::transform([](not_null<PeerData*> peer) {
-						return not_null(peer->asUser());
-					}) | ranges::to_vector;
-					inviteUsers(std::move(users));
+					inviteUsers(raw->requests(box->collectSelectedRows()));
 				});
 			}
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

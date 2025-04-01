@@ -4642,6 +4642,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_status_failed" = "failed to connect";
 "lng_call_status_ringing" = "ringing...";
 "lng_call_status_busy" = "line busy";
+"lng_call_status_group_invite" = "Telegram Group Call";
 "lng_call_status_sure" = "Click on the Camera icon if you want to start a video call.";
 "lng_call_fingerprint_tooltip" = "If the emoji on {user}'s screen are the same, this call is 100% secure";
 

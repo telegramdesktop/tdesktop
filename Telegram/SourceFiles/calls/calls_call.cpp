@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/random.h"
 #include "boxes/abstract_box.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_panel.h"
 #include "core/application.h"
@@ -251,7 +252,8 @@ Call::Call(
 	not_null<Delegate*> delegate,
 	not_null<UserData*> user,
 	CallId conferenceId,
-	MsgId conferenceInviteMsgId)
+	MsgId conferenceInviteMsgId,
+	bool video)
 : _delegate(delegate)
 , _user(user)
 , _api(&_user->session().mtp())
@@ -279,10 +281,10 @@ Call::Call(
 , _conferenceInviteMsgId(conferenceInviteMsgId)
 , _videoIncoming(
 	std::make_unique<Webrtc::VideoTrack>(
-		StartVideoState(false)))
+		StartVideoState(video)))
 , _videoOutgoing(
 	std::make_unique<Webrtc::VideoTrack>(
-		StartVideoState(false))) {
+		StartVideoState(video))) {
 	startWaitingTrack();
 	setupOutgoingVideo();
 }

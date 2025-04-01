@@ -60,6 +60,9 @@ enum class VideoQuality;
 enum class Error;
 } // namespace Group
 
+struct InviteRequest;
+struct InviteResult;
+
 enum class MuteState {
 	Active,
 	PushToTalk,
@@ -418,13 +421,8 @@ public:
 	void toggleMute(const Group::MuteRequest &data);
 	void changeVolume(const Group::VolumeRequest &data);
 
-	struct InviteResult {
-		std::vector<not_null<UserData*>> invited;
-		std::vector<not_null<UserData*>> alreadyIn;
-		std::vector<not_null<UserData*>> privacyRestricted;
-	};
 	void inviteUsers(
-		const std::vector<not_null<UserData*>> &users,
+		const std::vector<InviteRequest> &requests,
 		Fn<void(InviteResult)> done);
 
 	std::shared_ptr<GlobalShortcutManager> ensureGlobalShortcutManager();
@@ -754,6 +752,6 @@ private:
 };
 
 [[nodiscard]] TextWithEntities ComposeInviteResultToast(
-	const GroupCall::InviteResult &result);
+	const InviteResult &result);
 
 } // namespace Calls

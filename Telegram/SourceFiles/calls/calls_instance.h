@@ -56,6 +56,7 @@ enum class CallType;
 class GroupCall;
 class Panel;
 struct DhConfig;
+struct InviteRequest;
 
 struct StartGroupCallArgs {
 	enum class JoinConfirm {
@@ -73,7 +74,7 @@ struct StartConferenceCallArgs {
 	std::shared_ptr<TdE2E::Call> e2e;
 	QString linkSlug;
 	MsgId joinMessageId;
-	std::vector<not_null<UserData*>> invite;
+	std::vector<InviteRequest> invite;
 	bool migrating = false;
 };
 

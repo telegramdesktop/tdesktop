@@ -1006,8 +1006,8 @@ void Panel::migrationShowShareLink() {
 		{ .st = DarkConferenceCallLinkStyle() });
 }
 
-void Panel::migrationInviteUsers(std::vector<not_null<UserData*>> users) {
-	const auto done = [=](GroupCall::InviteResult result) {
+void Panel::migrationInviteUsers(std::vector<InviteRequest> users) {
+	const auto done = [=](InviteResult result) {
 		showToast({ ComposeInviteResultToast(result) });
 	};
 	_call->inviteUsers(std::move(users), crl::guard(this, done));

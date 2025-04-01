@@ -467,7 +467,7 @@ void Panel::initControls() {
 				*creating = false;
 			}
 		};
-		const auto create = [=](std::vector<not_null<UserData*>> users) {
+		const auto create = [=](std::vector<InviteRequest> users) {
 			if (*creating) {
 				return;
 			}
@@ -481,7 +481,7 @@ void Panel::initControls() {
 			});
 		};
 		const auto invite = crl::guard(call, [=](
-				std::vector<not_null<UserData*>> users) {
+				std::vector<InviteRequest> users) {
 			create(std::move(users));
 		});
 		const auto share = crl::guard(call, [=] {
@@ -1285,7 +1285,9 @@ void Panel::paint(QRect clip) {
 bool Panel::handleClose() const {
 	if (_call) {
 		if (_call->state() == Call::State::WaitingUserConfirmation
-			|| _call->state() == Call::State::Busy) {
+			|| _call->state() == Call::State::Busy
+			|| _call->state() == Call::State::Starting
+			|| _call->state() == Call::State::WaitingIncoming) {
 			_call->hangup();
 		} else {
 			window()->hide();
@@ -1424,7 +1426,10 @@ void Panel::updateStatusText(State state) {
 		case State::ExchangingKeys: return tr::lng_call_status_exchanging(tr::now);
 		case State::Waiting: return tr::lng_call_status_waiting(tr::now);
 		case State::Requesting: return tr::lng_call_status_requesting(tr::now);
-		case State::WaitingIncoming: return tr::lng_call_status_incoming(tr::now);
+		case State::WaitingIncoming:
+			return (_call->conferenceInvite()
+				? tr::lng_call_status_group_invite(tr::now)
+				: tr::lng_call_status_incoming(tr::now));
 		case State::Ringing: return tr::lng_call_status_ringing(tr::now);
 		case State::Busy: return tr::lng_call_status_busy(tr::now);
 		case State::WaitingUserConfirmation: return tr::lng_call_status_sure(tr::now);

@@ -1543,6 +1543,26 @@ confcallJoinUserpics: UserpicsRow {
 	invert: true;
 }
 confcallJoinUserpicsPadding: margins(0px, 0px, 0px, 16px);
+confcallInviteVideo: IconButton {
+	width: 36px;
+	height: 52px;
+
+	icon: icon {{ "info/info_media_video", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "info/info_media_video", groupCallMemberInactiveIcon }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: groupCallRipple;
+	rippleAreaPosition: point(0px, 8px);
+	rippleAreaSize: 36px;
+}
+confcallInviteVideoActive: icon {{ "info/info_media_video", groupCallActiveFg }};
+confcallInviteVideoMargins: margins(0px, 0px, 10px, 0px);
+confcallInviteAudio: IconButton(confcallInviteVideo) {
+	icon: icon {{ "menu/phone", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "menu/phone", groupCallMemberInactiveIcon }};
+}
+confcallInviteAudioActive: icon {{ "menu/phone", groupCallActiveFg }};
+confcallInviteAudioMargins: margins(0px, 0px, 4px, 0px);
 
 groupCallLinkBox: Box(confcallLinkBox) {
 	bg: groupCallMembersBg;

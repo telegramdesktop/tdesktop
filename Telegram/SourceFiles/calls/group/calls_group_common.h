@@ -41,6 +41,20 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Calls {
+
+struct InviteRequest {
+	not_null<UserData*> user;
+	bool video = false;
+};
+struct InviteResult {
+	std::vector<not_null<UserData*>> invited;
+	std::vector<not_null<UserData*>> alreadyIn;
+	std::vector<not_null<UserData*>> privacyRestricted;
+};
+
+} // namespace Calls
+
 namespace Calls::Group {
 
 constexpr auto kDefaultVolume = 10000;
@@ -146,7 +160,7 @@ struct ConferenceCallLinkArgs {
 	bool joining = false;
 	bool migrating = false;
 	Fn<void(QString)> finished;
-	std::vector<not_null<UserData*>> invite;
+	std::vector<InviteRequest> invite;
 	ConferenceCallLinkStyleOverrides st;
 };
 void ShowConferenceCallLinkBox(
@@ -163,7 +177,7 @@ void ExportConferenceCallLink(
 struct ConferenceFactoryArgs {
 	std::shared_ptr<Main::SessionShow> show;
 	Fn<void(QString)> finished;
-	std::vector<not_null<UserData*>> invite;
+	std::vector<InviteRequest> invite;
 	bool joining = false;
 	bool migrating = false;
 };

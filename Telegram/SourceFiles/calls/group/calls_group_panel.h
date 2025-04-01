@@ -73,6 +73,10 @@ struct CallSignalBars;
 struct CallBodyLayout;
 } // namespace style
 
+namespace Calls {
+struct InviteRequest;
+} // namespace Calls
+
 namespace Calls::Group {
 
 class Toasts;
@@ -116,7 +120,7 @@ public:
 	[[nodiscard]] bool isLayerShown() const;
 
 	void migrationShowShareLink();
-	void migrationInviteUsers(std::vector<not_null<UserData*>> users);
+	void migrationInviteUsers(std::vector<InviteRequest> users);
 
 	void minimize();
 	void toggleFullScreen();

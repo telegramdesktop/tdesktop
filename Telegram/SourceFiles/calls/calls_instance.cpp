@@ -1010,6 +1010,7 @@ void Instance::showConferenceInvite(
 	const auto media = item ? item->media() : nullptr;
 	const auto call = media ? media->call() : nullptr;
 	const auto conferenceId = call ? call->conferenceId : 0;
+	const auto video = call->video;
 	if (!conferenceId
 		|| call->state != Data::CallState::Invitation
 		|| user->isSelf()) {
@@ -1036,7 +1037,8 @@ void Instance::showConferenceInvite(
 			delegate,
 			user,
 			conferenceId,
-			conferenceInviteMsgId);
+			conferenceInviteMsgId,
+			video);
 		const auto raw = call.get();
 
 		user->session().account().sessionChanges(

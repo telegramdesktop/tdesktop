@@ -3712,7 +3712,7 @@ void GroupCall::editParticipant(
 }
 
 void GroupCall::inviteUsers(
-		const std::vector<not_null<UserData*>> &users,
+		const std::vector<InviteRequest> &requests,
 		Fn<void(InviteResult)> done) {
 	const auto real = lookupReal();
 	if (!real) {
@@ -3737,9 +3737,11 @@ void GroupCall::inviteUsers(
 	};
 
 	if (const auto call = _conferenceCall.get()) {
-		for (const auto &user : users) {
+		for (const auto &request : requests) {
+			using Flag = MTPphone_InviteConferenceCallParticipant::Flag;
+			const auto user = request.user;
 			_api.request(MTPphone_InviteConferenceCallParticipant(
-				MTP_flags(0),
+				MTP_flags(request.video ? Flag::f_video : Flag()),
 				inputCallSafe(),
 				user->inputUser
 			)).done([=](const MTPUpdates &result) {
@@ -3785,7 +3787,8 @@ void GroupCall::inviteUsers(
 		slice.clear();
 		usersSlice.clear();
 	};
-	for (const auto &user : users) {
+	for (const auto &request : requests) {
+		const auto user = request.user;
 		owner->registerInvitedToCallUser(_id, _peer, user);
 		usersSlice.push_back(user);
 		slice.push_back(user->inputUser);
@@ -3920,7 +3923,7 @@ void GroupCall::destroyScreencast() {
 }
 
 TextWithEntities ComposeInviteResultToast(
-		const GroupCall::InviteResult &result) {
+		const InviteResult &result) {
 	auto text = TextWithEntities();
 	const auto invited = int(result.invited.size());
 	const auto restricted = int(result.privacyRestricted.size());

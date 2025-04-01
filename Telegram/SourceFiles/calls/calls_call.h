@@ -106,7 +106,8 @@ public:
 		not_null<Delegate*> delegate,
 		not_null<UserData*> user,
 		CallId conferenceId,
-		MsgId conferenceInviteMsgId);
+		MsgId conferenceInviteMsgId,
+		bool video);
 
 	[[nodiscard]] Type type() const {
 		return _type;
