@@ -45,10 +45,6 @@ namespace tgcalls {
 class VideoCaptureInterface;
 } // namespace tgcalls
 
-namespace TdE2E {
-class Call;
-} // namespace TdE2E
-
 namespace Calls {
 
 class Call;
@@ -57,6 +53,7 @@ class GroupCall;
 class Panel;
 struct DhConfig;
 struct InviteRequest;
+struct StartConferenceInfo;
 
 struct StartGroupCallArgs {
 	enum class JoinConfirm {
@@ -67,15 +64,6 @@ struct StartGroupCallArgs {
 	QString joinHash;
 	JoinConfirm confirm = JoinConfirm::IfNowInAnother;
 	bool scheduleNeeded = false;
-};
-
-struct StartConferenceCallArgs {
-	std::shared_ptr<Data::GroupCall> call;
-	std::shared_ptr<TdE2E::Call> e2e;
-	QString linkSlug;
-	MsgId joinMessageId;
-	std::vector<InviteRequest> invite;
-	bool migrating = false;
 };
 
 struct ConferenceInviteMessages {
@@ -97,7 +85,7 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		StartGroupCallArgs args);
-	void startOrJoinConferenceCall(StartConferenceCallArgs args);
+	void startOrJoinConferenceCall(StartConferenceInfo args);
 	void showStartWithRtmp(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);

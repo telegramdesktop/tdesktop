@@ -37,6 +37,10 @@ namespace TdE2E {
 class Call;
 } // namespace TdE2E
 
+namespace tgcalls {
+class VideoCaptureInterface;
+} // namespace tgcalls
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -47,10 +51,23 @@ struct InviteRequest {
 	not_null<UserData*> user;
 	bool video = false;
 };
+
 struct InviteResult {
 	std::vector<not_null<UserData*>> invited;
 	std::vector<not_null<UserData*>> alreadyIn;
 	std::vector<not_null<UserData*>> privacyRestricted;
+};
+
+struct StartConferenceInfo {
+	std::shared_ptr<Data::GroupCall> call;
+	std::shared_ptr<TdE2E::Call> e2e;
+	QString linkSlug;
+	MsgId joinMessageId;
+	std::vector<InviteRequest> invite;
+	bool migrating = false;
+	bool muted = false;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> videoCapture;
+	QString videoCaptureScreenId;
 };
 
 } // namespace Calls
@@ -99,13 +116,6 @@ struct JoinInfo {
 	RtmpInfo rtmpInfo;
 	TimeId scheduleDate = 0;
 	bool rtmp = false;
-};
-
-struct ConferenceInfo {
-	std::shared_ptr<Data::GroupCall> call;
-	std::shared_ptr<TdE2E::Call> e2e;
-	QString linkSlug;
-	MsgId joinMessageId;
 };
 
 enum class PanelMode {
@@ -158,9 +168,8 @@ struct ConferenceCallLinkStyleOverrides {
 struct ConferenceCallLinkArgs {
 	bool initial = false;
 	bool joining = false;
-	bool migrating = false;
 	Fn<void(QString)> finished;
-	std::vector<InviteRequest> invite;
+	StartConferenceInfo info;
 	ConferenceCallLinkStyleOverrides st;
 };
 void ShowConferenceCallLinkBox(
@@ -177,9 +186,8 @@ void ExportConferenceCallLink(
 struct ConferenceFactoryArgs {
 	std::shared_ptr<Main::SessionShow> show;
 	Fn<void(QString)> finished;
-	std::vector<InviteRequest> invite;
 	bool joining = false;
-	bool migrating = false;
+	StartConferenceInfo info;
 };
 void MakeConferenceCall(ConferenceFactoryArgs &&args);
 

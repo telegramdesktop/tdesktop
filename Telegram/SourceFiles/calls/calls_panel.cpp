@@ -477,9 +477,16 @@ void Panel::initControls() {
 			Group::MakeConferenceCall({
 				.show = uiShow(),
 				.finished = finish,
-				.invite = std::move(users),
 				.joining = true,
-				.migrating = true,
+				.info = {
+					.invite = std::move(users),
+					.migrating = true,
+					.muted = call->muted(),
+					.videoCapture = (call->isSharingVideo()
+						? call->peekVideoCapture()
+						: nullptr),
+					.videoCaptureScreenId = call->screenSharingDeviceId(),
+				},
 			});
 		};
 		const auto invite = crl::guard(call, [=](

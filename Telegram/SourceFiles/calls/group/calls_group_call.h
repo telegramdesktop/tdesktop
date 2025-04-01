@@ -62,6 +62,7 @@ enum class Error;
 
 struct InviteRequest;
 struct InviteResult;
+struct StartConferenceInfo;
 
 enum class MuteState {
 	Active,
@@ -225,9 +226,7 @@ public:
 		not_null<Delegate*> delegate,
 		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
-	GroupCall(
-		not_null<Delegate*> delegate,
-		Group::ConferenceInfo info);
+	GroupCall(not_null<Delegate*> delegate, StartConferenceInfo info);
 	~GroupCall();
 
 	[[nodiscard]] CallId id() const {
@@ -505,7 +504,7 @@ private:
 	GroupCall(
 		not_null<Delegate*> delegate,
 		Group::JoinInfo join,
-		Group::ConferenceInfo conference,
+		StartConferenceInfo conference,
 		const MTPInputGroupCall &inputCall);
 
 	void broadcastPartStart(std::shared_ptr<LoadPartTask> task);
@@ -620,6 +619,8 @@ private:
 	void markTrackPaused(const VideoEndpoint &endpoint, bool paused);
 	void markTrackShown(const VideoEndpoint &endpoint, bool shown);
 
+	void processMigration(StartConferenceInfo conference);
+
 	[[nodiscard]] int activeVideoSendersCount() const;
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
@@ -629,6 +630,7 @@ private:
 	const std::shared_ptr<Data::GroupCall> _conferenceCall;
 	std::shared_ptr<TdE2E::Call> _e2e;
 	QByteArray _pendingOutboundBlock;
+	std::shared_ptr<StartConferenceInfo> _migratedConferenceInfo;
 
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
 	rpl::event_stream<PeerData*> _peerStream;

@@ -437,20 +437,24 @@ void Call::acceptConferenceInvite() {
 	const auto limit = 5;
 	const auto messageId = _conferenceInviteMsgId;
 	const auto session = &_user->session();
+	auto info = StartConferenceInfo{
+		.joinMessageId = messageId,
+		.migrating = true,
+		.muted = muted(),
+		.videoCapture = isSharingVideo() ? _videoCapture : nullptr,
+		.videoCaptureScreenId = screenSharingDeviceId(),
+	};
 	session->api().request(MTPphone_GetGroupCall(
 		MTP_inputGroupCallInviteMessage(MTP_int(messageId.bare)),
 		MTP_int(limit)
-	)).done([session, messageId](const MTPphone_GroupCall &result) {
+	)).done([session, messageId, info](const MTPphone_GroupCall &result) {
 		result.data().vcall().match([&](const auto &data) {
-			const auto call = session->data().sharedConferenceCall(
+			auto copy = info;
+			copy.call = session->data().sharedConferenceCall(
 				data.vid().v,
 				data.vaccess_hash().v);
-			call->processFullCall(result);
-			Core::App().calls().startOrJoinConferenceCall({
-				.call = call,
-				.joinMessageId = messageId,
-				.migrating = true,
-			});
+			copy.call->processFullCall(result);
+			Core::App().calls().startOrJoinConferenceCall(std::move(copy));
 		});
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		handleRequestError(error.type());
@@ -561,7 +565,8 @@ void Call::setupOutgoingVideo() {
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (_state.current() != State::Established
 			&& (state != Webrtc::VideoState::Inactive)
-			&& (started == Webrtc::VideoState::Inactive)) {
+			&& (started == Webrtc::VideoState::Inactive)
+			&& !conferenceInvite()) {
 			_errors.fire({ ErrorType::NotStartedCall });
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (state != Webrtc::VideoState::Inactive
@@ -1449,6 +1454,11 @@ void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
 		}
 	}
 	_videoOutgoing->setState(Webrtc::VideoState::Active);
+}
+
+auto Call::peekVideoCapture() const
+-> std::shared_ptr<tgcalls::VideoCaptureInterface> {
+	return _videoCapture;
 }
 
 auto Call::playbackDeviceIdValue() const

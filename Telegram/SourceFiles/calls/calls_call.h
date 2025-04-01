@@ -247,6 +247,8 @@ public:
 	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleCameraSharing(bool enabled);
 	void toggleScreenSharing(std::optional<QString> uniqueId);
+	[[nodiscard]] auto peekVideoCapture() const
+		-> std::shared_ptr<tgcalls::VideoCaptureInterface>;
 
 	[[nodiscard]] auto playbackDeviceIdValue() const
 		-> rpl::producer<Webrtc::DeviceResolvedId>;

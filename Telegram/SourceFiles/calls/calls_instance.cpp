@@ -235,20 +235,13 @@ void Instance::startOrJoinGroupCall(
 	});
 }
 
-void Instance::startOrJoinConferenceCall(StartConferenceCallArgs args) {
+void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
 	destroyCurrentCall(
 		args.migrating ? args.call.get() : nullptr,
 		args.migrating ? args.linkSlug : QString());
 
 	const auto session = &args.call->peer()->session();
-	auto call = std::make_unique<GroupCall>(
-		_delegate.get(),
-		Calls::Group::ConferenceInfo{
-			.call = std::move(args.call),
-			.e2e = std::move(args.e2e),
-			.linkSlug = args.linkSlug,
-			.joinMessageId = args.joinMessageId,
-		});
+	auto call = std::make_unique<GroupCall>(_delegate.get(), args);
 	const auto raw = call.get();
 
 	session->account().sessionChanges(

@@ -392,7 +392,7 @@ void ExportConferenceCallLink(
 		std::shared_ptr<Data::GroupCall> call,
 		ConferenceCallLinkArgs &&args) {
 	const auto session = &show->session();
-	const auto invite = std::move(args.invite);
+	const auto info = std::move(args.info);
 	const auto finished = std::move(args.finished);
 
 	using Flag = MTPphone_ExportGroupCallInvite::Flag;
@@ -403,12 +403,10 @@ void ExportConferenceCallLink(
 		const auto link = qs(result.data().vlink());
 		if (args.joining) {
 			if (auto slug = ExtractConferenceSlug(link); !slug.isEmpty()) {
-				Core::App().calls().startOrJoinConferenceCall({
-					.call = call,
-					.linkSlug = std::move(slug),
-					.invite = invite,
-					.migrating = args.migrating,
-				});
+				auto copy = info;
+				copy.call = call;
+				copy.linkSlug = std::move(slug);
+				Core::App().calls().startOrJoinConferenceCall(info);
 			}
 			if (const auto onstack = finished) {
 				finished(QString());
@@ -435,8 +433,7 @@ void MakeConferenceCall(ConferenceFactoryArgs &&args) {
 	const auto show = std::move(args.show);
 	const auto finished = std::move(args.finished);
 	const auto joining = args.joining;
-	const auto migrating = args.migrating;
-	const auto invite = std::move(args.invite);
+	const auto info = std::move(args.info);
 	const auto session = &show->session();
 	session->api().request(MTPphone_CreateConferenceCall(
 		MTP_int(base::RandomValue<int32>())
@@ -449,9 +446,8 @@ void MakeConferenceCall(ConferenceFactoryArgs &&args) {
 			Calls::Group::ExportConferenceCallLink(show, call, {
 				.initial = true,
 				.joining = joining,
-				.migrating = migrating,
 				.finished = finished,
-				.invite = invite,
+				.info = info,
 			});
 		});
 	}).fail([=](const MTP::Error &error) {

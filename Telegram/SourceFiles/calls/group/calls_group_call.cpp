@@ -58,13 +58,10 @@ constexpr auto kMaxMediumQualities = 16; // 4 Fulls or 16 Mediums.
 constexpr auto kShortPollChainBlocksPerRequest = 50;
 
 [[nodiscard]] const Data::GroupCallParticipant *LookupParticipant(
-		not_null<PeerData*> peer,
-		CallId id,
+		not_null<GroupCall*> call,
 		not_null<PeerData*> participantPeer) {
-	const auto call = peer->groupCall();
-	return (id && call && call->id() == id)
-		? call->participantByPeer(participantPeer)
-		: nullptr;
+	const auto real = call->lookupReal();
+	return real ? real->participantByPeer(participantPeer) : nullptr;
 }
 
 [[nodiscard]] double TimestampFromMsgId(mtpMsgId msgId) {
@@ -578,7 +575,7 @@ GroupCall::GroupCall(
 
 GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
-	Group::ConferenceInfo info)
+	StartConferenceInfo info)
 : GroupCall(delegate, Group::JoinInfo{
 	.peer = info.call->peer(),
 	.joinAs = info.call->peer(),
@@ -588,7 +585,7 @@ GroupCall::GroupCall(
 GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
 	Group::JoinInfo join,
-	Group::ConferenceInfo conference,
+	StartConferenceInfo conference,
 	const MTPInputGroupCall &inputCall)
 : _delegate(delegate)
 , _conferenceCall(std::move(conference.call))
@@ -682,6 +679,13 @@ GroupCall::GroupCall(
 	setupOutgoingVideo();
 	if (_conferenceCall) {
 		setupConferenceCall();
+		if (conference.migrating) {
+			if (!conference.muted) {
+				setMuted(MuteState::Active);
+			}
+			_migratedConferenceInfo = std::make_shared<StartConferenceInfo>(
+				std::move(conference));
+		}
 	}
 
 	if (_id) {
@@ -691,6 +695,40 @@ GroupCall::GroupCall(
 	}
 	if (_scheduleDate) {
 		saveDefaultJoinAs(joinAs());
+	}
+}
+
+void GroupCall::processMigration(StartConferenceInfo conference) {
+	if (!conference.videoCapture) {
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	if (!conference.videoCaptureScreenId.isEmpty()) {
+		_screenCapture = std::move(conference.videoCapture);
+		_screenDeviceId = conference.videoCaptureScreenId;
+		_screenCapture->setOnFatalError([=] {
+			crl::on_main(weak, [=] {
+				emitShareScreenError(Error::ScreenFailed);
+			});
+		});
+		_screenCapture->setOnPause([=](bool paused) {
+			crl::on_main(weak, [=] {
+				if (isSharingScreen()) {
+					_screenState = paused
+						? Webrtc::VideoState::Paused
+						: Webrtc::VideoState::Active;
+				}
+			});
+		});
+		_screenState = Webrtc::VideoState::Active;
+	} else {
+		_cameraCapture = std::move(conference.videoCapture);
+		_cameraCapture->setOnFatalError([=] {
+			crl::on_main(weak, [=] {
+				emitShareCameraError(Error::CameraFailed);
+			});
+		});
+		_cameraState = Webrtc::VideoState::Active;
 	}
 }
 
@@ -1578,6 +1616,9 @@ void GroupCall::sendJoinRequest() {
 				sendOutboundBlock(base::take(_pendingOutboundBlock));
 			}
 		}
+		if (const auto once = base::take(_migratedConferenceInfo)) {
+			processMigration(*once);
+		}
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
 		if (_e2e) {
@@ -1885,7 +1926,7 @@ void GroupCall::applyParticipantLocally(
 		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume) {
-	const auto participant = LookupParticipant(_peer, _id, participantPeer);
+	const auto participant = LookupParticipant(this, participantPeer);
 	if (!participant || !participant->ssrc) {
 		return;
 	}
@@ -2370,7 +2411,7 @@ void GroupCall::applyOtherParticipantUpdate(
 	}
 	const auto participantPeer = _peer->owner().peer(
 		peerFromMTP(data.vpeer()));
-	if (!LookupParticipant(_peer, _id, participantPeer)) {
+	if (!LookupParticipant(this, participantPeer)) {
 		return;
 	}
 	_otherParticipantStateValue.fire(Group::ParticipantState{
@@ -3686,7 +3727,7 @@ void GroupCall::editParticipant(
 		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume) {
-	const auto participant = LookupParticipant(_peer, _id, participantPeer);
+	const auto participant = LookupParticipant(this, participantPeer);
 	if (!participant) {
 		return;
 	}
