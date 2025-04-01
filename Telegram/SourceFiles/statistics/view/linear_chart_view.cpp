@@ -204,6 +204,9 @@ int LinearChartView::findXIndexByPosition(
 		: ((*nearest) < xPercentageLimits.min)
 		? (nearest + 1)
 		: nearest;
+	if (resultXPercentageIt == end(chartData.xPercentage)) {
+		return chartData.xPercentage.size() - 1;
+	}
 	return std::distance(begin(chartData.xPercentage), resultXPercentageIt);
 }
 
