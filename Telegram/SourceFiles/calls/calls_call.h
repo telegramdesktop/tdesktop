@@ -107,6 +107,7 @@ public:
 		not_null<UserData*> user,
 		CallId conferenceId,
 		MsgId conferenceInviteMsgId,
+		std::vector<not_null<PeerData*>> conferenceParticipants,
 		bool video);
 
 	[[nodiscard]] Type type() const {
@@ -126,6 +127,10 @@ public:
 	}
 	[[nodiscard]] MsgId conferenceInviteMsgId() const {
 		return _conferenceInviteMsgId;
+	}
+	[[nodiscard]] auto conferenceParticipants() const
+	-> const std::vector<not_null<PeerData*>> & {
+		return _conferenceParticipants;
 	}
 	[[nodiscard]] bool isIncomingWaiting() const;
 
@@ -343,6 +348,7 @@ private:
 
 	CallId _conferenceId = 0;
 	MsgId _conferenceInviteMsgId = 0;
+	std::vector<not_null<PeerData*>> _conferenceParticipants;
 
 	std::unique_ptr<tgcalls::Instance> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;

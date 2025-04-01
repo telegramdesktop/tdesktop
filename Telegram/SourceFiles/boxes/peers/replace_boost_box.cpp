@@ -694,8 +694,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 		bool painting = false;
 	};
 	const auto full = st.button.size.height()
-		+ st::boostReplaceIconAdd.y()
-		+ st::lineWidth;
+		+ (st.complex ? (st::boostReplaceIconAdd.y() + st::lineWidth) : 0);
 	auto result = object_ptr<Ui::FixedHeightWidget>(parent, full);
 	const auto raw = result.data();
 	const auto overlay = CreateChild<Ui::RpWidget>(raw);
@@ -731,6 +730,12 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 		overlay->update();
 	}, raw->lifetime());
 
+	if (const auto count = state->count.current()) {
+		const auto single = st.button.size.width();
+		const auto used = std::min(count, int(state->buttons.size()));
+		const auto shift = st.shift;
+		raw->resize(used ? (single + (used - 1) * shift) : 0, raw->height());
+	}
 	rpl::combine(
 		raw->widthValue(),
 		state->count.value()
@@ -768,7 +773,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 		auto hq = PainterHighQualityEnabler(q);
 		const auto stroke = st.stroke;
 		const auto half = stroke / 2.;
-		auto pen = st::windowBg->p;
+		auto pen = st.bg->p;
 		pen.setWidthF(stroke * 2.);
 		state->painting = true;
 		const auto paintOne = [&](not_null<Ui::UserpicButton*> button) {
@@ -788,18 +793,18 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 			}
 		}
 		state->painting = false;
-		const auto last = state->buttons.back().get();
-		const auto add = st::boostReplaceIconAdd;
-		const auto skip = st::boostReplaceIconSkip;
-		const auto w = st::boostReplaceIcon.width() + 2 * skip;
-		const auto h = st::boostReplaceIcon.height() + 2 * skip;
-		const auto x = last->x() + last->width() - w + add.x();
-		const auto y = last->y() + last->height() - h + add.y();
 
 		const auto text = (state->count.current() > limit)
 			? ('+' + QString::number(state->count.current() - limit))
 			: QString();
-		if (!text.isEmpty()) {
+		if (st.complex && !text.isEmpty()) {
+			const auto last = state->buttons.back().get();
+			const auto add = st::boostReplaceIconAdd;
+			const auto skip = st::boostReplaceIconSkip;
+			const auto w = st::boostReplaceIcon.width() + 2 * skip;
+			const auto h = st::boostReplaceIcon.height() + 2 * skip;
+			const auto x = last->x() + last->width() - w + add.x();
+			const auto y = last->y() + last->height() - h + add.y();
 			const auto &font = st::semiboldFont;
 			const auto width = font->width(text);
 			const auto padded = std::max(w, width + 2 * font->spacew);

@@ -82,6 +82,7 @@ struct SharedContact final {
 struct Call {
 	using State = CallState;
 
+	std::vector<not_null<PeerData*>> otherParticipants;
 	CallId conferenceId = 0;
 	int duration = 0;
 	State state = State::Missed;
@@ -468,6 +469,7 @@ public:
 	[[nodiscard]] static QString Text(
 		not_null<HistoryItem*> item,
 		CallState state,
+		bool conference,
 		bool video);
 
 private:
@@ -801,8 +803,11 @@ private:
 	not_null<HistoryItem*> item,
 	const MTPDmessageMediaPaidMedia &data);
 
-[[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
 [[nodiscard]] Call ComputeCallData(
+	not_null<Session*> owner,
+	const MTPDmessageActionPhoneCall &call);
+[[nodiscard]] Call ComputeCallData(
+	not_null<Session*> owner,
 	const MTPDmessageActionConferenceCall &call);
 
 [[nodiscard]] GiveawayStart ComputeGiveawayStartData(

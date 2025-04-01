@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_panel.h"
 
+#include "boxes/peers/replace_boost_box.h" // CreateUserpicsWithMoreBadge
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -215,6 +216,7 @@ Panel::Panel(not_null<Call*> call)
 	initWindow();
 	initWidget();
 	initControls();
+	initConferenceInvite();
 	initLayout();
 	initMediaDeviceToggles();
 	showAndActivate();
@@ -532,6 +534,65 @@ void Panel::initControls() {
 	_decline->finishAnimating();
 	_cancel->finishAnimating();
 	_screencast->finishAnimating();
+}
+
+void Panel::initConferenceInvite() {
+	const auto &participants = _call->conferenceParticipants();
+	const auto count = int(participants.size());
+	if (count < 2) {
+		return;
+	}
+	_conferenceParticipants.create(widget());
+	_conferenceParticipants->show();
+	const auto raw = _conferenceParticipants.data();
+
+	auto peers = std::vector<not_null<PeerData*>>();
+	for (const auto &peer : participants) {
+		if (peer == _user && count > 3) {
+			continue;
+		}
+		peers.push_back(peer);
+		if (peers.size() == 3) {
+			break;
+		}
+	}
+
+	const auto userpics = CreateUserpicsWithMoreBadge(
+		raw,
+		rpl::single(peers),
+		st::confcallInviteUserpics,
+		peers.size()).release();
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		tr::lng_group_call_members(tr::now, lt_count, count),
+		st::confcallInviteParticipants);
+	const auto padding = st::confcallInviteParticipantsPadding;
+	const auto add = padding.bottom();
+	const auto width = add
+		+ userpics->width()
+		+ padding.left()
+		+ label->width()
+		+ padding.right();
+	const auto height = add + userpics->height() + add;
+
+	_status->geometryValue() | rpl::start_with_next([=] {
+		const auto top = _bodyTop + _bodySt->participantsTop;
+		const auto left = (widget()->width() - width) / 2;
+		raw->setGeometry(left, top, width, height);
+		userpics->move(add, add);
+		label->move(add + userpics->width() + padding.left(), padding.top());
+	}, raw->lifetime());
+
+	raw->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = raw->height() / 2.;
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::confcallInviteUserpicsBg);
+		p.drawRoundedRect(raw->rect(), radius, radius);
+	}, raw->lifetime());
 }
 
 void Panel::setIncomingSize(QSize size) {
@@ -1160,7 +1221,11 @@ void Panel::updateControlsGeometry() {
 		std::min(
 			bodyPreviewSizeMax.height(),
 			st::callOutgoingPreviewMax.height()));
-	const auto contentHeight = _bodySt->height
+	const auto bodyContentHeight = _bodySt->height
+		+ (_conferenceParticipants
+			? (_bodySt->participantsTop - _bodySt->statusTop)
+			: 0);
+	const auto contentHeight = bodyContentHeight
 		+ (_outgoingPreviewInBody ? bodyPreviewSize.height() : 0);
 	const auto remainingHeight = available - contentHeight;
 	const auto skipHeight = remainingHeight
@@ -1172,7 +1237,7 @@ void Panel::updateControlsGeometry() {
 		widget()->height(),
 		_buttonsTopShown,
 		shown);
-	const auto previewTop = _bodyTop + _bodySt->height + skipHeight;
+	const auto previewTop = _bodyTop + bodyContentHeight + skipHeight;
 
 	_userpic->setGeometry(
 		(widget()->width() - _bodySt->photoSize) / 2,

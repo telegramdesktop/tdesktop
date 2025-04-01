@@ -4671,18 +4671,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_call_outgoing" = "Outgoing call";
 "lng_call_video_outgoing" = "Outgoing video call";
+"lng_call_group_outgoing" = "Outgoing group call";
 "lng_call_incoming" = "Incoming call";
 "lng_call_video_incoming" = "Incoming video call";
+"lng_call_group_incoming" = "Incoming group call";
 "lng_call_missed" = "Missed call";
 "lng_call_video_missed" = "Missed video call";
+"lng_call_group_missed" = "Missed group call";
 "lng_call_cancelled" = "Canceled call";
 "lng_call_video_cancelled" = "Canceled video call";
 "lng_call_declined" = "Declined call";
 "lng_call_video_declined" = "Declined video call";
+"lng_call_group_declined" = "Declined group call";
 "lng_call_duration_info" = "{time}, {duration}";
 "lng_call_type_and_duration" = "{type} ({duration})";
-"lng_call_invitation" = "Call invitation";
-"lng_call_ongoing" = "Ongoing call";
+"lng_call_invitation" = "Group call invitation";
+"lng_call_ongoing" = "Ongoing group call";
 
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";

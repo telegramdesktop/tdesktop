@@ -313,8 +313,10 @@ boostReplaceIconAdd: point(4px, 2px);
 boostReplaceArrow: icon{{ "mediaview/next", windowSubTextFg }};
 boostReplaceUserpicsRow: UserpicsRow {
 	button: boostReplaceUserpic;
+	bg: windowBg;
 	shift: boostReplaceUserpicsShift;
 	stroke: boostReplaceIconOutline;
+	complex: true;
 }
 
 showOrIconLastSeen: icon{{ "settings/premium/large_lastseen", windowFgActive }};

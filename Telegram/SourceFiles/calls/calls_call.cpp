@@ -253,6 +253,7 @@ Call::Call(
 	not_null<UserData*> user,
 	CallId conferenceId,
 	MsgId conferenceInviteMsgId,
+	std::vector<not_null<PeerData*>> conferenceParticipants,
 	bool video)
 : _delegate(delegate)
 , _user(user)
@@ -279,6 +280,7 @@ Call::Call(
 , _id(base::RandomValue<CallId>())
 , _conferenceId(conferenceId)
 , _conferenceInviteMsgId(conferenceInviteMsgId)
+, _conferenceParticipants(std::move(conferenceParticipants))
 , _videoIncoming(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video)))

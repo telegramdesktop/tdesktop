@@ -47,7 +47,7 @@ Call::Call(
 , _conference(call->conferenceId != 0)
 , _video(call->video) {
 	const auto item = parent->data();
-	_text = Data::MediaCall::Text(item, _state, _video);
+	_text = Data::MediaCall::Text(item, _state, _conference, _video);
 	_status = QLocale().toString(
 		parent->dateTime().time(),
 		QLocale::ShortFormat);
@@ -118,10 +118,10 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 	p.setPen(stm->mediaFg);
 	p.drawTextLeft(statusleft, statustop, paintw, _status);
 
-	const auto &icon = _conference
-		? stm->historyCallGroupIcon
-		: _video
+	const auto &icon = _video
 		? stm->historyCallCameraIcon
+		: _conference
+		? stm->historyCallGroupIcon
 		: stm->historyCallIcon;
 	icon.paint(p, paintw - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, paintw);
 }

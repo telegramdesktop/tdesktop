@@ -456,7 +456,9 @@ Invoice ComputeInvoiceData(
 	return result;
 }
 
-Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
+Call ComputeCallData(
+		not_null<Session*> owner,
+		const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
 	result.state = [&] {
 		if (const auto reason = call.vreason()) {
@@ -480,8 +482,18 @@ Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	return result;
 }
 
-Call ComputeCallData(const MTPDmessageActionConferenceCall &call) {
+Call ComputeCallData(
+		not_null<Session*> owner,
+		const MTPDmessageActionConferenceCall &call) {
+	auto participants = std::vector<not_null<PeerData*>>();
+	if (const auto list = call.vother_participants()) {
+		participants.reserve(list->v.size());
+		for (const auto &participant : list->v) {
+			participants.push_back(owner->peer(peerFromMTP(participant)));
+		}
+	}
 	return {
+		.otherParticipants = std::move(participants),
 		.conferenceId = call.vcall_id().v,
 		.duration = call.vduration().value_or_empty(),
 		.state = (call.vduration().value_or_empty()
@@ -1723,7 +1735,8 @@ const Call *MediaCall::call() const {
 }
 
 TextWithEntities MediaCall::notificationText() const {
-	auto result = Text(parent(), _call.state, _call.video);
+	const auto conference = (_call.conferenceId != 0);
+	auto result = Text(parent(), _call.state, conference, _call.video);
 	if (_call.duration > 0) {
 		result = tr::lng_call_type_and_duration(
 			tr::now,
@@ -1765,6 +1778,7 @@ std::unique_ptr<HistoryView::Media> MediaCall::createView(
 QString MediaCall::Text(
 		not_null<HistoryItem*> item,
 		CallState state,
+		bool conference,
 		bool video) {
 	if (state == CallState::Invitation) {
 		return tr::lng_call_invitation(tr::now);
@@ -1772,14 +1786,20 @@ QString MediaCall::Text(
 		return tr::lng_call_ongoing(tr::now);
 	} else if (item->out()) {
 		return ((state == CallState::Missed)
-			? (video
+			? (conference
+				? tr::lng_call_group_declined
+				: video
 				? tr::lng_call_video_cancelled
 				: tr::lng_call_cancelled)
-			: (video
+			: (conference
+				? tr::lng_call_group_outgoing
+				: video
 				? tr::lng_call_video_outgoing
 				: tr::lng_call_outgoing))(tr::now);
 	} else if (state == CallState::Missed) {
-		return (video
+		return (conference
+			? tr::lng_call_group_missed
+			: video
 			? tr::lng_call_video_missed
 			: tr::lng_call_missed)(tr::now);
 	} else if (state == CallState::Busy) {
@@ -1787,7 +1807,9 @@ QString MediaCall::Text(
 			? tr::lng_call_video_declined
 			: tr::lng_call_declined)(tr::now);
 	}
-	return (video
+	return (conference
+		? tr::lng_call_group_incoming
+		: video
 		? tr::lng_call_video_incoming
 		: tr::lng_call_incoming)(tr::now);
 }

@@ -481,13 +481,13 @@ HistoryItem::HistoryItem(
 		createComponents(CreateConfig());
 		_media = std::make_unique<Data::MediaCall>(
 			this,
-			Data::ComputeCallData(data));
+			Data::ComputeCallData(&history->owner(), data));
 		setTextValue({});
 	}, [&](const MTPDmessageActionConferenceCall &data) {
 		createComponents(CreateConfig());
 		_media = std::make_unique<Data::MediaCall>(
 			this,
-			Data::ComputeCallData(data));
+			Data::ComputeCallData(&history->owner(), data));
 		setTextValue({});
 	}, [&](const auto &) {
 		createServiceFromMtp(data);
@@ -1906,6 +1906,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		_media = std::make_unique<Data::MediaCall>(
 			this,
 			Data::ComputeCallData(
+				&history()->owner(),
 				message.vaction().c_messageActionConferenceCall()));
 		addToSharedMediaIndex();
 		finishEdition(-1);

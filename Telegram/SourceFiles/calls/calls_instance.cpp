@@ -1024,6 +1024,11 @@ void Instance::showConferenceInvite(
 		return;
 	}
 
+	auto conferenceParticipants = call->otherParticipants;
+	if (!ranges::contains(conferenceParticipants, user)) {
+		conferenceParticipants.push_back(user);
+	}
+
 	const auto &config = user->session().serverConfig();
 	if (inCall() || inGroupCall()) {
 		declineIncomingConferenceInvites(conferenceId);
@@ -1038,6 +1043,7 @@ void Instance::showConferenceInvite(
 			user,
 			conferenceId,
 			conferenceInviteMsgId,
+			std::move(conferenceParticipants),
 			video);
 		const auto raw = call.get();
 

@@ -142,6 +142,7 @@ private:
 	void initWindow();
 	void initWidget();
 	void initControls();
+	void initConferenceInvite();
 	void reinitWithCall(Call *call);
 	void initLayout();
 	void initMediaDeviceToggles();
@@ -211,6 +212,7 @@ private:
 	object_ptr < Ui::FadeWrap<Ui::CallButton>> _addPeople;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
+	object_ptr<Ui::RpWidget> _conferenceParticipants = { nullptr };
 	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteAudioMute = { nullptr };
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteLowBattery

@@ -26,8 +26,10 @@ UserpicButton {
 }
 UserpicsRow {
 	button: UserpicButton;
+	bg: color;
 	shift: pixels;
 	stroke: pixels;
+	complex: bool;
 	invert: bool;
 }
 ShortInfoBox {

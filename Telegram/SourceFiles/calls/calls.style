@@ -37,6 +37,7 @@ CallBodyLayout {
 	photoSize: pixels;
 	nameTop: pixels;
 	statusTop: pixels;
+	participantsTop: pixels;
 	muteStroke: pixels;
 	muteSize: pixels;
 	mutePosition: point;
@@ -48,6 +49,7 @@ callBodyLayout: CallBodyLayout {
 	photoSize: 160px;
 	nameTop: 221px;
 	statusTop: 254px;
+	participantsTop: 294px;
 	muteStroke: 3px;
 	muteSize: 36px;
 	mutePosition: point(142px, 135px);
@@ -58,6 +60,7 @@ callBodyWithPreview: CallBodyLayout {
 	photoSize: 100px;
 	nameTop: 132px;
 	statusTop: 163px;
+	participantsTop: 193px;
 	muteStroke: 3px;
 	muteSize: 0px;
 	mutePosition: point(90px, 84px);
@@ -1538,11 +1541,27 @@ confcallJoinUserpics: UserpicsRow {
 		size: size(36px, 36px);
 		photoSize: 36px;
 	}
+	bg: boxBg;
 	shift: 16px;
 	stroke: 2px;
 	invert: true;
 }
 confcallJoinUserpicsPadding: margins(0px, 0px, 0px, 16px);
+confcallInviteUserpicsBg: groupCallMembersBg;
+confcallInviteUserpics: UserpicsRow {
+	button: UserpicButton(defaultUserpicButton) {
+		size: size(24px, 24px);
+		photoSize: 24px;
+	}
+	bg: confcallInviteUserpicsBg;
+	shift: 10px;
+	stroke: 2px;
+	invert: true;
+}
+confcallInviteParticipants: FlatLabel(defaultFlatLabel) {
+	textFg: callNameFg;
+}
+confcallInviteParticipantsPadding: margins(8px, 3px, 12px, 2px);
 confcallInviteVideo: IconButton {
 	width: 36px;
 	height: 52px;
