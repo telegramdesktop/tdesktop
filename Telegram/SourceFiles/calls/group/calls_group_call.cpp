@@ -729,6 +729,11 @@ void GroupCall::setupConferenceCall() {
 		}
 		_conferenceCall->setParticipantsWithAccess(std::move(users));
 	}, _lifetime);
+
+	_e2e->failures() | rpl::start_with_next([=] {
+		LOG(("TdE2E: Got failure!"));
+		hangup();
+	}, _lifetime);
 }
 
 void GroupCall::removeConferenceParticipants(

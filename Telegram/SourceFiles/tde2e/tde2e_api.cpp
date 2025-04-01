@@ -19,6 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 	LOG_ERROR(error); \
 	fail(reason)
 
+#define LOG_APPLY(subchain, slice) \
+	DEBUG_LOG(("TdE2E Apply[%1]: %2").arg(subchain).arg(WrapForLog(slice)))
+
 namespace TdE2E {
 namespace {
 
@@ -50,6 +53,23 @@ constexpr auto kShortPollChainBlocksWaitFor = crl::time(1000);
 		result.list.emplace(UserId{ uint64(entry.user_id) });
 	}
 	return result;
+}
+
+[[nodiscard]] QString WrapForLog(std::string_view v) {
+	auto result = QString();
+	const auto count = std::min(int(v.size()), 16);
+	result.reserve(count * 3 + 2);
+	for (auto i = 0; i != count; ++i) {
+		const auto byte = uint8(v[i]);
+		result += QString::number(byte, 16).rightJustified(2, '0');
+		if (i + 1 != count) {
+			result += ' ';
+		}
+	}
+	if (v.size() > count) {
+		result += "...";
+	}
+	return result.toUpper();
 }
 
 } // namespace
@@ -195,6 +215,7 @@ void Call::apply(int subchain, const Block &last) {
 	});
 
 	if (subchain) {
+		LOG_APPLY(1, Slice(last.data));
 		auto result = tde2e_api::call_receive_inbound_message(
 			libId(),
 			Slice(last.data));
@@ -205,6 +226,7 @@ void Call::apply(int subchain, const Block &last) {
 		}
 		return;
 	} else if (_id) {
+		LOG_APPLY(0, Slice(last.data));
 		const auto result = tde2e_api::call_apply_block(
 			libId(),
 			Slice(last.data));
@@ -215,6 +237,7 @@ void Call::apply(int subchain, const Block &last) {
 		}
 		return;
 	}
+	LOG_APPLY(-1, Slice(last.data));
 	const auto id = tde2e_api::call_create(
 		std::int64_t(_myKeyId.v),
 		Slice(last.data));
@@ -296,7 +319,9 @@ void Call::apply(
 
 	if (failed()) {
 		return;
-	} else if (!_id || entry.height == index) {
+	} else if (!_id
+		|| (subchain && !entry.height && fromShortPoll)
+		|| (entry.height == index)) {
 		apply(subchain, block);
 	}
 	entry.height = std::max(entry.height, index + 1);
@@ -331,6 +356,7 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 		} else if (index == entry.height) {
 			const auto slice = Slice(waiting.begin()->second.data);
 			if (subchain) {
+				LOG_APPLY(1, slice);
 				auto result = tde2e_api::call_receive_inbound_message(
 					libId(),
 					slice);
@@ -343,6 +369,7 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 					: QByteArray();
 				checkForOutboundMessages();
 			} else {
+				LOG_APPLY(0, slice);
 				const auto result = tde2e_api::call_apply_block(
 					libId(),
 					slice);
