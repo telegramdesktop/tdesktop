@@ -1092,8 +1092,8 @@ void GroupCall::setState(State state) {
 
 	if (state == State::Joined) {
 		stopConnectingSound();
-		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
-			call->setInCall();
+		if (const auto real = lookupReal()) {
+			real->setInCall();
 		}
 	}
 
@@ -1950,7 +1950,7 @@ void GroupCall::applyParticipantLocally(
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
 			: Flag(0));
-	_peer->groupCall()->applyLocalUpdate(
+	lookupReal()->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
 			MTP_vector<MTPGroupCallParticipant>(
@@ -2893,6 +2893,7 @@ bool GroupCall::tryCreateScreencast() {
 		.createAudioDeviceModule = Webrtc::LoopbackAudioDeviceModuleCreator(),
 		.videoCapture = _screenCapture,
 		.videoContentType = tgcalls::VideoContentType::Screencast,
+		.e2eEncryptDecrypt = _e2e ? _e2e->callbackEncryptDecrypt() : nullptr,
 	};
 
 	LOG(("Call Info: Creating group screen instance"));
