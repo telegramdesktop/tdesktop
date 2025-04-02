@@ -6211,6 +6211,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_chart_revenue" = "Revenue";
 "lng_bot_earn_overview_title" = "Proceeds overview";
 "lng_bot_earn_available" = "Available balance";
+"lng_bot_earn_reward" = "Total balance";
 "lng_bot_earn_total" = "Total lifetime proceeds";
 "lng_bot_earn_balance_title" = "Available balance";
 "lng_bot_earn_balance_about" = "Stars from your total balance can be used for ads or withdrawn as rewards 21 days after they are earned.";

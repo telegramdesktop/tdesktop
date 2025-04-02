@@ -205,9 +205,11 @@ void InnerWidget::fill() {
 			tr::lng_bot_earn_available);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
-		// addOverview(data.currentBalance, tr::lng_bot_earn_reward);
-		// Ui::AddSkip(container);
-		// Ui::AddSkip(container);
+		addOverview(
+			rpl::single(data.currentBalance),
+			tr::lng_bot_earn_reward);
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
 		addOverview(
 			rpl::single(
 				data.overallRevenue
