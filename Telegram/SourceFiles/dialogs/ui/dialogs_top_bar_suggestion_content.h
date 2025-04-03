@@ -26,6 +26,8 @@ public:
 
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 
+	void setHideCallback(Fn<void()>);
+
 protected:
 	void paintEvent(QPaintEvent *) override;
 
@@ -42,6 +44,7 @@ private:
 	rpl::variable<int> _lastPaintedContentTop = 0;
 
 	base::unique_qptr<Ui::IconButton> _rightHide;
+	Fn<void()> _hideCallback;
 
 	std::shared_ptr<Ui::DynamicImage> _rightPhoto;
 	QImage _rightPhotoImage;

@@ -18,7 +18,15 @@ TopBarSuggestionContent::TopBarSuggestionContent(not_null<Ui::RpWidget*> p)
 : Ui::RippleButton(p, st::defaultRippleAnimationBgOver)
 , _titleSt(st::semiboldTextStyle)
 , _contentTitleSt(st::semiboldTextStyle)
-, _contentTextSt(st::defaultTextStyle) {
+, _contentTextSt(st::defaultTextStyle)
+, _rightHide(
+	base::make_unique_q<Ui::IconButton>(
+		this,
+		st::dialogsCancelSearchInPeer)) {
+	const auto rightHide = _rightHide.get();
+	sizeValue() | rpl::start_with_next([=](const QSize &s) {
+		rightHide->moveToRight(st::buttonRadius, st::lineWidth);
+	}, rightHide->lifetime());
 }
 
 void TopBarSuggestionContent::draw(QPainter &p) {
@@ -29,7 +37,7 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 	const auto r = Ui::RpWidget::rect();
 	p.fillRect(r, st::historyPinnedBg);
 	Ui::RippleButton::paintRipple(p, 0, 0);
-	const auto leftPadding = st::msgReplyBarSkip + st::msgReplyBarSkip;
+	const auto leftPadding = st::defaultDialogRow.padding.left();
 	const auto rightPadding = st::msgReplyBarSkip;
 	const auto topPadding = st::msgReplyPadding.top();
 	const auto availableWidthNoPhoto = r.width()
@@ -44,7 +52,7 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 	p.setPen(st::windowActiveTextFg);
 	p.setPen(st::windowFg);
 	{
-		const auto left = hasSecondLineTitle ? leftPadding : titleRight;
+		const auto left = leftPadding;
 		const auto top = hasSecondLineTitle
 			? (topPadding + _titleSt.font->height)
 			: topPadding;
@@ -131,6 +139,10 @@ rpl::producer<int> TopBarSuggestionContent::desiredHeightValue() const {
 			minHeight,
 			st::sponsoredMessageBarMaxHeight);
 	});
+}
+
+void TopBarSuggestionContent::setHideCallback(Fn<void()> hideCallback) {
+	_rightHide->setClickedCallback(std::move(hideCallback));
 }
 
 } // namespace Dialogs
