@@ -474,12 +474,14 @@ void Panel::initControls() {
 				return;
 			}
 			*creating = true;
+			const auto sharingLink = users.empty();
 			Group::MakeConferenceCall({
 				.show = uiShow(),
 				.finished = finish,
 				.joining = true,
 				.info = {
 					.invite = std::move(users),
+					.sharingLink = sharingLink,
 					.migrating = true,
 					.muted = call->muted(),
 					.videoCapture = (call->isSharingVideo()

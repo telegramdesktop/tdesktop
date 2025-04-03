@@ -427,6 +427,14 @@ void Call::answer() {
 	}), video);
 }
 
+StartConferenceInfo Call::migrateConferenceInfo(StartConferenceInfo extend) {
+	extend.migrating = true;
+	extend.muted = muted();
+	extend.videoCapture = isSharingVideo() ? _videoCapture : nullptr;
+	extend.videoCaptureScreenId = screenSharingDeviceId();
+	return extend;
+}
+
 void Call::acceptConferenceInvite() {
 	Expects(conferenceInvite());
 
@@ -436,29 +444,24 @@ void Call::acceptConferenceInvite() {
 	setState(State::ExchangingKeys);
 	const auto limit = 5;
 	const auto messageId = _conferenceInviteMsgId;
-	const auto session = &_user->session();
-	auto info = StartConferenceInfo{
-		.joinMessageId = messageId,
-		.migrating = true,
-		.muted = muted(),
-		.videoCapture = isSharingVideo() ? _videoCapture : nullptr,
-		.videoCaptureScreenId = screenSharingDeviceId(),
-	};
-	session->api().request(MTPphone_GetGroupCall(
+	_api.request(MTPphone_GetGroupCall(
 		MTP_inputGroupCallInviteMessage(MTP_int(messageId.bare)),
 		MTP_int(limit)
-	)).done([session, messageId, info](const MTPphone_GroupCall &result) {
+	)).done([=](const MTPphone_GroupCall &result) {
 		result.data().vcall().match([&](const auto &data) {
-			auto copy = info;
-			copy.call = session->data().sharedConferenceCall(
+			auto call = _user->owner().sharedConferenceCall(
 				data.vid().v,
 				data.vaccess_hash().v);
-			copy.call->processFullCall(result);
-			Core::App().calls().startOrJoinConferenceCall(std::move(copy));
+			call->processFullCall(result);
+			Core::App().calls().startOrJoinConferenceCall(
+				migrateConferenceInfo({
+					.call = std::move(call),
+					.joinMessageId = messageId,
+				}));
 		});
-	}).fail(crl::guard(this, [=](const MTP::Error &error) {
+	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
-	})).send();
+	}).send();
 }
 
 void Call::actuallyAnswer() {
@@ -892,10 +895,11 @@ void Call::finishByMigration(const QString &slug) {
 				data.vid().v,
 				data.vaccess_hash().v);
 			call->processFullCall(result);
-			Core::App().calls().startOrJoinConferenceCall({
-				.call = call,
-				.linkSlug = slug,
-			});
+			Core::App().calls().startOrJoinConferenceCall(
+				migrateConferenceInfo({
+					.call = call,
+					.linkSlug = slug,
+				}));
 		});
 	}).fail(crl::guard(this, [=] {
 		setState(State::Failed);

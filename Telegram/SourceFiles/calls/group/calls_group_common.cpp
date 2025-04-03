@@ -406,7 +406,8 @@ void ExportConferenceCallLink(
 				auto copy = info;
 				copy.call = call;
 				copy.linkSlug = std::move(slug);
-				Core::App().calls().startOrJoinConferenceCall(info);
+				Core::App().calls().startOrJoinConferenceCall(
+					std::move(copy));
 			}
 			if (const auto onstack = finished) {
 				finished(QString());

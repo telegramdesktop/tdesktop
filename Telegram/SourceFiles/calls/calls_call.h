@@ -40,6 +40,8 @@ struct DeviceResolvedId;
 
 namespace Calls {
 
+struct StartConferenceInfo;
+
 struct DhConfig {
 	int32 version = 0;
 	int32 g = 0;
@@ -311,6 +313,9 @@ private:
 	void updateRemoteMediaState(
 		tgcalls::AudioState audio,
 		tgcalls::VideoState video);
+
+	[[nodiscard]] StartConferenceInfo migrateConferenceInfo(
+		StartConferenceInfo extend);
 
 	const not_null<Delegate*> _delegate;
 	const not_null<UserData*> _user;

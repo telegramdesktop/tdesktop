@@ -64,6 +64,7 @@ struct StartConferenceInfo {
 	QString linkSlug;
 	MsgId joinMessageId;
 	std::vector<InviteRequest> invite;
+	bool sharingLink = false;
 	bool migrating = false;
 	bool muted = false;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> videoCapture;

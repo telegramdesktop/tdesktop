@@ -254,7 +254,7 @@ void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
 	_currentGroupCallChanges.fire_copy(raw);
 	if (!args.invite.empty()) {
 		_currentGroupCallPanel->migrationInviteUsers(std::move(args.invite));
-	} else if (args.migrating && !args.linkSlug.isEmpty()) {
+	} else if (args.sharingLink && !args.linkSlug.isEmpty()) {
 		_currentGroupCallPanel->migrationShowShareLink();
 	}
 }
