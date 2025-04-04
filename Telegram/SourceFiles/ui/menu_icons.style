@@ -212,6 +212,7 @@ mediaMenuIconArchiveStory: icon {{ "menu/stories_archive", mediaviewMenuFg }};
 mediaMenuIconStealthLocked: icon {{ "menu/stealth_locked", mediaviewMenuFg }};
 mediaMenuIconStealth: icon {{ "menu/stealth", mediaviewMenuFg }};
 mediaMenuIconStats: icon {{ "menu/stats", mediaviewMenuFg }};
+mediaMenuIconRemove: icon {{ "menu/remove", mediaviewMenuFg }};
 
 mediaMenuIconInfo: icon {{ "menu/info", mediaviewMenuFg }};
 mediaMenuIconBlock: icon {{ "menu/block", mediaviewMenuFg }};

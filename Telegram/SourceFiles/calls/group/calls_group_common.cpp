@@ -21,15 +21,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_view.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 
@@ -235,9 +239,12 @@ void ConferenceCallJoinConfirm(
 ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle() {
 	return {
 		.box = &st::groupCallLinkBox,
+		.menuToggle = &st::groupCallLinkMenu,
+		.menu = &st::groupCallPopupMenuWithIcons,
 		.close = &st::storiesStealthBoxClose,
 		.centerLabel = &st::groupCallLinkCenteredText,
 		.linkPreview = &st::groupCallLinkPreview,
+		.contextRevoke = &st::mediaMenuIconRemove,
 		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
 			DarkShareBoxStyle()),
 	};
@@ -251,6 +258,12 @@ void ShowConferenceCallLinkBox(
 	const auto st = args.st;
 	const auto initial = args.initial;
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		struct State {
+			base::unique_qptr<Ui::PopupMenu> menu;
+			bool resetting = false;
+		};
+		const auto state = box->lifetime().make_state<State>();
+
 		box->setStyle(st.box
 			? *st.box
 			: initial
@@ -258,9 +271,65 @@ void ShowConferenceCallLinkBox(
 			: st::confcallLinkBox);
 		box->setWidth(st::boxWideWidth);
 		box->setNoContentMargin(true);
-		box->addTopButton(st.close ? *st.close : st::boxTitleClose, [=] {
-			box->closeBox();
-		});
+		const auto close = box->addTopButton(
+			st.close ? *st.close : st::boxTitleClose,
+			[=] { box->closeBox(); });
+
+		if (!args.initial && call->canManage()) {
+			const auto toggle = Ui::CreateChild<Ui::IconButton>(
+				close->parentWidget(),
+				st.menuToggle ? *st.menuToggle : st::confcallLinkMenu);
+			const auto handler = [=] {
+				if (state->resetting) {
+					return;
+				}
+				state->resetting = true;
+				using Flag = MTPphone_ToggleGroupCallSettings::Flag;
+				call->session().api().request(
+					MTPphone_ToggleGroupCallSettings(
+						MTP_flags(Flag::f_reset_invite_hash),
+						call->input(),
+						MTPbool()) // join_muted
+				).done([=] {
+					auto copy = args;
+					const auto weak = Ui::MakeWeak(box);
+					copy.finished = [=](QString link) {
+						if (const auto strong = weak.data()) {
+							strong->closeBox();
+						}
+						show->showToast({
+							.title = tr::lng_confcall_link_revoked_title(
+								tr::now),
+							.text = tr::lng_confcall_link_revoked_text(
+								tr::now),
+						});
+					};
+					ExportConferenceCallLink(
+						show,
+						call,
+						std::move(copy));
+				}).send();
+			};
+			toggle->setClickedCallback([=] {
+				state->menu = base::make_unique_q<Ui::PopupMenu>(
+					toggle,
+					st.menu ? *st.menu : st::popupMenuWithIcons);
+				state->menu->addAction(
+					tr::lng_confcall_link_revoke(tr::now),
+					handler,
+					(st.contextRevoke
+						? st.contextRevoke
+						: &st::menuIconRemove));
+				state->menu->popup(QCursor::pos());
+			});
+
+			close->geometryValue(
+			) | rpl::start_with_next([=](QRect geometry) {
+				toggle->moveToLeft(
+					geometry.x() - toggle->width(),
+					geometry.y());
+			}, close->lifetime());
+		}
 
 		box->addRow(
 			Info::BotStarRef::CreateLinkHeaderIcon(box, &call->session()),

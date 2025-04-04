@@ -4930,6 +4930,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_join_button" = "Join Group Call";
 "lng_confcall_create_link" = "Create Call Link";
 "lng_confcall_create_link_description" = "You can create a link that will allow your friends on Telegram to join the call.";
+"lng_confcall_link_revoke" = "Revoke link";
+"lng_confcall_link_revoked_title" = "Link Revoked";
+"lng_confcall_link_revoked_text" = "A new link has been generated.";
 "lng_confcall_link_title" = "Call Link";
 "lng_confcall_link_about" = "Anyone on Telegram can join your call by following the link below.";
 "lng_confcall_link_or" = "or";

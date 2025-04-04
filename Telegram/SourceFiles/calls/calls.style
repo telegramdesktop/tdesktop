@@ -578,6 +578,13 @@ groupCallPopupMenu: PopupMenu(defaultPopupMenu) {
 	menu: groupCallMenu;
 	animation: groupCallPanelAnimation;
 }
+groupCallPopupMenuWithIcons: PopupMenu(popupMenuWithIcons) {
+	shadow: groupCallMenuShadow;
+	menu: Menu(groupCallMenu, menuWithIcons) {
+		arrow: icon {{ "menu/submenu_arrow", groupCallMemberNotJoinedStatus }};
+	}
+	animation: groupCallPanelAnimation;
+}
 groupCallPopupMenuWithVolume: PopupMenu(groupCallPopupMenu) {
 	scrollPadding: margins(0px, 3px, 0px, 8px);
 	menu: Menu(groupCallMenu) {
@@ -1617,3 +1624,15 @@ groupCallInviteLink: SettingsButton(defaultSettingsButton) {
 }
 groupCallInviteLinkIcon: icon {{ "info/edit/group_manage_links", mediaviewTextLinkFg }};
 groupCallInviteLinkIconPosition: point(23px, 2px);
+
+confcallLinkMenu: IconButton(boxTitleClose) {
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+}
+groupCallLinkMenu: IconButton(confcallLinkMenu) {
+	icon: icon {{ "title_menu_dots", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "title_menu_dots", groupCallMemberInactiveIcon }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallMembersBgOver;
+	}
+}

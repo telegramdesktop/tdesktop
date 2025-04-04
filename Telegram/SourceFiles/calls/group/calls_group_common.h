@@ -18,6 +18,7 @@ struct Box;
 struct FlatLabel;
 struct IconButton;
 struct InputField;
+struct PopupMenu;
 } // namespace style
 
 namespace Data {
@@ -164,9 +165,12 @@ void ConferenceCallJoinConfirm(
 
 struct ConferenceCallLinkStyleOverrides {
 	const style::Box *box = nullptr;
+	const style::IconButton *menuToggle = nullptr;
+	const style::PopupMenu *menu = nullptr;
 	const style::IconButton *close = nullptr;
 	const style::FlatLabel *centerLabel = nullptr;
 	const style::InputField *linkPreview = nullptr;
+	const style::icon *contextRevoke = nullptr;
 	std::shared_ptr<ShareBoxStyleOverrides> shareBox;
 };
 [[nodiscard]] ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle();
