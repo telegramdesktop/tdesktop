@@ -362,6 +362,10 @@ void PipPanel::init() {
 	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
 		// Workaround Qt's forced transient parent.
 		Ui::Platform::ClearTransientParent(widget());
+	}, rp()->lifetime());
+
+	rp()->shownValue(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
 		Ui::Platform::SetWindowMargins(widget(), _padding);
 	}, rp()->lifetime());
 
