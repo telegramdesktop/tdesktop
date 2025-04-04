@@ -902,7 +902,7 @@ void SessionNavigation::resolveConferenceCall(
 		_conferenceCallRequestId = 0;
 		_conferenceCallSlug = QString();
 		_conferenceCallResolveContextId = FullMsgId();
-		showToast(tr::lng_group_invite_bad_link(tr::now));
+		showToast(tr::lng_confcall_link_inactive(tr::now));
 	}).send();
 }
 

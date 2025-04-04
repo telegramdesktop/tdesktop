@@ -4766,6 +4766,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_muted_by_me_status" = "muted for you";
 "lng_group_call_invite_title" = "Invite members";
 "lng_group_call_invite_button" = "Invite";
+"lng_group_call_confcall_add" = "Call";
 "lng_group_call_add_to_group_one" = "{user} isn't a member of «{group}». Add them to the group?";
 "lng_group_call_add_to_group_some" = "Some of those users aren't members of «{group}». Add them to the group?";
 "lng_group_call_add_to_group_all" = "Those users aren't members of «{group}». Add them to the group?";
@@ -4932,6 +4933,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_create_link_description" = "You can create a link that will allow your friends on Telegram to join the call.";
 "lng_confcall_link_revoke" = "Revoke link";
 "lng_confcall_link_revoked_title" = "Link Revoked";
+"lng_confcall_link_inactive" = "This link is no longer active.";
 "lng_confcall_link_revoked_text" = "A new link has been generated.";
 "lng_confcall_link_title" = "Call Link";
 "lng_confcall_link_about" = "Anyone on Telegram can join your call by following the link below.";

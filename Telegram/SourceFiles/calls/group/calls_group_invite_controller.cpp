@@ -504,7 +504,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			raw->hasSelectedValue() | rpl::start_with_next([=](bool has) {
 				box->clearButtons();
 				if (has) {
-					box->addButton(tr::lng_group_call_invite_button(), [=] {
+					box->addButton(tr::lng_group_call_confcall_add(), [=] {
 						const auto call = weak.get();
 						if (!call) {
 							return;
