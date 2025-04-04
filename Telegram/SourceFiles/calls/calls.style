@@ -24,8 +24,8 @@ CallSignalBars {
 	inactiveOpacity: double;
 }
 
-callWidthMin: 372px;
-callHeightMin: 440px;
+callWidthMin: 380px;
+callHeightMin: 520px;
 callWidth: 720px;
 callHeight: 540px;
 
@@ -532,7 +532,7 @@ callErrorToast: Toast(defaultToast) {
 }
 
 groupCallWidth: 380px;
-groupCallHeight: 580px;
+groupCallHeight: 520px;
 groupCallWidthRtmp: 720px;
 groupCallWidthRtmpMin: 240px;
 groupCallHeightRtmp: 580px;

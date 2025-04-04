@@ -690,6 +690,16 @@ void Panel::reinitWithCall(Call *call) {
 
 	_user = _call->user();
 
+	_call->confereceSupportedValue(
+	) | rpl::start_with_next([=](bool supported) {
+		_conferenceSupported = supported;
+		_addPeople->toggle(_conferenceSupported
+			&& (_call->state() != State::WaitingUserConfirmation),
+			window()->isHidden() ? anim::type::instant : anim::type::normal);
+
+		updateHangupGeometry();
+	}, _callLifetime);
+
 	auto remoteMuted = _call->remoteAudioStateValue(
 	) | rpl::map(rpl::mappers::_1 == Call::RemoteAudioState::Muted);
 	rpl::duplicate(
@@ -1321,7 +1331,8 @@ void Panel::updateHangupGeometry() {
 	const auto buttonWidth = st::callCancel.button.width;
 	const auto cancelWidth = buttonWidth * (1. - hangupProgress);
 	const auto cancelLeft = (widget()->width() - buttonWidth) / 2
-		- ((isBusy || incomingWaiting) ? buttonWidth : 0);
+		- ((isBusy || incomingWaiting) ? buttonWidth : 0)
+		+ ((isWaitingUser || _conferenceSupported) ? 0 : (buttonWidth / 2));
 
 	_cancel->moveToLeft(cancelLeft, _buttonsTop);
 	_decline->moveToLeft(cancelLeft, _buttonsTop);
@@ -1413,12 +1424,11 @@ void Panel::stateChanged(State state) {
 		}
 		_camera->setVisible(!_startVideo);
 
+		const auto windowHidden = window()->isHidden();
 		const auto toggleButton = [&](auto &&button, bool visible) {
 			button->toggle(
 				visible,
-				window()->isHidden()
-				? anim::type::instant
-				: anim::type::normal);
+				(windowHidden ? anim::type::instant : anim::type::normal));
 		};
 		const auto incomingWaiting = _call->isIncomingWaiting();
 		if (incomingWaiting) {
@@ -1430,7 +1440,7 @@ void Panel::stateChanged(State state) {
 		toggleButton(
 			_screencast,
 			!(isBusy || isWaitingUser || incomingWaiting));
-		toggleButton(_addPeople, !isWaitingUser);
+		toggleButton(_addPeople, !isWaitingUser && _conferenceSupported);
 		const auto hangupShown = !_decline->toggled()
 			&& !_cancel->toggled();
 		if (_hangupShown != hangupShown) {

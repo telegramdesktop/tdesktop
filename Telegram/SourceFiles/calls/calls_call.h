@@ -170,6 +170,10 @@ public:
 		return _errors.events();
 	}
 
+	[[nodiscard]] rpl::producer<bool> confereceSupportedValue() const {
+		return _conferenceSupported.value();
+	}
+
 	enum class RemoteAudioState {
 		Muted,
 		Active,
@@ -322,6 +326,7 @@ private:
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
+	rpl::variable<bool> _conferenceSupported = false;
 	rpl::variable<RemoteAudioState> _remoteAudioState
 		= RemoteAudioState::Active;
 	rpl::variable<Webrtc::VideoState> _remoteVideoState;

@@ -1033,6 +1033,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		return;
 	}
 
+	_conferenceSupported = call.is_conference_supported();
+
 	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
 	const auto &serverConfig = _user->session().serverConfig();
 

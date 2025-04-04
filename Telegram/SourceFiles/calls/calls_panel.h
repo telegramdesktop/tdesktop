@@ -200,6 +200,7 @@ private:
 	object_ptr<Ui::FadeWrap<Ui::CallButton>> _decline;
 	object_ptr<Ui::FadeWrap<Ui::CallButton>> _cancel;
 	bool _hangupShown = false;
+	bool _conferenceSupported = false;
 	bool _outgoingPreviewInBody = false;
 	std::optional<AnswerHangupRedialState> _answerHangupRedialState;
 	Ui::Animations::Simple _hangupShownProgress;
