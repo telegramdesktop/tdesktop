@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_call.h"
 
 #include "calls/group/calls_group_common.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "api/api_send_progress.h"
 #include "api/api_updates.h"
@@ -756,7 +757,7 @@ void GroupCall::setupConferenceCall() {
 
 	_conferenceCall->staleParticipantIds(
 	) | rpl::start_with_next([=](const base::flat_set<UserId> &staleIds) {
-		removeConferenceParticipants(staleIds);
+		removeConferenceParticipants(staleIds, true);
 	}, _lifetime);
 	_e2e->participantsSetValue(
 	) | rpl::start_with_next([=](const TdE2E::ParticipantsSet &set) {
@@ -775,7 +776,8 @@ void GroupCall::setupConferenceCall() {
 }
 
 void GroupCall::removeConferenceParticipants(
-		const base::flat_set<UserId> userIds) {
+		const base::flat_set<UserId> userIds,
+		bool removingStale) {
 	Expects(_e2e != nullptr);
 	Expects(!userIds.empty());
 
@@ -791,7 +793,9 @@ void GroupCall::removeConferenceParticipants(
 	if (block.data.isEmpty()) {
 		return;
 	}
+	using Flag = MTPphone_DeleteConferenceCallParticipants::Flag;
 	_api.request(MTPphone_DeleteConferenceCallParticipants(
+		MTP_flags(removingStale ? Flag::f_only_left : Flag::f_kick),
 		inputCall(),
 		MTP_vector<MTPlong>(std::move(inputs)),
 		MTP_bytes(block.data)
@@ -2722,6 +2726,15 @@ void GroupCall::toggleRecording(
 	}).send();
 }
 
+auto GroupCall::lookupVideoCodecPreferences() const
+-> std::vector<tgcalls::VideoCodecName> {
+	auto result = std::vector<tgcalls::VideoCodecName>();
+	if (_peer->session().appConfig().confcallPrioritizeVP8()) {
+		result.push_back(tgcalls::VideoCodecName::VP8);
+	}
+	return result;
+}
+
 bool GroupCall::tryCreateController() {
 	if (_instance) {
 		return false;
@@ -2828,6 +2841,7 @@ bool GroupCall::tryCreateController() {
 		.videoContentType = tgcalls::VideoContentType::Generic,
 		.initialEnableNoiseSuppression
 			= settings.groupCallNoiseSuppression(),
+		.videoCodecPreferences = lookupVideoCodecPreferences(),
 		.requestMediaChannelDescriptions = [=, call = base::make_weak(this)](
 			const std::vector<uint32_t> &ssrcs,
 			std::function<void(
@@ -2893,6 +2907,7 @@ bool GroupCall::tryCreateScreencast() {
 		.createAudioDeviceModule = Webrtc::LoopbackAudioDeviceModuleCreator(),
 		.videoCapture = _screenCapture,
 		.videoContentType = tgcalls::VideoContentType::Screencast,
+		.videoCodecPreferences = lookupVideoCodecPreferences(),
 		.e2eEncryptDecrypt = _e2e ? _e2e->callbackEncryptDecrypt() : nullptr,
 	};
 
@@ -3023,6 +3038,7 @@ bool GroupCall::mediaChannelDescriptionsFill(
 			add(Channel{
 				.type = Channel::Type::Audio,
 				.audioSsrc = ssrc,
+				.userId = int64_t(peerToUser(byAudio->id).bare),
 			});
 		} else if (!resolved) {
 			_unresolvedSsrcs.emplace(ssrc);
@@ -3155,6 +3171,7 @@ void GroupCall::updateRequestedVideoChannels() {
 		}
 		channels.push_back({
 			.audioSsrc = participant->ssrc,
+			.userId = int64_t(peerToUser(participant->peer->id).bare),
 			.endpointId = endpointId,
 			.ssrcGroups = (params->camera.endpointId == endpointId
 				? params->camera.ssrcGroups

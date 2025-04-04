@@ -23,6 +23,7 @@ struct GroupLevelsUpdate;
 struct GroupNetworkState;
 struct GroupParticipantDescription;
 class VideoCaptureInterface;
+enum class VideoCodecName;
 } // namespace tgcalls
 
 namespace base {
@@ -285,7 +286,9 @@ public:
 	void startScheduledNow();
 	void toggleScheduleStartSubscribed(bool subscribed);
 	void setNoiseSuppression(bool enabled);
-	void removeConferenceParticipants(const base::flat_set<UserId> userIds);
+	void removeConferenceParticipants(
+		const base::flat_set<UserId> userIds,
+		bool removingStale = false);
 
 	bool emitShareScreenError();
 	bool emitShareCameraError();
@@ -533,6 +536,8 @@ private:
 		int subchain,
 		const QVector<MTPbytes> &blocks,
 		int next);
+	[[nodiscard]] auto lookupVideoCodecPreferences() const
+		-> std::vector<tgcalls::VideoCodecName>;
 	bool tryCreateController();
 	void destroyController();
 	bool tryCreateScreencast();

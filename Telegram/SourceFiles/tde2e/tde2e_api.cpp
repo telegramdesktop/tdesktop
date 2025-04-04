@@ -239,6 +239,7 @@ void Call::apply(int subchain, const Block &last) {
 	}
 	LOG_APPLY(-1, Slice(last.data));
 	const auto id = tde2e_api::call_create(
+		std::int64_t(_myUserId.v),
 		std::int64_t(_myKeyId.v),
 		Slice(last.data));
 	if (!id.is_ok()) {
@@ -446,7 +447,7 @@ rpl::producer<QByteArray> Call::emojiHashValue() const {
 }
 
 auto Call::callbackEncryptDecrypt()
--> Fn<std::vector<uint8_t>(const std::vector<uint8_t>&, bool)> {
+-> Fn<std::vector<uint8_t>(const std::vector<uint8_t>&, int64_t, bool)> {
 	if (!_guardedId) {
 		_guardedId = std::make_shared<GuardedCallId>();
 		if (const auto raw = _id ? _guardedId.get() : nullptr) {
@@ -454,15 +455,20 @@ auto Call::callbackEncryptDecrypt()
 			raw->exists = true;
 		}
 	}
-	return [v = _guardedId](const std::vector<uint8_t> &data, bool encrypt) {
-		if (!v->exists) {
+	return [id = _guardedId](
+			const std::vector<uint8_t> &data,
+			int64_t userId,
+			bool encrypt) {
+		const auto raw = id.get();
+		if (!raw->exists) {
 			return std::vector<uint8_t>();
 		}
-		const auto libId = std::int64_t(v->value.v);
+		const auto libId = std::int64_t(raw->value.v);
+		const auto channelId = tde2e_api::CallChannelId(0);
 		const auto slice = Slice(data);
 		const auto result = encrypt
-			? tde2e_api::call_encrypt(libId, slice)
-			: tde2e_api::call_decrypt(libId, slice);
+			? tde2e_api::call_encrypt(libId, channelId, slice)
+			: tde2e_api::call_decrypt(libId, userId, channelId, slice);
 		if (!result.is_ok()) {
 			return std::vector<uint8_t>();
 		}

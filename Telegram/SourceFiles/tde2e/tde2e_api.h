@@ -102,7 +102,10 @@ public:
 	[[nodiscard]] rpl::producer<ParticipantsSet> participantsSetValue() const;
 
 	[[nodiscard]] auto callbackEncryptDecrypt()
-		-> Fn<std::vector<uint8_t>(const std::vector<uint8_t>&, bool)>;
+		-> Fn<std::vector<uint8_t>(
+			const std::vector<uint8_t>&,
+			int64_t,
+			bool)>;
 
 private:
 	static constexpr int kSubChainsCount = 2;
