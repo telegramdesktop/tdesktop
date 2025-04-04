@@ -75,6 +75,7 @@ struct CallBodyLayout;
 
 namespace Calls {
 struct InviteRequest;
+struct ConferencePanelMigration;
 } // namespace Calls
 
 namespace Calls::Group {
@@ -90,7 +91,8 @@ class Panel final
 	: public base::has_weak_ptr
 	, private Ui::DesktopCapture::ChooseSourceDelegate {
 public:
-	Panel(not_null<GroupCall*> call);
+	explicit Panel(not_null<GroupCall*> call);
+	Panel(not_null<GroupCall*> call, ConferencePanelMigration info);
 	~Panel();
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
@@ -156,8 +158,8 @@ private:
 	void initWidget();
 	void initControls();
 	void initShareAction();
-	void initLayout();
-	void initGeometry();
+	void initLayout(ConferencePanelMigration info);
+	void initGeometry(ConferencePanelMigration info);
 	void setupScheduledLabels(rpl::producer<TimeId> date);
 	void setupMembers();
 	void setupVideo(not_null<Viewport*> viewport);

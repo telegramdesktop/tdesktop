@@ -233,6 +233,14 @@ bool Panel::isActive() const {
 	return window()->isActiveWindow() && isVisible();
 }
 
+ConferencePanelMigration Panel::migrationInfo() const {
+	const auto handle = window()->windowHandle();
+	return handle ? ConferencePanelMigration{
+		.screen = handle->screen(),
+		.geometry = window()->geometry(),
+	} : ConferencePanelMigration();
+}
+
 base::weak_ptr<Ui::Toast::Instance> Panel::showToast(
 		const QString &text,
 		crl::time duration) {

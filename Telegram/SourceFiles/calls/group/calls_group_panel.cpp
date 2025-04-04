@@ -191,6 +191,10 @@ struct Panel::ControlsBackgroundNarrow {
 };
 
 Panel::Panel(not_null<GroupCall*> call)
+: Panel(call, ConferencePanelMigration()) {
+}
+
+Panel::Panel(not_null<GroupCall*> call, ConferencePanelMigration info)
 : _call(call)
 , _peer(call->peer())
 , _layerBg(std::make_unique<Ui::LayerManager>(widget()))
@@ -253,7 +257,7 @@ Panel::Panel(not_null<GroupCall*> call)
 	initWindow();
 	initWidget();
 	initControls();
-	initLayout();
+	initLayout(info);
 	showAndActivate();
 }
 
@@ -1673,8 +1677,8 @@ void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 	}
 }
 
-void Panel::initLayout() {
-	initGeometry();
+void Panel::initLayout(ConferencePanelMigration info) {
+	initGeometry(info);
 
 #ifndef Q_OS_MAC
 	_controls->wrap.raise();
@@ -1704,22 +1708,32 @@ rpl::lifetime &Panel::lifetime() {
 	return window()->lifetime();
 }
 
-void Panel::initGeometry() {
-	const auto center = Core::App().getPointForCallPanelCenter();
-	const auto width = _call->rtmp()
-		? st::groupCallWidthRtmp
-		: st::groupCallWidth;
-	const auto height = _call->rtmp()
-		? st::groupCallHeightRtmp
-		: st::groupCallHeight;
+void Panel::initGeometry(ConferencePanelMigration info) {
 	const auto minWidth = _call->rtmp()
 		? st::groupCallWidthRtmpMin
 		: st::groupCallWidth;
 	const auto minHeight = _call->rtmp()
 		? st::groupCallHeightRtmpMin
 		: st::groupCallHeight;
-	const auto rect = QRect(0, 0, width, height);
-	window()->setGeometry(rect.translated(center - rect.center()));
+	if (info.screen && !info.geometry.isEmpty()) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		window()->setScreen(info.screen);
+#else // Qt >= 6.0.0
+		window()->createWinId();
+		window()->windowHandle()->setScreen(info.screen);
+#endif // Qt < 6.0.0
+		window()->setGeometry(info.geometry);
+	} else {
+		const auto center = Core::App().getPointForCallPanelCenter();
+		const auto width = _call->rtmp()
+			? st::groupCallWidthRtmp
+			: st::groupCallWidth;
+		const auto height = _call->rtmp()
+			? st::groupCallHeightRtmp
+			: st::groupCallHeight;
+		const auto rect = QRect(0, 0, width, height);
+		window()->setGeometry(rect.translated(center - rect.center()));
+	}
 	window()->setMinimumSize({ minWidth, minHeight });
 	window()->show();
 }

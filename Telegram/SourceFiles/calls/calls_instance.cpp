@@ -236,9 +236,12 @@ void Instance::startOrJoinGroupCall(
 }
 
 void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
-	destroyCurrentCall(
-		args.migrating ? args.call.get() : nullptr,
-		args.migrating ? args.linkSlug : QString());
+	const auto migrationInfo = (args.migrating && _currentCallPanel)
+		? _currentCallPanel->migrationInfo()
+		: ConferencePanelMigration();
+	if (!args.migrating) {
+		destroyCurrentCall();
+	}
 
 	const auto session = &args.call->peer()->session();
 	auto call = std::make_unique<GroupCall>(_delegate.get(), args);
@@ -249,13 +252,19 @@ void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
 		destroyGroupCall(raw);
 	}, raw->lifetime());
 
-	_currentGroupCallPanel = std::make_unique<Group::Panel>(raw);
+	_currentGroupCallPanel = std::make_unique<Group::Panel>(
+		raw,
+		migrationInfo);
 	_currentGroupCall = std::move(call);
 	_currentGroupCallChanges.fire_copy(raw);
 	if (!args.invite.empty()) {
 		_currentGroupCallPanel->migrationInviteUsers(std::move(args.invite));
 	} else if (args.sharingLink && !args.linkSlug.isEmpty()) {
 		_currentGroupCallPanel->migrationShowShareLink();
+	}
+
+	if (args.migrating) {
+		destroyCurrentCall(args.call.get(), args.linkSlug);
 	}
 }
 
@@ -740,9 +749,11 @@ void Instance::destroyCurrentCall(
 		}
 	}
 	if (const auto current = currentGroupCall()) {
-		current->hangup();
-		if (const auto still = currentGroupCall()) {
-			destroyGroupCall(still);
+		if (!migrateCall || current->lookupReal() != migrateCall) {
+			current->hangup();
+			if (const auto still = currentGroupCall()) {
+				destroyGroupCall(still);
+			}
 		}
 	}
 }

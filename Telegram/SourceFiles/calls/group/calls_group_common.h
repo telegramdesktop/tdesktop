@@ -71,6 +71,11 @@ struct StartConferenceInfo {
 	QString videoCaptureScreenId;
 };
 
+struct ConferencePanelMigration {
+	QScreen *screen = nullptr;
+	QRect geometry;
+};
+
 } // namespace Calls
 
 namespace Calls::Group {

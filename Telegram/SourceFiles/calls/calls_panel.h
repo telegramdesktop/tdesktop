@@ -68,6 +68,7 @@ class Userpic;
 class SignalBars;
 class VideoBubble;
 struct DeviceSelection;
+struct ConferencePanelMigration;
 
 class Panel final
 	: public base::has_weak_ptr
@@ -80,6 +81,8 @@ public:
 	[[nodiscard]] not_null<UserData*> user() const;
 	[[nodiscard]] bool isVisible() const;
 	[[nodiscard]] bool isActive() const;
+
+	[[nodiscard]] ConferencePanelMigration migrationInfo() const;
 
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		const QString &text,
