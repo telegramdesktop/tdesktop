@@ -380,23 +380,34 @@ Widget::Widget(
 	const auto innerList = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
 	if (_layout != Layout::Child) {
-		_topBarSuggestion = innerList->add(CreateTopBarSuggestion(
+		TopBarSuggestionValue(
 			innerList,
-			&session()));
-		_topBarSuggestion->lifetime().add([=] {
-			_topBarSuggestion = nullptr;
-		});
-		rpl::combine(
-			_topBarSuggestion->entity()->desiredHeightValue(),
-			_childListShown.value()
-		) | rpl::start_with_next([=](int desiredHeight, float64 shown) {
-			const auto newHeight = desiredHeight * (1. - shown);
-			_topBarSuggestion->entity()->setMaximumHeight(newHeight);
-			_topBarSuggestion->entity()->setMinimumWidth((shown > 0)
-				? width()
-				: 0);
-			_topBarSuggestion->entity()->resize(width(), newHeight);
-		}, _topBarSuggestion->lifetime());
+			&session()
+		) | rpl::start_with_next([=](Ui::SlideWrap<Ui::RpWidget> *raw) {
+			if (raw) {
+				_topBarSuggestion = innerList->insert(
+					0,
+					object_ptr<Ui::SlideWrap<Ui::RpWidget>>::fromRaw(raw));
+				rpl::combine(
+					_topBarSuggestion->entity()->desiredHeightValue(),
+					_childListShown.value()
+				) | rpl::start_with_next([=](
+						int desiredHeight,
+						float64 shown) {
+					const auto newHeight = desiredHeight * (1. - shown);
+					_topBarSuggestion->entity()->setMaximumHeight(newHeight);
+					_topBarSuggestion->entity()->setMinimumWidth((shown > 0)
+						? width()
+						: 0);
+					_topBarSuggestion->entity()->resize(width(), newHeight);
+				}, _topBarSuggestion->lifetime());
+			} else {
+				if (_topBarSuggestion) {
+					delete _topBarSuggestion;
+				}
+				_topBarSuggestion = nullptr;
+			}
+		}, lifetime());
 	}
 	_inner = innerList->add(object_ptr<InnerWidget>(
 		innerList,

@@ -39,119 +39,140 @@ constexpr auto kSugPremiumAnnual = "PREMIUM_ANNUAL"_cs;
 
 } // namespace
 
-object_ptr<Ui::SlideWrap<Ui::RpWidget>> CreateTopBarSuggestion(
+rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Main::Session*> session) {
-	const auto content = Ui::CreateChild<TopBarSuggestionContent>(parent);
-	auto result = object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
-		parent,
-		object_ptr<Ui::RpWidget>::fromRaw(content));
-	const auto wrap = result.data();
-	wrap->toggle(false, anim::type::instant);
-	struct State {
-		rpl::lifetime birthdayLifetime;
-		rpl::lifetime premiumLifetime;
-	};
-	const auto state = content->lifetime().make_state<State>();
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
 
-	const auto processCurrentSuggestion = [=](auto repeat) -> void {
-		if (session->appConfig().suggestionCurrent(kSugSetBirthday.utf8())
-			&& !Data::IsBirthdayToday(session->user()->birthday())) {
-			content->setRightIcon(TopBarSuggestionContent::RightIcon::Close);
-			content->setClickedCallback([=] {
-				const auto controller = FindSessionController(parent);
-				if (!controller) {
-					return;
-				}
-				Core::App().openInternalUrl(
-					u"internal:edit_birthday"_q,
-					QVariant::fromValue(ClickHandlerContext{
-						.sessionWindow = base::make_weak(controller),
-					}));
+		struct State {
+			TopBarSuggestionContent *content = nullptr;
+			Ui::SlideWrap<Ui::RpWidget> *wrap = nullptr;
+			rpl::lifetime birthdayLifetime;
+			rpl::lifetime premiumLifetime;
+		};
+		const auto state = lifetime.make_state<State>();
+		const auto ensureWrap = [=] {
+			if (!state->content) {
+				state->content = Ui::CreateChild<TopBarSuggestionContent>(
+					parent);
+				rpl::combine(
+					parent->widthValue(),
+					state->content->desiredHeightValue()
+				) | rpl::start_with_next([=](int width, int height) {
+					state->content->resize(width, height);
+				}, state->content->lifetime());
+			}
+			if (!state->wrap) {
+				state->wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
+					parent,
+					object_ptr<Ui::RpWidget>::fromRaw(state->content));
+				state->wrap->toggle(false, anim::type::instant);
+			}
+		};
 
-				state->birthdayLifetime = Info::Profile::BirthdayValue(
-					session->user()
-				) | rpl::map(
-					Data::IsBirthdayTodayValue
-				) | rpl::flatten_latest(
-				) | rpl::distinct_until_changed(
-				) | rpl::start_with_next([=] {
-					repeat(repeat);
-				});
-			});
-			content->setHideCallback([=] {
-				session->appConfig().dismissSuggestion(
-					kSugSetBirthday.utf8());
-				repeat(repeat);
-			});
-			content->setContent(
-				tr::lng_dialogs_top_bar_suggestions_birthday_title(
-					tr::now,
-					Ui::Text::Bold),
-				tr::lng_dialogs_top_bar_suggestions_birthday_about(
-					tr::now,
-					TextWithEntities::Simple));
-			wrap->toggle(true, anim::type::normal);
-		} else if (session->premiumPossible()
-			&& !session->premium()
-			&& session->appConfig().suggestionCurrent(
-				kSugPremiumAnnual.utf8())) {
-			content->setRightIcon(TopBarSuggestionContent::RightIcon::Arrow);
-			const auto api = &session->api().premium();
-			const auto set = [=](QString discount) {
-				constexpr auto kMinus = QChar(0x2212);
-				content->setContent(
-					tr::lng_dialogs_top_bar_suggestions_premium_annual_title(
-						tr::now,
-						lt_text,
-						{ discount.replace(kMinus, QChar()) },
-						Ui::Text::Bold),
-					tr::lng_dialogs_top_bar_suggestions_premium_annual_about(
-						tr::now,
-						TextWithEntities::Simple));
+		const auto processCurrentSuggestion = [=](auto repeat) -> void {
+			ensureWrap();
+			const auto content = state->content;
+			const auto wrap = state->wrap;
+			using RightIcon = TopBarSuggestionContent::RightIcon;
+			if (session->appConfig().suggestionCurrent(kSugSetBirthday.utf8())
+				&& !Data::IsBirthdayToday(session->user()->birthday())) {
+				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
 					const auto controller = FindSessionController(parent);
 					if (!controller) {
 						return;
 					}
-					Settings::ShowPremium(controller, "dialogs_hint");
+					Core::App().openInternalUrl(
+						u"internal:edit_birthday"_q,
+						QVariant::fromValue(ClickHandlerContext{
+							.sessionWindow = base::make_weak(controller),
+						}));
+
+					state->birthdayLifetime = Info::Profile::BirthdayValue(
+						session->user()
+					) | rpl::map(
+						Data::IsBirthdayTodayValue
+					) | rpl::flatten_latest(
+					) | rpl::distinct_until_changed(
+					) | rpl::start_with_next([=] {
+						repeat(repeat);
+					});
+				});
+				content->setHideCallback([=] {
 					session->appConfig().dismissSuggestion(
-						kSugPremiumAnnual.utf8());
+						kSugSetBirthday.utf8());
 					repeat(repeat);
 				});
+				content->setContent(
+					tr::lng_dialogs_suggestions_birthday_title(
+						tr::now,
+						Ui::Text::Bold),
+					tr::lng_dialogs_suggestions_birthday_about(
+						tr::now,
+						TextWithEntities::Simple));
 				wrap->toggle(true, anim::type::normal);
-			};
-			api->statusTextValue(
-			) | rpl::start_with_next([=] {
-				for (const auto &option : api->subscriptionOptions()) {
-					if (option.months == 12) {
-						set(option.discount);
-						state->premiumLifetime.destroy();
-						return;
+			} else if (session->premiumPossible()
+				&& !session->premium()
+				&& session->appConfig().suggestionCurrent(
+					kSugPremiumAnnual.utf8())) {
+				content->setRightIcon(RightIcon::Arrow);
+				const auto api = &session->api().premium();
+				const auto set = [=](QString discount) {
+					constexpr auto kMinus = QChar(0x2212);
+					content->setContent(
+						tr::lng_dialogs_suggestions_premium_annual_title(
+							tr::now,
+							lt_text,
+							{ discount.replace(kMinus, QChar()) },
+							Ui::Text::Bold),
+						tr::lng_dialogs_suggestions_premium_annual_about(
+							tr::now,
+							TextWithEntities::Simple));
+					content->setClickedCallback([=] {
+						const auto controller = FindSessionController(parent);
+						if (!controller) {
+							return;
+						}
+						Settings::ShowPremium(controller, "dialogs_hint");
+						session->appConfig().dismissSuggestion(
+							kSugPremiumAnnual.utf8());
+						repeat(repeat);
+					});
+					wrap->toggle(true, anim::type::normal);
+				};
+				api->statusTextValue(
+				) | rpl::start_with_next([=] {
+					for (const auto &option : api->subscriptionOptions()) {
+						if (option.months == 12) {
+							set(option.discount);
+							state->premiumLifetime.destroy();
+							return;
+						}
 					}
-				}
-			}, state->premiumLifetime);
-			api->reload();
-		} else {
-			wrap->toggle(false, anim::type::normal);
-			base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {
-				delete wrap;
-			});
-		}
+				}, state->premiumLifetime);
+				api->reload();
+			} else {
+				wrap->toggle(false, anim::type::normal);
+				base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {
+					state->content = nullptr;
+					state->wrap = nullptr;
+					consumer.put_next(nullptr);
+				});
+			}
+		};
+
+		session->appConfig().value() | rpl::start_with_next([=] {
+			const auto was = state->wrap;
+			processCurrentSuggestion(processCurrentSuggestion);
+			if (was != state->wrap) {
+				consumer.put_next_copy(state->wrap);
+			}
+		}, lifetime);
+
+		return lifetime;
 	};
-
-	session->appConfig().refreshed() | rpl::start_with_next([=] {
-		processCurrentSuggestion(processCurrentSuggestion);
-	}, content->lifetime());
-
-	rpl::combine(
-		parent->widthValue(),
-		content->desiredHeightValue()
-	) | rpl::start_with_next([=](int width, int height) {
-		content->resize(width, height);
-	}, content->lifetime());
-
-	return result;
 }
 
 } // namespace Dialogs

@@ -22,9 +22,10 @@ class SlideWrap;
 
 namespace Dialogs {
 
-[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> CreateTopBarSuggestion(
+[[nodiscard]] auto TopBarSuggestionValue(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Main::Session*>);
+	not_null<Main::Session*>)
+-> rpl::producer<Ui::SlideWrap<Ui::RpWidget>*>;
 
 } // namespace Dialogs
 
