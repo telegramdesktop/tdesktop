@@ -36,6 +36,7 @@ namespace {
 
 constexpr auto kSugSetBirthday = "BIRTHDAY_SETUP"_cs;
 constexpr auto kSugPremiumAnnual = "PREMIUM_ANNUAL"_cs;
+constexpr auto kSugPremiumUpgrade = "PREMIUM_UPGRADE"_cs;
 
 } // namespace
 
@@ -76,7 +77,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto content = state->content;
 			const auto wrap = state->wrap;
 			using RightIcon = TopBarSuggestionContent::RightIcon;
-			if (session->appConfig().suggestionCurrent(kSugSetBirthday.utf8())
+			const auto config = &session->appConfig();
+			if (config->suggestionCurrent(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
@@ -101,8 +103,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					});
 				});
 				content->setHideCallback([=] {
-					session->appConfig().dismissSuggestion(
-						kSugSetBirthday.utf8());
+					config->dismissSuggestion(kSugSetBirthday.utf8());
 					repeat(repeat);
 				});
 				content->setContent(
@@ -113,31 +114,38 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						tr::now,
 						TextWithEntities::Simple));
 				wrap->toggle(true, anim::type::normal);
-			} else if (session->premiumPossible()
+			} else if (const auto isAnnual = config->suggestionCurrent(
+					kSugPremiumUpgrade.utf8());
+				session->premiumPossible()
 				&& !session->premium()
-				&& session->appConfig().suggestionCurrent(
-					kSugPremiumAnnual.utf8())) {
+				&& (isAnnual
+					|| config->suggestionCurrent(kSugPremiumAnnual.utf8()))) {
 				content->setRightIcon(RightIcon::Arrow);
 				const auto api = &session->api().premium();
 				const auto set = [=](QString discount) {
 					constexpr auto kMinus = QChar(0x2212);
+					const auto &title = isAnnual
+						? tr::lng_dialogs_suggestions_premium_annual_title
+						: tr::lng_dialogs_suggestions_premium_upgrade_title;
+					const auto &description = isAnnual
+						? tr::lng_dialogs_suggestions_premium_annual_about
+						: tr::lng_dialogs_suggestions_premium_upgrade_about;
 					content->setContent(
-						tr::lng_dialogs_suggestions_premium_annual_title(
+						title(
 							tr::now,
 							lt_text,
 							{ discount.replace(kMinus, QChar()) },
 							Ui::Text::Bold),
-						tr::lng_dialogs_suggestions_premium_annual_about(
-							tr::now,
-							TextWithEntities::Simple));
+						description(tr::now, TextWithEntities::Simple));
 					content->setClickedCallback([=] {
 						const auto controller = FindSessionController(parent);
 						if (!controller) {
 							return;
 						}
 						Settings::ShowPremium(controller, "dialogs_hint");
-						session->appConfig().dismissSuggestion(
-							kSugPremiumAnnual.utf8());
+						config->dismissSuggestion(isAnnual
+							? kSugPremiumAnnual.utf8()
+							: kSugPremiumUpgrade.utf8());
 						repeat(repeat);
 					});
 					wrap->toggle(true, anim::type::normal);

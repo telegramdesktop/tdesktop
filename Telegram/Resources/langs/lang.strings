@@ -3867,6 +3867,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_suggestions_birthday_about" = "Let your contacts know when you’re celebrating.";
 "lng_dialogs_suggestions_premium_annual_title" = "Telegram Premium with a {text} discount";
 "lng_dialogs_suggestions_premium_annual_about" = "Sign up for the annual payment plan for Telegram Premium now to get the discount.";
+"lng_dialogs_suggestions_premium_upgrade_title" = "Telegram Premium with a {text} discount";
+"lng_dialogs_suggestions_premium_upgrade_about" = "Upgrade to the annual payment plan for Telegram Premium now to get the discount.";
 
 "lng_about_random" = "Send a {emoji} emoji to any chat to try your luck.";
 "lng_about_random_send" = "Send";
