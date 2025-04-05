@@ -37,6 +37,7 @@ namespace {
 constexpr auto kSugSetBirthday = "BIRTHDAY_SETUP"_cs;
 constexpr auto kSugPremiumAnnual = "PREMIUM_ANNUAL"_cs;
 constexpr auto kSugPremiumUpgrade = "PREMIUM_UPGRADE"_cs;
+constexpr auto kSugPremiumRestore = "PREMIUM_RESTORE"_cs;
 
 } // namespace
 
@@ -78,6 +79,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto wrap = state->wrap;
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto config = &session->appConfig();
+			auto hide = false;
 			if (config->suggestionCurrent(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {
 				content->setRightIcon(RightIcon::Close);
@@ -114,21 +116,25 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						tr::now,
 						TextWithEntities::Simple));
 				wrap->toggle(true, anim::type::normal);
-			} else if (const auto isAnnual = config->suggestionCurrent(
-					kSugPremiumUpgrade.utf8());
-				session->premiumPossible()
-				&& !session->premium()
-				&& (isAnnual
-					|| config->suggestionCurrent(kSugPremiumAnnual.utf8()))) {
-				content->setRightIcon(RightIcon::Arrow);
-				const auto api = &session->api().premium();
+			} else if (session->premiumPossible() && !session->premium()) {
+				const auto isPremiumAnnual = config->suggestionCurrent(
+					kSugPremiumAnnual.utf8());
+				const auto isPremiumRestore = !isPremiumAnnual
+					&& config->suggestionCurrent(kSugPremiumRestore.utf8());
+				const auto isPremiumUpgrade = !isPremiumAnnual
+					&& !isPremiumRestore
+					&& config->suggestionCurrent(kSugPremiumUpgrade.utf8());
 				const auto set = [=](QString discount) {
 					constexpr auto kMinus = QChar(0x2212);
-					const auto &title = isAnnual
+					const auto &title = isPremiumAnnual
 						? tr::lng_dialogs_suggestions_premium_annual_title
+						: isPremiumRestore
+						? tr::lng_dialogs_suggestions_premium_restore_title
 						: tr::lng_dialogs_suggestions_premium_upgrade_title;
-					const auto &description = isAnnual
+					const auto &description = isPremiumAnnual
 						? tr::lng_dialogs_suggestions_premium_annual_about
+						: isPremiumRestore
+						? tr::lng_dialogs_suggestions_premium_restore_about
 						: tr::lng_dialogs_suggestions_premium_upgrade_about;
 					content->setContent(
 						title(
@@ -143,25 +149,35 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 							return;
 						}
 						Settings::ShowPremium(controller, "dialogs_hint");
-						config->dismissSuggestion(isAnnual
+						config->dismissSuggestion(isPremiumAnnual
 							? kSugPremiumAnnual.utf8()
+							: isPremiumRestore
+							? kSugPremiumRestore.utf8()
 							: kSugPremiumUpgrade.utf8());
 						repeat(repeat);
 					});
 					wrap->toggle(true, anim::type::normal);
 				};
-				api->statusTextValue(
-				) | rpl::start_with_next([=] {
-					for (const auto &option : api->subscriptionOptions()) {
-						if (option.months == 12) {
-							set(option.discount);
-							state->premiumLifetime.destroy();
-							return;
+				if (isPremiumAnnual || isPremiumRestore || isPremiumUpgrade) {
+					content->setRightIcon(RightIcon::Arrow);
+					const auto api = &session->api().premium();
+					api->statusTextValue() | rpl::start_with_next([=] {
+						for (const auto &o : api->subscriptionOptions()) {
+							if (o.months == 12) {
+								set(o.discount);
+								state->premiumLifetime.destroy();
+								return;
+							}
 						}
-					}
-				}, state->premiumLifetime);
-				api->reload();
+					}, state->premiumLifetime);
+					api->reload();
+				} else {
+					hide = true;
+				}
 			} else {
+				hide = true;
+			}
+			if (hide) {
 				wrap->toggle(false, anim::type::normal);
 				base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {
 					state->content = nullptr;
