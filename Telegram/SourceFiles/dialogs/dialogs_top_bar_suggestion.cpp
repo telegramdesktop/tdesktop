@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_top_bar_suggestion.h"
 
+#include "base/call_delayed.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_birthday.h"
@@ -87,6 +88,9 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> CreateTopBarSuggestion(
 			wrap->toggle(true, anim::type::normal);
 		} else {
 			wrap->toggle(false, anim::type::normal);
+			base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {
+				delete wrap;
+			});
 		}
 	};
 

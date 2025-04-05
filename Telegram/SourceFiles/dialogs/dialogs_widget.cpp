@@ -383,6 +383,9 @@ Widget::Widget(
 		_topBarSuggestion = innerList->add(CreateTopBarSuggestion(
 			innerList,
 			&session()));
+		_topBarSuggestion->lifetime().add([=] {
+			_topBarSuggestion = nullptr;
+		});
 		rpl::combine(
 			_topBarSuggestion->entity()->desiredHeightValue(),
 			_childListShown.value()
