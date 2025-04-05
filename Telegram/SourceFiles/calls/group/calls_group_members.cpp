@@ -1468,14 +1468,19 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			&& participantPeer->isUser()
 			&& conference) {
 			const auto id = conference->id();
-			const auto cancelInvite = [=] {
+			const auto cancelInvite = [=](bool discard) {
 				Core::App().calls().declineOutgoingConferenceInvite(
 					id,
-					participantPeer->asUser());
+					participantPeer->asUser(),
+					discard);
 			};
 			result->addAction(
+				tr::lng_group_call_context_stop_ringing(tr::now),
+				[=] { cancelInvite(false); });
+			result->addAction(
 				tr::lng_group_call_context_cancel_invite(tr::now),
-				cancelInvite);
+				[=] { cancelInvite(true); });
+			result->addSeparator();
 		}
 		result->addAction(
 			(participantPeer->isUser()

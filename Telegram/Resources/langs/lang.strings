@@ -4811,7 +4811,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_pin_screen" = "Pin screencast";
 "lng_group_call_context_unpin_screen" = "Unpin screencast";
 "lng_group_call_context_remove" = "Remove";
-"lng_group_call_context_cancel_invite" = "Cancel invitation";
+"lng_group_call_context_cancel_invite" = "Discard invite";
 "lng_group_call_context_stop_ringing" = "Stop calling";
 "lng_group_call_context_ban_from_call" = "Ban from call";
 "lng_group_call_remove_channel" = "Remove {channel} from the video chat and ban them?";

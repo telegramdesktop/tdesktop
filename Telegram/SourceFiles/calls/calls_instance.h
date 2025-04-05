@@ -138,7 +138,8 @@ public:
 	void declineIncomingConferenceInvites(CallId conferenceId);
 	void declineOutgoingConferenceInvite(
 		CallId conferenceId,
-		not_null<UserData*> user);
+		not_null<UserData*> user,
+		bool discard = false);
 
 	[[nodiscard]] FnMut<void()> addAsyncWaiter();
 

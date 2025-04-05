@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_histories.h"
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
@@ -982,7 +983,8 @@ void Instance::declineIncomingConferenceInvites(CallId conferenceId) {
 
 void Instance::declineOutgoingConferenceInvite(
 		CallId conferenceId,
-		not_null<UserData*> user) {
+		not_null<UserData*> user,
+		bool discard) {
 	const auto i = _conferenceInvites.find(conferenceId);
 	if (i == end(_conferenceInvites)) {
 		return;
@@ -992,10 +994,22 @@ void Instance::declineOutgoingConferenceInvite(
 		return;
 	}
 	const auto api = &user->session().api();
-	for (const auto &messageId : base::take(j->second.outgoing)) {
-		api->request(MTPphone_DeclineConferenceCallInvite(
-			MTP_int(messageId.bare)
-		)).send();
+	auto ids = base::take(j->second.outgoing);
+	auto inputs = QVector<MTPint>();
+	for (const auto &messageId : ids) {
+		if (discard) {
+			inputs.push_back(MTP_int(messageId.bare));
+		} else {
+			api->request(MTPphone_DeclineConferenceCallInvite(
+				MTP_int(messageId.bare)
+			)).send();
+		}
+	}
+	if (!inputs.empty()) {
+		user->owner().histories().deleteMessages(
+			user->owner().history(user),
+			std::move(inputs),
+			true);
 	}
 	if (!j->second.incoming.empty()) {
 		return;
