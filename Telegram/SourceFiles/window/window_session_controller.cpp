@@ -876,7 +876,7 @@ void SessionNavigation::resolveConferenceCall(
 		const auto slug = base::take(_conferenceCallSlug);
 		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
 		const auto contextId = base::take(_conferenceCallResolveContextId);
-		result.data().vcall().match([&](const auto &data) {
+		result.data().vcall().match([&](const MTPDgroupCall &data) {
 			const auto call = session().data().sharedConferenceCall(
 				data.vid().v,
 				data.vaccess_hash().v);
@@ -897,12 +897,22 @@ void SessionNavigation::resolveConferenceCall(
 				call,
 				(inviter && !inviter->isSelf()) ? inviter : nullptr,
 				join));
+		}, [&](const MTPDgroupCallDiscarded &data) {
+			if (inviteMsgId) {
+				showToast(tr::lng_confcall_not_accessible(tr::now));
+			} else {
+				showToast(tr::lng_confcall_link_inactive(tr::now));
+			}
 		});
 	}).fail([=] {
 		_conferenceCallRequestId = 0;
 		_conferenceCallSlug = QString();
 		_conferenceCallResolveContextId = FullMsgId();
-		showToast(tr::lng_confcall_link_inactive(tr::now));
+		if (base::take(_conferenceCallResolveContextId)) {
+			showToast(tr::lng_confcall_not_accessible(tr::now));
+		} else {
+			showToast(tr::lng_confcall_link_inactive(tr::now));
+		}
 	}).send();
 }
 

@@ -300,8 +300,9 @@ void ShowConferenceCallLinkBox(
 						show->showToast({
 							.title = tr::lng_confcall_link_revoked_title(
 								tr::now),
-							.text = tr::lng_confcall_link_revoked_text(
-								tr::now),
+							.text = {
+								tr::lng_confcall_link_revoked_text(tr::now),
+							},
 						});
 					};
 					ExportConferenceCallLink(

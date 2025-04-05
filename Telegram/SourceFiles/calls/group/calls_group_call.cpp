@@ -1643,8 +1643,8 @@ void GroupCall::sendJoinRequest() {
 
 		hangup();
 		Ui::Toast::Show((type == u"GROUPCALL_FORBIDDEN"_q)
-			? tr::lng_group_not_accessible(tr::now)
-			: Lang::Hard::ServerError());
+			? tr::lng_confcall_not_accessible(tr::now)
+			: type);
 	}).send();
 }
 
