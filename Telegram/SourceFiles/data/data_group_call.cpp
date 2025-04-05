@@ -108,7 +108,6 @@ GroupCall::~GroupCall() {
 	}
 	api().request(_unknownParticipantPeersRequestId).cancel();
 	api().request(_participantsRequestId).cancel();
-	api().request(_checkStaleRequestId).cancel();
 	api().request(_reloadRequestId).cancel();
 }
 
@@ -212,9 +211,6 @@ void GroupCall::setParticipantsLoaded() {
 }
 
 void GroupCall::checkStaleParticipants() {
-	if (_checkStaleRequestId) {
-		return;
-	}
 	const auto &list = _participantsWithAccess.current();
 	if (list.empty()) {
 		return;
@@ -227,57 +223,16 @@ void GroupCall::checkStaleParticipants() {
 			existing.emplace(id);
 		}
 	}
-	if (list.size() > existing.size()) {
-		checkStaleRequest();
-		return;
-	}
+	auto stale = base::flat_set<UserId>();
 	for (const auto &id : list) {
 		if (!existing.contains(id)) {
-			checkStaleRequest();
-			return;
+			stale.reserve(list.size());
+			stale.emplace(id);
 		}
 	}
-}
-
-void GroupCall::checkStaleRequest() {
-	if (_checkStaleRequestId) {
-		return;
+	if (!stale.empty()) {
+		_staleParticipantIds.fire(std::move(stale));
 	}
-	_checkStaleRequestId = api().request(MTPphone_GetGroupParticipants(
-		input(),
-		MTP_vector<MTPInputPeer>(), // ids
-		MTP_vector<MTPint>(), // ssrcs
-		MTP_string(QString()),
-		MTP_int(kMaxConferenceMembers + 10)
-	)).done([=](const MTPphone_GroupParticipants &result) {
-		_checkStaleRequestId = 0;
-		const auto &list = _participantsWithAccess.current();
-		if (list.empty()) {
-			return;
-		}
-		auto existing = base::flat_set<UserId>();
-		const auto &data = result.data();
-		existing.reserve(data.vparticipants().v.size() + 1);
-		existing.emplace(session().userId());
-		for (const auto &participant : data.vparticipants().v) {
-			const auto peerId = peerFromMTP(participant.data().vpeer());
-			if (const auto id = peerToUser(peerId)) {
-				existing.emplace(id);
-			}
-		}
-		auto stale = base::flat_set<UserId>();
-		for (const auto &id : list) {
-			if (!existing.contains(id)) {
-				stale.reserve(list.size());
-				stale.emplace(id);
-			}
-		}
-		if (!stale.empty()) {
-			_staleParticipantIds.fire(std::move(stale));
-		}
-	}).fail([=] {
-		_checkStaleRequestId = 0;
-	}).send();
 }
 
 bool GroupCall::processSavedFullCall() {

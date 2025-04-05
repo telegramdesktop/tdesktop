@@ -30,7 +30,7 @@ namespace Data {
 
 [[nodiscard]] const std::string &RtmpEndpointId();
 
-inline constexpr auto kMaxConferenceMembers = 10;
+inline constexpr auto kMaxConferenceMembers = 200;
 
 struct LastSpokeTimes {
 	crl::time anything = 0;
@@ -157,7 +157,6 @@ public:
 		-> rpl::producer<base::flat_set<UserId>>;
 	void setParticipantsLoaded();
 	void checkStaleParticipants();
-	void checkStaleRequest();
 
 	void enqueueUpdate(const MTPUpdate &update);
 	void applyLocalUpdate(
@@ -269,7 +268,6 @@ private:
 
 	rpl::variable<base::flat_set<UserId>> _participantsWithAccess;
 	rpl::event_stream<base::flat_set<UserId>> _staleParticipantIds;
-	mtpRequestId _checkStaleRequestId = 0;
 	rpl::lifetime _checkStaleLifetime;
 
 	bool _creator : 1 = false;
