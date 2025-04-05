@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_top_bar_suggestion.h"
 
+#include "api/api_premium.h"
+#include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -17,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "settings/settings_premium.h"
 #include "ui/text/text_utilities.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_controller.h"
@@ -32,6 +35,7 @@ namespace {
 }
 
 constexpr auto kSugSetBirthday = "BIRTHDAY_SETUP"_cs;
+constexpr auto kSugPremiumAnnual = "PREMIUM_ANNUAL"_cs;
 
 } // namespace
 
@@ -46,12 +50,14 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> CreateTopBarSuggestion(
 	wrap->toggle(false, anim::type::instant);
 	struct State {
 		rpl::lifetime birthdayLifetime;
+		rpl::lifetime premiumLifetime;
 	};
 	const auto state = content->lifetime().make_state<State>();
 
 	const auto processCurrentSuggestion = [=](auto repeat) -> void {
 		if (session->appConfig().suggestionCurrent(kSugSetBirthday.utf8())
 			&& !Data::IsBirthdayToday(session->user()->birthday())) {
+			content->setRightIcon(TopBarSuggestionContent::RightIcon::Close);
 			content->setClickedCallback([=] {
 				const auto controller = FindSessionController(parent);
 				if (!controller) {
@@ -86,6 +92,46 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> CreateTopBarSuggestion(
 					tr::now,
 					TextWithEntities::Simple));
 			wrap->toggle(true, anim::type::normal);
+		} else if (session->premiumPossible()
+			&& !session->premium()
+			&& session->appConfig().suggestionCurrent(
+				kSugPremiumAnnual.utf8())) {
+			content->setRightIcon(TopBarSuggestionContent::RightIcon::Arrow);
+			const auto api = &session->api().premium();
+			const auto set = [=](QString discount) {
+				constexpr auto kMinus = QChar(0x2212);
+				content->setContent(
+					tr::lng_dialogs_top_bar_suggestions_premium_annual_title(
+						tr::now,
+						lt_text,
+						{ discount.replace(kMinus, QChar()) },
+						Ui::Text::Bold),
+					tr::lng_dialogs_top_bar_suggestions_premium_annual_about(
+						tr::now,
+						TextWithEntities::Simple));
+				content->setClickedCallback([=] {
+					const auto controller = FindSessionController(parent);
+					if (!controller) {
+						return;
+					}
+					Settings::ShowPremium(controller, "dialogs_hint");
+					session->appConfig().dismissSuggestion(
+						kSugPremiumAnnual.utf8());
+					repeat(repeat);
+				});
+				wrap->toggle(true, anim::type::normal);
+			};
+			api->statusTextValue(
+			) | rpl::start_with_next([=] {
+				for (const auto &option : api->subscriptionOptions()) {
+					if (option.months == 12) {
+						set(option.discount);
+						state->premiumLifetime.destroy();
+						return;
+					}
+				}
+			}, state->premiumLifetime);
+			api->reload();
 		} else {
 			wrap->toggle(false, anim::type::normal);
 			base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {

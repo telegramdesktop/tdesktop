@@ -813,3 +813,10 @@ dialogsSponsoredButton: DialogRightButton(dialogRowOpenBot) {
 	}
 	margin: margins(0px, 9px, 10px, 0px);
 }
+
+dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
+	font: font(semibold 12px);
+}
+dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}

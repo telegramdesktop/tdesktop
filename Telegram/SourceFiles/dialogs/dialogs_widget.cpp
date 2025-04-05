@@ -392,7 +392,9 @@ Widget::Widget(
 		) | rpl::start_with_next([=](int desiredHeight, float64 shown) {
 			const auto newHeight = desiredHeight * (1. - shown);
 			_topBarSuggestion->entity()->setMaximumHeight(newHeight);
-			_topBarSuggestion->entity()->setMinimumWidth(width());
+			_topBarSuggestion->entity()->setMinimumWidth((shown > 0)
+				? width()
+				: 0);
 			_topBarSuggestion->entity()->resize(width(), newHeight);
 		}, _topBarSuggestion->lifetime());
 	}

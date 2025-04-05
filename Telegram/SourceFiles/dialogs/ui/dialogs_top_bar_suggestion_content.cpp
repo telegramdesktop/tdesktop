@@ -6,27 +6,57 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
+#include "ui/ui_rpl_filter.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_settings.h"
 
 namespace Dialogs {
-namespace {
-} // namespace
 
 TopBarSuggestionContent::TopBarSuggestionContent(not_null<Ui::RpWidget*> p)
 : Ui::RippleButton(p, st::defaultRippleAnimationBgOver)
 , _titleSt(st::semiboldTextStyle)
-, _contentTitleSt(st::semiboldTextStyle)
-, _contentTextSt(st::defaultTextStyle)
-, _rightHide(
-	base::make_unique_q<Ui::IconButton>(
-		this,
-		st::dialogsCancelSearchInPeer)) {
-	const auto rightHide = _rightHide.get();
-	sizeValue() | rpl::start_with_next([=](const QSize &s) {
-		rightHide->moveToRight(st::buttonRadius, st::lineWidth);
-	}, rightHide->lifetime());
+, _contentTitleSt(st::dialogsTopBarSuggestionTitleStyle)
+, _contentTextSt(st::dialogsTopBarSuggestionAboutStyle) {
+	setRightIcon(RightIcon::Close);
+}
+
+void TopBarSuggestionContent::setRightIcon(RightIcon icon) {
+	if (icon == _rightIcon) {
+		return;
+	}
+	_rightHide = nullptr;
+	_rightArrow = nullptr;
+	_rightIcon = icon;
+	if (icon == RightIcon::Close) {
+		_rightHide = base::make_unique_q<Ui::IconButton>(
+			this,
+			st::dialogsCancelSearchInPeer);
+		const auto rightHide = _rightHide.get();
+		sizeValue() | rpl::filter_size(
+		) | rpl::start_with_next([=](const QSize &s) {
+			rightHide->moveToRight(st::buttonRadius, st::lineWidth);
+		}, rightHide->lifetime());
+		rightHide->show();
+	} else if (icon == RightIcon::Arrow) {
+		_rightArrow = base::make_unique_q<Ui::IconButton>(
+			this,
+			st::backButton);
+		const auto arrow = _rightArrow.get();
+		arrow->setIconOverride(
+			&st::settingsPremiumArrow,
+			&st::settingsPremiumArrowOver);
+		arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+		sizeValue() | rpl::filter_size(
+		) | rpl::start_with_next([=](const QSize &s) {
+			const auto &point = st::settingsPremiumArrowShift;
+			arrow->moveToLeft(
+				s.width() - arrow->width(),
+				point.y() + (s.height() - arrow->height()) / 2);
+		}, arrow->lifetime());
+		arrow->show();
+	}
 }
 
 void TopBarSuggestionContent::draw(QPainter &p) {
@@ -41,28 +71,26 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 	const auto rightPadding = st::msgReplyBarSkip;
 	const auto topPadding = st::msgReplyPadding.top();
 	const auto availableWidthNoPhoto = r.width()
+		- (_rightArrow ? _rightArrow->width() / 2 : 0) // Takes full height.
 		- leftPadding
 		- rightPadding;
 	const auto availableWidth = availableWidthNoPhoto
 		- (_rightHide ? _rightHide->width() : 0);
-	const auto titleRight = leftPadding
-		+ _titleSt.font->spacew * 2;
+	const auto titleRight = leftPadding;
 	const auto hasSecondLineTitle = (titleRight
 		> (availableWidth - _contentTitle.maxWidth()));
 	p.setPen(st::windowActiveTextFg);
 	p.setPen(st::windowFg);
 	{
 		const auto left = leftPadding;
-		const auto top = hasSecondLineTitle
-			? (topPadding + _titleSt.font->height)
-			: topPadding;
+		const auto top = topPadding;
 		_contentTitle.draw(p, {
 			.position = QPoint(left, top),
 			.outerWidth = hasSecondLineTitle
 				? availableWidth
 				: (availableWidth - titleRight),
 			.availableWidth = availableWidth,
-			.elisionLines = 1,
+			.elisionLines = hasSecondLineTitle ? 2 : 1,
 		});
 	}
 	{
@@ -94,6 +122,7 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 					: availableWidth,
 			};
 		};
+		p.setPen(st::windowSubTextFg);
 		_contentText.draw(p, {
 			.position = QPoint(left, top),
 			.outerWidth = availableWidth,

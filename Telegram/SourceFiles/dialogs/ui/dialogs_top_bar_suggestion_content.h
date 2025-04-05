@@ -18,6 +18,12 @@ namespace Dialogs {
 
 class TopBarSuggestionContent : public Ui::RippleButton {
 public:
+	enum class RightIcon {
+		None,
+		Close,
+		Arrow,
+	};
+
 	TopBarSuggestionContent(not_null<Ui::RpWidget*>);
 
 	void setContent(
@@ -27,6 +33,7 @@ public:
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 
 	void setHideCallback(Fn<void()>);
+	void setRightIcon(RightIcon);
 
 protected:
 	void paintEvent(QPaintEvent *) override;
@@ -44,7 +51,10 @@ private:
 	rpl::variable<int> _lastPaintedContentTop = 0;
 
 	base::unique_qptr<Ui::IconButton> _rightHide;
+	base::unique_qptr<Ui::IconButton> _rightArrow;
 	Fn<void()> _hideCallback;
+
+	RightIcon _rightIcon = RightIcon::None;
 
 	std::shared_ptr<Ui::DynamicImage> _rightPhoto;
 	QImage _rightPhotoImage;

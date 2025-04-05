@@ -301,7 +301,7 @@ private:
 	base::Timer _chooseByDragTimer;
 
 	const Layout _layout = Layout::Main;
-	int _narrowWidth = 0;
+	const int _narrowWidth = 0;
 
 	std::unique_ptr<Ui::AbstractButton> _frozenAccountBar;
 
