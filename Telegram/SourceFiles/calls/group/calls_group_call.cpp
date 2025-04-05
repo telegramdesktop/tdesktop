@@ -3819,8 +3819,12 @@ void GroupCall::inviteUsers(
 					state->result.privacyRestricted.push_back(user);
 				} else if (type == u"USER_ALREADY_PARTICIPANT"_q) {
 					state->result.alreadyIn.push_back(user);
+				} else if (type == u"USER_WAS_KICKED"_q) {
+					state->result.kicked.push_back(user);
 				} else if (type == u"GROUPCALL_FORBIDDEN"_q) {
 					startRejoin();
+				} else {
+					state->result.failed.push_back(user);
 				}
 				finishRequest();
 			}).send();
@@ -3989,35 +3993,81 @@ void GroupCall::destroyScreencast() {
 TextWithEntities ComposeInviteResultToast(
 		const InviteResult &result) {
 	auto text = TextWithEntities();
+	const auto append = [&](TextWithEntities part) {
+		if (!text.empty()) {
+			text.append(u"\n\n"_q);
+		}
+		text.append(part);
+	};
+
 	const auto invited = int(result.invited.size());
+	const auto already = int(result.alreadyIn.size());
 	const auto restricted = int(result.privacyRestricted.size());
+	const auto kicked = int(result.kicked.size());
+	const auto failed = int(result.failed.size());
 	if (invited == 1) {
-		text.append(tr::lng_confcall_invite_done_user(
+		append(tr::lng_confcall_invite_done_user(
 			tr::now,
 			lt_user,
 			Ui::Text::Bold(result.invited.front()->shortName()),
 			Ui::Text::RichLangValue));
 	} else if (invited > 1) {
-		text.append(tr::lng_confcall_invite_done_many(
+		append(tr::lng_confcall_invite_done_many(
 			tr::now,
 			lt_count,
 			invited,
 			Ui::Text::RichLangValue));
 	}
-	if (invited && restricted) {
-		text.append(u"\n\n"_q);
+	if (already == 1) {
+		append(tr::lng_confcall_invite_already_user(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(result.alreadyIn.front()->shortName()),
+			Ui::Text::RichLangValue));
+	} else if (already > 1) {
+		append(tr::lng_confcall_invite_already_many(
+			tr::now,
+			lt_count,
+			already,
+			Ui::Text::RichLangValue));
 	}
 	if (restricted == 1) {
-		text.append(tr::lng_confcall_invite_fail_user(
+		append(tr::lng_confcall_invite_fail_user(
 			tr::now,
 			lt_user,
 			Ui::Text::Bold(result.privacyRestricted.front()->shortName()),
 			Ui::Text::RichLangValue));
 	} else if (restricted > 1) {
-		text.append(tr::lng_confcall_invite_fail_many(
+		append(tr::lng_confcall_invite_fail_many(
 			tr::now,
 			lt_count,
 			restricted,
+			Ui::Text::RichLangValue));
+	}
+	if (kicked == 1) {
+		append(tr::lng_confcall_invite_kicked_user(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(result.kicked.front()->shortName()),
+			Ui::Text::RichLangValue));
+	} else if (kicked > 1) {
+		append(tr::lng_confcall_invite_kicked_many(
+			tr::now,
+			lt_count,
+			kicked,
+			Ui::Text::RichLangValue));
+	}
+	if (failed == 1) {
+		append(tr::lng_confcall_invite_fail_user(
+			tr::now,
+			lt_user,
+			Ui::Text::Bold(result.failed.front()->shortName()),
+			Ui::Text::RichLangValue));
+	} else if (failed > 1) {
+		append(tr::lng_confcall_invite_fail_many(
+			tr::now,
+			lt_count,
+			failed,
 			Ui::Text::RichLangValue));
 	}
 	return text;

@@ -57,6 +57,8 @@ struct InviteResult {
 	std::vector<not_null<UserData*>> invited;
 	std::vector<not_null<UserData*>> alreadyIn;
 	std::vector<not_null<UserData*>> privacyRestricted;
+	std::vector<not_null<UserData*>> kicked;
+	std::vector<not_null<UserData*>> failed;
 };
 
 struct StartConferenceInfo {

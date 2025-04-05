@@ -511,10 +511,6 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 						}
 						const auto done = [=](InviteResult result) {
 							(*close)();
-							if (result.invited.empty()
-								&& result.privacyRestricted.empty()) {
-								return;
-							}
 							showToast({ ComposeInviteResultToast(result) });
 						};
 						call->inviteUsers(
@@ -566,8 +562,6 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 					lt_count,
 					result.invited.size(),
 					Ui::Text::RichLangValue));
-			} else {
-				Unexpected("Result in GroupCall::inviteUsers.");
 			}
 		});
 	};

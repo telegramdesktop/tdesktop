@@ -4812,6 +4812,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_unpin_screen" = "Unpin screencast";
 "lng_group_call_context_remove" = "Remove";
 "lng_group_call_context_cancel_invite" = "Cancel invitation";
+"lng_group_call_context_stop_ringing" = "Stop calling";
+"lng_group_call_context_ban_from_call" = "Ban from call";
 "lng_group_call_remove_channel" = "Remove {channel} from the video chat and ban them?";
 "lng_group_call_remove_channel_from_channel" = "Remove {channel} from the live stream?";
 "lng_group_call_mac_access" = "Telegram Desktop does not have access to system wide keyboard input required for Push to Talk.";
@@ -4940,12 +4942,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_link_or" = "or";
 "lng_confcall_link_join" = "Be the first to join the call and add people from there. {link}";
 "lng_confcall_link_join_link" = "Open call {arrow}";
-"lng_confcall_invite_done_user" = "You invited {user} to join the call.";
-"lng_confcall_invite_done_many#one" = "You invited **{count} person** to join the call.";
-"lng_confcall_invite_done_many#other" = "You invited **{count} people** to join the call.";
-"lng_confcall_invite_fail_user" = "You cannot call {user} because of their privacy settings.";
-"lng_confcall_invite_fail_many#one" = "You cannot call **{count} person** because of their privacy settings.";
-"lng_confcall_invite_fail_many#other" = "You cannot call **{count} people** because of their privacy settings.";
+"lng_confcall_invite_done_user" = "You're calling {user} to join.";
+"lng_confcall_invite_done_many#one" = "You're calling **{count} person** to join.";
+"lng_confcall_invite_done_many#other" = "You're calling **{count} people** to join.";
+"lng_confcall_invite_already_user" = "{user} is already in the call.";
+"lng_confcall_invite_already_many#one" = "**{count} person** is already in the call.";
+"lng_confcall_invite_already_many#other" = "**{count} people** are already in the call.";
+"lng_confcall_invite_privacy_user" = "You cannot call {user} because of their privacy settings.";
+"lng_confcall_invite_privacy_many#one" = "You cannot call **{count} person** because of their privacy settings.";
+"lng_confcall_invite_privacy_many#other" = "You cannot call **{count} people** because of their privacy settings.";
+"lng_confcall_invite_fail_user" = "Couldn't call {user} to join.";
+"lng_confcall_invite_fail_many#one" = "Couldn't call **{count} person** to join.";
+"lng_confcall_invite_fail_many#other" = "Couldn't call **{count} people** to join.";
+"lng_confcall_invite_kicked_user" = "{user} was removed from the call.";
+"lng_confcall_invite_kicked_many#one" = "**{count} person** was removed from the call.";
+"lng_confcall_invite_kicked_many#other" = "**{count} people** were removed from the call.";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 
