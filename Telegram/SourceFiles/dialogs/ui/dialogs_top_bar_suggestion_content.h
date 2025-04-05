@@ -34,6 +34,7 @@ public:
 
 	void setHideCallback(Fn<void()>);
 	void setRightIcon(RightIcon);
+	void setLeftPadding(int);
 
 protected:
 	void paintEvent(QPaintEvent *) override;
@@ -53,6 +54,8 @@ private:
 	base::unique_qptr<Ui::IconButton> _rightHide;
 	base::unique_qptr<Ui::IconButton> _rightArrow;
 	Fn<void()> _hideCallback;
+
+	int _leftPadding = 0;
 
 	RightIcon _rightIcon = RightIcon::None;
 

@@ -1129,3 +1129,10 @@ foldersMenu: PopupMenu(popupMenuWithIcons) {
 		itemPadding: margins(54px, 8px, 44px, 8px);
 	}
 }
+
+fakeUserpicButton: UserpicButton(defaultUserpicButton) {
+	size: size(1px, 1px);
+	photoSize: 1px;
+	changeIcon: icon {{ "settings/photo", transparent }};
+	uploadBg: transparent;
+}

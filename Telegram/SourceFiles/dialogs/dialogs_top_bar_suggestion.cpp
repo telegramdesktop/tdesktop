@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_top_bar_suggestion.h"
 
+#include "api/api_peer_photo.h"
 #include "api/api_premium.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_birthday.h"
+#include "data/data_changes.h"
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "info/profile/info_profile_values.h"
@@ -20,10 +22,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/text/text_utilities.h"
+#include "ui/ui_utility.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 
 namespace Dialogs {
 namespace {
@@ -38,6 +44,7 @@ constexpr auto kSugSetBirthday = "BIRTHDAY_SETUP"_cs;
 constexpr auto kSugPremiumAnnual = "PREMIUM_ANNUAL"_cs;
 constexpr auto kSugPremiumUpgrade = "PREMIUM_UPGRADE"_cs;
 constexpr auto kSugPremiumRestore = "PREMIUM_RESTORE"_cs;
+constexpr auto kSugSetUserpic = "USERPIC_SETUP"_cs;
 
 } // namespace
 
@@ -52,6 +59,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			Ui::SlideWrap<Ui::RpWidget> *wrap = nullptr;
 			rpl::lifetime birthdayLifetime;
 			rpl::lifetime premiumLifetime;
+			rpl::lifetime userpicLifetime;
 		};
 		const auto state = lifetime.make_state<State>();
 		const auto ensureWrap = [=] {
@@ -79,7 +87,6 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto wrap = state->wrap;
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto config = &session->appConfig();
-			auto hide = false;
 			if (config->suggestionCurrent(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {
 				content->setRightIcon(RightIcon::Close);
@@ -116,6 +123,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						tr::now,
 						TextWithEntities::Simple));
 				wrap->toggle(true, anim::type::normal);
+				return;
 			} else if (session->premiumPossible() && !session->premium()) {
 				const auto isPremiumAnnual = config->suggestionCurrent(
 					kSugPremiumAnnual.utf8());
@@ -171,20 +179,86 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						}
 					}, state->premiumLifetime);
 					api->reload();
-				} else {
-					hide = true;
+					return;
 				}
-			} else {
-				hide = true;
 			}
-			if (hide) {
-				wrap->toggle(false, anim::type::normal);
-				base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {
-					state->content = nullptr;
-					state->wrap = nullptr;
-					consumer.put_next(nullptr);
+			if (config->suggestionCurrent(kSugSetUserpic.utf8())
+				&& !session->user()->userpicPhotoId()) {
+				const auto controller = FindSessionController(parent);
+				if (!controller) {
+					return;
+				}
+				content->setRightIcon(RightIcon::Close);
+				const auto upload = Ui::CreateChild<Ui::UserpicButton>(
+					content,
+					&controller->window(),
+					Ui::UserpicButton::Role::ChoosePhoto,
+					st::uploadUserpicButton);
+				const auto leftPadding = st::defaultDialogRow.padding.left();
+				content->sizeValue() | rpl::filter_size(
+				) | rpl::start_with_next([=](const QSize &s) {
+					upload->raise();
+					upload->show();
+					upload->moveToLeft(
+						leftPadding,
+						(s.height() - upload->height()) / 2);
+				}, content->lifetime());
+				content->setLeftPadding(upload->width() + leftPadding);
+				upload->chosenImages() | rpl::start_with_next([=](
+						Ui::UserpicButton::ChosenImage &&chosen) {
+					if (chosen.type == Ui::UserpicButton::ChosenType::Set) {
+						session->api().peerPhoto().upload(
+							session->user(),
+							{
+								std::move(chosen.image),
+								chosen.markup.documentId,
+								chosen.markup.colors,
+							});
+					}
+				}, upload->lifetime());
+
+				state->userpicLifetime = session->changes().peerUpdates(
+					session->user(),
+					Data::PeerUpdate::Flag::Photo
+				) | rpl::start_with_next([=] {
+					if (session->user()->userpicPhotoId()) {
+						repeat(repeat);
+					}
 				});
+
+				content->setHideCallback([=] {
+					config->dismissSuggestion(kSugSetUserpic.utf8());
+					repeat(repeat);
+				});
+
+				content->setClickedCallback([=] {
+					const auto syntetic = [=](QEvent::Type type) {
+						Ui::SendSynteticMouseEvent(
+							upload,
+							type,
+							Qt::LeftButton,
+							upload->mapToGlobal(QPoint(0, 0)));
+					};
+					syntetic(QEvent::MouseMove);
+					syntetic(QEvent::MouseButtonPress);
+					syntetic(QEvent::MouseButtonRelease);
+				});
+				content->setContent(
+					tr::lng_dialogs_suggestions_userpics_title(
+						tr::now,
+						Ui::Text::Bold),
+					tr::lng_dialogs_suggestions_userpics_about(
+						tr::now,
+						TextWithEntities::Simple));
+				wrap->toggle(true, anim::type::normal);
+				return;
 			}
+			wrap->toggle(false, anim::type::normal);
+			base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {
+				state->content = nullptr;
+				state->wrap = nullptr;
+				consumer.put_next(nullptr);
+			});
 		};
 
 		session->appConfig().value() | rpl::start_with_next([=] {

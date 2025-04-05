@@ -67,7 +67,8 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 	const auto r = Ui::RpWidget::rect();
 	p.fillRect(r, st::historyPinnedBg);
 	Ui::RippleButton::paintRipple(p, 0, 0);
-	const auto leftPadding = st::defaultDialogRow.padding.left();
+	const auto leftPadding = st::defaultDialogRow.padding.left()
+		+ _leftPadding;
 	const auto rightPadding = st::msgReplyBarSkip;
 	const auto topPadding = st::msgReplyPadding.top();
 	const auto availableWidthNoPhoto = r.width()
@@ -172,6 +173,11 @@ rpl::producer<int> TopBarSuggestionContent::desiredHeightValue() const {
 
 void TopBarSuggestionContent::setHideCallback(Fn<void()> hideCallback) {
 	_rightHide->setClickedCallback(std::move(hideCallback));
+}
+
+void TopBarSuggestionContent::setLeftPadding(int value) {
+	_leftPadding = value;
+	update();
 }
 
 } // namespace Dialogs
