@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
+#include "boxes/star_gift_box.h" // ShowStarGiftBox.
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_birthday.h"
 #include "data/data_changes.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "info/profile/info_profile_values.h"
@@ -41,10 +43,36 @@ namespace {
 }
 
 constexpr auto kSugSetBirthday = "BIRTHDAY_SETUP"_cs;
+constexpr auto kSugBirthdayContacts = "BIRTHDAY_CONTACTS_TODAY"_cs;
 constexpr auto kSugPremiumAnnual = "PREMIUM_ANNUAL"_cs;
 constexpr auto kSugPremiumUpgrade = "PREMIUM_UPGRADE"_cs;
 constexpr auto kSugPremiumRestore = "PREMIUM_RESTORE"_cs;
 constexpr auto kSugSetUserpic = "USERPIC_SETUP"_cs;
+
+void RequestBirthdays(
+		not_null<PeerData*> peer,
+		Fn<void(std::vector<not_null<PeerData*>>)> done) {
+	peer->session().api().request(
+		MTPcontacts_GetBirthdays()
+	).done([=](const MTPcontacts_ContactBirthdays &result) {
+		auto users = std::vector<not_null<PeerData*>>();
+		peer->owner().processUsers(result.data().vusers());
+		for (const auto &tlContact : result.data().vcontacts().v) {
+			const auto peerId = tlContact.data().vcontact_id().v;
+			if (const auto user = peer->owner().user(peerId)) {
+				const auto &data = tlContact.data().vbirthday().data();
+				user->setBirthday(Data::Birthday(
+					data.vday().v,
+					data.vmonth().v,
+					data.vyear().value_or_empty()));
+				users.push_back(user);
+			}
+		}
+		done(std::move(users));
+	}).fail([=](const MTP::Error &error) {
+		done({});
+	}).send();
+}
 
 } // namespace
 
@@ -87,7 +115,61 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto wrap = state->wrap;
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto config = &session->appConfig();
-			if (config->suggestionCurrent(kSugSetBirthday.utf8())
+			if (config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
+				using Users = std::vector<not_null<PeerData*>>;
+				RequestBirthdays(session->user(), crl::guard(content, [=](
+						Users users) {
+					const auto dismiss = [=] {
+						config->dismissSuggestion(
+							kSugBirthdayContacts.utf8());
+						repeat(repeat);
+					};
+					if (!session->premiumCanBuy() || users.empty()) {
+						dismiss();
+						return;
+					}
+					const auto controller = FindSessionController(parent);
+					if (!controller) {
+						dismiss();
+						return;
+					}
+					if (users.size() != 1) {
+						return;
+					}
+					content->setRightIcon(RightIcon::Close);
+					content->setClickedCallback([=] {
+						Ui::ShowStarGiftBox(controller, users.front());
+					});
+					content->setHideCallback(dismiss);
+					content->setContent(
+						tr::lng_dialogs_suggestions_birthday_contact_title(
+							tr::now,
+							lt_text,
+							{ users.front()->name() },
+							Ui::Text::RichLangValue),
+						tr::lng_dialogs_suggestions_birthday_contact_about(
+							tr::now,
+							TextWithEntities::Simple));
+					const auto upload = Ui::CreateChild<Ui::UserpicButton>(
+						content,
+						users.front(),
+						st::uploadUserpicButton);
+					upload->setAttribute(Qt::WA_TransparentForMouseEvents);
+					const auto leftPadding = st::defaultDialogRow.padding.left();
+					content->sizeValue() | rpl::filter_size(
+					) | rpl::start_with_next([=](const QSize &s) {
+						upload->raise();
+						upload->show();
+						upload->moveToLeft(
+							leftPadding,
+							(s.height() - upload->height()) / 2);
+					}, content->lifetime());
+					content->setLeftPadding(upload->width() + leftPadding);
+
+					wrap->toggle(true, anim::type::normal);
+				}));
+				return;
+			} else if (config->suggestionCurrent(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
