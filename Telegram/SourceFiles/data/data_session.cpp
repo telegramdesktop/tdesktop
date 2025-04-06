@@ -1219,8 +1219,8 @@ void Session::checkLocalUsersWentOffline() {
 }
 
 auto Session::invitedToCallUsers(CallId callId) const
--> const base::flat_set<not_null<UserData*>> & {
-	static const base::flat_set<not_null<UserData*>> kEmpty;
+-> const base::flat_map<not_null<UserData*>, bool> & {
+	static const base::flat_map<not_null<UserData*>, bool> kEmpty;
 	const auto i = _invitedToCallUsers.find(callId);
 	return (i != _invitedToCallUsers.end()) ? i->second : kEmpty;
 }
@@ -1228,14 +1228,16 @@ auto Session::invitedToCallUsers(CallId callId) const
 void Session::registerInvitedToCallUser(
 		CallId callId,
 		not_null<PeerData*> peer,
-		not_null<UserData*> user) {
-	registerInvitedToCallUser(callId, peer->groupCall(), user);
+		not_null<UserData*> user,
+		bool calling) {
+	registerInvitedToCallUser(callId, peer->groupCall(), user, calling);
 }
 
 void Session::registerInvitedToCallUser(
 		CallId callId,
 		GroupCall *call,
-		not_null<UserData*> user) {
+		not_null<UserData*> user,
+		bool calling) {
 	if (call && call->id() == callId) {
 		const auto inCall = ranges::contains(
 			call->participants(),
@@ -1245,19 +1247,32 @@ void Session::registerInvitedToCallUser(
 			return;
 		}
 	}
-	_invitedToCallUsers[callId].emplace(user);
-	_invitesToCalls.fire({ callId, user });
+	_invitedToCallUsers[callId][user] = calling;
+	_invitesToCalls.fire({ callId, user, calling });
 }
 
 void Session::unregisterInvitedToCallUser(
 		CallId callId,
-		not_null<UserData*> user) {
+		not_null<UserData*> user,
+		bool onlyStopCalling) {
 	const auto i = _invitedToCallUsers.find(callId);
 	if (i != _invitedToCallUsers.end()) {
-		i->second.remove(user);
-		if (i->second.empty()) {
-			_invitedToCallUsers.erase(i);
-			_invitesToCalls.fire({ callId, user, true });
+		const auto j = i->second.find(user);
+		if (j != end(i->second)) {
+			if (onlyStopCalling) {
+				if (!j->second) {
+					return;
+				}
+				j->second = false;
+			} else {
+				i->second.erase(j);
+				if (i->second.empty()) {
+					_invitedToCallUsers.erase(i);
+				}
+			}
+			const auto calling = false;
+			const auto removed = !onlyStopCalling;
+			_invitesToCalls.fire({ callId, user, calling, removed });
 		}
 	}
 }

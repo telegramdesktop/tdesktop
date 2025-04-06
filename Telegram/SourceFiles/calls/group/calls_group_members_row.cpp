@@ -138,9 +138,9 @@ void MembersRow::setSkipLevelUpdate(bool value) {
 	_skipLevelUpdate = value;
 }
 
-void MembersRow::updateStateInvited() {
+void MembersRow::updateStateInvited(bool calling) {
 	setVolume(Group::kDefaultVolume);
-	setState(State::Invited);
+	setState(calling ? State::Calling : State::Invited);
 	setSounding(false);
 	setSpeaking(false);
 	_mutedByMe = false;
@@ -640,11 +640,13 @@ void MembersRow::paintComplexStatusText(
 	const auto useAbout = !_about.isEmpty()
 		&& (_state != State::WithAccess)
 		&& (_state != State::Invited)
+		&& (_state != State::Calling)
 		&& (style != MembersRowStyle::Video)
 		&& ((_state == State::RaisedHand && !_raisedHandStatus)
 			|| (_state != State::RaisedHand && !_speaking));
 	if (!useAbout
 		&& _state != State::Invited
+		&& _state != State::Calling
 		&& _state != State::WithAccess
 		&& !_mutedByMe) {
 		paintStatusIcon(p, x, y, st, font, selected, narrowMode);
@@ -693,6 +695,8 @@ void MembersRow::paintComplexStatusText(
 				? tr::lng_status_connecting(tr::now)
 				: (_state == State::WithAccess)
 				? tr::lng_group_call_blockchain_only_status(tr::now)
+				: (_state == State::Calling)
+				? tr::lng_group_call_calling_status(tr::now)
 				: tr::lng_group_call_invited_status(tr::now)));
 	}
 }
@@ -706,6 +710,7 @@ QSize MembersRow::rightActionSize() const {
 bool MembersRow::rightActionDisabled() const {
 	return _delegate->rowIsMe(peer())
 		|| (_state == State::Invited)
+		|| (_state == State::Calling)
 		|| !_delegate->rowCanMuteMembers();
 }
 
@@ -731,7 +736,9 @@ void MembersRow::rightActionPaint(
 		size.width(),
 		size.height(),
 		outerWidth);
-	if (_state == State::Invited) {
+	if (_state == State::Invited
+		|| _state == State::Calling
+		|| _state == State::WithAccess) {
 		_actionRipple = nullptr;
 	}
 	if (_actionRipple) {
@@ -761,6 +768,7 @@ MembersRowDelegate::IconState MembersRow::computeIconState(
 		.mutedByMe = _mutedByMe,
 		.raisedHand = (_state == State::RaisedHand),
 		.invited = (_state == State::Invited),
+		.calling = (_state == State::Calling),
 		.style = style,
 	};
 }

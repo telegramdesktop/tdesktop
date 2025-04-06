@@ -893,6 +893,8 @@ groupCallMemberColoredCrossLine: CrossLineAnimation(groupCallMemberInactiveCross
 	fg: groupCallMemberMutedIcon;
 	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberActiveIcon }};
 }
+groupCallMemberCalling: icon {{ "calls/call_answer", groupCallMemberInactiveIcon }};
+groupCallMemberCallingPosition: point(0px, 8px);
 groupCallMemberInvited: icon {{ "calls/group_calls_invited", groupCallMemberInactiveIcon }};
 groupCallMemberInvitedPosition: point(2px, 12px);
 groupCallMemberRaisedHand: icon {{ "calls/group_calls_raised_hand", groupCallMemberInactiveStatus }};
@@ -1327,6 +1329,7 @@ groupCallNarrowRaisedHand: icon {{ "calls/video_mini_speak", groupCallMemberInac
 groupCallNarrowCameraIcon: icon {{ "calls/video_mini_video", groupCallMemberNotJoinedStatus }};
 groupCallNarrowScreenIcon: icon {{ "calls/video_mini_screencast", groupCallMemberNotJoinedStatus }};
 groupCallNarrowInvitedIcon: icon {{ "calls/video_mini_invited", groupCallMemberNotJoinedStatus }};
+groupCallNarrowCallingIcon: icon {{ "calls/video_mini_invited", groupCallMemberNotJoinedStatus }};
 groupCallNarrowIconPosition: point(-4px, 2px);
 groupCallNarrowIconSkip: 15px;
 groupCallOutline: 2px;

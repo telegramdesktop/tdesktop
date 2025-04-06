@@ -930,7 +930,8 @@ void Instance::unregisterConferenceInvite(
 		CallId conferenceId,
 		not_null<UserData*> user,
 		MsgId messageId,
-		bool incoming) {
+		bool incoming,
+		bool onlyStopCalling) {
 	const auto i = _conferenceInvites.find(conferenceId);
 	if (i == end(_conferenceInvites)) {
 		return;
@@ -940,9 +941,14 @@ void Instance::unregisterConferenceInvite(
 		return;
 	}
 	auto &info = j->second;
-	(incoming ? info.incoming : info.outgoing).remove(messageId);
+	if (!(incoming ? info.incoming : info.outgoing).remove(messageId)) {
+		return;
+	}
 	if (!incoming) {
-		user->owner().unregisterInvitedToCallUser(conferenceId, user);
+		user->owner().unregisterInvitedToCallUser(
+			conferenceId,
+			user,
+			onlyStopCalling);
 	}
 	if (info.incoming.empty() && info.outgoing.empty()) {
 		i->second.users.erase(j);
@@ -1010,6 +1016,11 @@ void Instance::declineOutgoingConferenceInvite(
 			user->owner().history(user),
 			std::move(inputs),
 			true);
+		for (const auto &messageId : ids) {
+			if (const auto item = user->owner().message(user, messageId)) {
+				item->destroy();
+			}
+		}
 	}
 	if (!j->second.incoming.empty()) {
 		return;
@@ -1018,7 +1029,7 @@ void Instance::declineOutgoingConferenceInvite(
 	if (i->second.users.empty()) {
 		_conferenceInvites.erase(i);
 	}
-	user->owner().unregisterInvitedToCallUser(conferenceId, user);
+	user->owner().unregisterInvitedToCallUser(conferenceId, user, !discard);
 }
 
 void Instance::showConferenceInvite(

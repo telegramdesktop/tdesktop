@@ -1902,12 +1902,21 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		_flags &= ~MessageFlag::DisplayFromChecked;
 	} else if (message.vaction().type() == mtpc_messageActionConferenceCall) {
 		removeFromSharedMediaIndex();
+		const auto owner = &history()->owner();
+		const auto &data = message.vaction().c_messageActionConferenceCall();
+		const auto info = Data::ComputeCallData(owner, data);
+		if (const auto user = history()->peer->asUser()) {
+			if (const auto conferenceId = out() ? info.conferenceId : 0) {
+				Core::App().calls().unregisterConferenceInvite(
+					conferenceId,
+					user,
+					id,
+					!out(),
+					true);
+			}
+		}
 		_media = nullptr;
-		_media = std::make_unique<Data::MediaCall>(
-			this,
-			Data::ComputeCallData(
-				&history()->owner(),
-				message.vaction().c_messageActionConferenceCall()));
+		_media = std::make_unique<Data::MediaCall>(this, info);
 		addToSharedMediaIndex();
 		finishEdition(-1);
 		_flags &= ~MessageFlag::DisplayFromChecked;
@@ -4896,7 +4905,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		for (const auto &id : action.vusers().v) {
 			const auto user = owner->user(id.v);
 			if (callId) {
-				owner->registerInvitedToCallUser(callId, peer, user);
+				owner->registerInvitedToCallUser(callId, peer, user, false);
 			}
 		};
 		const auto linkCallId = PeerHasThisCall(peer, callId).value_or(false)

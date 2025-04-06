@@ -1701,13 +1701,11 @@ MediaCall::MediaCall(not_null<HistoryItem*> parent, const Call &call)
 	const auto peer = parent->history()->peer;
 	peer->owner().registerCallItem(parent);
 	if (const auto user = _call.conferenceId ? peer->asUser() : nullptr) {
-		if (_call.state == CallState::Invitation) {
-			Core::App().calls().registerConferenceInvite(
-				_call.conferenceId,
-				user,
-				parent->id,
-				!parent->out());
-		}
+		Core::App().calls().registerConferenceInvite(
+			_call.conferenceId,
+			user,
+			parent->id,
+			!parent->out());
 	}
 }
 
@@ -1716,13 +1714,11 @@ MediaCall::~MediaCall() {
 	const auto peer = parent->history()->peer;
 	peer->owner().unregisterCallItem(parent);
 	if (const auto user = _call.conferenceId ? peer->asUser() : nullptr) {
-		if (_call.state == CallState::Invitation) {
-			Core::App().calls().unregisterConferenceInvite(
-				_call.conferenceId,
-				user,
-				parent->id,
-				!parent->out());
-		}
+		Core::App().calls().unregisterConferenceInvite(
+			_call.conferenceId,
+			user,
+			parent->id,
+			!parent->out());
 	}
 }
 

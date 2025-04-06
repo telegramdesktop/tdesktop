@@ -791,7 +791,10 @@ void GroupCall::applyParticipantsSlice(
 			}
 			if (adding) {
 				if (const auto user = participantPeer->asUser()) {
-					_peer->owner().unregisterInvitedToCallUser(_id, user);
+					_peer->owner().unregisterInvitedToCallUser(
+						_id,
+						user,
+						false);
 				}
 			}
 		});

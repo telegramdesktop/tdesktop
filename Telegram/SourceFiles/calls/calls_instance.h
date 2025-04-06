@@ -131,7 +131,8 @@ public:
 		CallId conferenceId,
 		not_null<UserData*> user,
 		MsgId messageId,
-		bool incoming);
+		bool incoming,
+		bool onlyStopCalling = false);
 	void showConferenceInvite(
 		not_null<UserData*> user,
 		MsgId conferenceInviteMsgId);

@@ -1542,7 +1542,8 @@ void Call::finish(
 		_user->owner().registerInvitedToCallUser(
 			migrateCall->id(),
 			migrateCall,
-			_user);
+			_user,
+			true);
 	}
 	const auto session = &_user->session();
 	const auto weak = base::make_weak(this);

@@ -24,7 +24,7 @@ struct PeerUserpicView;
 
 namespace Calls::Group {
 
-enum class MembersRowStyle {
+enum class MembersRowStyle : uchar {
 	Default,
 	Narrow,
 	Video,
@@ -40,6 +40,7 @@ public:
 		bool mutedByMe = false;
 		bool raisedHand = false;
 		bool invited = false;
+		bool calling = false;
 		MembersRowStyle style = MembersRowStyle::Default;
 	};
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
@@ -75,13 +76,14 @@ public:
 		Muted,
 		RaisedHand,
 		Invited,
+		Calling,
 		WithAccess,
 	};
 
 	void setAbout(const QString &about);
 	void setSkipLevelUpdate(bool value);
 	void updateState(const Data::GroupCallParticipant &participant);
-	void updateStateInvited();
+	void updateStateInvited(bool calling);
 	void updateStateWithAccess();
 	void updateLevel(float level);
 	void updateBlobAnimation(crl::time now);

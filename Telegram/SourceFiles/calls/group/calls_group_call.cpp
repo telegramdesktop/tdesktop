@@ -1623,6 +1623,9 @@ void GroupCall::sendJoinRequest() {
 		if (const auto once = base::take(_migratedConferenceInfo)) {
 			processMigration(*once);
 		}
+		for (const auto &callback : base::take(_rejoinedCallbacks)) {
+			callback();
+		}
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
 		if (_e2e) {
@@ -3775,6 +3778,45 @@ void GroupCall::editParticipant(
 	}).send();
 }
 
+
+void GroupCall::inviteToConference(
+		InviteRequest request,
+		Fn<not_null<InviteResult*>()> resultAddress,
+		Fn<void()> finishRequest) {
+	using Flag = MTPphone_InviteConferenceCallParticipant::Flag;
+	const auto user = request.user;
+	_api.request(MTPphone_InviteConferenceCallParticipant(
+		MTP_flags(request.video ? Flag::f_video : Flag()),
+		inputCall(),
+		user->inputUser
+	)).done([=](const MTPUpdates &result) {
+		const auto call = _conferenceCall.get();
+		user->owner().registerInvitedToCallUser(_id, call, user, true);
+		_peer->session().api().applyUpdates(result);
+		resultAddress()->invited.push_back(user);
+		finishRequest();
+	}).fail([=](const MTP::Error &error) {
+		const auto result = resultAddress();
+		const auto type = error.type();
+		if (type == u"USER_PRIVACY_RESTRICTED"_q) {
+			result->privacyRestricted.push_back(user);
+		} else if (type == u"USER_ALREADY_PARTICIPANT"_q) {
+			result->alreadyIn.push_back(user);
+		} else if (type == u"USER_WAS_KICKED"_q) {
+			result->kicked.push_back(user);
+		} else if (type == u"GROUPCALL_FORBIDDEN"_q) {
+			startRejoin();
+			_rejoinedCallbacks.push_back([=] {
+				inviteToConference(request, resultAddress, finishRequest);
+			});
+			return;
+		} else {
+			result->failed.push_back(user);
+		}
+		finishRequest();
+	}).send();
+}
+
 void GroupCall::inviteUsers(
 		const std::vector<InviteRequest> &requests,
 		Fn<void(InviteResult)> done) {
@@ -3802,32 +3844,9 @@ void GroupCall::inviteUsers(
 
 	if (const auto call = _conferenceCall.get()) {
 		for (const auto &request : requests) {
-			using Flag = MTPphone_InviteConferenceCallParticipant::Flag;
-			const auto user = request.user;
-			_api.request(MTPphone_InviteConferenceCallParticipant(
-				MTP_flags(request.video ? Flag::f_video : Flag()),
-				inputCallSafe(),
-				user->inputUser
-			)).done([=](const MTPUpdates &result) {
-				owner->registerInvitedToCallUser(_id, call, user);
-				_peer->session().api().applyUpdates(result);
-				state->result.invited.push_back(user);
-				finishRequest();
-			}).fail([=](const MTP::Error &error) {
-				const auto type = error.type();
-				if (type == u"USER_PRIVACY_RESTRICTED"_q) {
-					state->result.privacyRestricted.push_back(user);
-				} else if (type == u"USER_ALREADY_PARTICIPANT"_q) {
-					state->result.alreadyIn.push_back(user);
-				} else if (type == u"USER_WAS_KICKED"_q) {
-					state->result.kicked.push_back(user);
-				} else if (type == u"GROUPCALL_FORBIDDEN"_q) {
-					startRejoin();
-				} else {
-					state->result.failed.push_back(user);
-				}
-				finishRequest();
-			}).send();
+			inviteToConference(request, [=] {
+				return &state->result;
+			}, finishRequest);
 			++state->requests;
 		}
 		return;
@@ -3857,7 +3876,7 @@ void GroupCall::inviteUsers(
 	};
 	for (const auto &request : requests) {
 		const auto user = request.user;
-		owner->registerInvitedToCallUser(_id, _peer, user);
+		owner->registerInvitedToCallUser(_id, _peer, user, false);
 		usersSlice.push_back(user);
 		slice.push_back(user->inputUser);
 		if (slice.size() == kMaxInvitePerSlice) {

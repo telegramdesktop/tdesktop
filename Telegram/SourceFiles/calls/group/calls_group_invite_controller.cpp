@@ -477,15 +477,23 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		return nullptr;
 	}
 	const auto peer = call->peer();
+	const auto conference = call->conference();
 	const auto weak = base::make_weak(call);
-	auto alreadyIn = peer->owner().invitedToCallUsers(real->id());
+	const auto &invited = peer->owner().invitedToCallUsers(real->id());
+	auto alreadyIn = base::flat_set<not_null<UserData*>>();
+	alreadyIn.reserve(invited.size() + real->participants().size() + 1);
+	alreadyIn.emplace(peer->session().user());
 	for (const auto &participant : real->participants()) {
 		if (const auto user = participant.peer->asUser()) {
 			alreadyIn.emplace(user);
 		}
 	}
-	alreadyIn.emplace(peer->session().user());
-	if (call->conference()) {
+	for (const auto &[user, calling] : invited) {
+		if (!conference || calling) {
+			alreadyIn.emplace(user);
+		}
+	}
+	if (conference) {
 		const auto close = std::make_shared<Fn<void()>>();
 		const auto shareLink = [=] {
 			Assert(shareConferenceLink != nullptr);

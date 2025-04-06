@@ -240,22 +240,26 @@ public:
 	void maybeStopWatchForOffline(not_null<UserData*> user);
 
 	[[nodiscard]] auto invitedToCallUsers(CallId callId) const
-		-> const base::flat_set<not_null<UserData*>> &;
+		-> const base::flat_map<not_null<UserData*>, bool> &;
 	void registerInvitedToCallUser(
 		CallId callId,
 		not_null<PeerData*> peer,
-		not_null<UserData*> user);
+		not_null<UserData*> user,
+		bool calling);
 	void registerInvitedToCallUser(
 		CallId callId,
 		GroupCall *call,
-		not_null<UserData*> user);
+		not_null<UserData*> user,
+		bool calling);
 	void unregisterInvitedToCallUser(
 		CallId callId,
-		not_null<UserData*> user);
+		not_null<UserData*> user,
+		bool onlyStopCalling);
 
 	struct InviteToCall {
 		CallId id = 0;
 		not_null<UserData*> user;
+		bool calling = false;
 		bool removed = false;
 	};
 	[[nodiscard]] rpl::producer<InviteToCall> invitesToCalls() const {
@@ -1112,7 +1116,7 @@ private:
 	rpl::event_stream<InviteToCall> _invitesToCalls;
 	base::flat_map<
 		CallId,
-		base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
+		base::flat_map<not_null<UserData*>, bool>> _invitedToCallUsers;
 
 	base::flat_set<not_null<ViewElement*>> _shownSpoilers;
 	base::flat_map<

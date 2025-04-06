@@ -625,6 +625,10 @@ private:
 	void markTrackShown(const VideoEndpoint &endpoint, bool shown);
 
 	void processMigration(StartConferenceInfo conference);
+	void inviteToConference(
+		InviteRequest request,
+		Fn<not_null<InviteResult*>()> resultAddress,
+		Fn<void()> finishRequest);
 
 	[[nodiscard]] int activeVideoSendersCount() const;
 
@@ -645,6 +649,7 @@ private:
 	rpl::variable<State> _state = State::Creating;
 	base::flat_set<uint32> _unresolvedSsrcs;
 	rpl::event_stream<Error> _errors;
+	std::vector<Fn<void()>> _rejoinedCallbacks;
 	bool _recordingStoppedByMe = false;
 	bool _requestedVideoChannelsUpdateScheduled = false;
 
