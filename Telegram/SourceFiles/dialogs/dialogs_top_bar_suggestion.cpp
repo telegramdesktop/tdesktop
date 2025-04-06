@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
+#include "history/view/history_view_group_call_bar.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
@@ -31,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {
@@ -88,7 +91,9 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			rpl::lifetime birthdayLifetime;
 			rpl::lifetime premiumLifetime;
 			rpl::lifetime userpicLifetime;
+			rpl::lifetime giftsLifetime;
 		};
+
 		const auto state = lifetime.make_state<State>();
 		const auto ensureWrap = [=] {
 			if (!state->content) {
@@ -129,42 +134,115 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						return;
 					}
 					const auto controller = FindSessionController(parent);
-					if (!controller) {
+					if (!controller || users.empty()) {
 						dismiss();
 						return;
 					}
-					if (users.size() != 1) {
-						return;
-					}
+					const auto isSingle = users.size() == 1;
 					content->setRightIcon(RightIcon::Close);
 					content->setClickedCallback([=] {
-						Ui::ShowStarGiftBox(controller, users.front());
+						if (isSingle) {
+							Ui::ShowStarGiftBox(controller, users.front());
+						} else {
+							Ui::ChooseStarGiftRecipient(controller);
+						}
 					});
 					content->setHideCallback(dismiss);
-					content->setContent(
-						tr::lng_dialogs_suggestions_birthday_contact_title(
+					auto title = isSingle
+						? tr::lng_dialogs_suggestions_birthday_contact_title(
 							tr::now,
 							lt_text,
 							{ users.front()->name() },
-							Ui::Text::RichLangValue),
-						tr::lng_dialogs_suggestions_birthday_contact_about(
+							Ui::Text::RichLangValue)
+						: tr::lng_dialogs_suggestions_birthday_contacts_title(
 							tr::now,
-							TextWithEntities::Simple));
-					const auto upload = Ui::CreateChild<Ui::UserpicButton>(
-						content,
-						users.front(),
-						st::uploadUserpicButton);
-					upload->setAttribute(Qt::WA_TransparentForMouseEvents);
-					const auto leftPadding = st::defaultDialogRow.padding.left();
-					content->sizeValue() | rpl::filter_size(
-					) | rpl::start_with_next([=](const QSize &s) {
-						upload->raise();
-						upload->show();
-						upload->moveToLeft(
-							leftPadding,
-							(s.height() - upload->height()) / 2);
-					}, content->lifetime());
-					content->setLeftPadding(upload->width() + leftPadding);
+							lt_count,
+							users.size(),
+							Ui::Text::RichLangValue);
+					auto text = isSingle
+						? tr::lng_dialogs_suggestions_birthday_contact_about(
+							tr::now,
+							TextWithEntities::Simple)
+						: tr::lng_dialogs_suggestions_birthday_contacts_about(
+							tr::now,
+							TextWithEntities::Simple);
+					content->setContent(std::move(title), std::move(text));
+					const auto leftPadding
+						= st::defaultDialogRow.padding.left();
+					state->giftsLifetime.destroy();
+					if (!isSingle) {
+						struct UserViews {
+							std::vector<HistoryView::UserpicInRow> inRow;
+							QImage userpics;
+							base::unique_qptr<Ui::RpWidget> widget;
+						};
+						const auto s
+							= state->giftsLifetime.template make_state<
+								UserViews>();
+						s->widget = base::make_unique_q<Ui::RpWidget>(
+							content);
+						const auto widget = s->widget.get();
+						content->sizeValue() | rpl::filter_size(
+						) | rpl::start_with_next([=](const QSize &size) {
+							widget->resize(size);
+							widget->show();
+							widget->raise();
+						}, widget->lifetime());
+						for (const auto &user : users) {
+							s->inRow.push_back({ .peer = user });
+						}
+						widget->paintRequest() | rpl::start_with_next([=] {
+							auto p = QPainter(widget);
+							const auto regenerate = [&] {
+								if (s->userpics.isNull()) {
+									return true;
+								}
+								for (auto &entry : s->inRow) {
+									if (entry.uniqueKey
+										!= entry.peer->userpicUniqueKey(
+											entry.view)) {
+										return true;
+									}
+								}
+								return false;
+							}();
+							if (regenerate) {
+								const auto &st = st::historyCommentsUserpics;
+								HistoryView::GenerateUserpicsInRow(
+									s->userpics,
+									s->inRow,
+									st,
+									3);
+								content->setLeftPadding(leftPadding
+									+ (users.size() * st.size - st.shift));
+							}
+							p.drawImage(
+								leftPadding,
+								(widget->height()
+									- (s->userpics.height()
+										/ style::DevicePixelRatio())) / 2,
+								s->userpics);
+						}, widget->lifetime());
+					} else {
+						using Ptr = base::unique_qptr<Ui::UserpicButton>;
+						const auto ptr
+							= state->giftsLifetime.template make_state<Ptr>(
+								base::make_unique_q<Ui::UserpicButton>(
+									content,
+									users.front(),
+									st::uploadUserpicButton));
+						const auto fake = ptr->get();
+						fake->setAttribute(Qt::WA_TransparentForMouseEvents);
+						content->sizeValue() | rpl::filter_size(
+						) | rpl::start_with_next([=](const QSize &s) {
+							fake->raise();
+							fake->show();
+							fake->moveToLeft(
+								leftPadding,
+								(s.height() - fake->height()) / 2);
+						}, content->lifetime());
+						content->setLeftPadding(fake->width() + leftPadding);
+					}
 
 					wrap->toggle(true, anim::type::normal);
 				}));
