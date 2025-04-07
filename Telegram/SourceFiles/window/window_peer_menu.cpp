@@ -1186,6 +1186,9 @@ void Filler::addCreatePoll() {
 }
 
 void Filler::addThemeEdit() {
+	if (_peer->isVerifyCodes()) {
+		return;
+	}
 	const auto user = _peer->asUser();
 	if (!user || user->isInaccessible()) {
 		return;
