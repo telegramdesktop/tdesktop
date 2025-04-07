@@ -108,9 +108,16 @@ int AppConfig::pinnedGiftsLimit() const {
 	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
 }
 
+int AppConfig::confcallSizeLimit() const {
+	return get<int>(
+		u"conference_call_size_limit"_q,
+		_account->mtp().isTestMode() ? 5 : 100);
+}
+
 bool AppConfig::confcallPrioritizeVP8() const {
 	AssertIsDebug();
 	return true;
+	return get<bool>(u"confcall_use_vp8"_q, false);
 }
 
 void AppConfig::refresh(bool force) {

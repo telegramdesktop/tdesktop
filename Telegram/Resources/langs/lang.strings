@@ -4959,6 +4959,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_invite_kicked_many#one" = "**{count} person** was removed from the call.";
 "lng_confcall_invite_kicked_many#other" = "**{count} people** were removed from the call.";
 "lng_confcall_not_accessible" = "This call is no longer accessible.";
+"lng_confcall_participants_limit" = "This call reached the participants limit.";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 

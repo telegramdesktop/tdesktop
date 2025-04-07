@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "main/session/session_show.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
@@ -1569,8 +1570,10 @@ void Panel::showMainMenu() {
 }
 
 void Panel::addMembers() {
+	const auto &appConfig = _call->peer()->session().appConfig();
+	const auto conferenceLimit = appConfig.confcallSizeLimit();
 	if (_call->conference()
-		&& _call->conferenceCall()->fullCount() >= Data::kMaxConferenceMembers) {
+		&& _call->conferenceCall()->fullCount() >= conferenceLimit) {
 		showToast({ tr::lng_group_call_invite_limit(tr::now) });
 	}
 	const auto showToastCallback = [=](TextWithEntities &&text) {

@@ -881,12 +881,19 @@ void SessionNavigation::resolveConferenceCall(
 				data.vid().v,
 				data.vaccess_hash().v);
 			call->processFullCall(result);
-			const auto join = [=] {
-				Core::App().calls().startOrJoinConferenceCall({
-					.call = call,
-					.linkSlug = slug,
-					.joinMessageId = inviteMsgId,
-				});
+			const auto join = [=](Fn<void()> close) {
+				const auto &appConfig = call->peer()->session().appConfig();
+				const auto conferenceLimit = appConfig.confcallSizeLimit();
+				if (call->fullCount() >= conferenceLimit) {
+					showToast(tr::lng_confcall_participants_limit(tr::now));
+				} else {
+					Core::App().calls().startOrJoinConferenceCall({
+						.call = call,
+						.linkSlug = slug,
+						.joinMessageId = inviteMsgId,
+					});
+					close();
+				}
 			};
 			const auto context = session().data().message(contextId);
 			const auto inviter = context

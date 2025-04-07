@@ -30,8 +30,6 @@ namespace Data {
 
 [[nodiscard]] const std::string &RtmpEndpointId();
 
-inline constexpr auto kMaxConferenceMembers = 200;
-
 struct LastSpokeTimes {
 	crl::time anything = 0;
 	crl::time voice = 0;

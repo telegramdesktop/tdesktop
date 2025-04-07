@@ -97,7 +97,7 @@ void ConferenceCallJoinConfirm(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Data::GroupCall> call,
 		UserData *maybeInviter,
-		Fn<void()> join) {
+		Fn<void(Fn<void()> close)> join) {
 	box->setStyle(st::confcallJoinBox);
 	box->setWidth(st::boxWideWidth);
 	box->setNoContentMargin(true);
@@ -223,11 +223,11 @@ void ConferenceCallJoinConfirm(
 		)->setTryMakeSimilarLines(true);
 	}
 	const auto joinAndClose = [=] {
-		const auto weak = Ui::MakeWeak(box);
-		join();
-		if (const auto strong = weak.data()) {
-			strong->closeBox();
-		}
+		join([weak = Ui::MakeWeak(box)] {
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		});
 	};
 	Info::BotStarRef::AddFullWidthButton(
 		box,

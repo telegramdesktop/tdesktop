@@ -18,8 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_group_call.h"
 #include "info/profile/info_profile_icon.h"
-#include "main/main_session.h"
 #include "main/session/session_show.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/layers/generic_box.h"
@@ -306,8 +307,8 @@ void ConfInviteController::toggleRowSelected(
 		not_null<PeerListRow*> row,
 		bool video) {
 	auto count = fullCount();
-	auto limit = Data::kMaxConferenceMembers;
-	if (count < limit || row->checked()) {
+	const auto conferenceLimit = session().appConfig().confcallSizeLimit();
+	if (count < conferenceLimit || row->checked()) {
 		const auto real = static_cast<ConfInviteRow*>(row.get());
 		if (!row->checked()) {
 			real->setVideo(video);

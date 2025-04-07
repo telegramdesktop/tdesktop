@@ -79,6 +79,7 @@ public:
 
 	[[nodiscard]] int pinnedGiftsLimit() const;
 
+	[[nodiscard]] int confcallSizeLimit() const;
 	[[nodiscard]] bool confcallPrioritizeVP8() const;
 
 	void refresh(bool force = false);

@@ -163,7 +163,7 @@ void ConferenceCallJoinConfirm(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Data::GroupCall> call,
 	UserData *maybeInviter,
-	Fn<void()> join);
+	Fn<void(Fn<void()> close)> join);
 
 struct ConferenceCallLinkStyleOverrides {
 	const style::Box *box = nullptr;
