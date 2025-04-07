@@ -2101,7 +2101,9 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 			tracker);
 	};
 
-	addSendMessageButton();
+	if (!user->isVerifyCodes()) {
+		addSendMessageButton();
+	}
 	addReportReaction(tracker);
 
 	return tracker;
