@@ -1645,7 +1645,8 @@ void GroupCall::sendJoinRequest() {
 		}
 
 		hangup();
-		Ui::Toast::Show((type == u"GROUPCALL_FORBIDDEN"_q)
+		Ui::Toast::Show((type == u"GROUPCALL_FORBIDDEN"_q
+			|| type == u"GROUPCALL_INVALID"_q)
 			? tr::lng_confcall_not_accessible(tr::now)
 			: type);
 	}).send();

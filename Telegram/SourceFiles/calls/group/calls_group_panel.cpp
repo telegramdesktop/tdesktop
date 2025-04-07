@@ -1599,7 +1599,9 @@ void Panel::kickParticipant(not_null<PeerData*> participantPeer) {
 							tr::now,
 							lt_channel,
 							participantPeer->name())
-					: (_peer->isBroadcast()
+					: (_call->conference()
+						? tr::lng_confcall_sure_remove
+						: _peer->isBroadcast()
 						? tr::lng_profile_sure_kick_channel
 						: tr::lng_profile_sure_kick)(
 							tr::now,
@@ -1660,7 +1662,11 @@ bool Panel::isLayerShown() const {
 }
 
 void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
-	if (const auto chat = _peer->asChat()) {
+	if (_call->conference()) {
+		if (const auto user = participantPeer->asUser()) {
+			_call->removeConferenceParticipants({ peerToUser(user->id) });
+		}
+	} else if (const auto chat = _peer->asChat()) {
 		chat->session().api().chatParticipants().kick(chat, participantPeer);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto currentRestrictedRights = [&] {

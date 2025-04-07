@@ -1481,11 +1481,12 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 				removeHand);
 		}
 	} else {
+		const auto invited = (muteState == Row::State::Invited)
+			|| (muteState == Row::State::Calling);
 		const auto conference = _call->conferenceCall().get();
 		if (conference
 			&& participantPeer->isUser()
-			&& (muteState == Row::State::Invited
-				|| muteState == Row::State::Calling)) {
+			&& invited) {
 			const auto id = conference->id();
 			const auto cancelInvite = [=](bool discard) {
 				Core::App().calls().declineOutgoingConferenceInvite(
@@ -1521,6 +1522,8 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 				|| muteState == Row::State::Calling
 				|| muteState == Row::State::WithAccess) {
 				return false;
+			} else if (conference && _call->canManage()) {
+				return true;
 			} else if (const auto chat = _peer->asChat()) {
 				return chat->amCreator()
 					|| (user
