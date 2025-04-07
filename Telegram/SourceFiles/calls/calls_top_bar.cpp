@@ -228,14 +228,14 @@ private:
 
 TopBar::TopBar(
 	QWidget *parent,
-	const base::weak_ptr<Call> &call,
+	Call *call,
 	std::shared_ptr<Ui::Show> show)
 : TopBar(parent, show, call, nullptr) {
 }
 
 TopBar::TopBar(
 	QWidget *parent,
-	const base::weak_ptr<GroupCall> &call,
+	GroupCall *call,
 	std::shared_ptr<Ui::Show> show)
 : TopBar(parent, show, nullptr, call) {
 }
@@ -243,8 +243,8 @@ TopBar::TopBar(
 TopBar::TopBar(
 	QWidget *parent,
 	std::shared_ptr<Ui::Show> show,
-	const base::weak_ptr<Call> &call,
-	const base::weak_ptr<GroupCall> &groupCall)
+	Call *call,
+	GroupCall *groupCall)
 : RpWidget(parent)
 , _call(call)
 , _groupCall(groupCall)

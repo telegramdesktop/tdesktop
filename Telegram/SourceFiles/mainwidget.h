@@ -244,7 +244,7 @@ private:
 
 	void setCurrentCall(Calls::Call *call);
 	void setCurrentGroupCall(Calls::GroupCall *call);
-	void createCallTopBar();
+	void createCallTopBar(Calls::Call *call, Calls::GroupCall *group);
 	void destroyCallTopBar();
 	void callTopBarHeightUpdated(int callTopBarHeight);
 

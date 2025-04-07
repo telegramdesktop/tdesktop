@@ -42,11 +42,11 @@ class TopBar : public Ui::RpWidget {
 public:
 	TopBar(
 		QWidget *parent,
-		const base::weak_ptr<Call> &call,
+		Call *call,
 		std::shared_ptr<Ui::Show> show);
 	TopBar(
 		QWidget *parent,
-		const base::weak_ptr<GroupCall> &call,
+		GroupCall *call,
 		std::shared_ptr<Ui::Show> show);
 	~TopBar();
 
@@ -64,8 +64,8 @@ private:
 	TopBar(
 		QWidget *parent,
 		std::shared_ptr<Ui::Show> show,
-		const base::weak_ptr<Call> &call,
-		const base::weak_ptr<GroupCall> &groupCall);
+		Call *call,
+		GroupCall *groupCall);
 
 	void initControls();
 	void setupInitialBrush();
