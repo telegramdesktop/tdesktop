@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "main/main_account.h"
+#include "main/main_session.h"
+#include "data/data_session.h"
 #include "ui/chat/chat_style.h"
 
 namespace Main {
@@ -135,6 +137,15 @@ void AppConfig::refresh(bool force) {
 				});
 			}
 			updateIgnoredRestrictionReasons(std::move(was));
+
+			{
+				const auto dismissedSuggestions = get<std::vector<QString>>(
+					u"dismissed_suggestions"_q,
+					std::vector<QString>());
+				for (const auto &suggestion : dismissedSuggestions) {
+					_dismissedSuggestions.emplace(suggestion);
+				}
+			}
 
 			DEBUG_LOG(("getAppConfig result handled."));
 			_refreshed.fire({});
@@ -289,6 +300,18 @@ std::vector<int> AppConfig::getIntArray(
 }
 
 bool AppConfig::suggestionCurrent(const QString &key) const {
+	if (key == u"BIRTHDAY_CONTACTS_TODAY"_q) {
+		if (_dismissedSuggestions.contains(key)) {
+			return false;
+		} else {
+			const auto known
+				= _account->session().data().knownContactBirthdays();
+			if (!known) {
+				return true;
+			}
+			return !known->empty();
+		}
+	}
 	return !_dismissedSuggestions.contains(key)
 		&& ranges::contains(
 			get<std::vector<QString>>(

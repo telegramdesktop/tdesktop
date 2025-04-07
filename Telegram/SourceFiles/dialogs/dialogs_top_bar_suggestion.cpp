@@ -52,31 +52,6 @@ constexpr auto kSugPremiumUpgrade = "PREMIUM_UPGRADE"_cs;
 constexpr auto kSugPremiumRestore = "PREMIUM_RESTORE"_cs;
 constexpr auto kSugSetUserpic = "USERPIC_SETUP"_cs;
 
-void RequestBirthdays(
-		not_null<PeerData*> peer,
-		Fn<void(std::vector<not_null<PeerData*>>)> done) {
-	peer->session().api().request(
-		MTPcontacts_GetBirthdays()
-	).done([=](const MTPcontacts_ContactBirthdays &result) {
-		auto users = std::vector<not_null<PeerData*>>();
-		peer->owner().processUsers(result.data().vusers());
-		for (const auto &tlContact : result.data().vcontacts().v) {
-			const auto peerId = tlContact.data().vcontact_id().v;
-			if (const auto user = peer->owner().user(peerId)) {
-				const auto &data = tlContact.data().vbirthday().data();
-				user->setBirthday(Data::Birthday(
-					data.vday().v,
-					data.vmonth().v,
-					data.vyear().value_or_empty()));
-				users.push_back(user);
-			}
-		}
-		done(std::move(users));
-	}).fail([=](const MTP::Error &error) {
-		done({});
-	}).send();
-}
-
 } // namespace
 
 rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
@@ -120,39 +95,43 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto wrap = state->wrap;
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto config = &session->appConfig();
-			if (config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
-				using Users = std::vector<not_null<PeerData*>>;
-				RequestBirthdays(session->user(), crl::guard(content, [=](
-						Users users) {
-					const auto dismiss = [=] {
-						config->dismissSuggestion(
-							kSugBirthdayContacts.utf8());
+			if (session->premiumCanBuy()
+				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
+				session->data().contactBirthdays(
+				) | rpl::start_with_next(crl::guard(content, [=](
+						std::vector<UserId> users) {
+					if (users.empty()) {
 						repeat(repeat);
-					};
-					if (!session->premiumCanBuy() || users.empty()) {
-						dismiss();
 						return;
 					}
 					const auto controller = FindSessionController(parent);
-					if (!controller || users.empty()) {
-						dismiss();
+					if (!controller) {
+						repeat(repeat);
 						return;
 					}
 					const auto isSingle = users.size() == 1;
+					const auto first = session->data().user(users.front());
 					content->setRightIcon(RightIcon::Close);
 					content->setClickedCallback([=] {
 						if (isSingle) {
-							Ui::ShowStarGiftBox(controller, users.front());
+							Ui::ShowStarGiftBox(controller, first);
 						} else {
 							Ui::ChooseStarGiftRecipient(controller);
 						}
 					});
-					content->setHideCallback(dismiss);
+					content->setHideCallback([=] {
+						config->dismissSuggestion(
+							kSugBirthdayContacts.utf8());
+						controller->showToast(
+							tr::lng_dialogs_suggestions_birthday_contact_dismiss(
+								tr::now));
+						repeat(repeat);
+					});
 					auto title = isSingle
 						? tr::lng_dialogs_suggestions_birthday_contact_title(
 							tr::now,
 							lt_text,
-							{ users.front()->name() },
+							{ first->name() },
 							Ui::Text::RichLangValue)
 						: tr::lng_dialogs_suggestions_birthday_contacts_title(
 							tr::now,
@@ -188,8 +167,10 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 							widget->show();
 							widget->raise();
 						}, widget->lifetime());
-						for (const auto &user : users) {
-							s->inRow.push_back({ .peer = user });
+						for (const auto &id : users) {
+							if (const auto user = session->data().user(id)) {
+								s->inRow.push_back({ .peer = user });
+							}
 						}
 						widget->paintRequest() | rpl::start_with_next([=] {
 							auto p = QPainter(widget);
@@ -229,7 +210,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 							= state->giftsLifetime.template make_state<Ptr>(
 								base::make_unique_q<Ui::UserpicButton>(
 									content,
-									users.front(),
+									first,
 									st::uploadUserpicButton));
 						const auto fake = ptr->get();
 						fake->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -245,7 +226,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					}
 
 					wrap->toggle(true, anim::type::normal);
-				}));
+				}), state->giftsLifetime);
 				return;
 			} else if (config->suggestionCurrent(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {
