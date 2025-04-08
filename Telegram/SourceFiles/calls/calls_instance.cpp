@@ -1026,12 +1026,11 @@ void Instance::declineOutgoingConferenceInvite(
 			}
 		}
 	}
-	if (!j->second.incoming.empty()) {
-		return;
-	}
-	i->second.users.erase(j);
-	if (i->second.users.empty()) {
-		_conferenceInvites.erase(i);
+	if (j->second.incoming.empty()) {
+		i->second.users.erase(j);
+		if (i->second.users.empty()) {
+			_conferenceInvites.erase(i);
+		}
 	}
 	user->owner().unregisterInvitedToCallUser(conferenceId, user, !discard);
 }
