@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/object_ptr.h"
+#include "base/unique_qptr.h"
 
 namespace Ui {
 class RpWidget;
@@ -22,7 +22,7 @@ class Call;
 [[nodiscard]] std::vector<EmojiPtr> ComputeEmojiFingerprint(
 	bytes::const_span fingerprint);
 
-[[nodiscard]] object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
+[[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 	not_null<QWidget*> parent,
 	not_null<Call*> call);
 

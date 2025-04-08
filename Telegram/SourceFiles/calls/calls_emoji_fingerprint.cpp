@@ -153,7 +153,7 @@ std::vector<EmojiPtr> ComputeEmojiFingerprint(
 	return result;
 }
 
-object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
+base::unique_qptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 		not_null<QWidget*> parent,
 		not_null<Call*> call) {
 	class EmojiTooltipShower final : public Ui::AbstractTooltipShower {
@@ -179,8 +179,8 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 
 	};
 
-	auto result = object_ptr<Ui::RpWidget>(parent);
-	const auto raw = result.data();
+	auto result = base::make_unique_q<Ui::RpWidget>(parent);
+	const auto raw = result.get();
 
 	// Emoji tooltip.
 	const auto shower = raw->lifetime().make_state<EmojiTooltipShower>(

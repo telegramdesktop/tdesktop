@@ -396,6 +396,8 @@ PRIVATE
     calls/calls_video_bubble.h
     calls/calls_video_incoming.cpp
     calls/calls_video_incoming.h
+    calls/calls_window.cpp
+    calls/calls_window.h
     chat_helpers/compose/compose_features.h
     chat_helpers/compose/compose_show.cpp
     chat_helpers/compose/compose_show.h

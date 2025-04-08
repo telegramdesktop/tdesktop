@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_panel.h"
 #include "data/data_peer.h"
 #include "data/data_group_call.h"
+#include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
@@ -49,7 +50,7 @@ void Toasts::setupJoinAsChanged() {
 			return (state == State::Joined);
 		}) | rpl::take(1);
 	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
-		_panel->showToast((_call->peer()->isBroadcast()
+		_panel->uiShow()->showToast((_call->peer()->isBroadcast()
 			? tr::lng_group_call_join_as_changed_channel
 			: tr::lng_group_call_join_as_changed)(
 			tr::now,
@@ -69,7 +70,7 @@ void Toasts::setupTitleChanged() {
 			? peer->name()
 			: peer->groupCall()->title();
 	}) | rpl::start_with_next([=](const QString &title) {
-		_panel->showToast((_call->peer()->isBroadcast()
+		_panel->uiShow()->showToast((_call->peer()->isBroadcast()
 			? tr::lng_group_call_title_changed_channel
 			: tr::lng_group_call_title_changed)(
 			tr::now,
@@ -83,7 +84,8 @@ void Toasts::setupAllowedToSpeak() {
 	_call->allowedToSpeakNotifications(
 	) | rpl::start_with_next([=] {
 		if (_panel->isActive()) {
-			_panel->showToast(tr::lng_group_call_can_speak_here(tr::now));
+			_panel->uiShow()->showToast(
+				tr::lng_group_call_can_speak_here(tr::now));
 		} else {
 			const auto real = _call->lookupReal();
 			const auto name = (real && !real->title().isEmpty())
@@ -137,7 +139,7 @@ void Toasts::setupPinnedVideo() {
 					: tr::lng_group_call_unpinned_screen);
 			return key(tr::now, lt_user, peer->shortName());
 		}();
-		_panel->showToast(text);
+		_panel->uiShow()->showToast(text);
 	}, _lifetime);
 }
 
@@ -146,7 +148,7 @@ void Toasts::setupRequestedToSpeak() {
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState was, MuteState now) {
 		if (was == MuteState::ForceMuted && now == MuteState::RaisedHand) {
-			_panel->showToast(
+			_panel->uiShow()->showToast(
 				tr::lng_group_call_tooltip_raised_hand(tr::now));
 		}
 	}, _lifetime);
@@ -173,7 +175,7 @@ void Toasts::setupError() {
 			}
 			Unexpected("Error in Calls::Group::Toasts::setupErrorToasts.");
 		}();
-		_panel->showToast({ key(tr::now) }, kErrorDuration);
+		_panel->uiShow()->showToast({ key(tr::now) }, kErrorDuration);
 	}, _lifetime);
 }
 

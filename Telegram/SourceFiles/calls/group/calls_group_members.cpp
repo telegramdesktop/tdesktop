@@ -1359,22 +1359,22 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			window->invokeForSessionController(
 				account,
 				participantPeer,
-				[&](not_null<Window::SessionController*> newController) {
+				[&](not_null<::Window::SessionController*> newController) {
 					callback(newController);
 					newController->widget()->activate();
 				});
 		}
 	};
 	const auto showProfile = [=] {
-		withActiveWindow([=](not_null<Window::SessionController*> window) {
+		withActiveWindow([=](not_null<::Window::SessionController*> window) {
 			window->showPeerInfo(participantPeer);
 		});
 	};
 	const auto showHistory = [=] {
-		withActiveWindow([=](not_null<Window::SessionController*> window) {
+		withActiveWindow([=](not_null<::Window::SessionController*> window) {
 			window->showPeerHistory(
 				participantPeer,
-				Window::SectionShow::Way::Forward);
+				::Window::SectionShow::Way::Forward);
 		});
 	};
 	const auto removeFromVoiceChat = crl::guard(this, [=] {

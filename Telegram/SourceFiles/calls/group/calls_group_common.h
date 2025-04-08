@@ -48,6 +48,8 @@ class SessionController;
 
 namespace Calls {
 
+class Window;
+
 struct InviteRequest {
 	not_null<UserData*> user;
 	bool video = false;
@@ -75,8 +77,7 @@ struct StartConferenceInfo {
 };
 
 struct ConferencePanelMigration {
-	QScreen *screen = nullptr;
-	QRect geometry;
+	std::shared_ptr<Window> window;
 };
 
 } // namespace Calls

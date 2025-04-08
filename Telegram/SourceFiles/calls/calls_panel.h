@@ -7,14 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/weak_ptr.h"
-#include "base/timer.h"
-#include "base/object_ptr.h"
-#include "base/unique_qptr.h"
 #include "calls/calls_call.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
-#include "ui/gl/gl_window.h"
 #include "ui/rp_widget.h"
 
 class Image;
@@ -32,6 +27,7 @@ class SessionShow;
 } // namespace Main
 
 namespace Ui {
+class Show;
 class BoxContent;
 class LayerWidget;
 enum class LayerOption;
@@ -64,6 +60,7 @@ struct CallBodyLayout;
 
 namespace Calls {
 
+class Window;
 class Userpic;
 class SignalBars;
 class VideoBubble;
@@ -84,32 +81,11 @@ public:
 
 	[[nodiscard]] ConferencePanelMigration migrationInfo() const;
 
-	base::weak_ptr<Ui::Toast::Instance> showToast(
-		const QString &text,
-		crl::time duration = 0);
-	base::weak_ptr<Ui::Toast::Instance> showToast(
-		TextWithEntities &&text,
-		crl::time duration = 0);
-	base::weak_ptr<Ui::Toast::Instance> showToast(
-		Ui::Toast::Config &&config);
-
-	void showBox(object_ptr<Ui::BoxContent> box);
-	void showBox(
-		object_ptr<Ui::BoxContent> box,
-		Ui::LayerOptions options,
-		anim::type animated = anim::type::normal);
-	void showLayer(
-		std::unique_ptr<Ui::LayerWidget> layer,
-		Ui::LayerOptions options,
-		anim::type animated = anim::type::normal);
-	void hideLayer(anim::type animated = anim::type::normal);
-	[[nodiscard]] bool isLayerShown() const;
-
 	void showAndActivate();
 	void minimize();
 	void toggleFullScreen();
 	void replaceCall(not_null<Call*> call);
-	void closeBeforeDestroy();
+	void closeBeforeDestroy(bool windowIsReused = false);
 
 	QWidget *chooseSourceParent() override;
 	QString chooseSourceActiveDeviceId() override;
@@ -123,7 +99,10 @@ public:
 
 	[[nodiscard]] rpl::producer<bool> startOutgoingRequests() const;
 
-	[[nodiscard]] std::shared_ptr<Main::SessionShow> uiShow();
+	[[nodiscard]] std::shared_ptr<Main::SessionShow> sessionShow();
+	[[nodiscard]] std::shared_ptr<Ui::Show> uiShow();
+
+	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -137,8 +116,6 @@ private:
 		Redial,
 		StartCall,
 	};
-
-	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
 
 	void paint(QRect clip);
 
@@ -184,43 +161,35 @@ private:
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
 
-	Ui::GL::Window _window;
-	const std::unique_ptr<Ui::LayerManager> _layerBg;
+	std::shared_ptr<Window> _window;
 	std::unique_ptr<Incoming> _incoming;
-
-#ifndef Q_OS_MAC
-	std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
-#endif // !Q_OS_MAC
-
-	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 
 	QSize _incomingFrameSize;
 
 	rpl::lifetime _callLifetime;
 
 	not_null<const style::CallBodyLayout*> _bodySt;
-	object_ptr<Ui::CallButton> _answerHangupRedial;
-	object_ptr<Ui::FadeWrap<Ui::CallButton>> _decline;
-	object_ptr<Ui::FadeWrap<Ui::CallButton>> _cancel;
+	base::unique_qptr<Ui::CallButton> _answerHangupRedial;
+	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _decline;
+	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _cancel;
 	bool _hangupShown = false;
 	bool _conferenceSupported = false;
 	bool _outgoingPreviewInBody = false;
 	std::optional<AnswerHangupRedialState> _answerHangupRedialState;
 	Ui::Animations::Simple _hangupShownProgress;
-	object_ptr<Ui::FadeWrap<Ui::CallButton>> _screencast;
-	object_ptr<Ui::CallButton> _camera;
+	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _screencast;
+	base::unique_qptr<Ui::CallButton> _camera;
 	Ui::CallButton *_cameraDeviceToggle = nullptr;
 	base::unique_qptr<Ui::CallButton> _startVideo;
-	object_ptr<Ui::FadeWrap<Ui::CallButton>> _mute;
+	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _mute;
 	Ui::CallButton *_audioDeviceToggle = nullptr;
-	object_ptr < Ui::FadeWrap<Ui::CallButton>> _addPeople;
-	object_ptr<Ui::FlatLabel> _name;
-	object_ptr<Ui::FlatLabel> _status;
-	object_ptr<Ui::RpWidget> _conferenceParticipants = { nullptr };
-	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };
-	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteAudioMute = { nullptr };
-	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteLowBattery
-		= { nullptr };
+	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _addPeople;
+	base::unique_qptr<Ui::FlatLabel> _name;
+	base::unique_qptr<Ui::FlatLabel> _status;
+	base::unique_qptr<Ui::RpWidget> _conferenceParticipants;
+	base::unique_qptr<Ui::RpWidget> _fingerprint;
+	base::unique_qptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteAudioMute;
+	base::unique_qptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteLowBattery;
 	std::unique_ptr<Userpic> _userpic;
 	std::unique_ptr<VideoBubble> _outgoingVideoBubble;
 	QPixmap _bottomShadow;
@@ -244,6 +213,8 @@ private:
 	base::Timer _updateOuterRippleTimer;
 
 	rpl::event_stream<bool> _startOutgoingRequests;
+
+	rpl::lifetime _lifetime;
 
 };
 

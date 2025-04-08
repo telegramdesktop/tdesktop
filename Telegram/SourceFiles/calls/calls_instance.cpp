@@ -349,7 +349,11 @@ void Instance::playSoundOnce(const QString &key) {
 
 void Instance::destroyCall(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
-		_currentCallPanel->closeBeforeDestroy();
+		const auto groupCallWindow = _currentGroupCallPanel
+			? _currentGroupCallPanel->window().get()
+			: nullptr;
+		const auto reused = (_currentCallPanel->window() == groupCallWindow);
+		_currentCallPanel->closeBeforeDestroy(reused);
 		_currentCallPanel = nullptr;
 
 		auto taken = base::take(_currentCall);

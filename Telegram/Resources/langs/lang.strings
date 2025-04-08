@@ -4955,7 +4955,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_invite_fail_user" = "Couldn't call {user} to join.";
 "lng_confcall_invite_fail_many#one" = "Couldn't call **{count} person** to join.";
 "lng_confcall_invite_fail_many#other" = "Couldn't call **{count} people** to join.";
-"lng_confcall_invite_kicked_user" = "{user} was removed from the call.";
+"lng_confcall_invite_kicked_user" = "{user} was banned from the call.";
 "lng_confcall_invite_kicked_many#one" = "**{count} person** was removed from the call.";
 "lng_confcall_invite_kicked_many#other" = "**{count} people** were removed from the call.";
 "lng_confcall_not_accessible" = "This call is no longer accessible.";

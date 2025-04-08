@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_userpic.h"
 #include "calls/calls_video_bubble.h"
 #include "calls/calls_video_incoming.h"
+#include "calls/calls_window.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/call_button.h"
 #include "ui/widgets/buttons.h"
@@ -95,116 +96,49 @@ constexpr auto kHideControlsQuickTimeout = 2 * crl::time(1000);
 </svg>)";
 }
 
-class Show final : public Main::SessionShow {
-public:
-	explicit Show(not_null<Panel*> panel);
-	~Show();
-
-	void showOrHideBoxOrLayer(
-		std::variant<
-			v::null_t,
-			object_ptr<Ui::BoxContent>,
-			std::unique_ptr<Ui::LayerWidget>> &&layer,
-		Ui::LayerOptions options,
-		anim::type animated) const override;
-	[[nodiscard]] not_null<QWidget*> toastParent() const override;
-	[[nodiscard]] bool valid() const override;
-	operator bool() const override;
-
-	[[nodiscard]] Main::Session &session() const override;
-
-private:
-	const base::weak_ptr<Panel> _panel;
-
-};
-
-Show::Show(not_null<Panel*> panel)
-: _panel(base::make_weak(panel)) {
-}
-
-Show::~Show() = default;
-
-void Show::showOrHideBoxOrLayer(
-		std::variant<
-			v::null_t,
-			object_ptr<Ui::BoxContent>,
-			std::unique_ptr<Ui::LayerWidget>> &&layer,
-		Ui::LayerOptions options,
-		anim::type animated) const {
-	using UniqueLayer = std::unique_ptr<Ui::LayerWidget>;
-	using ObjectBox = object_ptr<Ui::BoxContent>;
-	if (auto layerWidget = std::get_if<UniqueLayer>(&layer)) {
-		if (const auto panel = _panel.get()) {
-			panel->showLayer(std::move(*layerWidget), options, animated);
-		}
-	} else if (auto box = std::get_if<ObjectBox>(&layer)) {
-		if (const auto panel = _panel.get()) {
-			panel->showBox(std::move(*box), options, animated);
-		}
-	} else if (const auto panel = _panel.get()) {
-		panel->hideLayer(animated);
-	}
-}
-
-not_null<QWidget*> Show::toastParent() const {
-	const auto panel = _panel.get();
-	Assert(panel != nullptr);
-	return panel->widget();
-}
-
-bool Show::valid() const {
-	return !_panel.empty();
-}
-
-Show::operator bool() const {
-	return valid();
-}
-
-Main::Session &Show::session() const {
-	const auto panel = _panel.get();
-	Assert(panel != nullptr);
-	return panel->user()->session();
-}
-
 } // namespace
 
 Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
-, _layerBg(std::make_unique<Ui::LayerManager>(widget()))
-#ifndef Q_OS_MAC
-, _controls(Ui::Platform::SetupSeparateTitleControls(
-	window(),
-	st::callTitle,
-	[=](bool maximized) { toggleFullScreen(maximized); }))
-#endif // !Q_OS_MAC
+, _window(std::make_shared<Window>())
 , _bodySt(&st::callBodyLayout)
-, _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
-, _decline(widget(), object_ptr<Ui::CallButton>(widget(), st::callHangup))
-, _cancel(widget(), object_ptr<Ui::CallButton>(widget(), st::callCancel))
+, _answerHangupRedial(
+	std::in_place,
+	widget(),
+	st::callAnswer,
+	&st::callHangup)
+, _decline(
+	std::in_place,
+	widget(),
+	object_ptr<Ui::CallButton>(widget(), st::callHangup))
+, _cancel(
+	std::in_place,
+	widget(),
+	object_ptr<Ui::CallButton>(widget(), st::callCancel))
 , _screencast(
+	std::in_place,
 	widget(),
 	object_ptr<Ui::CallButton>(
 		widget(),
 		st::callScreencastOn,
 		&st::callScreencastOff))
-, _camera(widget(), st::callCameraMute, &st::callCameraUnmute)
+, _camera(std::in_place, widget(), st::callCameraMute, &st::callCameraUnmute)
 , _mute(
+	std::in_place,
 	widget(),
 	object_ptr<Ui::CallButton>(
 		widget(),
 		st::callMicrophoneMute,
 		&st::callMicrophoneUnmute))
 , _addPeople(
+	std::in_place,
 	widget(),
 	object_ptr<Ui::CallButton>(widget(), st::callAddPeople))
-, _name(widget(), st::callName)
-, _status(widget(), st::callStatus)
+, _name(std::in_place, widget(), st::callName)
+, _status(std::in_place, widget(), st::callStatus)
 , _hideControlsTimer([=] { requestControlsHidden(true); })
 , _controlsShownForceTimer([=] { controlsShownForce(false); }) {
-	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
-	_layerBg->setHideByBackgroundClick(true);
-
 	_decline->setDuration(st::callPanelDuration);
 	_decline->entity()->setText(tr::lng_call_decline());
 	_cancel->setDuration(st::callPanelDuration);
@@ -234,67 +168,15 @@ bool Panel::isActive() const {
 }
 
 ConferencePanelMigration Panel::migrationInfo() const {
-	const auto handle = window()->windowHandle();
-	return handle ? ConferencePanelMigration{
-		.screen = handle->screen(),
-		.geometry = window()->geometry(),
-	} : ConferencePanelMigration();
+	return ConferencePanelMigration{ .window = _window };
 }
 
-base::weak_ptr<Ui::Toast::Instance> Panel::showToast(
-		const QString &text,
-		crl::time duration) {
-	return showToast({
-		.text = { text },
-		.duration = duration,
-	});
+std::shared_ptr<Main::SessionShow> Panel::sessionShow() {
+	return Main::MakeSessionShow(uiShow(), &_user->session());
 }
 
-base::weak_ptr<Ui::Toast::Instance> Panel::showToast(
-		TextWithEntities &&text,
-		crl::time duration) {
-	return showToast({
-		.text = std::move(text),
-		.duration = duration,
-	});
-}
-
-base::weak_ptr<Ui::Toast::Instance> Panel::showToast(
-		Ui::Toast::Config &&config) {
-	if (!config.st) {
-		config.st = &st::callErrorToast;
-	}
-	return Show(this).showToast(std::move(config));
-}
-
-void Panel::showBox(object_ptr<Ui::BoxContent> box) {
-	showBox(std::move(box), Ui::LayerOption::KeepOther, anim::type::normal);
-}
-
-void Panel::showBox(
-		object_ptr<Ui::BoxContent> box,
-		Ui::LayerOptions options,
-		anim::type animated) {
-	_layerBg->showBox(std::move(box), options, animated);
-}
-
-void Panel::showLayer(
-		std::unique_ptr<Ui::LayerWidget> layer,
-		Ui::LayerOptions options,
-		anim::type animated) {
-	_layerBg->showLayer(std::move(layer), options, animated);
-}
-
-void Panel::hideLayer(anim::type animated) {
-	_layerBg->hideAll(animated);
-}
-
-bool Panel::isLayerShown() const {
-	return _layerBg->topShownLayer() != nullptr;
-}
-
-std::shared_ptr<Main::SessionShow> Panel::uiShow() {
-	return std::make_shared<Show>(this);
+std::shared_ptr<Ui::Show> Panel::uiShow() {
+	return _window->uiShow();
 }
 
 void Panel::showAndActivate() {
@@ -359,20 +241,16 @@ void Panel::initWindow() {
 			}
 		}
 		return base::EventFilterResult::Continue;
-	});
+	}, lifetime());
 
+	const auto guard = base::make_weak(this);
 	window()->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
-		if (!widget()->rect().contains(widgetPoint)) {
+		if (!guard
+			|| !widget()->rect().contains(widgetPoint)
+			|| _window->controlsHasHitTest(widgetPoint)) {
 			return Flag::None | Flag(0);
 		}
-#ifndef Q_OS_MAC
-		using Result = Ui::Platform::HitTestResult;
-		const auto windowPoint = widget()->mapTo(window(), widgetPoint);
-		if (_controls->controls.hitTest(windowPoint) != Result::None) {
-			return Flag::None | Flag(0);
-		}
-#endif // !Q_OS_MAC
 		const auto buttonWidth = st::callCancel.button.width;
 		const auto buttonsWidth = buttonWidth * 4;
 		const auto inControls = (_fingerprint
@@ -387,12 +265,15 @@ void Panel::initWindow() {
 		if (inControls) {
 			return Flag::None | Flag(0);
 		}
-		const auto shown = _layerBg->topShownLayer();
+		const auto shown = _window->topShownLayer();
 		return (!shown || !shown->geometry().contains(widgetPoint))
 			? (Flag::Move | Flag::Menu | Flag::FullScreen)
 			: Flag::None;
 	});
 
+	_window->maximizeRequests() | rpl::start_with_next([=](bool maximized) {
+		toggleFullScreen(maximized);
+	}, lifetime());
 	// Don't do that, it looks awful :(
 //#ifdef Q_OS_WIN
 //	// On Windows we replace snap-to-top maximizing with fullscreen.
@@ -426,12 +307,12 @@ void Panel::initWidget() {
 	widget()->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
 		paint(clip);
-	}, widget()->lifetime());
+	}, lifetime());
 
 	widget()->sizeValue(
 	) | rpl::skip(1) | rpl::start_with_next([=] {
 		updateControlsGeometry();
-	}, widget()->lifetime());
+	}, lifetime());
 }
 
 void Panel::initControls() {
@@ -447,7 +328,7 @@ void Panel::initControls() {
 			return;
 		} else if (!env->desktopCaptureAllowed()) {
 			if (auto box = Group::ScreenSharingPrivacyRequestBox()) {
-				showBox(std::move(box));
+				uiShow()->showBox(std::move(box));
 			}
 		} else if (const auto source = env->uniqueDesktopCaptureSource()) {
 			if (!chooseSourceActiveDeviceId().isEmpty()) {
@@ -467,7 +348,7 @@ void Panel::initControls() {
 	});
 	_addPeople->entity()->setClickedCallback([=] {
 		if (!_call || _call->state() != Call::State::Established) {
-			showToast(tr::lng_call_error_add_not_started(tr::now));
+			uiShow()->showToast(tr::lng_call_error_add_not_started(tr::now));
 			return;
 		}
 		const auto call = _call;
@@ -484,7 +365,7 @@ void Panel::initControls() {
 			*creating = true;
 			const auto sharingLink = users.empty();
 			Group::MakeConferenceCall({
-				.show = uiShow(),
+				.show = sessionShow(),
 				.finished = finish,
 				.joining = true,
 				.info = {
@@ -506,7 +387,7 @@ void Panel::initControls() {
 		const auto share = crl::guard(call, [=] {
 			create({});
 		});
-		showBox(Group::PrepareInviteBox(call, invite, share));
+		uiShow()->showBox(Group::PrepareInviteBox(call, invite, share));
 	});
 
 	_updateDurationTimer.setCallback([this] {
@@ -559,9 +440,9 @@ void Panel::initConferenceInvite() {
 	if (count < 2) {
 		return;
 	}
-	_conferenceParticipants.create(widget());
+	_conferenceParticipants = base::make_unique_q<Ui::RpWidget>(widget());
 	_conferenceParticipants->show();
-	const auto raw = _conferenceParticipants.data();
+	const auto raw = _conferenceParticipants.get();
 
 	auto peers = std::vector<not_null<PeerData*>>();
 	for (const auto &peer : participants) {
@@ -689,10 +570,9 @@ void Panel::reinitWithCall(Call *call) {
 		updateControlsShown();
 	});
 	if (!_call) {
-		_fingerprint.destroy();
+		_fingerprint = nullptr;
 		_incoming = nullptr;
 		_outgoingVideoBubble = nullptr;
-		_powerSaveBlocker = nullptr;
 		return;
 	}
 
@@ -716,7 +596,7 @@ void Panel::reinitWithCall(Call *call) {
 		if (muted) {
 			createRemoteAudioMute();
 		} else {
-			_remoteAudioMute.destroy();
+			_remoteAudioMute = nullptr;
 			showRemoteLowBattery();
 		}
 	}, _callLifetime);
@@ -725,7 +605,7 @@ void Panel::reinitWithCall(Call *call) {
 		if (state == Call::RemoteBatteryState::Low) {
 			createRemoteLowBattery();
 		} else {
-			_remoteLowBattery.destroy();
+			_remoteLowBattery = nullptr;
 		}
 	}, _callLifetime);
 	_userpic = std::make_unique<Userpic>(
@@ -738,7 +618,7 @@ void Panel::reinitWithCall(Call *call) {
 	_incoming = std::make_unique<Incoming>(
 		widget(),
 		_call->videoIncoming(),
-		_window.backend());
+		_window->backend());
 	_incoming->widget()->hide();
 
 	_incoming->rp()->shownValue() | rpl::start_with_next([=] {
@@ -886,7 +766,7 @@ void Panel::reinitWithCall(Call *call) {
 			}
 			Unexpected("Error type in _call->errors().");
 		}();
-		showToast(text);
+		uiShow()->showToast(text);
 	}, _callLifetime);
 
 	_name->setText(_user->name());
@@ -902,16 +782,11 @@ void Panel::reinitWithCall(Call *call) {
 	_mute->raise();
 	_addPeople->raise();
 
-	_powerSaveBlocker = std::make_unique<base::PowerSaveBlocker>(
-		base::PowerSaveBlockType::PreventDisplaySleep,
-		u"Video call is active"_q,
-		window()->windowHandle());
-
 	_incoming->widget()->lower();
 }
 
 void Panel::createRemoteAudioMute() {
-	_remoteAudioMute.create(
+	_remoteAudioMute = base::make_unique_q<Ui::PaddingWrap<Ui::FlatLabel>>(
 		widget(),
 		object_ptr<Ui::FlatLabel>(
 			widget(),
@@ -948,7 +823,7 @@ void Panel::createRemoteAudioMute() {
 }
 
 void Panel::createRemoteLowBattery() {
-	_remoteLowBattery.create(
+	_remoteLowBattery = base::make_unique_q<Ui::PaddingWrap<Ui::FlatLabel>>(
 		widget(),
 		object_ptr<Ui::FlatLabel>(
 			widget(),
@@ -964,7 +839,7 @@ void Panel::createRemoteLowBattery() {
 
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
-		_remoteLowBattery.destroy();
+		_remoteLowBattery = nullptr;
 		createRemoteLowBattery();
 	}, _remoteLowBattery->lifetime());
 
@@ -1032,11 +907,9 @@ void Panel::initLayout() {
 	}) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		_name->setText(_call->user()->name());
 		updateControlsGeometry();
-	}, widget()->lifetime());
+	}, lifetime());
 
-#ifndef Q_OS_MAC
-	_controls->wrap.raise();
-#endif // !Q_OS_MAC
+	_window->raiseControls();
 }
 
 void Panel::showControls() {
@@ -1058,13 +931,16 @@ void Panel::showControls() {
 	showRemoteLowBattery();
 }
 
-void Panel::closeBeforeDestroy() {
-	window()->close();
+void Panel::closeBeforeDestroy(bool windowIsReused) {
+	if (!windowIsReused) {
+		window()->close();
+	}
 	reinitWithCall(nullptr);
+	_lifetime.destroy();
 }
 
 rpl::lifetime &Panel::lifetime() {
-	return window()->lifetime();
+	return _lifetime;
 }
 
 void Panel::initGeometry() {
@@ -1202,7 +1078,7 @@ void Panel::updateControlsGeometry() {
 		_controlsShown ? 1. : 0.);
 	if (_fingerprint) {
 #ifndef Q_OS_MAC
-		const auto controlsGeometry = _controls->controls.geometry();
+		const auto controlsGeometry = _window->controlsGeometry();
 		const auto halfWidth = widget()->width() / 2;
 		const auto minLeft = (controlsGeometry.center().x() < halfWidth)
 			? (controlsGeometry.width() + st::callFingerprintTop)
@@ -1391,11 +1267,11 @@ bool Panel::handleClose() const {
 }
 
 not_null<Ui::RpWindow*> Panel::window() const {
-	return _window.window();
+	return _window->window();
 }
 
 not_null<Ui::RpWidget*> Panel::widget() const {
-	return _window.widget();
+	return _window->widget();
 }
 
 not_null<UserData*> Panel::user() const {
@@ -1407,17 +1283,16 @@ void Panel::stateChanged(State state) {
 
 	updateStatusText(state);
 
+	const auto isBusy = (state == State::Busy);
+	const auto isWaitingUser = (state == State::WaitingUserConfirmation);
+	_window->togglePowerSaveBlocker(!isBusy && !isWaitingUser);
+
 	if ((state != State::HangingUp)
 		&& (state != State::MigrationHangingUp)
 		&& (state != State::Ended)
 		&& (state != State::EndedByOtherDevice)
 		&& (state != State::FailedHangingUp)
 		&& (state != State::Failed)) {
-		const auto isBusy = (state == State::Busy);
-		const auto isWaitingUser = (state == State::WaitingUserConfirmation);
-		if (isBusy) {
-			_powerSaveBlocker = nullptr;
-		}
 		if (_startVideo && !isWaitingUser) {
 			_startVideo = nullptr;
 		} else if (!_startVideo && isWaitingUser) {
@@ -1472,7 +1347,7 @@ void Panel::stateChanged(State state) {
 			refreshAnswerHangupRedialLabel();
 		}
 		if (!_call->isKeyShaForFingerprintReady()) {
-			_fingerprint.destroy();
+			_fingerprint = nullptr;
 		} else if (!_fingerprint) {
 			_fingerprint = CreateFingerprintAndSignalBars(widget(), _call);
 			updateControlsGeometry();
