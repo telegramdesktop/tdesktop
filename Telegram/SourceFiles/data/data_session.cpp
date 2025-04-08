@@ -4909,4 +4909,55 @@ void Session::clearLocalStorage() {
 	_bigFileCache->clear();
 }
 
+rpl::producer<std::vector<UserId>> Session::contactBirthdays(bool force) {
+	if ((_contactBirthdaysLastDayRequest != -1)
+		&& (_contactBirthdaysLastDayRequest == QDate::currentDate().day())
+		&& !force) {
+		return rpl::single(_contactBirthdays);
+	}
+	if (_contactBirthdaysRequestId) {
+		_session->api().request(_contactBirthdaysRequestId).cancel();
+	}
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		_contactBirthdaysRequestId = _session->api().request(
+			MTPcontacts_GetBirthdays()
+		).done([=](const MTPcontacts_ContactBirthdays &result) {
+			_contactBirthdaysRequestId = 0;
+			_contactBirthdaysLastDayRequest = QDate::currentDate().day();
+			auto users = std::vector<UserId>();
+			Session::processUsers(result.data().vusers());
+			for (const auto &tlContact : result.data().vcontacts().v) {
+				const auto peerId = tlContact.data().vcontact_id().v;
+				if (const auto user = Session::user(peerId)) {
+					const auto &data = tlContact.data().vbirthday().data();
+					user->setBirthday(Data::Birthday(
+						data.vday().v,
+						data.vmonth().v,
+						data.vyear().value_or_empty()));
+					users.push_back(peerToUser(user->id));
+				}
+			}
+			_contactBirthdays = std::move(users);
+			consumer.put_next_copy(_contactBirthdays);
+		}).fail([=](const MTP::Error &error) {
+			_contactBirthdaysRequestId = 0;
+			_contactBirthdaysLastDayRequest = QDate::currentDate().day();
+			_contactBirthdays = {};
+			consumer.put_next({});
+		}).send();
+
+		return lifetime;
+	};
+}
+
+std::optional<std::vector<UserId>> Session::knownContactBirthdays() const {
+	if ((_contactBirthdaysLastDayRequest == -1)
+		|| (_contactBirthdaysLastDayRequest != QDate::currentDate().day())) {
+		return std::nullopt;
+	}
+	return _contactBirthdays;
+}
+
 } // namespace Data
