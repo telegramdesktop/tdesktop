@@ -882,7 +882,7 @@ void SessionNavigation::resolveConferenceCall(
 				data.vaccess_hash().v);
 			call->processFullCall(result);
 			const auto join = [=](Fn<void()> close) {
-				const auto &appConfig = call->peer()->session().appConfig();
+				const auto &appConfig = call->session().appConfig();
 				const auto conferenceLimit = appConfig.confcallSizeLimit();
 				if (call->fullCount() >= conferenceLimit) {
 					showToast(tr::lng_confcall_participants_limit(tr::now));

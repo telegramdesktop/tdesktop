@@ -235,6 +235,8 @@ public:
 	[[nodiscard]] std::shared_ptr<GroupCall> sharedConferenceCall(
 		CallId id,
 		uint64 accessHash);
+	[[nodiscard]] std::shared_ptr<GroupCall> sharedConferenceCallFind(
+		const MTPUpdates &response);
 
 	void watchForOffline(not_null<UserData*> user, TimeId now = 0);
 	void maybeStopWatchForOffline(not_null<UserData*> user);

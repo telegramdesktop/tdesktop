@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "apiwrap.h"
@@ -237,14 +238,20 @@ void Instance::startOrJoinGroupCall(
 }
 
 void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
-	const auto migrationInfo = (args.migrating && _currentCallPanel)
+	Expects(args.call || (args.migrating && args.show));
+
+	const auto migrationInfo = (args.migrating
+		&& args.call
+		&& _currentCallPanel)
 		? _currentCallPanel->migrationInfo()
 		: ConferencePanelMigration();
-	if (!args.migrating) {
+	if (args.call && !args.migrating) {
 		destroyCurrentCall();
 	}
 
-	const auto session = &args.call->peer()->session();
+	const auto session = args.show
+		? &args.show->session()
+		: &args.call->session();
 	auto call = std::make_unique<GroupCall>(_delegate.get(), args);
 	const auto raw = call.get();
 
@@ -253,20 +260,46 @@ void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
 		destroyGroupCall(raw);
 	}, raw->lifetime());
 
+	if (args.call) {
+		_currentGroupCallPanel = std::make_unique<Group::Panel>(
+			raw,
+			migrationInfo);
+		_currentGroupCall = std::move(call);
+		_currentGroupCallChanges.fire_copy(raw);
+		if (args.migrating) {
+			destroyCurrentCall(args.call.get(), args.linkSlug);
+		}
+	} else {
+		if (const auto was = base::take(_migratingGroupCall)) {
+			destroyGroupCall(was.get());
+		}
+		_migratingGroupCall = std::move(call);
+	}
+}
+
+void Instance::migratedConferenceReady(
+		not_null<GroupCall*> call,
+		StartConferenceInfo args) {
+	if (_migratingGroupCall.get() != call) {
+		return;
+	}
+	const auto migrationInfo = _currentCallPanel
+		? _currentCallPanel->migrationInfo()
+		: ConferencePanelMigration();
 	_currentGroupCallPanel = std::make_unique<Group::Panel>(
-		raw,
+		call,
 		migrationInfo);
-	_currentGroupCall = std::move(call);
-	_currentGroupCallChanges.fire_copy(raw);
+	_currentGroupCall = std::move(_migratingGroupCall);
+	_currentGroupCallChanges.fire_copy(call);
+	const auto real = call->conferenceCall().get();
+	const auto link = real->conferenceInviteLink();
+	const auto slug = Group::ExtractConferenceSlug(link);
 	if (!args.invite.empty()) {
 		_currentGroupCallPanel->migrationInviteUsers(std::move(args.invite));
-	} else if (args.sharingLink && !args.linkSlug.isEmpty()) {
+	} else if (args.sharingLink) {
 		_currentGroupCallPanel->migrationShowShareLink();
 	}
-
-	if (args.migrating) {
-		destroyCurrentCall(args.call.get(), args.linkSlug);
-	}
+	destroyCurrentCall(real, slug);
 }
 
 void Instance::confirmLeaveCurrent(
@@ -428,6 +461,8 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 			LOG(("Calls::Instance doesn't prevent quit any more."));
 		}
 		Core::App().quitPreventFinished();
+	} else if (_migratingGroupCall.get() == call) {
+		base::take(_migratingGroupCall);
 	}
 }
 
@@ -658,12 +693,14 @@ void Instance::handleCallUpdate(
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
-	if (_currentGroupCall
-		&& (&_currentGroupCall->peer()->session() == session)) {
+	const auto groupCall = _currentGroupCall
+		? _currentGroupCall.get()
+		: _migratingGroupCall.get();
+	if (groupCall && (&groupCall->peer()->session() == session)) {
 		update.match([&](const MTPDupdateGroupCall &data) {
-			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
+			groupCall->handlePossibleCreateOrJoinResponse(data);
 		}, [&](const MTPDupdateGroupCallConnection &data) {
-			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
+			groupCall->handlePossibleCreateOrJoinResponse(data);
 		}, [](const auto &) {
 		});
 	}
@@ -692,10 +729,8 @@ void Instance::handleGroupCallUpdate(
 	});
 	if (update.type() == mtpc_updateGroupCallChainBlocks) {
 		const auto existing = session->data().groupCall(callId);
-		if (existing
-			&& _currentGroupCall
-			&& _currentGroupCall->lookupReal() == existing) {
-			_currentGroupCall->handleUpdate(update);
+		if (existing && groupCall && groupCall->lookupReal() == existing) {
+			groupCall->handleUpdate(update);
 		}
 	} else if (const auto existing = session->data().groupCall(callId)) {
 		existing->enqueueUpdate(update);
@@ -707,9 +742,11 @@ void Instance::handleGroupCallUpdate(
 void Instance::applyGroupCallUpdateChecked(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
-	if (_currentGroupCall
-		&& (&_currentGroupCall->peer()->session() == session)) {
-		_currentGroupCall->handleUpdate(update);
+	const auto groupCall = _currentGroupCall
+		? _currentGroupCall.get()
+		: _migratingGroupCall.get();
+	if (groupCall && (&groupCall->peer()->session() == session)) {
+		groupCall->handleUpdate(update);
 	}
 }
 
@@ -761,6 +798,7 @@ void Instance::destroyCurrentCall(
 			}
 		}
 	}
+	base::take(_migratingGroupCall);
 }
 
 bool Instance::hasVisiblePanel(Main::Session *session) const {

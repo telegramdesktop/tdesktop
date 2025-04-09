@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_invite_controller.h"
 #include "calls/ui/calls_device_menu.h"
 #include "calls/calls_emoji_fingerprint.h"
+#include "calls/calls_instance.h"
 #include "calls/calls_signal_bars.h"
 #include "calls/calls_userpic.h"
 #include "calls/calls_video_bubble.h"
@@ -359,20 +360,16 @@ void Panel::initControls() {
 			}
 			*creating = true;
 			const auto sharingLink = users.empty();
-			Group::MakeConferenceCall({
+			Core::App().calls().startOrJoinConferenceCall({
 				.show = sessionShow(),
-				.finished = [=](bool) { *creating = false; },
-				.joining = true,
-				.info = {
-					.invite = std::move(users),
-					.sharingLink = sharingLink,
-					.migrating = true,
-					.muted = call->muted(),
-					.videoCapture = (call->isSharingVideo()
-						? call->peekVideoCapture()
-						: nullptr),
-					.videoCaptureScreenId = call->screenSharingDeviceId(),
-				},
+				.invite = std::move(users),
+				.sharingLink = sharingLink,
+				.migrating = true,
+				.muted = call->muted(),
+				.videoCapture = (call->isSharingVideo()
+					? call->peekVideoCapture()
+					: nullptr),
+				.videoCaptureScreenId = call->screenSharingDeviceId(),
 			});
 		};
 		const auto invite = crl::guard(call, [=](

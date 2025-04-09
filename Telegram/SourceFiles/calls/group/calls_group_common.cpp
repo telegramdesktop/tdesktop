@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "info/bot/starref/info_bot_starref_common.h"
+#include "tde2e/tde2e_api.h"
+#include "tde2e/tde2e_integration.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -41,24 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 
 namespace Calls::Group {
-namespace {
-
-[[nodiscard]] QString ExtractConferenceSlug(const QString &link) {
-	const auto local = Core::TryConvertUrlToLocal(link);
-	const auto parts1 = QStringView(local).split('#');
-	if (!parts1.isEmpty()) {
-		const auto parts2 = parts1.front().split('&');
-		if (!parts2.isEmpty()) {
-			const auto parts3 = parts2.front().split(u"slug="_q);
-			if (parts3.size() > 1) {
-				return parts3.back().toString();
-			}
-		}
-	}
-	return QString();
-}
-
-} // namespace
 
 object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 #ifdef Q_OS_MAC
@@ -468,32 +452,13 @@ void MakeConferenceCall(ConferenceFactoryArgs &&args) {
 		MTPbytes(), // block
 		MTPDataJSON() // params
 	)).done([=](const MTPUpdates &result) {
-		session->api().applyUpdates(result);
-		const auto updates = result.match([&](const MTPDupdates &data) {
-			return &data.vupdates().v;
-		}, [&](const MTPDupdatesCombined &data) {
-			return &data.vupdates().v;
-		}, [](const auto &) {
-			return (const QVector<MTPUpdate>*)nullptr;
-		});
-		if (!updates) {
+		auto call = session->data().sharedConferenceCallFind(result);
+		if (!call) {
 			fail(u"Call not found!"_q);
 			return;
 		}
-		auto call = std::shared_ptr<Data::GroupCall>();
-		for (const auto &update : *updates) {
-			update.match([&](const MTPDupdateGroupCall &data) {
-				data.vcall().match([&](const auto &data) {
-					call = session->data().sharedConferenceCall(
-						data.vid().v,
-						data.vaccess_hash().v);
-					call->enqueueUpdate(update);
-				});
-			}, [](const auto &) {});
-			if (call) {
-				break;
-			}
-		}
+		session->api().applyUpdates(result);
+
 		const auto link = call ? call->conferenceInviteLink() : QString();
 		if (link.isEmpty()) {
 			fail(u"Call link not found!"_q);
@@ -519,6 +484,21 @@ void MakeConferenceCall(ConferenceFactoryArgs &&args) {
 	}).fail([=](const MTP::Error &error) {
 		fail(error.type());
 	}).send();
+}
+
+QString ExtractConferenceSlug(const QString &link) {
+	const auto local = Core::TryConvertUrlToLocal(link);
+	const auto parts1 = QStringView(local).split('#');
+	if (!parts1.isEmpty()) {
+		const auto parts2 = parts1.front().split('&');
+		if (!parts2.isEmpty()) {
+			const auto parts3 = parts2.front().split(u"slug="_q);
+			if (parts3.size() > 1) {
+				return parts3.back().toString();
+			}
+		}
+	}
+	return QString();
 }
 
 } // namespace Calls::Group

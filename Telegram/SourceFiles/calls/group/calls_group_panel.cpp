@@ -376,6 +376,8 @@ void Panel::initWindow() {
 
 	_window->setControlsStyle(st::groupCallTitle);
 	_window->togglePowerSaveBlocker(true);
+
+	uiShow()->hideLayer(anim::type::instant);
 }
 
 void Panel::initWidget() {
@@ -927,7 +929,6 @@ Fn<void()> Panel::shareConferenceLinkCallback() {
 }
 
 void Panel::migrationShowShareLink() {
-	uiShow()->hideLayer(anim::type::instant);
 	ShowConferenceCallLinkBox(
 		sessionShow(),
 		_call->conferenceCall(),

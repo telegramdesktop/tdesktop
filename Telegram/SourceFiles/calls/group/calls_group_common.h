@@ -64,8 +64,8 @@ struct InviteResult {
 };
 
 struct StartConferenceInfo {
+	std::shared_ptr<Main::SessionShow> show;
 	std::shared_ptr<Data::GroupCall> call;
-	std::shared_ptr<TdE2E::Call> e2e;
 	QString linkSlug;
 	MsgId joinMessageId;
 	std::vector<InviteRequest> invite;
@@ -194,5 +194,7 @@ struct ConferenceFactoryArgs {
 	StartConferenceInfo info;
 };
 void MakeConferenceCall(ConferenceFactoryArgs &&args);
+
+[[nodiscard]] QString ExtractConferenceSlug(const QString &link);
 
 } // namespace Calls::Group

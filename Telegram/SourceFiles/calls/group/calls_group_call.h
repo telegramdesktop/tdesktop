@@ -263,12 +263,15 @@ public:
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
 	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
 
+	void applyInputCall(const MTPInputGroupCall &inputCall);
+	void startConference();
 	void start(TimeId scheduleDate, bool rtmp);
 	void hangup();
 	void discard();
 	void rejoinAs(Group::JoinInfo info);
 	void rejoinWithHash(const QString &hash);
-	void join(const MTPInputGroupCall &inputCall);
+	void initialJoin();
+	void initialJoinRequested();
 	void handleUpdate(const MTPUpdate &update);
 	void handlePossibleCreateOrJoinResponse(const MTPDupdateGroupCall &data);
 	void handlePossibleCreateOrJoinResponse(
@@ -291,6 +294,14 @@ public:
 
 	bool emitShareScreenError();
 	bool emitShareCameraError();
+
+	void joinDone(
+		int64 serverTimeMs,
+		const MTPUpdates &result,
+		MuteState wasMuteState,
+		bool wasVideoStopped,
+		bool justCreated = false);
+	void joinFail(const QString &error);
 
 	[[nodiscard]] rpl::producer<Group::Error> errors() const {
 		return _errors.events();
@@ -610,6 +621,7 @@ private:
 
 	void setupMediaDevices();
 	void setupOutgoingVideo();
+	void setupConference();
 	void setupConferenceCall();
 	void setScreenEndpoint(std::string endpoint);
 	void setCameraEndpoint(std::string endpoint);
@@ -635,7 +647,7 @@ private:
 	[[nodiscard]] MTPInputGroupCall inputCallSafe() const;
 
 	const not_null<Delegate*> _delegate;
-	const std::shared_ptr<Data::GroupCall> _conferenceCall;
+	std::shared_ptr<Data::GroupCall> _conferenceCall;
 	std::shared_ptr<TdE2E::Call> _e2e;
 	QByteArray _pendingOutboundBlock;
 	std::shared_ptr<StartConferenceInfo> _migratedConferenceInfo;

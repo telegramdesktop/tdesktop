@@ -374,6 +374,7 @@ auto GroupCall::staleParticipantIds() const
 }
 
 void GroupCall::enqueueUpdate(const MTPUpdate &update) {
+	const auto initial = !_version;
 	update.match([&](const MTPDupdateGroupCall &updateData) {
 		updateData.vcall().match([&](const MTPDgroupCall &data) {
 			const auto version = data.vversion().v;
@@ -427,7 +428,7 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 	}, [](const auto &) {
 		Unexpected("Type in GroupCall::enqueueUpdate.");
 	});
-	processQueuedUpdates();
+	processQueuedUpdates(initial);
 }
 
 void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
@@ -562,7 +563,7 @@ void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
 	Core::App().calls().applyGroupCallUpdateChecked(&session(), update);
 }
 
-void GroupCall::processQueuedUpdates() {
+void GroupCall::processQueuedUpdates(bool initial) {
 	if (!_version || _applyingQueuedUpdates) {
 		return;
 	}
@@ -574,7 +575,13 @@ void GroupCall::processQueuedUpdates() {
 		const auto type = entry.first.second;
 		const auto incremented = (type == QueuedType::VersionedParticipant);
 		if ((version < _version)
-			|| (version == _version && incremented)) {
+			|| (version == _version && incremented && !initial)) {
+			// There is a case for a new conference call we receive:
+			// - updateGroupCall, version = 2
+			// - updateGroupCallParticipants, version = 2, versioned
+			// In case we were joining together with creation,
+			// in that case we don't want to skip the participants update,
+			// so we pass the `initial` flag specifically for that case.
 			_queuedUpdates.erase(_queuedUpdates.begin());
 		} else if (version == _version
 			|| (version == _version + 1 && incremented)) {

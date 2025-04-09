@@ -215,7 +215,7 @@ private:
 	void applyEnqueuedUpdate(const MTPUpdate &update);
 	void setServerParticipantsCount(int count);
 	void computeParticipantsCount();
-	void processQueuedUpdates();
+	void processQueuedUpdates(bool initial = false);
 	void processFullCallUsersChats(const MTPphone_GroupCall &call);
 	void processFullCallFields(const MTPphone_GroupCall &call);
 	[[nodiscard]] bool requestParticipantsAfterReload(

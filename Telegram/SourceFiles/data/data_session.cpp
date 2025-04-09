@@ -1159,6 +1159,36 @@ std::shared_ptr<GroupCall> Session::sharedConferenceCall(
 	return result;
 }
 
+std::shared_ptr<GroupCall> Session::sharedConferenceCallFind(
+		const MTPUpdates &response) {
+	const auto list = response.match([&](const MTPDupdates &data) {
+		return &data.vupdates().v;
+	}, [&](const MTPDupdatesCombined &data) {
+		return &data.vupdates().v;
+	}, [](const auto &) {
+		return (const QVector<MTPUpdate>*)nullptr;
+	});
+	const auto empty = std::shared_ptr<GroupCall>();
+	if (!list) {
+		return empty;
+	}
+	for (const auto &update : *list) {
+		const auto call = update.match([&](const MTPDupdateGroupCall &data) {
+			return data.vcall().match([&](const MTPDgroupCall &data) {
+				return data.is_conference()
+					? sharedConferenceCall(
+						data.vid().v,
+						data.vaccess_hash().v)
+					: nullptr;
+			}, [&](const auto &) { return empty; });
+		}, [&](const auto &) { return empty; });
+		if (call) {
+			return call;
+		}
+	}
+	return empty;
+}
+
 void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
 	if (!now) {
 		now = base::unixtime::now();
