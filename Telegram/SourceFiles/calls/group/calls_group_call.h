@@ -260,7 +260,6 @@ public:
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] std::shared_ptr<Data::GroupCall> conferenceCall() const;
-	[[nodiscard]] QString existingConferenceLink() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
 	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
 

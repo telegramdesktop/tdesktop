@@ -253,10 +253,10 @@ ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle() {
 void ShowConferenceCallLinkBox(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<Data::GroupCall> call,
-		const QString &link,
-		ConferenceCallLinkArgs &&args) {
+		const ConferenceCallLinkArgs &args) {
 	const auto st = args.st;
 	const auto initial = args.initial;
+	const auto link = call->conferenceInviteLink();
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		struct State {
 			base::unique_qptr<Ui::PopupMenu> menu;
@@ -285,30 +285,25 @@ void ShowConferenceCallLinkBox(
 				}
 				state->resetting = true;
 				using Flag = MTPphone_ToggleGroupCallSettings::Flag;
+				const auto weak = Ui::MakeWeak(box);
 				call->session().api().request(
 					MTPphone_ToggleGroupCallSettings(
 						MTP_flags(Flag::f_reset_invite_hash),
 						call->input(),
 						MTPbool()) // join_muted
-				).done([=] {
-					auto copy = args;
-					const auto weak = Ui::MakeWeak(box);
-					copy.finished = [=](QString link) {
-						if (const auto strong = weak.data()) {
-							strong->closeBox();
-						}
-						show->showToast({
-							.title = tr::lng_confcall_link_revoked_title(
-								tr::now),
-							.text = {
-								tr::lng_confcall_link_revoked_text(tr::now),
-							},
-						});
-					};
-					ExportConferenceCallLink(
-						show,
-						call,
-						std::move(copy));
+				).done([=](const MTPUpdates &result) {
+					call->session().api().applyUpdates(result);
+					ShowConferenceCallLinkBox(show, call, args);
+					if (const auto strong = weak.data()) {
+						strong->closeBox();
+					}
+					show->showToast({
+						.title = tr::lng_confcall_link_revoked_title(
+							tr::now),
+						.text = {
+							tr::lng_confcall_link_revoked_text(tr::now),
+						},
+					});
 				}).send();
 			};
 			toggle->setClickedCallback([=] {
@@ -355,10 +350,7 @@ void ShowConferenceCallLinkBox(
 
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 2);
 		const auto preview = box->addRow(
-			Info::BotStarRef::MakeLinkLabel(
-				box,
-				link,
-				st.linkPreview));
+			Info::BotStarRef::MakeLinkLabel(box, link, st.linkPreview));
 		Ui::AddSkip(box->verticalLayout());
 
 		const auto copyCallback = [=] {
@@ -372,11 +364,11 @@ void ShowConferenceCallLinkBox(
 				st.shareBox ? *st.shareBox : ShareBoxStyleOverrides());
 		};
 		preview->setClickedCallback(copyCallback);
-		[[maybe_unused]] const auto share = box->addButton(
+		const auto share = box->addButton(
 			tr::lng_group_invite_share(),
 			shareCallback,
 			st::confcallLinkShareButton);
-		[[maybe_unused]] const auto copy = box->addButton(
+		const auto copy = box->addButton(
 			tr::lng_group_invite_copy(),
 			copyCallback,
 			st::confcallLinkCopyButton);
@@ -457,21 +449,57 @@ void ShowConferenceCallLinkBox(
 	}));
 }
 
-void ExportConferenceCallLink(
-		std::shared_ptr<Main::SessionShow> show,
-		std::shared_ptr<Data::GroupCall> call,
-		ConferenceCallLinkArgs &&args) {
-	const auto session = &show->session();
-	const auto info = std::move(args.info);
+void MakeConferenceCall(ConferenceFactoryArgs &&args) {
+	const auto show = std::move(args.show);
 	const auto finished = std::move(args.finished);
-
-	using Flag = MTPphone_ExportGroupCallInvite::Flag;
-	session->api().request(MTPphone_ExportGroupCallInvite(
-		MTP_flags(Flag::f_can_self_unmute),
-		call->input()
-	)).done([=](const MTPphone_ExportedGroupCallInvite &result) {
-		const auto link = qs(result.data().vlink());
-		if (args.joining) {
+	const auto joining = args.joining;
+	const auto info = std::move(args.info);
+	const auto session = &show->session();
+	const auto fail = [=](QString error) {
+		show->showToast(error);
+		if (const auto onstack = finished) {
+			onstack(false);
+		}
+	};
+	session->api().request(MTPphone_CreateConferenceCall(
+		MTP_flags(0),
+		MTP_int(base::RandomValue<int32>()),
+		MTPint256(), // public_key
+		MTPbytes(), // block
+		MTPDataJSON() // params
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+		const auto updates = result.match([&](const MTPDupdates &data) {
+			return &data.vupdates().v;
+		}, [&](const MTPDupdatesCombined &data) {
+			return &data.vupdates().v;
+		}, [](const auto &) {
+			return (const QVector<MTPUpdate>*)nullptr;
+		});
+		if (!updates) {
+			fail(u"Call not found!"_q);
+			return;
+		}
+		auto call = std::shared_ptr<Data::GroupCall>();
+		for (const auto &update : *updates) {
+			update.match([&](const MTPDupdateGroupCall &data) {
+				data.vcall().match([&](const auto &data) {
+					call = session->data().sharedConferenceCall(
+						data.vid().v,
+						data.vaccess_hash().v);
+					call->enqueueUpdate(update);
+				});
+			}, [](const auto &) {});
+			if (call) {
+				break;
+			}
+		}
+		const auto link = call ? call->conferenceInviteLink() : QString();
+		if (link.isEmpty()) {
+			fail(u"Call link not found!"_q);
+			return;
+		}
+		if (joining) {
 			if (auto slug = ExtractConferenceSlug(link); !slug.isEmpty()) {
 				auto copy = info;
 				copy.call = call;
@@ -479,53 +507,17 @@ void ExportConferenceCallLink(
 				Core::App().calls().startOrJoinConferenceCall(
 					std::move(copy));
 			}
-			if (const auto onstack = finished) {
-				finished(QString());
-			}
-			return;
+		} else {
+			Calls::Group::ShowConferenceCallLinkBox(
+				show,
+				call,
+				{ .initial = true });
 		}
-		Calls::Group::ShowConferenceCallLinkBox(
-			show,
-			call,
-			link,
-			base::duplicate(args));
 		if (const auto onstack = finished) {
-			finished(link);
+			finished(true);
 		}
 	}).fail([=](const MTP::Error &error) {
-		show->showToast(error.type());
-		if (const auto onstack = finished) {
-			finished(QString());
-		}
-	}).send();
-}
-
-void MakeConferenceCall(ConferenceFactoryArgs &&args) {
-	const auto show = std::move(args.show);
-	const auto finished = std::move(args.finished);
-	const auto joining = args.joining;
-	const auto info = std::move(args.info);
-	const auto session = &show->session();
-	session->api().request(MTPphone_CreateConferenceCall(
-		MTP_int(base::RandomValue<int32>())
-	)).done([=](const MTPphone_GroupCall &result) {
-		result.data().vcall().match([&](const auto &data) {
-			const auto call = session->data().sharedConferenceCall(
-				data.vid().v,
-				data.vaccess_hash().v);
-			call->processFullCall(result);
-			Calls::Group::ExportConferenceCallLink(show, call, {
-				.initial = true,
-				.joining = joining,
-				.finished = finished,
-				.info = info,
-			});
-		});
-	}).fail([=](const MTP::Error &error) {
-		show->showToast(error.type());
-		if (const auto onstack = finished) {
-			onstack(QString());
-		}
+		fail(error.type());
 	}).send();
 }
 

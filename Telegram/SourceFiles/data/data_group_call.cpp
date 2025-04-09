@@ -295,6 +295,10 @@ rpl::producer<int> GroupCall::fullCountValue() const {
 	return _fullCount.value();
 }
 
+QString GroupCall::conferenceInviteLink() const {
+	return _conferenceInviteLink;
+}
+
 bool GroupCall::participantsLoaded() const {
 	return _allParticipantsLoaded;
 }
@@ -515,6 +519,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	_unmutedVideoLimit = data.vunmuted_video_limit().v;
 	_allParticipantsLoaded
 		= (_serverParticipantsCount == _participants.size());
+	_conferenceInviteLink = qs(data.vinvite_link().value_or_empty());
 }
 
 void GroupCall::applyLocalUpdate(

@@ -353,11 +353,6 @@ void Panel::initControls() {
 		}
 		const auto call = _call;
 		const auto creating = std::make_shared<bool>();
-		const auto finish = [=](QString link) {
-			if (link.isEmpty()) {
-				*creating = false;
-			}
-		};
 		const auto create = [=](std::vector<InviteRequest> users) {
 			if (*creating) {
 				return;
@@ -366,7 +361,7 @@ void Panel::initControls() {
 			const auto sharingLink = users.empty();
 			Group::MakeConferenceCall({
 				.show = sessionShow(),
-				.finished = finish,
+				.finished = [=](bool) { *creating = false; },
 				.joining = true,
 				.info = {
 					.invite = std::move(users),

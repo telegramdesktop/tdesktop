@@ -116,7 +116,7 @@ int AppConfig::confcallSizeLimit() const {
 
 bool AppConfig::confcallPrioritizeVP8() const {
 	AssertIsDebug();
-	return true;
+	return false;
 	return get<bool>(u"confcall_use_vp8"_q, false);
 }
 

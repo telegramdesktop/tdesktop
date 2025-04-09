@@ -472,7 +472,7 @@ std::unique_ptr<PeerListRow> InviteContactsController::createRow(
 object_ptr<Ui::BoxContent> PrepareInviteBox(
 		not_null<GroupCall*> call,
 		Fn<void(TextWithEntities&&)> showToast,
-		Fn<void(Fn<void(bool)> finished)> shareConferenceLink) {
+		Fn<void()> shareConferenceLink) {
 	const auto real = call->lookupReal();
 	if (!real) {
 		return nullptr;
@@ -497,8 +497,10 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 	if (conference) {
 		const auto close = std::make_shared<Fn<void()>>();
 		const auto shareLink = [=] {
-			Assert(shareConferenceLink != nullptr);
-			shareConferenceLink([=](bool ok) { if (ok) (*close)(); });
+			Expects(shareConferenceLink != nullptr);
+
+			shareConferenceLink();
+			(*close)();
 		};
 		auto controller = std::make_unique<ConfInviteController>(
 			&real->session(),

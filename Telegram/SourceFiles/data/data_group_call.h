@@ -176,6 +176,7 @@ public:
 
 	[[nodiscard]] int fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
+	[[nodiscard]] QString conferenceInviteLink() const;
 
 	void setInCall();
 	void reload();
@@ -232,6 +233,7 @@ private:
 	mtpRequestId _reloadRequestId = 0;
 	crl::time _reloadLastFinished = 0;
 	rpl::variable<QString> _title;
+	QString _conferenceInviteLink;
 
 	base::flat_multi_map<
 		std::pair<int, QueuedType>,

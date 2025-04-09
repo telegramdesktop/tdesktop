@@ -1211,15 +1211,6 @@ std::shared_ptr<Data::GroupCall> GroupCall::conferenceCall() const {
 	return _conferenceCall;
 }
 
-QString GroupCall::existingConferenceLink() const {
-	Expects(!_conferenceLinkSlug.isEmpty());
-
-	const auto session = &_peer->session();
-	return !_conferenceLinkSlug.isEmpty()
-		? session->createInternalLinkFull("call/" + _conferenceLinkSlug)
-		: QString();
-}
-
 rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
 	if (const auto real = lookupReal()) {
 		return rpl::single(not_null{ real });
@@ -1569,7 +1560,6 @@ void GroupCall::sendJoinRequest() {
 		| (wasVideoStopped
 			? Flag::f_video_stopped
 			: Flag(0))
-		| (_conferenceJoinMessageId ? Flag::f_invite_msg_id : Flag())
 		| (_e2e ? (Flag::f_public_key | Flag::f_block) : Flag());
 	_api.request(MTPphone_JoinGroupCall(
 		MTP_flags(flags),
@@ -1578,7 +1568,6 @@ void GroupCall::sendJoinRequest() {
 		MTP_string(_joinHash),
 		(_e2e ? TdE2E::PublicKeyToMTP(_e2e->myKey()) : MTPint256()),
 		MTP_bytes(joinBlock),
-		MTP_int(_conferenceJoinMessageId.bare),
 		MTP_dataJSON(MTP_bytes(_joinState.payload.json))
 	)).done([=](
 			const MTPUpdates &updates,

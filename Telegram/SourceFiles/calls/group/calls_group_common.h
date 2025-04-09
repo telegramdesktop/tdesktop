@@ -179,26 +179,17 @@ struct ConferenceCallLinkStyleOverrides {
 [[nodiscard]] ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle();
 
 struct ConferenceCallLinkArgs {
-	bool initial = false;
-	bool joining = false;
-	Fn<void(QString)> finished;
-	StartConferenceInfo info;
 	ConferenceCallLinkStyleOverrides st;
+	bool initial = false;
 };
 void ShowConferenceCallLinkBox(
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<Data::GroupCall> call,
-	const QString &link,
-	ConferenceCallLinkArgs &&args);
-
-void ExportConferenceCallLink(
-	std::shared_ptr<Main::SessionShow> show,
-	std::shared_ptr<Data::GroupCall> call,
-	ConferenceCallLinkArgs &&args);
+	const ConferenceCallLinkArgs &args);
 
 struct ConferenceFactoryArgs {
 	std::shared_ptr<Main::SessionShow> show;
-	Fn<void(QString)> finished;
+	Fn<void(bool)> finished;
 	bool joining = false;
 	StartConferenceInfo info;
 };

@@ -170,8 +170,7 @@ private:
 	void toggleWideControls(bool shown);
 	void updateWideControlsVisibility();
 	[[nodiscard]] bool videoButtonInNarrowMode() const;
-	[[nodiscard]] auto shareConferenceLinkCallback()
-		-> Fn<void(Fn<void(bool)> finished)>;
+	[[nodiscard]] Fn<void()> shareConferenceLinkCallback();
 
 	void endCall();
 

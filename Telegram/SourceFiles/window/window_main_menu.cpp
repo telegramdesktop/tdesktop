@@ -128,8 +128,8 @@ constexpr auto kPlayStatusLimit = 2;
 			return;
 		}
 		*creating = true;
-		const auto finished = [=](QString link) {
-			if (link.isEmpty()) {
+		const auto finished = [=](bool ok) {
+			if (!ok) {
 				*creating = false;
 			} else if (const auto onstack = done) {
 				onstack();

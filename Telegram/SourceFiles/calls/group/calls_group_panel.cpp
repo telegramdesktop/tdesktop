@@ -905,9 +905,7 @@ void Panel::setupMembers() {
 	}, _callLifetime);
 
 	_members->shareLinkRequests(
-	) | rpl::start_with_next([cb = shareConferenceLinkCallback()] {
-		cb(nullptr);
-	}, _callLifetime);
+	) | rpl::start_with_next(shareConferenceLinkCallback(), _callLifetime);
 
 	_call->videoEndpointLargeValue(
 	) | rpl::start_with_next([=](const VideoEndpoint &large) {
@@ -918,23 +916,11 @@ void Panel::setupMembers() {
 	}, _callLifetime);
 }
 
-Fn<void(Fn<void(bool)> finished)> Panel::shareConferenceLinkCallback() {
-	const auto exporting = std::make_shared<bool>();
-	return [=](Fn<void(bool)> finished) {
+Fn<void()> Panel::shareConferenceLinkCallback() {
+	return [=] {
 		Expects(_call->conference());
 
-		if (*exporting) {
-			return;
-		}
-		*exporting = true;
-		const auto done = [=](QString link) {
-			*exporting = false;
-			if (const auto onstack = finished) {
-				onstack(!link.isEmpty());
-			}
-		};
-		ExportConferenceCallLink(sessionShow(), _call->conferenceCall(), {
-			.finished = done,
+		ShowConferenceCallLinkBox(sessionShow(), _call->conferenceCall(), {
 			.st = DarkConferenceCallLinkStyle(),
 		});
 	};
@@ -945,7 +931,6 @@ void Panel::migrationShowShareLink() {
 	ShowConferenceCallLinkBox(
 		sessionShow(),
 		_call->conferenceCall(),
-		_call->existingConferenceLink(),
 		{ .st = DarkConferenceCallLinkStyle() });
 }
 

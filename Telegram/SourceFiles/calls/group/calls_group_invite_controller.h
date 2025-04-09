@@ -80,7 +80,7 @@ private:
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareInviteBox(
 	not_null<GroupCall*> call,
 	Fn<void(TextWithEntities&&)> showToast,
-	Fn<void(Fn<void(bool)> finished)> shareConferenceLink = nullptr);
+	Fn<void()> shareConferenceLink = nullptr);
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareInviteBox(
 	not_null<Call*> call,
