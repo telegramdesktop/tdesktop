@@ -78,6 +78,7 @@ public:
 	[[nodiscard]] bool rtmp() const;
 	[[nodiscard]] bool canManage() const;
 	[[nodiscard]] bool listenersHidden() const;
+	[[nodiscard]] bool blockchainMayBeEmpty() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
 	[[nodiscard]] QString title() const {

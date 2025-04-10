@@ -102,6 +102,10 @@ PublicKey Call::myKey() const {
 	return _myKey;
 }
 
+bool Call::hasLastBlock0() const {
+	return _lastBlock0.has_value();
+}
+
 void Call::refreshLastBlock0(std::optional<Block> block) {
 	_lastBlock0 = std::move(block);
 }

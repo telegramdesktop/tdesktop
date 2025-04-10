@@ -1554,6 +1554,11 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				).arg(_joinState.payload.ssrc));
 			if (!_conferenceCall && _migratedConferenceInfo) {
 				startConference();
+			} else if (_conferenceCall
+				&& !_conferenceCall->blockchainMayBeEmpty()
+				&& !_e2e->hasLastBlock0()) {
+				//sendJoinRequest(); AssertIsDebug();
+				refreshLastBlockAndJoin();
 			} else {
 				sendJoinRequest();
 			}

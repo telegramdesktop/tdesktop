@@ -135,6 +135,10 @@ bool GroupCall::listenersHidden() const {
 	return _listenersHidden;
 }
 
+bool GroupCall::blockchainMayBeEmpty() const {
+	return _version < 2;
+}
+
 not_null<PeerData*> GroupCall::peer() const {
 	return _peer;
 }

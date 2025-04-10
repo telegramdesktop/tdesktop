@@ -95,6 +95,7 @@ public:
 	[[nodiscard]] QByteArray emojiHash() const;
 	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
 
+	[[nodiscard]] bool hasLastBlock0() const;
 	void refreshLastBlock0(std::optional<Block> block);
 	[[nodiscard]] Block makeJoinBlock();
 	[[nodiscard]] Block makeRemoveBlock(const base::flat_set<UserId> &ids);
