@@ -251,6 +251,7 @@ void Call::apply(int subchain, const Block &last) {
 		return;
 	}
 	setId({ uint64(id.value()) });
+	shortPoll(1);
 
 	for (auto i = 0; i != kSubChainsCount; ++i) {
 		auto &entry = _subchains[i];

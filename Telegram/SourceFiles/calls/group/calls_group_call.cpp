@@ -1557,7 +1557,6 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 			} else if (_conferenceCall
 				&& !_conferenceCall->blockchainMayBeEmpty()
 				&& !_e2e->hasLastBlock0()) {
-				//sendJoinRequest(); AssertIsDebug();
 				refreshLastBlockAndJoin();
 			} else {
 				sendJoinRequest();
