@@ -911,6 +911,7 @@ void Panel::showControls() {
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
 	_screencast->setVisible(_screencast->toggled());
+	_addPeople->setVisible(_addPeople->toggled());
 
 	const auto shown = !_incomingFrameSize.isEmpty();
 	_incoming->widget()->setVisible(shown);
