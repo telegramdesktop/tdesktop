@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_menu.h"
 #include "calls/calls_call.h"
+#include "calls/calls_instance.h"
+#include "core/application.h"
 #include "boxes/peer_lists_box.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -29,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h" // membersMarginTop
 #include "styles/style_calls.h"
 #include "styles/style_dialogs.h" // searchedBarHeight
@@ -65,9 +68,18 @@ namespace {
 	return result;
 }
 
+struct ConfInviteStyles {
+	const style::IconButton *video = nullptr;
+	const style::icon *videoActive = nullptr;
+	const style::IconButton *audio = nullptr;
+	const style::icon *audioActive = nullptr;
+	const style::SettingsButton *inviteViaLink = nullptr;
+	const style::icon *inviteViaLinkIcon = nullptr;
+};
+
 class ConfInviteRow final : public PeerListRow {
 public:
-	using PeerListRow::PeerListRow;
+	ConfInviteRow(not_null<UserData*> user, const ConfInviteStyles &st);
 
 	void setAlreadyIn(bool alreadyIn);
 	void setVideo(bool video);
@@ -88,6 +100,9 @@ public:
 		int selectedElement) override;
 
 private:
+	[[nodiscard]] const style::IconButton &buttonSt(int element) const;
+
+	const ConfInviteStyles &_st;
 	std::unique_ptr<Ui::RippleAnimation> _videoRipple;
 	std::unique_ptr<Ui::RippleAnimation> _audioRipple;
 	bool _alreadyIn = false;
@@ -99,6 +114,7 @@ class ConfInviteController final : public ContactsBoxController {
 public:
 	ConfInviteController(
 		not_null<Main::Session*> session,
+		ConfInviteStyles st,
 		base::flat_set<not_null<UserData*>> alreadyIn,
 		Fn<void()> shareLink);
 
@@ -119,6 +135,7 @@ private:
 	[[nodiscard]] int fullCount() const;
 	void toggleRowSelected(not_null<PeerListRow*> row, bool video);
 
+	const ConfInviteStyles _st;
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
 	const Fn<void()> _shareLink;
 	rpl::variable<bool> _hasSelected;
@@ -126,6 +143,33 @@ private:
 	bool _lastSelectWithVideo = false;
 
 };
+
+[[nodiscard]] ConfInviteStyles ConfInviteDarkStyles() {
+	return {
+		.video = &st::confcallInviteVideo,
+		.videoActive = &st::confcallInviteVideoActive,
+		.audio = &st::confcallInviteAudio,
+		.audioActive = &st::confcallInviteAudioActive,
+		.inviteViaLink = &st::groupCallInviteLink,
+		.inviteViaLinkIcon = &st::groupCallInviteLinkIcon,
+	};
+}
+
+[[nodiscard]] ConfInviteStyles ConfInviteDefaultStyles() {
+	return {
+		.video = &st::createCallVideo,
+		.videoActive = &st::createCallVideoActive,
+		.audio = &st::createCallAudio,
+		.audioActive = &st::createCallAudioActive,
+		.inviteViaLink = &st::createCallInviteLink,
+		.inviteViaLinkIcon = &st::createCallInviteLinkIcon,
+	};
+}
+
+ConfInviteRow::ConfInviteRow(not_null<UserData*> user, const ConfInviteStyles &st)
+: PeerListRow(user)
+, _st(st) {
+}
 
 void ConfInviteRow::setAlreadyIn(bool alreadyIn) {
 	_alreadyIn = alreadyIn;
@@ -136,6 +180,12 @@ void ConfInviteRow::setVideo(bool video) {
 	_video = video;
 }
 
+const style::IconButton &ConfInviteRow::buttonSt(int element) const {
+	return (element == 1)
+		? (_st.video ? *_st.video : st::createCallVideo)
+		: (_st.audio ? *_st.audio : st::createCallAudio);
+}
+
 int ConfInviteRow::elementsCount() const {
 	return _alreadyIn ? 0 : 2;
 }
@@ -144,13 +194,11 @@ QRect ConfInviteRow::elementGeometry(int element, int outerWidth) const {
 	if (_alreadyIn || (element != 1 && element != 2)) {
 		return QRect();
 	}
-	const auto &st = (element == 1)
-		? st::confcallInviteVideo
-		: st::confcallInviteAudio;
+	const auto &st = buttonSt(element);
 	const auto size = QSize(st.width, st.height);
 	const auto margins = (element == 1)
-		? st::confcallInviteVideoMargins
-		: st::confcallInviteAudioMargins;
+		? st::createCallVideoMargins
+		: st::createCallAudioMargins;
 	const auto right = margins.right();
 	const auto top = margins.top();
 	const auto side = (element == 1)
@@ -178,9 +226,7 @@ void ConfInviteRow::elementAddRipple(
 		return;
 	}
 	auto &ripple = (element == 1) ? _videoRipple : _audioRipple;
-	const auto &st = (element == 1)
-		? st::confcallInviteVideo
-		: st::confcallInviteAudio;
+	const auto &st = buttonSt(element);
 	if (!ripple) {
 		auto mask = Ui::RippleAnimation::EllipseMask(QSize(
 				st.rippleAreaSize,
@@ -211,9 +257,7 @@ void ConfInviteRow::elementsPaint(
 		return;
 	}
 	const auto paintElement = [&](int element) {
-		const auto &st = (element == 1)
-			? st::confcallInviteVideo
-			: st::confcallInviteAudio;
+		const auto &st = buttonSt(element);
 		auto &ripple = (element == 1) ? _videoRipple : _audioRipple;
 		const auto active = checked() && ((element == 1) ? _video : !_video);
 		const auto geometry = elementGeometry(element, outerWidth);
@@ -230,8 +274,12 @@ void ConfInviteRow::elementsPaint(
 		const auto selected = (element == selectedElement);
 		const auto &icon = active
 			? (element == 1
-				? st::confcallInviteVideoActive
-				: st::confcallInviteAudioActive)
+				? (_st.videoActive
+					? *_st.videoActive
+					: st::createCallVideoActive)
+				: (_st.audioActive
+					? *_st.audioActive
+					: st::createCallAudioActive))
 			: (selected ? st.iconOver : st.icon);
 		icon.paintInCenter(p, geometry);
 	};
@@ -241,9 +289,11 @@ void ConfInviteRow::elementsPaint(
 
 ConfInviteController::ConfInviteController(
 	not_null<Main::Session*> session,
+	ConfInviteStyles st,
 	base::flat_set<not_null<UserData*>> alreadyIn,
 	Fn<void()> shareLink)
 : ContactsBoxController(session)
+, _st(st)
 , _alreadyIn(std::move(alreadyIn))
 , _shareLink(std::move(shareLink)) {
 }
@@ -272,7 +322,7 @@ std::unique_ptr<PeerListRow> ConfInviteController::createRow(
 		|| user->isInaccessible()) {
 		return nullptr;
 	}
-	auto result = std::make_unique<ConfInviteRow>(user);
+	auto result = std::make_unique<ConfInviteRow>(user, _st);
 	if (_alreadyIn.contains(user)) {
 		result->setAlreadyIn(true);
 	}
@@ -283,7 +333,9 @@ std::unique_ptr<PeerListRow> ConfInviteController::createRow(
 }
 
 int ConfInviteController::fullCount() const {
-	return _alreadyIn.size() + delegate()->peerListSelectedRowsCount();
+	return _alreadyIn.size()
+		+ delegate()->peerListSelectedRowsCount()
+		+ (_alreadyIn.contains(session().user()) ? 1 : 0);
 }
 
 void ConfInviteController::rowClicked(not_null<PeerListRow*> row) {
@@ -336,17 +388,21 @@ void ConfInviteController::prepareViewHook() {
 		object_ptr<Ui::SettingsButton>(
 			nullptr,
 			tr::lng_profile_add_via_link(),
-			st::groupCallInviteLink),
+			(_st.inviteViaLink
+				? *_st.inviteViaLink
+				: st::createCallInviteLink)),
 		style::margins(0, st::membersMarginTop, 0, 0));
 
 	const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
 		button->entity(),
-		st::groupCallInviteLinkIcon,
+		(_st.inviteViaLinkIcon
+			? *_st.inviteViaLinkIcon
+			: st::createCallInviteLinkIcon),
 		QPoint());
 	button->entity()->heightValue(
 	) | rpl::start_with_next([=](int height) {
 		icon->moveToLeft(
-			st::groupCallInviteLinkIconPosition.x(),
+			st::createCallInviteLinkIconPosition.x(),
 			(height - st::groupCallInviteLinkIcon.height()) / 2);
 	}, icon->lifetime());
 
@@ -504,6 +560,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		};
 		auto controller = std::make_unique<ConfInviteController>(
 			&real->session(),
+			ConfInviteDarkStyles(),
 			alreadyIn,
 			shareLink);
 		const auto raw = controller.get();
@@ -674,6 +731,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 	auto alreadyIn = base::flat_set<not_null<UserData*>>{ user };
 	auto controller = std::make_unique<ConfInviteController>(
 		&user->session(),
+		ConfInviteDarkStyles(),
 		alreadyIn,
 		shareLink);
 	const auto raw = controller.get();
@@ -697,6 +755,75 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		}, box->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), initBox);
+}
+
+object_ptr<Ui::BoxContent> PrepareCreateCallBox(
+		not_null<::Window::SessionController*> window,
+		Fn<void()> created) {
+	struct State {
+		bool creatingLink = false;
+		QPointer<PeerListBox> box;
+	};
+	const auto state = std::make_shared<State>();
+	const auto finished = [=](bool ok) {
+		if (!ok) {
+			state->creatingLink = false;
+		} else {
+			if (const auto strong = state->box.data()) {
+				strong->closeBox();
+			}
+			if (const auto onstack = created) {
+				onstack();
+			}
+		}
+	};
+	const auto shareLink = [=] {
+		if (state->creatingLink) {
+			return;
+		}
+		state->creatingLink = true;
+		MakeConferenceCall({
+			.show = window->uiShow(),
+			.finished = finished,
+		});
+	};
+	auto controller = std::make_unique<ConfInviteController>(
+		&window->session(),
+		ConfInviteDefaultStyles(),
+		base::flat_set<not_null<UserData*>>(),
+		shareLink);
+	const auto raw = controller.get();
+	const auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setTitle(tr::lng_confcall_create_title());
+
+		const auto create = [=] {
+			auto selected = raw->requests(box->collectSelectedRows());
+			if (selected.size() != 1) {
+				Core::App().calls().startOrJoinConferenceCall({
+					.show = window->uiShow(),
+					.invite = std::move(selected),
+				});
+			} else {
+				const auto &invite = selected.front();
+				Core::App().calls().startOutgoingCall(
+					invite.user,
+					invite.video);
+			}
+			finished(true);
+		};
+		box->addButton(
+			rpl::conditional(
+				raw->hasSelectedValue(),
+				tr::lng_group_call_confcall_add(),
+				tr::lng_create_group_create()),
+			create);
+		box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+	};
+	auto result = Box<PeerListBox>(std::move(controller), initBox);
+	state->box = result.data();
+	return result;
 }
 
 } // namespace Calls::Group

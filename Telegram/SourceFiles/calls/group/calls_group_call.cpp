@@ -662,7 +662,7 @@ GroupCall::GroupCall(
 		if (!canManage() && real->joinMuted()) {
 			_muted = MuteState::ForceMuted;
 		}
-	} else if (!conference.migrating) {
+	} else if (!conference.migrating && !conference.show) {
 		_peer->session().changes().peerFlagsValue(
 			_peer,
 			Data::PeerUpdate::Flag::GroupCall
@@ -682,18 +682,18 @@ GroupCall::GroupCall(
 
 	setupMediaDevices();
 	setupOutgoingVideo();
-	if (_conferenceCall || conference.migrating) {
+	if (_conferenceCall || conference.migrating || conference.show) {
 		setupConference();
 	}
-	if (conference.migrating) {
+	if (conference.migrating || (conference.show && !_conferenceCall)) {
 		if (!conference.muted) {
 			setMuted(MuteState::Active);
 		}
-		_migratedConferenceInfo = std::make_shared<StartConferenceInfo>(
+		_startConferenceInfo = std::make_shared<StartConferenceInfo>(
 			std::move(conference));
 	}
 
-	if (_id || (!_conferenceCall && _migratedConferenceInfo)) {
+	if (_id || (!_conferenceCall && _startConferenceInfo)) {
 		initialJoin();
 	} else {
 		start(join.scheduleDate, join.rtmp);
@@ -703,7 +703,7 @@ GroupCall::GroupCall(
 	}
 }
 
-void GroupCall::processMigration(StartConferenceInfo conference) {
+void GroupCall::processConferenceStart(StartConferenceInfo conference) {
 	if (!conference.videoCapture) {
 		return;
 	}
@@ -1185,7 +1185,7 @@ bool GroupCall::rtmp() const {
 }
 
 bool GroupCall::conference() const {
-	return _conferenceCall || _migratedConferenceInfo;
+	return _conferenceCall || _startConferenceInfo;
 }
 
 bool GroupCall::listenersHidden() const {
@@ -1552,7 +1552,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 			};
 			LOG(("Call Info: Join payload received, joining with ssrc: %1."
 				).arg(_joinState.payload.ssrc));
-			if (!_conferenceCall && _migratedConferenceInfo) {
+			if (!_conferenceCall && _startConferenceInfo) {
 				startConference();
 			} else if (_conferenceCall
 				&& !_conferenceCall->blockchainMayBeEmpty()
@@ -1655,7 +1655,7 @@ void GroupCall::refreshLastBlockAndJoin() {
 }
 
 void GroupCall::startConference() {
-	Expects(_e2e != nullptr && _migratedConferenceInfo != nullptr);
+	Expects(_e2e != nullptr && _startConferenceInfo != nullptr);
 
 	const auto joinBlock = _e2e->makeJoinBlock().data;
 	Assert(!joinBlock.isEmpty());
@@ -1706,7 +1706,7 @@ void GroupCall::joinDone(
 		MuteState wasMuteState,
 		bool wasVideoStopped,
 		bool justCreated) {
-	Expects(!justCreated || _migratedConferenceInfo != nullptr);
+	Expects(!justCreated || _startConferenceInfo != nullptr);
 
 	_serverTimeMs = serverTimeMs;
 	_serverTimeMsGotAt = crl::now();
@@ -1728,9 +1728,9 @@ void GroupCall::joinDone(
 		setupConferenceCall();
 		_conferenceLinkSlug = Group::ExtractConferenceSlug(
 			_conferenceCall->conferenceInviteLink());
-		Core::App().calls().migratedConferenceReady(
+		Core::App().calls().startedConferenceReady(
 			this,
-			*_migratedConferenceInfo);
+			*_startConferenceInfo);
 	}
 
 	applyQueuedSelfUpdates();
@@ -1757,8 +1757,8 @@ void GroupCall::joinDone(
 			sendOutboundBlock(base::take(_pendingOutboundBlock));
 		}
 	}
-	if (const auto once = base::take(_migratedConferenceInfo)) {
-		processMigration(*once);
+	if (const auto once = base::take(_startConferenceInfo)) {
+		processConferenceStart(*once);
 	}
 	for (const auto &callback : base::take(_rejoinedCallbacks)) {
 		callback();

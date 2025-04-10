@@ -1505,6 +1505,42 @@ groupCallCalendarColors: CalendarColors {
 	titleTextColor: groupCallMembersFg;
 }
 
+createCallInviteLink: SettingsButton(defaultSettingsButton) {
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+
+	height: 20px;
+	padding: margins(74px, 8px, 8px, 9px);
+}
+createCallInviteLinkIcon: icon {{ "info/edit/group_manage_links", windowActiveTextFg }};
+createCallInviteLinkIconPosition: point(23px, 2px);
+createCallVideo: IconButton {
+	width: 36px;
+	height: 52px;
+
+	icon: icon {{ "info/info_media_video", menuIconFg }};
+	iconOver: icon {{ "info/info_media_video", menuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: defaultRippleAnimation;
+	rippleAreaPosition: point(0px, 8px);
+	rippleAreaSize: 36px;
+}
+createCallVideoActive: icon {{ "info/info_media_video", windowActiveTextFg }};
+createCallVideoMargins: margins(0px, 0px, 10px, 0px);
+createCallAudio: IconButton(createCallVideo) {
+	icon: icon {{ "menu/phone", menuIconFg }};
+	iconOver: icon {{ "menu/phone", menuIconFgOver }};
+}
+createCallAudioActive: icon {{ "menu/phone", windowActiveTextFg }};
+createCallAudioMargins: margins(0px, 0px, 4px, 0px);
+
 confcallLinkButton: RoundButton(defaultActiveButton) {
 	height: 42px;
 	textTop: 12px;
@@ -1572,26 +1608,17 @@ confcallInviteParticipants: FlatLabel(defaultFlatLabel) {
 	textFg: callNameFg;
 }
 confcallInviteParticipantsPadding: margins(8px, 3px, 12px, 2px);
-confcallInviteVideo: IconButton {
-	width: 36px;
-	height: 52px;
-
+confcallInviteVideo: IconButton(createCallVideo) {
 	icon: icon {{ "info/info_media_video", groupCallMemberInactiveIcon }};
 	iconOver: icon {{ "info/info_media_video", groupCallMemberInactiveIcon }};
-	iconPosition: point(-1px, -1px);
-
 	ripple: groupCallRipple;
-	rippleAreaPosition: point(0px, 8px);
-	rippleAreaSize: 36px;
 }
 confcallInviteVideoActive: icon {{ "info/info_media_video", groupCallActiveFg }};
-confcallInviteVideoMargins: margins(0px, 0px, 10px, 0px);
 confcallInviteAudio: IconButton(confcallInviteVideo) {
 	icon: icon {{ "menu/phone", groupCallMemberInactiveIcon }};
 	iconOver: icon {{ "menu/phone", groupCallMemberInactiveIcon }};
 }
 confcallInviteAudioActive: icon {{ "menu/phone", groupCallActiveFg }};
-confcallInviteAudioMargins: margins(0px, 0px, 4px, 0px);
 
 groupCallLinkBox: Box(confcallLinkBox) {
 	bg: groupCallMembersBg;
@@ -1610,23 +1637,17 @@ groupCallLinkPreview: InputField(defaultInputField) {
 	style: defaultTextStyle;
 	heightMin: 35px;
 }
-groupCallInviteLink: SettingsButton(defaultSettingsButton) {
+groupCallInviteLink: SettingsButton(createCallInviteLink) {
 	textFg: mediaviewTextLinkFg;
 	textFgOver: mediaviewTextLinkFg;
 	textBg: groupCallMembersBg;
 	textBgOver: groupCallMembersBgOver;
 
-	style: TextStyle(defaultTextStyle) {
-		font: font(14px semibold);
-	}
-
-	height: 20px;
 	padding: margins(63px, 8px, 8px, 9px);
 
 	ripple: groupCallRipple;
 }
 groupCallInviteLinkIcon: icon {{ "info/edit/group_manage_links", mediaviewTextLinkFg }};
-groupCallInviteLinkIconPosition: point(23px, 2px);
 
 confcallLinkMenu: IconButton(boxTitleClose) {
 	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};

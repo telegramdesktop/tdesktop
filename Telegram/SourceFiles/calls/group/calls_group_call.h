@@ -635,7 +635,7 @@ private:
 	void markTrackPaused(const VideoEndpoint &endpoint, bool paused);
 	void markTrackShown(const VideoEndpoint &endpoint, bool shown);
 
-	void processMigration(StartConferenceInfo conference);
+	void processConferenceStart(StartConferenceInfo conference);
 	void inviteToConference(
 		InviteRequest request,
 		Fn<not_null<InviteResult*>()> resultAddress,
@@ -650,7 +650,7 @@ private:
 	std::shared_ptr<Data::GroupCall> _conferenceCall;
 	std::shared_ptr<TdE2E::Call> _e2e;
 	QByteArray _pendingOutboundBlock;
-	std::shared_ptr<StartConferenceInfo> _migratedConferenceInfo;
+	std::shared_ptr<StartConferenceInfo> _startConferenceInfo;
 
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
 	rpl::event_stream<PeerData*> _peerStream;

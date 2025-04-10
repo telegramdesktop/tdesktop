@@ -86,7 +86,7 @@ public:
 		not_null<PeerData*> peer,
 		StartGroupCallArgs args);
 	void startOrJoinConferenceCall(StartConferenceInfo args);
-	void migratedConferenceReady(
+	void startedConferenceReady(
 		not_null<GroupCall*> call,
 		StartConferenceInfo args);
 	void showStartWithRtmp(
@@ -203,7 +203,7 @@ private:
 	std::unique_ptr<Panel> _currentCallPanel;
 
 	std::unique_ptr<GroupCall> _currentGroupCall;
-	std::unique_ptr<GroupCall> _migratingGroupCall;
+	std::unique_ptr<GroupCall> _startingGroupCall;
 	rpl::event_stream<GroupCall*> _currentGroupCallChanges;
 	std::unique_ptr<Group::Panel> _currentGroupCallPanel;
 

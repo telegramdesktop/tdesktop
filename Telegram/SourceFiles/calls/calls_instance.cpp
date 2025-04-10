@@ -238,14 +238,14 @@ void Instance::startOrJoinGroupCall(
 }
 
 void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
-	Expects(args.call || (args.migrating && args.show));
+	Expects(args.call || args.show);
 
 	const auto migrationInfo = (args.migrating
 		&& args.call
 		&& _currentCallPanel)
 		? _currentCallPanel->migrationInfo()
 		: ConferencePanelMigration();
-	if (args.call && !args.migrating) {
+	if (!args.migrating) {
 		destroyCurrentCall();
 	}
 
@@ -270,17 +270,17 @@ void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
 			destroyCurrentCall(args.call.get(), args.linkSlug);
 		}
 	} else {
-		if (const auto was = base::take(_migratingGroupCall)) {
+		if (const auto was = base::take(_startingGroupCall)) {
 			destroyGroupCall(was.get());
 		}
-		_migratingGroupCall = std::move(call);
+		_startingGroupCall = std::move(call);
 	}
 }
 
-void Instance::migratedConferenceReady(
+void Instance::startedConferenceReady(
 		not_null<GroupCall*> call,
 		StartConferenceInfo args) {
-	if (_migratingGroupCall.get() != call) {
+	if (_startingGroupCall.get() != call) {
 		return;
 	}
 	const auto migrationInfo = _currentCallPanel
@@ -289,7 +289,7 @@ void Instance::migratedConferenceReady(
 	_currentGroupCallPanel = std::make_unique<Group::Panel>(
 		call,
 		migrationInfo);
-	_currentGroupCall = std::move(_migratingGroupCall);
+	_currentGroupCall = std::move(_startingGroupCall);
 	_currentGroupCallChanges.fire_copy(call);
 	const auto real = call->conferenceCall().get();
 	const auto link = real->conferenceInviteLink();
@@ -461,8 +461,8 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 			LOG(("Calls::Instance doesn't prevent quit any more."));
 		}
 		Core::App().quitPreventFinished();
-	} else if (_migratingGroupCall.get() == call) {
-		base::take(_migratingGroupCall);
+	} else if (_startingGroupCall.get() == call) {
+		base::take(_startingGroupCall);
 	}
 }
 
@@ -695,7 +695,7 @@ void Instance::handleGroupCallUpdate(
 		const MTPUpdate &update) {
 	const auto groupCall = _currentGroupCall
 		? _currentGroupCall.get()
-		: _migratingGroupCall.get();
+		: _startingGroupCall.get();
 	if (groupCall && (&groupCall->peer()->session() == session)) {
 		update.match([&](const MTPDupdateGroupCall &data) {
 			groupCall->handlePossibleCreateOrJoinResponse(data);
@@ -744,7 +744,7 @@ void Instance::applyGroupCallUpdateChecked(
 		const MTPUpdate &update) {
 	const auto groupCall = _currentGroupCall
 		? _currentGroupCall.get()
-		: _migratingGroupCall.get();
+		: _startingGroupCall.get();
 	if (groupCall && (&groupCall->peer()->session() == session)) {
 		groupCall->handleUpdate(update);
 	}
@@ -798,7 +798,7 @@ void Instance::destroyCurrentCall(
 			}
 		}
 	}
-	base::take(_migratingGroupCall);
+	base::take(_startingGroupCall);
 }
 
 bool Instance::hasVisiblePanel(Main::Session *session) const {

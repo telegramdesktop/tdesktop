@@ -436,8 +436,6 @@ void ShowConferenceCallLinkBox(
 void MakeConferenceCall(ConferenceFactoryArgs &&args) {
 	const auto show = std::move(args.show);
 	const auto finished = std::move(args.finished);
-	const auto joining = args.joining;
-	const auto info = std::move(args.info);
 	const auto session = &show->session();
 	const auto fail = [=](QString error) {
 		show->showToast(error);
@@ -464,20 +462,10 @@ void MakeConferenceCall(ConferenceFactoryArgs &&args) {
 			fail(u"Call link not found!"_q);
 			return;
 		}
-		if (joining) {
-			if (auto slug = ExtractConferenceSlug(link); !slug.isEmpty()) {
-				auto copy = info;
-				copy.call = call;
-				copy.linkSlug = std::move(slug);
-				Core::App().calls().startOrJoinConferenceCall(
-					std::move(copy));
-			}
-		} else {
-			Calls::Group::ShowConferenceCallLinkBox(
-				show,
-				call,
-				{ .initial = true });
-		}
+		Calls::Group::ShowConferenceCallLinkBox(
+			show,
+			call,
+			{ .initial = true });
 		if (const auto onstack = finished) {
 			finished(true);
 		}

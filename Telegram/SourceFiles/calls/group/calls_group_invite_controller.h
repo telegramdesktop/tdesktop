@@ -87,4 +87,8 @@ private:
 	Fn<void(std::vector<InviteRequest>)> inviteUsers,
 	Fn<void()> shareLink);
 
+[[nodiscard]] object_ptr<Ui::BoxContent> PrepareCreateCallBox(
+	not_null<::Window::SessionController*> window,
+	Fn<void()> created = nullptr);
+
 } // namespace Calls::Group

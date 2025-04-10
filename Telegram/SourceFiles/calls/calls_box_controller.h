@@ -81,4 +81,6 @@ void ClearCallsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<::Window::SessionController*> window);
 
+void ShowCallsBox(not_null<::Window::SessionController*> window);
+
 } // namespace Calls
