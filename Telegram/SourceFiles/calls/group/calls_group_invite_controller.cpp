@@ -112,13 +112,21 @@ private:
 
 };
 
+struct PrioritizedSelector {
+	object_ptr<Ui::RpWidget> content = { nullptr };
+	Fn<bool(int, int, int)> overrideKey;
+	Fn<void(PeerListRowId)> deselect;
+	Fn<void()> activate;
+};
+
 class ConfInviteController final : public ContactsBoxController {
 public:
 	ConfInviteController(
 		not_null<Main::Session*> session,
 		ConfInviteStyles st,
 		base::flat_set<not_null<UserData*>> alreadyIn,
-		Fn<void()> shareLink);
+		Fn<void()> shareLink,
+		std::vector<not_null<UserData*>> prioritize);
 
 	[[nodiscard]] rpl::producer<bool> hasSelectedValue() const;
 	[[nodiscard]] std::vector<InviteRequest> requests(
@@ -132,15 +140,27 @@ protected:
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
+	bool handleDeselectForeignRow(PeerListRowId itemId) override;
 
+	bool overrideKeyboardNavigation(
+			int direction,
+			int fromIndex,
+			int toIndex) override;
 private:
 	[[nodiscard]] int fullCount() const;
 	void toggleRowSelected(not_null<PeerListRow*> row, bool video);
+	[[nodiscard]] bool toggleRowGetChecked(
+		not_null<PeerListRow*> row,
+		bool video);
 	void addShareLinkButton();
+	void addPriorityInvites();
 
 	const ConfInviteStyles _st;
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
+	const std::vector<not_null<UserData*>> _prioritize;
 	const Fn<void()> _shareLink;
+	PrioritizedSelector _prioritizeRows;
+	base::flat_set<not_null<UserData*>> _skip;
 	rpl::variable<bool> _hasSelected;
 	base::flat_set<not_null<UserData*>> _withVideo;
 	bool _lastSelectWithVideo = false;
@@ -290,15 +310,160 @@ void ConfInviteRow::elementsPaint(
 	paintElement(2);
 }
 
+[[nodiscard]] PrioritizedSelector PrioritizedInviteSelector(
+		const ConfInviteStyles &st,
+		std::vector<not_null<UserData*>> users,
+		Fn<bool(not_null<PeerListRow*>, bool)> toggleGetChecked,
+		Fn<bool()> lastSelectWithVideo,
+		Fn<void(bool)> setLastSelectWithVideo) {
+	class PrioritizedController final : public PeerListController {
+	public:
+		PrioritizedController(
+			const ConfInviteStyles &st,
+			std::vector<not_null<UserData*>> users,
+			Fn<bool(not_null<PeerListRow*>, bool)> toggleGetChecked,
+			Fn<bool()> lastSelectWithVideo,
+			Fn<void(bool)> setLastSelectWithVideo)
+		: _st(st)
+		, _users(std::move(users))
+		, _toggleGetChecked(std::move(toggleGetChecked))
+		, _lastSelectWithVideo(std::move(lastSelectWithVideo))
+		, _setLastSelectWithVideo(std::move(setLastSelectWithVideo)) {
+			Expects(!_users.empty());
+		}
+
+		void prepare() override {
+			for (const auto user : _users) {
+				delegate()->peerListAppendRow(
+					std::make_unique<ConfInviteRow>(user, _st));
+			}
+			delegate()->peerListRefreshRows();
+		}
+		void loadMoreRows() override {
+		}
+		void rowClicked(not_null<PeerListRow*> row) override {
+			toggleRowSelected(row, _lastSelectWithVideo());
+		}
+		void rowElementClicked(
+				not_null<PeerListRow*> row,
+				int element) override {
+			if (row->checked()) {
+				static_cast<ConfInviteRow*>(row.get())->setVideo(
+					element == 1);
+				_setLastSelectWithVideo(element == 1);
+			} else if (element == 1) {
+				toggleRowSelected(row, true);
+			} else if (element == 2) {
+				toggleRowSelected(row, false);
+			}
+		}
+
+		void toggleRowSelected(not_null<PeerListRow*> row, bool video) {
+			delegate()->peerListSetRowChecked(
+				row,
+				_toggleGetChecked(row, video));
+		}
+
+		Main::Session &session() const override {
+			return _users.front()->session();
+		}
+
+		void toggleFirst() {
+			Expects(delegate()->peerListFullRowsCount() > 0);
+
+			rowClicked(delegate()->peerListRowAt(0));
+		}
+
+	private:
+		const ConfInviteStyles &_st;
+		std::vector<not_null<UserData*>> _users;
+		Fn<bool(not_null<PeerListRow*>, bool)> _toggleGetChecked;
+		Fn<bool()> _lastSelectWithVideo;
+		Fn<void(bool)> _setLastSelectWithVideo;
+
+	};
+
+	auto result = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
+	const auto container = result.data();
+
+	const auto delegate = container->lifetime().make_state<
+		PeerListContentDelegateSimple
+	>();
+	const auto controller = container->lifetime(
+	).make_state<PrioritizedController>(
+		st,
+		users,
+		toggleGetChecked,
+		lastSelectWithVideo,
+		setLastSelectWithVideo);
+	const auto activate = [=] {
+		controller->toggleFirst();
+	};
+	controller->setStyleOverrides(&st::createCallList);
+	const auto content = container->add(object_ptr<PeerListContent>(
+		container,
+		controller));
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+
+	Ui::AddDivider(container);
+
+	const auto overrideKey = [=](int direction, int from, int to) {
+		if (!content->isVisible()) {
+			return false;
+		} else if (direction > 0 && from < 0 && to >= 0) {
+			if (content->hasSelection()) {
+				const auto was = content->selectedIndex();
+				const auto now = content->selectSkip(1).reallyMovedTo;
+				if (was != now) {
+					return true;
+				}
+				content->clearSelection();
+			} else {
+				content->selectSkip(1);
+				return true;
+			}
+		} else if (direction < 0 && to < 0) {
+			if (!content->hasSelection()) {
+				content->selectLast();
+			} else if (from >= 0 || content->hasSelection()) {
+				content->selectSkip(-1);
+			}
+		}
+		return false;
+	};
+
+	const auto deselect = [=](PeerListRowId rowId) {
+		if (const auto row = delegate->peerListFindRow(rowId)) {
+			delegate->peerListSetRowChecked(row, false);
+		}
+	};
+
+	return {
+		.content = std::move(result),
+		.overrideKey = overrideKey,
+		.deselect = deselect,
+		.activate = activate,
+	};
+}
+
 ConfInviteController::ConfInviteController(
 	not_null<Main::Session*> session,
 	ConfInviteStyles st,
 	base::flat_set<not_null<UserData*>> alreadyIn,
-	Fn<void()> shareLink)
+	Fn<void()> shareLink,
+	std::vector<not_null<UserData*>> prioritize)
 : ContactsBoxController(session)
 , _st(st)
 , _alreadyIn(std::move(alreadyIn))
+, _prioritize(std::move(prioritize))
 , _shareLink(std::move(shareLink)) {
+	if (!_shareLink) {
+		_skip.reserve(_prioritize.size());
+		for (const auto user : _prioritize) {
+			_skip.emplace(user);
+		}
+	}
 }
 
 rpl::producer<bool> ConfInviteController::hasSelectedValue() const {
@@ -322,7 +487,8 @@ std::unique_ptr<PeerListRow> ConfInviteController::createRow(
 	if (user->isSelf()
 		|| user->isBot()
 		|| user->isServiceUser()
-		|| user->isInaccessible()) {
+		|| user->isInaccessible()
+		|| _skip.contains(user)) {
 		return nullptr;
 	}
 	auto result = std::make_unique<ConfInviteRow>(user, _st);
@@ -358,37 +524,85 @@ void ConfInviteController::rowElementClicked(
 	}
 }
 
+bool ConfInviteController::handleDeselectForeignRow(PeerListRowId itemId) {
+	if (_prioritizeRows.deselect) {
+		const auto userId = peerToUser(PeerId(itemId));
+		if (ranges::contains(_prioritize, session().data().user(userId))) {
+			_prioritizeRows.deselect(itemId);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool ConfInviteController::overrideKeyboardNavigation(
+		int direction,
+		int fromIndex,
+		int toIndex) {
+	return _prioritizeRows.overrideKey
+		&& _prioritizeRows.overrideKey(direction, fromIndex, toIndex);
+}
+
 void ConfInviteController::toggleRowSelected(
+		not_null<PeerListRow*> row,
+		bool video) {
+	delegate()->peerListSetRowChecked(row, toggleRowGetChecked(row, video));
+
+	// row may have been destroyed here, from search.
+	_hasSelected = (delegate()->peerListSelectedRowsCount() > 0);
+}
+
+bool ConfInviteController::toggleRowGetChecked(
 		not_null<PeerListRow*> row,
 		bool video) {
 	auto count = fullCount();
 	const auto conferenceLimit = session().appConfig().confcallSizeLimit();
-	if (count < conferenceLimit || row->checked()) {
-		const auto real = static_cast<ConfInviteRow*>(row.get());
-		if (!row->checked()) {
-			real->setVideo(video);
-			_lastSelectWithVideo = video;
-		}
-		const auto user = row->peer()->asUser();
-		if (!row->checked() && video) {
-			_withVideo.emplace(user);
-		} else {
-			_withVideo.remove(user);
-		}
-		delegate()->peerListSetRowChecked(row, !row->checked());
-
-		// row may have been destroyed here, from search.
-		_hasSelected = (delegate()->peerListSelectedRowsCount() > 0);
-	} else {
+	if (!row->checked() && count >= conferenceLimit) {
 		delegate()->peerListUiShow()->showToast(
 			tr::lng_group_call_invite_limit(tr::now));
+		return false;
 	}
+	const auto real = static_cast<ConfInviteRow*>(row.get());
+	if (!row->checked()) {
+		real->setVideo(video);
+		_lastSelectWithVideo = video;
+	}
+	const auto user = row->peer()->asUser();
+	if (!row->checked() && video) {
+		_withVideo.emplace(user);
+	} else {
+		_withVideo.remove(user);
+	}
+	return !row->checked();
 }
 
 void ConfInviteController::prepareViewHook() {
 	if (_shareLink) {
 		addShareLinkButton();
+	} else if (!_prioritize.empty()) {
+		addPriorityInvites();
 	}
+}
+
+void ConfInviteController::addPriorityInvites() {
+	const auto toggleGetChecked = [=](not_null<PeerListRow*> row, bool video) {
+		const auto result = toggleRowGetChecked(row, video);
+		delegate()->peerListSetForeignRowChecked(
+			row,
+			result,
+			anim::type::normal);
+
+		_hasSelected = (delegate()->peerListSelectedRowsCount() > 0);
+
+		return result;
+	};
+	_prioritizeRows = PrioritizedInviteSelector(
+		_st,
+		_prioritize,
+		toggleGetChecked,
+		[=] { return _lastSelectWithVideo; },
+		[=](bool video) { _lastSelectWithVideo = video; });
+	delegate()->peerListSetAboveWidget(std::move(_prioritizeRows.content));
 }
 
 void ConfInviteController::addShareLinkButton() {
@@ -571,7 +785,8 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			&real->session(),
 			ConfInviteDarkStyles(),
 			alreadyIn,
-			shareLink);
+			shareLink,
+			std::vector<not_null<UserData*>>());
 		const auto raw = controller.get();
 		raw->setStyleOverrides(
 			&st::groupCallInviteMembersList,
@@ -742,7 +957,8 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		&user->session(),
 		ConfInviteDarkStyles(),
 		alreadyIn,
-		shareLink);
+		shareLink,
+		std::vector<not_null<UserData*>>());
 	const auto raw = controller.get();
 	raw->setStyleOverrides(
 		&st::groupCallInviteMembersList,
@@ -806,12 +1022,14 @@ void InitReActivate(not_null<PeerListBox*> box) {
 
 object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
 		std::shared_ptr<Data::GroupCall> call,
-		MsgId inviteMsgId) {
+		MsgId inviteMsgId,
+		std::vector<not_null<UserData*>> prioritize) {
 	auto controller = std::make_unique<ConfInviteController>(
 		&call->session(),
 		ConfInviteDefaultStyles(),
 		base::flat_set<not_null<UserData*>>(),
-		nullptr);
+		nullptr,
+		std::move(prioritize));
 	const auto raw = controller.get();
 	raw->setStyleOverrides(&st::createCallList);
 	const auto initBox = [=](not_null<PeerListBox*> box) {
@@ -845,7 +1063,8 @@ object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
 object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 		not_null<::Window::SessionController*> window,
 		Fn<void()> created,
-		MsgId discardedInviteMsgId) {
+		MsgId discardedInviteMsgId,
+		std::vector<not_null<UserData*>> prioritize) {
 	struct State {
 		bool creatingLink = false;
 		QPointer<PeerListBox> box;
@@ -877,7 +1096,8 @@ object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 		&window->session(),
 		ConfInviteDefaultStyles(),
 		base::flat_set<not_null<UserData*>>(),
-		discardedInviteMsgId ? Fn<void()>() : shareLink);
+		discardedInviteMsgId ? Fn<void()>() : shareLink,
+		std::move(prioritize));
 	const auto raw = controller.get();
 	if (discardedInviteMsgId) {
 		raw->setStyleOverrides(&st::createCallList);

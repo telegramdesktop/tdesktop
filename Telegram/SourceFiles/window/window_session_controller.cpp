@@ -853,6 +853,30 @@ void SessionNavigation::resolveConferenceCall(
 	resolveConferenceCall({}, inviteMsgId, contextId);
 }
 
+[[nodiscard]] std::vector<not_null<UserData*>> ExtractParticipantsForInvite(
+		HistoryItem *item) {
+	if (!item) {
+		return {};
+	}
+	auto result = std::vector<not_null<UserData*>>();
+	const auto add = [&](not_null<PeerData*> peer) {
+		if (const auto user = peer->asUser()) {
+			if (!user->isSelf()
+				&& !ranges::contains(result, not_null(user))) {
+				result.push_back(user);
+			}
+		}
+	};
+	add(item->from());
+	const auto media = item->media();
+	if (const auto call = media ? media->call() : nullptr) {
+		for (const auto &peer : call->otherParticipants) {
+			add(peer);
+		}
+	}
+	return result;
+}
+
 void SessionNavigation::resolveConferenceCall(
 		QString slug,
 		MsgId inviteMsgId,
@@ -877,6 +901,7 @@ void SessionNavigation::resolveConferenceCall(
 		const auto slug = base::take(_conferenceCallSlug);
 		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
 		const auto contextId = base::take(_conferenceCallResolveContextId);
+		const auto context = session().data().message(contextId);
 		result.data().vcall().match([&](const MTPDgroupCall &data) {
 			const auto call = session().data().sharedConferenceCall(
 				data.vid().v,
@@ -896,14 +921,14 @@ void SessionNavigation::resolveConferenceCall(
 					close();
 				}
 			};
-			const auto context = session().data().message(contextId);
 			const auto inviter = context
 				? context->from()->asUser()
 				: nullptr;
 			if (inviteMsgId && call->participants().empty()) {
 				uiShow()->show(Calls::Group::PrepareInviteToEmptyBox(
 					call,
-					inviteMsgId));
+					inviteMsgId,
+					ExtractParticipantsForInvite(context)));
 			} else {
 				uiShow()->show(Box(
 					Calls::Group::ConferenceCallJoinConfirm,
@@ -917,7 +942,8 @@ void SessionNavigation::resolveConferenceCall(
 					Calls::Group::PrepareCreateCallBox(
 						parentController(),
 						nullptr,
-						inviteMsgId));
+						inviteMsgId,
+						ExtractParticipantsForInvite(context)));
 			} else {
 				showToast(tr::lng_confcall_link_inactive(tr::now));
 			}
@@ -925,14 +951,16 @@ void SessionNavigation::resolveConferenceCall(
 	}).fail([=] {
 		_conferenceCallRequestId = 0;
 		_conferenceCallSlug = QString();
-		_conferenceCallResolveContextId = FullMsgId();
+		const auto contextId = base::take(_conferenceCallResolveContextId);
+		const auto context = session().data().message(contextId);
 		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
 		if (inviteMsgId) {
 			uiShow()->show(
 				Calls::Group::PrepareCreateCallBox(
 					parentController(),
 					nullptr,
-					inviteMsgId));
+					inviteMsgId,
+					ExtractParticipantsForInvite(context)));
 		} else {
 			showToast(tr::lng_confcall_link_inactive(tr::now));
 		}

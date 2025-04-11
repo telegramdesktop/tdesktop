@@ -649,7 +649,7 @@ createCallListItem: PeerListItem(defaultPeerListItem) {
 }
 createCallList: PeerList(defaultPeerList) {
 	item: createCallListItem;
-	padding: margins(0px, 10px, 0px, 10px);
+	padding: margins(0px, 6px, 0px, 6px);
 }
 
 groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);

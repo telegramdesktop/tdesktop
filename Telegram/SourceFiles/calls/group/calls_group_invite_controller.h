@@ -93,11 +93,13 @@ private:
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
 	std::shared_ptr<Data::GroupCall> call,
-	MsgId inviteMsgId);
+	MsgId inviteMsgId,
+	std::vector<not_null<UserData*>> prioritize);
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 	not_null<::Window::SessionController*> window,
 	Fn<void()> created = nullptr,
-	MsgId discardedInviteMsgId = 0);
+	MsgId discardedInviteMsgId = 0,
+	std::vector<not_null<UserData*>> prioritize = {});
 
 } // namespace Calls::Group
