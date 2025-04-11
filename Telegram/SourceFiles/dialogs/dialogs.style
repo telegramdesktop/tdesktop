@@ -127,7 +127,7 @@ dialogRowOpenBot: DialogRightButton {
 	margin: margins(0px, 32px, 10px, 0px);
 }
 dialogRowOpenBotRecent: DialogRightButton(dialogRowOpenBot) {
-	margin: margins(0px, 32px, 28px, 0px);
+	margin: margins(0px, 32px, 16px, 0px);
 }
 
 forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};

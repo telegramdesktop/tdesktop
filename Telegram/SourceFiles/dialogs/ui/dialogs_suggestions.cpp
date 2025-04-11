@@ -282,7 +282,10 @@ QSize RecentRow::rightActionSize() const {
 
 QMargins RecentRow::rightActionMargins() const {
 	if (_mainAppText && _badgeSize.isEmpty()) {
-		return st::dialogRowOpenBotRecent.margin;
+		const auto &st = st::dialogRowOpenBotRecent;
+		auto margins = st.margin;
+		margins.setTop((st::recentPeersItem.height - st.button.height) / 2);
+		return margins;
 	} else if (_badgeSize.isEmpty()) {
 		return {};
 	}
