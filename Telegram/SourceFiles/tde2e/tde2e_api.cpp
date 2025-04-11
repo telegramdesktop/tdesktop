@@ -74,6 +74,43 @@ constexpr auto kShortPollChainBlocksWaitFor = crl::time(1000);
 
 } // namespace
 
+auto EncryptDecrypt::callback()
+-> Fn<EncryptionBuffer(const EncryptionBuffer&, int64_t, bool)> {
+	return [that = shared_from_this()](
+			const EncryptionBuffer &data,
+			int64_t userId,
+			bool encrypt) -> EncryptionBuffer {
+		const auto libId = that->_id.load();
+		if (!libId) {
+			return {};
+		}
+		const auto channelId = tde2e_api::CallChannelId(0);
+		const auto slice = Slice(data);
+		const auto result = encrypt
+			? tde2e_api::call_encrypt(libId, channelId, slice)
+			: tde2e_api::call_decrypt(libId, userId, channelId, slice);
+		if (!result.is_ok()) {
+			return {};
+		}
+		const auto &value = result.value();
+		const auto start = reinterpret_cast<const uint8_t*>(value.data());
+		const auto end = start + value.size();
+		return { start, end };
+	};
+}
+
+void EncryptDecrypt::setCallId(CallId id) {
+	Expects(id.v != 0);
+
+	_id.store(id.v);
+}
+
+void EncryptDecrypt::clearCallId(CallId fromId) {
+	Expects(fromId.v != 0);
+
+	_id.compare_exchange_strong(fromId.v, 0);
+}
+
 Call::Call(UserId myUserId)
 : _myUserId(myUserId) {
 	const auto id = tde2e_api::key_generate_temporary_private_key();
@@ -88,6 +125,9 @@ Call::Call(UserId myUserId)
 
 Call::~Call() {
 	if (const auto id = libId()) {
+		if (const auto raw = _encryptDecrypt.get()) {
+			raw->clearCallId(_id);
+		}
 		tde2e_api::call_destroy(id);
 	}
 }
@@ -190,10 +230,13 @@ rpl::producer<ParticipantsSet> Call::participantsSetValue() const {
 }
 
 void Call::joined() {
-	shortPoll(0);
-	if (_id) {
-		shortPoll(1);
+	if (!_id) {
+		LOG(("TdE2E Error: Call::joined() without id."));
+		_failure = CallFailure::Unknown;
+		return;
 	}
+	shortPoll(0);
+	shortPoll(1);
 }
 
 void Call::apply(int subchain, const Block &last) {
@@ -251,7 +294,6 @@ void Call::apply(int subchain, const Block &last) {
 		return;
 	}
 	setId({ uint64(id.value()) });
-	shortPoll(1);
 
 	for (auto i = 0; i != kSubChainsCount; ++i) {
 		auto &entry = _subchains[i];
@@ -278,9 +320,8 @@ void Call::setId(CallId id) {
 	Expects(!_id);
 
 	_id = id;
-	if (const auto raw = _guardedId.get()) {
-		raw->value = id;
-		raw->exists = true;
+	if (const auto raw = _encryptDecrypt.get()) {
+		raw->setCallId(id);
 	}
 }
 
@@ -299,38 +340,50 @@ void Call::checkForOutboundMessages() {
 
 void Call::apply(
 		int subchain,
-		int index,
-		const Block &block,
+		int indexAfterLast,
+		const std::vector<Block> &blocks,
 		bool fromShortPoll) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
-	Expects(_id || !fromShortPoll || !subchain);
 
-	if (!subchain && index >= _lastBlock0Height) {
-		_lastBlock0 = block;
-		_lastBlock0Height = index;
-	}
-	if (failed()) {
-		return;
+	if (!subchain && !blocks.empty() && indexAfterLast > _lastBlock0Height) {
+		_lastBlock0 = blocks.back();
+		_lastBlock0Height = indexAfterLast;
 	}
 
 	auto &entry = _subchains[subchain];
-	if (!fromShortPoll) {
-		entry.lastUpdate = crl::now();
-		if (index > entry.height || (!_id && subchain != 0)) {
-			entry.waiting.emplace(index, block);
-			checkWaitingBlocks(subchain);
+	if (fromShortPoll) {
+		auto i = begin(entry.waiting);
+		while (i != end(entry.waiting) && i->first < indexAfterLast) {
+			++i;
+		}
+		entry.waiting.erase(begin(entry.waiting), i);
+
+		if (subchain && !_id && !blocks.empty()) {
+			LOG(("TdE2E Error: Broadcast shortpoll block without id."));
+			fail(CallFailure::Unknown);
 			return;
 		}
+	} else {
+		entry.lastUpdate = crl::now();
 	}
-
 	if (failed()) {
 		return;
-	} else if (!_id
-		|| (subchain && !entry.height && fromShortPoll)
-		|| (entry.height == index)) {
-		apply(subchain, block);
 	}
-	entry.height = std::max(entry.height, index + 1);
+
+	auto index = indexAfterLast - int(blocks.size());
+	if (!fromShortPoll && (index > entry.height || (!_id && subchain))) {
+		for (const auto &block : blocks) {
+			entry.waiting.emplace(index++, block);
+		}
+	} else {
+		for (const auto &block : blocks) {
+			if (!_id || (entry.height == index)) {
+				apply(subchain, block);
+			}
+			entry.height = std::max(entry.height, ++index);
+		}
+		entry.height = std::max(entry.height, indexAfterLast);
+	}
 	checkWaitingBlocks(subchain);
 }
 
@@ -451,37 +504,18 @@ rpl::producer<QByteArray> Call::emojiHashValue() const {
 	return _emojiHash.value();
 }
 
-auto Call::callbackEncryptDecrypt()
--> Fn<std::vector<uint8_t>(const std::vector<uint8_t>&, int64_t, bool)> {
-	if (!_guardedId) {
-		_guardedId = std::make_shared<GuardedCallId>();
-		if (const auto raw = _id ? _guardedId.get() : nullptr) {
-			raw->value = _id;
-			raw->exists = true;
-		}
+void Call::registerEncryptDecrypt(std::shared_ptr<EncryptDecrypt> object) {
+	Expects(object != nullptr);
+	Expects(_encryptDecrypt == nullptr);
+
+	_encryptDecrypt = std::move(object);
+	if (_id) {
+		_encryptDecrypt->setCallId(_id);
 	}
-	return [id = _guardedId](
-			const std::vector<uint8_t> &data,
-			int64_t userId,
-			bool encrypt) {
-		const auto raw = id.get();
-		if (!raw->exists) {
-			return std::vector<uint8_t>();
-		}
-		const auto libId = std::int64_t(raw->value.v);
-		const auto channelId = tde2e_api::CallChannelId(0);
-		const auto slice = Slice(data);
-		const auto result = encrypt
-			? tde2e_api::call_encrypt(libId, channelId, slice)
-			: tde2e_api::call_decrypt(libId, userId, channelId, slice);
-		if (!result.is_ok()) {
-			return std::vector<uint8_t>();
-		}
-		const auto &value = result.value();
-		const auto start = reinterpret_cast<const uint8_t*>(value.data());
-		const auto end = start + value.size();
-		return std::vector<uint8_t>{ start, end };
-	};
+}
+
+rpl::lifetime &Call::lifetime() {
+	return _lifetime;
 }
 
 } // namespace TdE2E

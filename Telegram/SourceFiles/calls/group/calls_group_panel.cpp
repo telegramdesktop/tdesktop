@@ -83,9 +83,13 @@ constexpr auto kHideControlsTimeout = 5 * crl::time(1000);
 		const auto fp = bytes::make_span(hash).subspan(0, 32);
 		const auto emoji = Calls::ComputeEmojiFingerprint(fp);
 		result += QString::fromUtf8(" \xc2\xb7 ");
+		const auto base = result.size();
 		for (const auto &single : emoji) {
 			result += single->text();
 		}
+		MTP_LOG(0, ("Got Emoji: %1.").arg(result.mid(base)));
+	} else {
+		MTP_LOG(0, ("Cleared Emoji."));
 	}
 	return result;
 }

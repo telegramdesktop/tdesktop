@@ -682,8 +682,11 @@ GroupCall::GroupCall(
 
 	setupMediaDevices();
 	setupOutgoingVideo();
-	if (_conferenceCall || conference.migrating || conference.show) {
-		setupConference();
+	if (_conferenceCall) {
+		setupConferenceCall();
+		initConferenceE2E();
+	} else if (conference.migrating || conference.show) {
+		initConferenceE2E();
 	}
 	if (conference.migrating || (conference.show && !_conferenceCall)) {
 		if (!conference.muted) {
@@ -739,6 +742,7 @@ void GroupCall::processConferenceStart(StartConferenceInfo conference) {
 }
 
 GroupCall::~GroupCall() {
+	_e2e = nullptr;
 	destroyScreencast();
 	destroyController();
 	if (!_rtmp) {
@@ -746,37 +750,54 @@ GroupCall::~GroupCall() {
 	}
 }
 
-void GroupCall::setupConference() {
-	if (!_e2e) {
-		_e2e = std::make_shared<TdE2E::Call>(
-			TdE2E::MakeUserId(_peer->session().user()));
+void GroupCall::initConferenceE2E() {
+	if (!_e2eEncryptDecrypt) {
+		_e2eEncryptDecrypt = std::make_shared<TdE2E::EncryptDecrypt>();
 	}
+
+	for (auto &state : _subchains) {
+		_api.request(base::take(state.requestId)).cancel();
+		state = SubChainState();
+	}
+	_e2e = nullptr;
+	_pendingOutboundBlock = QByteArray();
+
+	const auto tde2eUserId = TdE2E::MakeUserId(_peer->session().user());
+	_e2e = std::make_unique<TdE2E::Call>(tde2eUserId);
+
 	_e2e->subchainRequests(
 	) | rpl::start_with_next([=](TdE2E::Call::SubchainRequest request) {
 		requestSubchainBlocks(request.subchain, request.height);
-	}, _lifetime);
+	}, _e2e->lifetime());
+
 	_e2e->sendOutboundBlock(
 	) | rpl::start_with_next([=](QByteArray &&block) {
 		sendOutboundBlock(std::move(block));
-	}, _lifetime);
+	}, _e2e->lifetime());
 
 	_e2e->failures() | rpl::start_with_next([=] {
 		LOG(("TdE2E: Got failure!"));
-		hangup();
-	}, _lifetime);
+		startRejoin();
+	}, _e2e->lifetime());
 
-	if (_conferenceCall) {
-		setupConferenceCall();
-	}
+	_e2e->registerEncryptDecrypt(_e2eEncryptDecrypt);
+
+	_emojiHash = _e2e->emojiHashValue();
 }
 
 void GroupCall::setupConferenceCall() {
-	Expects(_conferenceCall != nullptr && _e2e != nullptr);
+	Expects(_conferenceCall != nullptr);
 
 	_conferenceCall->staleParticipantIds(
 	) | rpl::start_with_next([=](const base::flat_set<UserId> &staleIds) {
 		removeConferenceParticipants(staleIds, true);
 	}, _lifetime);
+}
+
+void GroupCall::trackParticipantsWithAccess() {
+	if (!_conferenceCall || !_e2e) {
+		return;
+	}
 
 	_e2e->participantsSetValue(
 	) | rpl::start_with_next([=](const TdE2E::ParticipantsSet &set) {
@@ -786,7 +807,7 @@ void GroupCall::setupConferenceCall() {
 			users.emplace(UserId(id.v));
 		}
 		_conferenceCall->setParticipantsWithAccess(std::move(users));
-	}, _lifetime);
+	}, _e2e->lifetime());
 }
 
 void GroupCall::removeConferenceParticipants(
@@ -1233,9 +1254,7 @@ rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
 }
 
 rpl::producer<QByteArray> GroupCall::emojiHashValue() const {
-	Expects(_e2e != nullptr);
-
-	return _e2e->emojiHashValue();
+	return _emojiHash.value();
 }
 
 void GroupCall::start(TimeId scheduleDate, bool rtmp) {
@@ -1482,8 +1501,15 @@ void GroupCall::markTrackPaused(const VideoEndpoint &endpoint, bool paused) {
 }
 
 void GroupCall::startRejoin() {
+	if (_joinState.action != JoinAction::None || _createRequestId) {
+		// Don't reset _e2e in that case, if rejoin() is a no-op.
+		return;
+	}
 	for (const auto &[task, part] : _broadcastParts) {
 		_api.request(part.requestId).cancel();
+	}
+	if (_conferenceCall || _startConferenceInfo) {
+		initConferenceE2E();
 	}
 	setState(State::Joining);
 	rejoin();
@@ -1720,7 +1746,15 @@ void GroupCall::joinDone(
 	applyMeInCallLocally();
 	maybeSendMutedUpdate(wasMuteState);
 
+	for (auto &state : _subchains) {
+		// Accept initial join blocks.
+		_api.request(base::take(state.requestId)).cancel();
+		state.inShortPoll = true;
+	}
 	_peer->session().api().applyUpdates(result);
+	for (auto &state : _subchains) {
+		state.inShortPoll = false;
+	}
 
 	if (justCreated) {
 		subscribeToReal(_conferenceCall.get());
@@ -1732,6 +1766,7 @@ void GroupCall::joinDone(
 			*_startConferenceInfo);
 	}
 
+	trackParticipantsWithAccess();
 	applyQueuedSelfUpdates();
 	checkFirstTimeJoined();
 	_screenJoinState.nextActionPending = true;
@@ -1766,8 +1801,7 @@ void GroupCall::joinDone(
 
 void GroupCall::joinFail(const QString &error) {
 	if (_e2e) {
-		if (error == u"BLOCK_INVALID"_q
-			|| error.startsWith(u"CONF_WRITE_CHAIN_INVALID"_q)) {
+		if (error.startsWith(u"CONF_WRITE_CHAIN_INVALID"_q)) {
 			if (_id) {
 				refreshLastBlockAndJoin();
 			} else {
@@ -2443,10 +2477,12 @@ void GroupCall::applySubChainUpdate(
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
 
 	auto &entry = _subchains[subchain];
-	auto now = next - int(blocks.size());
+	auto raw = std::vector<TdE2E::Block>();
+	raw.reserve(blocks.size());
 	for (const auto &block : blocks) {
-		_e2e->apply(subchain, now++, { block.v }, entry.inShortPoll);
+		raw.push_back({ block.v });
 	}
+	_e2e->apply(subchain, next, raw, entry.inShortPoll);
 }
 
 void GroupCall::applyQueuedSelfUpdates() {
@@ -2955,7 +2991,9 @@ bool GroupCall::tryCreateController() {
 			});
 			return result;
 		},
-		.e2eEncryptDecrypt = _e2e ? _e2e->callbackEncryptDecrypt() : nullptr,
+		.e2eEncryptDecrypt = (_e2eEncryptDecrypt
+			? _e2eEncryptDecrypt->callback()
+			: nullptr),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;
@@ -3008,7 +3046,9 @@ bool GroupCall::tryCreateScreencast() {
 		.videoCapture = _screenCapture,
 		.videoContentType = tgcalls::VideoContentType::Screencast,
 		.videoCodecPreferences = lookupVideoCodecPreferences(),
-		.e2eEncryptDecrypt = _e2e ? _e2e->callbackEncryptDecrypt() : nullptr,
+		.e2eEncryptDecrypt = (_e2eEncryptDecrypt
+			? _e2eEncryptDecrypt->callback()
+			: nullptr),
 	};
 
 	LOG(("Call Info: Creating group screen instance"));

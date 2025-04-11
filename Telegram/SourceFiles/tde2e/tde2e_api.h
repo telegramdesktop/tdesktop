@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 #include <rpl/event_stream.h>
+#include <rpl/lifetime.h>
 #include <rpl/producer.h>
 #include <rpl/variable.h>
 
@@ -66,6 +67,22 @@ enum class CallFailure {
 	Unknown,
 };
 
+using EncryptionBuffer = std::vector<uint8_t>;
+
+class EncryptDecrypt final
+	: public std::enable_shared_from_this<EncryptDecrypt> {
+public:
+	[[nodiscard]] auto callback()
+		-> Fn<EncryptionBuffer(const EncryptionBuffer&, int64_t, bool)>;
+
+	void setCallId(CallId id);
+	void clearCallId(CallId fromId);
+
+private:
+	std::atomic<uint64> _id = 0;
+
+};
+
 class Call final {
 public:
 	explicit Call(UserId myUserId);
@@ -76,8 +93,8 @@ public:
 	void joined();
 	void apply(
 		int subchain,
-		int index,
-		const Block &block,
+		int indexAfterLast,
+		const std::vector<Block> &blocks,
 		bool fromShortPoll);
 
 	struct SubchainRequest {
@@ -100,21 +117,15 @@ public:
 	[[nodiscard]] Block makeJoinBlock();
 	[[nodiscard]] Block makeRemoveBlock(const base::flat_set<UserId> &ids);
 
-	[[nodiscard]] rpl::producer<ParticipantsSet> participantsSetValue() const;
+	[[nodiscard]] auto participantsSetValue() const
+		-> rpl::producer<ParticipantsSet>;
 
-	[[nodiscard]] auto callbackEncryptDecrypt()
-		-> Fn<std::vector<uint8_t>(
-			const std::vector<uint8_t>&,
-			int64_t,
-			bool)>;
+	void registerEncryptDecrypt(std::shared_ptr<EncryptDecrypt> object);
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	static constexpr int kSubChainsCount = 2;
-
-	struct GuardedCallId {
-		CallId value;
-		std::atomic<bool> exists;
-	};
 
 	struct SubChainState {
 		base::Timer shortPollTimer;
@@ -141,7 +152,7 @@ private:
 	PublicKey _myKey;
 	std::optional<CallFailure> _failure;
 	rpl::event_stream<CallFailure> _failures;
-	std::shared_ptr<GuardedCallId> _guardedId;
+	std::shared_ptr<EncryptDecrypt> _encryptDecrypt;
 
 	SubChainState _subchains[kSubChainsCount];
 	rpl::event_stream<SubchainRequest> _subchainRequests;
@@ -152,6 +163,8 @@ private:
 
 	rpl::variable<ParticipantsSet> _participantsSet;
 	rpl::variable<QByteArray> _emojiHash;
+
+	rpl::lifetime _lifetime;
 
 };
 

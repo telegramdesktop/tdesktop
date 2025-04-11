@@ -45,6 +45,7 @@ class GroupCall;
 
 namespace TdE2E {
 class Call;
+class EncryptDecrypt;
 } // namespace TdE2E
 
 namespace Calls {
@@ -621,8 +622,9 @@ private:
 
 	void setupMediaDevices();
 	void setupOutgoingVideo();
-	void setupConference();
+	void initConferenceE2E();
 	void setupConferenceCall();
+	void trackParticipantsWithAccess();
 	void setScreenEndpoint(std::string endpoint);
 	void setCameraEndpoint(std::string endpoint);
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
@@ -648,7 +650,9 @@ private:
 
 	const not_null<Delegate*> _delegate;
 	std::shared_ptr<Data::GroupCall> _conferenceCall;
-	std::shared_ptr<TdE2E::Call> _e2e;
+	std::unique_ptr<TdE2E::Call> _e2e;
+	std::shared_ptr<TdE2E::EncryptDecrypt> _e2eEncryptDecrypt;
+	rpl::variable<QByteArray> _emojiHash;
 	QByteArray _pendingOutboundBlock;
 	std::shared_ptr<StartConferenceInfo> _startConferenceInfo;
 
