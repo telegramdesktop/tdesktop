@@ -91,6 +91,12 @@ public:
 		QString query) = 0;
 	virtual void botCheckWriteAccess(Fn<void(bool allowed)> callback) = 0;
 	virtual void botAllowWriteAccess(Fn<void(bool allowed)> callback) = 0;
+	virtual bool botStorageWrite(
+		QString key,
+		std::optional<QString> value) = 0;
+	[[nodiscard]] virtual std::optional<QString> botStorageRead(
+		QString key) = 0;
+	virtual void botStorageClear() = 0;
 	virtual void botRequestEmojiStatusAccess(
 		Fn<void(bool allowed)> callback) = 0;
 	virtual void botSharePhone(Fn<void(bool shared)> callback) = 0;
@@ -165,6 +171,9 @@ private:
 	void processSendMessageRequest(const QJsonObject &args);
 	void processEmojiStatusRequest(const QJsonObject &args);
 	void processEmojiStatusAccessRequest();
+	void processStorageSaveKey(const QJsonObject &args);
+	void processStorageGetKey(const QJsonObject &args);
+	void processStorageClear(const QJsonObject &args);
 	void processButtonMessage(
 		std::unique_ptr<Button> &button,
 		const QJsonObject &args);
@@ -188,6 +197,12 @@ private:
 	void replyCustomMethod(QJsonValue requestId, QJsonObject response);
 	void requestClipboardText(const QJsonObject &args);
 	void setupClosingBehaviour(const QJsonObject &args);
+	void replyDeviceStorage(
+		const QJsonObject &args,
+		const QString &event,
+		QJsonObject response);
+	void deviceStorageFailed(const QJsonObject &args, QString error);
+	void secureStorageFailed(const QJsonObject &args);
 	void createButton(std::unique_ptr<Button> &button);
 	void scheduleCloseWithConfirmation();
 	void closeWithConfirmation();

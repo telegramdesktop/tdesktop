@@ -191,6 +191,9 @@ public:
 	[[nodiscard]] QByteArray readInlineBotsDownloads();
 	void writeInlineBotsDownloads(const QByteArray &bytes);
 
+	void writeBotStorage(PeerId botId, const QByteArray &serialized);
+	[[nodiscard]] QByteArray readBotStorage(PeerId botId);
+
 	[[nodiscard]] bool encrypt(
 		const void *src,
 		void *dst,
@@ -293,6 +296,8 @@ private:
 	base::flat_map<
 		not_null<History*>,
 		base::flat_map<Data::DraftKey, MessageDraftSource>> _draftSources;
+	base::flat_map<PeerId, FileKey> _botStoragesMap;
+	base::flat_map<PeerId, bool> _botStoragesNotReadMap;
 
 	QMultiMap<MediaKey, Core::FileLocation> _fileLocations;
 	QMap<QString, QPair<MediaKey, Core::FileLocation>> _fileLocationPairs;

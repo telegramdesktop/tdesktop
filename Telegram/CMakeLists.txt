@@ -1083,6 +1083,8 @@ PRIVATE
     inline_bots/inline_bot_result.h
     inline_bots/inline_bot_send_data.cpp
     inline_bots/inline_bot_send_data.h
+    inline_bots/inline_bot_storage.cpp
+    inline_bots/inline_bot_storage.h
     inline_bots/inline_results_inner.cpp
     inline_bots/inline_results_inner.h
     inline_bots/inline_results_widget.cpp

@@ -53,6 +53,7 @@ namespace InlineBots {
 
 class WebViewInstance;
 class Downloads;
+class Storage;
 
 enum class PeerType : uint8 {
 	SameBot   = 0x01,
@@ -276,6 +277,9 @@ private:
 		QString query) override;
 	void botCheckWriteAccess(Fn<void(bool allowed)> callback) override;
 	void botAllowWriteAccess(Fn<void(bool allowed)> callback) override;
+	bool botStorageWrite(QString key, std::optional<QString> value) override;
+	std::optional<QString> botStorageRead(QString key) override;
+	void botStorageClear() override;
 	void botRequestEmojiStatusAccess(
 		Fn<void(bool allowed)> callback) override;
 	void botSharePhone(Fn<void(bool shared)> callback) override;
@@ -321,6 +325,9 @@ public:
 
 	[[nodiscard]] Downloads &downloads() const {
 		return *_downloads;
+	}
+	[[nodiscard]] Storage &storage() const {
+		return *_storage;
 	}
 
 	void open(WebViewDescriptor &&descriptor);
@@ -394,6 +401,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	const std::unique_ptr<Downloads> _downloads;
+	const std::unique_ptr<Storage> _storage;
 
 	base::Timer _refreshTimer;
 

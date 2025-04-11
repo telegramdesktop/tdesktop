@@ -98,6 +98,7 @@ enum { // Local Storage Keys
 	lskRoundPlaceholder = 0x1a, // no data
 	lskInlineBotsDownloads = 0x1b, // no data
 	lskMediaLastPlaybackPositions = 0x1c, // no data
+	lskBotStorages = 0x1d, // data: PeerId botId
 };
 
 auto EmptyMessageDraftSources()
@@ -255,6 +256,9 @@ base::flat_set<QString> Account::collectGoodNames() const {
 	for (const auto &[key, value] : _draftCursorsMap) {
 		push(value);
 	}
+	for (const auto &[key, value] : _botStoragesMap) {
+		push(value);
+	}
 	for (const auto &value : keys) {
 		push(value);
 	}
@@ -308,6 +312,8 @@ Account::ReadMapResult Account::readMapWith(
 	base::flat_map<PeerId, FileKey> draftsMap;
 	base::flat_map<PeerId, FileKey> draftCursorsMap;
 	base::flat_map<PeerId, bool> draftsNotReadMap;
+	base::flat_map<PeerId, FileKey> botStoragesMap;
+	base::flat_map<PeerId, bool> botStoragesNotReadMap;
 	quint64 locationsKey = 0, reportSpamStatusesKey = 0, trustedPeersKey = 0;
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
@@ -443,6 +449,18 @@ Account::ReadMapResult Account::readMapWith(
 				>> webviewStorageTokenBots
 				>> webviewStorageTokenOther;
 		} break;
+		case lskBotStorages: {
+			quint32 count = 0;
+			map.stream >> count;
+			for (quint32 i = 0; i < count; ++i) {
+				FileKey key;
+				quint64 peerIdSerialized;
+				map.stream >> key >> peerIdSerialized;
+				const auto peerId = DeserializePeerId(peerIdSerialized);
+				botStoragesMap.emplace(peerId, key);
+				botStoragesNotReadMap.emplace(peerId, true);
+			}
+		} break;
 		default:
 			LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 			return ReadMapResult::Failed;
@@ -457,6 +475,8 @@ Account::ReadMapResult Account::readMapWith(
 	_draftsMap = draftsMap;
 	_draftCursorsMap = draftCursorsMap;
 	_draftsNotReadMap = draftsNotReadMap;
+	_botStoragesMap = botStoragesMap;
+	_botStoragesNotReadMap = botStoragesNotReadMap;
 
 	_locationsKey = locationsKey;
 	_trustedPeersKey = trustedPeersKey;
@@ -599,6 +619,7 @@ void Account::writeMap() {
 	if (_roundPlaceholderKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_inlineBotsDownloadsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_mediaLastPlaybackPositionsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (!_botStoragesMap.empty()) mapSize += sizeof(quint32) * 2 + _botStoragesMap.size() * sizeof(quint64) * 2;
 
 	EncryptedDescriptor mapData(mapSize);
 	if (!self.isEmpty()) {
@@ -681,6 +702,12 @@ void Account::writeMap() {
 		mapData.stream << quint32(lskMediaLastPlaybackPositions);
 		mapData.stream << quint64(_mediaLastPlaybackPositionsKey);
 	}
+	if (!_botStoragesMap.empty()) {
+		mapData.stream << quint32(lskBotStorages) << quint32(_botStoragesMap.size());
+		for (const auto &[key, value] : _botStoragesMap) {
+			mapData.stream << quint64(value) << SerializePeerId(key);
+		}
+	}
 	map.writeEncrypted(mapData, _localKey);
 
 	_mapChanged = false;
@@ -693,6 +720,8 @@ void Account::reset() {
 	_draftsMap.clear();
 	_draftCursorsMap.clear();
 	_draftsNotReadMap.clear();
+	_botStoragesMap.clear();
+	_botStoragesNotReadMap.clear();
 	_locationsKey = _trustedPeersKey = 0;
 	_recentStickersKeyOld = 0;
 	_installedStickersKey = 0;
@@ -3471,6 +3500,63 @@ void Account::writeInlineBotsDownloads(const QByteArray &bytes) {
 	data.stream << bytes;
 	FileWriteDescriptor file(_inlineBotsDownloadsKey, _basePath);
 	file.writeEncrypted(data, _localKey);
+}
+
+void Account::writeBotStorage(PeerId botId, const QByteArray &serialized) {
+	if (serialized.isEmpty()) {
+		auto i = _botStoragesMap.find(botId);
+		if (i != _botStoragesMap.cend()) {
+			ClearKey(i->second, _basePath);
+			_botStoragesMap.erase(i);
+			writeMapDelayed();
+		}
+		_botStoragesNotReadMap.remove(botId);
+		return;
+	}
+
+	auto i = _botStoragesMap.find(botId);
+	if (i == _botStoragesMap.cend()) {
+		i = _botStoragesMap.emplace(botId, GenerateKey(_basePath)).first;
+		writeMapQueued();
+	}
+
+	auto size = Serialize::bytearraySize(serialized);
+
+	EncryptedDescriptor data(size);
+	data.stream << serialized;
+
+	FileWriteDescriptor file(i->second, _basePath);
+	file.writeEncrypted(data, _localKey);
+
+	_botStoragesNotReadMap.remove(botId);
+}
+
+QByteArray Account::readBotStorage(PeerId botId) {
+	if (!_botStoragesNotReadMap.remove(botId)) {
+		return {};
+	}
+
+	const auto j = _botStoragesMap.find(botId);
+	if (j == _botStoragesMap.cend()) {
+		return {};
+	}
+	FileReadDescriptor storage;
+	if (!ReadEncryptedFile(storage, j->second, _basePath, _localKey)) {
+		ClearKey(j->second, _basePath);
+		_botStoragesMap.erase(j);
+		writeMapDelayed();
+		return {};
+	}
+
+	auto result = QByteArray();
+	storage.stream >> result;
+	if (storage.stream.status() != QDataStream::Ok) {
+		ClearKey(j->second, _basePath);
+		_botStoragesMap.erase(j);
+		writeMapDelayed();
+		return {};
+	}
+	return result;
 }
 
 bool Account::encrypt(
