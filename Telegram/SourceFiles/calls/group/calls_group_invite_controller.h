@@ -16,6 +16,10 @@ class GroupCall;
 struct InviteRequest;
 } // namespace Calls
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 namespace Calls::Group {
 
 class InviteController final : public ParticipantsBoxController {
@@ -87,8 +91,13 @@ private:
 	Fn<void(std::vector<InviteRequest>)> inviteUsers,
 	Fn<void()> shareLink);
 
+[[nodiscard]] object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
+	std::shared_ptr<Data::GroupCall> call,
+	MsgId inviteMsgId);
+
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 	not_null<::Window::SessionController*> window,
-	Fn<void()> created = nullptr);
+	Fn<void()> created = nullptr,
+	MsgId discardedInviteMsgId = 0);
 
 } // namespace Calls::Group

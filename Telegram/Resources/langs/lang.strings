@@ -4932,7 +4932,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_already_joined_many#one" = "{user}, {other} and **{count}** other person already joined this call.";
 "lng_confcall_already_joined_many#other" = "{user}, {other} and **{count}** other people already joined this call.";
 "lng_confcall_join_button" = "Join Group Call";
-"lng_confcall_create_call" = "Create New Call";
+"lng_confcall_create_call" = "Start New Call";
 "lng_confcall_create_call_description#one" = "You can add up to {count} participant to a call.";
 "lng_confcall_create_call_description#other" = "You can add up to {count} participants to a call.";
 "lng_confcall_create_title" = "New Call";
@@ -4947,6 +4947,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_link_or" = "or";
 "lng_confcall_link_join" = "Be the first to join the call and add people from there. {link}";
 "lng_confcall_link_join_link" = "Open call {arrow}";
+"lng_confcall_inactive_title" = "Start Group Call";
+"lng_confcall_inactive_about" = "This call is no longer active.\nYou can start a new one.";
 "lng_confcall_invite_done_user" = "You're calling {user} to join.";
 "lng_confcall_invite_done_many#one" = "You're calling **{count} person** to join.";
 "lng_confcall_invite_done_many#other" = "You're calling **{count} people** to join.";

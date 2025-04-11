@@ -635,6 +635,23 @@ callDeviceSelectionMenu: PopupMenu(groupCallPopupMenu) {
 	}
 }
 
+createCallListButton: OutlineButton(defaultPeerListButton) {
+	font: normalFont;
+	padding: margins(11px, 5px, 11px, 5px);
+}
+createCallListItem: PeerListItem(defaultPeerListItem) {
+	button: createCallListButton;
+	height: 52px;
+	photoPosition: point(12px, 6px);
+	namePosition: point(63px, 7px);
+	statusPosition: point(63px, 26px);
+	photoSize: 40px;
+}
+createCallList: PeerList(defaultPeerList) {
+	item: createCallListItem;
+	padding: margins(0px, 10px, 0px, 10px);
+}
+
 groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);
 groupCallRecordingTimerFont: font(12px);
 
@@ -658,26 +675,18 @@ groupCallMembersListCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 	selectFg: groupCallActiveFg;
 	check: groupCallMembersListCheck;
 }
-groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
-	button: OutlineButton(defaultPeerListButton) {
+groupCallMembersListItem: PeerListItem(createCallListItem) {
+	button: OutlineButton(createCallListButton) {
 		textBg: groupCallMembersBg;
 		textBgOver: groupCallMembersBgOver;
 
 		textFg: groupCallMemberInactiveStatus;
 		textFgOver: groupCallMemberInactiveStatus;
 
-		font: normalFont;
-		padding: margins(11px, 5px, 11px, 5px);
-
 		ripple: groupCallRipple;
 	}
 	disabledCheckFg: groupCallMemberNotJoinedStatus;
 	checkbox: groupCallMembersListCheckbox;
-	height: 52px;
-	photoPosition: point(12px, 6px);
-	namePosition: point(63px, 7px);
-	statusPosition: point(63px, 26px);
-	photoSize: 40px;
 	nameFg: groupCallMembersFg;
 	nameFgChecked: groupCallMembersFg;
 	statusFg: groupCallMemberInactiveStatus;

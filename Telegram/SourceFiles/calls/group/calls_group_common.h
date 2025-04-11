@@ -31,6 +31,7 @@ class SessionShow;
 
 namespace Ui {
 class Show;
+class RpWidget;
 class GenericBox;
 } // namespace Ui
 
@@ -159,6 +160,9 @@ constexpr inline bool is_flag_type(StickedTooltip) {
 using StickedTooltips = base::flags<StickedTooltip>;
 
 [[nodiscard]] object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox();
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeJoinCallLogo(
+	not_null<QWidget*> parent);
 
 void ConferenceCallJoinConfirm(
 	not_null<Ui::GenericBox*> box,

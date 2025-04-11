@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_common.h"
+#include "calls/group/calls_group_invite_controller.h"
 #include "ui/boxes/calendar_box.h"
 #include "ui/boxes/collectible_info_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -899,14 +900,24 @@ void SessionNavigation::resolveConferenceCall(
 			const auto inviter = context
 				? context->from()->asUser()
 				: nullptr;
-			uiShow()->show(Box(
-				Calls::Group::ConferenceCallJoinConfirm,
-				call,
-				(inviter && !inviter->isSelf()) ? inviter : nullptr,
-				join));
+			if (inviteMsgId && call->participants().empty()) {
+				uiShow()->show(Calls::Group::PrepareInviteToEmptyBox(
+					call,
+					inviteMsgId));
+			} else {
+				uiShow()->show(Box(
+					Calls::Group::ConferenceCallJoinConfirm,
+					call,
+					(inviter && !inviter->isSelf()) ? inviter : nullptr,
+					join));
+			}
 		}, [&](const MTPDgroupCallDiscarded &data) {
 			if (inviteMsgId) {
-				showToast(tr::lng_confcall_not_accessible(tr::now));
+				uiShow()->show(
+					Calls::Group::PrepareCreateCallBox(
+						parentController(),
+						nullptr,
+						inviteMsgId));
 			} else {
 				showToast(tr::lng_confcall_link_inactive(tr::now));
 			}
@@ -915,8 +926,13 @@ void SessionNavigation::resolveConferenceCall(
 		_conferenceCallRequestId = 0;
 		_conferenceCallSlug = QString();
 		_conferenceCallResolveContextId = FullMsgId();
-		if (base::take(_conferenceCallResolveContextId)) {
-			showToast(tr::lng_confcall_not_accessible(tr::now));
+		const auto inviteMsgId = base::take(_conferenceCallInviteMsgId);
+		if (inviteMsgId) {
+			uiShow()->show(
+				Calls::Group::PrepareCreateCallBox(
+					parentController(),
+					nullptr,
+					inviteMsgId));
 		} else {
 			showToast(tr::lng_confcall_link_inactive(tr::now));
 		}

@@ -77,23 +77,11 @@ object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 #endif // Q_OS_MAC
 }
 
-void ConferenceCallJoinConfirm(
-		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Data::GroupCall> call,
-		UserData *maybeInviter,
-		Fn<void(Fn<void()> close)> join) {
-	box->setStyle(st::confcallJoinBox);
-	box->setWidth(st::boxWideWidth);
-	box->setNoContentMargin(true);
-	box->addTopButton(st::boxTitleClose, [=] {
-		box->closeBox();
-	});
-
+object_ptr<Ui::RpWidget> MakeJoinCallLogo(not_null<QWidget*> parent) {
 	const auto logoSize = st::confcallJoinLogo.size();
 	const auto logoOuter = logoSize.grownBy(st::confcallJoinLogoPadding);
-	const auto logo = box->addRow(
-		object_ptr<Ui::RpWidget>(box),
-		st::boxRowPadding + st::confcallLinkHeaderIconPadding);
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto logo = result.data();
 	logo->resize(logo->width(), logoOuter.height());
 	logo->paintRequest() | rpl::start_with_next([=] {
 		if (logo->width() < logoOuter.width()) {
@@ -108,6 +96,24 @@ void ConferenceCallJoinConfirm(
 		p.drawEllipse(outer);
 		st::confcallJoinLogo.paintInCenter(p, outer);
 	}, logo->lifetime());
+	return result;
+}
+
+void ConferenceCallJoinConfirm(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Data::GroupCall> call,
+		UserData *maybeInviter,
+		Fn<void(Fn<void()> close)> join) {
+	box->setStyle(st::confcallJoinBox);
+	box->setWidth(st::boxWideWidth);
+	box->setNoContentMargin(true);
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
+	box->addRow(
+		MakeJoinCallLogo(box),
+		st::boxRowPadding + st::confcallLinkHeaderIconPadding);
 
 	box->addRow(
 		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(

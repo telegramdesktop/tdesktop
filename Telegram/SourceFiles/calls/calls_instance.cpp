@@ -266,6 +266,7 @@ void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
 			migrationInfo);
 		_currentGroupCall = std::move(call);
 		_currentGroupCallChanges.fire_copy(raw);
+		finishConferenceInvitations(args);
 		if (args.migrating) {
 			destroyCurrentCall(args.call.get(), args.linkSlug);
 		}
@@ -294,12 +295,18 @@ void Instance::startedConferenceReady(
 	const auto real = call->conferenceCall().get();
 	const auto link = real->conferenceInviteLink();
 	const auto slug = Group::ExtractConferenceSlug(link);
+	finishConferenceInvitations(args);
+	destroyCurrentCall(real, slug);
+}
+
+void Instance::finishConferenceInvitations(const StartConferenceInfo &args) {
+	Expects(_currentGroupCallPanel != nullptr);
+
 	if (!args.invite.empty()) {
 		_currentGroupCallPanel->migrationInviteUsers(std::move(args.invite));
 	} else if (args.sharingLink) {
 		_currentGroupCallPanel->migrationShowShareLink();
 	}
-	destroyCurrentCall(real, slug);
 }
 
 void Instance::confirmLeaveCurrent(
@@ -402,7 +409,7 @@ void Instance::destroyCall(not_null<Call*> call) {
 
 void Instance::createCall(
 		not_null<UserData*> user,
-		Call::Type type,
+		CallType type,
 		bool isVideo) {
 	struct Performer final {
 		explicit Performer(Fn<void(bool, bool, const Performer &)> callback)

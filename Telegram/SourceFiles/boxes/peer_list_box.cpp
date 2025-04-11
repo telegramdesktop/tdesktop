@@ -138,15 +138,16 @@ void PeerListBox::createMultiSelect() {
 		}
 	});
 	_select->resizeToWidth(_controller->contentWidth());
-	_select->moveToLeft(0, 0);
+	_select->moveToLeft(0, topSelectSkip());
 }
 
 void PeerListBox::appendQueryChangedCallback(Fn<void(QString)> callback) {
 	_customQueryChangedCallback = std::move(callback);
 }
 
-void PeerListBox::setAddedTopScrollSkip(int skip) {
+void PeerListBox::setAddedTopScrollSkip(int skip, bool aboveSearch) {
 	_addedTopScrollSkip = skip;
+	_addedTopScrollAboveSearch = aboveSearch;
 	_scrollBottomFixed = false;
 	updateScrollSkips();
 }
@@ -155,7 +156,7 @@ void PeerListBox::showFinished() {
 	_controller->showFinished();
 }
 
-int PeerListBox::getTopScrollSkip() const {
+int PeerListBox::topScrollSkip() const {
 	auto result = _addedTopScrollSkip;
 	if (_select && !_select->isHidden()) {
 		result += _select->height();
@@ -163,12 +164,19 @@ int PeerListBox::getTopScrollSkip() const {
 	return result;
 }
 
+int PeerListBox::topSelectSkip() const {
+	return _addedTopScrollAboveSearch ? _addedTopScrollSkip : 0;
+}
+
 void PeerListBox::updateScrollSkips() {
 	// If we show / hide the search field scroll top is fixed.
 	// If we resize search field by bubbles scroll bottom is fixed.
-	setInnerTopSkip(getTopScrollSkip(), _scrollBottomFixed);
-	if (_select && !_select->animating()) {
-		_scrollBottomFixed = true;
+	setInnerTopSkip(topScrollSkip(), _scrollBottomFixed);
+	if (_select) {
+		_select->moveToLeft(0, topSelectSkip());
+		if (!_select->animating()) {
+			_scrollBottomFixed = true;
+		}
 	}
 }
 
@@ -232,8 +240,6 @@ void PeerListBox::resizeEvent(QResizeEvent *e) {
 
 	if (_select) {
 		_select->resizeToWidth(width());
-		_select->moveToLeft(0, 0);
-
 		updateScrollSkips();
 	}
 

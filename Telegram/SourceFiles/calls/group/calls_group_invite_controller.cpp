@@ -29,12 +29,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h" // membersMarginTop
 #include "styles/style_calls.h"
 #include "styles/style_dialogs.h" // searchedBarHeight
+#include "styles/style_layers.h" // boxWideWidth
 
 namespace Calls::Group {
 namespace {
@@ -134,6 +136,7 @@ protected:
 private:
 	[[nodiscard]] int fullCount() const;
 	void toggleRowSelected(not_null<PeerListRow*> row, bool video);
+	void addShareLinkButton();
 
 	const ConfInviteStyles _st;
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
@@ -383,6 +386,12 @@ void ConfInviteController::toggleRowSelected(
 }
 
 void ConfInviteController::prepareViewHook() {
+	if (_shareLink) {
+		addShareLinkButton();
+	}
+}
+
+void ConfInviteController::addShareLinkButton() {
 	auto button = object_ptr<Ui::PaddingWrap<Ui::SettingsButton>>(
 		nullptr,
 		object_ptr<Ui::SettingsButton>(
@@ -757,9 +766,86 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 	return Box<PeerListBox>(std::move(controller), initBox);
 }
 
+not_null<Ui::RpWidget*> CreateReActivateHeader(not_null<QWidget*> parent) {
+	const auto result = Ui::CreateChild<Ui::VerticalLayout>(parent);
+	result->add(
+		MakeJoinCallLogo(result),
+		st::boxRowPadding + st::confcallLinkHeaderIconPadding);
+
+	result->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			result,
+			object_ptr<Ui::FlatLabel>(
+				result,
+				tr::lng_confcall_inactive_title(),
+				st::boxTitle)),
+		st::boxRowPadding + st::confcallLinkTitlePadding);
+	result->add(
+		object_ptr<Ui::FlatLabel>(
+			result,
+			tr::lng_confcall_inactive_about(),
+			st::confcallLinkCenteredText),
+		st::boxRowPadding + st::confcallLinkTitlePadding
+	)->setTryMakeSimilarLines(true);
+	Ui::AddDivider(result);
+
+	return result;
+}
+
+void InitReActivate(not_null<PeerListBox*> box) {
+	box->setTitle(rpl::producer<TextWithEntities>(nullptr));
+	box->setNoContentMargin(true);
+
+	const auto header = CreateReActivateHeader(box);
+	header->resizeToWidth(st::boxWideWidth);
+	header->heightValue() | rpl::start_with_next([=](int height) {
+		box->setAddedTopScrollSkip(height, true);
+	}, header->lifetime());
+	header->moveToLeft(0, 0);
+}
+
+object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
+		std::shared_ptr<Data::GroupCall> call,
+		MsgId inviteMsgId) {
+	auto controller = std::make_unique<ConfInviteController>(
+		&call->session(),
+		ConfInviteDefaultStyles(),
+		base::flat_set<not_null<UserData*>>(),
+		nullptr);
+	const auto raw = controller.get();
+	raw->setStyleOverrides(&st::createCallList);
+	const auto initBox = [=](not_null<PeerListBox*> box) {
+		InitReActivate(box);
+
+		const auto join = [=] {
+			const auto weak = Ui::MakeWeak(box);
+			auto selected = raw->requests(box->collectSelectedRows());
+			Core::App().calls().startOrJoinConferenceCall({
+				.call = call,
+				.joinMessageId = inviteMsgId,
+				.invite = std::move(selected),
+			});
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		};
+		box->addButton(
+			rpl::conditional(
+				raw->hasSelectedValue(),
+				tr::lng_group_call_confcall_add(),
+				tr::lng_create_group_create()),
+			join);
+		box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+	};
+	return Box<PeerListBox>(std::move(controller), initBox);
+}
+
 object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 		not_null<::Window::SessionController*> window,
-		Fn<void()> created) {
+		Fn<void()> created,
+		MsgId discardedInviteMsgId) {
 	struct State {
 		bool creatingLink = false;
 		QPointer<PeerListBox> box;
@@ -791,14 +877,21 @@ object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 		&window->session(),
 		ConfInviteDefaultStyles(),
 		base::flat_set<not_null<UserData*>>(),
-		shareLink);
+		discardedInviteMsgId ? Fn<void()>() : shareLink);
 	const auto raw = controller.get();
+	if (discardedInviteMsgId) {
+		raw->setStyleOverrides(&st::createCallList);
+	}
 	const auto initBox = [=](not_null<PeerListBox*> box) {
-		box->setTitle(tr::lng_confcall_create_title());
+		if (discardedInviteMsgId) {
+			InitReActivate(box);
+		} else {
+			box->setTitle(tr::lng_confcall_create_title());
+		}
 
 		const auto create = [=] {
 			auto selected = raw->requests(box->collectSelectedRows());
-			if (selected.size() != 1) {
+			if (selected.size() != 1 || discardedInviteMsgId) {
 				Core::App().calls().startOrJoinConferenceCall({
 					.show = window->uiShow(),
 					.invite = std::move(selected),

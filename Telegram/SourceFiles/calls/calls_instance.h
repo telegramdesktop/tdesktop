@@ -159,6 +159,7 @@ private:
 
 	void createCall(not_null<UserData*> user, CallType type, bool isVideo);
 	void destroyCall(not_null<Call*> call);
+	void finishConferenceInvitations(const StartConferenceInfo &args);
 
 	void createGroupCall(
 		Group::JoinInfo info,
