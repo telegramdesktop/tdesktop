@@ -1035,10 +1035,17 @@ void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
 				_openedFolderOrForumChanges.events_starting_with(false),
 				widthValue() | rpl::map(
 					_1 >= st::columnMinimalWidthLeft
-				) | rpl::distinct_until_changed()
-			) | rpl::map([=](FilterId id, bool folderOrForum, bool wide) {
+				) | rpl::distinct_until_changed(),
+				_searchStateForTopBarSuggestion.events_starting_with(
+					!_searchState.query.isEmpty())
+			) | rpl::map([=](
+					FilterId id,
+					bool folderOrForum,
+					bool wide,
+					bool search) {
 				return !folderOrForum
 					&& wide
+					&& !search
 					&& (id == session->data().chatsFilters().defaultId());
 			});
 			return TopBarSuggestionValue(dialogs, session, std::move(on));
@@ -3481,6 +3488,9 @@ bool Widget::applySearchState(SearchState state) {
 		_chatFilters->setVisible(_searchState.query.isEmpty()
 			&& !_openedForum);
 		updateControlsGeometry();
+	}
+	if (_topBarSuggestion && queryEmptyChanged) {
+		_searchStateForTopBarSuggestion.fire(!_searchState.query.isEmpty());
 	}
 	_searchWithPostsPreview = computeSearchWithPostsPreview();
 	if (queryChanged) {
