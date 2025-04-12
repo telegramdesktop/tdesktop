@@ -2221,6 +2221,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
 
+"lng_you_joined_group" = "You joined this group";
+
 "lng_similar_channels_title" = "Similar channels";
 "lng_similar_channels_view_all" = "View all";
 "lng_similar_channels_more" = "More Channels";
