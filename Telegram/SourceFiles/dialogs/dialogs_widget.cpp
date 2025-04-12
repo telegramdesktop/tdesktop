@@ -379,36 +379,6 @@ Widget::Widget(
 		OverscrollType::Real);
 	const auto innerList = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
-	if (_layout != Layout::Child) {
-		TopBarSuggestionValue(
-			innerList,
-			&session()
-		) | rpl::start_with_next([=](Ui::SlideWrap<Ui::RpWidget> *raw) {
-			if (raw) {
-				_topBarSuggestion = innerList->insert(
-					0,
-					object_ptr<Ui::SlideWrap<Ui::RpWidget>>::fromRaw(raw));
-				rpl::combine(
-					_topBarSuggestion->entity()->desiredHeightValue(),
-					_childListShown.value()
-				) | rpl::start_with_next([=](
-						int desiredHeight,
-						float64 shown) {
-					const auto newHeight = desiredHeight * (1. - shown);
-					_topBarSuggestion->entity()->setMaximumHeight(newHeight);
-					_topBarSuggestion->entity()->setMinimumWidth((shown > 0)
-						? width()
-						: 0);
-					_topBarSuggestion->entity()->resize(width(), newHeight);
-				}, _topBarSuggestion->lifetime());
-			} else {
-				if (_topBarSuggestion) {
-					delete _topBarSuggestion;
-				}
-				_topBarSuggestion = nullptr;
-			}
-		}, lifetime());
-	}
 	_inner = innerList->add(object_ptr<InnerWidget>(
 		innerList,
 		controller,
@@ -725,6 +695,7 @@ Widget::Widget(
 	}
 
 	setupFrozenAccountBar();
+	setupTopBarSuggestions(innerList);
 }
 
 void Widget::setupSwipeBack() {
@@ -1045,6 +1016,46 @@ void Widget::setupFrozenAccountBar() {
 		updateFrozenAccountBar();
 		updateControlsGeometry();
 	}, lifetime());
+}
+
+void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
+	if (_layout == Layout::Child) {
+		return;
+	}
+	using namespace rpl::mappers;
+	crl::on_main(&session(), [=, session = &session()] {
+		(session->data().chatsListLoaded(nullptr)
+			? rpl::single<Data::Folder*>(nullptr)
+			: session->data().chatsListLoadedEvents()
+		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
+			return TopBarSuggestionValue(dialogs, session);
+		}) | rpl::flatten_latest() | rpl::start_with_next([=](
+				Ui::SlideWrap<Ui::RpWidget> *raw) {
+			if (raw) {
+				_topBarSuggestion = dialogs->insert(
+					0,
+					object_ptr<Ui::SlideWrap<Ui::RpWidget>>::fromRaw(raw));
+				rpl::combine(
+					_topBarSuggestion->entity()->desiredHeightValue(),
+					_childListShown.value()
+				) | rpl::start_with_next([=](
+						int desiredHeight,
+						float64 shown) {
+					const auto newHeight = desiredHeight * (1. - shown);
+					_topBarSuggestion->entity()->setMaximumHeight(newHeight);
+					_topBarSuggestion->entity()->setMinimumWidth((shown > 0)
+						? width()
+						: 0);
+					_topBarSuggestion->entity()->resize(width(), newHeight);
+				}, _topBarSuggestion->lifetime());
+			} else {
+				if (_topBarSuggestion) {
+					delete _topBarSuggestion;
+				}
+				_topBarSuggestion = nullptr;
+			}
+		}, lifetime());
+	});
 }
 
 void Widget::updateFrozenAccountBar() {

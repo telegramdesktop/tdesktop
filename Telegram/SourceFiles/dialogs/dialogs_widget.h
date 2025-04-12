@@ -55,6 +55,7 @@ template <typename Widget>
 class FadeWrapScaled;
 template <typename Widget>
 class SlideWrap;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Window {
@@ -210,6 +211,7 @@ private:
 	void setupShortcuts();
 	void setupStories();
 	void setupSwipeBack();
+	void setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs);
 	void storiesExplicitCollapse();
 	void collectStoriesUserpicsViews(Data::StorySourcesList list);
 	void storiesToggleExplicitExpand(bool expand);
