@@ -92,7 +92,7 @@ GroupCallRow::GroupCallRow(not_null<PeerData*> peer)
 : PeerListRow(peer)
 , _st(st::callGroupCall) {
 	if (const auto channel = peer->asChannel()) {
-		const auto status = (channel->isMegagroup()
+		const auto status = (!channel->isMegagroup()
 			? (channel->isPublic()
 				? tr::lng_create_public_channel_title
 				: tr::lng_create_private_channel_title)
