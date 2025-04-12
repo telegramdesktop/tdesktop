@@ -1925,6 +1925,76 @@ win:
 #         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
 #     cmake --build . $MAKE_THREADS_CNT
 
+stage('td', """
+    git clone https://github.com/tdlib/td.git
+    cd td
+    git checkout a03a90470d
+win:
+    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
+    SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
+    SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -A %WIN32X64% ^
+        -DOPENSSL_FOUND=1 ^
+        -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
+        -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib" ^
+        -DGPERF_EXECUTABLE=%ROOT_DIR%\\ThirdParty\\gperf\\bin\\gperf ^
+        -DZLIB_FOUND=1 ^
+        -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/DZLIB_WINAPI /DNDEBUG /MTd /Zi /Od /Ob0" ^
+        -DCMAKE_C_FLAGS_DEBUG="/DNDEBUG /MTd /Zi /Od /Ob0" ^
+        -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
+        -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
+        -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        ../..
+    cmake --build . --config Debug --target tde2e
+release:
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -A %WIN32X64% ^
+        -DOPENSSL_FOUND=1 ^
+        -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
+        -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%\\libcrypto.lib" ^
+        -DGPERF_EXECUTABLE=%ROOT_DIR%\\ThirdParty\\gperf\\bin\\gperf ^
+        -DZLIB_FOUND=1 ^
+        -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/DZLIB_WINAPI /MT /Ob2" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /Ob2" ^
+        -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\\libssl.lib" ^
+        -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\\libssl.lib" ^
+        -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        ../..
+    cmake --build . --config Release --target tde2e
+mac:
+    buildTd() {
+        BUILD_CONFIG=$1
+        mkdir -p out/$BUILD_CONFIG
+        cd out/$BUILD_CONFIG
+        cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=$BUILD_CONFIG \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DOPENSSL_FOUND=1 \
+            -DOPENSSL_INCLUDE_DIR=$LIBS_DIR/openssl3/include \
+            -DOPENSSL_SSL_LIBRARY=$LIBS_DIR/openssl3/libssl.a \
+            -DOPENSSL_CRYPTO_LIBRARY=$LIBS_DIR/openssl3/libcrypto.a \
+            -DZLIB_FOUND=1 \
+            -DZLIB_LIBRARIES=$USED_PREFIX/lib/libz.a \
+            ../..
+        cmake --build . --config $BUILD_CONFIG --target tde2e $MAKE_THREADS_CNT
+        cd ../..
+    }
+
+    buildTd Debug
+release:
+    buildTd Release
+""")
+
 if win:
     currentCodePage = subprocess.run('chcp', capture_output=True, shell=True, text=True, env=modifiedEnv).stdout.strip().split()[-1]
     subprocess.run('chcp 65001 > nul', shell=True, env=modifiedEnv)
