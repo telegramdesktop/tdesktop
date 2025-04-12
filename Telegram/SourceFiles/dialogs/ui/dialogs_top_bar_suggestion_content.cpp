@@ -69,17 +69,18 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 	Ui::RippleButton::paintRipple(p, 0, 0);
 	const auto leftPadding = st::defaultDialogRow.padding.left()
 		+ _leftPadding;
-	const auto rightPadding = st::msgReplyBarSkip;
+	const auto rightPadding = 0;
 	const auto topPadding = st::msgReplyPadding.top();
 	const auto availableWidthNoPhoto = r.width()
-		- (_rightArrow ? _rightArrow->width() / 2 : 0) // Takes full height.
+		- (_rightArrow
+			? (_rightArrow->width() / 4 * 3) // Takes full height.
+			: 0)
 		- leftPadding
 		- rightPadding;
 	const auto availableWidth = availableWidthNoPhoto
 		- (_rightHide ? _rightHide->width() : 0);
 	const auto titleRight = leftPadding;
-	const auto hasSecondLineTitle = (titleRight
-		> (availableWidth - _contentTitle.maxWidth()));
+	const auto hasSecondLineTitle = availableWidth < _contentTitle.maxWidth();
 	p.setPen(st::windowActiveTextFg);
 	p.setPen(st::windowFg);
 	{
