@@ -805,7 +805,7 @@ RUN cmake --build out --config Debug --parallel \
 {%- endif %}
 
 FROM builder AS ada
-RUN git clone -b v3.2.1 --depth=1 {{ GIT }}/ada-url/ada.git \
+RUN git clone -b v3.2.2 --depth=1 {{ GIT }}/ada-url/ada.git \
 	&& cd ada \
 	&& cmake -GNinja -B build . \
 		-D CMAKE_BUILD_TYPE=None \
