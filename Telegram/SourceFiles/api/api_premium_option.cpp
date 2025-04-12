@@ -33,6 +33,9 @@ Data::PremiumSubscriptionOption CreateSubscriptionOption(
 		.costPerMonth = Ui::FillAmountAndCurrency(
 			amount / float64(months),
 			currency),
+		.costNoDiscount = Ui::FillAmountAndCurrency(
+			monthlyAmount * months,
+			currency),
 		.costTotal = Ui::FillAmountAndCurrency(amount, currency),
 		.botUrl = botUrl,
 	};

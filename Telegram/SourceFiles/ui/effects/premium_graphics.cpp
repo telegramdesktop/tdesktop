@@ -927,9 +927,19 @@ void AddGiftOptions(
 		const auto costPerMonthIcon = info.costPerMonth.startsWith(kStar)
 			? GenerateStars(costPerMonthFont->height, 1)
 			: QImage();
-		const auto costPerMonthText = costPerMonthIcon.isNull()
-			? info.costPerMonth
-			: removedStar(info.costPerMonth);
+		const auto costPerMonthLabel
+			= row->lifetime().make_state<Ui::Text::String>();
+		costPerMonthLabel->setMarkedText(
+			st::shareBoxListItem.nameStyle,
+			TextWithEntities()
+				.append(Ui::Text::Wrapped(
+					TextWithEntities{ info.costNoDiscount },
+					EntityType::StrikeOut))
+				.append(' ')
+				.append(costPerMonthIcon.isNull()
+					? info.costPerMonth
+					: removedStar(info.costPerMonth)));
+
 		const auto costTotalEntry = [&] {
 			if (!info.costTotal.startsWith(kStar)) {
 				return QImage();
@@ -1049,12 +1059,26 @@ void AddGiftOptions(
 					0);
 			p.setPen(st::windowSubTextFg);
 			p.setFont(costPerMonthFont);
-			const auto perMonthLeft = costPerMonthFont->spacew
-				+ costPerMonthIcon.width() / style::DevicePixelRatio();
-			p.drawText(
-				perRect.translated(perMonthLeft, 0),
-				costPerMonthText,
-				style::al_left);
+
+			{
+				const auto left = costPerMonthIcon.isNull()
+					? 0
+					: (costPerMonthFont->spacew
+						+ costPerMonthIcon.width()
+							/ style::DevicePixelRatio());
+				const auto costTotalWidth = costTotalFont->width(
+					info.costTotal);
+				const auto pos = perRect.translated(left, 0).topLeft();
+				const auto availableWidth = row->width()
+					- pos.x()
+					- costTotalWidth;
+				costPerMonthLabel->draw(p, {
+					.position = pos,
+					.outerWidth = availableWidth,
+					.availableWidth = availableWidth,
+					.elisionLines = 1,
+				});
+			}
 			p.drawImage(perRect.topLeft(), costPerMonthIcon);
 
 			const auto totalRect = row->rect()
