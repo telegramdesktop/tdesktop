@@ -866,7 +866,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					if (raw->finishedAt
 						&& (ms - raw->finishedAt
 							> st::defaultRippleAnimation.hideDuration)) {
-						_inactiveQuickActions.erase(it);
+						it = _inactiveQuickActions.erase(it);
 					} else {
 						if (raw->data.msgBareId == history->peer->id.value) {
 							context.quickActionContext = raw;
