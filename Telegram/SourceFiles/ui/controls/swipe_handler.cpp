@@ -76,7 +76,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		bool touch = false;
 	};
 	struct State {
-		base::unique_qptr<QObject> filterContext;
+		base::unique_qptr<QObject> filter;
 		Ui::Animations::Simple animationReach;
 		Ui::Animations::Simple animationEnd;
 		SwipeContextData data;
@@ -376,8 +376,8 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		return base::EventFilterResult::Continue;
 	};
 	widget->setAttribute(Qt::WA_AcceptTouchEvents);
-	state->filterContext = base::make_unique_q<QObject>(nullptr);
-	base::install_event_filter(state->filterContext.get(), widget, filter);
+	state->filter = base::unique_qptr<QObject>(
+		base::install_event_filter(widget, filter));
 }
 
 SwipeBackResult SetupSwipeBack(
