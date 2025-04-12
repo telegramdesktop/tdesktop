@@ -4756,7 +4756,7 @@ bool InnerWidget::chooseRow(
 		}
 		if (!chosen.message.fullId) {
 			if (const auto history = chosen.key.history()) {
-				if (const auto forum = history->peer->forum()) {
+				if (history->peer->forum()) {
 					if (pressedTopicRootId) {
 						chosen.message.fullId = {
 							history->peer->id,

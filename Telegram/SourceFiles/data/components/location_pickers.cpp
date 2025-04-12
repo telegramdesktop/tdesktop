@@ -25,7 +25,7 @@ Ui::LocationPicker *LocationPickers::lookup(const Api::SendAction &action) {
 	for (auto i = begin(_pickers); i != end(_pickers);) {
 		if (const auto strong = i->picker.get()) {
 			if (i->action == action) {
-				return i->picker.get();
+				return strong;
 			}
 			++i;
 		} else {

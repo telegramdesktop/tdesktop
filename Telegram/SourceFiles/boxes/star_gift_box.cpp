@@ -1793,7 +1793,7 @@ void SendGiftBox(
 				ShowSentToast(window, details.descriptor, details);
 			}
 			if (const auto strong = weak.data()) {
-				box->closeBox();
+				strong->closeBox();
 			}
 		};
 		SendGift(window, peer, api, details, done);

@@ -738,7 +738,7 @@ void TopBarWidget::infoClicked() {
 		return;
 	} else if (const auto topic = key.topic()) {
 		_controller->showSection(std::make_shared<Info::Memento>(topic));
-	} else if (const auto sublist = key.sublist()) {
+	} else if ([[maybe_unused]] const auto sublist = key.sublist()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
 			_controller->session().user(),
 			Info::Section(Storage::SharedMediaType::Photo)));

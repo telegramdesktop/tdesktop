@@ -806,7 +806,7 @@ void Widget::setupSwipeBack() {
 			}
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				_swipeBackData = {};
-				if (const auto forum = controller()->shownForum().current()) {
+				if (controller()->shownForum().current()) {
 					controller()->closeForum();
 				}
 			});

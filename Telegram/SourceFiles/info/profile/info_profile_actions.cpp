@@ -861,7 +861,7 @@ rpl::producer<uint64> AddCurrencyAction(
 		) | rpl::start_with_error_done([=](const QString &error) {
 			currencyLoadLifetime->destroy();
 		}, [=] {
-			if (const auto strong = weak.data()) {
+			if ([[maybe_unused]] const auto strong = weak.data()) {
 				state->balance = currencyLoad->data().currentBalance;
 				currencyLoadLifetime->destroy();
 			}

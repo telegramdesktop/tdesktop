@@ -808,7 +808,7 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 		updateTitle();
 	} else if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
 		if (!_peer->isMegagroup()) {
-			showBox(Box<MaxInviteBox>(_peer->asChannel()));
+			showBox(Box<MaxInviteBox>(channel));
 		}
 	} else if (count >= serverConfig.chatSizeMax
 		&& count < serverConfig.megagroupSizeMax) {

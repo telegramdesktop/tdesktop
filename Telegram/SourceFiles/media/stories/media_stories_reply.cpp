@@ -905,8 +905,7 @@ bool ReplyArea::showSlowmodeError() {
 				lt_left,
 				Ui::FormatDurationWordsSlowmode(left));
 		} else if (peer->slowmodeApplied()) {
-			const auto history = peer->owner().history(peer);
-			if (const auto item = history->latestSendingMessage()) {
+			if (peer->owner().history(peer)->latestSendingMessage()) {
 				return tr::lng_slowmode_no_many(tr::now);
 			}
 		}

@@ -2495,9 +2495,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			const auto itemId = item->fullId();
 			_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 				if (const auto item = session->data().message(itemId)) {
-					if (const auto view = viewByItem(item)) {
+					if ([[maybe_unused]] const auto view = viewByItem(item)) {
 						if (asGroup) {
-							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
+							changeSelectionAsGroup(
+								&_selected,
+								item,
+								SelectAction::Select);
 						} else {
 							changeSelection(&_selected, item, SelectAction::Select);
 						}
@@ -4628,7 +4631,7 @@ void HistoryInner::reportAsGroup(FullMsgId itemId) {
 }
 
 void HistoryInner::blockSenderItem(FullMsgId itemId) {
-	if (const auto item = session().data().message(itemId)) {
+	if ([[maybe_unused]] const auto item = session().data().message(itemId)) {
 		_controller->show(Box(
 			Window::BlockSenderFromRepliesBox,
 			_controller,

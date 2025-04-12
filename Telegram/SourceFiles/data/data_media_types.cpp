@@ -1111,7 +1111,7 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 			return toGroupPreview(group->items, options);
 		}
 	}
-	if (const auto sticker = _document->sticker()) {
+	if (_document->sticker()) {
 		return Media::toPreview(options);
 	}
 	auto images = std::vector<ItemPreviewImage>();
@@ -1178,7 +1178,7 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 }
 
 TextWithEntities MediaFile::notificationText() const {
-	if (const auto sticker = _document->sticker()) {
+	if (_document->sticker()) {
 		const auto text = _emoji.isEmpty()
 			? tr::lng_in_dlg_sticker(tr::now)
 			: tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, _emoji);
@@ -1210,7 +1210,7 @@ TextWithEntities MediaFile::notificationText() const {
 }
 
 QString MediaFile::pinnedTextSubstring() const {
-	if (const auto sticker = _document->sticker()) {
+	if (_document->sticker()) {
 		if (!_emoji.isEmpty()) {
 			return tr::lng_action_pinned_media_emoji_sticker(
 				tr::now,

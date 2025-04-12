@@ -2263,7 +2263,7 @@ void HistoryItem::setRealId(MsgId newId) {
 	_history->owner().groups().refreshMessage(this);
 	_history->owner().requestItemResize(this);
 
-	if (const auto reply = Get<HistoryMessageReply>()) {
+	if (Has<HistoryMessageReply>()) {
 		incrementReplyToTopCounter();
 	}
 
@@ -2440,7 +2440,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 bool HistoryItem::suggestReport() const {
 	if (out() || isService() || !isRegular()) {
 		return false;
-	} else if (const auto channel = _history->peer->asChannel()) {
+	} else if (_history->peer->isChannel()) {
 		return true;
 	} else if (const auto user = _history->peer->asUser()) {
 		return user->isBot();
@@ -3731,7 +3731,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	if (const auto via = Get<HistoryMessageVia>()) {
 		via->create(&_history->owner(), config.viaBotId);
 	}
-	if (const auto views = Get<HistoryMessageViews>()) {
+	if (Has<HistoryMessageViews>()) {
 		changeViewsCount(config.viewsCount);
 		if (config.replies.isNull
 			&& isSending()

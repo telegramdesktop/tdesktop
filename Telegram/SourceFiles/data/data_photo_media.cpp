@@ -65,13 +65,13 @@ QByteArray PhotoMedia::imageBytes(PhotoSize size) const {
 auto PhotoMedia::resolveLoadedImage(PhotoSize size) const
 -> const PhotoImage * {
 	const auto &original = _images[PhotoSizeIndex(size)];
-	if (const auto image = original.data.get()) {
+	if (original.data) {
 		if (original.goodFor >= size) {
 			return &original;
 		}
 	}
 	const auto &valid = _images[_owner->validSizeIndex(size)];
-	if (const auto image = valid.data.get()) {
+	if (valid.data.get()) {
 		if (valid.goodFor >= size) {
 			return &valid;
 		}

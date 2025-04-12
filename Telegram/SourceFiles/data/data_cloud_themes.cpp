@@ -238,7 +238,7 @@ void CloudThemes::showPreview(
 void CloudThemes::showPreview(
 		not_null<Window::Controller*> controller,
 		const CloudTheme &cloud) {
-	if (const auto documentId = cloud.documentId) {
+	if (cloud.documentId) {
 		previewFromDocument(controller, cloud);
 	} else if (cloud.createdBy == _session->userId()) {
 		controller->show(Box(

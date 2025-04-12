@@ -2477,7 +2477,7 @@ bool Message::hasFromPhoto() const {
 			return true;
 		} else if (item->history()->peer->isVerifyCodes()) {
 			return !hasOutLayout();
-		} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		} else if (item->Has<HistoryMessageForwarded>()) {
 			const auto peer = item->history()->peer;
 			if (peer->isSelf() || peer->isRepliesChat()) {
 				return !hasOutLayout();
@@ -3136,7 +3136,7 @@ void Message::updatePressed(QPoint point) {
 			if (const auto reply = Get<Reply>()) {
 				trect.setTop(trect.top() + reply->height());
 			}
-			if (const auto via = item->Get<HistoryMessageVia>()) {
+			if (item->Has<HistoryMessageVia>()) {
 				if (!displayFromName() && !displayForwardedFrom()) {
 					trect.setTop(trect.top() + st::msgNameFont->height);
 				}
@@ -4447,7 +4447,7 @@ Ui::BubbleRounding Message::countMessageRounding() const {
 
 Ui::BubbleRounding Message::countBubbleRounding(
 		Ui::BubbleRounding messageRounding) const {
-	if (const auto keyboard = data()->inlineReplyKeyboard()) {
+	if ([[maybe_unused]] const auto _ = data()->inlineReplyKeyboard()) {
 		messageRounding.bottomLeft
 			= messageRounding.bottomRight
 			= Ui::BubbleCornerRounding::Small;

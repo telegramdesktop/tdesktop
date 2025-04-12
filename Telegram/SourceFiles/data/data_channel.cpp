@@ -956,7 +956,7 @@ QString ChannelData::invitePeekHash() const {
 }
 
 void ChannelData::privateErrorReceived() {
-	if (const auto expires = invitePeekExpires()) {
+	if (invitePeekExpires()) {
 		const auto hash = invitePeekHash();
 		for (const auto &window : session().windows()) {
 			clearInvitePeek();

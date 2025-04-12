@@ -1582,11 +1582,11 @@ TextState Game::getState(
 }
 
 void Game::prepareThumbnail(QSize size) const {
-	if (const auto document = getResultDocument()) {
+	if ([[maybe_unused]] const auto document = getResultDocument()) {
 		Assert(_documentMedia != nullptr);
 		validateThumbnail(_documentMedia->thumbnail(), size, true);
 		validateThumbnail(_documentMedia->thumbnailInline(), size, false);
-	} else if (const auto photo = getResultPhoto()) {
+	} else if ([[maybe_unused]] const auto photo = getResultPhoto()) {
 		using Data::PhotoSize;
 		Assert(_photoMedia != nullptr);
 		validateThumbnail(_photoMedia->image(PhotoSize::Thumbnail), size, true);

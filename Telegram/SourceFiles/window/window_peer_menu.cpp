@@ -585,7 +585,7 @@ void Filler::addStoryArchive() {
 	const auto controller = _controller;
 	const auto weak = base::make_weak(_thread);
 	_addAction(tr::lng_stories_archive_button(tr::now), [=] {
-		if (const auto strong = weak.get()) {
+		if ([[maybe_unused]] const auto strong = weak.get()) {
 			controller->showSection(Info::Stories::Make(
 				channel,
 				Info::Stories::Tab::Archive));
@@ -1096,7 +1096,7 @@ void Filler::addViewStatistics() {
 			= (channel->flags() & Flag::CanViewCreditsRevenue);
 		if (canGetStats) {
 			_addAction(tr::lng_stats_title(tr::now), [=] {
-				if (const auto strong = weak.get()) {
+				if ([[maybe_unused]] const auto strong = weak.get()) {
 					using namespace Info;
 					controller->showSection(Statistics::Make(peer, {}, {}));
 				}
@@ -1106,14 +1106,14 @@ void Filler::addViewStatistics() {
 			|| channel->amCreator()
 			|| channel->canPostStories()) {
 			_addAction(tr::lng_boosts_title(tr::now), [=] {
-				if (const auto strong = weak.get()) {
+				if ([[maybe_unused]] const auto strong = weak.get()) {
 					controller->showSection(Info::Boosts::Make(peer));
 				}
 			}, &st::menuIconBoosts);
 		}
 		if (canViewEarn || canViewCreditsEarn) {
 			_addAction(tr::lng_channel_earn_title(tr::now), [=] {
-				if (const auto strong = weak.get()) {
+				if ([[maybe_unused]] const auto strong = weak.get()) {
 					controller->showSection(Info::ChannelEarn::Make(peer));
 				}
 			}, &st::menuIconEarn);

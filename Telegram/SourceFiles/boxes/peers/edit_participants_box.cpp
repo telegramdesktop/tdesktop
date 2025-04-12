@@ -689,7 +689,7 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 	const auto user = _peer->owner().userLoaded(data.userId());
 	if (!user) {
 		return nullptr;
-	} else if (const auto chat = _peer->asChat()) {
+	} else if (_peer->isChat()) {
 		// This can come from saveAdmin callback.
 		_admins.emplace(user);
 		return user;
@@ -733,7 +733,7 @@ UserData *ParticipantsAdditionalData::applyRegular(UserId userId) {
 	const auto user = _peer->owner().userLoaded(userId);
 	if (!user) {
 		return nullptr;
-	} else if (const auto chat = _peer->asChat()) {
+	} else if (_peer->isChat()) {
 		// This can come from saveAdmin or saveRestricted callback.
 		_admins.erase(user);
 		return user;
@@ -913,7 +913,7 @@ void ParticipantsBoxController::setupListChangeViewers() {
 				return;
 			}
 		}
-		if (const auto row = delegate()->peerListFindRow(user->id.value)) {
+		if (delegate()->peerListFindRow(user->id.value)) {
 			delegate()->peerListPartitionRows([&](const PeerListRow &row) {
 				return (row.peer() == user);
 			});

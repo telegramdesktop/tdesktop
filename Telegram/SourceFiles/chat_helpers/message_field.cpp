@@ -765,7 +765,7 @@ InlineBotQuery ParseInlineBotQuery(
 				result.username = username.toString();
 				if (const auto peer = session->data().peerByUsername(result.username)) {
 					if (const auto user = peer->asUser()) {
-						result.bot = peer->asUser();
+						result.bot = user;
 					} else {
 						result.bot = nullptr;
 					}

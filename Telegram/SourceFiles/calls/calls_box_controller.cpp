@@ -611,7 +611,7 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	for (const auto &message : result) {
 		const auto msgId = IdFromMessage(message);
 		const auto peerId = PeerFromMessage(message);
-		if (const auto peer = session().data().peerLoaded(peerId)) {
+		if (session().data().peerLoaded(peerId)) {
 			const auto item = session().data().addNewMessage(
 				message,
 				MessageFlags(),

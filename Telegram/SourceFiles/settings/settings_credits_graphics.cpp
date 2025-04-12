@@ -1895,7 +1895,7 @@ void GenericCreditsEntryBox(
 				ProcessReceivedSubscriptions(weak, session);
 			};
 			const auto fail = [=, show = box->uiShow()](const QString &e) {
-				if (const auto strong = weak.data()) {
+				if ([[maybe_unused]] const auto strong = weak.data()) {
 					state->confirmButtonBusy = false;
 				}
 				show->showToast(e);

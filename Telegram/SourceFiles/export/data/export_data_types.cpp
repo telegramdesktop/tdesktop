@@ -1724,9 +1724,9 @@ File &Message::file() {
 	} else if (const auto photo = std::get_if<ActionSuggestProfilePhoto>(
 			content)) {
 		return photo->photo.image.file;
-	} else if (const auto wallpaper = std::get_if<ActionSetChatWallPaper>(
-			content)) {
-		// #TODO wallpapers
+	// } else if (const auto wallpaper = std::get_if<ActionSetChatWallPaper>(
+	// 		content)) {
+	// #TODO wallpapers
 	}
 	return media.file();
 }
@@ -1738,9 +1738,9 @@ const File &Message::file() const {
 	} else if (const auto photo = std::get_if<ActionSuggestProfilePhoto>(
 			content)) {
 		return photo->photo.image.file;
-	} else if (const auto wallpaper = std::get_if<ActionSetChatWallPaper>(
-			content)) {
-		// #TODO wallpapers
+	// } else if (const auto wallpaper = std::get_if<ActionSetChatWallPaper>(
+	// 		content)) {
+	// #TODO wallpapers
 	}
 	return media.file();
 }

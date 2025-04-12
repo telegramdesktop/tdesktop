@@ -2231,7 +2231,7 @@ void Session::applyDialog(
 }
 
 bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
-	if (const auto sublist = entry->asSublist()) {
+	if ([[maybe_unused]] const auto sublist = entry->asSublist()) {
 		const auto saved = &savedMessages();
 		return pinnedChatsOrder(saved).size() < pinnedChatsLimit(saved);
 	} else if (const auto topic = entry->asTopic()) {

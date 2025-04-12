@@ -1208,7 +1208,7 @@ void ClearMediaAsExpired(not_null<HistoryItem*> item) {
 				? tr::lng_ttl_round_expired
 				: tr::lng_message_empty)(tr::now, Ui::Text::WithEntities);
 			item->updateServiceText(PreparedServiceText{ std::move(text) });
-		} else if (const auto photo = media->photo()) {
+		} else if (media->photo()) {
 			item->applyEditionToHistoryCleared();
 			item->updateServiceText(PreparedServiceText{
 				tr::lng_ttl_photo_expired(tr::now, Ui::Text::WithEntities)

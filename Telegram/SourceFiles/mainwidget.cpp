@@ -1166,7 +1166,7 @@ float64 MainWidget::chatBackgroundProgress() const {
 	if (_background) {
 		if (_background->generating) {
 			return 1.;
-		} else if (const auto document = _background->data.document()) {
+		} else if (_background->data.document()) {
 			return _background->dataMedia->progress();
 		}
 	}
@@ -2602,7 +2602,7 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
-	} else if (const auto sublist = key.sublist()) {
+	} else if (key.sublist()) {
 		return std::make_shared<Info::Memento>(
 			session().user(),
 			Info::Memento::DefaultSection(session().user()));

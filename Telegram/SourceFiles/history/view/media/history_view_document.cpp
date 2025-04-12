@@ -271,10 +271,10 @@ void PaintWaveform(
 	};
 	add(FormatDownloadText(document->size, document->size));
 	const auto duration = document->duration() / 1000;
-	if (const auto song = document->song()) {
+	if (document->song()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
-	} else if (const auto voice = document->voice() ? document->voice() : document->round()) {
+	} else if (document->voice() ? document->voice() : document->round()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
 	} else if (document->isVideoFile()) {

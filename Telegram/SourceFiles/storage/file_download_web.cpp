@@ -418,7 +418,7 @@ void WebLoadManager::failed(
 }
 
 void WebLoadManager::failed(int id, not_null<QNetworkReply*> reply) {
-	if (const auto sent = findSent(id, reply)) {
+	if ([[maybe_unused]] const auto sent = findSent(id, reply)) {
 		removeSent(id);
 		queueFailedUpdate(id);
 	}

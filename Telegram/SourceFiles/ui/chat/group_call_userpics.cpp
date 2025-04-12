@@ -241,7 +241,7 @@ void GroupCallUserpics::sendRandomLevels() {
 	for (auto &userpic : _list) {
 		if (const auto blobs = userpic.blobsAnimation.get()) {
 			const auto value = 30 + base::RandomIndex(70);
-			userpic.blobsAnimation->blobs.setLevel(float64(value) / 100.);
+			blobs->blobs.setLevel(float64(value) / 100.);
 		}
 	}
 }
