@@ -330,6 +330,8 @@ private:
 	base::unique_qptr<Ui::RpWidget> _chatFilters;
 
 	Ui::SlideWrap<Ui::RpWidget> *_topBarSuggestion = nullptr;
+	rpl::event_stream<int> _topBarSuggestionHeightChanged;
+	rpl::event_stream<bool> _openedFolderOrForumChanges;
 
 	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<InnerWidget> _inner;

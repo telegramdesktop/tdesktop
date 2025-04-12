@@ -56,13 +56,22 @@ constexpr auto kSugSetUserpic = "USERPIC_SETUP"_cs;
 
 rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Main::Session*> session) {
-	return [=](auto consumer) {
+		not_null<Main::Session*> session,
+		rpl::producer<bool> outerWrapToggleValue) {
+	return [=, outerWrapToggleValue = rpl::duplicate(outerWrapToggleValue)](
+			auto consumer) {
 		auto lifetime = rpl::lifetime();
+
+		struct Toggle {
+			bool value = false;
+			anim::type type;
+		};
 
 		struct State {
 			TopBarSuggestionContent *content = nullptr;
 			Ui::SlideWrap<Ui::RpWidget> *wrap = nullptr;
+			rpl::variable<Toggle> desiredWrapToggle;
+			rpl::variable<bool> outerWrapToggle;
 			rpl::lifetime birthdayLifetime;
 			rpl::lifetime premiumLifetime;
 			rpl::lifetime userpicLifetime;
@@ -70,6 +79,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 		};
 
 		const auto state = lifetime.make_state<State>();
+		state->outerWrapToggle = rpl::duplicate(outerWrapToggleValue);
 		const auto ensureWrap = [=] {
 			if (!state->content) {
 				state->content = Ui::CreateChild<TopBarSuggestionContent>(
@@ -85,7 +95,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				state->wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 					parent,
 					object_ptr<Ui::RpWidget>::fromRaw(state->content));
-				state->wrap->toggle(false, anim::type::instant);
+				state->desiredWrapToggle.force_assign(
+					Toggle{ false, anim::type::instant });
 			}
 		};
 
@@ -225,7 +236,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						content->setLeftPadding(fake->width() + leftPadding);
 					}
 
-					wrap->toggle(true, anim::type::normal);
+					state->desiredWrapToggle.force_assign(
+						Toggle{ true, anim::type::normal });
 				}), state->giftsLifetime);
 				return;
 			} else if (config->suggestionCurrent(kSugSetBirthday.utf8())
@@ -263,7 +275,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					tr::lng_dialogs_suggestions_birthday_about(
 						tr::now,
 						TextWithEntities::Simple));
-				wrap->toggle(true, anim::type::normal);
+				state->desiredWrapToggle.force_assign(
+					Toggle{ true, anim::type::normal });
 				return;
 			} else if (session->premiumPossible() && !session->premium()) {
 				const auto isPremiumAnnual = config->suggestionCurrent(
@@ -305,7 +318,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 							: kSugPremiumUpgrade.utf8());
 						repeat(repeat);
 					});
-					wrap->toggle(true, anim::type::normal);
+					state->desiredWrapToggle.force_assign(
+						Toggle{ true, anim::type::normal });
 				};
 				if (isPremiumAnnual || isPremiumRestore || isPremiumUpgrade) {
 					content->setRightIcon(RightIcon::Arrow);
@@ -391,16 +405,39 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					tr::lng_dialogs_suggestions_userpics_about(
 						tr::now,
 						TextWithEntities::Simple));
-				wrap->toggle(true, anim::type::normal);
+				state->desiredWrapToggle.force_assign(
+					Toggle{ true, anim::type::normal });
 				return;
 			}
-			wrap->toggle(false, anim::type::normal);
+			state->desiredWrapToggle.force_assign(
+				Toggle{ false, anim::type::normal });
 			base::call_delayed(st::slideWrapDuration * 2, wrap, [=] {
 				state->content = nullptr;
 				state->wrap = nullptr;
 				consumer.put_next(nullptr);
 			});
 		};
+
+		state->desiredWrapToggle.value() | rpl::combine_previous(
+		) | rpl::filter([=] {
+			return state->wrap != nullptr;
+		}) | rpl::start_with_next([=](Toggle was, Toggle now) {
+			state->wrap->toggle(
+				state->outerWrapToggle.current() && now.value,
+				(was.value == now.value)
+					? anim::type::instant
+					: now.type);
+		}, lifetime);
+
+		state->outerWrapToggle.value() | rpl::combine_previous(
+		) | rpl::filter([=] {
+			return state->wrap != nullptr;
+		}) | rpl::start_with_next([=](bool was, bool now) {
+			const auto toggle = state->desiredWrapToggle.current();
+			state->wrap->toggle(
+				toggle.value && now,
+				(was == now) ? toggle.type : anim::type::instant);
+		}, lifetime);
 
 		session->appConfig().value() | rpl::start_with_next([=] {
 			const auto was = state->wrap;

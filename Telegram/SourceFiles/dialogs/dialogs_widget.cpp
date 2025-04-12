@@ -386,10 +386,12 @@ Widget::Widget(
 			_childListPeerId.value(),
 			_childListShown.value(),
 			makeChildListShown)));
-	_scroll->heightValue() | rpl::start_with_next([=](int height) {
+	rpl::combine(
+		_scroll->heightValue(),
+		_topBarSuggestionHeightChanged.events_starting_with(0)
+	) | rpl::start_with_next([=](int height, int topBarHeight) {
 		innerList->setMinimumHeight(height);
-		_inner->setMinimumHeight(height
-			- (_topBarSuggestion ? _topBarSuggestion->height() : 0));
+		_inner->setMinimumHeight(height - topBarHeight);
 		_inner->refresh();
 	}, innerList->lifetime());
 	_scroll->widthValue() | rpl::start_with_next([=](int width) {
@@ -1028,13 +1030,28 @@ void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
 			? rpl::single<Data::Folder*>(nullptr)
 			: session->data().chatsListLoadedEvents()
 		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
-			return TopBarSuggestionValue(dialogs, session);
+			auto on = rpl::combine(
+				controller()->activeChatsFilter(),
+				_openedFolderOrForumChanges.events_starting_with(false),
+				widthValue() | rpl::map(
+					_1 >= st::columnMinimalWidthLeft
+				) | rpl::distinct_until_changed()
+			) | rpl::map([=](FilterId id, bool folderOrForum, bool wide) {
+				return !folderOrForum
+					&& wide
+					&& (id == session->data().chatsFilters().defaultId());
+			});
+			return TopBarSuggestionValue(dialogs, session, std::move(on));
 		}) | rpl::flatten_latest() | rpl::start_with_next([=](
 				Ui::SlideWrap<Ui::RpWidget> *raw) {
 			if (raw) {
 				_topBarSuggestion = dialogs->insert(
 					0,
 					object_ptr<Ui::SlideWrap<Ui::RpWidget>>::fromRaw(raw));
+				_topBarSuggestion->heightValue(
+				) | rpl::start_to_stream(
+					_topBarSuggestionHeightChanged,
+					_topBarSuggestion->entity()->lifetime());
 				rpl::combine(
 					_topBarSuggestion->entity()->desiredHeightValue(),
 					_childListShown.value()
@@ -1075,13 +1092,7 @@ void Widget::updateFrozenAccountBar() {
 
 void Widget::updateTopBarSuggestions() {
 	if (_topBarSuggestion) {
-		if ((_layout == Layout::Child)
-			|| _openedForum
-			|| _openedFolder) {
-			_topBarSuggestion->toggle(false, anim::type::instant);
-		} else {
-			_topBarSuggestion->toggle(true, anim::type::instant);
-		}
+		_openedFolderOrForumChanges.fire(_openedForum || _openedFolder);
 	}
 }
 
