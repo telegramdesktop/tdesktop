@@ -19,6 +19,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Ui {
 
 class MaskedInputField;
@@ -81,5 +85,9 @@ Fn<void(QPainter &)> PaintOutlinedColoredCreditsIconCallback(
 	float64 outlineRatio);
 
 [[nodiscard]] QImage CreditsWhiteDoubledIcon(int size, float64 outlineRatio);
+
+std::unique_ptr<Ui::Text::CustomEmoji> MakeCreditsIconEmoji(
+	int height,
+	int count);
 
 } // namespace Ui
