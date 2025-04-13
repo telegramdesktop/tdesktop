@@ -1871,7 +1871,7 @@ void GenericCreditsEntryBox(
 				: tr::lng_gift_show_on_page)()
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
-		if (toRejoin) {
+		if (toRejoin && !toRenew) {
 			if (const auto window = show->resolveWindow()) {
 				const auto finish = [=](Payments::CheckoutResult&&) {
 					ProcessReceivedSubscriptions(weak, session);
