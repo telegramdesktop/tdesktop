@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_top_bar_suggestion.h"
 
+#include "api/api_credits.h"
 #include "api/api_peer_photo.h"
 #include "api/api_premium.h"
 #include "apiwrap.h"
@@ -24,8 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/layers/generic_box.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
 #include "ui/wrap/slide_wrap.h"
@@ -52,6 +56,7 @@ constexpr auto kSugPremiumUpgrade = "PREMIUM_UPGRADE"_cs;
 constexpr auto kSugPremiumRestore = "PREMIUM_RESTORE"_cs;
 constexpr auto kSugPremiumGrace = "PREMIUM_GRACE"_cs;
 constexpr auto kSugSetUserpic = "USERPIC_SETUP"_cs;
+constexpr auto kSugLowCreditsSubs = "STARS_SUBSCRIPTION_LOW_BALANCE"_cs;
 
 } // namespace
 
@@ -77,6 +82,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			rpl::lifetime premiumLifetime;
 			rpl::lifetime userpicLifetime;
 			rpl::lifetime giftsLifetime;
+			rpl::lifetime creditsLifetime;
+			std::unique_ptr<Api::CreditsHistory> creditsHistory;
 		};
 
 		const auto state = lifetime.make_state<State>();
@@ -108,6 +115,81 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto config = &session->appConfig();
 			if (session->premiumCanBuy()
+				&& config->suggestionCurrent(kSugLowCreditsSubs.utf8())) {
+				state->creditsHistory = std::make_unique<Api::CreditsHistory>(
+					session->user(),
+					false,
+					false);
+				const auto show = [=](
+						const QString &peers,
+						uint64 needed,
+						uint64 whole) {
+					content->setRightIcon(RightIcon::Close);
+					content->setClickedCallback([=] {
+						const auto controller = FindSessionController(parent);
+						if (!controller) {
+							return;
+						}
+						controller->uiShow()->show(Box(
+							Settings::SmallBalanceBox,
+							controller->uiShow(),
+							needed,
+							Settings::SmallBalanceSubscription{ peers },
+							[=] {
+								config->dismissSuggestion(
+									kSugLowCreditsSubs.utf8());
+								repeat(repeat);
+							}));
+					});
+					content->setHideCallback([=] {
+						config->dismissSuggestion(kSugLowCreditsSubs.utf8());
+						repeat(repeat);
+					});
+					content->setContent(
+						tr::lng_dialogs_suggestions_credits_sub_low_title(
+							tr::now,
+							lt_count,
+							float64(needed - whole),
+							lt_emoji,
+							Ui::Text::SingleCustomEmoji(Ui::kCreditsCurrency),
+							lt_channels,
+							{ peers },
+							Ui::Text::Bold),
+						tr::lng_dialogs_suggestions_credits_sub_low_about(
+							tr::now,
+							TextWithEntities::Simple),
+						true);
+					state->desiredWrapToggle.force_assign(
+						Toggle{ true, anim::type::normal });
+				};
+				session->credits().load();
+				state->creditsLifetime.destroy();
+				session->credits().balanceValue() | rpl::start_with_next([=] {
+					state->creditsLifetime.destroy();
+					state->creditsHistory->requestSubscriptions(
+						Data::CreditsStatusSlice::OffsetToken(),
+						[=](Data::CreditsStatusSlice slice) {
+							state->creditsHistory = nullptr;
+							auto peers = QStringList();
+							auto credits = uint64(0);
+							for (const auto &entry : slice.subscriptions) {
+								if (entry.barePeerId) {
+									const auto peer = session->data().peer(
+										PeerId(entry.barePeerId));
+									peers.append(peer->name());
+									credits += entry.subscription.credits;
+								}
+							}
+							show(
+								peers.join(", "),
+								credits,
+								session->credits().balance().whole());
+						},
+						true);
+				}, state->creditsLifetime);
+
+				return;
+			} else if (session->premiumCanBuy()
 				&& config->suggestionCurrent(kSugPremiumGrace.utf8())) {
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {

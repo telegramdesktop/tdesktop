@@ -28,7 +28,8 @@ public:
 
 	void setContent(
 		TextWithEntities title,
-		TextWithEntities description);
+		TextWithEntities description,
+		bool makeContext = false);
 
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 

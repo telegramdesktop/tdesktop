@@ -3883,6 +3883,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_suggestions_premium_grace_about" = "Don’t lose access to exclusive features.";
 "lng_dialogs_suggestions_userpics_title" = "Add your photo! 📸";
 "lng_dialogs_suggestions_userpics_about" = "Help your friends spot you easily.";
+"lng_dialogs_suggestions_credits_sub_low_title#one" = "{emoji} {count} Star needed for {channels}";
+"lng_dialogs_suggestions_credits_sub_low_title#other" = "{emoji} {count} Stars needed for {channels}";
+"lng_dialogs_suggestions_credits_sub_low_about" = "Insufficient funds to cover your subscription.";
 
 "lng_about_random" = "Send a {emoji} emoji to any chat to try your luck.";
 "lng_about_random_send" = "Send";
