@@ -82,7 +82,8 @@ public:
 		Fn<void(Data::CreditsStatusSlice)> done);
 	void requestSubscriptions(
 		const Data::CreditsStatusSlice::OffsetToken &token,
-		Fn<void(Data::CreditsStatusSlice)> done);
+		Fn<void(Data::CreditsStatusSlice)> done,
+		bool missingBalance = false);
 
 private:
 	using HistoryTL = MTPpayments_GetStarsTransactions;
