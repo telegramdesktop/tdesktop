@@ -3879,6 +3879,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_suggestions_premium_upgrade_about" = "Upgrade to the annual payment plan for Telegram Premium now to get the discount.";
 "lng_dialogs_suggestions_premium_restore_title" = "Get Premium back with up to {text} off";
 "lng_dialogs_suggestions_premium_restore_about" = "Your Telegram Premium has recently expired. Tap here to extend it.";
+"lng_dialogs_suggestions_premium_grace_title" = "⚠️ Your Premium subscription is expiring!";
+"lng_dialogs_suggestions_premium_grace_about" = "Don’t lose access to exclusive features.";
 "lng_dialogs_suggestions_userpics_title" = "Add your photo! 📸";
 "lng_dialogs_suggestions_userpics_about" = "Help your friends spot you easily.";
 

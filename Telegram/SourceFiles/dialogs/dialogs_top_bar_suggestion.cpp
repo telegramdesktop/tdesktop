@@ -50,6 +50,7 @@ constexpr auto kSugBirthdayContacts = "BIRTHDAY_CONTACTS_TODAY"_cs;
 constexpr auto kSugPremiumAnnual = "PREMIUM_ANNUAL"_cs;
 constexpr auto kSugPremiumUpgrade = "PREMIUM_UPGRADE"_cs;
 constexpr auto kSugPremiumRestore = "PREMIUM_RESTORE"_cs;
+constexpr auto kSugPremiumGrace = "PREMIUM_GRACE"_cs;
 constexpr auto kSugSetUserpic = "USERPIC_SETUP"_cs;
 
 } // namespace
@@ -107,6 +108,34 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto config = &session->appConfig();
 			if (session->premiumCanBuy()
+				&& config->suggestionCurrent(kSugPremiumGrace.utf8())) {
+				content->setRightIcon(RightIcon::Close);
+				content->setClickedCallback([=] {
+					const auto controller = FindSessionController(parent);
+					if (!controller) {
+						return;
+					}
+					UrlClickHandler::Open(
+						u"https://t.me/premiumbot?start=status"_q,
+						QVariant::fromValue(ClickHandlerContext{
+							.sessionWindow = base::make_weak(controller),
+						}));
+				});
+				content->setHideCallback([=] {
+					config->dismissSuggestion(kSugPremiumGrace.utf8());
+					repeat(repeat);
+				});
+				content->setContent(
+					tr::lng_dialogs_suggestions_premium_grace_title(
+						tr::now,
+						Ui::Text::Bold),
+					tr::lng_dialogs_suggestions_premium_grace_about(
+						tr::now,
+						TextWithEntities::Simple));
+				state->desiredWrapToggle.force_assign(
+					Toggle{ true, anim::type::normal });
+				return;
+			} else if (session->premiumCanBuy()
 				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
 				session->data().contactBirthdays(
 				) | rpl::start_with_next(crl::guard(content, [=](
