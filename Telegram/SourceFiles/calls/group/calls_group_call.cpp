@@ -776,8 +776,8 @@ void GroupCall::initConferenceE2E() {
 	}, _e2e->lifetime());
 
 	_e2e->failures() | rpl::start_with_next([=] {
-		LOG(("TdE2E: Got failure!"));
-		startRejoin();
+		LOG(("TdE2E: Got failure, scheduling rejoin!"));
+		crl::on_main(this, [=] { startRejoin(); });
 	}, _e2e->lifetime());
 
 	_e2e->registerEncryptDecrypt(_e2eEncryptDecrypt);
