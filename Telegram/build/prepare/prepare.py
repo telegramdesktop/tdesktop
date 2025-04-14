@@ -1928,7 +1928,7 @@ win:
 stage('td', """
     git clone https://github.com/tdlib/td.git
     cd td
-    git checkout a03a90470d
+    git checkout 04adfc87de
 win:
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out

@@ -818,7 +818,7 @@ COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 RUN git init td \
 	&& cd td \
 	&& git remote add origin {{ GIT }}/tdlib/td.git \
-	&& git fetch --depth=1 origin a03a90470d6fca9a5a3db747ba3f3e4a465b5fe7 \
+	&& git fetch --depth=1 origin 04adfc87deea4c804def118e88c89a08c388b32b \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git \
 	&& env -u CFLAGS -u CXXFLAGS cmake -B out/Release . \
