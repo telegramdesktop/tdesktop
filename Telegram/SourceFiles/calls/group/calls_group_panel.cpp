@@ -463,7 +463,9 @@ void Panel::initControls() {
 
 		const auto oldState = _call->muted();
 		const auto newState = (oldState == MuteState::ForceMuted)
-			? MuteState::RaisedHand
+			? (_call->conference()
+				? MuteState::ForceMuted
+				: MuteState::RaisedHand)
 			: (oldState == MuteState::RaisedHand)
 			? MuteState::RaisedHand
 			: (oldState == MuteState::Muted)
@@ -763,7 +765,9 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 				: state == GroupCall::InstanceState::Disconnected
 				? Type::Connecting
 				: mute == MuteState::ForceMuted
-				? Type::ForceMuted
+				? (_call->conference()
+					? Type::ConferenceForceMuted
+					: Type::ForceMuted)
 				: mute == MuteState::RaisedHand
 				? Type::RaisedHand
 				: mute == MuteState::Muted
