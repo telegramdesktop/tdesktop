@@ -1991,8 +1991,12 @@ PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
 	_selected.index.value = newSelectedIndex;
 	_selected.element = 0;
 	if (newSelectedIndex >= 0) {
-		auto top = (newSelectedIndex > 0) ? getRowTop(RowIndex(newSelectedIndex)) : 0;
+		auto top = (newSelectedIndex > 0) ? getRowTop(RowIndex(newSelectedIndex)) : _aboveHeight;
 		auto bottom = (newSelectedIndex + 1 < rowsCount) ? getRowTop(RowIndex(newSelectedIndex + 1)) : height();
+		_scrollToRequests.fire({ top, bottom });
+	} else if (!_selected.index.value && direction < 0) {
+		auto top = 0;
+		auto bottom = _aboveHeight;
 		_scrollToRequests.fire({ top, bottom });
 	}
 

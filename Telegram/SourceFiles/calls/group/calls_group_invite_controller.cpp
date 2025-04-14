@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "apiwrap.h"
@@ -117,6 +118,7 @@ struct PrioritizedSelector {
 	Fn<bool(int, int, int)> overrideKey;
 	Fn<void(PeerListRowId)> deselect;
 	Fn<void()> activate;
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests;
 };
 
 class ConfInviteController final : public ContactsBoxController {
@@ -131,6 +133,10 @@ public:
 	[[nodiscard]] rpl::producer<bool> hasSelectedValue() const;
 	[[nodiscard]] std::vector<InviteRequest> requests(
 		const std::vector<not_null<PeerData*>> &peers) const;
+
+	void noSearchSubmit();
+	[[nodiscard]] auto prioritizeScrollRequests() const
+		-> rpl::producer<Ui::ScrollToRequest>;
 
 protected:
 	void prepareViewHook() override;
@@ -160,6 +166,7 @@ private:
 	const std::vector<not_null<UserData*>> _prioritize;
 	const Fn<void()> _shareLink;
 	PrioritizedSelector _prioritizeRows;
+	rpl::event_stream<Ui::ScrollToRequest> _prioritizeScrollRequests;
 	base::flat_set<not_null<UserData*>> _skip;
 	rpl::variable<bool> _hasSelected;
 	base::flat_set<not_null<UserData*>> _withVideo;
@@ -369,8 +376,6 @@ void ConfInviteRow::elementsPaint(
 		}
 
 		void toggleFirst() {
-			Expects(delegate()->peerListFullRowsCount() > 0);
-
 			rowClicked(delegate()->peerListRowAt(0));
 		}
 
@@ -396,13 +401,17 @@ void ConfInviteRow::elementsPaint(
 		toggleGetChecked,
 		lastSelectWithVideo,
 		setLastSelectWithVideo);
-	const auto activate = [=] {
-		controller->toggleFirst();
-	};
 	controller->setStyleOverrides(&st::createCallList);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
 		controller));
+	const auto activate = [=] {
+		content->submitted();
+	};
+	content->noSearchSubmits() | rpl::start_with_next([=] {
+		controller->toggleFirst();
+	}, content->lifetime());
+
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
@@ -444,6 +453,7 @@ void ConfInviteRow::elementsPaint(
 		.overrideKey = overrideKey,
 		.deselect = deselect,
 		.activate = activate,
+		.scrollToRequests = content->scrollToRequests(),
 	};
 }
 
@@ -576,6 +586,19 @@ bool ConfInviteController::toggleRowGetChecked(
 	return !row->checked();
 }
 
+void ConfInviteController::noSearchSubmit() {
+	if (const auto onstack = _prioritizeRows.activate) {
+		onstack();
+	} else if (delegate()->peerListFullRowsCount() > 0) {
+		rowClicked(delegate()->peerListRowAt(0));
+	}
+}
+
+auto ConfInviteController::prioritizeScrollRequests() const
+-> rpl::producer<Ui::ScrollToRequest> {
+	return _prioritizeScrollRequests.events();
+}
+
 void ConfInviteController::prepareViewHook() {
 	if (_shareLink) {
 		addShareLinkButton();
@@ -602,6 +625,11 @@ void ConfInviteController::addPriorityInvites() {
 		toggleGetChecked,
 		[=] { return _lastSelectWithVideo; },
 		[=](bool video) { _lastSelectWithVideo = video; });
+	if (auto &scrollTo = _prioritizeRows.scrollToRequests) {
+		std::move(
+			scrollTo
+		) | rpl::start_to_stream(_prioritizeScrollRequests, lifetime());
+	}
 	delegate()->peerListSetAboveWidget(std::move(_prioritizeRows.content));
 }
 
@@ -1035,6 +1063,15 @@ object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		InitReActivate(box);
 
+		box->noSearchSubmits() | rpl::start_with_next([=] {
+			raw->noSearchSubmit();
+		}, box->lifetime());
+
+		raw->prioritizeScrollRequests(
+		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+			box->scrollTo(request);
+		}, box->lifetime());
+
 		const auto join = [=] {
 			const auto weak = Ui::MakeWeak(box);
 			auto selected = raw->requests(box->collectSelectedRows());
@@ -1108,6 +1145,15 @@ object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 		} else {
 			box->setTitle(tr::lng_confcall_create_title());
 		}
+
+		box->noSearchSubmits() | rpl::start_with_next([=] {
+			raw->noSearchSubmit();
+		}, box->lifetime());
+
+		raw->prioritizeScrollRequests(
+		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+			box->scrollTo(request);
+		}, box->lifetime());
 
 		const auto create = [=] {
 			auto selected = raw->requests(box->collectSelectedRows());
