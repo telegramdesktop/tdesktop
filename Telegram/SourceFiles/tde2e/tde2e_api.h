@@ -73,7 +73,7 @@ class EncryptDecrypt final
 	: public std::enable_shared_from_this<EncryptDecrypt> {
 public:
 	[[nodiscard]] auto callback()
-		-> Fn<EncryptionBuffer(const EncryptionBuffer&, int64_t, bool)>;
+	-> Fn<EncryptionBuffer(const EncryptionBuffer&, int64_t, bool, int32_t)>;
 
 	void setCallId(CallId id);
 	void clearCallId(CallId fromId);

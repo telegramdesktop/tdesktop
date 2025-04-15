@@ -75,11 +75,12 @@ constexpr auto kShortPollChainBlocksWaitFor = crl::time(1000);
 } // namespace
 
 auto EncryptDecrypt::callback()
--> Fn<EncryptionBuffer(const EncryptionBuffer&, int64_t, bool)> {
+-> Fn<EncryptionBuffer(const EncryptionBuffer&, int64_t, bool, int32_t)> {
 	return [that = shared_from_this()](
 			const EncryptionBuffer &data,
 			int64_t userId,
-			bool encrypt) -> EncryptionBuffer {
+			bool encrypt,
+			int32_t unencryptedPrefixSize) -> EncryptionBuffer {
 		const auto libId = that->_id.load();
 		if (!libId) {
 			return {};
@@ -87,7 +88,11 @@ auto EncryptDecrypt::callback()
 		const auto channelId = tde2e_api::CallChannelId(0);
 		const auto slice = Slice(data);
 		const auto result = encrypt
-			? tde2e_api::call_encrypt(libId, channelId, slice)
+			? tde2e_api::call_encrypt(
+				libId,
+				channelId,
+				slice,
+				size_t(unencryptedPrefixSize))
 			: tde2e_api::call_decrypt(libId, userId, channelId, slice);
 		if (!result.is_ok()) {
 			return {};
