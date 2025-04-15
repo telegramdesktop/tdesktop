@@ -63,8 +63,6 @@ void TopBarSuggestionContent::setRightIcon(RightIcon icon) {
 
 void TopBarSuggestionContent::draw(QPainter &p) {
 	const auto kLinesForPhoto = 3;
-	const auto rightPhotoSize = _titleSt.font->ascent * kLinesForPhoto;
-	const auto rightPhotoPlaceholder = _titleSt.font->height * kLinesForPhoto;
 
 	const auto r = Ui::RpWidget::rect();
 	p.fillRect(r, st::historyPinnedBg);
@@ -177,9 +175,6 @@ void TopBarSuggestionContent::paintEvent(QPaintEvent *) {
 }
 
 rpl::producer<int> TopBarSuggestionContent::desiredHeightValue() const {
-	const auto kLinesForPhoto = 3;
-	const auto rightPhotoSize = _titleSt.font->ascent * kLinesForPhoto;
-	const auto rightPhotoPlaceholder = _titleSt.font->height * kLinesForPhoto;
 	return rpl::combine(
 		_lastPaintedContentTop.value(),
 		_lastPaintedContentLineAmount.value()
