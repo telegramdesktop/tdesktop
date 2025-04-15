@@ -115,6 +115,7 @@ private:
 
 struct PrioritizedSelector {
 	object_ptr<Ui::RpWidget> content = { nullptr };
+	Fn<void()> init;
 	Fn<bool(int, int, int)> overrideKey;
 	Fn<void(PeerListRowId)> deselect;
 	Fn<void()> activate;
@@ -320,7 +321,7 @@ void ConfInviteRow::elementsPaint(
 [[nodiscard]] PrioritizedSelector PrioritizedInviteSelector(
 		const ConfInviteStyles &st,
 		std::vector<not_null<UserData*>> users,
-		Fn<bool(not_null<PeerListRow*>, bool)> toggleGetChecked,
+		Fn<bool(not_null<PeerListRow*>, bool, anim::type)> toggleGetChecked,
 		Fn<bool()> lastSelectWithVideo,
 		Fn<void(bool)> setLastSelectWithVideo) {
 	class PrioritizedController final : public PeerListController {
@@ -328,7 +329,10 @@ void ConfInviteRow::elementsPaint(
 		PrioritizedController(
 			const ConfInviteStyles &st,
 			std::vector<not_null<UserData*>> users,
-			Fn<bool(not_null<PeerListRow*>, bool)> toggleGetChecked,
+			Fn<bool(
+				not_null<PeerListRow*>,
+				bool,
+				anim::type)> toggleGetChecked,
 			Fn<bool()> lastSelectWithVideo,
 			Fn<void(bool)> setLastSelectWithVideo)
 		: _st(st)
@@ -368,7 +372,7 @@ void ConfInviteRow::elementsPaint(
 		void toggleRowSelected(not_null<PeerListRow*> row, bool video) {
 			delegate()->peerListSetRowChecked(
 				row,
-				_toggleGetChecked(row, video));
+				_toggleGetChecked(row, video, anim::type::normal));
 		}
 
 		Main::Session &session() const override {
@@ -382,7 +386,7 @@ void ConfInviteRow::elementsPaint(
 	private:
 		const ConfInviteStyles &_st;
 		std::vector<not_null<UserData*>> _users;
-		Fn<bool(not_null<PeerListRow*>, bool)> _toggleGetChecked;
+		Fn<bool(not_null<PeerListRow*>, bool, anim::type)> _toggleGetChecked;
 		Fn<bool()> _lastSelectWithVideo;
 		Fn<void(bool)> _setLastSelectWithVideo;
 
@@ -448,8 +452,19 @@ void ConfInviteRow::elementsPaint(
 		}
 	};
 
+	const auto init = [=] {
+		for (const auto &user : users) {
+			if (const auto row = delegate->peerListFindRow(user->id.value)) {
+				delegate->peerListSetRowChecked(
+					row,
+					toggleGetChecked(row, false, anim::type::instant));
+			}
+		}
+	};
+
 	return {
 		.content = std::move(result),
+		.init = init,
 		.overrideKey = overrideKey,
 		.deselect = deselect,
 		.activate = activate,
@@ -608,12 +623,15 @@ void ConfInviteController::prepareViewHook() {
 }
 
 void ConfInviteController::addPriorityInvites() {
-	const auto toggleGetChecked = [=](not_null<PeerListRow*> row, bool video) {
+	const auto toggleGetChecked = [=](
+			not_null<PeerListRow*> row,
+			bool video,
+			anim::type animated) {
 		const auto result = toggleRowGetChecked(row, video);
 		delegate()->peerListSetForeignRowChecked(
 			row,
 			result,
-			anim::type::normal);
+			animated);
 
 		_hasSelected = (delegate()->peerListSelectedRowsCount() > 0);
 
@@ -629,6 +647,13 @@ void ConfInviteController::addPriorityInvites() {
 		std::move(
 			scrollTo
 		) | rpl::start_to_stream(_prioritizeScrollRequests, lifetime());
+	}
+	if (const auto onstack = _prioritizeRows.init) {
+		onstack();
+
+		// Force finishing in instant adding checked rows bunch.
+		delegate()->peerListAddSelectedPeers(
+			std::vector<not_null<PeerData*>>());
 	}
 	delegate()->peerListSetAboveWidget(std::move(_prioritizeRows.content));
 }

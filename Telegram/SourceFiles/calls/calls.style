@@ -1680,3 +1680,7 @@ confcallFingerprintText: FlatLabel(defaultFlatLabel) {
 	}
 }
 confcallFingerprintSkip: 2px;
+confcallFingerprintTooltipLabel: defaultImportantTooltipLabel;
+confcallFingerprintTooltip: defaultImportantTooltip;
+confcallFingerprintTooltipSkip: 12px;
+confcallFingerprintTooltipMaxWidth: 220px;

@@ -77,23 +77,6 @@ constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
 constexpr auto kHideControlsTimeout = 5 * crl::time(1000);
 
-[[nodiscard]] QString ComposeTitle(const QByteArray &hash) {
-	auto result = tr::lng_confcall_join_title(tr::now);
-	if (hash.size() >= 32) {
-		const auto fp = bytes::make_span(hash).subspan(0, 32);
-		const auto emoji = Calls::ComputeEmojiFingerprint(fp);
-		result += QString::fromUtf8(" \xc2\xb7 ");
-		const auto base = result.size();
-		for (const auto &single : emoji) {
-			result += single->text();
-		}
-		MTP_LOG(0, ("Got Emoji: %1.").arg(result.mid(base)));
-	} else {
-		MTP_LOG(0, ("Cleared Emoji."));
-	}
-	return result;
-}
-
 #ifdef Q_OS_WIN
 void UnpinMaximized(not_null<QWidget*> widget) {
 	SetWindowPos(
@@ -2417,7 +2400,7 @@ void Panel::updateMembersGeometry() {
 
 rpl::producer<QString> Panel::titleText() {
 	if (_call->conference()) {
-		return _call->emojiHashValue() | rpl::map(ComposeTitle);
+		return tr::lng_confcall_join_title();
 	}
 	return rpl::combine(
 		Info::Profile::NameValue(_peer),

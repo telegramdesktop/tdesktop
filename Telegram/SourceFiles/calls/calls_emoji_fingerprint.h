@@ -37,6 +37,7 @@ struct FingerprintBadgeState {
 		int added = 0;
 	};
 	std::vector<Entry> entries;
+	float64 speed = 1.;
 };
 struct FingerprintBadge {
 	not_null<const FingerprintBadgeState*> state;
@@ -60,6 +61,7 @@ struct FingerprintBadgeCache {
 		std::vector<Emoji> emoji;
 	};
 	std::vector<Entry> entries;
+	QImage shadow;
 };
 void PaintFingerprintEntry(
 	QPainter &p,

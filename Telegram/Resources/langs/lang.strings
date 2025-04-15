@@ -4969,6 +4969,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_sure_remove" = "Remove {user} from the call?";
 "lng_confcall_e2e_badge" = "End-to-End Encrypted";
 "lng_confcall_e2e_badge_small" = "E2E Encrypted";
+"lng_confcall_e2e_about" = "These four emoji represent the call's encryption key. They must match for all participants and change when someone joins or leaves.";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 

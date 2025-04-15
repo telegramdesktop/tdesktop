@@ -12,20 +12,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_signal_bars.h"
 #include "lang/lang_keys.h"
 #include "data/data_user.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/abstract_button.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 #include "styles/style_calls.h"
 
 namespace Calls {
 namespace {
 
 constexpr auto kTooltipShowTimeoutMs = crl::time(1000);
-constexpr auto kCarouselOneDuration = crl::time(1000);// crl::time(100);
-constexpr auto kStartTimeShift = crl::time(500);//  crl::time(50);
+constexpr auto kCarouselOneDuration = crl::time(100);
+constexpr auto kStartTimeShift = crl::time(50);
 constexpr auto kEmojiInFingerprint = 4;
 constexpr auto kEmojiInCarousel = 10;
 
@@ -317,6 +319,7 @@ FingerprintBadge SetupFingerprintBadge(
 	};
 	const auto state = on.make_state<State>();
 
+	state->data.speed = 1. / kCarouselOneDuration;
 	state->update = [=](crl::time now) {
 		// speed-up-duration = 2 * one / speed.
 		const auto one = 1.;
@@ -546,13 +549,112 @@ FingerprintBadge SetupFingerprintBadge(
 	return { .state = &state->data, .repaints = state->repaints.events() };
 }
 
+void SetupFingerprintTooltip(not_null<Ui::RpWidget*> widget) {
+	struct State {
+		std::unique_ptr<Ui::ImportantTooltip> tooltip;
+		Fn<void()> updateGeometry;
+		Fn<void(bool)> toggleTooltip;
+	};
+	const auto state = widget->lifetime().make_state<State>();
+	state->updateGeometry = [=] {
+		if (!state->tooltip.get()) {
+			return;
+		}
+		const auto geometry = Ui::MapFrom(
+			widget->window(),
+			widget,
+			widget->rect());
+		if (geometry.isEmpty()) {
+			state->toggleTooltip(false);
+			return;
+		}
+		const auto weak = QPointer<QWidget>(state->tooltip.get());
+		const auto countPosition = [=](QSize size) {
+			const auto result = geometry.bottomLeft()
+				+ QPoint(
+					geometry.width() / 2,
+					st::confcallFingerprintTooltipSkip)
+				- QPoint(size.width() / 2, 0);
+			return result;
+		};
+		state->tooltip.get()->pointAt(
+			geometry,
+			RectPart::Bottom,
+			countPosition);
+	};
+	state->toggleTooltip = [=](bool show) {
+		if (const auto was = state->tooltip.release()) {
+			was->toggleAnimated(false);
+		}
+		if (!show) {
+			return;
+		}
+		const auto text = tr::lng_confcall_e2e_about(
+			tr::now,
+			Ui::Text::WithEntities);
+		if (text.empty()) {
+			return;
+		}
+		state->tooltip = std::make_unique<Ui::ImportantTooltip>(
+			widget->window(),
+			Ui::MakeNiceTooltipLabel(
+				widget,
+				rpl::single(text),
+				st::confcallFingerprintTooltipMaxWidth,
+				st::confcallFingerprintTooltipLabel),
+			st::confcallFingerprintTooltip);
+		const auto raw = state->tooltip.get();
+		const auto weak = QPointer<QWidget>(raw);
+		const auto destroy = [=] {
+			delete weak.data();
+		};
+		raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+		raw->setHiddenCallback(destroy);
+		state->updateGeometry();
+		raw->toggleAnimated(true);
+	};
+
+	widget->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter) {
+			state->toggleTooltip(true);
+		} else if (type == QEvent::Leave) {
+			state->toggleTooltip(false);
+		}
+	}, widget->lifetime());
+}
+
+QImage MakeVerticalShadow(int height) {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(1, height) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	auto p = QPainter(&result);
+	auto g = QLinearGradient(0, 0, 0, height);
+	auto color = st::groupCallMembersBg->c;
+	auto trans = color;
+	trans.setAlpha(0);
+	g.setStops({
+		{ 0.0, color },
+		{ 0.4, trans },
+		{ 0.6, trans },
+		{ 1.0, color },
+	});
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(0, 0, 1, height, g);
+	p.end();
+
+	return result;
+}
+
 void SetupFingerprintBadgeWidget(
 		not_null<Ui::RpWidget*> widget,
 		not_null<const FingerprintBadgeState*> state,
 		rpl::producer<> repaints) {
 	auto &lifetime = widget->lifetime();
 
-	const auto button = Ui::CreateChild<Ui::AbstractButton>(widget);
+	const auto button = Ui::CreateChild<Ui::RpWidget>(widget);
 	button->show();
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
@@ -633,12 +735,19 @@ void SetupFingerprintBadgeWidget(
 			st::confcallFingerprintTextMargins);
 		const auto count = int(state->entries.size());
 		cache->entries.resize(count);
+		cache->shadow = MakeVerticalShadow(outer.height());
 		for (auto i = 0; i != count; ++i) {
-			PaintFingerprintEntry(
-				p,
-				state->entries[i],
-				cache->entries[i],
-				esize);
+			const auto &entry = state->entries[i];
+			auto &cached = cache->entries[i];
+			const auto shadowed = entry.speed / state->speed;
+			PaintFingerprintEntry(p, entry, cached, esize);
+			if (shadowed > 0.) {
+				p.setOpacity(shadowed);
+				p.drawImage(
+					QRect(0, -st::confcallFingerprintMargins.top(), size, outer.height()),
+					cache->shadow);
+				p.setOpacity(1.);
+			}
 			if (i + 1 == count / 2) {
 				p.translate(size + textOuter.width(), 0);
 			} else {
@@ -650,6 +759,8 @@ void SetupFingerprintBadgeWidget(
 	std::move(repaints) | rpl::start_with_next([=] {
 		button->update();
 	}, lifetime);
+
+	SetupFingerprintTooltip(button);
 }
 
 void PaintFingerprintEntry(
