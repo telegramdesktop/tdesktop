@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_volume_item.h"
 #include "calls/group/calls_group_members_row.h"
 #include "calls/group/calls_group_viewport.h"
+#include "calls/calls_emoji_fingerprint.h"
 #include "calls/calls_instance.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -1745,6 +1746,9 @@ Members::Members(
 , _listController(std::make_unique<Controller>(call, parent, mode))
 , _layout(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
+, _fingerprint(call->conference()
+	? _layout->add(object_ptr<Ui::RpWidget>(_layout.get()))
+	: nullptr)
 , _videoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get())))
 , _viewport(
 	std::make_unique<Viewport>(
@@ -1753,6 +1757,7 @@ Members::Members(
 		backend)) {
 	setupList();
 	setupAddMember(call);
+	setupFingerprint();
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
@@ -1854,6 +1859,8 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			_canInviteByLink = canInviteByLinkByPeer(channel);
 		});
 
+	const auto baseIndex = _layout->count() - 2;
+
 	rpl::combine(
 		_canAddMembers.value(),
 		_canInviteByLink.value(),
@@ -1887,7 +1894,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 		addMember->resizeToWidth(_layout->width());
 		delete _addMemberButton.current();
 		_addMemberButton = addMember.data();
-		_layout->insert(3, std::move(addMember));
+		_layout->insert(baseIndex, std::move(addMember));
 		if (conference) {
 			auto shareLink = Settings::CreateButtonWithIcon(
 				_layout.get(),
@@ -1901,7 +1908,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			shareLink->resizeToWidth(_layout->width());
 			delete _shareLinkButton.current();
 			_shareLinkButton = shareLink.data();
-			_layout->insert(4, std::move(shareLink));
+			_layout->insert(baseIndex + 1, std::move(shareLink));
 		}
 	}, lifetime());
 
@@ -1998,6 +2005,23 @@ void Members::setupList() {
 	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
 		_layout->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
 	}, _scroll->lifetime());
+}
+
+void Members::setupFingerprint() {
+	if (const auto raw = _fingerprint) {
+		auto badge = SetupFingerprintBadge(
+			raw->lifetime(),
+			_call->emojiHashValue());
+		std::move(badge.repaints) | rpl::start_to_stream(
+			_fingerprintRepaints,
+			raw->lifetime());
+		_fingerprintState = badge.state;
+
+		SetupFingerprintBadgeWidget(
+			raw,
+			_fingerprintState,
+			_fingerprintRepaints.events());
+	}
 }
 
 void Members::trackViewportGeometry() {

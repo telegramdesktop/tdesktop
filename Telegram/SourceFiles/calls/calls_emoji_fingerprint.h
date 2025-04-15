@@ -26,4 +26,45 @@ class Call;
 	not_null<QWidget*> parent,
 	not_null<Call*> call);
 
+struct FingerprintBadgeState {
+	struct Entry {
+		EmojiPtr emoji = nullptr;
+		std::vector<EmojiPtr> sliding;
+		std::vector<EmojiPtr> carousel;
+		crl::time time = 0;
+		float64 speed = 0.;
+		float64 position = 0.;
+		int added = 0;
+	};
+	std::vector<Entry> entries;
+};
+struct FingerprintBadge {
+	not_null<const FingerprintBadgeState*> state;
+	rpl::producer<> repaints;
+};
+FingerprintBadge SetupFingerprintBadge(
+	rpl::lifetime &on,
+	rpl::producer<QByteArray> fingerprint);
+
+void SetupFingerprintBadgeWidget(
+	not_null<Ui::RpWidget*> widget,
+	not_null<const FingerprintBadgeState*> state,
+	rpl::producer<> repaints);
+
+struct FingerprintBadgeCache {
+	struct Emoji {
+		EmojiPtr ptr = nullptr;
+		QImage image;
+	};
+	struct Entry {
+		std::vector<Emoji> emoji;
+	};
+	std::vector<Entry> entries;
+};
+void PaintFingerprintEntry(
+	QPainter &p,
+	const FingerprintBadgeState::Entry &entry,
+	FingerprintBadgeCache::Entry &cache,
+	int esize);
+
 } // namespace Calls

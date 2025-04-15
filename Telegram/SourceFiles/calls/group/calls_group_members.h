@@ -25,6 +25,7 @@ class GroupCall;
 
 namespace Calls {
 class GroupCall;
+struct FingerprintBadgeState;
 } // namespace Calls
 
 namespace Calls::Group {
@@ -96,6 +97,7 @@ private:
 	void setupAddMember(not_null<GroupCall*> call);
 	void resizeToList();
 	void setupList();
+	void setupFingerprint();
 	void setupFakeRoundCorners();
 
 	void trackViewportGeometry();
@@ -106,6 +108,9 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
+	const not_null<Ui::RpWidget*> _fingerprint;
+	rpl::event_stream<> _fingerprintRepaints;
+	const FingerprintBadgeState *_fingerprintState = nullptr;
 	const not_null<Ui::RpWidget*> _videoWrap;
 	std::unique_ptr<Viewport> _viewport;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;

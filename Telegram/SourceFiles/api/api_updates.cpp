@@ -1316,7 +1316,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 							user->madeAction(base::unixtime::now());
 						}
 					}
-					ClearMediaAsExpired(item);
+					item->clearMediaAsExpired();
 				}
 			} else {
 				// Perhaps it was an unread mention!

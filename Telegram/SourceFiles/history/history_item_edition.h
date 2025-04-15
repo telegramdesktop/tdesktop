@@ -20,6 +20,7 @@ struct HistoryMessageEdition {
 		const MTPDmessage &message);
 
 	bool isEditHide = false;
+	bool isMediaUnread = false;
 	int editDate = 0;
 	int views = -1;
 	int forwards = -1;

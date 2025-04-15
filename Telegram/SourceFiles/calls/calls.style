@@ -1669,3 +1669,14 @@ groupCallLinkMenu: IconButton(confcallLinkMenu) {
 		color: groupCallMembersBgOver;
 	}
 }
+
+confcallFingerprintBottomSkip: 8px;
+confcallFingerprintMargins: margins(8px, 5px, 8px, 5px);
+confcallFingerprintTextMargins: margins(3px, 3px, 3px, 0px);
+confcallFingerprintText: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallMembersFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px semibold);
+	}
+}
+confcallFingerprintSkip: 2px;

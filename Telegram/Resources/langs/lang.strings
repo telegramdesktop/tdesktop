@@ -4967,6 +4967,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_not_accessible" = "This call is no longer accessible.";
 "lng_confcall_participants_limit" = "This call reached the participants limit.";
 "lng_confcall_sure_remove" = "Remove {user} from the call?";
+"lng_confcall_e2e_badge" = "End-to-End Encrypted";
+"lng_confcall_e2e_badge_small" = "E2E Encrypted";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
 

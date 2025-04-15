@@ -380,6 +380,8 @@ public:
 	void updateReplyMarkup(HistoryMessageMarkupData &&markup);
 	void contributeToSlowmode(TimeId realDate = 0);
 
+	void clearMediaAsExpired();
+
 	void addToUnreadThings(HistoryUnreadThings::AddType type);
 	void destroyHistoryEntry();
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -669,6 +671,10 @@ private:
 		CallId linkCallId);
 	[[nodiscard]] PreparedServiceText prepareCallScheduledText(
 		TimeId scheduleDate);
+
+	[[nodiscard]] PreparedServiceText prepareServiceTextForMessage(
+		const MTPMessageMedia &media,
+		bool unread);
 
 	void flagSensitiveContent();
 	[[nodiscard]] PeerData *computeDisplayFrom() const;
