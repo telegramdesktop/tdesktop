@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/main_app_config.h"
 
+#include "api/api_authorizations.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "main/main_account.h"
@@ -106,6 +107,15 @@ int AppConfig::paidMessageCommission() const {
 
 int AppConfig::pinnedGiftsLimit() const {
 	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
+}
+
+bool AppConfig::callsDisabledForSession() const {
+	const auto authorizations = _account->sessionExists()
+		? &_account->session().api().authorizations()
+		: nullptr;
+	return get<bool>(
+		u"call_requests_disabled"_q,
+		authorizations->callsDisabledHere());
 }
 
 int AppConfig::confcallSizeLimit() const {
@@ -314,8 +324,9 @@ bool AppConfig::suggestionCurrent(const QString &key) const {
 		if (_dismissedSuggestions.contains(key)) {
 			return false;
 		} else {
-			const auto known
-				= _account->session().data().knownContactBirthdays();
+			const auto known = _account->sessionExists()
+				? _account->session().data().knownContactBirthdays()
+				: std::vector<UserId>();
 			if (!known) {
 				return true;
 			}

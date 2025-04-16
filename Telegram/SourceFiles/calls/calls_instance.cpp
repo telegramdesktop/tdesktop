@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/session/session_show.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "apiwrap.h"
@@ -1090,7 +1091,8 @@ void Instance::showConferenceInvite(
 	const auto video = call->video;
 	if (!conferenceId
 		|| call->state != Data::CallState::Invitation
-		|| user->isSelf()) {
+		|| user->isSelf()
+		|| user->session().appConfig().callsDisabledForSession()) {
 		return;
 	} else if (_currentCall
 		&& _currentCall->conferenceId() == conferenceId) {
