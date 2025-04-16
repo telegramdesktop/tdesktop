@@ -141,7 +141,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		}
 		_price.setMarkedText(
 			st::semiboldTextStyle,
-			(unique
+			(data.resale
+				? _delegate->star().append(' ').append(
+					Lang::FormatCountDecimal(data.info.starsResellMin)
+				).append(data.info.resellCount > 0 ? "+" : "")
+				: unique
 				? tr::lng_gift_transfer_button(
 					tr::now,
 					Ui::Text::WithEntities)
@@ -152,7 +156,10 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		if (!_stars) {
 			_stars.emplace(this, true, starsType);
 		}
-		if (unique) {
+		if (data.resale) {
+			_stars->setColorOverride(
+				Ui::Premium::CreditsIconGradientStops());
+		} else if (unique) {
 			const auto white = QColor(255, 255, 255);
 			_stars->setColorOverride(QGradientStops{
 				{ 0., anim::with_alpha(white, .3) },
@@ -491,10 +498,12 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				&& !data.userpic
 				&& !data.info.limitedLeft;
 			return GiftBadge{
-				.text = (soldOut
-					? tr::lng_gift_stars_sold_out(tr::now)
+				.text = (data.resale
+					? tr::lng_gift_stars_resale(tr::now)
 					: (unique && pinned)
 					? ('#' + QString::number(unique->number))
+					: soldOut
+					? tr::lng_gift_stars_sold_out(tr::now)
 					: (!data.userpic && !data.info.unique)
 					? tr::lng_gift_stars_limited(tr::now)
 					: (count == 1)
@@ -505,7 +514,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 						(((count % 1000) && (count < 10'000))
 							? Lang::FormatCountDecimal(count)
 							: Lang::FormatCountToShort(count).string))),
-				.bg1 = (unique
+				.bg1 = (data.resale
+					? st::boxTextFgGood->c
+					: unique
 					? unique->backdrop.edgeColor
 					: soldOut
 					? st::attentionButtonFg->c

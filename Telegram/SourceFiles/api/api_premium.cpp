@@ -799,6 +799,7 @@ std::optional<Data::StarGift> FromTL(
 	return gift.match([&](const MTPDstarGift &data) {
 		const auto document = session->data().processDocument(
 			data.vsticker());
+		const auto resellPrice = data.vresell_min_stars().value_or_empty();
 		const auto remaining = data.vavailability_remains();
 		const auto total = data.vavailability_total();
 		if (!document->sticker()) {
@@ -809,7 +810,9 @@ std::optional<Data::StarGift> FromTL(
 			.stars = int64(data.vstars().v),
 			.starsConverted = int64(data.vconvert_stars().v),
 			.starsToUpgrade = int64(data.vupgrade_stars().value_or_empty()),
+			.starsResellMin = int64(resellPrice),
 			.document = document,
+			.resellCount = int(data.vavailability_resale().value_or_empty()),
 			.limitedLeft = remaining.value_or_empty(),
 			.limitedCount = total.value_or_empty(),
 			.firstSaleDate = data.vfirst_sale_date().value_or_empty(),

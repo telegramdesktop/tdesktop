@@ -68,6 +68,7 @@ struct GiftTypeStars {
 	bool userpic : 1 = false;
 	bool pinned : 1 = false;
 	bool hidden : 1 = false;
+	bool resale : 1 = false;
 	bool mine : 1 = false;
 
 	[[nodiscard]] friend inline bool operator==(

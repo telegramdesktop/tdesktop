@@ -859,9 +859,15 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			list.reserve(gifts.size());
 			for (auto &gift : gifts) {
 				list.push_back({ .info = gift });
+				if (gift.resellCount > 0) {
+					list.push_back({ .info = gift, .resale = true });
+				}
 			}
 			ranges::stable_sort(list, [](const auto &a, const auto &b) {
-				return a.info.soldOut < b.info.soldOut;
+				const auto soldOut = [](const auto &gift) {
+					return gift.info.soldOut && !gift.resale;
+				};
+				return soldOut(a) < soldOut(b);
 			});
 
 			auto &map = Map[session];
