@@ -1037,15 +1037,18 @@ void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
 					_1 >= st::columnMinimalWidthLeft
 				) | rpl::distinct_until_changed(),
 				_searchStateForTopBarSuggestion.events_starting_with(
-					!_searchState.query.isEmpty())
+					!_searchState.query.isEmpty()),
+				_jumpToDate->toggledValue()
 			) | rpl::map([=](
 					FilterId id,
 					bool folderOrForum,
 					bool wide,
-					bool search) {
+					bool search,
+					bool searchInPeer) {
 				return !folderOrForum
 					&& wide
 					&& !search
+					&& !searchInPeer
 					&& (id == session->data().chatsFilters().defaultId());
 			});
 			return TopBarSuggestionValue(dialogs, session, std::move(on));
