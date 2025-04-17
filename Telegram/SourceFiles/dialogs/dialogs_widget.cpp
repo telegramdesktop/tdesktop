@@ -3487,9 +3487,10 @@ bool Widget::applySearchState(SearchState state) {
 		? peer->owner().history(migrateFrom).get()
 		: nullptr;
 	_searchState = state;
-	if (_chatFilters && queryEmptyChanged) {
+	if (_chatFilters && (queryEmptyChanged || inChatChanged)) {
 		_chatFilters->setVisible(_searchState.query.isEmpty()
-			&& !_openedForum);
+			&& !_openedForum
+			&& !searchInPeer());
 		updateControlsGeometry();
 	}
 	if (_topBarSuggestion && queryEmptyChanged) {
@@ -3919,7 +3920,9 @@ void Widget::updateControlsGeometry() {
 			_chatFilters->move(0, chatFiltersTop);
 		}
 		const auto scrollTop = chatFiltersTop
-			+ ((_chatFilters && _searchState.query.isEmpty() && !_openedForum)
+			+ ((_chatFilters
+				&& _searchState.query.isEmpty()
+				&& !_openedForum && !searchInPeer())
 				? (_chatFilters->height() * (1. - narrowRatio))
 				: 0);
 		const auto scrollHeight = height() - scrollTop - bottomSkip;
