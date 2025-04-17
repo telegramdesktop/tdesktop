@@ -360,7 +360,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						return;
 					}
 					Core::App().openInternalUrl(
-						u"internal:edit_birthday"_q,
+						u"internal:edit_birthday:add_privacy"_q,
 						QVariant::fromValue(ClickHandlerContext{
 							.sessionWindow = base::make_weak(controller),
 						}));
