@@ -3458,6 +3458,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_subtitle_birthdays" = "Birthdays";
 "lng_gift_list_birthday_status_today" = "{emoji} Birthday today";
 "lng_gift_list_birthday_status_yesterday" = "Birthday yesterday";
+"lng_gift_list_birthday_status_tomorrow" = "Birthday tomorrow";
 "lng_gift_self_status" = "buy yourself a gift";
 "lng_gift_self_title" = "Buy a Gift";
 "lng_gift_self_about" = "Buy yourself a gift to display on your page or reserve for later.\n\nLimited-edition gifts upgraded to collectibles can be gifted to others later.";

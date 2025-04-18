@@ -2558,10 +2558,17 @@ Controller::Controller(not_null<Main::Session*> session, PickCallback pick)
 						Data::BirthdayCake());
 				}
 				const auto yesterday = QDate::currentDate().addDays(-1);
-				return (date.day() == yesterday.day()
-						&& date.month() == yesterday.month())
-					? tr::lng_gift_list_birthday_status_yesterday(tr::now)
-					: QString();
+				const auto tomorrow = QDate::currentDate().addDays(1);
+				if (date.day() == yesterday.day()
+						&& date.month() == yesterday.month()) {
+					return tr::lng_gift_list_birthday_status_yesterday(
+						tr::now);
+				} else if (date.day() == tomorrow.day()
+						&& date.month() == tomorrow.month()) {
+					return tr::lng_gift_list_birthday_status_tomorrow(
+						tr::now);
+				}
+				return QString();
 			};
 
 			auto usersWithBirthdays = ranges::views::all(
