@@ -41,8 +41,6 @@ namespace tgcalls {
 class InstanceImpl;
 class InstanceV2Impl;
 class InstanceV2ReferenceImpl;
-class InstanceImplLegacy;
-void SetLegacyGlobalServerConfig(const std::string &serverConfig);
 } // namespace tgcalls
 
 namespace Calls {
@@ -57,7 +55,6 @@ const auto kDefaultVersion = "2.4.4"_q;
 const auto Register = tgcalls::Register<tgcalls::InstanceImpl>();
 const auto RegisterV2 = tgcalls::Register<tgcalls::InstanceV2Impl>();
 const auto RegV2Ref = tgcalls::Register<tgcalls::InstanceV2ReferenceImpl>();
-const auto RegisterLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 
 [[nodiscard]] base::flat_set<int64> CollectEndpointIds(
 		const QVector<MTPPhoneConnection> &list) {
@@ -1637,7 +1634,6 @@ Call::~Call() {
 }
 
 void UpdateConfig(const std::string &data) {
-	tgcalls::SetLegacyGlobalServerConfig(data);
 }
 
 } // namespace Calls

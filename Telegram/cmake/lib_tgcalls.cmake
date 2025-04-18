@@ -281,25 +281,25 @@ PRIVATE
     ${tgcalls_loc}
 )
 
-add_library(lib_tgcalls_legacy STATIC)
-init_target(lib_tgcalls_legacy)
+# add_library(lib_tgcalls_legacy STATIC)
+# init_target(lib_tgcalls_legacy)
 
-add_library(tdesktop::lib_tgcalls_legacy ALIAS lib_tgcalls_legacy)
+# add_library(tdesktop::lib_tgcalls_legacy ALIAS lib_tgcalls_legacy)
 
-nice_target_sources(lib_tgcalls_legacy ${tgcalls_loc}
-PRIVATE
-    legacy/InstanceImplLegacy.cpp
-    legacy/InstanceImplLegacy.h
-)
+# nice_target_sources(lib_tgcalls_legacy ${tgcalls_loc}
+# PRIVATE
+#     legacy/InstanceImplLegacy.cpp
+#     legacy/InstanceImplLegacy.h
+# )
 
-target_include_directories(lib_tgcalls_legacy
-PRIVATE
-    ${tgcalls_loc}
-)
+# target_include_directories(lib_tgcalls_legacy
+# PRIVATE
+#     ${tgcalls_loc}
+# )
 
-target_link_libraries(lib_tgcalls_legacy
-PRIVATE
-    tdesktop::lib_tgcalls
-    tdesktop::lib_tgvoip
-    desktop-app::external_openssl
-)
+# target_link_libraries(lib_tgcalls_legacy
+# PRIVATE
+#     tdesktop::lib_tgcalls
+#     tdesktop::lib_tgvoip
+#     desktop-app::external_openssl
+# )
