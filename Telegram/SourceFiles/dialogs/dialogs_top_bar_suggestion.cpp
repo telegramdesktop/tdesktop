@@ -218,10 +218,14 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 
 				return;
 			} else if (session->premiumCanBuy()
-				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
+				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())
+				&& (!session->data().knownBirthdaysToday()
+					|| !session->data().knownBirthdaysToday()->size())) {
 				session->data().contactBirthdays(
-				) | rpl::start_with_next(crl::guard(content, [=](
-						std::vector<UserId> users) {
+				) | rpl::start_with_next(crl::guard(content, [=] {
+					const auto users = session->data()
+						.knownBirthdaysToday().value_or(
+							std::vector<UserId>());
 					if (users.empty()) {
 						repeat(repeat);
 						return;

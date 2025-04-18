@@ -835,8 +835,10 @@ public:
 
 	[[nodiscard]] rpl::producer<std::vector<UserId>> contactBirthdays(
 		bool force = false);
-	[[nodiscard]] std::optional<std::vector<UserId>> knownContactBirthdays(
-		) const;
+	[[nodiscard]] auto knownContactBirthdays() const
+		-> std::optional<std::vector<UserId>>;
+	[[nodiscard]] auto knownBirthdaysToday() const
+		-> std::optional<std::vector<UserId>>;
 
 	void clearLocalStorage();
 
@@ -1156,6 +1158,7 @@ private:
 	mtpRequestId _contactBirthdaysRequestId = 0;
 	int _contactBirthdaysLastDayRequest = -1;
 	std::vector<UserId> _contactBirthdays;
+	std::vector<UserId> _contactBirthdaysToday;
 
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;
