@@ -2276,10 +2276,10 @@ void GiftBox(
 		&& uniqueDisallowed;
 
 	content->add(
-		object_ptr<CenterWrap<>>(
+		object_ptr<CenterWrap<UserpicButton>>(
 			content,
 			object_ptr<UserpicButton>(content, peer, stUser))
-	)->setAttribute(Qt::WA_TransparentForMouseEvents);
+	)->entity()->setClickedCallback([=] { window->showPeerInfo(peer); });
 	AddSkip(content);
 	AddSkip(content);
 
