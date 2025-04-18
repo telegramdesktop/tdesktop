@@ -43,10 +43,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs {
 namespace {
 
-[[nodiscard]] Window::SessionController *FindSessionController(
+[[nodiscard]] not_null<Window::SessionController*> FindSessionController(
 		not_null<Ui::RpWidget*> widget) {
 	const auto window = Core::App().findWindow(widget);
-	return window ? window->sessionController() : nullptr;
+	Assert(window != nullptr);
+	return window->sessionController();
 }
 
 constexpr auto kSugSetBirthday = "BIRTHDAY_SETUP"_cs;
@@ -125,9 +126,6 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
 					const auto controller = FindSessionController(parent);
-					if (!controller) {
-						return;
-					}
 					UrlClickHandler::Open(
 						u"https://t.me/premiumbot?start=status"_q,
 						QVariant::fromValue(ClickHandlerContext{
@@ -161,9 +159,6 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					content->setRightIcon(RightIcon::Close);
 					content->setClickedCallback([=] {
 						const auto controller = FindSessionController(parent);
-						if (!controller) {
-							return;
-						}
 						controller->uiShow()->show(Box(
 							Settings::SmallBalanceBox,
 							controller->uiShow(),
@@ -234,11 +229,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						repeat(repeat);
 						return;
 					}
+
 					const auto controller = FindSessionController(parent);
-					if (!controller) {
-						repeat(repeat);
-						return;
-					}
 					const auto isSingle = users.size() == 1;
 					const auto first = session->data().user(users.front());
 					content->setRightIcon(RightIcon::Close);
@@ -364,9 +356,6 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
 					const auto controller = FindSessionController(parent);
-					if (!controller) {
-						return;
-					}
 					Core::App().openInternalUrl(
 						u"internal:edit_birthday:add_privacy"_q,
 						QVariant::fromValue(ClickHandlerContext{
@@ -426,9 +415,6 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						description(tr::now, TextWithEntities::Simple));
 					content->setClickedCallback([=] {
 						const auto controller = FindSessionController(parent);
-						if (!controller) {
-							return;
-						}
 						Settings::ShowPremium(controller, "dialogs_hint");
 						config->dismissSuggestion(isPremiumAnnual
 							? kSugPremiumAnnual.utf8()
@@ -459,9 +445,6 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			if (config->suggestionCurrent(kSugSetUserpic.utf8())
 				&& !session->user()->userpicPhotoId()) {
 				const auto controller = FindSessionController(parent);
-				if (!controller) {
-					return;
-				}
 				content->setRightIcon(RightIcon::Close);
 				const auto upload = Ui::CreateChild<Ui::UserpicButton>(
 					content,
