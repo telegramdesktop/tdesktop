@@ -109,6 +109,12 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 		};
 
 		const auto processCurrentSuggestion = [=](auto repeat) -> void {
+			state->birthdayLifetime.destroy();
+			state->premiumLifetime.destroy();
+			state->userpicLifetime.destroy();
+			state->giftsLifetime.destroy();
+			state->creditsLifetime.destroy();
+
 			ensureWrap();
 			const auto content = state->content;
 			const auto wrap = state->wrap;
