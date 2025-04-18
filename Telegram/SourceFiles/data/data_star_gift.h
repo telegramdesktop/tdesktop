@@ -27,6 +27,7 @@ struct UniqueGiftBackdrop : UniqueGiftAttribute {
 	QColor edgeColor;
 	QColor patternColor;
 	QColor textColor;
+	int id = 0;
 };
 
 struct UniqueGiftOriginalDetails {
@@ -64,6 +65,7 @@ struct StarGift {
 	int64 starsToUpgrade = 0;
 	int64 starsResellMin = 0;
 	not_null<DocumentData*> document;
+	QString resellTitle;
 	int resellCount = 0;
 	int limitedLeft = 0;
 	int limitedCount = 0;

@@ -3590,6 +3590,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_wear_end_toast" = "You took off {name}";
 "lng_gift_many_pinned_title" = "Too Many Pinned Gifts";
 "lng_gift_many_pinned_choose" = "Select a gift to unpin below";
+"lng_gift_resale_price" = "Price";
+"lng_gift_resale_number" = "Number";
+"lng_gift_resale_date" = "Date";
+"lng_gift_resale_sort_price" = "Sort by Price";
+"lng_gift_resale_sort_date" = "Sort by Date";
+"lng_gift_resale_sort_number" = "Sort by Number";
+"lng_gift_resale_filter_all" = "Select All";
+"lng_gift_resale_model" = "Model";
+"lng_gift_resale_models#one" = "{count} Model";
+"lng_gift_resale_models#other" = "{count} Models";
+"lng_gift_resale_backdrop" = "Backdrop";
+"lng_gift_resale_backdrops#one" = "{count} Backdrop";
+"lng_gift_resale_backdrops#other" = "{count} Backdrops";
+"lng_gift_resale_symbol" = "Symbol";
+"lng_gift_resale_symbols#one" = "{count} Symbol";
+"lng_gift_resale_symbols#other" = "{count} Symbols";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

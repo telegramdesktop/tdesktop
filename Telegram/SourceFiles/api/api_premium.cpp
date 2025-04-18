@@ -812,6 +812,7 @@ std::optional<Data::StarGift> FromTL(
 			.starsToUpgrade = int64(data.vupgrade_stars().value_or_empty()),
 			.starsResellMin = int64(resellPrice),
 			.document = document,
+			.resellTitle = qs(data.vtitle().value_or_empty()),
 			.resellCount = int(data.vavailability_resale().value_or_empty()),
 			.limitedLeft = remaining.value_or_empty(),
 			.limitedCount = total.value_or_empty(),
@@ -939,7 +940,7 @@ Data::UniqueGiftPattern FromTL(
 }
 
 Data::UniqueGiftBackdrop FromTL(const MTPDstarGiftAttributeBackdrop &data) {
-	auto result = Data::UniqueGiftBackdrop();
+	auto result = Data::UniqueGiftBackdrop{ .id = data.vbackdrop_id().v };
 	result.name = qs(data.vname());
 	result.rarityPermille = data.vrarity_permille().v;
 	result.centerColor = Ui::ColorFromSerialized(

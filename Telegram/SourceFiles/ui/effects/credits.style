@@ -122,6 +122,21 @@ giftBoxTabStyle: semiboldTextStyle;
 giftBoxTabFg: windowSubTextFg;
 giftBoxTabFgActive: windowBoldFg;
 giftBoxTabBgActive: windowBgRipple;
+giftBoxResaleTabsMargin: margins(11px, 10px, 11px, 8px);
+giftBoxResaleTabSkip: 8px;
+giftBoxResaleTabsDropdown: IconEmoji {
+	icon: icon{{ "intro_country_dropdown", lightButtonFg }};
+	padding: margins(4px, 6px, 0px, 0px);
+}
+giftBoxResaleFilter: PopupMenu(popupMenuWithIcons) {
+	menu: Menu(menuWithIcons) {
+		itemPadding: margins(54px, 8px, 48px, 8px);
+		itemRightSkip: 12px;
+	}
+	maxHeight: 320px;
+}
+giftBoxResaleColorSize: 18px;
+giftBoxResaleColorTop: 1px;
 giftBoxPadding: margins(11px, 4px, 11px, 24px);
 giftBoxGiftSkip: point(10px, 8px);
 giftBoxGiftHeight: 164px;

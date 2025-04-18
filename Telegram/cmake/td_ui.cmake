@@ -187,6 +187,8 @@ PRIVATE
 
     media/media_common.h
 
+    menu/gift_resale_filter.cpp
+    menu/gift_resale_filter.h
     menu/menu_check_item.cpp
     menu/menu_check_item.h
     menu/menu_ttl.cpp
