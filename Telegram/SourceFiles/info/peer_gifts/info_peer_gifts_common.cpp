@@ -142,9 +142,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		_price.setMarkedText(
 			st::semiboldTextStyle,
 			(data.resale
-				? _delegate->star().append(' ').append(
-					Lang::FormatCountDecimal(data.info.starsResellMin)
-				).append(data.info.resellCount > 0 ? "+" : "")
+				? (unique
+					? _delegate->monostar()
+					: _delegate->star()).append(' ').append(
+						Lang::FormatCountDecimal(data.info.starsResellMin)
+					).append(data.info.resellCount > 1 ? "+" : "")
 				: unique
 				? tr::lng_gift_transfer_button(
 					tr::now,
@@ -156,15 +158,15 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		if (!_stars) {
 			_stars.emplace(this, true, starsType);
 		}
-		if (data.resale) {
-			_stars->setColorOverride(
-				Ui::Premium::CreditsIconGradientStops());
-		} else if (unique) {
+		if (unique) {
 			const auto white = QColor(255, 255, 255);
 			_stars->setColorOverride(QGradientStops{
 				{ 0., anim::with_alpha(white, .3) },
 				{ 1., white },
 			});
+		} else if (data.resale) {
+			_stars->setColorOverride(
+				Ui::Premium::CreditsIconGradientStops());
 		} else if (soldOut) {
 			_stars.reset();
 		} else {
@@ -498,10 +500,10 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				&& !data.userpic
 				&& !data.info.limitedLeft;
 			return GiftBadge{
-				.text = (data.resale
-					? tr::lng_gift_stars_resale(tr::now)
-					: (unique && pinned)
+				.text = ((unique && (data.resale || pinned))
 					? ('#' + QString::number(unique->number))
+					: data.resale
+					? tr::lng_gift_stars_resale(tr::now)
 					: soldOut
 					? tr::lng_gift_stars_sold_out(tr::now)
 					: (!data.userpic && !data.info.unique)
@@ -514,10 +516,10 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 						(((count % 1000) && (count < 10'000))
 							? Lang::FormatCountDecimal(count)
 							: Lang::FormatCountToShort(count).string))),
-				.bg1 = (data.resale
-					? st::boxTextFgGood->c
-					: unique
+				.bg1 = (unique
 					? unique->backdrop.edgeColor
+					: data.resale
+					? st::boxTextFgGood->c
 					: soldOut
 					? st::attentionButtonFg->c
 					: st::windowActiveTextFg->c),
@@ -643,6 +645,10 @@ Delegate::~Delegate() = default;
 
 TextWithEntities Delegate::star() {
 	return _session->data().customEmojiManager().creditsEmoji();
+}
+
+TextWithEntities Delegate::monostar() {
+	return Ui::Text::IconEmoji(&st::starIconEmoji);
 }
 
 TextWithEntities Delegate::ministar() {

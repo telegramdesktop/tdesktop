@@ -856,6 +856,7 @@ std::optional<Data::StarGift> FromTL(
 				.model = *model,
 				.pattern = *pattern,
 			}),
+			.starsResellMin = int64(data.vresell_stars().value_or_empty()),
 			.document = model->document,
 			.limitedLeft = (total - data.vavailability_issued().v),
 			.limitedCount = total,

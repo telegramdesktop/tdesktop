@@ -113,6 +113,7 @@ enum class GiftButtonMode {
 class GiftButtonDelegate {
 public:
 	[[nodiscard]] virtual TextWithEntities star() = 0;
+	[[nodiscard]] virtual TextWithEntities monostar() = 0;
 	[[nodiscard]] virtual TextWithEntities ministar() = 0;
 	[[nodiscard]] virtual Ui::Text::MarkedContext textContext() = 0;
 	[[nodiscard]] virtual QSize buttonSize() = 0;
@@ -193,6 +194,7 @@ public:
 	~Delegate();
 
 	TextWithEntities star() override;
+	TextWithEntities monostar() override;
 	TextWithEntities ministar() override;
 	Ui::Text::MarkedContext textContext() override;
 	QSize buttonSize() override;

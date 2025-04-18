@@ -3005,9 +3005,17 @@ void GiftResaleBox(
 		ResaleGiftsDescriptor data;
 		rpl::variable<ResaleFilter> filter;
 		rpl::lifetime loading;
+		int lastMinHeight = 0;
 	};
 	const auto state = content->lifetime().make_state<State>();
 	state->data = std::move(descriptor);
+
+	box->heightValue() | rpl::start_with_next([=](int height) {
+		if (height > state->lastMinHeight) {
+			state->lastMinHeight = height;
+			box->setMinHeight(height);
+		}
+	}, content->lifetime());
 
 	auto tabs = MakeResaleTabs(
 		window,
@@ -3041,7 +3049,10 @@ void GiftResaleBox(
 	) | rpl::map([=] {
 		auto result = GiftsDescriptor();
 		for (const auto &gift : state->data.list) {
-			result.list.push_back(GiftTypeStars{ .info = gift });
+			result.list.push_back(GiftTypeStars{
+				.info = gift,
+				.resale = true,
+			});
 		}
 		return result;
 	}), [=] {
