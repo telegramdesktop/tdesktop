@@ -1229,13 +1229,13 @@ struct ResaleTabs {
 			};
 			actionWithIcon(tr::lng_gift_resale_sort_price(tr::now), [=] {
 				sort(ResaleSort::Price);
-			}, &st::menuIconAbove, is(ResaleSort::Price)); AssertIsDebug(icons);
+			}, &st::menuIconOrderPrice, is(ResaleSort::Price)); AssertIsDebug(icons);
 			actionWithIcon(tr::lng_gift_resale_sort_date(tr::now), [=] {
 				sort(ResaleSort::Date);
-			}, &st::menuIconBelow, is(ResaleSort::Date));
+			}, &st::menuIconOrderDate, is(ResaleSort::Date));
 			actionWithIcon(tr::lng_gift_resale_sort_number(tr::now), [=] {
 				sort(ResaleSort::Number);
-			}, &st::menuIconFactcheck, is(ResaleSort::Number));
+			}, &st::menuIconOrderNumber, is(ResaleSort::Number));
 		} else {
 			const auto now = state->filter.current().attributes;
 			const auto type = IndexToType(index);
@@ -1252,7 +1252,7 @@ struct ResaleTabs {
 							}
 						}
 					});
-				}, &st::menuIconAbove);
+				}, &st::menuIconSelect);
 			}
 			const auto toggle = [=](AttributeId id) {
 				modify([&](ResaleFilter &filter) {

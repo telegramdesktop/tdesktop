@@ -179,6 +179,9 @@ menuIconNftTakeOff: icon {{ "menu/nft_takeoff", menuIconColor }};
 menuIconShortcut: icon {{ "menu/shortcut", menuIconColor }};
 menuIconHourglass: icon {{ "menu/hourglass", menuIconColor }};
 menuIconPayment: icon {{ "payments/payment_card", menuIconColor }};
+menuIconOrderPrice: icon {{ "menu/order_price", menuIconColor }};
+menuIconOrderDate: icon {{ "menu/order_date", menuIconColor }};
+menuIconOrderNumber: icon {{ "menu/order_number", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
