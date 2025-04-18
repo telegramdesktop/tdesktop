@@ -115,6 +115,34 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto config = &session->appConfig();
 			if (session->premiumCanBuy()
+				&& config->suggestionCurrent(kSugPremiumGrace.utf8())) {
+				content->setRightIcon(RightIcon::Close);
+				content->setClickedCallback([=] {
+					const auto controller = FindSessionController(parent);
+					if (!controller) {
+						return;
+					}
+					UrlClickHandler::Open(
+						u"https://t.me/premiumbot?start=status"_q,
+						QVariant::fromValue(ClickHandlerContext{
+							.sessionWindow = base::make_weak(controller),
+						}));
+				});
+				content->setHideCallback([=] {
+					config->dismissSuggestion(kSugPremiumGrace.utf8());
+					repeat(repeat);
+				});
+				content->setContent(
+					tr::lng_dialogs_suggestions_premium_grace_title(
+						tr::now,
+						Ui::Text::Bold),
+					tr::lng_dialogs_suggestions_premium_grace_about(
+						tr::now,
+						TextWithEntities::Simple));
+				state->desiredWrapToggle.force_assign(
+					Toggle{ true, anim::type::normal });
+				return;
+			} else if (session->premiumCanBuy()
 				&& config->suggestionCurrent(kSugLowCreditsSubs.utf8())) {
 				state->creditsHistory = std::make_unique<Api::CreditsHistory>(
 					session->user(),
@@ -188,34 +216,6 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						true);
 				}, state->creditsLifetime);
 
-				return;
-			} else if (session->premiumCanBuy()
-				&& config->suggestionCurrent(kSugPremiumGrace.utf8())) {
-				content->setRightIcon(RightIcon::Close);
-				content->setClickedCallback([=] {
-					const auto controller = FindSessionController(parent);
-					if (!controller) {
-						return;
-					}
-					UrlClickHandler::Open(
-						u"https://t.me/premiumbot?start=status"_q,
-						QVariant::fromValue(ClickHandlerContext{
-							.sessionWindow = base::make_weak(controller),
-						}));
-				});
-				content->setHideCallback([=] {
-					config->dismissSuggestion(kSugPremiumGrace.utf8());
-					repeat(repeat);
-				});
-				content->setContent(
-					tr::lng_dialogs_suggestions_premium_grace_title(
-						tr::now,
-						Ui::Text::Bold),
-					tr::lng_dialogs_suggestions_premium_grace_about(
-						tr::now,
-						TextWithEntities::Simple));
-				state->desiredWrapToggle.force_assign(
-					Toggle{ true, anim::type::normal });
 				return;
 			} else if (session->premiumCanBuy()
 				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
