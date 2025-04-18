@@ -218,9 +218,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 
 				return;
 			} else if (session->premiumCanBuy()
-				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())
-				&& (!session->data().knownBirthdaysToday()
-					|| !session->data().knownBirthdaysToday()->size())) {
+				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
 				session->data().contactBirthdays(
 				) | rpl::start_with_next(crl::guard(content, [=] {
 					const auto users = session->data()

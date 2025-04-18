@@ -321,12 +321,12 @@ std::vector<int> AppConfig::getIntArray(
 
 bool AppConfig::suggestionCurrent(const QString &key) const {
 	if (key == u"BIRTHDAY_CONTACTS_TODAY"_q) {
-		if (_dismissedSuggestions.contains(key)) {
+		if (_dismissedSuggestions.contains(key)
+			|| !_account->sessionExists()) {
 			return false;
 		} else {
-			const auto known = _account->sessionExists()
-				? _account->session().data().knownContactBirthdays()
-				: std::vector<UserId>();
+			const auto known
+				= _account->session().data().knownBirthdaysToday();
 			if (!known) {
 				return true;
 			}
