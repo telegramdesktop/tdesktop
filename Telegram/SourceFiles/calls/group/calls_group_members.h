@@ -108,7 +108,7 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
-	const not_null<Ui::RpWidget*> _fingerprint;
+	Ui::RpWidget *_fingerprint = nullptr;
 	rpl::event_stream<> _fingerprintRepaints;
 	const FingerprintBadgeState *_fingerprintState = nullptr;
 	const not_null<Ui::RpWidget*> _videoWrap;
