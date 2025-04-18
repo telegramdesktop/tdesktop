@@ -46,6 +46,7 @@ struct UniqueGift {
 	PeerId ownerId = 0;
 	int number = 0;
 	int starsForTransfer = -1;
+	int starsForResale = -1;
 	TimeId exportAt = 0;
 	UniqueGiftModel model;
 	UniqueGiftPattern pattern;

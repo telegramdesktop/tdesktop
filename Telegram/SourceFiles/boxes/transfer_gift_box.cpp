@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h" // peerListSingleRow.
+#include "styles/style_credits.h" // starIconEmoji.
 #include "styles/style_dialogs.h" // recentPeersSpecialName.
 #include "styles/style_layers.h" // boxLabel.
 
@@ -431,12 +432,12 @@ void TransferGift(
 			const MTPUpdates *updates) {
 		done(result);
 		if (result == Payments::CheckoutResult::Paid) {
+			session->data().notifyGiftUpdate({
+				.id = savedId,
+				.action = Data::GiftUpdate::Action::Transfer,
+			});
 			if (const auto strong = weak.get()) {
-				strong->session().data().notifyGiftUpdate({
-					.id = savedId,
-					.action = Data::GiftUpdate::Action::Transfer,
-				});
-				Ui::ShowGiftTransferredToast(strong, to, *gift);
+				Ui::ShowGiftTransferredToast(strong->uiShow(), to, *gift);
 			}
 		}
 	};
@@ -456,10 +457,32 @@ void TransferGift(
 		return;
 	}
 	Ui::RequestStarsFormAndSubmit(
-		window,
+		window->uiShow(),
 		MTP_inputInvoiceStarGiftTransfer(
 			Api::InputSavedStarGiftId(savedId),
 			to->input),
+		std::move(formDone));
+}
+
+void BuyResaleGift(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> to,
+		std::shared_ptr<Data::UniqueGift> gift,
+		Fn<void(Payments::CheckoutResult)> done) {
+	Expects(to->isUser());
+
+	auto formDone = [=](
+			Payments::CheckoutResult result,
+			const MTPUpdates *updates) {
+		done(result);
+		if (result == Payments::CheckoutResult::Paid) {
+			AssertIsDebug(Refresh owners gifts list, refresh self list);
+			Ui::ShowResaleGiftBoughtToast(show, to, *gift);
+		}
+	};
+	Ui::RequestStarsFormAndSubmit(
+		show,
+		MTP_inputInvoiceStarGiftResale(MTP_string(gift->slug), to->input),
 		std::move(formDone));
 }
 
@@ -565,4 +588,74 @@ void ShowTransferGiftBox(
 	window->show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		Ui::LayerOption::KeepOther);
+}
+
+void ShowBuyResaleGiftBox(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Data::UniqueGift> gift,
+		not_null<PeerData*> to,
+		Fn<void()> closeParentBox) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_gift_buy_resale_title(
+			lt_name,
+			rpl::single(UniqueGiftName(*gift))));
+
+		auto transfer = tr::lng_gift_buy_resale_button(
+			lt_cost,
+			rpl::single(
+				Ui::Text::IconEmoji(&st::starIconEmoji).append(
+					Lang::FormatCountDecimal(gift->starsForResale))),
+			Ui::Text::WithEntities);
+
+		struct State {
+			bool sent = false;
+		};
+		const auto state = std::make_shared<State>();
+		auto callback = [=](Fn<void()> close) {
+			if (state->sent) {
+				return;
+			}
+			state->sent = true;
+			const auto weak = Ui::MakeWeak(box);
+			const auto done = [=](Payments::CheckoutResult result) {
+				if (result == Payments::CheckoutResult::Cancelled) {
+					closeParentBox();
+					close();
+				} else if (result != Payments::CheckoutResult::Paid) {
+					state->sent = false;
+				} else {
+					show->showToast(u"done!"_q);
+					closeParentBox();
+					close();
+				}
+			};
+			BuyResaleGift(show, to, gift, done);
+		};
+
+		Ui::ConfirmBox(box, {
+			.text = to->isSelf()
+				? tr::lng_gift_buy_resale_confirm_self(
+					lt_name,
+					rpl::single(Ui::Text::Bold(UniqueGiftName(*gift))),
+					lt_price,
+					tr::lng_action_gift_for_stars(
+						lt_count,
+						rpl::single(gift->starsForResale * 1.),
+						Ui::Text::Bold),
+					Ui::Text::WithEntities)
+				: tr::lng_gift_buy_resale_confirm(
+					lt_name,
+					rpl::single(Ui::Text::Bold(UniqueGiftName(*gift))),
+					lt_price,
+					tr::lng_action_gift_for_stars(
+						lt_count,
+						rpl::single(gift->starsForResale * 1.),
+						Ui::Text::Bold),
+					lt_user,
+					rpl::single(Ui::Text::Bold(to->shortName())),
+					Ui::Text::WithEntities),
+			.confirmed = std::move(callback),
+			.confirmText = std::move(transfer),
+		});
+	}));
 }

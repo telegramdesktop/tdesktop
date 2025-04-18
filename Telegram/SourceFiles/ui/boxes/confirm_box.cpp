@@ -58,14 +58,23 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 	};
 
 	const auto &defaultButtonStyle = box->getDelegate()->style().button;
-
+	const auto confirmTextPlain = v::text::is_plain(args.confirmText);
 	const auto confirmButton = box->addButton(
-		v::text::take_plain(std::move(args.confirmText), tr::lng_box_ok()),
+		(confirmTextPlain
+			? v::text::take_plain(
+				std::move(args.confirmText),
+				tr::lng_box_ok())
+			: rpl::single(QString())),
 		[=, c = prepareCallback(args.confirmed)]() {
 			lifetime->destroy();
 			c();
 		},
 		args.confirmStyle ? *args.confirmStyle : defaultButtonStyle);
+	if (!confirmTextPlain) {
+		confirmButton->setText(
+			v::text::take_marked(std::move(args.confirmText)));
+	}
+
 	box->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if ((e->type() != QEvent::KeyPress) || !confirmButton) {

@@ -1920,7 +1920,7 @@ void ResolveAndShowUniqueGift(
 		session->data().processUsers(data.vusers());
 		if (const auto gift = Api::FromTL(session, data.vgift())) {
 			using namespace ::Settings;
-			show->show(Box(GlobalStarGiftBox, show, *gift, st));
+			show->show(Box(GlobalStarGiftBox, show, *gift, PeerId(), st));
 		}
 	}).fail([=](const MTP::Error &error) {
 		clear();

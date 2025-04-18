@@ -3447,12 +3447,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_send_limited_left#other" = "{count} left";
 "lng_gift_send_button" = "Send a Gift for {cost}";
 "lng_gift_send_button_self" = "Buy a Gift for {cost}";
+"lng_gift_buy_resale_title" = "Buy {name}";
 "lng_gift_buy_resale_button" = "Buy for {cost}";
-"lng_gift_buy_resale_confirm" = "Do you want to buy {gift} for {cost} and gift it to {user}?";
-"lng_gift_buy_resale_confirm_self" = "Do you want to buy {gift} for {cost}?";
+"lng_gift_buy_resale_confirm" = "Do you want to buy {name} for {price} and gift it to {user}?";
+"lng_gift_buy_resale_confirm_self" = "Do you want to buy {name} for {price}?";
 "lng_gift_sent_title" = "Gift Sent!";
 "lng_gift_sent_resale_done" = "{user} has been notified about your gift.";
-"lng_gift_sent_resale_done_self" = "{gift} is not yours.";
+"lng_gift_sent_resale_done_self" = "{gift} is now yours.";
 "lng_gift_sent_about#one" = "You spent **{count}** Star from your balance.";
 "lng_gift_sent_about#other" = "You spent **{count}** Stars from your balance.";
 "lng_gift_limited_of_one" = "unique";

@@ -1336,7 +1336,13 @@ void AddStarGiftTable(
 		}, tooltip->lifetime());
 	};
 
-	if (unique && entry.bareGiftOwnerId) {
+	if (unique && entry.bareGiftResaleRecipientId) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer(),
+			MakePeerTableValue(table, show, PeerId(entry.bareGiftResaleRecipientId)),
+			st::giveawayGiftCodePeerMargin);
+	} else if (unique && entry.bareGiftOwnerId) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
 		const auto was = std::make_shared<std::optional<CollectibleId>>();
 		const auto handleChange = [=](

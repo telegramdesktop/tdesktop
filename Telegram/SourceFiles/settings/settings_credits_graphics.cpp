@@ -1923,6 +1923,16 @@ void GenericCreditsEntryBox(
 		if (willBusy) {
 			state->confirmButtonBusy = true;
 			send();
+		} else if (uniqueGift && uniqueGift->starsForResale && !giftToSelf) {
+			const auto to = e.bareGiftResaleRecipientId
+				? show->session().data().peer(
+					PeerId(e.bareGiftResaleRecipientId))
+				: show->session().user();
+			ShowBuyResaleGiftBox(
+				show,
+				e.uniqueGift,
+				to,
+				crl::guard(box, [=] { box->closeBox(); }));
 		} else if (canUpgradeFree) {
 			upgrade();
 		} else if (canToggle && !e.savedToProfile) {
@@ -1931,6 +1941,14 @@ void GenericCreditsEntryBox(
 			box->closeBox();
 		}
 	});
+	if (uniqueGift && uniqueGift->starsForResale && !giftToSelf) {
+		button->setText(tr::lng_gift_buy_resale_button(
+			lt_cost,
+			rpl::single(
+				Ui::Text::IconEmoji(&st::starIconEmoji).append(
+					Lang::FormatCountDecimal(uniqueGift->starsForResale))),
+			Ui::Text::WithEntities));
+	}
 	{
 		using namespace Info::Statistics;
 		const auto loadingAnimation = InfiniteRadialAnimationWidget(
@@ -2012,6 +2030,7 @@ void GlobalStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::StarGift &data,
+		PeerId resaleRecipientId,
 		CreditsEntryBoxStyleOverrides st) {
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	Settings::GenericCreditsEntryBox(
@@ -2021,6 +2040,7 @@ void GlobalStarGiftBox(
 			.credits = StarsAmount(data.stars),
 			.bareGiftStickerId = data.document->id,
 			.bareGiftOwnerId = ownerId,
+			.bareGiftResaleRecipientId = resaleRecipientId.value,
 			.stargiftId = data.id,
 			.uniqueGift = data.unique,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,

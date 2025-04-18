@@ -145,7 +145,9 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 				? (unique
 					? _delegate->monostar()
 					: _delegate->star()).append(' ').append(
-						Lang::FormatCountDecimal(data.info.starsResellMin)
+						Lang::FormatCountDecimal(unique
+							? unique->starsForResale
+							: data.info.starsResellMin)
 					).append(data.info.resellCount > 1 ? "+" : "")
 				: unique
 				? tr::lng_gift_transfer_button(

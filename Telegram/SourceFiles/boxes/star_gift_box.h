@@ -19,6 +19,10 @@ struct GiftCode;
 struct CreditsHistoryEntry;
 } // namespace Data
 
+namespace Main {
+class SessionShow;
+} // namespace Main
+
 namespace Payments {
 enum class CheckoutResult;
 } // namespace Payments
@@ -101,12 +105,17 @@ void AddUniqueCloseButton(
 	Fn<void(not_null<PopupMenu*>)> fillMenu = nullptr);
 
 void RequestStarsFormAndSubmit(
-	not_null<Window::SessionController*> window,
+	std::shared_ptr<Main::SessionShow> show,
 	MTPInputInvoice invoice,
 	Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done);
 
 void ShowGiftTransferredToast(
-	base::weak_ptr<Window::SessionController> weak,
+	std::shared_ptr<Main::SessionShow> show,
+	not_null<PeerData*> to,
+	const Data::UniqueGift &gift);
+
+void ShowResaleGiftBoughtToast(
+	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> to,
 	const Data::UniqueGift &gift);
 

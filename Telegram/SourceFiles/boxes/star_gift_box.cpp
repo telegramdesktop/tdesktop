@@ -1896,16 +1896,15 @@ void ShowGiftUpgradedToast(
 }
 
 void SendStarsFormRequest(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		Settings::SmallBalanceResult result,
 		uint64 formId,
 		MTPInputInvoice invoice,
 		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
 	using BalanceResult = Settings::SmallBalanceResult;
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	if (result == BalanceResult::Success
 		|| result == BalanceResult::Already) {
-		const auto weak = base::make_weak(controller);
 		session->api().request(MTPpayments_SendStarsForm(
 			MTP_long(formId),
 			invoice
@@ -1917,9 +1916,7 @@ void SendStarsFormRequest(
 				done(Payments::CheckoutResult::Failed, nullptr);
 			});
 		}).fail([=](const MTP::Error &error) {
-			if (const auto strong = weak.get()) {
-				strong->showToast(error.type());
-			}
+			show->showToast(error.type());
 			done(Payments::CheckoutResult::Failed, nullptr);
 		}).send();
 	} else if (result == BalanceResult::Cancelled) {
@@ -1965,7 +1962,7 @@ void UpgradeGift(
 	}
 	using Flag = MTPDinputInvoiceStarGiftUpgrade::Flag;
 	RequestStarsFormAndSubmit(
-		window,
+		window->uiShow(),
 		MTP_inputInvoiceStarGiftUpgrade(
 			MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
 			Api::InputSavedStarGiftId(savedId)),
@@ -2613,7 +2610,7 @@ void SendGiftBox(
 			button->setDescriptor(descriptor, GiftButton::Mode::Full);
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
-				if (star && star->info.unique) {
+				if (star && star->info.unique && star->mine) {
 					const auto done = [=] {
 						window->session().credits().load(true);
 						window->showPeerHistory(peer);
@@ -2624,7 +2621,14 @@ void SendGiftBox(
 						star->info.unique,
 						star->transferId,
 						done);
-				} else if (star->resale) {
+				} else if (star && star->info.unique && star->resale) {
+					window->show(Box(
+						Settings::GlobalStarGiftBox,
+						window->uiShow(),
+						star->info,
+						peer->id,
+						Settings::CreditsEntryBoxStyleOverrides()));
+				} else if (star && star->resale) {
 					const auto id = star->info.id;
 					if (state->resaleRequestingId == id) {
 						return;
@@ -4460,11 +4464,10 @@ void AddUniqueCloseButton(
 }
 
 void RequestStarsFormAndSubmit(
-		not_null<Window::SessionController*> window,
+		std::shared_ptr<Main::SessionShow> show,
 		MTPInputInvoice invoice,
 		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
-	const auto weak = base::make_weak(window);
-	window->session().api().request(MTPpayments_GetPaymentForm(
+	show->session().api().request(MTPpayments_GetPaymentForm(
 		MTP_flags(0),
 		invoice,
 		MTPDataJSON() // theme_params
@@ -4472,16 +4475,15 @@ void RequestStarsFormAndSubmit(
 		result.match([&](const MTPDpayments_paymentFormStarGift &data) {
 			const auto formId = data.vform_id().v;
 			const auto prices = data.vinvoice().data().vprices().v;
-			const auto strong = weak.get();
-			if (!strong) {
+			if (!show->valid()) {
 				done(Payments::CheckoutResult::Failed, nullptr);
 				return;
 			}
 			const auto ready = [=](Settings::SmallBalanceResult result) {
-				SendStarsFormRequest(strong, result, formId, invoice, done);
+				SendStarsFormRequest(show, result, formId, invoice, done);
 			};
 			Settings::MaybeRequestBalanceIncrease(
-				strong->uiShow(),
+				show,
 				prices.front().data().vamount().v,
 				Settings::SmallBalanceDeepLink{},
 				ready);
@@ -4493,31 +4495,45 @@ void RequestStarsFormAndSubmit(
 		if (type == u"STARGIFT_EXPORT_IN_PROGRESS"_q) {
 			done(Payments::CheckoutResult::Cancelled, nullptr);
 		} else {
-			if (const auto strong = weak.get()) {
-				strong->showToast(type);
-			}
+			show->showToast(type);
 			done(Payments::CheckoutResult::Failed, nullptr);
 		}
 	}).send();
 }
 
 void ShowGiftTransferredToast(
-		base::weak_ptr<Window::SessionController> weak,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<PeerData*> to,
 		const Data::UniqueGift &gift) {
-	if (const auto strong = weak.get()) {
-		strong->showToast({
-			.title = tr::lng_gift_transferred_title(tr::now),
-			.text = tr::lng_gift_transferred_about(
-				tr::now,
+	show->showToast({
+		.title = tr::lng_gift_transferred_title(tr::now),
+		.text = tr::lng_gift_transferred_about(
+			tr::now,
 				lt_name,
 				Text::Bold(Data::UniqueGiftName(gift)),
 				lt_recipient,
 				Text::Bold(to->shortName()),
 				Ui::Text::WithEntities),
-			.duration = kUpgradeDoneToastDuration,
-		});
-	}
+		.duration = kUpgradeDoneToastDuration,
+	});
 }
 
+void ShowResaleGiftBoughtToast(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<PeerData*> to,
+		const Data::UniqueGift &gift) {
+	show->showToast({
+		.title = tr::lng_gift_sent_title(tr::now),
+		.text = (to->isSelf()
+			? tr::lng_gift_sent_resale_done_self(
+				tr::now,
+				lt_gift,
+				Data::UniqueGiftName(gift))
+			: tr::lng_gift_sent_resale_done(
+				tr::now,
+				lt_user,
+				to->shortName())),
+		.duration = kUpgradeDoneToastDuration,
+	});
+}
 } // namespace Ui

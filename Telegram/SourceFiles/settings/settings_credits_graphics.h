@@ -154,6 +154,7 @@ void GlobalStarGiftBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::StarGift &data,
+	PeerId resaleRecipientId,
 	CreditsEntryBoxStyleOverrides st = {});
 
 [[nodiscard]] Data::CreditsHistoryEntry SavedStarGiftEntry(
