@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "data/data_document_media.h"
 #include "data/data_reply_preview.h"
+#include "data/data_web_page.h"
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "main/main_session.h"
@@ -1880,4 +1881,19 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 		_location = local->_location;
 		session().local().writeFileLocation(mediaKey(), _location);
 	}
+}
+
+PhotoData *LookupVideoCover(
+		not_null<DocumentData*> document,
+		HistoryItem *item) {
+	const auto media = item ? item->media() : nullptr;
+	if (const auto webpage = media ? media->webpage() : nullptr) {
+		if (webpage->document == document && webpage->photoIsVideoCover) {
+			return webpage->photo;
+		}
+		return nullptr;
+	}
+	return (media && media->document() == document)
+		? media->videoCover()
+		: nullptr;
 }

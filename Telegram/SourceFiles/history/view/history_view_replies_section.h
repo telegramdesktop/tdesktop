@@ -11,8 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
-#include "history/history_view_swipe_data.h"
+#include "history/history_item_helpers.h"
 #include "data/data_messages.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "base/timer.h"
 
 class History;
@@ -38,6 +39,7 @@ class PlainShadow;
 class FlatButton;
 class PinnedBar;
 struct PreparedList;
+struct PreparedBundle;
 class SendFilesWay;
 } // namespace Ui
 
@@ -207,6 +209,11 @@ private:
 	void checkActivation() override;
 	void doSetInnerFocus() override;
 
+	[[nodiscard]] bool checkSendPayment(
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> withPaymentApproved);
+
 	void onScroll();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
@@ -227,7 +234,7 @@ private:
 	void finishSending();
 
 	void setupComposeControls();
-	void setupSwipeReply();
+	void setupSwipeReplyAndBack();
 
 	void setupRoot();
 	void setupRootView();
@@ -251,7 +258,7 @@ private:
 		Api::SendOptions options) const;
 	void send();
 	void send(Api::SendOptions options);
-	void sendVoice(Controls::VoiceToSend &&data);
+	void sendVoice(const Controls::VoiceToSend &data);
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
@@ -308,6 +315,14 @@ private:
 		TextWithTags &&caption,
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
+	void sendingFilesConfirmed(
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options);
+
+	void sendBotCommandWithOptions(
+		const QString &command,
+		const FullMsgId &context,
+		Api::SendOptions options);
 
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
@@ -318,10 +333,10 @@ private:
 		not_null<PhotoData*> photo,
 		Api::SendOptions options);
 	void sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot);
 	void sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId);
@@ -348,6 +363,7 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<ComposeSearch> _composeSearch;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
+	std::unique_ptr<Ui::FlatButton> _payForMessage;
 	std::unique_ptr<TopicReopenBar> _topicReopenBar;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
 	bool _skipScrollEvent = false;
@@ -377,7 +393,10 @@ private:
 	HistoryView::CornerButtons _cornerButtons;
 	rpl::lifetime _topicLifetime;
 
-	HistoryView::ChatPaintGestureHorizontalData _gestureHorizontal;
+	Ui::Controls::SwipeContextData _gestureHorizontal;
+	Ui::Controls::SwipeBackResult _swipeBackData;
+
+	SendPaymentHelper _sendPayment;
 
 	int _lastScrollTop = 0;
 	int _topicReopenBarHeight = 0;

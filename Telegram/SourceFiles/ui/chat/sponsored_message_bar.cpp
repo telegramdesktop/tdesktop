@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/click_handler_types.h"
-#include "core/ui_integration.h" // Core::MarkedTextContext.
+#include "core/ui_integration.h" // TextContext
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "history/history_item_helpers.h"
@@ -202,10 +202,10 @@ void FillSponsoredMessageBar(
 		contentTextSt,
 		textWithEntities,
 		kMarkupTextOptions,
-		Core::MarkedTextContext{
+		Core::TextContext({
 			.session = session,
-			.customEmojiRepaint = [=] { widget->update(); },
-		});
+			.repaint = [=] { widget->update(); },
+		}));
 	const auto hostedClick = [=](ClickHandlerPtr handler) {
 		return [=] {
 			if (const auto controller = FindSessionController(widget)) {

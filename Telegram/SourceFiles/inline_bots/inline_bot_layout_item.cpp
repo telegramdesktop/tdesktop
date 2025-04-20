@@ -29,7 +29,7 @@ base::NeverFreedPointer<DocumentItems> documentItemsMap;
 
 } // namespace
 
-Result *ItemBase::getResult() const {
+std::shared_ptr<Result> ItemBase::getResult() const {
 	return _result;
 }
 
@@ -92,33 +92,37 @@ void ItemBase::layoutChanged() {
 
 std::unique_ptr<ItemBase> ItemBase::createLayout(
 		not_null<Context*> context,
-		not_null<Result*> result,
+		std::shared_ptr<Result> result,
 		bool forceThumb) {
 	using Type = Result::Type;
 
 	switch (result->_type) {
 	case Type::Photo:
-		return std::make_unique<internal::Photo>(context, result);
+		return std::make_unique<internal::Photo>(context, std::move(result));
 	case Type::Audio:
 	case Type::File:
-		return std::make_unique<internal::File>(context, result);
+		return std::make_unique<internal::File>(context, std::move(result));
 	case Type::Video:
-		return std::make_unique<internal::Video>(context, result);
+		return std::make_unique<internal::Video>(context, std::move(result));
 	case Type::Sticker:
-		return std::make_unique<internal::Sticker>(context, result);
+		return std::make_unique<internal::Sticker>(
+			context,
+			std::move(result));
 	case Type::Gif:
-		return std::make_unique<internal::Gif>(context, result);
+		return std::make_unique<internal::Gif>(context, std::move(result));
 	case Type::Article:
 	case Type::Geo:
 	case Type::Venue:
 		return std::make_unique<internal::Article>(
 			context,
-			result,
+			std::move(result),
 			forceThumb);
 	case Type::Game:
-		return std::make_unique<internal::Game>(context, result);
+		return std::make_unique<internal::Game>(context, std::move(result));
 	case Type::Contact:
-		return std::make_unique<internal::Contact>(context, result);
+		return std::make_unique<internal::Contact>(
+			context,
+			std::move(result));
 	}
 	return nullptr;
 }

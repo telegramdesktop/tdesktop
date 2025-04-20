@@ -58,7 +58,7 @@ namespace {
 constexpr auto kResolveAddressDelay = 3 * crl::time(1000);
 constexpr auto kSearchDebounceDelay = crl::time(900);
 
-#ifdef Q_OS_MAC
+#if defined Q_OS_MAC || defined Q_OS_LINUX
 const auto kProtocolOverride = "mapboxapihelper";
 #else // Q_OS_MAC
 const auto kProtocolOverride = "";
@@ -778,7 +778,11 @@ std::shared_ptr<Main::SessionShow> LocationPicker::uiShow() {
 }
 
 bool LocationPicker::Available(const LocationPickerConfig &config) {
-	static const auto Supported = Webview::NavigateToDataSupported();
+	static const auto Supported = [&] {
+		const auto availability = Webview::Availability();
+		return availability.customSchemeRequests
+			&& availability.customReferer;
+	}();
 	return Supported && !config.mapsToken.isEmpty();
 }
 

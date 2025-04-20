@@ -150,10 +150,7 @@ void TranslateBox(
 		original->entity()->setAnimationsPausedCallback(animationsPaused);
 		original->entity()->setMarkedText(
 			text,
-			Core::MarkedTextContext{
-				.session = &peer->session(),
-				.customEmojiRepaint = [=] { original->entity()->update(); },
-			});
+			Core::TextContext({ .session = &peer->session() }));
 		original->setMinimalHeight(lineHeight);
 		original->hide(anim::type::instant);
 
@@ -221,10 +218,7 @@ void TranslateBox(
 		const auto label = translated->entity();
 		label->setMarkedText(
 			text,
-			Core::MarkedTextContext{
-				.session = &peer->session(),
-				.customEmojiRepaint = [=] { label->update(); },
-			});
+			Core::TextContext({ .session = &peer->session() }));
 		translated->show(anim::type::instant);
 		loading->hide(anim::type::instant);
 	};

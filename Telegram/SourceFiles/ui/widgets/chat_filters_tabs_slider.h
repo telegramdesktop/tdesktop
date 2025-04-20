@@ -29,7 +29,7 @@ public:
 
 	bool setSectionsAndCheckChanged(
 		std::vector<TextWithEntities> &&sections,
-		const std::any &context,
+		const Text::MarkedContext &context,
 		Fn<bool()> paused);
 
 	void fitWidthToSections() override;
@@ -72,7 +72,8 @@ private:
 	using Index = int;
 	struct Unread final {
 		QImage cache;
-		int count = 0;
+		ushort count = 0;
+		bool muted = false;
 	};
 	base::flat_map<Index, Unread> _unreadCounts;
 	const style::SettingsSlider &_st;

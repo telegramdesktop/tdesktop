@@ -61,8 +61,7 @@ public:
 		not_null<const HistoryItem*> item,
 		Data::Forum *forum,
 		Fn<void()> customEmojiRepaint,
-		ToPreviewOptions options,
-		Fn<void()> customLoadingFinishCallback = nullptr);
+		ToPreviewOptions options);
 
 	void paint(
 		Painter &p,
@@ -95,6 +94,7 @@ private:
 	mutable std::unique_ptr<SpoilerAnimation> _spoiler;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 	mutable const style::DialogsMiniIcon *_leftIcon = nullptr;
+	mutable QImage _cornersCache;
 	mutable bool _hasPlainLinkAtBegin = false;
 
 };

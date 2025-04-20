@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "storage/storage_shared_media.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -203,7 +204,7 @@ RecentRow::RecentRow(not_null<PeerData*> peer)
 	if (const auto user = peer->asUser()) {
 		if (user->botInfo && user->botInfo->hasMainApp) {
 			return std::make_unique<Ui::Text::String>(
-				st::dialogRowOpenBotTextStyle,
+				st::dialogRowOpenBotRecent.button.style,
 				tr::lng_profile_open_app_short(tr::now));
 		}
 	}
@@ -274,20 +275,15 @@ QSize RecentRow::rightActionSize() const {
 	if (_mainAppText && _badgeSize.isEmpty()) {
 		return QSize(
 			_mainAppText->maxWidth() + _mainAppText->minHeight(),
-			st::dialogRowOpenBotHeight);
+			st::dialogRowOpenBotRecent.button.height);
 	}
 	return _badgeSize;
 }
 
 QMargins RecentRow::rightActionMargins() const {
 	if (_mainAppText && _badgeSize.isEmpty()) {
-		return QMargins(
-			0,
-			st::dialogRowOpenBotRecentTop,
-			st::dialogRowOpenBotRight,
-			0);
-	}
-	if (_badgeSize.isEmpty()) {
+		return st::dialogRowOpenBotRecent.margin;
+	} else if (_badgeSize.isEmpty()) {
 		return {};
 	}
 	const auto x = st::recentPeersItem.photoPosition.x();
@@ -320,8 +316,7 @@ void RecentRow::rightActionPaint(
 		p.setPen(actionSelected
 			? st::activeButtonFgOver
 			: st::activeButtonFg);
-		const auto top = 0
-			+ (st::dialogRowOpenBotHeight - _mainAppText->minHeight()) / 2;
+		const auto top = st::dialogRowOpenBotRecent.button.textTop;
 		_mainAppText->draw(p, {
 			.position = QPoint(x + size.height() / 2, y + top),
 			.outerWidth = outerWidth,
@@ -1552,6 +1547,61 @@ void Suggestions::setupApps() {
 	});
 }
 
+Ui::Controls::SwipeHandlerArgs Suggestions::generateIncompleteSwipeArgs() {
+	_swipeLifetime.destroy();
+
+	auto update = [=](Ui::Controls::SwipeContextData data) {
+		if (data.translation != 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
+					this,
+					[=]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					},
+					data.translation < 0);
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	};
+	auto init = [=](int, Qt::LayoutDirection direction) {
+		if (!_tabs) {
+			return Ui::Controls::SwipeHandlerFinishData();
+		}
+		const auto activeSection = _tabs->activeSection();
+		const auto isToLeft = direction == Qt::RightToLeft;
+		if ((isToLeft && activeSection > 0)
+			|| (!isToLeft && activeSection < _tabKeys.size() - 1)) {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				if (_tabs
+					&& _tabs->activeSection() == activeSection) {
+					_swipeBackData = {};
+					_tabs->setActiveSection(isToLeft
+						? activeSection - 1
+						: activeSection + 1);
+				}
+			});
+		}
+		return Ui::Controls::SwipeHandlerFinishData();
+	};
+	return { .widget = this, .update = update, .init = init };
+}
+
+void Suggestions::reinstallSwipe(not_null<Ui::ElasticScroll*> scroll) {
+	_swipeLifetime.destroy();
+
+	auto args = generateIncompleteSwipeArgs();
+	args.scroll = scroll;
+	args.onLifetime = &_swipeLifetime;
+
+	Ui::Controls::SetupSwipeHandler(std::move(args));
+}
+
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
 	switch (_key.current().tab) {
 	case Tab::Chats: selectJumpChats(direction, pageSize); return;
@@ -1977,6 +2027,18 @@ void Suggestions::finishShow() {
 	_appsScroll->setVisible(key == Key{ Tab::Apps });
 	for (const auto &[mediaKey, list] : _mediaLists) {
 		list.wrap->setVisible(key == mediaKey);
+		if (key == mediaKey) {
+			_swipeLifetime.destroy();
+			auto incomplete = generateIncompleteSwipeArgs();
+			list.wrap->replaceSwipeHandler(&incomplete);
+		}
+	}
+	if (key == Key{ Tab::Chats }) {
+		reinstallSwipe(_chatsScroll.get());
+	} else if (key == Key{ Tab::Channels }) {
+		reinstallSwipe(_channelsScroll.get());
+	} else if (key == Key{ Tab::Apps }) {
+		reinstallSwipe(_appsScroll.get());
 	}
 }
 

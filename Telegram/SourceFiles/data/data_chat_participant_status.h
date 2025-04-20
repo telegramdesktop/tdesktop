@@ -191,16 +191,19 @@ struct SendError {
 		QString text;
 		int boostsToLift = 0;
 		bool premiumToLift = false;
+		bool frozen = false;
 	};
 	SendError(Args &&args)
 	: text(std::move(args.text))
 	, boostsToLift(args.boostsToLift)
-	, premiumToLift(args.premiumToLift) {
+	, premiumToLift(args.premiumToLift)
+	, frozen(args.frozen) {
 	}
 
 	QString text;
 	int boostsToLift = 0;
 	bool premiumToLift = false;
+	bool frozen = false;
 
 	[[nodiscard]] SendError value_or(SendError other) const {
 		return *this ? *this : other;

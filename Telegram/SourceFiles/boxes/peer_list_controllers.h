@@ -19,6 +19,10 @@ namespace style {
 struct PeerListItem;
 } // namespace style
 
+namespace Api {
+struct MessageMoneyRestriction;
+} // namespace Api
+
 namespace Data {
 class Thread;
 class Forum;
@@ -93,12 +97,27 @@ private:
 
 };
 
-struct RecipientPremiumRequiredError {
+struct RecipientMoneyRestrictionError {
 	TextWithEntities text;
 };
 
-[[nodiscard]] RecipientPremiumRequiredError WritePremiumRequiredError(
+[[nodiscard]] RecipientMoneyRestrictionError WriteMoneyRestrictionError(
 	not_null<UserData*> user);
+
+struct RestrictionBadgeCache {
+	int paletteVersion = 0;
+	int stars = 0;
+	QImage badge;
+};
+void PaintRestrictionBadge(
+	Painter &p,
+	not_null<const style::PeerListItem*> st,
+	int stars,
+	RestrictionBadgeCache &cache,
+	int x,
+	int y,
+	int outerWidth,
+	int size);
 
 class RecipientRow : public PeerListRow {
 public:
@@ -112,30 +131,33 @@ public:
 	[[nodiscard]] static bool ShowLockedError(
 		not_null<PeerListController*> controller,
 		not_null<PeerListRow*> row,
-		Fn<RecipientPremiumRequiredError(not_null<UserData*>)> error);
+		Fn<RecipientMoneyRestrictionError(not_null<UserData*>)> error);
 
 	[[nodiscard]] History *maybeHistory() const {
 		return _maybeHistory;
 	}
-	[[nodiscard]] bool locked() const {
-		return _lockedSt != nullptr;
-	}
-	void setLocked(const style::PeerListItem *lockedSt) {
-		_lockedSt = lockedSt;
-	}
-	PaintRoundImageCallback generatePaintUserpicCallback(
-		bool forceRound) override;
+	void paintUserpicOverlay(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth) override;
 
 	void preloadUserpic() override;
 
+	[[nodiscard]] Api::MessageMoneyRestriction restriction() const;
+	void setRestriction(Api::MessageMoneyRestriction restriction);
+
 private:
+	struct Restriction;
+
 	History *_maybeHistory = nullptr;
-	const style::PeerListItem *_lockedSt = nullptr;
-	bool _resolvePremiumRequired = false;
+	const style::PeerListItem *_maybeLockedSt = nullptr;
+	std::shared_ptr<Restriction> _restriction;
 
 };
 
-void TrackPremiumRequiredChanges(
+void TrackMessageMoneyRestrictionsChanges(
 	not_null<PeerListController*> controller,
 	rpl::lifetime &lifetime);
 
@@ -261,8 +283,8 @@ struct ChooseRecipientArgs {
 	FnMut<void(not_null<Data::Thread*>)> callback;
 	Fn<bool(not_null<Data::Thread*>)> filter;
 
-	using PremiumRequiredError = RecipientPremiumRequiredError;
-	Fn<PremiumRequiredError(not_null<UserData*>)> premiumRequiredError;
+	using MoneyRestrictionError = RecipientMoneyRestrictionError;
+	Fn<MoneyRestrictionError(not_null<UserData*>)> moneyRestrictionError;
 };
 
 class ChooseRecipientBoxController
@@ -290,8 +312,8 @@ private:
 	const not_null<Main::Session*> _session;
 	FnMut<void(not_null<Data::Thread*>)> _callback;
 	Fn<bool(not_null<Data::Thread*>)> _filter;
-	Fn<RecipientPremiumRequiredError(
-		not_null<UserData*>)> _premiumRequiredError;
+	Fn<RecipientMoneyRestrictionError(
+		not_null<UserData*>)> _moneyRestrictionError;
 
 };
 
@@ -371,11 +393,3 @@ private:
 	Fn<bool(not_null<Data::ForumTopic*>)> _filter;
 
 };
-
-void PaintPremiumRequiredLock(
-	Painter &p,
-	not_null<const style::PeerListItem*> st,
-	int x,
-	int y,
-	int outerWidth,
-	int size);

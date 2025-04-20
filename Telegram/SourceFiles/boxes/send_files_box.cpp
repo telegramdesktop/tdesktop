@@ -59,9 +59,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
 
 #include <QtCore/QMimeData>
 
@@ -242,7 +242,7 @@ SendFilesBox::Block::Block(
 	int till,
 	Fn<bool()> gifPaused,
 	SendFilesWay way,
-	Fn<bool()> canToggleSpoiler)
+	Fn<bool(const Ui::PreparedFile &, Ui::AttachActionType)> actionAllowed)
 : _items(items)
 , _from(from)
 , _till(till) {
@@ -260,7 +260,9 @@ SendFilesBox::Block::Block(
 			st,
 			my,
 			way,
-			std::move(canToggleSpoiler));
+			[=](int index, Ui::AttachActionType type) {
+				return actionAllowed((*_items)[from + index], type);
+			});
 		_preview.reset(preview);
 	} else {
 		const auto media = Ui::SingleMediaPreview::Create(
@@ -268,7 +270,9 @@ SendFilesBox::Block::Block(
 			st,
 			gifPaused,
 			first,
-			std::move(canToggleSpoiler));
+			[=](Ui::AttachActionType type) {
+				return actionAllowed((*_items)[from], type);
+			});
 		if (media) {
 			_isSingleMedia = true;
 			_preview.reset(media);
@@ -339,6 +343,38 @@ rpl::producer<int> SendFilesBox::Block::itemModifyRequest() const {
 	} else if (_isSingleMedia) {
 		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
 		return media->modifyRequests() | rpl::map_to(from);
+	} else {
+		return rpl::never<int>();
+	}
+}
+
+rpl::producer<int> SendFilesBox::Block::itemEditCoverRequest() const {
+	using namespace rpl::mappers;
+
+	const auto preview = _preview.get();
+	const auto from = _from;
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(preview);
+		return album->thumbEditCoverRequested() | rpl::map(_1 + from);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
+		return media->editCoverRequests() | rpl::map_to(from);
+	} else {
+		return rpl::never<int>();
+	}
+}
+
+rpl::producer<int> SendFilesBox::Block::itemClearCoverRequest() const {
+	using namespace rpl::mappers;
+
+	const auto preview = _preview.get();
+	const auto from = _from;
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(preview);
+		return album->thumbClearCoverRequested() | rpl::map(_1 + from);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
+		return media->clearCoverRequests() | rpl::map_to(from);
 	} else {
 		return rpl::never<int>();
 	}
@@ -678,6 +714,18 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 		crl::guard(this, callback));
 }
 
+void SendFilesBox::refreshMessagesCount() {
+	const auto way = _sendWay.current();
+	const auto withCaption = _list.canAddCaption(
+		way.groupFiles() && way.sendImagesAsPhotos(),
+		way.sendImagesAsPhotos());
+	const auto withComment = !withCaption
+		&& _caption
+		&& !_caption->isHidden()
+		&& !_caption->getTextWithTags().text.isEmpty();
+	_messagesCount = _list.files.size() + (withComment ? 1 : 0);
+}
+
 void SendFilesBox::refreshButtons() {
 	clearButtons();
 
@@ -686,6 +734,15 @@ void SendFilesBox::refreshButtons() {
 			? tr::lng_send_button()
 			: tr::lng_create_group_next()),
 		[=] { send({}); });
+	refreshMessagesCount();
+
+	const auto perMessage = _captionToPeer
+		? _captionToPeer->starsPerMessageChecked()
+		: 0;
+	if (perMessage > 0) {
+		_send->setText(PaidSendButtonText(_messagesCount.value(
+		) | rpl::map(rpl::mappers::_1 * perMessage)));
+	}
 	if (_sendType == Api::SendType::Normal) {
 		SendMenu::SetupMenuAndShortcuts(
 			_send,
@@ -802,10 +859,9 @@ void SendFilesBox::refreshPriceTag() {
 			QString(),
 			st::paidTagLabel);
 		std::move(text) | rpl::start_with_next([=](TextWithEntities &&text) {
-			label->setMarkedText(text, Core::MarkedTextContext{
+			label->setMarkedText(text, Core::TextContext({
 				.session = session,
-				.customEmojiRepaint = [=] { label->update(); },
-			});
+			}));
 		}, label->lifetime());
 		label->show();
 		label->sizeValue() | rpl::start_with_next([=](QSize size) {
@@ -1008,7 +1064,16 @@ void SendFilesBox::pushBlock(int from, int till) {
 		till,
 		gifPaused,
 		_sendWay.current(),
-		[=] { return !hasPrice(); });
+		[=](const Ui::PreparedFile &file, Ui::AttachActionType type) {
+			return (type == Ui::AttachActionType::ToggleSpoiler)
+				? !hasPrice()
+				: (type == Ui::AttachActionType::EditCover)
+				? (file.isVideoFile()
+					&& _captionToPeer
+					&& (_captionToPeer->isBroadcast()
+						|| _captionToPeer->isSelf()))
+				: (file.videoCover != nullptr);
+		});
 	auto &block = _blocks.back();
 	const auto widget = _inner->add(
 		block.takeWidget(),
@@ -1129,7 +1194,79 @@ void SendFilesBox::pushBlock(int from, int till) {
 			show,
 			&_list.files[index],
 			st::sendMediaPreviewSize,
-			[=] { refreshAllAfterChanges(from); });
+			[=](bool ok) { if (ok) refreshAllAfterChanges(from); });
+	}, widget->lifetime());
+
+	block.itemEditCoverRequest(
+	) | rpl::start_with_next([=, show = _show](int index) {
+		applyBlockChanges();
+
+		const auto replace = [=](Ui::PreparedList list) {
+			if (list.files.empty()) {
+				return;
+			}
+			auto &entry = _list.files[index];
+			const auto video = entry.information
+				? std::get_if<Ui::PreparedFileInformation::Video>(
+					&entry.information->media)
+				: nullptr;
+			if (!video) {
+				return;
+			}
+			auto old = std::shared_ptr<Ui::PreparedFile>(
+				std::move(entry.videoCover));
+			entry.videoCover = std::make_unique<Ui::PreparedFile>(
+				std::move(list.files.front()));
+			Editor::OpenWithPreparedFile(
+				this,
+				show,
+				entry.videoCover.get(),
+				st::sendMediaPreviewSize,
+				crl::guard(this, [=](bool ok) {
+					if (!ok) {
+						_list.files[index].videoCover = old
+							? std::make_unique<Ui::PreparedFile>(
+								std::move(*old))
+							: nullptr;
+					}
+					refreshAllAfterChanges(from);
+				}),
+				video->thumbnail.size());
+		};
+		const auto checkResult = [=](const Ui::PreparedList &list) {
+			if (list.files.empty()) {
+				return true;
+			}
+			if (list.files.front().type != Ui::PreparedFile::Type::Photo) {
+				show->showToast(tr::lng_choose_cover_bad(tr::now));
+				return false;
+			}
+			return true;
+		};
+		const auto callback = [=](FileDialog::OpenResult &&result) {
+			const auto premium = _show->session().premium();
+			FileDialogCallback(
+				std::move(result),
+				checkResult,
+				replace,
+				premium,
+				show);
+		};
+
+		FileDialog::GetOpenPath(
+			this,
+			tr::lng_choose_cover(tr::now),
+			FileDialog::ImagesFilter(),
+			crl::guard(this, callback));
+	}, widget->lifetime());
+
+	block.itemClearCoverRequest(
+	) | rpl::start_with_next([=](int index) {
+		applyBlockChanges();
+		refreshAllAfterChanges(from, [&] {
+			auto &entry = _list.files[index];
+			entry.videoCover = nullptr;
+		});
 	}, widget->lifetime());
 
 	block.orderUpdated() | rpl::start_with_next([=]{
@@ -1334,6 +1471,7 @@ void SendFilesBox::setupCaption() {
 		_caption->changes()
 	) | rpl::start_with_next([=] {
 		checkCharsLimitation();
+		refreshMessagesCount();
 	}, _caption->lifetime());
 }
 

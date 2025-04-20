@@ -205,13 +205,13 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 		});
 	};
 	if (_bot->isVerified()
-		|| _bot->session().local().isBotTrustedOpenGame(_bot->id)) {
+		|| _bot->session().local().isPeerTrustedOpenGame(_bot->id)) {
 		openGame();
 	} else {
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto callback = [=, bot = _bot](Fn<void()> close) {
 				close();
-				bot->session().local().markBotTrustedOpenGame(bot->id);
+				bot->session().local().markPeerTrustedOpenGame(bot->id);
 				openGame();
 			};
 			controller->show(Ui::MakeConfirmBox({

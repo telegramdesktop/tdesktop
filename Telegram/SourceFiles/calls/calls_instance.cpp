@@ -578,8 +578,7 @@ void Instance::handleCallUpdate(
 		if (inCall()
 			&& _currentCall->type() == Call::Type::Outgoing
 			&& _currentCall->user()->id == session->userPeerId()
-			&& (peerFromUser(phoneCall.vparticipant_id())
-				== _currentCall->user()->session().userPeerId())) {
+			&& (user->id == _currentCall->user()->session().userPeerId())) {
 			// Ignore call from the same running app, other account.
 			return;
 		}

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 
+namespace style {
+struct RoundCheckbox;
+} // namespace style
+
 namespace Ui {
 
 class BoxContent;
@@ -17,12 +21,13 @@ class DynamicImage;
 
 struct TextWithContext {
 	TextWithEntities text;
-	std::any context;
+	Text::MarkedContext context;
 };
 
 struct PaidReactionTop {
 	QString name;
 	std::shared_ptr<DynamicImage> photo;
+	uint64 barePeerId = 0;
 	int count = 0;
 	Fn<void()> click;
 	bool my = false;
@@ -37,7 +42,7 @@ struct PaidReactionBoxArgs {
 	QString channel;
 	Fn<rpl::producer<TextWithContext>(rpl::producer<int> amount)> submit;
 	rpl::producer<StarsAmount> balanceValue;
-	Fn<void(int, bool)> send;
+	Fn<void(int, uint64)> send;
 };
 
 void PaidReactionsBox(
@@ -46,5 +51,12 @@ void PaidReactionsBox(
 
 [[nodiscard]] object_ptr<BoxContent> MakePaidReactionBox(
 	PaidReactionBoxArgs &&args);
+
+[[nodiscard]] QImage GenerateSmallBadgeImage(
+	QString text,
+	const style::icon &icon,
+	QColor bg,
+	QColor fg,
+	const style::RoundCheckbox *borderSt = nullptr);
 
 } // namespace Ui

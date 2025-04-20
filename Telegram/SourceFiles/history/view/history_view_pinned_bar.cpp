@@ -29,10 +29,10 @@ namespace {
 		Fn<void()> repaint) {
 	return Ui::MessageBarContent{
 		.text = item->inReplyText(),
-		.context = Core::MarkedTextContext{
+		.context = Core::TextContext({
 			.session = &item->history()->session(),
-			.customEmojiRepaint = std::move(repaint),
-		},
+			.repaint = std::move(repaint),
+		}),
 	};
 }
 

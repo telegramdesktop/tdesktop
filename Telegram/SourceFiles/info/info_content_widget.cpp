@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/padding_wrap.h"
@@ -161,6 +162,8 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 			_innerWrap ? _innerWrap->padding() : style::margins()));
 	_innerWrap->move(0, 0);
 
+	setupSwipeHandler(_innerWrap);
+
 	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	rpl::combine(
 		_scroll->scrollTopValue(),
@@ -175,6 +178,24 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		_innerWrap->setVisibleTopBottom(top, bottom);
 		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
 	}, _innerWrap->lifetime());
+
+	rpl::combine(
+		_scroll->heightValue(),
+		_innerWrap->entity()->heightValue(),
+		_controller->wrapValue()
+	) | rpl::start_with_next([=](
+			int scrollHeight,
+			int innerHeight,
+			Wrap wrap) {
+		const auto added = (wrap == Wrap::Layer)
+			? 0
+			: std::max(scrollHeight - innerHeight, 0);
+		if (_addedHeight != added) {
+			_addedHeight = added;
+			updateInnerPadding();
+		}
+	}, _innerWrap->lifetime());
+	updateInnerPadding();
 
 	return _innerWrap->entity();
 }
@@ -205,9 +226,17 @@ rpl::producer<int> ContentWidget::scrollHeightValue() const {
 }
 
 void ContentWidget::applyAdditionalScroll(int additionalScroll) {
-	if (_innerWrap) {
-		_innerWrap->setPadding({ 0, 0, 0, additionalScroll });
+	if (_additionalScroll != additionalScroll) {
+		_additionalScroll = additionalScroll;
+		if (_innerWrap) {
+			updateInnerPadding();
+		}
 	}
+}
+
+void ContentWidget::updateInnerPadding() {
+	const auto addedToBottom = std::max(_additionalScroll, _addedHeight);
+	_innerWrap->setPadding({ 0, 0, 0, addedToBottom });
 }
 
 void ContentWidget::applyMaxVisibleHeight(int maxVisibleHeight) {
@@ -379,6 +408,58 @@ rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() {
 
 not_null<Ui::ScrollArea*> ContentWidget::scroll() const {
 	return _scroll.data();
+}
+
+void ContentWidget::replaceSwipeHandler(
+		Ui::Controls::SwipeHandlerArgs *incompleteArgs) {
+	_swipeHandlerLifetime.destroy();
+	auto args = std::move(*incompleteArgs);
+	args.widget = _innerWrap;
+	args.scroll = _scroll.data();
+	args.onLifetime = &_swipeHandlerLifetime;
+	Ui::Controls::SetupSwipeHandler(std::move(args));
+}
+
+void ContentWidget::setupSwipeHandler(not_null<Ui::RpWidget*> widget) {
+	_swipeHandlerLifetime.destroy();
+
+	auto update = [=](Ui::Controls::SwipeContextData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
+					this,
+					[]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	};
+
+	auto init = [=](int, Qt::LayoutDirection direction) {
+		return (direction == Qt::RightToLeft && _controller->hasBackButton())
+			? Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				checkBeforeClose(crl::guard(this, [=] {
+					_controller->parentController()->hideLayer();
+					_controller->showBackFromStack();
+				}));
+			})
+			: Ui::Controls::SwipeHandlerFinishData();
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = widget,
+		.scroll = _scroll.data(),
+		.update = std::move(update),
+		.init = std::move(init),
+		.onLifetime = &_swipeHandlerLifetime,
+	});
 }
 
 Key ContentMemento::key() const {

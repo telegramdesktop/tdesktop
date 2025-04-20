@@ -554,7 +554,15 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 				Info::BotStarRef::FormatCommission(entry.starrefCommission)
 			},
 			TextWithEntities::Simple)
-		: (entry.floodSkip
+		: entry.paidMessagesCount
+		? tr::lng_credits_paid_messages_fee(
+			tr::now,
+			lt_count,
+			entry.paidMessagesCount,
+			TextWithEntities::Simple)
+		: (entry.premiumMonthsForStars
+		? tr::lng_premium_summary_title
+		: entry.floodSkip
 		? tr::lng_credits_box_history_entry_api
 		: entry.reaction
 		? tr::lng_credits_box_history_entry_reaction_name

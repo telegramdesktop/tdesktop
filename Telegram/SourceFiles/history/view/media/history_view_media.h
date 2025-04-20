@@ -78,6 +78,15 @@ enum class MediaInBubbleState : uchar {
 	TimeId duration,
 	const QString &base);
 
+struct PaidInformation {
+	int messages = 0;
+	int stars = 0;
+
+	explicit operator bool() const {
+		return stars != 0;
+	}
+};
+
 class Media : public Object, public base::has_weak_ptr {
 public:
 	explicit Media(not_null<Element*> parent) : _parent(parent) {
@@ -120,6 +129,10 @@ public:
 	}
 	[[nodiscard]] virtual bool allowsFastShare() const {
 		return false;
+	}
+	[[nodiscard]] virtual auto paidInformation() const
+	-> std::optional<PaidInformation> {
+		return {};
 	}
 	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
 	}

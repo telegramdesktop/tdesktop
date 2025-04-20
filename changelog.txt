@@ -1,3 +1,78 @@
+5.13.1 (26.03.25)
+
+- Fix crash in group/channel stories.
+
+5.13 (26.03.25)
+
+- Allow transferring my unique gifts from Send Gift section.
+- Edit type of gifts you accept in Settings > Privacy and Security.
+- Swipe navigation using swipe gesture on touchpads / touchscreens.
+- Choose chat list quick action for swipe or middle click.
+
+5.12.6 beta (20.03.25)
+
+- Allow customizing chats list swipe left action.
+- Fix custom emoji in poll results view.
+- Fix crash in main menu swipe closing.
+
+5.12.5 beta (14.03.25)
+
+- Support swipe navigation on touchscreens.
+- Close main menu by swipe navigation.
+
+5.12.4 beta (12.03.25)
+
+- Touchpad swipe back to go back in navigation history.
+- Touchpad swipe between folders if they're horizontal.
+- Out-of-the-box monochrome tray icon on Linux.
+- Icons telegram{,{,-attention,-mute}-panel} are renamed
+to org.telegram.desktop{,{,-attention,-mute}-symbolic} for
+unified icon lookup in multiple (sometimes sandboxed) builds
+and GTK icon recolorization support.
+- Snap package got icon theming support,
+the icon names are snap.telegram-desktop.{,{,-attention,-mute}-symbolic}
+(notice the name ends with a dot in case of no suffix!).
+
+5.12.3 (10.03.25)
+
+- Fix a couple more crashes.
+- Fix gift disappearing on unpin.
+- Fix country emoji for Fragment numbers.
+
+5.12.2 (09.03.25)
+
+- Fix some crashes.
+
+5.12.1 (08.03.25)
+
+- Fix a crash in some chat switchings.
+- Fix crashes in empty repaint callbacks.
+
+5.12 (07.03.25)
+
+- Set a fee for incoming messages from unknown users.
+- Set a fee for messages in groups or channel comments.
+- Show some information about who's messaging you.
+- Pin gifts on your profile.
+
+5.11.1 (13.02.25)
+
+- Fix arbitrary cropping support in the image editor.
+- Fix crash on round video message playback.
+- Fix complex custom keyboard shortcuts.
+
+5.11 (12.02.25)
+
+- Copy video links at current time.
+- Set custom video covers when posting to channels.
+- Send paid reactions from the name of your channels.
+
+5.10.8 beta (12.02.25)
+
+- Edit keyboard shortcuts in Settings > Chat Settings.
+- Hide controls in calls with incoming video.
+- Fix several crashes.
+
 5.10.7 (27.01.25)
 
 - Fix some phrases for collectible gifts.

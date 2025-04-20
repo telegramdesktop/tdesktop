@@ -66,6 +66,7 @@ struct ShareBoxStyleOverrides {
 	const style::InputField *comment = nullptr;
 	const style::PeerList *peerList = nullptr;
 	const style::InputField *label = nullptr;
+	const style::Checkbox *checkbox = nullptr;
 	std::shared_ptr<HistoryView::ScheduleBoxStyleArgs> scheduleBox;
 };
 [[nodiscard]] ShareBoxStyleOverrides DarkShareBoxStyle();
@@ -87,41 +88,51 @@ void FastShareLink(
 	const QString &url,
 	ShareBoxStyleOverrides st = {});
 
-struct RecipientPremiumRequiredError;
-[[nodiscard]] auto SharePremiumRequiredError()
--> Fn<RecipientPremiumRequiredError(not_null<UserData*>)>;
+struct RecipientMoneyRestrictionError;
+[[nodiscard]] auto ShareMessageMoneyRestrictionError()
+-> Fn<RecipientMoneyRestrictionError(not_null<UserData*>)>;
 
 class ShareBox final : public Ui::BoxContent {
 public:
 	using CopyCallback = Fn<void()>;
+	using CountMessagesCallback = Fn<int(const TextWithTags&)>;
 	using SubmitCallback = Fn<void(
 		std::vector<not_null<Data::Thread*>>&&,
+		Fn<bool()> checkPaid,
 		TextWithTags&&,
 		Api::SendOptions,
 		Data::ForwardOptions)>;
 	using FilterCallback = Fn<bool(not_null<Data::Thread*>)>;
 
+	[[nodiscard]] static auto DefaultForwardCountMessages(
+		not_null<History*> history,
+		MessageIdsList msgIds) -> CountMessagesCallback;
 	[[nodiscard]] static SubmitCallback DefaultForwardCallback(
 		std::shared_ptr<Ui::Show> show,
 		not_null<History*> history,
-		MessageIdsList msgIds);
+		MessageIdsList msgIds,
+		std::optional<TimeId> videoTimestamp = {});
 
 	struct Descriptor {
 		not_null<Main::Session*> session;
 		CopyCallback copyCallback;
+		CountMessagesCallback countMessagesCallback;
 		SubmitCallback submitCallback;
 		FilterCallback filterCallback;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
 		rpl::producer<QString> copyLinkText;
+		rpl::producer<QString> titleOverride;
 		ShareBoxStyleOverrides st;
+		std::optional<TimeId> videoTimestamp;
 		struct {
 			int sendersCount = 0;
 			int captionsCount = 0;
 			bool show = false;
 		} forwardOptions;
 
-		using PremiumRequiredError = RecipientPremiumRequiredError;
-		Fn<PremiumRequiredError(not_null<UserData*>)> premiumRequiredError;
+		using MoneyRestrictionError = RecipientMoneyRestrictionError;
+		Fn<MoneyRestrictionError(
+			not_null<UserData*>)> moneyRestrictionError;
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);
 
@@ -146,6 +157,7 @@ private:
 	void needSearchByUsername();
 	void applyFilterUpdate(const QString &query);
 	void selectedChanged();
+	void computeStarsCount();
 	void createButtons();
 	int getTopScrollSkip() const;
 	int getBottomScrollSkip() const;
@@ -177,6 +189,7 @@ private:
 
 	bool _hasSelected = false;
 	rpl::variable<QString> _copyLinkText;
+	rpl::variable<int> _starsToSend;
 
 	base::Timer _searchTimer;
 	QString _peopleQuery;
@@ -192,5 +205,6 @@ private:
 	PeopleQueries _peopleQueries;
 
 	Ui::Animations::Simple _scrollAnimation;
+	rpl::lifetime _submitLifetime;
 
 };

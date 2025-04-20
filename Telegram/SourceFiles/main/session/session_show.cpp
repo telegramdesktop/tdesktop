@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/session/session_show.h"
 
+#include "chat_helpers/message_field.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/layers/generic_box.h"
+
 namespace Main {
 namespace {
 
@@ -69,6 +74,14 @@ Session &SimpleSessionShow::session() const {
 }
 
 } // namespace
+
+bool SessionShow::showFrozenError() {
+	if (!session().frozen()) {
+		return false;
+	}
+	showBox(Box(FrozenInfoBox, &session(), FreezeInfoStyleOverride()));
+	return true;
+}
 
 std::shared_ptr<SessionShow> MakeSessionShow(
 		std::shared_ptr<Ui::Show> show,

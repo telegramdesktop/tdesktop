@@ -26,6 +26,7 @@ struct ConfigFields;
 namespace Support {
 class Helper;
 class Templates;
+class FastButtonsBots;
 } // namespace Support
 
 namespace Data {
@@ -78,6 +79,19 @@ class AppConfig;
 class Domain;
 class SessionSettings;
 class SendAsPeers;
+
+struct FreezeInfo {
+	TimeId since = 0;
+	TimeId until = 0;
+	QString appealUrl;
+
+	explicit operator bool() const {
+		return since != 0;
+	}
+	friend inline bool operator==(
+		const FreezeInfo &,
+		const FreezeInfo &) = default;
+};
 
 class Session final : public base::has_weak_ptr {
 public:
@@ -233,12 +247,18 @@ public:
 	[[nodiscard]] bool supportMode() const;
 	[[nodiscard]] Support::Helper &supportHelper() const;
 	[[nodiscard]] Support::Templates &supportTemplates() const;
+	[[nodiscard]] Support::FastButtonsBots &fastButtonsBots() const;
+
+	[[nodiscard]] FreezeInfo frozen() const;
+	[[nodiscard]] rpl::producer<FreezeInfo> frozenValue() const;
 
 	[[nodiscard]] auto colorIndicesValue()
 		-> rpl::producer<Ui::ColorIndicesCompressed>;
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+
+	void appConfigRefreshed();
 
 	const UserId _userId;
 	const not_null<Account*> _account;
@@ -275,6 +295,7 @@ private:
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
+	const std::unique_ptr<Support::FastButtonsBots> _fastButtonsBots;
 
 	std::shared_ptr<QImage> _selfUserpicView;
 	rpl::variable<bool> _premiumPossible = false;
@@ -284,6 +305,8 @@ private:
 
 	base::flat_set<not_null<Window::SessionController*>> _windows;
 	base::Timer _saveSettingsTimer;
+
+	rpl::variable<FreezeInfo> _frozen;
 
 	QByteArray _tmpPassword;
 	TimeId _tmpPasswordValidUntil = 0;

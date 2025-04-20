@@ -72,6 +72,7 @@ enum class Command {
 	MediaViewerFullscreen,
 
 	ShowChatMenu,
+	ShowChatPreview,
 
 	SupportReloadTemplates,
 	SupportToggleMuted,
@@ -138,5 +139,22 @@ void ToggleMediaShortcuts(bool toggled);
 // Support shortcuts are not enabled by default, because they
 // have some conflicts with default input shortcuts, like Ctrl+Delete.
 void ToggleSupportShortcuts(bool toggled);
+
+void Pause();
+void Unpause();
+
+[[nodiscard]] auto KeysDefaults()
+-> base::flat_map<QKeySequence, base::flat_set<Command>>;
+[[nodiscard]] auto KeysCurrents()
+-> base::flat_map<QKeySequence, base::flat_set<Command>>;
+
+void Change(
+	QKeySequence was,
+	QKeySequence now,
+	Command command,
+	std::optional<Command> restore = {});
+void ResetToDefaults();
+
+[[nodiscard]] bool AllowWithoutModifiers(int key);
 
 } // namespace Shortcuts

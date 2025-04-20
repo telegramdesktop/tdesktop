@@ -10,10 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_integration.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
-#include "window/notifications_manager.h"
 #include "core/sandbox.h"
 #include "core/application.h"
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 #include "core/core_settings.h"
+#endif
 #include "base/random.h"
 
 #include <QtCore/QAbstractEventDispatcher>
@@ -26,32 +27,6 @@ namespace {
 
 using namespace gi::repository;
 namespace GObject = gi::repository::GObject;
-
-std::vector<std::any> AnyVectorFromVariant(GLib::Variant value) {
-	std::vector<std::any> result;
-
-	GLib::VariantIter iter;
-	iter.allocate_();
-	iter.init(value);
-
-	const auto uint64Type = GLib::VariantType::new_("t");
-	const auto int64Type = GLib::VariantType::new_("x");
-
-	while (auto value = iter.next_value()) {
-		value = value.get_variant();
-		if (value.is_of_type(uint64Type)) {
-			result.push_back(std::make_any<uint64>(value.get_uint64()));
-		} else if (value.is_of_type(int64Type)) {
-			result.push_back(std::make_any<int64>(value.get_int64()));
-		} else if (value.is_container()) {
-			result.push_back(
-				std::make_any<std::vector<std::any>>(
-					AnyVectorFromVariant(value)));
-		}
-	}
-
-	return result;
-}
 
 class Application : public Gio::impl::ApplicationImpl {
 public:
@@ -125,41 +100,17 @@ Application::Application()
 	});
 	actionMap.add_action(quitAction);
 
-	using Window::Notifications::Manager;
-	using NotificationId = Manager::NotificationId;
-
-	const auto notificationIdVariantType = GLib::VariantType::new_("av");
+	const auto notificationIdVariantType = GLib::VariantType::new_("a{sv}");
 
 	auto notificationActivateAction = Gio::SimpleAction::new_(
 		"notification-activate",
 		notificationIdVariantType);
-
-	notificationActivateAction.signal_activate().connect([](
-			Gio::SimpleAction,
-			GLib::Variant parameter) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			Core::App().notifications().manager().notificationActivated(
-				NotificationId::FromAnyVector(
-					AnyVectorFromVariant(parameter)));
-		});
-	});
 
 	actionMap.add_action(notificationActivateAction);
 
 	auto notificationMarkAsReadAction = Gio::SimpleAction::new_(
 		"notification-mark-as-read",
 		notificationIdVariantType);
-
-	notificationMarkAsReadAction.signal_activate().connect([](
-			Gio::SimpleAction,
-			GLib::Variant parameter) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			Core::App().notifications().manager().notificationReplied(
-				NotificationId::FromAnyVector(
-					AnyVectorFromVariant(parameter)),
-				{});
-		});
-	});
 
 	actionMap.add_action(notificationMarkAsReadAction);
 }

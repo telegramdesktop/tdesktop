@@ -116,7 +116,7 @@ channelEarnFadeDuration: 60;
 
 channelEarnLearnDescription: FlatLabel(defaultFlatLabel) {
 	maxHeight: 0px;
-	minWidth: 280px;
+	minWidth: 264px;
 	align: align(top);
 }
 

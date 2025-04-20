@@ -29,6 +29,7 @@ namespace Storage {
 constexpr auto kUseBigFilesFrom = 30 * 1024 * 1024;
 
 struct UploadedMedia {
+	uint64 id = 0;
 	FullMsgId fullId;
 	Api::RemoteFileInfo info;
 	Api::SendOptions options;
@@ -134,6 +135,11 @@ private:
 	void partFailed(const MTP::Error &error, mtpRequestId requestId);
 	Request finishRequest(mtpRequestId requestId);
 
+	void uploadVideoCover(
+		UploadedMedia &&video,
+		std::shared_ptr<FilePrepareResult> videoCover);
+	void uploadCoverAsPhoto(FullMsgId videoId, UploadedMedia &&cover);
+
 	void processPhotoProgress(FullMsgId itemId);
 	void processPhotoFailed(FullMsgId itemId);
 	void processDocumentProgress(FullMsgId itemId);
@@ -162,6 +168,9 @@ private:
 	crl::time _latestDcIndexAdded = 0;
 	crl::time _latestDcIndexRemoved = 0;
 	std::vector<Request> _pendingFromRemovedDcIndices;
+
+	base::flat_map<FullMsgId, FullMsgId> _videoIdToCoverId;
+	base::flat_map<FullMsgId, UploadedMedia> _videoWaitingCover;
 
 	FullMsgId _pausedId;
 	base::Timer _nextTimer, _stopSessionsTimer;

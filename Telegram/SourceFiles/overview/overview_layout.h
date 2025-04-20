@@ -316,7 +316,9 @@ private:
 	void updateStatusText();
 
 	const not_null<DocumentData*> _data;
+	PhotoData *_videoCover = nullptr;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	mutable std::shared_ptr<Data::PhotoMedia> _videoCoverMedia;
 	StatusText _status;
 
 	QString _duration;

@@ -47,10 +47,10 @@ ServiceBox::ServiceBox(
 	_content->title(),
 	kMarkupTextOptions,
 	_maxWidth,
-	Core::MarkedTextContext{
+	Core::TextContext({
 		.session = &parent->history()->session(),
-		.customEmojiRepaint = [parent] { parent->customEmojiRepaint(); },
-	})
+		.repaint = [parent] { parent->customEmojiRepaint(); },
+	}))
 , _subtitle(
 	st::premiumPreviewAbout.style,
 	Ui::Text::Filtered(
@@ -65,10 +65,10 @@ ServiceBox::ServiceBox(
 		}),
 	kMarkupTextOptions,
 	_maxWidth,
-	Core::MarkedTextContext{
+	Core::TextContext({
 		.session = &parent->history()->session(),
-		.customEmojiRepaint = [parent] { parent->customEmojiRepaint(); },
-	})
+		.repaint = [parent] { parent->customEmojiRepaint(); },
+	}))
 , _size(
 	_content->width(),
 	(st::msgServiceGiftBoxTopSkip

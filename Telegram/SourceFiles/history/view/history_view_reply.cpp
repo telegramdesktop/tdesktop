@@ -244,10 +244,10 @@ void Reply::update(
 		}).text
 		: TextWithEntities();
 	const auto repaint = [=] { item->customEmojiRepaint(); };
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &view->history()->session(),
-		.customEmojiRepaint = repaint,
-	};
+		.repaint = repaint,
+	});
 	_text.setMarkedText(
 		st::defaultTextStyle,
 		text,
@@ -463,11 +463,10 @@ void Reply::updateName(
 	if (!viaBotUsername.isEmpty()) {
 		nameFull.append(u" @"_q).append(viaBotUsername);
 	}
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &history->session(),
-		.customEmojiRepaint = [] {},
 		.customEmojiLoopLimit = 1,
-	};
+	});
 	_name.setMarkedText(
 		st::fwdTextStyle,
 		nameFull,

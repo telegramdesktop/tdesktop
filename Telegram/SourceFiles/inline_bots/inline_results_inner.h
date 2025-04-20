@@ -50,7 +50,7 @@ namespace InlineBots {
 namespace Layout {
 
 class ItemBase;
-using Results = std::vector<std::unique_ptr<Result>>;
+using Results = std::vector<std::shared_ptr<Result>>;
 
 struct CacheEntry {
 	QString nextOffset;
@@ -135,7 +135,7 @@ private:
 	void updateInlineItems();
 	void repaintItems(crl::time now = 0);
 	void clearInlineRows(bool resultsDeleted);
-	ItemBase *layoutPrepareInlineResult(Result *result);
+	ItemBase *layoutPrepareInlineResult(std::shared_ptr<Result> result);
 
 	void updateRestrictedLabelGeometry();
 	void deleteUnusedInlineLayouts();

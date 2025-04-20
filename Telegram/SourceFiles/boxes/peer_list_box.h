@@ -95,6 +95,13 @@ public:
 	[[nodiscard]] virtual QString generateShortName();
 	[[nodiscard]] virtual auto generatePaintUserpicCallback(
 		bool forceRound) -> PaintRoundImageCallback;
+	virtual void paintUserpicOverlay(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth) {
+	}
 
 	[[nodiscard]] virtual auto generateNameFirstLetters() const
 		-> const base::flat_set<QChar> &;

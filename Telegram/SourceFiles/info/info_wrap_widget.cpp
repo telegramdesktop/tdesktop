@@ -444,10 +444,7 @@ void WrapWidget::setupTopBarMenuToggle() {
 				addTopBarMenuButton();
 			}
 		}, _topBar->lifetime());
-	} else if (section.type() == Section::Type::PeerGifts
-		&& key.peer()
-		&& key.peer()->isChannel()
-		&& key.peer()->canManageGifts()) {
+	} else if (section.type() == Section::Type::PeerGifts && key.peer()) {
 		addTopBarMenuButton();
 	}
 }
@@ -1060,6 +1057,11 @@ bool WrapWidget::willHaveBackButton(
 	const auto willHaveStack = !willClearStack
 		&& (hasStackHistory() || willSaveToStack);
 	return (wrap() == Wrap::Narrow) || willHaveStack;
+}
+
+void WrapWidget::replaceSwipeHandler(
+		Ui::Controls::SwipeHandlerArgs *incompleteArgs) {
+	_content->replaceSwipeHandler(std::move(incompleteArgs));
 }
 
 WrapWidget::~WrapWidget() = default;

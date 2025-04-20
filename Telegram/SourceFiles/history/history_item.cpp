@@ -303,13 +303,19 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		}
 		return document->match([&](const MTPDdocument &document) -> Result {
 			const auto list = media.valt_documents();
-			return std::make_unique<Data::MediaFile>(
-				item,
-				item->history()->owner().processDocument(document, list),
-				media.is_nopremium(),
-				list && !list->v.isEmpty(),
-				media.is_spoiler(),
-				media.vttl_seconds().value_or_empty());
+			const auto owner = &item->history()->owner();
+			const auto data = owner->processDocument(document, list);
+			using Args = Data::MediaFile::Args;
+			return std::make_unique<Data::MediaFile>(item, data, Args{
+				.ttlSeconds = media.vttl_seconds().value_or_empty(),
+				.videoCover = (media.vvideo_cover()
+					? owner->processPhoto(*media.vvideo_cover()).get()
+					: nullptr),
+				.videoTimestamp = media.vvideo_timestamp().value_or_empty(),
+				.hasQualitiesList = list && !list->v.isEmpty(),
+				.skipPremiumEffect = media.is_nopremium(),
+				.spoiler = media.is_spoiler(),
+			});
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});
@@ -395,6 +401,7 @@ HistoryItem::HistoryItem(
 	.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0),
 	.date = data.vdate().v,
 	.shortcutId = data.vquick_reply_shortcut_id().value_or_empty(),
+	.starsPaid = int(data.vpaid_message_stars().value_or_empty()),
 	.effectId = data.veffect().value_or_empty(),
 }) {
 	_boostsApplied = data.vfrom_boosts_applied().value_or_empty();
@@ -653,16 +660,12 @@ HistoryItem::HistoryItem(
 : HistoryItem(history, fields) {
 	createComponentsHelper(std::move(fields));
 
-	const auto skipPremiumEffect = !history->session().premium();
 	const auto video = document->video();
-	const auto spoiler = false;
-	_media = std::make_unique<Data::MediaFile>(
-		this,
-		document,
-		skipPremiumEffect,
-		video && !video->qualities.empty(),
-		spoiler,
-		/*ttlSeconds = */0);
+	using Args = Data::MediaFile::Args;
+	_media = std::make_unique<Data::MediaFile>(this, document, Args{
+		.hasQualitiesList = video && !video->qualities.empty(),
+		.skipPremiumEffect = !history->session().premium(),
+	});
 	setText(caption);
 }
 
@@ -724,6 +727,7 @@ HistoryItem::HistoryItem(
 		0,
 		QString(),
 		false,
+		false,
 		0);
 	auto webpageMedia = std::make_unique<Data::MediaWebPage>(
 		this,
@@ -742,6 +746,7 @@ HistoryItem::HistoryItem(
 	: history->peer)
 , _flags(FinalizeMessageFlags(history, fields.flags))
 , _date(fields.date)
+, _starsPaid(fields.starsPaid)
 , _shortcutId(fields.shortcutId)
 , _effectId(fields.effectId) {
 	Expects(!_shortcutId
@@ -788,6 +793,10 @@ HistoryItem::~HistoryItem() {
 
 TimeId HistoryItem::date() const {
 	return _date;
+}
+
+int HistoryItem::starsPaid() const {
+	return _starsPaid;
 }
 
 bool HistoryItem::awaitingVideoProcessing() const {
@@ -1848,17 +1857,12 @@ void HistoryItem::applyChanges(not_null<Data::Story*> story) {
 }
 
 void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
-	const auto spoiler = false;
 	if (const auto photo = story->photo()) {
+		const auto spoiler = false;
 		_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
 	} else if (const auto document = story->document()) {
-		_media = std::make_unique<Data::MediaFile>(
-			this,
-			document,
-			/*skipPremiumEffect=*/false,
-			/*hasQualitiesList=*/false,
-			spoiler,
-			/*ttlSeconds = */0);
+		using Args = Data::MediaFile::Args;
+		_media = std::make_unique<Data::MediaFile>(this, document, Args{});
 	}
 	setText(story->caption());
 	if (story->pinnedToTop()) {
@@ -2262,6 +2266,10 @@ void HistoryItem::setRealId(MsgId newId) {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		incrementReplyToTopCounter();
 	}
+
+	if (out() && starsPaid()) {
+		_history->session().credits().load(true);
+	}
 }
 
 bool HistoryItem::canPin() const {
@@ -2405,7 +2413,8 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	} else if (const auto user = peer->asUser()) {
 		// Bots receive all messages and there is no sense in revoking them.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3818
-		if (user->isBot() && !user->isSupport()) {
+		if ((user->isBot() && !user->isSupport())
+			|| user->isInaccessible()) {
 			return false;
 		}
 	}
@@ -2610,14 +2619,16 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
-void HistoryItem::addPaidReaction(int count, std::optional<bool> anonymous) {
+void HistoryItem::addPaidReaction(
+		int count,
+		std::optional<PeerId> shownPeer) {
 	Expects(count >= 0);
 	Expects(_history->peer->isBroadcast() || isDiscussionPost());
 
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
-	_reactions->scheduleSendPaid(count, anonymous);
+	_reactions->scheduleSendPaid(count, shownPeer);
 	if (count > 0) {
 		_history->owner().notifyItemDataChange(this);
 	}
@@ -2713,8 +2724,10 @@ int HistoryItem::reactionsPaidScheduled() const {
 	return _reactions ? _reactions->scheduledPaid() : 0;
 }
 
-bool HistoryItem::reactionsLocalAnonymous() const {
-	return _reactions ? _reactions->localPaidAnonymous() : false;
+PeerId HistoryItem::reactionsLocalShownPeer() const {
+	return _reactions
+		? _reactions->localPaidShownPeer()
+		: _history->session().userPeerId();
 }
 
 bool HistoryItem::reactionsAreTags() const {
@@ -2742,9 +2755,8 @@ auto HistoryItem::topPaidReactionsWithLocal() const
 		result,
 		[](const TopPaid &entry) { return entry.my != 0; });
 	const auto peerForMine = [&] {
-		return _reactions->localPaidAnonymous()
-			? nullptr
-			: history()->session().user().get();
+		const auto peerId = _reactions->localPaidShownPeer();
+		return peerId ? history()->owner().peer(peerId).get() : nullptr;
 	};
 	if (const auto local = _reactions->localPaidCount()) {
 		const auto top = [&](int mine) {
@@ -5573,6 +5585,45 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto preparePaidMessagesRefunded = [&](const MTPDmessageActionPaidMessagesRefunded &action) {
+		auto result = PreparedServiceText();
+		if (_from->isSelf()) {
+			result.links.push_back(_history->peer->createOpenLink());
+			result.text = tr::lng_action_paid_message_refund_self(
+				tr::now,
+				lt_count,
+				action.vstars().v,
+				lt_name,
+				Ui::Text::Link(_history->peer->shortName(), 1),
+				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(_from->createOpenLink());
+			result.text = tr::lng_action_paid_message_refund(
+				tr::now,
+				lt_count,
+				action.vstars().v,
+				lt_from,
+				Ui::Text::Link(_from->shortName(), 1),
+				Ui::Text::WithEntities);
+		}
+		return result;
+	};
+
+	auto preparePaidMessagesPrice = [&](const MTPDmessageActionPaidMessagesPrice &action) {
+		const auto stars = action.vstars().v;
+		auto result = PreparedServiceText();
+		result.text = stars
+			? tr::lng_action_message_price_paid(
+				tr::now,
+				lt_count,
+				stars,
+				Ui::Text::WithEntities)
+			: tr::lng_action_message_price_free(
+				tr::now,
+				Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -5620,6 +5671,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGiftPrize,
 		prepareStarGift,
 		prepareStarGiftUnique,
+		preparePaidMessagesRefunded,
+		preparePaidMessagesPrice,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

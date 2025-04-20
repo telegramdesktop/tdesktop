@@ -38,11 +38,11 @@ AlbumPreview::AlbumPreview(
 	const style::ComposeControls &st,
 	gsl::span<Ui::PreparedFile> items,
 	SendFilesWay way,
-	Fn<bool()> canToggleSpoiler)
+	Fn<bool(int, AttachActionType)> actionAllowed)
 : RpWidget(parent)
 , _st(st)
 , _sendWay(way)
-, _canToggleSpoiler(std::move(canToggleSpoiler))
+, _actionAllowed(std::move(actionAllowed))
 , _dragTimer([=] { switchToDrag(); }) {
 	setMouseTracking(true);
 	prepareThumbs(items);
@@ -582,19 +582,31 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 void AlbumPreview::showContextMenu(
 		not_null<AlbumThumbnail*> thumb,
 		QPoint position) {
-	if (!_canToggleSpoiler() || !_sendWay.sendImagesAsPhotos()) {
-		return;
-	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
 
-	const auto spoilered = thumb->hasSpoiler();
-	_menu->addAction(spoilered
-		? tr::lng_context_disable_spoiler(tr::now)
-		: tr::lng_context_spoiler_effect(tr::now), [=] {
-		thumb->setSpoiler(!spoilered);
-	}, spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
+	const auto index = orderIndex(thumb);
+	if (_actionAllowed(index, AttachActionType::ToggleSpoiler)
+		&& _sendWay.sendImagesAsPhotos()) {
+		const auto spoilered = thumb->hasSpoiler();
+		_menu->addAction(spoilered
+			? tr::lng_context_disable_spoiler(tr::now)
+			: tr::lng_context_spoiler_effect(tr::now), [=] {
+			thumb->setSpoiler(!spoilered);
+		}, spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
+	}
+	if (_actionAllowed(index, AttachActionType::EditCover)) {
+		_menu->addAction(tr::lng_context_edit_cover(tr::now), [=] {
+			_thumbEditCoverRequested.fire_copy(index);
+		}, &st::menuIconEdit);
+
+		if (_actionAllowed(index, AttachActionType::ClearCover)) {
+			_menu->addAction(tr::lng_context_clear_cover(tr::now), [=] {
+				_thumbClearCoverRequested.fire_copy(index);
+			}, &st::menuIconCancel);
+		}
+	}
 
 	if (_menu->empty()) {
 		_menu = nullptr;

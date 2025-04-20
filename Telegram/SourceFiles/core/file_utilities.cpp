@@ -332,7 +332,7 @@ QString ImagesOrAllFilter() {
 }
 
 QString PhotoVideoFilesFilter() {
-	return u"Image and Video Files (*.png *.jpg *.jpeg *.mp4 *.mov *.m4v);;"_q
+	return u"Image and Video Files (*"_q + Ui::ImageExtensions().join(u" *"_q) + u" *.m4v);;"_q
 		+ AllFilesFilter();
 }
 

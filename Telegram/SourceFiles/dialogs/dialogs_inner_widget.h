@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/ui/dialogs_quick_action_context.h"
 #include "data/data_messages.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
@@ -19,11 +20,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct DialogRow;
+struct DialogRightButton;
 } // namespace style
+
+namespace Api {
+struct PeerSearchResult;
+} // namespace Api
 
 namespace MTP {
 class Error;
 } // namespace MTP
+
+namespace Lottie {
+class Icon;
+} // namespace Lottie
 
 namespace Main {
 class Session;
@@ -34,6 +44,9 @@ class IconButton;
 class PopupMenu;
 class FlatLabel;
 struct ScrollToRequest;
+namespace Controls {
+enum class QuickDialogAction;
+} // namespace Controls
 } // namespace Ui
 
 namespace Window {
@@ -70,6 +83,7 @@ enum class ChatTypeFilter : uchar;
 struct ChosenRow {
 	Key key;
 	Data::MessagePosition message;
+	QByteArray sponsoredRandomId;
 	bool userpicClick : 1 = false;
 	bool filteredRow : 1 = false;
 	bool newWindow : 1 = false;
@@ -118,10 +132,7 @@ public:
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount);
-	void peerSearchReceived(
-		const QString &query,
-		const QVector<MTPPeer> &my,
-		const QVector<MTPPeer> &result);
+	void peerSearchReceived(Api::PeerSearchResult result);
 
 	[[nodiscard]] FilterId filterId() const;
 
@@ -208,6 +219,13 @@ public:
 
 	[[nodiscard]] rpl::producer<UserId> openBotMainAppRequests() const;
 
+	void setSwipeContextData(
+		int64 key,
+		std::optional<Ui::Controls::SwipeContextData> data);
+	[[nodiscard]] int64 calcSwipeKey(int top);
+	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
+	void clearQuickActions();
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -225,6 +243,7 @@ protected:
 private:
 	struct CollapsedRow;
 	struct HashtagResult;
+	struct SponsoredSearchResult;
 	struct PeerSearchResult;
 	struct TagCache;
 
@@ -282,6 +301,7 @@ private:
 	void repaintDialogRow(RowDescriptor row);
 	void refreshDialogRow(RowDescriptor row);
 	bool updateEntryHeight(not_null<Entry*> entry);
+	void showSponsoredMenu(int peerSearchIndex, QPoint globalPos);
 
 	void clearMouseSelection(bool clearSelection = false);
 	void mousePressReleased(
@@ -295,14 +315,17 @@ private:
 	void scrollToItem(int top, int height);
 	void scrollToDefaultSelected();
 	void setCollapsedPressed(int pressed);
-	void setPressed(Row *pressed, bool pressedTopicJump, bool pressedBotApp);
+	void setPressed(
+		Row *pressed,
+		bool pressedTopicJump,
+		bool pressedRightButton);
 	void clearPressed();
 	void setHashtagPressed(int pressed);
 	void setFilteredPressed(
 		int pressed,
 		bool pressedTopicJump,
-		bool pressedBotApp);
-	void setPeerSearchPressed(int pressed);
+		bool pressedRightButton);
+	void setPeerSearchPressed(int pressed, bool pressedRightButton);
 	void setPreviewPressed(int pressed);
 	void setSearchedPressed(int pressed);
 	bool isPressed() const {
@@ -338,6 +361,9 @@ private:
 	void repaintDialogRowCornerStatus(not_null<History*> history);
 
 	bool addBotAppRipple(QPoint origin, Fn<void()> updateCallback);
+	bool addQuickActionRipple(not_null<Row*> row, Fn<void()> updateCallback);
+
+	bool addRightButtonRipple(QPoint origin, Fn<void()> updateCallback);
 
 	void setupShortcuts();
 	RowDescriptor computeJump(
@@ -441,7 +467,8 @@ private:
 	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);
 
 	Row *shownRowByKey(Key key);
-	void clearSearchResults(bool clearPeerSearchResults = true);
+	void clearSearchResults(bool alsoPeerSearchResults = true);
+	void clearPeerSearchResults();
 	void clearPreviewResults();
 	void updateSelectedRow(Key key = Key());
 	void trackResultsHistory(not_null<History*> history);
@@ -468,10 +495,21 @@ private:
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
 
+	[[nodiscard]] not_null<Ui::QuickActionContext*> ensureQuickAction(
+		int64 key);
+	void deactivateQuickAction();
+
 	[[nodiscard]] bool lookupIsInBotAppButton(
 		Row *row,
 		QPoint localPosition);
+	[[nodiscard]] bool lookupIsInRightButton(
+		const RightButton &button,
+		QPoint localPosition);
 	[[nodiscard]] RightButton *maybeCacheRightButton(Row *row);
+	void fillRightButton(
+		RightButton &button,
+		const TextWithEntities &text,
+		const style::DialogRightButton &st);
 
 	[[nodiscard]] QImage *cacheChatsFilterTag(
 		const Data::ChatFilter &filter,
@@ -507,9 +545,10 @@ private:
 	bool _selectedTopicJump = false;
 	bool _pressedTopicJump = false;
 
-	RightButton *_pressedBotAppData = nullptr;
-	bool _selectedBotApp = false;
-	bool _pressedBotApp = false;
+	RightButton *_pressedRightButtonData = nullptr;
+	bool _pressedRightButtonSponsored = false;
+	bool _selectedRightButton = false;
+	bool _pressedRightButton = false;
 
 	Row *_dragging = nullptr;
 	int _draggingIndex = -1;
@@ -544,9 +583,11 @@ private:
 	rpl::lifetime _trackedLifetime;
 
 	QString _peerSearchQuery;
+	base::flat_set<not_null<PeerData*>> _sponsoredRemoved;
 	std::vector<std::unique_ptr<PeerSearchResult>> _peerSearchResults;
 	int _peerSearchSelected = -1;
 	int _peerSearchPressed = -1;
+	int _peerSearchMenu = -1;
 
 	std::vector<std::unique_ptr<FakeRow>> _previewResults;
 	int _previewCount = 0;
@@ -610,6 +651,10 @@ private:
 	rpl::event_stream<QString> _completeHashtagRequests;
 	rpl::event_stream<> _refreshHashtagsRequests;
 	rpl::event_stream<UserId> _openBotMainAppRequests;
+
+	using QuickActionPtr = std::unique_ptr<Ui::QuickActionContext>;
+	QuickActionPtr _activeQuickAction;
+	std::vector<QuickActionPtr> _inactiveQuickActions;
 
 	RowDescriptor _chatPreviewRow;
 	bool _chatPreviewScheduled = false;

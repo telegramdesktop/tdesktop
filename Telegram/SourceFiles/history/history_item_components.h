@@ -54,6 +54,9 @@ namespace style {
 struct BotKeyboardButton;
 } // namespace style
 
+extern const char kOptionFastButtonsMode[];
+[[nodiscard]] bool FastButtonsMode();
+
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(not_null<Data::Session*> owner, UserId userId);
 	void resize(int32 availw) const;

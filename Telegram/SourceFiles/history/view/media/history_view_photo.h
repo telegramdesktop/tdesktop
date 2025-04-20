@@ -114,7 +114,6 @@ private:
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
-	void setupSpoilerTag() const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;

@@ -191,7 +191,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPint(), // quick_reply_shortcut_id
 			MTP_long(data.veffect().value_or_empty()),
 			MTPFactCheck(),
-			MTPint()); // report_delivery_until_date
+			MTPint(), // report_delivery_until_date
+			MTP_long(data.vpaid_message_stars().value_or_empty()));
 	});
 }
 

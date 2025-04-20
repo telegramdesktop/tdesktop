@@ -537,13 +537,6 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 	verticalLayout->add(std::move(icon.widget));
 
 	const auto isStatic = _filterTitle.isStatic;
-	const auto makeContext = [=](Fn<void()> update) {
-		return Core::MarkedTextContext{
-			.session = &_window->session(),
-			.customEmojiRepaint = update,
-			.customEmojiLoopLimit = isStatic ? -1 : 0,
-		};
-	};
 	verticalLayout->add(
 		object_ptr<Ui::CenterWrap<>>(
 			verticalLayout,
@@ -559,7 +552,10 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 						Ui::Text::WithEntities)),
 				st::settingsFilterDividerLabel,
 				st::defaultPopupMenu,
-				makeContext)),
+				Core::TextContext({
+					.session = &_window->session(),
+					.customEmojiLoopLimit = isStatic ? -1 : 0,
+				}))),
 		st::filterLinkDividerLabelPadding);
 
 	verticalLayout->geometryValue(

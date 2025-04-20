@@ -1,6 +1,5 @@
 name: telegram-desktop
 adopt-info: telegram
-icon: Telegram/Resources/art/icon512@2x.png
 
 base: core24
 grade: stable
@@ -94,7 +93,6 @@ parts:
       - libasound2-dev
       - libavif-dev
       - libboost-regex-dev
-      - libfmt-dev
       - libgirepository1.0-dev
       - libglib2.0-dev
       - libheif-dev
@@ -150,11 +148,18 @@ parts:
       version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
 
       craftctl set version="$version"
-
-      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/org.telegram.desktop.desktop
     override-build: |
       craftctl default
-      rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
+
+      APP_ID=org.telegram.desktop
+      sed -i "s/^Icon=$APP_ID$/Icon=snap.telegram-desktop./g" "$CRAFT_PART_INSTALL/usr/share/applications/$APP_ID.desktop"
+      for i in $(find "$CRAFT_PART_INSTALL/usr/share/icons" -name "$APP_ID*.svg" -o -name "$APP_ID*.png"); do
+        PREFIXED="$(dirname "$i")/snap.$CRAFT_PROJECT_NAME.$(basename "$i" | sed "s/$APP_ID//")"
+        mv "$i" "$PREFIXED"
+        DEST="$(dirname "$i" | sed 's@usr/share@meta/gui@')"
+        mkdir -p "$DEST"
+        cp -r "$PREFIXED" "$DEST"
+      done
     after:
       - ada
       - ffmpeg
@@ -166,7 +171,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 61bbacab28d377d0a2771cc87e008554e2f23ffb
+    source-commit: 7119a74e3f9b782f3cc29bf52fc78f2e8b0ca352
     plugin: dump
     override-pull: |
       craftctl default
@@ -213,7 +218,7 @@ parts:
   ada:
     source: https://github.com/ada-url/ada.git
     source-depth: 1
-    source-tag: v2.9.0
+    source-tag: v3.2.1
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -223,6 +228,7 @@ parts:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DADA_TESTING=OFF
       - -DADA_TOOLS=OFF
+      - -DADA_INCLUDE_URL_PATTERN=OFF
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
@@ -278,15 +284,15 @@ parts:
       - -DJPEGXL_ENABLE_SKCMS=OFF
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libbrotli*
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libhwy*
     prime:
       - -./usr/bin
       - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/share
-    after:
-      - patches
 
   qt:
     plugin: nil
@@ -376,7 +382,7 @@ parts:
       - mesa-vulkan-drivers
       - xkb-data
     override-pull: |
-      QT=6.8.2
+      QT=6.9.0
 
       git clone -b v${QT} --depth=1 https://github.com/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
@@ -402,15 +408,16 @@ parts:
       - -./usr/doc
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/metatypes
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.la
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.prl
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/libexec
+      - -./usr/metatypes
       - -./usr/mkspecs
       - -./usr/modules
+      - -./**/objects-*
     after:
       - libjxl
       - patches

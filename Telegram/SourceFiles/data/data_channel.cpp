@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 
 #include "api/api_global_privacy.h"
+#include "data/components/credits.h"
 #include "data/data_changes.h"
 #include "data/data_channel_admins.h"
 #include "data/data_user.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
+#include "storage/storage_account.h"
 #include "ui/unread_badge.h"
 #include "window/notifications_manager.h"
 
@@ -859,6 +861,21 @@ void ChannelData::growSlowmodeLastMessage(TimeId when) {
 	session().changes().peerUpdated(this, UpdateFlag::Slowmode);
 }
 
+int ChannelData::starsPerMessage() const {
+	if (const auto info = mgInfo.get()) {
+		return info->_starsPerMessage;
+	}
+	return 0;
+}
+
+void ChannelData::setStarsPerMessage(int stars) {
+	if (mgInfo && starsPerMessage() != stars) {
+		mgInfo->_starsPerMessage = stars;
+		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
+	}
+	checkTrustedPayForMessage();
+}
+
 int ChannelData::peerGiftsCount() const {
 	return _peerGiftsCount;
 }
@@ -1012,7 +1029,7 @@ PeerId ChannelData::groupCallDefaultJoinAs() const {
 void ChannelData::setAllowedReactions(Data::AllowedReactions value) {
 	if (_allowedReactions != value) {
 		if (value.paidEnabled) {
-			session().api().globalPrivacy().loadPaidReactionAnonymous();
+			session().api().globalPrivacy().loadPaidReactionShownPeer();
 		}
 		const auto enabled = [](const Data::AllowedReactions &allowed) {
 			return (allowed.type != Data::AllowedReactionsType::Some)
@@ -1150,7 +1167,8 @@ void ApplyChannelUpdate(
 		| Flag::CanViewRevenue
 		| Flag::PaidMediaAllowed
 		| Flag::CanViewCreditsRevenue
-		| Flag::StargiftsAvailable;
+		| Flag::StargiftsAvailable
+		| Flag::PaidMessagesAvailable;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
 		| (update.is_can_view_participants()
@@ -1174,6 +1192,9 @@ void ApplyChannelUpdate(
 			: Flag())
 		| (update.is_stargifts_available()
 			? Flag::StargiftsAvailable
+			: Flag())
+		| (update.is_paid_messages_available()
+			? Flag::PaidMessagesAvailable
 			: Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {

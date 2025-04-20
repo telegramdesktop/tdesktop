@@ -447,7 +447,7 @@ if customRunCommand:
             with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_zshrc:
                 tmp_zshrc.write(f'export PS1="{prompt}"\n')
                 tmp_zshrc_path = tmp_zshrc.name
-            subprocess.run(['zsh', '--rcs', tmp_zshrc_path], env=modifiedEnv)
+            subprocess.run(['zsh', '--rcs', tmp_zshrc_path], shell=True, env=modifiedEnv)
             os.remove(tmp_zshrc_path)
     elif not run(' '.join(runCommand) + '\n'):
         print('FAILED :(')
@@ -457,7 +457,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 61bbacab28
+    git checkout 7119a74e3f
 """)
 
 stage('msys64', """
@@ -1148,10 +1148,19 @@ depends:yasm/yasm
 """)
 
 stage('liblcms2', """
-mac:
     git clone -b lcms2.16 https://github.com/mm2/Little-CMS.git liblcms2
     cd liblcms2
-
+win:
+depends:python/Scripts/activate.bat
+    %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
+    meson setup --default-library=static --buildtype=debug -Db_vscrt=mtd out/Debug
+    meson compile -C out/Debug
+release:
+    meson setup --default-library=static --buildtype=release -Db_vscrt=mt out/Release
+    meson compile -C out/Release
+win:
+    deactivate
+mac:
     buildOneArch() {
         arch=$1
         folder=`pwd`/$2
@@ -1689,6 +1698,7 @@ win:
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
+    SET LCMS2_DIR=%LIBS_DIR%\\liblcms2
     configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
@@ -1726,7 +1736,10 @@ win:
         -D WebP_mux_INCLUDE_DIR="%WEBP_DIR%\\src" ^
         -D WebP_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webp.lib" ^
         -D WebP_demux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpdemux.lib" ^
-        -D WebP_mux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpmux.lib"
+        -D WebP_mux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpmux.lib" ^
+        -D LCMS2_FOUND=1 ^
+        -D LCMS2_INCLUDE_DIR="%LCMS2_DIR%\\include" ^
+        -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\\Release\\src\\liblcms2.a"
 
     cmake --build . --config Debug --parallel
     cmake --install . --config Debug
@@ -1851,13 +1864,14 @@ release:
 """)
 
 stage('ada', """
-    git clone -b v2.9.0 https://github.com/ada-url/ada.git
+    git clone -b v3.2.1 https://github.com/ada-url/ada.git
     cd ada
 win:
     cmake -B out . ^
         -A %WIN32X64% ^
         -D ADA_TESTING=OFF ^
         -D ADA_TOOLS=OFF ^
+        -D ADA_INCLUDE_URL_PATTERN=OFF ^
         -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -D CMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -D CMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"

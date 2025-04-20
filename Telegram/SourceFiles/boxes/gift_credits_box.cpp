@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_credits.h"
 #include "boxes/peer_list_controllers.h"
+#include "core/ui_integration.h" // TextContext.
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -67,14 +68,9 @@ void GiftCreditsBox(
 		2.);
 	{
 		Ui::AddSkip(content);
-		const auto arrow = Ui::Text::SingleCustomEmoji(
-			peer->owner().customEmojiManager().registerInternalEmoji(
-				st::topicButtonArrow,
-				st::channelEarnLearnArrowMargins,
-				true));
 		auto link = tr::lng_credits_box_history_entry_gift_about_link(
 			lt_emoji,
-			rpl::single(arrow),
+			rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
 			Ui::Text::RichLangValue
 		) | rpl::map([](TextWithEntities text) {
 			return Ui::Text::Link(
@@ -92,7 +88,7 @@ void GiftCreditsBox(
 						lt_link,
 						std::move(link),
 						Ui::Text::RichLangValue),
-					{ .session = &peer->session() },
+					Core::TextContext({ .session = &peer->session() }),
 					st::creditsBoxAbout)),
 			st::boxRowPadding);
 	}

@@ -322,6 +322,9 @@ QString CountriesInstance::flagEmojiByISO2(const QString &iso) const {
 		|| iso.back() < 'A'
 		|| iso.back() > 'Z') {
 		return QString();
+	} else if (iso == u"FT"_q) {
+		return QString::fromUtf8(
+			"\xF0\x9F\x8F\xB4\xE2\x80\x8D\xE2\x98\xA0\xEF\xB8\x8F");
 	}
 	auto result = QString(4, QChar(0xD83C));
 	result[1] = QChar(iso.front().unicode() - 'A' + 0xDDE6);

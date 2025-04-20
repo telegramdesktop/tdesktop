@@ -7,14 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace HistoryView {
+namespace Dialogs::Ui {
 
-struct ChatPaintGestureHorizontalData {
-	float64 ratio = 0.;
-	float64 reachRatio = 0.;
-	int64 msgBareId = 0;
-	int translation = 0;
-	int cursorTop = 0;
+using namespace ::Ui;
+
+enum class QuickDialogAction {
+	Mute,
+	Pin,
+	Read,
+	Archive,
+	Delete,
+	Disabled,
 };
 
-} // namespace HistoryView
+} // namespace Dialogs::Ui

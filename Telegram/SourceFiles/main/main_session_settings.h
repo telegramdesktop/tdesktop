@@ -85,9 +85,6 @@ public:
 		_groupEmojiSectionHidden.remove(peerId);
 	}
 
-	void setMediaLastPlaybackPosition(DocumentId id, crl::time time);
-	[[nodiscard]] crl::time mediaLastPlaybackPosition(DocumentId id) const;
-
 	[[nodiscard]] Data::AutoDownload::Full &autoDownload() {
 		return _autoDownload;
 	}
@@ -166,7 +163,6 @@ private:
 	rpl::variable<bool> _archiveCollapsed = false;
 	rpl::variable<bool> _archiveInMainMenu = false;
 	rpl::variable<bool> _skipArchiveInSearch = false;
-	std::vector<std::pair<DocumentId, crl::time>> _mediaLastPlaybackPosition;
 	base::flat_map<ThreadId, MsgId> _hiddenPinnedMessages;
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;

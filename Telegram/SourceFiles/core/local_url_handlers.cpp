@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/edit_birthday_box.h"
 #include "ui/integration.h"
 #include "payments/payments_non_panel_process.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/gift_premium_box.h"
@@ -61,12 +62,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_security.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_premium.h"
+#include "storage/storage_account.h"
 #include "mainwidget.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -296,6 +300,42 @@ bool ShowTheme(
 void ShowLanguagesBox(Window::SessionController *controller) {
 	static auto Guard = base::binary_guard();
 	Guard = LanguageBox::Show(controller);
+}
+
+void ShowPhonePrivacyBox(Window::SessionController *controller) {
+	static auto Guard = base::binary_guard();
+	auto guard = base::binary_guard();
+
+	using Privacy = Api::UserPrivacy;
+	const auto key = Privacy::Key::PhoneNumber;
+	controller->session().api().userPrivacy().reload(key);
+
+	const auto weak = base::make_weak(controller);
+	auto shared = std::make_shared<base::binary_guard>(
+		guard.make_guard());
+	auto lifetime = std::make_shared<rpl::lifetime>();
+	controller->session().api().userPrivacy().value(
+		key
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](const Privacy::Rule &value) mutable {
+		using namespace ::Settings;
+		const auto show = shared->alive();
+		if (lifetime) {
+			base::take(lifetime)->destroy();
+		}
+		if (show) {
+			if (const auto controller = weak.get()) {
+				controller->show(Box<EditPrivacyBox>(
+					controller,
+					std::make_unique<PhoneNumberPrivacyController>(
+						controller),
+					value));
+			}
+		}
+	}, *lifetime);
+
+	Guard = std::move(guard);
 }
 
 bool SetLanguage(
@@ -598,6 +638,8 @@ bool ResolveUsernameOrPhone(
 	const auto threadParam = params.value(u"thread"_q);
 	const auto threadId = topicId ? topicId : threadParam.toInt();
 	const auto gameParam = params.value(u"game"_q);
+	const auto videot = params.value(u"t"_q);
+
 	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
 		resolveType = ResolveType::ShareGame;
@@ -614,6 +656,9 @@ bool ResolveUsernameOrPhone(
 		.phone = phone,
 		.messageId = post,
 		.storyId = storyId,
+		.videoTimestamp = (!videot.isEmpty()
+			? ParseVideoTimestamp(videot)
+			: std::optional<TimeId>()),
 		.text = params.value(u"text"_q),
 		.repliesInfo = commentId
 			? Window::RepliesByLinkInfo{
@@ -709,6 +754,9 @@ bool ResolveSettings(
 		if (section == u"language"_q) {
 			ShowLanguagesBox(controller);
 			return {};
+		} else if (section == u"phone_privacy"_q) {
+			ShowPhonePrivacyBox(controller);
+			return {};
 		} else if (section == u"devices"_q) {
 			return ::Settings::Sessions::Id();
 		} else if (section == u"folders"_q) {
@@ -777,8 +825,8 @@ bool OpenMediaTimestamp(
 	if (!controller) {
 		return false;
 	}
-	const auto time = match->captured(2).toInt();
-	if (time < 0) {
+	const auto position = match->captured(2).toInt();
+	if (position < 0) {
 		return false;
 	}
 	const auto base = match->captured(1);
@@ -791,7 +839,7 @@ bool OpenMediaTimestamp(
 		const auto session = &controller->session();
 		const auto document = session->data().document(documentId);
 		const auto context = session->data().message(itemId);
-		const auto timeMs = time * crl::time(1000);
+		const auto time = position * crl::time(1000);
 		if (document->isVideoFile()) {
 			controller->window().openInMediaView(Media::View::OpenRequest(
 				controller,
@@ -799,11 +847,9 @@ bool OpenMediaTimestamp(
 				context,
 				context ? context->topicRootId() : MsgId(0),
 				false,
-				timeMs));
+				time));
 		} else if (document->isSong() || document->isVoiceMessage()) {
-			session->settings().setMediaLastPlaybackPosition(
-				documentId,
-				timeMs);
+			session->local().setMediaLastPlaybackPosition(documentId, time);
 			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;
@@ -865,6 +911,8 @@ bool ShowEditBirthday(
 		const QVariant &context) {
 	if (!controller) {
 		return false;
+	} else if (controller->showFrozenError()) {
+		return true;
 	}
 	const auto user = controller->session().user();
 	const auto save = [=](Data::Birthday result) {
@@ -921,6 +969,8 @@ bool ShowEditPersonalChannel(
 		const QVariant &context) {
 	if (!controller) {
 		return false;
+	} else if (controller->showFrozenError()) {
+		return true;
 	}
 
 	auto listController = std::make_unique<PersonalChannelController>(
@@ -1007,6 +1057,45 @@ bool CopyUsername(
 	const auto username = match->captured(1);
 	TextUtilities::SetClipboardText({ '@' + username });
 	controller->showToast(tr::lng_username_text_copied(tr::now));
+	return true;
+}
+
+bool EditPaidMessagesFee(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto peerId = PeerId(match->captured(1).toULongLong());
+	if (const auto id = peerToChannel(peerId)) {
+		const auto channel = controller->session().data().channelLoaded(id);
+		if (channel && channel->canEditPermissions()) {
+			ShowEditChatPermissions(controller, channel);
+		}
+	} else {
+		controller->show(Box(EditMessagesPrivacyBox, controller));
+	}
+	return true;
+}
+
+bool ShowCommonGroups(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto peerId = PeerId(match->captured(1).toULongLong());
+	if (const auto id = peerToUser(peerId)) {
+		const auto user = controller->session().data().userLoaded(id);
+		if (user) {
+			controller->showSection(
+				std::make_shared<Info::Memento>(
+					user,
+					Info::Section::Type::CommonGroups));
+		}
+	}
 	return true;
 }
 
@@ -1416,7 +1505,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolvePrivatePost
 		},
 		{
-			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete|/information|/edit_profile)?$"_q,
+			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete|/information|/edit_profile|/phone_privacy)?$"_q,
 			ResolveSettings
 		},
 		{
@@ -1512,6 +1601,14 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^username_regular/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
 			CopyUsername,
+		},
+		{
+			u"^edit_paid_messages_fee/([0-9]+)$"_q,
+			EditPaidMessagesFee,
+		},
+		{
+			u"^common_groups/([0-9]+)$"_q,
+			ShowCommonGroups,
 		},
 		{
 			u"^stars_examples$"_q,
@@ -1745,6 +1842,16 @@ void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QString &slug) {
 	ResolveAndShowUniqueGift(std::move(show), slug, {});
+}
+
+TimeId ParseVideoTimestamp(QStringView value) {
+	const auto kExp = u"^(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$"_q;
+	const auto m = QRegularExpression(kExp).match(value);
+	return m.hasMatch()
+		? (m.capturedView(1).toInt() * 3600
+			+ m.capturedView(2).toInt() * 60
+			+ m.capturedView(3).toInt())
+		: value.toInt();
 }
 
 } // namespace Core

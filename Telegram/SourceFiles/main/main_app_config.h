@@ -72,6 +72,13 @@ public:
 	[[nodiscard]] int starrefCommissionMin() const;
 	[[nodiscard]] int starrefCommissionMax() const;
 
+	[[nodiscard]] float64 starsWithdrawRate() const;
+	[[nodiscard]] bool paidMessagesAvailable() const;
+	[[nodiscard]] int paidMessageStarsMax() const;
+	[[nodiscard]] int paidMessageCommission() const;
+
+	[[nodiscard]] int pinnedGiftsLimit() const;
+
 	void refresh(bool force = false);
 
 private:
@@ -116,6 +123,9 @@ private:
 	rpl::event_stream<std::vector<QString>> _ignoreRestrictionChanges;
 
 	std::vector<QString> _startRefPrefixes;
+
+	crl::time _lastFrozenRefresh = 0;
+	rpl::lifetime _frozenTrackLifetime;
 
 	rpl::lifetime _lifetime;
 

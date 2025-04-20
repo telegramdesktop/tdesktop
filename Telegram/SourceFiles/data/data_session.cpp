@@ -532,14 +532,22 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| Flag::BotInlineGeo
 			| Flag::Premium
 			| Flag::Support
-			| Flag::SomeRequirePremiumToWrite
-			| Flag::RequirePremiumToWriteKnown
+			| Flag::HasRequirePremiumToWrite
+			| Flag::HasStarsPerMessage
+			| Flag::MessageMoneyRestrictionsKnown
 			| (!minimal
 				? Flag::Contact
 				| Flag::MutualContact
 				| Flag::DiscardMinPhoto
 				| Flag::StoriesHidden
 				: Flag());
+		const auto hasRequirePremiumToWrite
+			= data.is_contact_require_premium();
+		const auto hasStarsPerMessage
+			= data.vsend_paid_messages_stars().has_value();
+		if (!hasStarsPerMessage) {
+			result->setStarsPerMessage(0);
+		}
 		const auto storiesState = minimal
 			? std::optional<Data::Stories::PeerSourceState>()
 			: data.is_stories_unavailable()
@@ -554,13 +562,24 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (data.is_bot_inline_geo() ? Flag::BotInlineGeo : Flag())
 			| (data.is_premium() ? Flag::Premium : Flag())
 			| (data.is_support() ? Flag::Support : Flag())
-			| (data.is_contact_require_premium()
-				? (Flag::SomeRequirePremiumToWrite
-					| (result->someRequirePremiumToWrite()
-						? (result->requirePremiumToWriteKnown()
-							? Flag::RequirePremiumToWriteKnown
+			| (hasRequirePremiumToWrite
+				? (Flag::HasRequirePremiumToWrite
+					| (result->hasRequirePremiumToWrite()
+						? (result->messageMoneyRestrictionsKnown()
+							? Flag::MessageMoneyRestrictionsKnown
 							: Flag())
 						: Flag()))
+				: Flag())
+			| (hasStarsPerMessage
+				? (Flag::HasStarsPerMessage
+					| (result->hasStarsPerMessage()
+						? (result->messageMoneyRestrictionsKnown()
+							? Flag::MessageMoneyRestrictionsKnown
+							: Flag())
+						: Flag()))
+				: Flag())
+			| ((!hasRequirePremiumToWrite && !hasStarsPerMessage)
+				? Flag::MessageMoneyRestrictionsKnown
 				: Flag())
 			| (!minimal
 				? (data.is_contact() ? Flag::Contact : Flag())
@@ -999,6 +1018,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		}
 
 		channel->setPhoto(data.vphoto());
+		channel->setStarsPerMessage(
+			data.vsend_paid_messages_stars().value_or_empty());
 
 		if (wasInChannel != channel->amIn()) {
 			flags |= UpdateFlag::ChannelAmIn;
@@ -3469,6 +3490,7 @@ not_null<WebPageData*> Session::processWebpage(
 		0,
 		QString(),
 		false,
+		false,
 		data.vdate().v
 			? data.vdate().v
 			: (base::unixtime::now() + kDefaultPendingTimeout));
@@ -3496,6 +3518,7 @@ not_null<WebPageData*> Session::webpage(
 		0,
 		QString(),
 		false,
+		false,
 		TimeId(0));
 }
 
@@ -3516,6 +3539,7 @@ not_null<WebPageData*> Session::webpage(
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
+		bool photoIsVideoCover,
 		TimeId pendingTill) {
 	const auto result = webpage(id);
 	webpageApplyFields(
@@ -3536,6 +3560,7 @@ not_null<WebPageData*> Session::webpage(
 		duration,
 		author,
 		hasLargeMedia,
+		photoIsVideoCover,
 		pendingTill);
 	return result;
 }
@@ -3723,6 +3748,7 @@ void Session::webpageApplyFields(
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
 		data.is_has_large_media(),
+		data.is_video_cover_photo(),
 		pendingTill);
 }
 
@@ -3744,6 +3770,7 @@ void Session::webpageApplyFields(
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
+		bool photoIsVideoCover,
 		TimeId pendingTill) {
 	const auto requestPending = (!page->pendingTill && pendingTill > 0);
 	const auto changed = page->applyChanges(
@@ -3763,6 +3790,7 @@ void Session::webpageApplyFields(
 		duration,
 		author,
 		hasLargeMedia,
+		photoIsVideoCover,
 		pendingTill);
 	if (requestPending) {
 		_session->api().requestWebPageDelayed(page);
@@ -4624,7 +4652,8 @@ void Session::serviceNotification(
 			MTPPeerColor(), // color
 			MTPPeerColor(), // profile_color
 			MTPint(), // bot_active_users
-			MTPlong())); // bot_verification_icon
+			MTPlong(), // bot_verification_icon
+			MTPlong())); // send_paid_messages_stars
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	const auto insert = [=] {
@@ -4683,7 +4712,8 @@ void Session::insertCheckedServiceNotification(
 				MTPint(), // quick_reply_shortcut_id
 				MTPlong(), // effect
 				MTPFactCheck(),
-				MTPint()), // report_delivery_until_date
+				MTPint(), // report_delivery_until_date
+				MTPlong()), // paid_message_stars
 			localFlags,
 			NewMessageType::Unread);
 	}

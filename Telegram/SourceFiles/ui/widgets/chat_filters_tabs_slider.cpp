@@ -42,12 +42,19 @@ ChatsFiltersTabs::ChatsFiltersTabs(
 		};
 		_cachedBadgeHeight = one.height();
 	}
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		for (auto &[index, unread] : _unreadCounts) {
+			unread.cache = cacheUnreadCount(unread.count, unread.muted);
+		}
+		update();
+	}, lifetime());
 	Ui::DiscreteSlider::setSelectOnPress(false);
 }
 
 bool ChatsFiltersTabs::setSectionsAndCheckChanged(
 		std::vector<TextWithEntities> &&sections,
-		const std::any &context,
+		const Text::MarkedContext &context,
 		Fn<bool()> paused) {
 	const auto &was = sectionsRef();
 	const auto changed = [&] {
@@ -88,7 +95,11 @@ void ChatsFiltersTabs::setUnreadCount(int index, int unreadCount, bool mute) {
 		if (unreadCount) {
 			_unreadCounts.emplace(index, Unread{
 				.cache = cacheUnreadCount(unreadCount, mute),
-				.count = unreadCount,
+				.count = ushort(std::clamp(
+					unreadCount,
+					0,
+					int(std::numeric_limits<ushort>::max()))),
+				.muted = mute,
 			});
 		}
 	} else {

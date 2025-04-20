@@ -1526,6 +1526,18 @@ void DoubledLimitsPreviewBox(
 		Main::Domain::kPremiumMaxAccounts,
 		till,
 	});
+	{
+		const auto premium = limits.similarChannelsPremium();
+		entries.push_back({
+			tr::lng_premium_double_limits_subtitle_similar_channels(),
+			tr::lng_premium_double_limits_about_similar_channels(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			limits.similarChannelsDefault(),
+			premium,
+		});
+	}
 	Ui::Premium::ShowListBox(
 		box,
 		st::defaultPremiumLimits,

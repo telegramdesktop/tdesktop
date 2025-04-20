@@ -466,7 +466,13 @@ void Row::PaintCornerBadgeFrame(
 		for (auto i = 0; i != storiesUnreadCount; ++i) {
 			segments.push_back({ storiesUnreadBrush, storiesUnread });
 		}
-		Ui::PaintOutlineSegments(q, outline, segments);
+		if (peer && peer->forum()) {
+			const auto radius = context.st->photoSize
+				* Ui::ForumUserpicRadiusMultiplier();
+			Ui::PaintOutlineSegments(q, outline, radius, segments);
+		} else {
+			Ui::PaintOutlineSegments(q, outline, segments);
+		}
 	}
 
 	if (subscribed) {

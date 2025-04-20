@@ -36,6 +36,7 @@ class PopupMenu;
 class ChatStyle;
 class ChatTheme;
 struct PeerUserpicView;
+struct ChatPaintContext;
 } // namespace Ui
 
 namespace Window {
@@ -68,6 +69,8 @@ public:
 	[[nodiscard]] not_null<ChannelData*> channel() const {
 		return _channel;
 	}
+
+	Ui::ChatPaintContext preparePaintContext(QRect clip) const;
 
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
+#include "core/ui_integration.h" // TextContext.
 #include "data/components/credits.h"
 #include "data/data_channel.h"
 #include "data/data_premium_limits.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "dialogs/ui/chat_search_empty.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/bot/starref/info_bot_starref_setup_widget.h"
@@ -297,9 +299,7 @@ void InnerWidget::load() {
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
-		state->api.request(
-		) | rpl::start_with_error_done(fail, [=] {
-			_state.currencyEarn = state->api.data();
+		const auto nextRequests = [=] {
 			state->apiCreditsHistory.request({}, [=](
 					const Data::CreditsStatusSlice &data) {
 				_state.creditsStatusSlice = data;
@@ -322,19 +322,52 @@ void InnerWidget::load() {
 					state->apiPremiumBotLifetime.destroy();
 				}, state->apiPremiumBotLifetime);
 			});
+		};
+		const auto isMegagroup = _peer->isMegagroup();
+		state->api.request(
+		) | rpl::start_with_error_done([=](const QString &error) {
+			if (isMegagroup) {
+				_state.currencyEarn = {};
+				if (error == u"BROADCAST_REQUIRED"_q) {
+					_state.canViewCurrencyMegagroupEarn = false;
+				}
+				nextRequests();
+			} else {
+				show->showToast(error);
+			}
+		}, [=] {
+			_state.currencyEarn = state->api.data();
+			nextRequests();
 		}, state->apiLifetime);
 	}, lifetime());
 }
 
 void InnerWidget::fill() {
 	const auto container = this;
+	if (!_state.currencyEarn && !_state.creditsEarn) {
+		const auto empty = container->add(object_ptr<Dialogs::SearchEmpty>(
+			container,
+			Dialogs::SearchEmptyIcon::NoResults,
+			tr::lng_search_tab_no_results(Ui::Text::Bold)));
+		empty->setMinimalHeight(st::changePhoneIconSize);
+		empty->animate();
+		return;
+	}
 	const auto bot = (peerIsUser(_peer->id) && _peer->asUser()->botInfo)
 		? _peer->asUser()
 		: nullptr;
 	const auto channel = _peer->asChannel();
-	const auto canViewCurrencyEarn = channel
-		? (channel->flags() & ChannelDataFlag::CanViewRevenue)
-		: true;
+	const auto canViewCurrencyEarn = [&] {
+		if (!channel) {
+			return true;
+		} else if (!(channel->flags() & ChannelDataFlag::CanViewRevenue)) {
+			return false;
+		} else if (channel->isMegagroup()) {
+			return _state.canViewCurrencyMegagroupEarn;
+		} else {
+			return true;
+		}
+	}();
 	const auto &data = canViewCurrencyEarn
 		? _state.currencyEarn
 		: Data::EarnStatistics();
@@ -370,12 +403,6 @@ void InnerWidget::fill() {
 
 	const auto session = &_peer->session();
 	const auto withdrawalEnabled = WithdrawalEnabled(session);
-	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
-		return Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [=] { l->update(); },
-		};
-	};
 	const auto addEmojiToMajor = [=](
 			not_null<Ui::FlatLabel*> label,
 			rpl::producer<EarnInt> value,
@@ -401,7 +428,7 @@ void InnerWidget::fill() {
 		) | rpl::start_with_next([=](EarnInt v) {
 			label->setMarkedText(
 				base::duplicate(prepended).append(icon).append(MajorPart(v)),
-				makeContext(label));
+				Core::TextContext({ .session = session }));
 		}, label->lifetime());
 	};
 
@@ -413,11 +440,7 @@ void InnerWidget::fill() {
 			st::channelEarnCurrencyLearnMargins,
 			false));
 
-	const auto arrow = Ui::Text::SingleCustomEmoji(
-		session->data().customEmojiManager().registerInternalEmoji(
-			st::topicButtonArrow,
-			st::channelEarnLearnArrowMargins,
-			true));
+	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
 		auto label = Ui::CreateLabelWithCustomEmoji(
 			container,
@@ -431,7 +454,7 @@ void InnerWidget::fill() {
 					return Ui::Text::Link(std::move(text), 1);
 				}),
 				Ui::Text::RichLangValue),
-			{ .session = session },
+			Core::TextContext({ .session = session }),
 			st::boxDividerLabel);
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
@@ -548,7 +571,7 @@ void InnerWidget::fill() {
 										Ui::Text::Link(bigCurrencyIcon, 1)),
 									Ui::Text::RichLangValue
 								),
-								{ .session = session },
+								Core::TextContext({ .session = session }),
 								st::boxTitle)))->entity();
 					const auto diamonds = l->lifetime().make_state<int>(0);
 					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {
@@ -578,7 +601,7 @@ void InnerWidget::fill() {
 								}),
 								Ui::Text::RichLangValue
 							),
-							{ .session = session },
+							Core::TextContext({ .session = session }),
 							st::channelEarnLearnDescription));
 					label->resizeToWidth(box->width()
 						- rect::m::sum::h(st::boxRowPadding));
@@ -613,9 +636,11 @@ void InnerWidget::fill() {
 			st::defaultBoxDividerLabelPadding,
 			RectPart::Top | RectPart::Bottom));
 	};
-	addAboutWithLearn(bot
-		? tr::lng_channel_earn_about_bot
-		: tr::lng_channel_earn_about);
+	if (canViewCurrencyEarn) {
+		addAboutWithLearn(bot
+			? tr::lng_channel_earn_about_bot
+			: tr::lng_channel_earn_about);
+	}
 	{
 		using Type = Statistic::ChartViewType;
 		Ui::AddSkip(container);
@@ -977,7 +1002,8 @@ void InnerWidget::fill() {
 	const auto sectionIndex = container->lifetime().make_state<int>(0);
 	const auto rebuildLists = [=](
 			const Memento::SavedState &data,
-			not_null<Ui::VerticalLayout*> listsContainer) {
+			not_null<Ui::VerticalLayout*> listsContainer,
+			not_null<Ui::VerticalLayout*> historyDividerContainer) {
 		const auto hasCurrencyTab
 			= !data.currencyEarn.firstHistorySlice.list.empty();
 		const auto hasCreditsTab = !data.creditsStatusSlice.list.empty();
@@ -1361,9 +1387,9 @@ void InnerWidget::fill() {
 				true);
 		}
 		if (hasCurrencyTab || hasCreditsTab) {
-			Ui::AddSkip(listsContainer);
-			Ui::AddDivider(listsContainer);
-			Ui::AddSkip(listsContainer);
+			Ui::AddSkip(historyDividerContainer);
+			Ui::AddDivider(historyDividerContainer);
+			Ui::AddSkip(historyDividerContainer);
 		}
 
 		listsContainer->resizeToWidth(width());
@@ -1371,18 +1397,20 @@ void InnerWidget::fill() {
 
 	const auto historyContainer = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
+	const auto historyDividerContainer = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
 	rpl::single(rpl::empty) | rpl::then(
 		_stateUpdated.events()
 	) | rpl::start_with_next([=] {
 		const auto listsContainer = historyContainer->add(
 			object_ptr<Ui::VerticalLayout>(container));
-		rebuildLists(_state, listsContainer);
+		rebuildLists(_state, listsContainer, historyDividerContainer);
 		while (historyContainer->count() > 1) {
 			delete historyContainer->widgetAt(0);
 		}
 	}, historyContainer->lifetime());
 
-	if (channel) {
+	if (channel && !channel->isMegagroup()) {
 		//constexpr auto kMaxCPM = 50; // Debug.
 		const auto requiredLevel = Data::LevelLimits(session)
 			.channelRestrictSponsoredLevelMin();
@@ -1439,6 +1467,10 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 		Ui::AddDividerText(container, tr::lng_channel_earn_off_about());
+	} else {
+		while (historyDividerContainer->count() > 1) {
+			delete historyDividerContainer->widgetAt(0);
+		}
 	}
 	Ui::AddSkip(container);
 
@@ -1481,4 +1513,3 @@ not_null<PeerData*> InnerWidget::peer() const {
 }
 
 } // namespace Info::ChannelEarn
-

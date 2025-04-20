@@ -261,7 +261,7 @@ bool GenerateDesktopFile(
 		-1,
 		GLib::KeyFileFlags::KEEP_COMMENTS_
 			| GLib::KeyFileFlags::KEEP_TRANSLATIONS_);
-	
+
 	if (!loaded) {
 		if (!silent) {
 			LOG(("App Error: %1").arg(loaded.error().message_().c_str()));
@@ -484,12 +484,33 @@ void InstallLauncher() {
 	const auto icons = QStandardPaths::writableLocation(
 		QStandardPaths::GenericDataLocation) + u"/icons/"_q;
 
-	if (!QDir(icons).exists()) QDir().mkpath(icons);
+	const auto appIcons = icons + u"/hicolor/256x256/apps/"_q;
+	if (!QDir(appIcons).exists()) QDir().mkpath(appIcons);
 
-	const auto icon = icons + base::IconName() + u".png"_q;
+	const auto icon = appIcons + ApplicationIconName() + u".png"_q;
 	QFile::remove(icon);
+	QFile::remove(icons + u"telegram.png"_q);
 	if (QFile::copy(u":/gui/art/logo_256.png"_q, icon)) {
 		DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
+	}
+
+	const auto symbolicIcons = icons + u"/hicolor/symbolic/apps/"_q;
+	if (!QDir().exists(symbolicIcons)) QDir().mkpath(symbolicIcons);
+
+	const auto monochromeIcons = {
+		QString(),
+		u"attention"_q,
+		u"mute"_q,
+	};
+
+	for (const auto &icon : monochromeIcons) {
+		QFile::copy(
+			u":/gui/icons/tray/monochrome%1.svg"_q.arg(
+				!icon.isEmpty() ? u"_"_q + icon : QString()),
+			symbolicIcons
+				+ ApplicationIconName()
+				+ (!icon.isEmpty() ? u"-"_q + icon : QString())
+				+ u"-symbolic.svg"_q);
 	}
 
 	QProcess::execute("update-desktop-database", {
@@ -497,10 +518,11 @@ void InstallLauncher() {
 	});
 }
 
-[[nodiscard]] QByteArray HashForSocketPath(const QByteArray &data) {
+[[nodiscard]] QByteArray HashForSocketPath() {
 	constexpr auto kHashForSocketPathLength = 24;
 
-	const auto binary = openssl::Sha256(bytes::make_span(data));
+	const auto binary = openssl::Sha256(
+		bytes::make_span(Core::Launcher::Instance().instanceHash()));
 	const auto base64 = QByteArray(
 		reinterpret_cast<const char*>(binary.data()),
 		binary.size()).toBase64(QByteArray::Base64UrlEncoding);
@@ -656,10 +678,6 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
-	char h[33] = { 0 };
-	hashMd5Hex(d.constData(), d.size(), h);
-
 	QGuiApplication::setDesktopFileName([&] {
 		if (KSandbox::isFlatpak()) {
 			return qEnvironmentVariable("FLATPAK_ID");
@@ -672,18 +690,8 @@ void start() {
 		}
 
 		if (!Core::UpdaterDisabled()) {
-			QByteArray md5Hash(h);
-			if (!Core::Launcher::Instance().customWorkingDir()) {
-				const auto exePath = QFile::encodeName(
-					cExeDir() + cExeName());
-
-				hashMd5Hex(
-					exePath.constData(),
-					exePath.size(),
-					md5Hash.data());
-			}
-
-			return u"org.telegram.desktop._%1"_q.arg(md5Hash.constData());
+			return u"org.telegram.desktop._%1"_q.arg(
+				Core::Launcher::Instance().instanceHash().constData());
 		}
 
 		return u"org.telegram.desktop"_q;
@@ -697,14 +705,16 @@ void start() {
 	}
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
-	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
+	qputenv(
+		"PULSE_PROP_application.icon_name",
+		ApplicationIconName().toUtf8());
 
 	GLib::set_prgname(cExeName().toStdString());
 	GLib::set_application_name(AppName.data());
 
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
-		HashForSocketPath(d),
+		HashForSocketPath(),
 		u"TD"_q,//QCoreApplication::applicationName(), - make path smaller.
 		u"%1"_q).toStdString());
 
@@ -766,6 +776,14 @@ void NewVersionLaunched(int oldVersion) {
 
 QImage DefaultApplicationIcon() {
 	return Window::Logo();
+}
+
+QString ApplicationIconName() {
+	static const auto Result = KSandbox::isSnap()
+		? u"snap.%1."_q.arg(qEnvironmentVariable("SNAP_INSTANCE_NAME"))
+		: QGuiApplication::desktopFileName().remove(
+		u"._"_q + Core::Launcher::Instance().instanceHash());
+	return Result;
 }
 
 namespace ThirdParty {

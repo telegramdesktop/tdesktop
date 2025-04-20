@@ -60,11 +60,10 @@ namespace {
 			st::dialogsSearchTagArrow,
 			st::dialogsSearchTagArrowPadding));
 	auto result = Ui::Text::String();
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &owner->session(),
-		.customEmojiRepaint = [] {},
 		.customEmojiLoopLimit = 1,
-	};
+	});
 	const auto attempt = [&](const auto &phrase) {
 		result.setMarkedText(
 			st::dialogsSearchTagPromo,

@@ -26,7 +26,7 @@ struct MessageBarContent {
 	int count = 1;
 	QString title;
 	TextWithEntities text;
-	std::any context;
+	Text::MarkedContext context;
 	QImage preview;
 	Fn<void()> spoilerRepaint;
 	style::margins margins;

@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/shadow.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/wrap/slide_wrap.h"
@@ -21,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "boxes/peer_list_controllers.h"
 #include "settings/settings_premium.h"
+#include "settings/settings_privacy_controllers.h"
 #include "settings/settings_privacy_security.h"
 #include "calls/calls_instance.h"
 #include "lang/lang_keys.h"
@@ -42,6 +45,8 @@ namespace {
 
 constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
 constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
+constexpr auto kStarsMin = 1;
+constexpr auto kDefaultChargeStars = 10;
 
 using Exceptions = Api::UserPrivacy::Exceptions;
 
@@ -452,6 +457,143 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 	return result;
 }
 
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeChargeStarsSlider(
+		QWidget *parent,
+		not_null<const style::MediaSlider*> sliderStyle,
+		not_null<const style::FlatLabel*> labelStyle,
+		int valuesCount,
+		Fn<int(int)> valueByIndex,
+		int value,
+		int maxValue,
+		Fn<void(int)> valueProgress,
+		Fn<void(int)> valueFinished) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	const auto raw = result.data();
+
+	const auto labels = raw->add(object_ptr<Ui::RpWidget>(raw));
+	const auto min = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		QString::number(kStarsMin),
+		*labelStyle);
+	const auto max = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		QString::number(maxValue),
+		*labelStyle);
+	const auto current = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		QString::number(value),
+		*labelStyle);
+	min->setTextColorOverride(st::windowSubTextFg->c);
+	max->setTextColorOverride(st::windowSubTextFg->c);
+	const auto slider = raw->add(object_ptr<Ui::MediaSliderWheelless>(
+		raw,
+		*sliderStyle));
+	labels->resize(
+		labels->width(),
+		current->height() + st::defaultVerticalListSkip);
+	struct State {
+		int indexMin = 0;
+		int index = 0;
+	};
+	const auto state = raw->lifetime().make_state<State>();
+	const auto updateByIndex = [=] {
+		const auto outer = labels->width();
+		const auto minWidth = min->width();
+		const auto maxWidth = max->width();
+		const auto currentWidth = current->width();
+		if (minWidth + maxWidth + currentWidth > outer) {
+			return;
+		}
+
+		min->moveToLeft(0, 0, outer);
+		max->moveToRight(0, 0, outer);
+		current->moveToLeft((outer - current->width()) / 2, 0, outer);
+	};
+	const auto updateByValue = [=](int value) {
+		current->setText(
+			tr::lng_action_gift_for_stars(tr::now, lt_count, value));
+
+		state->index = 0;
+		auto maxIndex = valuesCount - 1;
+		while (state->index < maxIndex) {
+			const auto mid = (state->index + maxIndex) / 2;
+			const auto midValue = valueByIndex(mid);
+			if (midValue == value) {
+				state->index = mid;
+				break;
+			} else if (midValue < value) {
+				state->index = mid + 1;
+			} else {
+				maxIndex = mid - 1;
+			}
+		}
+		updateByIndex();
+	};
+	const auto progress = [=](int value) {
+		updateByValue(value);
+		valueProgress(value);
+	};
+	const auto finished = [=](int value) {
+		updateByValue(value);
+		valueFinished(value);
+	};
+	style::PaletteChanged() | rpl::start_with_next([=] {
+		min->setTextColorOverride(st::windowSubTextFg->c);
+		max->setTextColorOverride(st::windowSubTextFg->c);
+	}, raw->lifetime());
+	updateByValue(value);
+	state->indexMin = 0;
+
+	slider->setPseudoDiscrete(
+		valuesCount,
+		valueByIndex,
+		value,
+		progress,
+		finished,
+		state->indexMin);
+	slider->resize(slider->width(), sliderStyle->seekSize.height());
+
+	raw->widthValue() | rpl::start_with_next([=](int width) {
+		labels->resizeToWidth(width);
+		updateByIndex();
+	}, slider->lifetime());
+
+	return result;
+}
+
+void EditNoPaidMessagesExceptions(
+		not_null<Window::SessionController*> window,
+		const Api::UserPrivacy::Rule &value) {
+	auto controller = std::make_unique<PrivacyExceptionsBoxController>(
+		&window->session(),
+		tr::lng_messages_privacy_remove_fee(),
+		value.always,
+		std::optional<SpecialRowType>());
+	auto initBox = [=, controller = controller.get()](
+			not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_settings_save(), [=] {
+			auto copy = value;
+			auto &setTo = copy.always;
+			setTo.peers = box->collectSelectedRows();
+			setTo.premiums = false;
+			setTo.miniapps = false;
+			auto &removeFrom = copy.never;
+			for (const auto peer : setTo.peers) {
+				removeFrom.peers.erase(
+					ranges::remove(removeFrom.peers, peer),
+					end(removeFrom.peers));
+			}
+			window->session().api().userPrivacy().save(
+				Api::UserPrivacy::Key::NoPaidMessages,
+				copy);
+			box->closeBox();
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	};
+	window->show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)));
+}
+
 } // namespace
 
 bool EditPrivacyController::hasOption(Option option) const {
@@ -812,19 +954,27 @@ void EditMessagesPrivacyBox(
 
 	constexpr auto kOptionAll = 0;
 	constexpr auto kOptionPremium = 1;
+	constexpr auto kOptionCharge = 2;
 
+	const auto session = &controller->session();
 	const auto allowed = [=] {
-		return controller->session().premium()
-			|| controller->session().appConfig().newRequirePremiumFree();
+		return session->premium()
+			|| session->appConfig().newRequirePremiumFree();
 	};
-	const auto privacy = &controller->session().api().globalPrivacy();
+	const auto privacy = &session->api().globalPrivacy();
 	const auto inner = box->verticalLayout();
 	inner->add(object_ptr<Ui::PlainShadow>(box));
 
 	Ui::AddSkip(inner, st::messagePrivacyTopSkip);
 	Ui::AddSubsectionTitle(inner, tr::lng_messages_privacy_subtitle());
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(
-		privacy->newRequirePremiumCurrent() ? kOptionPremium : kOptionAll);
+		(!allowed()
+			? kOptionAll
+			: privacy->newRequirePremiumCurrent()
+			? kOptionPremium
+			: privacy->newChargeStarsCurrent()
+			? kOptionCharge
+			: kOptionAll));
 	inner->add(
 		object_ptr<Ui::Radiobutton>(
 			inner,
@@ -846,6 +996,92 @@ void EditMessagesPrivacyBox(
 			0,
 			st::messagePrivacyBottomSkip));
 
+	Ui::AddDividerText(inner, tr::lng_messages_privacy_about());
+
+	const auto available = session->appConfig().paidMessagesAvailable();
+
+	const auto charged = available
+		? inner->add(
+			object_ptr<Ui::Radiobutton>(
+				inner,
+				group,
+				kOptionCharge,
+				tr::lng_messages_privacy_charge(tr::now),
+				st::messagePrivacyCheck),
+			st::settingsSendTypePadding + style::margins(
+				0,
+				st::messagePrivacyBottomSkip,
+				0,
+				st::messagePrivacyBottomSkip))
+		: nullptr;
+
+	struct State {
+		rpl::variable<int> stars;
+	};
+	const auto state = std::make_shared<State>();
+	const auto savedValue = privacy->newChargeStarsCurrent();
+
+	if (available) {
+		Ui::AddDividerText(inner, tr::lng_messages_privacy_charge_about());
+
+		const auto chargeWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto chargeInner = chargeWrap->entity();
+
+		Ui::AddSkip(chargeInner);
+
+		state->stars = SetupChargeSlider(
+			chargeInner,
+			session->user(),
+			savedValue);
+
+		Ui::AddSkip(chargeInner);
+		Ui::AddSubsectionTitle(
+			chargeInner,
+			tr::lng_messages_privacy_exceptions());
+
+		const auto key = Api::UserPrivacy::Key::NoPaidMessages;
+		session->api().userPrivacy().reload(key);
+		auto label = session->api().userPrivacy().value(
+			key
+		) | rpl::map([=](const Api::UserPrivacy::Rule &value) {
+			using namespace Settings;
+			const auto always = ExceptionUsersCount(value.always.peers);
+			return always
+				? tr::lng_edit_privacy_exceptions_count(
+					tr::now,
+					lt_count,
+					always)
+				: tr::lng_edit_privacy_exceptions_add(tr::now);
+		});
+
+		const auto exceptions = Settings::AddButtonWithLabel(
+			chargeInner,
+			tr::lng_messages_privacy_remove_fee(),
+			std::move(label),
+			st::settingsButtonNoIcon);
+
+		const auto shower = exceptions->lifetime().make_state<rpl::lifetime>();
+		exceptions->setClickedCallback([=] {
+			*shower = session->api().userPrivacy().value(
+				key
+			) | rpl::take(
+				1
+			) | rpl::start_with_next([=](const Api::UserPrivacy::Rule &value) {
+				EditNoPaidMessagesExceptions(controller, value);
+			});
+		});
+		Ui::AddSkip(chargeInner);
+		Ui::AddDividerText(
+			chargeInner,
+			tr::lng_messages_privacy_remove_about());
+
+		using namespace rpl::mappers;
+		chargeWrap->toggleOn(group->value() | rpl::map(_1 == kOptionCharge));
+		chargeWrap->finishAnimating();
+	}
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
 	const auto toast = std::make_shared<WeakToast>();
 	const auto showToast = [=] {
@@ -875,19 +1111,20 @@ void EditMessagesPrivacyBox(
 			}),
 		});
 	};
+
 	if (!allowed()) {
 		CreateRadiobuttonLock(restricted, st::messagePrivacyCheck);
+		if (charged) {
+			CreateRadiobuttonLock(charged, st::messagePrivacyCheck);
+		}
 
 		group->setChangedCallback([=](int value) {
-			if (value == kOptionPremium) {
+			if (value == kOptionPremium || value == kOptionCharge) {
 				group->setValue(kOptionAll);
 				showToast();
 			}
 		});
-	}
 
-	Ui::AddDividerText(inner, tr::lng_messages_privacy_about());
-	if (!allowed()) {
 		Ui::AddSkip(inner);
 		Settings::AddButtonWithIcon(
 			inner,
@@ -907,8 +1144,12 @@ void EditMessagesPrivacyBox(
 	} else {
 		box->addButton(tr::lng_settings_save(), [=] {
 			if (allowed()) {
-				privacy->updateNewRequirePremium(
-					group->current() == kOptionPremium);
+				const auto value = group->current();
+				const auto premiumRequired = (value == kOptionPremium);
+				const auto chargeStars = (value == kOptionCharge)
+					? state->stars.current()
+					: 0;
+				privacy->updateMessagesPrivacy(premiumRequired, chargeStars);
 				box->closeBox();
 			} else {
 				showToast();
@@ -918,4 +1159,79 @@ void EditMessagesPrivacyBox(
 			box->closeBox();
 		});
 	}
+}
+
+rpl::producer<int> SetupChargeSlider(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<PeerData*> peer,
+		int savedValue) {
+	struct State {
+		rpl::variable<int> stars;
+	};
+	const auto group = !peer->isUser();
+	const auto state = container->lifetime().make_state<State>();
+	const auto chargeStars = savedValue ? savedValue : kDefaultChargeStars;
+	state->stars = chargeStars;
+
+	Ui::AddSubsectionTitle(container, group
+		? tr::lng_rights_charge_price()
+		: tr::lng_messages_privacy_price());
+
+	auto values = std::vector<int>();
+	const auto maxStars = peer->session().appConfig().paidMessageStarsMax();
+	if (chargeStars < kStarsMin) {
+		values.push_back(chargeStars);
+	}
+	for (auto i = kStarsMin; i < std::min(100, maxStars); ++i) {
+		values.push_back(i);
+	}
+	for (auto i = 100; i < std::min(1000, maxStars); i += 10) {
+		if (i < chargeStars + 10 && chargeStars < i) {
+			values.push_back(chargeStars);
+		}
+		values.push_back(i);
+	}
+	for (auto i = 1000; i < maxStars + 1; i += 100) {
+		if (i < chargeStars + 100 && chargeStars < i) {
+			values.push_back(chargeStars);
+		}
+		values.push_back(i);
+	}
+	const auto valuesCount = int(values.size());
+	const auto setStars = [=](int value) {
+		state->stars = value;
+	};
+	container->add(
+		MakeChargeStarsSlider(
+			container,
+			&st::settingsScale,
+			&st::settingsScaleLabel,
+			valuesCount,
+			[=](int index) { return values[index]; },
+			chargeStars,
+			maxStars,
+			setStars,
+			setStars),
+		st::boxRowPadding);
+
+	const auto skip = 2 * st::defaultVerticalListSkip;
+	Ui::AddSkip(container, skip);
+
+	auto dollars = state->stars.value() | rpl::map([=](int stars) {
+		const auto ratio = peer->session().appConfig().starsWithdrawRate();
+		const auto dollars = int(base::SafeRound(stars * ratio));
+		return '~' + Ui::FillAmountAndCurrency(dollars, u"USD"_q);
+	});
+	const auto percent = peer->session().appConfig().paidMessageCommission();
+	Ui::AddDividerText(
+		container,
+		(group
+			? tr::lng_rights_charge_price_about
+			: tr::lng_messages_privacy_price_about)(
+			lt_percent,
+			rpl::single(QString::number(percent / 10.) + '%'),
+			lt_amount,
+			std::move(dollars)));
+
+	return state->stars.value();
 }

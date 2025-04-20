@@ -37,7 +37,7 @@ Polls::Polls(not_null<ApiWrap*> api)
 
 void Polls::create(
 		const PollData &data,
-		const SendAction &action,
+		SendAction action,
 		Fn<void()> done,
 		Fn<void()> fail) {
 	_session->api().sendAction(action);
@@ -59,6 +59,9 @@ void Polls::create(
 		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
@@ -70,6 +73,10 @@ void Polls::create(
 	}
 	if (action.options.effectId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
+	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 	const auto sendAs = action.options.sendAs;
 	if (sendAs) {
@@ -93,7 +100,8 @@ void Polls::create(
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
-			MTP_long(action.options.effectId)
+			MTP_long(action.options.effectId),
+			MTP_long(starsPaid)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(

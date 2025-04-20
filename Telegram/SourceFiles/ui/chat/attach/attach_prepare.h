@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/photo_editor_common.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/rect_part.h"
 
 #include <QtCore/QSemaphore>
@@ -74,12 +75,14 @@ struct PreparedFile {
 	[[nodiscard]] bool canBeInAlbumType(AlbumType album) const;
 	[[nodiscard]] AlbumType albumType(bool sendImagesAsPhotos) const;
 	[[nodiscard]] bool isSticker() const;
+	[[nodiscard]] bool isVideoFile() const;
 	[[nodiscard]] bool isGifv() const;
 
 	QString path;
 	QByteArray content;
 	int64 size = 0;
-	std::unique_ptr<Ui::PreparedFileInformation> information;
+	std::unique_ptr<PreparedFileInformation> information;
+	std::unique_ptr<PreparedFile> videoCover;
 	QImage preview;
 	QSize shownDimensions;
 	QSize originalDimensions;
@@ -150,6 +153,20 @@ struct PreparedGroup {
 	PreparedList &&list,
 	SendFilesWay way,
 	bool slowmode);
+
+struct PreparedBundle {
+	std::vector<PreparedGroup> groups;
+	SendFilesWay way;
+	TextWithTags caption;
+	int totalCount = 0;
+	bool sendComment = false;
+	bool ctrlShiftEnter = false;
+};
+[[nodiscard]] std::shared_ptr<PreparedBundle> PrepareFilesBundle(
+	std::vector<PreparedGroup> groups,
+	SendFilesWay way,
+	TextWithTags caption,
+	bool ctrlShiftEnter);
 
 [[nodiscard]] int MaxAlbumItems();
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);

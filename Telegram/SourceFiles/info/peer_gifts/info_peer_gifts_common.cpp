@@ -7,20 +7,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/peer_gifts/info_peer_gifts_common.h"
 
+#include "boxes/send_credits_box.h" // SetButtonMarkedLabel
 #include "boxes/star_gift_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_credits.h" // CreditsHistoryEntry
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/buttons.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/effects/premium_graphics.h"
@@ -85,13 +90,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	unsubscribe();
 	v::match(descriptor, [&](const GiftTypePremium &data) {
 		const auto months = data.months;
-		const auto years = (months % 12) ? 0 : months / 12;
 		_text = Ui::Text::String(st::giftBoxGiftHeight / 4);
 		_text.setMarkedText(
 			st::defaultTextStyle,
-			Ui::Text::Bold(years
-				? tr::lng_years(tr::now, lt_count, years)
-				: tr::lng_months(tr::now, lt_count, months)
+			Ui::Text::Bold(
+				tr::lng_months(tr::now, lt_count, months)
 			).append('\n').append(
 				tr::lng_gift_premium_label(tr::now)
 			));
@@ -101,6 +104,18 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 				data.cost,
 				data.currency,
 				true));
+		if (const auto stars = data.stars) {
+			const auto starsText = Lang::FormatCountDecimal(stars);
+			_byStars.setMarkedText(
+				st::giftBoxByStarsStyle,
+				tr::lng_gift_premium_by_stars(
+					tr::now,
+					lt_amount,
+					_delegate->ministar().append(' ' + starsText),
+					Ui::Text::WithEntities),
+				kMarkupTextOptions,
+				_delegate->textContext());
+		}
 		_userpic = nullptr;
 		if (!_stars) {
 			_stars.emplace(this, true, starsType);
@@ -127,9 +142,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		_price.setMarkedText(
 			st::semiboldTextStyle,
 			(unique
-				? tr::lng_gift_price_unique(tr::now, Ui::Text::WithEntities)
+				? tr::lng_gift_transfer_button(
+					tr::now,
+					Ui::Text::WithEntities)
 				: _delegate->star().append(
-					' ' + QString::number(data.info.stars))),
+					' ' + Lang::FormatCountDecimal(data.info.stars))),
 			kMarkupTextOptions,
 			_delegate->textContext());
 		if (!_stars) {
@@ -170,7 +187,9 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		QSize(buttonw, buttonh)
 	).marginsAdded(st::giftBoxButtonPadding);
 	const auto skipy = _delegate->buttonSize().height()
-		- st::giftBoxButtonBottom
+		- (_byStars.isEmpty()
+			? st::giftBoxButtonBottom
+			: st::giftBoxButtonBottomByStars)
 		- inner.height();
 	const auto skipx = (width() - inner.width()) / 2;
 	const auto outer = (width() - 2 * skipx);
@@ -228,6 +247,79 @@ void GiftButton::setGeometry(QRect inner, QMargins extend) {
 	AbstractButton::setGeometry(inner.marginsAdded(extend));
 }
 
+QMargins GiftButton::currentExtend() const {
+	const auto progress = _selectedAnimation.value(_selected ? 1. : 0.);
+	const auto added = anim::interpolate(0, st::giftBoxSelectSkip, progress);
+	return _extend + QMargins(added, added, added, added);
+}
+
+void GiftButton::toggleSelected(bool selected) {
+	if (_selected == selected) {
+		return;
+	}
+	const auto duration = st::defaultRoundCheckbox.duration;
+	_selected = selected;
+	_selectedAnimation.start([=] {
+		update();
+	}, selected ? 0. : 1., selected ? 1. : 0., duration, anim::easeOutCirc);
+}
+
+void GiftButton::paintBackground(QPainter &p, const QImage &background) {
+	const auto removed = currentExtend() - _extend;
+	const auto x = removed.left();
+	const auto y = removed.top();
+	const auto width = this->width() - x - removed.right();
+	const auto height = this->height() - y - removed.bottom();
+	const auto dpr = int(background.devicePixelRatio());
+	const auto bwidth = background.width() / dpr;
+	const auto bheight = background.height() / dpr;
+	const auto fillRow = [&](int yfrom, int ytill, int bfrom) {
+		const auto fill = [&](int xto, int wto, int xfrom, int wfrom = 0) {
+			const auto fheight = ytill - yfrom;
+			p.drawImage(
+				QRect(x + xto, y + yfrom, wto, fheight),
+				background,
+				QRect(
+					QPoint(xfrom, bfrom) * dpr,
+					QSize((wfrom ? wfrom : wto), fheight) * dpr));
+		};
+		if (width < bwidth) {
+			const auto xhalf = width / 2;
+			fill(0, xhalf, 0);
+			fill(xhalf, width - xhalf, bwidth - (width - xhalf));
+		} else if (width == bwidth) {
+			fill(0, width, 0);
+		} else {
+			const auto half = bwidth / (2 * dpr);
+			fill(0, half, 0);
+			fill(width - half, half, bwidth - half);
+			fill(half, width - 2 * half, half, 1);
+		}
+	};
+	if (height < bheight) {
+		fillRow(0, height / 2, 0);
+		fillRow(height / 2, height, bheight - (height - (height / 2)));
+	} else {
+		fillRow(0, height, 0);
+	}
+
+	auto hq = PainterHighQualityEnabler(p);
+	const auto progress = _selectedAnimation.value(_selected ? 1. : 0.);
+	if (progress < 0.01) {
+		return;
+	}
+	const auto pwidth = progress * st::defaultRoundCheckbox.width;
+	p.setPen(QPen(st::defaultRoundCheckbox.bgActive->c, pwidth));
+	p.setBrush(Qt::NoBrush);
+	const auto rounded = rect().marginsRemoved(_extend);
+	const auto phalf = pwidth / 2.;
+	const auto extended = QRectF(rounded).marginsRemoved(
+		{ phalf, phalf, phalf, phalf });
+	const auto xradius = removed.left() + st::giftBoxGiftRadius - phalf;
+	const auto yradius = removed.top() + st::giftBoxGiftRadius - phalf;
+	p.drawRoundedRect(extended, xradius, yradius);
+}
+
 void GiftButton::resizeEvent(QResizeEvent *e) {
 	if (!_button.isEmpty()) {
 		_button.moveLeft((width() - _button.width()) / 2);
@@ -236,6 +328,12 @@ void GiftButton::resizeEvent(QResizeEvent *e) {
 			_stars->setCenter(_button - QMargins(padding, 0, padding, 0));
 		}
 	}
+}
+
+void GiftButton::contextMenuEvent(QContextMenuEvent *e) {
+	_contextMenuRequests.fire_copy((e->reason() == QContextMenuEvent::Mouse)
+		? e->globalPos()
+		: QCursor::pos());
 }
 
 void GiftButton::cacheUniqueBackground(
@@ -249,9 +347,10 @@ void GiftButton::cacheUniqueBackground(
 		[[maybe_unused]] const auto preload = _uniquePatternEmoji->ready();
 	}
 	const auto outer = QRect(0, 0, width, height);
+	const auto extend = currentExtend();
 	const auto inner = outer.marginsRemoved(
-		_extend
-	).translated(-_extend.left(), -_extend.top());
+		extend
+	).translated(-extend.left(), -extend.top());
 	const auto ratio = style::DevicePixelRatio();
 	if (_uniqueBackgroundCache.size() != inner.size() * ratio) {
 		_uniqueBackgroundCache = QImage(
@@ -295,32 +394,15 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		: nullptr;
 	const auto hidden = v::is<GiftTypeStars>(_descriptor)
 		&& v::get<GiftTypeStars>(_descriptor).hidden;;
-	const auto position = QPoint(_extend.left(), _extend.top());
+	const auto extend = currentExtend();
+	const auto position = QPoint(extend.left(), extend.top());
 	const auto background = _delegate->background();
-	const auto dpr = int(background.devicePixelRatio());
 	const auto width = this->width();
-	if (width * dpr <= background.width()) {
-		p.drawImage(0, 0, background);
-	} else {
-		const auto full = background.width();
-		const auto half = ((full / 2) / dpr) * dpr;
-		const auto height = background.height();
-		p.drawImage(
-			QRect(0, 0, half / dpr, height / dpr),
-			background,
-			QRect(0, 0, half, height));
-		p.drawImage(
-			QRect(width - (half / dpr), 0, half / dpr, height / dpr),
-			background,
-			QRect(full - half, 0, half, height));
-		p.drawImage(
-			QRect(half / dpr, 0, width - 2 * (half / dpr), height / dpr),
-			background,
-			QRect(half, 0, 1, height));
-	}
+	const auto dpr = int(background.devicePixelRatio());
+	paintBackground(p, background);
 	if (unique) {
 		cacheUniqueBackground(unique, width, background.height() / dpr);
-		p.drawImage(_extend.left(), _extend.top(), _uniqueBackgroundCache);
+		p.drawImage(extend.left(), extend.top(), _uniqueBackgroundCache);
 	}
 
 	if (_userpic) {
@@ -330,7 +412,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		}
 		const auto image = _userpic->image(st::giftBoxUserpicSize);
 		const auto skip = st::giftBoxUserpicSkip;
-		p.drawImage(_extend.left() + skip, _extend.top() + skip, image);
+		p.drawImage(extend.left() + skip, extend.top() + skip, image);
 	}
 
 	auto frame = QImage();
@@ -355,7 +437,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 					? st::giftBoxSmallStickerTop
 					: _text.isEmpty()
 					? st::giftBoxStickerStarTop
-					: st::giftBoxStickerTop),
+					: _byStars.isEmpty()
+					? st::giftBoxStickerTop
+					: st::giftBoxStickerTopByStars),
 				size.width(),
 				size.height()),
 			frame);
@@ -367,7 +451,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				? st::giftBoxSmallStickerTop
 				: _text.isEmpty()
 				? st::giftBoxStickerStarTop
-				: st::giftBoxStickerTop));
+				: _byStars.isEmpty()
+				? st::giftBoxStickerTop
+				: st::giftBoxStickerTopByStars));
 		_delegate->hiddenMark()->paint(
 			p,
 			frame,
@@ -379,7 +465,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 
 	auto hq = PainterHighQualityEnabler(p);
 	const auto premium = v::is<GiftTypePremium>(_descriptor);
-	const auto singlew = width - _extend.left() - _extend.right();
+	const auto singlew = width - extend.left() - extend.right();
 	const auto font = st::semiboldFont;
 	p.setFont(font);
 
@@ -398,11 +484,17 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		}
 		return GiftBadge();
 	}, [&](const GiftTypeStars &data) {
-		if (const auto count = data.info.limitedCount) {
-			const auto soldOut = !data.userpic && !data.info.limitedLeft;
+		const auto count = data.info.limitedCount;
+		const auto pinned = data.pinned || data.pinnedSelection;
+		if (count || pinned) {
+			const auto soldOut = !pinned
+				&& !data.userpic
+				&& !data.info.limitedLeft;
 			return GiftBadge{
 				.text = (soldOut
 					? tr::lng_gift_stars_sold_out(tr::now)
+					: (unique && pinned)
+					? ('#' + QString::number(unique->number))
 					: (!data.userpic && !data.info.unique)
 					? tr::lng_gift_stars_limited(tr::now)
 					: (count == 1)
@@ -430,7 +522,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 
 	if (badge) {
 		const auto rubberOut = st::lineWidth;
-		const auto inner = rect().marginsRemoved(_extend);
+		const auto inner = rect().marginsRemoved(extend);
 		p.setClipRect(inner.marginsAdded(
 			{ rubberOut, rubberOut, rubberOut, rubberOut }));
 
@@ -441,6 +533,24 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			position.y() - rubberOut,
 			cached);
 	}
+
+	v::match(_descriptor, [](const GiftTypePremium &) {
+	}, [&](const GiftTypeStars &data) {
+		if (unique && data.pinned) {
+			auto hq = PainterHighQualityEnabler(p);
+			const auto &icon = st::giftBoxPinIcon;
+			const auto skip = st::giftBoxUserpicSkip;
+			const auto add = (st::giftBoxUserpicSize - icon.width()) / 2;
+			p.setPen(Qt::NoPen);
+			p.setBrush(unique->backdrop.patternColor);
+			const auto rect = QRect(
+				QPoint(extend.left() + skip, extend.top() + skip),
+				QSize(icon.width() + 2 * add, icon.height() + 2 * add));
+			p.drawEllipse(rect);
+			icon.paintInCenter(p, rect);
+		}
+	});
+
 	if (!_button.isEmpty()) {
 		p.setBrush(unique
 			? QBrush(QColor(255, 255, 255, .2 * 255))
@@ -473,8 +583,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	if (!_text.isEmpty()) {
 		p.setPen(st::windowFg);
 		_text.draw(p, {
-			.position = (position
-				+ QPoint(0, st::giftBoxPremiumTextTop)),
+			.position = (position + QPoint(0, _byStars.isEmpty()
+				? st::giftBoxPremiumTextTop
+				: st::giftBoxPremiumTextTopByStars)),
 			.availableWidth = singlew,
 			.align = style::al_top,
 		});
@@ -492,15 +603,24 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				+ QPoint(padding.left(), padding.top())),
 			.availableWidth = _price.maxWidth(),
 		});
+
+		if (!_byStars.isEmpty()) {
+			p.setPen(st::creditsFg);
+			_byStars.draw(p, {
+				.position = QPoint(
+					position.x(),
+					_button.y() + _button.height() + st::giftBoxByStarsSkip),
+				.availableWidth = singlew,
+				.align = style::al_top,
+			});
+		}
 	}
 }
 
-Delegate::Delegate(
-	not_null<Window::SessionController*> window,
-	GiftButtonMode mode)
-: _window(window)
+Delegate::Delegate(not_null<Main::Session*> session, GiftButtonMode mode)
+: _session(session)
 , _hiddenMark(std::make_unique<StickerPremiumMark>(
-	&window->session(),
+	_session,
 	st::giftBoxHiddenMark,
 	RectPart::Center))
 , _mode(mode) {
@@ -511,15 +631,17 @@ Delegate::Delegate(Delegate &&other) = default;
 Delegate::~Delegate() = default;
 
 TextWithEntities Delegate::star() {
-	const auto owner = &_window->session().data();
-	return owner->customEmojiManager().creditsEmoji();
+	return _session->data().customEmojiManager().creditsEmoji();
 }
 
-std::any Delegate::textContext() {
-	return Core::MarkedTextContext{
-		.session = &_window->session(),
-		.customEmojiRepaint = [] {},
-	};
+TextWithEntities Delegate::ministar() {
+	const auto owner = &_session->data();
+	const auto top = st::giftBoxByStarsStarTop;
+	return owner->customEmojiManager().ministarEmoji({ 0, top, 0, 0 });
+}
+
+Ui::Text::MarkedContext Delegate::textContext() {
+	return Core::TextContext({ .session = _session });
 }
 
 QSize Delegate::buttonSize() {
@@ -546,7 +668,7 @@ auto Delegate::buttonPatternEmoji(
 	not_null<Data::UniqueGift*> unique,
 	Fn<void()> repaint)
 -> std::unique_ptr<Ui::Text::CustomEmoji> {
-	return _window->session().data().customEmojiManager().create(
+	return _session->data().customEmojiManager().create(
 		unique->pattern.document,
 		repaint,
 		Data::CustomEmojiSizeTag::Large);
@@ -603,7 +725,7 @@ QImage Delegate::background() {
 
 rpl::producer<not_null<DocumentData*>> Delegate::sticker(
 		const GiftDescriptor &descriptor) {
-	return GiftStickerValue(&_window->session(), descriptor);
+	return GiftStickerValue(_session, descriptor);
 }
 
 not_null<StickerPremiumMark*> Delegate::hiddenMark() {
@@ -727,6 +849,145 @@ QImage ValidateRotatedBadge(const GiftBadge &badge, int added) {
 		p.drawImage(0, 0, scaled);
 	}
 	return result;
+}
+
+void SelectGiftToUnpin(
+		std::shared_ptr<ChatHelpers::Show> show,
+		const std::vector<Data::CreditsHistoryEntry> &pinned,
+		Fn<void(Data::SavedStarGiftId)> chosen) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		struct State {
+			explicit State(not_null<Main::Session*> session)
+			: delegate(session, GiftButtonMode::Minimal) {
+			}
+
+			Delegate delegate;
+			rpl::variable<int> selected = -1;
+			std::vector<not_null<GiftButton*>> buttons;
+		};
+		const auto session = &show->session();
+		const auto state = box->lifetime().make_state<State>(session);
+
+		box->setStyle(st::giftTooManyPinnedBox);
+		box->setWidth(st::boxWideWidth);
+
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_gift_many_pinned_title(),
+				st::giftBoxSubtitle),
+			st::giftBoxSubtitleMargin);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_gift_many_pinned_choose(),
+				st::giftTooManyPinnedChoose),
+			st::giftBoxAboutMargin);
+
+		const auto gifts = box->addRow(
+			object_ptr<Ui::RpWidget>(box),
+			QMargins(
+				st::giftBoxPadding.left(),
+				st::giftTooManyPinnedBox.buttonPadding.top(),
+				st::giftBoxPadding.right(),
+				0));
+		for (const auto &entry : pinned) {
+			const auto index = int(state->buttons.size());
+			state->buttons.push_back(
+				Ui::CreateChild<GiftButton>(gifts, &state->delegate));
+			const auto button = state->buttons.back();
+			button->setDescriptor(GiftTypeStars{
+				.info = {
+					.id = entry.stargiftId,
+					.unique = entry.uniqueGift,
+					.document = entry.uniqueGift->model.document,
+				},
+				.pinnedSelection = true,
+			}, GiftButton::Mode::Minimal);
+			button->setClickedCallback([=] {
+				const auto now = state->selected.current();
+				state->selected = (now == index) ? -1 : index;
+			});
+		}
+
+		state->selected.value(
+		) | rpl::combine_previous(
+		) | rpl::start_with_next([=](int old, int now) {
+			if (old >= 0) state->buttons[old]->toggleSelected(false);
+			if (now >= 0) state->buttons[now]->toggleSelected(true);
+		}, gifts->lifetime());
+
+		gifts->widthValue() | rpl::start_with_next([=](int width) {
+			const auto singleMin = state->delegate.buttonSize();
+			if (width < singleMin.width()) {
+				return;
+			}
+			const auto count = int(state->buttons.size());
+			const auto skipw = st::giftBoxGiftSkip.x();
+			const auto skiph = st::giftBoxGiftSkip.y();
+			const auto perRow = std::min(
+				(width + skipw) / (singleMin.width() + skipw),
+				std::max(count, 1));
+			if (perRow <= 0) {
+				return;
+			}
+			const auto single = (width - (perRow - 1) * skipw) / perRow;
+			const auto height = singleMin.height();
+			const auto rows = (count + perRow - 1) / perRow;
+			for (auto row = 0; row != rows; ++row) {
+				const auto y = row * (height + skiph);
+				for (auto column = 0; column != perRow; ++column) {
+					const auto index = row * perRow + column;
+					if (index >= count) {
+						break;
+					}
+					const auto &button = state->buttons[index];
+					const auto x = column * (single + skipw);
+					button->setGeometry(
+						QRect(x, y, single, height),
+						state->delegate.buttonExtend());
+				}
+			}
+			gifts->resize(width, rows * (height + skiph) - skiph);
+		}, gifts->lifetime());
+
+		const auto button = box->addButton(rpl::single(QString()), [=] {
+			const auto index = state->selected.current();
+			if (index < 0) {
+				return;
+			}
+			Assert(index < int(pinned.size()));
+			const auto &entry = pinned[index];
+			const auto weak = Ui::MakeWeak(box);
+			chosen(::Settings::EntryToSavedStarGiftId(session, entry));
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		});
+		const auto label = Ui::SetButtonMarkedLabel(
+			button,
+			tr::lng_context_unpin_from_top(Ui::Text::WithEntities),
+			&show->session(),
+			st::creditsBoxButtonLabel,
+			&st::giftTooManyPinnedBox.button.textFg);
+
+		state->selected.value() | rpl::start_with_next([=](int value) {
+			const auto has = (value >= 0);
+			label->setOpacity(has ? 1. : 0.5);
+			button->setAttribute(Qt::WA_TransparentForMouseEvents, !has);
+		}, box->lifetime());
+
+		const auto buttonPadding = st::giftTooManyPinnedBox.buttonPadding;
+		const auto buttonWidth = st::boxWideWidth
+			- buttonPadding.left()
+			- buttonPadding.right();
+		button->resizeToWidth(buttonWidth);
+		button->widthValue() | rpl::start_with_next([=](int width) {
+			if (width != buttonWidth) {
+				button->resizeToWidth(buttonWidth);
+			}
+		}, button->lifetime());
+	}));
 }
 
 } // namespace Info::PeerGifts

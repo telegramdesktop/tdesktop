@@ -38,10 +38,10 @@ Game::Game(
 , _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
 , _description(st::msgMinWidth - _st.padding.left() - _st.padding.right()) {
 	if (!consumed.text.isEmpty()) {
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &history()->session(),
-			.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
-		};
+			.repaint = [=] { _parent->customEmojiRepaint(); },
+		});
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
 			consumed,
@@ -69,7 +69,10 @@ QSize Game::countOptimalSize() {
 
 	// init attach
 	if (!_attach) {
-		_attach = CreateAttach(_parent, _data->document, _data->photo);
+		_attach = CreateAttach(
+			_parent,
+			_data->document,
+			_data->document ? nullptr : _data->photo);
 	}
 
 	// init strings
@@ -500,10 +503,10 @@ void Game::parentTextUpdated() {
 	if (const auto media = _parent->data()->media()) {
 		const auto consumed = media->consumedMessageText();
 		if (!consumed.text.isEmpty()) {
-			const auto context = Core::MarkedTextContext{
+			const auto context = Core::TextContext({
 				.session = &history()->session(),
-				.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
-			};
+				.repaint = [=] { _parent->customEmojiRepaint(); },
+			});
 			_description.setMarkedText(
 				st::webPageDescriptionStyle,
 				consumed,

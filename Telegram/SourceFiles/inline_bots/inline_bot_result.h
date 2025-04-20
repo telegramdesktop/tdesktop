@@ -43,7 +43,7 @@ public:
 	// You should use create() static method instead.
 	Result(not_null<Main::Session*> session, const Creator &creator);
 
-	static std::unique_ptr<Result> Create(
+	static std::shared_ptr<Result> Create(
 		not_null<Main::Session*> session,
 		uint64 queryId,
 		const MTPBotInlineResult &mtpData);
@@ -130,7 +130,7 @@ private:
 };
 
 struct ResultSelected {
-	not_null<Result*> result;
+	std::shared_ptr<Result> result;
 	not_null<UserData*> bot;
 	PeerData *recipientOverride = nullptr;
 	Api::SendOptions options;

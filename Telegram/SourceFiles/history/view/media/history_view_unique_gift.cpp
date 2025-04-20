@@ -39,60 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-class TextPartColored final : public MediaGenericTextPart {
-public:
-	TextPartColored(
-		TextWithEntities text,
-		QMargins margins,
-		QColor color,
-		const style::TextStyle &st = st::defaultTextStyle,
-		const base::flat_map<uint16, ClickHandlerPtr> &links = {},
-		const std::any &context = {});
-
-private:
-	void setupPen(
-		Painter &p,
-		not_null<const MediaGeneric*> owner,
-		const PaintContext &context) const override;
-
-	QColor _color;
-
-};
-
-class AttributeTable final : public MediaGenericPart {
-public:
-	struct Entry {
-		QString label;
-		QString value;
-	};
-
-	AttributeTable(
-		std::vector<Entry> entries,
-		QMargins margins,
-		QColor labelColor);
-
-	void draw(
-		Painter &p,
-		not_null<const MediaGeneric*> owner,
-		const PaintContext &context,
-		int outerWidth) const override;
-
-	QSize countOptimalSize() override;
-	QSize countCurrentSize(int newWidth) override;
-
-private:
-	struct Part {
-		Ui::Text::String label;
-		Ui::Text::String value;
-	};
-
-	std::vector<Part> _parts;
-	QMargins _margins;
-	QColor _labelColor;
-	int _valueLeft = 0;
-
-};
-
 class ButtonPart final : public MediaGenericPart {
 public:
 	ButtonPart(
@@ -270,116 +216,7 @@ QSize ButtonPart::countCurrentSize(int newWidth) {
 	return optimalSize();
 }
 
-TextPartColored::TextPartColored(
-	TextWithEntities text,
-	QMargins margins,
-	QColor color,
-	const style::TextStyle &st,
-	const base::flat_map<uint16, ClickHandlerPtr> &links,
-	const std::any &context)
-: MediaGenericTextPart(text, margins, st, links, context)
-, _color(color) {
-}
-
-void TextPartColored::setupPen(
-		Painter &p,
-		not_null<const MediaGeneric*> owner,
-		const PaintContext &context) const {
-	p.setPen(_color);
-}
-
-AttributeTable::AttributeTable(
-	std::vector<Entry> entries,
-	QMargins margins,
-	QColor labelColor)
-: _margins(margins)
-, _labelColor(labelColor) {
-	for (const auto &entry : entries) {
-		_parts.emplace_back();
-		auto &part = _parts.back();
-		part.label.setText(st::defaultTextStyle, entry.label);
-		part.value.setMarkedText(
-			st::defaultTextStyle,
-			Ui::Text::Bold(entry.value));
-	}
-}
-
-void AttributeTable::draw(
-		Painter &p,
-		not_null<const MediaGeneric*> owner,
-		const PaintContext &context,
-		int outerWidth) const {
-	const auto labelRight = _valueLeft - st::chatUniqueTableSkip;
-	const auto palette = &context.st->serviceTextPalette();
-	auto top = _margins.top();
-	const auto paint = [&](
-			const Ui::Text::String &text,
-			int left,
-			int availableWidth,
-			style::align align) {
-		text.draw(p, {
-			.position = { left, top },
-			.outerWidth = outerWidth,
-			.availableWidth = availableWidth,
-			.align = align,
-			.palette = palette,
-			.spoiler = Ui::Text::DefaultSpoilerCache(),
-			.now = context.now,
-			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
-			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-			.elisionLines = 1,
-		});
-	};
-	const auto forLabel = labelRight - _margins.left();
-	const auto forValue = width() - _valueLeft - _margins.right();
-	const auto white = QColor(255, 255, 255);
-	for (const auto &part : _parts) {
-		p.setPen(_labelColor);
-		paint(part.label, _margins.left(), forLabel, style::al_topright);
-		p.setPen(white);
-		paint(part.value, _valueLeft, forValue, style::al_topleft);
-		top += st::normalFont->height + st::chatUniqueRowSkip;
-	}
-}
-
-QSize AttributeTable::countOptimalSize() {
-	auto maxLabel = 0;
-	auto maxValue = 0;
-	for (const auto &part : _parts) {
-		maxLabel = std::max(maxLabel, part.label.maxWidth());
-		maxValue = std::max(maxValue, part.value.maxWidth());
-	}
-	const auto skip = st::chatUniqueTableSkip;
-	const auto row = st::normalFont->height + st::chatUniqueRowSkip;
-	const auto height = int(_parts.size()) * row - st::chatUniqueRowSkip;
-	return {
-		_margins.left() + maxLabel + skip + maxValue + _margins.right(),
-		_margins.top() + height + _margins.bottom(),
-	};
-}
-
-QSize AttributeTable::countCurrentSize(int newWidth) {
-	const auto skip = st::chatUniqueTableSkip;
-	const auto width = newWidth - _margins.left() - _margins.right() - skip;
-	auto maxLabel = 0;
-	auto maxValue = 0;
-	for (const auto &part : _parts) {
-		maxLabel = std::max(maxLabel, part.label.maxWidth());
-		maxValue = std::max(maxValue, part.value.maxWidth());
-	}
-	if (width <= 0 || !maxLabel) {
-		_valueLeft = _margins.left();
-	} else if (!maxValue) {
-		_valueLeft = newWidth - _margins.right();
-	} else {
-		_valueLeft = _margins.left()
-			+ int((int64(maxLabel) * width) / (maxLabel + maxValue))
-			+ skip;
-	}
-	return { newWidth, minHeight() };
-}
-
-}; // namespace
+} // namespace
 
 auto GenerateUniqueGiftMedia(
 	not_null<Element*> parent,
@@ -402,7 +239,7 @@ auto GenerateUniqueGiftMedia(
 			push(std::make_unique<TextPartColored>(
 				std::move(text),
 				margins,
-				color,
+				[color](const auto&) { return color; },
 				st));
 		};
 
@@ -447,15 +284,19 @@ auto GenerateUniqueGiftMedia(
 			gift->backdrop.textColor,
 			st::chatUniqueTextPadding);
 
+		const auto name = [](const Data::UniqueGiftAttribute &value) {
+			return Ui::Text::Bold(value.name);
+		};
 		auto attributes = std::vector<AttributeTable::Entry>{
-			{ tr::lng_gift_unique_model(tr::now), gift->model.name },
-			{ tr::lng_gift_unique_backdrop(tr::now), gift->backdrop.name },
-			{ tr::lng_gift_unique_symbol(tr::now), gift->pattern.name },
+			{ tr::lng_gift_unique_model(tr::now), name(gift->model) },
+			{ tr::lng_gift_unique_backdrop(tr::now), name(gift->backdrop) },
+			{ tr::lng_gift_unique_symbol(tr::now), name(gift->pattern) },
 		};
 		push(std::make_unique<AttributeTable>(
 			std::move(attributes),
 			st::chatUniqueTextPadding,
-			gift->backdrop.textColor));
+			[c = gift->backdrop.textColor](const auto&) { return c; },
+			[](const auto&) { return QColor(255, 255, 255); }));
 
 		auto link = OpenStarGiftLink(parent->data());
 		push(std::make_unique<ButtonPart>(
@@ -496,7 +337,9 @@ auto UniqueGiftBg(
 		p.setPen(Qt::NoPen);
 		const auto webpreview = (media.get() != view->media());
 		const auto thickness = webpreview ? 0 : st::chatUniqueGiftBorder * 2;
-		const auto radius = st::msgServiceGiftBoxRadius - thickness;
+		const auto radius = webpreview
+			? st::roundRadiusLarge
+			: (st::msgServiceGiftBoxRadius - thickness);
 		const auto full = QRect(0, 0, media->width(), media->height());
 		const auto inner = full.marginsRemoved(
 			{ thickness, thickness, thickness, thickness });
@@ -519,7 +362,8 @@ auto UniqueGiftBg(
 		const auto width = media->width();
 		const auto shift = width / 12;
 		const auto doubled = width + 2 * shift;
-		const auto outer = QRect(-shift, -shift, doubled, doubled);
+		const auto top = (webpreview ? 2 : 1) * (-shift);
+		const auto outer = QRect(-shift, top, doubled, doubled);
 		p.setClipRect(inner);
 		Ui::PaintPoints(
 			p,
@@ -589,6 +433,139 @@ std::unique_ptr<MediaGenericPart> MakeGenericButtonPart(
 		ClickHandlerPtr link,
 		QColor bg) {
 	return std::make_unique<ButtonPart>(text, margins, repaint, link, bg);
+}
+
+TextPartColored::TextPartColored(
+	TextWithEntities text,
+	QMargins margins,
+	Fn<QColor(const PaintContext &)> color,
+	const style::TextStyle &st,
+	const base::flat_map<uint16, ClickHandlerPtr> &links,
+	const Ui::Text::MarkedContext &context)
+: MediaGenericTextPart(text, margins, st, links, context)
+, _color(std::move(color)) {
+}
+
+void TextPartColored::setupPen(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context) const {
+	p.setPen(_color(context));
+}
+
+AttributeTable::AttributeTable(
+	std::vector<Entry> entries,
+	QMargins margins,
+	Fn<QColor(const PaintContext &)> labelColor,
+	Fn<QColor(const PaintContext &)> valueColor,
+	const Ui::Text::MarkedContext &context)
+: _margins(margins)
+, _labelColor(std::move(labelColor))
+, _valueColor(std::move(valueColor)) {
+	for (const auto &entry : entries) {
+		_parts.emplace_back();
+		auto &part = _parts.back();
+		part.label.setText(st::defaultTextStyle, entry.label);
+		part.value.setMarkedText(
+			st::defaultTextStyle,
+			entry.value,
+			kMarkupTextOptions,
+			context);
+	}
+}
+
+void AttributeTable::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	const auto labelRight = _valueLeft - st::chatUniqueTableSkip;
+	const auto palette = &context.st->serviceTextPalette();
+	auto top = _margins.top();
+	const auto paint = [&](
+			const Ui::Text::String &text,
+			int left,
+			int availableWidth,
+			style::align align) {
+		text.draw(p, {
+			.position = { left, top },
+			.outerWidth = outerWidth,
+			.availableWidth = availableWidth,
+			.align = align,
+			.palette = palette,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
+			.elisionLines = 1,
+		});
+	};
+	const auto forLabel = labelRight - _margins.left();
+	const auto forValue = width() - _valueLeft - _margins.right();
+	for (const auto &part : _parts) {
+		p.setPen(_labelColor(context));
+		paint(part.label, _margins.left(), forLabel, style::al_topright);
+		p.setPen(_valueColor(context));
+		paint(part.value, _valueLeft, forValue, style::al_topleft);
+		top += st::normalFont->height + st::chatUniqueRowSkip;
+	}
+}
+
+TextState AttributeTable::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	auto top = _margins.top();
+	for (const auto &part : _parts) {
+		const auto height = st::normalFont->height + st::chatUniqueRowSkip;
+		if (point.y() >= top && point.y() < top + height) {
+			point -= QPoint((outerWidth - width()) / 2 + _valueLeft, top);
+			auto result = TextState();
+			auto forText = request.forText();
+			forText.align = style::al_topleft;
+			result.link = part.value.getState(point, width(), forText).link;
+			return result;
+		}
+		top += height;
+	}
+	return {};
+}
+
+QSize AttributeTable::countOptimalSize() {
+	auto maxLabel = 0;
+	auto maxValue = 0;
+	for (const auto &part : _parts) {
+		maxLabel = std::max(maxLabel, part.label.maxWidth());
+		maxValue = std::max(maxValue, part.value.maxWidth());
+	}
+	const auto skip = st::chatUniqueTableSkip;
+	const auto row = st::normalFont->height + st::chatUniqueRowSkip;
+	const auto height = int(_parts.size()) * row - st::chatUniqueRowSkip;
+	return {
+		_margins.left() + maxLabel + skip + maxValue + _margins.right(),
+		_margins.top() + height + _margins.bottom(),
+	};
+}
+
+QSize AttributeTable::countCurrentSize(int newWidth) {
+	const auto skip = st::chatUniqueTableSkip;
+	const auto width = newWidth - _margins.left() - _margins.right() - skip;
+	auto maxLabel = 0;
+	auto maxValue = 0;
+	for (const auto &part : _parts) {
+		maxLabel = std::max(maxLabel, part.label.maxWidth());
+		maxValue = std::max(maxValue, part.value.maxWidth());
+	}
+	if (width <= 0 || !maxLabel) {
+		_valueLeft = _margins.left();
+	} else if (!maxValue) {
+		_valueLeft = newWidth - _margins.right();
+	} else {
+		_valueLeft = _margins.left()
+			+ int((int64(maxLabel) * width) / (maxLabel + maxValue))
+			+ skip;
+	}
+	return { newWidth, minHeight() };
 }
 
 } // namespace HistoryView

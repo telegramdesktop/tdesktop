@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
 #include "menu/menu_send.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/controls/tabbed_search.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -522,13 +523,66 @@ TabbedSelector::TabbedSelector(
 	if (hasEmojiTab()) {
 		emoji()->refreshEmoji();
 	}
-	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
 	hide();
 }
 
 TabbedSelector::~TabbedSelector() = default;
+
+void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
+	_swipeLifetime.destroy();
+
+	auto update = [=](Ui::Controls::SwipeContextData data) {
+		if (data.translation != 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
+					this,
+					[=]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					},
+					data.translation < 0);
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	};
+
+	auto init = [=](int, Qt::LayoutDirection direction) {
+		if (!_tabsSlider) {
+			return Ui::Controls::SwipeHandlerFinishData();
+		}
+		const auto activeSection = _tabsSlider->activeSection();
+		const auto isToLeft = direction == Qt::RightToLeft;
+		if ((isToLeft && activeSection > 0)
+			|| (!isToLeft && activeSection < _tabs.size() - 1)) {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				if (_tabsSlider
+					&& _tabsSlider->activeSection() == activeSection) {
+					_swipeBackData = {};
+					_tabsSlider->setActiveSection(isToLeft
+						? activeSection - 1
+						: activeSection + 1);
+				}
+			});
+		}
+		return Ui::Controls::SwipeHandlerFinishData();
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = widget,
+		.scroll = _scroll.data(),
+		.update = std::move(update),
+		.init = std::move(init),
+		.dontStart = nullptr,
+		.onLifetime = &_swipeLifetime,
+	});
+}
 
 const style::EmojiPan &TabbedSelector::st() const {
 	return _st;
@@ -1300,6 +1354,10 @@ void TabbedSelector::setWidgetToScrollArea() {
 	inner->setMinimalHeight(innerWidth, scrollHeight);
 	inner->moveToLeft(0, 0);
 	inner->show();
+
+	if (_tabs.size() > 1) {
+		reinstallSwipe(inner);
+	}
 
 	_scroll->disableScroll(false);
 	scrollToY(currentTab()->getScrollTop());

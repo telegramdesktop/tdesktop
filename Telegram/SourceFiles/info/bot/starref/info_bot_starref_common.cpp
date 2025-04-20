@@ -600,12 +600,6 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 		if (const auto average = program.revenuePerUser) {
 			const auto layout = box->verticalLayout();
 			const auto session = &initialRecipient->session();
-			const auto makeContext = [session](Fn<void()> update) {
-				return Core::MarkedTextContext{
-					.session = session,
-					.customEmojiRepaint = std::move(update),
-				};
-			};
 			auto text = Ui::Text::Colorized(Ui::CreditsEmoji(session));
 			text.append(Lang::FormatStarsAmountRounded(average));
 			layout->add(
@@ -618,7 +612,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 						Ui::Text::WithEntities),
 					st::starrefRevenueText,
 					st::defaultPopupMenu,
-					makeContext),
+					Core::TextContext({ .session = session })),
 				st::boxRowPadding);
 			Ui::AddSkip(layout, st::defaultVerticalListSkip);
 		}
@@ -916,7 +910,7 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 			userpic->moveToLeft(left, 0, outer.width());
 			if (right) {
 				right->moveToLeft(
-					left + *width - padding.right() - right->width(),
+					left + *width - padding.right() - rwidth,
 					padding.top(),
 					outer.width());
 			}

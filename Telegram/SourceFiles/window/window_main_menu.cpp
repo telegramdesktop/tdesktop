@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -39,12 +40,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_templates.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/snowflakes.h"
 #include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
+#include "ui/ui_utility.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -532,6 +535,8 @@ MainMenu::MainMenu(
 			}
 		}, lifetime());
 	}
+
+	setupSwipe();
 }
 
 MainMenu::~MainMenu() = default;
@@ -889,11 +894,24 @@ void MainMenu::updateInnerControlsGeometry() {
 }
 
 void MainMenu::chooseEmojiStatus() {
-	if (const auto widget = _badge->widget()) {
+	if (_controller->showFrozenError()) {
+		return;
+	} else if (const auto widget = _badge->widget()) {
 		_emojiStatusPanel->show(_controller, widget, _badge->sizeTag());
 	} else {
 		ShowPremiumPreviewBox(_controller, PremiumFeature::EmojiStatus);
 	}
+}
+
+bool MainMenu::eventHook(QEvent *event) {
+	const auto type = event->type();
+	if (type == QEvent::TouchBegin
+		|| type == QEvent::TouchUpdate
+		|| type == QEvent::TouchEnd
+		|| type == QEvent::TouchCancel) {
+		QGuiApplication::sendEvent(_inner, event);
+	}
+	return RpWidget::eventHook(event);
 }
 
 void MainMenu::paintEvent(QPaintEvent *e) {
@@ -993,6 +1011,81 @@ rpl::producer<OthersUnreadState> OtherAccountsUnreadState(
 		Core::App().unreadBadgeChanges()
 	) | rpl::map([=] {
 		return OtherAccountsUnreadStateCurrent(current);
+	});
+}
+
+base::EventFilterResult MainMenu::redirectToInnerChecked(not_null<QEvent*> e) {
+	if (_insideEventRedirect) {
+		return base::EventFilterResult::Continue;
+	}
+	const auto weak = Ui::MakeWeak(this);
+	_insideEventRedirect = true;
+	QGuiApplication::sendEvent(_inner, e);
+	if (weak) {
+		_insideEventRedirect = false;
+	}
+	return base::EventFilterResult::Cancel;
+}
+
+void MainMenu::setupSwipe() {
+	const auto outer = _controller->widget()->body();
+	base::install_event_filter(this, outer, [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::TouchBegin
+			|| type == QEvent::TouchUpdate
+			|| type == QEvent::TouchEnd
+			|| type == QEvent::TouchCancel) {
+			return redirectToInnerChecked(e);
+		} else if (type == QEvent::Wheel) {
+			const auto w = static_cast<QWheelEvent*>(e.get());
+			const auto d = Ui::ScrollDeltaF(w);
+			if (std::abs(d.x()) > std::abs(d.y())) {
+				return redirectToInnerChecked(e);
+			}
+		}
+		return base::EventFilterResult::Continue;
+	});
+	const auto handles = outer->testAttribute(Qt::WA_AcceptTouchEvents);
+	if (!handles) {
+		outer->setAttribute(Qt::WA_AcceptTouchEvents);
+		lifetime().add([=] {
+			outer->setAttribute(Qt::WA_AcceptTouchEvents, false);
+		});
+	}
+
+	auto update = [=](Ui::Controls::SwipeContextData data) {
+		if (data.translation < 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
+					this,
+					[=]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	};
+
+	auto init = [=](int, Qt::LayoutDirection direction) {
+		if (direction != Qt::LeftToRight) {
+			return Ui::Controls::SwipeHandlerFinishData();
+		}
+		return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+			closeLayer();
+		});
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = _inner,
+		.scroll = _scroll.data(),
+		.update = std::move(update),
+		.init = std::move(init),
 	});
 }
 

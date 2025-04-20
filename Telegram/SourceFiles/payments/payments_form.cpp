@@ -178,7 +178,7 @@ MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 
 MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 		const InvoicePremiumGiftCode &invoice) {
-	Expects(invoice.creditsAmount.has_value());
+	Expects(invoice.giveawayCredits.has_value());
 	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
 		invoice.purpose);
 	using Flag = MTPDinputStorePaymentStarsGiveaway::Flag;
@@ -199,7 +199,7 @@ MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 			| (giveaway.additionalPrize.isEmpty()
 				? Flag()
 				: Flag::f_prize_description)),
-		MTP_long(*invoice.creditsAmount),
+		MTP_long(*invoice.giveawayCredits),
 		giveaway.boostPeer->input,
 		MTP_vector_from_range(ranges::views::all(
 			giveaway.additionalChannels
@@ -217,6 +217,13 @@ MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 		MTP_string(invoice.currency),
 		MTP_long(invoice.amount),
 		MTP_int(invoice.users));
+}
+
+bool IsPremiumForStarsInvoice(const InvoiceId &id) {
+	const auto giftCode = std::get_if<InvoicePremiumGiftCode>(&id.value);
+	return giftCode
+		&& !giftCode->giveawayCredits
+		&& (giftCode->currency == ::Ui::kCreditsCurrency);
 }
 
 Form::Form(InvoiceId id, bool receipt)
@@ -395,7 +402,7 @@ MTPInputInvoice Form::inputInvoice() const {
 					Api::ConvertOption::SkipLocal)));
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
-	if (giftCode.creditsAmount) {
+	if (giftCode.giveawayCredits) {
 		return MTP_inputInvoiceStars(InvoiceCreditsGiveawayToTL(giftCode));
 	}
 	using Flag = MTPDpremiumGiftCodeOption::Flag;
@@ -412,12 +419,29 @@ MTPInputInvoice Form::inputInvoice() const {
 		MTP_long(giftCode.amount));
 	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
 		&giftCode.purpose);
-	if (users) {
+	auto message = (users && !users->message.empty())
+		? MTP_textWithEntities(
+			MTP_string(users->message.text),
+			Api::EntitiesToMTP(
+				&users->users.front()->session(),
+				users->message.entities,
+				Api::ConvertOption::SkipLocal))
+		: std::optional<MTPTextWithEntities>();
+	if (users
+		&& users->users.size() == 1
+		&& giftCode.currency == ::Ui::kCreditsCurrency) {
+		using Flag = MTPDinputInvoicePremiumGiftStars::Flag;
+		return MTP_inputInvoicePremiumGiftStars(
+			MTP_flags(message ? Flag::f_message : Flag()),
+			users->users.front()->inputUser,
+			MTP_int(giftCode.months),
+			message.value_or(MTPTextWithEntities()));
+	} else if (users) {
 		using Flag = MTPDinputStorePaymentPremiumGiftCode::Flag;
 		return MTP_inputInvoicePremiumGiftCode(
 			MTP_inputStorePaymentPremiumGiftCode(
 				MTP_flags((users->boostPeer ? Flag::f_boost_peer : Flag())
-					| (users->message.empty() ? Flag(0) : Flag::f_message)),
+					| (message ? Flag::f_message : Flag())),
 				MTP_vector_from_range(ranges::views::all(
 					users->users
 				) | ranges::views::transform([](not_null<UserData*> user) {
@@ -426,12 +450,7 @@ MTPInputInvoice Form::inputInvoice() const {
 				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
 				MTP_string(giftCode.currency),
 				MTP_long(giftCode.amount),
-				MTP_textWithEntities(
-					MTP_string(users->message.text),
-					Api::EntitiesToMTP(
-						&users->users.front()->session(),
-						users->message.entities,
-						Api::ConvertOption::SkipLocal))),
+				message.value_or(MTPTextWithEntities())),
 			option);
 	} else {
 		return MTP_inputInvoicePremiumGiftCode(
@@ -904,7 +923,7 @@ void Form::submit() {
 	if (index < list.size() && password.isEmpty()) {
 		_updates.fire(TmpPasswordRequired{});
 		return;
-	} else if (!_session->local().isBotTrustedPayment(_details.botId)) {
+	} else if (!_session->local().isPeerTrustedPayment(_details.botId)) {
 		_updates.fire(BotTrustRequired{
 			.bot = _session->data().user(_details.botId),
 			.provider = _session->data().user(_details.providerId),
@@ -1307,7 +1326,7 @@ void Form::acceptTerms() {
 }
 
 void Form::trustBot() {
-	_session->local().markBotTrustedPayment(_details.botId);
+	_session->local().markPeerTrustedPayment(_details.botId);
 }
 
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {

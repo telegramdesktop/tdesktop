@@ -75,7 +75,9 @@ Type Provider::type() {
 }
 
 bool Provider::hasSelectRestriction() {
-	if (const auto channel = _peer->asChannel()) {
+	if (_peer->session().frozen()) {
+		return true;
+	} else if (const auto channel = _peer->asChannel()) {
 		return !channel->canEditStories() && !channel->canDeleteStories();
 	}
 	return !_peer->isSelf();

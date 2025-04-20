@@ -24,6 +24,10 @@ DialogRow {
 	unreadMarkDiameter: pixels;
 	tagTop: pixels;
 }
+DialogRightButton {
+	button: RoundButton;
+	margin: margins;
+}
 
 ThreeStateIcon {
 	icon: icon;
@@ -115,11 +119,16 @@ dialogRowFilterTagSkip: 4px;
 dialogRowFilterTagStyle: TextStyle(defaultTextStyle) {
 	font: font(10px);
 }
-dialogRowOpenBotTextStyle: semiboldTextStyle;
-dialogRowOpenBotHeight: 20px;
-dialogRowOpenBotRight: 10px;
-dialogRowOpenBotTop: 32px;
-dialogRowOpenBotRecentTop: 28px;
+dialogRowOpenBot: DialogRightButton {
+	button: RoundButton(defaultActiveButton) {
+		height: 20px;
+		textTop: 1px;
+	}
+	margin: margins(0px, 32px, 10px, 0px);
+}
+dialogRowOpenBotRecent: DialogRightButton(dialogRowOpenBot) {
+	margin: margins(0px, 32px, 28px, 0px);
+}
 
 forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
 forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};
@@ -790,6 +799,17 @@ dialogsPopularAppsAbout: FlatLabel(boxDividerLabel) {
 	minWidth: 128px;
 }
 
-foldersMenu: Menu(menuWithIcons) {
-	itemPadding: margins(54px, 8px, 44px, 8px);
+dialogsQuickActionSize: 20px;
+dialogsQuickActionRippleSize: 80px;
+
+dialogsSponsoredButton: DialogRightButton(dialogRowOpenBot) {
+	button: RoundButton(defaultLightButton) {
+		textFg: windowActiveTextFg;
+		textFgOver: windowActiveTextFg;
+		textBg: lightButtonBgOver;
+		textBgOver: lightButtonBgOver;
+		height: 20px;
+		textTop: 1px;
+	}
+	margin: margins(0px, 9px, 10px, 0px);
 }

@@ -15,8 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class StickerPremiumMark;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 struct UniqueGift;
+struct CreditsHistoryEntry;
+class SavedStarGiftId;
 } // namespace Data
 
 namespace HistoryView {
@@ -44,6 +50,7 @@ namespace Info::PeerGifts {
 struct GiftTypePremium {
 	int64 cost = 0;
 	QString currency;
+	int stars = 0;
 	int months = 0;
 	int discountPercent = 0;
 
@@ -53,11 +60,15 @@ struct GiftTypePremium {
 };
 
 struct GiftTypeStars {
+	Data::SavedStarGiftId transferId;
 	Data::StarGift info;
 	PeerData *from = nullptr;
-	bool userpic = false;
-	bool hidden = false;
-	bool mine = false;
+	TimeId date = 0;
+	bool pinnedSelection : 1 = false;
+	bool userpic : 1 = false;
+	bool pinned : 1 = false;
+	bool hidden : 1 = false;
+	bool mine : 1 = false;
 
 	[[nodiscard]] friend inline bool operator==(
 		const GiftTypeStars&,
@@ -101,7 +112,8 @@ enum class GiftButtonMode {
 class GiftButtonDelegate {
 public:
 	[[nodiscard]] virtual TextWithEntities star() = 0;
-	[[nodiscard]] virtual std::any textContext() = 0;
+	[[nodiscard]] virtual TextWithEntities ministar() = 0;
+	[[nodiscard]] virtual Ui::Text::MarkedContext textContext() = 0;
 	[[nodiscard]] virtual QSize buttonSize() = 0;
 	[[nodiscard]] virtual QMargins buttonExtend() = 0;
 	[[nodiscard]] virtual auto buttonPatternEmoji(
@@ -124,10 +136,18 @@ public:
 	void setDescriptor(const GiftDescriptor &descriptor, Mode mode);
 	void setGeometry(QRect inner, QMargins extend);
 
+	void toggleSelected(bool selected);
+
+	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const {
+		return _contextMenuRequests.events();
+	}
+
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
+	void paintBackground(QPainter &p, const QImage &background);
 	void cacheUniqueBackground(
 		not_null<Data::UniqueGift*> unique,
 		int width,
@@ -135,21 +155,26 @@ private:
 
 	void setDocument(not_null<DocumentData*> document);
 	[[nodiscard]] bool documentResolved() const;
+	[[nodiscard]] QMargins currentExtend() const;
 
 	void unsubscribe();
 
 	const not_null<GiftButtonDelegate*> _delegate;
+	rpl::event_stream<QPoint> _contextMenuRequests;
 	QImage _hiddenBgCache;
 	GiftDescriptor _descriptor;
 	Ui::Text::String _text;
 	Ui::Text::String _price;
+	Ui::Text::String _byStars;
 	std::shared_ptr<Ui::DynamicImage> _userpic;
 	QImage _uniqueBackgroundCache;
 	std::unique_ptr<Ui::Text::CustomEmoji> _uniquePatternEmoji;
 	base::flat_map<float64, QImage> _uniquePatternCache;
 	std::optional<Ui::Premium::ColoredMiniStars> _stars;
+	Ui::Animations::Simple _selectedAnimation;
 	bool _subscribed = false;
 	bool _patterned = false;
+	bool _selected = false;
 	bool _small = false;
 
 	QRect _button;
@@ -162,14 +187,13 @@ private:
 
 class Delegate final : public GiftButtonDelegate {
 public:
-	Delegate(
-		not_null<Window::SessionController*> window,
-		GiftButtonMode mode);
+	Delegate(not_null<Main::Session*> session, GiftButtonMode mode);
 	Delegate(Delegate &&other);
 	~Delegate();
 
 	TextWithEntities star() override;
-	std::any textContext() override;
+	TextWithEntities ministar() override;
+	Ui::Text::MarkedContext textContext() override;
 	QSize buttonSize() override;
 	QMargins buttonExtend() override;
 	auto buttonPatternEmoji(
@@ -183,7 +207,7 @@ public:
 	QImage cachedBadge(const GiftBadge &badge) override;
 
 private:
-	const not_null<Window::SessionController*> _window;
+	const not_null<Main::Session*> _session;
 	std::unique_ptr<StickerPremiumMark> _hiddenMark;
 	base::flat_map<GiftBadge, QImage> _badges;
 	QSize _single;
@@ -201,5 +225,10 @@ private:
 	const GiftDescriptor &descriptor);
 
 [[nodiscard]] QImage ValidateRotatedBadge(const GiftBadge &badge, int added);
+
+void SelectGiftToUnpin(
+	std::shared_ptr<ChatHelpers::Show> show,
+	const std::vector<Data::CreditsHistoryEntry> &pinned,
+	Fn<void(Data::SavedStarGiftId)> chosen);
 
 } // namespace Info::PeerGifts

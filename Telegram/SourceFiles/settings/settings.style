@@ -682,3 +682,10 @@ settingsChatLinkField: InputField(defaultInputField) {
 
 	style: defaultTextStyle;
 }
+
+settingsQuickDialogActionsTriggerFont: font(11px);
+
+settingsGiftIconEmoji: IconEmoji {
+	icon: icon{{ "settings/mini_gift", windowFg }};
+	padding: margins(1px, 2px, 1px, 0px);
+}

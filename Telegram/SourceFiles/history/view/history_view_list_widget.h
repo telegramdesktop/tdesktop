@@ -816,6 +816,7 @@ private:
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 	bool _overSenderUserpic = false;
+	bool _mouseActive = false;
 
 	bool _selectEnabled = false;
 	HistoryItem *_selectedTextItem = nullptr;

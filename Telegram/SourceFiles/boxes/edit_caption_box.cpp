@@ -467,13 +467,16 @@ void EditCaptionBox::rebuildPreview() {
 		}
 	} else {
 		const auto &file = _preparedList.files.front();
-
+		const auto isVideoFile = file.isVideoFile();
 		const auto media = Ui::SingleMediaPreview::Create(
 			this,
 			st::defaultComposeControls,
 			gifPaused,
 			file,
-			[] { return true; },
+			[=](Ui::AttachActionType type) {
+				return (type != Ui::AttachActionType::EditCover)
+					|| isVideoFile;
+			},
 			Ui::AttachControls::Type::EditOnly);
 		_isPhoto = (media && media->isPhoto());
 		const auto withCheckbox = _isPhoto && CanBeCompressed(_albumType);
@@ -719,7 +722,7 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 				controller->uiShow(),
 				&_preparedList.files.front(),
 				st::sendMediaPreviewSize,
-				[=] { rebuildPreview(); });
+				[=](bool ok) { if (ok) rebuildPreview(); });
 		} else {
 			EditPhotoImage(_controller, _photoMedia, hasSpoiler(), [=](
 					Ui::PreparedList &&list) {

@@ -212,11 +212,6 @@ void System::setManager(Fn<std::unique_ptr<Manager>()> create) {
 	}
 }
 
-Manager &System::manager() const {
-	Expects(_manager != nullptr);
-	return *_manager;
-}
-
 Main::Session *System::findSession(uint64 sessionId) const {
 	for (const auto &[index, account] : Core::App().domain().accounts()) {
 		if (const auto session = account->maybeSession()) {
@@ -382,6 +377,12 @@ void System::schedule(Data::ItemNotification notification) {
 	if (!skip.silent) {
 		registerThread(thread);
 		_whenAlerts[thread].emplace(timing.when, notifyBy);
+	}
+	if (const auto user = item->history()->peer->asUser()) {
+		if (user->hasStarsPerMessage()
+			&& !user->messageMoneyRestrictionsKnown()) {
+			user->updateFull();
+		}
 	}
 	if (Core::App().settings().desktopNotify()
 		&& !_manager->skipToast()) {
@@ -949,7 +950,8 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| (!Data::CanSendTexts(peer)
 			&& (!topic || !Data::CanSendTexts(topic)))
 		|| peer->isBroadcast()
-		|| (peer->slowmodeSecondsLeft() > 0);
+		|| (peer->slowmodeSecondsLeft() > 0)
+		|| (peer->starsPerMessageChecked() > 0);
 	result.spoilerLoginCode = item
 		&& !item->out()
 		&& peer->isNotificationsUser()

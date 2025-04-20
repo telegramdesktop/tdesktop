@@ -173,10 +173,15 @@ inline constexpr bool is_flag_type(PeerBarSetting) { return true; };
 using PeerBarSettings = base::flags<PeerBarSetting>;
 
 struct PeerBarDetails {
+	QString phoneCountryCode;
+	int registrationDate = 0; // YYYYMM or 0, YYYY > 2012, MM > 0.
+	TimeId nameChangeDate = 0;
+	TimeId photoChangeDate = 0;
 	QString requestChatTitle;
 	TimeId requestChatDate;
 	UserData *businessBot = nullptr;
 	QString businessBotManageUrl;
+	int paysPerMessage = 0;
 };
 
 class PeerData {
@@ -230,6 +235,7 @@ public:
 	[[nodiscard]] bool isGigagroup() const;
 	[[nodiscard]] bool isRepliesChat() const;
 	[[nodiscard]] bool isVerifyCodes() const;
+	[[nodiscard]] bool isFreezeAppealChat() const;
 	[[nodiscard]] bool sharedMediaInfo() const;
 	[[nodiscard]] bool savedSublistsInfo() const;
 	[[nodiscard]] bool hasStoriesHidden() const;
@@ -267,6 +273,9 @@ public:
 	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canManageGroupCall() const;
+
+	[[nodiscard]] int starsPerMessage() const;
+	[[nodiscard]] int starsPerMessageChecked() const;
 
 	[[nodiscard]] UserData *asBot();
 	[[nodiscard]] const UserData *asBot() const;
@@ -409,11 +418,18 @@ public:
 			? _barSettings.changes()
 			: (_barSettings.value() | rpl::type_erased());
 	}
+	[[nodiscard]] int paysPerMessage() const;
+	void clearPaysPerMessage();
 	[[nodiscard]] QString requestChatTitle() const;
 	[[nodiscard]] TimeId requestChatDate() const;
 	[[nodiscard]] UserData *businessBot() const;
 	[[nodiscard]] QString businessBotManageUrl() const;
 	void clearBusinessBot();
+	[[nodiscard]] QString phoneCountryCode() const;
+	[[nodiscard]] int registrationMonth() const;
+	[[nodiscard]] int registrationYear() const;
+	[[nodiscard]] TimeId nameChangeDate() const;
+	[[nodiscard]] TimeId photoChangeDate() const;
 
 	enum class TranslationFlag : uchar {
 		Unknown,
@@ -501,6 +517,7 @@ protected:
 	void updateUserpic(PhotoId photoId, MTP::DcId dcId, bool hasVideo);
 	void clearUserpic();
 	void invalidateEmptyUserpic();
+	void checkTrustedPayForMessage();
 
 private:
 	void fillNames();
@@ -535,9 +552,10 @@ private:
 	crl::time _lastFullUpdate = 0;
 
 	QString _name;
-	uint32 _nameVersion : 30 = 1;
+	uint32 _nameVersion : 29 = 1;
 	uint32 _sensitiveContent : 1 = 0;
 	uint32 _wallPaperOverriden : 1 = 0;
+	uint32 _checkedTrustedPayForMessage : 1 = 0;
 
 	TimeId _ttlPeriod = 0;
 

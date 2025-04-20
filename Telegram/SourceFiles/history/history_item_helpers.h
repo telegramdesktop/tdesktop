@@ -11,10 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace style {
+struct FlatLabel;
+struct Checkbox;
+} // namespace style
+
 namespace Api {
 struct SendOptions;
 struct SendAction;
 } // namespace Api
+
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
 
 namespace Data {
 class Story;
@@ -25,11 +34,16 @@ struct SendErrorWithThread;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Ui {
 class BoxContent;
 } // namespace Ui
+
+namespace Window {
+class SessionNavigation;
+} // namespace Window
 
 struct PreparedServiceText {
 	TextWithEntities text;
@@ -114,14 +128,74 @@ struct SendingErrorRequest {
 	const HistoryItemsList *forward = nullptr;
 	const Data::Story *story = nullptr;
 	const TextWithTags *text = nullptr;
+	int messagesCount = 0;
 	bool ignoreSlowmodeCountdown = false;
 };
+[[nodiscard]] int ComputeSendingMessagesCount(
+	not_null<History*> history,
+	const SendingErrorRequest &request);
 [[nodiscard]] Data::SendError GetErrorForSending(
 	not_null<PeerData*> peer,
 	SendingErrorRequest request);
 [[nodiscard]] Data::SendError GetErrorForSending(
 	not_null<Data::Thread*> thread,
 	SendingErrorRequest request);
+
+struct SendPaymentDetails {
+	int messages = 0;
+	int stars = 0;
+};
+[[nodiscard]] std::optional<SendPaymentDetails> ComputePaymentDetails(
+	not_null<PeerData*> peer,
+	int messagesCount);
+
+struct PaidConfirmStyles {
+	const style::FlatLabel *label = nullptr;
+	const style::Checkbox *checkbox = nullptr;
+};
+void ShowSendPaidConfirm(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	SendPaymentDetails details,
+	Fn<void()> confirmed,
+	PaidConfirmStyles styles = {});
+void ShowSendPaidConfirm(
+	std::shared_ptr<Main::SessionShow> show,
+	not_null<PeerData*> peer,
+	SendPaymentDetails details,
+	Fn<void()> confirmed,
+	PaidConfirmStyles styles = {});
+void ShowSendPaidConfirm(
+	std::shared_ptr<Main::SessionShow> show,
+	const std::vector<not_null<PeerData*>> &peers,
+	SendPaymentDetails details,
+	Fn<void()> confirmed,
+	PaidConfirmStyles styles = {});
+
+class SendPaymentHelper final {
+public:
+	[[nodiscard]] bool check(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> resend,
+		PaidConfirmStyles styles = {});
+	[[nodiscard]] bool check(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<PeerData*> peer,
+		int messagesCount,
+		int starsApproved,
+		Fn<void(int)> resend,
+		PaidConfirmStyles styles = {});
+
+	void clear();
+
+private:
+	Fn<void()> _resend;
+	rpl::lifetime _lifetime;
+
+};
 
 [[nodiscard]] Data::SendErrorWithThread GetErrorForSending(
 	const std::vector<not_null<Data::Thread*>> &threads,

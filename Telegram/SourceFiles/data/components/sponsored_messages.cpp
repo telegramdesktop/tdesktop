@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/sponsored_messages.h"
 
 #include "api/api_text_entities.h"
+#include "api/api_peer_search.h" // SponsoredSearchResult
 #include "apiwrap.h"
 #include "core/click_handler_types.h"
 #include "data/data_channel.h"
@@ -31,6 +32,19 @@ constexpr auto kRequestTimeLimit = 5 * 60 * crl::time(1000);
 
 [[nodiscard]] bool TooEarlyForRequest(crl::time received) {
 	return (received > 0) && (received + kRequestTimeLimit > crl::now());
+}
+
+template <typename Fields>
+[[nodiscard]] std::vector<TextWithEntities> Prepare(const Fields &fields) {
+	using InfoList = std::vector<TextWithEntities>;
+	return (!fields.sponsorInfo.text.isEmpty()
+		&& !fields.additionalInfo.text.isEmpty())
+		? InfoList{ fields.sponsorInfo, fields.additionalInfo }
+		: !fields.sponsorInfo.text.isEmpty()
+		? InfoList{ fields.sponsorInfo }
+		: !fields.additionalInfo.text.isEmpty()
+		? InfoList{ fields.additionalInfo }
+		: InfoList{};
 }
 
 } // namespace
@@ -509,17 +523,16 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	if (!entryPtr) {
 		return;
 	}
-	const auto randomId = entryPtr->sponsored.randomId;
+	view(entryPtr->sponsored.randomId);
+}
+
+void SponsoredMessages::view(const QByteArray &randomId) {
 	auto &request = _viewRequests[randomId];
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
 	request.requestId = _session->api().request(
-		MTPmessages_ViewSponsoredMessage(
-			entryPtr->item
-				? entryPtr->item->history()->peer->input
-				: _session->data().peer(fullId.peer)->input,
-			MTP_bytes(randomId))
+		MTPmessages_ViewSponsoredMessage(MTP_bytes(randomId))
 	).done([=] {
 		auto &request = _viewRequests[randomId];
 		request.lastReceived = crl::now();
@@ -536,18 +549,8 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		return {};
 	}
 	const auto &data = entryPtr->sponsored;
-
-	using InfoList = std::vector<TextWithEntities>;
-	auto info = (!data.sponsorInfo.text.isEmpty()
-			&& !data.additionalInfo.text.isEmpty())
-		? InfoList{ data.sponsorInfo, data.additionalInfo }
-		: !data.sponsorInfo.text.isEmpty()
-		? InfoList{ data.sponsorInfo }
-		: !data.additionalInfo.text.isEmpty()
-		? InfoList{ data.additionalInfo }
-		: InfoList{};
 	return {
-		.info = std::move(info),
+		.info = Prepare(data),
 		.link = data.link,
 		.buttonText = data.from.buttonText,
 		.photoId = data.from.photoId,
@@ -560,6 +563,14 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 	};
 }
 
+SponsoredMessages::Details SponsoredMessages::lookupDetails(
+		const Api::SponsoredSearchResult &data) const {
+	return {
+		.info = Prepare(data),
+		.canReport = true,
+	};
+}
+
 void SponsoredMessages::clicked(
 		const FullMsgId &fullId,
 		bool isMedia,
@@ -568,22 +579,45 @@ void SponsoredMessages::clicked(
 	if (!entryPtr) {
 		return;
 	}
-	const auto randomId = entryPtr->sponsored.randomId;
+	clicked(entryPtr->sponsored.randomId, isMedia, isFullscreen);
+}
+
+void SponsoredMessages::clicked(
+		const QByteArray &randomId,
+		bool isMedia,
+		bool isFullscreen) {
 	using Flag = MTPmessages_ClickSponsoredMessage::Flag;
 	_session->api().request(MTPmessages_ClickSponsoredMessage(
 		MTP_flags(Flag(0)
 			| (isMedia ? Flag::f_media : Flag(0))
 			| (isFullscreen ? Flag::f_fullscreen : Flag(0))),
-		entryPtr->item
-			? entryPtr->item->history()->peer->input
-			: _session->data().peer(fullId.peer)->input,
 		MTP_bytes(randomId)
 	)).send();
 }
 
+SponsoredReportAction SponsoredMessages::createReportCallback(
+		const FullMsgId &fullId) {
+	const auto entry = find(fullId);
+	if (!entry) {
+		return { .callback = [=](const auto &...) {} };
+	}
+	const auto history = _session->data().history(fullId.peer);
+	const auto erase = [=] {
+		const auto it = _data.find(history);
+		if (it != end(_data)) {
+			auto &list = it->second.entries;
+			const auto proj = [&](const Entry &e) {
+				return e.itemFullId == fullId;
+			};
+			list.erase(ranges::remove_if(list, proj), end(list));
+		}
+	};
+	return createReportCallback(entry->sponsored.randomId, erase);
+}
 
-auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
--> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)> {
+SponsoredReportAction SponsoredMessages::createReportCallback(
+		const QByteArray &randomId,
+		Fn<void()> erase) {
 	using TLChoose = MTPDchannels_sponsoredMessageReportResultChooseOption;
 	using TLAdsHidden = MTPDchannels_sponsoredMessageReportResultAdsHidden;
 	using TLReported = MTPDchannels_sponsoredMessageReportResultReported;
@@ -599,25 +633,7 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 	};
 	const auto state = std::make_shared<State>();
 
-	return [=](Result::Id optionId, Fn<void(Result)> done) {
-		const auto entry = find(fullId);
-		if (!entry) {
-			return;
-		}
-
-		const auto history = _session->data().history(fullId.peer);
-
-		const auto erase = [=] {
-			const auto it = _data.find(history);
-			if (it != end(_data)) {
-				auto &list = it->second.entries;
-				const auto proj = [&](const Entry &e) {
-					return e.itemFullId == fullId;
-				};
-				list.erase(ranges::remove_if(list, proj), end(list));
-			}
-		};
-
+	return { .callback = [=](Result::Id optionId, Fn<void(Result)> done) {
 		if (optionId == Result::Id("-1")) {
 			erase();
 			return;
@@ -625,8 +641,7 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 
 		state->requestId = _session->api().request(
 			MTPmessages_ReportSponsoredMessage(
-				history->peer->input,
-				MTP_bytes(entry->sponsored.randomId),
+				MTP_bytes(randomId),
 				MTP_bytes(optionId))
 		).done([=](
 				const MTPchannels_SponsoredMessageReportResult &result,
@@ -663,7 +678,7 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 				done({ .error = error.type() });
 			}
 		}).send();
-	};
+	} };
 }
 
 SponsoredMessages::State SponsoredMessages::state(

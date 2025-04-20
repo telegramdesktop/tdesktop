@@ -405,7 +405,8 @@ void Calls::initCaptureButton(
 }
 
 void Calls::requestPermissionAndStartTestingMicrophone() {
-	using namespace ::Platform;
+	using PermissionType = ::Platform::PermissionType;
+	using PermissionStatus = ::Platform::PermissionStatus;
 	const auto status = GetPermissionStatus(
 		PermissionType::Microphone);
 	if (status == PermissionStatus::Granted) {

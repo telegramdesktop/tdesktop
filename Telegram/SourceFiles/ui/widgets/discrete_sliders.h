@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "ui/effects/animations.h"
+#include "ui/text/text.h"
 
 namespace style {
 struct TextStyle;
@@ -32,11 +33,11 @@ public:
 	void addSection(const QString &label);
 	void addSection(
 		const TextWithEntities &label,
-		const std::any &context = {});
+		Text::MarkedContext context = {});
 	void setSections(const std::vector<QString> &labels);
 	void setSections(
 		const std::vector<TextWithEntities> &labels,
-		const std::any &context = {});
+		Text::MarkedContext context = {});
 	int activeSection() const {
 		return _activeIndex;
 	}
@@ -63,9 +64,9 @@ protected:
 		Section(
 			const TextWithEntities &label,
 			const style::TextStyle &st,
-			const std::any &context);
+			const Text::MarkedContext &context);
 
-		Ui::Text::String label;
+		Text::String label;
 		std::unique_ptr<RippleAnimation> ripple;
 		int left = 0;
 		int width = 0;

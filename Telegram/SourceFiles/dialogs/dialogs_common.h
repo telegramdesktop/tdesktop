@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace style {
+struct DialogRightButton;
+} // namespace style
+
 namespace Ui {
 class RippleAnimation;
 } // namespace Ui
@@ -114,11 +118,16 @@ struct RowsByLetter {
 };
 
 struct RightButton final {
+	const style::DialogRightButton *st = nullptr;
 	QImage bg;
 	QImage selectedBg;
 	QImage activeBg;
 	Ui::Text::String text;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
+
+	explicit operator bool() const {
+		return st != nullptr;
+	}
 };
 
 } // namespace Dialogs

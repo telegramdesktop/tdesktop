@@ -95,7 +95,8 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			MTPint(), // quick_reply_shortcut_id
 			MTP_long(data.veffect().value_or_empty()), // effect
 			data.vfactcheck() ? *data.vfactcheck() : MTPFactCheck(),
-			MTP_int(data.vreport_delivery_until_date().value_or_empty()));
+			MTP_int(data.vreport_delivery_until_date().value_or_empty()),
+			MTP_long(data.vpaid_message_stars().value_or_empty()));
 	});
 }
 
@@ -269,7 +270,8 @@ void ScheduledMessages::sendNowSimpleMessage(
 			MTPint(), // quick_reply_shortcut_id
 			MTP_long(local->effectId()), // effect
 			MTPFactCheck(),
-			MTPint()), // report_delivery_until_date
+			MTPint(), // report_delivery_until_date
+			MTPlong()), // paid_message_stars
 		localFlags,
 		NewMessageType::Unread);
 

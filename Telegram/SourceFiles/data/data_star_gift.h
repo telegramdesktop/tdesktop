@@ -69,6 +69,7 @@ struct StarGift {
 	TimeId lastSaleDate = 0;
 	bool upgradable = false;
 	bool birthday = false;
+	bool soldOut = false;
 
 	friend inline bool operator==(
 		const StarGift &,
@@ -132,6 +133,7 @@ struct SavedStarGift {
 	TimeId date = 0;
 	bool upgradable = false;
 	bool anonymous = false;
+	bool pinned = false;
 	bool hidden = false;
 	bool mine = false;
 };

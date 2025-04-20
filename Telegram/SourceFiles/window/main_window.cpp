@@ -219,7 +219,7 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 	}
 
 	const auto iconFromTheme = QIcon::fromTheme(
-		base::IconName(),
+		Platform::ApplicationIconName(),
 		result);
 
 	result = QIcon();
@@ -260,8 +260,6 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 }
 
 QImage GenerateCounterLayer(CounterLayerArgs &&args) {
-	// platform/linux/main_window_linux depends on count used the same
-	// way for all the same (count % 1000) values.
 	const auto count = args.count.value();
 	const auto text = (count < 1000)
 		? QString::number(count)
@@ -338,6 +336,8 @@ QImage GenerateCounterLayer(CounterLayerArgs &&args) {
 }
 
 QImage WithSmallCounter(QImage image, CounterLayerArgs &&args) {
+	// platform/linux/tray_linux depends on count used the same
+	// way for all the same (count % 100) values.
 	const auto count = args.count.value();
 	const auto text = (count < 100)
 		? QString::number(count)

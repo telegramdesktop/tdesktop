@@ -153,7 +153,9 @@ private:
 			int till,
 			Fn<bool()> gifPaused,
 			Ui::SendFilesWay way,
-			Fn<bool()> canToggleSpoiler);
+			Fn<bool(
+				const Ui::PreparedFile &,
+				Ui::AttachActionType)> actionAllowed);
 		Block(Block &&other) = default;
 		Block &operator=(Block &&other) = default;
 
@@ -164,6 +166,8 @@ private:
 		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
 		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
+		[[nodiscard]] rpl::producer<int> itemEditCoverRequest() const;
+		[[nodiscard]] rpl::producer<int> itemClearCoverRequest() const;
 		[[nodiscard]] rpl::producer<> orderUpdated() const;
 
 		void setSendWay(Ui::SendFilesWay way);
@@ -242,6 +246,7 @@ private:
 	void addPreparedAsyncFile(Ui::PreparedFile &&file);
 
 	void checkCharsLimitation();
+	void refreshMessagesCount();
 
 	[[nodiscard]] Fn<MenuDetails()> prepareSendMenuDetails(
 		const SendFilesBoxDescriptor &descriptor);
@@ -257,6 +262,7 @@ private:
 
 	Ui::PreparedList _list;
 	std::optional<int> _removingIndex;
+	rpl::variable<int> _messagesCount;
 
 	SendFilesLimits _limits = {};
 	Fn<MenuDetails()> _sendMenuDetails;

@@ -31,7 +31,7 @@ void TryAddingPaidReaction(
 	not_null<HistoryItem*> item,
 	HistoryView::Element *view,
 	int count,
-	std::optional<bool> anonymous,
+	std::optional<PeerId> shownPeer,
 	std::shared_ptr<Ui::Show> show,
 	Fn<void(bool)> finished = nullptr);
 

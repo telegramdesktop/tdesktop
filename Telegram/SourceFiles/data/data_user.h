@@ -8,17 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/stars_amount.h"
+#include "data/components/credits.h"
 #include "data/data_birthday.h"
 #include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_lastseen_status.h"
 #include "data/data_user_names.h"
 #include "dialogs/dialogs_key.h"
+#include "base/flags.h"
 
 namespace Data {
 struct BotCommand;
 struct BusinessDetails;
 } // namespace Data
+
+namespace Api {
+enum class DisallowedGiftType : uchar;
+using DisallowedGiftTypes = base::flags<DisallowedGiftType>;
+} // namespace Api
 
 struct StarRefProgram {
 	StarsAmount revenuePerUser;
@@ -109,10 +116,11 @@ enum class UserDataFlag : uint32 {
 	StoriesHidden = (1 << 18),
 	HasActiveStories = (1 << 19),
 	HasUnreadStories = (1 << 20),
-	MeRequiresPremiumToWrite = (1 << 21),
-	SomeRequirePremiumToWrite = (1 << 22),
-	RequirePremiumToWriteKnown = (1 << 23),
-	ReadDatesPrivate = (1 << 24),
+	RequiresPremiumToWrite = (1 << 21),
+	HasRequirePremiumToWrite = (1 << 22),
+	HasStarsPerMessage = (1 << 23),
+	MessageMoneyRestrictionsKnown = (1 << 24),
+	ReadDatesPrivate = (1 << 25),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -173,11 +181,15 @@ public:
 	[[nodiscard]] bool applyMinPhoto() const;
 	[[nodiscard]] bool hasPersonalPhoto() const;
 	[[nodiscard]] bool hasStoriesHidden() const;
-	[[nodiscard]] bool someRequirePremiumToWrite() const;
-	[[nodiscard]] bool meRequiresPremiumToWrite() const;
-	[[nodiscard]] bool requirePremiumToWriteKnown() const;
-	[[nodiscard]] bool canSendIgnoreRequirePremium() const;
+	[[nodiscard]] bool hasRequirePremiumToWrite() const;
+	[[nodiscard]] bool hasStarsPerMessage() const;
+	[[nodiscard]] bool requiresPremiumToWrite() const;
+	[[nodiscard]] bool messageMoneyRestrictionsKnown() const;
+	[[nodiscard]] bool canSendIgnoreMoneyRestrictions() const;
 	[[nodiscard]] bool readDatesPrivate() const;
+
+	void setStarsPerMessage(int stars);
+	[[nodiscard]] int starsPerMessage() const;
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
@@ -256,6 +268,11 @@ public:
 
 	std::unique_ptr<BotInfo> botInfo;
 
+	[[nodiscard]] Api::DisallowedGiftTypes disallowedGiftTypes() const {
+		return _disallowedGiftTypes;
+	}
+	void setDisallowedGiftTypes(Api::DisallowedGiftTypes types);
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
@@ -268,6 +285,7 @@ private:
 	Data::Birthday _birthday;
 	int _commonChatsCount = 0;
 	int _peerGiftsCount = 0;
+	int _starsPerMessage = 0;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 
@@ -285,6 +303,8 @@ private:
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld
 		= 0xFFFFFFFFFFFFFFFFULL;
+
+	Api::DisallowedGiftTypes _disallowedGiftTypes;
 
 };
 

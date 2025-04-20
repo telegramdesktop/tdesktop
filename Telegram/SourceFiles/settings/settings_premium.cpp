@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/local_url_handlers.h" // Core::TryConvertUrlToLocal.
-#include "core/ui_integration.h" // MarkedTextContext.
+#include "core/ui_integration.h" // TextContext.
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_emoji_statuses.h"
@@ -211,7 +211,6 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_tags_for_messages(),
 				tr::lng_premium_summary_about_tags_for_messages(),
 				PremiumFeature::TagsForMessages,
-				true,
 			},
 		},
 		{
@@ -221,7 +220,6 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_last_seen(),
 				tr::lng_premium_summary_about_last_seen(),
 				PremiumFeature::LastSeen,
-				true,
 			},
 		},
 		{
@@ -231,7 +229,6 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_message_privacy(),
 				tr::lng_premium_summary_about_message_privacy(),
 				PremiumFeature::MessagePrivacy,
-				true,
 			},
 		},
 		{
@@ -791,11 +788,9 @@ void TopBarUser::updateTitle(
 			lt_link,
 			{ .text = text, .entities = entities, },
 			Ui::Text::WithEntities);
-	const auto context = Core::MarkedTextContext{
-		.session = &controller->session(),
-		.customEmojiRepaint = [=] { _title->update(); },
-	};
-	_title->setMarkedText(std::move(title), context);
+	_title->setMarkedText(
+		std::move(title),
+		Core::TextContext({ .session = &controller->session() }));
 	auto link = std::make_shared<LambdaClickHandler>([=,
 			stickerSetIdentifier = stickerInfo->set] {
 		setPaused(true);

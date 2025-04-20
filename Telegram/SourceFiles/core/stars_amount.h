@@ -60,6 +60,11 @@ public:
         normalize();
         return *this;
     }
+    inline StarsAmount operator-() const {
+        auto result = *this;
+        result *= -1;
+        return result;
+    }
 
     friend inline auto operator<=>(StarsAmount, StarsAmount) = default;
     friend inline bool operator==(StarsAmount, StarsAmount) = default;
@@ -96,4 +101,8 @@ private:
 
 [[nodiscard]] inline StarsAmount operator*(StarsAmount a, int64 b) {
     return a *= b;
+}
+
+[[nodiscard]] inline StarsAmount operator*(int64 a, StarsAmount b) {
+	return b *= a;
 }

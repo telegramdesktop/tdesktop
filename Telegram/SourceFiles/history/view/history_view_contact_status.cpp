@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "chat_helpers/message_field.h" // PaidSendButtonText
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "data/business/data_business_chatbots.h"
@@ -162,7 +163,7 @@ public:
 	void showState(
 		State state,
 		TextWithEntities status,
-		Fn<std::any(Fn<void()> customEmojiRepaint)> context);
+		Ui::Text::MarkedContext context);
 
 	[[nodiscard]] rpl::producer<> unarchiveClicks() const;
 	[[nodiscard]] rpl::producer<> addClicks() const;
@@ -271,7 +272,7 @@ ContactStatus::Bar::Bar(
 void ContactStatus::Bar::showState(
 		State state,
 		TextWithEntities status,
-		Fn<std::any(Fn<void()> customEmojiRepaint)> context) {
+		Ui::Text::MarkedContext context) {
 	using Type = State::Type;
 	const auto type = state.type;
 	_add->setVisible(type == Type::AddOrBlock || type == Type::Add);
@@ -293,6 +294,7 @@ void ContactStatus::Bar::showState(
 	_emojiStatusShadow->setVisible(
 		has && (type == Type::AddOrBlock || type == Type::UnarchiveOrBlock));
 	if (has) {
+		context.repaint = [=] { emojiStatusRepaint(); };
 		_emojiStatusInfo->entity()->setMarkedText(
 			tr::lng_new_contact_about_status(
 				tr::now,
@@ -302,9 +304,12 @@ void ContactStatus::Bar::showState(
 				Ui::Text::Link(
 					tr::lng_new_contact_about_status_link(tr::now)),
 				Ui::Text::WithEntities),
-			context([=] { emojiStatusRepaint(); }));
+			context);
 		_emojiStatusInfo->entity()->overrideLinkClickHandler([=] {
 			_emojiStatusClicks.fire({});
+		});
+		_emojiStatusInfo->entity()->setAnimationsPausedCallback([] {
+			return Ui::FlatLabel::WhichAnimationsPaused::CustomEmoji;
 		});
 	}
 	_emojiStatusInfo->setVisible(has);
@@ -595,9 +600,9 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 				return {
 					.type = Type::RequestChatInfo,
 					.requestChatName = peer->requestChatTitle(),
+					.requestDate = peer->requestChatDate(),
 					.requestChatIsBroadcast = !!(settings.value
 						& PeerBarSetting::RequestChatIsBroadcast),
-					.requestDate = peer->requestChatDate(),
 				};
 			} else if (settings.value & PeerBarSetting::AutoArchived) {
 				return { Type::UnarchiveOrBlock };
@@ -627,12 +632,7 @@ void ContactStatus::setupState(not_null<PeerData*> peer, bool showInForum) {
 		peer->session().api().requestPeerSettings(peer);
 	}
 
-	_context = [=](Fn<void()> customEmojiRepaint) {
-		return Core::MarkedTextContext{
-			.session = &peer->session(),
-			.customEmojiRepaint = customEmojiRepaint,
-		};
-	};
+	_context = Core::TextContext({ .session = &peer->session() });
 	_inner->showState({}, {}, _context);
 	const auto channel = peer->asChannel();
 	rpl::combine(
@@ -1129,6 +1129,167 @@ void TopicReopenBar::setupHandler() {
 	_reopen->setClickedCallback([=] {
 		_topic->setClosedAndSave(false);
 	});
+}
+
+class PaysStatus::Bar final : public Ui::RpWidget {
+public:
+	Bar(QWidget *parent, not_null<PeerData*> peer);
+
+	void showState(State state);
+
+	[[nodiscard]] rpl::producer<> removeClicks() const;
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+	int resizeGetHeight(int newWidth) override;
+
+	not_null<PeerData*> _peer;
+	object_ptr<Ui::FlatLabel> _label;
+	object_ptr<Ui::LinkButton> _remove;
+	rpl::event_stream<> _removeClicks;
+
+};
+
+PaysStatus::Bar::Bar(QWidget *parent, not_null<PeerData*> peer)
+: RpWidget(parent)
+, _peer(peer)
+, _label(this, st::paysStatusLabel)
+, _remove(this, tr::lng_payment_bar_button(tr::now)) {
+	_label->setAttribute(Qt::WA_TransparentForMouseEvents);
+}
+
+void PaysStatus::Bar::showState(State state) {
+	_label->setMarkedText(tr::lng_payment_bar_text(
+		tr::now,
+		lt_name,
+		TextWithEntities{ _peer->shortName() },
+		lt_cost,
+		PaidSendButtonText(tr::now, state.perMessage),
+		Ui::Text::WithEntities));
+	resizeToWidth(width());
+}
+
+rpl::producer<> PaysStatus::Bar::removeClicks() const {
+	return _remove->clicks() | rpl::to_empty;
+}
+
+void PaysStatus::Bar::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+	p.fillRect(e->rect(), st::historyContactStatusButton.bgColor);
+}
+
+int PaysStatus::Bar::resizeGetHeight(int newWidth) {
+	const auto skip = st::defaultPeerListItem.photoPosition.y();
+	_label->resizeToWidth(newWidth - skip);
+	_label->moveToLeft(skip, skip, newWidth);
+	_remove->move(
+		(newWidth - _remove->width()) / 2,
+		skip + _label->height() + skip);
+	return _remove->y() + _remove->height() + skip;
+}
+
+PaysStatus::PaysStatus(
+	not_null<Window::SessionController*> window,
+	not_null<Ui::RpWidget*> parent,
+	not_null<UserData*> user)
+: _controller(window)
+, _user(user)
+, _inner(Ui::CreateChild<Bar>(parent.get(), user))
+, _bar(parent, object_ptr<Bar>::fromRaw(_inner)) {
+	setupState();
+	setupHandlers();
+}
+
+void PaysStatus::setupState() {
+	_user->session().api().requestPeerSettings(_user);
+
+	_user->session().changes().peerFlagsValue(
+		_user,
+		Data::PeerUpdate::Flag::PaysPerMessage
+	) | rpl::start_with_next([=] {
+		_state = State{ _user->paysPerMessage() };
+		if (_state.perMessage > 0) {
+			_inner->showState(_state);
+			_bar.toggleContent(true);
+		} else {
+			_bar.toggleContent(false);
+		}
+	}, _bar.lifetime());
+}
+
+void PaysStatus::setupHandlers() {
+	_inner->removeClicks(
+	) | rpl::start_with_next([=] {
+		const auto user = _user;
+		const auto exception = [=](bool refund) {
+			using Flag = MTPaccount_AddNoPaidMessagesException::Flag;
+			const auto api = &user->session().api();
+			api->request(MTPaccount_AddNoPaidMessagesException(
+				MTP_flags(refund ? Flag::f_refund_charged : Flag()),
+				user->inputUser
+			)).done([=] {
+				user->clearPaysPerMessage();
+			}).send();
+		};
+		_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+			const auto refund = std::make_shared<QPointer<Ui::Checkbox>>();
+			Ui::ConfirmBox(box, {
+				.text = tr::lng_payment_refund_text(
+					tr::now,
+					lt_name,
+					Ui::Text::Bold(user->shortName()),
+					Ui::Text::WithEntities),
+				.confirmed = [=](Fn<void()> close) {
+					exception(*refund && (*refund)->checked());
+					close();
+				},
+				.confirmText = tr::lng_payment_refund_confirm(tr::now),
+				.title = tr::lng_payment_refund_title(tr::now),
+			});
+			const auto paid = box->lifetime().make_state<
+				rpl::variable<int>
+			>();
+			*paid = _paidAlready.value();
+			paid->value() | rpl::start_with_next([=](int already) {
+				if (!already) {
+					delete base::take(*refund);
+				} else if (!*refund) {
+					const auto skip = st::defaultCheckbox.margin.top();
+					*refund = box->addRow(
+						object_ptr<Ui::Checkbox>(
+							box,
+							tr::lng_payment_refund_also(
+								lt_count,
+								paid->value() | tr::to_count()),
+							false,
+							st::defaultCheckbox),
+						st::boxRowPadding + QMargins(0, skip, 0, skip));
+				}
+			}, box->lifetime());
+
+			user->session().api().request(MTPaccount_GetPaidMessagesRevenue(
+				user->inputUser
+			)).done(crl::guard(_inner, [=](
+					const MTPaccount_PaidMessagesRevenue &result) {
+				_paidAlready = result.data().vstars_amount().v;
+			})).send();
+		}));
+	}, _bar.lifetime());
+}
+
+void PaysStatus::show() {
+	if (!_shown) {
+		_shown = true;
+		if (_state.perMessage > 0) {
+			_inner->showState(_state);
+			_bar.toggleContent(true);
+		}
+	}
+	_bar.show();
+}
+
+void PaysStatus::hide() {
+	_bar.hide();
 }
 
 } // namespace HistoryView

@@ -79,7 +79,8 @@ void DiscreteSlider::addSection(const QString &label) {
 
 void DiscreteSlider::addSection(
 		const TextWithEntities &label,
-		const std::any &context) {
+		Text::MarkedContext context) {
+	context.repaint = [this] { update(); };
 	_sections.push_back(Section(label, getLabelStyle(), context));
 	resizeToWidth(width());
 }
@@ -96,8 +97,10 @@ void DiscreteSlider::setSections(const std::vector<QString> &labels) {
 
 void DiscreteSlider::setSections(
 		const std::vector<TextWithEntities> &labels,
-		const std::any &context) {
+		Text::MarkedContext context) {
 	Assert(!labels.empty());
+
+	context.repaint = [this] { update(); };
 
 	_sections.clear();
 	for (const auto &label : labels) {
@@ -225,7 +228,7 @@ DiscreteSlider::Section::Section(
 DiscreteSlider::Section::Section(
 		const TextWithEntities &label,
 		const style::TextStyle &st,
-		const std::any &context) {
+		const Text::MarkedContext &context) {
 	this->label.setMarkedText(st, label, kMarkupTextOptions, context);
 	contentWidth = Section::label.maxWidth();
 }

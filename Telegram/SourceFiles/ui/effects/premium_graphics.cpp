@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/numbers_animation.h"
 #include "ui/effects/premium_bubble.h"
@@ -917,6 +918,45 @@ void AddGiftOptions(
 			}, *onceLifetime);
 		}
 
+		constexpr auto kStar = QChar(0x2B50);
+		const auto removedStar = [&](QString s) {
+			return s.replace(kStar, QChar());
+		};
+		const auto &costPerMonthFont = st::shareBoxListItem.nameStyle.font;
+		const auto &costTotalFont = st::normalFont;
+		const auto costPerMonthIcon = info.costPerMonth.startsWith(kStar)
+			? GenerateStars(costPerMonthFont->height, 1)
+			: QImage();
+		const auto costPerMonthText = costPerMonthIcon.isNull()
+			? info.costPerMonth
+			: removedStar(info.costPerMonth);
+		const auto costTotalEntry = [&] {
+			if (!info.costTotal.startsWith(kStar)) {
+				return QImage();
+			}
+			const auto text = removedStar(info.costTotal);
+			const auto icon = GenerateStars(costTotalFont->height, 1);
+			auto result = QImage(
+				QSize(costTotalFont->spacew + costTotalFont->width(text), 0)
+					* style::DevicePixelRatio()
+					+ icon.size(),
+				QImage::Format_ARGB32_Premultiplied);
+			result.setDevicePixelRatio(style::DevicePixelRatio());
+			result.fill(Qt::transparent);
+			{
+				auto p = QPainter(&result);
+				p.drawImage(0, 0, icon);
+				p.setPen(st::windowSubTextFg);
+				p.setFont(costTotalFont);
+				auto copy = info.costTotal;
+				p.drawText(
+					Rect(result.size() / style::DevicePixelRatio()),
+					text,
+					style::al_right);
+			}
+			return result;
+		}();
+
 		row->paintRequest(
 		) | rpl::start_with_next([=](const QRect &r) {
 			auto p = QPainter(row);
@@ -979,7 +1019,11 @@ void AddGiftOptions(
 			if (st.borderWidth && (animation->nowIndex == index)) {
 				const auto progress = animation->animation.value(1.);
 				const auto w = row->width();
-				auto gradient = QLinearGradient(w - w * progress, 0, w * 2, 0);
+				auto gradient = QLinearGradient(
+					w - w * progress,
+					0,
+					w * 2,
+					0);
 				gradient.setSpread(QGradient::Spread::RepeatSpread);
 				gradient.setStops(stops);
 				const auto pen = QPen(
@@ -1004,13 +1048,28 @@ void AddGiftOptions(
 						: bottomLeftRect.width() + discountMargins.left(),
 					0);
 			p.setPen(st::windowSubTextFg);
-			p.setFont(st::shareBoxListItem.nameStyle.font);
-			p.drawText(perRect, info.costPerMonth, style::al_left);
+			p.setFont(costPerMonthFont);
+			const auto perMonthLeft = costPerMonthFont->spacew
+				+ costPerMonthIcon.width() / style::DevicePixelRatio();
+			p.drawText(
+				perRect.translated(perMonthLeft, 0),
+				costPerMonthText,
+				style::al_left);
+			p.drawImage(perRect.topLeft(), costPerMonthIcon);
 
 			const auto totalRect = row->rect()
 				- QMargins(0, 0, st.rowMargins.right(), 0);
-			p.setFont(st::normalFont);
-			p.drawText(totalRect, info.costTotal, style::al_right);
+			if (costTotalEntry.isNull()) {
+				p.setFont(costTotalFont);
+				p.drawText(totalRect, info.costTotal, style::al_right);
+			} else {
+				const auto size = costTotalEntry.size()
+					/ style::DevicePixelRatio();
+				p.drawImage(
+					totalRect.width() - size.width(),
+					(row->height() - size.height()) / 2,
+					costTotalEntry);
+			}
 		}, row->lifetime());
 
 		row->setClickedCallback([=, duration = st::defaultCheck.duration] {

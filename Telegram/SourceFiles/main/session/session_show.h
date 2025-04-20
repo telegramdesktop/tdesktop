@@ -16,6 +16,9 @@ class Session;
 class SessionShow : public Ui::Show {
 public:
 	[[nodiscard]] virtual Main::Session &session() const = 0;
+
+	bool showFrozenError();
+
 };
 
 [[nodiscard]] std::shared_ptr<SessionShow> MakeSessionShow(

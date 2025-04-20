@@ -19,7 +19,7 @@ class ElementDelegate;
 
 namespace Core {
 
-struct MarkedTextContext {
+struct TextContextDetails {
 	enum class HashtagMentionType : uchar {
 		Telegram,
 		Twitter,
@@ -28,9 +28,15 @@ struct MarkedTextContext {
 
 	Main::Session *session = nullptr;
 	HashtagMentionType type = HashtagMentionType::Telegram;
-	Fn<void()> customEmojiRepaint;
+};
+
+struct TextContextArgs {
+	not_null<Main::Session*> session;
+	TextContextDetails details;
+	Fn<void()> repaint;
 	int customEmojiLoopLimit = 0;
 };
+[[nodiscard]] Ui::Text::MarkedContext TextContext(TextContextArgs &&args);
 
 class UiIntegration final : public Ui::Integration {
 public:
@@ -49,7 +55,7 @@ public:
 
 	std::shared_ptr<ClickHandler> createLinkHandler(
 		const EntityLinkData &data,
-		const std::any &context) override;
+		const Ui::Text::MarkedContext &context) override;
 	bool handleUrlClick(
 		const QString &url,
 		const QVariant &context) override;
@@ -57,10 +63,6 @@ public:
 	rpl::producer<> forcePopupMenuHideRequests() override;
 	const Ui::Emoji::One *defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) override;
-	std::unique_ptr<Ui::Text::CustomEmoji> createCustomEmoji(
-		QStringView data,
-		const std::any &context) override;
-	Fn<void()> createSpoilerRepaint(const std::any &context) override;
 
 	QString phraseContextCopyText() override;
 	QString phraseContextCopyEmail() override;

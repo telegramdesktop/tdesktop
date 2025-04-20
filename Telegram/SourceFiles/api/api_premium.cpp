@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
@@ -377,15 +378,15 @@ const Data::PremiumSubscriptionOptions &Premium::subscriptionOptions() const {
 	return _subscriptionOptions;
 }
 
-rpl::producer<> Premium::somePremiumRequiredResolved() const {
-	return _somePremiumRequiredResolved.events();
+rpl::producer<> Premium::someMessageMoneyRestrictionsResolved() const {
+	return _someMessageMoneyRestrictionsResolved.events();
 }
 
-void Premium::resolvePremiumRequired(not_null<UserData*> user) {
-	_resolvePremiumRequiredUsers.emplace(user);
-	if (!_premiumRequiredRequestScheduled
-		&& _resolvePremiumRequestedUsers.empty()) {
-		_premiumRequiredRequestScheduled = true;
+void Premium::resolveMessageMoneyRestrictions(not_null<UserData*> user) {
+	_resolveMessageMoneyRequiredUsers.emplace(user);
+	if (!_messageMoneyRequestScheduled
+		&& _resolveMessageMoneyRequestedUsers.empty()) {
+		_messageMoneyRequestScheduled = true;
 		crl::on_main(_session, [=] {
 			requestPremiumRequiredSlice();
 		});
@@ -393,50 +394,65 @@ void Premium::resolvePremiumRequired(not_null<UserData*> user) {
 }
 
 void Premium::requestPremiumRequiredSlice() {
-	_premiumRequiredRequestScheduled = false;
-	if (!_resolvePremiumRequestedUsers.empty()
-		|| _resolvePremiumRequiredUsers.empty()) {
+	_messageMoneyRequestScheduled = false;
+	if (!_resolveMessageMoneyRequestedUsers.empty()
+		|| _resolveMessageMoneyRequiredUsers.empty()) {
 		return;
 	}
 	constexpr auto kPerRequest = 100;
-	auto users = MTP_vector_from_range(_resolvePremiumRequiredUsers
+	auto users = MTP_vector_from_range(_resolveMessageMoneyRequiredUsers
 		| ranges::views::transform(&UserData::inputUser));
 	if (users.v.size() > kPerRequest) {
 		auto shortened = users.v;
 		shortened.resize(kPerRequest);
 		users = MTP_vector<MTPInputUser>(std::move(shortened));
-		const auto from = begin(_resolvePremiumRequiredUsers);
-		_resolvePremiumRequestedUsers = { from, from + kPerRequest };
-		_resolvePremiumRequiredUsers.erase(from, from + kPerRequest);
+		const auto from = begin(_resolveMessageMoneyRequiredUsers);
+		_resolveMessageMoneyRequestedUsers = { from, from + kPerRequest };
+		_resolveMessageMoneyRequiredUsers.erase(from, from + kPerRequest);
 	} else {
-		_resolvePremiumRequestedUsers
-			= base::take(_resolvePremiumRequiredUsers);
+		_resolveMessageMoneyRequestedUsers
+			= base::take(_resolveMessageMoneyRequiredUsers);
 	}
-	const auto finish = [=](const QVector<MTPBool> &list) {
-		constexpr auto me = UserDataFlag::MeRequiresPremiumToWrite;
-		constexpr auto known = UserDataFlag::RequirePremiumToWriteKnown;
-		constexpr auto mask = me | known;
+	const auto finish = [=](const QVector<MTPRequirementToContact> &list) {
 
 		auto index = 0;
-		for (const auto &user : base::take(_resolvePremiumRequestedUsers)) {
-			const auto require = (index < list.size())
-				&& mtpIsTrue(list[index++]);
-			user->setFlags((user->flags() & ~mask)
-				| known
-				| (require ? me : UserDataFlag()));
+		for (const auto &user : base::take(_resolveMessageMoneyRequestedUsers)) {
+			const auto set = [&](bool requirePremium, int stars) {
+				using Flag = UserDataFlag;
+				constexpr auto me = Flag::RequiresPremiumToWrite;
+				constexpr auto known = Flag::MessageMoneyRestrictionsKnown;
+				constexpr auto hasPrem = Flag::HasRequirePremiumToWrite;
+				constexpr auto hasStars = Flag::HasStarsPerMessage;
+				user->setStarsPerMessage(stars);
+				user->setFlags((user->flags() & ~(me | hasPrem | hasStars))
+					| known
+					| (requirePremium ? (me | hasPrem) : Flag())
+					| (stars ? hasStars : Flag()));
+			};
+			if (index >= list.size()) {
+				set(false, 0);
+				continue;
+			}
+			list[index++].match([&](const MTPDrequirementToContactEmpty &) {
+				set(false, 0);
+			}, [&](const MTPDrequirementToContactPremium &) {
+				set(true, 0);
+			}, [&](const MTPDrequirementToContactPaidMessages &data) {
+				set(false, data.vstars_amount().v);
+			});
 		}
-		if (!_premiumRequiredRequestScheduled
-			&& !_resolvePremiumRequiredUsers.empty()) {
-			_premiumRequiredRequestScheduled = true;
+		if (!_messageMoneyRequestScheduled
+			&& !_resolveMessageMoneyRequiredUsers.empty()) {
+			_messageMoneyRequestScheduled = true;
 			crl::on_main(_session, [=] {
 				requestPremiumRequiredSlice();
 			});
 		}
-		_somePremiumRequiredResolved.fire({});
+		_someMessageMoneyRestrictionsResolved.fire({});
 	};
 	_session->api().request(
-		MTPusers_GetIsPremiumRequiredToContact(std::move(users))
-	).done([=](const MTPVector<MTPBool> &result) {
+		MTPusers_GetRequirementsToContact(std::move(users))
+	).done([=](const MTPVector<MTPRequirementToContact> &result) {
 		finish(result.v);
 	}).fail([=] {
 		finish({});
@@ -463,10 +479,14 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 			for (const auto &tlOption : result.v) {
 				const auto &data = tlOption.data();
 				tlMapOptions[data.vusers().v].push_back(tlOption);
+				if (qs(data.vcurrency()) == Ui::kCreditsCurrency) {
+					continue;
+				}
 
 				const auto token = Token{ data.vusers().v, data.vmonths().v };
 				_stores[token] = Store{
 					.amount = data.vamount().v,
+					.currency = qs(data.vcurrency()),
 					.product = qs(data.vstore_product().value_or_empty()),
 					.quantity = data.vstore_quantity().value_or_empty(),
 				};
@@ -475,14 +495,14 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 				}
 			}
 			for (const auto &[amount, tlOptions] : tlMapOptions) {
-				if (amount == 1 && _optionsForOnePerson.currency.isEmpty()) {
-					_optionsForOnePerson.currency = qs(
-						tlOptions.front().data().vcurrency());
+				if (amount == 1 && _optionsForOnePerson.currencies.empty()) {
 					for (const auto &option : tlOptions) {
 						_optionsForOnePerson.months.push_back(
 							option.data().vmonths().v);
 						_optionsForOnePerson.totalCosts.push_back(
 							option.data().vamount().v);
+						_optionsForOnePerson.currencies.push_back(
+							qs(option.data().vcurrency()));
 					}
 				}
 				_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
@@ -509,7 +529,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 		_api.request(MTPpayments_LaunchPrepaidGiveaway(
 			_peer->input,
 			MTP_long(prepaidId),
-			invoice.creditsAmount
+			invoice.giveawayCredits
 				? Payments::InvoiceCreditsGiveawayToTL(invoice)
 				: Payments::InvoicePremiumGiftCodeGiveawayToTL(invoice)
 		)).done([=](const MTPUpdates &result) {
@@ -540,7 +560,7 @@ Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 	const auto token = Token{ users, months };
 	const auto &store = _stores[token];
 	return Payments::InvoicePremiumGiftCode{
-		.currency = _optionsForOnePerson.currency,
+		.currency = store.currency,
 		.storeProduct = store.product,
 		.randomId = randomId,
 		.amount = store.amount,
@@ -553,14 +573,15 @@ Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 std::vector<GiftOptionData> PremiumGiftCodeOptions::optionsForPeer() const {
 	auto result = std::vector<GiftOptionData>();
 
-	if (!_optionsForOnePerson.currency.isEmpty()) {
+	if (!_optionsForOnePerson.currencies.empty()) {
 		const auto count = int(_optionsForOnePerson.months.size());
 		result.reserve(count);
 		for (auto i = 0; i != count; ++i) {
 			Assert(i < _optionsForOnePerson.totalCosts.size());
+			Assert(i < _optionsForOnePerson.currencies.size());
 			result.push_back({
 				.cost = _optionsForOnePerson.totalCosts[i],
-				.currency = _optionsForOnePerson.currency,
+				.currency = _optionsForOnePerson.currencies[i],
 				.months = _optionsForOnePerson.months[i],
 			});
 		}
@@ -581,7 +602,7 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 				MTP_int(_optionsForOnePerson.months[i]),
 				MTPstring(),
 				MTPint(),
-				MTP_string(_optionsForOnePerson.currency),
+				MTP_string(_optionsForOnePerson.currencies[i]),
 				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
 		}
 		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
@@ -694,28 +715,38 @@ rpl::producer<rpl::no_value, QString> SponsoredToggle::setToggled(bool v) {
 	};
 }
 
-RequirePremiumState ResolveRequiresPremiumToWrite(
+MessageMoneyRestriction ResolveMessageMoneyRestrictions(
 		not_null<PeerData*> peer,
 		History *maybeHistory) {
-	const auto user = peer->asUser();
-	if (!user
-		|| !user->someRequirePremiumToWrite()
-		|| user->session().premium()) {
-		return RequirePremiumState::No;
-	} else if (user->requirePremiumToWriteKnown()) {
-		return user->meRequiresPremiumToWrite()
-			? RequirePremiumState::Yes
-			: RequirePremiumState::No;
-	} else if (user->flags() & UserDataFlag::MutualContact) {
-		return RequirePremiumState::No;
-	} else if (!maybeHistory) {
-		return RequirePremiumState::Unknown;
+	if (const auto channel = peer->asChannel()) {
+		return {
+			.starsPerMessage = channel->starsPerMessageChecked(),
+			.known = true,
+		};
 	}
-
+	const auto user = peer->asUser();
+	if (!user) {
+		return { .known = true };
+	} else if (user->messageMoneyRestrictionsKnown()) {
+		return {
+			.starsPerMessage = user->starsPerMessageChecked(),
+			.premiumRequired = (user->requiresPremiumToWrite()
+				&& !user->session().premium()),
+			.known = true,
+		};
+	} else if (user->hasStarsPerMessage()) {
+		return {};
+	} else if (!user->hasRequirePremiumToWrite()) {
+		return { .known = true };
+	} else if (user->flags() & UserDataFlag::MutualContact) {
+		return { .known = true };
+	} else if (!maybeHistory) {
+		return {};
+	}
 	const auto update = [&](bool require) {
 		using Flag = UserDataFlag;
-		constexpr auto known = Flag::RequirePremiumToWriteKnown;
-		constexpr auto me = Flag::MeRequiresPremiumToWrite;
+		constexpr auto known = Flag::MessageMoneyRestrictionsKnown;
+		constexpr auto me = Flag::RequiresPremiumToWrite;
 		user->setFlags((user->flags() & ~me)
 			| known
 			| (require ? me : Flag()));
@@ -727,16 +758,19 @@ RequirePremiumState ResolveRequiresPremiumToWrite(
 			const auto item = view->data();
 			if (!item->out() && !item->isService()) {
 				update(false);
-				return RequirePremiumState::No;
+				return { .known = true };
 			}
 		}
 	}
 	if (user->isContact() // Here we know, that we're not in his contacts.
 		&& maybeHistory->loadedAtTop() // And no incoming messages.
 		&& maybeHistory->loadedAtBottom()) {
-		update(true);
+		return {
+			.premiumRequired = !user->session().premium(),
+			.known = true,
+		};
 	}
-	return RequirePremiumState::Unknown;
+	return {};
 }
 
 rpl::producer<DocumentData*> RandomHelloStickerValue(
@@ -782,6 +816,7 @@ std::optional<Data::StarGift> FromTL(
 			.lastSaleDate = data.vlast_sale_date().value_or_empty(),
 			.upgradable = data.vupgrade_stars().has_value(),
 			.birthday = data.is_birthday(),
+			.soldOut = data.is_sold_out(),
 		});
 	}, [&](const MTPDstarGiftUnique &data) {
 		const auto total = data.vavailability_total().v;
@@ -848,6 +883,7 @@ std::optional<Data::SavedStarGift> FromTL(
 		unique->exportAt = data.vcan_export_at().value_or_empty();
 	}
 	using Id = Data::SavedStarGiftId;
+	const auto hasUnique = parsed->unique != nullptr;
 	return Data::SavedStarGift{
 		.info = std::move(*parsed),
 		.manageId = (to->isUser()
@@ -870,6 +906,7 @@ std::optional<Data::SavedStarGift> FromTL(
 		.date = data.vdate().v,
 		.upgradable = data.is_can_upgrade(),
 		.anonymous = data.is_name_hidden(),
+		.pinned = data.is_pinned_to_top() && hasUnique,
 		.hidden = data.is_unsaved(),
 		.mine = to->isSelf(),
 	};

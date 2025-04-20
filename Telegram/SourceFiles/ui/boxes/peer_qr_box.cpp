@@ -592,20 +592,25 @@ void FillPeerQrBox(
 				spacing + ((counter % kMaxInRow) * (size + spacing)),
 				0);
 			widget->show();
+
+			const auto cornersMask = Images::CornersMask(
+				st::roundRadiusLarge * style::DevicePixelRatio());
 			const auto back = [&] {
-				auto result = Images::Round(
-					Images::GenerateGradient(
-						Size(size - activewidth * 5),
-						colors,
-						0,
-						0),
-					ImageRoundRadius::Large);
+				auto gradient = Images::GenerateGradient(
+					Size(size - activewidth * 5) * style::DevicePixelRatio(),
+					colors,
+					0,
+					0);
+				gradient.setDevicePixelRatio(style::DevicePixelRatio());
+				auto result = Images::Round(std::move(gradient), cornersMask);
+				const auto rect = Rect(
+					result.size() / style::DevicePixelRatio());
 				auto colored = result;
 				colored.fill(Qt::transparent);
 				{
 					auto p = QPainter(&colored);
 					auto hq = PainterHighQualityEnabler(p);
-					st::profileQrIcon.paintInCenter(p, result.rect());
+					st::profileQrIcon.paintInCenter(p, rect);
 					p.setCompositionMode(QPainter::CompositionMode_SourceIn);
 					p.drawImage(0, 0, result);
 				}
@@ -617,8 +622,8 @@ void FillPeerQrBox(
 					p.setPen(st::premiumButtonFg);
 					p.setBrush(st::premiumButtonFg);
 					const auto size = st::profileQrIcon.width() * 1.5;
-					const auto margins = Margins((result.width() - size) / 2);
-					const auto inner = result.rect() - margins;
+					const auto margins = Margins((rect.width() - size) / 2);
+					const auto inner = rect - margins;
 					p.drawRoundedRect(
 						inner,
 						st::roundRadiusLarge,

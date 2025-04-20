@@ -441,13 +441,10 @@ void EditFilterBox(
 			using namespace Window;
 			return window->isGifPausedAtLeastFor(GifPauseReason::Layer);
 		};
-		name->setCustomTextContext([=](Fn<void()> repaint) {
-			return std::any(Core::MarkedTextContext{
-				.session = session,
-				.customEmojiRepaint = std::move(repaint),
-				.customEmojiLoopLimit = value ? -1 : 0,
-			});
-		}, [paused] {
+		name->setCustomTextContext(Core::TextContext({
+			.session = session,
+			.customEmojiLoopLimit = value ? -1 : 0,
+		}), [paused] {
 			return On(PowerSaving::kEmojiChat) || paused();
 		}, [paused] {
 			return On(PowerSaving::kChatSpoiler) || paused();
@@ -609,10 +606,7 @@ void EditFilterBox(
 			float64 alpha = 1.;
 		};
 		const auto tag = preview->lifetime().make_state<TagState>();
-		tag->context.textContext = Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [] {},
-		};
+		tag->context.textContext = Core::TextContext({ .session = session });
 		preview->paintRequest() | rpl::start_with_next([=] {
 			auto p = QPainter(preview);
 			p.setOpacity(tag->alpha);

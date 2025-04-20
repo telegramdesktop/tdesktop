@@ -247,6 +247,7 @@ bool UserpicButton::canSuggestPhoto(not_null<UserData*> user) const {
 	// Server allows suggesting photos only in non-empty chats.
 	return !user->isSelf()
 		&& !user->isBot()
+		&& !user->starsPerMessageChecked()
 		&& (user->owner().history(user)->lastServerMessage() != nullptr);
 }
 
@@ -275,6 +276,10 @@ void UserpicButton::setClickHandlerByRole() {
 void UserpicButton::choosePhotoLocally() {
 	if (!_window) {
 		return;
+	} else if (const auto controller = _window->sessionController()) {
+		if (controller->showFrozenError()) {
+			return;
+		}
 	}
 	const auto callback = [=](ChosenType type) {
 		return [=](QImage &&image) {

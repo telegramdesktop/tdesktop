@@ -24,6 +24,7 @@ AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
 	) | rpl::filter([=](Session *session) {
 		return (session != nullptr);
 	}) | rpl::start_with_next([=] {
+		_lastFrozenRefresh = 0;
 		refresh();
 	}, _lifetime);
 }
@@ -35,6 +36,18 @@ void AppConfig::start() {
 	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
 		refresh();
+
+		_frozenTrackLifetime = instance->frozenErrorReceived(
+		) | rpl::start_with_next([=] {
+			if (!get<int>(u"freeze_since_date"_q, 0)) {
+				const auto now = crl::now();
+				if (!_lastFrozenRefresh
+					|| now > _lastFrozenRefresh + kRefreshTimeout) {
+					_lastFrozenRefresh = now;
+					refresh();
+				}
+			}
+		});
 	}, _lifetime);
 }
 
@@ -71,6 +84,26 @@ int AppConfig::starrefCommissionMin() const {
 
 int AppConfig::starrefCommissionMax() const {
 	return get<int>(u"starref_max_commission_permille"_q, 900);
+}
+
+float64 AppConfig::starsWithdrawRate() const {
+	return get<float64>(u"stars_usd_withdraw_rate_x1000"_q, 1300) / 1000.;
+}
+
+bool AppConfig::paidMessagesAvailable() const {
+	return get<bool>(u"stars_paid_messages_available"_q, false);
+}
+
+int AppConfig::paidMessageStarsMax() const {
+	return get<int>(u"stars_paid_message_amount_max"_q, 10'000);
+}
+
+int AppConfig::paidMessageCommission() const {
+	return get<int>(u"stars_paid_message_commission_permille"_q, 850);
+}
+
+int AppConfig::pinnedGiftsLimit() const {
+	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
 }
 
 void AppConfig::refresh(bool force) {

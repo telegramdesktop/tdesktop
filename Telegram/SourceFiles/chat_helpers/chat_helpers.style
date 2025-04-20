@@ -149,6 +149,7 @@ EmojiButton {
 
 SendButton {
 	inner: IconButton;
+	stars: RoundButton;
 	record: icon;
 	recordOver: icon;
 	round: icon;
@@ -855,6 +856,21 @@ historyComposeButton: FlatButton {
 		color: historyComposeButtonBgRipple;
 	}
 }
+historyComposeButtonText: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+}
+historyGiftToChannel: IconButton(defaultIconButton) {
+	width: 46px;
+	height: 46px;
+
+	icon: icon{{ "menu/gift_premium", windowActiveTextFg }};
+	iconOver: icon{{ "menu/gift_premium", windowActiveTextFg }};
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 40px;
+	ripple: universalRippleAnimation;
+}
 historyUnblock: FlatButton(historyComposeButton) {
 	color: attentionButtonFg;
 	overColor: attentionButtonFgOver;
@@ -901,6 +917,10 @@ historyBusinessBotSettings: IconButton(defaultIconButton) {
 	ripple: defaultRippleAnimationBgOver;
 	height: 58px;
 	width: 48px;
+}
+paysStatusLabel: FlatLabel(historyBusinessBotStatus) {
+	align: align(top);
+	minWidth: 240px;
 }
 
 historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
@@ -1111,6 +1131,10 @@ historyScheduledToggle: IconButton(historyAttach) {
 		{ "chat/input_scheduled_dot", attentionButtonFg }
 	};
 }
+historyGiftToUser: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_gift", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_gift", historyComposeIconFgOver }};
+}
 
 historyAttachEmojiInner: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_smile_face", historyComposeIconFg }};
@@ -1277,6 +1301,12 @@ historySend: SendButton {
 	inner: IconButton(historyAttach) {
 		icon: historySendIcon;
 		iconOver: historySendIconOver;
+	}
+	stars: RoundButton(defaultActiveButton) {
+		height: 28px;
+		padding: margins(0px, 0px, 6px, 0px);
+		textTop: 5px;
+		width: -8px;
 	}
 	record: historyRecordVoice;
 	recordOver: historyRecordVoiceOver;
@@ -1539,4 +1569,28 @@ processingVideoView: RoundButton(defaultActiveButton) {
 	textBg: transparent;
 	textBgOver: transparent;
 	ripple: emptyRippleAnimation;
+}
+
+frozenBarTitle: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: attentionButtonFg;
+}
+frozenRestrictionTitle: FlatLabel(frozenBarTitle) {
+	align: align(top);
+}
+frozenBarSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+frozenRestrictionSubtitle: FlatLabel(frozenBarSubtitle) {
+	align: align(top);
+}
+frozenInfoBox: Box(defaultBox) {
+	buttonPadding: margins(16px, 11px, 16px, 16px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+	shadowIgnoreTopSkip: true;
 }

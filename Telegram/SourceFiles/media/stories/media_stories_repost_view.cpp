@@ -242,19 +242,18 @@ void RepostView::recountDimensions() {
 	auto nameFull = TextWithEntities();
 	nameFull.append(HistoryView::Reply::PeerEmoji(owner, _sourcePeer));
 	nameFull.append(name);
-	auto context = Core::MarkedTextContext{
+	auto context = Core::TextContext({
 		.session = &_story->session(),
-		.customEmojiRepaint = [] {},
 		.customEmojiLoopLimit = 1,
-	};
+	});
 	_name.setMarkedText(
 		st::semiboldTextStyle,
 		nameFull,
 		Ui::NameTextOptions(),
 		context);
-	context.customEmojiRepaint = crl::guard(this, [=] {
+	context.repaint = crl::guard(this, [=] {
 		_controller->repaint();
-	}),
+	});
 	_text.setMarkedText(
 		st::defaultTextStyle,
 		text,

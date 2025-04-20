@@ -150,8 +150,7 @@ void MessageView::prepare(
 		not_null<const HistoryItem*> item,
 		Data::Forum *forum,
 		Fn<void()> customEmojiRepaint,
-		ToPreviewOptions options,
-		Fn<void()> customLoadingFinishCallback) {
+		ToPreviewOptions options) {
 	if (!forum) {
 		_topics = nullptr;
 	} else if (!_topics || _topics->forum() != forum) {
@@ -174,11 +173,11 @@ void MessageView::prepare(
 		: nullptr;
 	const auto hasImages = !preview.images.empty();
 	const auto history = item->history();
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &history->session(),
-		.customEmojiRepaint = customEmojiRepaint,
+		.repaint = customEmojiRepaint,
 		.customEmojiLoopLimit = kEmojiLoopCount,
-	};
+	});
 	const auto senderTill = (preview.arrowInTextPosition > 0)
 		? preview.arrowInTextPosition
 		: preview.imagesInTextPosition;
@@ -213,11 +212,9 @@ void MessageView::prepare(
 		if (!_loadingContext) {
 			_loadingContext = std::make_unique<LoadingContext>();
 			item->history()->session().downloaderTaskFinished(
-			) | rpl::start_with_next(
-			customLoadingFinishCallback
-				? customLoadingFinishCallback
-				: Fn<void()>([=] { _textCachedFor = nullptr; }),
-			_loadingContext->lifetime);
+			) | rpl::start_with_next([=] {
+				_textCachedFor = nullptr;
+			}, _loadingContext->lifetime);
 		}
 		_loadingContext->context = std::move(preview.loadingContext);
 	} else {
@@ -370,7 +367,18 @@ void MessageView::paint(
 			if (image.hasSpoiler()) {
 				const auto frame = DefaultImageSpoiler().frame(
 					_spoiler->index(context.now, pausedSpoiler));
-				FillSpoilerRect(p, mini, frame);
+				if (image.isEllipse()) {
+					const auto radius = st::dialogsMiniPreview / 2;
+					static auto mask = Images::CornersMask(radius);
+					FillSpoilerRect(
+						p,
+						mini,
+						Images::CornersMaskRef(mask),
+						frame,
+						_cornersCache);
+				} else {
+					FillSpoilerRect(p, mini, frame);
+				}
 			}
 		}
 		rect.setLeft(rect.x() + w);

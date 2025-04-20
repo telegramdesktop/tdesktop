@@ -18,7 +18,8 @@ namespace Ui {
 
 ChooseTimeResult ChooseTimeWidget(
 		not_null<RpWidget*> parent,
-		TimeId startSeconds) {
+		TimeId startSeconds,
+		bool hiddenDaysInput) {
 	using TimeField = Ui::TimePartWithPlaceholder;
 	const auto putNext = [](not_null<TimeField*> field, QChar ch) {
 		field->setCursorPosition(0);
@@ -79,6 +80,10 @@ ChooseTimeResult ChooseTimeWidget(
 	const auto hour = Ui::MakeWeak(state->hour);
 	const auto minute = Ui::MakeWeak(state->minute);
 
+	if (hiddenDaysInput) {
+		day->setVisible(false);
+	}
+
 	day->setPhrase(tr::lng_days);
 	day->setMaxValue(31);
 	day->setWheelStep(1);
@@ -105,13 +110,16 @@ ChooseTimeResult ChooseTimeWidget(
 
 	content->sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
-		const auto inputWidth = s.width() / 3;
+		const auto inputWidth = s.width() / (hiddenDaysInput ? 2 : 3);
 		auto rect = QRect(
 			0,
 			(s.height() - day->height()) / 2,
 			inputWidth,
 			day->height());
 		for (const auto &input : { day, hour, minute }) {
+			if (input->isHidden()) {
+				continue;
+			}
 			input->setGeometry(rect - st::muteBoxTimeFieldPadding);
 			rect.translate(inputWidth, 0);
 		}

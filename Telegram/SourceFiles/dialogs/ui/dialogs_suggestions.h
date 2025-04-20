@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/timer.h"
 #include "dialogs/ui/top_peers_strip.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
@@ -32,6 +33,9 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
+namespace Controls {
+struct SwipeHandlerArgs;
+} // namespace Controls
 class BoxContent;
 class ScrollArea;
 class ElasticScroll;
@@ -157,6 +161,9 @@ private:
 	void setupChats();
 	void setupChannels();
 	void setupApps();
+	void reinstallSwipe(not_null<Ui::ElasticScroll*>);
+	[[nodiscard]] auto generateIncompleteSwipeArgs()
+	-> Ui::Controls::SwipeHandlerArgs;
 
 	void selectJumpChats(Qt::Key direction, int pageSize);
 	void selectJumpChannels(Qt::Key direction, int pageSize);
@@ -252,6 +259,9 @@ private:
 	Ui::Animations::Simple _slideAnimation;
 	QPixmap _slideLeft;
 	QPixmap _slideRight;
+
+	Ui::Controls::SwipeBackResult _swipeBackData;
+	rpl::lifetime _swipeLifetime;
 
 	int _slideLeftTop = 0;
 	int _slideRightTop = 0;

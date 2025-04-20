@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
+#include "history/history_view_swipe_back_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -173,6 +174,7 @@ PinnedWidget::PinnedWidget(
 
 	setupClearButton();
 	setupTranslateBar();
+	Window::SetupSwipeBackSection(this, _scroll.get(), _inner);
 }
 
 PinnedWidget::~PinnedWidget() = default;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/options.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/spoiler_mess.h"
@@ -63,7 +64,19 @@ namespace {
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
 
+base::options::toggle FastButtonsModeOption({
+	.id = kOptionFastButtonsMode,
+	.name = "Fast buttons mode",
+	.description = "Trigger inline keyboard buttons by 1-9 keyboard keys.",
+});
+
 } // namespace
+
+const char kOptionFastButtonsMode[] = "fast-buttons-mode";
+
+bool FastButtonsMode() {
+	return FastButtonsModeOption.value();
+}
 
 void HistoryMessageVia::create(
 		not_null<Data::Session*> owner,
@@ -192,7 +205,9 @@ void HistoryMessageForwarded::create(
 		const HistoryMessageVia *via,
 		not_null<const HistoryItem*> item) const {
 	auto phrase = TextWithEntities();
-	auto context = Core::MarkedTextContext{};
+	auto context = Core::TextContext({
+		.session = &item->history()->session(),
+	});
 	const auto fromChannel = originalSender
 		&& originalSender->isChannel()
 		&& !originalSender->isMegagroup();
@@ -202,8 +217,7 @@ void HistoryMessageForwarded::create(
 			: originalHiddenSenderInfo->name)
 	};
 	if (const auto copy = originalSender) {
-		context.session = &copy->owner().session();
-		context.customEmojiRepaint = [=] {
+		context.repaint = [=] {
 			// It is important to capture here originalSender by value,
 			// not capture the HistoryMessageForwarded* and read the
 			// originalSender field, because the components themselves
@@ -212,7 +226,7 @@ void HistoryMessageForwarded::create(
 			copy->owner().requestItemRepaint(item);
 		};
 		phrase = Ui::Text::SingleCustomEmoji(
-			context.session->data().customEmojiManager().peerUserpicEmojiData(
+			copy->owner().customEmojiManager().peerUserpicEmojiData(
 				copy,
 				st::fwdTextUserpicPadding));
 	}
@@ -742,10 +756,10 @@ ReplyKeyboard::ReplyKeyboard(
 						_st->textStyle(),
 						TextUtilities::SingleLine(textWithEntities),
 						kMarkupTextOptions,
-						Core::MarkedTextContext{
+						Core::TextContext({
 							.session = &item->history()->owner().session(),
-							.customEmojiRepaint = [=] { _st->repaint(item); },
-						});
+							.repaint = [=] { _st->repaint(item); },
+						}));
 				} else {
 					button.text.setText(
 						_st->textStyle(),
@@ -924,10 +938,10 @@ void ReplyKeyboard::paint(
 }
 
 bool ReplyKeyboard::hasFastButtonMode() const {
-	return _item->inlineReplyKeyboard()
+	return FastButtonsMode()
+		&& _item->inlineReplyKeyboard()
 		&& (_item == _item->history()->lastMessage())
-		&& _item->history()->session().supportMode()
-		&& _item->history()->session().supportHelper().fastButtonMode(
+		&& _item->history()->session().fastButtonsBots().enabled(
 			_item->history()->peer);
 }
 

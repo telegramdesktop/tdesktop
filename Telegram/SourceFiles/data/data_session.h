@@ -87,6 +87,8 @@ struct GiftUpdate {
 		Convert,
 		Transfer,
 		Delete,
+		Pin,
+		Unpin,
 	};
 
 	Data::SavedStarGiftId id;
@@ -631,6 +633,7 @@ public:
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
+		bool photoIsVideoCover,
 		TimeId pendingTill);
 
 	[[nodiscard]] not_null<GameData*> game(GameId id);
@@ -916,6 +919,7 @@ private:
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
+		bool photoIsVideoCover,
 		TimeId pendingTill);
 
 	void gameApplyFields(

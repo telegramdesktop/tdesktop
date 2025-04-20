@@ -429,8 +429,7 @@ void Credits::setupContent() {
 	Ui::AddSkip(content);
 
 	struct State final {
-		rpl::variable<bool> confirmButtonBusy = false;
-		std::optional<Api::CreditsTopupOptions> api;
+		BuyStarsHandler buyStars;
 	};
 	const auto state = content->lifetime().make_state<State>();
 
@@ -438,60 +437,21 @@ void Credits::setupContent() {
 		object_ptr<Ui::RoundButton>(
 			content,
 			rpl::conditional(
-				state->confirmButtonBusy.value(),
+				state->buyStars.loadingValue(),
 				rpl::single(QString()),
 				tr::lng_credits_buy_button()),
 			st::creditsSettingsBigBalanceButton),
 		st::boxRowPadding);
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	const auto show = _controller->uiShow();
-	const auto optionsBox = [=](not_null<Ui::GenericBox*> box) {
-		box->setStyle(st::giveawayGiftCodeBox);
-		box->setWidth(st::boxWideWidth);
-		box->setTitle(tr::lng_credits_summary_options_subtitle());
-		const auto inner = box->verticalLayout();
-		const auto self = show->session().user();
-		const auto options = state->api
-			? state->api->options()
-			: Data::CreditTopupOptions();
-		const auto amount = StarsAmount();
-		FillCreditOptions(show, inner, self, amount, paid, nullptr, options);
-
-		const auto button = box->addButton(tr::lng_close(), [=] {
-			box->closeBox();
-		});
-		const auto buttonWidth = st::boxWideWidth
-			- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-		button->widthValue() | rpl::filter([=] {
-			return (button->widthNoMargins() != buttonWidth);
-		}) | rpl::start_with_next([=] {
-			button->resizeToWidth(buttonWidth);
-		}, button->lifetime());
-	};
-	button->setClickedCallback([=] {
-		if (state->api && !state->api->options().empty()) {
-			state->confirmButtonBusy = false;
-			show->show(Box(optionsBox));
-		} else {
-			state->confirmButtonBusy = true;
-			state->api.emplace(show->session().user());
-			state->api->request(
-			) | rpl::start_with_error_done([=](const QString &error) {
-				state->confirmButtonBusy = false;
-				show->showToast(error);
-			}, [=] {
-				state->confirmButtonBusy = false;
-				show->show(Box(optionsBox));
-			}, content->lifetime());
-		}
-	});
+	button->setClickedCallback(state->buyStars.handler(show, paid));
 	{
 		using namespace Info::Statistics;
 		const auto loadingAnimation = InfiniteRadialAnimationWidget(
 			button,
 			button->height() / 2);
 		AddChildToWidgetCenter(button, loadingAnimation);
-		loadingAnimation->showOn(state->confirmButtonBusy.value());
+		loadingAnimation->showOn(state->buyStars.loadingValue());
 	}
 	const auto paddings = rect::m::sum::h(st::boxRowPadding);
 	button->widthValue() | rpl::filter([=] {
@@ -697,6 +657,68 @@ struct SectionFactory<Credits> : AbstractSectionFactory {
 
 Type CreditsId() {
 	return Credits::Id();
+}
+
+BuyStarsHandler::BuyStarsHandler() = default;
+
+BuyStarsHandler::~BuyStarsHandler() = default;
+
+Fn<void()> BuyStarsHandler::handler(
+		std::shared_ptr<::Main::SessionShow> show,
+		Fn<void()> paid) {
+	const auto optionsBox = [=](not_null<Ui::GenericBox*> box) {
+		box->setStyle(st::giveawayGiftCodeBox);
+		box->setWidth(st::boxWideWidth);
+		box->setTitle(tr::lng_credits_summary_options_subtitle());
+		const auto inner = box->verticalLayout();
+		const auto self = show->session().user();
+		const auto options = _api
+			? _api->options()
+			: Data::CreditTopupOptions();
+		const auto amount = StarsAmount();
+		const auto weak = Ui::MakeWeak(box);
+		FillCreditOptions(show, inner, self, amount, [=] {
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+			if (const auto onstack = paid) {
+				onstack();
+			}
+		}, nullptr, options);
+
+		const auto button = box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+		const auto buttonWidth = st::boxWideWidth
+			- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+		button->widthValue() | rpl::filter([=] {
+			return (button->widthNoMargins() != buttonWidth);
+		}) | rpl::start_with_next([=] {
+			button->resizeToWidth(buttonWidth);
+		}, button->lifetime());
+	};
+	return crl::guard(this, [=] {
+		if (_api && !_api->options().empty()) {
+			_loading = false;
+			show->show(Box(crl::guard(this, optionsBox)));
+		} else {
+			_loading = true;
+			const auto user = show->session().user();
+			_api = std::make_unique<Api::CreditsTopupOptions>(user);
+			_api->request(
+			) | rpl::start_with_error_done([=](const QString &error) {
+				_loading = false;
+				show->showToast(error);
+			}, [=] {
+				_loading = false;
+				show->show(Box(crl::guard(this, optionsBox)));
+			}, _lifetime);
+		}
+	});
+}
+
+rpl::producer<bool> BuyStarsHandler::loadingValue() const {
+	return _loading.value();
 }
 
 } // namespace Settings

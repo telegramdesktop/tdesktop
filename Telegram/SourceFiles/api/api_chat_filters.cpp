@@ -149,18 +149,14 @@ void InitFilterLinkHeader(
 			iconEmoji
 		).value_or(Ui::FilterIcon::Custom)).active;
 	const auto isStatic = title.isStatic;
-	const auto makeContext = [=](Fn<void()> repaint) {
-		return Core::MarkedTextContext{
-			.session = &box->peerListUiShow()->session(),
-			.customEmojiRepaint = std::move(repaint),
-			.customEmojiLoopLimit = isStatic ? -1 : 0,
-		};
-	};
 	auto header = Ui::MakeFilterLinkHeader(box, {
 		.type = type,
 		.title = TitleText(type)(tr::now),
 		.about = AboutText(type, title.text),
-		.makeAboutContext = makeContext,
+		.aboutContext = Core::TextContext({
+			.session = &box->peerListUiShow()->session(),
+			.customEmojiLoopLimit = isStatic ? -1 : 0,
+		}),
 		.folderTitle = title.text,
 		.folderIcon = icon,
 		.badge = (type == Ui::FilterLinkHeaderType::AddingChats
@@ -560,16 +556,12 @@ void ShowImportToast(
 		text.append('\n').append(phrase(tr::now, lt_count, added));
 	}
 	const auto isStatic = title.isStatic;
-	const auto makeContext = [=](not_null<QWidget*> widget) {
-		return Core::MarkedTextContext{
-			.session = &strong->session(),
-			.customEmojiRepaint = [=] { widget->update(); },
-			.customEmojiLoopLimit = isStatic ? -1 : 0,
-		};
-	};
 	strong->showToast({
 		.text = std::move(text),
-		.textContext = makeContext,
+		.textContext = Core::TextContext({
+			.session = &strong->session(),
+			.customEmojiLoopLimit = isStatic ? -1 : 0,
+		})
 	});
 }
 
@@ -640,18 +632,14 @@ void ProcessFilterInvite(
 		raw->setRealContentHeight(box->heightValue());
 
 		const auto isStatic = title.isStatic;
-		const auto makeContext = [=](Fn<void()> update) {
-			return Core::MarkedTextContext{
-				.session = &strong->session(),
-				.customEmojiRepaint = update,
-				.customEmojiLoopLimit = isStatic ? -1 : 0,
-			};
-		};
 		auto owned = Ui::FilterLinkProcessButton(
 			box,
 			type,
 			title.text,
-			makeContext,
+			Core::TextContext({
+				.session = &strong->session(),
+				.customEmojiLoopLimit = isStatic ? -1 : 0,
+			}),
 			std::move(badge));
 
 		const auto button = owned.data();
@@ -873,18 +861,14 @@ void ProcessFilterRemove(
 		}, type, title, iconEmoji, rpl::single(0), horizontalFilters);
 
 		const auto isStatic = title.isStatic;
-		const auto makeContext = [=](Fn<void()> update) {
-			return Core::MarkedTextContext{
-				.session = &strong->session(),
-				.customEmojiRepaint = update,
-				.customEmojiLoopLimit = isStatic ? -1 : 0,
-			};
-		};
 		auto owned = Ui::FilterLinkProcessButton(
 			box,
 			type,
 			title.text,
-			makeContext,
+			Core::TextContext({
+				.session = &strong->session(),
+				.customEmojiLoopLimit = isStatic ? -1 : 0,
+			}),
 			std::move(badge));
 
 		const auto button = owned.data();

@@ -35,7 +35,7 @@ AlbumThumbnail::AlbumThumbnail(
 	Fn<void()> deleteCallback)
 : _st(st)
 , _layout(layout)
-, _fullPreview(file.preview)
+, _fullPreview(file.videoCover ? file.videoCover->preview : file.preview)
 , _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
 , _isVideo(file.type == PreparedFile::Type::Video)

@@ -15,6 +15,9 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
+namespace Controls {
+struct SwipeHandlerArgs;
+} // namespace Controls
 class FadeShadow;
 class PlainShadow;
 class PopupMenu;
@@ -122,6 +125,7 @@ public:
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
 
+	[[nodiscard]] bool hasBackButton() const;
 	[[nodiscard]] bool closeByOutsideClick() const;
 
 	void updateGeometry(
@@ -138,6 +142,8 @@ public:
 	[[nodiscard]] rpl::producer<> removeRequests() const override {
 		return _removeRequests.events();
 	}
+
+	void replaceSwipeHandler(Ui::Controls::SwipeHandlerArgs *incompleteArgs);
 
 	~WrapWidget();
 
@@ -181,7 +187,6 @@ private:
 	void highlightTopBar();
 	void setupShortcuts();
 
-	[[nodiscard]] bool hasBackButton() const;
 	[[nodiscard]] bool willHaveBackButton(
 		const Window::SectionShow &params) const;
 

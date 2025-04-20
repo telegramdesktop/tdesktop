@@ -364,6 +364,11 @@ void PipPanel::init() {
 		Ui::Platform::ClearTransientParent(widget());
 	}, rp()->lifetime());
 
+	rp()->shownValue(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+		Ui::Platform::SetWindowMargins(widget(), _padding);
+	}, rp()->lifetime());
+
 	rp()->screenValue(
 	) | rpl::skip(1) | rpl::start_with_next([=](not_null<QScreen*> screen) {
 		handleScreenChanged(screen);
@@ -878,6 +883,9 @@ void PipPanel::updateDecorations() {
 	_padding = padding;
 	_useTransparency = use;
 	widget()->setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
+	if (widget()->windowHandle()) {
+		Ui::Platform::SetWindowMargins(widget(), _padding);
+	}
 	setGeometry(newGeometry);
 	update();
 }
