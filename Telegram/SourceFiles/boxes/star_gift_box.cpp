@@ -109,8 +109,9 @@ namespace {
 
 constexpr auto kPriceTabAll = 0;
 constexpr auto kPriceTabInStock = -1;
-constexpr auto kPriceTabLimited = -2;
-constexpr auto kPriceTabMy = -3;
+constexpr auto kPriceTabResale = -2;
+constexpr auto kPriceTabLimited = -3;
+constexpr auto kPriceTabMy = -4;
 constexpr auto kMyGiftsPerPage = 50;
 constexpr auto kGiftMessageLimit = 255;
 constexpr auto kSentToastDuration = 3 * crl::time(1000);
@@ -1048,6 +1049,8 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 		return simple(tr::lng_gift_stars_tabs_limited(tr::now));
 	} else if (price == kPriceTabInStock) {
 		return simple(tr::lng_gift_stars_tabs_in_stock(tr::now));
+	} else if (price == kPriceTabResale) {
+		return simple(tr::lng_gift_stars_tabs_resale(tr::now));
 	}
 	auto &manager = session->data().customEmojiManager();
 	auto result = Text::String();
@@ -1511,11 +1514,18 @@ struct GiftPriceTabs {
 		auto hasSoldOut = false;
 		auto hasLimited = false;
 		auto hasNonLimited = false;
+		auto hasResale = false;
+		auto hasNonResale = false;
 		for (const auto &gift : gifts) {
 			if (IsSoldOut(gift.info)) {
 				hasSoldOut = true;
 			} else {
 				hasNonSoldOut = true;
+			}
+			if (gift.info.starsResellMin) {
+				hasResale = true;
+			} else {
+				hasNonResale = true;
 			}
 			if (gift.info.limitedCount) {
 				hasLimited = true;
@@ -1534,6 +1544,9 @@ struct GiftPriceTabs {
 		}
 		if (hasLimited && hasNonLimited) {
 			result.push_back(kPriceTabLimited);
+		}
+		if (hasResale && hasNonResale) {
+			result.push_back(kPriceTabResale);
 		}
 		ranges::sort(begin(result) + 1, end(result));
 		return result;
@@ -2832,6 +2845,8 @@ void AddBlock(
 			const auto pred = [&](const GiftTypeStars &gift) {
 				return (price == kPriceTabLimited)
 					? (!gift.info.limitedCount)
+					: (price == kPriceTabResale)
+					? !gift.resale
 					: (price == kPriceTabInStock)
 					? IsSoldOut(gift.info)
 					: (price && gift.info.stars != price);
