@@ -1930,6 +1930,7 @@ if (MSVC)
         /DELAYLOAD:user32.dll
         /DELAYLOAD:gdi32.dll
         /DELAYLOAD:advapi32.dll
+        /DELAYLOAD:avrt.dll
         /DELAYLOAD:shell32.dll
         /DELAYLOAD:ole32.dll
         /DELAYLOAD:oleaut32.dll
