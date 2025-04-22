@@ -221,6 +221,8 @@ darkGiftShare: icon {{ "menu/share", groupCallMembersFg }};
 darkGiftTransfer: icon {{ "chat/input_replace", groupCallMembersFg }};
 darkGiftNftWear: icon {{ "menu/nft_wear", groupCallMembersFg }};
 darkGiftNftTakeOff: icon {{ "menu/nft_takeoff", groupCallMembersFg }};
+darkGiftNftResell: icon {{ "menu/tag_sell", groupCallMembersFg }};
+darkGiftNftUnlist: icon {{ "menu/tag_remove", groupCallMembersFg }};
 darkGiftHide: icon {{ "menu/stealth", groupCallMembersFg }};
 darkGiftShow: icon {{ "menu/show_in_chat", groupCallMembersFg }};
 darkGiftPin: icon {{ "menu/pin", groupCallMembersFg }};
@@ -261,4 +263,11 @@ darkGiftTableMessage: FlatLabel(giveawayGiftMessage) {
 }
 darkGiftCodeLink: FlatLabel(giveawayGiftCodeLink) {
 	textFg: mediaviewMenuFg;
+}
+darkGiftBoxClose: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_close", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "box_button_close", groupCallMemberInactiveIcon }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallMembersBgOver;
+	}
 }

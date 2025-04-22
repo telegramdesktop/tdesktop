@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "api/api_premium.h"
 #include "base/event_filter.h"
+#include "base/qt_signal_producer.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
@@ -83,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
@@ -4056,6 +4058,149 @@ void ShowUniqueGiftWearBox(
 		}, box->lifetime());
 
 		AddUniqueCloseButton(box, {});
+	}));
+}
+
+void ShowUniqueGiftSellBox(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		const Data::UniqueGift &gift,
+		Data::SavedStarGiftId savedId,
+		Settings::GiftWearBoxStyleOverride st) {
+	const auto priceNow = gift.starsForResale;
+	const auto name = Data::UniqueGiftName(gift);
+	const auto slug = gift.slug;
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_gift_sell_title());
+		box->setStyle(st.box ? *st.box : st::upgradeGiftBox);
+		box->setWidth(st::boxWideWidth);
+
+		box->addTopButton(st.close ? *st.close : st::boxTitleClose, [=] {
+			box->closeBox();
+		});
+
+		const auto session = &show->session();
+		AddSubsectionTitle(
+			box->verticalLayout(),
+			tr::lng_gift_sell_placeholder(),
+			(st::boxRowPadding - QMargins(
+				st::defaultSubsectionTitlePadding.left(),
+				0,
+				st::defaultSubsectionTitlePadding.right(),
+				st::defaultSubsectionTitlePadding.bottom())));
+		const auto &appConfig = session->appConfig();
+		const auto limit = appConfig.giftResalePriceMax();
+		const auto minimal = appConfig.giftResalePriceMin();
+		const auto thousandths = appConfig.giftResaleReceiveThousandths();
+		const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
+			box,
+			st::editTagField.heightMin));
+		auto owned = object_ptr<Ui::NumberInput>(
+			wrap,
+			st::editTagField,
+			rpl::single(QString()),
+			QString::number(priceNow ? priceNow : minimal),
+			limit);
+		const auto field = owned.data();
+		wrap->widthValue() | rpl::start_with_next([=](int width) {
+			field->move(0, 0);
+			field->resize(width, field->height());
+			wrap->resize(width, field->height());
+		}, wrap->lifetime());
+		field->paintRequest() | rpl::start_with_next([=](QRect clip) {
+			auto p = QPainter(field);
+			st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
+		}, field->lifetime());
+		field->selectAll();
+		box->setFocusCallback([=] {
+			field->setFocusFast();
+		});
+
+		const auto errors = box->lifetime().make_state<
+			rpl::event_stream<>
+		>();
+		auto goods = rpl::merge(
+			rpl::single(rpl::empty) | rpl::map_to(true),
+			base::qt_signal_producer(
+				field,
+				&Ui::NumberInput::changed
+			) | rpl::map_to(true),
+			errors->events() | rpl::map_to(false)
+		) | rpl::start_spawning(box->lifetime());
+		auto text = rpl::duplicate(goods) | rpl::map([=](bool good) {
+			const auto value = field->getLastText().toInt();
+			const auto receive = (int64(value) * thousandths) / 1000;
+			return !good
+				? tr::lng_gift_sell_min_price(
+					tr::now,
+					lt_count,
+					minimal,
+					Ui::Text::RichLangValue)
+				: (value >= minimal)
+				? tr::lng_gift_sell_amount(
+					tr::now,
+					lt_count,
+					receive,
+					Ui::Text::RichLangValue)
+				: tr::lng_gift_sell_about(
+					tr::now,
+					lt_percent,
+					TextWithEntities{ u"%1%"_q.arg(thousandths / 10.) },
+					Ui::Text::RichLangValue);
+		});
+		const auto details = box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(text) | rpl::after_next([=] {
+				box->verticalLayout()->resizeToWidth(box->width());
+			}),
+			st::boxLabel));
+		Ui::AddSkip(box->verticalLayout());
+
+		rpl::duplicate(goods) | rpl::start_with_next([=](bool good) {
+			details->setTextColorOverride(
+				good ? st::windowSubTextFg->c : st::boxTextFgError->c);
+		}, details->lifetime());
+
+		const auto button = box->addButton(priceNow
+			? tr::lng_gift_sell_update()
+			: tr::lng_gift_sell_put(), [=] {
+			const auto count = field->getLastText().toInt();
+			if (count < minimal) {
+				field->showError();
+				errors->fire({});
+				return;
+			}
+			box->closeBox();
+			session->api().request(MTPpayments_UpdateStarGiftPrice(
+				(savedId
+					? Api::InputSavedStarGiftId(savedId)
+					: MTP_inputSavedStarGiftSlug(MTP_string(slug))),
+				MTP_long(count)
+			)).done([=](const MTPUpdates &result) {
+				session->api().applyUpdates(result);
+				show->showToast(tr::lng_gift_sell_toast(
+					tr::now,
+					lt_name,
+					name));
+				session->data().notifyGiftUpdate({
+
+					});
+			}).fail([=](const MTP::Error &error) {
+				show->showToast(error.type());
+			}).send();
+
+		});
+		rpl::combine(
+			box->widthValue(),
+			button->widthValue()
+		) | rpl::start_with_next([=](int outer, int inner) {
+			const auto padding = st::giftBox.buttonPadding;
+			const auto wanted = outer - padding.left() - padding.right();
+			if (inner != wanted) {
+				button->resizeToWidth(wanted);
+				button->moveToLeft(padding.left(), padding.top());
+			}
+		}, box->lifetime());
 	}));
 }
 

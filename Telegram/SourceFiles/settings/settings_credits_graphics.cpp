@@ -1042,11 +1042,56 @@ void FillUniqueGiftMenu(
 			}, st.wear ? st.wear : &st::menuIconNftWear);
 		}
 	}
+	const auto sell = owner->isSelf()
+		? e.in
+		: (owner->isChannel() && owner->asChannel()->canTransferGifts());
+	if (sell) {
+		const auto resalePrice = unique->starsForResale;
+		if (resalePrice > 0) {
+			menu->addAction(tr::lng_gift_transfer_unlist(tr::now), [=] {
+				const auto name = UniqueGiftName(*unique);
+				const auto confirm = [=](Fn<void()> close) {
+					close();
+					session->api().request(MTPpayments_UpdateStarGiftPrice(
+						(savedId
+							? Api::InputSavedStarGiftId(savedId)
+							: MTP_inputSavedStarGiftSlug(
+								MTP_string(unique->slug))),
+						MTP_long(0)
+					)).done([=](const MTPUpdates &result) {
+						session->api().applyUpdates(result);
+						show->showToast(tr::lng_gift_sell_removed(
+							tr::now,
+							lt_name,
+							name));
+					}).fail([=](const MTP::Error &error) {
+						show->showToast(error.type());
+					}).send();
+				};
+				show->show(Ui::MakeConfirmBox({
+					.text = tr::lng_gift_sell_unlist_sure(),
+					.confirmed = confirm,
+					.confirmText = tr::lng_gift_transfer_unlist(),
+					.title = tr::lng_gift_sell_unlist_title(
+						lt_name,
+						rpl::single(name)),
+				}));
+			}, st.unlist ? st.unlist : &st::menuIconTagRemove);
+		} else {
+			menu->addAction(tr::lng_gift_transfer_sell(tr::now), [=] {
+				const auto style = st.giftWearBox
+					? *st.giftWearBox
+					: GiftWearBoxStyleOverride();
+				ShowUniqueGiftSellBox(show, owner, *unique, savedId, style);
+			}, st.resell ? st.resell : &st::menuIconTagSell);
+		}
+	}
 }
 
 GiftWearBoxStyleOverride DarkGiftWearBoxStyle() {
 	return {
 		.box = &st::darkUpgradeGiftBox,
+		.close = &st::darkGiftBoxClose,
 		.title = &st::darkUpgradeGiftTitle,
 		.subtitle = &st::darkUpgradeGiftSubtitle,
 		.radiantIcon = &st::darkUpgradeGiftRadiant,
@@ -1068,6 +1113,8 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.transfer = &st::darkGiftTransfer,
 		.wear = &st::darkGiftNftWear,
 		.takeoff = &st::darkGiftNftTakeOff,
+		.resell = &st::darkGiftNftResell,
+		.unlist = &st::darkGiftNftUnlist,
 		.show = &st::darkGiftShow,
 		.hide = &st::darkGiftHide,
 		.pin = &st::darkGiftPin,

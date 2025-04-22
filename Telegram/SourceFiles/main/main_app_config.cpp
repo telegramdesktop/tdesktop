@@ -128,6 +128,18 @@ bool AppConfig::confcallPrioritizeVP8() const {
 	return get<bool>(u"confcall_use_vp8"_q, false);
 }
 
+int AppConfig::giftResalePriceMax() const {
+	return get<int>(u"stars_stargift_resale_amount_max"_q, 35000);
+}
+
+int AppConfig::giftResalePriceMin() const {
+	return get<int>(u"stars_stargift_resale_amount_min"_q, 125);
+}
+
+int AppConfig::giftResaleReceiveThousandths() const {
+	return get<int>(u"stars_stargift_resale_commission_permille"_q, 800);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

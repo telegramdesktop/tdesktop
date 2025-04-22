@@ -145,6 +145,10 @@ void EditPriceBox(
 		field->resize(width, field->height());
 		wrap->resize(width, field->height());
 	}, wrap->lifetime());
+	field->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(field);
+		st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
+	}, field->lifetime());
 	field->selectAll();
 	box->setFocusCallback([=] {
 		field->setFocusFast();
@@ -164,11 +168,6 @@ void EditPriceBox(
 			tr::lng_paid_about_link_url(tr::now));
 		return false;
 	});
-
-	field->paintRequest() | rpl::start_with_next([=](QRect clip) {
-		auto p = QPainter(field);
-		st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
-	}, field->lifetime());
 
 	const auto save = [=] {
 		const auto now = field->getLastText().toULongLong();

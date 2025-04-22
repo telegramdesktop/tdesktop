@@ -17,6 +17,7 @@ namespace Data {
 struct UniqueGift;
 struct GiftCode;
 struct CreditsHistoryEntry;
+class SavedStarGiftId;
 } // namespace Data
 
 namespace Main {
@@ -66,6 +67,13 @@ void ShowUniqueGiftWearBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
 	const Data::UniqueGift &gift,
+	Settings::GiftWearBoxStyleOverride st);
+
+void ShowUniqueGiftSellBox(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	const Data::UniqueGift &gift,
+	Data::SavedStarGiftId savedId,
 	Settings::GiftWearBoxStyleOverride st);
 
 struct PatternPoint {

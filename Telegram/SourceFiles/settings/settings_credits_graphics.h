@@ -46,6 +46,7 @@ struct Box;
 struct Table;
 struct FlatLabel;
 struct PopupMenu;
+struct IconButton;
 struct PeerListItem;
 } // namespace style
 
@@ -94,6 +95,7 @@ void AddWithdrawalWidget(
 
 struct GiftWearBoxStyleOverride {
 	const style::Box *box = nullptr;
+	const style::IconButton *close = nullptr;
 	const style::FlatLabel *title = nullptr;
 	const style::FlatLabel *subtitle = nullptr;
 	const style::icon *radiantIcon = nullptr;
@@ -114,6 +116,8 @@ struct CreditsEntryBoxStyleOverrides {
 	const style::icon *transfer = nullptr;
 	const style::icon *wear = nullptr;
 	const style::icon *takeoff = nullptr;
+	const style::icon *resell = nullptr;
+	const style::icon *unlist = nullptr;
 	const style::icon *show = nullptr;
 	const style::icon *hide = nullptr;
 	const style::icon *pin = nullptr;

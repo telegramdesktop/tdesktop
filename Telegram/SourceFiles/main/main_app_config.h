@@ -83,6 +83,10 @@ public:
 	[[nodiscard]] int confcallSizeLimit() const;
 	[[nodiscard]] bool confcallPrioritizeVP8() const;
 
+	[[nodiscard]] int giftResalePriceMax() const;
+	[[nodiscard]] int giftResalePriceMin() const;
+	[[nodiscard]] int giftResaleReceiveThousandths() const;
+
 	void refresh(bool force = false);
 
 private:

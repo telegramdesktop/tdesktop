@@ -502,7 +502,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				&& !data.userpic
 				&& !data.info.limitedLeft;
 			return GiftBadge{
-				.text = ((unique && (data.resale || pinned))
+				.text = ((unique && data.resale && _small)
+					? tr::lng_gift_stars_on_sale(tr::now)
+					: (unique && (data.resale || pinned))
 					? ('#' + QString::number(unique->number))
 					: data.resale
 					? tr::lng_gift_stars_resale(tr::now)
@@ -518,17 +520,25 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 						(((count % 1000) && (count < 10'000))
 							? Lang::FormatCountDecimal(count)
 							: Lang::FormatCountToShort(count).string))),
-				.bg1 = (unique
+				.bg1 = ((unique && data.resale && _small)
+					? st::boxTextFgGood->c
+					: unique
 					? unique->backdrop.edgeColor
 					: data.resale
 					? st::boxTextFgGood->c
 					: soldOut
 					? st::attentionButtonFg->c
 					: st::windowActiveTextFg->c),
-				.bg2 = (unique
+				.bg2 = ((unique && data.resale && _small)
+					? QColor(0, 0, 0, 0)
+					: unique
 					? unique->backdrop.patternColor
 					: QColor(0, 0, 0, 0)),
-				.fg = unique ? QColor(255, 255, 255) : st::windowBg->c,
+				.fg = ((unique && data.resale && _small)
+					? st::windowBg->c
+					: unique
+					? QColor(255, 255, 255)
+					: st::windowBg->c),
 				.small = true,
 			};
 		}

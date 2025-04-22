@@ -159,6 +159,8 @@ menuIconAsTopics: icon {{ "menu/mode_topics", menuIconColor }};
 menuIconAsMessages: icon {{ "menu/mode_messages", menuIconColor }};
 menuIconTagFilter: icon{{ "menu/tag_filter", menuIconColor }};
 menuIconTagRename: icon{{ "menu/tag_rename", menuIconColor }};
+menuIconTagRemove: icon {{ "menu/tag_remove", menuIconColor }};
+menuIconTagSell: icon {{ "menu/tag_sell", menuIconColor }};
 menuIconGroupsHide: icon {{ "menu/hide_members", menuIconColor }};
 menuIconFont: icon {{ "menu/fonts", menuIconColor }};
 menuIconFactcheck: icon {{ "menu/factcheck", menuIconColor }};
