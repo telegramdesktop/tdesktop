@@ -2109,7 +2109,7 @@ void HistoryItem::contributeToSlowmode(TimeId realDate) {
 
 void HistoryItem::clearMediaAsExpired() {
 	const auto media = this->media();
-	if (!media->ttlSeconds()) {
+	if (!media || !media->ttlSeconds()) {
 		return;
 	}
 	if (const auto document = media->document()) {
