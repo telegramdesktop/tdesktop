@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_websites.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_input.h"
+#include "settings/cloud_password/settings_cloud_password_login_email.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/settings_active_sessions.h"
 #include "settings/settings_blocked_peers.h"
@@ -567,6 +568,71 @@ void SetupCloudPassword(
 	session->api().cloudPassword().reload();
 }
 
+void SetupLoginEmail(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
+	using namespace rpl::mappers;
+	using State = Core::CloudPasswordState;
+
+	const auto session = &controller->session();
+	auto passwordState = session->api().cloudPassword().state(
+	) | rpl::map([](const State &state) {
+		return !state.loginEmailPattern.isEmpty();
+	}) | rpl::distinct_until_changed();
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	wrap->toggleOn(rpl::duplicate(passwordState));
+	wrap->finishAnimating();
+
+	auto email = session->api().cloudPassword().state(
+	) | rpl::map([](const State &state) { return state.loginEmailPattern; });
+	auto text = tr::lng_settings_cloud_login_email_section_title();
+	auto label = rpl::duplicate(email) | rpl::map([](QString email) {
+		return Ui::Text::WrapEmailPattern(
+			email.replace(QRegularExpression("\\*{4,}"), "****"));
+	});
+	const auto &st = st::settingsButtonRightLabelSpoiler;
+	const auto button = AddButtonWithIcon(
+		wrap->entity(),
+		rpl::duplicate(text),
+		st,
+		{ &st::menuIconRecoveryEmail });
+	CreateRightLabel(button, std::move(label), st, std::move(text));
+
+	button->addClickHandler([=, email = std::move(email)] {
+		controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+			Ui::ConfirmBox(box, Ui::ConfirmBoxArgs{
+				.text = tr::lng_settings_cloud_login_email_box_about(),
+				.confirmed = [=](Fn<void()> close) {
+					showOther(CloudLoginEmailId());
+					close();
+				},
+				.confirmText = tr::lng_settings_cloud_login_email_box_ok(),
+			});
+			box->getDelegate()->setTitle(rpl::duplicate(
+				email
+			) | rpl::map(Ui::Text::WrapEmailPattern));
+		}));
+	});
+
+	const auto reloadOnActivation = [=](Qt::ApplicationState state) {
+		if (wrap->toggled() && state == Qt::ApplicationActive) {
+			controller->session().api().cloudPassword().reload();
+		}
+	};
+	QObject::connect(
+		static_cast<QGuiApplication*>(QCoreApplication::instance()),
+		&QGuiApplication::applicationStateChanged,
+		container,
+		reloadOnActivation);
+
+	session->api().cloudPassword().reload();
+}
+
 void SetupTopPeers(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
@@ -870,6 +936,7 @@ void SetupSecurity(
 		rpl::duplicate(updateTrigger),
 		showOther);
 	SetupLocalPasscode(controller, container, showOther);
+	SetupLoginEmail(controller, container, showOther);
 	SetupBlockedList(
 		controller,
 		container,

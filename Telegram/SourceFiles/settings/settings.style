@@ -15,6 +15,13 @@ settingsButton: SettingsButton(infoProfileButton) {
 	padding: margins(60px, 10px, 22px, 10px);
 	iconLeft: 20px;
 }
+settingsButtonRightLabelSpoiler: SettingsButton(settingsButton) {
+	rightLabel: FlatLabel(defaultSettingsRightLabel) {
+		palette: TextPalette(defaultTextPalette) {
+			spoilerFg: windowActiveTextFg;
+		}
+	}
+}
 settingsButtonNoIcon: SettingsButton(settingsButton) {
 	padding: margins(22px, 10px, 22px, 8px);
 }
