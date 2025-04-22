@@ -128,30 +128,50 @@ not_null<Button*> AddButtonWithIcon(
 
 void CreateRightLabel(
 		not_null<Button*> button,
-		rpl::producer<QString> label,
+		v::text::data &&label,
 		const style::SettingsButton &st,
 		rpl::producer<QString> buttonText) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
 		st.rightLabel);
 	name->show();
-	rpl::combine(
-		button->widthValue(),
-		std::move(buttonText),
-		std::move(label)
-	) | rpl::start_with_next([=, &st](
-			int width,
-			const QString &button,
-			const QString &text) {
-		const auto available = width
-			- st.padding.left()
-			- st.padding.right()
-			- st.style.font->width(button)
-			- st::settingsButtonRightSkip;
-		name->setText(text);
-		name->resizeToNaturalWidth(available);
-		name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
-	}, name->lifetime());
+	if (v::text::is_plain(label)) {
+		rpl::combine(
+			button->widthValue(),
+			std::move(buttonText),
+			v::text::take_plain(std::move(label))
+		) | rpl::start_with_next([=, &st](
+				int width,
+				const QString &button,
+				const QString &text) {
+			const auto available = width
+				- st.padding.left()
+				- st.padding.right()
+				- st.style.font->width(button)
+				- st::settingsButtonRightSkip;
+			name->setText(text);
+			name->resizeToNaturalWidth(available);
+			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+		}, name->lifetime());
+	} else if (v::text::is_marked(label)) {
+		rpl::combine(
+			button->widthValue(),
+			std::move(buttonText),
+			v::text::take_marked(std::move(label))
+		) | rpl::start_with_next([=, &st](
+				int width,
+				const QString &button,
+				const TextWithEntities &text) {
+			const auto available = width
+				- st.padding.left()
+				- st.padding.right()
+				- st.style.font->width(button)
+				- st::settingsButtonRightSkip;
+			name->setMarkedText(text);
+			name->resizeToNaturalWidth(available);
+			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+		}, name->lifetime());
+	}
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
 
