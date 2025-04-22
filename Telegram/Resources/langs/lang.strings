@@ -882,6 +882,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_cloud_password_email_confirm" = "Confirm and Finish";
 "lng_settings_cloud_password_reset_in" = "You can reset your password in {duration}.";
 
+"lng_settings_cloud_login_email_section_title" = "Login Email";
+"lng_settings_cloud_login_email_box_about" = "This email address will be used every time you log in to your Telegram account from a new device.";
+"lng_settings_cloud_login_email_box_ok" = "Change email";
+"lng_settings_cloud_login_email_title" = "Enter New Email";
+"lng_settings_cloud_login_email_placeholder" = "Enter Login Email";
+"lng_settings_cloud_login_email_about" = "You will receive Telegram login codes via email and not SMS. Please enter an email address to which you have access.";
+"lng_settings_cloud_login_email_confirm" = "Confirm";
+"lng_settings_cloud_login_email_code_title" = "Check Your New Email";
+"lng_settings_cloud_login_email_code_about" = "Please enter the code we have sent to your new email {email}";
+"lng_settings_cloud_login_email_success" = "Your email has been changed.";
+"lng_settings_error_email_not_alowed" = "Sorry, this email is not allowed";
+
 "lng_settings_ttl_title" = "Auto-Delete Messages";
 "lng_settings_ttl_about" = "Automatically delete messages for everyone after a period of time in all new chats you start.";
 "lng_settings_ttl_after" = "After {after_duration}";
