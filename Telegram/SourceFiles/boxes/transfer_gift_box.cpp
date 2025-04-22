@@ -443,7 +443,7 @@ void TransferGift(
 	};
 	if (gift->starsForTransfer <= 0) {
 		session->api().request(MTPpayments_TransferStarGift(
-			Api::InputSavedStarGiftId(savedId),
+			Api::InputSavedStarGiftId(savedId, gift),
 			to->input
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
@@ -459,7 +459,7 @@ void TransferGift(
 	Ui::RequestStarsFormAndSubmit(
 		window->uiShow(),
 		MTP_inputInvoiceStarGiftTransfer(
-			Api::InputSavedStarGiftId(savedId),
+			Api::InputSavedStarGiftId(savedId, gift),
 			to->input),
 		std::move(formDone));
 }

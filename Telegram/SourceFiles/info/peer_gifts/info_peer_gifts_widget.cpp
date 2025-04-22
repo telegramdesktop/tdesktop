@@ -181,7 +181,14 @@ void InnerWidget::subscribeToUpdates() {
 		const auto savedId = [](const Entry &entry) {
 			return entry.gift.manageId;
 		};
-		const auto i = ranges::find(_entries, update.id, savedId);
+		const auto bySlug = [](const Entry &entry) {
+			return entry.gift.info.unique
+				? entry.gift.info.unique->slug
+				: QString();
+		};
+		const auto i = update.id
+			? ranges::find(_entries, update.id, savedId)
+			: ranges::find(_entries, update.slug, bySlug);
 		if (i == end(_entries)) {
 			return;
 		}
@@ -223,6 +230,13 @@ void InnerWidget::subscribeToUpdates() {
 				markPinned(i);
 			} else {
 				markUnpinned(i);
+			}
+		} else if (update.action == Action::ResaleChange) {
+			for (auto &view : _views) {
+				if (view.index == index) {
+					view.index = -1;
+					view.manageId = {};
+				}
 			}
 		} else {
 			return;

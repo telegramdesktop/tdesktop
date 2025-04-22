@@ -58,7 +58,9 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 	};
 
 	const auto &defaultButtonStyle = box->getDelegate()->style().button;
-	const auto confirmTextPlain = v::text::is_plain(args.confirmText);
+	const auto confirmTextPlain = v::is_null(args.confirmText)
+		|| v::is<rpl::producer<QString>>(args.confirmText)
+		|| v::is<QString>(args.confirmText);
 	const auto confirmButton = box->addButton(
 		(confirmTextPlain
 			? v::text::take_plain(

@@ -1052,21 +1052,7 @@ void FillUniqueGiftMenu(
 				const auto name = UniqueGiftName(*unique);
 				const auto confirm = [=](Fn<void()> close) {
 					close();
-					session->api().request(MTPpayments_UpdateStarGiftPrice(
-						(savedId
-							? Api::InputSavedStarGiftId(savedId)
-							: MTP_inputSavedStarGiftSlug(
-								MTP_string(unique->slug))),
-						MTP_long(0)
-					)).done([=](const MTPUpdates &result) {
-						session->api().applyUpdates(result);
-						show->showToast(tr::lng_gift_sell_removed(
-							tr::now,
-							lt_name,
-							name));
-					}).fail([=](const MTP::Error &error) {
-						show->showToast(error.type());
-					}).send();
+					Ui::UpdateGiftSellPrice(show, unique, savedId, 0);
 				};
 				show->show(Ui::MakeConfirmBox({
 					.text = tr::lng_gift_sell_unlist_sure(),
@@ -1082,7 +1068,7 @@ void FillUniqueGiftMenu(
 				const auto style = st.giftWearBox
 					? *st.giftWearBox
 					: GiftWearBoxStyleOverride();
-				ShowUniqueGiftSellBox(show, owner, *unique, savedId, style);
+				ShowUniqueGiftSellBox(show, owner, unique, savedId, style);
 			}, st.resell ? st.resell : &st::menuIconTagSell);
 		}
 	}
@@ -1177,6 +1163,8 @@ void GenericCreditsEntryBox(
 		&& !e.converted
 		&& starGiftSender;
 	const auto canConvert = forConvert && !timeExceeded;
+	const auto inResale = uniqueGift && (uniqueGift->starsForResale > 0);
+	const auto canBuyResold = inResale && (e.bareGiftOwnerId != selfPeerId);
 
 	if (auto savedId = EntryToSavedStarGiftId(session, e)) {
 		session->data().giftUpdates(
@@ -1219,6 +1207,8 @@ void GenericCreditsEntryBox(
 	if (uniqueGift) {
 		box->setNoContentMargin(true);
 
+		//const auto canEditResale = (e.bareGiftOwnerId == selfPeerId);
+		//auto starsResale = rpl
 		AddUniqueGiftCover(content, rpl::single(*uniqueGift));
 
 		AddSkip(content, st::defaultVerticalListSkip * 2);
@@ -1970,7 +1960,7 @@ void GenericCreditsEntryBox(
 		if (willBusy) {
 			state->confirmButtonBusy = true;
 			send();
-		} else if (uniqueGift && uniqueGift->starsForResale && !giftToSelf) {
+		} else if (canBuyResold) {
 			const auto to = e.bareGiftResaleRecipientId
 				? show->session().data().peer(
 					PeerId(e.bareGiftResaleRecipientId))
@@ -1988,7 +1978,7 @@ void GenericCreditsEntryBox(
 			box->closeBox();
 		}
 	});
-	if (uniqueGift && uniqueGift->starsForResale && !giftToSelf) {
+	if (canBuyResold) {
 		button->setText(tr::lng_gift_buy_resale_button(
 			lt_cost,
 			rpl::single(

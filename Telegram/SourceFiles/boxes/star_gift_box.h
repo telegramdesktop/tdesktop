@@ -69,10 +69,15 @@ void ShowUniqueGiftWearBox(
 	const Data::UniqueGift &gift,
 	Settings::GiftWearBoxStyleOverride st);
 
+void UpdateGiftSellPrice(
+	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Data::UniqueGift> unique,
+	Data::SavedStarGiftId savedId,
+	int price);
 void ShowUniqueGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
-	const Data::UniqueGift &gift,
+	std::shared_ptr<Data::UniqueGift> unique,
 	Data::SavedStarGiftId savedId,
 	Settings::GiftWearBoxStyleOverride st);
 

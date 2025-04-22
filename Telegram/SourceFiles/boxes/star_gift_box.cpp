@@ -3069,10 +3069,12 @@ void GiftResaleBox(
 		state->updated.events()
 	) | rpl::map([=] {
 		auto result = GiftsDescriptor();
+		const auto selfId = window->session().userPeerId();
 		for (const auto &gift : state->data.list) {
 			result.list.push_back(GiftTypeStars{
 				.info = gift,
 				.resale = true,
+				.mine = (gift.unique->ownerId == selfId),
 			});
 		}
 		return result;
@@ -4061,15 +4063,40 @@ void ShowUniqueGiftWearBox(
 	}));
 }
 
+void UpdateGiftSellPrice(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Data::UniqueGift> unique,
+		Data::SavedStarGiftId savedId,
+		int price) {
+	const auto session = &show->session();
+	session->api().request(MTPpayments_UpdateStarGiftPrice(
+		Api::InputSavedStarGiftId(savedId, unique),
+		MTP_long(price)
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+		show->showToast(tr::lng_gift_sell_toast(
+			tr::now,
+			lt_name,
+			Data::UniqueGiftName(*unique)));
+
+		unique->starsForResale = price;
+		session->data().notifyGiftUpdate({
+			.id = savedId,
+			.slug = unique->slug,
+			.action = Data::GiftUpdate::Action::ResaleChange,
+		});
+	}).fail([=](const MTP::Error &error) {
+		show->showToast(error.type());
+	}).send();
+
+}
+
 void ShowUniqueGiftSellBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
-		const Data::UniqueGift &gift,
+		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		Settings::GiftWearBoxStyleOverride st) {
-	const auto priceNow = gift.starsForResale;
-	const auto name = Data::UniqueGiftName(gift);
-	const auto slug = gift.slug;
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(tr::lng_gift_sell_title());
 		box->setStyle(st.box ? *st.box : st::upgradeGiftBox);
@@ -4078,6 +4105,9 @@ void ShowUniqueGiftSellBox(
 		box->addTopButton(st.close ? *st.close : st::boxTitleClose, [=] {
 			box->closeBox();
 		});
+		const auto priceNow = unique->starsForResale;
+		const auto name = Data::UniqueGiftName(*unique);
+		const auto slug = unique->slug;
 
 		const auto session = &show->session();
 		AddSubsectionTitle(
@@ -4171,24 +4201,7 @@ void ShowUniqueGiftSellBox(
 				return;
 			}
 			box->closeBox();
-			session->api().request(MTPpayments_UpdateStarGiftPrice(
-				(savedId
-					? Api::InputSavedStarGiftId(savedId)
-					: MTP_inputSavedStarGiftSlug(MTP_string(slug))),
-				MTP_long(count)
-			)).done([=](const MTPUpdates &result) {
-				session->api().applyUpdates(result);
-				show->showToast(tr::lng_gift_sell_toast(
-					tr::now,
-					lt_name,
-					name));
-				session->data().notifyGiftUpdate({
-
-					});
-			}).fail([=](const MTP::Error &error) {
-				show->showToast(error.type());
-			}).send();
-
+			UpdateGiftSellPrice(show, unique, savedId, count);
 		});
 		rpl::combine(
 			box->widthValue(),

@@ -88,6 +88,7 @@ struct GiftBadge {
 	QString text;
 	QColor bg1;
 	QColor bg2 = QColor(0, 0, 0, 0);
+	QColor border = QColor(0, 0, 0, 0);
 	QColor fg;
 	bool gradient = false;
 	bool small = false;
@@ -174,6 +175,7 @@ private:
 	base::flat_map<float64, QImage> _uniquePatternCache;
 	std::optional<Ui::Premium::ColoredMiniStars> _stars;
 	Ui::Animations::Simple _selectedAnimation;
+	int _resalePrice = 0;
 	bool _subscribed = false;
 	bool _patterned = false;
 	bool _selected = false;

@@ -89,9 +89,11 @@ struct GiftUpdate {
 		Delete,
 		Pin,
 		Unpin,
+		ResaleChange,
 	};
 
 	Data::SavedStarGiftId id;
+	QString slug;
 	Action action = {};
 };
 

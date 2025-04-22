@@ -122,6 +122,7 @@ void EditCreditsSubscription(
 	Fn<void(QString)> fail);
 
 [[nodiscard]] MTPInputSavedStarGift InputSavedStarGiftId(
-	const Data::SavedStarGiftId &id);
+	const Data::SavedStarGiftId &id,
+	const std::shared_ptr<Data::UniqueGift> &unique = nullptr);
 
 } // namespace Api
