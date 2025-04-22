@@ -384,7 +384,6 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_effects(),
 				tr::lng_premium_summary_about_effects(),
 				PremiumFeature::Effects,
-				true,
 			},
 		},
 	};
