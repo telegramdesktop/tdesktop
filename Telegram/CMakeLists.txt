@@ -1434,6 +1434,8 @@ PRIVATE
     settings/cloud_password/settings_cloud_password_input.h
     settings/cloud_password/settings_cloud_password_login_email.cpp
     settings/cloud_password/settings_cloud_password_login_email.h
+    settings/cloud_password/settings_cloud_password_login_email_confirm.cpp
+    settings/cloud_password/settings_cloud_password_login_email_confirm.h
     settings/cloud_password/settings_cloud_password_manage.cpp
     settings/cloud_password/settings_cloud_password_manage.h
     settings/cloud_password/settings_cloud_password_start.cpp

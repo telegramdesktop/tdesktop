@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
-#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
+#include "settings/cloud_password/settings_cloud_password_login_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "settings/cloud_password/settings_cloud_password_step.h"
 #include "ui/boxes/confirm_box.h"
@@ -92,7 +92,7 @@ void LoginEmail::setupContent() {
 			auto data = stepData();
 			data.unconfirmedEmailLengthCode = length;
 			setStepData(std::move(data));
-			showOther(CloudPasswordEmailConfirmId());
+			showOther(CloudLoginEmailConfirmId());
 		};
 		const auto fail = [=](const QString &type) {
 			_api.reset();
