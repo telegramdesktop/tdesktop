@@ -221,6 +221,11 @@ uniqueGiftModelTop: 20px;
 uniqueGiftTitle: FlatLabel(boxTitle) {
 	align: align(top);
 }
+uniqueGiftResalePrice: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+uniqueGiftResalePadding: margins(4px, 4px, 8px, 4px);
+uniqueGiftResaleMargin: margins(10px, 10px, 10px, 10px);
 uniqueGiftTitleTop: 140px;
 uniqueGiftSubtitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 256px;

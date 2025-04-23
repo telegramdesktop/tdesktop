@@ -904,6 +904,22 @@ void ProcessReceivedSubscriptions(
 	}
 }
 
+[[nodiscard]] bool CanResellGift(
+		not_null<Main::Session*> session,
+		const Data::CreditsHistoryEntry &e) {
+	const auto unique = e.uniqueGift.get();
+	const auto owner = unique
+		? session->data().peer(unique->ownerId).get()
+		: nullptr;
+	return !owner
+		? false
+		: owner->isSelf()
+		? e.in
+		: false;
+	// Currently we're not reselling channel gifts.
+	// (owner->isChannel() && owner->asChannel()->canTransferGifts());
+}
+
 void FillUniqueGiftMenu(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::PopupMenu*> menu,
@@ -1042,10 +1058,7 @@ void FillUniqueGiftMenu(
 			}, st.wear ? st.wear : &st::menuIconNftWear);
 		}
 	}
-	const auto sell = owner->isSelf()
-		? e.in
-		: (owner->isChannel() && owner->asChannel()->canTransferGifts());
-	if (sell) {
+	if (CanResellGift(&show->session(), e)) {
 		const auto resalePrice = unique->starsForResale;
 		if (resalePrice > 0) {
 			menu->addAction(tr::lng_gift_transfer_unlist(tr::now), [=] {
@@ -1068,7 +1081,7 @@ void FillUniqueGiftMenu(
 				const auto style = st.giftWearBox
 					? *st.giftWearBox
 					: GiftWearBoxStyleOverride();
-				ShowUniqueGiftSellBox(show, owner, unique, savedId, style);
+				ShowUniqueGiftSellBox(show, unique, savedId, style);
 			}, st.resell ? st.resell : &st::menuIconTagSell);
 		}
 	}
@@ -1169,7 +1182,8 @@ void GenericCreditsEntryBox(
 	if (auto savedId = EntryToSavedStarGiftId(session, e)) {
 		session->data().giftUpdates(
 		) | rpl::start_with_next([=](const Data::GiftUpdate &update) {
-			if (update.id == savedId) {
+			if (update.id == savedId
+				&& update.action != Data::GiftUpdate::Action::ResaleChange) {
 				box->closeBox();
 			}
 		}, box->lifetime());
@@ -1207,9 +1221,32 @@ void GenericCreditsEntryBox(
 	if (uniqueGift) {
 		box->setNoContentMargin(true);
 
-		//const auto canEditResale = (e.bareGiftOwnerId == selfPeerId);
-		//auto starsResale = rpl
-		AddUniqueGiftCover(content, rpl::single(*uniqueGift));
+		const auto slug = uniqueGift->slug;
+		auto price = rpl::single(
+			rpl::empty
+		) | rpl::then(session->data().giftUpdates(
+		) | rpl::filter([=](const Data::GiftUpdate &update) {
+			return (update.action == Data::GiftUpdate::Action::ResaleChange)
+				&& (update.slug == slug);
+		}) | rpl::to_empty) | rpl::map([unique = e.uniqueGift] {
+			return unique->starsForResale;
+		});
+		auto change = [=] {
+			const auto style = st.giftWearBox
+				? *st.giftWearBox
+				: GiftWearBoxStyleOverride();
+			ShowUniqueGiftSellBox(
+				show,
+				e.uniqueGift,
+				EntryToSavedStarGiftId(session, e),
+				style);
+		};
+		AddUniqueGiftCover(
+			content,
+			rpl::single(*uniqueGift),
+			{},
+			std::move(price),
+			CanResellGift(session, e) ? std::move(change) : Fn<void()>());
 
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 

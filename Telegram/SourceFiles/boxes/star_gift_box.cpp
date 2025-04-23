@@ -89,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
@@ -3643,11 +3644,86 @@ void ShowStarGiftBox(
 	}, i->second.lifetime);
 }
 
+void SetupResalePriceButton(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<QColor> background,
+		rpl::producer<int> price,
+		Fn<void()> click) {
+	const auto resale = Ui::CreateChild<
+		Ui::FadeWrapScaled<Ui::AbstractButton>
+	>(parent, object_ptr<Ui::AbstractButton>(parent));
+	resale->move(0, 0);
+
+	const auto button = resale->entity();
+	const auto text = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		QString(),
+		st::uniqueGiftResalePrice);
+	text->setAttribute(Qt::WA_TransparentForMouseEvents);
+	text->sizeValue() | rpl::start_with_next([=](QSize size) {
+		const auto padding = st::uniqueGiftResalePadding;
+		const auto margin = st::uniqueGiftResaleMargin;
+		button->resize(size.grownBy(padding + margin));
+		text->move((margin + padding).left(), (margin + padding).top());
+	}, button->lifetime());
+	text->setTextColorOverride(QColor(255, 255, 255, 255));
+
+	std::move(price) | rpl::start_with_next([=](int value) {
+		if (value > 0) {
+			text->setMarkedText(
+				Ui::Text::IconEmoji(&st::starIconEmoji).append(
+					Lang::FormatCountDecimal(value)));
+			resale->toggle(true, anim::type::normal);
+		} else {
+			resale->toggle(false, anim::type::normal);
+		}
+	}, resale->lifetime());
+	resale->finishAnimating();
+
+	const auto bg = button->lifetime().make_state<rpl::variable<QColor>>(
+		std::move(background));
+	button->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(button);
+		auto hq = PainterHighQualityEnabler(p);
+
+		const auto inner = button->rect().marginsRemoved(
+			st::uniqueGiftResaleMargin);
+		const auto radius = inner.height() / 2.;
+		p.setPen(Qt::NoPen);
+		p.setBrush(bg->current());
+		p.drawRoundedRect(inner, radius, radius);
+	}, button->lifetime());
+	bg->changes() | rpl::start_with_next([=] {
+		button->update();
+	}, button->lifetime());
+
+	if (click) {
+		resale->entity()->setClickedCallback(std::move(click));
+	} else {
+		resale->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+}
+
 void AddUniqueGiftCover(
 		not_null<VerticalLayout*> container,
 		rpl::producer<Data::UniqueGift> data,
-		rpl::producer<QString> subtitleOverride) {
+		rpl::producer<QString> subtitleOverride,
+		rpl::producer<int> resalePrice,
+		Fn<void()> resaleClick) {
 	const auto cover = container->add(object_ptr<RpWidget>(container));
+
+	if (resalePrice) {
+		auto background = rpl::duplicate(
+			data
+		) | rpl::map([=](const Data::UniqueGift &unique) {
+			return unique.backdrop.patternColor;
+		});
+		SetupResalePriceButton(
+			cover,
+			std::move(background),
+			std::move(resalePrice),
+			std::move(resaleClick));
+	}
 
 	const auto title = CreateChild<FlatLabel>(
 		cover,
@@ -4068,16 +4144,21 @@ void UpdateGiftSellPrice(
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		int price) {
+	const auto was = unique->starsForResale;
 	const auto session = &show->session();
 	session->api().request(MTPpayments_UpdateStarGiftPrice(
 		Api::InputSavedStarGiftId(savedId, unique),
 		MTP_long(price)
 	)).done([=](const MTPUpdates &result) {
 		session->api().applyUpdates(result);
-		show->showToast(tr::lng_gift_sell_toast(
-			tr::now,
-			lt_name,
-			Data::UniqueGiftName(*unique)));
+		show->showToast((!price
+			? tr::lng_gift_sell_removed
+			: (was > 0)
+			? tr::lng_gift_sell_updated
+			: tr::lng_gift_sell_toast)(
+				tr::now,
+				lt_name,
+				Data::UniqueGiftName(*unique)));
 
 		unique->starsForResale = price;
 		session->data().notifyGiftUpdate({
@@ -4088,12 +4169,10 @@ void UpdateGiftSellPrice(
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(error.type());
 	}).send();
-
 }
 
 void ShowUniqueGiftSellBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<PeerData*> peer,
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		Settings::GiftWearBoxStyleOverride st) {
@@ -4191,9 +4270,7 @@ void ShowUniqueGiftSellBox(
 				good ? st::windowSubTextFg->c : st::boxTextFgError->c);
 		}, details->lifetime());
 
-		const auto button = box->addButton(priceNow
-			? tr::lng_gift_sell_update()
-			: tr::lng_gift_sell_put(), [=] {
+		QObject::connect(field, &NumberInput::submitted, [=] {
 			const auto count = field->getLastText().toInt();
 			if (count < minimal) {
 				field->showError();
@@ -4203,6 +4280,9 @@ void ShowUniqueGiftSellBox(
 			box->closeBox();
 			UpdateGiftSellPrice(show, unique, savedId, count);
 		});
+		const auto button = box->addButton(priceNow
+			? tr::lng_gift_sell_update()
+			: tr::lng_gift_sell_put(), [=] { field->submitted({}); });
 		rpl::combine(
 			box->widthValue(),
 			button->widthValue()

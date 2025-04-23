@@ -57,7 +57,9 @@ void ShowStarGiftBox(
 void AddUniqueGiftCover(
 	not_null<VerticalLayout*> container,
 	rpl::producer<Data::UniqueGift> data,
-	rpl::producer<QString> subtitleOverride = nullptr);
+	rpl::producer<QString> subtitleOverride = nullptr,
+	rpl::producer<int> resalePrice = nullptr,
+	Fn<void()> resaleClick = nullptr);
 void AddWearGiftCover(
 	not_null<VerticalLayout*> container,
 	const Data::UniqueGift &data,
@@ -76,7 +78,6 @@ void UpdateGiftSellPrice(
 	int price);
 void ShowUniqueGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,
-	not_null<PeerData*> peer,
 	std::shared_ptr<Data::UniqueGift> unique,
 	Data::SavedStarGiftId savedId,
 	Settings::GiftWearBoxStyleOverride st);

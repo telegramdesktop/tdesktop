@@ -3596,6 +3596,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sell_put" = "Put for Sale";
 "lng_gift_sell_update" = "Update the Price";
 "lng_gift_sell_toast" = "{name} is now for sale!";
+"lng_gift_sell_updated" = "Sale price for {name} was updated.";
 "lng_gift_sell_removed" = "{name} is removed from sale.";
 "lng_gift_menu_show" = "Show";
 "lng_gift_menu_hide" = "Hide";
