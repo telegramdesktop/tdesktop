@@ -4194,7 +4194,22 @@ void UpdateGiftSellPrice(
 			.action = Data::GiftUpdate::Action::ResaleChange,
 		});
 	}).fail([=](const MTP::Error &error) {
-		show->showToast(error.type());
+		const auto earlyPrefix = u"STARGIFT_RESELL_TOO_EARLY_"_q;
+		const auto type = error.type();
+		if (type.startsWith(earlyPrefix)) {
+			const auto seconds = type.mid(earlyPrefix.size()).toInt();
+			const auto days = seconds / 86400;
+			const auto hours = seconds / 3600;
+			const auto minutes = std::max(seconds / 60, 1);
+			show->showToast(
+				tr::lng_gift_resale_early(tr::now, lt_duration, days
+					? tr::lng_days(tr::now, lt_count, days)
+					: hours
+					? tr::lng_hours(tr::now, lt_count, hours)
+					: tr::lng_minutes(tr::now, lt_count, minutes)));
+		} else {
+			show->showToast(type);
+		}
 	}).send();
 }
 
