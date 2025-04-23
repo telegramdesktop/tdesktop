@@ -426,18 +426,6 @@ void SetupPrivacy(
 		Key::ProfilePhoto,
 		[] { return std::make_unique<ProfilePhotoPrivacyController>(); });
 	add(
-		tr::lng_settings_bio_privacy(),
-		Key::About,
-		[] { return std::make_unique<AboutPrivacyController>(); });
-	add(
-		tr::lng_settings_gifts_privacy(),
-		Key::GiftsAutoSave,
-		[=] { return std::make_unique<GiftsAutoSavePrivacyController>(); });
-	add(
-		tr::lng_settings_birthday_privacy(),
-		Key::Birthday,
-		[] { return std::make_unique<BirthdayPrivacyController>(); });
-	add(
 		tr::lng_settings_forwards_privacy(),
 		Key::Forwards,
 		[=] { return std::make_unique<ForwardsPrivacyController>(
@@ -446,10 +434,6 @@ void SetupPrivacy(
 		tr::lng_settings_calls(),
 		Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
-	add(
-		tr::lng_settings_groups_invite(),
-		Key::Invites,
-		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 	{
 		const auto &phrase = tr::lng_settings_voices_privacy;
 		const auto &st = st::settingsButtonNoIcon;
@@ -460,6 +444,22 @@ void SetupPrivacy(
 		AddPremiumStar(voices, session, phrase(), st.padding);
 	}
 	AddMessagesPrivacyButton(controller, container);
+	add(
+		tr::lng_settings_birthday_privacy(),
+		Key::Birthday,
+		[] { return std::make_unique<BirthdayPrivacyController>(); });
+	add(
+		tr::lng_settings_gifts_privacy(),
+		Key::GiftsAutoSave,
+		[=] { return std::make_unique<GiftsAutoSavePrivacyController>(); });
+	add(
+		tr::lng_settings_bio_privacy(),
+		Key::About,
+		[] { return std::make_unique<AboutPrivacyController>(); });
+	add(
+		tr::lng_settings_groups_invite(),
+		Key::Invites,
+		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 
 	session->api().userPrivacy().reload(
 		Api::UserPrivacy::Key::AddedByPhone);
@@ -1183,10 +1183,10 @@ void PrivacySecurity::setupContent(
 
 	SetupSecurity(controller, content, trigger(), showOtherMethod());
 	SetupPrivacy(controller, content, trigger());
-	SetupTopPeers(controller, content);
 	SetupArchiveAndMute(controller, content);
-	SetupConfirmationExtensions(controller, content);
 	SetupBotsAndWebsites(controller, content);
+	SetupConfirmationExtensions(controller, content);
+	SetupTopPeers(controller, content);
 	SetupSelfDestruction(controller, content, trigger());
 
 	Ui::ResizeFitChild(this, content);
