@@ -54,6 +54,7 @@ enum class CheckoutResult {
 	Pending,
 	Cancelled,
 	Failed,
+	Free, // Gift transfer attempt that doesn't need any payment.
 };
 
 struct RealFormPresentedNotification {

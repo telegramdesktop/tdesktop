@@ -2628,7 +2628,10 @@ void SendGiftBox(
 			button->setDescriptor(descriptor, GiftButton::Mode::Full);
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
-				if (star && star->info.unique && star->mine) {
+				if (star
+					&& star->info.unique
+					&& star->mine
+					&& !peer->isSelf()) {
 					const auto done = [=] {
 						window->session().credits().load(true);
 						window->showPeerHistory(peer);
@@ -3065,6 +3068,28 @@ void GiftResaleBox(
 			state->updated.fire({});
 		});
 	}, content->lifetime());
+
+	peer->owner().giftUpdates(
+	) | rpl::start_with_next([=](const Data::GiftUpdate &update) {
+		using Action = Data::GiftUpdate::Action;
+		const auto action = update.action;
+		if (action != Action::Transfer && action != Action::ResaleChange) {
+			return;
+		}
+		const auto i = ranges::find(
+			state->data.list,
+			update.slug,
+			[](const Data::StarGift &gift) {
+				return gift.unique ? gift.unique->slug : QString();
+			});
+		if (i == end(state->data.list)) {
+			return;
+		} else if (action == Action::Transfer
+			|| !i->unique->starsForResale) {
+			state->data.list.erase(i);
+		}
+		state->updated.fire({});
+	}, box->lifetime());
 
 	content->add(MakeGiftsList(window, peer, rpl::single(
 		rpl::empty
@@ -4749,6 +4774,8 @@ void RequestStarsFormAndSubmit(
 		const auto type = error.type();
 		if (type == u"STARGIFT_EXPORT_IN_PROGRESS"_q) {
 			done(Payments::CheckoutResult::Cancelled, nullptr);
+		} else if (type == u"NO_PAYMENT_NEEDED"_q) {
+			done(Payments::CheckoutResult::Free, nullptr);
 		} else {
 			show->showToast(type);
 			done(Payments::CheckoutResult::Failed, nullptr);

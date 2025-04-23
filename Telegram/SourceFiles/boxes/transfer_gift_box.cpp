@@ -422,7 +422,8 @@ void TransferGift(
 		not_null<PeerData*> to,
 		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId savedId,
-		Fn<void(Payments::CheckoutResult)> done) {
+		Fn<void(Payments::CheckoutResult)> done,
+		bool skipPaymentForm = false) {
 	Expects(to->isUser());
 
 	const auto session = &window->session();
@@ -430,6 +431,11 @@ void TransferGift(
 	auto formDone = [=](
 			Payments::CheckoutResult result,
 			const MTPUpdates *updates) {
+		if (result == Payments::CheckoutResult::Free) {
+			Assert(!skipPaymentForm);
+			TransferGift(window, to, gift, savedId, done, true);
+			return;
+		}
 		done(result);
 		if (result == Payments::CheckoutResult::Paid) {
 			session->data().notifyGiftUpdate({
@@ -441,7 +447,11 @@ void TransferGift(
 			}
 		}
 	};
-	if (gift->starsForTransfer <= 0) {
+	if (skipPaymentForm) {
+		// We can't check (gift->starsForTransfer <= 0) here.
+		//
+		// Sometimes we don't know the price for transfer.
+		// Like when we transfer a gift from Resale tab.
 		session->api().request(MTPpayments_TransferStarGift(
 			Api::InputSavedStarGiftId(savedId, gift),
 			to->input
@@ -454,14 +464,14 @@ void TransferGift(
 				strong->showToast(error.type());
 			}
 		}).send();
-		return;
+	} else {
+		Ui::RequestStarsFormAndSubmit(
+			window->uiShow(),
+			MTP_inputInvoiceStarGiftTransfer(
+				Api::InputSavedStarGiftId(savedId, gift),
+				to->input),
+			std::move(formDone));
 	}
-	Ui::RequestStarsFormAndSubmit(
-		window->uiShow(),
-		MTP_inputInvoiceStarGiftTransfer(
-			Api::InputSavedStarGiftId(savedId, gift),
-			to->input),
-		std::move(formDone));
 }
 
 void BuyResaleGift(

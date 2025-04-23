@@ -2108,6 +2108,7 @@ void GlobalStarGiftBox(
 		const Data::StarGift &data,
 		PeerId resaleRecipientId,
 		CreditsEntryBoxStyleOverrides st) {
+	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	Settings::GenericCreditsEntryBox(
 		box,
@@ -2116,7 +2117,9 @@ void GlobalStarGiftBox(
 			.credits = StarsAmount(data.stars),
 			.bareGiftStickerId = data.document->id,
 			.bareGiftOwnerId = ownerId,
-			.bareGiftResaleRecipientId = resaleRecipientId.value,
+			.bareGiftResaleRecipientId = ((resaleRecipientId != selfId)
+				? resaleRecipientId.value
+				: 0),
 			.stargiftId = data.id,
 			.uniqueGift = data.unique,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
