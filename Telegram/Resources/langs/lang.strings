@@ -3583,6 +3583,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_wear" = "Wear";
 "lng_gift_transfer_take_off" = "Take Off";
 "lng_gift_transfer_sell" = "Sell";
+"lng_gift_transfer_update" = "Change Price";
 "lng_gift_transfer_unlist" = "Unlist";
 "lng_gift_sell_unlist_title" = "Unlist {name}";
 "lng_gift_sell_unlist_sure" = "Are you sure you want to unlist your gift?";

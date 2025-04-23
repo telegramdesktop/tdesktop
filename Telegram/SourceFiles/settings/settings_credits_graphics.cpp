@@ -1060,6 +1060,15 @@ void FillUniqueGiftMenu(
 	}
 	if (CanResellGift(&show->session(), e)) {
 		const auto resalePrice = unique->starsForResale;
+		const auto editPrice = (resalePrice > 0
+			? tr::lng_gift_transfer_update
+			: tr::lng_gift_transfer_sell)(tr::now);
+		menu->addAction(editPrice, [=] {
+			const auto style = st.giftWearBox
+				? *st.giftWearBox
+				: GiftWearBoxStyleOverride();
+			ShowUniqueGiftSellBox(show, unique, savedId, style);
+		}, st.resell ? st.resell : &st::menuIconTagSell);
 		if (resalePrice > 0) {
 			menu->addAction(tr::lng_gift_transfer_unlist(tr::now), [=] {
 				const auto name = UniqueGiftName(*unique);
@@ -1076,13 +1085,6 @@ void FillUniqueGiftMenu(
 						rpl::single(name)),
 				}));
 			}, st.unlist ? st.unlist : &st::menuIconTagRemove);
-		} else {
-			menu->addAction(tr::lng_gift_transfer_sell(tr::now), [=] {
-				const auto style = st.giftWearBox
-					? *st.giftWearBox
-					: GiftWearBoxStyleOverride();
-				ShowUniqueGiftSellBox(show, unique, savedId, style);
-			}, st.resell ? st.resell : &st::menuIconTagSell);
 		}
 	}
 }
