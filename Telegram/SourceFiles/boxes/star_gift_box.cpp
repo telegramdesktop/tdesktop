@@ -931,7 +931,9 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	const auto allowLimited = !(disallowedTypes & Type::Limited);
 	const auto allowUnlimited = !(disallowedTypes & Type::Unlimited);
 	const auto allowUnique = !(disallowedTypes & Type::Unique);
-	if (!gift.info.limitedCount) {
+	if (gift.resale) {
+		return allowUnique;
+	} else if (!gift.info.limitedCount) {
 		return allowUnlimited;
 	}
 	return allowLimited || (gift.info.starsToUpgrade && allowUnique);
@@ -1525,7 +1527,7 @@ struct GiftPriceTabs {
 			} else {
 				hasNonSoldOut = true;
 			}
-			if (gift.info.starsResellMin) {
+			if (gift.resale) {
 				hasResale = true;
 			} else {
 				hasNonResale = true;
