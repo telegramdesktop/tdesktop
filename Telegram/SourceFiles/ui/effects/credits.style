@@ -152,6 +152,7 @@ giftBoxPremiumIconSize: 64px;
 giftBoxPremiumIconTop: 10px;
 giftBoxPremiumTextTop: 84px;
 giftBoxPremiumTextTopByStars: 78px;
+giftBoxButtonBottomSmall: 4px;
 giftBoxButtonBottom: 12px;
 giftBoxButtonBottomByStars: 18px;
 giftBoxButtonPadding: margins(8px, 4px, 8px, 4px);

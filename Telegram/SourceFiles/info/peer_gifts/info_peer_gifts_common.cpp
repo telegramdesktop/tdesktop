@@ -211,7 +211,9 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		QSize(buttonw, buttonh)
 	).marginsAdded(st::giftBoxButtonPadding);
 	const auto skipy = _delegate->buttonSize().height()
-		- (_byStars.isEmpty()
+		- (_small
+			? st::giftBoxButtonBottomSmall
+			: _byStars.isEmpty()
 			? st::giftBoxButtonBottom
 			: st::giftBoxButtonBottomByStars)
 		- inner.height();
