@@ -479,14 +479,16 @@ void BuyResaleGift(
 		not_null<PeerData*> to,
 		std::shared_ptr<Data::UniqueGift> gift,
 		Fn<void(Payments::CheckoutResult)> done) {
-	Expects(to->isUser());
-
 	auto formDone = [=](
 			Payments::CheckoutResult result,
 			const MTPUpdates *updates) {
 		done(result);
 		if (result == Payments::CheckoutResult::Paid) {
-			AssertIsDebug(Refresh owners gifts list, refresh self list);
+			gift->starsForResale = 0;
+			to->owner().notifyGiftUpdate({
+				.slug = gift->slug,
+				.action = Data::GiftUpdate::Action::ResaleChange,
+			});
 			Ui::ShowResaleGiftBoughtToast(show, to, *gift);
 		}
 	};
