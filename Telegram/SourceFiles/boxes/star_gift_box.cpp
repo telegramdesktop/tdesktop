@@ -1071,8 +1071,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	auto result = Text::String();
 	result.setMarkedText(
 		st::semiboldTextStyle,
-		TextWithEntities{ text }.append(
-			Ui::Text::IconEmoji(&st::giftBoxResaleTabsDropdown)),
+		TextWithEntities{ text }.append(st::giftBoxResaleTabsDropdown),
 		kMarkupTextOptions);
 	return result;
 }
