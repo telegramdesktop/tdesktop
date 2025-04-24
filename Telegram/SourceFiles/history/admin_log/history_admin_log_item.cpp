@@ -831,6 +831,7 @@ void GenerateItems(
 	using LogChangeEmojiStatus = MTPDchannelAdminLogEventActionChangeEmojiStatus;
 	using LogToggleSignatureProfiles = MTPDchannelAdminLogEventActionToggleSignatureProfiles;
 	using LogParticipantSubExtend = MTPDchannelAdminLogEventActionParticipantSubExtend;
+	using LogToggleAutotranslation = MTPDchannelAdminLogEventActionToggleAutotranslation;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -2115,6 +2116,18 @@ void GenerateItems(
 			participantPeerLink);
 	};
 
+	const auto createToggleAutotranslation = [&](const LogToggleAutotranslation &action) {
+		const auto enabled = mtpIsTrue(action.vnew_value());
+		const auto text = (enabled
+			? tr::lng_admin_log_autotranslate_enabled
+			: tr::lng_admin_log_autotranslate_disabled)(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				Ui::Text::WithEntities);
+		addSimpleServiceMessage(text);
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -2165,7 +2178,8 @@ void GenerateItems(
 		createChangeWallpaper,
 		createChangeEmojiStatus,
 		createToggleSignatureProfiles,
-		createParticipantSubExtend);
+		createParticipantSubExtend,
+		createToggleAutotranslation);
 }
 
 } // namespace AdminLog
