@@ -396,6 +396,7 @@ public:
 	[[nodiscard]] bool canManageGifts() const;
 	[[nodiscard]] bool canTransferGifts() const;
 	[[nodiscard]] bool canExportChatHistory() const;
+	[[nodiscard]] bool autoTranslation() const;
 
 	// Returns true if about text was changed.
 	bool setAbout(const QString &newAbout);

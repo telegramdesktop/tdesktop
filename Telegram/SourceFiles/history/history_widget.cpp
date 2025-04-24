@@ -7557,6 +7557,10 @@ void HistoryWidget::checkLastPinnedClickedIdReset(
 void HistoryWidget::setupTranslateBar() {
 	Expects(_history != nullptr);
 
+	if (_history->peer->autoTranslation()) {
+		_history->translateTo(Core::App().settings().translateTo());
+	}
+
 	_translateBar = std::make_unique<HistoryView::TranslateBar>(
 		this,
 		controller(),

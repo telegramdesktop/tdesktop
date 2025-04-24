@@ -372,6 +372,7 @@ void TranslateBar::setup(not_null<History*> history) {
 			const auto&,
 			const auto&) {
 		using Flag = PeerData::TranslationFlag;
+		//const auto autotranslation = history->peer->autoTranslation();
 		return (history->peer->translationFlag() != Flag::Enabled)
 			? rpl::single(QString())
 			: history->translatedTo()

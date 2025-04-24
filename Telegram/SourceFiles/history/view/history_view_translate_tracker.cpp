@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_flags.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_session.h"
 #include "history/history.h"
@@ -57,10 +59,22 @@ void TranslateTracker::setup() {
 		Core::App().settings().translateChatEnabledValue(),
 		_1 && _2);
 
-	_trackingLanguage.value(
-	) | rpl::start_with_next([=](bool tracking) {
+	const auto channel = peer->asChannel();
+	auto autoTranslationValue = (channel
+		? channel->flagsValue()
+		: rpl::single(Data::Flags<ChannelDataFlags>::Change({}, {}))
+	) | rpl::map([=](Data::Flags<ChannelDataFlags>::Change data) {
+		return (data.value & ChannelDataFlag::AutoTranslation);
+	}) | rpl::distinct_until_changed();
+	rpl::combine(
+		_trackingLanguage.value(),
+		std::move(autoTranslationValue)
+	) | rpl::start_with_next([=](bool tracking, bool autotranslation) {
 		_trackingLifetime.destroy();
-		if (tracking) {
+		if (autotranslation) {
+			_history->translateOfferFrom({ QLocale::French });
+			AssertIsDebug();
+		} else if (tracking) {
 			recognizeCollected();
 			trackSkipLanguages();
 		} else {
