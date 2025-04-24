@@ -143,6 +143,7 @@ void AddFeaturesList(
 	const auto proj = &Ui::Text::RichLangValue;
 	const auto lowMax = std::max({
 		features.linkLogoLevel,
+		features.autotranslateLevel,
 		features.transcribeLevel,
 		features.emojiPackLevel,
 		features.emojiStatusLevel,
@@ -208,6 +209,11 @@ void AddFeaturesList(
 				st::boostFeatureCustomEmoji);
 		}
 		if (!group) {
+			if (i >= features.autotranslateLevel) {
+				add(
+					tr::lng_feature_autotranslate(proj),
+					st::boostFeatureAutoTranslate);
+			}
 			if (const auto j = features.linkStylesByLevel.find(i)
 				; j != end(features.linkStylesByLevel)) {
 				linkStyles += j->second;
@@ -665,6 +671,8 @@ void AskBoostBox(
 		Fn<void()> startGiveaway) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::boostBox);
+	box->setNoContentMargin(true);
+	box->addSkip(st::boxRowPadding.left());
 
 	FillBoostLimit(
 		BoxShowFinishes(box),
@@ -676,6 +684,8 @@ void AskBoostBox(
 
 	auto title = v::match(data.reason.data, [](AskBoostChannelColor) {
 		return tr::lng_boost_channel_title_color();
+	}, [](AskBoostAutotranslate) {
+		return tr::lng_boost_channel_title_autotranslate();
 	}, [](AskBoostWallpaper) {
 		return tr::lng_boost_channel_title_wallpaper();
 	}, [](AskBoostEmojiStatus) {
@@ -693,6 +703,11 @@ void AskBoostBox(
 	auto reasonText = v::match(data.reason.data, [&](
 			AskBoostChannelColor data) {
 		return tr::lng_boost_channel_needs_level_color(
+			lt_count,
+			rpl::single(float64(data.requiredLevel)),
+			Ui::Text::RichLangValue);
+	}, [&](AskBoostAutotranslate data) {
+		return tr::lng_boost_channel_needs_level_autotranslate(
 			lt_count,
 			rpl::single(float64(data.requiredLevel)),
 			Ui::Text::RichLangValue);
@@ -765,6 +780,12 @@ void AskBoostBox(
 		rpl::single(data.link),
 		box->uiShow(),
 		std::move(stats)));
+
+	AddFeaturesList(
+		box->verticalLayout(),
+		data.features,
+		data.boost.level + (data.boost.nextLevelBoosts ? 1 : 0),
+		data.group);
 
 	auto submit = tr::lng_boost_channel_ask_button();
 	const auto button = box->addButton(rpl::duplicate(submit), [=] {

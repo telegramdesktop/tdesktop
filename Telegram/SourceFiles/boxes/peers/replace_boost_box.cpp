@@ -449,6 +449,7 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 		.nameColorsByLevel = std::move(nameColorsByLevel),
 		.linkStylesByLevel = std::move(linkStylesByLevel),
 		.linkLogoLevel = group ? 0 : levelLimits.channelBgIconLevelMin(),
+		.autotranslateLevel = group ? 0 : levelLimits.channelAutoTranslateLevelMin(),
 		.transcribeLevel = group ? levelLimits.groupTranscribeLevelMin() : 0,
 		.emojiPackLevel = group ? levelLimits.groupEmojiStickersLevelMin() : 0,
 		.emojiStatusLevel = group

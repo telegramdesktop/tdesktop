@@ -31,7 +31,7 @@ settingsButtonLight: SettingsButton(settingsButton) {
 }
 settingsButtonLightNoIcon: SettingsButton(settingsButtonLight, settingsButtonNoIcon) {
 }
-settingsButtonNoIconLocked : SettingsButton(settingsButtonNoIcon) {
+settingsButtonNoIconLocked: SettingsButton(settingsButtonNoIcon) {
 	toggle: Toggle(infoProfileToggle) {
 		lockIcon: icon {{ "info/info_rights_lock", menuIconFg }};
 	}

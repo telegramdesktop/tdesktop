@@ -358,6 +358,7 @@ private:
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
 		std::optional<bool> forum;
+		std::optional<bool> autotranslate;
 		std::optional<bool> signatures;
 		std::optional<bool> signatureProfiles;
 		std::optional<bool> noForwards;
@@ -385,6 +386,7 @@ private:
 	//void fillInviteLinkButton();
 	void fillForumButton();
 	void fillColorIndexButton();
+	void fillAutoTranslateButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
@@ -413,6 +415,7 @@ private:
 	[[nodiscard]] bool validateDescription(Saving &to) const;
 	[[nodiscard]] bool validateHistoryVisibility(Saving &to) const;
 	[[nodiscard]] bool validateForum(Saving &to) const;
+	[[nodiscard]] bool validateAutotranslate(Saving &to) const;
 	[[nodiscard]] bool validateSignatures(Saving &to) const;
 	[[nodiscard]] bool validateForwards(Saving &to) const;
 	[[nodiscard]] bool validateJoinToWrite(Saving &to) const;
@@ -426,6 +429,7 @@ private:
 	void saveDescription();
 	void saveHistoryVisibility();
 	void saveForum();
+	void saveAutotranslate();
 	void saveSignatures();
 	void saveForwards();
 	void saveJoinToWrite();
@@ -452,6 +456,7 @@ private:
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
 	std::optional<EditPeerTypeData> _typeDataSavedValue;
 	std::optional<bool> _forumSavedValue;
+	std::optional<bool> _autotranslateSavedValue;
 	std::optional<bool> _signaturesSavedValue;
 	std::optional<bool> _signatureProfilesSavedValue;
 
@@ -1093,6 +1098,61 @@ void Controller::fillColorIndexButton() {
 		st::managePeerColorsButton);
 }
 
+void Controller::fillAutoTranslateButton() {
+	Expects(_controls.buttonsLayout != nullptr);
+
+	const auto channel = _peer->asBroadcast();
+	if (!channel) {
+		return;
+	}
+
+	const auto requiredLevel = Data::LevelLimits(&channel->session())
+		.channelAutoTranslateLevelMin();
+	const auto autotranslate = _controls.buttonsLayout->add(
+		EditPeerInfoBox::CreateButton(
+			_controls.buttonsLayout,
+			tr::lng_edit_autotranslate(),
+			rpl::single(QString()),
+			[] {},
+			st::manageGroupTopicsButton,
+			{ &st::menuIconTranslate }));
+	const auto toggled = autotranslate->lifetime().make_state<
+		rpl::event_stream<bool>
+	>();
+	autotranslate->toggleOn(rpl::single(
+		channel->autoTranslation()
+	) | rpl::then(toggled->events()));
+	const auto isLocked = channel->levelHint() < requiredLevel;
+	const auto reason = Ui::AskBoostReason{
+		.data = Ui::AskBoostAutotranslate{ .requiredLevel = requiredLevel },
+	};
+
+	autotranslate->setToggleLocked(isLocked);
+
+	autotranslate->toggledChanges(
+	) | rpl::start_with_next([=](bool value) {
+		if (!isLocked) {
+			_autotranslateSavedValue = toggled;
+		} else if (value) {
+			toggled->fire(false);
+			CheckBoostLevel(
+				_navigation->uiShow(),
+				_peer,
+				[=](int level) {
+					return (level < requiredLevel)
+						? std::make_optional(reason)
+						: std::nullopt;
+				},
+				[] {});
+		}
+	}, autotranslate->lifetime());
+
+	autotranslate->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_autotranslateSavedValue = toggled;
+	}, _controls.buttonsLayout->lifetime());
+}
+
 void Controller::fillSignaturesButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
@@ -1255,6 +1315,8 @@ void Controller::fillManageSection() {
 	const auto canEditSignatures = isChannel
 		&& channel->canEditSignatures()
 		&& !channel->isMegagroup();
+	const auto canEditAutoTranslate = isChannel
+		&& channel->canEditAutoTranslate();
 	const auto canEditPreHistoryHidden = isChannel
 		? channel->canEditPreHistoryHidden()
 		: chat->canEditPreHistoryHidden();
@@ -1307,6 +1369,9 @@ void Controller::fillManageSection() {
 	}
 	if (canEditColorIndex) {
 		fillColorIndexButton();
+	}
+	if (canEditAutoTranslate) {
+		fillAutoTranslateButton();
 	}
 	if (canEditSignatures) {
 		fillSignaturesButton();
@@ -1543,7 +1608,11 @@ void Controller::editReactions() {
 				strong->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
 					.link = link,
 					.boost = counters,
+					.features = (_peer->isChannel()
+						? LookupBoostFeatures(_peer->asChannel())
+						: Ui::BoostFeatures()),
 					.reason = { Ui::AskBoostCustomReactions{ required } },
+					.group = !_peer->isBroadcast(),
 				}, openStatistics, nullptr));
 			}
 		};
@@ -1897,6 +1966,7 @@ std::optional<Controller::Saving> Controller::validate() const {
 		&& validateDescription(result)
 		&& validateHistoryVisibility(result)
 		&& validateForum(result)
+		&& validateAutotranslate(result)
 		&& validateSignatures(result)
 		&& validateForwards(result)
 		&& validateJoinToWrite(result)
@@ -1984,6 +2054,14 @@ bool Controller::validateForum(Saving &to) const {
 	return true;
 }
 
+bool Controller::validateAutotranslate(Saving &to) const {
+	if (!_autotranslateSavedValue.has_value()) {
+		return true;
+	}
+	to.autotranslate = _autotranslateSavedValue;
+	return true;
+}
+
 bool Controller::validateSignatures(Saving &to) const {
 	Expects(_signaturesSavedValue.has_value()
 		== _signatureProfilesSavedValue.has_value());
@@ -2035,6 +2113,7 @@ void Controller::save() {
 		pushSaveStage([=] { saveDescription(); });
 		pushSaveStage([=] { saveHistoryVisibility(); });
 		pushSaveStage([=] { saveForum(); });
+		pushSaveStage([=] { saveAutotranslate(); });
 		pushSaveStage([=] { saveSignatures(); });
 		pushSaveStage([=] { saveForwards(); });
 		pushSaveStage([=] { saveJoinToWrite(); });
@@ -2181,7 +2260,8 @@ void Controller::saveLinkedChat() {
 	)).done([=] {
 		channel->setLinkedChat(*_savingData.linkedChat);
 		continueSave();
-	}).fail([=] {
+	}).fail([=](const MTP::Error &error) {
+		_navigation->showToast(error.type());
 		cancelSave();
 	}).send();
 }
@@ -2421,6 +2501,30 @@ void Controller::saveForum() {
 		if (error.type() == u"CHAT_NOT_MODIFIED"_q) {
 			continueSave();
 		} else {
+			_navigation->showToast(error.type());
+			cancelSave();
+		}
+	}).send();
+}
+
+void Controller::saveAutotranslate() {
+	const auto channel = _peer->asBroadcast();
+	if (!_savingData.autotranslate
+		|| !channel
+		|| (*_savingData.autotranslate == channel->autoTranslation())) {
+		return continueSave();
+	}
+	_api.request(MTPchannels_ToggleAutotranslation(
+		channel->inputChannel,
+		MTP_bool(*_savingData.autotranslate)
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
+		continueSave();
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == u"CHAT_NOT_MODIFIED"_q) {
+			continueSave();
+		} else {
+			_navigation->showToast(error.type());
 			cancelSave();
 		}
 	}).send();
@@ -2455,6 +2559,7 @@ void Controller::saveSignatures() {
 		if (error.type() == u"CHAT_NOT_MODIFIED"_q) {
 			continueSave();
 		} else {
+			_navigation->showToast(error.type());
 			cancelSave();
 		}
 	}).send();
@@ -2475,6 +2580,7 @@ void Controller::saveForwards() {
 		if (error.type() == u"CHAT_NOT_MODIFIED"_q) {
 			continueSave();
 		} else {
+			_navigation->showToast(error.type());
 			cancelSave();
 		}
 	}).send();
@@ -2497,6 +2603,7 @@ void Controller::saveJoinToWrite() {
 		if (error.type() == u"CHAT_NOT_MODIFIED"_q) {
 			continueSave();
 		} else {
+			_navigation->showToast(error.type());
 			cancelSave();
 		}
 	}).send();
@@ -2519,6 +2626,7 @@ void Controller::saveRequestToJoin() {
 		if (error.type() == u"CHAT_NOT_MODIFIED"_q) {
 			continueSave();
 		} else {
+			_navigation->showToast(error.type());
 			cancelSave();
 		}
 	}).send();

@@ -371,6 +371,7 @@ boostFeatureLink: icon{{ "settings/premium/features/feature_links", windowBgActi
 boostFeatureName: icon{{ "settings/premium/features/feature_color_names", windowBgActive }};
 boostFeatureStories: icon{{ "settings/premium/features/feature_stories", windowBgActive }};
 boostFeatureTranscribe: icon{{ "settings/premium/features/feature_voice", windowBgActive }};
+boostFeatureAutoTranslate: icon{{ "menu/translate", windowBgActive }};
 boostFeatureOffSponsored: icon{{ "settings/premium/features/feature_off_sponsored", windowBgActive }};
 
 paidReactBox: Box(boostBox) {

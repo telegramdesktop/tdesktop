@@ -1482,7 +1482,11 @@ void CheckBoostLevel(
 		show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
 			.link = qs(data.vboost_url()),
 			.boost = counters,
+			.features = (peer->isChannel()
+				? LookupBoostFeatures(peer->asChannel())
+				: Ui::BoostFeatures()),
 			.reason = *reason,
+			.group = !peer->isBroadcast(),
 		}, openStatistics, nullptr));
 		cancel();
 	}).fail([=](const MTP::Error &error) {

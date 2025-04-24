@@ -262,6 +262,12 @@ int LevelLimits::channelRestrictSponsoredLevelMin() const {
 		20);
 }
 
+int LevelLimits::channelAutoTranslateLevelMin() const {
+	return _session->appConfig().get<int>(
+		u"channel_autotranslation_level_min"_q,
+		3);
+}
+
 int LevelLimits::groupTranscribeLevelMin() const {
 	return _session->appConfig().get<int>(
 		u"group_transcribe_level_min"_q,

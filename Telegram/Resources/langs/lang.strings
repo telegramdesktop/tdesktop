@@ -3155,6 +3155,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_group_ask" = "Ask your **Premium** members to boost your group with this link:";
 //"lng_boost_group_gifting" = "Boost your group by gifting your members Telegram Premium. {link}";
 
+"lng_boost_channel_title_autotranslate" = "Autotranslation of Messages";
+"lng_boost_channel_needs_level_autotranslate#one" = "Your channel needs to reach **Level {count}** to enable autotranslation of messages.";
+"lng_boost_channel_needs_level_autotranslate#other" = "Your channel needs to reach **Level {count}** to enable autotranslation of messages.";
+
 "lng_feature_stories#one" = "**{count}** Story Per Day";
 "lng_feature_stories#other" = "**{count}** Stories Per Day";
 "lng_feature_reactions#one" = "**{count}** Custom Reaction";
@@ -3173,6 +3177,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feature_custom_background_group" = "Custom Group Background";
 "lng_feature_custom_emoji_pack" = "Custom Emoji Pack";
 "lng_feature_transcribe" = "Voice-to-Text Conversion";
+"lng_feature_autotranslate" = "Autotranslation of Messages";
 
 "lng_giveaway_new_title" = "Boosts via Gifts";
 "lng_giveaway_new_about" = "Get more boosts for your channel by gifting Premium to your subscribers.";
@@ -4392,6 +4397,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_contact_title" = "Edit contact";
 "lng_edit_channel_title" = "Edit channel";
 "lng_edit_bot_title" = "Edit bot";
+"lng_edit_autotranslate" = "Auto-translate messages";
 "lng_edit_sign_messages" = "Sign messages";
 "lng_edit_sign_messages_about" = "Add names of admins to the messages they post.";
 "lng_edit_sign_profiles" = "Show authors' profiles";
@@ -5372,6 +5378,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_participant_volume_channel" = "{from} changed live stream volume for {user} to {percent}";
 "lng_admin_log_antispam_enabled" = "{from} enabled aggressive anti-spam";
 "lng_admin_log_antispam_disabled" = "{from} disabled aggressive anti-spam";
+"lng_admin_log_autotranslate_enabled" = "{from} enabled automatic translation";
+"lng_admin_log_autotranslate_disabled" = "{from} disabled automatic translation";
 "lng_admin_log_change_color" = "{from} changed channel color from {previous} to {color}";
 "lng_admin_log_set_background_emoji" = "{from} set channel background emoji to {emoji}";
 "lng_admin_log_change_background_emoji" = "{from} changed channel background emoji from {previous} to {emoji}";
