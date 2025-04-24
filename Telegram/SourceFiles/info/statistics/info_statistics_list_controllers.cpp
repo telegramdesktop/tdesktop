@@ -403,7 +403,7 @@ void PublicForwardsController::appendRow(
 	const auto views = [&] {
 		if (contextId.messageId) {
 			const auto message = peer->owner().message(contextId.messageId);
-			return message ? message->viewsCount() : 0;
+			return message ? std::max(message->viewsCount(), 0) : 0;
 		} else if (const auto &id = contextId.storyId) {
 			const auto story = peer->owner().stories().lookup(id);
 			return story ? (*story)->views() : 0;
