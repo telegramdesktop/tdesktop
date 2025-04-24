@@ -3704,6 +3704,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restrict_users" = "Restrict users";
 "lng_delete_all_from_user" = "Delete all from {user}";
 "lng_delete_all_from_users" = "Delete all from users";
+"lng_restrict_user#one" = "Restrict user";
+"lng_restrict_user#other" = "Restrict users";
 "lng_restrict_user_part" = "Partially restrict this user {emoji}";
 "lng_restrict_users_part" = "Partially restrict users {emoji}";
 "lng_restrict_user_full" = "Fully ban this user {emoji}";

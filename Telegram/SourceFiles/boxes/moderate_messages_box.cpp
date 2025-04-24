@@ -371,7 +371,9 @@ void CreateModerateMessagesBox(
 				box,
 				rpl::conditional(
 					ownedWrap->toggledValue(),
-					tr::lng_context_restrict_user(),
+					tr::lng_restrict_user(
+						lt_count,
+						rpl::single(participants.size()) | tr::to_count()),
 					rpl::conditional(
 						rpl::single(isSingle),
 						tr::lng_ban_user(),
