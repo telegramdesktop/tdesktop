@@ -1078,12 +1078,23 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 }
 
 [[nodiscard]] Text::String SortModeText(ResaleSort mode) {
-	if (mode == ResaleSort::Number) {
-		return ResaleTabText(tr::lng_gift_resale_number(tr::now));
-	} else if (mode == ResaleSort::Price) {
-		return ResaleTabText(tr::lng_gift_resale_price(tr::now));
-	}
-	return ResaleTabText(tr::lng_gift_resale_date(tr::now));
+	auto text = [&] {
+		if (mode == ResaleSort::Number) {
+			return Ui::Text::IconEmoji(&st::giftBoxResaleMiniNumber).append(
+				tr::lng_gift_resale_number(tr::now));
+		} else if (mode == ResaleSort::Price) {
+			return Ui::Text::IconEmoji(&st::giftBoxResaleMiniPrice).append(
+				tr::lng_gift_resale_price(tr::now));
+		}
+		return Ui::Text::IconEmoji(&st::giftBoxResaleMiniDate).append(
+			tr::lng_gift_resale_date(tr::now));
+	}();
+	auto result = Text::String();
+	result.setMarkedText(
+		st::semiboldTextStyle,
+		text,
+		kMarkupTextOptions);
+	return result;
 }
 
 struct ResaleTabs {

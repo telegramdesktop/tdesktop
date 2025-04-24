@@ -128,6 +128,18 @@ giftBoxResaleTabsDropdown: IconEmoji {
 	icon: icon{{ "intro_country_dropdown", lightButtonFg }};
 	padding: margins(4px, 6px, 0px, 0px);
 }
+giftBoxResaleMiniNumber: IconEmoji {
+	icon: icon{{ "settings/mini_gift_order_number-16x16", lightButtonFg }};
+	padding: margins(0px, 2px, 4px, 0px);
+}
+giftBoxResaleMiniPrice: IconEmoji {
+	icon: icon{{ "settings/mini_gift_order_price-16x16", lightButtonFg }};
+	padding: margins(0px, 2px, 4px, 0px);
+}
+giftBoxResaleMiniDate: IconEmoji {
+	icon: icon{{ "settings/mini_gift_order_date-16x16", lightButtonFg }};
+	padding: margins(0px, 2px, 4px, 0px);
+}
 giftBoxResaleFilter: PopupMenu(popupMenuWithIcons) {
 	menu: Menu(menuWithIcons) {
 		itemPadding: margins(54px, 8px, 48px, 8px);
