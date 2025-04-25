@@ -53,28 +53,23 @@ void TranslateTracker::setup() {
 	const auto peer = _history->peer;
 	peer->updateFull();
 
-	using namespace rpl::mappers;
-	_trackingLanguage = rpl::combine(
-		Data::AmPremiumValue(&_history->session()),
-		Core::App().settings().translateChatEnabledValue(),
-		_1 && _2);
-
 	const auto channel = peer->asChannel();
 	auto autoTranslationValue = (channel
 		? channel->flagsValue()
 		: rpl::single(Data::Flags<ChannelDataFlags>::Change({}, {}))
-	) | rpl::map([=](Data::Flags<ChannelDataFlags>::Change data) {
+		) | rpl::map([=](Data::Flags<ChannelDataFlags>::Change data) {
 		return (data.value & ChannelDataFlag::AutoTranslation);
 	}) | rpl::distinct_until_changed();
-	rpl::combine(
-		_trackingLanguage.value(),
-		std::move(autoTranslationValue)
-	) | rpl::start_with_next([=](bool tracking, bool autotranslation) {
+
+	using namespace rpl::mappers;
+	_trackingLanguage = rpl::combine(
+		Core::App().settings().translateChatEnabledValue(),
+		Data::AmPremiumValue(&_history->session()),
+		std::move(autoTranslationValue),
+		_1 && (_2 || _3));
+	_trackingLanguage.value() | rpl::start_with_next([=](bool tracking) {
 		_trackingLifetime.destroy();
-		if (autotranslation) {
-			_history->translateOfferFrom({ QLocale::French });
-			AssertIsDebug();
-		} else if (tracking) {
+		if (tracking) {
 			recognizeCollected();
 			trackSkipLanguages();
 		} else {
@@ -115,7 +110,7 @@ bool TranslateTracker::add(
 		bool skipDependencies) {
 	Expects(_addedInBunch >= 0);
 
-	if (item->out()
+	if ((item->out() && !item->history()->peer->autoTranslation())
 		|| item->isService()
 		|| !item->isRegular()
 		|| item->isOnlyEmojiAndSpaces()) {

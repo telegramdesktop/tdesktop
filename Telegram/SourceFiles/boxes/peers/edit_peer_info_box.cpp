@@ -1116,29 +1116,37 @@ void Controller::fillAutoTranslateButton() {
 			[] {},
 			st::manageGroupTopicsButton,
 			{ &st::menuIconTranslate }));
-	const auto toggled = autotranslate->lifetime().make_state<
-		rpl::event_stream<bool>
-	>();
+	struct State {
+		rpl::event_stream<bool> toggled;
+		rpl::variable<bool> isLocked = false;
+	};
+	const auto state = autotranslate->lifetime().make_state<State>();
 	autotranslate->toggleOn(rpl::single(
 		channel->autoTranslation()
-	) | rpl::then(toggled->events()));
-	const auto isLocked = channel->levelHint() < requiredLevel;
+	) | rpl::then(state->toggled.events()));
+	state->isLocked = (channel->levelHint() < requiredLevel);
 	const auto reason = Ui::AskBoostReason{
 		.data = Ui::AskBoostAutotranslate{ .requiredLevel = requiredLevel },
 	};
 
-	autotranslate->setToggleLocked(isLocked);
+	state->isLocked.value() | rpl::start_with_next([=](bool locked) {
+		autotranslate->setToggleLocked(locked);
+	}, autotranslate->lifetime());
 
 	autotranslate->toggledChanges(
 	) | rpl::start_with_next([=](bool value) {
-		if (!isLocked) {
-			_autotranslateSavedValue = toggled;
+		if (!state->isLocked.current()) {
+			_autotranslateSavedValue = value;
 		} else if (value) {
-			toggled->fire(false);
+			state->toggled.fire(false);
+			auto weak = Ui::MakeWeak(autotranslate);
 			CheckBoostLevel(
 				_navigation->uiShow(),
 				_peer,
 				[=](int level) {
+					if (const auto strong = weak.data()) {
+						state->isLocked = (level < requiredLevel);
+					}
 					return (level < requiredLevel)
 						? std::make_optional(reason)
 						: std::nullopt;

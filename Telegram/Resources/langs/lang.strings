@@ -4292,6 +4292,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sensitive_toast" = "You can update the visibility of sensitive media in **Settings > Chat Settings > Sensitive content**";
 
 "lng_translate_show_original" = "Show Original";
+"lng_translate_return_original" = "View Original ({language})";
 "lng_translate_bar_to" = "Translate to {name}";
 "lng_translate_bar_to_other" = "Translate to {name}";
 "lng_translate_menu_to" = "Translate To";
