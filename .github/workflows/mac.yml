@@ -115,8 +115,7 @@ jobs:
 
           ./configure.sh \
           -D CMAKE_CONFIGURATION_TYPES=Debug \
-          -D CMAKE_C_FLAGS="-Werror" \
-          -D CMAKE_CXX_FLAGS="-Werror" \
+          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
           -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
