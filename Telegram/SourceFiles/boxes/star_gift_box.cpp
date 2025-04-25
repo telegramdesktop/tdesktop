@@ -1199,14 +1199,14 @@ struct ResaleTabs {
 				: original(data, context);
 		};
 		const auto actionWithEmoji = [=](
-				QString text,
+				TextWithEntities text,
 				Fn<void()> callback,
 				QString data,
 				bool checked) {
 			auto action = base::make_unique_q<Ui::GiftResaleFilterAction>(
 				menu,
 				menu->st().menu,
-				TextWithEntities{ text },
+				std::move(text),
 				context,
 				data,
 				nullptr);
@@ -1215,7 +1215,7 @@ struct ResaleTabs {
 			menu->addAction(std::move(action));
 		};
 		const auto actionWithDocument = [=](
-				QString text,
+				TextWithEntities text,
 				Fn<void()> callback,
 				DocumentId id,
 				bool checked) {
@@ -1226,7 +1226,7 @@ struct ResaleTabs {
 				checked);
 		};
 		const auto actionWithColor = [=](
-				QString text,
+				TextWithEntities text,
 				Fn<void()> callback,
 				const QColor &color,
 				bool checked) {
@@ -1288,8 +1288,11 @@ struct ResaleTabs {
 			if (type == AttributeIdType::Model) {
 				for (auto &entry : state->lists.models) {
 					const auto id = IdFor(entry.model);
-					const auto text = entry.model.name
-						+ u" (%1)"_q.arg(entry.count);
+					const auto text = TextWithEntities{
+						entry.model.name
+					}.append(' ').append(Ui::Text::Bold(
+						Lang::FormatCountDecimal(entry.count)
+					));
 					actionWithDocument(text, [=] {
 						toggle(id);
 					}, id.value, checked(id));
@@ -1297,8 +1300,11 @@ struct ResaleTabs {
 			} else if (type == AttributeIdType::Backdrop) {
 				for (auto &entry : state->lists.backdrops) {
 					const auto id = IdFor(entry.backdrop);
-					const auto text = entry.backdrop.name
-						+ u" (%1)"_q.arg(entry.count);
+					const auto text = TextWithEntities{
+						entry.backdrop.name
+					}.append(' ').append(Ui::Text::Bold(
+						Lang::FormatCountDecimal(entry.count)
+					));
 					actionWithColor(text, [=] {
 						toggle(id);
 					}, entry.backdrop.centerColor, checked(id));
@@ -1306,8 +1312,11 @@ struct ResaleTabs {
 			} else if (type == AttributeIdType::Pattern) {
 				for (auto &entry : state->lists.patterns) {
 					const auto id = IdFor(entry.pattern);
-					const auto text = entry.pattern.name
-						+ u" (%1)"_q.arg(entry.count);
+					const auto text = TextWithEntities{
+						entry.pattern.name
+					}.append(' ').append(Ui::Text::Bold(
+						Lang::FormatCountDecimal(entry.count)
+					));
 					actionWithDocument(text, [=] {
 						toggle(id);
 					}, id.value, checked(id));
@@ -3029,8 +3038,35 @@ void GiftResaleBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_create_group_back(), [=] { box->closeBox(); });
 
-	box->setTitle(rpl::single(descriptor.title
-		+ u" (%1)"_q.arg(descriptor.count)));
+	// Create a proper vertical layout for the title
+	const auto titleWrap = box->setPinnedToTopContent(
+		object_ptr<Ui::VerticalLayout>(box.get()));
+
+	// Add vertical spacing above the title
+	titleWrap->add(object_ptr<Ui::FixedHeightWidget>(
+		titleWrap,
+		st::defaultVerticalListSkip));
+
+	// Add the gift name with semibold style
+	titleWrap->add(
+		object_ptr<Ui::FlatLabel>(
+			titleWrap,
+			rpl::single(descriptor.title),
+			st::boxTitle),
+		QMargins(st::boxRowPadding.left(), 0, st::boxRowPadding.right(), 0));
+
+	// Add the count text in gray below with proper translation
+	const auto countLabel = titleWrap->add(
+		object_ptr<Ui::FlatLabel>(
+			titleWrap,
+			tr::lng_gift_resale_count(tr::now, lt_count, descriptor.count),
+			st::defaultFlatLabel),
+		QMargins(
+			st::boxRowPadding.left(),
+			0,
+			st::boxRowPadding.right(),
+			st::defaultVerticalListSkip));
+	countLabel->setTextColorOverride(st::windowSubTextFg->c);
 
 	const auto content = box->verticalLayout();
 	content->paintRequest() | rpl::start_with_next([=](QRect clip) {

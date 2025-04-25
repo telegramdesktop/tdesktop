@@ -3623,6 +3623,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_resale_price" = "Price";
 "lng_gift_resale_number" = "Number";
 "lng_gift_resale_date" = "Date";
+"lng_gift_resale_count#one" = "{count} gift in resale";
+"lng_gift_resale_count#other" = "{count} gifts in resale";
 "lng_gift_resale_sort_price" = "Sort by Price";
 "lng_gift_resale_sort_date" = "Sort by Date";
 "lng_gift_resale_sort_number" = "Sort by Number";
