@@ -1005,7 +1005,7 @@ void Gif::validateThumbCache(
 	const auto normal = good
 		? good
 		: _videoCoverMedia
-		? nullptr
+		? _videoCoverMedia->image(Data::PhotoSize::Large)
 		: _dataMedia->thumbnail();
 	if (!normal) {
 		if (_videoCoverMedia) {
@@ -1050,11 +1050,11 @@ QImage Gif::prepareThumbCache(QSize outer) const {
 	const auto videothumb = (normal || _videoCoverMedia)
 		? nullptr
 		: _videoThumbnailFrame.get();
-	auto blurred = (!good
+	Image* blurred = (!good
 		&& normal
 		&& (normal->width() < kUseNonBlurredThreshold)
 		&& (normal->height() < kUseNonBlurredThreshold))
-		? normal
+		? normal 
 		: nullptr;
 	const auto blurFromLarge = good || (normal && !blurred);
 	const auto large = blurFromLarge ? normal : videothumb;
