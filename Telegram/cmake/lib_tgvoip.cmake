@@ -8,8 +8,10 @@ add_library(lib_tgvoip INTERFACE IMPORTED GLOBAL)
 add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
 if (DESKTOP_APP_USE_PACKAGED)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(TGVOIP IMPORTED_TARGET tgvoip)
+    find_package(PkgConfig)
+    if (PkgConfig_FOUND)
+        pkg_check_modules(TGVOIP IMPORTED_TARGET tgvoip)
+    endif()
 
     if (TGVOIP_FOUND)
         target_link_libraries(lib_tgvoip INTERFACE PkgConfig::TGVOIP)
