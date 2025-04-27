@@ -625,9 +625,9 @@ void Manager::Private::showNotification(
 				actions.push_back(
 					tr::lng_notification_reply(tr::now).toStdString());
 			}
-
-			actions.push_back({});
 		}
+
+		actions.push_back({});
 
 		if (HasCapability("action-icons")) {
 			hints.insert_value(
@@ -788,11 +788,9 @@ void Manager::Private::showNotification(
 									info.subtitle),
 								lt_message,
 								info.message).toStdString()).c_str(),
-					!actions.empty()
-						? (actions
-							| ranges::views::transform(&gi::cstring::c_str)
-							| ranges::to_vector).data()
-						: nullptr,
+					(actions
+						| ranges::views::transform(&gi::cstring::c_str)
+						| ranges::to_vector).data(),
 					hints.end().gobj_(),
 					-1,
 					nullptr,
