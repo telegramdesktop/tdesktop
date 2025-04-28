@@ -1963,6 +1963,61 @@ void SendStarsFormRequest(
 	}
 }
 
+void SubmitStarsForm(
+		std::shared_ptr<Main::SessionShow> show,
+		MTPInputInvoice invoice,
+		uint64 formId,
+		uint64 price,
+		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
+	const auto ready = [=](Settings::SmallBalanceResult result) {
+		SendStarsFormRequest(show, result, formId, invoice, done);
+	};
+	Settings::MaybeRequestBalanceIncrease(
+		show,
+		price,
+		Settings::SmallBalanceDeepLink{},
+		ready);
+}
+
+void RequestStarsForm(
+	std::shared_ptr<Main::SessionShow> show,
+	MTPInputInvoice invoice,
+	Fn<void(
+		uint64 formId,
+		uint64 price,
+		std::optional<Payments::CheckoutResult> failure)> done) {
+	const auto fail = [=](Payments::CheckoutResult failure) {
+		done(0, 0, failure);
+	};
+	show->session().api().request(MTPpayments_GetPaymentForm(
+		MTP_flags(0),
+		invoice,
+		MTPDataJSON() // theme_params
+	)).done([=](const MTPpayments_PaymentForm &result) {
+		result.match([&](const MTPDpayments_paymentFormStarGift &data) {
+			const auto prices = data.vinvoice().data().vprices().v;
+			if (show->valid() && !prices.isEmpty()) {
+				const auto price = prices.front().data().vamount().v;
+				done(data.vform_id().v, price, std::nullopt);
+			} else {
+				fail(Payments::CheckoutResult::Failed);
+			}
+		}, [&](const auto &) {
+			fail(Payments::CheckoutResult::Failed);
+		});
+	}).fail([=](const MTP::Error &error) {
+		const auto type = error.type();
+		if (type == u"STARGIFT_EXPORT_IN_PROGRESS"_q) {
+			fail(Payments::CheckoutResult::Cancelled);
+		} else if (type == u"NO_PAYMENT_NEEDED"_q) {
+			fail(Payments::CheckoutResult::Free);
+		} else {
+			show->showToast(type);
+			fail(Payments::CheckoutResult::Failed);
+		}
+	}).send();
+}
+
 void UpgradeGift(
 		not_null<Window::SessionController*> window,
 		Data::SavedStarGiftId savedId,
@@ -2564,6 +2619,7 @@ void SendGiftBox(
 		std::vector<GiftDescriptor> list;
 		std::vector<std::unique_ptr<GiftButton>> buttons;
 		std::shared_ptr<Api::PremiumGiftCodeOptions> api;
+		std::shared_ptr<Data::UniqueGift> transferRequested;
 		rpl::variable<VisibleRange> visibleRange;
 		uint64 resaleRequestingId = 0;
 		rpl::lifetime resaleLifetime;
@@ -2647,20 +2703,41 @@ void SendGiftBox(
 			button->setDescriptor(descriptor, GiftButton::Mode::Full);
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
-				if (star
-					&& star->info.unique
-					&& star->mine
-					&& !peer->isSelf()) {
+				const auto unique = star ? star->info.unique : nullptr;
+				if (unique && star->mine && !peer->isSelf()) {
 					const auto done = [=] {
 						window->session().credits().load(true);
 						window->showPeerHistory(peer);
 					};
-					ShowTransferToBox(
-						window,
-						peer,
-						star->info.unique,
-						star->transferId,
-						done);
+					if (state->transferRequested == unique) {
+						return;
+					}
+					state->transferRequested = unique;
+					const auto savedId = star->transferId;
+					using Payments::CheckoutResult;
+					const auto formReady = [=](
+							uint64 formId,
+							uint64 price,
+							std::optional<CheckoutResult> failure) {
+						state->transferRequested = nullptr;
+						if (!failure || *failure == CheckoutResult::Free) {
+							unique->starsForTransfer = price;
+							ShowTransferToBox(
+								window,
+								peer,
+								unique,
+								savedId,
+								done);
+						} else if (*failure == CheckoutResult::Cancelled) {
+							done();
+						}
+					};
+					RequestStarsForm(
+						window->uiShow(),
+						MTP_inputInvoiceStarGiftTransfer(
+							Api::InputSavedStarGiftId(savedId, unique),
+							peer->input),
+						formReady);
 				} else if (star && star->info.unique && star->resale) {
 					window->show(Box(
 						Settings::GlobalStarGiftBox,
@@ -4808,40 +4885,16 @@ void RequestStarsFormAndSubmit(
 		std::shared_ptr<Main::SessionShow> show,
 		MTPInputInvoice invoice,
 		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
-	show->session().api().request(MTPpayments_GetPaymentForm(
-		MTP_flags(0),
-		invoice,
-		MTPDataJSON() // theme_params
-	)).done([=](const MTPpayments_PaymentForm &result) {
-		result.match([&](const MTPDpayments_paymentFormStarGift &data) {
-			const auto formId = data.vform_id().v;
-			const auto prices = data.vinvoice().data().vprices().v;
-			if (!show->valid()) {
-				done(Payments::CheckoutResult::Failed, nullptr);
-				return;
-			}
-			const auto ready = [=](Settings::SmallBalanceResult result) {
-				SendStarsFormRequest(show, result, formId, invoice, done);
-			};
-			Settings::MaybeRequestBalanceIncrease(
-				show,
-				prices.front().data().vamount().v,
-				Settings::SmallBalanceDeepLink{},
-				ready);
-		}, [&](const auto &) {
-			done(Payments::CheckoutResult::Failed, nullptr);
-		});
-	}).fail([=](const MTP::Error &error) {
-		const auto type = error.type();
-		if (type == u"STARGIFT_EXPORT_IN_PROGRESS"_q) {
-			done(Payments::CheckoutResult::Cancelled, nullptr);
-		} else if (type == u"NO_PAYMENT_NEEDED"_q) {
-			done(Payments::CheckoutResult::Free, nullptr);
+	RequestStarsForm(show, invoice, [=](
+			uint64 formId,
+			uint64 price,
+			std::optional<Payments::CheckoutResult> failure) {
+		if (!failure) {
+			SubmitStarsForm(show, invoice, formId, price, done);
 		} else {
-			show->showToast(type);
-			done(Payments::CheckoutResult::Failed, nullptr);
+			done(*failure, nullptr);
 		}
-	}).send();
+	});
 }
 
 void ShowGiftTransferredToast(
