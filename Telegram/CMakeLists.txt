@@ -1732,6 +1732,10 @@ if (WIN32)
     # COMMENT
     #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
     # )
+
+    if (QT_VERSION LESS 6)
+        target_link_libraries(Telegram PRIVATE desktop-app::win_directx_helper)
+    endif()
 elseif (APPLE)
     if (NOT DESKTOP_APP_USE_PACKAGED)
         target_link_libraries(Telegram PRIVATE desktop-app::external_iconv)
