@@ -618,6 +618,10 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 		? tr::lng_credits_box_history_entry_reaction_name
 		: entry.giftUpgraded
 		? tr::lng_credits_box_history_entry_gift_upgrade
+		: entry.giftResale
+		? (entry.in
+			? tr::lng_credits_box_history_entry_gift_sold
+			: tr::lng_credits_box_history_entry_gift_bought)
 		: entry.bareGiveawayMsgId
 		? tr::lng_credits_box_history_entry_giveaway_name
 		: entry.converted

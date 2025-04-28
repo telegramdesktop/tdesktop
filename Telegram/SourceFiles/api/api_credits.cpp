@@ -157,6 +157,7 @@ constexpr auto kTransactionsLimit = 100;
 		.converted = stargift && incoming,
 		.stargift = stargift.has_value(),
 		.giftUpgraded = tl.data().is_stargift_upgrade(),
+		.giftResale = tl.data().is_stargift_resale(),
 		.reaction = tl.data().is_reaction(),
 		.refunded = tl.data().is_refund(),
 		.pending = tl.data().is_pending(),

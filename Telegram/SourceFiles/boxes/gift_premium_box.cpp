@@ -1627,7 +1627,17 @@ void AddCreditsHistoryEntryTable(
 	const auto starrefRecipientId = PeerId(entry.starrefRecipientId);
 	const auto session = &show->session();
 	if (entry.starrefCommission) {
-		if (entry.starrefAmount) {
+		if (entry.giftResale && entry.starrefCommission < 1000) {
+			const auto full = int(base::SafeRound(entry.credits.value()
+				/ (1. - (entry.starrefCommission / 1000.))));
+			auto value = Ui::Text::IconEmoji(&st::starIconEmojiColored);
+			const auto starsText = Lang::FormatStarsAmountDecimal(
+				StarsAmount{ full });
+			AddTableRow(
+				table,
+				tr::lng_credits_box_history_entry_gift_full_price(),
+				rpl::single(value.append(' ' + starsText)));
+		} else if (entry.starrefAmount) {
 			AddTableRow(
 				table,
 				tr::lng_star_ref_commission_title(),
@@ -1641,7 +1651,7 @@ void AddCreditsHistoryEntryTable(
 					Ui::Text::WithEntities));
 		}
 	}
-	if (starrefRecipientId && entry.starrefAmount) {
+	if (starrefRecipientId && entry.starrefAmount && !entry.giftResale) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_affiliate(),
@@ -1651,7 +1661,9 @@ void AddCreditsHistoryEntryTable(
 	if (peerId && entry.starrefCommission) {
 		AddTableRow(
 			table,
-			(entry.starrefAmount
+			(entry.giftResale
+				? tr::lng_credits_box_history_entry_gift_sold_to
+				: entry.starrefAmount
 				? tr::lng_credits_box_history_entry_referred
 				: tr::lng_credits_box_history_entry_miniapp)(),
 			show,
@@ -1662,6 +1674,8 @@ void AddCreditsHistoryEntryTable(
 			? tr::lng_credits_box_history_entry_referred()
 			: entry.in
 			? tr::lng_credits_box_history_entry_peer_in()
+			: entry.giftResale
+			? tr::lng_credits_box_history_entry_gift_bought_from()
 			: entry.giftUpgraded
 			? tr::lng_credits_box_history_entry_gift_from()
 			: tr::lng_credits_box_history_entry_peer();

@@ -2823,6 +2823,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_reaction_name" = "Star Reaction";
 "lng_credits_box_history_entry_subscription" = "Monthly subscription fee";
 "lng_credits_box_history_entry_gift_upgrade" = "Collectible Upgrade";
+"lng_credits_box_history_entry_gift_sold" = "Gift Sale";
+"lng_credits_box_history_entry_gift_bought" = "Gift Purchase";
+"lng_credits_box_history_entry_gift_sold_to" = "To";
+"lng_credits_box_history_entry_gift_full_price" = "Full Price";
+"lng_credits_box_history_entry_gift_bought_from" = "From";
 
 "lng_credits_subscription_section" = "My subscriptions";
 "lng_credits_box_subscription_title" = "Subscription";
