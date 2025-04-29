@@ -301,12 +301,16 @@ void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 	}, [&](const MTPDhelp_promoData &data) {
 		_session->data().processChats(data.vchats());
 		_session->data().processUsers(data.vusers());
-		const auto peerId = peerFromMTP(data.vpeer());
-		const auto history = _session->data().history(peerId);
-		_session->data().setTopPromoted(
-			history,
-			data.vpsa_type().value_or_empty(),
-			data.vpsa_message().value_or_empty());
+		if (const auto peer = data.vpeer()) {
+			const auto peerId = peerFromMTP(*peer);
+			const auto history = _session->data().history(peerId);
+			_session->data().setTopPromoted(
+				history,
+				data.vpsa_type().value_or_empty(),
+				data.vpsa_message().value_or_empty());
+		} else {
+			_session->data().setTopPromoted(nullptr, QString(), QString());
+		}
 	});
 }
 
