@@ -70,14 +70,8 @@ RUN git clone -b v5.4.4 --depth=1 {{ GIT }}/tukaani-project/xz.git \
 	&& rm -rf xz
 
 FROM builder AS protobuf
-RUN git clone -b v21.9 --depth=1 --recursive --shallow-submodules {{ GIT }}/protocolbuffers/protobuf.git \
+RUN git clone -b v30.2 --depth=1 --recursive --shallow-submodules {{ GIT }}/protocolbuffers/protobuf.git \
 	&& cd protobuf \
-	&& git init third_party/abseil-cpp \
-	&& cd third_party/abseil-cpp \
-	&& git remote add origin {{ GIT }}/abseil/abseil-cpp.git \
-	&& git fetch --depth=1 origin 273292d1cfc0a94a65082ee350509af1d113344d \
-	&& git reset --hard FETCH_HEAD \
-	&& cd ../.. \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-Dprotobuf_BUILD_TESTS=OFF \
