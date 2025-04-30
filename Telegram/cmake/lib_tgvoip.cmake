@@ -130,20 +130,17 @@ PRIVATE
     TGVOIP_USE_DESKTOP_DSP
 )
 
-target_compile_options_if_exists(lib_tgvoip_bundled
+target_include_directories(lib_tgvoip_bundled
+PUBLIC
+    ${tgvoip_loc}
+)
+target_link_libraries(lib_tgvoip_bundled
 PRIVATE
-    -Wno-unqualified-std-cast-call
+    desktop-app::external_webrtc
+    desktop-app::external_opus
 )
 
-if (WIN32)
-    target_compile_options_if_exists(lib_tgvoip_bundled
-    PRIVATE
-        /wd4005 # 'identifier' : macro redefinition
-        /wd4068 # unknown pragma
-        /wd4996 # deprecated
-        /wd5055 # operator '>' deprecated between enumerations and floating-point types
-    )
-elseif (APPLE)
+if (APPLE)
     target_compile_definitions(lib_tgvoip_bundled
     PUBLIC
         TARGET_OS_OSX
@@ -155,35 +152,7 @@ elseif (APPLE)
             TGVOIP_NO_OSX_PRIVATE_API
         )
     endif()
-else()
-    add_library(lib_tgvoip_bundled_options INTERFACE)
-    target_compile_options(lib_tgvoip_bundled_options
-    INTERFACE
-        -Wno-unused-variable
-        -Wno-unknown-pragmas
-        -Wno-error=sequence-point
-        -Wno-error=unused-result
-    )
-    if (CMAKE_SIZEOF_VOID_P EQUAL 4 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
-        target_compile_options(lib_tgvoip_bundled_options INTERFACE -msse2)
-    endif()
-    target_link_libraries(lib_tgvoip_bundled
-    PRIVATE
-        lib_tgvoip_bundled_options
-    )
-endif()
-
-target_include_directories(lib_tgvoip_bundled
-PUBLIC
-    ${tgvoip_loc}
-)
-target_link_libraries(lib_tgvoip_bundled
-PRIVATE
-    desktop-app::external_webrtc
-    desktop-app::external_opus
-)
-
-if (LINUX)
+elseif (LINUX)
     if (NOT LIBTGVOIP_DISABLE_ALSA)
         find_package(ALSA REQUIRED)
         target_include_directories(lib_tgvoip_bundled SYSTEM PRIVATE ${ALSA_INCLUDE_DIRS})
@@ -215,6 +184,35 @@ if (LINUX)
         target_compile_definitions(lib_tgvoip_bundled PRIVATE WITHOUT_PULSE)
     endif()
 endif()
+
+add_library(lib_tgvoip_bundled_options INTERFACE)
+
+if (MSVC)
+    target_compile_options(lib_tgvoip_bundled_options
+    INTERFACE
+        /wd4005 # 'identifier' : macro redefinition
+        /wd4068 # unknown pragma
+        /wd4996 # deprecated
+        /wd5055 # operator '>' deprecated between enumerations and floating-point types
+    )
+else()
+    target_compile_options_if_exists(lib_tgvoip_bundled_options
+    INTERFACE
+        -Wno-unqualified-std-cast-call
+        -Wno-unused-variable
+        -Wno-unknown-pragmas
+        -Wno-error=sequence-point
+        -Wno-error=unused-result
+    )
+    if (CMAKE_SIZEOF_VOID_P EQUAL 4 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
+        target_compile_options(lib_tgvoip_bundled_options INTERFACE -msse2)
+    endif()
+endif()
+
+target_link_libraries(lib_tgvoip_bundled
+PRIVATE
+    lib_tgvoip_bundled_options
+)
 
 target_link_libraries(lib_tgvoip
 INTERFACE
