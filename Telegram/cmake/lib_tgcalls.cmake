@@ -225,8 +225,7 @@ PRIVATE
     RTC_ENABLE_VP9
 )
 
-if (WIN32)
-elseif (APPLE)
+if (APPLE)
     target_compile_options(lib_tgcalls
     PRIVATE
         -fobjc-arc
@@ -253,14 +252,16 @@ elseif (APPLE)
     )
 endif()
 
-target_compile_options_if_exists(lib_tgcalls
-PRIVATE
-    -Wno-deprecated-volatile
-    -Wno-ambiguous-reversed-operator
-    -Wno-deprecated-declarations
-    -Wno-unqualified-std-cast-call
-    -Wno-unused-function
-)
+if (NOT MSVC)
+    target_compile_options_if_exists(lib_tgcalls
+    PRIVATE
+        -Wno-deprecated-volatile
+        -Wno-ambiguous-reversed-operator
+        -Wno-deprecated-declarations
+        -Wno-unqualified-std-cast-call
+        -Wno-unused-function
+    )
+endif()
 
 remove_target_sources(lib_tgcalls ${tgcalls_loc}
     platform/android/AndroidContext.cpp
