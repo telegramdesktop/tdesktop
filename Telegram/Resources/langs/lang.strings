@@ -6440,6 +6440,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_frozen_text3" = "Appeal via {link} before {date}, or your account will be deleted.";
 "lng_frozen_appeal_button" = "Submit an Appeal";
 
+"lng_context_bank_card_copy" = "Copy Card Number";
+"lng_context_bank_card_copied" = "Card number copied to clipboard.";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

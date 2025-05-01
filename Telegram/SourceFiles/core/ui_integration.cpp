@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
+#include "core/bank_card_click_handler.h"
 #include "core/sandbox.h"
 #include "core/click_handler_types.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -255,6 +256,10 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 	case EntityType::Phone:
 		return my->session
 			? std::make_shared<PhoneClickHandler>(my->session, data.text)
+			: nullptr;
+	case EntityType::BankCard:
+		return my->session
+			? std::make_shared<BankCardClickHandler>(my->session, data.text)
 			: nullptr;
 	}
 	return Integration::createLinkHandler(data, context);
