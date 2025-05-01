@@ -1,3 +1,9 @@
+5.14 (01.05.25)
+
+- Secure Group Calls Made Easy.
+- Automated Business Accounts.
+- New Gifts Settings.
+
 5.13.1 (26.03.25)
 
 - Fix crash in group/channel stories.
