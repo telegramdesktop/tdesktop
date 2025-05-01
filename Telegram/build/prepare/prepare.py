@@ -905,6 +905,7 @@ mac:
 stage('libde265', """
     git clone -b v1.0.15 https://github.com/strukturag/libde265.git
     cd libde265
+    git cherry-pick 5c5af1e
 win:
     cmake . ^
         -A %WIN32X64% ^
