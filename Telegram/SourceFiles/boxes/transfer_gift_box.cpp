@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
@@ -460,7 +461,16 @@ void TransferGift(
 			formDone(Payments::CheckoutResult::Paid, &result);
 		}).fail([=](const MTP::Error &error) {
 			formDone(Payments::CheckoutResult::Failed, nullptr);
-			if (const auto strong = weak.get()) {
+			const auto earlyPrefix = u"STARGIFT_TRANSFER_TOO_EARLY_"_q;
+			const auto type = error.type();
+			if (type.startsWith(earlyPrefix)) {
+				const auto seconds = type.mid(earlyPrefix.size()).toInt();
+				const auto newAvailableAt = base::unixtime::now() + seconds;
+				gift->canTransferAt = newAvailableAt;
+				if (const auto strong = weak.get()) {
+					ShowTransferGiftLater(strong->uiShow(), gift);
+				}
+			} else if (const auto strong = weak.get()) {
 				strong->showToast(error.type());
 			}
 		}).send();
@@ -580,6 +590,9 @@ void ShowTransferGiftBox(
 		not_null<Window::SessionController*> window,
 		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId savedId) {
+	if (ShowTransferGiftLater(window->uiShow(), gift)) {
+		return;
+	}
 	auto controller = std::make_unique<Controller>(
 		window,
 		gift,
@@ -670,4 +683,47 @@ void ShowBuyResaleGiftBox(
 			.confirmText = std::move(transfer),
 		});
 	}));
+}
+
+bool ShowResaleGiftLater(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Data::UniqueGift> gift) {
+	const auto now = base::unixtime::now();
+	if (gift->canResellAt <= now) {
+		return false;
+	}
+	const auto seconds = gift->canResellAt - now;
+	const auto days = seconds / 86400;
+	const auto hours = seconds / 3600;
+	const auto minutes = std::max(seconds / 60, 1);
+	show->showToast({
+		.title = tr::lng_gift_resale_transfer_early_title(tr::now),
+		.text = { tr::lng_gift_resale_early(tr::now, lt_duration, days
+			? tr::lng_days(tr::now, lt_count, days)
+			: hours
+			? tr::lng_hours(tr::now, lt_count, hours)
+			: tr::lng_minutes(tr::now, lt_count, minutes)) },
+	});
+	return true;
+}
+
+bool ShowTransferGiftLater(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Data::UniqueGift> gift) {
+	const auto seconds = gift->canTransferAt - base::unixtime::now();
+	if (seconds <= 0) {
+		return false;
+	}
+	const auto days = seconds / 86400;
+	const auto hours = seconds / 3600;
+	const auto minutes = std::max(seconds / 60, 1);
+	show->showToast({
+		.title = tr::lng_gift_resale_transfer_early_title(tr::now),
+		.text = { tr::lng_gift_transfer_early(tr::now, lt_duration, days
+			? tr::lng_days(tr::now, lt_count, days)
+			: hours
+			? tr::lng_hours(tr::now, lt_count, hours)
+			: tr::lng_minutes(tr::now, lt_count, minutes)) },
+	});
+	return true;
 }

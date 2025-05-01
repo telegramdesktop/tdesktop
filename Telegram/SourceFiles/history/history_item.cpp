@@ -6024,6 +6024,8 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				unique->starsForTransfer
 					= data.vtransfer_stars().value_or(-1);
 				unique->exportAt = data.vcan_export_at().value_or_empty();
+				unique->canTransferAt = data.vcan_transfer_at().value_or_empty();
+				unique->canResellAt = data.vcan_resell_at().value_or_empty();
 			}
 		}
 		_media = std::make_unique<Data::MediaGiftBox>(

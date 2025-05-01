@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
 #include "boxes/star_gift_box.h" // ShowStarGiftBox.
-#include "boxes/transfer_gift_box.h" // ShowTransferGiftBox.
 #include "core/ui_integration.h"
 #include "data/data_boosts.h"
 #include "data/data_changes.h"

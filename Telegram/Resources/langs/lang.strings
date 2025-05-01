@@ -3644,6 +3644,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_resale_symbols#one" = "{count} Symbol";
 "lng_gift_resale_symbols#other" = "{count} Symbols";
 "lng_gift_resale_early" = "You will be able to resell this gift in {duration}.";
+"lng_gift_transfer_early" = "You will be able to transfer this gift in {duration}.";
+"lng_gift_resale_transfer_early_title" = "Try Later";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

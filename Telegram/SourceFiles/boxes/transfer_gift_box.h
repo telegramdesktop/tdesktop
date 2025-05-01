@@ -37,3 +37,10 @@ void ShowBuyResaleGiftBox(
 	std::shared_ptr<Data::UniqueGift> gift,
 	not_null<PeerData*> to,
 	Fn<void()> closeParentBox);
+
+bool ShowResaleGiftLater(
+	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Data::UniqueGift> gift);
+bool ShowTransferGiftLater(
+	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Data::UniqueGift> gift);

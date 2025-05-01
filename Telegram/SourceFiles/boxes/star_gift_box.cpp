@@ -2705,6 +2705,9 @@ void SendGiftBox(
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
 				const auto unique = star ? star->info.unique : nullptr;
 				if (unique && star->mine && !peer->isSelf()) {
+					if (ShowTransferGiftLater(window->uiShow(), unique)) {
+						return;
+					}
 					const auto done = [=] {
 						window->session().credits().load(true);
 						window->showPeerHistory(peer);
@@ -4321,15 +4324,9 @@ void UpdateGiftSellPrice(
 		const auto type = error.type();
 		if (type.startsWith(earlyPrefix)) {
 			const auto seconds = type.mid(earlyPrefix.size()).toInt();
-			const auto days = seconds / 86400;
-			const auto hours = seconds / 3600;
-			const auto minutes = std::max(seconds / 60, 1);
-			show->showToast(
-				tr::lng_gift_resale_early(tr::now, lt_duration, days
-					? tr::lng_days(tr::now, lt_count, days)
-					: hours
-					? tr::lng_hours(tr::now, lt_count, hours)
-					: tr::lng_minutes(tr::now, lt_count, minutes)));
+			const auto newAvailableAt = base::unixtime::now() + seconds;
+			unique->canResellAt = newAvailableAt;
+			ShowResaleGiftLater(show, unique);
 		} else {
 			show->showToast(type);
 		}
@@ -4341,6 +4338,9 @@ void ShowUniqueGiftSellBox(
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		Settings::GiftWearBoxStyleOverride st) {
+	if (ShowResaleGiftLater(show, unique)) {
+		return;
+	}
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(tr::lng_gift_sell_title());
 		box->setStyle(st.box ? *st.box : st::upgradeGiftBox);

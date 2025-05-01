@@ -48,6 +48,8 @@ struct UniqueGift {
 	int starsForTransfer = -1;
 	int starsForResale = -1;
 	TimeId exportAt = 0;
+	TimeId canTransferAt = 0;
+	TimeId canResellAt = 0;
 	UniqueGiftModel model;
 	UniqueGiftPattern pattern;
 	UniqueGiftBackdrop backdrop;

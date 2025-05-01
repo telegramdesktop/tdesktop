@@ -886,6 +886,8 @@ std::optional<Data::SavedStarGift> FromTL(
 	} else if (const auto unique = parsed->unique.get()) {
 		unique->starsForTransfer = data.vtransfer_stars().value_or(-1);
 		unique->exportAt = data.vcan_export_at().value_or_empty();
+		unique->canTransferAt = data.vcan_transfer_at().value_or_empty();
+		unique->canResellAt = data.vcan_resell_at().value_or_empty();
 	}
 	using Id = Data::SavedStarGiftId;
 	const auto hasUnique = parsed->unique != nullptr;
