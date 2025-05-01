@@ -660,9 +660,8 @@ mac:
 """)
 
 stage('opus', """
-    git clone -b v1.3.1 https://github.com/xiph/opus.git
+    git clone -b v1.5.2 https://github.com/xiph/opus.git
     cd opus
-    git cherry-pick 927de8453c
 win:
     cmake -B out . ^
         -A %WIN32X64% ^
