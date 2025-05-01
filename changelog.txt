@@ -1,3 +1,7 @@
+5.14.1 (01.05.25)
+
+- Fix launching on Windows 7.
+
 5.14 (01.05.25)
 
 - Secure Group Calls Made Easy.
