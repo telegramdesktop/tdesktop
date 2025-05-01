@@ -681,11 +681,11 @@ mac:
 stage('rnnoise', """
     git clone https://github.com/desktop-app/rnnoise.git
     cd rnnoise
-    git checkout fe37e57d09
+    git checkout d8ea2b0
     mkdir out
     cd out
 win:
-    cmake -A %WIN32X64% ..
+    cmake -A %WIN32X64% .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
     cmake --build . --config Debug --parallel
 release:
     cmake --build . --config Release --parallel
@@ -694,6 +694,7 @@ release:
     cd Debug
     cmake -G Ninja ../.. \\
         -D CMAKE_BUILD_TYPE=Debug \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     ninja
 release:
@@ -702,6 +703,7 @@ release:
     cd Release
     cmake -G Ninja ../.. \\
         -D CMAKE_BUILD_TYPE=Release \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     ninja
 """)

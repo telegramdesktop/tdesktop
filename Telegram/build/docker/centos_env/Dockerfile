@@ -278,10 +278,7 @@ RUN git clone -b master --depth=1 {{ GIT }}/desktop-app/rnnoise.git \
 	&& cd rnnoise \
 	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
 	&& cmake --build build --parallel \
-	&& mkdir -p "{{ LibrariesPath }}/rnnoise-cache/usr/local/include" \
-	&& cp "include/rnnoise.h" "{{ LibrariesPath }}/rnnoise-cache/usr/local/include/" \
-	&& mkdir -p "{{ LibrariesPath }}/rnnoise-cache/usr/local/lib" \
-	&& cp "build/librnnoise.a" "{{ LibrariesPath }}/rnnoise-cache/usr/local/lib/" \
+	&& DESTDIR="{{ LibrariesPath }}/rnnoise-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf rnnoise
 
