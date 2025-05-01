@@ -1514,6 +1514,19 @@ bool ResolveConferenceCall(
 	controller->resolveConferenceCall(match->captured(1), myContext.itemId);
 	return true;
 }
+
+bool ResolveStarsSettings(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	controller->showSettings(::Settings::CreditsId());
+	controller->window().activate();
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -1613,6 +1626,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^call/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
 			ResolveConferenceCall
+		},
+		{
+			u"^stars/?(^\\?.*)?(#|$)"_q,
+			ResolveStarsSettings
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,
