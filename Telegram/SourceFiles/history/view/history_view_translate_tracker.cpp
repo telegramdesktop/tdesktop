@@ -55,7 +55,7 @@ void TranslateTracker::setup() {
 
 	const auto channel = peer->asChannel();
 	auto autoTranslationValue = (channel
-		? channel->flagsValue()
+		? (channel->flagsValue() | rpl::type_erased())
 		: rpl::single(Data::Flags<ChannelDataFlags>::Change({}, {}))
 		) | rpl::map([=](Data::Flags<ChannelDataFlags>::Change data) {
 		return (data.value & ChannelDataFlag::AutoTranslation);

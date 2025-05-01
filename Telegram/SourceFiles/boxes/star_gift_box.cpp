@@ -198,9 +198,6 @@ struct ResaleFilter {
 	base::flat_set<AttributeId> attributes;
 	ResaleSort sort = ResaleSort::Date;
 
-	friend inline auto operator<=>(
-		const ResaleFilter &,
-		const ResaleFilter &) = default;
 	friend inline bool operator==(
 		const ResaleFilter &,
 		const ResaleFilter &) = default;
@@ -1247,7 +1244,7 @@ struct ResaleTabs {
 			};
 			actionWithIcon(tr::lng_gift_resale_sort_price(tr::now), [=] {
 				sort(ResaleSort::Price);
-			}, &st::menuIconOrderPrice, is(ResaleSort::Price)); AssertIsDebug(icons);
+			}, &st::menuIconOrderPrice, is(ResaleSort::Price));
 			actionWithIcon(tr::lng_gift_resale_sort_date(tr::now), [=] {
 				sort(ResaleSort::Date);
 			}, &st::menuIconOrderDate, is(ResaleSort::Date));
@@ -4920,7 +4917,7 @@ void ShowResaleGiftBoughtToast(
 		const Data::UniqueGift &gift) {
 	show->showToast({
 		.title = tr::lng_gift_sent_title(tr::now),
-		.text = (to->isSelf()
+		.text = TextWithEntities{ (to->isSelf()
 			? tr::lng_gift_sent_resale_done_self(
 				tr::now,
 				lt_gift,
@@ -4929,6 +4926,7 @@ void ShowResaleGiftBoughtToast(
 				tr::now,
 				lt_user,
 				to->shortName())),
+		},
 		.duration = kUpgradeDoneToastDuration,
 	});
 }
