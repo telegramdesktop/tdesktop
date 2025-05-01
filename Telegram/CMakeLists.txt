@@ -1919,6 +1919,17 @@ endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
+if (MSVC)
+    target_link_libraries(Telegram
+    PRIVATE
+        delayimp
+    )
+    target_link_options(Telegram
+    PRIVATE
+        /DELAYLOAD:advapi32.dll
+    )
+endif()
+
 target_prepare_qrc(Telegram)
 
 if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_winstore)
