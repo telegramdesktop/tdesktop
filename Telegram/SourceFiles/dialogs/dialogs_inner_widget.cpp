@@ -1790,9 +1790,10 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 					local.x(),
 					mappedY);
 			const auto selectedRightButton = (filteredSelected >= 0)
-				&& lookupIsInBotAppButton(
+				? lookupIsInBotAppButton(
 					_filterResults[filteredSelected].row,
-					QPoint(local.x(), mappedY));
+					QPoint(local.x(), mappedY))
+				: _selectedRightButton;
 			if (_filteredSelected != filteredSelected
 				|| _selectedTopicJump != selectedTopicJump
 				|| _selectedRightButton != selectedRightButton) {
@@ -1813,10 +1814,11 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 				? mouseY - skip - (peerSearchSelected * st::dialogsRowHeight)
 				: 0;
 			const auto selectedRightButton = (peerSearchSelected >= 0)
-				&& _peerSearchResults[peerSearchSelected]->sponsored
-				&& lookupIsInRightButton(
-					_peerSearchResults[peerSearchSelected]->sponsored->button,
-					QPoint(local.x(), mappedY));
+				? (_peerSearchResults[peerSearchSelected]->sponsored
+					&& lookupIsInRightButton(
+						_peerSearchResults[peerSearchSelected]->sponsored->button,
+						QPoint(local.x(), mappedY)))
+				: _selectedRightButton;
 			if (_peerSearchSelected != peerSearchSelected
 				|| _selectedRightButton != selectedRightButton) {
 				updateSelectedRow();
@@ -2453,7 +2455,9 @@ void InnerWidget::mousePressReleased(
 			|| (hashtagPressed >= 0
 				&& hashtagPressed == _hashtagSelected
 				&& hashtagDeletePressed == _hashtagDeleteSelected)
-			|| (filteredPressed >= 0 && filteredPressed == _filteredSelected)
+			|| (filteredPressed >= 0
+				&& filteredPressed == _filteredSelected
+				&& pressedRightButton == _selectedRightButton)
 			|| (peerSearchPressed >= 0
 				&& peerSearchPressed == _peerSearchSelected
 				&& pressedRightButton == _selectedRightButton)
