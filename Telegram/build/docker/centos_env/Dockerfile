@@ -121,12 +121,11 @@ RUN git clone -b 1.0.7 --depth=1 {{ GIT }}/google/highway.git \
 	&& rm -rf highway
 
 FROM builder AS opus
-RUN git clone -b v1.4 --depth=1 {{ GIT }}/xiph/opus.git \
+RUN git clone -b v1.5.2 --depth=1 {{ GIT }}/xiph/opus.git \
 	&& cd opus \
-	&& ./autogen.sh \
-	&& ./configure \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/opus-cache" install \
+	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/opus-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf opus
 
