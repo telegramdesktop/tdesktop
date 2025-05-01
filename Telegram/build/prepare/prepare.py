@@ -472,7 +472,7 @@ win:
     del msys64.exe
 
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
-    pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja msys/make diffutils pkg-config
+    pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm msys/make diffutils pkg-config
 
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
