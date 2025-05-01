@@ -552,16 +552,16 @@ stage('xz', """
 """)
 
 stage('zlib', """
-    git clone https://github.com/madler/zlib.git
+    git clone -b v1.3.1 https://github.com/madler/zlib.git
     cd zlib
-    git checkout 643e17b749
 win:
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
-        -DCMAKE_C_FLAGS="/DZLIB_WINAPI"
+        -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
+        -DZLIB_BUILD_EXAMPLES=OFF
     cmake --build . --config Debug --parallel
 release:
     cmake --build . --config Release --parallel

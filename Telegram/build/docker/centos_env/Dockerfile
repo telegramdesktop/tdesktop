@@ -50,14 +50,13 @@ RUN git init patches \
 	&& rm -rf .git
 
 FROM builder AS zlib
-RUN git init zlib \
+RUN git clone -b v1.3.1 --depth=1 {{ GIT }}/madler/zlib.git \
 	&& cd zlib \
-	&& git remote add origin {{ GIT }}/madler/zlib.git \
-	&& git fetch --depth=1 origin 643e17b7498d12ab8d15565662880579692f769d \
-	&& git reset --hard FETCH_HEAD \
-	&& ./configure \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/zlib-cache" install \
+	&& cmake -GNinja -B build . \
+		-DCMAKE_BUILD_TYPE=None \
+		-DZLIB_BUILD_EXAMPLES=OFF \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/zlib-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf zlib
 
