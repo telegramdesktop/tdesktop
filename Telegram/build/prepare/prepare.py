@@ -1738,9 +1738,8 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 4a60ce1ab9
-    git submodule init
-    git submodule update
+    git checkout c4192e8
+    git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus
@@ -1754,6 +1753,7 @@ win:
     cd Debug
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1769,6 +1769,7 @@ release:
     cd Release
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1790,6 +1791,7 @@ mac:
     cd Debug.x86_64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1805,6 +1807,7 @@ mac:
     cd Debug.arm64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1823,6 +1826,7 @@ release:
     cd Release.x86_64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1837,6 +1841,7 @@ release:
     cd Release.arm64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
