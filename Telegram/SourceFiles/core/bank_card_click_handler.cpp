@@ -132,9 +132,6 @@ void ResolveBankCardAction::paintEvent(QPaintEvent *e) {
 	p.fillRect(0, 0, width(), height, selected ? _st.itemBgOver : _st.itemBg);
 
 	const auto &padding = st::groupCallJoinAsPadding;
-	const auto textLeft = padding.left()
-		+ st::groupCallJoinAsPhotoSize
-		+ padding.left();
 	{
 		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
 		const auto w = width() - padding.left() - padding.right();
