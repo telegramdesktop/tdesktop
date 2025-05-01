@@ -84,7 +84,6 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
 pathPrefixes = [
     'ThirdParty\\msys64\\mingw64\\bin',
     'ThirdParty\\jom',
-    'ThirdParty\\cmake\\bin',
     'ThirdParty\\gyp',
 ] if win else [
     'ThirdParty/gyp',
