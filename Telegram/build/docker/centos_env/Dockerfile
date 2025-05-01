@@ -61,10 +61,10 @@ RUN git clone -b v1.3.1 --depth=1 {{ GIT }}/madler/zlib.git \
 	&& rm -rf zlib
 
 FROM builder AS xz
-RUN git clone -b v5.4.4 --depth=1 {{ GIT }}/tukaani-project/xz.git \
+RUN git clone -b v5.8.1 --depth=1 {{ GIT }}/tukaani-project/xz.git \
 	&& cd xz \
-	&& cmake -B build . -DCMAKE_BUILD_TYPE=None \
-	&& cmake --build build -j$(nproc) \
+	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
+	&& cmake --build build --parallel \
 	&& DESTDIR="{{ LibrariesPath }}/xz-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf xz
