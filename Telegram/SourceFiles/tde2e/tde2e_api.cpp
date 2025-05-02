@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/assertion.h"
 #include "base/debug_log.h"
 
-#include <tde2e/td/e2e/e2e_api.h>
+#include <td/e2e/e2e_api.h>
 
 #define LOG_ERROR(error) \
 	LOG(("TdE2E Error %1: %2").arg(int(error.code)).arg(error.message.c_str()))
