@@ -13,6 +13,8 @@ class Session;
 
 namespace Data {
 
+class Thread;
+
 class RecentPeers final {
 public:
 	explicit RecentPeers(not_null<Main::Session*> session);
@@ -28,10 +30,16 @@ public:
 	[[nodiscard]] QByteArray serialize() const;
 	void applyLocal(QByteArray serialized);
 
+	[[nodiscard]] auto collectChatOpenHistory() const
+		-> std::vector<not_null<Thread*>>;
+	void chatOpenPush(not_null<Thread*> thread);
+
 private:
 	const not_null<Main::Session*> _session;
 
 	std::vector<not_null<PeerData*>> _list;
+	std::vector<not_null<Thread*>> _opens;
+
 	rpl::event_stream<> _updates;
 
 };

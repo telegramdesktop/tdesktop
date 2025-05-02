@@ -331,6 +331,14 @@ ivHeightDefault: 800px;
 
 maxWidthSharedMediaWindow: 419px;
 
+chatSwitchMargins: margins(16px, 16px, 16px, 16px);
+chatSwitchPadding: margins(12px, 12px, 12px, 12px);
+chatSwitchSize: size(72px, 72px);
+chatSwitchUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(56px, 56px);
+	photoSize: 56px;
+}
+
 // Windows specific
 
 winQuitIcon: icon {{ "win_quit", windowFg }};

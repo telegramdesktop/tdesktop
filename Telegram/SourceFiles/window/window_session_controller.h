@@ -99,6 +99,7 @@ class SectionMemento;
 class Controller;
 class FiltersMenu;
 class ChatPreviewManager;
+class ChatSwitchProcess;
 
 struct PeerByLinkInfo;
 struct SeparateId;
@@ -783,6 +784,8 @@ private:
 	std::weak_ptr<Ui::ChatTheme> _chatStyleTheme;
 	std::deque<std::shared_ptr<Ui::ChatTheme>> _lastUsedCustomChatThemes;
 	rpl::variable<PeerThemeOverride> _peerThemeOverride;
+
+	std::unique_ptr<ChatSwitchProcess> _chatSwitchProcess;
 
 	base::has_weak_ptr _storyOpenGuard;
 

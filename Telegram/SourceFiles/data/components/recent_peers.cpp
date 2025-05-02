@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/components/recent_peers.h"
 
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "history/history.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
 #include "storage/serialize_peer.h"
@@ -131,6 +134,30 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 	}
 	DEBUG_LOG(
 		("Suggestions: RecentPeers read OK, count: %1").arg(_list.size()));
+}
+
+std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
+	_session->local().readSearchSuggestions();
+
+	auto result = _opens;
+	result.reserve(result.size() + _list.size());
+	for (const auto &peer : _list) {
+		const auto history = peer->owner().history(peer);
+		const auto thread = not_null<Data::Thread*>(history);
+		if (!ranges::contains(result, thread)) {
+			result.push_back(thread);
+		}
+	}
+	return result;
+}
+
+void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
+	const auto i = ranges::find(_opens, thread);
+	if (i == end(_opens)) {
+		_opens.insert(begin(_opens), thread);
+	} else if (i != begin(_opens)) {
+		ranges::rotate(begin(_opens), i, i + 1);
+	}
 }
 
 } // namespace Data
