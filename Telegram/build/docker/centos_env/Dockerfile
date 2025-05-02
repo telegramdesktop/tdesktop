@@ -30,6 +30,7 @@ RUN dnf -y install epel-release \
 	&& dnf clean all
 
 RUN python3 -m pip install meson ninja
+RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
 RUN echo set debuginfod enabled on > /opt/rh/{{ TOOLSET }}/root/etc/gdbinit.d/00-debuginfod.gdb
 RUN adduser user
 
@@ -482,6 +483,7 @@ RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 	&& ./configure \
 		--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
 		--extra-cxxflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
+		--pkg-config-flags=--static \
 		--disable-debug \
 		--disable-programs \
 		--disable-doc \
