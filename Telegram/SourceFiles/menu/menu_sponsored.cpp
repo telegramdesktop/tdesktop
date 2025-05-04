@@ -279,9 +279,13 @@ void AboutBox(
 			const auto raw = menu->get();
 			raw->animatePhaseValue(
 			) | rpl::start_with_next([=](Ui::PopupMenu::AnimatePhase phase) {
-				top->setForceRippled(phase == Ui::PopupMenu::AnimatePhase::Shown
+				top->setForceRippled(false
+					|| phase == Ui::PopupMenu::AnimatePhase::Shown
 					|| phase == Ui::PopupMenu::AnimatePhase::StartShow);
 			}, top->lifetime());
+			raw->setDestroyedCallback([=] {
+				top->setForceRippled(false);
+			});
 			FillSponsored(
 				top,
 				Ui::Menu::CreateAddActionCallback(menu->get()),
