@@ -180,7 +180,8 @@ void CreateRightLabel(
 	not_null<Button*> button,
 	v::text::data &&label,
 	const style::SettingsButton &st,
-	rpl::producer<QString> buttonText);
+	rpl::producer<QString> buttonText,
+	Ui::Text::MarkedContext context = {});
 
 struct DividerWithLottieDescriptor {
 	QString lottie;

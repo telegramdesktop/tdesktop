@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/peer_qr_box.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -2831,6 +2832,68 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 		admins,
 		st::menuIconAdmin,
 		st::infoChannelAdminsIconPosition);
+
+	if (channel->session().credits().balanceCurrency(channel->id) > 0
+		|| channel->session().credits().balance(channel->id)) {
+		const auto balanceWrap = result->entity()->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				result->entity(),
+				object_ptr<Ui::VerticalLayout>(result->entity())));
+		balanceWrap->toggle(true, anim::type::instant);
+
+		const auto &st = st::infoSharedMediaButton;
+
+		auto customEmojiFactory = [height = st.style.font->height,
+				font = st.rightLabel.style.font,
+				color = st.rightLabel.textFg->c](
+			QStringView data,
+			const Ui::Text::MarkedContext &context
+		) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+			return (data == Ui::kCreditsCurrency)
+				? Ui::MakeCreditsIconEmoji(height, 1)
+				: std::make_unique<Ui::Text::ShiftedEmoji>(
+					Ui::Earn::MakeCurrencyIconEmoji(font, color),
+					QPoint(0, st::channelEarnCurrencyCommonMargins.top()));
+		};
+		const auto context = Ui::Text::MarkedContext{
+			.customEmojiFactory = std::move(customEmojiFactory),
+		};
+
+		const auto balance = balanceWrap->entity();
+		const auto button = AddActionButton(
+			balance,
+			tr::lng_manage_peer_bot_balance(),
+			rpl::single(true),
+			[=] { controller->showSection(Info::ChannelEarn::Make(peer)); },
+			nullptr);
+
+		const auto credits = channel->session().credits().balance(
+			channel->id).whole();
+		const auto currency = channel->session().credits().balanceCurrency(
+			channel->id);
+		auto creditsText = (credits > 0)
+			? Ui::Text::SingleCustomEmoji(Ui::kCreditsCurrency)
+				.append(QChar(' '))
+				.append(QString::number(credits))
+			: TextWithEntities();
+		auto currencyText = (currency > 0)
+			? Ui::Text::SingleCustomEmoji("_")
+				.append(QChar(' '))
+				.append(Info::ChannelEarn::MajorPart(currency))
+				.append(Info::ChannelEarn::MinorPart(currency))
+			: TextWithEntities();
+		::Settings::CreateRightLabel(
+			button->entity(),
+			currencyText.append(QChar(' ')).append(std::move(creditsText)),
+			st,
+			tr::lng_manage_peer_bot_balance(),
+			context);
+
+		object_ptr<FloatingIcon>(
+			balance,
+			st::menuIconEarn,
+			st::infoChannelAdminsIconPosition);
+	}
 
 	if (EditPeerInfoBox::Available(channel)) {
 		const auto sessionController = controller->parentController();

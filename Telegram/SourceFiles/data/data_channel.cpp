@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_channel.h"
 
+#include "api/api_credits.h"
 #include "api/api_global_privacy.h"
+#include "api/api_statistics.h"
 #include "data/components/credits.h"
 #include "data/data_changes.h"
 #include "data/data_channel_admins.h"
@@ -1355,6 +1357,34 @@ void ApplyChannelUpdate(
 			Data::WallPaper::Create(&channel->session(), *paper));
 	} else {
 		channel->setWallPaper({});
+	}
+
+	if (channel->flags() & Flag::CanViewRevenue) {
+		const auto id = channel->id;
+		const auto weak = base::make_weak(&channel->session());
+		const auto creditsLoadLifetime = std::make_shared<rpl::lifetime>();
+		const auto creditsLoad
+			= creditsLoadLifetime->make_state<Api::CreditsStatus>(channel);
+		creditsLoad->request({}, [=](Data::CreditsStatusSlice slice) {
+			if (const auto strong = weak.get()) {
+				strong->credits().apply(id, slice.balance);
+				creditsLoadLifetime->destroy();
+			}
+		});
+		const auto currencyLoadLifetime = std::make_shared<rpl::lifetime>();
+		const auto currencyLoad
+			= currencyLoadLifetime->make_state<Api::EarnStatistics>(channel);
+		currencyLoad->request(
+		) | rpl::start_with_error_done([=](const QString &error) {
+			currencyLoadLifetime->destroy();
+		}, [=] {
+			if (const auto strong = weak.get()) {
+				strong->credits().applyCurrency(
+					id,
+					currencyLoad->data().currentBalance);
+				currencyLoadLifetime->destroy();
+			}
+		}, *currencyLoadLifetime);
 	}
 
 	// For clearUpTill() call.

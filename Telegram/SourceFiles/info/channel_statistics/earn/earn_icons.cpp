@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 
 #include "ui/effects/premium_graphics.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/rect.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
@@ -134,6 +135,14 @@ QImage MenuIconCredits() {
 		svg.render(&p, Rect(st::menuIconLinks.size()) - Margins(sizeShift));
 	}
 	return image;
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> MakeCurrencyIconEmoji(
+		const style::font &font,
+		const QColor &c) {
+	return std::make_unique<Ui::Text::StaticCustomEmoji>(
+		IconCurrencyColored(font, c),
+		u"currency_icon:%1:%2"_q.arg(font->height).arg(c.name()));
 }
 
 } // namespace Ui::Earn
