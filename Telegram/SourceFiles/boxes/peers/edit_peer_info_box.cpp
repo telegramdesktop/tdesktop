@@ -1411,6 +1411,8 @@ void Controller::fillManageSection() {
 				? tr::lng_manage_peer_reactions_on(tr::now)
 				: some
 				? QString::number(some)
+				: allowed.paidEnabled
+				? QString::number(1)
 				: tr::lng_manage_peer_reactions_off(tr::now);
 		});
 		AddButtonWithCount(
