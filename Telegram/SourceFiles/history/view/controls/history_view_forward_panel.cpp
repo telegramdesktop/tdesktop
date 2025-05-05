@@ -102,7 +102,7 @@ void ForwardPanel::checkTexts() {
 		for (const auto item : _data.items) {
 			if (const auto from = item->originalSender()) {
 				version += from->nameVersion();
-			} else if (const auto info = item->originalHiddenSenderInfo()) {
+			} else if (item->originalHiddenSenderInfo()) {
 				++version;
 			} else {
 				Unexpected("Corrupt forwarded information in message.");

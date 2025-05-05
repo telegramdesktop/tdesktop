@@ -326,7 +326,7 @@ bool NameTypeAllowsThumbnail(NameType type) {
 
 bool IsIpRevealingPath(const QString &filepath) {
 	static const auto kExtensions = [] {
-		const auto joined = u"htm html svg m4v m3u m3u8 xhtml"_q;
+		const auto joined = u"htm html svg m4v m3u m3u8 xhtml xml"_q;
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();

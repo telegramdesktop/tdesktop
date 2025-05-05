@@ -39,6 +39,7 @@ enum class CallMuteButtonType {
 	Muted,
 	ForceMuted,
 	RaisedHand,
+	ConferenceForceMuted,
 	ScheduledCanStart,
 	ScheduledSilent,
 	ScheduledNotify,

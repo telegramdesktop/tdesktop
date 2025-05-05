@@ -2276,16 +2276,20 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 	if (const auto call = std::get_if<ActionPhoneCall>(&action.content)) {
 		result.classes = "media_call";
 		result.title = peers.peer(message.out
-				? message.peerId
-				: message.selfId).name();
+			? message.peerId
+			: message.selfId).name();
 		result.status = [&] {
-			using Reason = ActionPhoneCall::DiscardReason;
-			const auto reason = call->discardReason;
-			if (message.out) {
-				return reason == Reason::Missed ? "Cancelled" : "Outgoing";
-			} else if (reason == Reason::Missed) {
+			using State = ActionPhoneCall::State;
+			const auto state = call->state;
+			if (state == State::Invitation) {
+				return "Invitation";
+			} else if (state == State::Active) {
+				return "Ongoing";
+			} else if (message.out) {
+				return (state == State::Missed) ? "Cancelled" : "Outgoing";
+			} else if (state == State::Missed) {
 				return "Missed";
-			} else if (reason == Reason::Busy) {
+			} else if (state == State::Busy) {
 				return "Declined";
 			}
 			return "Incoming";

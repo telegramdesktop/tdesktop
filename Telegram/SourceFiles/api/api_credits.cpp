@@ -348,12 +348,15 @@ void CreditsHistory::request(
 
 void CreditsHistory::requestSubscriptions(
 		const Data::CreditsStatusSlice::OffsetToken &token,
-		Fn<void(Data::CreditsStatusSlice)> done) {
+		Fn<void(Data::CreditsStatusSlice)> done,
+		bool missingBalance) {
 	if (_requestId) {
 		return;
 	}
 	_requestId = _api.request(MTPpayments_GetStarsSubscriptions(
-		MTP_flags(0),
+		MTP_flags(missingBalance
+			? MTPpayments_getStarsSubscriptions::Flag::f_missing_balance
+			: MTPpayments_getStarsSubscriptions::Flags(0)),
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input,
 		MTP_string(token)
 	)).done([=](const MTPpayments_StarsStatus &result) {

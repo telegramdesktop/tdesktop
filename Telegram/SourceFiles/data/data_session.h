@@ -230,22 +230,39 @@ public:
 
 	void registerGroupCall(not_null<GroupCall*> call);
 	void unregisterGroupCall(not_null<GroupCall*> call);
-	GroupCall *groupCall(CallId callId) const;
+	[[nodiscard]] GroupCall *groupCall(CallId callId) const;
+
+	[[nodiscard]] std::shared_ptr<GroupCall> sharedConferenceCall(
+		CallId id,
+		uint64 accessHash);
+	[[nodiscard]] std::shared_ptr<GroupCall> sharedConferenceCallFind(
+		const MTPUpdates &response);
 
 	void watchForOffline(not_null<UserData*> user, TimeId now = 0);
 	void maybeStopWatchForOffline(not_null<UserData*> user);
 
 	[[nodiscard]] auto invitedToCallUsers(CallId callId) const
-		-> const base::flat_set<not_null<UserData*>> &;
+		-> const base::flat_map<not_null<UserData*>, bool> &;
 	void registerInvitedToCallUser(
 		CallId callId,
 		not_null<PeerData*> peer,
-		not_null<UserData*> user);
-	void unregisterInvitedToCallUser(CallId callId, not_null<UserData*> user);
+		not_null<UserData*> user,
+		bool calling);
+	void registerInvitedToCallUser(
+		CallId callId,
+		GroupCall *call,
+		not_null<UserData*> user,
+		bool calling);
+	void unregisterInvitedToCallUser(
+		CallId callId,
+		not_null<UserData*> user,
+		bool onlyStopCalling);
 
 	struct InviteToCall {
 		CallId id = 0;
 		not_null<UserData*> user;
+		bool calling = false;
+		bool removed = false;
 	};
 	[[nodiscard]] rpl::producer<InviteToCall> invitesToCalls() const {
 		return _invitesToCalls.events();
@@ -816,6 +833,13 @@ public:
 	void sentFromScheduled(SentFromScheduled value);
 	[[nodiscard]] rpl::producer<SentFromScheduled> sentFromScheduled() const;
 
+	[[nodiscard]] rpl::producer<std::vector<UserId>> contactBirthdays(
+		bool force = false);
+	[[nodiscard]] auto knownContactBirthdays() const
+		-> std::optional<std::vector<UserId>>;
+	[[nodiscard]] auto knownBirthdaysToday() const
+		-> std::optional<std::vector<UserId>>;
+
 	void clearLocalStorage();
 
 private:
@@ -1091,11 +1115,12 @@ private:
 
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
-	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
+	base::flat_map<CallId, not_null<GroupCall*>> _groupCalls;
+	base::flat_map<CallId, std::weak_ptr<GroupCall>> _conferenceCalls;
 	rpl::event_stream<InviteToCall> _invitesToCalls;
 	base::flat_map<
-		uint64,
-		base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
+		CallId,
+		base::flat_map<not_null<UserData*>, bool>> _invitedToCallUsers;
 
 	base::flat_set<not_null<ViewElement*>> _shownSpoilers;
 	base::flat_map<
@@ -1129,6 +1154,11 @@ private:
 	base::flat_map<
 		not_null<ChannelData*>,
 		mtpRequestId> _viewAsMessagesRequests;
+
+	mtpRequestId _contactBirthdaysRequestId = 0;
+	int _contactBirthdaysLastDayRequest = -1;
+	std::vector<UserId> _contactBirthdays;
+	std::vector<UserId> _contactBirthdaysToday;
 
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;

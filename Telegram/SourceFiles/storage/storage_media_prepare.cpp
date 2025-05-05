@@ -319,7 +319,7 @@ void PrepareDetails(PreparedFile &file, int previewWidth, int sideLimit) {
 			file.preview.setDevicePixelRatio(style::DevicePixelRatio());
 			file.type = PreparedFile::Type::Video;
 		}
-	} else if (const auto song = std::get_if<Song>(&file.information->media)) {
+	} else if (v::is<Song>(file.information->media)) {
 		file.type = PreparedFile::Type::Music;
 	}
 }

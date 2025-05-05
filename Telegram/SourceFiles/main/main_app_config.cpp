@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/main_app_config.h"
 
+#include "api/api_authorizations.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "main/main_account.h"
+#include "main/main_session.h"
+#include "data/data_session.h"
 #include "ui/chat/chat_style.h"
 
 namespace Main {
@@ -106,6 +109,25 @@ int AppConfig::pinnedGiftsLimit() const {
 	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
 }
 
+bool AppConfig::callsDisabledForSession() const {
+	const auto authorizations = _account->sessionExists()
+		? &_account->session().api().authorizations()
+		: nullptr;
+	return get<bool>(
+		u"call_requests_disabled"_q,
+		authorizations->callsDisabledHere());
+}
+
+int AppConfig::confcallSizeLimit() const {
+	return get<int>(
+		u"conference_call_size_limit"_q,
+		_account->mtp().isTestMode() ? 5 : 100);
+}
+
+bool AppConfig::confcallPrioritizeVP8() const {
+	return get<bool>(u"confcall_use_vp8"_q, false);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {
@@ -135,6 +157,15 @@ void AppConfig::refresh(bool force) {
 				});
 			}
 			updateIgnoredRestrictionReasons(std::move(was));
+
+			{
+				const auto dismissedSuggestions = get<std::vector<QString>>(
+					u"dismissed_suggestions"_q,
+					std::vector<QString>());
+				for (const auto &suggestion : dismissedSuggestions) {
+					_dismissedSuggestions.emplace(suggestion);
+				}
+			}
 
 			DEBUG_LOG(("getAppConfig result handled."));
 			_refreshed.fire({});
@@ -289,6 +320,19 @@ std::vector<int> AppConfig::getIntArray(
 }
 
 bool AppConfig::suggestionCurrent(const QString &key) const {
+	if (key == u"BIRTHDAY_CONTACTS_TODAY"_q) {
+		if (_dismissedSuggestions.contains(key)
+			|| !_account->sessionExists()) {
+			return false;
+		} else {
+			const auto known
+				= _account->session().data().knownBirthdaysToday();
+			if (!known) {
+				return true;
+			}
+			return !known->empty();
+		}
+	}
 	return !_dismissedSuggestions.contains(key)
 		&& ranges::contains(
 			get<std::vector<QString>>(

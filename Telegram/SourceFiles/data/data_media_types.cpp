@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "calls/calls_instance.h"
 #include "core/application.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "lang/lang_keys.h"
@@ -455,28 +456,55 @@ Invoice ComputeInvoiceData(
 	return result;
 }
 
-Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
+Call ComputeCallData(
+		not_null<Session*> owner,
+		const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
-	result.finishReason = [&] {
+	result.state = [&] {
 		if (const auto reason = call.vreason()) {
 			return reason->match([](const MTPDphoneCallDiscardReasonBusy &) {
-				return CallFinishReason::Busy;
+				return CallState::Busy;
 			}, [](const MTPDphoneCallDiscardReasonDisconnect &) {
-				return CallFinishReason::Disconnected;
+				return CallState::Disconnected;
 			}, [](const MTPDphoneCallDiscardReasonHangup &) {
-				return CallFinishReason::Hangup;
+				return CallState::Hangup;
 			}, [](const MTPDphoneCallDiscardReasonMissed &) {
-				return CallFinishReason::Missed;
-			}, [](const MTPDphoneCallDiscardReasonAllowGroupCall &) {
-				return CallFinishReason::AllowGroupCall;
+				return CallState::Missed;
+			}, [](const MTPDphoneCallDiscardReasonMigrateConferenceCall &) {
+				return CallState::MigrateConferenceCall;
 			});
 			Unexpected("Call reason type.");
 		}
-		return CallFinishReason::Hangup;
+		return CallState::Hangup;
 	}();
 	result.duration = call.vduration().value_or_empty();
 	result.video = call.is_video();
 	return result;
+}
+
+Call ComputeCallData(
+		not_null<Session*> owner,
+		const MTPDmessageActionConferenceCall &call) {
+	auto participants = std::vector<not_null<PeerData*>>();
+	if (const auto list = call.vother_participants()) {
+		participants.reserve(list->v.size());
+		for (const auto &participant : list->v) {
+			participants.push_back(owner->peer(peerFromMTP(participant)));
+		}
+	}
+	return {
+		.otherParticipants = std::move(participants),
+		.conferenceId = call.vcall_id().v,
+		.duration = call.vduration().value_or_empty(),
+		.state = (call.vduration().value_or_empty()
+			? CallState::Hangup
+			: call.is_missed()
+			? CallState::Missed
+			: call.is_active()
+			? CallState::Active
+			: CallState::Invitation),
+		.video = call.is_video(),
+	};
 }
 
 GiveawayStart ComputeGiveawayStartData(
@@ -1111,7 +1139,7 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 			return toGroupPreview(group->items, options);
 		}
 	}
-	if (const auto sticker = _document->sticker()) {
+	if (_document->sticker()) {
 		return Media::toPreview(options);
 	}
 	auto images = std::vector<ItemPreviewImage>();
@@ -1178,7 +1206,7 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 }
 
 TextWithEntities MediaFile::notificationText() const {
-	if (const auto sticker = _document->sticker()) {
+	if (_document->sticker()) {
 		const auto text = _emoji.isEmpty()
 			? tr::lng_in_dlg_sticker(tr::now)
 			: tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, _emoji);
@@ -1210,7 +1238,7 @@ TextWithEntities MediaFile::notificationText() const {
 }
 
 QString MediaFile::pinnedTextSubstring() const {
-	if (const auto sticker = _document->sticker()) {
+	if (_document->sticker()) {
 		if (!_emoji.isEmpty()) {
 			return tr::lng_action_pinned_media_emoji_sticker(
 				tr::now,
@@ -1670,11 +1698,28 @@ std::unique_ptr<HistoryView::Media> MediaLocation::createView(
 MediaCall::MediaCall(not_null<HistoryItem*> parent, const Call &call)
 : Media(parent)
 , _call(call) {
-	parent->history()->owner().registerCallItem(parent);
+	const auto peer = parent->history()->peer;
+	peer->owner().registerCallItem(parent);
+	if (const auto user = _call.conferenceId ? peer->asUser() : nullptr) {
+		Core::App().calls().registerConferenceInvite(
+			_call.conferenceId,
+			user,
+			parent->id,
+			!parent->out());
+	}
 }
 
 MediaCall::~MediaCall() {
-	parent()->history()->owner().unregisterCallItem(parent());
+	const auto parent = this->parent();
+	const auto peer = parent->history()->peer;
+	peer->owner().unregisterCallItem(parent);
+	if (const auto user = _call.conferenceId ? peer->asUser() : nullptr) {
+		Core::App().calls().unregisterConferenceInvite(
+			_call.conferenceId,
+			user,
+			parent->id,
+			!parent->out());
+	}
 }
 
 std::unique_ptr<Media> MediaCall::clone(not_null<HistoryItem*> parent) {
@@ -1686,7 +1731,8 @@ const Call *MediaCall::call() const {
 }
 
 TextWithEntities MediaCall::notificationText() const {
-	auto result = Text(parent(), _call.finishReason, _call.video);
+	const auto conference = (_call.conferenceId != 0);
+	auto result = Text(parent(), _call.state, conference, _call.video);
 	if (_call.duration > 0) {
 		result = tr::lng_call_type_and_duration(
 			tr::now,
@@ -1727,26 +1773,39 @@ std::unique_ptr<HistoryView::Media> MediaCall::createView(
 
 QString MediaCall::Text(
 		not_null<HistoryItem*> item,
-		CallFinishReason reason,
+		CallState state,
+		bool conference,
 		bool video) {
-	if (item->out()) {
-		return ((reason == CallFinishReason::Missed)
-			? (video
+	if (state == CallState::Invitation) {
+		return tr::lng_call_invitation(tr::now);
+	} else if (state == CallState::Active) {
+		return tr::lng_call_ongoing(tr::now);
+	} else if (item->out()) {
+		return ((state == CallState::Missed)
+			? (conference
+				? tr::lng_call_group_declined
+				: video
 				? tr::lng_call_video_cancelled
 				: tr::lng_call_cancelled)
-			: (video
+			: (conference
+				? tr::lng_call_group_outgoing
+				: video
 				? tr::lng_call_video_outgoing
 				: tr::lng_call_outgoing))(tr::now);
-	} else if (reason == CallFinishReason::Missed) {
-		return (video
+	} else if (state == CallState::Missed) {
+		return (conference
+			? tr::lng_call_group_missed
+			: video
 			? tr::lng_call_video_missed
 			: tr::lng_call_missed)(tr::now);
-	} else if (reason == CallFinishReason::Busy) {
+	} else if (state == CallState::Busy) {
 		return (video
 			? tr::lng_call_video_declined
 			: tr::lng_call_declined)(tr::now);
 	}
-	return (video
+	return (conference
+		? tr::lng_call_group_incoming
+		: video
 		? tr::lng_call_video_incoming
 		: tr::lng_call_incoming)(tr::now);
 }

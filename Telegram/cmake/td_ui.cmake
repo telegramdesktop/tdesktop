@@ -105,6 +105,8 @@ PRIVATE
     dialogs/ui/dialogs_quick_action.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
+    dialogs/ui/dialogs_top_bar_suggestion_content.cpp
+    dialogs/ui/dialogs_top_bar_suggestion_content.h
     dialogs/ui/top_peers_strip.cpp
     dialogs/ui/top_peers_strip.h
 
@@ -520,6 +522,5 @@ PRIVATE
     desktop-app::lib_spellcheck
     desktop-app::lib_stripe
     desktop-app::external_kcoreaddons
-    desktop-app::external_openh264
     desktop-app::external_webrtc
 )

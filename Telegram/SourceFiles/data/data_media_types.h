@@ -41,12 +41,14 @@ class WallPaper;
 class Session;
 struct UniqueGift;
 
-enum class CallFinishReason : char {
+enum class CallState : char {
 	Missed,
 	Busy,
 	Disconnected,
 	Hangup,
-	AllowGroupCall,
+	MigrateConferenceCall,
+	Invitation,
+	Active,
 };
 
 struct SharedContact final {
@@ -78,10 +80,12 @@ struct SharedContact final {
 };
 
 struct Call {
-	using FinishReason = CallFinishReason;
+	using State = CallState;
 
+	std::vector<not_null<PeerData*>> otherParticipants;
+	CallId conferenceId = 0;
 	int duration = 0;
-	FinishReason finishReason = FinishReason::Missed;
+	State state = State::Missed;
 	bool video = false;
 
 };
@@ -462,9 +466,10 @@ public:
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing = nullptr) override;
 
-	static QString Text(
+	[[nodiscard]] static QString Text(
 		not_null<HistoryItem*> item,
-		CallFinishReason reason,
+		CallState state,
+		bool conference,
 		bool video);
 
 private:
@@ -798,7 +803,12 @@ private:
 	not_null<HistoryItem*> item,
 	const MTPDmessageMediaPaidMedia &data);
 
-[[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
+[[nodiscard]] Call ComputeCallData(
+	not_null<Session*> owner,
+	const MTPDmessageActionPhoneCall &call);
+[[nodiscard]] Call ComputeCallData(
+	not_null<Session*> owner,
+	const MTPDmessageActionConferenceCall &call);
 
 [[nodiscard]] GiveawayStart ComputeGiveawayStartData(
 	not_null<HistoryItem*> item,

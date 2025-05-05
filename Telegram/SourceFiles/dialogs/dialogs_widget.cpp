@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_suggestions.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
+#include "dialogs/dialogs_top_bar_suggestion.h"
 #include "dialogs/dialogs_quick_action.h"
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
@@ -375,19 +377,29 @@ Widget::Widget(
 	_scroll->setOverscrollTypes(
 		_stories ? OverscrollType::Virtual : OverscrollType::Real,
 		OverscrollType::Real);
-	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(
-		this,
+	const auto innerList = _scroll->setOwnedWidget(
+		object_ptr<Ui::VerticalLayout>(this));
+	_inner = innerList->add(object_ptr<InnerWidget>(
+		innerList,
 		controller,
 		rpl::combine(
 			_childListPeerId.value(),
 			_childListShown.value(),
 			makeChildListShown)));
-	_scroll->heightValue() | rpl::start_with_next([=](int height) {
-		_inner->setMinimumHeight(height);
+	rpl::combine(
+		_scroll->heightValue(),
+		_topBarSuggestionHeightChanged.events_starting_with(0)
+	) | rpl::start_with_next([=](int height, int topBarHeight) {
+		innerList->setMinimumHeight(height);
+		_inner->setMinimumHeight(height - topBarHeight);
 		_inner->refresh();
-	}, _inner->lifetime());
+	}, innerList->lifetime());
+	_scroll->widthValue() | rpl::start_with_next([=](int width) {
+		innerList->resizeToWidth(width);
+	}, innerList->lifetime());
 	_scrollToTop->raise();
 	_lockUnlock->toggle(false, anim::type::instant);
+
 
 	_inner->updated(
 	) | rpl::start_with_next([=] {
@@ -685,6 +697,7 @@ Widget::Widget(
 	}
 
 	setupFrozenAccountBar();
+	setupTopBarSuggestions(innerList);
 }
 
 void Widget::setupSwipeBack() {
@@ -793,7 +806,7 @@ void Widget::setupSwipeBack() {
 			}
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				_swipeBackData = {};
-				if (const auto forum = controller()->shownForum().current()) {
+				if (controller()->shownForum().current()) {
 					controller()->closeForum();
 				}
 			});
@@ -1007,6 +1020,71 @@ void Widget::setupFrozenAccountBar() {
 	}, lifetime());
 }
 
+void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
+	if (_layout == Layout::Child) {
+		return;
+	}
+	using namespace rpl::mappers;
+	crl::on_main(&session(), [=, session = &session()] {
+		(session->data().chatsListLoaded(nullptr)
+			? rpl::single<Data::Folder*>(nullptr)
+			: session->data().chatsListLoadedEvents()
+		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
+			auto on = rpl::combine(
+				controller()->activeChatsFilter(),
+				_openedFolderOrForumChanges.events_starting_with(false),
+				widthValue() | rpl::map(
+					_1 >= st::columnMinimalWidthLeft
+				) | rpl::distinct_until_changed(),
+				_searchStateForTopBarSuggestion.events_starting_with(
+					!_searchState.query.isEmpty()),
+				_jumpToDate->toggledValue()
+			) | rpl::map([=](
+					FilterId id,
+					bool folderOrForum,
+					bool wide,
+					bool search,
+					bool searchInPeer) {
+				return !folderOrForum
+					&& wide
+					&& !search
+					&& !searchInPeer
+					&& (id == session->data().chatsFilters().defaultId());
+			});
+			return TopBarSuggestionValue(dialogs, session, std::move(on));
+		}) | rpl::flatten_latest() | rpl::start_with_next([=](
+				Ui::SlideWrap<Ui::RpWidget> *raw) {
+			if (raw) {
+				_topBarSuggestion = dialogs->insert(
+					0,
+					object_ptr<Ui::SlideWrap<Ui::RpWidget>>::fromRaw(raw));
+				_topBarSuggestion->heightValue(
+				) | rpl::start_to_stream(
+					_topBarSuggestionHeightChanged,
+					_topBarSuggestion->entity()->lifetime());
+				rpl::combine(
+					_topBarSuggestion->entity()->desiredHeightValue(),
+					_childListShown.value()
+				) | rpl::start_with_next([=](
+						int desiredHeight,
+						float64 shown) {
+					const auto newHeight = desiredHeight * (1. - shown);
+					_topBarSuggestion->entity()->setMaximumHeight(newHeight);
+					_topBarSuggestion->entity()->setMinimumWidth((shown > 0)
+						? width()
+						: 0);
+					_topBarSuggestion->entity()->resize(width(), newHeight);
+				}, _topBarSuggestion->lifetime());
+			} else {
+				if (_topBarSuggestion) {
+					delete _topBarSuggestion;
+				}
+				_topBarSuggestion = nullptr;
+			}
+		}, lifetime());
+	});
+}
+
 void Widget::updateFrozenAccountBar() {
 	if (_layout == Layout::Child
 		|| _openedForum
@@ -1019,6 +1097,12 @@ void Widget::updateFrozenAccountBar() {
 			controller()->uiShow(),
 			FrozenWriteRestrictionType::DialogsList);
 		_frozenAccountBar->show();
+	}
+}
+
+void Widget::updateTopBarSuggestions() {
+	if (_topBarSuggestion) {
+		_openedFolderOrForumChanges.fire(_openedForum || _openedFolder);
 	}
 }
 
@@ -1454,7 +1538,7 @@ void Widget::updateControlsVisibility(bool fast) {
 		_frozenAccountBar->show();
 	}
 	if (_chatFilters) {
-		_chatFilters->show();
+		_chatFilters->setVisible(!_openedForum);
 	}
 	if (_openedFolder || _openedForum) {
 		_subsectionTopBar->show();
@@ -1772,6 +1856,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 			storiesExplicitCollapse();
 		}
 		updateFrozenAccountBar();
+		updateTopBarSuggestions();
 	}, (folder != nullptr), animated);
 }
 
@@ -1829,6 +1914,7 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 		_inner->changeOpenedForum(forum);
 		storiesToggleExplicitExpand(false);
 		updateFrozenAccountBar();
+		updateTopBarSuggestions();
 		updateStoriesVisibility();
 	}, (forum != nullptr), animated);
 }
@@ -3401,9 +3487,14 @@ bool Widget::applySearchState(SearchState state) {
 		? peer->owner().history(migrateFrom).get()
 		: nullptr;
 	_searchState = state;
-	if (_chatFilters && queryEmptyChanged) {
-		_chatFilters->setVisible(_searchState.query.isEmpty());
+	if (_chatFilters && (queryEmptyChanged || inChatChanged)) {
+		_chatFilters->setVisible(_searchState.query.isEmpty()
+			&& !_openedForum
+			&& !searchInPeer());
 		updateControlsGeometry();
+	}
+	if (_topBarSuggestion && queryEmptyChanged) {
+		_searchStateForTopBarSuggestion.fire(!_searchState.query.isEmpty());
 	}
 	_searchWithPostsPreview = computeSearchWithPostsPreview();
 	if (queryChanged) {
@@ -3829,7 +3920,9 @@ void Widget::updateControlsGeometry() {
 			_chatFilters->move(0, chatFiltersTop);
 		}
 		const auto scrollTop = chatFiltersTop
-			+ ((_chatFilters && _searchState.query.isEmpty())
+			+ ((_chatFilters
+				&& _searchState.query.isEmpty()
+				&& !_openedForum && !searchInPeer())
 				? (_chatFilters->height() * (1. - narrowRatio))
 				: 0);
 		const auto scrollHeight = height() - scrollTop - bottomSkip;

@@ -13,18 +13,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_preview_box.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/calls_box_controller.h"
+#include "calls/calls_instance.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_changes.h"
 #include "data/data_document_media.h"
 #include "data/data_folder.h"
+#include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
+#include "info/profile/info_profile_icon.h"
 #include "info/stories/info_stories_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
@@ -38,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "support/support_templates.h"
+#include "tde2e/tde2e_api.h"
+#include "tde2e/tde2e_integration.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/swipe_handler.h"
@@ -90,89 +96,6 @@ constexpr auto kPlayStatusLimit = 2;
 	const auto now = QDate::currentDate();
 	return (now.month() == 12 && now.day() >= 24)
 		|| (now.month() == 1 && now.day() == 1);
-}
-
-void ShowCallsBox(not_null<Window::SessionController*> window) {
-	struct State {
-		State(not_null<Window::SessionController*> window)
-		: callsController(window)
-		, groupCallsController(window) {
-		}
-		Calls::BoxController callsController;
-		PeerListContentDelegateSimple callsDelegate;
-
-		Calls::GroupCalls::ListController groupCallsController;
-		PeerListContentDelegateSimple groupCallsDelegate;
-
-		base::unique_qptr<Ui::PopupMenu> menu;
-	};
-
-	window->show(Box([=](not_null<Ui::GenericBox*> box) {
-		const auto state = box->lifetime().make_state<State>(window);
-
-		const auto groupCalls = box->addRow(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				box,
-				object_ptr<Ui::VerticalLayout>(box)),
-			{});
-		groupCalls->hide(anim::type::instant);
-		groupCalls->toggleOn(state->groupCallsController.shownValue());
-
-		Ui::AddSubsectionTitle(
-			groupCalls->entity(),
-			tr::lng_call_box_groupcalls_subtitle());
-		state->groupCallsDelegate.setContent(groupCalls->entity()->add(
-			object_ptr<PeerListContent>(box, &state->groupCallsController),
-			{}));
-		state->groupCallsController.setDelegate(&state->groupCallsDelegate);
-		Ui::AddSkip(groupCalls->entity());
-		Ui::AddDivider(groupCalls->entity());
-		Ui::AddSkip(groupCalls->entity());
-
-		const auto content = box->addRow(
-			object_ptr<PeerListContent>(box, &state->callsController),
-			{});
-		state->callsDelegate.setContent(content);
-		state->callsController.setDelegate(&state->callsDelegate);
-
-		box->setWidth(state->callsController.contentWidth());
-		state->callsController.boxHeightValue(
-		) | rpl::start_with_next([=](int height) {
-			box->setMinHeight(height);
-		}, box->lifetime());
-		box->setTitle(tr::lng_call_box_title());
-		box->addButton(tr::lng_close(), [=] {
-			box->closeBox();
-		});
-		const auto menuButton = box->addTopButton(st::infoTopBarMenu);
-		menuButton->setClickedCallback([=] {
-			state->menu = base::make_unique_q<Ui::PopupMenu>(
-				menuButton,
-				st::popupMenuWithIcons);
-			const auto showSettings = [=] {
-				window->showSettings(
-					Settings::Calls::Id(),
-					Window::SectionShow(anim::type::instant));
-			};
-			const auto clearAll = crl::guard(box, [=] {
-				box->uiShow()->showBox(Box(Calls::ClearCallsBox, window));
-			});
-			state->menu->addAction(
-				tr::lng_settings_section_call_settings(tr::now),
-				showSettings,
-				&st::menuIconSettings);
-			if (state->callsDelegate.peerListFullRowsCount() > 0) {
-				Ui::Menu::CreateAddActionCallback(state->menu)({
-					.text = tr::lng_call_box_clear_all(tr::now),
-					.handler = clearAll,
-					.icon = &st::menuIconDeleteAttention,
-					.isAttention = true,
-				});
-			}
-			state->menu->popup(QCursor::pos());
-			return true;
-		});
-	}));
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> SetStatusLabel(
@@ -773,7 +696,7 @@ void MainMenu::setupMenu() {
 			tr::lng_menu_calls(),
 			{ &st::menuIconPhone }
 		)->setClickedCallback([=] {
-			ShowCallsBox(controller);
+			::Calls::ShowCallsBox(controller);
 		});
 		addAction(
 			tr::lng_saved_messages(),

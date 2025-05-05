@@ -55,6 +55,7 @@ enum class WebPageType : uint8 {
 
 	VoiceChat,
 	Livestream,
+	ConferenceCall,
 
 	Factcheck,
 };

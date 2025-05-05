@@ -1871,7 +1871,7 @@ void GenericCreditsEntryBox(
 				: tr::lng_gift_show_on_page)()
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
-		if (toRejoin) {
+		if (toRejoin && !toRenew) {
 			if (const auto window = show->resolveWindow()) {
 				const auto finish = [=](Payments::CheckoutResult&&) {
 					ProcessReceivedSubscriptions(weak, session);
@@ -1895,7 +1895,7 @@ void GenericCreditsEntryBox(
 				ProcessReceivedSubscriptions(weak, session);
 			};
 			const auto fail = [=, show = box->uiShow()](const QString &e) {
-				if (const auto strong = weak.data()) {
+				if ([[maybe_unused]] const auto strong = weak.data()) {
 					state->confirmButtonBusy = false;
 				}
 				show->showToast(e);

@@ -390,7 +390,8 @@ bool PinnedLimitReached(
 
 void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
-		not_null<Dialogs::Entry*> entry) {
+		not_null<Dialogs::Entry*> entry,
+		Fn<void()> onToggled) {
 	if (!entry->folderKnown()) {
 		return;
 	}
@@ -410,6 +411,9 @@ void TogglePinnedThread(
 			MTP_inputDialogPeer(history->peer->input)
 		)).done([=] {
 			owner->notifyPinnedDialogsOrderUpdated();
+			if (onToggled) {
+				onToggled();
+			}
 		}).send();
 		if (isPinned) {
 			controller->content()->dialogsToUp();
@@ -421,6 +425,9 @@ void TogglePinnedThread(
 			MTP_bool(isPinned)
 		)).done([=](const MTPUpdates &result) {
 			owner->session().api().applyUpdates(result);
+			if (onToggled) {
+				onToggled();
+			}
 		}).send();
 	} else if (const auto sublist = entry->asSublist()) {
 		const auto flags = isPinned
@@ -431,6 +438,9 @@ void TogglePinnedThread(
 			MTP_inputDialogPeer(sublist->peer()->input)
 		)).done([=] {
 			owner->notifyPinnedDialogsOrderUpdated();
+			if (onToggled) {
+				onToggled();
+			}
 		}).send();
 		//if (isPinned) {
 		//	controller->content()->dialogsToUp();
@@ -499,7 +509,7 @@ void Filler::addTogglePin() {
 	const auto weak = base::make_weak(entry);
 	const auto pinToggle = [=] {
 		if (const auto strong = weak.get()) {
-			TogglePinnedThread(controller, strong, filterId);
+			TogglePinnedThread(controller, strong, filterId, nullptr);
 		}
 	};
 	_addAction(
@@ -575,7 +585,7 @@ void Filler::addStoryArchive() {
 	const auto controller = _controller;
 	const auto weak = base::make_weak(_thread);
 	_addAction(tr::lng_stories_archive_button(tr::now), [=] {
-		if (const auto strong = weak.get()) {
+		if ([[maybe_unused]] const auto strong = weak.get()) {
 			controller->showSection(Info::Stories::Make(
 				channel,
 				Info::Stories::Tab::Archive));
@@ -1086,7 +1096,7 @@ void Filler::addViewStatistics() {
 			= (channel->flags() & Flag::CanViewCreditsRevenue);
 		if (canGetStats) {
 			_addAction(tr::lng_stats_title(tr::now), [=] {
-				if (const auto strong = weak.get()) {
+				if ([[maybe_unused]] const auto strong = weak.get()) {
 					using namespace Info;
 					controller->showSection(Statistics::Make(peer, {}, {}));
 				}
@@ -1096,14 +1106,14 @@ void Filler::addViewStatistics() {
 			|| channel->amCreator()
 			|| channel->canPostStories()) {
 			_addAction(tr::lng_boosts_title(tr::now), [=] {
-				if (const auto strong = weak.get()) {
+				if ([[maybe_unused]] const auto strong = weak.get()) {
 					controller->showSection(Info::Boosts::Make(peer));
 				}
 			}, &st::menuIconBoosts);
 		}
 		if (canViewEarn || canViewCreditsEarn) {
 			_addAction(tr::lng_channel_earn_title(tr::now), [=] {
-				if (const auto strong = weak.get()) {
+				if ([[maybe_unused]] const auto strong = weak.get()) {
 					controller->showSection(Info::ChannelEarn::Make(peer));
 				}
 			}, &st::menuIconEarn);
@@ -1176,6 +1186,9 @@ void Filler::addCreatePoll() {
 }
 
 void Filler::addThemeEdit() {
+	if (_peer->isVerifyCodes()) {
+		return;
+	}
 	const auto user = _peer->asUser();
 	if (!user || user->isInaccessible()) {
 		return;
@@ -3417,9 +3430,10 @@ void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction) {
 void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
 		not_null<Dialogs::Entry*> entry,
-		FilterId filterId) {
+		FilterId filterId,
+		Fn<void()> onToggled) {
 	if (!filterId) {
-		return TogglePinnedThread(controller, entry);
+		return TogglePinnedThread(controller, entry, onToggled);
 	}
 	const auto history = entry->asHistory();
 	if (!history) {
@@ -3445,6 +3459,9 @@ void TogglePinnedThread(
 	Api::SaveNewFilterPinned(&owner->session(), filterId);
 	if (isPinned) {
 		controller->content()->dialogsToUp();
+		if (onToggled) {
+			onToggled();
+		}
 	}
 }
 

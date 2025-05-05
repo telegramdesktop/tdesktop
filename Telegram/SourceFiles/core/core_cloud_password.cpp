@@ -315,6 +315,8 @@ CloudPasswordState ParseCloudPasswordState(
 		ParseSecureSecretAlgo(data.vnew_secure_algo()));
 	result.unconfirmedPattern = qs(
 		data.vemail_unconfirmed_pattern().value_or_empty());
+	result.loginEmailPattern = qs(
+		data.vlogin_email_pattern().value_or_empty());
 	result.pendingResetDate = data.vpending_reset_date().value_or_empty();
 
 	result.outdatedClient = [&] {

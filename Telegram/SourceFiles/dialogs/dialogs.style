@@ -127,7 +127,7 @@ dialogRowOpenBot: DialogRightButton {
 	margin: margins(0px, 32px, 10px, 0px);
 }
 dialogRowOpenBotRecent: DialogRightButton(dialogRowOpenBot) {
-	margin: margins(0px, 32px, 28px, 0px);
+	margin: margins(0px, 32px, 16px, 0px);
 }
 
 forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
@@ -812,4 +812,11 @@ dialogsSponsoredButton: DialogRightButton(dialogRowOpenBot) {
 		textTop: 1px;
 	}
 	margin: margins(0px, 9px, 10px, 0px);
+}
+
+dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
+	font: font(semibold 12px);
+}
+dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
 }

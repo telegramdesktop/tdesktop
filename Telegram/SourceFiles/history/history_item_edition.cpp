@@ -14,6 +14,7 @@ HistoryMessageEdition::HistoryMessageEdition(
 		not_null<Main::Session*> session,
 		const MTPDmessage &message) {
 	isEditHide = message.is_edit_hide();
+	isMediaUnread = message.is_media_unread();
 	editDate = message.vedit_date().value_or(-1);
 	textWithEntities = TextWithEntities{
 		qs(message.vmessage()),

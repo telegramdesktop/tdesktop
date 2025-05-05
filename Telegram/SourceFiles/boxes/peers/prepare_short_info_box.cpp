@@ -361,7 +361,7 @@ bool ProcessCurrent(
 			&& peer->asUser()->hasPersonalPhoto())
 		? tr::lng_profile_photo_by_you(tr::now)
 		: ((state->current.index == (state->current.count - 1))
-			&& SyncUserFallbackPhotoViewer(peer->asUser()))
+			&& SyncUserFallbackPhotoViewer(peer->asUser()) == state->photoId)
 		? tr::lng_profile_public_photo(tr::now)
 		: QString();
 	state->waitingLoad = false;

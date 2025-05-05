@@ -378,7 +378,7 @@ void ChatsFiltersTabs::setHorizontalShift(int index, int shift) {
 	Expects(index >= 0 && index < _sections.size());
 
 	auto &section = _sections[index];
-	if (const auto delta = shift - section.horizontalShift) {
+	if (shift - section.horizontalShift) {
 		section.horizontalShift = shift;
 		update();
 	}

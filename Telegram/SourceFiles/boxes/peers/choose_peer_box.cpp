@@ -453,7 +453,7 @@ void ChoosePeerBoxController::rowClicked(not_null<PeerListRow*> row) {
 		const auto onstack = callback;
 		onstack({ peer });
 	};
-	if (const auto user = peer->asUser()) {
+	if (peer->isUser()) {
 		done();
 	} else {
 		delegate()->peerListUiShow()->showBox(

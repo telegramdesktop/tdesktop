@@ -85,6 +85,7 @@ namespace Data {
 namespace {
 
 using ViewElement = HistoryView::Element;
+using UserIds = std::vector<UserId>;
 
 // s: box 100x100
 // m: box 320x320
@@ -1135,6 +1136,60 @@ GroupCall *Session::groupCall(CallId callId) const {
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
 }
 
+std::shared_ptr<GroupCall> Session::sharedConferenceCall(
+		CallId id,
+		uint64 accessHash) {
+	const auto i = _conferenceCalls.find(id);
+	if (i != end(_conferenceCalls)) {
+		if (auto result = i->second.lock()) {
+			return result;
+		}
+	}
+	auto result = std::make_shared<GroupCall>(
+		session().user(),
+		id,
+		accessHash,
+		TimeId(), // scheduledDate
+		false, // rtmp
+		true); // conference
+	if (i != end(_conferenceCalls)) {
+		i->second = result;
+	} else {
+		_conferenceCalls.emplace(id, result);
+	}
+	return result;
+}
+
+std::shared_ptr<GroupCall> Session::sharedConferenceCallFind(
+		const MTPUpdates &response) {
+	const auto list = response.match([&](const MTPDupdates &data) {
+		return &data.vupdates().v;
+	}, [&](const MTPDupdatesCombined &data) {
+		return &data.vupdates().v;
+	}, [](const auto &) {
+		return (const QVector<MTPUpdate>*)nullptr;
+	});
+	const auto empty = std::shared_ptr<GroupCall>();
+	if (!list) {
+		return empty;
+	}
+	for (const auto &update : *list) {
+		const auto call = update.match([&](const MTPDupdateGroupCall &data) {
+			return data.vcall().match([&](const MTPDgroupCall &data) {
+				return data.is_conference()
+					? sharedConferenceCall(
+						data.vid().v,
+						data.vaccess_hash().v)
+					: nullptr;
+			}, [&](const auto &) { return empty; });
+		}, [&](const auto &) { return empty; });
+		if (call) {
+			return call;
+		}
+	}
+	return empty;
+}
+
 void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
 	if (!now) {
 		now = base::unixtime::now();
@@ -1195,8 +1250,8 @@ void Session::checkLocalUsersWentOffline() {
 }
 
 auto Session::invitedToCallUsers(CallId callId) const
--> const base::flat_set<not_null<UserData*>> & {
-	static const base::flat_set<not_null<UserData*>> kEmpty;
+-> const base::flat_map<not_null<UserData*>, bool> & {
+	static const base::flat_map<not_null<UserData*>, bool> kEmpty;
 	const auto i = _invitedToCallUsers.find(callId);
 	return (i != _invitedToCallUsers.end()) ? i->second : kEmpty;
 }
@@ -1204,8 +1259,16 @@ auto Session::invitedToCallUsers(CallId callId) const
 void Session::registerInvitedToCallUser(
 		CallId callId,
 		not_null<PeerData*> peer,
-		not_null<UserData*> user) {
-	const auto call = peer->groupCall();
+		not_null<UserData*> user,
+		bool calling) {
+	registerInvitedToCallUser(callId, peer->groupCall(), user, calling);
+}
+
+void Session::registerInvitedToCallUser(
+		CallId callId,
+		GroupCall *call,
+		not_null<UserData*> user,
+		bool calling) {
 	if (call && call->id() == callId) {
 		const auto inCall = ranges::contains(
 			call->participants(),
@@ -1215,18 +1278,32 @@ void Session::registerInvitedToCallUser(
 			return;
 		}
 	}
-	_invitedToCallUsers[callId].emplace(user);
-	_invitesToCalls.fire({ callId, user });
+	_invitedToCallUsers[callId][user] = calling;
+	_invitesToCalls.fire({ callId, user, calling });
 }
 
 void Session::unregisterInvitedToCallUser(
 		CallId callId,
-		not_null<UserData*> user) {
+		not_null<UserData*> user,
+		bool onlyStopCalling) {
 	const auto i = _invitedToCallUsers.find(callId);
 	if (i != _invitedToCallUsers.end()) {
-		i->second.remove(user);
-		if (i->second.empty()) {
-			_invitedToCallUsers.erase(i);
+		const auto j = i->second.find(user);
+		if (j != end(i->second)) {
+			if (onlyStopCalling) {
+				if (!j->second) {
+					return;
+				}
+				j->second = false;
+			} else {
+				i->second.erase(j);
+				if (i->second.empty()) {
+					_invitedToCallUsers.erase(i);
+				}
+			}
+			const auto calling = false;
+			const auto removed = !onlyStopCalling;
+			_invitesToCalls.fire({ callId, user, calling, removed });
 		}
 	}
 }
@@ -2231,7 +2308,7 @@ void Session::applyDialog(
 }
 
 bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
-	if (const auto sublist = entry->asSublist()) {
+	if ([[maybe_unused]] const auto sublist = entry->asSublist()) {
 		const auto saved = &savedMessages();
 		return pinnedChatsOrder(saved).size() < pinnedChatsLimit(saved);
 	} else if (const auto topic = entry->asTopic()) {
@@ -4907,6 +4984,71 @@ void Session::clearLocalStorage() {
 	_cache->clear();
 	_bigFileCache->close();
 	_bigFileCache->clear();
+}
+
+rpl::producer<UserIds> Session::contactBirthdays(bool force) {
+	if ((_contactBirthdaysLastDayRequest != -1)
+		&& (_contactBirthdaysLastDayRequest == QDate::currentDate().day())
+		&& !force) {
+		return rpl::single(_contactBirthdays);
+	}
+	if (_contactBirthdaysRequestId) {
+		_session->api().request(_contactBirthdaysRequestId).cancel();
+	}
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		_contactBirthdaysRequestId = _session->api().request(
+			MTPcontacts_GetBirthdays()
+		).done([=](const MTPcontacts_ContactBirthdays &result) {
+			_contactBirthdaysRequestId = 0;
+			_contactBirthdaysLastDayRequest = QDate::currentDate().day();
+			auto users = UserIds();
+			auto today = UserIds();
+			Session::processUsers(result.data().vusers());
+			for (const auto &tlContact : result.data().vcontacts().v) {
+				const auto peerId = tlContact.data().vcontact_id().v;
+				if (const auto user = Session::user(peerId)) {
+					const auto &data = tlContact.data().vbirthday().data();
+					user->setBirthday(Data::Birthday(
+						data.vday().v,
+						data.vmonth().v,
+						data.vyear().value_or_empty()));
+					if (Data::IsBirthdayToday(user->birthday())) {
+						today.push_back(peerToUser(user->id));
+					}
+					users.push_back(peerToUser(user->id));
+				}
+			}
+			_contactBirthdays = std::move(users);
+			_contactBirthdaysToday = std::move(today);
+			consumer.put_next_copy(_contactBirthdays);
+		}).fail([=](const MTP::Error &error) {
+			_contactBirthdaysRequestId = 0;
+			_contactBirthdaysLastDayRequest = QDate::currentDate().day();
+			_contactBirthdays = {};
+			_contactBirthdaysToday = {};
+			consumer.put_next({});
+		}).send();
+
+		return lifetime;
+	};
+}
+
+std::optional<UserIds> Session::knownContactBirthdays() const {
+	if ((_contactBirthdaysLastDayRequest == -1)
+		|| (_contactBirthdaysLastDayRequest != QDate::currentDate().day())) {
+		return std::nullopt;
+	}
+	return _contactBirthdays;
+}
+
+std::optional<UserIds> Session::knownBirthdaysToday() const {
+	if ((_contactBirthdaysLastDayRequest == -1)
+		|| (_contactBirthdaysLastDayRequest != QDate::currentDate().day())) {
+		return std::nullopt;
+	}
+	return _contactBirthdaysToday;
 }
 
 } // namespace Data

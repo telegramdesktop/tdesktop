@@ -751,7 +751,7 @@ void InnerWidget::setupEnd() {
 				*sent = false;
 				if (!success) {
 					return;
-				} else if (const auto strong = weak.data()) {
+				} else if ([[maybe_unused]] const auto strong = weak.data()) {
 					_controller->showBackFromStack();
 					window->showToast({
 						.title = tr::lng_star_ref_ended_title(tr::now),

@@ -220,6 +220,8 @@ constexpr auto kSponsoredUserpicLines = 2;
 		? tr::lng_view_button_voice_chat(tr::now)
 		: (type == WebPageType::Livestream)
 		? tr::lng_view_button_voice_chat_channel(tr::now)
+		: (type == WebPageType::ConferenceCall)
+		? tr::lng_view_button_call(tr::now)
 		: (type == WebPageType::Bot)
 		? tr::lng_view_button_bot(tr::now)
 		: (type == WebPageType::User)
@@ -258,6 +260,7 @@ constexpr auto kSponsoredUserpicLines = 2;
 		|| (type == WebPageType::User)
 		|| (type == WebPageType::VoiceChat)
 		|| (type == WebPageType::Livestream)
+		|| (type == WebPageType::ConferenceCall)
 		|| (type == WebPageType::BotApp)
 		|| ((type == WebPageType::Theme)
 			&& webpage->document

@@ -100,7 +100,7 @@ void Widget::setInnerFocus() {
 }
 
 rpl::producer<QString> Widget::title() {
-	if (const auto topic = controller()->key().topic()) {
+	if (controller()->key().topic()) {
 		return tr::lng_info_topic_title();
 	}
 	const auto peer = controller()->key().peer();

@@ -178,6 +178,7 @@ menuIconNftWear: icon {{ "menu/nft_wear", menuIconColor }};
 menuIconNftTakeOff: icon {{ "menu/nft_takeoff", menuIconColor }};
 menuIconShortcut: icon {{ "menu/shortcut", menuIconColor }};
 menuIconHourglass: icon {{ "menu/hourglass", menuIconColor }};
+menuIconPayment: icon {{ "payments/payment_card", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -212,6 +213,7 @@ mediaMenuIconArchiveStory: icon {{ "menu/stories_archive", mediaviewMenuFg }};
 mediaMenuIconStealthLocked: icon {{ "menu/stealth_locked", mediaviewMenuFg }};
 mediaMenuIconStealth: icon {{ "menu/stealth", mediaviewMenuFg }};
 mediaMenuIconStats: icon {{ "menu/stats", mediaviewMenuFg }};
+mediaMenuIconRemove: icon {{ "menu/remove", mediaviewMenuFg }};
 
 mediaMenuIconInfo: icon {{ "menu/info", mediaviewMenuFg }};
 mediaMenuIconBlock: icon {{ "menu/block", mediaviewMenuFg }};

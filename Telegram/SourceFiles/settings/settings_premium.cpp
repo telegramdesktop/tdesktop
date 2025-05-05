@@ -85,6 +85,7 @@ using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 
 		if (option.duration == tr::lng_months(tr::now, lt_count, 1)) {
 			option.costPerMonth = QString();
+			option.costNoDiscount = QString();
 			option.duration = tr::lng_premium_subscribe_months_1(tr::now);
 		} else if (option.duration == tr::lng_months(tr::now, lt_count, 6)) {
 			option.duration = tr::lng_premium_subscribe_months_6(tr::now);
@@ -383,7 +384,6 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_effects(),
 				tr::lng_premium_summary_about_effects(),
 				PremiumFeature::Effects,
-				true,
 			},
 		},
 	};

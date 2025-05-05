@@ -956,7 +956,7 @@ QString ChannelData::invitePeekHash() const {
 }
 
 void ChannelData::privateErrorReceived() {
-	if (const auto expires = invitePeekExpires()) {
+	if (invitePeekExpires()) {
 		const auto hash = invitePeekHash();
 		for (const auto &window : session().windows()) {
 			clearInvitePeek();
@@ -1001,10 +1001,13 @@ void ChannelData::setGroupCall(
 			data.vid().v,
 			data.vaccess_hash().v,
 			scheduleDate,
-			rtmp);
+			rtmp,
+			false); // conference
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);
+	}, [&](const auto &) {
+		clearGroupCall();
 	});
 }
 

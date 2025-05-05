@@ -416,10 +416,13 @@ void LeaveBox(
 		not_null<GroupCall*> call,
 		bool discardChecked,
 		BoxContext context) {
+	const auto conference = call->conference();
 	const auto livestream = call->peer()->isBroadcast();
 	const auto scheduled = (call->scheduleDate() != 0);
 	if (!scheduled) {
-		box->setTitle(livestream
+		box->setTitle(conference
+			? tr::lng_group_call_leave_title_call()
+			: livestream
 			? tr::lng_group_call_leave_title_channel()
 			: tr::lng_group_call_leave_title());
 	}
@@ -431,12 +434,14 @@ void LeaveBox(
 				? (livestream
 					? tr::lng_group_call_close_sure_channel()
 					: tr::lng_group_call_close_sure())
-				: (livestream
+				: (conference
+					? tr::lng_group_call_leave_sure_call()
+					: livestream
 					? tr::lng_group_call_leave_sure_channel()
 					: tr::lng_group_call_leave_sure())),
 			(inCall ? st::groupCallBoxLabel : st::boxLabel)),
 		scheduled ? st::boxPadding : st::boxRowPadding);
-	const auto discard = call->peer()->canManageGroupCall()
+	const auto discard = call->canManage()
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
 			(scheduled
@@ -490,20 +495,24 @@ void FillMenu(
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox) {
 	const auto weak = base::make_weak(call);
 	const auto resolveReal = [=] {
-		const auto real = peer->groupCall();
-		const auto strong = weak.get();
-		return (real && strong && (real->id() == strong->id()))
-			? real
-			: nullptr;
+		if (const auto strong = weak.get()) {
+			if (const auto real = strong->lookupReal()) {
+				return real;
+			}
+		}
+		return (Data::GroupCall*)nullptr;
 	};
 	const auto real = resolveReal();
 	if (!real) {
 		return;
 	}
 
+	const auto conference = call->conference();
 	const auto addEditJoinAs = call->showChooseJoinAs();
-	const auto addEditTitle = call->canManage();
-	const auto addEditRecording = call->canManage() && !real->scheduleDate();
+	const auto addEditTitle = !conference && call->canManage();
+	const auto addEditRecording = !conference
+		&& call->canManage()
+		&& !real->scheduleDate();
 	const auto addScreenCast = !wide
 		&& call->videoIsWorking()
 		&& !real->scheduleDate();

@@ -17,6 +17,15 @@ namespace Calls {
 struct ParticipantVideoParams;
 } // namespace Calls
 
+namespace Main {
+class Session;
+} // namespace Main
+
+namespace TdE2E {
+struct ParticipantState;
+struct UserId;
+} // namespace TdE2E
+
 namespace Data {
 
 [[nodiscard]] const std::string &RtmpEndpointId();
@@ -56,15 +65,20 @@ public:
 	GroupCall(
 		not_null<PeerData*> peer,
 		CallId id,
-		CallId accessHash,
+		uint64 accessHash,
 		TimeId scheduleDate,
-		bool rtmp);
+		bool rtmp,
+		bool conference);
 	~GroupCall();
+
+	[[nodiscard]] Main::Session &session() const;
 
 	[[nodiscard]] CallId id() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool rtmp() const;
+	[[nodiscard]] bool canManage() const;
 	[[nodiscard]] bool listenersHidden() const;
+	[[nodiscard]] bool blockchainMayBeEmpty() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
 	[[nodiscard]] QString title() const {
@@ -133,6 +147,16 @@ public:
 	[[nodiscard]] auto participantSpeaking() const
 		-> rpl::producer<not_null<Participant*>>;
 
+	void setParticipantsWithAccess(base::flat_set<UserId> list);
+	[[nodiscard]] auto participantsWithAccessCurrent() const
+		-> const base::flat_set<UserId> &;
+	[[nodiscard]] auto participantsWithAccessValue() const
+		-> rpl::producer<base::flat_set<UserId>>;
+	[[nodiscard]] auto staleParticipantIds() const
+		-> rpl::producer<base::flat_set<UserId>>;
+	void setParticipantsLoaded();
+	void checkStaleParticipants();
+
 	void enqueueUpdate(const MTPUpdate &update);
 	void applyLocalUpdate(
 		const MTPDupdateGroupCallParticipants &update);
@@ -153,6 +177,7 @@ public:
 
 	[[nodiscard]] int fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
+	[[nodiscard]] QString conferenceInviteLink() const;
 
 	void setInCall();
 	void reload();
@@ -191,7 +216,7 @@ private:
 	void applyEnqueuedUpdate(const MTPUpdate &update);
 	void setServerParticipantsCount(int count);
 	void computeParticipantsCount();
-	void processQueuedUpdates();
+	void processQueuedUpdates(bool initial = false);
 	void processFullCallUsersChats(const MTPphone_GroupCall &call);
 	void processFullCallFields(const MTPphone_GroupCall &call);
 	[[nodiscard]] bool requestParticipantsAfterReload(
@@ -201,7 +226,7 @@ private:
 	[[nodiscard]] Participant *findParticipant(not_null<PeerData*> peer);
 
 	const CallId _id = 0;
-	const CallId _accessHash = 0;
+	const uint64 _accessHash = 0;
 
 	not_null<PeerData*> _peer;
 	int _version = 0;
@@ -209,6 +234,7 @@ private:
 	mtpRequestId _reloadRequestId = 0;
 	crl::time _reloadLastFinished = 0;
 	rpl::variable<QString> _title;
+	QString _conferenceInviteLink;
 
 	base::flat_multi_map<
 		std::pair<int, QueuedType>,
@@ -241,13 +267,19 @@ private:
 	rpl::event_stream<not_null<Participant*>> _participantSpeaking;
 	rpl::event_stream<> _participantsReloaded;
 
-	bool _joinMuted = false;
-	bool _canChangeJoinMuted = true;
-	bool _allParticipantsLoaded = false;
-	bool _joinedToTop = false;
-	bool _applyingQueuedUpdates = false;
-	bool _rtmp = false;
-	bool _listenersHidden = false;
+	rpl::variable<base::flat_set<UserId>> _participantsWithAccess;
+	rpl::event_stream<base::flat_set<UserId>> _staleParticipantIds;
+	rpl::lifetime _checkStaleLifetime;
+
+	bool _creator : 1 = false;
+	bool _joinMuted : 1 = false;
+	bool _canChangeJoinMuted : 1 = true;
+	bool _allParticipantsLoaded : 1 = false;
+	bool _joinedToTop : 1 = false;
+	bool _applyingQueuedUpdates : 1 = false;
+	bool _rtmp : 1 = false;
+	bool _conference : 1 = false;
+	bool _listenersHidden : 1 = false;
 
 };
 

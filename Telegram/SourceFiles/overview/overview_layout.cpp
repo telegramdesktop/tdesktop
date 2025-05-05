@@ -1017,7 +1017,7 @@ const style::RoundCheckbox &Voice::checkboxStyle() const {
 }
 
 void Voice::updateName() {
-	if (const auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
+	if (parent()->Has<HistoryMessageForwarded>()) {
 		const auto info = parent()->originalHiddenSenderInfo();
 		const auto name = info
 			? tr::lng_forwarded(tr::now, lt_user, info->nameText().toString())

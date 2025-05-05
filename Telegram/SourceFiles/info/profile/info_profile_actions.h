@@ -25,6 +25,7 @@ class Controller;
 namespace Info::Profile {
 
 extern const char kOptionShowPeerIdBelowAbout[];
+extern const char kOptionShowChannelJoinedBelowAbout[];
 
 class Cover;
 struct Origin;

@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 
 struct PremiumSubscriptionOption {
+	int months = 0;
 	QString duration;
 	QString discount;
 	QString costPerMonth;
+	QString costNoDiscount;
 	QString costTotal;
 	QString total;
 	QString botUrl;

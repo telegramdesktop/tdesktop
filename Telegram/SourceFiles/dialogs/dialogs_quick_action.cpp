@@ -76,19 +76,41 @@ void PerformQuickDialogAction(
 		MuteMenu::ThreadDescriptor(history).updateMutePeriod(isMuted
 			? 0
 			: std::numeric_limits<TimeId>::max());
+		controller->showToast(isMuted
+			? tr::lng_quick_dialog_action_toast_unmute_success(tr::now)
+			: tr::lng_quick_dialog_action_toast_mute_success(tr::now));
 	} else if (action == Dialogs::Ui::QuickDialogAction::Pin) {
 		const auto entry = (Dialogs::Entry*)(history);
-		Window::TogglePinnedThread(controller, entry, filterId);
+		const auto isPinned = entry->isPinnedDialog(filterId);
+		const auto onToggled = isPinned
+			? Fn<void()>(nullptr)
+			: [=] {
+				controller->showToast(
+					tr::lng_quick_dialog_action_toast_pin_success(tr::now));
+			};
+		Window::TogglePinnedThread(controller, entry, filterId, onToggled);
+		if (isPinned) {
+			controller->showToast(
+				tr::lng_quick_dialog_action_toast_unpin_success(tr::now));
+		}
 	} else if (action == Dialogs::Ui::QuickDialogAction::Read) {
 		if (Window::IsUnreadThread(history)) {
 			Window::MarkAsReadThread(history);
+			controller->showToast(
+				tr::lng_quick_dialog_action_toast_read_success(tr::now));
 		} else if (history) {
 			peer->owner().histories().changeDialogUnreadMark(history, true);
+			controller->showToast(
+				tr::lng_quick_dialog_action_toast_unread_success(tr::now));
 		}
 	} else if (action == Dialogs::Ui::QuickDialogAction::Archive) {
+		const auto isArchived = Window::IsArchived(history);
+		controller->showToast(isArchived
+			? tr::lng_quick_dialog_action_toast_unarchive_success(tr::now)
+			: tr::lng_quick_dialog_action_toast_archive_success(tr::now));
 		history->session().api().toggleHistoryArchived(
 			history,
-			!Window::IsArchived(history),
+			!isArchived,
 			[] {});
 	} else if (action == Dialogs::Ui::QuickDialogAction::Delete) {
 		Window::DeleteAndLeaveHandler(controller, peer)();

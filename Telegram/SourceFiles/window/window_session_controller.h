@@ -264,6 +264,12 @@ public:
 		PeerId ownerId,
 		const QString &entity,
 		Fn<void(QString)> fail = nullptr);
+	void resolveConferenceCall(
+		QString slug,
+		FullMsgId contextId);
+	void resolveConferenceCall(
+		MsgId inviteMsgId,
+		FullMsgId contextId);
 
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		Ui::Toast::Config &&config);
@@ -290,6 +296,10 @@ private:
 	void resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done);
+	void resolveConferenceCall(
+		QString slug,
+		MsgId inviteMsgId,
+		FullMsgId contextId);
 
 	void resolveDone(
 		const MTPcontacts_ResolvedPeer &result,
@@ -328,6 +338,11 @@ private:
 
 	QString _collectibleEntity;
 	mtpRequestId _collectibleRequestId = 0;
+
+	QString _conferenceCallSlug;
+	MsgId _conferenceCallInviteMsgId;
+	FullMsgId _conferenceCallResolveContextId;
+	mtpRequestId _conferenceCallRequestId = 0;
 
 };
 

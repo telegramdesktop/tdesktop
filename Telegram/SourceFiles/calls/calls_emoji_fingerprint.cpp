@@ -7,20 +7,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_emoji_fingerprint.h"
 
+#include "base/random.h"
 #include "calls/calls_call.h"
 #include "calls/calls_signal_bars.h"
 #include "lang/lang_keys.h"
 #include "data/data_user.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/abstract_button.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 #include "styles/style_calls.h"
 
 namespace Calls {
 namespace {
 
-constexpr auto kTooltipShowTimeoutMs = 1000;
+constexpr auto kTooltipShowTimeoutMs = crl::time(1000);
+constexpr auto kCarouselOneDuration = crl::time(100);
+constexpr auto kStartTimeShift = crl::time(50);
+constexpr auto kEmojiInFingerprint = 4;
+constexpr auto kEmojiInCarousel = 10;
 
 const ushort Data[] = {
 0xd83d, 0xde09, 0xd83d, 0xde0d, 0xd83d, 0xde1b, 0xd83d, 0xde2d, 0xd83d, 0xde31, 0xd83d, 0xde21,
@@ -109,8 +118,11 @@ const ushort Offsets[] = {
 620, 622, 624, 626, 628, 630, 632, 634, 636, 638, 640, 641,
 642, 643, 644, 646, 648, 650, 652, 654, 656, 658 };
 
+constexpr auto kEmojiCount = (base::array_size(Offsets) - 1);
+
 uint64 ComputeEmojiIndex(bytes::const_span bytes) {
 	Expects(bytes.size() == 8);
+
 	return ((gsl::to_integer<uint64>(bytes[0]) & 0x7F) << 56)
 		| (gsl::to_integer<uint64>(bytes[1]) << 48)
 		| (gsl::to_integer<uint64>(bytes[2]) << 40)
@@ -121,40 +133,41 @@ uint64 ComputeEmojiIndex(bytes::const_span bytes) {
 		| (gsl::to_integer<uint64>(bytes[7]));
 }
 
+[[nodiscard]] EmojiPtr EmojiByIndex(int index) {
+	Expects(index >= 0 && index < kEmojiCount);
+
+	const auto offset = Offsets[index];
+	const auto size = Offsets[index + 1] - offset;
+	const auto string = QString::fromRawData(
+		reinterpret_cast<const QChar*>(Data + offset),
+		size);
+	return Ui::Emoji::Find(string);
+}
+
 } // namespace
 
 std::vector<EmojiPtr> ComputeEmojiFingerprint(not_null<Call*> call) {
-	auto result = std::vector<EmojiPtr>();
-	constexpr auto EmojiCount = (base::array_size(Offsets) - 1);
-	for (auto index = 0; index != EmojiCount; ++index) {
-		auto offset = Offsets[index];
-		auto size = Offsets[index + 1] - offset;
-		auto string = QString::fromRawData(
-			reinterpret_cast<const QChar*>(Data + offset),
-			size);
-		auto emoji = Ui::Emoji::Find(string);
-		Assert(emoji != nullptr);
+	if (!call->isKeyShaForFingerprintReady()) {
+		return {};
 	}
-	if (call->isKeyShaForFingerprintReady()) {
-		auto sha256 = call->getKeyShaForFingerprint();
-		constexpr auto kPartSize = 8;
-		for (auto partOffset = 0; partOffset != sha256.size(); partOffset += kPartSize) {
-			auto value = ComputeEmojiIndex(gsl::make_span(sha256).subspan(partOffset, kPartSize));
-			auto index = value % EmojiCount;
-			auto offset = Offsets[index];
-			auto size = Offsets[index + 1] - offset;
-			auto string = QString::fromRawData(
-				reinterpret_cast<const QChar*>(Data + offset),
-				size);
-			auto emoji = Ui::Emoji::Find(string);
-			Assert(emoji != nullptr);
-			result.push_back(emoji);
-		}
+	return ComputeEmojiFingerprint(call->getKeyShaForFingerprint());
+}
+
+std::vector<EmojiPtr> ComputeEmojiFingerprint(
+		bytes::const_span fingerprint) {
+	auto result = std::vector<EmojiPtr>();
+	constexpr auto kPartSize = 8;
+	for (auto partOffset = 0
+		; partOffset != fingerprint.size()
+		; partOffset += kPartSize) {
+		const auto value = ComputeEmojiIndex(
+			fingerprint.subspan(partOffset, kPartSize));
+		result.push_back(EmojiByIndex(value % kEmojiCount));
 	}
 	return result;
 }
 
-object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
+base::unique_qptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 		not_null<QWidget*> parent,
 		not_null<Call*> call) {
 	class EmojiTooltipShower final : public Ui::AbstractTooltipShower {
@@ -180,8 +193,8 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 
 	};
 
-	auto result = object_ptr<Ui::RpWidget>(parent);
-	const auto raw = result.data();
+	auto result = base::make_unique_q<Ui::RpWidget>(parent);
+	const auto raw = result.get();
 
 	// Emoji tooltip.
 	const auto shower = raw->lifetime().make_state<EmojiTooltipShower>(
@@ -293,6 +306,518 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 
 	raw->show();
 	return result;
+}
+
+FingerprintBadge SetupFingerprintBadge(
+		rpl::lifetime &on,
+		rpl::producer<QByteArray> fingerprint) {
+	struct State {
+		FingerprintBadgeState data;
+		Ui::Animations::Basic animation;
+		Fn<void(crl::time)> update;
+		rpl::event_stream<> repaints;
+	};
+	const auto state = on.make_state<State>();
+
+	state->data.speed = 1. / kCarouselOneDuration;
+	state->update = [=](crl::time now) {
+		// speed-up-duration = 2 * one / speed.
+		const auto one = 1.;
+		const auto speedUpDuration = 2 * kCarouselOneDuration;
+		const auto speed0 = one / kCarouselOneDuration;
+
+		auto updated = false;
+		auto animating = false;
+		for (auto &entry : state->data.entries) {
+			if (!entry.time) {
+				continue;
+			}
+			animating = true;
+			if (entry.time >= now) {
+				continue;
+			}
+
+			updated = true;
+			const auto elapsed = (now - entry.time) * 1.;
+			entry.time = now;
+
+			Assert(!entry.emoji || entry.sliding.size() > 1);
+			const auto slideCount = entry.emoji
+				? (int(entry.sliding.size()) - 1) * one
+				: (kEmojiInCarousel + (elapsed / kCarouselOneDuration));
+			const auto finalPosition = slideCount * one;
+			const auto distance = finalPosition - entry.position;
+
+			const auto accelerate0 = speed0 - entry.speed;
+			const auto decelerate0 = speed0;
+			const auto acceleration0 = speed0 / speedUpDuration;
+			const auto taccelerate0 = accelerate0 / acceleration0;
+			const auto tdecelerate0 = decelerate0 / acceleration0;
+			const auto paccelerate0 = entry.speed * taccelerate0
+				+ acceleration0 * taccelerate0 * taccelerate0 / 2.;
+			const auto pdecelerate0 = 0
+				+ acceleration0 * tdecelerate0 * tdecelerate0 / 2.;
+			const auto ttozero = entry.speed / acceleration0;
+			if (paccelerate0 + pdecelerate0 <= distance) {
+				// We have time to accelerate to speed0,
+				// maybe go some time on speed0 and then decelerate to 0.
+				const auto uaccelerate0 = std::min(taccelerate0, elapsed);
+				const auto left = distance - paccelerate0 - pdecelerate0;
+				const auto tconstant = left / speed0;
+				const auto uconstant = std::min(
+					tconstant,
+					elapsed - uaccelerate0);
+				const auto udecelerate0 = std::min(
+					tdecelerate0,
+					elapsed - uaccelerate0 - uconstant);
+				if (udecelerate0 >= tdecelerate0) {
+					Assert(entry.emoji != nullptr);
+					entry = { .emoji = entry.emoji };
+				} else {
+					entry.position += entry.speed * uaccelerate0
+						+ acceleration0 * uaccelerate0 * uaccelerate0 / 2.
+						+ speed0 * uconstant
+						+ speed0 * udecelerate0
+						- acceleration0 * udecelerate0 * udecelerate0 / 2.;
+					entry.speed += acceleration0
+						* (uaccelerate0 - udecelerate0);
+				}
+			} else if (acceleration0 * ttozero * ttozero / 2 <= distance) {
+				// We have time to accelerate at least for some time >= 0,
+				// and then decelerate to 0 to make it to final position.
+				//
+				// peak = entry.speed + acceleration0 * t
+				// tdecelerate = peak / acceleration0
+				// distance = entry.speed * t
+				//     + acceleration0 * t * t / 2
+				//     + acceleration0 * tdecelerate * tdecelerate / 2
+				const auto det = entry.speed * entry.speed / 2
+					+ distance * acceleration0;
+				const auto t = std::max(
+					(sqrt(det) - entry.speed) / acceleration0,
+					0.);
+
+				const auto taccelerate = t;
+				const auto uaccelerate = std::min(taccelerate, elapsed);
+				const auto tdecelerate = t + (entry.speed / acceleration0);
+				const auto udecelerate = std::min(
+					tdecelerate,
+					elapsed - uaccelerate);
+				if (udecelerate >= tdecelerate) {
+					Assert(entry.emoji != nullptr);
+					entry = { .emoji = entry.emoji };
+				} else {
+					const auto topspeed = entry.speed
+						+ acceleration0 * taccelerate;
+					entry.position += entry.speed * uaccelerate
+						+ acceleration0 * uaccelerate * uaccelerate / 2.
+						+ topspeed * udecelerate
+						- acceleration0 * udecelerate * udecelerate / 2.;
+					entry.speed += acceleration0
+						* (uaccelerate - udecelerate);
+				}
+			} else {
+				// We just need to decelerate to 0,
+				// faster than acceleration0.
+				Assert(entry.speed > 0);
+				const auto tdecelerate = 2 * distance / entry.speed;
+				const auto udecelerate = std::min(tdecelerate, elapsed);
+				if (udecelerate >= tdecelerate) {
+					Assert(entry.emoji != nullptr);
+					entry = { .emoji = entry.emoji };
+				} else {
+					const auto a = entry.speed / tdecelerate;
+					entry.position += entry.speed * udecelerate
+						- a * udecelerate * udecelerate / 2;
+					entry.speed -= a * udecelerate;
+				}
+			}
+
+			if (entry.position >= kEmojiInCarousel) {
+				entry.position -= qFloor(entry.position / kEmojiInCarousel)
+					* kEmojiInCarousel;
+			}
+			while (entry.position >= 1.) {
+				Assert(!entry.sliding.empty());
+				entry.position -= 1.;
+				entry.sliding.erase(begin(entry.sliding));
+				if (entry.emoji && entry.sliding.size() < 2) {
+					entry = { .emoji = entry.emoji };
+					break;
+				} else if (entry.sliding.empty()) {
+					const auto index = (entry.added++) % kEmojiInCarousel;
+					entry.sliding.push_back(entry.carousel[index]);
+				}
+			}
+			if (!entry.emoji
+				&& entry.position > 0.
+				&& entry.sliding.size() < 2) {
+				const auto index = (entry.added++) % kEmojiInCarousel;
+				entry.sliding.push_back(entry.carousel[index]);
+			}
+		}
+		if (!animating) {
+			state->animation.stop();
+		} else if (updated) {
+			state->repaints.fire({});
+		}
+	};
+	state->animation.init(state->update);
+	state->data.entries.resize(kEmojiInFingerprint);
+
+	const auto fillCarousel = [=](
+			int index,
+			base::BufferedRandom<uint32> &buffered) {
+		auto &entry = state->data.entries[index];
+		auto indices = std::vector<int>();
+		indices.reserve(kEmojiInCarousel);
+		auto count = kEmojiCount;
+		for (auto i = 0; i != kEmojiInCarousel; ++i, --count) {
+			auto index = base::RandomIndex(count, buffered);
+			for (const auto &already : indices) {
+				if (index >= already) {
+					++index;
+				}
+			}
+			indices.push_back(index);
+		}
+
+		entry.carousel.clear();
+		entry.carousel.reserve(kEmojiInCarousel);
+		for (const auto index : indices) {
+			entry.carousel.push_back(EmojiByIndex(index));
+		}
+	};
+
+	const auto startTo = [=](
+			int index,
+			EmojiPtr emoji,
+			crl::time now,
+			base::BufferedRandom<uint32> &buffered) {
+		auto &entry = state->data.entries[index];
+		if ((entry.emoji == emoji) && (emoji || entry.time)) {
+			return;
+		} else if (!entry.time) {
+			Assert(entry.sliding.empty());
+
+			if (entry.emoji) {
+				entry.sliding.push_back(entry.emoji);
+			} else if (emoji) {
+				// Just initialize if we get emoji right from the start.
+				entry.emoji = emoji;
+				return;
+			}
+			entry.time = now + index * kStartTimeShift;
+
+			fillCarousel(index, buffered);
+		}
+		entry.emoji = emoji;
+		if (entry.emoji) {
+			entry.sliding.push_back(entry.emoji);
+		} else {
+			const auto index = (entry.added++) % kEmojiInCarousel;
+			entry.sliding.push_back(entry.carousel[index]);
+		}
+	};
+
+	std::move(
+		fingerprint
+	) | rpl::start_with_next([=](const QByteArray &fingerprint) {
+		auto buffered = base::BufferedRandom<uint32>(
+			kEmojiInCarousel * kEmojiInFingerprint);
+		const auto now = crl::now();
+		const auto emoji = (fingerprint.size() >= 32)
+			? ComputeEmojiFingerprint(
+				bytes::make_span(fingerprint).subspan(0, 32))
+			: std::vector<EmojiPtr>();
+		state->update(now);
+
+		if (emoji.size() == kEmojiInFingerprint) {
+			for (auto i = 0; i != kEmojiInFingerprint; ++i) {
+				startTo(i, emoji[i], now, buffered);
+			}
+		} else {
+			for (auto i = 0; i != kEmojiInFingerprint; ++i) {
+				startTo(i, nullptr, now, buffered);
+			}
+		}
+		if (!state->animation.animating()) {
+			state->animation.start();
+		}
+	}, on);
+
+	return { .state = &state->data, .repaints = state->repaints.events() };
+}
+
+void SetupFingerprintTooltip(not_null<Ui::RpWidget*> widget) {
+	struct State {
+		std::unique_ptr<Ui::ImportantTooltip> tooltip;
+		Fn<void()> updateGeometry;
+		Fn<void(bool)> toggleTooltip;
+	};
+	const auto state = widget->lifetime().make_state<State>();
+	state->updateGeometry = [=] {
+		if (!state->tooltip.get()) {
+			return;
+		}
+		const auto geometry = Ui::MapFrom(
+			widget->window(),
+			widget,
+			widget->rect());
+		if (geometry.isEmpty()) {
+			state->toggleTooltip(false);
+			return;
+		}
+		const auto weak = QPointer<QWidget>(state->tooltip.get());
+		const auto countPosition = [=](QSize size) {
+			const auto result = geometry.bottomLeft()
+				+ QPoint(
+					geometry.width() / 2,
+					st::confcallFingerprintTooltipSkip)
+				- QPoint(size.width() / 2, 0);
+			return result;
+		};
+		state->tooltip.get()->pointAt(
+			geometry,
+			RectPart::Bottom,
+			countPosition);
+	};
+	state->toggleTooltip = [=](bool show) {
+		if (const auto was = state->tooltip.release()) {
+			was->toggleAnimated(false);
+		}
+		if (!show) {
+			return;
+		}
+		const auto text = tr::lng_confcall_e2e_about(
+			tr::now,
+			Ui::Text::WithEntities);
+		if (text.empty()) {
+			return;
+		}
+		state->tooltip = std::make_unique<Ui::ImportantTooltip>(
+			widget->window(),
+			Ui::MakeNiceTooltipLabel(
+				widget,
+				rpl::single(text),
+				st::confcallFingerprintTooltipMaxWidth,
+				st::confcallFingerprintTooltipLabel),
+			st::confcallFingerprintTooltip);
+		const auto raw = state->tooltip.get();
+		const auto weak = QPointer<QWidget>(raw);
+		const auto destroy = [=] {
+			delete weak.data();
+		};
+		raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+		raw->setHiddenCallback(destroy);
+		state->updateGeometry();
+		raw->toggleAnimated(true);
+	};
+
+	widget->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter) {
+			state->toggleTooltip(true);
+		} else if (type == QEvent::Leave) {
+			state->toggleTooltip(false);
+		}
+	}, widget->lifetime());
+}
+
+QImage MakeVerticalShadow(int height) {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(1, height) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	auto p = QPainter(&result);
+	auto g = QLinearGradient(0, 0, 0, height);
+	auto color = st::groupCallMembersBg->c;
+	auto trans = color;
+	trans.setAlpha(0);
+	g.setStops({
+		{ 0.0, color },
+		{ 0.4, trans },
+		{ 0.6, trans },
+		{ 1.0, color },
+	});
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(0, 0, 1, height, g);
+	p.end();
+
+	return result;
+}
+
+void SetupFingerprintBadgeWidget(
+		not_null<Ui::RpWidget*> widget,
+		not_null<const FingerprintBadgeState*> state,
+		rpl::producer<> repaints) {
+	auto &lifetime = widget->lifetime();
+
+	const auto button = Ui::CreateChild<Ui::RpWidget>(widget);
+	button->show();
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		QString(),
+		st::confcallFingerprintText);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->show();
+
+	const auto ratio = style::DevicePixelRatio();
+	const auto esize = Ui::Emoji::GetSizeNormal();
+	const auto size = esize / ratio;
+	widget->widthValue() | rpl::start_with_next([=](int width) {
+		static_assert(!(kEmojiInFingerprint % 2));
+
+		const auto available = width
+			- st::confcallFingerprintMargins.left()
+			- st::confcallFingerprintMargins.right()
+			- (kEmojiInFingerprint * size)
+			- (kEmojiInFingerprint - 2) * st::confcallFingerprintSkip
+			- st::confcallFingerprintTextMargins.left()
+			- st::confcallFingerprintTextMargins.right();
+		if (available <= 0) {
+			return;
+		}
+		label->setText(tr::lng_confcall_e2e_badge(tr::now));
+		if (label->textMaxWidth() > available) {
+			label->setText(tr::lng_confcall_e2e_badge_small(tr::now));
+		}
+		const auto use = std::min(available, label->textMaxWidth());
+		label->resizeToWidth(use);
+
+		const auto ontheleft = kEmojiInFingerprint / 2;
+		const auto ontheside = ontheleft * size
+			+ (ontheleft - 1) * st::confcallFingerprintSkip;
+		const auto text = QRect(
+			(width - use) / 2,
+			(st::confcallFingerprintMargins.top()
+				+ st::confcallFingerprintTextMargins.top()),
+			use,
+			label->height());
+		const auto textOuter = text.marginsAdded(
+			st::confcallFingerprintTextMargins);
+		const auto withEmoji = QRect(
+			textOuter.x() - ontheside,
+			textOuter.y(),
+			textOuter.width() + ontheside * 2,
+			size);
+		const auto outer = withEmoji.marginsAdded(
+			st::confcallFingerprintMargins);
+
+		button->setGeometry(outer);
+		label->moveToLeft(text.x() - outer.x(), text.y() - outer.y(), width);
+
+		widget->resize(
+			width,
+			button->height() + st::confcallFingerprintBottomSkip);
+	}, lifetime);
+
+	const auto cache = lifetime.make_state<FingerprintBadgeCache>();
+	button->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(button);
+
+		const auto outer = button->rect();
+		const auto radius = outer.height() / 2.;
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::groupCallMembersBg);
+		p.drawRoundedRect(outer, radius, radius);
+		p.setClipRect(outer);
+
+		const auto withEmoji = outer.marginsRemoved(
+			st::confcallFingerprintMargins);
+		p.translate(withEmoji.topLeft());
+
+		const auto text = label->geometry();
+		const auto textOuter = text.marginsAdded(
+			st::confcallFingerprintTextMargins);
+		const auto count = int(state->entries.size());
+		cache->entries.resize(count);
+		cache->shadow = MakeVerticalShadow(outer.height());
+		for (auto i = 0; i != count; ++i) {
+			const auto &entry = state->entries[i];
+			auto &cached = cache->entries[i];
+			const auto shadowed = entry.speed / state->speed;
+			PaintFingerprintEntry(p, entry, cached, esize);
+			if (shadowed > 0.) {
+				p.setOpacity(shadowed);
+				p.drawImage(
+					QRect(0, -st::confcallFingerprintMargins.top(), size, outer.height()),
+					cache->shadow);
+				p.setOpacity(1.);
+			}
+			if (i + 1 == count / 2) {
+				p.translate(size + textOuter.width(), 0);
+			} else {
+				p.translate(size + st::confcallFingerprintSkip, 0);
+			}
+		}
+	}, lifetime);
+
+	std::move(repaints) | rpl::start_with_next([=] {
+		button->update();
+	}, lifetime);
+
+	SetupFingerprintTooltip(button);
+}
+
+void PaintFingerprintEntry(
+		QPainter &p,
+		const FingerprintBadgeState::Entry &entry,
+		FingerprintBadgeCache::Entry &cache,
+		int esize) {
+	const auto stationary = !entry.time;
+	if (stationary) {
+		Ui::Emoji::Draw(p, entry.emoji, esize, 0, 0);
+		return;
+	}
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = esize / ratio;
+	const auto add = 4;
+	const auto height = size + 2 * add;
+	const auto validateCache = [&](int index, EmojiPtr e) {
+		if (cache.emoji.size() <= index) {
+			cache.emoji.reserve(entry.carousel.size() + 2);
+			cache.emoji.resize(index + 1);
+		}
+		auto &emoji = cache.emoji[index];
+		if (emoji.ptr != e) {
+			emoji.ptr = e;
+			emoji.image = QImage(
+				QSize(size, height) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			emoji.image.setDevicePixelRatio(ratio);
+			emoji.image.fill(Qt::transparent);
+			auto q = QPainter(&emoji.image);
+			Ui::Emoji::Draw(q, e, esize, 0, add);
+			q.end();
+
+			//emoji.image = Images::Blur(
+			//	std::move(emoji.image),
+			//	false,
+			//	Qt::Vertical);
+		}
+		return &emoji;
+	};
+	auto shift = entry.position * height - add;
+	p.translate(0, shift);
+	for (const auto &e : entry.sliding) {
+		const auto index = [&] {
+			const auto i = ranges::find(entry.carousel, e);
+			if (i != end(entry.carousel)) {
+				return int(i - begin(entry.carousel));
+			}
+			return int(entry.carousel.size())
+				+ ((e == entry.sliding.back()) ? 1 : 0);
+		}();
+		const auto entry = validateCache(index, e);
+		p.drawImage(0, 0, entry->image);
+		p.translate(0, -height);
+		shift -= height;
+	}
+	p.translate(0, -shift);
 }
 
 } // namespace Calls

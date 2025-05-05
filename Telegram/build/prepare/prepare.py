@@ -84,7 +84,6 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
 pathPrefixes = [
     'ThirdParty\\msys64\\mingw64\\bin',
     'ThirdParty\\jom',
-    'ThirdParty\\cmake\\bin',
     'ThirdParty\\gyp',
 ] if win else [
     'ThirdParty/gyp',
@@ -468,12 +467,19 @@ win:
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
-    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2024-05-07/msys2-base-x86_64-20240507.sfx.exe"
+    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2025-02-21/msys2-base-x86_64-20250221.sfx.exe"
     msys64.exe
     del msys64.exe
 
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
-    pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja msys/make diffutils pkg-config
+    pacman -Syu --noconfirm ^
+        make ^
+        mingw-w64-x86_64-diffutils ^
+        mingw-w64-x86_64-gperf ^
+        mingw-w64-x86_64-nasm ^
+        mingw-w64-x86_64-perl ^
+        mingw-w64-x86_64-pkgconf ^
+        mingw-w64-x86_64-yasm
 
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
@@ -552,16 +558,15 @@ stage('xz', """
 """)
 
 stage('zlib', """
-    git clone https://github.com/madler/zlib.git
+    git clone -b v1.3.1 https://github.com/madler/zlib.git
     cd zlib
-    git checkout 643e17b749
 win:
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
-        -DCMAKE_C_FLAGS="/DZLIB_WINAPI"
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
+        -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
+        -DZLIB_BUILD_EXAMPLES=OFF
     cmake --build . --config Debug --parallel
 release:
     cmake --build . --config Release --parallel
@@ -577,6 +582,7 @@ mac:
 stage('mozjpeg', """
     git clone -b v4.1.5 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
+    git cherry-pick 1644bdb
 win:
     cmake . ^
         -A %WIN32X64% ^
@@ -659,16 +665,13 @@ mac:
 """)
 
 stage('opus', """
-    git clone -b v1.3.1 https://github.com/xiph/opus.git
+    git clone -b v1.5.2 https://github.com/xiph/opus.git
     cd opus
-    git cherry-pick 927de8453c
 win:
     cmake -B out . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
-        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
+        -DOPUS_STATIC_RUNTIME=ON
     cmake --build out --config Debug --parallel
     cmake --build out --config Release --parallel
     cmake --install out --config Release
@@ -684,11 +687,11 @@ mac:
 stage('rnnoise', """
     git clone https://github.com/desktop-app/rnnoise.git
     cd rnnoise
-    git checkout fe37e57d09
+    git checkout d8ea2b0
     mkdir out
     cd out
 win:
-    cmake -A %WIN32X64% ..
+    cmake -A %WIN32X64% .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
     cmake --build . --config Debug --parallel
 release:
     cmake --build . --config Release --parallel
@@ -697,6 +700,7 @@ release:
     cd Debug
     cmake -G Ninja ../.. \\
         -D CMAKE_BUILD_TYPE=Debug \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     ninja
 release:
@@ -705,6 +709,7 @@ release:
     cd Release
     cmake -G Ninja ../.. \\
         -D CMAKE_BUILD_TYPE=Release \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     ninja
 """)
@@ -878,8 +883,7 @@ win:
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DBUILD_SHARED_LIBS=OFF ^
         -DAVIF_ENABLE_WERROR=OFF ^
         -DAVIF_CODEC_DAV1D=ON
@@ -904,17 +908,15 @@ mac:
 stage('libde265', """
     git clone -b v1.0.15 https://github.com/strukturag/libde265.git
     cd libde265
+    git cherry-pick 5c5af1e
 win:
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DCMAKE_C_FLAGS="/DLIBDE265_STATIC_BUILD" ^
         -DCMAKE_CXX_FLAGS="/DLIBDE265_STATIC_BUILD" ^
-        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
-        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         -DENABLE_SDL=OFF ^
         -DBUILD_SHARED_LIBS=OFF ^
         -DENABLE_DECODER=OFF ^
@@ -988,10 +990,6 @@ win:
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
-        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         -DBUILD_SHARED_LIBS=OFF ^
         -DBUILD_TESTING=OFF ^
         -DENABLE_PLUGIN_LOADING=OFF ^
@@ -1060,10 +1058,6 @@ win:
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
-        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
-        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         %cmake_defines%
     cmake --build . --config Debug --parallel
     cmake --install . --config Debug
@@ -1381,7 +1375,7 @@ stage('openal-soft', """
     git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
 win:
-    git checkout 5e9429354d
+    git checkout 291c0fdbbd
     cmake -B build . ^
         -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
@@ -1750,9 +1744,8 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 4a60ce1ab9
-    git submodule init
-    git submodule update
+    git checkout c4192e8
+    git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus
@@ -1766,6 +1759,7 @@ win:
     cd Debug
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1781,6 +1775,7 @@ release:
     cd Release
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1802,6 +1797,7 @@ mac:
     cd Debug.x86_64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1817,6 +1813,7 @@ mac:
     cd Debug.arm64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1835,6 +1832,7 @@ release:
     cd Release.x86_64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1849,6 +1847,7 @@ release:
     cd Release.arm64
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1872,9 +1871,7 @@ win:
         -D ADA_TESTING=OFF ^
         -D ADA_TOOLS=OFF ^
         -D ADA_INCLUDE_URL_PATTERN=OFF ^
-        -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -D CMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
-        -D CMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
+        -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
     cmake --build out --config Debug --parallel
     cmake --build out --config Release --parallel
 mac:
@@ -1924,6 +1921,78 @@ win:
 #         -Dprotobuf_BUILD_LIBPROTOC=ON \
 #         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
 #     cmake --build . $MAKE_THREADS_CNT
+
+stage('td', """
+    git clone https://github.com/tdlib/td.git
+    cd td
+    git checkout f1b7500310
+win:
+    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
+    SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
+    SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -A %WIN32X64% ^
+        -DOPENSSL_FOUND=1 ^
+        -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
+        -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib" ^
+        -DZLIB_FOUND=1 ^
+        -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib" ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
+        -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
+        -DCMAKE_CXX_FLAGS="/DZLIB_WINAPI" ^
+        -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
+        -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
+        -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        ../..
+    cmake --build . --config Debug --target tde2e
+release:
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -A %WIN32X64% ^
+        -DOPENSSL_FOUND=1 ^
+        -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
+        -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%\\libcrypto.lib" ^
+        -DZLIB_FOUND=1 ^
+        -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib" ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
+        -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
+        -DCMAKE_CXX_FLAGS="/DZLIB_WINAPI" ^
+        -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\\libssl.lib" ^
+        -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\\libssl.lib" ^
+        -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        ../..
+    cmake --build . --config Release --target tde2e
+mac:
+    buildTd() {
+        BUILD_CONFIG=$1
+        mkdir -p out/$BUILD_CONFIG
+        cd out/$BUILD_CONFIG
+        cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=$BUILD_CONFIG \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DOPENSSL_FOUND=1 \
+            -DOPENSSL_INCLUDE_DIR=$LIBS_DIR/openssl3/include \
+            -DOPENSSL_SSL_LIBRARY=$LIBS_DIR/openssl3/libssl.a \
+            -DOPENSSL_CRYPTO_LIBRARY=$LIBS_DIR/openssl3/libcrypto.a \
+            -DZLIB_FOUND=1 \
+            -DZLIB_LIBRARIES=$USED_PREFIX/lib/libz.a \
+            ../..
+        cmake --build . --config $BUILD_CONFIG --target tde2e $MAKE_THREADS_CNT
+        cd ../..
+    }
+
+    buildTd Debug
+release:
+    buildTd Release
+""")
 
 if win:
     currentCodePage = subprocess.run('chcp', capture_output=True, shell=True, text=True, env=modifiedEnv).stdout.strip().split()[-1]

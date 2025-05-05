@@ -25,12 +25,16 @@ Data::PremiumSubscriptionOption CreateSubscriptionOption(
 			* kDiscountDivider;
 	}();
 	return {
+		.months = months,
 		.duration = Ui::FormatTTL(months * 86400 * 31),
 		.discount = (discount > 0)
 			? QString::fromUtf8("\xe2\x88\x92%1%").arg(discount)
 			: QString(),
 		.costPerMonth = Ui::FillAmountAndCurrency(
 			amount / float64(months),
+			currency),
+		.costNoDiscount = Ui::FillAmountAndCurrency(
+			monthlyAmount * months,
 			currency),
 		.costTotal = Ui::FillAmountAndCurrency(amount, currency),
 		.botUrl = botUrl,

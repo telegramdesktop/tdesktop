@@ -448,7 +448,7 @@ void StickerInBubblePart::ensureCreated(Element *replacing) const {
 		return;
 	} else if (const auto data = _lookup()) {
 		const auto sticker = data.sticker;
-		if (const auto info = sticker->sticker()) {
+		if (sticker->sticker()) {
 			const auto skipPremiumEffect = true;
 			_link = data.link;
 			_skipTop = data.skipTop;

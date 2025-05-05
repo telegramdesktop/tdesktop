@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/peers/edit_peer_color_box.h"
+#include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_preview_box.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/ui_integration.h"
+#include "data/data_birthday.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_credits.h"
@@ -69,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/new_badges.h"
 #include "ui/painter.h"
@@ -91,6 +94,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
@@ -117,6 +121,13 @@ constexpr auto kGiftsPreloadTimeout = 3 * crl::time(1000);
 using namespace HistoryView;
 using namespace Info::PeerGifts;
 
+enum class PickType {
+	Activate,
+	SendMessage,
+	OpenProfile,
+};
+using PickCallback = Fn<void(not_null<PeerData*>, PickType)>;
+
 struct PremiumGiftsDescriptor {
 	std::vector<GiftTypePremium> list;
 	std::shared_ptr<Api::PremiumGiftCodeOptions> api;
@@ -140,6 +151,80 @@ struct GiftDetails {
 	bool upgraded = false;
 	bool byStars = false;
 };
+
+class PeerRow final : public PeerListRow {
+public:
+	using PeerListRow::PeerListRow;
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
+
+private:
+	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
+
+};
+
+QSize PeerRow::rightActionSize() const {
+	return QSize(
+		st::inviteLinkThreeDotsIcon.width(),
+		st::inviteLinkThreeDotsIcon.height());
+}
+
+QMargins PeerRow::rightActionMargins() const {
+	return QMargins(
+		0,
+		(st::inviteLinkList.item.height - rightActionSize().height()) / 2,
+		st::inviteLinkThreeDotsSkip,
+		0);
+}
+
+void PeerRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (_actionRipple) {
+		_actionRipple->paint(p, x, y, outerWidth);
+		if (_actionRipple->empty()) {
+			_actionRipple.reset();
+		}
+	}
+	(actionSelected
+		? st::inviteLinkThreeDotsIconOver
+		: st::inviteLinkThreeDotsIcon).paint(p, x, y, outerWidth);
+}
+
+void PeerRow::rightActionAddRipple(QPoint point, Fn<void()> updateCallback) {
+	if (!_actionRipple) {
+		auto mask = Ui::RippleAnimation::EllipseMask(
+			Size(st::inviteLinkThreeDotsIcon.height()));
+		_actionRipple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			std::move(mask),
+			std::move(updateCallback));
+	}
+	_actionRipple->add(point);
+}
+
+void PeerRow::rightActionStopLastRipple() {
+	if (_actionRipple) {
+		_actionRipple->lastStop();
+	}
+}
 
 class PreviewDelegate final : public DefaultElementDelegate {
 public:
@@ -1793,7 +1878,7 @@ void SendGiftBox(
 				ShowSentToast(window, details.descriptor, details);
 			}
 			if (const auto strong = weak.data()) {
-				box->closeBox();
+				strong->closeBox();
 			}
 		};
 		SendGift(window, peer, api, details, done);
@@ -2191,10 +2276,10 @@ void GiftBox(
 		&& uniqueDisallowed;
 
 	content->add(
-		object_ptr<CenterWrap<>>(
+		object_ptr<CenterWrap<UserpicButton>>(
 			content,
 			object_ptr<UserpicButton>(content, peer, stUser))
-	)->setAttribute(Qt::WA_TransparentForMouseEvents);
+	)->entity()->setClickedCallback([=] { window->showPeerInfo(peer); });
 	AddSkip(content);
 	AddSkip(content);
 
@@ -2257,24 +2342,46 @@ void GiftBox(
 	}
 }
 
-struct SelfOption {
+[[nodiscard]] base::unique_qptr<Ui::PopupMenu> CreateRowContextMenu(
+		QWidget *parent,
+		not_null<PeerData*> peer,
+		PickCallback pick) {
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	result->addAction(
+		tr::lng_context_send_message(tr::now),
+		[=] { pick(peer, PickType::SendMessage); },
+		&st::menuIconChatBubble);
+	result->addAction(
+		tr::lng_context_view_profile(tr::now),
+		[=] { pick(peer, PickType::OpenProfile); },
+		&st::menuIconProfile);
+	return result;
+}
+
+struct CustomList {
 	object_ptr<Ui::RpWidget> content = { nullptr };
 	Fn<bool(int, int, int)> overrideKey;
 	Fn<void()> activate;
+	Fn<bool()> hasSelection;
 };
 
 class Controller final : public ContactsBoxController {
 public:
-	Controller(
-		not_null<Main::Session*> session,
-		Fn<void(not_null<PeerData*>)> choose);
+	Controller(not_null<Main::Session*> session, PickCallback pick);
 
 	void noSearchSubmit();
 
 	bool overrideKeyboardNavigation(
 		int direction,
 		int fromIndex,
-		int toIndex) override;
+		int toIndex) override final;
+
+	void rowRightActionClicked(not_null<PeerListRow*> row) override final;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override final;
 
 private:
 	std::unique_ptr<PeerListRow> createRow(
@@ -2283,41 +2390,71 @@ private:
 	void prepareViewHook() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	const Fn<void(not_null<PeerData*>)> _choose;
-	SelfOption _selfOption;
+	const PickCallback _pick;
+	const std::vector<UserId> _contactBirthdays;
+	CustomList _selfOption;
+	CustomList _birthdayOptions;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
+
+	bool _skipUpDirectionSelect = false;
 
 };
 
-[[nodiscard]] SelfOption MakeSelfOption(
+[[nodiscard]] CustomList MakeCustomList(
 		not_null<Main::Session*> session,
-		Fn<void()> activate) {
-	class SelfController final : public PeerListController {
+		Fn<void(not_null<PeerListController*>)> fill,
+		PickCallback pick,
+		rpl::producer<QString> below) {
+	class CustomController final : public PeerListController {
 	public:
-		SelfController(
+		CustomController(
 			not_null<Main::Session*> session,
-			Fn<void()> activate)
+			Fn<void(not_null<PeerListController*>)> fill,
+			PickCallback pick)
 		: _session(session)
-		, _activate(std::move(activate)) {
+		, _pick(std::move(pick))
+		, _fill(std::move(fill)) {
 		}
 
 		void prepare() override {
-			auto row = std::make_unique<PeerListRow>(_session->user());
-			row->setCustomStatus(tr::lng_gift_self_status(tr::now));
-			delegate()->peerListAppendRow(std::move(row));
-			delegate()->peerListRefreshRows();
+			if (_fill) {
+				_fill(this);
+			}
 		}
 		void loadMoreRows() override {
 		}
 		void rowClicked(not_null<PeerListRow*> row) override {
-			_activate();
+			_pick(row->peer(), PickType::Activate);
 		}
 		Main::Session &session() const override {
 			return *_session;
 		}
 
+		void rowRightActionClicked(not_null<PeerListRow*> row) override {
+			delegate()->peerListShowRowMenu(row, true);
+		}
+
+		base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+				QWidget *parent,
+				not_null<PeerListRow*> row) override {
+			auto result = CreateRowContextMenu(parent, row->peer(), _pick);
+
+			if (result) {
+				base::take(_menu);
+
+				_menu = base::unique_qptr<Ui::PopupMenu>(result.get());
+			}
+
+			return result;
+		}
+
 	private:
 		const not_null<Main::Session*> _session;
-		Fn<void()> _activate;
+		PickCallback _pick;
+		Fn<void(not_null<PeerListController*>)> _fill;
+
+		base::unique_qptr<Ui::PopupMenu> _menu;
 
 	};
 
@@ -2329,9 +2466,12 @@ private:
 	const auto delegate = container->lifetime().make_state<
 		PeerListContentDelegateSimple
 	>();
-	const auto controller = container->lifetime().make_state<
-		SelfController
-	>(session, activate);
+	const auto controller
+		= container->lifetime().make_state<CustomController>(
+			session,
+			fill,
+			pick);
+
 	controller->setStyleOverrides(&st::peerListSingleRow);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
@@ -2339,10 +2479,12 @@ private:
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
-	Ui::AddSkip(container);
-	container->add(CreatePeerListSectionSubtitle(
-		container,
-		tr::lng_contacts_header()));
+	if (below) {
+		Ui::AddSkip(container);
+		container->add(CreatePeerListSectionSubtitle(
+			container,
+			std::move(below)));
+	}
 
 	const auto overrideKey = [=](int direction, int from, int to) {
 		if (!content->isVisible()) {
@@ -2368,77 +2510,242 @@ private:
 		}
 		return false;
 	};
+	const auto hasSelection = [=] {
+		return content->isVisible() && content->hasSelection();
+	};
 
 	return {
 		.content = std::move(result),
 		.overrideKey = overrideKey,
-		.activate = activate,
+		.activate = [=] {
+			if (content->hasSelection()) {
+				pick(
+					content->rowAt(content->selectedIndex())->peer(),
+					PickType::Activate);
+			}
+		},
+		.hasSelection = hasSelection,
 	};
 }
 
-Controller::Controller(
-	not_null<Main::Session*> session,
-	Fn<void(not_null<PeerData*>)> choose)
+Controller::Controller(not_null<Main::Session*> session, PickCallback pick)
 : ContactsBoxController(session)
-, _choose(std::move(choose))
-, _selfOption(MakeSelfOption(session, [=] { _choose(session->user()); })) {
+, _pick(std::move(pick))
+, _contactBirthdays(
+	session->data().knownContactBirthdays().value_or(std::vector<UserId>{}))
+, _selfOption(
+	MakeCustomList(
+		session,
+		[=](not_null<PeerListController*> controller) {
+			auto row = std::make_unique<PeerListRow>(session->user());
+			row->setCustomStatus(tr::lng_gift_self_status(tr::now));
+			controller->delegate()->peerListAppendRow(std::move(row));
+			controller->delegate()->peerListRefreshRows();
+		},
+		_pick,
+		_contactBirthdays.empty()
+			? tr::lng_contacts_header()
+			: tr::lng_gift_subtitle_birthdays()))
+, _birthdayOptions(
+	MakeCustomList(
+		session,
+		[=](not_null<PeerListController*> controller) {
+			const auto status = [=](const Data::Birthday &date) {
+				if (Data::IsBirthdayToday(date)) {
+					return tr::lng_gift_list_birthday_status_today(
+						tr::now,
+						lt_emoji,
+						Data::BirthdayCake());
+				}
+				const auto yesterday = QDate::currentDate().addDays(-1);
+				const auto tomorrow = QDate::currentDate().addDays(1);
+				if (date.day() == yesterday.day()
+						&& date.month() == yesterday.month()) {
+					return tr::lng_gift_list_birthday_status_yesterday(
+						tr::now);
+				} else if (date.day() == tomorrow.day()
+						&& date.month() == tomorrow.month()) {
+					return tr::lng_gift_list_birthday_status_tomorrow(
+						tr::now);
+				}
+				return QString();
+			};
+
+			auto usersWithBirthdays = ranges::views::all(
+				_contactBirthdays
+			) | ranges::views::transform([&](UserId userId) {
+				return session->data().user(userId);
+			}) | ranges::to_vector;
+
+			ranges::sort(usersWithBirthdays, [](UserData *a, UserData *b) {
+				const auto aBirthday = a->birthday();
+				const auto bBirthday = b->birthday();
+				const auto aIsToday = Data::IsBirthdayToday(aBirthday);
+				const auto bIsToday = Data::IsBirthdayToday(bBirthday);
+				if (aIsToday != bIsToday) {
+					return aIsToday > bIsToday;
+				}
+				if (aBirthday.month() != bBirthday.month()) {
+					return aBirthday.month() < bBirthday.month();
+				}
+				return aBirthday.day() < bBirthday.day();
+			});
+
+			for (const auto user : usersWithBirthdays) {
+				auto row = std::make_unique<PeerRow>(user);
+				if (auto s = status(user->birthday()); !s.isEmpty()) {
+					row->setCustomStatus(std::move(s));
+				}
+				controller->delegate()->peerListAppendRow(std::move(row));
+			}
+
+			controller->delegate()->peerListRefreshRows();
+		},
+		_pick,
+		_contactBirthdays.empty()
+			? rpl::producer<QString>(nullptr)
+			: tr::lng_contacts_header())) {
 	setStyleOverrides(&st::peerListSmallSkips);
+}
+
+void Controller::rowRightActionClicked(not_null<PeerListRow*> row) {
+	delegate()->peerListShowRowMenu(row, true);
+}
+
+base::unique_qptr<Ui::PopupMenu> Controller::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	auto result = CreateRowContextMenu(parent, row->peer(), _pick);
+
+	if (result) {
+		// First clear _menu value, so that we don't check row positions yet.
+		base::take(_menu);
+
+		// Here unique_qptr is used like a shared pointer, where
+		// not the last destroyed pointer destroys the object, but the first.
+		_menu = base::unique_qptr<Ui::PopupMenu>(result.get());
+	}
+
+	return result;
 }
 
 void Controller::noSearchSubmit() {
 	if (const auto onstack = _selfOption.activate) {
 		onstack();
 	}
+	if (const auto onstack = _birthdayOptions.activate) {
+		onstack();
+	}
 }
 
 bool Controller::overrideKeyboardNavigation(
 		int direction,
-		int fromIndex,
-		int toIndex) {
-	return _selfOption.overrideKey
-		&& _selfOption.overrideKey(direction, fromIndex, toIndex);
+		int from,
+		int to) {
+	if (direction == -1 && from == -1 && to == -1 && _skipUpDirectionSelect) {
+		return true;
+	}
+	_skipUpDirectionSelect = false;
+	if (direction > 0) {
+		if (!_selfOption.hasSelection() && !_birthdayOptions.hasSelection()) {
+			return _selfOption.overrideKey(direction, from, to);
+		}
+		if (_selfOption.hasSelection() && !_birthdayOptions.hasSelection()) {
+			if (_selfOption.overrideKey(direction, from, to)) {
+				return true;
+			} else {
+				return _birthdayOptions.overrideKey(direction, from, to);
+			}
+		}
+		if (!_selfOption.hasSelection() && _birthdayOptions.hasSelection()) {
+			if (_birthdayOptions.overrideKey(direction, from, to)) {
+				return true;
+			}
+		}
+	} else if (direction < 0) {
+		if (!_selfOption.hasSelection() && !_birthdayOptions.hasSelection()) {
+			return _birthdayOptions.overrideKey(direction, from, to);
+		}
+		if (!_selfOption.hasSelection() && _birthdayOptions.hasSelection()) {
+			if (_birthdayOptions.overrideKey(direction, from, to)) {
+				return true;
+			} else if (!_birthdayOptions.hasSelection()) {
+				const auto res = _selfOption.overrideKey(direction, from, to);
+				_skipUpDirectionSelect = _selfOption.hasSelection();
+				return res;
+			}
+		}
+		if (_selfOption.hasSelection() && !_birthdayOptions.hasSelection()) {
+			if (_selfOption.overrideKey(direction, from, to)) {
+				_skipUpDirectionSelect = _selfOption.hasSelection();
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 std::unique_ptr<PeerListRow> Controller::createRow(
 		not_null<UserData*> user) {
+	if (const auto birthday = user->owner().knownContactBirthdays()) {
+		if (ranges::contains(*birthday, peerToUser(user->id))) {
+			return nullptr;
+		}
+	}
 	if (user->isSelf()
 		|| user->isBot()
 		|| user->isServiceUser()
 		|| user->isInaccessible()) {
 		return nullptr;
 	}
-	return ContactsBoxController::createRow(user);
+	return std::make_unique<PeerRow>(user);
 }
 
 void Controller::prepareViewHook() {
-	delegate()->peerListSetAboveWidget(std::move(_selfOption.content));
+	auto list = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
+	list->add(std::move(_selfOption.content));
+	list->add(std::move(_birthdayOptions.content));
+	delegate()->peerListSetAboveWidget(std::move(list));
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
-	_choose(row->peer());
+	_pick(row->peer(), PickType::Activate);
 }
 
 } // namespace
 
 void ChooseStarGiftRecipient(
 		not_null<Window::SessionController*> window) {
-	auto controller = std::make_unique<Controller>(
-		&window->session(),
-		[=](not_null<PeerData*> peer) {
-			ShowStarGiftBox(window, peer);
-		});
-	const auto controllerRaw = controller.get();
-	auto initBox = [=](not_null<PeerListBox*> box) {
-		box->setTitle(tr::lng_gift_premium_or_stars());
-		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	const auto session = &window->session();
+	const auto lifetime = std::make_shared<rpl::lifetime>();
+	session->data().contactBirthdays(
+	) | rpl::start_with_next(crl::guard(session, [=] {
+		lifetime->destroy();
+		auto controller = std::make_unique<Controller>(
+			session,
+			[=](not_null<PeerData*> peer, PickType type) {
+				if (type == PickType::Activate) {
+					ShowStarGiftBox(window, peer);
+				} else if (type == PickType::SendMessage) {
+					using Way = Window::SectionShow::Way;
+					window->showPeerHistory(peer, Way::Forward);
+				} else if (type == PickType::OpenProfile) {
+					window->show(PrepareShortInfoBox(peer, window));
+				}
+			});
+		const auto controllerRaw = controller.get();
+		auto initBox = [=](not_null<PeerListBox*> box) {
+			box->setTitle(tr::lng_gift_premium_or_stars());
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
-		box->noSearchSubmits() | rpl::start_with_next([=] {
-			controllerRaw->noSearchSubmit();
-		}, box->lifetime());
-	};
-	window->show(
-		Box<PeerListBox>(std::move(controller), std::move(initBox)),
-		LayerOption::KeepOther);
+			box->noSearchSubmits() | rpl::start_with_next([=] {
+				controllerRaw->noSearchSubmit();
+			}, box->lifetime());
+		};
+		window->show(
+			Box<PeerListBox>(std::move(controller), std::move(initBox)),
+			LayerOption::KeepOther);
+	}), *lifetime);
 }
 
 void ShowStarGiftBox(

@@ -70,4 +70,15 @@ private:
 
 };
 
+void RequestLoginEmailCode(
+	MTP::Sender &api,
+	const QString &sendToEmail,
+	Fn<void(int length, const QString &pattern)> done,
+	Fn<void(const QString &error)> fail);
+void VerifyLoginEmail(
+	MTP::Sender &api,
+	const QString &code,
+	Fn<void()> done,
+	Fn<void(const QString &error)> fail);
+
 } // namespace Api

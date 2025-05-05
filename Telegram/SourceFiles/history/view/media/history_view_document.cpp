@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
-#include "history/history_item_helpers.h" // ClearMediaAsExpired.
+#include "history/history_item.h"
 #include "history/history.h"
 #include "core/click_handler_types.h" // kDocumentFilenameTooltipProperty.
 #include "history/view/history_view_element.h"
@@ -271,10 +271,10 @@ void PaintWaveform(
 	};
 	add(FormatDownloadText(document->size, document->size));
 	const auto duration = document->duration() / 1000;
-	if (const auto song = document->song()) {
+	if (document->song()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
-	} else if (const auto voice = document->voice() ? document->voice() : document->round()) {
+	} else if (document->voice() ? document->voice() : document->round()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
 	} else if (document->isVideoFile()) {
@@ -330,7 +330,7 @@ Document::Document(
 					}
 					if (const auto item = data->message(fullId)) {
 						// Destroys this.
-						ClearMediaAsExpired(item);
+						item->clearMediaAsExpired();
 					}
 				}, *lifetime);
 

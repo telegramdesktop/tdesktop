@@ -317,7 +317,7 @@ public:
 
 };
 
-class BirthdayPrivacyController final : public EditPrivacyController {
+class BirthdayPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;

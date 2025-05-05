@@ -28,8 +28,8 @@ constexpr auto kSearchPerPage = 50;
 	auto result = MessageIdsList();
 	for (const auto &message : messages) {
 		const auto peerId = PeerFromMessage(message);
-		if (const auto peer = data->peerLoaded(peerId)) {
-			if (const auto lastDate = DateFromMessage(message)) {
+		if (data->peerLoaded(peerId)) {
+			if (DateFromMessage(message)) {
 				const auto item = data->addNewMessage(
 					message,
 					MessageFlags(),

@@ -24,6 +24,14 @@ UserpicButton {
 	uploadIcon: icon;
 	uploadIconPosition: point;
 }
+UserpicsRow {
+	button: UserpicButton;
+	bg: color;
+	shift: pixels;
+	stroke: pixels;
+	complex: bool;
+	invert: bool;
+}
 ShortInfoBox {
 	label: FlatLabel;
 	labeled: FlatLabel;
@@ -1128,4 +1136,11 @@ foldersMenu: PopupMenu(popupMenuWithIcons) {
 	menu: Menu(menuWithIcons) {
 		itemPadding: margins(54px, 8px, 44px, 8px);
 	}
+}
+
+fakeUserpicButton: UserpicButton(defaultUserpicButton) {
+	size: size(1px, 1px);
+	photoSize: 1px;
+	changeIcon: icon {{ "settings/photo", transparent }};
+	uploadBg: transparent;
 }

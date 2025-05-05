@@ -2104,7 +2104,7 @@ void EmojiListWidget::colorChosen(EmojiChosen data) {
 
 	const auto emoji = data.emoji;
 	auto &settings = Core::App().settings();
-	if (const auto button = std::get_if<OverButton>(&_pickerSelected)) {
+	if (v::is<OverButton>(_pickerSelected)) {
 		settings.saveAllEmojiVariants(emoji);
 		for (auto section = int(Section::People)
 			; section < _staticCount
@@ -2425,7 +2425,7 @@ Ui::Text::CustomEmoji *EmojiListWidget::resolveCustomRecent(
 	const auto &data = customId.data;
 	if (const auto document = std::get_if<RecentEmojiDocument>(&data)) {
 		return resolveCustomRecent(document->id);
-	} else if (const auto emoji = std::get_if<EmojiPtr>(&data)) {
+	} else if (v::is<EmojiPtr>(data)) {
 		return nullptr;
 	}
 	Unexpected("Custom recent emoji id.");

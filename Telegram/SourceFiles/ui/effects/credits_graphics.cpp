@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -41,6 +42,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace {
+
+class CreditsIconEmoji final : public Ui::Text::CustomEmoji {
+public:
+	CreditsIconEmoji(int height, int count);
+
+	int width() override;
+	QString entityData() override;
+
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	const int _height;
+	const int _count;
+	QImage _image;
+
+};
+
+CreditsIconEmoji::CreditsIconEmoji(int height, int count)
+: _height(height)
+, _count(count)
+, _image(GenerateStars(height, count)) {
+}
+
+int CreditsIconEmoji::width() {
+	return _image.width() / style::DevicePixelRatio();
+}
+
+QString CreditsIconEmoji::entityData() {
+	return u"credits_icon:%1:%2"_q.arg(_height).arg(_count);
+}
+
+void CreditsIconEmoji::paint(QPainter &p, const Context &context) {
+	p.drawImage(context.position, _image);
+}
+
+void CreditsIconEmoji::unload() {
+	_image = QImage();
+}
+
+bool CreditsIconEmoji::ready() {
+	return true;
+}
+
+bool CreditsIconEmoji::readyInDefaultState() {
+	return true;
+}
 
 PaintRoundImageCallback MultiThumbnail(
 		PaintRoundImageCallback first,
@@ -676,6 +726,12 @@ QImage CreditsWhiteDoubledIcon(int size, float64 outlineRatio) {
 		drawSingle(p);
 	}
 	return result;
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> MakeCreditsIconEmoji(
+		int height,
+		int count) {
+	return std::make_unique<CreditsIconEmoji>(height, count);
 }
 
 } // namespace Ui

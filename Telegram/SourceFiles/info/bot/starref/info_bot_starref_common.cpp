@@ -73,7 +73,7 @@ void ConnectStarRef(
 
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateLinkIcon(
 		not_null<QWidget*> parent,
-		not_null<UserData*> bot,
+		not_null<Main::Session*> session,
 		int users) {
 	auto result = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = result.data();
@@ -92,7 +92,7 @@ void ConnectStarRef(
 	const auto inner = QSize(innerSide, innerSide);
 	const auto state = raw->lifetime().make_state<State>(State{
 		.icon = ChatHelpers::GenerateLocalTgsSticker(
-			&bot->session(),
+			session,
 			u"starref_link"_q),
 	});
 	state->icon->overrideEmojiUsesTextColor(true);
@@ -390,14 +390,16 @@ void AddFullWidthButtonFooter(
 
 object_ptr<Ui::AbstractButton> MakeLinkLabel(
 		not_null<QWidget*> parent,
-		const QString &link) {
+		const QString &link,
+		const style::InputField *stOverride) {
+	const auto &st = stOverride ? *stOverride : st::dialogsFilter;
 	const auto text = link.startsWith(u"https://"_q)
 		? link.mid(8)
 		: link.startsWith(u"http://"_q)
 		? link.mid(7)
 		: link;
-	const auto margins = st::dialogsFilter.textMargins;
-	const auto height = st::dialogsFilter.heightMin;
+	const auto margins = st.textMargins;
+	const auto height = st.heightMin;
 	const auto skip = margins.left();
 
 	auto result = object_ptr<Ui::AbstractButton>(parent);
@@ -408,18 +410,18 @@ object_ptr<Ui::AbstractButton> MakeLinkLabel(
 		auto p = QPainter(raw);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::dialogsFilter.textBg);
+		p.setBrush(st.textBg);
 		const auto radius = st::roundRadiusLarge;
 		p.drawRoundedRect(0, 0, raw->width(), height, radius, radius);
 
-		const auto font = st::dialogsFilter.style.font;
-		p.setPen(st::dialogsFilter.textFg);
+		const auto font = st.style.font;
+		p.setPen(st.textFg);
 		p.setFont(font);
 		const auto available = raw->width() - skip * 2;
 		p.drawText(
 			QRect(skip, margins.top(), available, font->height),
 			style::al_top,
-			font->elided(link, available));
+			font->elided(text, available));
 	}, raw->lifetime());
 
 	return result;
@@ -441,7 +443,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		});
 
 		box->addRow(
-			CreateLinkIcon(box, bot, row.state.users),
+			CreateLinkIcon(box, &bot->session(), row.state.users),
 			st::boxRowPadding + st::starrefJoinUserpicsPadding);
 		box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -1056,6 +1058,13 @@ ConnectedBots Parse(
 		});
 	}
 	return result;
+}
+
+object_ptr<Ui::RpWidget> CreateLinkHeaderIcon(
+		not_null<QWidget*> parent,
+		not_null<Main::Session*> session,
+		int usersCount) {
+	return CreateLinkIcon(parent, session, usersCount);
 }
 
 } // namespace Info::BotStarRef

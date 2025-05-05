@@ -313,7 +313,7 @@ void PublicForwards::request(
 				const auto msgId = IdFromMessage(message);
 				const auto peerId = PeerFromMessage(message);
 				const auto lastDate = DateFromMessage(message);
-				if (const auto peer = owner.peerLoaded(peerId)) {
+				if (owner.peerLoaded(peerId)) {
 					if (!lastDate) {
 						return;
 					}

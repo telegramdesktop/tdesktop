@@ -437,6 +437,10 @@ historyCallCameraInIcon: icon {{ "calls/call_camera_active", msgFileInBg }};
 historyCallCameraInIconSelected: icon {{ "calls/call_camera_active", msgFileInBgSelected }};
 historyCallCameraOutIcon: icon {{ "calls/call_camera_active", msgFileOutBg }};
 historyCallCameraOutIconSelected: icon {{ "calls/call_camera_active", msgFileOutBgSelected }};
+historyCallGroupInIcon: icon {{ "calls/call_group", msgFileInBg }};
+historyCallGroupInIconSelected: icon {{ "calls/call_group", msgFileInBgSelected }};
+historyCallGroupOutIcon: icon {{ "calls/call_group", msgFileOutBg }};
+historyCallGroupOutIconSelected: icon {{ "calls/call_group", msgFileOutBgSelected }};
 historyCallIconPosition: point(12px, 10px);
 historyCallLeft: 16px;
 historyCallTop: 9px;
@@ -945,6 +949,7 @@ historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	minWidth: 80px;
 }
 historyHasCustomEmojiPosition: point(12px, 4px);
+historyBankCardMenuMultilinePosition: point(18px, 4px);
 
 historyTranslateLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;

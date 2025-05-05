@@ -198,7 +198,7 @@ ClickHandlerPtr BottomInfo::replayEffectLink(
 	const auto weak = base::make_weak(view);
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
-		if (const auto controller = my.sessionWindow.get()) {
+		if ([[maybe_unused]] const auto controller = my.sessionWindow.get()) {
 			if (const auto strong = weak.get()) {
 				strong->delegate()->elementStartEffect(strong, nullptr);
 			}

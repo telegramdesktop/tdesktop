@@ -159,6 +159,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::VoiceChat;
 	} else if (type == u"telegram_livestream"_q) {
 		return WebPageType::Livestream;
+	} else if (type == u"telegram_call"_q) {
+		return WebPageType::ConferenceCall;
 	} else if (type == u"telegram_user"_q) {
 		return WebPageType::User;
 	} else if (type == u"telegram_botapp"_q) {
