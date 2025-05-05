@@ -1,3 +1,8 @@
+---
+description:
+globs:
+alwaysApply: true
+---
 # RPL (Reactive Programming Library) Guide
 
 ## Coding Style Note
@@ -64,7 +69,7 @@ rpl::lifetime lifetime;
 // Counter is consumed here, use std::move if it's an l-value.
 std::move(
     counter
-) | rpl::start_with_next([=](int nextValue) {
+) | rpl::start_with_next([=]\(int nextValue) {
     // Process the next integer value emitted by the producer.
     qDebug() << "Received: " << nextValue;
 }, lifetime); // Pass the lifetime to manage the subscription.
@@ -77,7 +82,7 @@ std::move(
 auto counter2 = /* ... */; // Type: rpl::producer<int>
 rpl::lifetime subscriptionLifetime = std::move(
     counter2
-) | rpl::start_with_next([=](int nextValue) { /* ... */ });
+) | rpl::start_with_next([=]\(int nextValue) { /* ... */ });
 // The returned lifetime MUST be stored. If it's discarded immediately,
 // the subscription stops instantly.
 // `counter2` is also moved-from here.
@@ -93,7 +98,7 @@ rpl::lifetime lifetime;
 // If it's the only use, std::move(dataStream) would be preferred.
 rpl::duplicate(
     dataStream
-) | rpl::start_with_error([=](Error &&error) {
+) | rpl::start_with_error([=]\(Error &&error) {
     // Handle the error signaled by the producer.
     qDebug() << "Error: " << error.text();
 }, lifetime);
@@ -101,7 +106,7 @@ rpl::duplicate(
 // Using dataStream again, perhaps duplicated again or moved if last use.
 rpl::duplicate(
     dataStream
-) | rpl::start_with_done([=]() {
+) | rpl::start_with_done([=] {
     // Execute when the producer signals it's finished emitting values.
     qDebug() << "Stream finished.";
 }, lifetime);
@@ -110,9 +115,9 @@ rpl::duplicate(
 std::move(
     dataStream
 ) | rpl::start_with_next_error_done(
-    [=](QString &&value) { /* handle next value */ },
-    [=](Error &&error) { /* handle error */ },
-    [=]() { /* handle done */ },
+    [=]\(QString &&value) { /* handle next value */ },
+    [=]\(Error &&error) { /* handle error */ },
+    [=] { /* handle done */ },
     lifetime);
 ```
 
@@ -164,7 +169,7 @@ You can combine multiple producers into one:
     // The lambda receives unpacked arguments, not the tuple itself.
     std::move(
         combined
-    ) | rpl::start_with_next([=](int count, const QString &text) {
+    ) | rpl::start_with_next([=]\(int count, const QString &text) {
         // No need for std::get<0>(latest), etc.
         qDebug() << "Combined: Count=" << count << ", Text=" << text;
     }, lifetime);
@@ -172,11 +177,11 @@ You can combine multiple producers into one:
     // This also works with map, filter, etc.
     std::move(
         combined
-    ) | rpl::filter([=](int count, const QString &text) {
+    ) | rpl::filter([=]\(int count, const QString &text) {
         return count > 0 && !text.isEmpty();
-    }) | rpl::map([=](int count, const QString &text) {
+    }) | rpl::map([=]\(int count, const QString &text) {
         return text.repeated(count);
-    }) | rpl::start_with_next([=](const QString &result) {
+    }) | rpl::start_with_next([=]\(const QString &result) {
         qDebug() << "Mapped & Filtered: " << result;
     }, lifetime);
     ```
@@ -192,7 +197,7 @@ You can combine multiple producers into one:
     // Starting the merged producer consumes it.
     std::move(
         merged
-    ) | rpl::start_with_next([=](QString &&value) {
+    ) | rpl::start_with_next([=]\(QString &&value) {
         // Receives values from either sourceA or sourceB as they arrive.
         qDebug() << "Merged value: " << value;
     }, lifetime);

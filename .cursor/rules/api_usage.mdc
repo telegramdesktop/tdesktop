@@ -1,8 +1,13 @@
+---
+description: For tasks requiring sending Telegram server API requests or working with generated API types.
+globs:
+alwaysApply: false
+---
 # Telegram Desktop API Usage
 
 ## API Schema
 
-The API definitions are described using [TL Language](https://core.telegram.org/mtproto/TL) in two main schema files:
+The API definitions are described using [TL Language]\(https:/core.telegram.org/mtproto/TL) in two main schema files:
 
 1.  **`Telegram/SourceFiles/mtproto/scheme/mtproto.tl`**
     *   Defines the core MTProto protocol types and methods used for basic communication, encryption, authorization, service messages, etc.
@@ -39,7 +44,7 @@ api().request(MTPnamespace_MethodName(
     MTP_long(randomId),
     // ... other arguments matching the TL definition
     MTP_vector<MTPMessageEntity>() // Example for a vector argument
-)).done([=](const MTPResponseType &result) {
+)).done([=]\(const MTPResponseType &result) {
     // Handle the successful response (result).
     // 'result' will be of the C++ type corresponding to the TL type
     // specified after the '=' in the api.tl method definition.
@@ -47,9 +52,9 @@ api().request(MTPnamespace_MethodName(
 
     // 1. Multiple Constructors (e.g., User = User | UserEmpty):
     //    Use .match() with lambdas for each constructor:
-    result.match([&](const MTPDuser &data) {
+    result.match([&]\(const MTPDuser &data) {
         /* use data.vfirst_name().v, etc. */
-    }, [&](const MTPDuserEmpty &data) {
+    }, [&]\(const MTPDuserEmpty &data) {
         /* handle empty user */
     });
 
@@ -64,7 +69,7 @@ api().request(MTPnamespace_MethodName(
 
     // 2. Single Constructor (e.g., Messages = messages { msgs: vector<Message> }):
     //    Use .match() with a single lambda:
-    result.match([&](const MTPDmessages &data) { /* use data.vmessages().v */ });
+    result.match([&]\(const MTPDmessages &data) { /* use data.vmessages().v */ });
 
     //    Or check the type explicitly and use the constructor getter:
     if (result.type() == mtpc_messages) {
@@ -76,7 +81,7 @@ api().request(MTPnamespace_MethodName(
     const auto &data = result.data(); // Only works for single-constructor types!
     // use data.vmessages().v
 
-}).fail([=](const MTP::Error &error) {
+}).fail([=]\(const MTP::Error &error) {
     // Handle the API error (error).
     // 'error' is an MTP::Error object containing the error code (error.type())
     // and description (error.description()). Check for specific error strings.
@@ -93,8 +98,8 @@ api().request(MTPnamespace_MethodName(
 *   Always refer to `Telegram/SourceFiles/mtproto/scheme/api.tl` for the correct method names, parameters (names and types), and response types.
 *   Use the generated `MTP...` types/classes for request parameters (e.g., `MTP_int`, `MTP_string`, `MTP_bool`, `MTP_vector`, `MTPInputUser`, etc.) and response handling.
 *   The `.done()` lambda receives the specific C++ `MTP...` type corresponding to the TL return type.
-    *   For types with **multiple constructors** (e.g., `User = User | UserEmpty`), use `result.match([&](const MTPDuser &d){ ... }, [&](const MTPDuserEmpty &d){ ... })` to handle each case, or check `result.type() == mtpc_user` / `mtpc_userEmpty` and call the specific `result.c_user()` / `result.c_userEmpty()` getter (which asserts on type mismatch).
-    *   For types with a **single constructor** (e.g., `Messages = messages{...}`), you can use `result.match([&](const MTPDmessages &d){ ... })` with one lambda, or check `type()` and call `c_messages()`, or use the shortcut `result.data()` to access the fields directly.
+    *   For types with **multiple constructors** (e.g., `User = User | UserEmpty`), use `result.match([&]\(const MTPDuser &d){ ... }, [&]\(const MTPDuserEmpty &d){ ... })` to handle each case, or check `result.type() == mtpc_user` / `mtpc_userEmpty` and call the specific `result.c_user()` / `result.c_userEmpty()` getter (which asserts on type mismatch).
+    *   For types with a **single constructor** (e.g., `Messages = messages{...}`), you can use `result.match([&]\(const MTPDmessages &d){ ... })` with one lambda, or check `type()` and call `c_messages()`, or use the shortcut `result.data()` to access the fields directly.
 *   The `.fail()` lambda receives an `MTP::Error` object. Check `error.type()` against known error strings (often defined as constants or using `u"..."_q` literals).
 *   Directly construct the `MTPnamespace_MethodName(...)` object inside `request()`.
 *   Include `.handleFloodErrors()` before `.send()` for standard flood wait handling.

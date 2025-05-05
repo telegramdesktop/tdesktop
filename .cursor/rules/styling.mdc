@@ -1,3 +1,8 @@
+---
+description: For tasks requiring working with user facing UI components.
+globs:
+alwaysApply: false
+---
 # Telegram Desktop UI Styling
 
 ## Style Definition Files

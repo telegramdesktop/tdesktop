@@ -1,3 +1,8 @@
+---
+description: For tasks requiring changing or adding user facing phrases and text parts.
+globs:
+alwaysApply: false
+---
 # Telegram Desktop Localization
 
 ## Coding Style Note
