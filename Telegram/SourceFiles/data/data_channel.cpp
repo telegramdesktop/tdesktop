@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "api/api_global_privacy.h"
 #include "api/api_statistics.h"
+#include "base/timer_rpl.h"
 #include "data/components/credits.h"
 #include "data/data_changes.h"
 #include "data/data_channel_admins.h"
@@ -1360,6 +1361,7 @@ void ApplyChannelUpdate(
 	}
 
 	if (channel->flags() & Flag::CanViewRevenue) {
+		static constexpr auto kTimeout = crl::time(60000);
 		const auto id = channel->id;
 		const auto weak = base::make_weak(&channel->session());
 		const auto creditsLoadLifetime = std::make_shared<rpl::lifetime>();
@@ -1371,6 +1373,9 @@ void ApplyChannelUpdate(
 				creditsLoadLifetime->destroy();
 			}
 		});
+		base::timer_once(kTimeout) | rpl::start_with_next([=] {
+			creditsLoadLifetime->destroy();
+		}, *creditsLoadLifetime);
 		const auto currencyLoadLifetime = std::make_shared<rpl::lifetime>();
 		const auto currencyLoad
 			= currencyLoadLifetime->make_state<Api::EarnStatistics>(channel);
@@ -1384,6 +1389,9 @@ void ApplyChannelUpdate(
 					currencyLoad->data().currentBalance);
 				currencyLoadLifetime->destroy();
 			}
+		}, *currencyLoadLifetime);
+		base::timer_once(kTimeout) | rpl::start_with_next([=] {
+			currencyLoadLifetime->destroy();
 		}, *currencyLoadLifetime);
 	}
 

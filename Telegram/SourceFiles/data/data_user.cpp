@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_statistics.h"
+#include "base/timer_rpl.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "storage/storage_user_photos.h"
@@ -767,6 +768,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				Data::PeerUpdate::Flag::Rights);
 		}
 		if (info->canEditInformation) {
+			static constexpr auto kTimeout = crl::time(60000);
 			const auto id = user->id;
 			const auto weak = base::make_weak(&user->session());
 			const auto creditsLoadLifetime
@@ -779,6 +781,9 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 					creditsLoadLifetime->destroy();
 				}
 			});
+			base::timer_once(kTimeout) | rpl::start_with_next([=] {
+				creditsLoadLifetime->destroy();
+			}, *creditsLoadLifetime);
 			const auto currencyLoadLifetime
 				= std::make_shared<rpl::lifetime>();
 			const auto currencyLoad
@@ -793,6 +798,9 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 						currencyLoad->data().currentBalance);
 					currencyLoadLifetime->destroy();
 				}
+			}, *currencyLoadLifetime);
+			base::timer_once(kTimeout) | rpl::start_with_next([=] {
+				currencyLoadLifetime->destroy();
 			}, *currencyLoadLifetime);
 		}
 	}
