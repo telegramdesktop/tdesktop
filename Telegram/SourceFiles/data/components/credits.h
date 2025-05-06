@@ -37,6 +37,8 @@ public:
 	[[nodiscard]] rpl::producer<float64> rateValue(
 		not_null<PeerData*> ownedBotOrChannel);
 
+	[[nodiscard]] rpl::producer<> refreshedByPeerId(PeerId peerId);
+
 	void applyCurrency(PeerId peerId, uint64 balance);
 	[[nodiscard]] uint64 balanceCurrency(PeerId peerId) const;
 
@@ -63,6 +65,8 @@ private:
 	rpl::event_stream<> _loadedChanges;
 	crl::time _lastLoaded = 0;
 	float64 _rate = 0.;
+
+	rpl::event_stream<PeerId> _refreshedByPeerId;
 
 	SingleQueuedInvokation _reload;
 

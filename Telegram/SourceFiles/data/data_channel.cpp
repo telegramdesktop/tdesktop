@@ -1360,7 +1360,8 @@ void ApplyChannelUpdate(
 		channel->setWallPaper({});
 	}
 
-	if (channel->flags() & Flag::CanViewRevenue) {
+	if ((channel->flags() & Flag::CanViewRevenue)
+		|| (channel->flags() & Flag::CanViewCreditsRevenue)) {
 		static constexpr auto kTimeout = crl::time(60000);
 		const auto id = channel->id;
 		const auto weak = base::make_weak(&channel->session());

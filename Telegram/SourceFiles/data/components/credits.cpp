@@ -135,10 +135,17 @@ void Credits::apply(StarsAmount balance) {
 
 void Credits::apply(PeerId peerId, StarsAmount balance) {
 	_cachedPeerBalances[peerId] = balance;
+	_refreshedByPeerId.fire_copy(peerId);
 }
 
 void Credits::applyCurrency(PeerId peerId, uint64 balance) {
 	_cachedPeerCurrencyBalances[peerId] = balance;
+	_refreshedByPeerId.fire_copy(peerId);
+}
+
+rpl::producer<> Credits::refreshedByPeerId(PeerId peerId) {
+	return _refreshedByPeerId.events(
+	) | rpl::filter(rpl::mappers::_1 == peerId) | rpl::to_empty;
 }
 
 } // namespace Data
