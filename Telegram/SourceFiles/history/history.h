@@ -27,12 +27,14 @@ struct LanguageId;
 
 namespace Data {
 struct Draft;
+class Forum;
 class Session;
 class Folder;
 class ChatFilter;
 struct SponsoredFrom;
 class SponsoredMessages;
 class HistoryMessages;
+class SavedMessages;
 } // namespace Data
 
 namespace Dialogs {
@@ -70,6 +72,9 @@ public:
 
 	void forumChanged(Data::Forum *old);
 	[[nodiscard]] bool isForum() const;
+
+	void monoforumChanged(Data::SavedMessages *old);
+	[[nodiscard]] bool isMonoforum() const;
 
 	[[nodiscard]] not_null<History*> migrateToOrMe() const;
 	[[nodiscard]] History *migrateFrom() const;
@@ -430,9 +435,10 @@ private:
 		PendingAllItemsResize = (1 << 1),
 		IsTopPromoted = (1 << 2),
 		IsForum = (1 << 3),
-		FakeUnreadWhileOpened = (1 << 4),
-		HasPinnedMessages = (1 << 5),
-		ResolveChatListMessage = (1 << 6),
+		IsMonoforum = (1 << 4),
+		FakeUnreadWhileOpened = (1 << 5),
+		HasPinnedMessages = (1 << 6),
+		ResolveChatListMessage = (1 << 7),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {

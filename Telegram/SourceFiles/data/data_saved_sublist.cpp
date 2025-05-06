@@ -17,12 +17,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
-SavedSublist::SavedSublist(not_null<PeerData*> peer)
+SavedSublist::SavedSublist(
+	not_null<SavedMessages*> parent,
+	not_null<PeerData*> peer)
 : Entry(&peer->owner(), Dialogs::Entry::Type::SavedSublist)
+, _parent(parent)
 , _history(peer->owner().history(peer)) {
 }
 
 SavedSublist::~SavedSublist() = default;
+
+not_null<SavedMessages*> SavedSublist::parent() const {
+	return _parent;
+}
+
+ChannelData *SavedSublist::parentChat() const {
+	return _parent->parentChat();
+}
 
 not_null<History*> SavedSublist::history() const {
 	return _history;
@@ -101,9 +112,7 @@ void SavedSublist::removeOne(not_null<HistoryItem*> item) {
 				updateChatListExistence();
 			} else {
 				updateChatListEntry();
-				crl::on_main(this, [=] {
-					owner().savedMessages().loadMore(this);
-				});
+				crl::on_main(this, [=] { _parent->loadMore(this); });
 			}
 		} else {
 			setChatListTimeId(_items.front()->date());

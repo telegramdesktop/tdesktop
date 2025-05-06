@@ -3563,6 +3563,12 @@ Data::SavedSublist *HistoryItem::savedSublist() const {
 		that->AddComponents(HistoryMessageSaved::Bit());
 		that->Get<HistoryMessageSaved>()->sublist = sublist;
 		return sublist;
+	} else if (const auto monoforum = _history->peer->monoforum()) {
+		const auto sublist = monoforum->sublist(_history->peer);
+		const auto that = const_cast<HistoryItem*>(this);
+		that->AddComponents(HistoryMessageSaved::Bit());
+		that->Get<HistoryMessageSaved>()->sublist = sublist;
+		return sublist;
 	}
 	return nullptr;
 }
@@ -3785,7 +3791,9 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 			}
 		}
 		const auto peer = _history->owner().peer(config.savedSublistPeer);
-		saved->sublist = _history->owner().savedMessages().sublist(peer);
+		saved->sublist = _history->peer->isSelf()
+			? _history->owner().savedMessages().sublist(peer)
+			: _history->peer->monoforum()->sublist(peer);
 	}
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
@@ -5744,8 +5752,23 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto preparePaidMessagesPrice = [&](const MTPDmessageActionPaidMessagesPrice &action) {
 		const auto stars = action.vstars().v;
+		const auto broadcastAllowed = action.is_broadcast_messages_allowed();
 		auto result = PreparedServiceText();
-		result.text = stars
+		result.text = _history->peer->isBroadcast()
+			? (stars > 0
+				? tr::lng_action_direct_messages_paid(
+					tr::now,
+					lt_count,
+					stars,
+					Ui::Text::WithEntities)
+				: broadcastAllowed
+				? tr::lng_action_direct_messages_enabled(
+					tr::now,
+					Ui::Text::WithEntities)
+				: tr::lng_action_direct_messages_disabled(
+					tr::now,
+					Ui::Text::WithEntities))
+			: stars
 			? tr::lng_action_message_price_paid(
 				tr::now,
 				lt_count,

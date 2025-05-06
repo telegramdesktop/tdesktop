@@ -907,6 +907,7 @@ void PinsLimitBox(
 		limits.dialogsPinnedPremium(),
 		PinsCount(session->data().chatsList()));
 }
+
 void SublistsPinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {

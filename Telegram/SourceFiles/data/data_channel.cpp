@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
+#include "data/data_saved_messages.h"
 #include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "main/main_session.h"
@@ -84,6 +85,29 @@ Data::Forum *MegagroupInfo::forum() const {
 std::unique_ptr<Data::Forum> MegagroupInfo::takeForumData() {
 	if (auto result = base::take(_forum)) {
 		result->history()->forumChanged(result.get());
+		return result;
+	}
+	return nullptr;
+}
+
+void MegagroupInfo::ensureMonoforum(not_null<ChannelData*> that) {
+	if (!_monoforum) {
+		const auto history = that->owner().history(that);
+		_monoforum = std::make_unique<Data::SavedMessages>(
+			&that->owner(),
+			that);
+		history->monoforumChanged(nullptr);
+	}
+}
+
+Data::SavedMessages *MegagroupInfo::monoforum() const {
+	return _monoforum.get();
+}
+
+std::unique_ptr<Data::SavedMessages> MegagroupInfo::takeMonoforumData() {
+	if (auto result = base::take(_monoforum)) {
+		const auto history = result->owner().history(result->parentChat());
+		history->monoforumChanged(result.get());
 		return result;
 	}
 	return nullptr;
@@ -161,6 +185,12 @@ void ChannelData::setAccessHash(uint64 accessHash) {
 }
 
 void ChannelData::setFlags(ChannelDataFlags which) {
+	if (which & (Flag::Forum | Flag::Monoforum)) {
+		which |= Flag::Megagroup;
+	}
+	if (which & Flag::Monoforum) {
+		which &= ~Flag::Forum;
+	}
 	const auto diff = flags() ^ which;
 	if ((which & Flag::Megagroup) && !mgInfo) {
 		mgInfo = std::make_unique<MegagroupInfo>();
@@ -276,8 +306,9 @@ const ChannelLocation *ChannelData::getLocation() const {
 }
 
 void ChannelData::setDiscussionLink(ChannelData *linked) {
-	if (_discussionLink != linked) {
+	if (_discussionLink != linked || !_discussionLinkKnown) {
 		_discussionLink = linked;
+		_discussionLinkKnown = true;
 		if (const auto history = owner().historyLoaded(this)) {
 			history->forceFullResize();
 		}
@@ -286,11 +317,22 @@ void ChannelData::setDiscussionLink(ChannelData *linked) {
 }
 
 ChannelData *ChannelData::discussionLink() const {
-	return _discussionLink.value_or(nullptr);
+	return _discussionLink;
 }
 
 bool ChannelData::discussionLinkKnown() const {
-	return _discussionLink.has_value();
+	return _discussionLinkKnown;
+}
+
+void ChannelData::setMonoforumLink(ChannelData *link) {
+	if (_monoforumLink != link) {
+		_monoforumLink = link;
+		session().changes().peerUpdated(this, UpdateFlag::MonoforumLink);
+	}
+}
+
+ChannelData *ChannelData::monoforumLink() const {
+	return _monoforumLink;
 }
 
 void ChannelData::setMembersCount(int newMembersCount) {
@@ -1239,6 +1281,11 @@ void ApplyChannelUpdate(
 		channel->setDiscussionLink(channel->owner().channelLoaded(chat->v));
 	} else {
 		channel->setDiscussionLink(nullptr);
+	}
+	if (const auto chat = update.vlinked_monoforum_id()) {
+		channel->setMonoforumLink(channel->owner().channelLoaded(chat->v));
+	} else {
+		channel->setMonoforumLink(nullptr);
 	}
 	if (const auto history = channel->owner().historyLoaded(channel)) {
 		if (const auto available = update.vavailable_min_id()) {

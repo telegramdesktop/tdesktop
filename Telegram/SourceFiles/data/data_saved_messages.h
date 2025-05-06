@@ -20,10 +20,13 @@ class SavedSublist;
 
 class SavedMessages final {
 public:
-	explicit SavedMessages(not_null<Session*> owner);
+	explicit SavedMessages(
+		not_null<Session*> owner,
+		ChannelData *parentChat = nullptr);
 	~SavedMessages();
 
 	[[nodiscard]] bool supported() const;
+	[[nodiscard]] ChannelData *parentChat() const;
 
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -31,11 +34,15 @@ public:
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList();
 	[[nodiscard]] not_null<SavedSublist*> sublist(not_null<PeerData*> peer);
 
+	[[nodiscard]] rpl::producer<> chatsListChanges() const;
+
 	void loadMore();
 	void loadMore(not_null<SavedSublist*> sublist);
 
 	void apply(const MTPDupdatePinnedSavedDialogs &update);
 	void apply(const MTPDupdateSavedDialogPinned &update);
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	void loadPinned();
@@ -46,6 +53,7 @@ private:
 	void sendLoadMoreRequests();
 
 	const not_null<Session*> _owner;
+	ChannelData *_parentChat = nullptr;
 
 	Dialogs::MainList _chatsList;
 	base::flat_map<
@@ -64,8 +72,12 @@ private:
 	base::flat_set<not_null<SavedSublist*>> _loadMoreSublistsScheduled;
 	bool _loadMoreScheduled = false;
 
+	rpl::event_stream<> _chatsListChanges;
+
 	bool _pinnedLoaded = false;
 	bool _unsupported = false;
+
+	rpl::lifetime _lifetime;
 
 };
 

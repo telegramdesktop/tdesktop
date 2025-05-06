@@ -269,6 +269,7 @@ inline auto DefaultRestrictionValue(
 			| Flag::Left
 			| Flag::Forum
 			| Flag::JoinToWrite
+			| Flag::Monoforum
 			| Flag::HasLink
 			| Flag::Forbidden
 			| Flag::Creator
@@ -292,7 +293,8 @@ inline auto DefaultRestrictionValue(
 					&& (flags & Flag::Forum);
 				const auto allowed = !(flags & notAmInFlags)
 					|| ((flags & Flag::HasLink)
-						&& !(flags & Flag::JoinToWrite));
+						&& !(flags & Flag::JoinToWrite))
+					|| (flags & Flag::Monoforum);
 				const auto restricted = sendRestriction
 					| (defaultSendRestriction && !unrestrictedByBoosts);
 				return allowed

@@ -679,6 +679,7 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("paid_messages_price_change");
 		push("price_stars", data.stars);
+		push("is_broadcast_messages_allowed", data.broadcastAllowed);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

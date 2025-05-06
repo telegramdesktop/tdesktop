@@ -781,11 +781,14 @@ void InnerWidget::changeOpenedForum(Data::Forum *forum) {
 	}
 }
 
-void InnerWidget::showSavedSublists() {
+void InnerWidget::showSavedSublists(ChannelData *parentChat) {
+	Expects(!parentChat || parentChat->monoforum());
 	Expects(!_geometryInited);
 	Expects(!_savedSublists);
 
-	_savedSublists = true;
+	_savedSublists = parentChat
+		? parentChat->monoforum()
+		: &session().data().savedMessages();
 
 	stopReorderPinned();
 	clearSelection();
@@ -2115,7 +2118,7 @@ bool InnerWidget::addQuickActionRipple(
 const std::vector<Key> &InnerWidget::pinnedChatsOrder() const {
 	const auto owner = &session().data();
 	return _savedSublists
-		? owner->pinnedChatsOrder(&owner->savedMessages())
+		? owner->pinnedChatsOrder(_savedSublists)
 		: _openedForum
 		? owner->pinnedChatsOrder(_openedForum)
 		: _filterId
@@ -2179,6 +2182,9 @@ int InnerWidget::countPinnedIndex(Row *ofRow) {
 }
 
 void InnerWidget::savePinnedOrder() {
+	if (_savedSublists && _savedSublists->parentChat()) {
+		return;
+	}
 	const auto &newOrder = pinnedChatsOrder();
 	if (newOrder.size() != _pinnedOnDragStart.size()) {
 		return; // Something has changed in the set of pinned chats.
@@ -2316,8 +2322,11 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 	const auto delta = [&] {
 		if (localPosition.y() < _visibleTop) {
 			return localPosition.y() - _visibleTop;
-		} else if ((_savedSublists || _openedFolder || _openedForum || _filterId)
-			&& localPosition.y() > _visibleBottom) {
+		} else if ((localPosition.y() > _visibleBottom)
+			&& (_savedSublists
+				|| _openedFolder
+				|| _openedForum
+				|| _filterId)) {
 			return localPosition.y() - _visibleBottom;
 		}
 		return 0;
@@ -2685,8 +2694,8 @@ void InnerWidget::handleChatListEntryRefreshes() {
 			return false;
 		} else if (const auto topic = event.key.topic()) {
 			return (topic->forum() == _openedForum);
-		} else if (event.key.sublist()) {
-			return _savedSublists;
+		} else if (const auto sublist = event.key.sublist()) {
+			return sublist->parent() == _savedSublists;
 		} else {
 			return !_openedForum;
 		}
@@ -2704,7 +2713,7 @@ void InnerWidget::handleChatListEntryRefreshes() {
 			&& (key.topic()
 				? (key.topic()->forum() == _openedForum)
 				: key.sublist()
-				? _savedSublists
+				? (key.sublist()->parent() == _savedSublists)
 				: (entry->folder() == _openedFolder))) {
 			_dialogMoved.fire({ from, to });
 		}
@@ -2909,7 +2918,8 @@ void InnerWidget::enterEventHook(QEnterEvent *e) {
 Row *InnerWidget::shownRowByKey(Key key) {
 	const auto entry = key.entry();
 	if (_savedSublists) {
-		if (!entry->asSublist()) {
+		const auto sublist = entry->asSublist();
+		if (!sublist || sublist->parent() != _savedSublists) {
 			return nullptr;
 		}
 	} else if (_openedForum) {
@@ -2978,7 +2988,7 @@ void InnerWidget::updateSelectedRow(Key key) {
 
 void InnerWidget::refreshShownList() {
 	const auto list = _savedSublists
-		? session().data().savedMessages().chatsList()->indexed()
+		? _savedSublists->chatsList()->indexed()
 		: _openedForum
 		? _openedForum->topicsList()->indexed()
 		: _filterId
@@ -3440,8 +3450,7 @@ void InnerWidget::applySearchState(SearchState state) {
 			};
 			if (_searchState.filterChatsList() && !words.isEmpty()) {
 				if (_savedSublists) {
-					const auto owner = &session().data();
-					append(owner->savedMessages().chatsList()->indexed());
+					append(_savedSublists->chatsList()->indexed());
 				} else if (_openedForum) {
 					append(_openedForum->topicsList()->indexed());
 				} else {
@@ -4012,7 +4021,7 @@ void InnerWidget::refreshEmpty() {
 	const auto state = !_shownList->empty()
 		? EmptyState::None
 		: _savedSublists
-		? (data->savedMessages().chatsList()->loaded()
+		? (_savedSublists->chatsList()->loaded()
 			? EmptyState::EmptySavedSublists
 			: EmptyState::Loading)
 		: _openedForum

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class ChannelData;
 class PeerData;
 
 namespace Data {
@@ -21,6 +22,10 @@ class Account;
 class Session;
 } // namespace Main
 
+namespace Storage {
+enum class SharedMediaType : signed char;
+} // namespace Storage
+
 namespace Window {
 
 enum class SeparateType {
@@ -32,39 +37,30 @@ enum class SeparateType {
 	SharedMedia,
 };
 
-enum class SeparateSharedMediaType {
-	None,
-	Photos,
-	Videos,
-	Files,
-	Audio,
-	Links,
-	Voices,
-	GIF,
-};
-
 struct SeparateSharedMedia {
-	SeparateSharedMediaType type = SeparateSharedMediaType::None;
-	not_null<PeerData*> peer;
-	MsgId topicRootId = MsgId();
+	not_null<Data::Thread*> thread;
+	Storage::SharedMediaType type = {};
 };
 
 struct SeparateId {
 	SeparateId(std::nullptr_t);
 	SeparateId(not_null<Main::Account*> account);
 	SeparateId(SeparateType type, not_null<Main::Session*> session);
-	SeparateId(SeparateType type, not_null<Data::Thread*> thread);
+	SeparateId(
+		SeparateType type,
+		not_null<Data::Thread*> thread,
+		ChannelData *parentChat = nullptr);
 	SeparateId(not_null<Data::Thread*> thread);
 	SeparateId(not_null<PeerData*> peer);
-	SeparateId(SeparateSharedMedia data);
+	SeparateId(
+		not_null<Data::Thread*> thread,
+		Storage::SharedMediaType sharedMediaType);
 
 	SeparateType type = SeparateType::Primary;
-	SeparateSharedMediaType sharedMedia = SeparateSharedMediaType::None;
+	Storage::SharedMediaType sharedMediaType = {};
 	Main::Account *account = nullptr;
 	Data::Thread *thread = nullptr; // For types except Main and Archive.
-	PeerData *sharedMediaDataPeer = nullptr;
-	MsgId sharedMediaDataTopicRootId = MsgId();
-
+	ChannelData *parentChat = nullptr;
 	[[nodiscard]] bool valid() const {
 		return account != nullptr;
 	}
@@ -77,8 +73,6 @@ struct SeparateId {
 	[[nodiscard]] Data::Forum *forum() const;
 	[[nodiscard]] Data::Folder *folder() const;
 	[[nodiscard]] Data::SavedSublist *sublist() const;
-	[[nodiscard]] PeerData *sharedMediaPeer() const;
-	[[nodiscard]] MsgId sharedMediaTopicRootId() const;
 
 	[[nodiscard]] bool hasChatsList() const;
 

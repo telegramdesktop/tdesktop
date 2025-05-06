@@ -16,12 +16,15 @@ class History;
 namespace Data {
 
 class Session;
+class SavedMessages;
 
 class SavedSublist final : public Dialogs::Entry {
 public:
-	explicit SavedSublist(not_null<PeerData*> peer);
+	SavedSublist(not_null<SavedMessages*> parent,not_null<PeerData*> peer);
 	~SavedSublist();
 
+	[[nodiscard]] not_null<SavedMessages*> parent() const;
+	[[nodiscard]] ChannelData *parentChat() const;
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] bool isHiddenAuthor() const;
@@ -72,6 +75,7 @@ private:
 	void allowChatListMessageResolve();
 	void resolveChatListMessageGroup();
 
+	const not_null<SavedMessages*> _parent;
 	const not_null<History*> _history;
 
 	std::vector<not_null<HistoryItem*>> _items;

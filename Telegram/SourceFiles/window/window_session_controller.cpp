@@ -1321,35 +1321,13 @@ void SessionNavigation::showByInitialId(
 		showThread(id.thread, msgId, instant);
 		break;
 	case SeparateType::SharedMedia: {
-		Assert(id.sharedMedia != SeparateSharedMediaType::None);
 		clearSectionStack(instant);
-		const auto type = (id.sharedMedia == SeparateSharedMediaType::Photos)
-			? Storage::SharedMediaType::Photo
-			: (id.sharedMedia == SeparateSharedMediaType::Videos)
-			? Storage::SharedMediaType::Video
-			: (id.sharedMedia == SeparateSharedMediaType::Files)
-			? Storage::SharedMediaType::File
-			: (id.sharedMedia == SeparateSharedMediaType::Audio)
-			? Storage::SharedMediaType::MusicFile
-			: (id.sharedMedia == SeparateSharedMediaType::Links)
-			? Storage::SharedMediaType::Link
-			: (id.sharedMedia == SeparateSharedMediaType::Voices)
-			? Storage::SharedMediaType::RoundVoiceFile
-			: (id.sharedMedia == SeparateSharedMediaType::GIF)
-			? Storage::SharedMediaType::GIF
-			: Storage::SharedMediaType::Photo;
-		const auto topicRootId = id.sharedMediaTopicRootId();
-		const auto peer = id.sharedMediaPeer();
-		const auto topic = topicRootId
-			? peer->forumTopicFor(topicRootId)
-			: nullptr;
-		if (topicRootId && !topic) {
-			break;
-		}
+		const auto type = id.sharedMediaType;
+		const auto topic = id.thread->asTopic();
 		showSection(
-			topicRootId
+			(topic
 				? std::make_shared<Info::Memento>(topic, type)
-				: std::make_shared<Info::Memento>(peer, type),
+				: std::make_shared<Info::Memento>(id.thread->peer(), type)),
 			instant);
 		parent->widget()->setMaximumWidth(st::maxWidthSharedMediaWindow);
 		break;

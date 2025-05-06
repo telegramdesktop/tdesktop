@@ -112,12 +112,13 @@ struct PeerUpdate {
 		StickersSet         = (1ULL << 46),
 		EmojiSet            = (1ULL << 47),
 		DiscussionLink      = (1ULL << 48),
-		ChannelLocation     = (1ULL << 49),
-		Slowmode            = (1ULL << 50),
-		GroupCall           = (1ULL << 51),
+		MonoforumLink       = (1ULL << 49),
+		ChannelLocation     = (1ULL << 50),
+		Slowmode            = (1ULL << 51),
+		GroupCall           = (1ULL << 52),
 
 		// For iteration
-		LastUsedBit         = (1ULL << 51),
+		LastUsedBit         = (1ULL << 52),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

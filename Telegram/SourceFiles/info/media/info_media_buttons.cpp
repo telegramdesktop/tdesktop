@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories_ids.h"
 #include "data/data_user.h"
 #include "history/view/history_view_sublist_section.h"
+#include "history/history.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_values.h"
@@ -32,39 +33,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Media {
 namespace {
 
-[[nodiscard]] Window::SeparateSharedMediaType ToSeparateType(
-		Storage::SharedMediaType type) {
+[[nodiscard]] bool SeparateSupported(Storage::SharedMediaType type) {
 	using Type = Storage::SharedMediaType;
-	using SeparatedType = Window::SeparateSharedMediaType;
 	return (type == Type::Photo)
-		? SeparatedType::Photos
-		: (type == Type::Video)
-		? SeparatedType::Videos
-		: (type == Type::File)
-		? SeparatedType::Files
-		: (type == Type::MusicFile)
-		? SeparatedType::Audio
-		: (type == Type::Link)
-		? SeparatedType::Links
-		: (type == Type::RoundVoiceFile)
-		? SeparatedType::Voices
-		: (type == Type::GIF)
-		? SeparatedType::GIF
-		: SeparatedType::None;
+		|| (type == Type::Video)
+		|| (type == Type::File)
+		|| (type == Type::MusicFile)
+		|| (type == Type::Link)
+		|| (type == Type::RoundVoiceFile)
+		|| (type == Type::GIF);
 }
 
 [[nodiscard]] Window::SeparateId SeparateId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
 		Storage::SharedMediaType type) {
-	if (peer->isSelf()) {
+	if (peer->isSelf() || !SeparateSupported(type)) {
 		return { nullptr };
 	}
-	const auto separateType = ToSeparateType(type);
-	if (separateType == Window::SeparateSharedMediaType::None) {
+	const auto topic = topicRootId
+		? peer->forumTopicFor(topicRootId)
+		: nullptr;
+	if (topicRootId && !topic) {
 		return { nullptr };
 	}
-	return { Window::SeparateSharedMedia{ separateType, peer, topicRootId } };
+	const auto thread = topic
+			? (Data::Thread*)topic
+		: peer->owner().history(peer);
+	return { thread, type };
 }
 
 void AddContextMenuToButton(

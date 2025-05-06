@@ -1383,7 +1383,15 @@ auto HtmlWriter::Wrap::pushMessage(
 				+ " messages to you");
 		return result;
 	}, [&](const ActionPaidMessagesPrice &data) {
-		auto result = "Price per messages changed to "
+		if (isChannel) {
+			auto result = !data.broadcastAllowed
+				? "Direct messages were disabled."
+				: ("Price per direct message changed to "
+					+ QString::number(data.stars).toUtf8()
+					+ " Telegram Stars.");
+			return result;
+		}
+		auto result = "Price per message changed to "
 			+ QString::number(data.stars).toUtf8()
 			+ " Telegram Stars.";
 		return result;

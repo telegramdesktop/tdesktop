@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_messages.h"
 
 #include "apiwrap.h"
+#include "data/data_channel.h"
 #include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -25,12 +26,15 @@ constexpr auto kListFirstPerPage = 20;
 
 } // namespace
 
-SavedMessages::SavedMessages(not_null<Session*> owner)
+SavedMessages::SavedMessages(
+	not_null<Session*> owner,
+	ChannelData *parentChat)
 : _owner(owner)
+, _parentChat(parentChat)
 , _chatsList(
-	&owner->session(),
+	&_owner->session(),
 	FilterId(),
-	owner->maxPinnedChatsLimitValue(this))
+	_owner->maxPinnedChatsLimitValue(this))
 , _loadMore([=] { sendLoadMoreRequests(); }) {
 }
 
@@ -38,6 +42,10 @@ SavedMessages::~SavedMessages() = default;
 
 bool SavedMessages::supported() const {
 	return !_unsupported;
+}
+
+ChannelData *SavedMessages::parentChat() const {
+	return _parentChat;
 }
 
 Session &SavedMessages::owner() const {
@@ -59,7 +67,11 @@ not_null<SavedSublist*> SavedMessages::sublist(not_null<PeerData*> peer) {
 	}
 	return _sublists.emplace(
 		peer,
-		std::make_unique<SavedSublist>(peer)).first->second.get();
+		std::make_unique<SavedSublist>(this, peer)).first->second.get();
+}
+
+rpl::producer<> SavedMessages::chatsListChanges() const {
+	return _chatsListChanges.events();
 }
 
 void SavedMessages::loadMore() {
@@ -78,10 +90,12 @@ void SavedMessages::sendLoadMore() {
 	} else if (!_pinnedLoaded) {
 		loadPinned();
 	}
+	using Flag = MTPmessages_GetSavedDialogs::Flag;
 	_loadMoreRequestId = _owner->session().api().request(
 		MTPmessages_GetSavedDialogs(
-			MTP_flags(MTPmessages_GetSavedDialogs::Flag::f_exclude_pinned),
-			MTPInputPeer(), // parent_peer
+			MTP_flags(Flag::f_exclude_pinned
+				| (_parentChat ? Flag::f_parent_peer : Flag(0))),
+			_parentChat ? _parentChat->input : MTPInputPeer(),
 			MTP_int(_offsetDate),
 			MTP_int(_offsetId),
 			_offsetPeer ? _offsetPeer->input : MTP_inputPeerEmpty(),
@@ -89,6 +103,7 @@ void SavedMessages::sendLoadMore() {
 			MTP_long(0)) // hash
 	).done([=](const MTPmessages_SavedDialogs &result) {
 		apply(result, false);
+		_chatsListChanges.fire({});
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			_unsupported = true;
@@ -99,13 +114,14 @@ void SavedMessages::sendLoadMore() {
 }
 
 void SavedMessages::loadPinned() {
-	if (_pinnedRequestId) {
+	if (_pinnedRequestId || parentChat()) {
 		return;
 	}
 	_pinnedRequestId = _owner->session().api().request(
 		MTPmessages_GetPinnedSavedDialogs()
 	).done([=](const MTPmessages_SavedDialogs &result) {
 		apply(result, true);
+		_chatsListChanges.fire({});
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			_unsupported = true;
@@ -124,10 +140,11 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 	const auto offsetId = list.empty() ? MsgId(0) : list.back()->id;
 	const auto offsetDate = list.empty() ? MsgId(0) : list.back()->date();
 	const auto limit = offsetId ? kPerPage : kFirstPerPage;
+	using Flag = MTPmessages_GetSavedHistory::Flag;
 	const auto requestId = _owner->session().api().request(
 		MTPmessages_GetSavedHistory(
-			MTP_flags(0),
-			MTPInputPeer(), // parent_peer
+			MTP_flags(_parentChat ? Flag::f_parent_peer : Flag(0)),
+			_parentChat ? _parentChat->input : MTPInputPeer(),
 			sublist->peer()->input,
 			MTP_int(offsetId),
 			MTP_int(offsetDate),
@@ -261,6 +278,8 @@ void SavedMessages::sendLoadMoreRequests() {
 }
 
 void SavedMessages::apply(const MTPDupdatePinnedSavedDialogs &update) {
+	Expects(!parentChat());
+
 	const auto list = update.vorder();
 	if (!list) {
 		loadPinned();
@@ -286,6 +305,8 @@ void SavedMessages::apply(const MTPDupdatePinnedSavedDialogs &update) {
 }
 
 void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
+	Expects(!parentChat());
+
 	update.vpeer().match([&](const MTPDdialogPeer &data) {
 		const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
 		const auto i = _sublists.find(peer);
@@ -298,6 +319,10 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 	}, [&](const MTPDdialogPeerFolder &data) {
 		DEBUG_LOG(("API Error: Folder in updateSavedDialogPinned."));
 	});
+}
+
+rpl::lifetime &SavedMessages::lifetime() {
+	return _lifetime;
 }
 
 } // namespace Data

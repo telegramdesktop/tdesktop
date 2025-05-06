@@ -967,7 +967,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| ((!minimal && !data.is_stories_hidden_min())
 				? Flag::StoriesHidden
 				: Flag())
-			| Flag::AutoTranslation;
+			| Flag::AutoTranslation
+			| Flag::Monoforum;
 		const auto storiesState = minimal
 			? std::optional<Data::Stories::PeerSourceState>()
 			: data.is_stories_unavailable()
@@ -1007,7 +1008,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				&& data.is_stories_hidden())
 				? Flag::StoriesHidden
 				: Flag())
-			| (data.is_autotranslation() ? Flag::AutoTranslation : Flag());
+			| (data.is_autotranslation() ? Flag::AutoTranslation : Flag())
+			| (data.is_monoforum() ? Flag::Monoforum : Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 		channel->setBotVerifyDetailsIcon(
 			data.vbot_verification_icon().value_or_empty());
@@ -2310,6 +2312,9 @@ void Session::applyDialog(
 
 bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
 	if ([[maybe_unused]] const auto sublist = entry->asSublist()) {
+		if (sublist->parentChat()) {
+			return false;
+		}
 		const auto saved = &savedMessages();
 		return pinnedChatsOrder(saved).size() < pinnedChatsLimit(saved);
 	} else if (const auto topic = entry->asTopic()) {
@@ -2351,6 +2356,9 @@ int Session::pinnedChatsLimit(not_null<Data::Forum*> forum) const {
 }
 
 int Session::pinnedChatsLimit(not_null<Data::SavedMessages*> saved) const {
+	if (saved->parentChat()) {
+		return 0;
+	}
 	const auto limits = Data::PremiumLimits(_session);
 	return limits.savedSublistsPinnedCurrent();
 }
@@ -2391,6 +2399,9 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
 		not_null<SavedMessages*> saved) const {
+	if (saved->parentChat()) {
+		return rpl::single(0);
+	}
 	// Premium limit from appconfig.
 	// We always use premium limit in the MainList limit producer,
 	// because it slices the list to that limit. We don't want to slice
@@ -4563,12 +4574,12 @@ not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 
 not_null<Dialogs::MainList*> Session::chatsListFor(
 		not_null<Dialogs::Entry*> entry) {
-	const auto topic = entry->asTopic();
-	return topic
-		? topic->forum()->topicsList()
-		: entry->asSublist()
-		? _savedMessages->chatsList()
-		: chatsList(entry->folder());
+	if (const auto topic = entry->asTopic()) {
+		return topic->forum()->topicsList();
+	} else if (const auto sublist = entry->asSublist()) {
+		return sublist->parent()->chatsList();
+	}
+	return chatsList(entry->folder());
 }
 
 not_null<Dialogs::MainList*> Session::chatsList(Data::Folder *folder) {

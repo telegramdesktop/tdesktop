@@ -58,6 +58,7 @@ class ChatFilter;
 class Thread;
 class Folder;
 class Forum;
+class SavedMessages;
 struct ReactionId;
 } // namespace Data
 
@@ -140,7 +141,7 @@ public:
 
 	void changeOpenedFolder(Data::Folder *folder);
 	void changeOpenedForum(Data::Forum *forum);
-	void showSavedSublists();
+	void showSavedSublists(ChannelData *parentChat);
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
@@ -668,7 +669,8 @@ private:
 	float64 _narrowRatio = 0.;
 	bool _geometryInited = false;
 
-	bool _savedSublists = false;
+	Data::SavedMessages *_savedSublists = nullptr;
+
 	bool _searchLoading = false;
 	bool _searchWaiting = false;
 

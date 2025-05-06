@@ -159,7 +159,8 @@ bool CanSendAnyOf(
 		using Flag = ChannelDataFlag;
 		const auto allowed = channel->amIn()
 			|| ((channel->flags() & Flag::HasLink)
-				&& !(channel->flags() & Flag::JoinToWrite));
+				&& !(channel->flags() & Flag::JoinToWrite))
+			|| channel->isMonoforum();
 		if (!allowed || (forbidInForums && channel->isForum())) {
 			return false;
 		} else if (channel->canPostMessages()) {

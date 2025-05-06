@@ -1333,6 +1333,13 @@ bool PeerData::isForum() const {
 	return false;
 }
 
+bool PeerData::isMonoforum() const {
+	if (const auto channel = asChannel()) {
+		return channel->isMonoforum();
+	}
+	return false;
+}
+
 bool PeerData::isGigagroup() const {
 	if (const auto channel = asChannel()) {
 		return channel->isGigagroup();
@@ -1412,6 +1419,13 @@ Data::ForumTopic *PeerData::forumTopicFor(MsgId rootId) const {
 		return nullptr;
 	} else if (const auto forum = this->forum()) {
 		return forum->topicFor(rootId);
+	}
+	return nullptr;
+}
+
+Data::SavedMessages *PeerData::monoforum() const {
+	if (const auto channel = asChannel()) {
+		return channel->monoforum();
 	}
 	return nullptr;
 }

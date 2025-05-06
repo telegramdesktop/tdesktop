@@ -37,6 +37,7 @@ class Forum;
 class ForumTopic;
 class Session;
 class GroupCall;
+class SavedMessages;
 struct ReactionId;
 class WallPaper;
 
@@ -232,6 +233,7 @@ public:
 	[[nodiscard]] bool isMegagroup() const;
 	[[nodiscard]] bool isBroadcast() const;
 	[[nodiscard]] bool isForum() const;
+	[[nodiscard]] bool isMonoforum() const;
 	[[nodiscard]] bool isGigagroup() const;
 	[[nodiscard]] bool isRepliesChat() const;
 	[[nodiscard]] bool isVerifyCodes() const;
@@ -256,6 +258,8 @@ public:
 
 	[[nodiscard]] Data::Forum *forum() const;
 	[[nodiscard]] Data::ForumTopic *forumTopicFor(MsgId rootId) const;
+
+	[[nodiscard]] Data::SavedMessages *monoforum() const;
 
 	[[nodiscard]] Data::PeerNotifySettings &notify() {
 		return _notify;

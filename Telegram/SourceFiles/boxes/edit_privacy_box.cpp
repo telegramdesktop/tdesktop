@@ -1168,12 +1168,13 @@ rpl::producer<int> SetupChargeSlider(
 	struct State {
 		rpl::variable<int> stars;
 	};
-	const auto group = !peer->isUser();
+	const auto broadcast = peer->isBroadcast();
+	const auto group = !broadcast && !peer->isUser();
 	const auto state = container->lifetime().make_state<State>();
 	const auto chargeStars = savedValue ? savedValue : kDefaultChargeStars;
 	state->stars = chargeStars;
 
-	Ui::AddSubsectionTitle(container, group
+	Ui::AddSubsectionTitle(container, (group || broadcast)
 		? tr::lng_rights_charge_price()
 		: tr::lng_messages_privacy_price());
 
@@ -1225,7 +1226,9 @@ rpl::producer<int> SetupChargeSlider(
 	const auto percent = peer->session().appConfig().paidMessageCommission();
 	Ui::AddDividerText(
 		container,
-		(group
+		(broadcast
+			? tr::lng_manage_monoforum_price_about
+			: group
 			? tr::lng_rights_charge_price_about
 			: tr::lng_messages_privacy_price_about)(
 			lt_percent,
@@ -1234,4 +1237,55 @@ rpl::producer<int> SetupChargeSlider(
 			std::move(dollars)));
 
 	return state->stars.value();
+}
+
+void EditDirectMessagesPriceBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<ChannelData*> channel,
+		std::optional<int> savedValue,
+		Fn<void(std::optional<int>)> callback) {
+	box->setTitle(tr::lng_manage_monoforum());
+
+	const auto toggle = box->addRow(object_ptr<Ui::SettingsButton>(
+		box,
+		tr::lng_manage_monoforum_allow(),
+		st::settingsButtonNoIcon
+	), {})->toggleOn(rpl::single(savedValue.has_value()));
+	Ui::AddSkip(box->verticalLayout());
+
+	Ui::AddDividerText(
+		box->verticalLayout(),
+		tr::lng_manage_monoforum_about());
+
+	const auto wrap = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)),
+		{});
+	wrap->toggle(savedValue.has_value(), anim::type::instant);
+	wrap->toggleOn(toggle->toggledChanges());
+
+	const auto result = box->lifetime().make_state<int>(
+		savedValue.value_or(0));
+
+	const auto inner = wrap->entity();
+	Ui::AddSkip(inner);
+	SetupChargeSlider(
+		inner,
+		channel,
+		savedValue.value_or(0)
+	) | rpl::start_with_next([=](int stars) {
+		*result = stars;
+	}, box->lifetime());
+
+	box->addButton(tr::lng_settings_save(), [=] {
+		const auto weak = Ui::MakeWeak(box);
+		callback(toggle->toggled() ? *result : std::optional<int>());
+		if (const auto strong = weak.data()) {
+			strong->closeBox();
+		}
+	});
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
 }

@@ -383,6 +383,7 @@ HistoryWidget::HistoryWidget(
 	_joinChannel->addClickHandler([=] { joinChannel(); });
 	_muteUnmute->addClickHandler([=] { toggleMuteUnmute(); });
 	setupGiftToChannelButton();
+	setupDirectMessageButton();
 	_reportMessages->addClickHandler([=] { reportSelectedMessages(); });
 	_field->submits(
 	) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
@@ -1050,15 +1051,23 @@ void HistoryWidget::refreshJoinChannelText() {
 }
 
 void HistoryWidget::refreshGiftToChannelShown() {
-	if (!_giftToChannelIn || !_giftToChannelOut) {
+	if (!_giftToChannel || !_peer) {
 		return;
 	}
 	const auto channel = _peer->asChannel();
-	const auto shown = channel
+	_giftToChannel->setVisible(channel
 		&& channel->isBroadcast()
-		&& channel->stargiftsAvailable();
-	_giftToChannelIn->setVisible(shown);
-	_giftToChannelOut->setVisible(shown);
+		&& channel->stargiftsAvailable());
+}
+
+void HistoryWidget::refreshDirectMessageShown() {
+	if (!_directMessage || !_peer) {
+		return;
+	}
+	const auto channel = _peer->asChannel();
+	_directMessage->setVisible(channel
+		&& channel->isBroadcast()
+		&& channel->monoforumLink());
 }
 
 void HistoryWidget::refreshTopBarActiveChat() {
@@ -2074,22 +2083,63 @@ void HistoryWidget::setupShortcuts() {
 }
 
 void HistoryWidget::setupGiftToChannelButton() {
-	const auto setupButton = [=](not_null<Ui::RpWidget*> parent) {
-		auto *button = Ui::CreateChild<Ui::IconButton>(
-			parent.get(),
-			st::historyGiftToChannel);
-		parent->widthValue() | rpl::start_with_next([=](int width) {
-			button->moveToRight(0, 0);
-		}, button->lifetime());
-		button->setClickedCallback([=] {
-			if (_peer) {
-				Ui::ShowStarGiftBox(controller(), _peer);
+	_giftToChannel = Ui::CreateChild<Ui::IconButton>(
+		_muteUnmute.data(),
+		st::historyGiftToChannel);
+	widthValue() | rpl::start_with_next([=](int width) {
+		_giftToChannel->moveToRight(0, 0, width);
+	}, _giftToChannel->lifetime());
+	_giftToChannel->setClickedCallback([=] {
+		Ui::ShowStarGiftBox(controller(), _peer);
+	});
+	rpl::combine(
+		_muteUnmute->shownValue(),
+		_joinChannel->shownValue()
+	) | rpl::start_with_next([=](bool muteUnmute, bool joinChannel) {
+		const auto newParent = (muteUnmute && !joinChannel)
+			? _muteUnmute.data()
+			: (joinChannel && !muteUnmute)
+			? _joinChannel.data()
+			: nullptr;
+		if (newParent) {
+			_giftToChannel->setParent(newParent);
+			_giftToChannel->moveToRight(0, 0);
+			refreshGiftToChannelShown();
+		}
+	}, _giftToChannel->lifetime());
+}
+
+void HistoryWidget::setupDirectMessageButton() {
+	_directMessage = Ui::CreateChild<Ui::IconButton>(
+		_muteUnmute.data(),
+		st::historyDirectMessage);
+	widthValue() | rpl::start_with_next([=](int width) {
+		_directMessage->moveToRight(0, 0, width);
+	}, _directMessage->lifetime());
+	_directMessage->setClickedCallback([=] {
+		if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
+			if (const auto monoforum = channel->monoforumLink()) {
+				controller()->showPeerHistory(
+					monoforum,
+					Window::SectionShow::Way::Forward);
 			}
-		});
-		return button;
-	};
-	_giftToChannelIn = setupButton(_muteUnmute);
-	_giftToChannelOut = setupButton(_joinChannel);
+		}
+	});
+	rpl::combine(
+		_muteUnmute->shownValue(),
+		_joinChannel->shownValue()
+	) | rpl::start_with_next([=](bool muteUnmute, bool joinChannel) {
+		const auto newParent = (muteUnmute && !joinChannel)
+			? _muteUnmute.data()
+			: (joinChannel && !muteUnmute)
+			? _joinChannel.data()
+			: nullptr;
+		if (newParent) {
+			_directMessage->setParent(newParent);
+			_directMessage->moveToLeft(0, 0);
+			refreshDirectMessageShown();
+		}
+	}, _directMessage->lifetime());
 }
 
 void HistoryWidget::pushReplyReturn(not_null<HistoryItem*> item) {
@@ -2456,6 +2506,7 @@ void HistoryWidget::showHistory(
 		}, _contactStatus->bar().lifetime());
 
 		refreshGiftToChannelShown();
+		refreshDirectMessageShown();
 		if (const auto user = _peer->asUser()) {
 			_paysStatus = std::make_unique<PaysStatus>(
 				controller(),
@@ -5220,7 +5271,10 @@ bool HistoryWidget::isBlocked() const {
 }
 
 bool HistoryWidget::isJoinChannel() const {
-	return _peer && _peer->isChannel() && !_peer->asChannel()->amIn();
+	if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
+		return !channel->amIn() && !channel->isMonoforum();
+	}
+	return false;
 }
 
 bool HistoryWidget::isChoosingTheme() const {
@@ -8639,6 +8693,7 @@ void HistoryWidget::fullInfoUpdated() {
 			sendBotStartCommand();
 		}
 		refreshGiftToChannelShown();
+		refreshDirectMessageShown();
 	}
 	if (updateCmdStartShown()) {
 		refresh = true;

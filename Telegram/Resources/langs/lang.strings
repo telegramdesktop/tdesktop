@@ -1886,6 +1886,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_linked_channel_posted" = "All new posts from this channel are forwarded to the group.";
 "lng_manage_discussion_group_warning" = "\"Chat history for new members\" will be switched to **Visible**.";
 
+"lng_manage_monoforum" = "Direct Messages";
+"lng_manage_monoforum_off" = "Off";
+"lng_manage_monoforum_free" = "Free";
+"lng_manage_monoforum_allow" = "Allow Direct Messages";
+"lng_manage_monoforum_about" = "Allow users to write direct private messages to your channel, with the option to charge a fee for every message.";
+"lng_manage_monoforum_price_about" = "Charge users for the ability to write a direct message to your channel. Your channel will receive {percent} of the selected fee ({amount}) for each incoming message.";
+
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";
 "lng_manage_history_visibility_shown_about" = "New members will see messages that were sent before they joined.";
@@ -2243,6 +2250,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_message_price_free" = "Messages are now free in this group.";
 "lng_action_message_price_paid#one" = "Messages now cost {count} Star each in this group.";
 "lng_action_message_price_paid#other" = "Messages now cost {count} Stars each in this group.";
+"lng_action_direct_messages_enabled" = "Channel enabled Direct Messages.";
+"lng_action_direct_messages_paid#one" = "Channel allows Direct Messages for {count} Star each.";
+"lng_action_direct_messages_paid#other" = "Channel allows Direct Messages for {count} Stars each";
+"lng_action_direct_messages_disabled" = "Channel disabled Direct Messages.";
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
 

@@ -1712,6 +1712,7 @@ ServiceAction ParseServiceAction(
 	}, [&](const MTPDmessageActionPaidMessagesPrice &data) {
 		result.content = ActionPaidMessagesPrice{
 			.stars = int(data.vstars().v),
+			.broadcastAllowed = data.is_broadcast_messages_allowed(),
 		};
 	}, [&](const MTPDmessageActionConferenceCall &data) {
 		auto content = ActionPhoneCall();

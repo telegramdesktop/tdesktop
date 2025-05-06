@@ -606,7 +606,7 @@ rpl::producer<Data::MessagesSlice> SublistWidget::listSource(
 				? (*result.fullCount - after - useBefore)
 				: std::optional<int>();
 			if (!result.fullCount || useBefore < limitBefore) {
-				_sublist->owner().savedMessages().loadMore(_sublist);
+				_sublist->parent()->loadMore(_sublist);
 			}
 			consumer.put_next(std::move(result));
 		};

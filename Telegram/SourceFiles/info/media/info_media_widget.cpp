@@ -40,6 +40,28 @@ Type TabIndexToType(int index) {
 	Unexpected("Index in Info::Media::TabIndexToType()");
 }
 
+tr::phrase<> SharedMediaTitle(Type type) {
+	switch (type) {
+	case Type::Photo:
+		return tr::lng_media_type_photos;
+	case Type::GIF:
+		return tr::lng_media_type_gifs;
+	case Type::Video:
+		return tr::lng_media_type_videos;
+	case Type::MusicFile:
+		return tr::lng_media_type_songs;
+	case Type::File:
+		return tr::lng_media_type_files;
+	case Type::RoundVoiceFile:
+		return tr::lng_media_type_audios;
+	case Type::Link:
+		return tr::lng_media_type_links;
+	case Type::RoundFile:
+		return tr::lng_media_type_rounds;
+	}
+	Unexpected("Bad media type in Info::TitleValue()");
+}
+
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	(controller->peer()
@@ -119,25 +141,7 @@ rpl::producer<QString> Widget::title() {
 	if (controller()->key().peer()->sharedMediaInfo() && isStackBottom()) {
 		return tr::lng_profile_shared_media();
 	}
-	switch (controller()->section().mediaType()) {
-	case Section::MediaType::Photo:
-		return tr::lng_media_type_photos();
-	case Section::MediaType::GIF:
-		return tr::lng_media_type_gifs();
-	case Section::MediaType::Video:
-		return tr::lng_media_type_videos();
-	case Section::MediaType::MusicFile:
-		return tr::lng_media_type_songs();
-	case Section::MediaType::File:
-		return tr::lng_media_type_files();
-	case Section::MediaType::RoundVoiceFile:
-		return tr::lng_media_type_audios();
-	case Section::MediaType::Link:
-		return tr::lng_media_type_links();
-	case Section::MediaType::RoundFile:
-		return tr::lng_media_type_rounds();
-	}
-	Unexpected("Bad media type in Info::TitleValue()");
+	return SharedMediaTitle(controller()->section().mediaType())();
 }
 
 void Widget::setIsStackBottom(bool isStackBottom) {

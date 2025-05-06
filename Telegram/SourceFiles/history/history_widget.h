@@ -406,6 +406,7 @@ private:
 
 	void refreshJoinChannelText();
 	void refreshGiftToChannelShown();
+	void refreshDirectMessageShown();
 	void requestMessageData(MsgId msgId);
 	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
 
@@ -535,6 +536,7 @@ private:
 
 	void setupShortcuts();
 	void setupGiftToChannelButton();
+	void setupDirectMessageButton();
 
 	void handlePeerMigration();
 
@@ -797,8 +799,8 @@ private:
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
-	QPointer<Ui::IconButton> _giftToChannelIn;
-	QPointer<Ui::IconButton> _giftToChannelOut;
+	QPointer<Ui::IconButton> _giftToChannel;
+	QPointer<Ui::IconButton> _directMessage;
 	object_ptr<Ui::FlatButton> _reportMessages;
 	struct {
 		object_ptr<Ui::RoundButton> button = { nullptr };

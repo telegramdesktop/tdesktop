@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_separate_id.h"
 
+#include "data/data_channel.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
 #include "data/data_saved_messages.h"
@@ -30,10 +31,14 @@ SeparateId::SeparateId(SeparateType type, not_null<Main::Session*> session)
 , account(&session->account()) {
 }
 
-SeparateId::SeparateId(SeparateType type, not_null<Data::Thread*> thread)
+SeparateId::SeparateId(
+	SeparateType type,
+	not_null<Data::Thread*> thread,
+	ChannelData *parentChat)
 : type(type)
 , account(&thread->session().account())
-, thread(thread) {
+, thread(thread)
+, parentChat((type == SeparateType::SavedSublist) ? parentChat : nullptr) {
 }
 
 SeparateId::SeparateId(not_null<Data::Thread*> thread)
@@ -44,12 +49,13 @@ SeparateId::SeparateId(not_null<PeerData*> peer)
 : SeparateId(SeparateType::Chat, peer->owner().history(peer)) {
 }
 
-SeparateId::SeparateId(SeparateSharedMedia data)
+SeparateId::SeparateId(
+	not_null<Data::Thread*> thread,
+	Storage::SharedMediaType sharedMediaType)
 : type(SeparateType::SharedMedia)
-, sharedMedia(data.type)
-, account(&data.peer->session().account())
-, sharedMediaDataPeer(data.peer)
-, sharedMediaDataTopicRootId(data.topicRootId) {
+, sharedMediaType(sharedMediaType)
+, account(&thread->session().account())
+, thread(thread) {
 }
 
 bool SeparateId::primary() const {
@@ -71,27 +77,18 @@ Data::Folder *SeparateId::folder() const {
 }
 
 Data::SavedSublist *SeparateId::sublist() const {
-	return (type == SeparateType::SavedSublist)
-		? thread->owner().savedMessages().sublist(thread->peer()).get()
-		: nullptr;
+	const auto monoforum = parentChat ? parentChat->monoforum() : nullptr;
+	return (type != SeparateType::SavedSublist)
+		? nullptr
+		: monoforum
+		? monoforum->sublist(thread->peer()).get()
+		: thread->owner().savedMessages().sublist(thread->peer()).get();
 }
 
 bool SeparateId::hasChatsList() const {
 	return (type == SeparateType::Primary)
 		|| (type == SeparateType::Archive)
 		|| (type == SeparateType::Forum);
-}
-
-PeerData *SeparateId::sharedMediaPeer() const {
-	return (type == SeparateType::SharedMedia)
-		? sharedMediaDataPeer
-		: nullptr;
-}
-
-MsgId SeparateId::sharedMediaTopicRootId() const {
-	return (type == SeparateType::SharedMedia)
-		? sharedMediaDataTopicRootId
-		: MsgId();
 }
 
 } // namespace Window

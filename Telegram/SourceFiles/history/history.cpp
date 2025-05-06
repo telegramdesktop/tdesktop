@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -3129,6 +3130,42 @@ void History::forumChanged(Data::Forum *old) {
 
 bool History::isForum() const {
 	return (_flags & Flag::IsForum);
+}
+
+void History::monoforumChanged(Data::SavedMessages *old) {
+	if (inChatList()) {
+		notifyUnreadStateChange(old
+			? AdjustedForumUnreadState(old->chatsList()->unreadState())
+			: computeUnreadState());
+	}
+
+	if (const auto monoforum = peer->monoforum()) {
+		_flags |= Flag::IsMonoforum;
+
+		monoforum->chatsList()->unreadStateChanges(
+		) | rpl::filter([=] {
+			return (_flags & Flag::IsMonoforum) && inChatList();
+		}) | rpl::map(
+			AdjustedForumUnreadState
+		) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
+			notifyUnreadStateChange(old);
+		}, monoforum->lifetime());
+
+		monoforum->chatsListChanges(
+		) | rpl::start_with_next([=] {
+			updateChatListEntry();
+		}, monoforum->lifetime());
+	} else {
+		_flags &= ~Flag::IsMonoforum;
+	}
+	if (cloudDraft(MsgId(0))) {
+		updateChatListSortPosition();
+	}
+	_flags |= Flag::PendingAllItemsResize;
+}
+
+bool History::isMonoforum() const {
+	return (_flags & Flag::IsMonoforum);
 }
 
 not_null<History*> History::migrateToOrMe() const {
