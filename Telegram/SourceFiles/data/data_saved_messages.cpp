@@ -81,6 +81,7 @@ void SavedMessages::sendLoadMore() {
 	_loadMoreRequestId = _owner->session().api().request(
 		MTPmessages_GetSavedDialogs(
 			MTP_flags(MTPmessages_GetSavedDialogs::Flag::f_exclude_pinned),
+			MTPInputPeer(), // parent_peer
 			MTP_int(_offsetDate),
 			MTP_int(_offsetId),
 			_offsetPeer ? _offsetPeer->input : MTP_inputPeerEmpty(),
@@ -125,6 +126,8 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 	const auto limit = offsetId ? kPerPage : kFirstPerPage;
 	const auto requestId = _owner->session().api().request(
 		MTPmessages_GetSavedHistory(
+			MTP_flags(0),
+			MTPInputPeer(), // parent_peer
 			sublist->peer()->input,
 			MTP_int(offsetId),
 			MTP_int(offsetDate),

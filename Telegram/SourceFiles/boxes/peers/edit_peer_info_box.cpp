@@ -227,6 +227,7 @@ void SaveStarsPerMessage(
 	const auto key = Api::RequestKey("stars_per_message", channel->id);
 
 	const auto requestId = api->request(MTPchannels_UpdatePaidMessagesPrice(
+		MTP_flags(0), // #TODO Support broadcast_messages_allowed flag in UI
 		channel->inputChannel,
 		MTP_long(starsPerMessage)
 	)).done([=](const MTPUpdates &result) {
