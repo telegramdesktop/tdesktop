@@ -35,6 +35,11 @@ public:
 	[[nodiscard]] not_null<SavedSublist*> sublist(not_null<PeerData*> peer);
 
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
+	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
+
+	[[nodiscard]] rpl::producer<> destroyed() const;
+	[[nodiscard]] auto sublistDestroyed() const
+		-> rpl::producer<not_null<SavedSublist*>>;
 
 	void loadMore();
 	void loadMore(not_null<SavedSublist*> sublist);
@@ -55,6 +60,8 @@ private:
 	const not_null<Session*> _owner;
 	ChannelData *_parentChat = nullptr;
 
+	rpl::event_stream<not_null<SavedSublist*>> _sublistDestroyed;
+
 	Dialogs::MainList _chatsList;
 	base::flat_map<
 		not_null<PeerData*>,
@@ -73,6 +80,7 @@ private:
 	bool _loadMoreScheduled = false;
 
 	rpl::event_stream<> _chatsListChanges;
+	rpl::event_stream<> _chatsListLoadedEvents;
 
 	bool _pinnedLoaded = false;
 	bool _unsupported = false;

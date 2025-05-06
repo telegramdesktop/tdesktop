@@ -32,6 +32,7 @@ class Thread;
 class WallPaper;
 struct ForwardDraft;
 class Forum;
+class SavedMessages;
 struct ReportInput;
 } // namespace Data
 
@@ -198,6 +199,9 @@ public:
 		not_null<const HistoryItem*> item,
 		const SectionShow &params);
 	void showForum(not_null<Data::Forum*> forum, const SectionShow &params);
+	void showMonoforum(
+		not_null<Data::SavedMessages*> monoforum,
+		const SectionShow &params);
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 

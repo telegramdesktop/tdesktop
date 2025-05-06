@@ -141,6 +141,7 @@ public:
 
 	void changeOpenedFolder(Data::Folder *folder);
 	void changeOpenedForum(Data::Forum *forum);
+	void changeOpenedMonoforum(Data::SavedMessages *monoforum);
 	void showSavedSublists(ChannelData *parentChat);
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);

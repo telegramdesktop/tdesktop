@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_group_call_bar.h"
+#include "history/view/history_view_sublist_section.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -78,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
 #include "data/data_chat_filters.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "info/downloads/info_downloads_widget.h"
@@ -418,6 +420,8 @@ Widget::Widget(
 	) | rpl::filter([=](const Data::HistoryUpdate &update) {
 		if (_openedForum) {
 			return (update.history == _openedForum->history());
+		} else if (_openedMonoforum) {
+			return (update.history->peer == _openedMonoforum->parentChat());
 		} else if (_openedFolder) {
 			return (update.history->folder() == _openedFolder)
 				&& !update.history->isPinnedDialog(FilterId());
@@ -596,6 +600,7 @@ Widget::Widget(
 		_search->setFocusFast();
 		if (_childList) {
 			controller->closeForum();
+			controller->closeMonoforum();
 		}
 	});
 
@@ -618,6 +623,8 @@ Widget::Widget(
 			searchMore();
 		} else if (_openedForum && state == WidgetState::Default) {
 			_openedForum->requestTopics();
+		} else if (_openedMonoforum && state == WidgetState::Default) {
+			_openedMonoforum->loadMore();
 		} else {
 			const auto folder = _inner->shownFolder();
 			if (!folder || !folder->chatsList()->loaded()) {
@@ -666,7 +673,16 @@ Widget::Widget(
 		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
 			if (_openedForum) {
 				changeOpenedForum(nullptr, anim::type::normal);
-			} else if (_childList) {
+			} else if (_childList && !_childList->openedMonoforum()) {
+				closeChildList(anim::type::normal);
+			}
+		}, lifetime());
+
+		controller->shownMonoforum().changes(
+		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
+			if (_openedMonoforum) {
+				changeOpenedMonoforum(nullptr, anim::type::normal);
+			} else if (_childList && !_childList->openedForum()) {
 				closeChildList(anim::type::normal);
 			}
 		}, lifetime());
@@ -795,7 +811,7 @@ void Widget::setupSwipeBack() {
 				}
 			});
 		}
-		if (controller()->shownForum().current()) {
+		if (controller()->shownForum().current()) { // #TODO monoforum
 			if (!isRightToLeft) {
 				return Ui::Controls::SwipeHandlerFinishData();
 			}
@@ -924,6 +940,26 @@ void Widget::chosenRow(const ChosenRow &row) {
 			}
 		}
 		return;
+	} else if (history
+		&& history->isMonoforum()
+		&& !row.message.fullId
+		&& !controller()->adaptive().isOneColumn()) {
+		const auto monoforum = history->peer->monoforum();
+		if (controller()->shownMonoforum().current() == monoforum) {
+			controller()->closeMonoforum();
+		//} else if (row.newWindow) { // #TODO monoforum
+		//	controller()->showInNewWindow(
+		//		Window::SeparateId(Window::SeparateType::Forum, history));
+		} else {
+			controller()->showMonoforum(
+				monoforum,
+				Window::SectionShow().withChildColumn());
+			controller()->showThread(
+				history,
+				ShowAtUnreadMsgId,
+				Window::SectionShow::Way::ClearStack);
+		}
+		return;
 	} else if (history) {
 		const auto peer = history->peer;
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
@@ -958,6 +994,13 @@ void Widget::chosenRow(const ChosenRow &row) {
 		}
 		controller()->openFolder(folder);
 		hideChildList();
+	} else if (const auto sublist = row.key.sublist()) {
+		using namespace Window;
+		auto params = SectionShow(SectionShow::Way::Forward);
+		params.dropSameFromStack = true;
+		controller()->showSection(
+			std::make_shared<HistoryView::SublistMemento>(sublist),
+			params);
 	}
 	if (row.filteredRow && !session().supportMode()) {
 		if (_subsectionTopBar) {
@@ -1032,7 +1075,8 @@ void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
 		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
 			auto on = rpl::combine(
 				controller()->activeChatsFilter(),
-				_openedFolderOrForumChanges.events_starting_with(false),
+				_openedFolderOrForumOrMonoforumChanges.events_starting_with(
+					false),
 				widthValue() | rpl::map(
 					_1 >= st::columnMinimalWidthLeft
 				) | rpl::distinct_until_changed(),
@@ -1041,11 +1085,11 @@ void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
 				_jumpToDate->toggledValue()
 			) | rpl::map([=](
 					FilterId id,
-					bool folderOrForum,
+					bool folderOrForumOrMonoforum,
 					bool wide,
 					bool search,
 					bool searchInPeer) {
-				return !folderOrForum
+				return !folderOrForumOrMonoforum
 					&& wide
 					&& !search
 					&& !searchInPeer
@@ -1102,7 +1146,8 @@ void Widget::updateFrozenAccountBar() {
 
 void Widget::updateTopBarSuggestions() {
 	if (_topBarSuggestion) {
-		_openedFolderOrForumChanges.fire(_openedForum || _openedFolder);
+		_openedFolderOrForumOrMonoforumChanges.fire(
+			_openedFolder || _openedForum || _openedMonoforum);
 	}
 }
 
@@ -1540,7 +1585,7 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_chatFilters) {
 		_chatFilters->setVisible(!_openedForum);
 	}
-	if (_openedFolder || _openedForum) {
+	if (_openedFolder || _openedForum || _openedMonoforum) {
 		_subsectionTopBar->show();
 		if (_forumTopShadow) {
 			_forumTopShadow->show();
@@ -1919,6 +1964,29 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 	}, (forum != nullptr), animated);
 }
 
+void Widget::changeOpenedMonoforum(
+		Data::SavedMessages *monoforum,
+		anim::type animated) {
+	if (_openedMonoforum == monoforum) {
+		return;
+	}
+	changeOpenedSubsection([&] {
+		cancelSearch({ .forceFullCancel = true });
+		closeChildList(anim::type::instant);
+		_openedMonoforum = monoforum;
+		_searchState.tab = monoforum
+			? ChatSearchTab::ThisPeer
+			: ChatSearchTab::MyMessages;
+		_searchWithPostsPreview = computeSearchWithPostsPreview();
+		_api.request(base::take(_topicSearchRequest)).cancel();
+		_inner->changeOpenedMonoforum(monoforum);
+		storiesToggleExplicitExpand(false);
+		updateFrozenAccountBar();
+		updateTopBarSuggestions();
+		updateStoriesVisibility();
+	}, (monoforum != nullptr), animated);
+}
+
 void Widget::hideChildList() {
 	if (_childList) {
 		controller()->closeForum();
@@ -1926,7 +1994,7 @@ void Widget::hideChildList() {
 }
 
 void Widget::refreshTopBars() {
-	if (_openedFolder || _openedForum) {
+	if (_openedFolder || _openedForum || _openedMonoforum) {
 		if (!_subsectionTopBar) {
 			_subsectionTopBar.create(this, controller());
 			if (_stories) {
@@ -1956,10 +2024,12 @@ void Widget::refreshTopBars() {
 		}
 		const auto history = _openedForum
 			? _openedForum->history().get()
+			: _openedMonoforum
+			? session().data().history(_openedMonoforum->parentChat()).get()
 			: nullptr;
 		_subsectionTopBar->setActiveChat(
 			HistoryView::TopBarWidget::ActiveChat{
-				.key = (_openedForum
+				.key = ((_openedForum || _openedMonoforum)
 					? Dialogs::Key(history)
 					: Dialogs::Key(_openedFolder)),
 				.section = Dialogs::EntryState::Section::ChatsList,
@@ -2119,6 +2189,14 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 
 bool Widget::searchHasFocus() const {
 	return _searchHasFocus;
+}
+
+Data::Forum *Widget::openedForum() const {
+	return _openedForum;
+}
+
+Data::SavedMessages *Widget::openedMonoforum() const {
+	return _openedMonoforum;
 }
 
 void Widget::jumpToTop(bool belowPinned) {
@@ -3283,12 +3361,33 @@ void Widget::showForum(
 		return;
 	}
 	cancelSearch({ .forceFullCancel = true });
-	openChildList(forum, params);
+	openChildList(forum, nullptr, params);
+}
+
+void Widget::showMonoforum(
+		not_null<Data::SavedMessages*> monoforum,
+		const Window::SectionShow &params) {
+	if (_openedMonoforum == monoforum) {
+		return;
+	}
+	const auto nochat = !controller()->mainSectionShown();
+	if (!params.childColumn
+		|| (Core::App().settings().dialogsWidthRatio(nochat) == 0.)
+		|| (_layout != Layout::Main)
+		|| OptionForumHideChatsList.value()) {
+		changeOpenedMonoforum(monoforum, params.animated);
+		return;
+	}
+	cancelSearch({ .forceFullCancel = true });
+	openChildList(nullptr, monoforum, params);
 }
 
 void Widget::openChildList(
-		not_null<Data::Forum*> forum,
+		Data::Forum *forum,
+		Data::SavedMessages *monoforum,
 		const Window::SectionShow &params) {
+	Expects(forum || monoforum);
+
 	auto slide = Window::SectionSlideParams();
 	const auto animated = !_childList
 		&& (params.animated == anim::type::normal);
@@ -3309,8 +3408,13 @@ void Widget::openChildList(
 			this,
 			controller(),
 			Layout::Child);
-		_childList->showForum(forum, copy);
-		_childListPeerId = forum->channel()->id;
+		if (forum) {
+			_childList->showForum(forum, copy);
+			_childListPeerId = forum->channel()->id;
+		} else {
+			_childList->showMonoforum(monoforum, copy);
+			_childListPeerId = monoforum->parentChat()->id;
+		}
 	}
 
 	_childListShadow = std::make_unique<Ui::RpWidget>(this);

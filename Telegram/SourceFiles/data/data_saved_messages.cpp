@@ -74,6 +74,10 @@ rpl::producer<> SavedMessages::chatsListChanges() const {
 	return _chatsListChanges.events();
 }
 
+rpl::producer<> SavedMessages::chatsListLoadedEvents() const {
+	return _chatsListLoadedEvents.events();
+}
+
 void SavedMessages::loadMore() {
 	_loadMoreScheduled = true;
 	_loadMore.call();
@@ -104,6 +108,9 @@ void SavedMessages::sendLoadMore() {
 	).done([=](const MTPmessages_SavedDialogs &result) {
 		apply(result, false);
 		_chatsListChanges.fire({});
+		if (_chatsList.loaded()) {
+			_chatsListLoadedEvents.fire({});
+		}
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			_unsupported = true;
@@ -319,6 +326,23 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 	}, [&](const MTPDdialogPeerFolder &data) {
 		DEBUG_LOG(("API Error: Folder in updateSavedDialogPinned."));
 	});
+}
+
+rpl::producer<> SavedMessages::destroyed() const {
+	if (!_parentChat) {
+		return rpl::never<>();
+	}
+	return _parentChat->flagsValue(
+	) | rpl::filter([=](const ChannelData::Flags::Change &update) {
+		using Flag = ChannelData::Flag;
+		return (update.diff & Flag::Monoforum)
+			&& !(update.value & Flag::Monoforum);
+	}) | rpl::take(1) | rpl::to_empty;
+}
+
+auto SavedMessages::sublistDestroyed() const
+-> rpl::producer<not_null<SavedSublist*>> {
+	return _sublistDestroyed.events();
 }
 
 rpl::lifetime &SavedMessages::lifetime() {

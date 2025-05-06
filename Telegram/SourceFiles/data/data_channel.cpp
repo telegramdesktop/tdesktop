@@ -199,12 +199,18 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 	// Let Data::Forum live till the end of _flags.set.
 	// That way the data can be used in changes handler.
 	// Example: render frame for forum auto-closing animation.
-	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
+	const auto takenForum = ((diff & Flag::Forum) && !(which & Flag::Forum))
 		? mgInfo->takeForumData()
+		: nullptr;
+	const auto takenMonoforum = ((diff & Flag::Monoforum)
+		&& !(which & Flag::Monoforum))
+		? mgInfo->takeMonoforumData()
 		: nullptr;
 	const auto wasIn = amIn();
 	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
 		mgInfo->ensureForum(this);
+	} else if ((diff & Flag::Monoforum) && (which & Flag::Monoforum)) {
+		mgInfo->ensureMonoforum(this);
 	}
 	_flags.set(which);
 	if (diff & (Flag::Left | Flag::Forbidden)) {
@@ -252,7 +258,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			}
 		}
 	}
-	if (const auto raw = taken.get()) {
+	if (const auto raw = takenForum.get()) {
 		owner().forumIcons().clearUserpicsReset(raw);
 	}
 }

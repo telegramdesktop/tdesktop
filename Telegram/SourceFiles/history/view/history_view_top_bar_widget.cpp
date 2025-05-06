@@ -762,6 +762,10 @@ void TopBarWidget::backClicked() {
 		&& _activeChat.key.history()
 		&& _activeChat.key.history()->isForum()) {
 		_controller->closeForum();
+	} else if (_activeChat.section == Section::ChatsList
+		&& _activeChat.key.history()
+		&& _activeChat.key.history()->isMonoforum()) {
+		_controller->closeMonoforum();
 	} else {
 		_controller->showBackFromStack();
 	}
