@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_user.h"
+#include "data/components/promo_suggestions.h"
 #include "countries/countries_instance.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
@@ -237,6 +238,9 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 		_account->mtp().dcOptions().addFromList(data.vdc_options());
 	}, [&](const MTPDupdateConfig &data) {
 		_account->mtp().requestConfig();
+		if (_account->sessionExists()) {
+			_account->session().promoSuggestions().invalidate();
+		}
 	}, [&](const MTPDupdateServiceNotification &data) {
 		const auto text = TextWithEntities{
 			qs(data.vmessage()),

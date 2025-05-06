@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/components/promo_suggestions.h"
 
+#include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "core/application.h"
@@ -22,6 +23,19 @@ namespace {
 
 constexpr auto kTopPromotionInterval = TimeId(60 * 60);
 constexpr auto kTopPromotionMinDelay = TimeId(10);
+
+[[nodiscard]] CustomSuggestion CustomFromTL(
+		not_null<Main::Session*> session,
+		const MTPPendingSuggestion &r) {
+	return CustomSuggestion({
+		.suggestion = qs(r.data().vsuggestion()),
+		.title = Api::ParseTextWithEntities(session, r.data().vtitle()),
+		.description = Api::ParseTextWithEntities(
+			session,
+			r.data().vdescription()),
+		.url = qs(r.data().vurl()),
+	});
+}
 
 } // namespace
 
@@ -112,10 +126,6 @@ void PromoSuggestions::topPromotionDone(const MTPhelp_PromoData &proxy) {
 				|= _dismissedSuggestions.emplace(qs(suggestion)).second;
 		}
 
-		if (changedPendingSuggestions || changedDismissedSuggestions) {
-			_refreshed.fire({});
-		}
-
 		if (const auto peer = data.vpeer()) {
 			const auto peerId = peerFromMTP(*peer);
 			const auto history = _session->data().history(peerId);
@@ -125,6 +135,22 @@ void PromoSuggestions::topPromotionDone(const MTPhelp_PromoData &proxy) {
 				data.vpsa_message().value_or_empty());
 		} else {
 			setTopPromoted(nullptr, QString(), QString());
+		}
+
+		auto changedCustom = false;
+		auto custom = data.vcustom_pending_suggestion()
+			? std::make_optional(
+				CustomFromTL(_session, *data.vcustom_pending_suggestion()))
+			: std::nullopt;
+		if (_custom != custom) {
+			_custom = std::move(custom);
+			changedCustom = true;
+		}
+
+		if (changedPendingSuggestions
+			|| changedDismissedSuggestions
+			|| changedCustom) {
+			_refreshed.fire({});
 		}
 	});
 }
@@ -192,6 +218,18 @@ void PromoSuggestions::dismiss(const QString &key) {
 		MTP_inputPeerEmpty(),
 		MTP_string(key)
 	)).send();
+}
+
+void PromoSuggestions::invalidate() {
+	if (_topPromotionRequestId) {
+		_session->api().request(_topPromotionRequestId).cancel();
+	}
+	_topPromotionNextRequestTime = 0;
+	_topPromotionTimer.callOnce(crl::time(200));
+}
+
+std::optional<CustomSuggestion> PromoSuggestions::custom() const {
+	return _custom;
 }
 
 } // namespace Data

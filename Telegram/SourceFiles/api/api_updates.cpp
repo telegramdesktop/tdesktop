@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/credits.h"
+#include "data/components/promo_suggestions.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/top_peers.h"
 #include "data/notify/data_notify_settings.h"
@@ -2068,6 +2069,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateConfig: {
 		session().mtp().requestConfig();
+		session().promoSuggestions().invalidate();
 	} break;
 
 	case mtpc_updateUserPhone: {

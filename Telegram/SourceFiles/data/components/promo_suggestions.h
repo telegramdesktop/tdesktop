@@ -17,17 +17,30 @@ class Session;
 
 namespace Data {
 
+struct CustomSuggestion final {
+	QString suggestion;
+	TextWithEntities title;
+	TextWithEntities description;
+	QString url;
+
+	friend inline auto operator<=>(
+		const CustomSuggestion &,
+		const CustomSuggestion &) = default;
+};
+
 class PromoSuggestions final {
 public:
 	explicit PromoSuggestions(not_null<Main::Session*> session);
 	~PromoSuggestions();
 
 	[[nodiscard]] bool current(const QString &key) const;
-	[[nodiscard]] rpl::producer<> requested(
-		const QString &key) const;
+	[[nodiscard]] std::optional<CustomSuggestion> custom() const;
+	[[nodiscard]] rpl::producer<> requested(const QString &key) const;
 	void dismiss(const QString &key);
 
 	void refreshTopPromotion();
+
+	void invalidate();
 
 	rpl::producer<> value() const;
 	// Create rpl::producer<> refreshed() const; on memand.
@@ -44,6 +57,7 @@ private:
 	const not_null<Main::Session*> _session;
 	base::flat_set<QString> _dismissedSuggestions;
 	std::vector<QString> _pendingSuggestions;
+	std::optional<CustomSuggestion> _custom;
 
 	History *_topPromoted = nullptr;
 

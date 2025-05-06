@@ -121,7 +121,25 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto wrap = state->wrap;
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto promo = &session->promoSuggestions();
-			if (session->premiumCanBuy()
+			if (const auto custom = promo->custom()) {
+				content->setRightIcon(RightIcon::Close);
+				content->setClickedCallback([=] {
+					const auto controller = FindSessionController(parent);
+					UrlClickHandler::Open(
+						custom->url,
+						QVariant::fromValue(ClickHandlerContext{
+							.sessionWindow = base::make_weak(controller),
+						}));
+				});
+				content->setHideCallback([=] {
+					promo->dismiss(custom->suggestion);
+					repeat(repeat);
+				});
+				content->setContent(custom->title, custom->description);
+				state->desiredWrapToggle.force_assign(
+					Toggle{ true, anim::type::normal });
+				return;
+			} else if (session->premiumCanBuy()
 				&& promo->current(kSugPremiumGrace.utf8())) {
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
