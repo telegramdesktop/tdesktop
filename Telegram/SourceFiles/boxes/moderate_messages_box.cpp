@@ -77,7 +77,7 @@ ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
 			if (author == peer) {
 				return {};
 			} else if (const auto channel = author->asChannel()) {
-				if (channel->linkedChat() == peer) {
+				if (channel->discussionLink() == peer) {
 					return {};
 				}
 			}

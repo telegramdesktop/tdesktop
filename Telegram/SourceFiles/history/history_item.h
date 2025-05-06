@@ -597,7 +597,7 @@ private:
 		return _flags & MessageFlag::Legacy;
 	}
 
-	[[nodiscard]] bool checkCommentsLinkedChat(ChannelId id) const;
+	[[nodiscard]] bool checkDiscussionLink(ChannelId id) const;
 
 	void setReplyMarkup(HistoryMessageMarkupData &&markup);
 

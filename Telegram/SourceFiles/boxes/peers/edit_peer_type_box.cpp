@@ -220,7 +220,7 @@ void Controller::createContent() {
 			const auto wrap = _controls.whoSendWrap->entity();
 
 			Ui::AddSkip(wrap);
-			if (_dataSavedValue->hasLinkedChat) {
+			if (_dataSavedValue->hasDiscussionLink) {
 				Ui::AddSubsectionTitle(wrap, tr::lng_manage_peer_send_title());
 
 				_controls.joinToWrite = wrap->add(EditPeerInfoBox::CreateButton(
@@ -498,7 +498,7 @@ void Controller::privacyChanged(Privacy value) {
 		}
 		_controls.whoSendWrap->toggle(
 			(value == Privacy::HasUsername
-				|| (_dataSavedValue && _dataSavedValue->hasLinkedChat)),
+				|| (_dataSavedValue && _dataSavedValue->hasDiscussionLink)),
 			anim::type::instant);
 	};
 	const auto refreshVisibilities = [&] {

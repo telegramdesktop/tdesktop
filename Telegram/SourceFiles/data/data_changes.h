@@ -111,7 +111,7 @@ struct PeerUpdate {
 		ChannelAmIn         = (1ULL << 45),
 		StickersSet         = (1ULL << 46),
 		EmojiSet            = (1ULL << 47),
-		ChannelLinkedChat   = (1ULL << 48),
+		DiscussionLink      = (1ULL << 48),
 		ChannelLocation     = (1ULL << 49),
 		Slowmode            = (1ULL << 50),
 		GroupCall           = (1ULL << 51),

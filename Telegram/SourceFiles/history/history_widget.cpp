@@ -805,7 +805,7 @@ HistoryWidget::HistoryWidget(
 		| PeerUpdateFlag::OnlineStatus
 		| PeerUpdateFlag::Notifications
 		| PeerUpdateFlag::ChannelAmIn
-		| PeerUpdateFlag::ChannelLinkedChat
+		| PeerUpdateFlag::DiscussionLink
 		| PeerUpdateFlag::Slowmode
 		| PeerUpdateFlag::BotStartToken
 		| PeerUpdateFlag::MessagesTTL
@@ -877,7 +877,7 @@ HistoryWidget::HistoryWidget(
 			| PeerUpdateFlag::OnlineStatus
 			| PeerUpdateFlag::Rights
 			| PeerUpdateFlag::ChannelAmIn
-			| PeerUpdateFlag::ChannelLinkedChat)) {
+			| PeerUpdateFlag::DiscussionLink)) {
 			handlePeerUpdate();
 		}
 		if (flags & PeerUpdateFlag::MessagesTTL) {

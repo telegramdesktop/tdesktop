@@ -572,12 +572,12 @@ infoBlockButton: SettingsButton(infoProfileButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
-infoCreateLinkedChatButton: SettingsButton(infoProfileButton) {
+infoCreateDiscussionLinkButton: SettingsButton(infoProfileButton) {
 	padding: margins(74px, 10px, 8px, 8px);
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 }
-infoUnlinkChatButton: SettingsButton(infoCreateLinkedChatButton) {
+infoUnlinkDiscussionLinkButton: SettingsButton(infoCreateDiscussionLinkButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }

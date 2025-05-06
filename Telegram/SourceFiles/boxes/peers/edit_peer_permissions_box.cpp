@@ -1138,7 +1138,7 @@ void ShowEditPeerPermissionsBox(
 				result.emplace(
 					Flag::ChangeInfo | Flag::PinMessages,
 					tr::lng_rights_permission_unavailable(tr::now));
-			} else if (channel->isMegagroup() && channel->linkedChat()) {
+			} else if (channel->isMegagroup() && channel->discussionLink()) {
 				result.emplace(
 					Flag::ChangeInfo | Flag::PinMessages,
 					tr::lng_rights_permission_in_discuss(tr::now));

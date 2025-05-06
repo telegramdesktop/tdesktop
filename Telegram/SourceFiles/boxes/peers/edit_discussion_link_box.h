@@ -17,14 +17,14 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
-[[nodiscard]] object_ptr<Ui::BoxContent> EditLinkedChatBox(
+[[nodiscard]] object_ptr<Ui::BoxContent> EditDiscussionLinkBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	not_null<ChannelData*> chat,
 	bool canEdit,
 	Fn<void(ChannelData*)> callback);
 
-[[nodiscard]] object_ptr<Ui::BoxContent> EditLinkedChatBox(
+[[nodiscard]] object_ptr<Ui::BoxContent> EditDiscussionLinkBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	std::vector<not_null<PeerData*>> &&chats,

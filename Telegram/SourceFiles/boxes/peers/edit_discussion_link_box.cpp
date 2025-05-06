@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/peers/edit_linked_chat_box.h"
+#include "boxes/peers/edit_discussion_link_box.h"
 
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
@@ -224,7 +224,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 	return tr::lng_manage_discussion_group_about(Ui::Text::WithEntities);
 }
 
-[[nodiscard]] object_ptr<Ui::BoxContent> EditLinkedChatBox(
+[[nodiscard]] object_ptr<Ui::BoxContent> EditDiscussionLinkBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		ChannelData *chat,
@@ -272,7 +272,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 			Settings::AddButtonWithIcon(
 				above,
 				tr::lng_manage_discussion_group_create(),
-				st::infoCreateLinkedChatButton,
+				st::infoCreateDiscussionLinkButton,
 				{ &st::menuIconGroupCreate }
 			)->addClickHandler([=, parent = above.data()] {
 				const auto guarded = crl::guard(parent, callback);
@@ -292,7 +292,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 				(channel->isBroadcast()
 					? tr::lng_manage_discussion_group_unlink
 					: tr::lng_manage_linked_channel_unlink)(),
-				st::infoUnlinkChatButton,
+				st::infoUnlinkDiscussionLinkButton,
 				{ &st::menuIconRemove }
 			)->addClickHandler([=] { callback(nullptr); });
 			Ui::AddSkip(below);
@@ -327,12 +327,12 @@ void Controller::choose(not_null<ChatData*> chat) {
 
 } // namespace
 
-object_ptr<Ui::BoxContent> EditLinkedChatBox(
+object_ptr<Ui::BoxContent> EditDiscussionLinkBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		std::vector<not_null<PeerData*>> &&chats,
 		Fn<void(ChannelData*)> callback) {
-	return EditLinkedChatBox(
+	return EditDiscussionLinkBox(
 		navigation,
 		channel,
 		nullptr,
@@ -341,13 +341,13 @@ object_ptr<Ui::BoxContent> EditLinkedChatBox(
 		callback);
 }
 
-object_ptr<Ui::BoxContent> EditLinkedChatBox(
+object_ptr<Ui::BoxContent> EditDiscussionLinkBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		not_null<ChannelData*> chat,
 		bool canEdit,
 		Fn<void(ChannelData*)> callback) {
-	return EditLinkedChatBox(
+	return EditDiscussionLinkBox(
 		navigation,
 		channel,
 		chat,

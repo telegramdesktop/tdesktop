@@ -37,7 +37,7 @@ struct EditPeerTypeData {
 	Privacy privacy = Privacy::NoUsername;
 	QString username;
 	std::vector<QString> usernamesOrder;
-	bool hasLinkedChat = false;
+	bool hasDiscussionLink = false;
 	bool noForwards = false;
 	bool joinToWrite = false;
 	bool requestToJoin = false;

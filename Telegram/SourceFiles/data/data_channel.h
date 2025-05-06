@@ -409,9 +409,9 @@ public:
 	void setLocation(const MTPChannelLocation &data);
 	[[nodiscard]] const ChannelLocation *getLocation() const;
 
-	void setLinkedChat(ChannelData *linked);
-	[[nodiscard]] ChannelData *linkedChat() const;
-	[[nodiscard]] bool linkedChatKnown() const;
+	void setDiscussionLink(ChannelData *link);
+	[[nodiscard]] ChannelData *discussionLink() const;
+	[[nodiscard]] bool discussionLinkKnown() const;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
@@ -570,7 +570,7 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	std::unique_ptr<InvitePeek> _invitePeek;
 	QString _inviteLink;
-	std::optional<ChannelData*> _linkedChat;
+	std::optional<ChannelData*> _discussionLink;
 
 	Data::AllowedReactions _allowedReactions;
 

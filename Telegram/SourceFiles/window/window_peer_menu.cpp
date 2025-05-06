@@ -839,7 +839,7 @@ void Filler::addViewDiscussion() {
 	if (!channel) {
 		return;
 	}
-	const auto chat = channel->linkedChat();
+	const auto chat = channel->discussionLink();
 	if (!chat) {
 		return;
 	}

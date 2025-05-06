@@ -2428,7 +2428,7 @@ void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 		if (!clickedChannel->isPublic()
 			&& !clickedChannel->amIn()
 			&& (!currentPeer->isChannel()
-				|| currentPeer->asChannel()->linkedChat()
+				|| currentPeer->asChannel()->discussionLink()
 					!= clickedChannel)) {
 			MainWindowShow(this).showToast(peer->isMegagroup()
 				? tr::lng_group_not_accessible(tr::now)
