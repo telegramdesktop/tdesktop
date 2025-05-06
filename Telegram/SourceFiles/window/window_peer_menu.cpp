@@ -1186,7 +1186,7 @@ void Filler::addCreatePoll() {
 }
 
 void Filler::addThemeEdit() {
-	if (_peer->isVerifyCodes()) {
+	if (_peer->isVerifyCodes() || _peer->isRepliesChat()) {
 		return;
 	}
 	const auto user = _peer->asUser();
