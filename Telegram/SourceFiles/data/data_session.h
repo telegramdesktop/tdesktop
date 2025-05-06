@@ -801,11 +801,6 @@ public:
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
 
-	void setTopPromoted(
-		History *promoted,
-		const QString &type,
-		const QString &message);
-
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
@@ -1128,8 +1123,6 @@ private:
 	base::flat_map<
 		ReactionId,
 		base::flat_set<not_null<ViewElement*>>> _viewsByTag;
-
-	History *_topPromoted = nullptr;
 
 	std::unordered_map<PeerId, std::unique_ptr<PeerData>> _peers;
 

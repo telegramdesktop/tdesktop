@@ -200,7 +200,6 @@ public:
 	void requestChangelog(
 		const QString &sinceVersion,
 		Fn<void(const MTPUpdates &result)> callback);
-	void refreshTopPromotion();
 	void requestDeepLinkInfo(
 		const QString &path,
 		Fn<void(TextWithEntities message, bool updateRequired)> callback);
@@ -569,9 +568,6 @@ private:
 		not_null<SendingAlbum*> album,
 		Fn<void(bool)> done = nullptr);
 
-	void getTopPromotionDelayed(TimeId now, TimeId next);
-	void topPromotionDone(const MTPhelp_PromoData &proxy);
-
 	void sendNotifySettingsUpdates();
 
 	template <typename Request>
@@ -708,11 +704,6 @@ private:
 
 	std::unique_ptr<TaskQueue> _fileLoader;
 	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;
-
-	mtpRequestId _topPromotionRequestId = 0;
-	std::pair<QString, uint32> _topPromotionKey;
-	TimeId _topPromotionNextRequestTime = TimeId(0);
-	base::Timer _topPromotionTimer;
 
 	base::flat_set<not_null<const Data::ForumTopic*>> _updateNotifyTopics;
 	base::flat_set<not_null<const PeerData*>> _updateNotifyPeers;

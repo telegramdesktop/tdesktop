@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "main/main_app_config.h"
+#include "data/components/promo_suggestions.h"
 #include "main/main_session.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
@@ -120,9 +120,9 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto content = state->content;
 			const auto wrap = state->wrap;
 			using RightIcon = TopBarSuggestionContent::RightIcon;
-			const auto config = &session->appConfig();
+			const auto promo = &session->promoSuggestions();
 			if (session->premiumCanBuy()
-				&& config->suggestionCurrent(kSugPremiumGrace.utf8())) {
+				&& promo->current(kSugPremiumGrace.utf8())) {
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
 					const auto controller = FindSessionController(parent);
@@ -133,7 +133,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						}));
 				});
 				content->setHideCallback([=] {
-					config->dismissSuggestion(kSugPremiumGrace.utf8());
+					promo->dismiss(kSugPremiumGrace.utf8());
 					repeat(repeat);
 				});
 				content->setContent(
@@ -147,7 +147,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					Toggle{ true, anim::type::normal });
 				return;
 			} else if (session->premiumCanBuy()
-				&& config->suggestionCurrent(kSugLowCreditsSubs.utf8())) {
+				&& promo->current(kSugLowCreditsSubs.utf8())) {
 				state->creditsHistory = std::make_unique<Api::CreditsHistory>(
 					session->user(),
 					false,
@@ -165,13 +165,12 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 							needed,
 							Settings::SmallBalanceSubscription{ peers },
 							[=] {
-								config->dismissSuggestion(
-									kSugLowCreditsSubs.utf8());
+								promo->dismiss(kSugLowCreditsSubs.utf8());
 								repeat(repeat);
 							}));
 					});
 					content->setHideCallback([=] {
-						config->dismissSuggestion(kSugLowCreditsSubs.utf8());
+						promo->dismiss(kSugLowCreditsSubs.utf8());
 						repeat(repeat);
 					});
 					content->setContent(
@@ -219,7 +218,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 
 				return;
 			} else if (session->premiumCanBuy()
-				&& config->suggestionCurrent(kSugBirthdayContacts.utf8())) {
+				&& promo->current(kSugBirthdayContacts.utf8())) {
 				session->data().contactBirthdays(
 				) | rpl::start_with_next(crl::guard(content, [=] {
 					const auto users = session->data()
@@ -242,8 +241,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						}
 					});
 					content->setHideCallback([=] {
-						config->dismissSuggestion(
-							kSugBirthdayContacts.utf8());
+						promo->dismiss(kSugBirthdayContacts.utf8());
 						controller->showToast(
 							tr::lng_dialogs_suggestions_birthday_contact_dismiss(
 								tr::now));
@@ -351,7 +349,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						Toggle{ true, anim::type::normal });
 				}), state->giftsLifetime);
 				return;
-			} else if (config->suggestionCurrent(kSugSetBirthday.utf8())
+			} else if (promo->current(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {
 				content->setRightIcon(RightIcon::Close);
 				content->setClickedCallback([=] {
@@ -373,7 +371,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					});
 				});
 				content->setHideCallback([=] {
-					config->dismissSuggestion(kSugSetBirthday.utf8());
+					promo->dismiss(kSugSetBirthday.utf8());
 					repeat(repeat);
 				});
 				content->setContent(
@@ -387,13 +385,13 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					Toggle{ true, anim::type::normal });
 				return;
 			} else if (session->premiumPossible() && !session->premium()) {
-				const auto isPremiumAnnual = config->suggestionCurrent(
+				const auto isPremiumAnnual = promo->current(
 					kSugPremiumAnnual.utf8());
 				const auto isPremiumRestore = !isPremiumAnnual
-					&& config->suggestionCurrent(kSugPremiumRestore.utf8());
+					&& promo->current(kSugPremiumRestore.utf8());
 				const auto isPremiumUpgrade = !isPremiumAnnual
 					&& !isPremiumRestore
-					&& config->suggestionCurrent(kSugPremiumUpgrade.utf8());
+					&& promo->current(kSugPremiumUpgrade.utf8());
 				const auto set = [=](QString discount) {
 					constexpr auto kMinus = QChar(0x2212);
 					const auto &title = isPremiumAnnual
@@ -416,7 +414,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					content->setClickedCallback([=] {
 						const auto controller = FindSessionController(parent);
 						Settings::ShowPremium(controller, "dialogs_hint");
-						config->dismissSuggestion(isPremiumAnnual
+						promo->dismiss(isPremiumAnnual
 							? kSugPremiumAnnual.utf8()
 							: isPremiumRestore
 							? kSugPremiumRestore.utf8()
@@ -442,7 +440,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					return;
 				}
 			}
-			if (config->suggestionCurrent(kSugSetUserpic.utf8())
+			if (promo->current(kSugSetUserpic.utf8())
 				&& !session->user()->userpicPhotoId()) {
 				const auto controller = FindSessionController(parent);
 				content->setRightIcon(RightIcon::Close);
@@ -484,7 +482,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				});
 
 				content->setHideCallback([=] {
-					config->dismissSuggestion(kSugSetUserpic.utf8());
+					promo->dismiss(kSugSetUserpic.utf8());
 					repeat(repeat);
 				});
 
@@ -541,7 +539,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				(was == now) ? toggle.type : anim::type::instant);
 		}, lifetime);
 
-		session->appConfig().value() | rpl::start_with_next([=] {
+		session->promoSuggestions().value() | rpl::start_with_next([=] {
 			const auto was = state->wrap;
 			processCurrentSuggestion(processCurrentSuggestion);
 			if (was != state->wrap) {

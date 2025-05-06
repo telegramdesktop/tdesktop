@@ -48,11 +48,6 @@ public:
 	[[nodiscard]] rpl::producer<> refreshed() const;
 	[[nodiscard]] rpl::producer<> value() const;
 
-	[[nodiscard]] bool suggestionCurrent(const QString &key) const;
-	[[nodiscard]] rpl::producer<> suggestionRequested(
-		const QString &key) const;
-	void dismissSuggestion(const QString &key);
-
 	[[nodiscard]] bool newRequirePremiumFree() const;
 
 	[[nodiscard]] auto ignoredRestrictionReasons() const
@@ -125,7 +120,6 @@ private:
 	bool _pendingRefresh = false;
 	base::flat_map<QString, MTPJSONValue> _data;
 	rpl::event_stream<> _refreshed;
-	base::flat_set<QString> _dismissedSuggestions;
 
 	std::vector<QString> _ignoreRestrictionReasons;
 	rpl::event_stream<std::vector<QString>> _ignoreRestrictionChanges;

@@ -170,15 +170,6 @@ void AppConfig::refresh(bool force) {
 			}
 			updateIgnoredRestrictionReasons(std::move(was));
 
-			{
-				const auto dismissedSuggestions = get<std::vector<QString>>(
-					u"dismissed_suggestions"_q,
-					std::vector<QString>());
-				for (const auto &suggestion : dismissedSuggestions) {
-					_dismissedSuggestions.emplace(suggestion);
-				}
-			}
-
 			DEBUG_LOG(("getAppConfig result handled."));
 			_refreshed.fire({});
 		}, [](const MTPDhelp_appConfigNotModified &) {});
@@ -329,47 +320,6 @@ std::vector<int> AppConfig::getIntArray(
 			return std::move(fallback);
 		});
 	});
-}
-
-bool AppConfig::suggestionCurrent(const QString &key) const {
-	if (key == u"BIRTHDAY_CONTACTS_TODAY"_q) {
-		if (_dismissedSuggestions.contains(key)
-			|| !_account->sessionExists()) {
-			return false;
-		} else {
-			const auto known
-				= _account->session().data().knownBirthdaysToday();
-			if (!known) {
-				return true;
-			}
-			return !known->empty();
-		}
-	}
-	return !_dismissedSuggestions.contains(key)
-		&& ranges::contains(
-			get<std::vector<QString>>(
-				u"pending_suggestions"_q,
-				std::vector<QString>()),
-			key);
-}
-
-rpl::producer<> AppConfig::suggestionRequested(const QString &key) const {
-	return value(
-	) | rpl::filter([=] {
-		return suggestionCurrent(key);
-	});
-}
-
-void AppConfig::dismissSuggestion(const QString &key) {
-	Expects(_api.has_value());
-
-	if (!_dismissedSuggestions.emplace(key).second) {
-		return;
-	}
-	_api->request(MTPhelp_DismissSuggestion(
-		MTP_inputPeerEmpty(),
-		MTP_string(key)
-	)).send();
 }
 
 bool AppConfig::newRequirePremiumFree() const {

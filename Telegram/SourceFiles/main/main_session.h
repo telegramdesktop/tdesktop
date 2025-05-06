@@ -39,6 +39,7 @@ class TopPeers;
 class Factchecks;
 class LocationPickers;
 class Credits;
+class PromoSuggestions;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -189,6 +190,9 @@ public:
 	[[nodiscard]] InlineBots::AttachWebView &attachWebView() const {
 		return *_attachWebView;
 	}
+	[[nodiscard]] Data::PromoSuggestions &promoSuggestions() const {
+		return *_promoSuggestions;
+	}
 	[[nodiscard]] auto cachedReactionIconFactory() const
 	-> HistoryView::Reactions::CachedIconFactory & {
 		return *_cachedReactionIconFactory;
@@ -290,6 +294,7 @@ private:
 	const std::unique_ptr<Data::Factchecks> _factchecks;
 	const std::unique_ptr<Data::LocationPickers> _locationPickers;
 	const std::unique_ptr<Data::Credits> _credits;
+	const std::unique_ptr<Data::PromoSuggestions> _promoSuggestions;
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;

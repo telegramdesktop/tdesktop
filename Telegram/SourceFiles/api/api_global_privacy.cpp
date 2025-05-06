@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 
 #include "apiwrap.h"
+#include "data/components/promo_suggestions.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
@@ -101,13 +102,11 @@ rpl::producer<bool> GlobalPrivacy::showArchiveAndMute() const {
 }
 
 rpl::producer<> GlobalPrivacy::suggestArchiveAndMute() const {
-	return _session->appConfig().suggestionRequested(
-		u"AUTOARCHIVE_POPULAR"_q);
+	return _session->promoSuggestions().requested(u"AUTOARCHIVE_POPULAR"_q);
 }
 
 void GlobalPrivacy::dismissArchiveAndMuteSuggestion() {
-	_session->appConfig().dismissSuggestion(
-		u"AUTOARCHIVE_POPULAR"_q);
+	_session->promoSuggestions().dismiss(u"AUTOARCHIVE_POPULAR"_q);
 }
 
 void GlobalPrivacy::updateHideReadTime(bool hide) {
