@@ -51,8 +51,7 @@ private:
 		const QString &type,
 		const QString &message);
 
-	void getTopPromotionDelayed(TimeId now, TimeId next);
-	void topPromotionDone(const MTPhelp_PromoData &proxy);
+	void topPromotionDelayed(TimeId now, TimeId next);
 
 	const not_null<Main::Session*> _session;
 	base::flat_set<QString> _dismissedSuggestions;

@@ -56,7 +56,7 @@ void PromoSuggestions::refreshTopPromotion() {
 		? _topPromotionNextRequestTime
 		: now;
 	if (_topPromotionRequestId) {
-		getTopPromotionDelayed(now, next);
+		topPromotionDelayed(now, next);
 		return;
 	}
 	const auto key = [&]() -> std::pair<QString, uint32> {
@@ -70,90 +70,89 @@ void PromoSuggestions::refreshTopPromotion() {
 		return { proxy.host, proxy.port };
 	}();
 	if (_topPromotionKey == key && now < next) {
-		getTopPromotionDelayed(now, next);
+		topPromotionDelayed(now, next);
 		return;
 	}
 	_topPromotionKey = key;
 	_topPromotionRequestId = _session->api().request(MTPhelp_GetPromoData(
 	)).done([=](const MTPhelp_PromoData &result) {
 		_topPromotionRequestId = 0;
-		topPromotionDone(result);
+
+		_topPromotionNextRequestTime = result.match([&](const auto &data) {
+			return data.vexpires().v;
+		});
+		topPromotionDelayed(
+			base::unixtime::now(),
+			_topPromotionNextRequestTime);
+
+		result.match([&](const MTPDhelp_promoDataEmpty &data) {
+			setTopPromoted(nullptr, QString(), QString());
+		}, [&](const MTPDhelp_promoData &data) {
+			_session->data().processChats(data.vchats());
+			_session->data().processUsers(data.vusers());
+
+			auto changedPendingSuggestions = false;
+			auto pendingSuggestions = ranges::views::all(
+				data.vpending_suggestions().v
+			) | ranges::views::transform([](const auto &suggestion) {
+				return qs(suggestion);
+			}) | ranges::to_vector;
+			if (!ranges::equal(_pendingSuggestions, pendingSuggestions)) {
+				_pendingSuggestions = std::move(pendingSuggestions);
+				changedPendingSuggestions = true;
+			}
+
+			auto changedDismissedSuggestions = false;
+			for (const auto &suggestion : data.vdismissed_suggestions().v) {
+				changedDismissedSuggestions
+					|= _dismissedSuggestions.emplace(qs(suggestion)).second;
+			}
+
+			if (const auto peer = data.vpeer()) {
+				const auto peerId = peerFromMTP(*peer);
+				const auto history = _session->data().history(peerId);
+				setTopPromoted(
+					history,
+					data.vpsa_type().value_or_empty(),
+					data.vpsa_message().value_or_empty());
+			} else {
+				setTopPromoted(nullptr, QString(), QString());
+			}
+
+			auto changedCustom = false;
+			auto custom = data.vcustom_pending_suggestion()
+				? std::make_optional(
+					CustomFromTL(
+						_session,
+						*data.vcustom_pending_suggestion()))
+				: std::nullopt;
+			if (_custom != custom) {
+				_custom = std::move(custom);
+				changedCustom = true;
+			}
+
+			if (changedPendingSuggestions
+				|| changedDismissedSuggestions
+				|| changedCustom) {
+				_refreshed.fire({});
+			}
+		});
 	}).fail([=] {
 		_topPromotionRequestId = 0;
 		const auto now = base::unixtime::now();
 		const auto next = _topPromotionNextRequestTime = now
 			+ kTopPromotionInterval;
 		if (!_topPromotionTimer.isActive()) {
-			getTopPromotionDelayed(now, next);
+			topPromotionDelayed(now, next);
 		}
 	}).send();
 }
 
-void PromoSuggestions::getTopPromotionDelayed(TimeId now, TimeId next) {
+void PromoSuggestions::topPromotionDelayed(TimeId now, TimeId next) {
 	_topPromotionTimer.callOnce(std::min(
 		std::max(next - now, kTopPromotionMinDelay),
 		kTopPromotionInterval) * crl::time(1000));
 };
-
-void PromoSuggestions::topPromotionDone(const MTPhelp_PromoData &proxy) {
-	_topPromotionNextRequestTime = proxy.match([&](const auto &data) {
-		return data.vexpires().v;
-	});
-	getTopPromotionDelayed(
-		base::unixtime::now(),
-		_topPromotionNextRequestTime);
-
-	proxy.match([&](const MTPDhelp_promoDataEmpty &data) {
-		setTopPromoted(nullptr, QString(), QString());
-	}, [&](const MTPDhelp_promoData &data) {
-		_session->data().processChats(data.vchats());
-		_session->data().processUsers(data.vusers());
-
-		auto changedPendingSuggestions = false;
-		auto pendingSuggestions = ranges::views::all(
-			data.vpending_suggestions().v
-		) | ranges::views::transform([](const auto &suggestion) {
-			return qs(suggestion);
-		}) | ranges::to_vector;
-		if (!ranges::equal(_pendingSuggestions, pendingSuggestions)) {
-			_pendingSuggestions = std::move(pendingSuggestions);
-			changedPendingSuggestions = true;
-		}
-
-		auto changedDismissedSuggestions = false;
-		for (const auto &suggestion : data.vdismissed_suggestions().v) {
-			changedDismissedSuggestions
-				|= _dismissedSuggestions.emplace(qs(suggestion)).second;
-		}
-
-		if (const auto peer = data.vpeer()) {
-			const auto peerId = peerFromMTP(*peer);
-			const auto history = _session->data().history(peerId);
-			setTopPromoted(
-				history,
-				data.vpsa_type().value_or_empty(),
-				data.vpsa_message().value_or_empty());
-		} else {
-			setTopPromoted(nullptr, QString(), QString());
-		}
-
-		auto changedCustom = false;
-		auto custom = data.vcustom_pending_suggestion()
-			? std::make_optional(
-				CustomFromTL(_session, *data.vcustom_pending_suggestion()))
-			: std::nullopt;
-		if (_custom != custom) {
-			_custom = std::move(custom);
-			changedCustom = true;
-		}
-
-		if (changedPendingSuggestions
-			|| changedDismissedSuggestions
-			|| changedCustom) {
-			_refreshed.fire({});
-		}
-	});
-}
 
 rpl::producer<> PromoSuggestions::value() const {
 	return _refreshed.events_starting_with({});
