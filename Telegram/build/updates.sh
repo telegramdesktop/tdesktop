@@ -1,4 +1,4 @@
-set -e
+      set -e
 FullExecPath=$PWD
 pushd `dirname $0` > /dev/null
 FullScriptPath=`pwd`
