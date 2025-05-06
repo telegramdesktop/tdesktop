@@ -1275,9 +1275,13 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	if (_footer->isHidden()) {
 		return;
 	}
+	_localZoomLifetime.destroy();
 	const auto wasZoom = _footer->xPercentageLimits();
 
-	const auto header = Ui::CreateChild<Header>(this);
+	const auto headerOwned
+		= _localZoomLifetime.make_state<base::unique_qptr<Header>>(
+			base::make_unique_q<Header>(this));
+	const auto header = headerOwned->get();
 	header->show();
 	_header->geometryValue(
 	) | rpl::start_with_next([=](const QRect &g) {
@@ -1290,7 +1294,8 @@ void ChartWidget::processLocalZoom(int xIndex) {
 		setAttribute(Qt::WA_TransparentForMouseEvents, !value);
 	};
 
-	const auto mouseTrackingLifetime = std::make_shared<rpl::lifetime>();
+	const auto mouseTrackingLifetime
+		= _localZoomLifetime.make_state<rpl::lifetime>();
 	_chartView->setUpdateCallback([=] { _chartArea->update(); });
 	const auto createMouseTracking = [=] {
 		_chartArea->setMouseTracking(true);
@@ -1322,7 +1327,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	zoomOutButton->setTextTransform(
 		Ui::RoundButton::TextTransform::NoTransform);
 	zoomOutButton->setClickedCallback([=] {
-		auto lifetime = std::make_shared<rpl::lifetime>();
+		auto lifetime = _localZoomLifetime.make_state<rpl::lifetime>();
 		const auto animation = lifetime->make_state<Ui::Animations::Simple>();
 		const auto currentXPercentage = _footer->xPercentageLimits();
 		animation->start([=](float64 value) {
@@ -1365,7 +1370,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	};
 
 	{
-		auto lifetime = std::make_shared<rpl::lifetime>();
+		auto lifetime = _localZoomLifetime.make_state<rpl::lifetime>();
 		const auto animation = lifetime->make_state<Ui::Animations::Simple>();
 		_chartView->maybeLocalZoom({ _chartData, Type::Prepare });
 		animation->start([=](float64 value) {
