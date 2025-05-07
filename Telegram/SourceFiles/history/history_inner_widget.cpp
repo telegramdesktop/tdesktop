@@ -3824,9 +3824,7 @@ void HistoryInner::elementSendBotCommand(
 void HistoryInner::elementSearchInList(
 		const QString &query,
 		const FullMsgId &context) {
-	const auto inChat = _history->peer->isUser()
-		? Dialogs::Key()
-		: Dialogs::Key(_history);
+	const auto inChat = Dialogs::Key(_history);
 	_controller->searchMessages(query, inChat);
 }
 
