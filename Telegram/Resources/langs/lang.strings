@@ -5264,10 +5264,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter_all_actions" = "All actions";
 "lng_admin_log_filter_actions_type_subtitle" = "Filter actions by type";
 "lng_admin_log_filter_actions_member_section" = "Members And Admins";
+"lng_admin_log_filter_actions_subscriber_section" = "Subscribers And Admins";
 "lng_admin_log_filter_restrictions" = "New restrictions";
 "lng_admin_log_filter_admins_new" = "Admin rights";
 "lng_admin_log_filter_members_new" = "New members";
+"lng_admin_log_filter_subscribers_new" = "New subscribers";
 "lng_admin_log_filter_actions_settings_section" = "Group Settings";
+"lng_admin_log_filter_actions_channel_settings_section" = "Channel Settings";
 "lng_admin_log_filter_info_group" = "Group info";
 "lng_admin_log_filter_info_channel" = "Channel info";
 "lng_admin_log_filter_actions_messages_section" = "Messages";
@@ -5278,6 +5281,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter_voice_chats_channel" = "Live stream";
 "lng_admin_log_filter_invite_links" = "Invite links";
 "lng_admin_log_filter_members_removed" = "Members leaving";
+"lng_admin_log_filter_subscribers_removed" = "Subscribers leaving";
 "lng_admin_log_filter_topics" = "Topics";
 "lng_admin_log_filter_sub_extend" = "Subscription Renewals";
 "lng_admin_log_filter_all_admins" = "All users and admins";
