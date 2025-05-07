@@ -46,11 +46,15 @@ void HandleWithdrawalButton(
 		bool loading = false;
 	};
 
-	const auto channel = receiver.currencyReceiver;
-	const auto peer = receiver.creditsReceiver;
+	const auto currencyReceiver = receiver.currencyReceiver;
+	const auto creditsReceiver = receiver.creditsReceiver;
+	const auto isChannel = receiver.currencyReceiver
+		&& receiver.currencyReceiver->isChannel();
 
 	const auto state = button->lifetime().make_state<State>();
-	const auto session = (channel ? &channel->session() : &peer->session());
+	const auto session = (currencyReceiver
+		? &currencyReceiver->session()
+		: &creditsReceiver->session());
 
 	using ChannelOutUrl = MTPstats_BroadcastRevenueWithdrawalUrl;
 	using CreditsOutUrl = MTPpayments_StarsRevenueWithdrawalUrl;
@@ -59,7 +63,7 @@ void HandleWithdrawalButton(
 	const auto processOut = [=] {
 		if (state->loading) {
 			return;
-		} else if (peer && !receiver.creditsAmount()) {
+		} else if (creditsReceiver && !receiver.creditsAmount()) {
 			return;
 		}
 		state->loading = true;
@@ -70,10 +74,10 @@ void HandleWithdrawalButton(
 			state->loading = false;
 
 			auto fields = PasscodeBox::CloudFields::From(pass);
-			fields.customTitle = channel
+			fields.customTitle = isChannel
 				? tr::lng_channel_earn_balance_password_title()
 				: tr::lng_bot_earn_balance_password_title();
-			fields.customDescription = channel
+			fields.customDescription = isChannel
 				? tr::lng_channel_earn_balance_password_description(tr::now)
 				: tr::lng_bot_earn_balance_password_description(tr::now);
 			fields.customSubmitButton = tr::lng_passcode_submit();
@@ -94,18 +98,18 @@ void HandleWithdrawalButton(
 						show->showToast(message);
 					}
 				};
-				if (channel) {
+				if (currencyReceiver) {
 					session->api().request(
 						MTPstats_GetBroadcastRevenueWithdrawalUrl(
-							channel->input,
+							currencyReceiver->input,
 							result.result
 					)).done([=](const ChannelOutUrl &r) {
 						done(qs(r.data().vurl()));
 					}).fail(fail).send();
-				} else if (peer) {
+				} else if (creditsReceiver) {
 					session->api().request(
 						MTPpayments_GetStarsRevenueWithdrawalUrl(
-							peer->input,
+							creditsReceiver->input,
 							MTP_long(receiver.creditsAmount()),
 							result.result
 					)).done([=](const CreditsOutUrl &r) {
@@ -134,17 +138,17 @@ void HandleWithdrawalButton(
 				processOut();
 			}
 		};
-		if (channel) {
+		if (currencyReceiver) {
 			session->api().request(
 				MTPstats_GetBroadcastRevenueWithdrawalUrl(
-					channel->input,
+					currencyReceiver->input,
 					MTP_inputCheckPasswordEmpty()
 			)).fail(fail).send();
-		} else if (peer) {
+		} else if (creditsReceiver) {
 			session->api().request(
 				MTPpayments_GetStarsRevenueWithdrawalUrl(
-					peer->input,
-					MTP_long(std::numeric_limits<int64_t>::max()),
+					creditsReceiver->input,
+					MTP_long(receiver.creditsAmount()),
 					MTP_inputCheckPasswordEmpty()
 			)).fail(fail).send();
 		}

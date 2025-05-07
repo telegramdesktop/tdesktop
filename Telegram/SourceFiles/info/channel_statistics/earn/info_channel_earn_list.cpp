@@ -850,7 +850,7 @@ void InnerWidget::fill() {
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
-	if (channel && data.availableBalance) {
+	if (data.availableBalance) {
 		const auto value = data.availableBalance;
 		AddHeader(container, tr::lng_channel_earn_balance_title);
 		Ui::AddSkip(container);
@@ -938,7 +938,7 @@ void InnerWidget::fill() {
 #endif
 
 		Api::HandleWithdrawalButton(
-			{ .currencyReceiver = channel },
+			{ .currencyReceiver = _peer },
 			button,
 			_controller->uiShow());
 		Ui::ToggleChildrenVisibility(button, true);
@@ -1006,7 +1006,9 @@ void InnerWidget::fill() {
 			not_null<Ui::VerticalLayout*> historyDividerContainer) {
 		const auto hasCurrencyTab
 			= !data.currencyEarn.firstHistorySlice.list.empty();
-		const auto hasCreditsTab = !data.creditsStatusSlice.list.empty();
+		// Credits stats for bots are available in info_bot_earn_list.
+		const auto hasCreditsTab = !bot
+			&& !data.creditsStatusSlice.list.empty();
 		const auto hasOneTab = (hasCurrencyTab || hasCreditsTab)
 			&& (hasCurrencyTab != hasCreditsTab);
 
