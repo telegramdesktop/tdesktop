@@ -1108,78 +1108,116 @@ void Manager::notificationActivated(
 		const TextWithTags &reply) {
 	onBeforeNotificationActivated(id);
 	if (const auto session = system()->findSession(id.contextId.sessionId)) {
-		if (session->windows().empty()) {
-			Core::App().domain().activate(&session->account());
+		const auto history = session->data().history(
+			id.contextId.peerId);
+		const auto item = history->owner().message(
+			history->peer,
+			id.msgId);
+		const auto topic = item ? item->topic() : nullptr;
+		if (!reply.text.isEmpty()) {
+			const auto topicRootId = topic
+				? topic->rootId()
+				: id.contextId.topicRootId;
+			const auto replyToId = (id.msgId > 0
+				&& !history->peer->isUser()
+				&& id.msgId != topicRootId)
+				? FullMsgId(history->peer->id, id.msgId)
+				: FullMsgId();
+			auto draft = std::make_unique<Data::Draft>(
+				reply,
+				FullReplyTo{
+					.messageId = replyToId,
+					.topicRootId = topicRootId,
+				},
+				MessageCursor{
+					int(reply.text.size()),
+					int(reply.text.size()),
+					Ui::kQFixedMax,
+				},
+				Data::WebPageDraft());
+			history->setLocalDraft(std::move(draft));
 		}
-		if (!session->windows().empty()) {
-			const auto window = session->windows().front();
-			const auto history = session->data().history(
-				id.contextId.peerId);
-			const auto item = history->owner().message(
-				history->peer,
-				id.msgId);
-			const auto topic = item ? item->topic() : nullptr;
-			if (!reply.text.isEmpty()) {
-				const auto topicRootId = topic
-					? topic->rootId()
-					: id.contextId.topicRootId;
-				const auto replyToId = (id.msgId > 0
-					&& !history->peer->isUser()
-					&& id.msgId != topicRootId)
-					? FullMsgId(history->peer->id, id.msgId)
-					: FullMsgId();
-				auto draft = std::make_unique<Data::Draft>(
-					reply,
-					FullReplyTo{
-						.messageId = replyToId,
-						.topicRootId = topicRootId,
-					},
-					MessageCursor{
-						int(reply.text.size()),
-						int(reply.text.size()),
-						Ui::kQFixedMax,
-					},
-					Data::WebPageDraft());
-				history->setLocalDraft(std::move(draft));
-			}
-			window->widget()->showFromTray();
-			if (Core::App().passcodeLocked()) {
-				window->widget()->setInnerFocus();
-				system()->clearAll();
-			} else {
-				const auto openSeparated = base::IsCtrlPressed();
-				openNotificationMessage(history, id.msgId, openSeparated);
-			}
-			onAfterNotificationActivated(id, window);
-		}
+		const auto openSeparated = base::IsCtrlPressed();
+		const auto window = openNotificationMessage(
+			history,
+			id.msgId,
+			openSeparated);
+		onAfterNotificationActivated(id, window);
 	}
 }
 
-void Manager::openNotificationMessage(
+Window::SessionController *Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId,
 		bool openSeparated) {
+	if (Core::App().passcodeLocked()) {
+		const auto window = history->session().tryResolveWindow();
+		if (window) {
+			window->widget()->showFromTray();
+			window->widget()->setInnerFocus();
+			system()->clearAll();
+		}
+		return window;
+	}
 	const auto item = history->owner().message(history->peer, messageId);
 	const auto openExactlyMessage = !history->peer->isBroadcast()
 		&& item
 		&& item->isRegular()
 		&& (item->out() || (item->mentionsMe() && !history->peer->isUser()));
 	const auto topic = item ? item->topic() : nullptr;
-	const auto separate = Core::App().separateWindowFor(history->peer);
+
+	const auto guard = gsl::finally([&] {
+		if (topic) {
+			system()->clearFromTopic(topic);
+		} else {
+			system()->clearFromHistory(history);
+		}
+	});
+
+	const auto separateId = topic
+		? Window::SeparateId(Window::SeparateType::Forum, history)
+		: Window::SeparateId(history->peer);
+	const auto separate = Core::App().separateWindowFor(separateId);
 	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
+	if (openSeparated && !separate && !topic) {
+		// In case we're opening a chat history we first try to open it like
+		// it is done from the main window context menu (that checks if the
+		// chat isn't restricted and also closes the chat we're opening
+		// in the window itself). If this couldn't be done, we open normally.
+		const auto tryInExisting = [&](bool primary) {
+			for (const auto &window : history->session().windows()) {
+				if (primary && !window->window().id().primary()) {
+					continue;
+				} else if (!primary && !window->window().id().folder()) {
+					continue;
+				}
+				window->showInNewWindow(separateId, itemId);
+				const auto shown = Core::App().separateWindowFor(
+					separateId);
+				return shown ? shown->sessionController() : window.get();
+			}
+			return (Window::SessionController*)nullptr;
+		};
+		const auto shownPrimary = tryInExisting(true);
+		const auto shown = shownPrimary
+			? shownPrimary
+			: tryInExisting(false);
+		if (shown) {
+			return shown;
+		}
+	}
 	const auto window = separate
 		? separate->sessionController()
 		: openSeparated
 		? [&] {
 			const auto window = Core::App().ensureSeparateWindowFor(
-				topic
-					? Window::SeparateId(Window::SeparateType::Forum, history)
-					: Window::SeparateId(history->peer),
+				separateId,
 				itemId);
 			return window ? window->sessionController() : nullptr;
 		}()
 		: history->session().tryResolveWindow();
 	if (window) {
+		window->widget()->showFromTray();
 		if (topic) {
 			window->showSection(
 				std::make_shared<HistoryView::RepliesMemento>(
@@ -1194,11 +1232,7 @@ void Manager::openNotificationMessage(
 				itemId);
 		}
 	}
-	if (topic) {
-		system()->clearFromTopic(topic);
-	} else {
-		system()->clearFromHistory(history);
-	}
+	return window;
 }
 
 void Manager::notificationReplied(

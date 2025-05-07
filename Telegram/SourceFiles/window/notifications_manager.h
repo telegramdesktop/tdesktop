@@ -353,7 +353,7 @@ protected:
 	[[nodiscard]] virtual QString accountNameSeparator();
 
 private:
-	void openNotificationMessage(
+	Window::SessionController *openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId,
 		bool openSeparated);

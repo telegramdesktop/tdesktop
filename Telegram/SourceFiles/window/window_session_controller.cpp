@@ -2651,7 +2651,7 @@ void SessionController::showInNewWindow(
 	const auto active = activeChatCurrent();
 	// windows check active forum / active archive
 	const auto fromActive = active.thread()
-		? (active.thread() == id.thread)
+		? (active.thread() == id.thread && id.type == SeparateType::Chat)
 		: false;
 	const auto toSeparate = [=] {
 		Core::App().ensureSeparateWindowFor(id, msgId);
