@@ -859,6 +859,8 @@ void CreditsRow::init() {
 			lt_count,
 			_entry.paidMessagesCount)
 		: ((!_entry.subscriptionUntil.isNull() && !isSpecial)
+			|| (_entry.giftUpgraded && !isSpecial)
+			|| (_entry.giftResale && !isSpecial)
 			|| _entry.title.isEmpty())
 		? name
 		: _entry.title;
