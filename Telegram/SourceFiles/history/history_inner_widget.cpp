@@ -529,7 +529,8 @@ void HistoryInner::setupSwipeReplyAndBack() {
 	}
 	const auto peer = _peer;
 
-	auto update = [=, history = _history](Ui::Controls::SwipeContextData data) {
+	auto update = [=, history = _history](
+			Ui::Controls::SwipeContextData data) {
 		if (data.translation > 0) {
 			if (!_swipeBackData.callback) {
 				_swipeBackData = Ui::Controls::SetupSwipeBack(
@@ -565,9 +566,24 @@ void HistoryInner::setupSwipeReplyAndBack() {
 			int cursorTop,
 			Qt::LayoutDirection direction) {
 		if (direction == Qt::RightToLeft) {
-			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
-				_controller->showBackFromStack();
+			auto good = true;
+			enumerateItems<EnumItemsDirection::BottomToTop>([&](
+					not_null<Element*> view,
+					int itemtop,
+					int itembottom) {
+				if (view->data()->showSimilarChannels()) {
+					good = false;
+					return true;
+				}
+				return false;
 			});
+			if (good) {
+				return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+					_controller->showBackFromStack();
+				});
+			} else {
+				return Ui::Controls::SwipeHandlerFinishData();
+			}
 		}
 		auto result = Ui::Controls::SwipeHandlerFinishData();
 		if (inSelectionMode().inSelectionMode
@@ -581,6 +597,7 @@ void HistoryInner::setupSwipeReplyAndBack() {
 			if ((cursorTop < itemtop)
 				|| (cursorTop > itembottom)
 				|| !view->data()->isRegular()
+				|| view->data()->showSimilarChannels()
 				|| view->data()->isService()) {
 				return true;
 			}
