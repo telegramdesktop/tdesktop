@@ -4208,7 +4208,8 @@ void InnerWidget::repaintPreviewResult(int index) {
 
 bool InnerWidget::computeSearchWithPostsPreview() const {
 	return 	(_searchHashOrCashtag != HashOrCashtag::None)
-		&& (_searchState.tab == ChatSearchTab::MyMessages);
+		&& (_searchState.tab == ChatSearchTab::MyMessages)
+		&& !_searchState.inChat;
 }
 
 void InnerWidget::clearFilter() {

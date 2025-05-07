@@ -2942,7 +2942,8 @@ auto Widget::currentSearchProcess() -> not_null<SearchProcessState*> {
 
 bool Widget::computeSearchWithPostsPreview() const {
 	return 	(_searchHashOrCashtag != HashOrCashtag::None)
-		&& (_searchState.tab == ChatSearchTab::MyMessages);
+		&& (_searchState.tab == ChatSearchTab::MyMessages)
+		&& !_searchState.inChat;
 }
 
 void Widget::searchReceived(
