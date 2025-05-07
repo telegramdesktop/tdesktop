@@ -85,6 +85,7 @@ private:
 
 	bool _muted = false;
 	std::vector<Ui::GroupCallUser> _users;
+	int _usersCount = 0;
 	std::unique_ptr<Ui::GroupCallUserpics> _userpics;
 	int _userpicsWidth = 0;
 	object_ptr<Ui::LabelSimple> _durationLabel;
@@ -98,6 +99,9 @@ private:
 	base::unique_qptr<Ui::RpWidget> _blobs;
 
 	rpl::variable<bool> _isGroupConnecting = false;
+
+	std::vector<not_null<PeerData*>> _conferenceFirstUsers;
+	int _conferenceUsersCount = 0;
 
 	QBrush _groupBrush;
 	anim::linear_gradients<BarState> _gradients;

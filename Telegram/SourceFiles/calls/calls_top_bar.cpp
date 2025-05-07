@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_peer.h"
 #include "data/data_changes.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
@@ -580,28 +581,33 @@ void TopBar::initBlobsUnder(
 
 void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 	const auto peer = call->peer();
-	peer->session().changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::map([=] {
-		return peer->groupCall();
-	}) | rpl::filter([=](Data::GroupCall *real) {
-		const auto call = _groupCall.get();
-		return call && real && (real->id() == call->id());
-	}) | rpl::take(
-		1
+	const auto group = _groupCall.get();
+	const auto conference = group && group->conference();
+	auto realValue = conference
+		? (rpl::single(group->conferenceCall().get()) | rpl::type_erased())
+		: peer->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::GroupCall
+		) | rpl::map([=] {
+			return peer->groupCall();
+		}) | rpl::filter([=](Data::GroupCall *real) {
+			const auto call = _groupCall.get();
+			return call && real && (real->id() == call->id());
+		}) | rpl::take(1);
+	std::move(
+		realValue
 	) | rpl::before_next([=](not_null<Data::GroupCall*> real) {
 		real->titleValue() | rpl::start_with_next([=] {
 			updateInfoLabels();
 		}, lifetime());
 	}) | rpl::map([=](not_null<Data::GroupCall*> real) {
-
 		return HistoryView::GroupCallBarContentByCall(
 			real,
 			st::groupCallTopBarUserpics.size);
 	}) | rpl::flatten_latest(
 	) | rpl::filter([=](const Ui::GroupCallBarContent &content) {
-		if (_users.size() != content.users.size()) {
+		if (_users.size() != content.users.size()
+			|| (conference && _usersCount != content.count)) {
 			return true;
 		}
 		for (auto i = 0, count = int(_users.size()); i != count; ++i) {
@@ -613,10 +619,14 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 		return false;
 	}) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
 		_users = content.users;
+		_usersCount = content.count;
 		for (auto &user : _users) {
 			user.speaking = false;
 		}
 		_userpics->update(_users, !isHidden());
+		if (conference) {
+			updateInfoLabels();
+		}
 	}, lifetime());
 
 	_userpics->widthValue(
@@ -655,14 +665,62 @@ void TopBar::setInfoLabels() {
 	} else if (const auto group = _groupCall.get()) {
 		const auto peer = group->peer();
 		const auto real = peer->groupCall();
-		const auto name = peer->name();
-		const auto text = _isGroupConnecting.current()
-			? tr::lng_group_call_connecting(tr::now)
-			: (real && real->id() == group->id() && !real->title().isEmpty())
-			? real->title()
-			: name;
-		_fullInfoLabel->setText(text);
-		_shortInfoLabel->setText(text);
+		const auto connecting = _isGroupConnecting.current();
+		if (!group->conference()) {
+			_shortInfoLabel.destroy();
+		}
+		if (!group->conference() || connecting) {
+			const auto name = peer->name();
+			const auto title = (real && real->id() == group->id())
+				? real->title()
+				: QString();
+			const auto text = _isGroupConnecting.current()
+				? tr::lng_group_call_connecting(tr::now)
+				: !title.isEmpty()
+				? title
+				: name;
+			_fullInfoLabel->setText(text);
+			if (_shortInfoLabel) {
+				_shortInfoLabel->setText(text);
+			}
+		} else if (!_usersCount
+			|| _users.empty()
+			|| (_users.size() == 1
+				&& _users.front().id == peer->session().userPeerId().value
+				&& _usersCount == 1)) {
+			_fullInfoLabel->setText(tr::lng_confcall_join_title(tr::now));
+			_shortInfoLabel->setText(tr::lng_confcall_join_title(tr::now));
+		} else {
+			const auto textWithUserpics = [&](int userpics) {
+				const auto other = std::max(_usersCount - userpics, 0);
+				auto names = QStringList();
+				for (const auto &entry : _users) {
+					const auto user = peer->owner().peer(PeerId(entry.id));
+					names.push_back(user->shortName());
+					if (names.size() >= userpics) {
+						break;
+					}
+				}
+				if (other > 0) {
+					return tr::lng_forwarding_from(
+						tr::now,
+						lt_count,
+						other,
+						lt_user,
+						names.join(u", "_q));
+				} else if (userpics > 1) {
+					return tr::lng_forwarding_from_two(
+						tr::now,
+						lt_user,
+						names.mid(0, userpics - 1).join(u", "_q),
+						lt_second_user,
+						names.back());
+				}
+				return names.back();
+			};
+			_fullInfoLabel->setText(textWithUserpics(int(_users.size())));
+			_shortInfoLabel->setText(textWithUserpics(1));
+		}
 	}
 }
 
@@ -732,10 +790,8 @@ void TopBar::updateControlsGeometry() {
 		height());
 
 	auto fullWidth = _fullInfoLabel->textMaxWidth();
-	auto showFull = (left + fullWidth + right <= width());
-	_fullInfoLabel->setVisible(showFull);
-	_shortInfoLabel->setVisible(!showFull);
-
+	auto showFull = !_shortInfoLabel
+		|| (left + fullWidth + right <= width());
 	auto setInfoLabelGeometry = [this, left, right](auto &&infoLabel) {
 		auto minPadding = qMax(left, right);
 		auto infoWidth = infoLabel->textMaxWidth();
@@ -746,8 +802,13 @@ void TopBar::updateControlsGeometry() {
 		}
 		infoLabel->setGeometryToLeft(infoLeft, st::callBarLabelTop, infoWidth, st::callBarInfoLabel.style.font->height);
 	};
+
+	_fullInfoLabel->setVisible(showFull);
 	setInfoLabelGeometry(_fullInfoLabel);
-	setInfoLabelGeometry(_shortInfoLabel);
+	if (_shortInfoLabel) {
+		_shortInfoLabel->setVisible(!showFull);
+		setInfoLabelGeometry(_shortInfoLabel);
+	}
 
 	_gradients.set_points(
 		QPointF(0, st::callBarHeight / 2),
