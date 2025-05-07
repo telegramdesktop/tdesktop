@@ -1972,7 +1972,7 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 					{ anim::type::normal, anim::activation::background });
 				showForum(channel->forum(),
 					{ anim::type::normal, anim::activation::background });
-			}, _shownForumLifetime);
+			}, _activeHistoryLifetime);
 		}
 	}
 	if (session().supportMode()) {
