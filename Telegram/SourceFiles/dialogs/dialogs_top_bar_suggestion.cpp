@@ -359,7 +359,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 							fake->moveToLeft(
 								leftPadding,
 								(s.height() - fake->height()) / 2);
-						}, content->lifetime());
+						}, fake->lifetime());
 						content->setLeftPadding(fake->width() + leftPadding);
 					}
 

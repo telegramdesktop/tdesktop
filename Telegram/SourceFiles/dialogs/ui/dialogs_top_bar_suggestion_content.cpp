@@ -194,6 +194,7 @@ rpl::producer<int> TopBarSuggestionContent::desiredHeightValue() const {
 }
 
 void TopBarSuggestionContent::setHideCallback(Fn<void()> hideCallback) {
+	Expects(_rightHide != nullptr);
 	_rightHide->setClickedCallback(std::move(hideCallback));
 }
 
