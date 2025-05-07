@@ -54,14 +54,10 @@ jobs:
       UPLOAD_ARTIFACT: "true"
 
     steps:
-      - name: Get repository name.
-        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
-
       - name: Clone.
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          path: ${{ env.REPO_NAME }}
 
       - name: First set up.
         run: |
@@ -71,8 +67,6 @@ jobs:
 
       - name: Telegram Desktop build.
         run: |
-          cd $REPO_NAME
-
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
@@ -101,7 +95,7 @@ jobs:
 
       - name: Check.
         run: |
-          filePath="$REPO_NAME/out/Debug/Telegram"
+          filePath="out/Debug/Telegram"
           if test -f "$filePath"; then
             echo "Build successfully done! :)"
 
@@ -115,7 +109,7 @@ jobs:
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          cd $REPO_NAME/out/Debug
+          cd out/Debug
           mkdir artifact
           mv {Telegram,Updater} artifact/
       - uses: actions/upload-artifact@v4
@@ -123,4 +117,4 @@ jobs:
         name: Upload artifact.
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.REPO_NAME }}/out/Debug/artifact/
+          path: out/Debug/artifact/
