@@ -12,6 +12,7 @@ on:
       - '!.github/workflows/linux.yml'
       - 'snap/**'
       - 'Telegram/build/**'
+      - '!Telegram/build/docker/centos_env/**'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/Resources/winrc/**'
       - 'Telegram/SourceFiles/platform/win/**'
@@ -30,6 +31,7 @@ on:
       - '!.github/workflows/linux.yml'
       - 'snap/**'
       - 'Telegram/build/**'
+      - '!Telegram/build/docker/centos_env/**'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/Resources/winrc/**'
       - 'Telegram/SourceFiles/platform/win/**'
@@ -52,6 +54,8 @@ jobs:
 
     env:
       UPLOAD_ARTIFACT: "true"
+      ONLY_CACHE: "false"
+      IMAGE_TAG: tdesktop:centos_env
 
     steps:
       - name: Clone.
@@ -61,11 +65,32 @@ jobs:
 
       - name: First set up.
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-          docker pull ghcr.io/$GITHUB_REPOSITORY/centos_env
-          docker tag ghcr.io/$GITHUB_REPOSITORY/centos_env tdesktop:centos_env
+          sudo apt update
+          curl -sSL https://install.python-poetry.org | python3 -
+          cd Telegram/build/docker/centos_env
+          poetry install
+          DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
+          echo "$DOCKERFILE" > Dockerfile
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+
+      - name: Set up Docker Buildx.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Libraries.
+        uses: docker/build-push-action@v6
+        with:
+          context: Telegram/build/docker/centos_env
+          load: ${{ env.ONLY_CACHE == 'false' }}
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Telegram Desktop build.
+        if: env.ONLY_CACHE == 'false'
         run: |
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
@@ -80,7 +105,7 @@ jobs:
           -u $(id -u) \
           -v $PWD:/usr/src/tdesktop \
           -e CONFIG=Debug \
-          tdesktop:centos_env \
+          $IMAGE_TAG \
           /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_C_FLAGS_DEBUG="" \
           -D CMAKE_CXX_FLAGS_DEBUG="" \
@@ -93,6 +118,7 @@ jobs:
           $DEFINE
 
       - name: Check.
+        if: env.ONLY_CACHE == 'false'
         run: |
           filePath="out/Debug/Telegram"
           if test -f "$filePath"; then
