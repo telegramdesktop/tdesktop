@@ -323,7 +323,7 @@ public:
 		return (_flags & MessageFlag::HideEdited);
 	}
 	[[nodiscard]] bool hideDisplayDate() const {
-		return (_flags & MessageFlag::HideDisplayDate);
+		return isEmpty() || (_flags & MessageFlag::HideDisplayDate);
 	}
 	[[nodiscard]] bool isLocal() const {
 		return _flags & MessageFlag::Local;

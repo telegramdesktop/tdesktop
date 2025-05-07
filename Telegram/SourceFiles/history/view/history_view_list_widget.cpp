@@ -4077,7 +4077,8 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 			const auto viewDate = view->dateTime();
 			const auto nextDate = next->dateTime();
 			next->setDisplayDate(_context != Context::ShortcutMessages
-				&& nextDate.date() != viewDate.date());
+				&& (nextDate.date() != viewDate.date()
+					|| view->data()->hideDisplayDate()));
 			auto attached = next->computeIsAttachToPrevious(view);
 			next->setAttachToPrevious(attached, view);
 			view->setAttachToNext(attached, next);
