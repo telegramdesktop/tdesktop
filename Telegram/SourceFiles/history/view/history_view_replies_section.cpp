@@ -1838,12 +1838,12 @@ void RepliesWidget::checkPinnedBarState() {
 		}
 		return (count > 1);
 	}) | rpl::distinct_until_changed();
-	auto markupRefreshed = HistoryView::PinnedBarItemWithReplyMarkup(
+	auto customButtonItem = HistoryView::PinnedBarItemWithCustomButton(
 		&session(),
 		_pinnedTracker->shownMessageId());
 	rpl::combine(
 		rpl::duplicate(pinnedRefreshed),
-		rpl::duplicate(markupRefreshed)
+		rpl::duplicate(customButtonItem)
 	) | rpl::start_with_next([=](bool many, HistoryItem *item) {
 		refreshPinnedBarButton(many, item);
 	}, _pinnedBar->lifetime());
@@ -1854,7 +1854,7 @@ void RepliesWidget::checkPinnedBarState() {
 			_pinnedTracker->shownMessageId(),
 			[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }),
 		std::move(pinnedRefreshed),
-		std::move(markupRefreshed),
+		std::move(customButtonItem),
 		_rootVisible.value()
 	) | rpl::map([=](Ui::MessageBarContent &&content, auto, auto, bool show) {
 		const auto shown = !content.title.isEmpty() && !content.text.empty();
@@ -1935,43 +1935,29 @@ void RepliesWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 		controller()->showSection(
 			std::make_shared<PinnedMemento>(_topic, id.message.msg));
 	};
-	if (const auto replyMarkup = item ? item->inlineReplyMarkup() : nullptr) {
-		const auto &rows = replyMarkup->data.rows;
-		if ((rows.size() == 1) && (rows.front().size() == 1)) {
-			const auto text = rows.front().front().text;
-			if (!text.isEmpty()) {
-				auto button = object_ptr<Ui::RoundButton>(
-					this,
-					rpl::single(text),
-					st::historyPinnedBotButton);
-				button->setTextTransform(
-					Ui::RoundButton::TextTransform::NoTransform);
-				button->setFullRadius(true);
-				button->setClickedCallback([=] {
-					Api::ActivateBotCommand(
-						_inner->prepareClickHandlerContext(item->fullId()),
-						0,
-						0);
-				});
-				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
-					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);
-				}
-				struct State {
-					base::unique_qptr<Ui::PopupMenu> menu;
-				};
-				const auto state = button->lifetime().make_state<State>();
-				_pinnedBar->contextMenuRequested(
-				) | rpl::start_with_next([=, raw = button.data()] {
-					state->menu = base::make_unique_q<Ui::PopupMenu>(raw);
-					state->menu->addAction(
-						tr::lng_settings_events_pinned(tr::now),
-						openSection);
-					state->menu->popup(QCursor::pos());
-				}, button->lifetime());
-				_pinnedBar->setRightButton(std::move(button));
-				return;
-			}
+	const auto context = [copy = _inner](FullMsgId itemId) {
+		if (const auto raw = copy.data()) {
+			return raw->prepareClickHandlerContext(itemId);
 		}
+		return ClickHandlerContext();
+	};
+	auto customButton = CreatePinnedBarCustomButton(this, item, context);
+	if (customButton) {
+		struct State {
+			base::unique_qptr<Ui::PopupMenu> menu;
+		};
+		const auto buttonRaw = customButton.data();
+		const auto state = buttonRaw->lifetime().make_state<State>();
+		_pinnedBar->contextMenuRequested(
+		) | rpl::start_with_next([=] {
+			state->menu = base::make_unique_q<Ui::PopupMenu>(buttonRaw);
+			state->menu->addAction(
+				tr::lng_settings_events_pinned(tr::now),
+				openSection);
+			state->menu->popup(QCursor::pos());
+		}, buttonRaw->lifetime());
+		_pinnedBar->setRightButton(std::move(customButton));
+		return;
 	}
 	const auto close = !many;
 	auto button = object_ptr<Ui::IconButton>(

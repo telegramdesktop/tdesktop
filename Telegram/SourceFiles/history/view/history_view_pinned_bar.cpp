@@ -7,17 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_pinned_bar.h"
 
+#include "api/api_bot.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_poll.h"
+#include "data/data_web_page.h"
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "history/history.h"
+#include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "base/weak_ptr.h"
 #include "apiwrap.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/basic_click_handlers.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
@@ -153,6 +160,45 @@ auto WithPinnedTitle(not_null<Main::Session*> session, PinnedId id) {
 	};
 }
 
+[[nodiscard]] object_ptr<Ui::RoundButton> MakePinnedBarCustomButton(
+		not_null<QWidget*> parent,
+		const QString &buttonText,
+		Fn<void()> clickCallback) {
+	const auto &stButton = st::historyPinnedBotButton;
+	const auto &stLabel = st::historyPinnedBotLabel;
+
+	auto button = object_ptr<Ui::RoundButton>(
+		parent,
+		rpl::never<QString>(), // Text is handled by the inner label.
+		stButton);
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button.data(),
+		buttonText,
+		stLabel);
+
+	if (label->width() > st::historyPinnedBotButtonMaxWidth) {
+		label->resizeToWidth(st::historyPinnedBotButtonMaxWidth);
+	}
+	button->setFullWidth(label->width()
+		+ stButton.padding.left()
+		+ stButton.padding.right()
+		+ stButton.height); // stButton.height is likely for icon spacing.
+
+	label->moveToLeft(
+		stButton.padding.left() + stButton.height / 2,
+		(button->height() - label->height()) / 2);
+
+	label->setTextColorOverride(stButton.textFg->c); // Use button's text color for label.
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	button->setFullRadius(true);
+	button->setClickedCallback(std::move(clickCallback));
+
+	return button;
+}
+
 } // namespace
 
 rpl::producer<Ui::MessageBarContent> MessageBarContentByItemId(
@@ -178,7 +224,7 @@ rpl::producer<Ui::MessageBarContent> PinnedBarContent(
 	}) | rpl::flatten_latest();
 }
 
-rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
+rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 		not_null<Main::Session*> session,
 		rpl::producer<PinnedId> id) {
 	return rpl::make_producer<HistoryItem*>([=,
@@ -187,7 +233,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
 		consumer.put_next(nullptr);
 
 		struct State {
-			bool hasReplyMarkup = false;
+			bool hasCustomButton = false;
 			base::has_weak_ptr guard;
 			rpl::lifetime lifetime;
 			FullMsgId resolvedId;
@@ -196,10 +242,17 @@ rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
 
 		const auto pushUnique = [=](not_null<HistoryItem*> item) {
 			const auto replyMarkup = item->inlineReplyMarkup();
-			if (!state->hasReplyMarkup && !replyMarkup) {
+			const auto media = item->media();
+			const auto page = media ? media->webpage() : nullptr;
+			const auto possiblyHasCustomButton = replyMarkup
+				|| (page
+					&& (page->type == WebPageType::VoiceChat
+						|| page->type == WebPageType::Livestream
+						|| page->type == WebPageType::ConferenceCall));
+			if (!state->hasCustomButton && !possiblyHasCustomButton) {
 				return;
 			}
-			state->hasReplyMarkup = (replyMarkup != nullptr);
+			state->hasCustomButton = possiblyHasCustomButton;
 			consumer.put_next(item.get());
 		};
 
@@ -217,12 +270,14 @@ rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
 				using Update = Data::MessageUpdate;
 				session->changes().messageUpdates(
 					item,
-					Update::Flag::ReplyMarkup | Update::Flag::Destroyed
+					(Update::Flag::ReplyMarkup
+						| Update::Flag::Edited
+						| Update::Flag::Destroyed)
 				) | rpl::start_with_next([=](const Update &update) {
 					if (update.flags & Update::Flag::Destroyed) {
 						state->lifetime.destroy();
 						invalidate_weak_ptrs(&state->guard);
-						state->hasReplyMarkup = false;
+						state->hasCustomButton = false;
 						consumer.put_next(nullptr);
 					} else {
 						pushUnique(update.item);
@@ -246,6 +301,44 @@ rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
 		}, lifetime);
 		return lifetime;
 	});
+}
+
+[[nodiscard]] object_ptr<Ui::RoundButton> CreatePinnedBarCustomButton(
+		not_null<QWidget*> parent,
+		HistoryItem *item,
+		Fn<ClickHandlerContext(FullMsgId)> context) {
+	if (!item) {
+		return nullptr;
+	} else if (const auto replyMarkup = item->inlineReplyMarkup()) {
+		const auto &rows = replyMarkup->data.rows;
+		if ((rows.size() == 1) && (rows.front().size() == 1)) {
+			const auto text = rows.front().front().text;
+			if (!text.isEmpty()) {
+				const auto contextId = item->fullId();
+				const auto callback = [=] {
+					Api::ActivateBotCommand(context(contextId), 0, 0);
+				};
+				return MakePinnedBarCustomButton(parent, text, callback);
+			}
+		}
+	} else if (const auto media = item->media()) {
+		if (const auto page = media->webpage()) {
+			if (page->type == WebPageType::VoiceChat
+				|| page->type == WebPageType::Livestream
+				|| page->type == WebPageType::ConferenceCall) {
+				const auto url = page->url;
+				const auto contextId = item->fullId();
+				const auto callback = [=] {
+					UrlClickHandler::Open(
+						url,
+						QVariant::fromValue(context(contextId)));
+				};
+				const auto text = tr::lng_group_call_join(tr::now);
+				return MakePinnedBarCustomButton(parent, text, callback);
+			}
+		}
+	}
+	return nullptr;
 }
 
 } // namespace HistoryView
