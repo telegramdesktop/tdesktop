@@ -299,6 +299,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						s->widget = base::make_unique_q<Ui::RpWidget>(
 							content);
 						const auto widget = s->widget.get();
+						widget->setAttribute(
+							Qt::WA_TransparentForMouseEvents);
 						content->sizeValue() | rpl::filter_size(
 						) | rpl::start_with_next([=](const QSize &size) {
 							widget->resize(size);
