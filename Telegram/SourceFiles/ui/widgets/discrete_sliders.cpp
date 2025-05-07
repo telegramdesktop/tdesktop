@@ -118,6 +118,7 @@ void DiscreteSlider::refresh() {
 		_selected = 0;
 	}
 	resizeToWidth(width());
+	update();
 }
 
 DiscreteSlider::Range DiscreteSlider::getFinalActiveRange() const {
