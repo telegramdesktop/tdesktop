@@ -1371,8 +1371,8 @@ void ApplyChannelUpdate(
 		creditsLoad->request({}, [=](Data::CreditsStatusSlice slice) {
 			if (const auto strong = weak.get()) {
 				strong->credits().apply(id, slice.balance);
-				creditsLoadLifetime->destroy();
 			}
+			creditsLoadLifetime->destroy();
 		});
 		base::timer_once(kTimeout) | rpl::start_with_next([=] {
 			creditsLoadLifetime->destroy();
@@ -1380,17 +1380,16 @@ void ApplyChannelUpdate(
 		const auto currencyLoadLifetime = std::make_shared<rpl::lifetime>();
 		const auto currencyLoad
 			= currencyLoadLifetime->make_state<Api::EarnStatistics>(channel);
-		currencyLoad->request(
-		) | rpl::start_with_error_done([=](const QString &error) {
-			currencyLoadLifetime->destroy();
-		}, [=] {
+		const auto apply = [=](Data::EarnInt balance) {
 			if (const auto strong = weak.get()) {
-				strong->credits().applyCurrency(
-					id,
-					currencyLoad->data().currentBalance);
-				currencyLoadLifetime->destroy();
+				strong->credits().applyCurrency(id, balance);
 			}
-		}, *currencyLoadLifetime);
+			currencyLoadLifetime->destroy();
+		};
+		currencyLoad->request() | rpl::start_with_error_done(
+			[=](const QString &error) { apply(0); },
+			[=] { apply(currencyLoad->data().currentBalance); },
+			*currencyLoadLifetime);
 		base::timer_once(kTimeout) | rpl::start_with_next([=] {
 			currencyLoadLifetime->destroy();
 		}, *currencyLoadLifetime);

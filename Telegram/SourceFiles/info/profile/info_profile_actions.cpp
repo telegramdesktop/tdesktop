@@ -887,15 +887,16 @@ rpl::producer<uint64> AddCurrencyAction(
 			= std::make_shared<rpl::lifetime>();
 		const auto currencyLoad
 			= currencyLoadLifetime->make_state<Api::EarnStatistics>(user);
-		currencyLoad->request(
-		) | rpl::start_with_error_done([=](const QString &error) {
-			currencyLoadLifetime->destroy();
-		}, [=] {
+		const auto done = [=](Data::EarnInt balance) {
 			if ([[maybe_unused]] const auto strong = weak.data()) {
-				state->balance = currencyLoad->data().currentBalance;
+				state->balance = balance;
 				currencyLoadLifetime->destroy();
 			}
-		}, *currencyLoadLifetime);
+		};
+		currencyLoad->request() | rpl::start_with_error_done(
+			[=](const QString &error) { done(0); },
+			[=] { done(currencyLoad->data().currentBalance); },
+			*currencyLoadLifetime);
 	}
 	const auto &st = st::infoSharedMediaButton;
 	const auto button = wrapButton->entity();
@@ -915,7 +916,7 @@ rpl::producer<uint64> AddCurrencyAction(
 	) | rpl::start_with_next([=, &st](
 			int width,
 			const QString &button,
-			uint64 balance) {
+			Data::EarnInt balance) {
 		const auto available = width
 			- rect::m::sum::h(st.padding)
 			- st.style.font->width(button)
