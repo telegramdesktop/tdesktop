@@ -2928,7 +2928,7 @@ void AddBlock(
 		window,
 		peer,
 		state->gifts.value(),
-		!state->my.list.empty());
+		!state->my.list.empty() && !peer->isSelf());
 	state->priceTab = std::move(tabs.priceTab);
 	result->add(std::move(tabs.widget));
 	result->add(MakeGiftsList(window, peer, rpl::combine(
