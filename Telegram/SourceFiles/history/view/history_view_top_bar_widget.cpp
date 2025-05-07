@@ -1525,7 +1525,7 @@ void TopBarWidget::refreshUnreadBadge() {
 			geometry.y() + st::titleUnreadCounterTop);
 	}, _unreadBadge->lifetime());
 
-	_unreadBadge->show();
+	_unreadBadge->setVisible(!rootChatsListBar());
 	_unreadBadge->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_controller->session().data().unreadBadgeChanges(
 	) | rpl::start_with_next([=] {
