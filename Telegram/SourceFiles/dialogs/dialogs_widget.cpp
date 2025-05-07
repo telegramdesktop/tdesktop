@@ -104,8 +104,8 @@ constexpr auto kSearchRequestDelay = crl::time(900);
 
 base::options::toggle OptionForumHideChatsList({
 	.id = kOptionForumHideChatsList,
-	.name = "Hide chats list in forums",
-	.description = "Don't keep a narrow column of chats list.",
+	.name = "Hide chat list in forums",
+	.description = "Don't keep a narrow column of chat list.",
 });
 
 [[nodiscard]] bool RedirectTextToSearch(const QString &text) {
