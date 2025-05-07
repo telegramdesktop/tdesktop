@@ -316,16 +316,23 @@ void FillChooseFilterMenu(
 				return;
 			}
 			const auto session = &strong->session();
-			const auto count = session->data().chatsFilters().list().size();
-			if ((count - 1) >= limit()) {
+			const auto &list = session->data().chatsFilters().list();
+			if ((list.size() - 1) >= limit()) {
 				return;
 			}
+			const auto chooseNextId = [&] {
+				auto id = 2;
+				while (ranges::contains(list, id, &Data::ChatFilter::id)) {
+					++id;
+				}
+				return id;
+			};
 			auto filter =
 				Data::ChatFilter({}, {}, {}, {}, {}, { history }, {}, {});
 			const auto send = [=](const Data::ChatFilter &filter) {
 				session->api().request(MTPmessages_UpdateDialogFilter(
 					MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
-					MTP_int(count),
+					MTP_int(chooseNextId()),
 					filter.tl()
 				)).done([=] {
 					session->data().chatsFilters().reload();
