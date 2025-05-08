@@ -4,15 +4,7 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-if (APPLE)
-    # target_precompile_headers with COMPILE_LANGUAGE restriction.
-    cmake_minimum_required(VERSION 3.23)
-else()
-    cmake_minimum_required(VERSION 3.16)
-endif()
-if (POLICY CMP0149)
-    cmake_policy(SET CMP0149 NEW)
-endif()
+cmake_minimum_required(VERSION 3.25...3.31)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
