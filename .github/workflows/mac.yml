@@ -123,10 +123,7 @@ jobs:
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
 
-          cd ../out
-
-          xcoderun='xcodebuild build -project Telegram.xcodeproj -scheme Telegram -destination "platform=macOS,arch=x86_64" -configuration Debug'
-          bash -c "$xcoderun" || bash -c "$xcoderun" || bash -c "$xcoderun"
+          cmake --build ../out --config Debug --parallel
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
