@@ -585,6 +585,7 @@ stage('mozjpeg', """
 win:
     cmake . ^
         -A %WIN32X64% ^
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
     cmake --build . --config Debug --parallel
@@ -592,6 +593,7 @@ release:
     cmake --build . --config Release --parallel
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
+        -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
         -D CMAKE_SYSTEM_PROCESSOR=arm64 \\
         -D CMAKE_BUILD_TYPE=Release \\
@@ -602,6 +604,7 @@ mac:
         -D PNG_SUPPORTED=OFF
     cmake --build build.arm64 $MAKE_THREADS_CNT
     CFLAGS="-arch x86_64" cmake -B build . \\
+        -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
         -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
         -D CMAKE_BUILD_TYPE=Release \\
