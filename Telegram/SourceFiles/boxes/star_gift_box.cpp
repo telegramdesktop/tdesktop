@@ -1142,13 +1142,6 @@ struct ResaleTabs {
 			? AttributeIdType::Backdrop
 			: AttributeIdType::Pattern;
 	};
-	static constexpr auto TypeToIndex = [](AttributeIdType type) {
-		return (type == AttributeIdType::Model)
-			? 1
-			: (type == AttributeIdType::Backdrop)
-			? 2
-			: 3;
-	};
 
 	const auto setSelected = [=](int index) {
 		const auto was = (state->selected >= 0);
