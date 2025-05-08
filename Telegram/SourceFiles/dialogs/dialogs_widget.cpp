@@ -2520,7 +2520,19 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 	};
 	if (trimmed.isEmpty() && !fromPeer && inTags.empty()) {
 		cancelSearchRequest();
+
+		// Otherwise inside first searchApplyEmpty we call searchMode(),
+		// which tries to load migrated search results for empty query.
+		_migratedProcess.full = true;
+
 		searchApplyEmpty(fromStartType, currentSearchProcess());
+		if (_searchInMigrated) {
+			const auto type = SearchRequestType{
+				.migrated = true,
+				.start = true,
+			};
+			searchApplyEmpty(type, &_migratedProcess);
+		}
 		if (_searchWithPostsPreview) {
 			searchApplyEmpty(
 				{ .posts = true, .start = true },
@@ -3481,7 +3493,9 @@ bool Widget::applySearchState(SearchState state) {
 			: ChatSearchTab::MyMessages;
 	}
 
-	const auto migrateFrom = (peer && !topic)
+	const auto migrateFrom = (peer
+		&& !topic
+		&& state.tab == ChatSearchTab::ThisPeer)
 		? peer->migrateFrom()
 		: nullptr;
 	_searchInMigrated = migrateFrom
