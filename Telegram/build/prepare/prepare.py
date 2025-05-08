@@ -582,7 +582,6 @@ mac:
 stage('mozjpeg', """
     git clone -b v4.1.5 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
-    git cherry-pick 1644bdb
 win:
     cmake . ^
         -A %WIN32X64% ^
