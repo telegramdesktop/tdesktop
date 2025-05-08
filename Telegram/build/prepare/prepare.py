@@ -586,7 +586,6 @@ stage('mozjpeg', """
 win:
     cmake . ^
         -A %WIN32X64% ^
-        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
     cmake --build . --config Debug --parallel
