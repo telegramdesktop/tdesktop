@@ -438,7 +438,7 @@ void PeerData::paintUserpic(
 		cloud,
 		cloud ? nullptr : ensureEmptyUserpic().get(),
 		size * ratio,
-		!forceCircle && isForum());
+		!forceCircle && (isForum() || isMonoforum()));
 	p.drawImage(QRect(x, y, size, size), view.cached);
 }
 

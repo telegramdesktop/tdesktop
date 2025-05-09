@@ -888,7 +888,9 @@ void UserpicButton::processNewPeerPhoto() {
 }
 
 bool UserpicButton::useForumShape() const {
-	return _forceForumShape || (_peer && _peer->isForum());
+	return _forceForumShape
+		|| (_peer && _peer->isForum())
+		|| (_peer && _peer->isMonoforum());
 }
 
 void UserpicButton::grabOldUserpic() {
