@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_chat_section.h"
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -1221,11 +1221,12 @@ Window::SessionController *Manager::openNotificationMessage(
 	if (window) {
 		window->widget()->showFromTray();
 		if (topic) {
+			using namespace HistoryView;
 			window->showSection(
-				std::make_shared<HistoryView::RepliesMemento>(
-					history,
-					topic->rootId(),
-					itemId),
+				std::make_shared<ChatMemento>(ChatViewId{
+					.history = history,
+					.repliesRootId = topic->rootId(),
+				}, itemId),
 				SectionShow::Way::Forward);
 		} else {
 			window->showPeerHistory(

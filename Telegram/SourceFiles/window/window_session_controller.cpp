@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/reactions/history_view_reactions.h"
 //#include "history/view/reactions/history_view_reactions_button.h"
-#include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_scheduled_section.h"
 #include "history/view/history_view_sublist_section.h"
 #include "media/player/media_player_instance.h"
@@ -1140,9 +1140,12 @@ void SessionNavigation::showRepliesForMessage(
 	if (const auto topic = history->peer->forumTopicFor(rootId)) {
 		auto replies = topic->replies();
 		if (replies->unreadCountKnown()) {
-			auto memento = std::make_shared<HistoryView::RepliesMemento>(
-				history,
-				rootId,
+			using namespace HistoryView;
+			auto memento = std::make_shared<ChatMemento>(
+				ChatViewId{
+					.history = history,
+					.repliesRootId = rootId,
+				},
 				commentId,
 				params.highlightPart,
 				params.highlightPartOffsetHint);
@@ -1156,7 +1159,7 @@ void SessionNavigation::showRepliesForMessage(
 		&& _showingRepliesRootId == rootId) {
 		return;
 	} else if (!history->peer->asChannel()) {
-		// HistoryView::RepliesWidget right now handles only channels.
+		// HistoryView::ChatWidget replies right now handles only channels.
 		return;
 	}
 	_api.request(base::take(_showingRepliesRequestId)).cancel();
@@ -1211,14 +1214,16 @@ void SessionNavigation::showRepliesForMessage(
 				}
 			}
 			if (deleted || item) {
+				using namespace HistoryView;
 				auto memento = item
-					? std::make_shared<HistoryView::RepliesMemento>(
+					? std::make_shared<ChatMemento>(
+						ChatMemento::Comments(),
 						item,
 						commentId)
-					: std::make_shared<HistoryView::RepliesMemento>(
-						history,
-						rootId,
-						commentId);
+					: std::make_shared<ChatMemento>(ChatViewId{
+						.history = history,
+						.repliesRootId = rootId,
+					}, commentId);
 				memento->setReadInformation(
 					data.vread_inbox_max_id().value_or_empty(),
 					data.vunread_count().v,

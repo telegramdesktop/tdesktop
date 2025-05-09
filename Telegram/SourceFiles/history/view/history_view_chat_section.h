@@ -64,7 +64,7 @@ struct VoiceToSend;
 
 class Element;
 class TopBarWidget;
-class RepliesMemento;
+class ChatMemento;
 class ComposeControls;
 class ComposeSearch;
 class SendActionPainter;
@@ -74,17 +74,24 @@ class EmptyPainter;
 class PinnedTracker;
 class TranslateBar;
 
-class RepliesWidget final
+struct ChatViewId {
+	not_null<History*> history;
+	MsgId repliesRootId;
+	Data::SavedSublist *sublist = nullptr;
+
+	friend inline bool operator==(ChatViewId, ChatViewId) = default;
+};
+
+class ChatWidget final
 	: public Window::SectionWidget
 	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
-	RepliesWidget(
+	ChatWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		not_null<History*> history,
-		MsgId rootId);
-	~RepliesWidget();
+		ChatViewId id);
+	~ChatWidget();
 
 	[[nodiscard]] not_null<History*> history() const;
 	Dialogs::RowDescriptor activeChat() const override;
@@ -114,7 +121,7 @@ public:
 
 	void setInternalState(
 		const QRect &geometry,
-		not_null<RepliesMemento*> memento);
+		not_null<ChatMemento*> memento);
 
 	// Tabbed selector management.
 	bool pushTabbedSelectorToThirdSection(
@@ -218,8 +225,8 @@ private:
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
 	void updateAdaptiveLayout();
-	void saveState(not_null<RepliesMemento*> memento);
-	void restoreState(not_null<RepliesMemento*> memento);
+	void saveState(not_null<ChatMemento*> memento);
+	void restoreState(not_null<ChatMemento*> memento);
 	void setReplies(std::shared_ptr<Data::RepliesList> replies);
 	void refreshReplies();
 	void showAtStart();
@@ -267,7 +274,7 @@ private:
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	[[nodiscard]] FullReplyTo replyTo() const;
-	[[nodiscard]] HistoryItem *lookupRoot() const;
+	[[nodiscard]] HistoryItem *lookupRepliesRoot() const;
 	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
 	void orderWidgets();
@@ -347,16 +354,21 @@ private:
 	[[nodiscard]] bool showSlowmodeError();
 
 	const not_null<History*> _history;
-	MsgId _rootId = 0;
-	std::shared_ptr<Ui::ChatTheme> _theme;
-	HistoryItem *_root = nullptr;
+	const not_null<PeerData*> _peer;
+	ChatViewId _id;
+
+	MsgId _repliesRootId = 0;
+	HistoryItem *_repliesRoot = nullptr;
 	Data::ForumTopic *_topic = nullptr;
 	mutable bool _newTopicDiscarded = false;
-
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::lifetime _repliesLifetime;
 	rpl::variable<bool> _areComments = false;
+
+	Data::SavedSublist *_sublist = nullptr;
+
 	std::shared_ptr<SendActionPainter> _sendAction;
+	std::shared_ptr<Ui::ChatTheme> _theme;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
@@ -380,11 +392,11 @@ private:
 	std::optional<FullMsgId> _minPinnedId;
 	HistoryItem *_shownPinnedItem = nullptr;
 
-	std::unique_ptr<Ui::PinnedBar> _rootView;
-	int _rootViewHeight = 0;
-	bool _rootViewInited = false;
-	bool _rootViewInitScheduled = false;
-	rpl::variable<bool> _rootVisible = false;
+	std::unique_ptr<Ui::PinnedBar> _repliesRootView;
+	int _repliesRootViewHeight = 0;
+	bool _repliesRootViewInited = false;
+	bool _repliesRootViewInitScheduled = false;
+	rpl::variable<bool> _repliesRootVisible = false;
 
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
@@ -408,15 +420,18 @@ private:
 
 };
 
-class RepliesMemento final : public Window::SectionMemento {
+class ChatMemento final : public Window::SectionMemento {
 public:
-	RepliesMemento(
-		not_null<History*> history,
-		MsgId rootId,
+	explicit ChatMemento(
+		ChatViewId id,
 		MsgId highlightId = 0,
 		const TextWithEntities &highlightPart = {},
 		int highlightPartOffsetHint = 0);
-	explicit RepliesMemento(
+
+	struct Comments {
+	};
+	explicit ChatMemento(
+		Comments,
 		not_null<HistoryItem*> commentsItem,
 		MsgId commentId = 0);
 
@@ -431,11 +446,8 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	[[nodiscard]] not_null<History*> getHistory() const {
-		return _history;
-	}
-	[[nodiscard]] MsgId getRootId() const {
-		return _rootId;
+	[[nodiscard]] ChatViewId id() const {
+		return _id;
 	}
 
 	void setReplies(std::shared_ptr<Data::RepliesList> replies) {
@@ -472,8 +484,7 @@ public:
 private:
 	void setupTopicViewer();
 
-	const not_null<History*> _history;
-	MsgId _rootId = 0;
+	ChatViewId _id;
 	const TextWithEntities _highlightPart;
 	const int _highlightPartOffsetHint = 0;
 	const MsgId _highlightId = 0;

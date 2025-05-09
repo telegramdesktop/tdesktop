@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "main/main_session.h"
 #include "history/history.h"
-#include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
@@ -518,13 +518,15 @@ void EditForumTopicBox(
 			title->showError();
 			return;
 		}
+		using namespace HistoryView;
 		controller->showSection(
-			std::make_shared<HistoryView::RepliesMemento>(
-				forum,
-				channel->forum()->reserveCreatingId(
+			std::make_shared<ChatMemento>(ChatViewId{
+				.history = forum,
+				.repliesRootId = channel->forum()->reserveCreatingId(
 					title->getLastText().trimmed(),
 					state->defaultIcon.current().colorId,
-					state->iconId.current())),
+					state->iconId.current()),
+			}),
 			Window::SectionShow::Way::ClearStack);
 	};
 
