@@ -57,6 +57,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "data/components/scheduled_messages.h"
+#include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -120,7 +122,7 @@ ChatMemento::ChatMemento(
 , _highlightPart(highlightPart)
 , _highlightPartOffsetHint(highlightPartOffsetHint)
 , _highlightId(highlightId) {
-	if (highlightId) {
+	if (highlightId || _id.sublist) {
 		_list.setAroundPosition({
 			.fullId = FullMsgId(_id.history->peer->id, highlightId),
 			.date = TimeId(0),
@@ -271,6 +273,8 @@ ChatWidget::ChatWidget(
 
 	setupRoot();
 	setupRootView();
+	setupOpenChatButton();
+	setupAboutHiddenAuthor();
 	setupShortcuts();
 	setupTranslateBar();
 
@@ -300,9 +304,7 @@ ChatWidget::ChatWidget(
 	}, _topBar->lifetime());
 	_topBar->searchRequest(
 	) | rpl::start_with_next([=] {
-		if (!preventsClose(crl::guard(this, [=]{ searchInTopic(); }))) {
-			searchInTopic();
-		}
+		searchRequested();
 	}, _topBar->lifetime());
 
 	controller->adaptive().value(
@@ -427,8 +429,10 @@ ChatWidget::ChatWidget(
 
 ChatWidget::~ChatWidget() {
 	base::take(_sendAction);
-	session().api().saveCurrentDraftToCloud();
-	controller()->sendingAnimation().clear();
+	if (_repliesRootId) {
+		session().api().saveCurrentDraftToCloud();
+		controller()->sendingAnimation().clear();
+	}
 	if (_topic) {
 		if (_topic->creating()) {
 			_emptyPainter = nullptr;
@@ -1494,6 +1498,9 @@ void ChatWidget::edit(
 }
 
 void ChatWidget::refreshJoinGroupButton() {
+	if (!_repliesRootId) {
+		return;
+	}
 	const auto set = [&](std::unique_ptr<Ui::FlatButton> button) {
 		if (!button && !_joinGroup) {
 			return;
@@ -1518,8 +1525,10 @@ void ChatWidget::refreshJoinGroupButton() {
 		? Data::CanSendAnything(channel)
 		: (_topic && Data::CanSendAnything(_topic));
 	if (channel->amIn() || canSend) {
+		_canSendTexts = true;
 		set(nullptr);
 	} else {
+		_canSendTexts = false;
 		if (!_joinGroup) {
 			set(std::make_unique<Ui::FlatButton>(
 				this,
@@ -1697,9 +1706,16 @@ FullReplyTo ChatWidget::replyTo() const {
 
 void ChatWidget::refreshTopBarActiveChat() {
 	using namespace Dialogs;
+
 	const auto state = EntryState{
-		.key = (_topic ? Key{ _topic } : Key{ _history }),
-		.section = EntryState::Section::Replies,
+		.key = (_sublist
+			? Key{ _sublist }
+			: _topic
+			? Key{ _topic }
+			: Key{ _history }),
+		.section = _sublist
+			? EntryState::Section::SavedSublist
+			: EntryState::Section::Replies,
 		.currentReplyTo = replyTo(),
 	};
 	_topBar->setActiveChat(state, _sendAction.get());
@@ -1753,6 +1769,53 @@ void ChatWidget::checkLastPinnedClickedIdReset(
 		_minPinnedId = std::nullopt;
 		updatePinnedViewer();
 	}
+}
+
+void ChatWidget::setupOpenChatButton() {
+	if (!_sublist || _sublist->peer()->isSavedHiddenAuthor()) {
+		return;
+	} else if (_sublist->parentChat()) {
+		_canSendTexts = true;
+		return;
+	}
+	_openChatButton = std::make_unique<Ui::FlatButton>(
+		this,
+		(_sublist->peer()->isBroadcast()
+			? tr::lng_saved_open_channel(tr::now)
+			: _sublist->peer()->isUser()
+			? tr::lng_saved_open_chat(tr::now)
+			: tr::lng_saved_open_group(tr::now)),
+		st::historyComposeButton);
+
+	_openChatButton->setClickedCallback([=] {
+		controller()->showPeerHistory(
+			_sublist->peer(),
+			Window::SectionShow::Way::Forward);
+	});
+}
+
+void ChatWidget::setupAboutHiddenAuthor() {
+	if (!_sublist || !_sublist->peer()->isSavedHiddenAuthor()) {
+		return;
+	} else if (_sublist->parentChat()) {
+		_canSendTexts = true;
+		return;
+	}
+	_aboutHiddenAuthor = std::make_unique<Ui::RpWidget>(this);
+	_aboutHiddenAuthor->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(_aboutHiddenAuthor.get());
+		auto rect = _aboutHiddenAuthor->rect();
+
+		p.fillRect(rect, st::historyReplyBg);
+
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(
+			rect.marginsRemoved(
+				QMargins(st::historySendPadding, 0, st::historySendPadding, 0)),
+			tr::lng_saved_about_hidden(tr::now),
+			style::al_center);
+	}, _aboutHiddenAuthor->lifetime());
 }
 
 void ChatWidget::setupTranslateBar() {
@@ -2031,7 +2094,11 @@ void ChatWidget::cornerButtonsShowAtPosition(
 }
 
 Data::Thread *ChatWidget::cornerButtonsThread() {
-	return _topic ? static_cast<Data::Thread*>(_topic) : _history;
+	return _sublist
+		? nullptr
+		: _topic
+		? static_cast<Data::Thread*>(_topic)
+		: _history;
 }
 
 FullMsgId ChatWidget::cornerButtonsCurrentId() {
@@ -2094,7 +2161,8 @@ void ChatWidget::showAtPosition(
 		const Window::SectionShow &params) {
 	_lastShownAt = position.fullId;
 	controller()->setActiveChatEntry(activeChat());
-	const auto ignore = (position.fullId.msg == _repliesRootId);
+	const auto ignore = _repliesRootId
+		&& (position.fullId.msg == _repliesRootId);
 	_inner->showAtPosition(
 		position,
 		params,
@@ -2107,15 +2175,13 @@ void ChatWidget::updateAdaptiveLayout() {
 		_topBar->height());
 }
 
-not_null<History*> ChatWidget::history() const {
-	return _history;
-}
-
 Dialogs::RowDescriptor ChatWidget::activeChat() const {
 	const auto messageId = _lastShownAt
 		? _lastShownAt
 		: FullMsgId(_peer->id, ShowAtUnreadMsgId);
-	if (_topic) {
+	if (_sublist) {
+		return { _sublist, messageId };
+	} else if (_topic) {
 		return { _topic, messageId };
 	}
 	return { _history, messageId };
@@ -2205,6 +2271,10 @@ bool ChatWidget::showInternal(
 	return false;
 }
 
+bool ChatWidget::sameTypeAs(not_null<Window::SectionMemento*> memento) {
+	return dynamic_cast<ChatMemento*>(memento.get()) != nullptr;
+}
+
 void ChatWidget::setInternalState(
 		const QRect &geometry,
 		not_null<ChatMemento*> memento) {
@@ -2242,11 +2312,14 @@ bool ChatWidget::showMessage(
 	const auto message = _history->owner().message(id);
 	if (!message) {
 		return false;
-	}
-	if (_repliesRootId
+	} else if (_repliesRootId
 		&& !message->inThread(_repliesRootId)
 		&& id.msg != _repliesRootId) {
 		return false;
+	} else if (_sublist && message->savedSublist() != _sublist) {
+		return false;
+	} else {
+		Unexpected("ChatWidget::showMessage context.");
 	}
 	const auto originMessage = [&]() -> HistoryItem* {
 		using OriginMessage = Window::SectionShow::OriginMessage;
@@ -2256,6 +2329,9 @@ bool ChatWidget::showMessage(
 					return nullptr;
 				} else if (_repliesRootId
 					&& returnTo->inThread(_repliesRootId)) {
+					return returnTo;
+				} else if (_sublist
+					&& returnTo->savedSublist() == _sublist) {
 					return returnTo;
 				}
 			}
@@ -2274,7 +2350,9 @@ bool ChatWidget::showMessage(
 
 Window::SectionActionResult ChatWidget::sendBotCommand(
 		Bot::SendCommandRequest request) {
-	if (request.peer != _peer) {
+	if (!_repliesRootId) {
+		return Window::SectionActionResult::Fallback;
+	} else if (request.peer != _peer) {
 		return Window::SectionActionResult::Ignore;
 	}
 	listSendBotCommand(request.command, request.context);
@@ -2368,7 +2446,7 @@ void ChatWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 	if (auto replies = memento->getReplies()) {
 		setReplies(std::move(replies));
-	} else if (!_replies) {
+	} else if (!_replies && _repliesRootId) {
 		refreshReplies();
 	}
 	_cornerButtons.setReplyReturns(memento->replyReturns());
@@ -2431,11 +2509,24 @@ void ChatWidget::updateControlsGeometry() {
 	_translateBar->resizeToWidth(contentWidth);
 	top += _translateBarHeight;
 
-	const auto bottom = height();
-	const auto controlsHeight = _joinGroup
-		? _joinGroup->height()
-		: _composeControls->heightCurrent();
-	const auto scrollHeight = bottom - top - controlsHeight;
+	auto bottom = height();
+	if (_openChatButton) {
+		_openChatButton->resizeToWidth(width());
+		bottom -= _openChatButton->height();
+		_openChatButton->move(0, bottom);
+	} else if (_aboutHiddenAuthor) {
+		_aboutHiddenAuthor->resize(width(), st::historyUnblock.height);
+		bottom -= _aboutHiddenAuthor->height();
+		_aboutHiddenAuthor->move(0, bottom);
+	} else if (_joinGroup) {
+		_joinGroup->resizeToWidth(width());
+		bottom -= _joinGroup->height();
+		_joinGroup->move(0, bottom);
+	} else {
+		bottom -= _composeControls->heightCurrent();
+	}
+
+	const auto scrollHeight = bottom - top;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -2450,14 +2541,7 @@ void ChatWidget::updateControlsGeometry() {
 		}
 		updateInnerVisibleArea();
 	}
-	if (_joinGroup) {
-		_joinGroup->setGeometry(
-			0,
-			bottom - _joinGroup->height(),
-			contentWidth,
-			_joinGroup->height());
-	}
-	_composeControls->move(0, bottom - controlsHeight);
+	_composeControls->move(0, bottom);
 	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 
 	_cornerButtons.updatePositions();
@@ -2570,7 +2654,7 @@ void ChatWidget::showAnimatedHook(
 
 void ChatWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
-	if (_joinGroup) {
+	if (_joinGroup || _openChatButton || _aboutHiddenAuthor) {
 		if (Ui::InFocusChain(this)) {
 			_inner->setFocus();
 		}
@@ -2606,7 +2690,7 @@ QRect ChatWidget::floatPlayerAvailableRect() {
 }
 
 Context ChatWidget::listContext() {
-	return Context::Replies;
+	return _sublist ? Context::SavedSublist : Context::Replies;
 }
 
 bool ChatWidget::listScrollTo(int top, bool syntetic) {
@@ -2651,7 +2735,28 @@ void ChatWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
 	_composeControls->tryProcessKeyInput(e);
 }
 
+void ChatWidget::markLoaded() {
+	if (!_loaded) {
+		_loaded = true;
+		crl::on_main(this, [=] {
+			updatePinnedVisibility();
+		});
+	}
+}
+
 rpl::producer<Data::MessagesSlice> ChatWidget::listSource(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter) {
+	if (_replies) {
+		return repliesSource(aroundId, limitBefore, limitAfter);
+	} else if (_sublist) {
+		return sublistSource(aroundId, limitBefore, limitAfter);
+	}
+	Unexpected("ChatWidget::listSource in unknown mode");
+}
+
+rpl::producer<Data::MessagesSlice> ChatWidget::repliesSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
@@ -2660,13 +2765,65 @@ rpl::producer<Data::MessagesSlice> ChatWidget::listSource(
 		limitBefore,
 		limitAfter
 	) | rpl::before_next([=] { // after_next makes a copy of value.
-		if (!_loaded) {
-			_loaded = true;
-			crl::on_main(this, [=] {
-				updatePinnedVisibility();
-			});
-		}
+		markLoaded();
 	});
+}
+
+rpl::producer<Data::MessagesSlice> ChatWidget::sublistSource(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter) {
+	const auto messageId = aroundId.fullId.msg
+		? aroundId.fullId.msg
+		: (ServerMaxMsgId - 1);
+	return [=](auto consumer) {
+		const auto pushSlice = [=] {
+			auto result = Data::MessagesSlice();
+			result.fullCount = _sublist->fullCount();
+			_topBar->setCustomTitle(result.fullCount
+				? tr::lng_forum_messages(
+					tr::now,
+					lt_count_decimal,
+					*result.fullCount)
+				: tr::lng_contacts_loading(tr::now));
+			const auto &messages = _sublist->messages();
+			const auto i = ranges::lower_bound(
+				messages,
+				messageId,
+				ranges::greater(),
+				[](not_null<HistoryItem*> item) { return item->id; });
+			const auto before = int(end(messages) - i);
+			const auto useBefore = std::min(before, limitBefore);
+			const auto after = int(i - begin(messages));
+			const auto useAfter = std::min(after, limitAfter);
+			const auto from = i - useAfter;
+			const auto till = i + useBefore;
+			auto nearestDistance = std::numeric_limits<int64>::max();
+			result.ids.reserve(useAfter + useBefore);
+			for (auto j = till; j != from;) {
+				const auto item = *--j;
+				result.ids.push_back(item->fullId());
+				const auto distance = std::abs((messageId - item->id).bare);
+				if (nearestDistance > distance) {
+					nearestDistance = distance;
+					result.nearestToAround = result.ids.back();
+				}
+			}
+			result.skippedAfter = after - useAfter;
+			result.skippedBefore = result.fullCount
+				? (*result.fullCount - after - useBefore)
+				: std::optional<int>();
+			if (!result.fullCount || useBefore < limitBefore) {
+				_sublist->parent()->loadMore(_sublist);
+			}
+			markLoaded();
+			consumer.put_next(std::move(result));
+		};
+		auto lifetime = rpl::lifetime();
+		_sublist->changes() | rpl::start_with_next(pushSlice, lifetime);
+		pushSlice();
+		return lifetime;
+	};
 }
 
 bool ChatWidget::listAllowsMultiSelect() {
@@ -2681,7 +2838,9 @@ bool ChatWidget::listIsItemGoodForSelection(
 bool ChatWidget::listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) {
-	return first->position() < second->position();
+	return _sublist
+		? (first->id < second->id)
+		: first->position() < second->position();
 }
 
 void ChatWidget::listSelectionChanged(SelectedItems &&items) {
@@ -2705,17 +2864,21 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 }
 
 void ChatWidget::listMarkReadTill(not_null<HistoryItem*> item) {
-	_replies->readTill(item);
+	if (_replies) {
+		_replies->readTill(item);
+	}
 }
 
 void ChatWidget::listMarkContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) {
-	session().api().markContentsRead(items);
+	if (!_sublist) {
+		session().api().markContentsRead(items);
+	}
 }
 
 MessagesBarData ChatWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	if (elements.empty()) {
+	if (_sublist || elements.empty()) {
 		return {};
 	}
 	const auto till = _replies->computeInboxReadTillFull();
@@ -2759,7 +2922,9 @@ void ChatWidget::listUpdateDateLink(
 }
 
 bool ChatWidget::listElementHideReply(not_null<const Element*> view) {
-	if (const auto reply = view->data()->Get<HistoryMessageReply>()) {
+	if (_sublist) {
+		return false;
+	} else if (const auto reply = view->data()->Get<HistoryMessageReply>()) {
 		const auto replyToPeerId = reply->externalPeerId()
 			? reply->externalPeerId()
 			: _peer->id;
@@ -2781,7 +2946,9 @@ bool ChatWidget::listElementHideReply(not_null<const Element*> view) {
 }
 
 bool ChatWidget::listElementShownUnread(not_null<const Element*> view) {
-	return _replies->isServerSideUnread(view->data());
+	return _replies
+		? _replies->isServerSideUnread(view->data())
+		: view->data()->unread(view->data()->history());
 }
 
 bool ChatWidget::listIsGoodForAroundPosition(
@@ -2792,7 +2959,9 @@ bool ChatWidget::listIsGoodForAroundPosition(
 void ChatWidget::listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
-	sendBotCommandWithOptions(command, context, {});
+	if (!_sublist) {
+		sendBotCommandWithOptions(command, context, {});
+	}
 }
 
 void ChatWidget::sendBotCommandWithOptions(
@@ -2825,11 +2994,18 @@ void ChatWidget::sendBotCommandWithOptions(
 void ChatWidget::listSearch(
 		const QString &query,
 		const FullMsgId &context) {
-	controller()->searchMessages(query, _history);
+	const auto inChat = !_sublist
+		? Dialogs::Key(_history)
+		: Data::SearchTagFromQuery(query)
+		? Dialogs::Key(_sublist)
+		: Dialogs::Key();
+	controller()->searchMessages(query, inChat);
 }
 
 void ChatWidget::listHandleViaClick(not_null<UserData*> bot) {
-	_composeControls->setText({ '@' + bot->username() + ' ' });
+	if (_canSendTexts) {
+		_composeControls->setText({ '@' + bot->username() + ' ' });
+	}
 }
 
 not_null<Ui::ChatTheme*> ChatWidget::listChatTheme() {
@@ -3001,12 +3177,18 @@ void ChatWidget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::Search, 1) && request->handle([=] {
-			if (!preventsClose(crl::guard(this, [=]{ searchInTopic(); }))) {
-				searchInTopic();
-			}
+			searchRequested();
 			return true;
 		});
 	}, lifetime());
+}
+
+void ChatWidget::searchRequested() {
+	if (_sublist) {
+		controller()->searchInChat(_sublist);
+	} else if (!preventsClose(crl::guard(this, [=] { searchInTopic(); }))) {
+		searchInTopic();
+	}
 }
 
 void ChatWidget::searchInTopic() {
@@ -3046,6 +3228,54 @@ void ChatWidget::searchInTopic() {
 			doSetInnerFocus();
 		}, _composeSearch->lifetime());
 	}
+}
+
+bool ChatWidget::searchInChatEmbedded(
+		QString query,
+		Dialogs::Key chat,
+		PeerData *searchFrom) {
+	const auto sublist = chat.sublist();
+	if (!sublist || sublist != _sublist) {
+		return false;
+	} else if (_composeSearch) {
+		_composeSearch->setQuery(query);
+		_composeSearch->setInnerFocus();
+		return true;
+	}
+	_composeSearch = std::make_unique<ComposeSearch>(
+		this,
+		controller(),
+		_history,
+		sublist->peer(),
+		query);
+
+	updateControlsGeometry();
+	setInnerFocus();
+
+	_composeSearch->activations(
+	) | rpl::start_with_next([=](ComposeSearch::Activation activation) {
+		const auto item = activation.item;
+		auto params = ::Window::SectionShow(
+			::Window::SectionShow::Way::ClearStack);
+		params.highlightPart = { activation.query };
+		params.highlightPartOffsetHint = kSearchQueryOffsetHint;
+		controller()->showPeerHistory(
+			item->history()->peer->id,
+			params,
+			item->fullId().msg);
+	}, _composeSearch->lifetime());
+
+	_composeSearch->destroyRequests(
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=] {
+		_composeSearch = nullptr;
+
+		updateControlsGeometry();
+		setInnerFocus();
+	}, _composeSearch->lifetime());
+
+	return true;
 }
 
 } // namespace HistoryView

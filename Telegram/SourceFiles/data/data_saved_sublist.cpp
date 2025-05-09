@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_histories.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "main/main_session.h"
 
 namespace Data {
 
@@ -31,12 +33,15 @@ not_null<SavedMessages*> SavedSublist::parent() const {
 	return _parent;
 }
 
-ChannelData *SavedSublist::parentChat() const {
-	return _parent->parentChat();
+not_null<History*> SavedSublist::parentHistory() const {
+	const auto chat = parentChat();
+	return _history->owner().history(chat
+		? (PeerData*)chat
+		: _history->session().user().get());
 }
 
-not_null<History*> SavedSublist::history() const {
-	return _history;
+ChannelData *SavedSublist::parentChat() const {
+	return _parent->parentChat();
 }
 
 not_null<PeerData*> SavedSublist::peer() const {

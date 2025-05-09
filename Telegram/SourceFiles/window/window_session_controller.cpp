@@ -27,13 +27,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_scheduled_section.h"
-#include "history/view/history_view_sublist_section.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_document_resolver.h"
 #include "data/data_download_manager.h"
 #include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
@@ -1343,8 +1343,12 @@ void SessionNavigation::showByInitialId(
 		break;
 	}
 	case SeparateType::SavedSublist:
+		using namespace HistoryView;
 		showSection(
-			std::make_shared<HistoryView::SublistMemento>(id.sublist()),
+			std::make_shared<ChatMemento>(ChatViewId{
+				.history = id.sublist()->parentHistory(),
+				.sublist = id.sublist(),
+			}),
 			instant);
 		break;
 	}

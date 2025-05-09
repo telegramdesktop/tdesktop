@@ -12,10 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "data/data_channel.h"
 #include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_stories_ids.h"
 #include "data/data_user.h"
-#include "history/view/history_view_sublist_section.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/history.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -270,9 +271,13 @@ not_null<Ui::SettingsButton*> AddSavedSublistButton(
 		},
 		tracker)->entity();
 	result->addClickHandler([=] {
+		using namespace HistoryView;
+		const auto sublist = peer->owner().savedMessages().sublist(peer);
 		navigation->showSection(
-			std::make_shared<HistoryView::SublistMemento>(
-				peer->owner().savedMessages().sublist(peer)));
+			std::make_shared<ChatMemento>(ChatViewId{
+				.history = sublist->parentHistory(),
+				.sublist = sublist,
+			}));
 	});
 	return result;
 }

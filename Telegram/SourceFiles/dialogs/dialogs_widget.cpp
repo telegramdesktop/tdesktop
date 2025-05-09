@@ -21,11 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_top_bar_widget.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_contact_status.h"
-#include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_group_call_bar.h"
-#include "history/view/history_view_sublist_section.h"
+#include "history/view/history_view_requests_bar.h"
+#include "history/view/history_view_top_bar_widget.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -998,8 +998,12 @@ void Widget::chosenRow(const ChosenRow &row) {
 		using namespace Window;
 		auto params = SectionShow(SectionShow::Way::Forward);
 		params.dropSameFromStack = true;
+		using namespace HistoryView;
 		controller()->showSection(
-			std::make_shared<HistoryView::SublistMemento>(sublist),
+			std::make_shared<ChatMemento>(ChatViewId{
+				.history = sublist->parentHistory(),
+				.sublist = sublist,
+			}),
 			params);
 	}
 	if (row.filteredRow && !session().supportMode()) {

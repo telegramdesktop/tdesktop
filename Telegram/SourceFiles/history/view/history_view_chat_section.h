@@ -93,7 +93,9 @@ public:
 		ChatViewId id);
 	~ChatWidget();
 
-	[[nodiscard]] not_null<History*> history() const;
+	[[nodiscard]] ChatViewId id() const {
+		return _id;
+	}
 	Dialogs::RowDescriptor activeChat() const override;
 	bool preventsClose(Fn<void()> &&continueCallback) const override;
 
@@ -107,6 +109,7 @@ public:
 	bool showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
+	bool sameTypeAs(not_null<Window::SectionMemento*> memento) override;
 	std::shared_ptr<Window::SectionMemento> createMemento() override;
 	bool showMessage(
 		PeerId peerId,
@@ -115,6 +118,11 @@ public:
 
 	Window::SectionActionResult sendBotCommand(
 		Bot::SendCommandRequest request) override;
+
+	bool searchInChatEmbedded(
+		QString query,
+		Dialogs::Key chat,
+		PeerData *searchFrom = nullptr) override;
 
 	bool confirmSendingFiles(const QStringList &files) override;
 	bool confirmSendingFiles(not_null<const QMimeData*> data) override;
@@ -221,6 +229,16 @@ private:
 		int starsApproved,
 		Fn<void(int)> withPaymentApproved);
 
+	void markLoaded();
+	[[nodiscard]] rpl::producer<Data::MessagesSlice> repliesSource(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter);
+	[[nodiscard]] rpl::producer<Data::MessagesSlice> sublistSource(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter);
+
 	void onScroll();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
@@ -249,10 +267,15 @@ private:
 	void subscribeToTopic();
 	void subscribeToPinnedMessages();
 	void setTopic(Data::ForumTopic *topic);
+
+	void setupOpenChatButton();
+	void setupAboutHiddenAuthor();
+
 	void setupDragArea();
 	void setupShortcuts();
 	void setupTranslateBar();
 
+	void searchRequested();
 	void searchInTopic();
 	void updatePinnedVisibility();
 
@@ -377,7 +400,10 @@ private:
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
 	std::unique_ptr<Ui::FlatButton> _payForMessage;
 	std::unique_ptr<TopicReopenBar> _topicReopenBar;
+	std::unique_ptr<Ui::FlatButton> _openChatButton;
+	std::unique_ptr<Ui::RpWidget> _aboutHiddenAuthor;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
+	bool _canSendTexts = false;
 	bool _skipScrollEvent = false;
 	bool _synteticScrollEvent = false;
 

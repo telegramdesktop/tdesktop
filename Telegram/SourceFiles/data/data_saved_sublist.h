@@ -24,8 +24,8 @@ public:
 	~SavedSublist();
 
 	[[nodiscard]] not_null<SavedMessages*> parent() const;
+	[[nodiscard]] not_null<History*> parentHistory() const;
 	[[nodiscard]] ChannelData *parentChat() const;
-	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] bool isHiddenAuthor() const;
 	[[nodiscard]] bool isFullLoaded() const;

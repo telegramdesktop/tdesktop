@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_folder.h"
@@ -54,8 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/view/media/history_view_media.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_service_message.h"
-#include "history/view/history_view_sublist_section.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -776,8 +777,12 @@ void MainWidget::searchMessages(
 		}
 	} else {
 		if (const auto sublist = inChat.sublist()) {
+			using namespace HistoryView;
 			controller()->showSection(
-				std::make_shared<HistoryView::SublistMemento>(sublist));
+				std::make_shared<ChatMemento>(ChatViewId{
+					.history = sublist->parentHistory(),
+					.sublist = sublist,
+				}));
 		} else if (!tags.empty()) {
 			inChat = controller()->session().data().history(
 				controller()->session().user());
