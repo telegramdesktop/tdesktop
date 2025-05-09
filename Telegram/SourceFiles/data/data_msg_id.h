@@ -177,10 +177,11 @@ struct FullReplyTo {
 	TextWithEntities quote;
 	FullStoryId storyId;
 	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
 	int quoteOffset = 0;
 
 	[[nodiscard]] bool valid() const {
-		return messageId || (storyId && storyId.peer);
+		return messageId || (storyId && storyId.peer) || monoforumPeerId;
 	}
 	explicit operator bool() const {
 		return valid();

@@ -79,8 +79,10 @@ constexpr auto kEmojiInteractionSeenDuration = 3 * crl::time(1000);
 
 QString TopBarNameText(
 		not_null<PeerData*> peer,
-		Dialogs::EntryState::Section section) {
-	if (section == Dialogs::EntryState::Section::SavedSublist) {
+		const Dialogs::EntryState &state) {
+	if (state.section == Dialogs::EntryState::Section::SavedSublist
+		&& state.key.history()
+		&& state.key.history()->peer->isSelf()) {
 		if (peer->isSelf()) {
 			return tr::lng_my_notes(tr::now);
 		} else if (peer->isSavedHiddenAuthor()) {
@@ -567,7 +569,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			_titleNameVersion = namePeer->nameVersion();
 			_title.setText(
 				st::msgNameStyle,
-				TopBarNameText(namePeer, _activeChat.section),
+				TopBarNameText(namePeer, _activeChat),
 				Ui::NameTextOptions());
 		}
 		if (const auto info = namePeer->botVerifyDetails()) {

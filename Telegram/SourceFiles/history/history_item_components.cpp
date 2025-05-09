@@ -417,6 +417,13 @@ FullReplyTo ReplyToFromMTP(
 			};
 		}
 		return FullReplyTo();
+	}, [&](const MTPDinputReplyToMonoForum &data) {
+		const auto parsed = Data::PeerFromInputMTP(
+			&history->owner(),
+			data.vmonoforum_peer_id());
+		return FullReplyTo{
+			.monoforumPeerId = parsed ? parsed->id : PeerId(),
+		};
 	});
 }
 

@@ -372,18 +372,19 @@ void Session::clear() {
 	// Optimization: clear notifications before destroying items.
 	Core::App().notifications().clearFromSession(_session);
 
-	// We must clear all forums before clearing customEmojiManager.
+	// We must clear all [mono]forums before clearing customEmojiManager.
 	// Because in Data::ForumTopic an Ui::Text::CustomEmoji is cached.
 	auto forums = base::flat_set<not_null<ChannelData*>>();
 	for (const auto &[peerId, peer] : _peers) {
 		if (const auto channel = peer->asChannel()) {
-			if (channel->isForum()) {
+			if (channel->isForum() || channel->isMonoforum()) {
 				forums.emplace(channel);
 			}
 		}
 	}
 	for (const auto &channel : forums) {
-		channel->setFlags(channel->flags() & ~ChannelDataFlag::Forum);
+		channel->setFlags(channel->flags()
+			& ~(ChannelDataFlag::Forum | ChannelDataFlag::Monoforum));
 	}
 
 	_sendActionManager->clear();

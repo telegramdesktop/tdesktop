@@ -1638,8 +1638,9 @@ stories.storyViewsList#59d78fc5 flags:# count:int views_count:int forwards_count
 
 stories.storyViews#de9eed1d views:Vector<StoryViews> users:Vector<User> = stories.StoryViews;
 
-inputReplyToMessage#22c0f6d5 flags:# reply_to_msg_id:int top_msg_id:flags.0?int reply_to_peer_id:flags.1?InputPeer quote_text:flags.2?string quote_entities:flags.3?Vector<MessageEntity> quote_offset:flags.4?int = InputReplyTo;
+inputReplyToMessage#b07038b0 flags:# reply_to_msg_id:int top_msg_id:flags.0?int reply_to_peer_id:flags.1?InputPeer quote_text:flags.2?string quote_entities:flags.3?Vector<MessageEntity> quote_offset:flags.4?int monoforum_peer_id:flags.5?InputPeer = InputReplyTo;
 inputReplyToStory#5881323a peer:InputPeer story_id:int = InputReplyTo;
+inputReplyToMonoForum#69d66c45 monoforum_peer_id:InputPeer = InputReplyTo;
 
 exportedStoryLink#3fc9053b link:string = ExportedStoryLink;
 

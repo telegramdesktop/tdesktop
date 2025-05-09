@@ -2497,6 +2497,15 @@ void Widget::escape() {
 			} else if (initial != forum) {
 				controller()->showForum(initial);
 			}
+		} else if (const auto monoforum
+			= controller()->shownMonoforum().current()) {
+			const auto id = controller()->windowId(); // #TODO monoforum
+			const auto initial = (Data::SavedMessages*)nullptr;
+			if (!initial) {
+				controller()->closeMonoforum();
+			} else if (initial != monoforum) {
+				controller()->showMonoforum(initial);
+			}
 		} else if (controller()->openedFolder().current()) {
 			if (!controller()->windowId().folder()) {
 				controller()->closeFolder();

@@ -2241,6 +2241,12 @@ Dialogs::BadgesState History::chatListBadgesState() const {
 				forum->topicsList()->unreadState(),
 				Dialogs::CountInBadge::Chats,
 				Dialogs::IncludeInBadge::UnmutedOrAll));
+	} else if (const auto monoforum = peer->monoforum()) {
+		return adjustBadgesStateByFolder(
+			Dialogs::BadgesForUnread(
+				monoforum->chatsList()->unreadState(),
+				Dialogs::CountInBadge::Chats,
+				Dialogs::IncludeInBadge::UnmutedOrAll));
 	}
 	return computeBadgesState();
 }

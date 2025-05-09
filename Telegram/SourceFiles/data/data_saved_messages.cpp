@@ -163,8 +163,15 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 	).done([=](const MTPmessages_Messages &result) {
 		auto count = 0;
 		auto list = (const QVector<MTPMessage>*)nullptr;
-		result.match([](const MTPDmessages_channelMessages &) {
-			LOG(("API Error: messages.channelMessages in sublist."));
+		result.match([&](const MTPDmessages_channelMessages &data) {
+			if (const auto channel = _parentChat) {
+				channel->ptsReceived(data.vpts().v);
+				channel->processTopics(data.vtopics());
+				list = &data.vmessages().v;
+				count = data.vcount().v;
+			} else {
+				LOG(("API Error: messages.channelMessages in sublist."));
+			}
 		}, [](const MTPDmessages_messagesNotModified &) {
 			LOG(("API Error: messages.messagesNotModified in sublist."));
 		}, [&](const auto &data) {

@@ -60,6 +60,15 @@ MTPInputReplyTo ReplyToForMTP(
 			&& (to->history() != history || to->id != replyingToTopicId))
 			? to->topicRootId()
 			: replyingToTopicId;
+		const auto possibleMonoforumPeer = (to && to->savedSublistPeer())
+			? to->savedSublistPeer()
+			: replyTo.monoforumPeerId
+			? history->owner().peer(replyTo.monoforumPeerId).get()
+			: history->session().user().get();
+		const auto replyToMonoforumPeer = (history->peer->isChannel()
+			&& history->peer->asChannel()->requiresMonoforumPeer())
+			? possibleMonoforumPeer
+			: nullptr;
 		const auto external = replyTo.messageId
 			&& (replyTo.messageId.peer != history->peer->id
 				|| replyingToTopicId != replyToTopicId);
@@ -74,6 +83,7 @@ MTPInputReplyTo ReplyToForMTP(
 				| (replyTo.quote.text.isEmpty()
 					? Flag()
 					: (Flag::f_quote_text | Flag::f_quote_offset))
+				| (replyToMonoforumPeer ? Flag::f_monoforum_peer_id : Flag())
 				| (quoteEntities.v.isEmpty()
 					? Flag()
 					: Flag::f_quote_entities)),
@@ -84,7 +94,17 @@ MTPInputReplyTo ReplyToForMTP(
 				: MTPInputPeer()),
 			MTP_string(replyTo.quote.text),
 			quoteEntities,
-			MTP_int(replyTo.quoteOffset));
+			MTP_int(replyTo.quoteOffset),
+			(replyToMonoforumPeer
+				? replyToMonoforumPeer->input
+				: MTPInputPeer()));
+	} else if (history->peer->isChannel()
+		&& history->peer->asChannel()->requiresMonoforumPeer()
+		&& replyTo.monoforumPeerId) {
+		const auto replyToMonoforumPeer = replyTo.monoforumPeerId
+			? history->owner().peer(replyTo.monoforumPeerId)
+			: history->session().user();
+		return MTP_inputReplyToMonoForum(replyToMonoforumPeer->input);
 	}
 	return MTPInputReplyTo();
 }
@@ -1054,13 +1074,12 @@ int Histories::sendPreparedMessage(
 		_creatingTopicRequests.emplace(id);
 		return id;
 	}
-	const auto realReplyTo = FullReplyTo{
-		.messageId = convertTopicReplyToId(history, replyTo.messageId),
-		.quote = replyTo.quote,
-		.storyId = replyTo.storyId,
-		.topicRootId = convertTopicReplyToId(history, replyTo.topicRootId),
-		.quoteOffset = replyTo.quoteOffset,
+	auto realReplyTo = replyTo;
+	const auto topicReplyToId = [&](const auto &id) {
+		return convertTopicReplyToId(history, id);
 	};
+	realReplyTo.messageId = topicReplyToId(replyTo.messageId);
+	realReplyTo.topicRootId = topicReplyToId(replyTo.topicRootId);
 	return v::match(message(history, realReplyTo), [&](const auto &request) {
 		const auto type = RequestType::Send;
 		return sendRequest(history, type, [=](Fn<void()> finish) {

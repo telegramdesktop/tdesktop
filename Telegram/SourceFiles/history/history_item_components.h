@@ -256,6 +256,7 @@ struct ReplyFields {
 	QString externalSenderName;
 	QString externalPostAuthor;
 	PeerId externalPeerId = 0;
+	PeerId monoforumPeerId = 0;
 	MsgId messageId = 0;
 	MsgId topMessageId = 0;
 	StoryId storyId = 0;

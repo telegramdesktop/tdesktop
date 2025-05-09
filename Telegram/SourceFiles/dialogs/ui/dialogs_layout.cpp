@@ -458,7 +458,9 @@ void PaintRow(
 
 	const auto promoted = (history && history->useTopPromotion())
 		&& !context.search;
-	const auto verifyInfo = (from && !from->isSelf())
+	const auto verifyInfo = (from
+		&& (!from->isSelf()
+			|| (!(flags & Flag::SavedMessages) && !(flags & Flag::MyNotes))))
 		? from->botVerifyDetails()
 		: nullptr;
 	if (promoted) {
@@ -996,7 +998,7 @@ void RowPainter::Paint(
 		: nullptr;
 	const auto allowUserOnline = true;// !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
-		| ((sublist && from->isSelf())
+		| ((sublist && !sublist->parentChat() && from->isSelf())
 			? Flag::MyNotes
 			: (peer && peer->isSelf())
 			? Flag::SavedMessages
