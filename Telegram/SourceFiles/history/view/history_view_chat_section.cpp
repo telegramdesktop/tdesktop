@@ -658,7 +658,7 @@ HistoryItem *ChatWidget::lookupRepliesRoot() const {
 }
 
 Data::ForumTopic *ChatWidget::lookupTopic() {
-	if (!_repliesRoot) {
+	if (!_repliesRootId) {
 		return nullptr;
 	} else if (const auto forum = _history->asForum()) {
 		if (const auto result = forum->topicFor(_repliesRootId)) {
@@ -1692,15 +1692,29 @@ SendMenu::Details ChatWidget::sendMenuDetails() const {
 }
 
 FullReplyTo ChatWidget::replyTo() const {
+	const auto monoforumPeerId = (_sublist && _sublist->parentChat())
+		? _sublist->peer()->id
+		: PeerId();
 	if (auto custom = _composeControls->replyingToMessage()) {
-		custom.topicRootId = _repliesRootId;
-		return custom;
+		const auto item = custom.messageId
+			? session().data().message(custom.messageId)
+			: nullptr;
+		const auto sublistPeer = item ? item->savedSublistPeer() : nullptr;
+		if (!item
+			|| !monoforumPeerId
+			|| (sublistPeer && sublistPeer->id == monoforumPeerId)) {
+			// Never answer to a message in a wrong monoforum peer id.
+			custom.topicRootId = _repliesRootId;
+			custom.monoforumPeerId = monoforumPeerId;
+			return custom;
+		}
 	}
 	return FullReplyTo{
 		.messageId = (_repliesRootId
 			? FullMsgId(_peer->id, _repliesRootId)
 			: FullMsgId()),
 		.topicRootId = _repliesRootId,
+		.monoforumPeerId = monoforumPeerId,
 	};
 }
 
@@ -2318,8 +2332,6 @@ bool ChatWidget::showMessage(
 		return false;
 	} else if (_sublist && message->savedSublist() != _sublist) {
 		return false;
-	} else {
-		Unexpected("ChatWidget::showMessage context.");
 	}
 	const auto originMessage = [&]() -> HistoryItem* {
 		using OriginMessage = Window::SectionShow::OriginMessage;

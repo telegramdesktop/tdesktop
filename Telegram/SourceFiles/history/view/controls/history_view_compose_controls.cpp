@@ -1807,6 +1807,7 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 	switch (_currentDialogsEntryState.section) {
 	case Section::History:
 	case Section::Replies:
+	case Section::SavedSublist:
 		return (type == DraftType::Edit)
 			? Key::LocalEdit(_topicRootId)
 			: Key::Local(_topicRootId);

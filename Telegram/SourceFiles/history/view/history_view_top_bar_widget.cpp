@@ -81,8 +81,8 @@ QString TopBarNameText(
 		not_null<PeerData*> peer,
 		const Dialogs::EntryState &state) {
 	if (state.section == Dialogs::EntryState::Section::SavedSublist
-		&& state.key.history()
-		&& state.key.history()->peer->isSelf()) {
+		&& state.key.sublist()
+		&& state.key.sublist()->parentHistory()->peer->isSelf()) {
 		if (peer->isSelf()) {
 			return tr::lng_my_notes(tr::now);
 		} else if (peer->isSavedHiddenAuthor()) {
