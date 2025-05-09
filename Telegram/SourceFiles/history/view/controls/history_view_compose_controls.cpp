@@ -2325,11 +2325,17 @@ void SetupRestrictionView(
 	) | rpl::start_with_next([=](Controls::WriteRestriction value) {
 		using Type = Controls::WriteRestriction::Type;
 		if (value.type == Type::Frozen) {
+			state->icon = nullptr;
+			state->unlock = nullptr;
+			state->label = nullptr;
 			state->button = FrozenWriteRestriction(
 				widget,
 				show,
 				FrozenWriteRestrictionType::MessageField);
 		} else if (const auto lifting = value.boostsToLift) {
+			state->icon = nullptr;
+			state->unlock = nullptr;
+			state->label = nullptr;
 			state->button = BoostsToLiftWriteRestriction(
 				widget,
 				show,
