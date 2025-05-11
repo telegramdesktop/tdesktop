@@ -808,37 +808,23 @@ RUN git clone -b v3.2.2 --depth=1 {{ GIT }}/ada-url/ada.git \
 	&& cd .. \
 	&& rm -rf ada
 
-FROM builder AS tdlib
+FROM builder AS tde2e
+COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 
 # Shallow clone on a specific commit.
-RUN git init td \
-	&& cd td \
+RUN git init tde2e \
+	&& cd tde2e \
 	&& git remote add origin {{ GIT }}/tdlib/td.git \
-	&& git fetch --depth=1 origin f1b7500310baa496c0b779e4273a3aff0f14f42f \
+	&& git fetch --depth=1 origin 51743dfd01dff6179e2d8f7095729caa4e2222e9 \
 	&& git reset --hard FETCH_HEAD \
-	&& rm -rf .git \
-	&& env -u CFLAGS -u CXXFLAGS cmake -B out/Release . \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
-		-DCMAKE_C_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-		-DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
-		-DCMAKE_CXX_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-	&& cmake --build out/Release --config Release --target tde2e -j$(nproc)
-
-WORKDIR td
-
-{%- if DEBUG %}
-
-FROM tdlib AS tdlib_debug
-RUN env -u CFLAGS -u CXXFLAGS cmake -B out/Debug . \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
-		-DCMAKE_C_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-		-DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
-		-DCMAKE_CXX_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-	&& cmake --build out/Debug --config Debug --target tde2e -j$(nproc)
-{%- endif %}
+	&& cmake -GNinja -B build . \
+		-DCMAKE_BUILD_TYPE=NONE \
+		-DTD_E2E_ONLY=ON \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/tde2e-cache" cmake --install build \
+	&& cd .. \
+	&& rm -rf tde2e
 
 FROM builder
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
@@ -887,10 +873,7 @@ COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/
 COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
 {%- endif %}
 COPY --link --from=ada {{ LibrariesPath }}/ada-cache /
-COPY --link --from=tdlib {{ LibrariesPath }}/td td
-{%- if DEBUG %}
-COPY --link --from=tdlib_debug {{ LibrariesPath }}/td/out/Debug td/out/Debug
-{%- endif %}
+COPY --link --from=tde2e {{ LibrariesPath }}/tde2e-cache /
 
 WORKDIR ../tdesktop
 ENV QT {{ QT }}

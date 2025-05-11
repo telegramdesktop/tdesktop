@@ -23,7 +23,7 @@ target_link_libraries(td_tde2e
 PUBLIC
     desktop-app::lib_base
 PRIVATE
-    desktop-app::external_td
+    desktop-app::external_tde2e
 )
 
 

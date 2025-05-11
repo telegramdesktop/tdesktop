@@ -1924,10 +1924,10 @@ win:
 #         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
 #     cmake --build . $MAKE_THREADS_CNT
 
-stage('td', """
-    git clone https://github.com/tdlib/td.git
-    cd td
-    git checkout f1b7500310
+stage('tde2e', """
+    git clone https://github.com/tdlib/td.git tde2e
+    cd tde2e
+    git checkout 51743df
 win:
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
@@ -1950,6 +1950,7 @@ win:
         -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
         -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        -DTD_E2E_ONLY=ON ^
         ../..
     cmake --build . --config Debug --target tde2e
 release:
@@ -1970,6 +1971,7 @@ release:
         -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\\libssl.lib" ^
         -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\\libssl.lib" ^
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        -DTD_E2E_ONLY=ON ^
         ../..
     cmake --build . --config Release --target tde2e
 mac:
@@ -1986,6 +1988,7 @@ mac:
             -DOPENSSL_CRYPTO_LIBRARY=$LIBS_DIR/openssl3/libcrypto.a \
             -DZLIB_FOUND=1 \
             -DZLIB_LIBRARIES=$USED_PREFIX/lib/libz.a \
+            -DTD_E2E_ONLY=ON \
             ../..
         cmake --build . --config $BUILD_CONFIG --target tde2e $MAKE_THREADS_CNT
         cd ../..
