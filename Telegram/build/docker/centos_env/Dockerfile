@@ -704,6 +704,7 @@ RUN git clone -b 1.78.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
 FROM patches AS qt
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
+COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
 COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
@@ -715,7 +716,6 @@ COPY --link --from=xcb-cursor {{ LibrariesPath }}/xcb-cursor-cache /
 COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
-COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
 
 RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git \
 	&& cd qt5 \
@@ -852,6 +852,7 @@ COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
 COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
+COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
 COPY --link --from=libavif {{ LibrariesPath }}/libavif-cache /
 COPY --link --from=libheif {{ LibrariesPath }}/libheif-cache /
 COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
@@ -882,13 +883,10 @@ COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
 COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
 COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
 COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release
-COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
-COPY --link --from=ada {{ LibrariesPath }}/ada-cache /
-
 {%- if DEBUG %}
 COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
 {%- endif %}
-
+COPY --link --from=ada {{ LibrariesPath }}/ada-cache /
 COPY --link --from=tdlib {{ LibrariesPath }}/td td
 {%- if DEBUG %}
 COPY --link --from=tdlib_debug {{ LibrariesPath }}/td/out/Debug td/out/Debug
