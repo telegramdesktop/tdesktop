@@ -2940,7 +2940,27 @@ void AddBlock(
 				});
 			}
 		} else {
+			// First, gather information about which gifts are available on resale
+			base::flat_set<uint64> resaleGiftIds;
+			if (price != kPriceTabResale) {
+				// Only need this info when not viewing the resale tab
+				for (const auto &gift : gifts) {
+					if (gift.resale) {
+						resaleGiftIds.insert(gift.info.id);
+					}
+				}
+			}
+
 			const auto pred = [&](const GiftTypeStars &gift) {
+				// Skip sold out gifts if they're available on resale
+				// (unless we're specifically viewing resale gifts)
+				if (price != kPriceTabResale &&
+					IsSoldOut(gift.info) &&
+					!gift.resale &&
+					resaleGiftIds.contains(gift.info.id)) {
+					return true; // Remove this gift
+				}
+
 				return (price == kPriceTabLimited)
 					? (!gift.info.limitedCount)
 					: (price == kPriceTabResale)
