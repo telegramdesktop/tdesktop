@@ -118,10 +118,38 @@ jobs:
 
           cmake --build build --parallel
 
+      - name: TDE2E cache.
+        id: cache-tde2e
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LibrariesPath }}/tde2e
+          key: ${{ runner.OS }}-tde2e-${{ env.CACHE_KEY }}
+      - name: TDE2E.
+        if: steps.cache-tde2e.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git init tde2e
+          cd tde2e
+          git remote add origin $GIT/tdlib/td.git
+          git fetch --depth=1 origin 51743dfd01dff6179e2d8f7095729caa4e2222e9
+          git reset --hard FETCH_HEAD
+
+          cmake -Bbuild -GNinja . \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_INSTALL_PREFIX=$PWD/build/prefix \
+          -DCMAKE_C_FLAGS_DEBUG="" \
+          -DCMAKE_CXX_FLAGS_DEBUG="" \
+          -DTD_E2E_ONLY=ON
+
+          cmake --build build --parallel
+          cmake --install build
+
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         env:
           tg_owt_DIR: ${{ env.LibrariesPath }}/tg_owt/build
+          tde2e_DIR: ${{ env.LibrariesPath }}/tde2e/build/prefix
         run: |
           cd $REPO_NAME
 
