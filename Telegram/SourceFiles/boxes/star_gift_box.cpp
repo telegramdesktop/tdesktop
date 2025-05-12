@@ -197,7 +197,7 @@ struct ResaleGiftsDescriptor {
 struct ResaleFilter {
 	uint64 attributesHash = 0;
 	base::flat_set<AttributeId> attributes;
-	ResaleSort sort = ResaleSort::Date;
+	ResaleSort sort = ResaleSort::Price;
 
 	friend inline bool operator==(
 		const ResaleFilter &,
