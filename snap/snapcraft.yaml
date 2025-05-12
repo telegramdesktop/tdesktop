@@ -166,6 +166,7 @@ parts:
       - libjxl
       - qt
       - rnnoise
+      - tde2e
       - webrtc
 
   patches:
@@ -448,6 +449,32 @@ parts:
       - systemd
     stage:
       - ./usr/bin/systemd-detect-virt
+
+  tde2e:
+    source: https://github.com/tdlib/td.git
+    source-depth: 1
+    source-commit: 51743dfd01dff6179e2d8f7095729caa4e2222e9
+    plugin: cmake
+    build-environment:
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+    build-packages:
+      - gperf
+      - libssl-dev
+      - zlib1g-dev
+    stage-packages:
+      - libssl3t64
+      - zlib1g
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - -DTD_E2E_ONLY=ON
+    prime:
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
