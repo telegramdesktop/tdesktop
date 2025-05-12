@@ -277,6 +277,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canManageGroupCall() const;
+	[[nodiscard]] bool amMonoforumAdmin() const;
 
 	[[nodiscard]] int starsPerMessage() const;
 	[[nodiscard]] int starsPerMessageChecked() const;
@@ -297,11 +298,19 @@ public:
 	[[nodiscard]] const ChatData *asChatNotMigrated() const;
 	[[nodiscard]] ChannelData *asChannelOrMigrated();
 	[[nodiscard]] const ChannelData *asChannelOrMigrated() const;
+	[[nodiscard]] ChannelData *asMonoforum();
+	[[nodiscard]] const ChannelData *asMonoforum() const;
 
 	[[nodiscard]] ChatData *migrateFrom() const;
 	[[nodiscard]] ChannelData *migrateTo() const;
 	[[nodiscard]] not_null<PeerData*> migrateToOrMe();
 	[[nodiscard]] not_null<const PeerData*> migrateToOrMe() const;
+
+	// isMonoforum() ? monoforumLink() : nullptr
+	[[nodiscard]] ChannelData *monoforumBroadcast() const;
+
+	// isMonoforum() ? nullptr : monoforumLink()
+	[[nodiscard]] ChannelData *broadcastMonoforum() const;
 
 	void updateFull();
 	void updateFullForced();
@@ -332,13 +341,29 @@ public:
 		const ImageLocation &location,
 		bool hasVideo);
 	void setUserpicPhoto(const MTPPhoto &data);
+
+	struct PaintUserpicContext {
+		QPoint position;
+		int size = 0;
+		bool forumLayout = false;
+	};
 	void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
-		int x,
-		int y,
-		int size,
-		bool forceCircle = false) const;
+		const PaintUserpicContext &context) const;
+	void paintUserpic(
+			Painter &p,
+			Ui::PeerUserpicView &view,
+			int x,
+			int y,
+			int size,
+			bool forceCircle = false) const {
+		paintUserpic(p, view, {
+			.position = { x, y },
+			.size = size,
+			.forumLayout = !forceCircle && (isForum() || isMonoforum()),
+		});
+	}
 	void paintUserpicLeft(
 			Painter &p,
 			Ui::PeerUserpicView &view,

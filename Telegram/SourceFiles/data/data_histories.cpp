@@ -65,8 +65,7 @@ MTPInputReplyTo ReplyToForMTP(
 			: replyTo.monoforumPeerId
 			? history->owner().peer(replyTo.monoforumPeerId).get()
 			: history->session().user().get();
-		const auto replyToMonoforumPeer = (history->peer->isChannel()
-			&& history->peer->asChannel()->requiresMonoforumPeer())
+		const auto replyToMonoforumPeer = history->peer->amMonoforumAdmin()
 			? possibleMonoforumPeer
 			: nullptr;
 		const auto external = replyTo.messageId
@@ -98,8 +97,7 @@ MTPInputReplyTo ReplyToForMTP(
 			(replyToMonoforumPeer
 				? replyToMonoforumPeer->input
 				: MTPInputPeer()));
-	} else if (history->peer->isChannel()
-		&& history->peer->asChannel()->requiresMonoforumPeer()
+	} else if (history->peer->amMonoforumAdmin()
 		&& replyTo.monoforumPeerId) {
 		const auto replyToMonoforumPeer = replyTo.monoforumPeerId
 			? history->owner().peer(replyTo.monoforumPeerId)

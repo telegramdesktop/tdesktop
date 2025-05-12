@@ -180,12 +180,14 @@ UserpicButton::UserpicButton(
 	not_null<PeerData*> peer,
 	Role role,
 	Source source,
-	const style::UserpicButton &st)
+	const style::UserpicButton &st,
+	bool forceForumShape)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _controller(controller)
 , _window(&controller->window())
 , _peer(peer)
+, _forceForumShape(forceForumShape)
 , _role(role)
 , _source(source) {
 	if (_source == Source::Custom) {

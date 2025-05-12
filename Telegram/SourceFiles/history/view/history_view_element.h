@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/weak_ptr.h"
+#include "ui/userpic_view.h"
 
 class History;
 class HistoryBlock;
@@ -58,6 +59,7 @@ enum class Context : char {
 	Pinned,
 	AdminLog,
 	ContactPreview,
+	Monoforum,
 	SavedSublist,
 	TTLViewer,
 	ShortcutMessages,
@@ -220,7 +222,7 @@ QString DateTooltipText(not_null<Element*> view);
 
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
-struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
+struct UnreadBar : RuntimeComponent<UnreadBar, Element> {
 	void init(const QString &string);
 
 	static int height();
@@ -241,7 +243,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 
 // Any HistoryView::Element can have this Component for
 // displaying the day mark above the message.
-struct DateBadge : public RuntimeComponent<DateBadge, Element> {
+struct DateBadge : RuntimeComponent<DateBadge, Element> {
 	void init(const QString &date);
 
 	int height() const;
@@ -257,10 +259,27 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+struct MonoforumSenderBar : RuntimeComponent<MonoforumSenderBar, Element> {
+	void init(not_null<PeerData*> parentChat, not_null<PeerData*> peer);
+
+	int height() const;
+	void paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		int y,
+		int w,
+		bool chatWide) const;
+
+	PeerData *author = nullptr;
+	Ui::Text::String text;
+	ClickHandlerPtr link;
+	mutable Ui::PeerUserpicView view;
+	int width = 0;
+};
+
 // Any HistoryView::Element can have this Component for
 // displaying some text in layout of a service message above the message.
-struct ServicePreMessage
-	: public RuntimeComponent<ServicePreMessage, Element> {
+struct ServicePreMessage : RuntimeComponent<ServicePreMessage, Element> {
 	void init(PreparedServiceText string);
 
 	int resizeToWidth(int newWidth, bool chatWide);
@@ -281,7 +300,7 @@ struct ServicePreMessage
 
 };
 
-struct FakeBotAboutTop : public RuntimeComponent<FakeBotAboutTop, Element> {
+struct FakeBotAboutTop : RuntimeComponent<FakeBotAboutTop, Element> {
 	void init();
 
 	Ui::Text::String text;
@@ -289,7 +308,7 @@ struct FakeBotAboutTop : public RuntimeComponent<FakeBotAboutTop, Element> {
 	int height = 0;
 };
 
-struct PurchasedTag : public RuntimeComponent<PurchasedTag, Element> {
+struct PurchasedTag : RuntimeComponent<PurchasedTag, Element> {
 	Ui::Text::String text;
 };
 
@@ -629,14 +648,17 @@ protected:
 	std::unique_ptr<Reactions::InlineList> _reactions;
 
 private:
+	void recountMonoforumSenderBarInBlocks();
+
 	// This should be called only from previousInBlocksChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<DateBadge>().
 	void recountDisplayDateInBlocks();
 
 	// This should be called only from previousInBlocksChanged() or when
-	// DateBadge or UnreadBar bit is changed in the Composer mask
-	// then the result should be cached in a client side flag
+	// DateBadge or UnreadBar or MonoforumSenderBar bit
+	// is changed in the Composer mask then the result
+	// should be cached in a client side flag
 	// HistoryView::Element::Flag::AttachedToPrevious.
 	void recountAttachToPreviousInBlocks();
 

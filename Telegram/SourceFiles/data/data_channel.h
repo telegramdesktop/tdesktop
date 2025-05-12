@@ -429,7 +429,6 @@ public:
 
 	void setMonoforumLink(ChannelData *link);
 	[[nodiscard]] ChannelData *monoforumLink() const;
-	[[nodiscard]] bool requiresMonoforumPeer() const;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);

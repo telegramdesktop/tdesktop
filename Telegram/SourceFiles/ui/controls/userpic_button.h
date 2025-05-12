@@ -69,7 +69,8 @@ public:
 		not_null<PeerData*> peer,
 		Role role,
 		Source source,
-		const style::UserpicButton &st);
+		const style::UserpicButton &st,
+		bool forceForumShape = false);
 	UserpicButton(
 		QWidget *parent,
 		not_null<PeerData*> peer, // Role::Custom, Source::PeerPhoto

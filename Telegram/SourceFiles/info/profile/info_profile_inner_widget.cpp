@@ -99,7 +99,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		result->add(std::move(actions));
 	}
 	if (_peer->isChat() || _peer->isMegagroup()) {
-		setupMembers(result.data());
+		if (!_peer->isMonoforum()) {
+			setupMembers(result.data());
+		}
 	}
 	return result;
 }

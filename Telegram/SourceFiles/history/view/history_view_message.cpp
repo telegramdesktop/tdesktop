@@ -1088,6 +1088,9 @@ int Message::marginTop() const {
 	if (const auto bar = Get<UnreadBar>()) {
 		result += bar->height();
 	}
+	if (const auto monoforumBar = Get<MonoforumSenderBar>()) {
+		result += monoforumBar->height();
+	}
 	if (const auto service = Get<ServicePreMessage>()) {
 		result += service->height;
 	}
@@ -1143,6 +1146,27 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				width(),
 				delegate()->elementIsChatWide());
 			p.translate(0, -dateh);
+		}
+	}
+
+	if (const auto monoforumBar = Get<MonoforumSenderBar>()) {
+		auto barh = monoforumBar->height();
+		auto skip = 0;
+		if (const auto date = Get<DateBadge>()) {
+			skip += date->height();
+		}
+		if (const auto bar = Get<UnreadBar>()) {
+			skip += bar->height();
+		}
+		if (context.clip.intersects(QRect(0, skip, width(), barh))) {
+			p.translate(0, skip);
+			monoforumBar->paint(
+				p,
+				context.st,
+				0,
+				width(),
+				delegate()->elementIsChatWide());
+			p.translate(0, -skip);
 		}
 	}
 
@@ -2458,6 +2482,8 @@ bool Message::hasFromPhoto() const {
 	switch (context()) {
 	case Context::AdminLog:
 		return true;
+	case Context::Monoforum:
+		return delegate()->elementIsChatWide();
 	case Context::History:
 	case Context::ChatPreview:
 	case Context::TTLViewer:
@@ -3685,6 +3711,8 @@ bool Message::hasFromName() const {
 	switch (context()) {
 	case Context::AdminLog:
 		return true;
+	case Context::Monoforum:
+		return false;
 	case Context::History:
 	case Context::ChatPreview:
 	case Context::TTLViewer:
@@ -3953,6 +3981,8 @@ bool Message::displayFastShare() const {
 bool Message::displayGoToOriginal() const {
 	if (isPinnedContext()) {
 		return !hasOutLayout();
+	} else if (context() == Context::Monoforum) {
+		return false;
 	}
 	const auto item = data();
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {

@@ -341,12 +341,6 @@ ChannelData *ChannelData::monoforumLink() const {
 	return _monoforumLink;
 }
 
-bool ChannelData::requiresMonoforumPeer() const {
-	return isMonoforum()
-		&& _monoforumLink
-		&& (_monoforumLink->amCreator() || _monoforumLink->hasAdminRights());
-}
-
 void ChannelData::setMembersCount(int newMembersCount) {
 	if (_membersCount != newMembersCount) {
 		if (isMegagroup()

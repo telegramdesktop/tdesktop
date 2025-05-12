@@ -3770,8 +3770,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	} else if (config.inlineMarkup) {
 		mask |= HistoryMessageReplyMarkup::Bit();
 	}
-	const auto requiresMonoforumPeer = _history->peer->isChannel()
-		&& _history->peer->asChannel()->requiresMonoforumPeer();
+	const auto requiresMonoforumPeer = _history->peer->amMonoforumAdmin();
 	if (_history->peer->isSelf()
 		|| config.savedSublistPeer
 		|| requiresMonoforumPeer) {

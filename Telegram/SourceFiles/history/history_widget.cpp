@@ -6633,6 +6633,12 @@ int HistoryWidget::countAutomaticScrollTop() {
 }
 
 Data::SendError HistoryWidget::computeSendRestriction() const {
+	if (!_canSendMessages && _peer->amMonoforumAdmin()) {
+		return Data::SendError({
+			.text = tr::lng_monoforum_choose_to_reply(tr::now),
+			.monoforumAdmin = true,
+		});
+	}
 	const auto allWithoutPolls = Data::AllSendRestrictions()
 		& ~ChatRestriction::SendPolls;
 	return (_peer && !Data::CanSendAnyOf(_peer, allWithoutPolls))
@@ -8753,10 +8759,17 @@ bool HistoryWidget::updateCanSendMessage() {
 	const auto topic = resolveReplyToTopic();
 	const auto allWithoutPolls = Data::AllSendRestrictions()
 		& ~ChatRestriction::SendPolls;
-	const auto newCanSendMessages = topic
+	const auto onlyReplies = _peer->amMonoforumAdmin();
+	const auto restrictedOnlyReplies = onlyReplies
+		&& (!_replyTo.messageId || _replyTo.messageId.peer != _peer->id);
+	const auto newCanSendMessages = restrictedOnlyReplies
+		? false
+		: topic
 		? Data::CanSendAnyOf(topic, allWithoutPolls)
 		: Data::CanSendAnyOf(_peer, allWithoutPolls);
-	const auto newCanSendTexts = topic
+	const auto newCanSendTexts = restrictedOnlyReplies
+		? false
+		: topic
 		? Data::CanSend(topic, ChatRestriction::SendOther)
 		: Data::CanSend(_peer, ChatRestriction::SendOther);
 	if (_canSendMessages == newCanSendMessages

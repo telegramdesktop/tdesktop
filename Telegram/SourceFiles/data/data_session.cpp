@@ -4657,6 +4657,10 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 		if (const auto forum = history->peer->forum()) {
 			forum->preloadTopics();
 		}
+		if (history->peer->isMonoforum()
+			&& !history->peer->monoforumBroadcast()) {
+			history->peer->updateFull();
+		}
 	}
 }
 

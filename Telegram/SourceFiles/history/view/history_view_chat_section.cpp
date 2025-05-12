@@ -2702,7 +2702,11 @@ QRect ChatWidget::floatPlayerAvailableRect() {
 }
 
 Context ChatWidget::listContext() {
-	return _sublist ? Context::SavedSublist : Context::Replies;
+	return !_sublist
+		? Context::Replies
+		: _sublist->parentChat()
+		? Context::Monoforum
+		: Context::SavedSublist;
 }
 
 bool ChatWidget::listScrollTo(int top, bool syntetic) {
@@ -2883,9 +2887,7 @@ void ChatWidget::listMarkReadTill(not_null<HistoryItem*> item) {
 
 void ChatWidget::listMarkContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) {
-	if (!_sublist) {
-		session().api().markContentsRead(items);
-	}
+	session().api().markContentsRead(items);
 }
 
 MessagesBarData ChatWidget::listMessagesBar(

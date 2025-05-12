@@ -427,10 +427,12 @@ QImage *PeerData::userpicCloudImage(Ui::PeerUserpicView &view) const {
 void PeerData::paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
-		int x,
-		int y,
-		int size,
-		bool forceCircle) const {
+		const PaintUserpicContext &context) const {
+	if (const auto broadcast = monoforumBroadcast()) {
+		broadcast->paintUserpic(p, view, context);
+		return;
+	}
+	const auto size = context.size;
 	const auto cloud = userpicCloudImage(view);
 	const auto ratio = style::DevicePixelRatio();
 	Ui::ValidateUserpicCache(
@@ -438,8 +440,8 @@ void PeerData::paintUserpic(
 		cloud,
 		cloud ? nullptr : ensureEmptyUserpic().get(),
 		size * ratio,
-		!forceCircle && (isForum() || isMonoforum()));
-	p.drawImage(QRect(x, y, size, size), view.cached);
+		context.forumLayout);
+	p.drawImage(QRect(context.position, QSize(size, size)), view.cached);
 }
 
 void PeerData::loadUserpic() {
@@ -1118,6 +1120,16 @@ const ChannelData *PeerData::asChannelOrMigrated() const {
 	return migrateTo();
 }
 
+ChannelData *PeerData::asMonoforum() {
+	const auto channel = asMegagroup();
+	return (channel && channel->isMonoforum()) ? channel : nullptr;
+}
+
+const ChannelData *PeerData::asMonoforum() const {
+	const auto channel = asMegagroup();
+	return (channel && channel->isMonoforum()) ? channel : nullptr;
+}
+
 ChatData *PeerData::migrateFrom() const {
 	if (const auto megagroup = asMegagroup()) {
 		return megagroup->amIn()
@@ -1148,6 +1160,16 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 		return channel;
 	}
 	return this;
+}
+
+ChannelData *PeerData::monoforumBroadcast() const {
+	const auto monoforum = asMonoforum();
+	return monoforum ? monoforum->monoforumLink() : nullptr;
+}
+
+ChannelData *PeerData::broadcastMonoforum() const {
+	const auto broadcast = asBroadcast();
+	return broadcast ? broadcast->monoforumLink() : nullptr;
 }
 
 const QString &PeerData::topBarNameText() const {
@@ -1572,10 +1594,19 @@ bool PeerData::canManageGroupCall() const {
 		return chat->amCreator()
 			|| (chat->adminRights() & ChatAdminRight::ManageCall);
 	} else if (const auto group = asChannel()) {
+		if (group->isMonoforum()) {
+			return false;
+		}
 		return group->amCreator()
 			|| (group->adminRights() & ChatAdminRight::ManageCall);
 	}
 	return false;
+}
+
+bool PeerData::amMonoforumAdmin() const {
+	const auto broadcast = monoforumBroadcast();
+	return broadcast
+		&& (broadcast->amCreator() || broadcast->hasAdminRights());
 }
 
 int PeerData::starsPerMessage() const {

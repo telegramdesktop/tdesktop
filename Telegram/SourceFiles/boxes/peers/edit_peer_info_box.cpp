@@ -2936,7 +2936,9 @@ bool EditPeerInfoBox::Available(not_null<PeerData*> peer) {
 
 		// canViewAdmins() is removed, because in supergroups it is
 		// always true and in channels it is equal to canViewBanned().
-
+		if (channel->isMonoforum()) {
+			return false;
+		}
 		return false
 			//|| channel->canViewMembers()
 			//|| channel->canViewAdmins()

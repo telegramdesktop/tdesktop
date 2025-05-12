@@ -492,6 +492,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		? history->peer.get()
 		: sublist ? sublist->peer().get()
 		: nullptr;
+	const auto broadcastForMonoforum = history
+		? history->peer->monoforumBroadcast()
+		: nullptr;
 	if (topic && _activeChat.section == Section::Replies) {
 		p.setPen(st::dialogsNameFg);
 		topic->chatListNameText().drawElided(
@@ -515,9 +518,12 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		}
 	} else if (folder
 		|| (peer && (peer->sharedMediaInfo() || peer->isVerifyCodes()))
+		|| broadcastForMonoforum
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)) {
-		auto text = (_activeChat.section == Section::Scheduled)
+		auto text = broadcastForMonoforum
+			? broadcastForMonoforum->name() + u" Messages"_q AssertIsDebug()
+			: (_activeChat.section == Section::Scheduled)
 			? ((peer && peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
 				: tr::lng_scheduled_messages(tr::now))

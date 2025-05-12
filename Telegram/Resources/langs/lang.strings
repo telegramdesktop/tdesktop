@@ -6091,6 +6091,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_messages#other" = "{count} messages";
 "lng_forum_show_topics_list" = "Show Topics List";
 
+"lng_monoforum_choose_to_reply" = "Choose a message to reply.";
+
 "lng_request_peer_requirements" = "Requirements";
 "lng_request_peer_rights" = "You must have these admin rights: {rights}.";
 "lng_request_peer_rights_and" = "{rights} and {last}";

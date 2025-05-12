@@ -941,7 +941,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		}
 		return;
 	} else if (history
-		&& history->isMonoforum()
+		&& history->peer->amMonoforumAdmin()
 		&& !row.message.fullId
 		&& !controller()->adaptive().isOneColumn()) {
 		const auto monoforum = history->peer->monoforum();
