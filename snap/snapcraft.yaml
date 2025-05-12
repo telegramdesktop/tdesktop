@@ -89,7 +89,6 @@ parts:
       - clang
       - libtool-bin
       - python3
-      - protobuf-compiler
       - libasound2-dev
       - libavif-dev
       - libboost-regex-dev
@@ -98,7 +97,6 @@ parts:
       - libheif-dev
       - libopenal-dev
       - libopus-dev
-      - libprotobuf-dev
       - libpulse-dev
       - libssl-dev
       - libxcb1-dev
@@ -116,7 +114,6 @@ parts:
       - libheif1
       - libopenal1
       - libopus0
-      - libprotobuf-lite32t64
       - libpulse0
       - libssl3t64
       - libwebkit2gtk-4.1-0
@@ -164,6 +161,7 @@ parts:
       - ada
       - ffmpeg
       - libjxl
+      - protobuf
       - qt
       - rnnoise
       - tde2e
@@ -294,6 +292,30 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/share
+
+  protobuf:
+    source: https://github.com/protocolbuffers/protobuf.git
+    source-depth: 1
+    source-tag: v30.2
+    plugin: cmake
+    build-environment:
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+    build-packages:
+      - zlib1g-dev
+    stage-packages:
+      - zlib1g
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_SHARED_LIBS=ON
+      - -Dprotobuf_BUILD_TESTS=OFF
+    prime:
+      - -./usr/bin
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
 
   qt:
     plugin: nil
