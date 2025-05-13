@@ -1708,6 +1708,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						MTP_vector<MTPlong>(generateRandom()),
 						peer->input,
 						MTP_int(topMsgId),
+						MTPInputReplyTo(),
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty(), // send_as
 						Data::ShortcutIdToMTP(session, options.shortcutId),

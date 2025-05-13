@@ -3332,6 +3332,7 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
 				MTP_int(topMsgId),
+				MTPInputReplyTo(),
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(_session, action.options.shortcutId),
