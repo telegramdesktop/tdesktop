@@ -537,6 +537,7 @@ HistoryItem::HistoryItem(
 	const auto topicRootId = fields.replyTo.topicRootId;
 	config.reply.messageId = config.reply.topMessageId = topicRootId;
 	config.reply.topicPost = (topicRootId != 0) ? 1 : 0;
+	config.reply.monoforumPeerId = fields.replyTo.monoforumPeerId;
 	if (const auto originalReply = original->Get<HistoryMessageReply>()) {
 		if (originalReply->external()) {
 			config.reply = originalReply->fields().clone(this);
@@ -3579,7 +3580,7 @@ Data::SavedSublist *HistoryItem::savedSublist() const {
 
 PeerData *HistoryItem::savedSublistPeer() const {
 	if (const auto sublist = savedSublist()) {
-		return sublist->peer();
+		return sublist->sublistPeer();
 	}
 	return nullptr;
 }

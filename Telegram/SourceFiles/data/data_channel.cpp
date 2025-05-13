@@ -228,6 +228,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 		}
 	}
 	if (diff & (Flag::Forum
+		| Flag::Monoforum
 		| Flag::CallNotEmpty
 		| Flag::SimilarExpanded
 		| Flag::Signatures
@@ -236,12 +237,14 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			if (diff & Flag::CallNotEmpty) {
 				history->updateChatListEntry();
 			}
-			if (diff & Flag::Forum) {
+			if (diff & (Flag::Forum | Flag::Monoforum)) {
 				Core::App().notifications().clearFromHistory(history);
 				history->updateChatListEntryHeight();
 				if (history->inChatList()) {
 					if (const auto forum = this->forum()) {
 						forum->preloadTopics();
+					} else if (const auto monoforum = this->monoforum()) {
+						monoforum->loadMore();
 					}
 				}
 			}

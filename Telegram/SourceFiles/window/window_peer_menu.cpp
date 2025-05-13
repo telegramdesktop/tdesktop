@@ -88,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_user.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_histories.h"
 #include "data/data_chat_filters.h"
@@ -435,7 +436,7 @@ void TogglePinnedThread(
 			: MTPmessages_ToggleSavedDialogPin::Flag(0);
 		owner->session().api().request(MTPmessages_ToggleSavedDialogPin(
 			MTP_flags(flags),
-			MTP_inputDialogPeer(sublist->peer()->input)
+			MTP_inputDialogPeer(sublist->sublistPeer()->input)
 		)).done([=] {
 			owner->notifyPinnedDialogsOrderUpdated();
 			if (onToggled) {
@@ -655,10 +656,9 @@ void Filler::addNewWindow() {
 		_addAction(tr::lng_context_new_window(tr::now), [=] {
 			Ui::PreventDelayedActivation();
 			if (const auto sublist = weak.get()) {
-				const auto peer = sublist->peer();
 				controller->showInNewWindow(SeparateId(
 					SeparateType::SavedSublist,
-					peer->owner().history(peer)));
+					sublist->owner().history(sublist->sublistPeer())));
 			}
 		}, &st::menuIconNewWindow);
 		AddSeparatorAndShiftUp(_addAction);
@@ -2845,6 +2845,46 @@ QPointer<Ui::BoxContent> ShowDropMediaBox(
 	*weak = navigation->parentController()->show(Box<PeerListBox>(
 		std::make_unique<ChooseTopicBoxController>(
 			forum,
+			std::move(chosen)),
+		std::move(initBox)));
+	return weak->data();
+}
+
+QPointer<Ui::BoxContent> ShowDropMediaBox(
+		not_null<Window::SessionNavigation*> navigation,
+		std::shared_ptr<QMimeData> data,
+		not_null<Data::SavedMessages*> monoforum,
+		FnMut<void()> &&successCallback) {
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	auto chosen = [
+		data = std::move(data),
+		callback = std::move(successCallback),
+		weak,
+		navigation
+	](not_null<Data::SavedSublist*> sublist) mutable {
+		const auto content = navigation->parentController()->content();
+		if (!content->filesOrForwardDrop(sublist, data.get())) {
+			return;
+		} else if (const auto strong = *weak) {
+			strong->closeBox();
+		}
+		if (callback) {
+			callback();
+		}
+	};
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_cancel(), [=] {
+			box->closeBox();
+		});
+
+		monoforum->destroyed(
+		) | rpl::start_with_next([=] {
+			box->closeBox();
+		}, box->lifetime());
+	};
+	*weak = navigation->parentController()->show(Box<PeerListBox>(
+		std::make_unique<ChooseSublistBoxController>(
+			monoforum,
 			std::move(chosen)),
 		std::move(initBox)));
 	return weak->data();

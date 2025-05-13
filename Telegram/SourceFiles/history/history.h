@@ -273,7 +273,7 @@ public:
 	void setHasPendingResizedItems();
 
 	[[nodiscard]] auto sendActionPainter()
-	-> not_null<HistoryView::SendActionPainter*> override {
+	-> HistoryView::SendActionPainter* override {
 		return &_sendActionPainter;
 	}
 

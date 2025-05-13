@@ -32,6 +32,8 @@ class Folder;
 class Session;
 struct ForwardDraft;
 class ForumTopic;
+class SavedMessages;
+class SavedSublist;
 class Thread;
 } // namespace Data
 
@@ -187,6 +189,11 @@ QPointer<Ui::BoxContent> ShowDropMediaBox(
 	not_null<Window::SessionNavigation*> navigation,
 	std::shared_ptr<QMimeData> data,
 	not_null<Data::Forum*> forum,
+	FnMut<void()> &&successCallback = nullptr);
+QPointer<Ui::BoxContent> ShowDropMediaBox(
+	not_null<Window::SessionNavigation*> navigation,
+	std::shared_ptr<QMimeData> data,
+	not_null<Data::SavedMessages*> monoforum,
 	FnMut<void()> &&successCallback = nullptr);
 
 QPointer<Ui::BoxContent> ShowSendNowMessagesBox(

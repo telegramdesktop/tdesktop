@@ -82,7 +82,7 @@ QString TopBarNameText(
 		const Dialogs::EntryState &state) {
 	if (state.section == Dialogs::EntryState::Section::SavedSublist
 		&& state.key.sublist()
-		&& state.key.sublist()->parentHistory()->peer->isSelf()) {
+		&& state.key.sublist()->owningHistory()->peer->isSelf()) {
 		if (peer->isSelf()) {
 			return tr::lng_my_notes(tr::now);
 		} else if (peer->isSavedHiddenAuthor()) {
@@ -490,7 +490,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto history = _activeChat.key.history();
 	const auto namePeer = history
 		? history->peer.get()
-		: sublist ? sublist->peer().get()
+		: sublist
+		? sublist->sublistPeer().get()
 		: nullptr;
 	const auto broadcastForMonoforum = history
 		? history->peer->monoforumBroadcast()
@@ -746,9 +747,9 @@ void TopBarWidget::infoClicked() {
 		return;
 	} else if (const auto topic = key.topic()) {
 		_controller->showSection(std::make_shared<Info::Memento>(topic));
-	} else if ([[maybe_unused]] const auto sublist = key.sublist()) {
+	} else if (const auto sublist = key.sublist()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
-			_controller->session().user(),
+			sublist->owningHistory()->peer,
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else if (key.peer()->savedSublistsInfo()) {
 		_controller->showSection(std::make_shared<Info::Memento>(

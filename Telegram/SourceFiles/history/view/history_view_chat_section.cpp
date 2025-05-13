@@ -1693,7 +1693,7 @@ SendMenu::Details ChatWidget::sendMenuDetails() const {
 
 FullReplyTo ChatWidget::replyTo() const {
 	const auto monoforumPeerId = (_sublist && _sublist->parentChat())
-		? _sublist->peer()->id
+		? _sublist->sublistPeer()->id
 		: PeerId();
 	if (auto custom = _composeControls->replyingToMessage()) {
 		const auto item = custom.messageId
@@ -1786,7 +1786,7 @@ void ChatWidget::checkLastPinnedClickedIdReset(
 }
 
 void ChatWidget::setupOpenChatButton() {
-	if (!_sublist || _sublist->peer()->isSavedHiddenAuthor()) {
+	if (!_sublist || _sublist->sublistPeer()->isSavedHiddenAuthor()) {
 		return;
 	} else if (_sublist->parentChat()) {
 		_canSendTexts = true;
@@ -1794,22 +1794,22 @@ void ChatWidget::setupOpenChatButton() {
 	}
 	_openChatButton = std::make_unique<Ui::FlatButton>(
 		this,
-		(_sublist->peer()->isBroadcast()
+		(_sublist->sublistPeer()->isBroadcast()
 			? tr::lng_saved_open_channel(tr::now)
-			: _sublist->peer()->isUser()
+			: _sublist->sublistPeer()->isUser()
 			? tr::lng_saved_open_chat(tr::now)
 			: tr::lng_saved_open_group(tr::now)),
 		st::historyComposeButton);
 
 	_openChatButton->setClickedCallback([=] {
 		controller()->showPeerHistory(
-			_sublist->peer(),
+			_sublist->sublistPeer(),
 			Window::SectionShow::Way::Forward);
 	});
 }
 
 void ChatWidget::setupAboutHiddenAuthor() {
-	if (!_sublist || !_sublist->peer()->isSavedHiddenAuthor()) {
+	if (!_sublist || !_sublist->sublistPeer()->isSavedHiddenAuthor()) {
 		return;
 	} else if (_sublist->parentChat()) {
 		_canSendTexts = true;
@@ -3260,7 +3260,7 @@ bool ChatWidget::searchInChatEmbedded(
 		this,
 		controller(),
 		_history,
-		sublist->peer(),
+		sublist->sublistPeer(),
 		query);
 
 	updateControlsGeometry();

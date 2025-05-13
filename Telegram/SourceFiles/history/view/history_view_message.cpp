@@ -3712,7 +3712,7 @@ bool Message::hasFromName() const {
 	case Context::AdminLog:
 		return true;
 	case Context::Monoforum:
-		return false;
+		return data()->out();
 	case Context::History:
 	case Context::ChatPreview:
 	case Context::TTLViewer:

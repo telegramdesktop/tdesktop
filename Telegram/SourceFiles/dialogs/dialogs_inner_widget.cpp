@@ -3444,7 +3444,7 @@ void InnerWidget::applySearchState(SearchState state) {
 	_searchFromShown = ignoreInChat
 		? nullptr
 		: sublist
-		? sublist->peer().get()
+		? sublist->sublistPeer().get()
 		: state.fromPeer;
 	if (state.inChat) {
 		onHashtagFilterUpdate(QStringView());
@@ -4222,7 +4222,7 @@ void InnerWidget::updateSearchIn() {
 	const auto peerIcon = peer
 		? Ui::MakeUserpicThumbnail(peer)
 		: sublist
-		? Ui::MakeUserpicThumbnail(sublist->peer())
+		? Ui::MakeUserpicThumbnail(sublist->sublistPeer())
 		: nullptr;
 	const auto myIcon = Ui::MakeIconThumbnail(st::menuIconChats);
 	const auto publicIcon = (_searchHashOrCashtag != HashOrCashtag::None)

@@ -867,7 +867,7 @@ void ForumTopic::setMuted(bool muted) {
 	session().changes().topicUpdated(this, UpdateFlag::Notifications);
 }
 
-not_null<HistoryView::SendActionPainter*> ForumTopic::sendActionPainter() {
+HistoryView::SendActionPainter *ForumTopic::sendActionPainter() {
 	return _sendActionPainter.get();
 }
 

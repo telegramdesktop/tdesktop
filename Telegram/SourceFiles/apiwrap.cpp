@@ -388,7 +388,7 @@ void ApiWrap::savePinnedOrder(not_null<Data::SavedMessages*> saved) {
 	const auto &order = _session->data().pinnedChatsOrder(saved);
 	const auto input = [](Dialogs::Key key) {
 		if (const auto sublist = key.sublist()) {
-			return MTP_inputDialogPeer(sublist->peer()->input);
+			return MTP_inputDialogPeer(sublist->sublistPeer()->input);
 		}
 		Unexpected("Key type in pinnedDialogsOrder().");
 	};
@@ -3303,6 +3303,13 @@ void ApiWrap::forwardMessages(
 	if (topMsgId) {
 		sendFlags |= SendFlag::f_top_msg_id;
 	}
+	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
+	const auto monoforumPeer = monoforumPeerId
+		? session().data().peer(monoforumPeerId).get()
+		: nullptr;
+	if (monoforumPeer) {
+		sendFlags |= SendFlag::f_reply_to;
+	}
 
 	auto forwardFrom = draft.items.front()->history()->peer;
 	auto ids = QVector<MTPint>();
@@ -3332,7 +3339,9 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
 				MTP_int(topMsgId),
-				MTPInputReplyTo(),
+				(monoforumPeer
+					? MTP_inputReplyToMonoForum(monoforumPeer->input)
+					: MTPInputReplyTo()),
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(_session, action.options.shortcutId),
@@ -3379,7 +3388,10 @@ void ApiWrap::forwardMessages(
 				.id = newId.msg,
 				.flags = flags,
 				.from = NewMessageFromId(action),
-				.replyTo = { .topicRootId = topMsgId },
+				.replyTo = {
+					.topicRootId = topMsgId,
+					.monoforumPeerId = monoforumPeerId,
+				},
 				.date = NewMessageDate(action.options),
 				.shortcutId = action.options.shortcutId,
 				.starsPaid = action.options.starsApproved,

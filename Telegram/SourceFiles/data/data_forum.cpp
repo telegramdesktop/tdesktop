@@ -48,7 +48,6 @@ Forum::Forum(not_null<History*> history)
 , _topicsList(&session(), {}, owner().maxPinnedChatsLimitValue(this)) {
 	Expects(_history->peer->isChannel());
 
-
 	if (_history->inChatList()) {
 		preloadTopics();
 	}

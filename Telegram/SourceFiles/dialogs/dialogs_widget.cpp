@@ -1001,7 +1001,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		using namespace HistoryView;
 		controller()->showSection(
 			std::make_shared<ChatMemento>(ChatViewId{
-				.history = sublist->parentHistory(),
+				.history = sublist->owningHistory(),
 				.sublist = sublist,
 			}),
 			params);
@@ -2037,7 +2037,7 @@ void Widget::refreshTopBars() {
 					? Dialogs::Key(history)
 					: Dialogs::Key(_openedFolder)),
 				.section = Dialogs::EntryState::Section::ChatsList,
-			}, history ? history->sendActionPainter().get() : nullptr);
+			}, history ? history->sendActionPainter() : nullptr);
 		if (_forumSearchRequested) {
 			showSearchInTopBar(anim::type::instant);
 		}
@@ -2680,7 +2680,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
-				? sublist->peer().get()
+				? sublist->sublistPeer().get()
 				: nullptr;
 			_historiesRequest = histories.sendRequest(history, type, [=](
 					Fn<void()> finish) {
@@ -2856,7 +2856,7 @@ void Widget::searchMore() {
 				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
-				? sublist->peer().get()
+				? sublist->sublistPeer().get()
 				: nullptr;
 			_historiesRequest = histories.sendRequest(history, type, [=](
 					Fn<void()> finish) {
@@ -4284,8 +4284,12 @@ PeerData *Widget::searchInPeer() const {
 		? nullptr
 		: _openedForum
 		? _openedForum->channel().get()
+		: _openedMonoforum
+		? (_openedMonoforum->parentChat()
+			? _openedMonoforum->parentChat()
+			: (PeerData*)session().user().get())
 		: _searchState.inChat.sublist()
-		? session().user().get()
+		? _searchState.inChat.sublist()->owningHistory()->peer.get()
 		: _searchState.inChat.peer();
 }
 

@@ -62,7 +62,7 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 [[nodiscard]] bool ShowSendActionInDialogs(Data::Thread *thread) {
 	const auto history = thread ? thread->owningHistory().get() : nullptr;
-	if (!history) {
+	if (!history || thread->asSublist()) {
 		return false;
 	} else if (const auto user = history->peer->asUser()) {
 		return !user->lastseen().isHidden();
@@ -994,7 +994,7 @@ void RowPainter::Paint(
 			? history->peer->migrateTo()
 			: history->peer.get())
 		: sublist
-		? sublist->peer().get()
+		? sublist->sublistPeer().get()
 		: nullptr;
 	const auto allowUserOnline = true;// !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))

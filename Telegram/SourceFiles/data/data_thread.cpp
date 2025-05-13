@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_unread_things.h"
@@ -29,6 +30,13 @@ MsgId Thread::topicRootId() const {
 		return topic->rootId();
 	}
 	return MsgId();
+}
+
+PeerData *Thread::maybeSublistPeer() const {
+	if (const auto sublist = asSublist()) {
+		return sublist->sublistPeer();
+	}
+	return nullptr;
 }
 
 not_null<PeerData*> Thread::peer() const {

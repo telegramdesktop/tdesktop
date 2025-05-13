@@ -644,6 +644,17 @@ bool MainWidget::filesOrForwardDrop(
 			clearHider(_hider);
 		}
 		return true;
+	} else if (const auto history = thread->asHistory()
+		; history && history->peer->monoforum()) {
+		Window::ShowDropMediaBox(
+			_controller,
+			Core::ShareMimeMediaData(data),
+			history->peer->monoforum());
+		if (_hider) {
+			_hider->startHide();
+			clearHider(_hider);
+		}
+		return true;
 	}
 	if (data->hasFormat(u"application/x-td-forward"_q)) {
 		auto draft = Data::ForwardDraft{
@@ -780,7 +791,7 @@ void MainWidget::searchMessages(
 			using namespace HistoryView;
 			controller()->showSection(
 				std::make_shared<ChatMemento>(ChatViewId{
-					.history = sublist->parentHistory(),
+					.history = sublist->owningHistory(),
 					.sublist = sublist,
 				}));
 		} else if (!tags.empty()) {
@@ -1545,6 +1556,12 @@ void MainWidget::showMessage(
 	}
 	if (const auto topic = item->topic()) {
 		_controller->showTopic(topic, item->id, params);
+		if (params.activation != anim::activation::background) {
+			_controller->window().activate();
+		}
+	} else if (const auto sublist = item->savedSublist()
+		; sublist && sublist->parentChat()) {
+		_controller->showSublist(sublist, item->id, params);
 		if (params.activation != anim::activation::background) {
 			_controller->window().activate();
 		}
@@ -2621,10 +2638,10 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
-	} else if (key.sublist()) {
+	} else if (const auto sublist = key.sublist()) {
 		return std::make_shared<Info::Memento>(
-			session().user(),
-			Info::Memento::DefaultSection(session().user()));
+			sublist->owningHistory()->peer,
+			Info::Memento::DefaultSection(sublist->owningHistory()->peer));
 	}
 	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }

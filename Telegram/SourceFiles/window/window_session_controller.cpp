@@ -1259,12 +1259,30 @@ void SessionNavigation::showTopic(
 		params);
 }
 
+void SessionNavigation::showSublist(
+		not_null<Data::SavedSublist*> sublist,
+		MsgId itemId,
+		const SectionShow &params) {
+	using namespace HistoryView;
+	auto memento = std::make_shared<ChatMemento>(
+		ChatViewId{
+			.history = sublist->owningHistory(),
+			.sublist = sublist,
+		},
+		itemId,
+		params.highlightPart,
+		params.highlightPartOffsetHint);
+	showSection(std::move(memento), params);
+}
+
 void SessionNavigation::showThread(
 		not_null<Data::Thread*> thread,
 		MsgId itemId,
 		const SectionShow &params) {
 	if (const auto topic = thread->asTopic()) {
 		showTopic(topic, itemId, params);
+	} else if (const auto sublist = thread->asSublist()) {
+		showSublist(sublist, itemId, params);
 	} else {
 		showPeerHistory(thread->asHistory(), params, itemId);
 	}
@@ -1346,7 +1364,7 @@ void SessionNavigation::showByInitialId(
 		using namespace HistoryView;
 		showSection(
 			std::make_shared<ChatMemento>(ChatViewId{
-				.history = id.sublist()->parentHistory(),
+				.history = id.sublist()->owningHistory(),
 				.sublist = id.sublist(),
 			}),
 			instant);

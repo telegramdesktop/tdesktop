@@ -4656,6 +4656,8 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 		}
 		if (const auto forum = history->peer->forum()) {
 			forum->preloadTopics();
+		} else if (const auto monoforum = history->peer->monoforum()) {
+			monoforum->preloadSublists();
 		}
 		if (history->peer->isMonoforum()
 			&& !history->peer->monoforumBroadcast()) {

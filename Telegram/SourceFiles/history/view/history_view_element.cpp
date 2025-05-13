@@ -1477,17 +1477,17 @@ void Element::recountMonoforumSenderBarInBlocks() {
 			|| item->isSponsored()) {
 			return nullptr;
 		}
-		const auto peer = sublist->peer();
+		const auto sublistPeer = sublist->sublistPeer();
 		if (const auto previous = previousDisplayedInBlocks()) {
 			const auto prev = previous->data();
 			if (const auto prevSublist = prev->savedSublist()) {
 				Assert(prevSublist->parentChat() == parentChat);
-				if (prevSublist->peer() == peer) {
+				if (prevSublist->sublistPeer() == sublistPeer) {
 					return nullptr;
 				}
 			}
 		}
-		return peer;
+		return sublistPeer;
 	}();
 	if (barPeer && !Has<MonoforumSenderBar>()) {
 		AddComponents(MonoforumSenderBar::Bit());

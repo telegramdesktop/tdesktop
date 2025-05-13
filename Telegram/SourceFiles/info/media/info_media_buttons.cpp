@@ -275,7 +275,7 @@ not_null<Ui::SettingsButton*> AddSavedSublistButton(
 		const auto sublist = peer->owner().savedMessages().sublist(peer);
 		navigation->showSection(
 			std::make_shared<ChatMemento>(ChatViewId{
-				.history = sublist->parentHistory(),
+				.history = sublist->owningHistory(),
 				.sublist = sublist,
 			}));
 	});

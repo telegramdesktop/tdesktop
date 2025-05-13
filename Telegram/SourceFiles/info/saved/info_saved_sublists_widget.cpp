@@ -69,7 +69,7 @@ SublistsWidget::SublistsWidget(
 			params.dropSameFromStack = true;
 			controller->showSection(
 				std::make_shared<ChatMemento>(ChatViewId{
-					.history = sublist->parentHistory(),
+					.history = sublist->owningHistory(),
 					.sublist = sublist,
 				}),
 				params);

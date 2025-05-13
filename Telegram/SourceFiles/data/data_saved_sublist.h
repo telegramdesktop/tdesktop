@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_thread.h"
 #include "dialogs/ui/dialogs_message_view.h"
-#include "dialogs/dialogs_entry.h"
 
 class PeerData;
 class History;
@@ -18,17 +18,18 @@ namespace Data {
 class Session;
 class SavedMessages;
 
-class SavedSublist final : public Dialogs::Entry {
+class SavedSublist final : public Data::Thread {
 public:
-	SavedSublist(not_null<SavedMessages*> parent,not_null<PeerData*> peer);
+	SavedSublist(not_null<SavedMessages*> parent, not_null<PeerData*> peer);
 	~SavedSublist();
 
 	[[nodiscard]] not_null<SavedMessages*> parent() const;
-	[[nodiscard]] not_null<History*> parentHistory() const;
+	[[nodiscard]] not_null<History*> owningHistory() override;
 	[[nodiscard]] ChannelData *parentChat() const;
-	[[nodiscard]] not_null<PeerData*> peer() const;
+	[[nodiscard]] not_null<PeerData*> sublistPeer() const;
 	[[nodiscard]] bool isHiddenAuthor() const;
 	[[nodiscard]] bool isFullLoaded() const;
+	[[nodiscard]] rpl::producer<> destroyed() const;
 
 	[[nodiscard]] auto messages() const
 		-> const std::vector<not_null<HistoryItem*>> &;
@@ -40,10 +41,6 @@ public:
 	[[nodiscard]] rpl::producer<> changes() const;
 	[[nodiscard]] std::optional<int> fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
-
-	[[nodiscard]] Dialogs::Ui::MessageView &lastItemDialogsView() {
-		return _lastItemDialogsView;
-	}
 
 	int fixedOnTopIndex() const override;
 	bool shouldBeInChatList() const override;
@@ -57,11 +54,20 @@ public:
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 
+	void hasUnreadMentionChanged(bool has) override;
+	void hasUnreadReactionChanged(bool has) override;
+
+	[[nodiscard]] bool isServerSideUnread(
+		not_null<const HistoryItem*> item) const override;
+
 	void chatListPreloadData() override;
 	void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const override;
+
+	[[nodiscard]] auto sendActionPainter()
+		-> HistoryView::SendActionPainter* override;
 
 private:
 	enum class Flag : uchar {
@@ -81,7 +87,6 @@ private:
 	std::vector<not_null<HistoryItem*>> _items;
 	std::optional<int> _fullCount;
 	rpl::event_stream<> _changed;
-	Dialogs::Ui::MessageView _lastItemDialogsView;
 	Flags _flags;
 
 };

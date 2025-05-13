@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_item_preview.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_unread_things.h"
 #include "main/main_session.h"
 
 namespace Data {
@@ -22,7 +23,7 @@ namespace Data {
 SavedSublist::SavedSublist(
 	not_null<SavedMessages*> parent,
 	not_null<PeerData*> peer)
-: Entry(&peer->owner(), Dialogs::Entry::Type::SavedSublist)
+: Thread(&peer->owner(), Dialogs::Entry::Type::SavedSublist)
 , _parent(parent)
 , _history(peer->owner().history(peer)) {
 }
@@ -33,7 +34,7 @@ not_null<SavedMessages*> SavedSublist::parent() const {
 	return _parent;
 }
 
-not_null<History*> SavedSublist::parentHistory() const {
+not_null<History*> SavedSublist::owningHistory() {
 	const auto chat = parentChat();
 	return _history->owner().history(chat
 		? (PeerData*)chat
@@ -44,16 +45,25 @@ ChannelData *SavedSublist::parentChat() const {
 	return _parent->parentChat();
 }
 
-not_null<PeerData*> SavedSublist::peer() const {
+not_null<PeerData*> SavedSublist::sublistPeer() const {
 	return _history->peer;
 }
 
 bool SavedSublist::isHiddenAuthor() const {
-	return peer()->isSavedHiddenAuthor();
+	return sublistPeer()->isSavedHiddenAuthor();
 }
 
 bool SavedSublist::isFullLoaded() const {
 	return (_flags & Flag::FullLoaded) != 0;
+}
+
+rpl::producer<> SavedSublist::destroyed() const {
+	using namespace rpl::mappers;
+	return rpl::merge(
+		_parent->destroyed(),
+		_parent->sublistDestroyed() | rpl::filter(
+			_1 == this
+		) | rpl::to_empty);
 }
 
 auto SavedSublist::messages() const
@@ -231,8 +241,39 @@ void SavedSublist::paintUserpic(
 	_history->paintUserpic(p, view, context);
 }
 
+HistoryView::SendActionPainter *SavedSublist::sendActionPainter() {
+	return nullptr;
+}
+
+void SavedSublist::hasUnreadMentionChanged(bool has) {
+	auto was = chatListUnreadState();
+	if (has) {
+		was.mentions = 0;
+	} else {
+		was.mentions = 1;
+	}
+	notifyUnreadStateChange(was);
+}
+
+void SavedSublist::hasUnreadReactionChanged(bool has) {
+	auto was = chatListUnreadState();
+	if (has) {
+		was.reactions = was.reactionsMuted = 0;
+	} else {
+		was.reactions = 1;
+		was.reactionsMuted = muted() ? was.reactions : 0;
+	}
+	notifyUnreadStateChange(was);
+}
+
+bool SavedSublist::isServerSideUnread(
+		not_null<const HistoryItem*> item) const {
+	return false;
+}
+
+
 void SavedSublist::chatListPreloadData() {
-	peer()->loadUserpic();
+	sublistPeer()->loadUserpic();
 	allowChatListMessageResolve();
 }
 

@@ -67,6 +67,7 @@ public:
 		return const_cast<Thread*>(this)->owningHistory();
 	}
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] PeerData *maybeSublistPeer() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] PeerNotifySettings &notify();
 	[[nodiscard]] const PeerNotifySettings &notify() const;
@@ -112,7 +113,7 @@ public:
 	}
 
 	[[nodiscard]] virtual auto sendActionPainter()
-		-> not_null<HistoryView::SendActionPainter*> = 0;
+		-> HistoryView::SendActionPainter* = 0;
 
 	[[nodiscard]] bool hasPinnedMessages() const;
 	void setHasPinnedMessages(bool has);

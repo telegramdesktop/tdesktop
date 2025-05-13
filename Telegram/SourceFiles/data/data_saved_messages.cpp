@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_unread_things.h"
 #include "main/main_session.h"
 
 namespace Data {
@@ -23,6 +24,7 @@ constexpr auto kPerPage = 50;
 constexpr auto kFirstPerPage = 10;
 constexpr auto kListPerPage = 100;
 constexpr auto kListFirstPerPage = 20;
+constexpr auto kLoadedSublistsMinCount = 20;
 
 } // namespace
 
@@ -36,6 +38,10 @@ SavedMessages::SavedMessages(
 	FilterId(),
 	_owner->maxPinnedChatsLimitValue(this))
 , _loadMore([=] { sendLoadMoreRequests(); }) {
+	if (_parentChat
+		&& _parentChat->owner().history(_parentChat)->inChatList()) {
+		preloadSublists();
+	}
 }
 
 SavedMessages::~SavedMessages() = default;
@@ -61,13 +67,17 @@ not_null<Dialogs::MainList*> SavedMessages::chatsList() {
 }
 
 not_null<SavedSublist*> SavedMessages::sublist(not_null<PeerData*> peer) {
-	const auto i = _sublists.find(peer);
-	if (i != end(_sublists)) {
-		return i->second.get();
+	if (const auto loaded = sublistLoaded(peer)) {
+		return loaded;
 	}
 	return _sublists.emplace(
 		peer,
 		std::make_unique<SavedSublist>(this, peer)).first->second.get();
+}
+
+SavedSublist *SavedMessages::sublistLoaded(not_null<PeerData*> peer) {
+	const auto i = _sublists.find(peer);
+	return (i != end(_sublists)) ? i->second.get() : nullptr;
 }
 
 rpl::producer<> SavedMessages::chatsListChanges() const {
@@ -76,6 +86,13 @@ rpl::producer<> SavedMessages::chatsListChanges() const {
 
 rpl::producer<> SavedMessages::chatsListLoadedEvents() const {
 	return _chatsListLoadedEvents.events();
+}
+
+void SavedMessages::preloadSublists() {
+	if (parentChat()
+		&& chatsList()->indexed()->size() < kLoadedSublistsMinCount) {
+		loadMore();
+	}
 }
 
 void SavedMessages::loadMore() {
@@ -152,7 +169,7 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 		MTPmessages_GetSavedHistory(
 			MTP_flags(_parentChat ? Flag::f_parent_peer : Flag(0)),
 			_parentChat ? _parentChat->input : MTPInputPeer(),
-			sublist->peer()->input,
+			sublist->sublistPeer()->input,
 			MTP_int(offsetId),
 			MTP_int(offsetDate),
 			MTP_int(0), // add_offset

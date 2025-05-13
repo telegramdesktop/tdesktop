@@ -33,6 +33,7 @@ public:
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList();
 	[[nodiscard]] not_null<SavedSublist*> sublist(not_null<PeerData*> peer);
+	[[nodiscard]] SavedSublist *sublistLoaded(not_null<PeerData*> peer);
 
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
@@ -41,6 +42,7 @@ public:
 	[[nodiscard]] auto sublistDestroyed() const
 		-> rpl::producer<not_null<SavedSublist*>>;
 
+	void preloadSublists();
 	void loadMore();
 	void loadMore(not_null<SavedSublist*> sublist);
 
