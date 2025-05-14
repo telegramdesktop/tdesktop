@@ -80,6 +80,7 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 		"|graph\\.org"
 		"|fragment\\.com"
 		"|telesco\\.pe"
+		"|linkedin\\.com"
 		")$",
 		url.host(),
 		RegExOption::CaseInsensitive);
