@@ -1,6 +1,7 @@
 <RCC>
   <qresource prefix="/animations">
     <file alias="blocked_peers_empty.tgs">../../animations/blocked_peers_empty.tgs</file>
+    <file alias="change_number.tgs">../../animations/change_number.tgs</file>
     <file alias="filters.tgs">../../animations/filters.tgs</file>
     <file alias="cloud_filters.tgs">../../animations/cloud_filters.tgs</file>
     <file alias="local_passcode_enter.tgs">../../animations/local_passcode_enter.tgs</file>

@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -474,9 +475,38 @@ void SetupValidatePhoneNumberSuggestion(
 		st::inviteLinkButton);
 	no->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	no->setClickedCallback([=] {
-		controller->uiShow()->show(
-			Ui::MakeInformBox(
-				tr::lng_settings_suggestion_phone_number_change()));
+		const auto sharedLabel = std::make_shared<QPointer<Ui::FlatLabel>>();
+		const auto height = st::boxLabel.style.font->height;
+		const auto customEmojiFactory = [=](
+			QStringView data,
+			const Ui::Text::MarkedContext &context
+		) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+			auto repaint = [=] {
+				if (*sharedLabel) {
+					(*sharedLabel)->update();
+				}
+			};
+			return Lottie::MakeEmoji(
+				{ .name = u"change_number"_q, .sizeOverride = Size(height) },
+				std::move(repaint));
+		};
+
+		controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+			*sharedLabel = box->verticalLayout()->add(
+				object_ptr<Ui::FlatLabel>(
+					box->verticalLayout(),
+					tr::lng_settings_suggestion_phone_number_change(
+						lt_emoji,
+						rpl::single(Ui::Text::SingleCustomEmoji(u"@"_q)),
+						Ui::Text::WithEntities),
+					st::boxLabel,
+					st::defaultPopupMenu,
+					Ui::Text::MarkedContext{
+						.customEmojiFactory = customEmojiFactory,
+					}),
+				st::boxPadding);
+		}));
 	});
 
 	wrap->widthValue() | rpl::start_with_next([=](int width) {
