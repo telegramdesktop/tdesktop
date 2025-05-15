@@ -4986,6 +4986,11 @@ rpl::producer<UserIds> Session::contactBirthdays(bool force) {
 						data.vday().v,
 						data.vmonth().v,
 						data.vyear().value_or_empty()));
+					if (user->isSelf()
+						|| user->isInaccessible()
+						|| user->isBlocked()) {
+						continue;
+					}
 					if (Data::IsBirthdayToday(user->birthday())) {
 						today.push_back(peerToUser(user->id));
 					}
