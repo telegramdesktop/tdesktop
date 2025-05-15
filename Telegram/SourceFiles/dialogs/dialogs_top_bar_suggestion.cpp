@@ -123,6 +123,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto promo = &session->promoSuggestions();
 			if (const auto custom = promo->custom()) {
 				content->setRightIcon(RightIcon::Close);
+				content->setLeftPadding(0);
 				content->setClickedCallback([=] {
 					const auto controller = FindSessionController(parent);
 					UrlClickHandler::Open(
@@ -142,6 +143,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			} else if (session->premiumCanBuy()
 				&& promo->current(kSugPremiumGrace.utf8())) {
 				content->setRightIcon(RightIcon::Close);
+				content->setLeftPadding(0);
 				content->setClickedCallback([=] {
 					const auto controller = FindSessionController(parent);
 					UrlClickHandler::Open(
@@ -175,6 +177,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						uint64 needed,
 						uint64 whole) {
 					content->setRightIcon(RightIcon::Close);
+					content->setLeftPadding(0);
 					content->setClickedCallback([=] {
 						const auto controller = FindSessionController(parent);
 						controller->uiShow()->show(Box(
@@ -372,6 +375,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			} else if (promo->current(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {
 				content->setRightIcon(RightIcon::Close);
+				content->setLeftPadding(0);
 				content->setClickedCallback([=] {
 					const auto controller = FindSessionController(parent);
 					Core::App().openInternalUrl(
@@ -446,6 +450,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				};
 				if (isPremiumAnnual || isPremiumRestore || isPremiumUpgrade) {
 					content->setRightIcon(RightIcon::Arrow);
+					content->setLeftPadding(0);
 					const auto api = &session->api().premium();
 					api->statusTextValue() | rpl::start_with_next([=] {
 						for (const auto &o : api->subscriptionOptions()) {
