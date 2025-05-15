@@ -182,6 +182,9 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						const QString &peers,
 						uint64 needed,
 						uint64 whole) {
+					if (whole > needed) {
+						return;
+					}
 					content->setRightIcon(RightIcon::Close);
 					content->setLeftPadding(0);
 					content->setClickedCallback([=] {
