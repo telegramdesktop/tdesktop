@@ -3629,10 +3629,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 void ChooseStarGiftRecipient(
 		not_null<Window::SessionController*> window) {
 	const auto session = &window->session();
-	const auto lifetime = std::make_shared<rpl::lifetime>();
-	session->promoSuggestions().contactBirthdays(
-	) | rpl::start_with_next(crl::guard(session, [=] {
-		lifetime->destroy();
+	session->promoSuggestions().requestContactBirthdays([=] {
 		auto controller = std::make_unique<Controller>(
 			session,
 			[=](not_null<PeerData*> peer, PickType type) {
@@ -3657,7 +3654,7 @@ void ChooseStarGiftRecipient(
 		window->show(
 			Box<PeerListBox>(std::move(controller), std::move(initBox)),
 			LayerOption::KeepOther);
-	}), *lifetime);
+	});
 }
 
 void ShowStarGiftBox(

@@ -240,8 +240,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				return;
 			} else if (session->premiumCanBuy()
 				&& promo->current(kSugBirthdayContacts.utf8())) {
-				promo->contactBirthdays(
-				) | rpl::start_with_next(crl::guard(content, [=] {
+				promo->requestContactBirthdays(crl::guard(content, [=] {
 					const auto users = promo->knownBirthdaysToday().value_or(
 						std::vector<UserId>());
 					if (users.empty()) {
@@ -369,7 +368,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 
 					state->desiredWrapToggle.force_assign(
 						Toggle{ true, anim::type::normal });
-				}), state->giftsLifetime);
+				}));
 				return;
 			} else if (promo->current(kSugSetBirthday.utf8())
 				&& !Data::IsBirthdayToday(session->user()->birthday())) {

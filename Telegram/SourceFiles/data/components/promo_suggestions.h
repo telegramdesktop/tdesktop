@@ -45,8 +45,7 @@ public:
 	rpl::producer<> value() const;
 	// Create rpl::producer<> refreshed() const; on memand.
 
-	[[nodiscard]] rpl::producer<std::vector<UserId>> contactBirthdays(
-		bool force = false);
+	void requestContactBirthdays(Fn<void()> done, bool force = false);
 	[[nodiscard]] auto knownContactBirthdays() const
 		-> std::optional<std::vector<UserId>>;
 	[[nodiscard]] auto knownBirthdaysToday() const
