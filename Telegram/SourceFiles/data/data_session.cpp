@@ -85,7 +85,6 @@ namespace Data {
 namespace {
 
 using ViewElement = HistoryView::Element;
-using UserIds = std::vector<UserId>;
 
 // s: box 100x100
 // m: box 320x320
@@ -4956,76 +4955,6 @@ void Session::clearLocalStorage() {
 	_cache->clear();
 	_bigFileCache->close();
 	_bigFileCache->clear();
-}
-
-rpl::producer<UserIds> Session::contactBirthdays(bool force) {
-	if ((_contactBirthdaysLastDayRequest != -1)
-		&& (_contactBirthdaysLastDayRequest == QDate::currentDate().day())
-		&& !force) {
-		return rpl::single(_contactBirthdays);
-	}
-	if (_contactBirthdaysRequestId) {
-		_session->api().request(_contactBirthdaysRequestId).cancel();
-	}
-	return [=](auto consumer) {
-		auto lifetime = rpl::lifetime();
-
-		_contactBirthdaysRequestId = _session->api().request(
-			MTPcontacts_GetBirthdays()
-		).done([=](const MTPcontacts_ContactBirthdays &result) {
-			_contactBirthdaysRequestId = 0;
-			_contactBirthdaysLastDayRequest = QDate::currentDate().day();
-			auto users = UserIds();
-			auto today = UserIds();
-			Session::processUsers(result.data().vusers());
-			for (const auto &tlContact : result.data().vcontacts().v) {
-				const auto peerId = tlContact.data().vcontact_id().v;
-				if (const auto user = Session::user(peerId)) {
-					const auto &data = tlContact.data().vbirthday().data();
-					user->setBirthday(Data::Birthday(
-						data.vday().v,
-						data.vmonth().v,
-						data.vyear().value_or_empty()));
-					if (user->isSelf()
-						|| user->isInaccessible()
-						|| user->isBlocked()) {
-						continue;
-					}
-					if (Data::IsBirthdayToday(user->birthday())) {
-						today.push_back(peerToUser(user->id));
-					}
-					users.push_back(peerToUser(user->id));
-				}
-			}
-			_contactBirthdays = std::move(users);
-			_contactBirthdaysToday = std::move(today);
-			consumer.put_next_copy(_contactBirthdays);
-		}).fail([=](const MTP::Error &error) {
-			_contactBirthdaysRequestId = 0;
-			_contactBirthdaysLastDayRequest = QDate::currentDate().day();
-			_contactBirthdays = {};
-			_contactBirthdaysToday = {};
-			consumer.put_next({});
-		}).send();
-
-		return lifetime;
-	};
-}
-
-std::optional<UserIds> Session::knownContactBirthdays() const {
-	if ((_contactBirthdaysLastDayRequest == -1)
-		|| (_contactBirthdaysLastDayRequest != QDate::currentDate().day())) {
-		return std::nullopt;
-	}
-	return _contactBirthdays;
-}
-
-std::optional<UserIds> Session::knownBirthdaysToday() const {
-	if ((_contactBirthdaysLastDayRequest == -1)
-		|| (_contactBirthdaysLastDayRequest != QDate::currentDate().day())) {
-		return std::nullopt;
-	}
-	return _contactBirthdaysToday;
 }
 
 } // namespace Data

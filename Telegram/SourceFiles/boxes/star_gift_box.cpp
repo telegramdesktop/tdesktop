@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/ui_integration.h"
+#include "data/components/promo_suggestions.h"
 #include "data/data_birthday.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -3441,7 +3442,8 @@ Controller::Controller(not_null<Main::Session*> session, PickCallback pick)
 : ContactsBoxController(session)
 , _pick(std::move(pick))
 , _contactBirthdays(
-	session->data().knownContactBirthdays().value_or(std::vector<UserId>{}))
+	session->promoSuggestions().knownContactBirthdays().value_or(
+		std::vector<UserId>{}))
 , _selfOption(
 	MakeCustomList(
 		session,
@@ -3596,7 +3598,8 @@ bool Controller::overrideKeyboardNavigation(
 
 std::unique_ptr<PeerListRow> Controller::createRow(
 		not_null<UserData*> user) {
-	if (const auto birthday = user->owner().knownContactBirthdays()) {
+	if (const auto birthday
+			= user->session().promoSuggestions().knownContactBirthdays()) {
 		if (ranges::contains(*birthday, peerToUser(user->id))) {
 			return nullptr;
 		}
@@ -3627,7 +3630,7 @@ void ChooseStarGiftRecipient(
 		not_null<Window::SessionController*> window) {
 	const auto session = &window->session();
 	const auto lifetime = std::make_shared<rpl::lifetime>();
-	session->data().contactBirthdays(
+	session->promoSuggestions().contactBirthdays(
 	) | rpl::start_with_next(crl::guard(session, [=] {
 		lifetime->destroy();
 		auto controller = std::make_unique<Controller>(

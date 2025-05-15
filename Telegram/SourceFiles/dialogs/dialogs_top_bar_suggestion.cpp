@@ -240,11 +240,10 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				return;
 			} else if (session->premiumCanBuy()
 				&& promo->current(kSugBirthdayContacts.utf8())) {
-				session->data().contactBirthdays(
+				promo->contactBirthdays(
 				) | rpl::start_with_next(crl::guard(content, [=] {
-					const auto users = session->data()
-						.knownBirthdaysToday().value_or(
-							std::vector<UserId>());
+					const auto users = promo->knownBirthdaysToday().value_or(
+						std::vector<UserId>());
 					if (users.empty()) {
 						repeat(repeat);
 						return;

@@ -830,13 +830,6 @@ public:
 	void sentFromScheduled(SentFromScheduled value);
 	[[nodiscard]] rpl::producer<SentFromScheduled> sentFromScheduled() const;
 
-	[[nodiscard]] rpl::producer<std::vector<UserId>> contactBirthdays(
-		bool force = false);
-	[[nodiscard]] auto knownContactBirthdays() const
-		-> std::optional<std::vector<UserId>>;
-	[[nodiscard]] auto knownBirthdaysToday() const
-		-> std::optional<std::vector<UserId>>;
-
 	void clearLocalStorage();
 
 private:
@@ -1149,11 +1142,6 @@ private:
 	base::flat_map<
 		not_null<ChannelData*>,
 		mtpRequestId> _viewAsMessagesRequests;
-
-	mtpRequestId _contactBirthdaysRequestId = 0;
-	int _contactBirthdaysLastDayRequest = -1;
-	std::vector<UserId> _contactBirthdays;
-	std::vector<UserId> _contactBirthdaysToday;
 
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;

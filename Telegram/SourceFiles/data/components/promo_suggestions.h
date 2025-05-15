@@ -45,6 +45,13 @@ public:
 	rpl::producer<> value() const;
 	// Create rpl::producer<> refreshed() const; on memand.
 
+	[[nodiscard]] rpl::producer<std::vector<UserId>> contactBirthdays(
+		bool force = false);
+	[[nodiscard]] auto knownContactBirthdays() const
+		-> std::optional<std::vector<UserId>>;
+	[[nodiscard]] auto knownBirthdaysToday() const
+		-> std::optional<std::vector<UserId>>;
+
 private:
 	void setTopPromoted(
 		History *promoted,
@@ -59,6 +66,11 @@ private:
 	std::optional<CustomSuggestion> _custom;
 
 	History *_topPromoted = nullptr;
+
+	mtpRequestId _contactBirthdaysRequestId = 0;
+	int _contactBirthdaysLastDayRequest = -1;
+	std::vector<UserId> _contactBirthdays;
+	std::vector<UserId> _contactBirthdaysToday;
 
 	mtpRequestId _topPromotionRequestId = 0;
 	std::pair<QString, uint32> _topPromotionKey;
