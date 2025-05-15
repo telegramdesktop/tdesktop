@@ -50,6 +50,14 @@ void CountryCodeInput::codeSelected(const QString &code) {
 	changed();
 }
 
+void CountryCodeInput::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Space) {
+		_spacePressed.fire({});
+	} else {
+		MaskedInputField::keyPressEvent(e);
+	}
+}
+
 void CountryCodeInput::correctValue(
 		const QString &was,
 		int wasCursor,

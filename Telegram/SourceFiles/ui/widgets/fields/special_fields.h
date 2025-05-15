@@ -23,10 +23,14 @@ public:
 	[[nodiscard]] rpl::producer<QString> codeChanged() const {
 		return _codeChanged.events();
 	}
+	[[nodiscard]] rpl::producer<> spacePressed() const {
+		return _spacePressed.events();
+	}
 
 	void codeSelected(const QString &code);
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
 	void correctValue(
 		const QString &was,
 		int wasCursor,
@@ -37,6 +41,7 @@ private:
 	bool _nosignal = false;
 	rpl::event_stream<QString> _addedToNumber;
 	rpl::event_stream<QString> _codeChanged;
+	rpl::event_stream<> _spacePressed;
 
 };
 
