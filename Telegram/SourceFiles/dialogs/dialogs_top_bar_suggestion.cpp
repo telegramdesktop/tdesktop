@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h" // ShowStarGiftBox.
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "data/data_birthday.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -136,7 +138,11 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					promo->dismiss(custom->suggestion);
 					repeat(repeat);
 				});
-				content->setContent(custom->title, custom->description);
+
+				content->setContent(
+					custom->title,
+					custom->description,
+					Core::TextContext({ .session = session }));
 				state->desiredWrapToggle.force_assign(
 					Toggle{ true, anim::type::normal });
 				return;
@@ -194,6 +200,19 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						promo->dismiss(kSugLowCreditsSubs.utf8());
 						repeat(repeat);
 					});
+
+					const auto fontH = content->contentTitleSt().font->height;
+					auto customEmojiFactory = [=](
+						QStringView data,
+						const Ui::Text::MarkedContext &context
+					) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+						return Ui::MakeCreditsIconEmoji(fontH, 1);
+					};
+					using namespace Ui::Text;
+					auto context = MarkedContext{
+						.customEmojiFactory = std::move(customEmojiFactory),
+					};
+
 					content->setContent(
 						tr::lng_dialogs_suggestions_credits_sub_low_title(
 							tr::now,
@@ -207,7 +226,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						tr::lng_dialogs_suggestions_credits_sub_low_about(
 							tr::now,
 							TextWithEntities::Simple),
-						true);
+						std::move(context));
 					state->desiredWrapToggle.force_assign(
 						Toggle{ true, anim::type::normal });
 				};

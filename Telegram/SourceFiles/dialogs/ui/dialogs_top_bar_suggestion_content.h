@@ -14,6 +14,10 @@ class DynamicImage;
 class IconButton;
 } // namespace Ui
 
+namespace Ui::Text {
+struct MarkedContext;
+} // namespace Ui::Text
+
 namespace Dialogs {
 
 class TopBarSuggestionContent : public Ui::RippleButton {
@@ -29,13 +33,15 @@ public:
 	void setContent(
 		TextWithEntities title,
 		TextWithEntities description,
-		bool makeContext = false);
+		std::optional<Ui::Text::MarkedContext> context = std::nullopt);
 
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 
 	void setHideCallback(Fn<void()>);
 	void setRightIcon(RightIcon);
 	void setLeftPadding(int);
+
+	[[nodiscard]] const style::TextStyle &contentTitleSt() const;
 
 protected:
 	void paintEvent(QPaintEvent *) override;
