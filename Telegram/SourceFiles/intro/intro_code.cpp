@@ -150,7 +150,9 @@ void CodeWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void CodeWidget::updateControlsGeometry() {
-	_code->moveToLeft(contentLeft(), contentTop() + st::introStepFieldTop);
+	_code->moveToLeft(
+		contentLeft() - st::shakeShift - st::lineWidth,
+		contentTop() + st::introStepFieldTop + st::introPhoneTop * 3);
 	auto linkTop = _code->y() + _code->height() + st::introLinkTop;
 	_noTelegramCode->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
 	_callLabel->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
