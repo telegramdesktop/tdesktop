@@ -892,10 +892,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		const auto active = mayBeActive && isRowActive(row, activeEntry);
 		const auto history = key.history();
 		const auto forum = history && history->isForum();
-		if (forum && !_topicJumpCache) {
+		const auto monoforum = history && history->amMonoforumAdmin();
+		if ((forum || monoforum) && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}
-		const auto expanding = forum
+		const auto expanding = (forum || monoforum)
 			&& (history->peer->id == childListShown.peerId);
 		context.rightButton = maybeCacheRightButton(row);
 		if (history) {
@@ -921,14 +922,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 		}
 
-		context.st = (forum ? &st::forumDialogRow : _st.get());
+		context.st = (forum || monoforum) ? &st::forumDialogRow : _st.get();
 
 		auto chatsFilterTags = std::vector<QImage*>();
 		if (context.narrow) {
 			context.chatsFilterTags = nullptr;
 		} else if (row->entry()->hasChatsFilterTags(context.filter)) {
 			const auto a = active;
-			context.st = forum
+			context.st = (forum || monoforum)
 				? &st::taggedForumDialogRow
 				: &st::taggedDialogRow;
 			auto availableWidth = context.width

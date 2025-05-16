@@ -202,7 +202,7 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 }
 
 void Forum::reorderLastTopics() {
-	// We want first kShowChatNamesCount histories, by last message date.
+	// We want first kShowTopicNamesCount histories, by last message date.
 	const auto pred = [](not_null<ForumTopic*> a, not_null<ForumTopic*> b) {
 		const auto aItem = a->chatListMessage();
 		const auto bItem = b->chatListMessage();

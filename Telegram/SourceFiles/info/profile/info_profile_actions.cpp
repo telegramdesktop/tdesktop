@@ -1777,9 +1777,14 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 						style::al_left);
 					return;
 				}
-				if (!state->view.prepared(item, nullptr)) {
+				if (!state->view.prepared(item, nullptr, nullptr)) {
 					const auto repaint = [=] { preview->update(); };
-					state->view.prepare(item, nullptr, repaint, {});
+					state->view.prepare(
+						item,
+						nullptr,
+						nullptr,
+						repaint,
+						{});
 				}
 				state->view.paint(p, preview->rect(), {
 					.st = &st::defaultDialogRow,

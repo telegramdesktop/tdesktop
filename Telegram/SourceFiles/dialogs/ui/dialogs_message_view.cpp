@@ -138,26 +138,39 @@ bool MessageView::dependsOn(not_null<const HistoryItem*> item) const {
 
 bool MessageView::prepared(
 		not_null<const HistoryItem*> item,
-		Data::Forum *forum) const {
+		Data::Forum *forum,
+		Data::SavedMessages *monoforum) const {
 	return (_textCachedFor == item.get())
-		&& (!forum
+		&& ((!forum && !monoforum)
 			|| (_topics
 				&& _topics->forum() == forum
+				&& _topics->monoforum() == monoforum
 				&& _topics->prepared()));
 }
 
 void MessageView::prepare(
 		not_null<const HistoryItem*> item,
 		Data::Forum *forum,
+		Data::SavedMessages *monoforum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options) {
-	if (!forum) {
+	if (!forum && !monoforum) {
 		_topics = nullptr;
-	} else if (!_topics || _topics->forum() != forum) {
-		_topics = std::make_unique<TopicsView>(forum);
-		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+	} else if (!_topics
+		|| _topics->forum() != forum
+		|| _topics->monoforum() != monoforum) {
+		_topics = std::make_unique<TopicsView>(forum, monoforum);
+		if (forum) {
+			_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		} else {
+			_topics->prepare(item->sublistPeerId(), customEmojiRepaint);
+		}
 	} else if (!_topics->prepared()) {
-		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		if (forum) {
+			_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		} else {
+			_topics->prepare(item->sublistPeerId(), customEmojiRepaint);
+		}
 	}
 	if (_textCachedFor == item.get()) {
 		return;

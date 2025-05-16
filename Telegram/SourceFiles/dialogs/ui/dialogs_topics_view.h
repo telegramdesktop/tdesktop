@@ -16,6 +16,8 @@ struct DialogRow;
 namespace Data {
 class Forum;
 class ForumTopic;
+class SavedMessages;
+class SavedSublist;
 } // namespace Data
 
 namespace Ui {
@@ -59,15 +61,19 @@ void FillJumpToLastPrepared(QPainter &p, JumpToLastPrepared context);
 
 class TopicsView final {
 public:
-	explicit TopicsView(not_null<Data::Forum*> forum);
+	TopicsView(Data::Forum *forum, Data::SavedMessages *monoforum);
 	~TopicsView();
 
-	[[nodiscard]] not_null<Data::Forum*> forum() const {
+	[[nodiscard]] Data::Forum *forum() const {
 		return _forum;
+	}
+	[[nodiscard]] Data::SavedMessages *monoforum() const {
+		return _monoforum;
 	}
 
 	[[nodiscard]] bool prepared() const;
 	void prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint);
+	void prepare(PeerId frontPeerId, Fn<void()> customEmojiRepaint);
 
 	[[nodiscard]] int jumpToTopicWidth() const;
 
@@ -99,7 +105,7 @@ public:
 private:
 	struct Title {
 		Text::String title;
-		MsgId topicRootId = 0;
+		uint64 key = 0;
 		int version = -1;
 		bool unread = false;
 	};
@@ -107,7 +113,8 @@ private:
 	[[nodiscard]] QImage topicJumpRippleMask(
 		not_null<TopicJumpCache*> topicJumpCache) const;
 
-	const not_null<Data::Forum*> _forum;
+	Data::Forum * const _forum = nullptr;
+	Data::SavedMessages * const _monoforum = nullptr;
 
 	mutable std::vector<Title> _titles;
 	mutable std::unique_ptr<RippleAnimation> _ripple;

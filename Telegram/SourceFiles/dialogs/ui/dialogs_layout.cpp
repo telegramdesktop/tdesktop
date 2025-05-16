@@ -67,7 +67,7 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 	} else if (const auto user = history->peer->asUser()) {
 		return !user->lastseen().isHidden();
 	}
-	return !history->isForum();
+	return !history->isForum() && !history->amMonoforumAdmin();
 }
 
 void PaintRowTopRight(
@@ -1046,21 +1046,23 @@ void RowPainter::Paint(
 			? nullptr
 			: thread
 			? &thread->lastItemDialogsView()
-			: sublist
-			? &sublist->lastItemDialogsView()
 			: nullptr;
 		if (view) {
-			const auto forum = context.st->topicsHeight
-				? row->history()->peer->forum()
+			const auto forum = (peer && context.st->topicsHeight)
+				? peer->forum()
 				: nullptr;
-			if (!view->prepared(item, forum)) {
+			const auto monoforum = (peer && context.st->topicsHeight)
+				? peer->monoforum()
+				: nullptr;
+			if (!view->prepared(item, forum, monoforum)) {
 				view->prepare(
 					item,
 					forum,
+					monoforum,
 					[=] { entry->updateChatListEntry(); },
 					{});
 			}
-			if (forum) {
+			if (forum || monoforum) {
 				rect.setHeight(context.st->topicsHeight + rect.height());
 			}
 			view->paint(p, rect, context);
@@ -1154,8 +1156,13 @@ void RowPainter::Paint(
 			availableWidth,
 			st::dialogsTextFont->height);
 		auto &view = row->itemView();
-		if (!view.prepared(item, nullptr)) {
-			view.prepare(item, nullptr, row->repaint(), previewOptions);
+		if (!view.prepared(item, nullptr, nullptr)) {
+			view.prepare(
+				item,
+				nullptr,
+				nullptr,
+				row->repaint(),
+				previewOptions);
 		}
 		view.paint(p, itemRect, context);
 	};

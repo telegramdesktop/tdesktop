@@ -49,11 +49,19 @@ public:
 	void apply(const MTPDupdatePinnedSavedDialogs &update);
 	void apply(const MTPDupdateSavedDialogPinned &update);
 
+	void listMessageChanged(HistoryItem *from, HistoryItem *to);
+	[[nodiscard]] int recentSublistsListVersion() const;
+	void recentSublistsInvalidate(not_null<SavedSublist*> sublist);
+	[[nodiscard]] auto recentSublists() const
+		-> const std::vector<not_null<SavedSublist*>> &;
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	void loadPinned();
 	void apply(const MTPmessages_SavedDialogs &result, bool pinned);
+
+	void reorderLastSublists();
 
 	void sendLoadMore();
 	void sendLoadMore(not_null<SavedSublist*> sublist);
@@ -61,6 +69,7 @@ private:
 
 	const not_null<Session*> _owner;
 	ChannelData *_parentChat = nullptr;
+	History *_parentHistory = nullptr;
 
 	rpl::event_stream<not_null<SavedSublist*>> _sublistDestroyed;
 
@@ -80,6 +89,9 @@ private:
 	SingleQueuedInvokation _loadMore;
 	base::flat_set<not_null<SavedSublist*>> _loadMoreSublistsScheduled;
 	bool _loadMoreScheduled = false;
+
+	std::vector<not_null<SavedSublist*>> _lastSublists;
+	int _lastSublistsVersion = 0;
 
 	rpl::event_stream<> _chatsListChanges;
 	rpl::event_stream<> _chatsListLoadedEvents;

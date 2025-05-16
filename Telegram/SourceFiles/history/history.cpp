@@ -3149,11 +3149,11 @@ void History::monoforumChanged(Data::SavedMessages *old) {
 	}
 
 	if (const auto monoforum = peer->monoforum()) {
-		_flags |= Flag::IsMonoforum;
+		_flags |= Flag::IsMonoforumAdmin;
 
 		monoforum->chatsList()->unreadStateChanges(
 		) | rpl::filter([=] {
-			return (_flags & Flag::IsMonoforum) && inChatList();
+			return (_flags & Flag::IsMonoforumAdmin) && inChatList();
 		}) | rpl::map(
 			AdjustedForumUnreadState
 		) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
@@ -3165,7 +3165,7 @@ void History::monoforumChanged(Data::SavedMessages *old) {
 			updateChatListEntry();
 		}, monoforum->lifetime());
 	} else {
-		_flags &= ~Flag::IsMonoforum;
+		_flags &= ~Flag::IsMonoforumAdmin;
 	}
 	if (cloudDraft(MsgId(0))) {
 		updateChatListSortPosition();
@@ -3173,8 +3173,8 @@ void History::monoforumChanged(Data::SavedMessages *old) {
 	_flags |= Flag::PendingAllItemsResize;
 }
 
-bool History::isMonoforum() const {
-	return (_flags & Flag::IsMonoforum);
+bool History::amMonoforumAdmin() const {
+	return (_flags & Flag::IsMonoforumAdmin);
 }
 
 not_null<History*> History::migrateToOrMe() const {

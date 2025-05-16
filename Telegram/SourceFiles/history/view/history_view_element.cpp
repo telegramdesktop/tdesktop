@@ -1487,7 +1487,7 @@ void Element::recountMonoforumSenderBarInBlocks() {
 				}
 			}
 		}
-		return sublistPeer;
+		return (sublistPeer == parentChat) ? nullptr : sublistPeer.get();
 	}();
 	if (barPeer && !Has<MonoforumSenderBar>()) {
 		AddComponents(MonoforumSenderBar::Bit());

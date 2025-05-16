@@ -491,7 +491,7 @@ public:
 	[[nodiscard]] MsgId originalId() const;
 
 	[[nodiscard]] Data::SavedSublist *savedSublist() const;
-	[[nodiscard]] PeerData *savedSublistPeer() const;
+	[[nodiscard]] PeerId sublistPeerId() const;
 	[[nodiscard]] PeerData *savedFromSender() const;
 	[[nodiscard]] const HiddenSenderInfo *savedFromHiddenSenderInfo() const;
 

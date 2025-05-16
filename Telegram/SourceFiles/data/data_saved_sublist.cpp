@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 
 #include "data/data_histories.h"
+#include "data/data_channel.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_saved_messages.h"
@@ -80,6 +81,7 @@ void SavedSublist::applyMaybeLast(not_null<HistoryItem*> item, bool added) {
 			: (IsServerMsgId(b->id) ? false : (a->id < b->id));
 	};
 
+	const auto was = _items.empty() ? nullptr : _items.front().get();
 	if (_items.empty()) {
 		_items.push_back(item);
 	} else if (_items.front() == item) {
@@ -104,6 +106,8 @@ void SavedSublist::applyMaybeLast(not_null<HistoryItem*> item, bool added) {
 	if (_items.front() == item) {
 		setChatListTimeId(item->date());
 		resolveChatListMessageGroup();
+
+		_parent->listMessageChanged(was, item.get());
 	}
 	_changed.fire({});
 }
@@ -132,6 +136,8 @@ void SavedSublist::removeOne(not_null<HistoryItem*> item) {
 		} else {
 			setChatListTimeId(_items.front()->date());
 		}
+
+		_parent->listMessageChanged(item.get(), chatListMessage());
 	}
 	if (removed || _fullCount) {
 		_changed.fire({});
@@ -195,6 +201,11 @@ int SavedSublist::fixedOnTopIndex() const {
 }
 
 bool SavedSublist::shouldBeInChatList() const {
+	if (const auto monoforum = _parent->parentChat()) {
+		if (monoforum == sublistPeer()) {
+			return false;
+		}
+	}
 	return isPinnedDialog(FilterId()) || !_items.empty();
 }
 

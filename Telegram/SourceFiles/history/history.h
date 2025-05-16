@@ -74,7 +74,7 @@ public:
 	[[nodiscard]] bool isForum() const;
 
 	void monoforumChanged(Data::SavedMessages *old);
-	[[nodiscard]] bool isMonoforum() const;
+	[[nodiscard]] bool amMonoforumAdmin() const;
 
 	[[nodiscard]] not_null<History*> migrateToOrMe() const;
 	[[nodiscard]] History *migrateFrom() const;
@@ -435,7 +435,7 @@ private:
 		PendingAllItemsResize = (1 << 1),
 		IsTopPromoted = (1 << 2),
 		IsForum = (1 << 3),
-		IsMonoforum = (1 << 4),
+		IsMonoforumAdmin = (1 << 4),
 		FakeUnreadWhileOpened = (1 << 5),
 		HasPinnedMessages = (1 << 6),
 		ResolveChatListMessage = (1 << 7),

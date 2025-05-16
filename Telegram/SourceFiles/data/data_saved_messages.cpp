@@ -25,6 +25,7 @@ constexpr auto kFirstPerPage = 10;
 constexpr auto kListPerPage = 100;
 constexpr auto kListFirstPerPage = 20;
 constexpr auto kLoadedSublistsMinCount = 20;
+constexpr auto kShowSublistNamesCount = 5;
 
 } // namespace
 
@@ -33,13 +34,13 @@ SavedMessages::SavedMessages(
 	ChannelData *parentChat)
 : _owner(owner)
 , _parentChat(parentChat)
+, _parentHistory(parentChat ? owner->history(parentChat).get() : nullptr)
 , _chatsList(
 	&_owner->session(),
 	FilterId(),
 	_owner->maxPinnedChatsLimitValue(this))
 , _loadMore([=] { sendLoadMoreRequests(); }) {
-	if (_parentChat
-		&& _parentChat->owner().history(_parentChat)->inChatList()) {
+	if (_parentHistory && _parentHistory->inChatList()) {
 		preloadSublists();
 	}
 }
@@ -128,6 +129,7 @@ void SavedMessages::sendLoadMore() {
 		if (_chatsList.loaded()) {
 			_chatsListLoadedEvents.fire({});
 		}
+		reorderLastSublists();
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			_unsupported = true;
@@ -364,6 +366,75 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 	}, [&](const MTPDdialogPeerFolder &data) {
 		DEBUG_LOG(("API Error: Folder in updateSavedDialogPinned."));
 	});
+}
+
+void SavedMessages::reorderLastSublists() {
+	if (!_parentHistory) {
+		return;
+	}
+
+	// We want first kShowChatNamesCount histories, by last message date.
+	const auto pred = [](
+			not_null<SavedSublist*> a,
+			not_null<SavedSublist*> b) {
+		const auto aItem = a->chatListMessage();
+		const auto bItem = b->chatListMessage();
+		const auto aDate = aItem ? aItem->date() : TimeId(0);
+		const auto bDate = bItem ? bItem->date() : TimeId(0);
+		return aDate > bDate;
+	};
+	_lastSublists.clear();
+	_lastSublists.reserve(kShowSublistNamesCount + 1);
+	auto &&sublists = ranges::views::all(
+		*_chatsList.indexed()
+	) | ranges::views::transform([](not_null<Dialogs::Row*> row) {
+		return row->sublist();
+	});
+	auto nonPinnedChecked = 0;
+	for (const auto sublist : sublists) {
+		const auto i = ranges::upper_bound(
+			_lastSublists,
+			not_null(sublist),
+			pred);
+		if (size(_lastSublists) < kShowSublistNamesCount
+			|| i != end(_lastSublists)) {
+			_lastSublists.insert(i, sublist);
+		}
+		if (size(_lastSublists) > kShowSublistNamesCount) {
+			_lastSublists.pop_back();
+		}
+		if (!sublist->isPinnedDialog(FilterId())
+			&& ++nonPinnedChecked >= kShowSublistNamesCount) {
+			break;
+		}
+	}
+	++_lastSublistsVersion;
+	_parentHistory->updateChatListEntry();
+}
+
+void SavedMessages::listMessageChanged(HistoryItem *from, HistoryItem *to) {
+	if (from || to) {
+		reorderLastSublists();
+	}
+}
+
+int SavedMessages::recentSublistsListVersion() const {
+	return _lastSublistsVersion;
+}
+
+void SavedMessages::recentSublistsInvalidate(
+		not_null<SavedSublist*> sublist) {
+	Expects(_parentHistory != nullptr);
+
+	if (ranges::contains(_lastSublists, sublist)) {
+		++_lastSublistsVersion;
+		_parentHistory->updateChatListEntry();
+	}
+}
+
+auto SavedMessages::recentSublists() const
+-> const std::vector<not_null<SavedSublist*>> & {
+	return _lastSublists;
 }
 
 rpl::producer<> SavedMessages::destroyed() const {

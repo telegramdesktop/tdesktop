@@ -247,7 +247,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 					if (const auto forum = this->forum()) {
 						forum->preloadTopics();
 					} else if (const auto monoforum = this->monoforum()) {
-						monoforum->loadMore();
+						monoforum->preloadSublists();
 					}
 				}
 			}

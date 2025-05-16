@@ -1699,10 +1699,10 @@ FullReplyTo ChatWidget::replyTo() const {
 		const auto item = custom.messageId
 			? session().data().message(custom.messageId)
 			: nullptr;
-		const auto sublistPeer = item ? item->savedSublistPeer() : nullptr;
+		const auto sublistPeerId = item ? item->sublistPeerId() : PeerId();
 		if (!item
 			|| !monoforumPeerId
-			|| (sublistPeer && sublistPeer->id == monoforumPeerId)) {
+			|| (sublistPeerId == monoforumPeerId)) {
 			// Never answer to a message in a wrong monoforum peer id.
 			custom.topicRootId = _repliesRootId;
 			custom.monoforumPeerId = monoforumPeerId;

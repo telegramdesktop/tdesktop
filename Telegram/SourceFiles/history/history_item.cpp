@@ -3443,12 +3443,12 @@ FullStoryId HistoryItem::replyToStory() const {
 }
 
 FullReplyTo HistoryItem::replyTo() const {
-	const auto monoforumPeer = _history->peer->amMonoforumAdmin()
-		? savedSublistPeer()
-		: nullptr;
+	const auto monoforumPeerId = _history->peer->amMonoforumAdmin()
+		? sublistPeerId()
+		: PeerId();
 	auto result = FullReplyTo{
 		.topicRootId = topicRootId(),
-		.monoforumPeerId = monoforumPeer ? monoforumPeer->id : PeerId(),
+		.monoforumPeerId = monoforumPeerId,
 	};
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto &fields = reply->fields();
@@ -3592,11 +3592,15 @@ Data::SavedSublist *HistoryItem::savedSublist() const {
 	return nullptr;
 }
 
-PeerData *HistoryItem::savedSublistPeer() const {
-	if (const auto sublist = savedSublist()) {
-		return sublist->sublistPeer();
+PeerId HistoryItem::sublistPeerId() const {
+	if (const auto saved = Get<HistoryMessageSaved>()) {
+		return saved->sublistPeerId;
+	} else if (_history->peer->isSelf()) {
+		return _history->peer->id;
+	} else if (_history->peer->monoforum()) {
+		return _from->id;
 	}
-	return nullptr;
+	return PeerId();
 }
 
 PeerData *HistoryItem::savedFromSender() const {
@@ -4046,8 +4050,8 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 			? replyTo.messageId.peer
 			: PeerId();
 		const auto to = LookupReplyTo(_history, replyTo.messageId);
-		config.reply.monoforumPeerId = (to && to->savedSublistPeer())
-			? to->savedSublistPeer()->id
+		config.reply.monoforumPeerId = (to && to->sublistPeerId())
+			? to->sublistPeerId()
 			: replyTo.monoforumPeerId
 			? replyTo.monoforumPeerId
 			: PeerId();

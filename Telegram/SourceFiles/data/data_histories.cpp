@@ -60,14 +60,14 @@ MTPInputReplyTo ReplyToForMTP(
 			&& (to->history() != history || to->id != replyingToTopicId))
 			? to->topicRootId()
 			: replyingToTopicId;
-		const auto possibleMonoforumPeer = (to && to->savedSublistPeer())
-			? to->savedSublistPeer()
+		const auto possibleMonoforumPeerId = (to && to->sublistPeerId())
+			? to->sublistPeerId()
 			: replyTo.monoforumPeerId
-			? history->owner().peer(replyTo.monoforumPeerId).get()
-			: history->session().user().get();
-		const auto replyToMonoforumPeer = history->peer->amMonoforumAdmin()
-			? possibleMonoforumPeer
-			: nullptr;
+			? replyTo.monoforumPeerId
+			: history->session().user()->id;
+		const auto replyToMonoforumPeerId = history->peer->amMonoforumAdmin()
+			? possibleMonoforumPeerId
+			: PeerId();
 		const auto external = replyTo.messageId
 			&& (replyTo.messageId.peer != history->peer->id
 				|| replyingToTopicId != replyToTopicId);
@@ -82,7 +82,9 @@ MTPInputReplyTo ReplyToForMTP(
 				| (replyTo.quote.text.isEmpty()
 					? Flag()
 					: (Flag::f_quote_text | Flag::f_quote_offset))
-				| (replyToMonoforumPeer ? Flag::f_monoforum_peer_id : Flag())
+				| (replyToMonoforumPeerId
+					? Flag::f_monoforum_peer_id
+					: Flag())
 				| (quoteEntities.v.isEmpty()
 					? Flag()
 					: Flag::f_quote_entities)),
@@ -94,8 +96,8 @@ MTPInputReplyTo ReplyToForMTP(
 			MTP_string(replyTo.quote.text),
 			quoteEntities,
 			MTP_int(replyTo.quoteOffset),
-			(replyToMonoforumPeer
-				? replyToMonoforumPeer->input
+			(replyToMonoforumPeerId
+				? history->owner().peer(replyToMonoforumPeerId)->input
 				: MTPInputPeer()));
 	} else if (history->peer->amMonoforumAdmin()
 		&& replyTo.monoforumPeerId) {

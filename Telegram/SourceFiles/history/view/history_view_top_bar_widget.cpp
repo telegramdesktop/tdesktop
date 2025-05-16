@@ -773,7 +773,7 @@ void TopBarWidget::backClicked() {
 		_controller->closeForum();
 	} else if (_activeChat.section == Section::ChatsList
 		&& _activeChat.key.history()
-		&& _activeChat.key.history()->isMonoforum()) {
+		&& _activeChat.key.history()->amMonoforumAdmin()) {
 		_controller->closeMonoforum();
 	} else {
 		_controller->showBackFromStack();
@@ -1236,7 +1236,8 @@ void TopBarWidget::updateMembersShowArea() {
 		} else if (const auto chat = peer->asChat()) {
 			return chat->amIn();
 		} else if (const auto megagroup = peer->asMegagroup()) {
-			return megagroup->canViewMembers()
+			return !megagroup->isMonoforum()
+				&& megagroup->canViewMembers()
 				&& (megagroup->membersCount()
 					< megagroup->session().serverConfig().chatSizeMax);
 		}

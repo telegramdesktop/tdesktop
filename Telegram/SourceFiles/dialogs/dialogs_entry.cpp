@@ -229,6 +229,13 @@ uint64 Entry::computeSortPosition(FilterId filterId) const {
 }
 
 void Entry::updateChatListExistence() {
+	if (const auto history = asHistory()) {
+		if (const auto channel = history->peer->asMonoforum()) {
+			if (!folderKnown()) {
+				history->clearFolder();
+			}
+		}
+	}
 	setChatListExistence(shouldBeInChatList());
 }
 
