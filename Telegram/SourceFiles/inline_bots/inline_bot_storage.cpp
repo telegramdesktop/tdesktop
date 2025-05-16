@@ -63,7 +63,7 @@ bool Storage::write(
 		return false;
 	}
 	if (k == end(bykey)) {
-		bykey.emplace_back(key, *value);
+		bykey.emplace_back(Entry{ key, *value });
 		++list.keysCount;
 	} else if (value) {
 		k->value = *value;

@@ -64,7 +64,7 @@ namespace {
 	if (separateType == Window::SeparateSharedMediaType::None) {
 		return { nullptr };
 	}
-	return { Window::SeparateSharedMedia(separateType, peer, topicRootId) };
+	return { Window::SeparateSharedMedia{ separateType, peer, topicRootId } };
 }
 
 void AddContextMenuToButton(
