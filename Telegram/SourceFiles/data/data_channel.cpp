@@ -185,6 +185,9 @@ void ChannelData::setAccessHash(uint64 accessHash) {
 }
 
 void ChannelData::setFlags(ChannelDataFlags which) {
+	if (which & Flag::MonoforumAdmin) {
+		which |= Flag::Monoforum;
+	}
 	if (which & (Flag::Forum | Flag::Monoforum)) {
 		which |= Flag::Megagroup;
 	}
@@ -202,15 +205,15 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 	const auto takenForum = ((diff & Flag::Forum) && !(which & Flag::Forum))
 		? mgInfo->takeForumData()
 		: nullptr;
-	const auto takenMonoforum = ((diff & Flag::Monoforum)
-		&& !(which & Flag::Monoforum))
+	const auto takenMonoforum = ((diff & Flag::MonoforumAdmin)
+		&& !(which & Flag::MonoforumAdmin))
 		? mgInfo->takeMonoforumData()
 		: nullptr;
 	const auto wasIn = amIn();
-	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
-		mgInfo->ensureForum(this);
-	} else if ((diff & Flag::Monoforum) && (which & Flag::Monoforum)) {
+	if ((diff & Flag::MonoforumAdmin) && (which & Flag::MonoforumAdmin)) {
 		mgInfo->ensureMonoforum(this);
+	} else if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+		mgInfo->ensureForum(this);
 	}
 	_flags.set(which);
 	if (diff & (Flag::Left | Flag::Forbidden)) {
@@ -228,7 +231,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 		}
 	}
 	if (diff & (Flag::Forum
-		| Flag::Monoforum
+		| Flag::MonoforumAdmin
 		| Flag::CallNotEmpty
 		| Flag::SimilarExpanded
 		| Flag::Signatures
@@ -237,7 +240,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			if (diff & Flag::CallNotEmpty) {
 				history->updateChatListEntry();
 			}
-			if (diff & (Flag::Forum | Flag::Monoforum)) {
+			if (diff & (Flag::Forum | Flag::MonoforumAdmin)) {
 				Core::App().notifications().clearFromHistory(history);
 				history->updateChatListEntryHeight();
 				if (history->inChatList()) {
@@ -334,9 +337,14 @@ bool ChannelData::discussionLinkKnown() const {
 }
 
 void ChannelData::setMonoforumLink(ChannelData *link) {
-	if (_monoforumLink != link) {
-		_monoforumLink = link;
-		session().changes().peerUpdated(this, UpdateFlag::MonoforumLink);
+	if (_monoforumLink || !link) {
+		return;
+	}
+	_monoforumLink = link;
+	link->setMonoforumLink(this);
+	session().changes().peerUpdated(this, UpdateFlag::MonoforumLink);
+	if (isMegagroup() && (link->amCreator() || link->hasAdminRights())) {
+		setFlags(flags() | Flag::MonoforumAdmin);
 	}
 }
 
@@ -826,6 +834,12 @@ void ChannelData::setAdminRights(ChatAdminRights rights) {
 	session().changes().peerUpdated(
 		this,
 		UpdateFlag::Rights | UpdateFlag::Admins | UpdateFlag::BannedUsers);
+	if (isBroadcast() && _monoforumLink) {
+		const auto flags = _monoforumLink->flags();
+		const auto admin = (amCreator() || hasAdminRights());
+		_monoforumLink->setFlags((flags & ~Flag::MonoforumAdmin)
+			| (admin ? Flag::MonoforumAdmin : Flag()));
+	}
 }
 
 void ChannelData::setRestrictions(ChatRestrictionsInfo rights) {
@@ -1290,11 +1304,6 @@ void ApplyChannelUpdate(
 		channel->setDiscussionLink(channel->owner().channelLoaded(chat->v));
 	} else {
 		channel->setDiscussionLink(nullptr);
-	}
-	if (const auto chat = update.vlinked_monoforum_id()) {
-		channel->setMonoforumLink(channel->owner().channelLoaded(chat->v));
-	} else {
-		channel->setMonoforumLink(nullptr);
 	}
 	if (const auto history = channel->owner().historyLoaded(channel)) {
 		if (const auto available = update.vavailable_min_id()) {

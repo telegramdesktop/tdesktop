@@ -80,6 +80,7 @@ enum class ChannelDataFlag : uint64 {
 	PaidMessagesAvailable = (1ULL << 37),
 	AutoTranslation = (1ULL << 38),
 	Monoforum = (1ULL << 39),
+	MonoforumAdmin = (1ULL << 40),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;

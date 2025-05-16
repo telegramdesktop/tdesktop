@@ -377,14 +377,14 @@ void Session::clear() {
 	auto forums = base::flat_set<not_null<ChannelData*>>();
 	for (const auto &[peerId, peer] : _peers) {
 		if (const auto channel = peer->asChannel()) {
-			if (channel->isForum() || channel->isMonoforum()) {
+			if (channel->isForum() || channel->amMonoforumAdmin()) {
 				forums.emplace(channel);
 			}
 		}
 	}
 	for (const auto &channel : forums) {
 		channel->setFlags(channel->flags()
-			& ~(ChannelDataFlag::Forum | ChannelDataFlag::Monoforum));
+			& ~(ChannelDataFlag::Forum | ChannelDataFlag::MonoforumAdmin));
 	}
 
 	_sendActionManager->clear();
@@ -1025,6 +1025,16 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		channel->setPhoto(data.vphoto());
 		channel->setStarsPerMessage(
 			data.vsend_paid_messages_stars().value_or_empty());
+
+		if (const auto monoforum = data.vlinked_monoforum_id()) {
+			if (const auto linked = channelLoaded(monoforum->v)) {
+				channel->setMonoforumLink(linked);
+			} else {
+				channel->updateFull();
+			}
+		} else {
+			channel->setMonoforumLink(nullptr);
+		}
 
 		if (wasInChannel != channel->amIn()) {
 			flags |= UpdateFlag::ChannelAmIn;
@@ -4659,9 +4669,10 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 		} else if (const auto monoforum = history->peer->monoforum()) {
 			monoforum->preloadSublists();
 		}
-		if (history->peer->isMonoforum()
-			&& !history->peer->monoforumBroadcast()) {
-			history->peer->updateFull();
+		if (const auto broadcast = history->peer->monoforumBroadcast()) {
+			if (!broadcast->isFullLoaded()) {
+				broadcast->updateFull();
+			}
 		}
 	}
 }

@@ -174,7 +174,11 @@ struct HistoryMessageSavedMediaData
 
 struct HistoryMessageSaved
 : RuntimeComponent<HistoryMessageSaved, HistoryItem> {
-	Data::SavedSublist *sublist = nullptr;
+	PeerId sublistPeerId = 0;
+
+	// This can't change after the message is created, but is required
+	// frequently in reactions, so we cache the value here.
+	Data::SavedSublist *savedMessagesSublist = nullptr;
 };
 
 class ReplyToMessagePointer final {

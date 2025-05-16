@@ -1604,9 +1604,10 @@ bool PeerData::canManageGroupCall() const {
 }
 
 bool PeerData::amMonoforumAdmin() const {
-	const auto broadcast = monoforumBroadcast();
-	return broadcast
-		&& (broadcast->amCreator() || broadcast->hasAdminRights());
+	if (const auto channel = asChannel()) {
+		return channel->flags() & ChannelDataFlag::MonoforumAdmin;
+	}
+	return false;
 }
 
 int PeerData::starsPerMessage() const {

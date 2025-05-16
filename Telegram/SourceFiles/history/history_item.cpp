@@ -790,7 +790,14 @@ HistoryItem::~HistoryItem() {
 		reply->clearData(this);
 	}
 	if (const auto saved = Get<HistoryMessageSaved>()) {
-		saved->sublist->removeOne(this);
+		if (saved->savedMessagesSublist) {
+			saved->savedMessagesSublist->removeOne(this);
+		} else if (const auto monoforum = _history->peer->monoforum()) {
+			const auto peer = _history->owner().peer(saved->sublistPeerId);
+			if (const auto sublist = monoforum->sublistLoaded(peer)) {
+				sublist->removeOne(this);
+			}
+		}
 	}
 	clearDependencyMessage();
 	applyTTL(0);
@@ -3436,7 +3443,7 @@ FullStoryId HistoryItem::replyToStory() const {
 }
 
 FullReplyTo HistoryItem::replyTo() const {
-	const auto monoforumPeer = _history->peer->isMonoforum()
+	const auto monoforumPeer = _history->peer->amMonoforumAdmin()
 		? savedSublistPeer()
 		: nullptr;
 	auto result = FullReplyTo{
@@ -3560,19 +3567,26 @@ bool HistoryItem::isEmpty() const {
 
 Data::SavedSublist *HistoryItem::savedSublist() const {
 	if (const auto saved = Get<HistoryMessageSaved>()) {
-		return saved->sublist;
+		if (saved->savedMessagesSublist) {
+			return saved->savedMessagesSublist;
+		} else if (const auto monoforum = _history->peer->monoforum()) {
+			const auto peer = _history->owner().peer(saved->sublistPeerId);
+			return monoforum->sublist(peer).get();
+		}
 	} else if (_history->peer->isSelf()) {
 		const auto sublist = _history->owner().savedMessages().sublist(
 			_history->peer);
 		const auto that = const_cast<HistoryItem*>(this);
 		that->AddComponents(HistoryMessageSaved::Bit());
-		that->Get<HistoryMessageSaved>()->sublist = sublist;
+		const auto saved = that->Get<HistoryMessageSaved>();
+		saved->sublistPeerId = _history->peer->id;
+		saved->savedMessagesSublist = sublist;
 		return sublist;
 	} else if (const auto monoforum = _history->peer->monoforum()) {
 		const auto sublist = monoforum->sublist(_from);
 		const auto that = const_cast<HistoryItem*>(this);
 		that->AddComponents(HistoryMessageSaved::Bit());
-		that->Get<HistoryMessageSaved>()->sublist = sublist;
+		that->Get<HistoryMessageSaved>()->sublistPeerId = _from->id;
 		return sublist;
 	}
 	return nullptr;
@@ -3802,10 +3816,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 				config.savedSublistPeer = _history->session().userPeerId();
 			}
 		}
-		const auto peer = _history->owner().peer(config.savedSublistPeer);
-		saved->sublist = _history->peer->isSelf()
-			? _history->owner().savedMessages().sublist(peer)
-			: _history->peer->monoforum()->sublist(peer);
+		saved->sublistPeerId = config.savedSublistPeer;
 	}
 
 	if (const auto reply = Get<HistoryMessageReply>()) {

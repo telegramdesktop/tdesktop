@@ -264,21 +264,35 @@ void SavedMessages::apply(
 	auto offsetPeer = (PeerData*)nullptr;
 	const auto selfId = _owner->session().userPeerId();
 	for (const auto &dialog : *list) {
-		const auto &data = dialog.data();
-		const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
-		const auto topId = MsgId(data.vtop_message().v);
-		if (const auto item = _owner->message(selfId, topId)) {
-			offsetPeer = peer;
-			offsetDate = item->date();
-			offsetId = topId;
-			lastValid = true;
-			const auto entry = sublist(peer);
-			const auto entryPinned = pinned || data.is_pinned();
-			entry->applyMaybeLast(item);
-			_owner->setPinnedFromEntryList(entry, entryPinned);
-		} else {
-			lastValid = false;
-		}
+		dialog.match([&](const MTPDsavedDialog &data) {
+			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+			const auto topId = MsgId(data.vtop_message().v);
+			if (const auto item = _owner->message(selfId, topId)) {
+				offsetPeer = peer;
+				offsetDate = item->date();
+				offsetId = topId;
+				lastValid = true;
+				const auto entry = sublist(peer);
+				const auto entryPinned = pinned || data.is_pinned();
+				entry->applyMaybeLast(item);
+				_owner->setPinnedFromEntryList(entry, entryPinned);
+			} else {
+				lastValid = false;
+			}
+		}, [&](const MTPDmonoForumDialog &data) {
+			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+			const auto topId = MsgId(data.vtop_message().v);
+			if (const auto item = _owner->message(selfId, topId)) {
+				offsetPeer = peer;
+				offsetDate = item->date();
+				offsetId = topId;
+				lastValid = true;
+				const auto entry = sublist(peer);
+				entry->applyMaybeLast(item);
+			} else {
+				lastValid = false;
+			}
+		});
 	}
 	if (pinned) {
 	} else if (!lastValid) {
@@ -359,8 +373,8 @@ rpl::producer<> SavedMessages::destroyed() const {
 	return _parentChat->flagsValue(
 	) | rpl::filter([=](const ChannelData::Flags::Change &update) {
 		using Flag = ChannelData::Flag;
-		return (update.diff & Flag::Monoforum)
-			&& !(update.value & Flag::Monoforum);
+		return (update.diff & Flag::MonoforumAdmin)
+			&& !(update.value & Flag::MonoforumAdmin);
 	}) | rpl::take(1) | rpl::to_empty;
 }
 

@@ -603,7 +603,7 @@ void SessionNavigation::showPeerByLinkResolved(
 		showPeerInfo(peer, params);
 	} else if (resolveType == ResolveType::HashtagSearch) {
 		searchMessages(info.text, peer->owner().history(peer));
-	} else if ((peer->isForum() || peer->isMonoforum())
+	} else if ((peer->isForum() || peer->amMonoforumAdmin())
 			&& resolveType != ResolveType::Boost) {
 		const auto itemId = info.messageId;
 		if (!itemId) {
