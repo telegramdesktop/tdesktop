@@ -923,12 +923,12 @@ const style::icon *ChatTypeIcon(
 			st::dialogsChannelIcon,
 			context.active,
 			context.selected);
-	} else if (peer->isForum()) {
+	} else if (peer->isForum() || peer->amMonoforumAdmin()) {
 		return &ThreeStateIcon(
 			st::dialogsForumIcon,
 			context.active,
 			context.selected);
-	} else {
+	} else if (!peer->isMonoforum()) {
 		return &ThreeStateIcon(
 			st::dialogsChatIcon,
 			context.active,

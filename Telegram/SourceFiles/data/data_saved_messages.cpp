@@ -264,12 +264,14 @@ void SavedMessages::apply(
 	auto offsetDate = TimeId();
 	auto offsetId = MsgId();
 	auto offsetPeer = (PeerData*)nullptr;
-	const auto selfId = _owner->session().userPeerId();
+	const auto parentPeerId = _parentChat
+		? _parentChat->id
+		: _owner->session().userPeerId();
 	for (const auto &dialog : *list) {
 		dialog.match([&](const MTPDsavedDialog &data) {
 			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
 			const auto topId = MsgId(data.vtop_message().v);
-			if (const auto item = _owner->message(selfId, topId)) {
+			if (const auto item = _owner->message(parentPeerId, topId)) {
 				offsetPeer = peer;
 				offsetDate = item->date();
 				offsetId = topId;
@@ -284,7 +286,7 @@ void SavedMessages::apply(
 		}, [&](const MTPDmonoForumDialog &data) {
 			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
 			const auto topId = MsgId(data.vtop_message().v);
-			if (const auto item = _owner->message(selfId, topId)) {
+			if (const auto item = _owner->message(parentPeerId, topId)) {
 				offsetPeer = peer;
 				offsetDate = item->date();
 				offsetId = topId;
