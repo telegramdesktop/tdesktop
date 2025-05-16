@@ -166,7 +166,6 @@ private:
 	Data::ChatBotCommands _botCommands;
 	std::unique_ptr<Data::Forum> _forum;
 	std::unique_ptr<Data::SavedMessages> _monoforum;
-	int _starsPerMessage = 0;
 
 	friend class ChannelData;
 
@@ -596,6 +595,7 @@ private:
 	int _kickedCount = 0;
 	int _pendingRequestsCount = 0;
 	int _levelHint = 0;
+	int _starsPerMessage = 0;
 
 	Data::AllowedReactions _allowedReactions;
 

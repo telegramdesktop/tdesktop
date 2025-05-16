@@ -934,15 +934,17 @@ void ChannelData::growSlowmodeLastMessage(TimeId when) {
 }
 
 int ChannelData::starsPerMessage() const {
-	if (const auto info = mgInfo.get()) {
-		return info->_starsPerMessage;
+	if (const auto broadcast = monoforumBroadcast()) {
+		if (!amMonoforumAdmin()) {
+			return broadcast->starsPerMessage();
+		}
 	}
-	return 0;
+	return _starsPerMessage;
 }
 
 void ChannelData::setStarsPerMessage(int stars) {
-	if (mgInfo && starsPerMessage() != stars) {
-		mgInfo->_starsPerMessage = stars;
+	if (_starsPerMessage != stars) {
+		_starsPerMessage = stars;
 		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
 	}
 	checkTrustedPayForMessage();

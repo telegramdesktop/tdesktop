@@ -1621,9 +1621,9 @@ int PeerData::starsPerMessage() const {
 
 int PeerData::starsPerMessageChecked() const {
 	if (const auto channel = asChannel()) {
-		return (channel->adminRights() || channel->amCreator())
-			? 0
-			: channel->starsPerMessage();
+		if (channel->adminRights() || channel->amCreator()) {
+			return 0;
+		}
 	}
 	return starsPerMessage();
 }

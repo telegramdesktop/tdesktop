@@ -45,8 +45,8 @@ namespace {
 
 constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
 constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
-constexpr auto kStarsMin = 1;
-constexpr auto kDefaultChargeStars = 10;
+constexpr auto kDefaultDirectMessagesPrice = 10;
+constexpr auto kDefaultPrivateMessagesPrice = 10;
 
 using Exceptions = Api::UserPrivacy::Exceptions;
 
@@ -464,6 +464,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		int valuesCount,
 		Fn<int(int)> valueByIndex,
 		int value,
+		int minValue,
 		int maxValue,
 		Fn<void(int)> valueProgress,
 		Fn<void(int)> valueFinished) {
@@ -473,7 +474,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 	const auto labels = raw->add(object_ptr<Ui::RpWidget>(raw));
 	const auto min = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		QString::number(kStarsMin),
+		QString::number(minValue),
 		*labelStyle);
 	const auto max = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
@@ -1035,7 +1036,8 @@ void EditMessagesPrivacyBox(
 		state->stars = SetupChargeSlider(
 			chargeInner,
 			session->user(),
-			savedValue);
+			(savedValue > 0) ? savedValue : std::optional<int>(),
+			kDefaultPrivateMessagesPrice);
 
 		Ui::AddSkip(chargeInner);
 		Ui::AddSubsectionTitle(
@@ -1164,14 +1166,16 @@ void EditMessagesPrivacyBox(
 rpl::producer<int> SetupChargeSlider(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
-		int savedValue) {
+		std::optional<int> savedValue,
+		int defaultValue,
+		bool allowZero) {
 	struct State {
 		rpl::variable<int> stars;
 	};
 	const auto broadcast = peer->isBroadcast();
 	const auto group = !broadcast && !peer->isUser();
 	const auto state = container->lifetime().make_state<State>();
-	const auto chargeStars = savedValue ? savedValue : kDefaultChargeStars;
+	const auto chargeStars = savedValue.value_or(defaultValue);
 	state->stars = chargeStars;
 
 	Ui::AddSubsectionTitle(container, (group || broadcast)
@@ -1179,11 +1183,12 @@ rpl::producer<int> SetupChargeSlider(
 		: tr::lng_messages_privacy_price());
 
 	auto values = std::vector<int>();
+	const auto minStars = allowZero ? 0 : 1;
 	const auto maxStars = peer->session().appConfig().paidMessageStarsMax();
-	if (chargeStars < kStarsMin) {
+	if (chargeStars < minStars) {
 		values.push_back(chargeStars);
 	}
-	for (auto i = kStarsMin; i < std::min(100, maxStars); ++i) {
+	for (auto i = minStars; i < std::min(100, maxStars); ++i) {
 		values.push_back(i);
 	}
 	for (auto i = 100; i < std::min(1000, maxStars); i += 10) {
@@ -1210,6 +1215,7 @@ rpl::producer<int> SetupChargeSlider(
 			valuesCount,
 			[=](int index) { return values[index]; },
 			chargeStars,
+			minStars,
 			maxStars,
 			setStars,
 			setStars),
@@ -1273,7 +1279,9 @@ void EditDirectMessagesPriceBox(
 	SetupChargeSlider(
 		inner,
 		channel,
-		savedValue.value_or(0)
+		savedValue,
+		kDefaultDirectMessagesPrice,
+		true
 	) | rpl::start_with_next([=](int stars) {
 		*result = stars;
 	}, box->lifetime());

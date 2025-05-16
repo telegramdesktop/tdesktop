@@ -173,7 +173,9 @@ void EditMessagesPrivacyBox(
 [[nodiscard]] rpl::producer<int> SetupChargeSlider(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
-	int savedValue);
+	std::optional<int> savedValue,
+	int defaultValue,
+	bool allowZero = false);
 
 void EditDirectMessagesPriceBox(
 	not_null<Ui::GenericBox*> box,

@@ -2114,7 +2114,7 @@ void HistoryWidget::setupDirectMessageButton() {
 		_muteUnmute.data(),
 		st::historyDirectMessage);
 	widthValue() | rpl::start_with_next([=](int width) {
-		_directMessage->moveToRight(0, 0, width);
+		_directMessage->moveToLeft(0, 0, width);
 	}, _directMessage->lifetime());
 	_directMessage->setClickedCallback([=] {
 		if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
