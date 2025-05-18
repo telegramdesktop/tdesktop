@@ -118,6 +118,19 @@ void AddUniqueCloseButton(
 	Settings::CreditsEntryBoxStyleOverrides st,
 	Fn<void(not_null<PopupMenu*>)> fillMenu = nullptr);
 
+void SubmitStarsForm(
+	std::shared_ptr<Main::SessionShow> show,
+	MTPInputInvoice invoice,
+	uint64 formId,
+	uint64 price,
+	Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done);
+void RequestStarsForm(
+	std::shared_ptr<Main::SessionShow> show,
+	MTPInputInvoice invoice,
+	Fn<void(
+		uint64 formId,
+		uint64 price,
+		std::optional<Payments::CheckoutResult> failure)> done);
 void RequestStarsFormAndSubmit(
 	std::shared_ptr<Main::SessionShow> show,
 	MTPInputInvoice invoice,

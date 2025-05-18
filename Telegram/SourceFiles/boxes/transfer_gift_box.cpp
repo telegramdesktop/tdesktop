@@ -489,7 +489,7 @@ void BuyResaleGift(
 		not_null<PeerData*> to,
 		std::shared_ptr<Data::UniqueGift> gift,
 		Fn<void(Payments::CheckoutResult)> done) {
-	auto formDone = [=](
+	auto paymentDone = [=](
 			Payments::CheckoutResult result,
 			const MTPUpdates *updates) {
 		done(result);
@@ -502,10 +502,45 @@ void BuyResaleGift(
 			Ui::ShowResaleGiftBoughtToast(show, to, *gift);
 		}
 	};
-	Ui::RequestStarsFormAndSubmit(
-		show,
-		MTP_inputInvoiceStarGiftResale(MTP_string(gift->slug), to->input),
-		std::move(formDone));
+
+	const auto invoice = MTP_inputInvoiceStarGiftResale(
+		MTP_string(gift->slug),
+		to->input);
+
+	Ui::RequestStarsForm(show, invoice, [=](
+			uint64 formId,
+			uint64 price,
+			std::optional<Payments::CheckoutResult> failure) {
+		const auto submit = [=] {
+			SubmitStarsForm(show, invoice, formId, price, paymentDone);
+		};
+		if (failure) {
+			paymentDone(*failure, nullptr);
+		} else if (price != gift->starsForResale) {
+			const auto cost = Ui::Text::IconEmoji(&st::starIconEmoji).append(
+				Lang::FormatCountDecimal(price));
+			const auto cancelled = [=](Fn<void()> close) {
+				paymentDone(Payments::CheckoutResult::Cancelled, nullptr);
+				close();
+			};
+			show->show(Ui::MakeConfirmBox({
+				.text = tr::lng_gift_buy_price_change_text(
+					tr::now,
+					lt_price,
+					Ui::Text::Wrapped(cost, EntityType::Bold),
+					Ui::Text::WithEntities),
+				.confirmed = [=](Fn<void()> close) { close(); submit(); },
+				.cancelled = cancelled,
+				.confirmText = tr::lng_gift_buy_resale_button(
+					lt_cost,
+					rpl::single(cost),
+					Ui::Text::WithEntities),
+				.title = tr::lng_gift_buy_price_change_title(),
+			}));
+		} else {
+			submit();
+		}
+	});
 }
 
 } // namespace

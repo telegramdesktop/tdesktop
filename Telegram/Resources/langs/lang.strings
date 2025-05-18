@@ -3473,6 +3473,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_buy_resale_button" = "Buy for {cost}";
 "lng_gift_buy_resale_confirm" = "Do you want to buy {name} for {price} and gift it to {user}?";
 "lng_gift_buy_resale_confirm_self" = "Do you want to buy {name} for {price}?";
+"lng_gift_buy_price_change_title" = "Price change!";
+"lng_gift_buy_price_change_text" = "This gift price was changed and now is {price}. Do you still want to buy?";
 "lng_gift_sent_title" = "Gift Sent!";
 "lng_gift_sent_resale_done" = "{user} has been notified about your gift.";
 "lng_gift_sent_resale_done_self" = "{gift} is now yours.";
