@@ -1,3 +1,8 @@
+5.14.3 (18.05.25)
+
+- Fix stale birthday suggestions removing.
+- Fix notification click opening a new window.
+
 5.14.2 (08.05.25)
 
 - Buy Rare Gifts in the Marketplace.
