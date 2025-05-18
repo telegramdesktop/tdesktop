@@ -75,6 +75,9 @@ public:
 	[[nodiscard]] rpl::producer<bool> notifyEnabled() const {
 		return _notifyEnabled.events();
 	}
+	[[nodiscard]] rpl::producer<> resetFilterRequests() const {
+		return _resetFilterRequests.events();
+	}
 	[[nodiscard]] rpl::producer<> scrollToTop() const {
 		return _scrollToTop.events();
 	}
@@ -130,7 +133,9 @@ private:
 	QString _offset;
 	bool _allLoaded = false;
 	bool _reloading = false;
+	bool _aboutFiltered = false;
 
+	rpl::event_stream<> _resetFilterRequests;
 	rpl::event_stream<bool> _notifyEnabled;
 	std::vector<View> _views;
 	int _viewsForWidth = 0;
@@ -575,6 +580,39 @@ void InnerWidget::showGift(int index) {
 }
 
 void InnerWidget::refreshAbout() {
+	const auto filter = _filter.current();
+	const auto filteredEmpty = _allLoaded
+		&& _entries.empty()
+		&& (filter.skipLimited
+			|| filter.skipUnlimited
+			|| filter.skipSaved
+			|| filter.skipUnsaved
+			|| filter.skipUnique);
+
+	if (filteredEmpty) {
+		auto text = tr::lng_peer_gifts_empty_search(
+			tr::now,
+			Ui::Text::RichLangValue);
+		if (_totalCount > 0) {
+			text.append("\n\n").append(Ui::Text::Link(
+				tr::lng_peer_gifts_view_all(tr::now)));
+		}
+		_about = std::make_unique<Ui::FlatLabel>(
+			this,
+			rpl::single(text),
+			st::giftListAbout);
+		_about->setClickHandlerFilter([=](const auto &...) {
+			_resetFilterRequests.fire({});
+			return false;
+		});
+		_about->show();
+		_aboutFiltered = true;
+		resizeToWidth(width());
+	} else if (_aboutFiltered) {
+		_about = nullptr;
+		_aboutFiltered = false;
+	}
+
 	if (!_peer->isSelf() && _peer->canManageGifts() && !_entries.empty()) {
 		if (_about) {
 			_about = nullptr;
@@ -678,6 +716,10 @@ Widget::Widget(
 	_inner->notifyEnabled(
 	) | rpl::take(1) | rpl::start_with_next([=](bool enabled) {
 		setupNotifyCheckbox(enabled);
+	}, _inner->lifetime());
+	_inner->resetFilterRequests(
+	) | rpl::start_with_next([=] {
+		_filter = Filter();
 	}, _inner->lifetime());
 	_inner->scrollToTop() | rpl::start_with_next([=] {
 		scrollTo({ 0, 0 });

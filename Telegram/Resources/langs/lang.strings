@@ -2256,6 +2256,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_peer_gifts_title" = "Gifts";
 "lng_peer_gifts_about" = "These gifts were sent to {user} by other users.";
 "lng_peer_gifts_about_mine" = "These gifts were sent to you by other users. Click on a gift to convert it to Stars or change its privacy settings.";
+"lng_peer_gifts_empty_search" = "No matching gifts";
+"lng_peer_gifts_view_all" = "View All Gifts";
 "lng_peer_gifts_notify" = "Notify About New Gifts";
 "lng_peer_gifts_notify_enabled" = "You will receive a message from Telegram when your channel receives a gift.";
 "lng_peer_gifts_filter_by_value" = "Sort by Value";
