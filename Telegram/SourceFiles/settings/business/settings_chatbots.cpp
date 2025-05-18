@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/business/settings_recipients_helper.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
@@ -49,22 +50,7 @@ struct BotState {
 };
 
 [[nodiscard]] constexpr Data::ChatbotsPermissions Defaults() {
-	using Flag = Data::ChatbotsPermission;
-	return Flag::ViewMessages
-		| Flag::ReplyToMessages
-		| Flag::MarkAsRead
-		| Flag::DeleteSent
-		| Flag::DeleteReceived
-		| Flag::EditName
-		| Flag::EditBio
-		| Flag::EditUserpic
-		| Flag::EditUsername
-		| Flag::ViewGifts
-		| Flag::SellGifts
-		| Flag::GiftSettings
-		| Flag::TransferGifts
-		| Flag::TransferStars
-		| Flag::ManageStories;
+	return Data::ChatbotsPermission::ViewMessages;
 }
 
 class Chatbots final : public BusinessSection<Chatbots> {
@@ -471,7 +457,7 @@ void Chatbots::setupContent() {
 		username->setText(QString());
 		username->setFocus();
 
-		_permissions = Data::ChatbotsPermissions();
+		_permissions = Defaults();
 		refreshDetails();
 	};
 	content->add(object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
@@ -488,7 +474,7 @@ void Chatbots::setupContent() {
 
 	refreshDetails();
 	_botValue.changes() | rpl::start_with_next([=](const BotState &value) {
-		_permissions = Data::ChatbotsPermissions();
+		_permissions = Defaults();
 		refreshDetails();
 	}, lifetime());
 
@@ -503,7 +489,8 @@ void Chatbots::refreshDetails() {
 		delete _detailsWrap->widgetAt(0);
 	}
 
-	if (!_botValue.current().bot) {
+	const auto bot = _botValue.current().bot;
+	if (!bot) {
 		return;
 	}
 
@@ -529,6 +516,35 @@ void Chatbots::refreshDetails() {
 		_permissions.current());
 	content->add(std::move(permissions.widget));
 	_resolvePermissions = permissions.value;
+
+
+	std::move(
+		permissions.changes
+	) | rpl::start_with_next([=](Data::ChatbotsPermissions now) {
+		const auto warn = [&](tr::phrase<lngtag_bot> text) {
+			controller()->show(Ui::MakeInformBox({
+				.text = text(tr::now, lt_bot, Ui::Text::Bold(bot->name()), Ui::Text::RichLangValue),
+				.title = tr::lng_chatbots_warning_title(),
+			}));
+		};
+
+		const auto was = _permissions.current();
+		const auto diff = now ^ was;
+		const auto enabled = diff & now;
+		using Flag = Data::ChatbotsPermission;
+		if (enabled & (Flag::TransferGifts | Flag::SellGifts)) {
+			if (enabled & Flag::TransferStars) {
+				warn(tr::lng_chatbots_warning_both_text);
+			} else {
+				warn(tr::lng_chatbots_warning_gifts_text);
+			}
+		} else if (enabled & Flag::TransferStars) {
+			warn(tr::lng_chatbots_warning_stars_text);
+		} else if (enabled & Flag::EditUsername) {
+			warn(tr::lng_chatbots_warning_username_text);
+		}
+		_permissions = now;
+	}, lifetime());
 
 	Ui::AddSkip(content);
 

@@ -2975,6 +2975,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chatbots_include_button" = "Select Chats";
 "lng_chatbots_exclude_about" = "Select chats or entire chat categories which the bot will not have access to.";
 "lng_chatbots_permissions_title" = "Bot permissions";
+"lng_chatbots_warning_title" = "Warning";
+"lng_chatbots_warning_both_text" = "The bot {bot} will be able to **manage your gifts and stars**, including giving them away to other users.";
+"lng_chatbots_warning_gifts_text" = "The bot {bot} will be able to **manage your gifts**, including giving them away to other users.";
+"lng_chatbots_warning_stars_text" = "The bot {bot} will be able to **transfer your stars**.";
+"lng_chatbots_warning_username_text" = "The bot {bot} will be able to **set and remove usernames** for your account, which may result in the loss of your current username.";
 
 "lng_chatbots_manage_messages" = "Manage Messages";
 "lng_chatbots_read" = "Read Messages";
