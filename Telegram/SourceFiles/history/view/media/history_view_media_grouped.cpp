@@ -172,7 +172,9 @@ QSize GroupedMedia::countOptimalSize() {
 		_parts[i].sides = item.sides;
 	}
 
-	if (_mode == Mode::Column && _parts.back().item->emptyText()) {
+	if (_mode == Mode::Column
+		&& isBubbleBottom()
+		&& _parts.back().item->emptyText()) {
 		const auto item = _parent->data();
 		const auto msgsigned = item->Get<HistoryMessageSigned>();
 		const auto views = item->Get<HistoryMessageViews>();
@@ -236,7 +238,9 @@ QSize GroupedMedia::countCurrentSize(int newWidth) {
 			accumulate_max(newHeight, top + height);
 		}
 	}
-	if (_mode == Mode::Column && _parts.back().item->emptyText()) {
+	if (_mode == Mode::Column
+		&& isBubbleBottom()
+		&& _parts.back().item->emptyText()) {
 		const auto item = _parent->data();
 		const auto msgsigned = item->Get<HistoryMessageSigned>();
 		const auto views = item->Get<HistoryMessageViews>();
