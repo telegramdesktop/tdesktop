@@ -78,14 +78,17 @@ public:
 	[[nodiscard]] rpl::producer<QString> title() override;
 
 	const Ui::RoundRect *bottomSkipRounding() const override {
-		return &_bottomSkipRounding;
+		return _detailsWrap->count() ? nullptr : &_bottomSkipRounding;
 	}
 
 private:
-	void setupContent(not_null<Window::SessionController*> controller);
+	void setupContent();
+	void refreshDetails();
 	void save();
 
 	Ui::RoundRect _bottomSkipRounding;
+
+	Ui::VerticalLayout *_detailsWrap = nullptr;
 
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<QString> _usernameValue;
@@ -406,7 +409,7 @@ Chatbots::Chatbots(
 	not_null<Window::SessionController*> controller)
 : BusinessSection(parent, controller)
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
-	setupContent(controller);
+	setupContent();
 }
 
 Chatbots::~Chatbots() {
@@ -423,12 +426,11 @@ rpl::producer<QString> Chatbots::title() {
 	return tr::lng_chatbots_title();
 }
 
-void Chatbots::setupContent(
-		not_null<Window::SessionController*> controller) {
+void Chatbots::setupContent() {
 	using namespace rpl::mappers;
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-	const auto current = controller->session().data().chatbots().current();
+	const auto current = controller()->session().data().chatbots().current();
 
 	_recipients = Data::BusinessRecipients::MakeValid(current.recipients);
 	_permissions = current.permissions;
@@ -462,12 +464,15 @@ void Chatbots::setupContent(
 		current.bot,
 		current.bot ? LookupState::Ready : LookupState::Empty
 	}) | rpl::then(
-		LookupBot(&controller->session(), _usernameValue.changes())
+		LookupBot(&controller()->session(), _usernameValue.changes())
 	);
 
 	const auto resetBot = [=] {
 		username->setText(QString());
 		username->setFocus();
+
+		_permissions = Data::ChatbotsPermissions();
+		refreshDetails();
 	};
 	content->add(object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
 		content,
@@ -476,10 +481,35 @@ void Chatbots::setupContent(
 	Ui::AddDividerText(
 		content,
 		tr::lng_chatbots_add_about(),
-		st::peerAppearanceDividerTextMargin);
+		st::peerAppearanceDividerTextMargin,
+		RectPart::Top);
 
+	_detailsWrap = content->add(object_ptr<Ui::VerticalLayout>(content));
+
+	refreshDetails();
+	_botValue.changes() | rpl::start_with_next([=](const BotState &value) {
+		_permissions = Data::ChatbotsPermissions();
+		refreshDetails();
+	}, lifetime());
+
+	Ui::ResizeFitChild(this, content);
+}
+
+void Chatbots::refreshDetails() {
+	_resolvePermissions = [=] {
+		return Data::ChatbotsPermissions();
+	};
+	while (_detailsWrap->count()) {
+		delete _detailsWrap->widgetAt(0);
+	}
+
+	if (!_botValue.current().bot) {
+		return;
+	}
+
+	const auto content = _detailsWrap;
 	AddBusinessRecipientsSelector(content, {
-		.controller = controller,
+		.controller = controller(),
 		.title = tr::lng_chatbots_access_title(),
 		.data = &_recipients,
 		.type = Data::BusinessRecipientsType::Bots,
@@ -502,7 +532,7 @@ void Chatbots::setupContent(
 
 	Ui::AddSkip(content);
 
-	Ui::ResizeFitChild(this, content);
+	_detailsWrap->resizeToWidth(width());
 }
 
 void Chatbots::save() {
