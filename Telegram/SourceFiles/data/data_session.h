@@ -80,6 +80,13 @@ struct RepliesReadTillUpdate {
 	bool out = false;
 };
 
+struct SublistReadTillUpdate {
+	ChannelId parentChatId;
+	PeerId sublistPeerId;
+	MsgId readTillId;
+	bool out = false;
+};
+
 struct GiftUpdate {
 	enum class Action : uchar {
 		Save,
@@ -565,6 +572,10 @@ public:
 	[[nodiscard]] auto repliesReadTillUpdates() const
 		-> rpl::producer<RepliesReadTillUpdate>;
 
+	void updateSublistReadTill(SublistReadTillUpdate update);
+	[[nodiscard]] auto sublistReadTillUpdates() const
+		-> rpl::producer<SublistReadTillUpdate>;
+
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
 	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);
@@ -1004,6 +1015,7 @@ private:
 	rpl::event_stream<ChatListEntryRefresh> _chatListEntryRefreshes;
 	rpl::event_stream<> _unreadBadgeChanges;
 	rpl::event_stream<RepliesReadTillUpdate> _repliesReadTillUpdates;
+	rpl::event_stream<SublistReadTillUpdate> _sublistReadTillUpdates;
 	rpl::event_stream<SentToScheduled> _sentToScheduled;
 	rpl::event_stream<SentFromScheduled> _sentFromScheduled;
 

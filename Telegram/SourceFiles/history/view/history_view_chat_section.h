@@ -265,6 +265,7 @@ private:
 	void setupRootView();
 	void setupTopicViewer();
 	void subscribeToTopic();
+	void subscribeToSublist();
 	void subscribeToPinnedMessages();
 	void setTopic(Data::ForumTopic *topic);
 

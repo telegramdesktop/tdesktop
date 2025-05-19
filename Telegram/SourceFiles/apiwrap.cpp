@@ -3197,11 +3197,21 @@ void ApiWrap::sendAction(const SendAction &action) {
 		&& !action.options.shortcutId
 		&& !action.replaceMediaOf) {
 		const auto topicRootId = action.replyTo.topicRootId;
+		const auto monoforumPeerId = action.replyTo.monoforumPeerId;
 		const auto topic = topicRootId
 			? action.history->peer->forumTopicFor(topicRootId)
 			: nullptr;
+		const auto monoforum = monoforumPeerId
+			? action.history->peer->monoforum()
+			: nullptr;
+		const auto sublist = monoforum
+			? monoforum->sublistLoaded(
+				action.history->owner().peer(monoforumPeerId))
+			: nullptr;
 		if (topic) {
 			topic->readTillEnd();
+		} else if (sublist) {
+			sublist->readTillEnd();
 		} else {
 			_session->data().histories().readInbox(action.history);
 		}

@@ -58,8 +58,6 @@ public:
 	[[nodiscard]] bool isServerSideUnread(
 		not_null<const HistoryItem*> item) const;
 
-	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
-		MsgId afterId) const;
 	void requestUnreadCount();
 
 	void readTill(not_null<HistoryItem*> item);
@@ -79,6 +77,8 @@ private:
 
 	void subscribeToUpdates();
 	void appendClientSideMessages(MessagesSlice &slice);
+	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
+		MsgId afterId) const;
 
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
 	[[nodiscard]] bool applyItemDestroyed(

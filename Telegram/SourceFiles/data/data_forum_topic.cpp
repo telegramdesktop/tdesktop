@@ -362,8 +362,8 @@ void ForumTopic::subscribeToUnreadChanges() {
 	) | rpl::filter([=] {
 		return inChatList();
 	}) | rpl::start_with_next([=](
-		std::optional<int> previous,
-		std::optional<int> now) {
+			std::optional<int> previous,
+			std::optional<int> now) {
 		if (previous.value_or(0) != now.value_or(0)) {
 			_forum->recentTopicsInvalidate(this);
 		}

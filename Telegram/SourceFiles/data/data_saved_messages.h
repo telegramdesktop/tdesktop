@@ -26,7 +26,10 @@ public:
 	~SavedMessages();
 
 	[[nodiscard]] bool supported() const;
+	void markUnsupported();
+
 	[[nodiscard]] ChannelData *parentChat() const;
+	[[nodiscard]] not_null<History*> owningHistory() const;
 
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -44,7 +47,6 @@ public:
 
 	void preloadSublists();
 	void loadMore();
-	void loadMore(not_null<SavedSublist*> sublist);
 
 	void apply(const MTPDupdatePinnedSavedDialogs &update);
 	void apply(const MTPDupdateSavedDialogPinned &update);
@@ -64,12 +66,11 @@ private:
 	void reorderLastSublists();
 
 	void sendLoadMore();
-	void sendLoadMore(not_null<SavedSublist*> sublist);
 	void sendLoadMoreRequests();
 
 	const not_null<Session*> _owner;
 	ChannelData *_parentChat = nullptr;
-	History *_parentHistory = nullptr;
+	History *_owningHistory = nullptr;
 
 	rpl::event_stream<not_null<SavedSublist*>> _sublistDestroyed;
 
@@ -78,7 +79,6 @@ private:
 		not_null<PeerData*>,
 		std::unique_ptr<SavedSublist>> _sublists;
 
-	base::flat_map<not_null<SavedSublist*>, mtpRequestId> _loadMoreRequests;
 	mtpRequestId _loadMoreRequestId = 0;
 	mtpRequestId _pinnedRequestId = 0;
 
@@ -87,7 +87,6 @@ private:
 	PeerData *_offsetPeer = nullptr;
 
 	SingleQueuedInvokation _loadMore;
-	base::flat_set<not_null<SavedSublist*>> _loadMoreSublistsScheduled;
 	bool _loadMoreScheduled = false;
 
 	std::vector<not_null<SavedSublist*>> _lastSublists;

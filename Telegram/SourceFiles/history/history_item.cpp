@@ -789,16 +789,6 @@ HistoryItem::~HistoryItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
-	if (const auto saved = Get<HistoryMessageSaved>()) {
-		if (saved->savedMessagesSublist) {
-			saved->savedMessagesSublist->removeOne(this);
-		} else if (const auto monoforum = _history->peer->monoforum()) {
-			const auto peer = _history->owner().peer(saved->sublistPeerId);
-			if (const auto sublist = monoforum->sublistLoaded(peer)) {
-				sublist->removeOne(this);
-			}
-		}
-	}
 	clearDependencyMessage();
 	applyTTL(0);
 }

@@ -163,6 +163,9 @@ void History::itemRemoved(not_null<HistoryItem*> item) {
 	if (const auto topic = item->topic()) {
 		topic->applyItemRemoved(item->id);
 	}
+	if (const auto sublist = item->savedSublist()) {
+		sublist->applyItemRemoved(item->id);
+	}
 	if (const auto chat = peer->asChat()) {
 		if (const auto to = chat->getMigrateToChannel()) {
 			if (const auto history = owner().historyLoaded(to)) {
@@ -1310,6 +1313,9 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	}
 	if (const auto topic = item->topic()) {
 		topic->applyItemAdded(item);
+	}
+	if (const auto sublist = item->savedSublist()) {
+		sublist->applyItemAdded(item);
 	}
 	if (const auto media = item->media()) {
 		if (const auto gift = media->gift()) {

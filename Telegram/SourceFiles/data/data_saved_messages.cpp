@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_channel.h"
-#include "data/data_peer.h"
+#include "data/data_user.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -34,13 +34,15 @@ SavedMessages::SavedMessages(
 	ChannelData *parentChat)
 : _owner(owner)
 , _parentChat(parentChat)
-, _parentHistory(parentChat ? owner->history(parentChat).get() : nullptr)
+, _owningHistory(parentChat ? owner->history(parentChat).get() : nullptr)
 , _chatsList(
 	&_owner->session(),
 	FilterId(),
 	_owner->maxPinnedChatsLimitValue(this))
 , _loadMore([=] { sendLoadMoreRequests(); }) {
-	if (_parentHistory && _parentHistory->inChatList()) {
+	// We don't assign _owningHistory for my Saved Messages here,
+	// because the data structures are not ready yet.
+	if (_owningHistory && _owningHistory->inChatList()) {
 		preloadSublists();
 	}
 }
@@ -51,8 +53,20 @@ bool SavedMessages::supported() const {
 	return !_unsupported;
 }
 
+void SavedMessages::markUnsupported() {
+	_unsupported = true;
+}
+
 ChannelData *SavedMessages::parentChat() const {
 	return _parentChat;
+}
+
+not_null<History*> SavedMessages::owningHistory() const {
+	if (!_owningHistory) {
+		const_cast<SavedMessages*>(this)->_owningHistory
+			= _owner->history(_owner->session().user());
+	}
+	return _owningHistory;
 }
 
 Session &SavedMessages::owner() const {
@@ -101,11 +115,6 @@ void SavedMessages::loadMore() {
 	_loadMore.call();
 }
 
-void SavedMessages::loadMore(not_null<SavedSublist*> sublist) {
-	_loadMoreSublistsScheduled.emplace(sublist);
-	_loadMore.call();
-}
-
 void SavedMessages::sendLoadMore() {
 	if (_loadMoreRequestId || _chatsList.loaded()) {
 		return;
@@ -132,7 +141,7 @@ void SavedMessages::sendLoadMore() {
 		reorderLastSublists();
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
-			_unsupported = true;
+			markUnsupported();
 		}
 		_chatsList.setLoaded();
 		_loadMoreRequestId = 0;
@@ -150,88 +159,12 @@ void SavedMessages::loadPinned() {
 		_chatsListChanges.fire({});
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
-			_unsupported = true;
+			markUnsupported();
 		} else {
 			_pinnedLoaded = true;
 		}
 		_pinnedRequestId = 0;
 	}).send();
-}
-
-void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
-	if (_loadMoreRequests.contains(sublist) || sublist->isFullLoaded()) {
-		return;
-	}
-	const auto &list = sublist->messages();
-	const auto offsetId = list.empty() ? MsgId(0) : list.back()->id;
-	const auto offsetDate = list.empty() ? MsgId(0) : list.back()->date();
-	const auto limit = offsetId ? kPerPage : kFirstPerPage;
-	using Flag = MTPmessages_GetSavedHistory::Flag;
-	const auto requestId = _owner->session().api().request(
-		MTPmessages_GetSavedHistory(
-			MTP_flags(_parentChat ? Flag::f_parent_peer : Flag(0)),
-			_parentChat ? _parentChat->input : MTPInputPeer(),
-			sublist->sublistPeer()->input,
-			MTP_int(offsetId),
-			MTP_int(offsetDate),
-			MTP_int(0), // add_offset
-			MTP_int(limit),
-			MTP_int(0), // max_id
-			MTP_int(0), // min_id
-			MTP_long(0)) // hash
-	).done([=](const MTPmessages_Messages &result) {
-		auto count = 0;
-		auto list = (const QVector<MTPMessage>*)nullptr;
-		result.match([&](const MTPDmessages_channelMessages &data) {
-			if (const auto channel = _parentChat) {
-				channel->ptsReceived(data.vpts().v);
-				channel->processTopics(data.vtopics());
-				list = &data.vmessages().v;
-				count = data.vcount().v;
-			} else {
-				LOG(("API Error: messages.channelMessages in sublist."));
-			}
-		}, [](const MTPDmessages_messagesNotModified &) {
-			LOG(("API Error: messages.messagesNotModified in sublist."));
-		}, [&](const auto &data) {
-			owner().processUsers(data.vusers());
-			owner().processChats(data.vchats());
-			list = &data.vmessages().v;
-			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
-				count = int(list->size());
-			} else {
-				count = data.vcount().v;
-			}
-		});
-
-		_loadMoreRequests.remove(sublist);
-		if (!list) {
-			sublist->setFullLoaded();
-			return;
-		}
-		auto items = std::vector<not_null<HistoryItem*>>();
-		items.reserve(list->size());
-		for (const auto &message : *list) {
-			const auto item = owner().addNewMessage(
-				message,
-				{},
-				NewMessageType::Existing);
-			if (item) {
-				items.push_back(item);
-			}
-		}
-		sublist->append(std::move(items), count);
-		if (result.type() == mtpc_messages_messages) {
-			sublist->setFullLoaded();
-		}
-	}).fail([=](const MTP::Error &error) {
-		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
-			_unsupported = true;
-		}
-		sublist->setFullLoaded();
-		_loadMoreRequests.remove(sublist);
-	}).send();
-	_loadMoreRequests[sublist] = requestId;
 }
 
 void SavedMessages::apply(
@@ -291,8 +224,7 @@ void SavedMessages::apply(
 				offsetDate = item->date();
 				offsetId = topId;
 				lastValid = true;
-				const auto entry = sublist(peer);
-				entry->applyMaybeLast(item);
+				sublist(peer)->applyMonoforumDialog(data, item);
 			} else {
 				lastValid = false;
 			}
@@ -320,9 +252,6 @@ void SavedMessages::apply(
 void SavedMessages::sendLoadMoreRequests() {
 	if (_loadMoreScheduled) {
 		sendLoadMore();
-	}
-	for (const auto sublist : base::take(_loadMoreSublistsScheduled)) {
-		sendLoadMore(sublist);
 	}
 }
 
@@ -371,7 +300,7 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 }
 
 void SavedMessages::reorderLastSublists() {
-	if (!_parentHistory) {
+	if (!_parentChat) {
 		return;
 	}
 
@@ -411,7 +340,7 @@ void SavedMessages::reorderLastSublists() {
 		}
 	}
 	++_lastSublistsVersion;
-	_parentHistory->updateChatListEntry();
+	owningHistory()->updateChatListEntry();
 }
 
 void SavedMessages::listMessageChanged(HistoryItem *from, HistoryItem *to) {
@@ -426,11 +355,11 @@ int SavedMessages::recentSublistsListVersion() const {
 
 void SavedMessages::recentSublistsInvalidate(
 		not_null<SavedSublist*> sublist) {
-	Expects(_parentHistory != nullptr);
+	Expects(_parentChat != nullptr);
 
 	if (ranges::contains(_lastSublists, sublist)) {
 		++_lastSublistsVersion;
-		_parentHistory->updateChatListEntry();
+		owningHistory()->updateChatListEntry();
 	}
 }
 

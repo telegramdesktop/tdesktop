@@ -191,6 +191,13 @@ object_ptr<Window::SectionWidget> ChatMemento::createWidget(
 		_list.setScrollTopState(ListMemento::ScrollTopState{
 			Data::MinMessagePosition
 		});
+	} else if (!_list.aroundPosition().fullId
+		&& _id.sublist
+		&& _id.sublist->computeInboxReadTillFull() == MsgId(1)) {
+		_list.setAroundPosition(Data::MinMessagePosition);
+		_list.setScrollTopState(ListMemento::ScrollTopState{
+			Data::MinMessagePosition
+		});
 	}
 	auto result = object_ptr<ChatWidget>(parent, controller, _id);
 	result->setInternalState(geometry, this);
@@ -394,7 +401,9 @@ ChatWidget::ChatWidget(
 		}
 	}, lifetime());
 
-	if (!_topic) {
+	if (_sublist) {
+		subscribeToSublist();
+	} else if (!_topic) {
 		_history->session().changes().historyUpdates(
 			_history,
 			Data::HistoryUpdate::Flag::OutboxRead
@@ -2455,6 +2464,19 @@ void ChatWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 	}, _repliesLifetime);
 }
 
+void ChatWidget::subscribeToSublist() {
+	Expects(_sublist != nullptr);
+
+	_sublist->unreadCountValue(
+	) | rpl::start_with_next([=](std::optional<int> count) {
+		refreshUnreadCountBadge(count);
+	}, lifetime());
+
+	refreshUnreadCountBadge(_sublist->unreadCountKnown()
+		? _sublist->unreadCountCurrent()
+		: std::optional<int>());
+}
+
 void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 	if (auto replies = memento->getReplies()) {
 		setReplies(std::move(replies));
@@ -2792,54 +2814,20 @@ rpl::producer<Data::MessagesSlice> ChatWidget::sublistSource(
 	const auto messageId = aroundId.fullId.msg
 		? aroundId.fullId.msg
 		: (ServerMaxMsgId - 1);
-	return [=](auto consumer) {
-		const auto pushSlice = [=] {
-			auto result = Data::MessagesSlice();
-			result.fullCount = _sublist->fullCount();
-			_topBar->setCustomTitle(result.fullCount
-				? tr::lng_forum_messages(
-					tr::now,
-					lt_count_decimal,
-					*result.fullCount)
-				: tr::lng_contacts_loading(tr::now));
-			const auto &messages = _sublist->messages();
-			const auto i = ranges::lower_bound(
-				messages,
-				messageId,
-				ranges::greater(),
-				[](not_null<HistoryItem*> item) { return item->id; });
-			const auto before = int(end(messages) - i);
-			const auto useBefore = std::min(before, limitBefore);
-			const auto after = int(i - begin(messages));
-			const auto useAfter = std::min(after, limitAfter);
-			const auto from = i - useAfter;
-			const auto till = i + useBefore;
-			auto nearestDistance = std::numeric_limits<int64>::max();
-			result.ids.reserve(useAfter + useBefore);
-			for (auto j = till; j != from;) {
-				const auto item = *--j;
-				result.ids.push_back(item->fullId());
-				const auto distance = std::abs((messageId - item->id).bare);
-				if (nearestDistance > distance) {
-					nearestDistance = distance;
-					result.nearestToAround = result.ids.back();
-				}
-			}
-			result.skippedAfter = after - useAfter;
-			result.skippedBefore = result.fullCount
-				? (*result.fullCount - after - useBefore)
-				: std::optional<int>();
-			if (!result.fullCount || useBefore < limitBefore) {
-				_sublist->parent()->loadMore(_sublist);
-			}
-			markLoaded();
-			consumer.put_next(std::move(result));
-		};
-		auto lifetime = rpl::lifetime();
-		_sublist->changes() | rpl::start_with_next(pushSlice, lifetime);
-		pushSlice();
-		return lifetime;
-	};
+	return _sublist->source(
+		aroundId,
+		limitBefore,
+		limitAfter
+	) | rpl::before_next([=](const Data::MessagesSlice &result) {
+		 // after_next makes a copy of value.
+		_topBar->setCustomTitle(result.fullCount
+			? tr::lng_forum_messages(
+				tr::now,
+				lt_count_decimal,
+				*result.fullCount)
+			: tr::lng_contacts_loading(tr::now));
+		markLoaded();
+	});
 }
 
 bool ChatWidget::listAllowsMultiSelect() {
@@ -2882,6 +2870,8 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 void ChatWidget::listMarkReadTill(not_null<HistoryItem*> item) {
 	if (_replies) {
 		_replies->readTill(item);
+	} else if (_sublist) {
+		_sublist->readTill(item);
 	}
 }
 
@@ -2892,16 +2882,22 @@ void ChatWidget::listMarkContentsRead(
 
 MessagesBarData ChatWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	if (_sublist || elements.empty()) {
+	if ((!_sublist && !_replies) || elements.empty()) {
 		return {};
 	}
-	const auto till = _replies->computeInboxReadTillFull();
+	const auto till = _replies
+		? _replies->computeInboxReadTillFull()
+		: _sublist->computeInboxReadTillFull();
 	const auto hidden = (till < 2);
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
 		if (item->isRegular() && item->id > till) {
-			if (item->out() || !item->replyToId()) {
-				_replies->readTill(item);
+			if (item->out() || (_replies && !item->replyToId())) {
+				if (_replies) {
+					_replies->readTill(item);
+				} else {
+					_sublist->readTill(item);
+				}
 			} else {
 				return {
 					.bar = {
@@ -2960,9 +2956,12 @@ bool ChatWidget::listElementHideReply(not_null<const Element*> view) {
 }
 
 bool ChatWidget::listElementShownUnread(not_null<const Element*> view) {
+	const auto item = view->data();
 	return _replies
-		? _replies->isServerSideUnread(view->data())
-		: view->data()->unread(view->data()->history());
+		? _replies->isServerSideUnread(item)
+		: _sublist
+		? _sublist->isServerSideUnread(item)
+		: item->unread(item->history());
 }
 
 bool ChatWidget::listIsGoodForAroundPosition(
@@ -2973,7 +2972,7 @@ bool ChatWidget::listIsGoodForAroundPosition(
 void ChatWidget::listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
-	if (!_sublist) {
+	if (!_sublist || _sublist->parentChat()) {
 		sendBotCommandWithOptions(command, context, {});
 	}
 }

@@ -588,8 +588,8 @@ rpl::producer<int> SavedSublistCountValue(
 		not_null<PeerData*> peer) {
 	const auto saved = &peer->owner().savedMessages();
 	const auto sublist = saved->sublist(peer);
-	if (!sublist->fullCount()) {
-		saved->loadMore(sublist);
+	if (!sublist->fullCount().has_value()) {
+		sublist->loadFullCount();
 		return rpl::single(0) | rpl::then(sublist->fullCountValue());
 	}
 	return sublist->fullCountValue();

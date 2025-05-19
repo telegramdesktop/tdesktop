@@ -2442,6 +2442,32 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		session().data().updateRepliesReadTill({ id, readTillId, true });
 	} break;
 
+	case mtpc_updateReadMonoForumInbox: {
+		const auto &d = update.c_updateReadMonoForumInbox();
+		const auto parentChatId = ChannelId(d.vchannel_id());
+		const auto sublistPeerId = peerFromMTP(d.vsaved_peer_id());
+		const auto readTillId = d.vread_max_id().v;
+		session().data().updateSublistReadTill({
+			parentChatId,
+			sublistPeerId,
+			readTillId,
+			false,
+		});
+	} break;
+
+	case mtpc_updateReadMonoForumOutbox: {
+		const auto &d = update.c_updateReadMonoForumOutbox();
+		const auto parentChatId = ChannelId(d.vchannel_id());
+		const auto sublistPeerId = peerFromMTP(d.vsaved_peer_id());
+		const auto readTillId = d.vread_max_id().v;
+		session().data().updateSublistReadTill({
+			parentChatId,
+			sublistPeerId,
+			readTillId,
+			true,
+		});
+	} break;
+
 	case mtpc_updateChannelAvailableMessages: {
 		auto &d = update.c_updateChannelAvailableMessages();
 		if (const auto channel = session().data().channelLoaded(d.vchannel_id())) {
