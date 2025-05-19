@@ -368,7 +368,9 @@ void InnerWidget::loadMore() {
 		} else {
 			_allLoaded = true;
 		}
-		_totalCount = data.vcount().v;
+		if (!filter.skipsSomething()) {
+			_totalCount = data.vcount().v;
+		}
 
 		const auto owner = &_peer->owner();
 		owner->processUsers(data.vusers());
@@ -583,11 +585,7 @@ void InnerWidget::refreshAbout() {
 	const auto filter = _filter.current();
 	const auto filteredEmpty = _allLoaded
 		&& _entries.empty()
-		&& (filter.skipLimited
-			|| filter.skipUnlimited
-			|| filter.skipSaved
-			|| filter.skipUnsaved
-			|| filter.skipUnique);
+		&& filter.skipsSomething();
 
 	if (filteredEmpty) {
 		auto text = tr::lng_peer_gifts_empty_search(
