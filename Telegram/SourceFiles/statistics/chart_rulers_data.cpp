@@ -22,7 +22,7 @@ constexpr auto kStep = 5.;
 }
 
 [[nodiscard]] QString Format(ChartValue absoluteValue) {
-	constexpr auto kTooMuch = ChartValue(10'000);
+	static constexpr auto kTooMuch = ChartValue(10'000);
 	return (absoluteValue >= kTooMuch)
 		? Lang::FormatCountToShort(absoluteValue).string
 		: QString::number(absoluteValue);
