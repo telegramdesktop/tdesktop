@@ -29,6 +29,7 @@ RUN dnf -y install epel-release \
 		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
 	&& dnf clean all
 
+RUN alternatives --set python3 /usr/bin/python3.11
 RUN python3 -m pip install meson ninja
 RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
 RUN echo set debuginfod enabled on > /opt/rh/{{ TOOLSET }}/root/etc/gdbinit.d/00-debuginfod.gdb
