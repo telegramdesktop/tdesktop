@@ -1118,7 +1118,7 @@ void HistoryWidget::initVoiceRecordBar() {
 	});
 
 	const auto applyLocalDraft = [=] {
-		if (_history && _history->localDraft({})) {
+		if (_history && _history->localDraft(MsgId(), PeerId())) {
 			applyDraft();
 		}
 	};
@@ -1874,12 +1874,14 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 	}
 
 	const auto topicRootId = MsgId();
+	const auto monoforumPeerId = PeerId();
 	if (_editMsgId) {
 		_history->setLocalEditDraft(std::make_unique<Data::Draft>(
 			_field,
 			FullReplyTo{
 				.messageId = FullMsgId(_history->peer->id, _editMsgId),
 				.topicRootId = topicRootId,
+				.monoforumPeerId = monoforumPeerId,
 			},
 			_preview->draft(),
 			_saveEditMsgRequestId));
@@ -1890,9 +1892,9 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 				_replyTo,
 				_preview->draft()));
 		} else {
-			_history->clearLocalDraft(topicRootId);
+			_history->clearLocalDraft(topicRootId, monoforumPeerId);
 		}
-		_history->clearLocalEditDraft(topicRootId);
+		_history->clearLocalEditDraft(topicRootId, monoforumPeerId);
 	}
 }
 
@@ -2187,11 +2189,13 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		}
 	});
 
-	const auto editDraft = _history ? _history->localEditDraft({}) : nullptr;
+	const auto editDraft = _history
+		? _history->localEditDraft(MsgId(), PeerId())
+		: nullptr;
 	const auto draft = editDraft
 		? editDraft
 		: _history
-		? _history->localDraft({})
+		? _history->localDraft(MsgId(), PeerId())
 		: nullptr;
 	auto fieldAvailable = canWriteMessage();
 	const auto editMsgId = editDraft ? editDraft->reply.messageId.msg : 0;
@@ -2241,7 +2245,7 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			requestMessageData(_editMsgId);
 		}
 	} else {
-		const auto draft = _history->localDraft({});
+		const auto draft = _history->localDraft(MsgId(), PeerId());
 		_processingReplyTo = draft ? draft->reply : FullReplyTo();
 		if (_processingReplyTo) {
 			_processingReplyItem = session().data().message(
@@ -2408,7 +2412,7 @@ void HistoryWidget::showHistory(
 							info->inlineReturnTo = wasState;
 						}
 						sendBotStartCommand();
-						_history->clearLocalDraft({});
+						_history->clearLocalDraft(MsgId(), PeerId());
 						applyDraft();
 						_send->finishAnimating();
 					}
@@ -2864,10 +2868,10 @@ void HistoryWidget::unregisterDraftSources() {
 	}
 	session().local().unregisterDraftSource(
 		_history,
-		Data::DraftKey::Local({}));
+		Data::DraftKey::Local(MsgId(), PeerId()));
 	session().local().unregisterDraftSource(
 		_history,
-		Data::DraftKey::LocalEdit({}));
+		Data::DraftKey::LocalEdit(MsgId(), PeerId()));
 }
 
 void HistoryWidget::registerDraftSource() {
@@ -2892,8 +2896,8 @@ void HistoryWidget::registerDraftSource() {
 	session().local().registerDraftSource(
 		_history,
 		(editMsgId
-			? Data::DraftKey::LocalEdit({})
-			: Data::DraftKey::Local({})),
+			? Data::DraftKey::LocalEdit(MsgId(), PeerId())
+			: Data::DraftKey::Local(MsgId(), PeerId())),
 		std::move(draftSource));
 }
 
@@ -3630,6 +3634,7 @@ void HistoryWidget::unreadCountUpdated() {
 		});
 	} else {
 		const auto hideCounter = _history->isForum()
+			|| _history->amMonoforumAdmin()
 			|| !_history->trackUnreadMessages();
 		_cornerButtons.updateJumpDownVisibility(hideCounter
 			? 0
@@ -4376,16 +4381,16 @@ void HistoryWidget::saveEditMsg() {
 				cancelEdit();
 			}
 		})();
-		if (const auto editDraft = history->localEditDraft({})) {
+		if (const auto editDraft = history->localEditDraft({}, {})) {
 			if (editDraft->saveRequestId == requestId) {
-				history->clearLocalEditDraft({});
+				history->clearLocalEditDraft(MsgId(), PeerId());
 				history->session().local().writeDrafts(history);
 			}
 		}
 	};
 
 	const auto fail = [=](const QString &error, mtpRequestId requestId) {
-		if (const auto editDraft = history->localEditDraft({})) {
+		if (const auto editDraft = history->localEditDraft({}, {})) {
 			if (editDraft->saveRequestId == requestId) {
 				editDraft->saveRequestId = 0;
 			}
@@ -7276,7 +7281,7 @@ void HistoryWidget::editDraftOptions() {
 		} else {
 			cancelReply();
 		}
-		history->setForwardDraft({}, std::move(forward));
+		history->setForwardDraft(MsgId(), PeerId(), std::move(forward));
 		_preview->apply(webpage);
 	};
 	const auto replyToId = reply.messageId;
@@ -7295,7 +7300,9 @@ void HistoryWidget::editDraftOptions() {
 		.resolver = _preview->resolver(),
 		.done = done,
 		.highlight = highlight,
-		.clearOldDraft = [=] { ClearDraftReplyTo(history, 0, replyToId); },
+		.clearOldDraft = [=] {
+			ClearDraftReplyTo(history, MsgId(), PeerId(), replyToId);
+		},
 	});
 }
 
@@ -8418,7 +8425,7 @@ void HistoryWidget::setReplyFieldsFromProcessing() {
 	const auto id = base::take(_processingReplyTo);
 	const auto item = base::take(_processingReplyItem);
 	if (_editMsgId) {
-		if (const auto localDraft = _history->localDraft({})) {
+		if (const auto localDraft = _history->localDraft({}, {})) {
 			localDraft->reply = id;
 		} else {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
@@ -8470,7 +8477,7 @@ void HistoryWidget::editMessage(
 				_replyTo,
 				_preview->draft()));
 		} else {
-			_history->clearLocalDraft({});
+			_history->clearLocalDraft(MsgId(), PeerId());
 		}
 	}
 
@@ -8580,10 +8587,10 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		updateControlsGeometry();
 		update();
 	} else if (const auto localDraft
-			= (_history ? _history->localDraft({}) : nullptr)) {
+			= (_history ? _history->localDraft({}, {}) : nullptr)) {
 		if (localDraft->reply) {
 			if (localDraft->textWithTags.text.isEmpty()) {
-				_history->clearLocalDraft({});
+				_history->clearLocalDraft(MsgId(), PeerId());
 			} else {
 				localDraft->reply = {};
 			}
@@ -8629,7 +8636,7 @@ void HistoryWidget::cancelEdit() {
 	updateReplaceMediaButton();
 	_replyEditMsg = nullptr;
 	setEditMsgId(0);
-	_history->clearLocalEditDraft({});
+	_history->clearLocalEditDraft(MsgId(), PeerId());
 	applyDraft();
 
 	if (_saveEditMsgRequestId) {
@@ -8671,7 +8678,7 @@ void HistoryWidget::cancelFieldAreaState() {
 	} else if (_replyTo) {
 		cancelReply();
 	} else if (readyToForward()) {
-		_history->setForwardDraft(MsgId(), {});
+		_history->setForwardDraft(MsgId(), PeerId(), {});
 	} else if (_kbReplyTo) {
 		toggleKeyboard();
 	}
@@ -9039,7 +9046,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 
 void HistoryWidget::updateForwarding() {
 	_forwardPanel->update(_history, _history
-		? _history->resolveForwardDraft(MsgId())
+		? _history->resolveForwardDraft(MsgId(), PeerId())
 		: Data::ResolvedForwardDraft());
 	updateControlsVisibility();
 	updateControlsGeometry();

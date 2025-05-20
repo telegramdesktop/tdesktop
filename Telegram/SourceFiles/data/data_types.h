@@ -382,8 +382,6 @@ struct ForwardDraft {
 		const ForwardDraft&) = default;
 };
 
-using ForwardDrafts = base::flat_map<MsgId, ForwardDraft>;
-
 struct ResolvedForwardDraft {
 	HistoryItemsList items;
 	ForwardOptions options = ForwardOptions::PreserveInfo;

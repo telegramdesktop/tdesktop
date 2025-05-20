@@ -365,6 +365,7 @@ private:
 
 	History *_history = nullptr;
 	MsgId _topicRootId = 0;
+	PeerId _monoforumPeerId = 0;
 	BusinessShortcutId _shortcutId = 0;
 	Fn<bool()> _showSlowmodeError;
 	Fn<Api::SendAction()> _sendActionFactory;

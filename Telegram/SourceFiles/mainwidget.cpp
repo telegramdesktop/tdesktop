@@ -557,6 +557,7 @@ bool MainWidget::setForwardDraft(
 	const auto history = thread->owningHistory();
 	const auto items = session().data().idsToItems(draft.ids);
 	const auto topicRootId = thread->topicRootId();
+	const auto monoforumPeerId = thread->monoforumPeerId();
 	const auto error = GetErrorForSending(
 		history->peer,
 		{
@@ -569,7 +570,7 @@ bool MainWidget::setForwardDraft(
 		return false;
 	}
 
-	history->setForwardDraft(topicRootId, std::move(draft));
+	history->setForwardDraft(topicRootId, monoforumPeerId, std::move(draft));
 	_controller->showThread(
 		thread,
 		ShowAtUnreadMsgId,
@@ -596,12 +597,16 @@ bool MainWidget::shareUrl(
 	};
 	const auto history = thread->owningHistory();
 	const auto topicRootId = thread->topicRootId();
+	const auto monoforumPeerId = thread->monoforumPeerId();
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
-		FullReplyTo{ .topicRootId = topicRootId },
+		FullReplyTo{
+			.topicRootId = topicRootId,
+			.monoforumPeerId = monoforumPeerId,
+		},
 		cursor,
 		Data::WebPageDraft()));
-	history->clearLocalEditDraft(topicRootId);
+	history->clearLocalEditDraft(topicRootId, monoforumPeerId);
 	history->session().changes().entryUpdated(
 		thread,
 		Data::EntryUpdate::Flag::LocalDraftSet);
@@ -2044,6 +2049,8 @@ bool MainWidget::showBackFromStack(const SectionShow &params) {
 		});
 		return (_dialogs != nullptr);
 	}
+	session().api().saveCurrentDraftToCloud();
+
 	auto item = std::move(_stack.back());
 	_stack.pop_back();
 	if (const auto currentHistoryPeer = _history->peer()) {

@@ -32,6 +32,13 @@ MsgId Thread::topicRootId() const {
 	return MsgId();
 }
 
+PeerId Thread::monoforumPeerId() const {
+	if (const auto sublist = asSublist()) {
+		return sublist->sublistPeer()->id;
+	}
+	return PeerId();
+}
+
 PeerData *Thread::maybeSublistPeer() const {
 	if (const auto sublist = asSublist()) {
 		return sublist->sublistPeer();

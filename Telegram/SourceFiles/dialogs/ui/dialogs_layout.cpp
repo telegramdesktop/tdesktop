@@ -962,10 +962,12 @@ void RowPainter::Paint(
 		if (!thread) {
 			return nullptr;
 		}
-		if ((!peer || !peer->isForum()) && (!item || !badgesState.unread)) {
+		if ((!peer || (!peer->isForum() && !peer->amMonoforumAdmin()))
+			&& (!item || !badgesState.unread)) {
 			// Draw item, if there are unread messages.
 			const auto draft = thread->owningHistory()->cloudDraft(
-				thread->topicRootId());
+				thread->topicRootId(),
+				thread->monoforumPeerId());
 			if (!Data::DraftIsNull(draft)) {
 				return draft;
 			}

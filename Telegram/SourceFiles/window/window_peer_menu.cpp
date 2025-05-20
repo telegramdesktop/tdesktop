@@ -1802,8 +1802,10 @@ void PeerMenuCreatePoll(
 			peer->owner().history(peer),
 			result.options);
 		action.replyTo = replyTo;
-		const auto topicRootId = replyTo.topicRootId;
-		if (const auto local = action.history->localDraft(topicRootId)) {
+		const auto local = action.history->localDraft(
+			replyTo.topicRootId,
+			replyTo.monoforumPeerId);
+		if (local) {
 			action.clearDraft = local->textWithTags.text.isEmpty();
 		} else {
 			action.clearDraft = false;

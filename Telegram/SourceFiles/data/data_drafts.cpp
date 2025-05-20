@@ -70,10 +70,11 @@ void ApplyPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		const MTPDdraftMessage &draft) {
 	const auto history = session->data().history(peerId);
 	const auto date = draft.vdate().v;
-	if (history->skipCloudDraftUpdate(topicRootId, date)) {
+	if (history->skipCloudDraftUpdate(topicRootId, monoforumPeerId, date)) {
 		return;
 	}
 	const auto textWithTags = TextWithTags{
@@ -87,6 +88,7 @@ void ApplyPeerCloudDraft(
 		? ReplyToFromMTP(history, *draft.vreply_to())
 		: FullReplyTo();
 	replyTo.topicRootId = topicRootId;
+	replyTo.monoforumPeerId = monoforumPeerId;
 	auto webpage = WebPageDraft{
 		.invert = draft.is_invert_media(),
 		.removed = draft.is_no_webpage(),
@@ -112,21 +114,22 @@ void ApplyPeerCloudDraft(
 	cloudDraft->date = date;
 
 	history->setCloudDraft(std::move(cloudDraft));
-	history->applyCloudDraft(topicRootId);
+	history->applyCloudDraft(topicRootId, monoforumPeerId);
 }
 
 void ClearPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		TimeId date) {
 	const auto history = session->data().history(peerId);
-	if (history->skipCloudDraftUpdate(topicRootId, date)) {
+	if (history->skipCloudDraftUpdate(topicRootId, monoforumPeerId, date)) {
 		return;
 	}
 
-	history->clearCloudDraft(topicRootId);
-	history->applyCloudDraft(topicRootId);
+	history->clearCloudDraft(topicRootId, monoforumPeerId);
+	history->applyCloudDraft(topicRootId, monoforumPeerId);
 }
 
 void SetChatLinkDraft(not_null<PeerData*> peer, TextWithEntities draft) {
@@ -146,12 +149,16 @@ void SetChatLinkDraft(not_null<PeerData*> peer, TextWithEntities draft) {
 	};
 	const auto history = peer->owner().history(peer->id);
 	const auto topicRootId = MsgId();
+	const auto monoforumPeerId = PeerId();
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
-		FullReplyTo{ .topicRootId = topicRootId },
+		FullReplyTo{
+			.topicRootId = topicRootId,
+			.monoforumPeerId = monoforumPeerId,
+		},
 		cursor,
 		Data::WebPageDraft()));
-	history->clearLocalEditDraft(topicRootId);
+	history->clearLocalEditDraft(topicRootId, monoforumPeerId);
 	history->session().changes().entryUpdated(
 		history,
 		Data::EntryUpdate::Flag::LocalDraftSet);

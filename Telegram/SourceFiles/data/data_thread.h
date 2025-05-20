@@ -67,6 +67,7 @@ public:
 		return const_cast<Thread*>(this)->owningHistory();
 	}
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] PeerId monoforumPeerId() const;
 	[[nodiscard]] PeerData *maybeSublistPeer() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] PeerNotifySettings &notify();

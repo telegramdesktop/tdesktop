@@ -2150,8 +2150,9 @@ bool SessionController::switchInlineQuery(
 			params);
 	} else {
 		const auto topicRootId = to.currentReplyTo.topicRootId;
+		const auto monoforumPeerId = to.currentReplyTo.monoforumPeerId;
 		history->setLocalDraft(std::move(draft));
-		history->clearLocalEditDraft(topicRootId);
+		history->clearLocalEditDraft(topicRootId, monoforumPeerId);
 		if (to.section == Section::Replies) {
 			const auto commentId = MsgId();
 			showRepliesForMessage(history, topicRootId, commentId, params);

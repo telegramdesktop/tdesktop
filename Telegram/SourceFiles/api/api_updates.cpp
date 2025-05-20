@@ -2687,13 +2687,22 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &data = update.c_updateDraftMessage();
 		const auto peerId = peerFromMTP(data.vpeer());
 		const auto topicRootId = data.vtop_msg_id().value_or_empty();
+		const auto monoforumPeerId = data.vsaved_peer_id()
+			? peerFromMTP(*data.vsaved_peer_id())
+			: PeerId();
 		data.vdraft().match([&](const MTPDdraftMessage &data) {
-			Data::ApplyPeerCloudDraft(&session(), peerId, topicRootId, data);
+			Data::ApplyPeerCloudDraft(
+				&session(),
+				peerId,
+				topicRootId,
+				monoforumPeerId,
+				data);
 		}, [&](const MTPDdraftMessageEmpty &data) {
 			Data::ClearPeerCloudDraft(
 				&session(),
 				peerId,
 				topicRootId,
+				monoforumPeerId,
 				data.vdate().value_or_empty());
 		});
 	} break;

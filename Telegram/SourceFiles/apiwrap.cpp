@@ -2064,8 +2064,13 @@ void ApiWrap::saveCurrentDraftToCloud() {
 			_session->local().writeDrafts(history);
 
 			const auto topicRootId = thread->topicRootId();
-			const auto localDraft = history->localDraft(topicRootId);
-			const auto cloudDraft = history->cloudDraft(topicRootId);
+			const auto monoforumPeerId = thread->monoforumPeerId();
+			const auto localDraft = history->localDraft(
+				topicRootId,
+				monoforumPeerId);
+			const auto cloudDraft = history->cloudDraft(
+				topicRootId,
+				monoforumPeerId);
 			if (!Data::DraftsAreEqual(localDraft, cloudDraft)
 				&& !_session->supportMode()) {
 				saveDraftToCloudDelayed(thread);
@@ -2088,15 +2093,22 @@ void ApiWrap::saveDraftsToCloud() {
 
 		const auto history = thread->owningHistory();
 		const auto topicRootId = thread->topicRootId();
-		auto cloudDraft = history->cloudDraft(topicRootId);
-		auto localDraft = history->localDraft(topicRootId);
+		const auto monoforumPeerId = thread->monoforumPeerId();
+		auto cloudDraft = history->cloudDraft(topicRootId, monoforumPeerId);
+		auto localDraft = history->localDraft(topicRootId, monoforumPeerId);
 		if (cloudDraft && cloudDraft->saveRequestId) {
 			request(base::take(cloudDraft->saveRequestId)).cancel();
 		}
 		if (!_session->supportMode()) {
-			cloudDraft = history->createCloudDraft(topicRootId, localDraft);
+			cloudDraft = history->createCloudDraft(
+				topicRootId,
+				monoforumPeerId,
+				localDraft);
 		} else if (!cloudDraft) {
-			cloudDraft = history->createCloudDraft(topicRootId, nullptr);
+			cloudDraft = history->createCloudDraft(
+				topicRootId,
+				monoforumPeerId,
+				nullptr);
 		}
 
 		auto flags = MTPmessages_SaveDraft::Flags(0);
@@ -2106,7 +2118,9 @@ void ApiWrap::saveDraftsToCloud() {
 		} else if (!cloudDraft->webpage.url.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_media;
 		}
-		if (cloudDraft->reply.messageId || cloudDraft->reply.topicRootId) {
+		if (cloudDraft->reply.messageId
+			|| cloudDraft->reply.topicRootId
+			|| cloudDraft->reply.monoforumPeerId) {
 			flags |= MTPmessages_SaveDraft::Flag::f_reply_to;
 		}
 		if (!textWithTags.tags.isEmpty()) {
@@ -2117,7 +2131,7 @@ void ApiWrap::saveDraftsToCloud() {
 			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),
 			Api::ConvertOption::SkipLocal);
 
-		history->startSavingCloudDraft(topicRootId);
+		history->startSavingCloudDraft(topicRootId, monoforumPeerId);
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
 			ReplyToForMTP(history, cloudDraft->reply),
@@ -2132,11 +2146,15 @@ void ApiWrap::saveDraftsToCloud() {
 			const auto requestId = response.requestId;
 			history->finishSavingCloudDraft(
 				topicRootId,
+				monoforumPeerId,
 				UnixtimeFromMsgId(response.outerMsgId));
-			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
+			const auto cloudDraft = history->cloudDraft(
+				topicRootId,
+				monoforumPeerId);
+			if (cloudDraft) {
 				if (cloudDraft->saveRequestId == requestId) {
 					cloudDraft->saveRequestId = 0;
-					history->draftSavedToCloud(topicRootId);
+					history->draftSavedToCloud(topicRootId, monoforumPeerId);
 				}
 			}
 			const auto i = _draftsSaveRequestIds.find(weak);
@@ -2149,10 +2167,14 @@ void ApiWrap::saveDraftsToCloud() {
 			const auto requestId = response.requestId;
 			history->finishSavingCloudDraft(
 				topicRootId,
+				monoforumPeerId,
 				UnixtimeFromMsgId(response.outerMsgId));
-			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
+			const auto cloudDraft = history->cloudDraft(
+				topicRootId,
+				monoforumPeerId);
+			if (cloudDraft) {
 				if (cloudDraft->saveRequestId == requestId) {
-					history->clearCloudDraft(topicRootId);
+					history->clearCloudDraft(topicRootId, monoforumPeerId);
 				}
 			}
 			const auto i = _draftsSaveRequestIds.find(weak);
@@ -3223,7 +3245,10 @@ void ApiWrap::sendAction(const SendAction &action) {
 void ApiWrap::finishForwarding(const SendAction &action) {
 	const auto history = action.history;
 	const auto topicRootId = action.replyTo.topicRootId;
-	auto toForward = history->resolveForwardDraft(topicRootId);
+	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
+	auto toForward = history->resolveForwardDraft(
+		topicRootId,
+		monoforumPeerId);
 	if (!toForward.items.empty()) {
 		const auto error = GetErrorForSending(
 			history->peer,
@@ -3236,7 +3261,7 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 		}
 
 		forwardMessages(std::move(toForward), action);
-		history->setForwardDraft(topicRootId, {});
+		history->setForwardDraft(topicRootId, monoforumPeerId, {});
 	}
 
 	_session->data().sendHistoryChangeNotifications();
@@ -3728,6 +3753,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 
 	const auto clearCloudDraft = action.clearDraft;
 	const auto draftTopicRootId = action.replyTo.topicRootId;
+	const auto draftMonoforumPeerId = action.replyTo.monoforumPeerId;
 	const auto replyTo = action.replyTo.messageId
 		? peer->owner().message(action.replyTo.messageId)
 		: nullptr;
@@ -3837,8 +3863,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (clearCloudDraft) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
-			history->clearCloudDraft(draftTopicRootId);
-			history->startSavingCloudDraft(draftTopicRootId);
+			history->clearCloudDraft(draftTopicRootId, draftMonoforumPeerId);
+			history->startSavingCloudDraft(
+				draftTopicRootId,
+				draftMonoforumPeerId);
 		}
 		const auto sendAs = action.options.sendAs;
 		if (sendAs) {
@@ -3884,6 +3912,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			if (clearCloudDraft) {
 				history->finishSavingCloudDraft(
 					draftTopicRootId,
+					draftMonoforumPeerId,
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
 		};
@@ -3898,6 +3927,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			if (clearCloudDraft) {
 				history->finishSavingCloudDraft(
 					draftTopicRootId,
+					draftMonoforumPeerId,
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
 		};
@@ -4016,6 +4046,7 @@ void ApiWrap::sendInlineResult(
 	const auto topicRootId = action.replyTo.messageId
 		? action.replyTo.topicRootId
 		: 0;
+	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
 
 	using SendFlag = MTPmessages_SendInlineBotResult::Flag;
 	auto flags = NewMessageFlags(peer);
@@ -4068,8 +4099,8 @@ void ApiWrap::sendInlineResult(
 		.postAuthor = NewMessagePostAuthor(action),
 	});
 
-	history->clearCloudDraft(topicRootId);
-	history->startSavingCloudDraft(topicRootId);
+	history->clearCloudDraft(topicRootId, monoforumPeerId);
+	history->startSavingCloudDraft(topicRootId, monoforumPeerId);
 
 	auto &histories = history->owner().histories();
 	histories.sendPreparedMessage(
@@ -4090,6 +4121,7 @@ void ApiWrap::sendInlineResult(
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		history->finishSavingCloudDraft(
 			topicRootId,
+			monoforumPeerId,
 			UnixtimeFromMsgId(response.outerMsgId));
 		if (done) {
 			done(true);
@@ -4098,6 +4130,7 @@ void ApiWrap::sendInlineResult(
 		sendMessageFail(error, peer, randomId, newId);
 		history->finishSavingCloudDraft(
 			topicRootId,
+			monoforumPeerId,
 			UnixtimeFromMsgId(response.outerMsgId));
 		if (done) {
 			done(false);

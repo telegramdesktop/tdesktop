@@ -438,8 +438,10 @@ ChatWidget::ChatWidget(
 
 ChatWidget::~ChatWidget() {
 	base::take(_sendAction);
-	if (_repliesRootId) {
+	if (_repliesRootId || _sublist) {
 		session().api().saveCurrentDraftToCloud();
+	}
+	if (_repliesRootId) {
 		controller()->sendingAnimation().clear();
 	}
 	if (_topic) {
@@ -747,7 +749,8 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->setHistory({
 		.history = _history.get(),
-		.topicRootId = _topic ? _topic->rootId() : MsgId(0),
+		.topicRootId = _topic ? _topic->rootId() : MsgId(),
+		.monoforumPeerId = _sublist ? _sublist->sublistPeer()->id : PeerId(),
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
 		.sendActionFactory = [=] { return prepareSendAction({}); },
 		.slowmodeSecondsLeft = SlowmodeSecondsLeft(_peer),

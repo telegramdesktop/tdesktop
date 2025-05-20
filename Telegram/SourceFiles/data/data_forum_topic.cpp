@@ -406,6 +406,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 					&session(),
 					channel()->id,
 					_rootId,
+					PeerId(),
 					data);
 			}, [](const MTPDdraftMessageEmpty&) {});
 		}
@@ -709,7 +710,7 @@ void ForumTopic::requestChatListMessage() {
 
 TimeId ForumTopic::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
-	if (const auto draft = history()->cloudDraft(_rootId)) {
+	if (const auto draft = history()->cloudDraft(_rootId, PeerId())) {
 		if (!Data::DraftIsNull(draft) && !session().supportMode()) {
 			return std::max(result, draft->date);
 		}

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_messages.h"
 
 #include "apiwrap.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_saved_sublist.h"
@@ -47,7 +48,15 @@ SavedMessages::SavedMessages(
 	}
 }
 
-SavedMessages::~SavedMessages() = default;
+SavedMessages::~SavedMessages() {
+	auto &changes = session().changes();
+	for (const auto &[peer, sublist] : _sublists) {
+		_owningHistory->setForwardDraft(MsgId(), peer->id, {});
+
+		const auto raw = sublist.get();
+		changes.entryRemoved(raw);
+	}
+}
 
 bool SavedMessages::supported() const {
 	return !_unsupported;

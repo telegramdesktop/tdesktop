@@ -73,7 +73,7 @@ Forum::~Forum() {
 	const auto peerId = _history->peer->id;
 	for (const auto &[rootId, topic] : _topics) {
 		storage.unload(Storage::SharedMediaUnloadThread(peerId, rootId));
-		_history->setForwardDraft(rootId, {});
+		_history->setForwardDraft(rootId, PeerId(), {});
 
 		const auto raw = topic.get();
 		changes.topicRemoved(raw);
@@ -197,7 +197,7 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		session().storage().unload(Storage::SharedMediaUnloadThread(
 			_history->peer->id,
 			rootId));
-		_history->setForwardDraft(rootId, {});
+		_history->setForwardDraft(rootId, PeerId(), {});
 	}
 }
 

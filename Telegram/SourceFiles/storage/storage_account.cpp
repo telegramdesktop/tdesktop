@@ -1176,7 +1176,9 @@ void EnumerateDrafts(
 		} else if (key.isLocal()
 			&& (!supportMode || key.topicRootId())) {
 			const auto i = map.find(
-				Data::DraftKey::Cloud(key.topicRootId()));
+				Data::DraftKey::Cloud(
+					key.topicRootId(),
+					key.monoforumPeerId()));
 			const auto cloud = (i != end(map)) ? i->second.get() : nullptr;
 			if (Data::DraftsAreEqual(draft.get(), cloud)) {
 				continue;
@@ -1426,7 +1428,7 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 			? Data::DraftKey::FromSerialized(keyValue)
 			: keysOld
 			? Data::DraftKey::FromSerializedOld(keyValueOld)
-			: Data::DraftKey::Local(0);
+			: Data::DraftKey::Local(MsgId(), PeerId());
 		qint32 position = 0, anchor = 0, scroll = Ui::kQFixedMax;
 		draft.stream >> position >> anchor >> scroll;
 		if (const auto i = map.find(key); i != end(map)) {
@@ -1453,13 +1455,14 @@ void Account::readDraftCursorsLegacy(
 		return;
 	}
 
-	if (const auto i = map.find(Data::DraftKey::Local({})); i != end(map)) {
+	if (const auto i = map.find(Data::DraftKey::Local(MsgId(), PeerId()))
+		; i != end(map)) {
 		i->second->cursor = MessageCursor(
 			localPosition,
 			localAnchor,
 			localScroll);
 	}
-	if (const auto i = map.find(Data::DraftKey::LocalEdit({}))
+	if (const auto i = map.find(Data::DraftKey::LocalEdit(MsgId(), PeerId()))
 		; i != end(map)) {
 		i->second->cursor = MessageCursor(
 			editPosition,
@@ -1472,7 +1475,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	const auto guard = gsl::finally([&] {
 		if (const auto migrated = history->migrateFrom()) {
 			readDraftsWithCursors(migrated);
-			migrated->clearLocalEditDraft({});
+			migrated->clearLocalEditDraft(MsgId(), PeerId());
 			history->takeLocalDraft(migrated);
 		}
 	});
@@ -1643,10 +1646,11 @@ void Account::readDraftsWithCursorsLegacy(
 		editData.text.size());
 
 	const auto topicRootId = MsgId();
+	const auto monoforumPeerId = PeerId();
 	auto map = base::flat_map<Data::DraftKey, std::unique_ptr<Data::Draft>>();
 	if (!msgData.text.isEmpty() || msgReplyTo) {
 		map.emplace(
-			Data::DraftKey::Local(topicRootId),
+			Data::DraftKey::Local(topicRootId, monoforumPeerId),
 			std::make_unique<Data::Draft>(
 				msgData,
 				FullReplyTo{ FullMsgId(peerId, MsgId(msgReplyTo)) },
@@ -1657,7 +1661,7 @@ void Account::readDraftsWithCursorsLegacy(
 	}
 	if (editMsgId) {
 		map.emplace(
-			Data::DraftKey::LocalEdit(topicRootId),
+			Data::DraftKey::LocalEdit(topicRootId, monoforumPeerId),
 			std::make_unique<Data::Draft>(
 				editData,
 				FullReplyTo{ FullMsgId(peerId, editMsgId) },

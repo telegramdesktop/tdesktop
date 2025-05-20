@@ -76,6 +76,7 @@ private:
 void ClearDraftReplyTo(
 	not_null<History*> history,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	FullMsgId equalTo);
 
 void EditWebPageOptions(

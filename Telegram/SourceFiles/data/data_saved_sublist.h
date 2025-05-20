@@ -72,6 +72,8 @@ public:
 	void readTillEnd();
 	void requestChatListMessage();
 
+	TimeId adjustedChatListTimeId() const override;
+
 	int fixedOnTopIndex() const override;
 	bool shouldBeInChatList() const override;
 	Dialogs::UnreadState chatListUnreadState() const override;

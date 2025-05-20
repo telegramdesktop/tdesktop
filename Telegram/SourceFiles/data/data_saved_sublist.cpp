@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_drafts.h"
 #include "data/data_histories.h"
 #include "data/data_messages.h"
 #include "data/data_peer.h"
@@ -695,21 +696,36 @@ void SavedSublist::subscribeToUnreadChanges() {
 void SavedSublist::applyMonoforumDialog(
 		const MTPDmonoForumDialog &data,
 		not_null<HistoryItem*> topItem) {
-	//if (const auto draft = data.vdraft()) { // #TODO monoforum
-	//	draft->match([&](const MTPDdraftMessage &data) {
-	//		Data::ApplyPeerCloudDraft(
-	//			&session(),
-	//			channel()->id,
-	//			_rootId,
-	//			data);
-	//	}, [](const MTPDdraftMessageEmpty&) {});
-	//}
+	if (const auto parent = parentChat()) {
+		if (const auto draft = data.vdraft()) {
+			draft->match([&](const MTPDdraftMessage &data) {
+				Data::ApplyPeerCloudDraft(
+					&session(),
+					parent->id,
+					MsgId(),
+					sublistPeer()->id,
+					data);
+			}, [](const MTPDdraftMessageEmpty&) {});
+		}
+	}
 
 	setInboxReadTill(
 		data.vread_inbox_max_id().v,
 		data.vunread_count().v);
 	setOutboxReadTill(data.vread_outbox_max_id().v);
 	applyMaybeLast(topItem);
+}
+
+TimeId SavedSublist::adjustedChatListTimeId() const {
+	const auto result = chatListTimeId();
+	const auto monoforumPeerId = sublistPeer()->id;
+	const auto history = _parent->owningHistory();
+	if (const auto draft = history->cloudDraft(MsgId(), monoforumPeerId)) {
+		if (!Data::DraftIsNull(draft) && !session().supportMode()) {
+			return std::max(result, draft->date);
+		}
+	}
+	return result;
 }
 
 rpl::producer<> SavedSublist::changes() const {

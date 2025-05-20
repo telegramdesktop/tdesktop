@@ -206,33 +206,39 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 
 void History::takeLocalDraft(not_null<History*> from) {
 	const auto topicRootId = MsgId(0);
-	const auto i = from->_drafts.find(Data::DraftKey::Local(topicRootId));
+	const auto monoforumPeerId = PeerId(0);
+	const auto i = from->_drafts.find(
+		Data::DraftKey::Local(topicRootId, monoforumPeerId));
 	if (i == end(from->_drafts)) {
 		return;
 	}
 	auto &draft = i->second;
 	if (!draft->textWithTags.text.isEmpty()
-		&& !_drafts.contains(Data::DraftKey::Local(topicRootId))) {
+		&& !_drafts.contains(
+			Data::DraftKey::Local(topicRootId, monoforumPeerId))) {
 		// Edit and reply to drafts can't migrate.
 		// Cloud drafts do not migrate automatically.
 		draft->reply = FullReplyTo();
 		setLocalDraft(std::move(draft));
 	}
-	from->clearLocalDraft(topicRootId);
+	from->clearLocalDraft(topicRootId, monoforumPeerId);
 	session().api().saveDraftToCloudDelayed(from);
 }
 
-void History::createLocalDraftFromCloud(MsgId topicRootId) {
-	const auto draft = cloudDraft(topicRootId);
+void History::createLocalDraftFromCloud(
+		MsgId topicRootId,
+		PeerId monoforumPeerId) {
+	const auto draft = cloudDraft(topicRootId, monoforumPeerId);
 	if (!draft) {
-		clearLocalDraft(topicRootId);
+		clearLocalDraft(topicRootId, monoforumPeerId);
 		return;
 	} else if (Data::DraftIsNull(draft) || !draft->date) {
 		return;
 	}
 
 	draft->reply.topicRootId = topicRootId;
-	auto existing = localDraft(topicRootId);
+	draft->reply.monoforumPeerId = monoforumPeerId;
+	auto existing = localDraft(topicRootId, monoforumPeerId);
 	if (Data::DraftIsNull(existing)
 		|| !existing->date
 		|| draft->date >= existing->date) {
@@ -242,7 +248,7 @@ void History::createLocalDraftFromCloud(MsgId topicRootId) {
 				draft->reply,
 				draft->cursor,
 				draft->webpage));
-			existing = localDraft(topicRootId);
+			existing = localDraft(topicRootId, monoforumPeerId);
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
 			existing->reply = draft->reply;
@@ -268,7 +274,7 @@ void History::setDraft(
 		return;
 	}
 	const auto cloudThread = key.isCloud()
-		? threadFor(key.topicRootId())
+		? threadFor(key.topicRootId(), key.monoforumPeerId())
 		: nullptr;
 	if (cloudThread) {
 		cloudThread->cloudDraftTextCache().clear();
@@ -298,7 +304,7 @@ void History::clearDraft(Data::DraftKey key) {
 void History::clearDrafts() {
 	for (auto &[key, draft] : base::take(_drafts)) {
 		const auto cloudThread = key.isCloud()
-			? threadFor(key.topicRootId())
+			? threadFor(key.topicRootId(), key.monoforumPeerId())
 			: nullptr;
 		if (cloudThread) {
 			cloudThread->cloudDraftTextCache().clear();
@@ -309,25 +315,30 @@ void History::clearDrafts() {
 
 Data::Draft *History::createCloudDraft(
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		const Data::Draft *fromDraft) {
 	if (Data::DraftIsNull(fromDraft)) {
 		setCloudDraft(std::make_unique<Data::Draft>(
 			TextWithTags(),
-			FullReplyTo{ .topicRootId = topicRootId },
+			FullReplyTo{
+				.topicRootId = topicRootId,
+				.monoforumPeerId = monoforumPeerId,
+			},
 			MessageCursor(),
 			Data::WebPageDraft()));
-		cloudDraft(topicRootId)->date = TimeId(0);
+		cloudDraft(topicRootId, monoforumPeerId)->date = TimeId(0);
 	} else {
-		auto existing = cloudDraft(topicRootId);
+		auto existing = cloudDraft(topicRootId, monoforumPeerId);
 		if (!existing) {
 			auto reply = fromDraft->reply;
 			reply.topicRootId = topicRootId;
+			reply.monoforumPeerId = monoforumPeerId;
 			setCloudDraft(std::make_unique<Data::Draft>(
 				fromDraft->textWithTags,
 				reply,
 				fromDraft->cursor,
 				fromDraft->webpage));
-			existing = cloudDraft(topicRootId);
+			existing = cloudDraft(topicRootId, monoforumPeerId);
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
 			existing->reply = fromDraft->reply;
@@ -336,44 +347,56 @@ Data::Draft *History::createCloudDraft(
 		}
 		existing->date = base::unixtime::now();
 		existing->reply.topicRootId = topicRootId;
+		existing->reply.monoforumPeerId = monoforumPeerId;
 	}
 
-	if (const auto thread = threadFor(topicRootId)) {
+	if (const auto thread = threadFor(topicRootId, monoforumPeerId)) {
 		thread->cloudDraftTextCache().clear();
 		thread->updateChatListSortPosition();
 	}
 
-	return cloudDraft(topicRootId);
+	return cloudDraft(topicRootId, monoforumPeerId);
 }
 
-bool History::skipCloudDraftUpdate(MsgId topicRootId, TimeId date) const {
-	const auto i = _acceptCloudDraftsAfter.find(topicRootId);
-	return _savingCloudDraftRequests.contains(topicRootId)
+bool History::skipCloudDraftUpdate(
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
+		TimeId date) const {
+	const auto key = Data::DraftKey::Local(topicRootId, monoforumPeerId);
+	const auto i = _acceptCloudDraftsAfter.find(key);
+	return _savingCloudDraftRequests.contains(key)
 		|| (i != _acceptCloudDraftsAfter.end() && date < i->second);
 }
 
-void History::startSavingCloudDraft(MsgId topicRootId) {
-	++_savingCloudDraftRequests[topicRootId];
+void History::startSavingCloudDraft(
+		MsgId topicRootId,
+		PeerId monoforumPeerId) {
+	const auto key = Data::DraftKey::Local(topicRootId, monoforumPeerId);
+	++_savingCloudDraftRequests[key];
 }
 
-void History::finishSavingCloudDraft(MsgId topicRootId, TimeId savedAt) {
-	const auto i = _savingCloudDraftRequests.find(topicRootId);
+void History::finishSavingCloudDraft(
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
+		TimeId savedAt) {
+	const auto key = Data::DraftKey::Local(topicRootId, monoforumPeerId);
+	const auto i = _savingCloudDraftRequests.find(key);
 	if (i != _savingCloudDraftRequests.end()) {
 		if (--i->second <= 0) {
 			_savingCloudDraftRequests.erase(i);
 		}
 	}
-	auto &after = _acceptCloudDraftsAfter[topicRootId];
+	auto &after = _acceptCloudDraftsAfter[key];
 	after = std::max(after, savedAt + kSkipCloudDraftsFor);
 }
 
-void History::applyCloudDraft(MsgId topicRootId) {
+void History::applyCloudDraft(MsgId topicRootId, PeerId monoforumPeerId) {
 	if (!topicRootId && session().supportMode()) {
 		updateChatListEntry();
 		session().supportHelper().cloudDraftChanged(this);
 	} else {
-		createLocalDraftFromCloud(topicRootId);
-		if (const auto thread = threadFor(topicRootId)) {
+		createLocalDraftFromCloud(topicRootId, monoforumPeerId);
+		if (const auto thread = threadFor(topicRootId, monoforumPeerId)) {
 			thread->updateChatListSortPosition();
 			if (!topicRootId) {
 				session().changes().historyUpdated(
@@ -388,17 +411,19 @@ void History::applyCloudDraft(MsgId topicRootId) {
 	}
 }
 
-void History::draftSavedToCloud(MsgId topicRootId) {
-	if (const auto thread = threadFor(topicRootId)) {
+void History::draftSavedToCloud(MsgId topicRootId, PeerId monoforumPeerId) {
+	if (const auto thread = threadFor(topicRootId, monoforumPeerId)) {
 		thread->updateChatListEntry();
 	}
 	session().local().writeDrafts(this);
 }
 
 const Data::ForwardDraft &History::forwardDraft(
-		MsgId topicRootId) const {
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const {
+	const auto key = Data::DraftKey::Local(topicRootId, monoforumPeerId);
 	static const auto kEmpty = Data::ForwardDraft();
-	const auto i = _forwardDrafts.find(topicRootId);
+	const auto i = _forwardDrafts.find(key);
 	return (i != end(_forwardDrafts)) ? i->second : kEmpty;
 }
 
@@ -411,11 +436,12 @@ Data::ResolvedForwardDraft History::resolveForwardDraft(
 }
 
 Data::ResolvedForwardDraft History::resolveForwardDraft(
-		MsgId topicRootId) {
-	const auto &draft = forwardDraft(topicRootId);
+		MsgId topicRootId,
+		PeerId monoforumPeerId) {
+	const auto &draft = forwardDraft(topicRootId, monoforumPeerId);
 	auto result = resolveForwardDraft(draft);
 	if (result.items.size() != draft.ids.size()) {
-		setForwardDraft(topicRootId, {
+		setForwardDraft(topicRootId, monoforumPeerId, {
 			.ids = owner().itemsToIds(result.items),
 			.options = result.options,
 		});
@@ -425,24 +451,23 @@ Data::ResolvedForwardDraft History::resolveForwardDraft(
 
 void History::setForwardDraft(
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		Data::ForwardDraft &&draft) {
 	auto changed = false;
+	const auto key = Data::DraftKey::Local(topicRootId, monoforumPeerId);
 	if (draft.ids.empty()) {
-		changed = _forwardDrafts.remove(topicRootId);
+		changed = _forwardDrafts.remove(key);
 	} else {
-		auto &now = _forwardDrafts[topicRootId];
+		auto &now = _forwardDrafts[key];
 		if (now != draft) {
 			now = std::move(draft);
 			changed = true;
 		}
 	}
 	if (changed) {
-		const auto entry = topicRootId
-			? peer->forumTopicFor(topicRootId)
-			: (Dialogs::Entry*)this;
-		if (entry) {
+		if (const auto thread = threadFor(topicRootId, monoforumPeerId)) {
 			session().changes().entryUpdated(
-				entry,
+				thread,
 				Data::EntryUpdate::Flag::ForwardDraft);
 		}
 	}
@@ -2081,7 +2106,7 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 
 TimeId History::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
-	if (const auto draft = cloudDraft(MsgId(0))) {
+	if (const auto draft = cloudDraft(MsgId(), PeerId())) {
 		if (!peer->forum()
 			&& !Data::DraftIsNull(draft)
 			&& !session().supportMode()) {
@@ -2871,7 +2896,8 @@ void History::applyDialog(
 		Data::ApplyPeerCloudDraft(
 			&session(),
 			peer->id,
-			MsgId(0), // topicRootId
+			MsgId(), // topicRootId
+			PeerId(), // monoforumPeerId
 			draft->c_draftMessage());
 	}
 	if (const auto ttl = data.vttl_period()) {
@@ -3101,14 +3127,22 @@ void History::forceFullResize() {
 	_flags |= Flag::HasPendingResizedItems;
 }
 
-Data::Thread *History::threadFor(MsgId topicRootId) {
+Data::Thread *History::threadFor(MsgId topicRootId, PeerId monoforumPeerId) {
 	return topicRootId
 		? peer->forumTopicFor(topicRootId)
-		: static_cast<Data::Thread*>(this);
+		: !monoforumPeerId
+		? static_cast<Data::Thread*>(this)
+		: peer->monoforum()
+		? peer->monoforum()->sublistLoaded(owner().peer(monoforumPeerId))
+		: nullptr;
 }
 
-const Data::Thread *History::threadFor(MsgId topicRootId) const {
-	return const_cast<History*>(this)->threadFor(topicRootId);
+const Data::Thread *History::threadFor(
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const {
+	return const_cast<History*>(this)->threadFor(
+		topicRootId,
+		monoforumPeerId);
 }
 
 void History::forumChanged(Data::Forum *old) {
@@ -3137,7 +3171,7 @@ void History::forumChanged(Data::Forum *old) {
 	} else {
 		_flags &= ~Flag::IsForum;
 	}
-	if (cloudDraft(MsgId(0))) {
+	if (cloudDraft(MsgId(), PeerId())) {
 		updateChatListSortPosition();
 	}
 	_flags |= Flag::PendingAllItemsResize;
@@ -3173,7 +3207,7 @@ void History::monoforumChanged(Data::SavedMessages *old) {
 	} else {
 		_flags &= ~Flag::IsMonoforumAdmin;
 	}
-	if (cloudDraft(MsgId(0))) {
+	if (cloudDraft(MsgId(), PeerId())) {
 		updateChatListSortPosition();
 	}
 	_flags |= Flag::PendingAllItemsResize;
