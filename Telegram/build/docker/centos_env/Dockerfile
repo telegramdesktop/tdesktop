@@ -25,7 +25,8 @@ RUN dnf -y install epel-release \
 		libffi-devel fontconfig-devel freetype-devel libX11-devel wayland-devel \
 		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
 		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
-		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
+		glib2-devel gobject-introspection-devel at-spi2-core-devel gtk3-devel \
+		boost1.78-devel fmt-devel \
 	&& dnf clean all
 
 RUN alternatives --set python3 /usr/bin/python3.11
@@ -672,30 +673,6 @@ RUN git clone -b xkbcommon-1.6.0 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 	&& cd .. \
 	&& rm -rf libxkbcommon
 
-FROM builder AS glib
-RUN git clone -b 2.78.1 --depth=1 {{ GIT }}/GNOME/glib.git \
-	&& cd glib \
-	&& meson build \
-		--buildtype=plain \
-		--default-library=both \
-		-Dtests=false \
-		-Dmm-common:use-network=true \
-	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/glib-cache" meson install -C build \
-	&& cd .. \
-	&& rm -rf glib
-
-FROM builder AS gobject-introspection
-COPY --link --from=glib {{ LibrariesPath }}/glib-cache /
-
-RUN git clone -b 1.78.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
-	&& cd gobject-introspection \
-	&& meson build --buildtype=plain \
-	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/gobject-introspection-cache" meson install -C build \
-	&& cd .. \
-	&& rm -rf gobject-introspection
-
 FROM patches AS qt
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
@@ -834,13 +811,14 @@ COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openal {{ LibrariesPath }}/openal-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
-COPY --link --from=glib {{ LibrariesPath }}/glib-cache /
-COPY --link --from=gobject-introspection {{ LibrariesPath }}/gobject-introspection-cache /
 COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
 COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
 COPY --link --from=webrtc {{ LibrariesPath }}/webrtc-cache /
 COPY --link --from=ada {{ LibrariesPath }}/ada-cache /
 COPY --link --from=tde2e {{ LibrariesPath }}/tde2e-cache /
+
+COPY --link --from=patches {{ LibrariesPath }}/patches patches
+RUN patch -p1 -d /usr/lib64/gobject-introspection -i $PWD/patches/gobject-introspection.patch && rm -rf patches
 
 WORKDIR ../tdesktop
 ENV BOOST_INCLUDEDIR /usr/include/boost1.78
