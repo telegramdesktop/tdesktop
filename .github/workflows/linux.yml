@@ -108,8 +108,8 @@ jobs:
           $IMAGE_TAG \
           /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Debug \
-          -D CMAKE_C_FLAGS_DEBUG="-O0 -U_FORTIFY_SOURCE" \
-          -D CMAKE_CXX_FLAGS_DEBUG="-O0 -U_FORTIFY_SOURCE" \
+          -D CMAKE_C_FLAGS_DEBUG="-O0" \
+          -D CMAKE_CXX_FLAGS_DEBUG="-O0" \
           -D CMAKE_EXE_LINKER_FLAGS="-s" \
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
           -D TDESKTOP_API_TEST=ON \

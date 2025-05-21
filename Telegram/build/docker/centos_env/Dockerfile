@@ -1,7 +1,7 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set GIT_UPDATE_M4 = "git submodule set-url m4 https://gitlab.freedesktop.org/xorg/util/xcb-util-m4 && git submodule update --init --recursive --depth=1" -%}
-{%- set TOOLSET = "gcc-toolset-12" -%}
+{%- set TOOLSET = "gcc-toolset-14" -%}
 {%- set QT = "6.9.0" -%}
 {%- set QT_TAG = "v" ~ QT -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
@@ -26,7 +26,7 @@ RUN dnf -y install epel-release \
 		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
 		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
 		glib2-devel gobject-introspection-devel at-spi2-core-devel gtk3-devel \
-		boost1.78-devel fmt-devel \
+		boost1.78-devel \
 	&& dnf clean all
 
 RUN alternatives --set python3 /usr/bin/python3.11
@@ -39,7 +39,7 @@ WORKDIR {{ LibrariesPath }}
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS
+ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened
 ENV CXXFLAGS $CFLAGS
 
 ENV CMAKE_GENERATOR Ninja
