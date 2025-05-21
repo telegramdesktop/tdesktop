@@ -32,7 +32,7 @@ Or, to create a debug build, run (also using [your **api_id** and **api_hash**](
     docker run --rm -it \
         -u $(id -u) \
         -v "$PWD:/usr/src/tdesktop" \
-        -e CONFIG=Debug \
+        -e CMAKE_CONFIG_TYPE=Debug \
         tdesktop:centos_env \
         /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
         -D TDESKTOP_API_ID=YOUR_API_ID \

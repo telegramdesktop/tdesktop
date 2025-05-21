@@ -42,6 +42,11 @@ ENV NM gcc-nm
 ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS
 ENV CXXFLAGS $CFLAGS
 
+ENV CMAKE_GENERATOR Ninja
+ENV CMAKE_BUILD_TYPE None
+ENV CMAKE_CONFIG_TYPE Release
+ENV CMAKE_BUILD_PARALLEL_LEVEL ''
+
 FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
@@ -53,10 +58,8 @@ RUN git init patches \
 FROM builder AS zlib
 RUN git clone -b v1.3.1 --depth=1 {{ GIT }}/madler/zlib.git \
 	&& cd zlib \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
-		-DZLIB_BUILD_EXAMPLES=OFF \
-	&& cmake --build build --parallel \
+	&& cmake -B build . -DZLIB_BUILD_EXAMPLES=OFF \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/zlib-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf zlib
@@ -64,8 +67,8 @@ RUN git clone -b v1.3.1 --depth=1 {{ GIT }}/madler/zlib.git \
 FROM builder AS xz
 RUN git clone -b v5.8.1 --depth=1 {{ GIT }}/tukaani-project/xz.git \
 	&& cd xz \
-	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
-	&& cmake --build build --parallel \
+	&& cmake -B build . \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/xz-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf xz
@@ -73,13 +76,12 @@ RUN git clone -b v5.8.1 --depth=1 {{ GIT }}/tukaani-project/xz.git \
 FROM builder AS protobuf
 RUN git clone -b v30.2 --depth=1 --recursive --shallow-submodules {{ GIT }}/protocolbuffers/protobuf.git \
 	&& cd protobuf \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-Dprotobuf_BUILD_TESTS=OFF \
 		-Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
 		-Dprotobuf_BUILD_LIBPROTOC=ON \
 		-Dprotobuf_WITH_ZLIB=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/protobuf-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf protobuf
@@ -98,11 +100,10 @@ RUN git clone -b lcms2.15 --depth=1 {{ GIT }}/mm2/Little-CMS.git \
 FROM builder AS brotli
 RUN git clone -b v1.1.0 --depth=1 {{ GIT }}/google/brotli.git \
 	&& cd brotli \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBROTLI_DISABLE_TESTS=ON \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/brotli-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf brotli
@@ -110,12 +111,11 @@ RUN git clone -b v1.1.0 --depth=1 {{ GIT }}/google/brotli.git \
 FROM builder AS highway
 RUN git clone -b 1.0.7 --depth=1 {{ GIT }}/google/highway.git \
 	&& cd highway \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_TESTING=OFF \
 		-DHWY_ENABLE_CONTRIB=OFF \
 		-DHWY_ENABLE_EXAMPLES=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/highway-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf highway
@@ -123,8 +123,8 @@ RUN git clone -b 1.0.7 --depth=1 {{ GIT }}/google/highway.git \
 FROM builder AS opus
 RUN git clone -b v1.5.2 --depth=1 {{ GIT }}/xiph/opus.git \
 	&& cd opus \
-	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
-	&& cmake --build build --parallel \
+	&& cmake -B build . \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/opus-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf opus
@@ -156,12 +156,12 @@ RUN git clone -b v2.4.1 --depth=1 {{ GIT }}/cisco/openh264.git \
 FROM builder AS libde265
 RUN git clone -b v1.0.15 --depth=1 {{ GIT }}/strukturag/libde265.git \
 	&& cd libde265 \
-	&& cmake -GNinja -B build . \
+	&& cmake -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DENABLE_DECODER=OFF \
 		-DENABLE_SDL=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/libde265-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libde265
@@ -189,8 +189,7 @@ RUN git init libvpx \
 FROM builder AS libwebp
 RUN git clone -b chrome-m116-5845 --depth=1 {{ GIT }}/webmproject/libwebp.git \
 	&& cd libwebp \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DWEBP_BUILD_ANIM_UTILS=OFF \
 		-DWEBP_BUILD_CWEBP=OFF \
 		-DWEBP_BUILD_DWEBP=OFF \
@@ -200,7 +199,7 @@ RUN git clone -b chrome-m116-5845 --depth=1 {{ GIT }}/webmproject/libwebp.git \
 		-DWEBP_BUILD_WEBPMUX=OFF \
 		-DWEBP_BUILD_WEBPINFO=OFF \
 		-DWEBP_BUILD_EXTRAS=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/libwebp-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libwebp
@@ -210,11 +209,10 @@ COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 
 RUN git clone -b v1.0.4 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
 	&& cd libavif \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DAVIF_CODEC_DAV1D=ON \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/libavif-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libavif
@@ -224,8 +222,7 @@ COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
 
 RUN git clone -b v1.18.2 --depth=1 {{ GIT }}/strukturag/libheif.git \
 	&& cd libheif \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \
 		-DENABLE_PLUGIN_LOADING=OFF \
@@ -238,7 +235,7 @@ RUN git clone -b v1.18.2 --depth=1 {{ GIT }}/strukturag/libheif.git \
 		-DWITH_SvtEnc_PLUGIN=OFF \
 		-DWITH_DAV1D=OFF \
 		-DWITH_EXAMPLES=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/libheif-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libheif
@@ -251,8 +248,7 @@ COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 RUN git clone -b v0.11.1 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 	&& cd libjxl \
 	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \
 		-DJPEGXL_ENABLE_DEVTOOLS=OFF \
@@ -266,7 +262,7 @@ RUN git clone -b v0.11.1 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 		-DJPEGXL_ENABLE_SJPEG=OFF \
 		-DJPEGXL_ENABLE_OPENEXR=OFF \
 		-DJPEGXL_ENABLE_SKCMS=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& export DESTDIR="{{ LibrariesPath }}/libjxl-cache" \
 	&& cmake --install build \
 	&& cp build/lib/libjpegli-static.a $DESTDIR/usr/local/lib64/libjpeg.a \
@@ -277,8 +273,8 @@ RUN git clone -b v0.11.1 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 FROM builder AS rnnoise
 RUN git clone -b master --depth=1 {{ GIT }}/desktop-app/rnnoise.git \
 	&& cd rnnoise \
-	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
-	&& cmake --build build --parallel \
+	&& cmake -B build . \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/rnnoise-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf rnnoise
@@ -636,13 +632,12 @@ COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 
 RUN git clone -b 1.24.1 --depth=1 {{ GIT }}/kcat/openal-soft.git \
 	&& cd openal-soft \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DLIBTYPE:STRING=STATIC \
 		-DALSOFT_EXAMPLES=OFF \
 		-DALSOFT_UTILS=OFF \
 		-DALSOFT_INSTALL_CONFIG=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/openal-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf openal-soft
@@ -726,8 +721,7 @@ RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git \
 	&& cd ../qtwayland \
 	&& find ../../patches/qtwayland_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DQT_GENERATE_SBOM=OFF \
 		-DINPUT_libpng=qt \
@@ -737,7 +731,7 @@ RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git \
 		-DFEATURE_xcb_sm=OFF \
 		-DINPUT_dbus=runtime \
 		-DINPUT_openssl=linked \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/qt-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf qt5
@@ -786,25 +780,24 @@ RUN git init tg_owt \
 WORKDIR tg_owt
 
 FROM webrtc AS webrtc_release
-RUN cmake --build out --config Release --parallel \
+RUN cmake --build out --config Release \
 	&& find out -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} \;
 
 {%- if DEBUG %}
 
 FROM webrtc AS webrtc_debug
-RUN cmake --build out --config Debug --parallel \
+RUN cmake --build out --config Debug \
 	&& find out -mindepth 1 -maxdepth 1 ! -name Debug -exec rm -rf {} \;
 {%- endif %}
 
 FROM builder AS ada
 RUN git clone -b v3.2.2 --depth=1 {{ GIT }}/ada-url/ada.git \
 	&& cd ada \
-	&& cmake -GNinja -B build . \
-		-D CMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
         -D ADA_TESTING=OFF \
         -D ADA_TOOLS=OFF \
         -D ADA_INCLUDE_URL_PATTERN=OFF \
-	&& cmake --build build --parallel \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/ada-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf ada
@@ -819,10 +812,8 @@ RUN git init tde2e \
 	&& git remote add origin {{ GIT }}/tdlib/td.git \
 	&& git fetch --depth=1 origin 51743dfd01dff6179e2d8f7095729caa4e2222e9 \
 	&& git reset --hard FETCH_HEAD \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=NONE \
-		-DTD_E2E_ONLY=ON \
-	&& cmake --build build --parallel \
+	&& cmake -B build . -DTD_E2E_ONLY=ON \
+	&& cmake --build build \
 	&& DESTDIR="{{ LibrariesPath }}/tde2e-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf tde2e
