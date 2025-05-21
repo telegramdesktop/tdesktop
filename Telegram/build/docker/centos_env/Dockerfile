@@ -4,7 +4,6 @@
 {%- set TOOLSET = "gcc-toolset-12" -%}
 {%- set QT = "6.9.0" -%}
 {%- set QT_TAG = "v" ~ QT -%}
-{%- set CFLAGS_DEBUG = "$CFLAGS -O0 -fno-lto -U_FORTIFY_SOURCE" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
 # syntax=docker/dockerfile:1
@@ -764,32 +763,11 @@ RUN git init tg_owt \
 	&& git fetch --depth=1 origin c4192e8e2e10ccb72704daa79fa108becfa57b01 \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
-	&& rm -rf .git \
-	&& env -u CFLAGS -u CXXFLAGS cmake -G"Ninja Multi-Config" -B out . \
-		-DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
-		-DCMAKE_C_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-		-DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
-		-DCMAKE_CXX_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-		-DTG_OWT_SPECIAL_TARGET=linux \
-		-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
-		-DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/include \
-		-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
-		-DTG_OWT_LIBVPX_INCLUDE_PATH=/usr/local/include \
-		-DTG_OWT_OPENH264_INCLUDE_PATH=/usr/local/include \
-		-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
-
-WORKDIR tg_owt
-
-FROM webrtc AS webrtc_release
-RUN cmake --build out --config Release \
-	&& find out -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} \;
-
-{%- if DEBUG %}
-
-FROM webrtc AS webrtc_debug
-RUN cmake --build out --config Debug \
-	&& find out -mindepth 1 -maxdepth 1 ! -name Debug -exec rm -rf {} \;
-{%- endif %}
+	&& cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON \
+	&& cmake --build build \
+	&& DESTDIR="{{ LibrariesPath }}/webrtc-cache" cmake --install build \
+	&& cd .. \
+	&& rm -rf tg_owt
 
 FROM builder AS ada
 RUN git clone -b v3.2.2 --depth=1 {{ GIT }}/ada-url/ada.git \
@@ -860,11 +838,7 @@ COPY --link --from=glib {{ LibrariesPath }}/glib-cache /
 COPY --link --from=gobject-introspection {{ LibrariesPath }}/gobject-introspection-cache /
 COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
 COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
-COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
-COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release
-{%- if DEBUG %}
-COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
-{%- endif %}
+COPY --link --from=webrtc {{ LibrariesPath }}/webrtc-cache /
 COPY --link --from=ada {{ LibrariesPath }}/ada-cache /
 COPY --link --from=tde2e {{ LibrariesPath }}/tde2e-cache /
 
