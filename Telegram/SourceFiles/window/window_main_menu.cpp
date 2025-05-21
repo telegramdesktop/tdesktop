@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu_helpers.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+#include "deleted_messages/deleted_messages_controller.h" // Added include
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
@@ -733,6 +734,27 @@ void MainMenu::setupMenu() {
 		{ &st::menuIconSettings }
 	)->setClickedCallback([=] {
 		controller->showSettings();
+	});
+
+	// Add "Deleted Messages" item
+	addAction(
+		tr::lng_deleted_messages_title(), // Assuming this lang key will be added
+		{ &st::menuIconTrash } // Assuming st::menuIconTrash exists or will be added
+	)->setClickedCallback([=] {
+		// This is a simplified approach. The actual way to show a section might
+		// involve specific logic in Window::SessionController or a memento pattern.
+		// For now, we'll assume a direct creation/show or a new section type
+		// that would be handled by _controller->showSection.
+		// If _deletedMessagesController is managed by MainMenu itself:
+		if (!_deletedMessagesController) {
+			_deletedMessagesController.create(this->parentWidget(), _controller);
+		}
+		_controller->showSection(_deletedMessagesController.get());
+		// If sections are identified by an enum type passed to showSection,
+		// a new enum member would be needed, e.g.:
+		// _controller->showSection(
+		//     Window::SessionNavigation::Section::Type::DeletedMessages);
+		// And Window::SessionController would handle creating/showing the correct section.
 	});
 
 	_nightThemeToggle = addAction(

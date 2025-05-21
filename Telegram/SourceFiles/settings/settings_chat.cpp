@@ -2042,6 +2042,79 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	SetupSensitiveContent(controller, content, std::move(updateOnTick));
 	SetupArchive(controller, content, showOtherMethod());
 
+	// Add Deleted Messages Settings Section
+	Ui::AddDivider(content);
+	Ui::AddSkip(content);
+
+	content->add(object_ptr<Ui::DividerLabel>(
+		content,
+		Lang::Hard::DeletedMessagesSettingsTitle(), // "Locally Saved Deleted Messages"
+		st::settingsDividerLabelPadding));
+
+	const auto saveEnabledCheckbox = content->add(object_ptr<Ui::SettingsButton>(
+		content,
+		Lang::Hard::DeletedMessagesEnable(), // "Save deleted messages locally"
+		st::settingsButton
+	))->toggle(
+		Core::App().settings().saveDeletedMessagesEnabled(),
+		anim::type::instant
+	);
+
+	const auto saveMediaCheckbox = content->add(object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+		content,
+		object_ptr<Ui::SettingsButton>(
+			content,
+			Lang::Hard::DeletedMessagesSaveMedia(), // "Save media files for deleted messages"
+			st::settingsButton // Indentation might be handled by SlideWrap margins or custom style later
+		)->toggle(
+			Core::App().settings().saveDeletedMessagesMedia(),
+			anim::type::instant
+		)
+	));
+
+	saveEnabledCheckbox->toggledChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setSaveDeletedMessagesEnabled(checked);
+		Core::App().saveSettingsDelayed();
+		saveMediaCheckbox->toggle(checked, anim::type::normal);
+	}, saveEnabledCheckbox->lifetime());
+
+	saveMediaCheckbox->entity()->toggledChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setSaveDeletedMessagesMedia(checked);
+		Core::App().saveSettingsDelayed();
+	}, saveMediaCheckbox->entity()->lifetime());
+
+	// Initial visibility based on the main setting
+	saveMediaCheckbox->toggle(Core::App().settings().saveDeletedMessagesEnabled(), anim::type::instant);
+
+
+	content->add(object_ptr<Ui::SettingsButton>(
+		content,
+		Lang::Hard::DeletedMessagesClearAll(), // "Clear All Saved Deleted Messages"
+		st::settingsButtonNoIcon // Consider a style with a warning color if available
+	))->clicks(
+	) | rpl::start_with_next([=] {
+		auto box = Ui::MakeConfirmBox({
+			.text = Lang::Hard::DeletedMessagesClearAllConfirm(), // "Are you sure..."
+			.confirmed = crl::guard(controller, [=](Fn<void()> close) {
+				if (auto storage = controller->session().deletedMessagesStorage()) {
+					if (storage->clearAllMessages()) {
+						controller->showToast(Lang::Hard::DeletedMessagesClearedToast()); // "Locally saved deleted messages cleared."
+					} else {
+						controller->showToast(Lang::Hard::DeletedMessagesClearErrorToast()); // "Could not clear deleted messages."
+					}
+				}
+				close();
+			}),
+			.confirmText = Lang::Hard::ClearButton(), // "Clear"
+			.confirmStyle = st::attentionBoxButton,
+		});
+		controller->show(std::move(box));
+	}, content->lifetime());
+	Ui::AddSkip(content); // Add some padding after the button.
+
+
 	Ui::ResizeFitChild(this, content);
 }
 

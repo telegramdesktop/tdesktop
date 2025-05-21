@@ -250,6 +250,9 @@ struct StoryUpdate {
 
 };
 
+class StoredDeletedMessage; // Forward declaration
+namespace Core { class FileLocation; } // Forward declaration
+
 class Changes final {
 public:
 	explicit Changes(not_null<Main::Session*> session);
@@ -402,5 +405,16 @@ private:
 	bool _notify = false;
 
 };
+
+// Helper function declarations
+void PopulateStoredDeletedMessageFromHistoryItem(
+	StoredDeletedMessage &outMsg,
+	const HistoryItem *item,
+	const QString& userBasePath);
+
+QString CopyDeletedMedia(
+	const Core::FileLocation &location,
+	const QString &userBasePath,
+	const QString &suggestedName);
 
 } // namespace Data

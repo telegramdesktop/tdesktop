@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/filter.h>
 #include <rpl/variable.h>
 #include "base/timer.h"
+#include "storage/deleted_messages_storage.h" // Added for DeletedMessagesStorage
 
 class ApiWrap;
 
@@ -279,6 +280,8 @@ private:
 	// _data depends on _downloader / _uploader.
 	const std::unique_ptr<Data::Session> _data;
 	const not_null<UserData*> _user;
+
+	const std::unique_ptr<Storage::DeletedMessagesStorage> _deletedMessagesStorage; // Added member
 
 	// _emojiStickersPack depends on _data.
 	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;

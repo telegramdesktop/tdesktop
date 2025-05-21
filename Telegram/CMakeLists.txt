@@ -663,6 +663,8 @@ PRIVATE
     data/data_wall_paper.h
     data/data_web_page.cpp
     data/data_web_page.h
+    deleted_messages/deleted_messages_controller.cpp
+    deleted_messages/deleted_messages_controller.h
     dialogs/ui/dialogs_layout.cpp
     dialogs/ui/dialogs_layout.h
     dialogs/ui/dialogs_message_view.cpp
@@ -1499,6 +1501,8 @@ PRIVATE
     settings/settings_type.h
     settings/settings_websites.cpp
     settings/settings_websites.h
+    storage/deleted_messages_storage.cpp
+    storage/deleted_messages_storage.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
     storage/details/storage_settings_scheme.cpp

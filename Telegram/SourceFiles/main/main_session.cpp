@@ -53,6 +53,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/layers/generic_box.h"
 #include "styles/style_layers.h"
+#include "storage/deleted_messages_storage.h" // Added for DeletedMessagesStorage
+#include "base/platform/base_platform_file_utilities.h" // For Global::UserBasePath
+
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
@@ -122,8 +125,13 @@ Session::Session(
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _supportHelper(Support::Helper::Create(this))
 , _fastButtonsBots(std::make_unique<Support::FastButtonsBots>(this))
+, _deletedMessagesStorage(std::make_unique<Storage::DeletedMessagesStorage>(Global::UserBasePath())) // Initialize DeletedMessagesStorage
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);
+
+	if (!_deletedMessagesStorage->initialize()) { // Initialize the database
+		LOG(("Warning: Could not initialize DeletedMessagesStorage. Deleted messages will not be saved."));
+	}
 
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
@@ -238,11 +246,17 @@ QByteArray Session::validTmpPassword() const {
 void Session::finishLogout() {
 	unlockTerms();
 	data().clear();
+	if (_deletedMessagesStorage) { // Close before clearing local storage potentially
+		_deletedMessagesStorage->close();
+	}
 	data().clearLocalStorage();
 }
 
 Session::~Session() {
 	unlockTerms();
+	if (_deletedMessagesStorage) { // Ensure it's closed and resources are released
+		_deletedMessagesStorage->close();
+	}
 	data().clear();
 	ClickHandler::clearActive();
 	ClickHandler::unpressed();

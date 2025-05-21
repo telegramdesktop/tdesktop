@@ -38,6 +38,10 @@ class Badge;
 class EmojiStatusPanel;
 } // namespace Info::Profile
 
+namespace DeletedMessages { // Forward declaration
+class Controller;
+} // namespace DeletedMessages
+
 namespace Main {
 class Account;
 } // namespace Main
@@ -107,6 +111,7 @@ private:
 	rpl::event_stream<bool> _nightThemeSwitches;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+	object_ptr<DeletedMessages::Controller> _deletedMessagesController = { nullptr }; // Added member
 
 	Ui::Controls::SwipeBackResult _swipeBackData;
 
