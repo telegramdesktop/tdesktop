@@ -1,6 +1,6 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set GIT_UPDATE_M4 = "git submodule set-url m4 https://gitlab.freedesktop.org/xorg/util/xcb-util-m4 && git config -f .gitmodules submodule.m4.shallow true && git submodule init && git submodule update" -%}
+{%- set GIT_UPDATE_M4 = "git submodule set-url m4 https://gitlab.freedesktop.org/xorg/util/xcb-util-m4 && git submodule update --init --recursive --depth=1" -%}
 {%- set TOOLSET = "gcc-toolset-12" -%}
 {%- set QT = "6.9.0" -%}
 {%- set QT_TAG = "v" ~ QT -%}
