@@ -104,7 +104,7 @@ jobs:
           docker run --rm \
           -u $(id -u) \
           -v $PWD:/usr/src/tdesktop \
-          -e CONFIG=Debug \
+          -e CMAKE_CONFIG_TYPE=Debug \
           $IMAGE_TAG \
           /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Debug \
