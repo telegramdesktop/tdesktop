@@ -547,40 +547,22 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	const auto st = context.st;
 	if (const auto bar = Get<UnreadBar>()) {
 		auto unreadbarh = bar->height();
-		auto dateh = 0;
+		auto aboveh = 0;
 		if (const auto date = Get<DateBadge>()) {
-			dateh = date->height();
+			aboveh += date->height();
 		}
-		if (context.clip.intersects(QRect(0, dateh, width(), unreadbarh))) {
-			p.translate(0, dateh);
+		if (const auto sender = Get<MonoforumSenderBar>()) {
+			aboveh += sender->height();
+		}
+		if (context.clip.intersects(QRect(0, aboveh, width(), unreadbarh))) {
+			p.translate(0, aboveh);
 			bar->paint(
 				p,
 				context,
 				0,
 				width(),
 				delegate()->elementIsChatWide());
-			p.translate(0, -dateh);
-		}
-	}
-
-	if (const auto monoforumBar = Get<MonoforumSenderBar>()) {
-		auto barh = monoforumBar->height();
-		auto skip = 0;
-		if (const auto date = Get<DateBadge>()) {
-			skip += date->height();
-		}
-		if (const auto bar = Get<UnreadBar>()) {
-			skip += bar->height();
-		}
-		if (context.clip.intersects(QRect(0, skip, width(), barh))) {
-			p.translate(0, skip);
-			monoforumBar->paint(
-				p,
-				context.st,
-				0,
-				width(),
-				delegate()->elementIsChatWide());
-			p.translate(0, -skip);
+			p.translate(0, -aboveh);
 		}
 	}
 

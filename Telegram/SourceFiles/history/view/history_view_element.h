@@ -268,13 +268,36 @@ struct MonoforumSenderBar : RuntimeComponent<MonoforumSenderBar, Element> {
 		not_null<const Ui::ChatStyle*> st,
 		int y,
 		int w,
-		bool chatWide) const;
+		bool chatWide,
+		bool skipPatternLine) const;
+	static void PaintFor(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<Element*> itemView,
+		Ui::PeerUserpicView &userpicView,
+		int y,
+		int w,
+		bool chatWide);
 
-	PeerData *author = nullptr;
+	PeerData *sender = nullptr;
 	Ui::Text::String text;
 	ClickHandlerPtr link;
 	mutable Ui::PeerUserpicView view;
 	int width = 0;
+
+private:
+	static void Paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<PeerData*> sender,
+		const Ui::Text::String &text,
+		int width,
+		Ui::PeerUserpicView &view,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine);
+
 };
 
 // Any HistoryView::Element can have this Component for
@@ -437,6 +460,9 @@ public:
 	[[nodiscard]] int displayedDateHeight() const;
 	[[nodiscard]] bool displayDate() const;
 	[[nodiscard]] bool isInOneDayWithPrevious() const;
+
+	[[nodiscard]] bool displayMonoforumSender() const;
+	[[nodiscard]] bool isInOneBunchWithPrevious() const;
 
 	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const = 0;

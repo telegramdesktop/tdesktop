@@ -480,7 +480,7 @@ void DateBadge::paint(
 void MonoforumSenderBar::init(
 		not_null<PeerData*> parentChat,
 		not_null<PeerData*> peer) {
-	author = peer;
+	sender = peer;
 	text.setText(st::semiboldTextStyle, peer->name());
 	const auto skip = st::monoforumBarUserpicSkip;
 	const auto userpic = st::msgServicePadding.top()
@@ -503,8 +503,52 @@ void MonoforumSenderBar::paint(
 		not_null<const Ui::ChatStyle*> st,
 		int y,
 		int w,
-		bool chatWide) const {
-	Expects(author != nullptr);
+		bool chatWide,
+		bool skipPatternLine) const {
+	Paint(p, st, sender, text, width, view, y, w, chatWide, skipPatternLine);
+}
+
+void MonoforumSenderBar::PaintFor(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<Element*> itemView,
+		Ui::PeerUserpicView &userpicView,
+		int y,
+		int w,
+		bool chatWide) {
+	const auto sublist = itemView->data()->savedSublist();
+	const auto sender = (sublist && sublist->parentChat())
+		? sublist->sublistPeer().get()
+		: nullptr;
+	if (!sender || sender->isMonoforum()) {
+		return;
+	}
+	auto text = Ui::Text::String(st::semiboldTextStyle, sender->name());
+	const auto skip = st::monoforumBarUserpicSkip;
+	const auto userpic = st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		- 2 * skip;
+	const auto width = skip
+		+ userpic
+		+ skip * 2
+		+ text.maxWidth()
+		+ st::msgServicePadding.right();
+	Paint(p, st, sender, text, width, userpicView, y, w, chatWide, true);
+}
+
+void MonoforumSenderBar::Paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<PeerData*> sender,
+		const Ui::Text::String &text,
+		int width,
+		Ui::PeerUserpicView &view,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine) {
+	Expects(sender != nullptr);
 
 	int left = st::msgServiceMargin.left();
 	const auto maxwidth = chatWide
@@ -523,7 +567,7 @@ void MonoforumSenderBar::paint(
 		QRect(left, y + st::msgServiceMargin.top(), use, h));
 
 	const auto skip = st::monoforumBarUserpicSkip;
-	{
+	if (!skipPatternLine) {
 		auto pen = st->msgServiceBg()->p;
 		pen.setWidthF(skip);
 		pen.setCapStyle(Qt::RoundCap);
@@ -540,7 +584,7 @@ void MonoforumSenderBar::paint(
 		- 2 * skip;
 	const auto available = use - (skip + userpic + skip * 2 + st::msgServicePadding.right());
 
-	author->paintUserpic(p, view, left + skip, y + st::msgServiceMargin.top() + skip, userpic);
+	sender->paintUserpic(p, view, left + skip, y + st::msgServiceMargin.top() + skip, userpic);
 
 	p.setFont(st::msgServiceFont);
 	p.setPen(st->msgServiceFg());
@@ -1446,6 +1490,14 @@ bool Element::displayDate() const {
 
 bool Element::isInOneDayWithPrevious() const {
 	return !data()->isEmpty() && !displayDate();
+}
+
+bool Element::displayMonoforumSender() const {
+	return Has<MonoforumSenderBar>();
+}
+
+bool Element::isInOneBunchWithPrevious() const {
+	return !data()->isEmpty() && !displayMonoforumSender();
 }
 
 void Element::recountAttachToPreviousInBlocks() {
