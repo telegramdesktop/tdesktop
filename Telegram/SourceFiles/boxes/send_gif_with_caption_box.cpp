@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_groups.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -231,6 +232,7 @@ namespace {
 void CaptionBox(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<QString> confirmText,
+		TextWithTags initialText,
 		not_null<PeerData*> peer,
 		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions, TextWithTags)> done) {
@@ -249,6 +251,7 @@ void CaptionBox(
 		input->setFocus();
 	});
 
+	input->setTextWithTags(std::move(initialText));
 	input->setSubmitSettings(Core::App().settings().sendSubmitWay());
 	InitMessageField(controller, input, [=](not_null<DocumentData*>) {
 		return true;
@@ -341,14 +344,14 @@ void SendGifWithCaptionBox(
 		not_null<DocumentData*> document,
 		not_null<PeerData*> peer,
 		const SendMenu::Details &details,
-		Fn<void(Api::SendOptions, TextWithTags)> done) {
+		Fn<void(Api::SendOptions, TextWithTags)> c) {
 	box->setTitle(tr::lng_send_gif_with_caption());
 	[[maybe_unused]] const auto gifWidget = AddGifWidget(
 		box->verticalLayout(),
 		document,
 		st::boxWidth);
 	Ui::AddSkip(box->verticalLayout());
-	CaptionBox(box, tr::lng_send_button(), peer, details, std::move(done));
+	CaptionBox(box, tr::lng_send_button(), {}, peer, details, std::move(c));
 }
 
 void EditCaptionBox(
@@ -363,14 +366,18 @@ void EditCaptionBox(
 	const auto item = view->data();
 	const auto peer = item->history()->peer;
 
+	using namespace TextUtilities;
+
 	auto done = [=](Api::SendOptions, TextWithTags textWithTags) {
 		if (item->isUploading()) {
 			item->setText({
 				base::take(textWithTags.text),
-				TextUtilities::ConvertTextTagsToEntities(
-					base::take(textWithTags.tags)),
+				ConvertTextTagsToEntities(base::take(textWithTags.tags)),
 			});
 			peer->owner().requestViewResize(view);
+			if (item->groupId()) {
+				peer->owner().groups().refreshMessage(item, true);
+			}
 			box->closeBox();
 		} else {
 			controller->showToast(
@@ -378,7 +385,16 @@ void EditCaptionBox(
 		}
 	};
 
-	CaptionBox(box, tr::lng_settings_save(), peer, {}, std::move(done));
+	CaptionBox(
+		box,
+		tr::lng_settings_save(),
+		TextWithTags{
+			.text = item->originalText().text,
+			.tags = ConvertEntitiesToTextTags(item->originalText().entities),
+		},
+		peer,
+		{},
+		std::move(done));
 }
 
 } // namespace Ui
