@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
-#include "boxes/moderate_messages_box.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions.h"
@@ -54,7 +53,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_widget.h"
 #include "boxes/about_sponsored_box.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/moderate_messages_box.h"
 #include "boxes/report_messages_box.h"
+#include "boxes/send_gif_with_caption_box.h"
 #include "boxes/star_gift_box.h" // ShowStarGiftBox
 #include "boxes/sticker_set_box.h"
 #include "boxes/translate_box.h"
@@ -2718,6 +2719,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (item->canDelete()) {
 					const auto callback = [=] { deleteItem(itemId); };
 					if (item->isUploading()) {
+						_menu->addAction(
+							tr::lng_context_upload_edit_caption(tr::now),
+							[=] {
+								if (const auto view = viewByItem(item)) {
+									controller->uiShow()->show(Box(
+										Ui::EditCaptionBox,
+										view));
+								}
+							},
+							&st::menuIconEdit);
 						_menu->addAction(tr::lng_context_cancel_upload(tr::now), callback, &st::menuIconCancel);
 					} else {
 						_menu->addAction(Ui::DeleteMessageContextAction(
@@ -2962,6 +2973,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						deleteAsGroup(itemId);
 					};
 					if (item->isUploading()) {
+						_menu->addAction(
+							tr::lng_context_upload_edit_caption(tr::now),
+							[=] {
+								if (const auto view = viewByItem(item)) {
+									controller->uiShow()->show(Box(
+										Ui::EditCaptionBox,
+										view));
+								}
+							},
+							&st::menuIconEdit);
 						_menu->addAction(tr::lng_context_cancel_upload(tr::now), callback, &st::menuIconCancel);
 					} else {
 						_menu->addAction(Ui::DeleteMessageContextAction(

@@ -24,7 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/view/controls/history_view_characters_limit.h"
+#include "history/view/history_view_message.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/clip/media_clip_reader.h"
@@ -32,10 +35,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/emoji_button_factory.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/fields/input_field.h"
 #include "ui/rect.h"
+#include "ui/text/text_entity.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -224,10 +228,9 @@ namespace {
 	return input;
 }
 
-} // namespace
-
 void CaptionBox(
 		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> confirmText,
 		not_null<PeerData*> peer,
 		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions, TextWithTags)> done) {
@@ -310,7 +313,7 @@ void CaptionBox(
 		done(std::move(options), input->getTextWithTags());
 	};
 	const auto confirm = box->addButton(
-		tr::lng_send_button(),
+		std::move(confirmText),
 		[=] { send({}); });
 	SendMenu::SetupMenuAndShortcuts(
 		confirm,
@@ -331,6 +334,8 @@ void CaptionBox(
 	) | rpl::start_with_next([=] { send({}); }, input->lifetime());
 }
 
+} // namespace
+
 void SendGifWithCaptionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<DocumentData*> document,
@@ -343,7 +348,37 @@ void SendGifWithCaptionBox(
 		document,
 		st::boxWidth);
 	Ui::AddSkip(box->verticalLayout());
-	CaptionBox(box, peer, details, std::move(done));
+	CaptionBox(box, tr::lng_send_button(), peer, details, std::move(done));
+}
+
+void EditCaptionBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<HistoryView::Element*> view) {
+	const auto window = Core::App().findWindow(box);
+	Assert(window != nullptr);
+	const auto controller = window->sessionController();
+	Assert(controller != nullptr);
+	box->setTitle(tr::lng_context_upload_edit_caption());
+
+	const auto item = view->data();
+	const auto peer = item->history()->peer;
+
+	auto done = [=](Api::SendOptions, TextWithTags textWithTags) {
+		if (item->isUploading()) {
+			item->setText({
+				base::take(textWithTags.text),
+				TextUtilities::ConvertTextTagsToEntities(
+					base::take(textWithTags.tags)),
+			});
+			peer->owner().requestViewResize(view);
+			box->closeBox();
+		} else {
+			controller->showToast(
+				tr::lng_context_upload_edit_caption_error(tr::now));
+		}
+	};
+
+	CaptionBox(box, tr::lng_settings_save(), peer, {}, std::move(done));
 }
 
 } // namespace Ui
