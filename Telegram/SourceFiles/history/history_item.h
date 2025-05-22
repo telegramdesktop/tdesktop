@@ -22,18 +22,12 @@ struct HistoryMessageMarkupData;
 struct HistoryMessageReplyMarkup;
 struct HistoryMessageTranslation;
 struct HistoryMessageForwarded;
-struct HistoryMessageSavedMediaData;
-struct HistoryMessageFactcheck;
 struct HistoryServiceDependentData;
 enum class HistorySelfDestructType;
 struct PreparedServiceText;
 struct MessageFactcheck;
 class ReplyKeyboard;
 struct LanguageId;
-
-namespace Api {
-struct SendOptions;
-} // namespace Api
 
 namespace base {
 template <typename Enum>
@@ -44,15 +38,6 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
 } // namespace Storage
-
-namespace Ui {
-class RippleAnimation;
-} // namespace Ui
-
-namespace style {
-struct BotKeyboardButton;
-struct RippleAnimation;
-} // namespace style
 
 namespace Data {
 struct MessagePosition;
@@ -71,24 +56,11 @@ struct PaidReactionSend;
 struct SendError;
 } // namespace Data
 
-namespace Main {
-class Session;
-} // namespace Main
-
-namespace Window {
-class SessionController;
-} // namespace Window
-
 namespace HistoryUnreadThings {
 enum class AddType;
 } // namespace HistoryUnreadThings
 
 namespace HistoryView {
-struct TextState;
-struct StateRequest;
-enum class CursorState : char;
-enum class PointState : char;
-enum class Context : char;
 class ElementDelegate;
 class Element;
 class Message;
