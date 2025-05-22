@@ -343,7 +343,7 @@ void ChannelData::setMonoforumLink(ChannelData *link) {
 	_monoforumLink = link;
 	link->setMonoforumLink(this);
 	session().changes().peerUpdated(this, UpdateFlag::MonoforumLink);
-	if (isMegagroup() && (link->amCreator() || link->hasAdminRights())) {
+	if (isMegagroup() && link->canAccessMonoforum()) {
 		setFlags(flags() | Flag::MonoforumAdmin);
 	}
 }
@@ -656,6 +656,10 @@ bool ChannelData::canDeleteStories() const {
 		|| (adminRights() & AdminRight::DeleteStories);
 }
 
+bool ChannelData::canAccessMonoforum() const {
+	return canPostMessages();
+}
+
 bool ChannelData::canPostPaidMedia() const {
 	return canPostMessages() && (flags() & Flag::PaidMediaAllowed);
 }
@@ -836,9 +840,8 @@ void ChannelData::setAdminRights(ChatAdminRights rights) {
 		UpdateFlag::Rights | UpdateFlag::Admins | UpdateFlag::BannedUsers);
 	if (isBroadcast() && _monoforumLink) {
 		const auto flags = _monoforumLink->flags();
-		const auto admin = (amCreator() || hasAdminRights());
 		_monoforumLink->setFlags((flags & ~Flag::MonoforumAdmin)
-			| (admin ? Flag::MonoforumAdmin : Flag()));
+			| (canAccessMonoforum() ? Flag::MonoforumAdmin : Flag()));
 	}
 }
 

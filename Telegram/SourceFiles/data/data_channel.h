@@ -396,6 +396,7 @@ public:
 	[[nodiscard]] bool canEditStories() const;
 	[[nodiscard]] bool canDeleteStories() const;
 	[[nodiscard]] bool canPostPaidMedia() const;
+	[[nodiscard]] bool canAccessMonoforum() const;
 	[[nodiscard]] bool hiddenPreHistory() const;
 	[[nodiscard]] bool canViewMembers() const;
 	[[nodiscard]] bool canViewAdmins() const;
