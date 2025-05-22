@@ -628,9 +628,7 @@ Cover::Cover(
 	: object_ptr<Ui::UserpicButton>(
 		this,
 		controller,
-		(_peer->monoforumBroadcast()
-			? _peer->monoforumBroadcast()
-			: _peer),
+		_peer->userpicPaintingPeer(),
 		Ui::UserpicButton::Role::OpenPhoto,
 		Ui::UserpicButton::Source::PeerPhoto,
 		_st.photo,

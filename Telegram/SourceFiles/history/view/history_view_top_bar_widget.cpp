@@ -929,10 +929,16 @@ void TopBarWidget::refreshInfoButton() {
 			&& !rootChatsListBar())) {
 		_info.destroy();
 	} else if (const auto peer = _activeChat.key.peer()) {
+		const auto sublist = _activeChat.key.sublist();
+		const auto infoPeer = sublist ? sublist->sublistPeer().get() : peer;
 		auto info = object_ptr<Ui::UserpicButton>(
 			this,
-			peer,
-			st::topBarInfoButton);
+			_controller,
+			infoPeer->userpicPaintingPeer(),
+			Ui::UserpicButton::Role::Custom,
+			Ui::UserpicButton::Source::PeerPhoto,
+			st::topBarInfoButton,
+			infoPeer->monoforumBroadcast() != nullptr);
 		info->showSavedMessagesOnSelf(true);
 		_info.destroy();
 		_info = std::move(info);

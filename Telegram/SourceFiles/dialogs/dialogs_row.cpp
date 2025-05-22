@@ -320,7 +320,9 @@ Row::~Row() {
 void Row::recountHeight(float64 narrowRatio, FilterId filterId) {
 	if (const auto history = _id.history()) {
 		const auto hasTags = _id.entry()->hasChatsFilterTags(filterId);
-		_height = (history->isForum() || history->amMonoforumAdmin())
+		const auto wideRow = history->isForum()
+			|| history->amMonoforumAdmin();
+		_height = wideRow
 			? anim::interpolate(
 				hasTags
 					? st::taggedForumDialogRow.height

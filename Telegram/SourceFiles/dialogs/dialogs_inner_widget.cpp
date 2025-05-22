@@ -366,7 +366,9 @@ InnerWidget::InnerWidget(
 
 	rpl::merge(
 		session().settings().archiveCollapsedChanges() | rpl::map_to(false),
-		session().data().chatsFilters().changed() | rpl::map_to(true)
+		session().data().chatsFilters().changed() | rpl::map_to(true),
+		session().data().chatsFilters().tagsEnabledChanges(
+		) | rpl::map_to(true)
 	) | rpl::start_with_next([=](bool refreshHeight) {
 		if (refreshHeight) {
 			_chatsFilterTags.clear();
@@ -379,11 +381,8 @@ InnerWidget::InnerWidget(
 	}, lifetime());
 
 	session().data().chatsFilters().tagsEnabledValue(
-	) | rpl::distinct_until_changed() | rpl::start_with_next([=](bool tags) {
+	) | rpl::start_with_next([=](bool tags) {
 		_handleChatListEntryTagRefreshesLifetime.destroy();
-		if (_shownList->updateHeights(_narrowRatio)) {
-			refresh();
-		}
 		if (!tags) {
 			return;
 		}
@@ -1499,8 +1498,16 @@ bool InnerWidget::isRowActive(
 		not_null<Row*> row,
 		const RowDescriptor &entry) const {
 	const auto key = row->key();
-	return (entry.key == key)
-		|| (entry.key.sublist() && key.peer() && key.peer()->isSelf());
+	if (entry.key == key) {
+		return true;
+	} else if (const auto sublist = entry.key.sublist()) {
+		if (!sublist->parentChat()) {
+			// In case we're viewing a Saved Messages sublist,
+			// we want to highlight the Saved Messages row as active.
+			return key.history() && key.peer()->isSelf();
+		}
+	}
+	return false;
 }
 
 bool InnerWidget::isSearchResultActive(

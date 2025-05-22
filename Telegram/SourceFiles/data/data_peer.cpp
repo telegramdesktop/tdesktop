@@ -1162,6 +1162,17 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 	return this;
 }
 
+not_null<PeerData*> PeerData::userpicPaintingPeer() {
+	if (const auto broadcast = monoforumBroadcast()) {
+		return broadcast;
+	}
+	return this;
+}
+
+not_null<const PeerData*> PeerData::userpicPaintingPeer() const {
+	return const_cast<PeerData*>(this)->userpicPaintingPeer();
+}
+
 ChannelData *PeerData::monoforumBroadcast() const {
 	const auto monoforum = asMonoforum();
 	return monoforum ? monoforum->monoforumLink() : nullptr;

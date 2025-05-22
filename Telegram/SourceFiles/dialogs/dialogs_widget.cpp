@@ -942,8 +942,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		return;
 	} else if (history
 		&& history->peer->amMonoforumAdmin()
-		&& !row.message.fullId
-		&& !controller()->adaptive().isOneColumn()) {
+		&& !row.message.fullId) {
 		const auto monoforum = history->peer->monoforum();
 		if (controller()->shownMonoforum().current() == monoforum) {
 			controller()->closeMonoforum();
@@ -954,10 +953,12 @@ void Widget::chosenRow(const ChosenRow &row) {
 			controller()->showMonoforum(
 				monoforum,
 				Window::SectionShow().withChildColumn());
-			controller()->showThread(
-				history,
-				ShowAtUnreadMsgId,
-				Window::SectionShow::Way::ClearStack);
+			if (!controller()->adaptive().isOneColumn()) {
+				controller()->showThread(
+					history,
+					ShowAtUnreadMsgId,
+					Window::SectionShow::Way::ClearStack);
+			}
 		}
 		return;
 	} else if (history) {

@@ -1906,6 +1906,7 @@ void SessionController::showForum(
 		}
 	}, _shownForumLifetime);
 	content()->showForum(forum, params);
+	closeMonoforum();
 }
 
 void SessionController::closeForum() {
@@ -1980,6 +1981,7 @@ void SessionController::showMonoforum(
 		closeMonoforum();
 	}, _shownMonoforumLifetime);
 	content()->showMonoforum(monoforum, params);
+	closeForum();
 }
 
 void SessionController::closeMonoforum() {
