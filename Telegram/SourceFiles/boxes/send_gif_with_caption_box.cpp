@@ -226,9 +226,8 @@ namespace {
 
 } // namespace
 
-void SendGifWithCaptionBox(
+void CaptionBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<DocumentData*> document,
 		not_null<PeerData*> peer,
 		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions, TextWithTags)> done) {
@@ -237,17 +236,10 @@ void SendGifWithCaptionBox(
 	if (!controller) {
 		return;
 	}
-	box->setTitle(tr::lng_send_gif_with_caption());
 	box->setWidth(st::boxWidth);
 	box->getDelegate()->setStyle(st::sendGifBox);
 
 	const auto container = box->verticalLayout();
-	[[maybe_unused]] const auto gifWidget = AddGifWidget(
-		container,
-		document,
-		st::boxWidth);
-
-	Ui::AddSkip(container);
 
 	const auto input = AddInputField(box, controller);
 	box->setFocusCallback([=] {
@@ -337,6 +329,21 @@ void SendGifWithCaptionBox(
 	});
 	input->submits(
 	) | rpl::start_with_next([=] { send({}); }, input->lifetime());
+}
+
+void SendGifWithCaptionBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<DocumentData*> document,
+		not_null<PeerData*> peer,
+		const SendMenu::Details &details,
+		Fn<void(Api::SendOptions, TextWithTags)> done) {
+	box->setTitle(tr::lng_send_gif_with_caption());
+	[[maybe_unused]] const auto gifWidget = AddGifWidget(
+		box->verticalLayout(),
+		document,
+		st::boxWidth);
+	Ui::AddSkip(box->verticalLayout());
+	CaptionBox(box, peer, details, std::move(done));
 }
 
 } // namespace Ui
