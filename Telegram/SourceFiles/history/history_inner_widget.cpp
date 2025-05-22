@@ -2719,16 +2719,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (item->canDelete()) {
 					const auto callback = [=] { deleteItem(itemId); };
 					if (item->isUploading()) {
-						_menu->addAction(
-							tr::lng_context_upload_edit_caption(tr::now),
-							[=] {
-								if (const auto view = viewByItem(item)) {
-									controller->uiShow()->show(Box(
-										Ui::EditCaptionBox,
-										view));
-								}
-							},
-							&st::menuIconEdit);
+						if (item->media()
+							&& item->media()->allowsEditCaption()) {
+							_menu->addAction(
+								tr::lng_context_upload_edit_caption(tr::now),
+								[=] { editCaptionUploadLayer(item); },
+								&st::menuIconEdit);
+						}
 						_menu->addAction(tr::lng_context_cancel_upload(tr::now), callback, &st::menuIconCancel);
 					} else {
 						_menu->addAction(Ui::DeleteMessageContextAction(
@@ -2973,16 +2970,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						deleteAsGroup(itemId);
 					};
 					if (item->isUploading()) {
-						_menu->addAction(
-							tr::lng_context_upload_edit_caption(tr::now),
-							[=] {
-								if (const auto view = viewByItem(item)) {
-									controller->uiShow()->show(Box(
-										Ui::EditCaptionBox,
-										view));
-								}
-							},
-							&st::menuIconEdit);
+						if (item->media()
+							&& item->media()->allowsEditCaption()) {
+							_menu->addAction(
+								tr::lng_context_upload_edit_caption(tr::now),
+								[=] { editCaptionUploadLayer(item); },
+								&st::menuIconEdit);
+						}
 						_menu->addAction(tr::lng_context_cancel_upload(tr::now), callback, &st::menuIconCancel);
 					} else {
 						_menu->addAction(Ui::DeleteMessageContextAction(
@@ -3116,6 +3110,14 @@ bool HistoryInner::showCopyRestrictionForSelected() {
 void HistoryInner::copySelectedText() {
 	if (!showCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText());
+	}
+}
+
+void HistoryInner::editCaptionUploadLayer(not_null<HistoryItem*> item) {
+	if (const auto view = viewByItem(item)) {
+		if (item->isUploading()) {
+			_controller->uiShow()->show(Box(Ui::EditCaptionBox, view));
+		}
 	}
 }
 

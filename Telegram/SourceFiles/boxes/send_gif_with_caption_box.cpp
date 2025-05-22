@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/send_gif_with_caption_box.h"
 
+#include "api/api_editing.h"
 #include "base/event_filter.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/field_autocomplete.h"
@@ -357,34 +358,59 @@ void SendGifWithCaptionBox(
 void EditCaptionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<HistoryView::Element*> view) {
-	const auto window = Core::App().findWindow(box);
-	Assert(window != nullptr);
-	const auto controller = window->sessionController();
-	Assert(controller != nullptr);
-	box->setTitle(tr::lng_context_upload_edit_caption());
-
-	const auto item = view->data();
-	const auto peer = item->history()->peer;
-
 	using namespace TextUtilities;
 
-	auto done = [=](Api::SendOptions, TextWithTags textWithTags) {
+	box->setTitle(tr::lng_context_upload_edit_caption());
+
+	const auto data = &view->data()->history()->peer->owner();
+
+	struct State {
+		FullMsgId fullId;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->fullId = view->data()->fullId();
+
+	data->itemIdChanged(
+	) | rpl::start_with_next([=](Data::Session::IdChange event) {
+		if (event.oldId == state->fullId.msg) {
+			state->fullId = event.newId;
+		}
+	}, box->lifetime());
+
+	auto done = [=, show = box->uiShow()](
+			Api::SendOptions,
+			TextWithTags textWithTags) {
+		const auto item = data->message(state->fullId);
+		if (!item) {
+			show->showToast(tr::lng_message_not_found(tr::now));
+			return;
+		}
+		if (!(item->media() && item->media()->allowsEditCaption())) {
+			show->showToast(tr::lng_edit_error(tr::now));
+			return;
+		}
+		auto text = TextWithEntities{
+			base::take(textWithTags.text),
+			ConvertTextTagsToEntities(base::take(textWithTags.tags)),
+		};
 		if (item->isUploading()) {
-			item->setText({
-				base::take(textWithTags.text),
-				ConvertTextTagsToEntities(base::take(textWithTags.tags)),
-			});
-			peer->owner().requestViewResize(view);
+			item->setText(std::move(text));
+			data->requestViewResize(view);
 			if (item->groupId()) {
-				peer->owner().groups().refreshMessage(item, true);
+				data->groups().refreshMessage(item, true);
 			}
 			box->closeBox();
 		} else {
-			controller->showToast(
-				tr::lng_context_upload_edit_caption_error(tr::now));
+			Api::EditCaption(
+				item,
+				std::move(text),
+				{ .invertCaption = item->invertMedia() },
+				[=] { box->closeBox(); },
+				[=](const QString &e) { box->uiShow()->showToast(e); });
 		}
 	};
 
+	const auto item = view->data();
 	CaptionBox(
 		box,
 		tr::lng_settings_save(),
@@ -392,7 +418,7 @@ void EditCaptionBox(
 			.text = item->originalText().text,
 			.tags = ConvertEntitiesToTextTags(item->originalText().entities),
 		},
-		peer,
+		item->history()->peer,
 		{},
 		std::move(done));
 }

@@ -4198,7 +4198,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_unpin_msg" = "Unpin";
 "lng_context_cancel_upload" = "Cancel Upload";
 "lng_context_upload_edit_caption" = "Edit Caption";
-"lng_context_upload_edit_caption_error" = "Sorry, the file is already uploaded.";
 "lng_context_copy_selected" = "Copy Selected Text";
 "lng_context_copy_selected_items" = "Copy Selected as Text";
 "lng_context_forward_selected" = "Forward Selected";
