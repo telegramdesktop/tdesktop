@@ -1253,3 +1253,34 @@ newPeerUserpicsPadding: margins(0px, 3px, 0px, 0px);
 newPeerWidth: 320px;
 
 swipeBackSize: 150px;
+
+chatTabsToggle: IconButton(defaultIconButton) {
+	width: 56px;
+	height: 36px;
+	icon: icon {{ "top_bar_profile-flip_horizontal", menuIconFg }};
+	iconOver: icon {{ "top_bar_profile-flip_horizontal", menuIconFgOver }};
+	ripple: emptyRippleAnimation;
+}
+chatTabsToggleActive: icon {{ "top_bar_profile-flip_horizontal", windowActiveTextFg }};
+chatTabsScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+chatTabsSlider: SettingsSlider(defaultSettingsSlider) {
+	padding: 0px;
+	height: 36px;
+	barTop: 33px;
+	barSkip: 0px;
+	barStroke: 6px;
+	barRadius: 2px;
+	barFg: transparent;
+	barSnapToLabel: true;
+	strictSkip: 18px;
+	labelTop: 9px;
+	labelStyle: semiboldTextStyle;
+	labelFg: windowSubTextFg;
+	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}

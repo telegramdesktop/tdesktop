@@ -241,8 +241,9 @@ public:
 			_widget->elementHandleViaClick(bot);
 		}
 	}
-	bool elementIsChatWide() override {
-		return _widget ? _widget->elementIsChatWide() : false;
+	HistoryView::ElementChatMode elementChatMode() override {
+		using Mode = HistoryView::ElementChatMode;
+		return _widget ? _widget->elementChatMode() : Mode::Default;
 	}
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override {
 		Expects(_widget != nullptr);
@@ -808,7 +809,11 @@ bool HistoryInner::canHaveFromUserpics() const {
 	} else if (const auto channel = _peer->asBroadcast()) {
 		return channel->signatureProfiles();
 	}
-	return true;
+	return !_removeFromUserpics;
+}
+
+void HistoryInner::toggleRemoveFromUserpics(bool remove) {
+	_removeFromUserpics = remove;
 }
 
 template <typename Method>
@@ -3930,8 +3935,13 @@ void HistoryInner::elementHandleViaClick(not_null<UserData*> bot) {
 	_widget->insertBotCommand('@' + bot->username());
 }
 
-bool HistoryInner::elementIsChatWide() {
-	return _isChatWide;
+HistoryView::ElementChatMode HistoryInner::elementChatMode() {
+	using Mode = HistoryView::ElementChatMode;
+	return _isChatWide
+		? Mode::Wide
+		: _removeFromUserpics
+		? Mode::Narrow
+		: Mode::Default;
 }
 
 not_null<Ui::PathShiftGradient*> HistoryInner::elementPathShiftGradient() {

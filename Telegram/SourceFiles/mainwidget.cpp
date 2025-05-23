@@ -1516,7 +1516,7 @@ void MainWidget::showHistory(
 						: Window::SlideDirection::FromRight,
 					animationParams);
 			} else {
-				_history->show();
+				_history->showFast();
 				crl::on_main(this, [=] {
 					_controller->widget()->setInnerFocus();
 				});
@@ -1536,6 +1536,8 @@ void MainWidget::showHistory(
 	}
 
 	floatPlayerCheckVisibility();
+
+	controller()->dropSubsectionTabs();
 }
 
 void MainWidget::showMessage(

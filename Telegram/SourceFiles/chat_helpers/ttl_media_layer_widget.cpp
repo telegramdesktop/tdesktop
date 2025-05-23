@@ -52,7 +52,7 @@ public:
 	bool elementAnimationsPaused() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	HistoryView::Context elementContext() override;
-	bool elementIsChatWide() override;
+	HistoryView::ElementChatMode elementChatMode() override;
 
 private:
 	const not_null<QWidget*> _parent;
@@ -83,8 +83,9 @@ HistoryView::Context PreviewDelegate::elementContext() {
 	return HistoryView::Context::TTLViewer;
 }
 
-bool PreviewDelegate::elementIsChatWide() {
-	return _chatWide.current();
+HistoryView::ElementChatMode PreviewDelegate::elementChatMode() {
+	using Mode = HistoryView::ElementChatMode;
+	return _chatWide.current() ? Mode::Wide : Mode::Default;
 }
 
 class PreviewWrap final : public Ui::RpWidget {

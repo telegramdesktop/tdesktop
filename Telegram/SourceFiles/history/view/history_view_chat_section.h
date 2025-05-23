@@ -73,6 +73,7 @@ class TopicReopenBar;
 class EmptyPainter;
 class PinnedTracker;
 class TranslateBar;
+class SubsectionTabs;
 
 struct ChatViewId {
 	not_null<History*> history;
@@ -372,6 +373,7 @@ private:
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId);
 
+	void validateSubsectionTabs() override;
 	void setupEmptyPainter();
 	void refreshJoinGroupButton();
 	[[nodiscard]] bool emptyShown() const;
@@ -396,6 +398,7 @@ private:
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
+	std::unique_ptr<Ui::RpWidget> _topBars;
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<ComposeSearch> _composeSearch;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
@@ -404,6 +407,8 @@ private:
 	std::unique_ptr<Ui::FlatButton> _openChatButton;
 	std::unique_ptr<Ui::RpWidget> _aboutHiddenAuthor;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
+	std::unique_ptr<SubsectionTabs> _subsectionTabs;
+	rpl::lifetime _subsectionTabsLifetime;
 	bool _canSendTexts = false;
 	bool _skipScrollEvent = false;
 	bool _synteticScrollEvent = false;

@@ -35,6 +35,7 @@ struct SelectionModeResult;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
+enum class ElementChatMode : char;
 class EmptyPainter;
 class Element;
 class TranslateTracker;
@@ -165,7 +166,7 @@ public:
 		const QString &query,
 		const FullMsgId &context);
 	void elementHandleViaClick(not_null<UserData*> bot);
-	bool elementIsChatWide();
+	HistoryView::ElementChatMode elementChatMode();
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient();
 	void elementReplyTo(const FullReplyTo &to);
 	void elementStartInteraction(not_null<const Element*> view);
@@ -193,6 +194,7 @@ public:
 
 	void setChooseReportReason(Data::ReportInput reportInput);
 	void clearChooseReportReason();
+	void toggleRemoveFromUserpics(bool remove);
 
 	// -1 if should not be visible, -2 if bad history()
 	[[nodiscard]] int itemTop(const HistoryItem *item) const;
@@ -493,6 +495,7 @@ private:
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	QPainterPath _highlightPathCache;
 	bool _isChatWide = false;
+	bool _removeFromUserpics = false;
 
 	base::flat_set<not_null<const HistoryItem*>> _animatedStickersPlayed;
 	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpics;

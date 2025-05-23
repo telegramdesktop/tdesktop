@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_scheduled_section.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_subsection_tabs.h"
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/view/history_view_pinned_section.h"
 #include "history/view/history_view_translate_bar.h"
@@ -237,6 +238,7 @@ ChatWidget::ChatWidget(
 	: nullptr)
 , _topBar(this, controller)
 , _topBarShadow(this)
+, _topBars(std::make_unique<Ui::RpWidget>(this))
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
 	ComposeControlsDescriptor{
@@ -256,7 +258,8 @@ ChatWidget::ChatWidget(
 			}) | rpl::type_erased()
 			: rpl::single(false),
 	}))
-, _translateBar(std::make_unique<TranslateBar>(this, controller, _history))
+, _translateBar(
+	std::make_unique<TranslateBar>(_topBars.get(), controller, _history))
 , _scroll(std::make_unique<Ui::ScrollArea>(
 	this,
 	controller->chatStyle()->value(lifetime(), st::historyScroll),
@@ -444,6 +447,10 @@ ChatWidget::~ChatWidget() {
 	if (_repliesRootId) {
 		controller()->sendingAnimation().clear();
 	}
+	if (_subsectionTabs) {
+		_subsectionTabsLifetime.destroy();
+		controller()->saveSubsectionTabs(base::take(_subsectionTabs));
+	}
 	if (_topic) {
 		if (_topic->creating()) {
 			_emptyPainter = nullptr;
@@ -471,9 +478,10 @@ void ChatWidget::orderWidgets() {
 	if (_pinnedBar) {
 		_pinnedBar->raise();
 	}
-	if (_topBar) {
-		_topBar->raise();
+	if (_subsectionTabs) {
+		_subsectionTabs->raise();
 	}
+	_topBar->raise();
 	_topBarShadow->raise();
 	_composeControls->raisePanels();
 }
@@ -499,7 +507,7 @@ void ChatWidget::setupRootView() {
 	if (_topic || !_repliesRootId) {
 		return;
 	}
-	_repliesRootView = std::make_unique<Ui::PinnedBar>(this, [=] {
+	_repliesRootView = std::make_unique<Ui::PinnedBar>(_topBars.get(), [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
 	}, controller()->gifPauseLevelChanged());
@@ -577,7 +585,9 @@ void ChatWidget::setupTopicViewer() {
 void ChatWidget::subscribeToTopic() {
 	Expects(_topic != nullptr);
 
-	_topicReopenBar = std::make_unique<TopicReopenBar>(this, _topic);
+	_topicReopenBar = std::make_unique<TopicReopenBar>(
+		_topBars.get(),
+		_topic);
 	_topicReopenBar->bar().setVisible(!animatingShow());
 	_topicReopenBarHeight = _topicReopenBar->bar().height();
 	_topicReopenBar->bar().heightValue(
@@ -1509,6 +1519,37 @@ void ChatWidget::edit(
 	doSetInnerFocus();
 }
 
+void ChatWidget::validateSubsectionTabs() {
+	if (!HistoryView::SubsectionTabs::UsedFor(_history)) {
+		_subsectionTabsLifetime.destroy();
+		_subsectionTabs = nullptr;
+		return;
+	} else if (_subsectionTabs) {
+		return;
+	}
+	const auto thread = _topic ? (Data::Thread*)_topic : _sublist;
+	_subsectionTabs = controller()->restoreSubsectionTabsFor(this, thread);
+	if (!_subsectionTabs) {
+		_subsectionTabs = std::make_unique<HistoryView::SubsectionTabs>(
+			controller(),
+			this,
+			thread);
+	}
+	_subsectionTabs->removeRequests() | rpl::start_with_next([=] {
+		_subsectionTabs = nullptr;
+		updateControlsGeometry();
+	}, _subsectionTabsLifetime);
+	_subsectionTabs->layoutRequests() | rpl::start_with_next([=] {
+		_inner->overrideChatMode((_subsectionTabs->leftSkip() > 0)
+			? ElementChatMode::Narrow
+			: std::optional<ElementChatMode>());
+		updateControlsGeometry();
+		orderWidgets();
+	}, _subsectionTabsLifetime);
+	updateControlsGeometry();
+	orderWidgets();
+}
+
 void ChatWidget::refreshJoinGroupButton() {
 	if (!_repliesRootId) {
 		return;
@@ -1937,7 +1978,7 @@ void ChatWidget::checkPinnedBarState() {
 	}
 
 	clearHidingPinnedBar();
-	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
+	_pinnedBar = std::make_unique<Ui::PinnedBar>(_topBars.get(), [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
 	}, controller()->gifPauseLevelChanged());
@@ -2252,13 +2293,10 @@ QPixmap ChatWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (params.withTopBarShadow) {
 		_topBarShadow->show();
 	}
-	if (_repliesRootView) {
-		_repliesRootView->hide();
+	_topBars->hide();
+	if (_subsectionTabs) {
+		_subsectionTabs->hide();
 	}
-	if (_pinnedBar) {
-		_pinnedBar->hide();
-	}
-	_translateBar->hide();
 	return result;
 }
 
@@ -2529,13 +2567,20 @@ void ChatWidget::updateControlsGeometry() {
 		: 0;
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
+	const auto tabsLeftSkip = _subsectionTabs
+		? _subsectionTabs->leftSkip()
+		: 0;
+	const auto innerWidth = contentWidth - tabsLeftSkip;
+	const auto subsectionTabsTop = _topBar->bottomNoMargins();
+	_topBars->move(tabsLeftSkip, subsectionTabsTop
+		+ (_subsectionTabs ? _subsectionTabs->topSkip() : 0));
 	if (_repliesRootView) {
-		_repliesRootView->resizeToWidth(contentWidth);
+		_repliesRootView->resizeToWidth(innerWidth);
 	}
-	auto top = _topBar->height() + _repliesRootViewHeight;
+	auto top = _repliesRootViewHeight;
 	if (_pinnedBar) {
 		_pinnedBar->move(0, top);
-		_pinnedBar->resizeToWidth(contentWidth);
+		_pinnedBar->resizeToWidth(innerWidth);
 		top += _pinnedBarHeight;
 	}
 	if (_topicReopenBar) {
@@ -2543,7 +2588,7 @@ void ChatWidget::updateControlsGeometry() {
 		top += _topicReopenBar->bar().height();
 	}
 	_translateBar->move(0, top);
-	_translateBar->resizeToWidth(contentWidth);
+	_translateBar->resizeToWidth(innerWidth);
 	top += _translateBarHeight;
 
 	auto bottom = height();
@@ -2563,15 +2608,18 @@ void ChatWidget::updateControlsGeometry() {
 		bottom -= _composeControls->heightCurrent();
 	}
 
+	_topBars->resize(innerWidth, top);
+	top += _topBars->y();
+
 	const auto scrollHeight = bottom - top;
-	const auto scrollSize = QSize(contentWidth, scrollHeight);
+	const auto scrollSize = QSize(innerWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
 		_scroll->resize(scrollSize);
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
 		_skipScrollEvent = false;
 	}
-	_scroll->move(0, top);
+	_scroll->move(tabsLeftSkip, top);
 	if (!_scroll->isHidden()) {
 		if (newScrollTop) {
 			_scroll->scrollToY(*newScrollTop);
@@ -2580,6 +2628,13 @@ void ChatWidget::updateControlsGeometry() {
 	}
 	_composeControls->move(0, bottom);
 	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
+
+	if (_subsectionTabs) {
+		const auto scrollBottom = _scroll->y() + scrollHeight;
+		const auto areaHeight = scrollBottom - subsectionTabsTop;
+		_subsectionTabs->setBoundingRect(
+			{ 0, subsectionTabsTop, width(), areaHeight });
+	}
 
 	_cornerButtons.updatePositions();
 }
@@ -2700,15 +2755,9 @@ void ChatWidget::showFinishedHook() {
 		_composeControls->showFinished();
 	}
 	_inner->showFinished();
-	if (_repliesRootView) {
-		_repliesRootView->show();
-	}
-	if (_pinnedBar) {
-		_pinnedBar->show();
-	}
-	_translateBar->show();
-	if (_topicReopenBar) {
-		_topicReopenBar->bar().show();
+	_topBars->show();
+	if (_subsectionTabs) {
+		_subsectionTabs->show();
 	}
 
 	// We should setup the drag area only after

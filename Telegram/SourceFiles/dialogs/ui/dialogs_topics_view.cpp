@@ -152,7 +152,7 @@ void TopicsView::prepare(PeerId frontPeerId, Fn<void()> customEmojiRepaint) {
 			Ui::Text::SingleCustomEmoji(
 				manager->peerUserpicEmojiData(peer),
 				u"@"_q)
-		).append(peer->shortName());
+		).append(' ').append(peer->shortName());
 		title.key = key;
 		title.version = peer->nameVersion();
 		title.unread = unread;

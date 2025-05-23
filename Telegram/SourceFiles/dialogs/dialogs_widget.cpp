@@ -940,27 +940,27 @@ void Widget::chosenRow(const ChosenRow &row) {
 			}
 		}
 		return;
-	} else if (history
-		&& history->peer->amMonoforumAdmin()
-		&& !row.message.fullId) {
-		const auto monoforum = history->peer->monoforum();
-		if (controller()->shownMonoforum().current() == monoforum) {
-			controller()->closeMonoforum();
-		//} else if (row.newWindow) { // #TODO monoforum
-		//	controller()->showInNewWindow(
-		//		Window::SeparateId(Window::SeparateType::Forum, history));
-		} else {
-			controller()->showMonoforum(
-				monoforum,
-				Window::SectionShow().withChildColumn());
-			if (!controller()->adaptive().isOneColumn()) {
-				controller()->showThread(
-					history,
-					ShowAtUnreadMsgId,
-					Window::SectionShow::Way::ClearStack);
-			}
-		}
-		return;
+	//} else if (history
+	//	&& history->peer->amMonoforumAdmin()
+	//	&& !row.message.fullId) {
+	//	const auto monoforum = history->peer->monoforum();
+	//	if (controller()->shownMonoforum().current() == monoforum) {
+	//		controller()->closeMonoforum();
+	//	//} else if (row.newWindow) { // #TODO monoforum
+	//	//	controller()->showInNewWindow(
+	//	//		Window::SeparateId(Window::SeparateType::Forum, history));
+	//	} else {
+	//		controller()->showMonoforum(
+	//			monoforum,
+	//			Window::SectionShow().withChildColumn());
+	//		if (!controller()->adaptive().isOneColumn()) {
+	//			controller()->showThread(
+	//				history,
+	//				ShowAtUnreadMsgId,
+	//				Window::SectionShow::Way::ClearStack);
+	//		}
+	//	}
+	//	return;
 	} else if (history) {
 		const auto peer = history->peer;
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
@@ -999,13 +999,17 @@ void Widget::chosenRow(const ChosenRow &row) {
 		using namespace Window;
 		auto params = SectionShow(SectionShow::Way::Forward);
 		params.dropSameFromStack = true;
-		using namespace HistoryView;
-		controller()->showSection(
-			std::make_shared<ChatMemento>(ChatViewId{
-				.history = sublist->owningHistory(),
-				.sublist = sublist,
-			}),
-			params);
+		params.highlightPart.text = _searchState.query;
+		if (!params.highlightPart.empty()) {
+			params.highlightPartOffsetHint = kSearchQueryOffsetHint;
+		}
+		if (false && row.newWindow) { // #TODO monoforum
+			controller()->showInNewWindow(
+				Window::SeparateId(sublist),
+				row.message.fullId.msg);
+		} else {
+			controller()->showThread(sublist, row.message.fullId.msg, params);
+		}
 	}
 	if (row.filteredRow && !session().supportMode()) {
 		if (_subsectionTopBar) {

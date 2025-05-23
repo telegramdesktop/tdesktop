@@ -373,7 +373,7 @@ ShortcutMessages::ShortcutMessages(
 		this,
 		&controller->session(),
 		static_cast<ListDelegate*>(this));
-	_inner->overrideIsChatWide(false);
+	_inner->overrideChatMode(ElementChatMode::Default);
 
 	_scroll->sizeValue() | rpl::filter([](QSize size) {
 		return !size.isEmpty();

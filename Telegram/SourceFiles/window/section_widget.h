@@ -194,6 +194,9 @@ public:
 		return nullptr;
 	}
 
+	virtual void validateSubsectionTabs() {
+	}
+
 	static void PaintBackground(
 		not_null<SessionController*> controller,
 		not_null<Ui::ChatTheme*> theme,

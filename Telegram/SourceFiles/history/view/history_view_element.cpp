@@ -262,8 +262,8 @@ void DefaultElementDelegate::elementHandleViaClick(
 	not_null<UserData*> bot) {
 }
 
-bool DefaultElementDelegate::elementIsChatWide() {
-	return false;
+ElementChatMode DefaultElementDelegate::elementChatMode() {
+	return ElementChatMode::Default;
 }
 
 void DefaultElementDelegate::elementReplyTo(const FullReplyTo &to) {
@@ -410,7 +410,7 @@ void UnreadBar::paint(
 		const PaintContext &context,
 		int y,
 		int w,
-		bool chatWide) const {
+		ElementChatMode mode) const {
 	const auto previousTranslation = p.transform().dx();
 	if (previousTranslation != 0) {
 		p.translate(-previousTranslation, 0);
@@ -434,7 +434,7 @@ void UnreadBar::paint(
 	p.setPen(st->historyUnreadBarFg());
 
 	int maxwidth = w;
-	if (chatWide) {
+	if (mode == ElementChatMode::Wide) {
 		maxwidth = qMin(
 			maxwidth,
 			st::msgMaxWidth
@@ -609,9 +609,9 @@ void ServicePreMessage::init(PreparedServiceText string) {
 	}
 }
 
-int ServicePreMessage::resizeToWidth(int newWidth, bool chatWide) {
+int ServicePreMessage::resizeToWidth(int newWidth, ElementChatMode mode) {
 	width = newWidth;
-	if (chatWide) {
+	if (mode == ElementChatMode::Wide) {
 		accumulate_min(
 			width,
 			st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
@@ -644,7 +644,7 @@ void ServicePreMessage::paint(
 		Painter &p,
 		const PaintContext &context,
 		QRect g,
-		bool chatWide) const {
+		ElementChatMode mode) const {
 	const auto top = g.top() - height - st::msgMargin.top();
 	p.translate(0, top);
 
@@ -987,7 +987,8 @@ not_null<PurchasedTag*> Element::enforcePurchasedTag() {
 int Element::AdditionalSpaceForSelectionCheckbox(
 		not_null<const Element*> view,
 		QRect countedGeometry) {
-	if (!view->hasOutLayout() || view->delegate()->elementIsChatWide()) {
+	if (!view->hasOutLayout()
+		|| view->delegate()->elementChatMode() == ElementChatMode::Wide) {
 		return 0;
 	}
 	if (countedGeometry.isEmpty()) {
@@ -1698,7 +1699,8 @@ bool Element::hasOutLayout() const {
 }
 
 bool Element::hasRightLayout() const {
-	return hasOutLayout() && !_delegate->elementIsChatWide();
+	return hasOutLayout()
+		&& (_delegate->elementChatMode() != ElementChatMode::Wide);
 }
 
 bool Element::drawBubble() const {

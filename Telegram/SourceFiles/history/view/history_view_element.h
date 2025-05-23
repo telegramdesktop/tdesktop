@@ -78,6 +78,12 @@ struct SelectionModeResult {
 	float64 progress = 0.0;
 };
 
+enum class ElementChatMode : char {
+	Default,
+	Wide,
+	Narrow, // monoforum with left tabs
+};
+
 class Element;
 class ElementDelegate {
 public:
@@ -114,7 +120,7 @@ public:
 		const QString &query,
 		const FullMsgId &context) = 0;
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
-	virtual bool elementIsChatWide() = 0;
+	virtual ElementChatMode elementChatMode() = 0;
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
 	virtual void elementReplyTo(const FullReplyTo &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
@@ -169,7 +175,7 @@ public:
 		const QString &query,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
-	bool elementIsChatWide() override;
+	ElementChatMode elementChatMode() override;
 	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementStartPremium(
@@ -233,7 +239,7 @@ struct UnreadBar : RuntimeComponent<UnreadBar, Element> {
 		const PaintContext &context,
 		int y,
 		int w,
-		bool chatWide) const;
+		ElementChatMode mode) const;
 
 	QString text;
 	int width = 0;
@@ -305,13 +311,13 @@ private:
 struct ServicePreMessage : RuntimeComponent<ServicePreMessage, Element> {
 	void init(PreparedServiceText string);
 
-	int resizeToWidth(int newWidth, bool chatWide);
+	int resizeToWidth(int newWidth, ElementChatMode mode);
 
 	void paint(
 		Painter &p,
 		const PaintContext &context,
 		QRect g,
-		bool chatWide) const;
+		ElementChatMode mode) const;
 	[[nodiscard]] ClickHandlerPtr textState(
 		QPoint point,
 		const StateRequest &request,

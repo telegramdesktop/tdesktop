@@ -117,6 +117,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_sticker_toast.h"
+#include "history/view/history_view_subsection_tabs.h"
 #include "history/view/history_view_translate_bar.h"
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
@@ -236,6 +237,7 @@ HistoryWidget::HistoryWidget(
 , _api(&controller->session().mtp())
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
+, _topBars(std::make_unique<Ui::RpWidget>(this))
 , _topBar(this, controller)
 , _scroll(
 	this,
@@ -1713,6 +1715,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 void HistoryWidget::orderWidgets() {
 	_voiceRecordBar->raise();
 	_send->raise();
+	_topBars->raise();
 	if (_businessBotStatus) {
 		_businessBotStatus->bar().raise();
 	}
@@ -1739,6 +1742,9 @@ void HistoryWidget::orderWidgets() {
 	}
 	if (_chooseTheme) {
 		_chooseTheme->raise();
+	}
+	if (_subsectionTabs) {
+		_subsectionTabs->raise();
 	}
 	_topShadow->raise();
 	if (_autocomplete) {
@@ -2467,6 +2473,11 @@ void HistoryWidget::showHistory(
 		_fieldDisabled = nullptr;
 		_silent.destroy();
 		updateBotKeyboard();
+
+		if (_subsectionTabs) {
+			_subsectionTabsLifetime.destroy();
+			controller()->saveSubsectionTabs(base::take(_subsectionTabs));
+		}
 	} else {
 		Assert(_list == nullptr);
 	}
@@ -2501,7 +2512,7 @@ void HistoryWidget::showHistory(
 		_peer = session().data().peer(peerId);
 		_contactStatus = std::make_unique<ContactStatus>(
 			controller(),
-			this,
+			_topBars.get(),
 			_peer,
 			false);
 		_contactStatus->bar().heightValue(
@@ -2514,7 +2525,7 @@ void HistoryWidget::showHistory(
 		if (const auto user = _peer->asUser()) {
 			_paysStatus = std::make_unique<PaysStatus>(
 				controller(),
-				this,
+				_topBars.get(),
 				user);
 			_paysStatus->bar().heightValue(
 			) | rpl::start_with_next([=] {
@@ -2522,7 +2533,7 @@ void HistoryWidget::showHistory(
 			}, _paysStatus->bar().lifetime());
 			_businessBotStatus = std::make_unique<BusinessBotStatus>(
 				controller(),
-				this,
+				_topBars.get(),
 				user);
 			_businessBotStatus->bar().heightValue(
 			) | rpl::start_with_next([=] {
@@ -3194,29 +3205,12 @@ void HistoryWidget::updateControlsVisibility() {
 	} else if (!_firstLoadRequest && _scroll->isHidden()) {
 		_scroll->show();
 	}
-	if (_pinnedBar) {
-		_pinnedBar->show();
-	}
+	_topBars->show();
 	if (_sponsoredMessageBar && checkSponsoredMessageBarVisibility()) {
 		_sponsoredMessageBar->toggle(true, anim::type::normal);
 	}
-	if (_translateBar) {
-		_translateBar->show();
-	}
-	if (_groupCallBar) {
-		_groupCallBar->show();
-	}
-	if (_requestsBar) {
-		_requestsBar->show();
-	}
-	if (_paysStatus) {
-		_paysStatus->show();
-	}
-	if (_contactStatus) {
-		_contactStatus->show();
-	}
-	if (_businessBotStatus) {
-		_businessBotStatus->show();
+	if (_subsectionTabs) {
+		_subsectionTabs->show();
 	}
 	if (isChoosingTheme()
 		|| (!editingMessage()
@@ -4431,20 +4425,12 @@ void HistoryWidget::hideChildWidgets() {
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
 	}
-	if (_pinnedBar) {
-		_pinnedBar->hide();
-	}
 	if (_sponsoredMessageBar) {
 		_sponsoredMessageBar->toggle(false, anim::type::instant);
 	}
-	if (_translateBar) {
-		_translateBar->hide();
-	}
-	if (_groupCallBar) {
-		_groupCallBar->hide();
-	}
-	if (_requestsBar) {
-		_requestsBar->hide();
+	_topBars->hide();
+	if (_subsectionTabs) {
+		_subsectionTabs->hide();
 	}
 	if (_voiceRecordBar) {
 		_voiceRecordBar->hideFast();
@@ -4454,15 +4440,6 @@ void HistoryWidget::hideChildWidgets() {
 	}
 	if (_chooseTheme) {
 		_chooseTheme->hide();
-	}
-	if (_paysStatus) {
-		_paysStatus->hide();
-	}
-	if (_contactStatus) {
-		_contactStatus->hide();
-	}
-	if (_businessBotStatus) {
-		_businessBotStatus->hide();
 	}
 	hideChildren();
 }
@@ -4747,6 +4724,8 @@ MsgId HistoryWidget::msgId() const {
 void HistoryWidget::showAnimated(
 		Window::SlideDirection direction,
 		const Window::SectionSlideParams &params) {
+	validateSubsectionTabs();
+
 	_showAnimation = nullptr;
 
 	// If we show pinned bar here, we don't want it to change the
@@ -4789,6 +4768,11 @@ void HistoryWidget::showAnimated(
 	_showAnimation->start();
 
 	activate();
+}
+
+void HistoryWidget::showFast() {
+	validateSubsectionTabs();
+	show();
 }
 
 void HistoryWidget::showFinished() {
@@ -6419,40 +6403,50 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void HistoryWidget::updateControlsGeometry() {
-	_topBar->resizeToWidth(width());
+	const auto width = this->width();
+
+	_topBar->resizeToWidth(width);
 	_topBar->moveToLeft(0, 0);
-	_voiceRecordBar->resizeToWidth(width());
+
+	const auto tabsLeftSkip = _subsectionTabs
+		? _subsectionTabs->leftSkip()
+		: 0;
+	const auto innerWidth = width - tabsLeftSkip;
+
+	_voiceRecordBar->resizeToWidth(width);
 
 	moveFieldControls();
 
-	const auto groupCallTop = _topBar->bottomNoMargins();
+	_topBars->move(tabsLeftSkip, _topBar->bottomNoMargins()
+		+ (_subsectionTabs ? _subsectionTabs->topSkip() : 0));
+	const auto groupCallTop = 0;
 	if (_groupCallBar) {
 		_groupCallBar->move(0, groupCallTop);
-		_groupCallBar->resizeToWidth(width());
+		_groupCallBar->resizeToWidth(innerWidth);
 	}
 	const auto requestsTop = groupCallTop
 		+ (_groupCallBar ? _groupCallBar->height() : 0);
 	if (_requestsBar) {
 		_requestsBar->move(0, requestsTop);
-		_requestsBar->resizeToWidth(width());
+		_requestsBar->resizeToWidth(innerWidth);
 	}
 	const auto pinnedBarTop = requestsTop
 		+ (_requestsBar ? _requestsBar->height() : 0);
 	if (_pinnedBar) {
 		_pinnedBar->move(0, pinnedBarTop);
-		_pinnedBar->resizeToWidth(width());
+		_pinnedBar->resizeToWidth(innerWidth);
 	}
 	const auto sponsoredMessageBarTop = pinnedBarTop
 		+ (_pinnedBar ? _pinnedBar->height() : 0);
 	if (_sponsoredMessageBar) {
 		_sponsoredMessageBar->move(0, sponsoredMessageBarTop);
-		_sponsoredMessageBar->resizeToWidth(width());
+		_sponsoredMessageBar->resizeToWidth(innerWidth);
 	}
 	const auto translateTop = sponsoredMessageBarTop
 		+ (_sponsoredMessageBar ? _sponsoredMessageBar->height() : 0);
 	if (_translateBar) {
 		_translateBar->move(0, translateTop);
-		_translateBar->resizeToWidth(width());
+		_translateBar->resizeToWidth(innerWidth);
 	}
 	const auto paysStatusTop = translateTop
 		+ (_translateBar ? _translateBar->height() : 0);
@@ -6462,17 +6456,19 @@ void HistoryWidget::updateControlsGeometry() {
 	const auto contactStatusTop = paysStatusTop
 		+ (_paysStatus ? _paysStatus->bar().height() : 0);
 	if (_contactStatus) {
-		_contactStatus->bar().move(0, contactStatusTop);
+		_contactStatus->bar().move(tabsLeftSkip, contactStatusTop);
 	}
 	const auto businessBotTop = contactStatusTop
 		+ (_contactStatus ? _contactStatus->bar().height() : 0);
 	if (_businessBotStatus) {
-		_businessBotStatus->bar().move(0, businessBotTop);
+		_businessBotStatus->bar().move(tabsLeftSkip, businessBotTop);
 	}
-	const auto scrollAreaTop = businessBotTop
+	const auto scrollAreaTop = _topBars->y()
+		+ businessBotTop
 		+ (_businessBotStatus ? _businessBotStatus->bar().height() : 0);
+	_topBars->resize(innerWidth, scrollAreaTop - _topBars->y());
 	if (_scroll->y() != scrollAreaTop) {
-		_scroll->moveToLeft(0, scrollAreaTop);
+		_scroll->moveToLeft(tabsLeftSkip, scrollAreaTop);
 		if (_autocomplete) {
 			_autocomplete->setBoundings(_scroll->geometry());
 		}
@@ -6502,7 +6498,7 @@ void HistoryWidget::updateControlsGeometry() {
 	_topShadow->setGeometryToLeft(
 		topShadowLeft,
 		_topBar->bottomNoMargins(),
-		width() - topShadowLeft - topShadowRight,
+		width - topShadowLeft - topShadowRight,
 		st::lineWidth);
 }
 
@@ -6704,7 +6700,12 @@ void HistoryWidget::updateHistoryGeometry(
 		return;
 	}
 
-	auto newScrollHeight = height() - _topBar->height();
+	const auto newScrollWidth = width()
+		- (_subsectionTabs ? _subsectionTabs->leftSkip() : 0);
+	const auto subsectionTabsTop = _topBar->bottomNoMargins();
+	auto newScrollHeight = height()
+		- subsectionTabsTop
+		- (_subsectionTabs ? _subsectionTabs->topSkip() : 0);
 	if (_translateBar) {
 		newScrollHeight -= _translateBar->height();
 	}
@@ -6760,10 +6761,10 @@ void HistoryWidget::updateHistoryGeometry(
 	}
 	const auto wasScrollTop = _scroll->scrollTop();
 	const auto wasAtBottom = (wasScrollTop == _scroll->scrollTopMax());
-	const auto needResize = (_scroll->width() != width())
+	const auto needResize = (_scroll->width() != newScrollWidth)
 		|| (_scroll->height() != newScrollHeight);
 	if (needResize) {
-		_scroll->resize(width(), newScrollHeight);
+		_scroll->resize(newScrollWidth, newScrollHeight);
 		// on initial updateListSize we didn't put the _scroll->scrollTop
 		// correctly yet so visibleAreaUpdated() call will erase it
 		// with the new (undefined) value
@@ -6780,6 +6781,12 @@ void HistoryWidget::updateHistoryGeometry(
 		}
 		_cornerButtons.updatePositions();
 		controller()->floatPlayerAreaUpdated();
+	}
+	if (_subsectionTabs) {
+		const auto scrollBottom = _scroll->y() + newScrollHeight;
+		const auto areaHeight = scrollBottom - subsectionTabsTop;
+		_subsectionTabs->setBoundingRect(
+			{ 0, subsectionTabsTop, width(), areaHeight });
 	}
 
 	updateListSize();
@@ -7625,7 +7632,7 @@ void HistoryWidget::setupTranslateBar() {
 	Expects(_history != nullptr);
 
 	_translateBar = std::make_unique<HistoryView::TranslateBar>(
-		this,
+		_topBars.get(),
 		controller(),
 		_history);
 
@@ -7700,7 +7707,7 @@ void HistoryWidget::checkPinnedBarState() {
 	}
 
 	clearHidingPinnedBar();
-	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
+	_pinnedBar = std::make_unique<Ui::PinnedBar>(_topBars.get(), [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
 	}, controller()->gifPauseLevelChanged());
@@ -7921,7 +7928,7 @@ void HistoryWidget::setupGroupCallBar() {
 		return;
 	}
 	_groupCallBar = std::make_unique<Ui::GroupCallBar>(
-		this,
+		_topBars.get(),
 		HistoryView::GroupCallBarContentByPeer(
 			peer,
 			st::historyGroupCallUserpics.size,
@@ -7974,7 +7981,7 @@ void HistoryWidget::setupRequestsBar() {
 		return;
 	}
 	_requestsBar = std::make_unique<Ui::RequestsBar>(
-		this,
+		_topBars.get(),
 		HistoryView::RequestsBarContentByPeer(
 			peer,
 			st::historyRequestsUserpics.size,
@@ -8087,7 +8094,7 @@ void HistoryWidget::checkSponsoredMessageBar() {
 
 void HistoryWidget::createSponsoredMessageBar() {
 	_sponsoredMessageBar = base::make_unique_q<Ui::SlideWrap<>>(
-		this,
+		_topBars.get(),
 		object_ptr<Ui::RpWidget>(this));
 
 	_sponsoredMessageBar->entity()->resizeToWidth(_scroll->width());
@@ -8248,6 +8255,34 @@ void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
 			[=] { _stickerToast = nullptr; });
 	}
 	_stickerToast->showFor(document);
+}
+
+void HistoryWidget::validateSubsectionTabs() {
+	if (!_history || !HistoryView::SubsectionTabs::UsedFor(_history)) {
+		_subsectionTabsLifetime.destroy();
+		_subsectionTabs = nullptr;
+		return;
+	} else if (_subsectionTabs) {
+		return;
+	}
+	_subsectionTabs = controller()->restoreSubsectionTabsFor(this, _history);
+	if (!_subsectionTabs) {
+		_subsectionTabs = std::make_unique<HistoryView::SubsectionTabs>(
+			controller(),
+			this,
+			_history);
+	}
+	_subsectionTabs->removeRequests() | rpl::start_with_next([=] {
+		_subsectionTabs = nullptr;
+		updateControlsGeometry();
+	}, _subsectionTabsLifetime);
+	_subsectionTabs->layoutRequests() | rpl::start_with_next([=] {
+		_list->toggleRemoveFromUserpics(_subsectionTabs->leftSkip() > 0);
+		updateControlsGeometry();
+		orderWidgets();
+	}, _subsectionTabsLifetime);
+	updateControlsGeometry();
+	orderWidgets();
 }
 
 void HistoryWidget::checkCharsCount() {
@@ -9439,5 +9474,7 @@ HistoryWidget::~HistoryWidget() {
 
 		session().data().itemVisibilitiesUpdated();
 	}
+	_subsectionTabsLifetime.destroy();
+	_subsectionTabs = nullptr;
 	setTabbedPanel(nullptr);
 }

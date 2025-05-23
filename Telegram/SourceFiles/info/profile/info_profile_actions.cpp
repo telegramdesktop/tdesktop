@@ -2193,9 +2193,10 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 	}) | rpl::distinct_until_changed();
 	auto viewDirect = [=] {
 		if (const auto linked = channel->monoforumLink()) {
-			if (const auto monoforum = linked->monoforum()) {
-				window->showMonoforum(monoforum);
-			}
+			window->showPeerHistory(linked);
+			//if (const auto monoforum = linked->monoforum()) {
+			//	window->showMonoforum(monoforum);
+			//}
 		}
 	};
 	AddMainButton( // #TODO monoforum

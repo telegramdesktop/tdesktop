@@ -78,6 +78,10 @@ class SavedSublist;
 class WallPaper;
 } // namespace Data
 
+namespace HistoryView {
+class SubsectionTabs;
+} // namespace HistoryView
+
 namespace HistoryView::Reactions {
 class CachedIconFactory;
 } // namespace HistoryView::Reactions
@@ -659,6 +663,14 @@ public:
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
 
+	void saveSubsectionTabs(
+		std::unique_ptr<HistoryView::SubsectionTabs> tabs);
+	[[nodiscard]] auto restoreSubsectionTabsFor(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::Thread*> thread)
+		-> std::unique_ptr<HistoryView::SubsectionTabs>;
+	void dropSubsectionTabs();
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -774,6 +786,8 @@ private:
 	base::has_weak_ptr _storyOpenGuard;
 
 	QString _premiumRef;
+	std::unique_ptr<HistoryView::SubsectionTabs> _savedSubsectionTabs;
+	rpl::lifetime _savedSubsectionTabsLifetime;
 
 	rpl::lifetime _lifetime;
 

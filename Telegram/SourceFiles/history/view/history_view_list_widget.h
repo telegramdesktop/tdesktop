@@ -428,7 +428,7 @@ public:
 		const QString &query,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
-	bool elementIsChatWide() override;
+	ElementChatMode elementChatMode() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
@@ -443,7 +443,7 @@ public:
 	bool elementHideTopicButton(not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
-	void overrideIsChatWide(bool isWide);
+	void overrideChatMode(std::optional<ElementChatMode> mode);
 
 	~ListWidget();
 
@@ -834,7 +834,7 @@ private:
 	bool _refreshingViewer = false;
 	bool _showFinished = false;
 	bool _resizePending = false;
-	std::optional<bool> _overrideIsChatWide;
+	std::optional<ElementChatMode> _overrideChatMode;
 
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;

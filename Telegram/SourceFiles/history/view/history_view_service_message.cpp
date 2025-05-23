@@ -423,7 +423,7 @@ bool Service::consumeHorizontalScroll(QPoint position, int delta) {
 
 QRect Service::countGeometry() const {
 	auto result = QRect(0, 0, width(), height());
-	if (delegate()->elementIsChatWide()) {
+	if (delegate()->elementChatMode() == ElementChatMode::Wide) {
 		result.setWidth(qMin(result.width(), st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 	}
 	auto margins = st::msgServiceMargin;
@@ -469,7 +469,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 			+ media->resizeGetHeight(newWidth)
 			+ st::msgServiceMargin.bottom();
 	} else if (!text().isEmpty()) {
-		if (delegate()->elementIsChatWide()) {
+		if (delegate()->elementChatMode() == ElementChatMode::Wide) {
 			accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
 		}
 		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
@@ -561,7 +561,7 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 				context,
 				0,
 				width(),
-				delegate()->elementIsChatWide());
+				delegate()->elementChatMode());
 			p.translate(0, -aboveh);
 		}
 	}

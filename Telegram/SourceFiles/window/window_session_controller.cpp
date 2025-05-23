@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_scheduled_section.h"
+#include "history/view/history_view_subsection_tabs.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -3440,8 +3441,37 @@ std::shared_ptr<ChatHelpers::Show> SessionController::uiShow() {
 	return _cachedShow;
 }
 
+void SessionController::saveSubsectionTabs(
+		std::unique_ptr<HistoryView::SubsectionTabs> tabs) {
+	_savedSubsectionTabsLifetime.destroy();
+	_savedSubsectionTabs = std::move(tabs);
+	_savedSubsectionTabs->extractToParent(widget());
+	_savedSubsectionTabs->removeRequests() | rpl::start_with_next([=] {
+		_savedSubsectionTabs = nullptr;
+	}, _savedSubsectionTabsLifetime);
+}
+
+auto SessionController::restoreSubsectionTabsFor(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Data::Thread*> thread)
+-> std::unique_ptr<HistoryView::SubsectionTabs> {
+	if (!_savedSubsectionTabs) {
+		return nullptr;
+	} else if (_savedSubsectionTabs->switchTo(thread, parent)) {
+		_savedSubsectionTabsLifetime.destroy();
+		return base::take(_savedSubsectionTabs);
+	}
+	return nullptr;
+}
+
+void SessionController::dropSubsectionTabs() {
+	_savedSubsectionTabsLifetime.destroy();
+	base::take(_savedSubsectionTabs);
+}
+
 SessionController::~SessionController() {
 	resetFakeUnreadWhileOpened();
+	dropSubsectionTabs();
 }
 
 bool CheckAndJumpToNearChatsFilter(
