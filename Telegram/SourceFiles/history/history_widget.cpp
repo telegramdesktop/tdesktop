@@ -7657,10 +7657,6 @@ void HistoryWidget::setupTranslateBar() {
 	}, _translateBar->lifetime());
 
 	orderWidgets();
-
-	if (_showAnimation) {
-		_translateBar->hide();
-	}
 }
 
 void HistoryWidget::setupPinnedTracker() {
@@ -7803,10 +7799,6 @@ void HistoryWidget::checkPinnedBarState() {
 	}, _pinnedBar->lifetime());
 
 	orderWidgets();
-
-	if (_showAnimation) {
-		_pinnedBar->hide();
-	}
 }
 
 void HistoryWidget::clearHidingPinnedBar() {
@@ -7966,10 +7958,6 @@ void HistoryWidget::setupGroupCallBar() {
 	}, _groupCallBar->lifetime());
 
 	orderWidgets();
-
-	if (_showAnimation) {
-		_groupCallBar->hide();
-	}
 }
 
 void HistoryWidget::setupRequestsBar() {
@@ -8013,10 +8001,6 @@ void HistoryWidget::setupRequestsBar() {
 	}, _requestsBar->lifetime());
 
 	orderWidgets();
-
-	if (_showAnimation) {
-		_requestsBar->hide();
-	}
 }
 
 void HistoryWidget::requestMessageData(MsgId msgId) {

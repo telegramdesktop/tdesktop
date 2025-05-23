@@ -57,6 +57,8 @@ private:
 	void toggleModes();
 	void setVisible(bool shown);
 	void refreshSlice();
+	void loadMore();
+	[[nodiscard]] rpl::producer<> dataChanged() const;
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<History*> _history;
@@ -66,16 +68,20 @@ private:
 	Ui::RpWidget *_shadow = nullptr;
 
 	std::vector<not_null<Data::Thread*>> _slice;
+	std::vector<not_null<Data::Thread*>> _sectionsSlice;
 
 	not_null<Data::Thread*> _active;
 	not_null<Data::Thread*> _around;
 	int _beforeLimit = 0;
 	int _afterLimit = 0;
+	int _afterAvailable = 0;
+	bool _loading = false;
 	std::optional<int> _beforeSkipped;
 	std::optional<int> _afterSkipped;
 
 	rpl::event_stream<> _layoutRequests;
 	rpl::event_stream<> _refreshed;
+	rpl::event_stream<> _scrollCheckRequests;
 
 	rpl::lifetime _lifetime;
 

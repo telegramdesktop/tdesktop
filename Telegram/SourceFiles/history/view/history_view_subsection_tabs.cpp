@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kDefaultLimit = 10;
+constexpr auto kDefaultLimit = 5;AssertIsDebug()// 10;
 
 } // namespace
 
@@ -91,6 +91,54 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 		}
 	}, tabs->lifetime());
 
+	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
+		const auto pixelDelta = e->pixelDelta();
+		const auto angleDelta = e->angleDelta();
+		if (std::abs(pixelDelta.x()) + std::abs(angleDelta.x())) {
+			return false;
+		}
+		const auto y = pixelDelta.y() ? pixelDelta.y() : angleDelta.y();
+		scroll->scrollToX(scroll->scrollLeft() - y);
+		return true;
+	});
+
+	rpl::merge(
+		scroll->scrolls(),
+		_scrollCheckRequests.events(),
+		scroll->widthValue() | rpl::skip(1) | rpl::map_to(rpl::empty)
+	) | rpl::start_with_next([=] {
+		const auto width = scroll->width();
+		const auto left = scroll->scrollLeft();
+		const auto max = scroll->scrollLeftMax();
+		const auto availableLeft = left;
+		const auto availableRight = (max - left);
+		if (max <= 2 * width && _afterAvailable > 0) {
+			_beforeLimit *= 2;
+			_afterLimit *= 2;
+		}
+		if (availableLeft < width
+			&& _beforeSkipped.value_or(0) > 0
+			&& !_slice.empty()) {
+			_around = _slice.front();
+			refreshSlice();
+		} else if (availableRight < width) {
+			if (_afterAvailable > 0) {
+				_around = _slice.back();
+				refreshSlice();
+			} else if (!_afterSkipped.has_value()) {
+				_loading = true;
+				loadMore();
+			}
+		}
+	}, _horizontal->lifetime());
+
+	dataChanged() | rpl::start_with_next([=] {
+		if (_loading) {
+			_loading = false;
+			refreshSlice();
+		}
+	}, _horizontal->lifetime());
+
 	_horizontal->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		const auto togglew = toggle->width();
@@ -127,14 +175,62 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 					Ui::Text::WithEntities));
 			}
 		}
+		const auto paused = [=] {
+			return _controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Any);
+		};
+
+		auto scrollSavingThread = (Data::Thread*)nullptr;
+		auto scrollSavingShift = 0;
+		auto scrollSavingIndex = -1;
+		if (const auto count = tabs->sectionsCount()) {
+			const auto scrollLeft = scroll->scrollLeft();
+			auto indexLeft = tabs->lookupSectionLeft(0);
+			for (auto index = 0; index != count; ++index) {
+				const auto nextLeft = (index + 1 != count)
+					? tabs->lookupSectionLeft(index + 1)
+					: (indexLeft + scrollLeft + 1);
+				if (indexLeft <= scrollLeft && nextLeft > scrollLeft) {
+					scrollSavingThread = _sectionsSlice[index];
+					scrollSavingShift = scrollLeft - indexLeft;
+					break;
+				}
+				indexLeft = nextLeft;
+			}
+			scrollSavingIndex = scrollSavingThread
+				? int(ranges::find(_slice, not_null(scrollSavingThread))
+					- begin(_slice))
+				: -1;
+			if (scrollSavingIndex == _slice.size()) {
+				scrollSavingIndex = -1;
+				for (auto index = 0; index != count; ++index) {
+					const auto thread = _sectionsSlice[index];
+					if (ranges::contains(_slice, thread)) {
+						scrollSavingThread = thread;
+						scrollSavingShift = scrollLeft
+							- tabs->lookupSectionLeft(index);
+						scrollSavingIndex = index;
+						break;
+					}
+				}
+			}
+		}
+
 		tabs->setSections(sections, Core::TextContext({
 			.session = &_history->session(),
-		}));
+		}), paused);
 		tabs->fitWidthToSections();
 		tabs->setActiveSectionFast(activeIndex);
+		_sectionsSlice = _slice;
 		_horizontal->resize(
-			tabs->width(),
+			_horizontal->width(),
 			std::max(toggle->height(), tabs->height()));
+		if (scrollSavingIndex >= 0) {
+			scroll->scrollToX(tabs->lookupSectionLeft(scrollSavingIndex)
+				+ scrollSavingShift);
+		}
+
+		_scrollCheckRequests.fire({});
 	}, _horizontal->lifetime());
 }
 
@@ -177,6 +273,26 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 	) | rpl::start_with_next([=] {
 		_vertical->resize(std::max(toggle->width(), 0), 0);
 	}, _vertical->lifetime());
+}
+
+void SubsectionTabs::loadMore() {
+	if (const auto forum = _history->peer->forum()) {
+		forum->requestTopics();
+	} else if (const auto monoforum = _history->peer->monoforum()) {
+		monoforum->loadMore();
+	} else {
+		Unexpected("Peer in SubsectionTabs::loadMore.");
+	}
+}
+
+rpl::producer<> SubsectionTabs::dataChanged() const {
+	if (const auto forum = _history->peer->forum()) {
+		return forum->chatsListChanges();
+	} else if (const auto monoforum = _history->peer->monoforum()) {
+		return monoforum->chatsListChanges();
+	} else {
+		Unexpected("Peer in SubsectionTabs::dataChanged.");
+	}
 }
 
 void SubsectionTabs::toggleModes() {
@@ -323,6 +439,8 @@ void SubsectionTabs::refreshSlice() {
 	});
 	if (!list) {
 		slice.push_back(_history);
+		_beforeSkipped = _afterSkipped = 0;
+		_afterAvailable = 0;
 		return;
 	}
 	const auto &chats = list->indexed()->all();
@@ -339,9 +457,8 @@ void SubsectionTabs::refreshSlice() {
 	const auto from = i - takeBefore;
 	const auto till = i + takeAfter;
 	_beforeSkipped = std::max(0, int(from - chats.begin()));
-	_afterSkipped = list->loaded()
-		? std::max(0, int(chats.end() - till))
-		: std::optional<int>();
+	_afterAvailable = std::max(0, int(chats.end() - till));
+	_afterSkipped = list->loaded() ? _afterAvailable : std::optional<int>();
 	if (from == chats.begin()) {
 		slice.push_back(_history);
 	}
@@ -358,6 +475,7 @@ bool SubsectionTabs::switchTo(
 	if (thread->owningHistory() != _history) {
 		return false;
 	}
+	_active = thread;
 	if (_vertical) {
 		_vertical->setParent(parent);
 		_vertical->show();
