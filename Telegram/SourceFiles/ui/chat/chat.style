@@ -1284,3 +1284,43 @@ chatTabsSlider: SettingsSlider(defaultSettingsSlider) {
 	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;
 }
+
+ChatTabsVertical {
+	barStroke: pixels;
+	barRadius: pixels;
+	barFg: color;
+	nameStyle: TextStyle;
+	nameWidth: pixels;
+	nameTop: pixels;
+	nameFg: color;
+	nameFgActive: color;
+	userpicTop: pixels;
+	userpicSize: pixels;
+	baseHeight: pixels;
+	width: pixels;
+	ripple: RippleAnimation;
+	rippleBg: color;
+	rippleBgActive: color;
+	duration: int;
+}
+
+chatTabsVertical: ChatTabsVertical {
+	barStroke: 8px;
+	barRadius: 4px;
+	barFg: sliderBgActive;
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(10px);
+	}
+	nameWidth: 46px;
+	nameTop: 46px;
+	nameFg: windowSubTextFg;
+	nameFgActive: lightButtonFg;
+	userpicTop: 8px;
+	userpicSize: 36px;
+	baseHeight: 56px;
+	width: 56px;
+	ripple: defaultRippleAnimation;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	duration: 150;
+}
