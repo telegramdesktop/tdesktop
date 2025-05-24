@@ -156,13 +156,13 @@ RUN git clone -b v2.4.1 --depth=1 {{ GIT }}/cisco/openh264.git \
 FROM builder AS libde265
 RUN git clone -b v1.0.15 --depth=1 {{ GIT }}/strukturag/libde265.git \
 	&& cd libde265 \
-	&& cmake -GNinja . \
+	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DENABLE_DECODER=OFF \
 		-DENABLE_SDL=OFF \
-	&& cmake --build . --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libde265-cache" cmake --install . \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/libde265-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libde265
 
