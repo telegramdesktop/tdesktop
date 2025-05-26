@@ -390,8 +390,8 @@ void EditCaptionBox(
 			return;
 		}
 		auto text = TextWithEntities{
-			base::take(textWithTags.text),
-			ConvertTextTagsToEntities(base::take(textWithTags.tags)),
+			std::move(textWithTags.text),
+			ConvertTextTagsToEntities(std::move(textWithTags.tags)),
 		};
 		if (item->isUploading()) {
 			item->setText(std::move(text));
