@@ -232,7 +232,7 @@ TranslateBar::TranslateBar(
 : _controller(controller)
 , _history(history)
 , _wrap(parent, object_ptr<Ui::AbstractButton>(parent))
-, _shadow(std::make_unique<Ui::PlainShadow>(_wrap.parentWidget())) {
+, _shadow(std::make_unique<Ui::PlainShadow>(parent)) {
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
 

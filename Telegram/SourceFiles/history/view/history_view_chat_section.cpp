@@ -468,6 +468,7 @@ ChatWidget::~ChatWidget() {
 }
 
 void ChatWidget::orderWidgets() {
+	_topBars->raise();
 	_translateBar->raise();
 	if (_topicReopenBar) {
 		_topicReopenBar->bar().raise();
@@ -2608,7 +2609,7 @@ void ChatWidget::updateControlsGeometry() {
 		bottom -= _composeControls->heightCurrent();
 	}
 
-	_topBars->resize(innerWidth, top);
+	_topBars->resize(innerWidth, top + st::lineWidth);
 	top += _topBars->y();
 
 	const auto scrollHeight = bottom - top;

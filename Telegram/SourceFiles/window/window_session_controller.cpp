@@ -1878,6 +1878,10 @@ void SessionController::showForum(
 		const SectionShow &params) {
 	if (showForumInDifferentWindow(forum, params)) {
 		return;
+	} else if (HistoryView::SubsectionTabs::UsedFor(
+			forum->owner().history(forum->channel()))) {
+		showPeerHistory(forum->channel(), params);
+		return;
 	}
 	_shownForumLifetime.destroy();
 	if (_shownForum.current() != forum) {

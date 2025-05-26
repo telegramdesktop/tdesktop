@@ -6466,7 +6466,9 @@ void HistoryWidget::updateControlsGeometry() {
 	const auto scrollAreaTop = _topBars->y()
 		+ businessBotTop
 		+ (_businessBotStatus ? _businessBotStatus->bar().height() : 0);
-	_topBars->resize(innerWidth, scrollAreaTop - _topBars->y());
+	_topBars->resize(
+		innerWidth,
+		scrollAreaTop - _topBars->y() + st::lineWidth);
 	if (_scroll->y() != scrollAreaTop) {
 		_scroll->moveToLeft(tabsLeftSkip, scrollAreaTop);
 		if (_autocomplete) {

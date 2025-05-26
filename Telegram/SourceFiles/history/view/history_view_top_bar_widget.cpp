@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // GroupCall::input.
 #include "data/data_folder.h"
 #include "data/data_forum.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -55,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_forum_topic.h"
 #include "data/data_send_action.h"
+#include "dialogs/dialogs_main_list.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "base/unixtime.h"
 #include "support/support_helper.h"
@@ -488,13 +490,15 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto sublist = _activeChat.key.sublist();
 	const auto topic = _activeChat.key.topic();
 	const auto history = _activeChat.key.history();
-	const auto namePeer = history
+	const auto broadcastForMonoforum = history
+		? history->peer->monoforumBroadcast()
+		: nullptr;
+	const auto namePeer = broadcastForMonoforum
+		? broadcastForMonoforum
+		: history
 		? history->peer.get()
 		: sublist
 		? sublist->sublistPeer().get()
-		: nullptr;
-	const auto broadcastForMonoforum = history
-		? history->peer->monoforumBroadcast()
 		: nullptr;
 	if (topic && _activeChat.section == Section::Replies) {
 		p.setPen(st::dialogsNameFg);
@@ -519,12 +523,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		}
 	} else if (folder
 		|| (peer && (peer->sharedMediaInfo() || peer->isVerifyCodes()))
-		|| broadcastForMonoforum
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)) {
-		auto text = broadcastForMonoforum
-			? broadcastForMonoforum->name() + u" Messages"_q AssertIsDebug()
-			: (_activeChat.section == Section::Scheduled)
+		auto text = (_activeChat.section == Section::Scheduled)
 			? ((peer && peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
 				: tr::lng_scheduled_messages(tr::now))
@@ -1690,6 +1691,10 @@ void TopBarWidget::updateOnlineDisplay() {
 				text = tr::lng_group_status(tr::now);
 			}
 		}
+	} else if (const auto monoforum = peer->monoforum()) {
+		const auto chats = monoforum->chatsList();
+		const auto count = chats->fullSize().current();
+		text = tr::lng_filters_chats_count(tr::now, lt_count, count);
 	} else if (const auto channel = peer->asChannel()) {
 		if (channel->isMegagroup()
 			&& channel->canViewMembers()

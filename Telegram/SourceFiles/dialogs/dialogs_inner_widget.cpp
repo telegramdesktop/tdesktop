@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_search_tags.h"
 #include "dialogs/dialogs_quick_action.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_subsection_tabs.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/application.h"
@@ -1500,6 +1501,12 @@ bool InnerWidget::isRowActive(
 	const auto key = row->key();
 	if (entry.key == key) {
 		return true;
+	} else if (const auto topic = entry.key.topic()) {
+		if (const auto history = key.history()) {
+			return (history->peer == topic->channel())
+				&& HistoryView::SubsectionTabs::UsedFor(history);
+		}
+		return false;
 	} else if (const auto sublist = entry.key.sublist()) {
 		if (!sublist->parentChat()) {
 			// In case we're viewing a Saved Messages sublist,
