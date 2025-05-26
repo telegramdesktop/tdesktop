@@ -144,6 +144,7 @@ void UnreadThings::requestReactions(
 		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
 		history->peer->input,
 		MTP_int(topic ? topic->rootId() : 0),
+		MTPInputPeer(), // saved_peer_id
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),

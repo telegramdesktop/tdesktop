@@ -3069,7 +3069,8 @@ void UnpinAllMessages(
 			api->request(MTPmessages_UnpinAllMessages(
 				MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag()),
 				history->peer->input,
-				MTP_int(topicRootId.bare)
+				MTP_int(topicRootId.bare),
+				MTPInputPeer() // saved_peer_id
 			)).done([=](const MTPmessages_AffectedHistory &result) {
 				const auto peer = history->peer;
 				const auto offset = api->applyAffectedHistory(peer, result);

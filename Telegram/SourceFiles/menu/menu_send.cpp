@@ -930,7 +930,8 @@ void SetupUnreadReactionsMenu(
 		peer->session().api().request(MTPmessages_ReadReactions(
 			MTP_flags(rootId ? Flag::f_top_msg_id : Flag(0)),
 			peer->input,
-			MTP_int(rootId)
+			MTP_int(rootId),
+			MTPInputPeer() // saved_peer_id
 		)).done([=](const MTPmessages_AffectedHistory &result) {
 			const auto offset = peer->session().api().applyAffectedHistory(
 				peer,
