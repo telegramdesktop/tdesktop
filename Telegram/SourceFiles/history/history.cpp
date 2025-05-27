@@ -2363,6 +2363,9 @@ bool History::chatListMessageKnown() const {
 }
 
 const QString &History::chatListName() const {
+	if (const auto broadcast = peer->monoforumBroadcast()) {
+		return broadcast->name();
+	}
 	return peer->name();
 }
 

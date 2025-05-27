@@ -1606,6 +1606,11 @@ void InnerWidget::paintPeerSearchResult(
 			: context.selected
 			? &st::dialogsScamFgOver
 			: &st::dialogsScamFg),
+		.direct = (context.active
+			? &st::dialogsDraftFgActive
+			: context.selected
+			? &st::windowSubTextFgOver
+			: &st::windowSubTextFg),
 		.premiumFg = (context.active
 			? &st::dialogsVerifiedIconBgActive
 			: context.selected

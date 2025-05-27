@@ -93,6 +93,9 @@ void StripExternalLinks(TextWithEntities &text) {
 } // namespace
 
 rpl::producer<QString> NameValue(not_null<PeerData*> peer) {
+	if (const auto broadcast = peer->monoforumBroadcast()) {
+		return NameValue(broadcast);
+	}
 	return peer->session().changes().peerFlagsValue(
 		peer,
 		UpdateFlag::Name
@@ -659,6 +662,8 @@ rpl::producer<BadgeType> BadgeValueFromFlags(Peer peer) {
 			? BadgeType::Scam
 			: (value & Flag::Fake)
 			? BadgeType::Fake
+			: peer->isMonoforum()
+			? BadgeType::Direct
 			: (value & Flag::Verified)
 			? BadgeType::Verified
 			: premium

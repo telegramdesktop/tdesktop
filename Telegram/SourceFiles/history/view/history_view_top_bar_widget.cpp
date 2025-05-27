@@ -604,6 +604,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			.verified = &st::dialogsVerifiedIcon,
 			.premium = &st::dialogsPremiumIcon.icon,
 			.scam = &st::attentionButtonFg,
+			.direct = &st::windowSubTextFg,
 			.premiumFg = &st::dialogsVerifiedIconBg,
 			.customEmojiRepaint = [=] { update(); },
 			.now = now,

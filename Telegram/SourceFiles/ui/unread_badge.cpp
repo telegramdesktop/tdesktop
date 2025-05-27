@@ -71,10 +71,17 @@ void UnreadBadge::paintEvent(QPaintEvent *e) {
 		unreadSt);
 }
 
-QSize ScamBadgeSize(bool fake) {
-	const auto phrase = fake
-		? tr::lng_fake_badge(tr::now)
-		: tr::lng_scam_badge(tr::now);
+QString TextBadgeText(TextBadgeType type) {
+	switch (type) {
+	case TextBadgeType::Fake: return tr::lng_fake_badge(tr::now);
+	case TextBadgeType::Scam: return tr::lng_scam_badge(tr::now);
+	case TextBadgeType::Direct: return tr::lng_direct_badge(tr::now);
+	}
+	Unexpected("Type in TextBadgeText.");
+}
+
+QSize TextBadgeSize(TextBadgeType type) {
+	const auto phrase = TextBadgeText(type);
 	const auto phraseWidth = st::dialogsScamFont->width(phrase);
 	const auto width = st::dialogsScamPadding.left()
 		+ phraseWidth
@@ -85,7 +92,7 @@ QSize ScamBadgeSize(bool fake) {
 	return { width, height };
 }
 
-void DrawScamFakeBadge(
+void DrawTextBadge(
 		Painter &p,
 		QRect rect,
 		int outerWidth,
@@ -107,16 +114,14 @@ void DrawScamFakeBadge(
 		phraseWidth);
 }
 
-void DrawScamBadge(
-		bool fake,
+void DrawTextBadge(
+		TextBadgeType type,
 		Painter &p,
 		QRect rect,
 		int outerWidth,
 		const style::color &color) {
-	const auto phrase = fake
-		? tr::lng_fake_badge(tr::now)
-		: tr::lng_scam_badge(tr::now);
-	DrawScamFakeBadge(
+	const auto phrase = TextBadgeText(type);
+	DrawTextBadge(
 		p,
 		rect,
 		outerWidth,
@@ -133,8 +138,9 @@ int PeerBadge::drawGetWidth(Painter &p, Descriptor &&descriptor) {
 	Expects(descriptor.customEmojiRepaint != nullptr);
 
 	const auto peer = descriptor.peer;
-	if (descriptor.scam && (peer->isScam() || peer->isFake())) {
-		return drawScamOrFake(p, descriptor);
+	if ((descriptor.scam && (peer->isScam() || peer->isFake()))
+		|| descriptor.direct && peer->isMonoforum()) {
+		return drawTextBadge(p, descriptor);
 	}
 	const auto verifyCheck = descriptor.verified && peer->isVerified();
 	const auto premiumMark = descriptor.premium
@@ -177,10 +183,16 @@ int PeerBadge::drawGetWidth(Painter &p, Descriptor &&descriptor) {
 	return 0;
 }
 
-int PeerBadge::drawScamOrFake(Painter &p, const Descriptor &descriptor) {
-	const auto phrase = descriptor.peer->isScam()
-		? tr::lng_scam_badge(tr::now)
-		: tr::lng_fake_badge(tr::now);
+int PeerBadge::drawTextBadge(Painter &p, const Descriptor &descriptor) {
+	const auto type = [&] {
+		if (descriptor.peer->isScam()) {
+			return TextBadgeType::Scam;
+		} else if (descriptor.peer->isFake()) {
+			return TextBadgeType::Fake;
+		}
+		return TextBadgeType::Direct;
+	}();
+	const auto phrase = TextBadgeText(type);
 	const auto phraseWidth = st::dialogsScamFont->width(phrase);
 	const auto width = st::dialogsScamPadding.left()
 		+ phraseWidth
@@ -197,11 +209,13 @@ int PeerBadge::drawScamOrFake(Painter &p, const Descriptor &descriptor) {
 		rectForName.y() + (rectForName.height() - height) / 2,
 		width,
 		height);
-	DrawScamFakeBadge(
+	DrawTextBadge(
 		p,
 		rect,
 		descriptor.outerWidth,
-		*descriptor.scam,
+		*((type == TextBadgeType::Direct)
+			? descriptor.direct
+			: descriptor.scam),
 		phrase,
 		phraseWidth);
 	return st::dialogsScamSkip + width;

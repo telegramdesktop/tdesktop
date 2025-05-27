@@ -131,9 +131,14 @@ void Badge::setContent(Content content) {
 		}, _view->lifetime());
 	} break;
 	case BadgeType::Scam:
-	case BadgeType::Fake: {
-		const auto fake = (_content.badge == BadgeType::Fake);
-		const auto size = Ui::ScamBadgeSize(fake);
+	case BadgeType::Fake:
+	case BadgeType::Direct: {
+		const auto type = (_content.badge == BadgeType::Direct)
+			? Ui::TextBadgeType::Direct
+			: (_content.badge == BadgeType::Fake)
+			? Ui::TextBadgeType::Fake
+			: Ui::TextBadgeType::Scam;
+		const auto size = Ui::TextBadgeSize(type);
 		const auto skip = st::infoVerifiedCheckPosition.x();
 		_view->resize(
 			size.width() + 2 * skip,
@@ -141,12 +146,14 @@ void Badge::setContent(Content content) {
 		_view->paintRequest(
 		) | rpl::start_with_next([=, badge = _view.data()]{
 			Painter p(badge);
-			Ui::DrawScamBadge(
-				fake,
+			Ui::DrawTextBadge(
+				type,
 				p,
 				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
 				badge->width(),
-				st::attentionButtonFg);
+				(type == Ui::TextBadgeType::Direct
+					? st::windowSubTextFg
+					: st::attentionButtonFg));
 			}, _view->lifetime());
 	} break;
 	}

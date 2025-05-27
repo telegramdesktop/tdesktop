@@ -750,6 +750,11 @@ void PaintRow(
 				: context.selected
 				? &st::dialogsScamFgOver
 				: &st::dialogsScamFg),
+			.direct = (context.active
+				? &st::dialogsDraftFgActive
+				: context.selected
+				? &st::windowSubTextFgOver
+				: &st::windowSubTextFg),
 			.premiumFg = (context.active
 				? &st::dialogsVerifiedIconBgActive
 				: context.selected
@@ -923,7 +928,7 @@ const style::icon *ChatTypeIcon(
 			st::dialogsChannelIcon,
 			context.active,
 			context.selected);
-	} else if (peer->isForum() || peer->amMonoforumAdmin()) {
+	} else if (peer->isForum()) {
 		return &ThreeStateIcon(
 			st::dialogsForumIcon,
 			context.active,

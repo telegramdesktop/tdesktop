@@ -130,7 +130,7 @@ struct LinkWithUrl {
 [[nodiscard]] rpl::producer<bool> CanViewParticipantsValue(
 	not_null<ChannelData*> megagroup);
 
-enum class BadgeType;
+enum class BadgeType : uchar;
 [[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<EmojiStatusId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
