@@ -663,10 +663,11 @@ bool PeerData::canPinMessages() const {
 
 bool PeerData::canCreatePolls() const {
 	if (const auto user = asUser()) {
-		return user->isBot()
-			&& !user->isSupport()
-			&& !user->isRepliesChat()
-			&& !user->isVerifyCodes();
+		return user->isSelf()
+			|| (user->isBot()
+				&& !user->isSupport()
+				&& !user->isRepliesChat()
+				&& !user->isVerifyCodes());
 	}
 	return Data::CanSend(this, ChatRestriction::SendPolls);
 }

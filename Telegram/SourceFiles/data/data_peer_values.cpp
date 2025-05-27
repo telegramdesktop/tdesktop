@@ -274,6 +274,12 @@ inline auto DefaultRestrictionValue(
 			| Flag::Forbidden
 			| Flag::Creator
 			| Flag::Broadcast;
+		if (channel->isMonoforum()) {
+			rights &= ~ChatRestriction::SendPolls;
+			if (!rights) {
+				return rpl::single(false);
+			}
+		}
 		return rpl::combine(
 			PeerFlagsValue(channel, mask),
 			AdminRightValue(

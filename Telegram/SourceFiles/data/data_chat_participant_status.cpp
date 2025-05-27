@@ -156,6 +156,12 @@ bool CanSendAnyOf(
 		}
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
+		if (channel->isMonoforum()) {
+			rights &= ~ChatRestriction::SendPolls;
+			if (!rights) {
+				return false;
+			}
+		}
 		using Flag = ChannelDataFlag;
 		const auto allowed = channel->amIn()
 			|| ((channel->flags() & Flag::HasLink)
