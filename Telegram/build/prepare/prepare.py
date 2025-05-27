@@ -1557,7 +1557,6 @@ release:
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 win:
-    git revert --no-edit 6ad56dce34
     setlocal enabledelayedexpansion
     for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
         git apply %%i -v
