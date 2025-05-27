@@ -456,7 +456,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 7119a74e3f
+    git checkout f20de2b2c7a758736fa6b5f4b813de533a31ffed
 """)
 
 stage('msys64', """
@@ -1557,7 +1557,6 @@ release:
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 win:
-    git revert --no-edit 6ad56dce34
     setlocal enabledelayedexpansion
     for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
         git apply %%i -v
