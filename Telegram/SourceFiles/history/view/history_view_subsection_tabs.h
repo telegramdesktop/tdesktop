@@ -19,6 +19,8 @@ class SessionController;
 
 namespace Ui {
 class RpWidget;
+class ScrollArea;
+class SubsectionSlider;
 } // namespace Ui
 
 namespace HistoryView {
@@ -59,6 +61,11 @@ private:
 	void refreshSlice();
 	void loadMore();
 	[[nodiscard]] rpl::producer<> dataChanged() const;
+
+	void setupSlider(
+		not_null<Ui::ScrollArea*> scroll,
+		not_null<Ui::SubsectionSlider*> slider,
+		bool vertical);
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<History*> _history;

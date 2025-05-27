@@ -4218,12 +4218,20 @@ void InnerWidget::updateSearchIn() {
 		: _openedForum
 		? _openedForum->channel().get()
 		: nullptr;
+	const auto paused = [window = _controller] {
+		return window->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+	};
+	const auto textFg = [] {
+		return st::windowSubTextFg->c;
+	};
 	const auto topicIcon = !topic
 		? nullptr
 		: topic->iconId()
 		? Ui::MakeEmojiThumbnail(
 			&topic->owner(),
-			Data::SerializeCustomEmojiId(topic->iconId()))
+			Data::SerializeCustomEmojiId(topic->iconId()),
+			paused,
+			textFg)
 		: Ui::MakeEmojiThumbnail(
 			&topic->owner(),
 			Data::TopicIconEmojiEntity({
@@ -4233,7 +4241,9 @@ void InnerWidget::updateSearchIn() {
 				.colorId = (topic->isGeneral()
 					? Data::ForumGeneralIconColor(st::windowSubTextFg->c)
 					: topic->colorId()),
-			}));
+			}),
+			paused,
+			textFg);
 	const auto peerIcon = peer
 		? Ui::MakeUserpicThumbnail(peer)
 		: sublist

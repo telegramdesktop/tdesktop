@@ -196,7 +196,11 @@ private:
 
 class EmojiThumbnail final : public DynamicImage {
 public:
-	EmojiThumbnail(not_null<Data::Session*> owner, const QString &data);
+	EmojiThumbnail(
+		not_null<Data::Session*> owner,
+		const QString &data,
+		Fn<bool()> paused,
+		Fn<QColor()> textColor);
 
 	std::shared_ptr<DynamicImage> clone() override;
 
@@ -207,6 +211,8 @@ private:
 	const not_null<Data::Session*> _owner;
 	const QString _data;
 	std::unique_ptr<Ui::Text::CustomEmoji> _emoji;
+	Fn<bool()> _paused;
+	Fn<QColor()> _textColor;
 	QImage _frame;
 
 };
@@ -581,9 +587,13 @@ void IconThumbnail::subscribeToUpdates(Fn<void()> callback) {
 
 EmojiThumbnail::EmojiThumbnail(
 	not_null<Data::Session*> owner,
-	const QString &data)
+	const QString &data,
+	Fn<bool()> paused,
+	Fn<QColor()> textColor)
 : _owner(owner)
-, _data(data) {
+, _data(data)
+, _paused(std::move(paused))
+, _textColor(std::move(textColor)) {
 }
 
 void EmojiThumbnail::subscribeToUpdates(Fn<void()> callback) {
@@ -598,7 +608,11 @@ void EmojiThumbnail::subscribeToUpdates(Fn<void()> callback) {
 }
 
 std::shared_ptr<DynamicImage> EmojiThumbnail::clone() {
-	return std::make_shared<EmojiThumbnail>(_owner, _data);
+	return std::make_shared<EmojiThumbnail>(
+		_owner,
+		_data,
+		_paused,
+		_textColor);
 }
 
 QImage EmojiThumbnail::image(int size) {
@@ -614,12 +628,16 @@ QImage EmojiThumbnail::image(int size) {
 	}
 	_frame.fill(Qt::transparent);
 
+	const auto esize = Text::AdjustCustomEmojiSize(
+		Emoji::GetSizeLarge() / style::DevicePixelRatio());
+	const auto eskip = (size - esize) / 2;
+
 	auto p = Painter(&_frame);
 	_emoji->paint(p, {
-		.textColor = st::windowBoldFg->c,
+		.textColor = _textColor ? _textColor() : st::windowBoldFg->c,
 		.now = crl::now(),
-		.position = QPoint(0, 0),
-		.paused = false,
+		.position = QPoint(eskip, eskip),
+		.paused = _paused && _paused(),
 	});
 	p.end();
 
@@ -665,8 +683,14 @@ std::shared_ptr<DynamicImage> MakeIconThumbnail(const style::icon &icon) {
 
 std::shared_ptr<DynamicImage> MakeEmojiThumbnail(
 		not_null<Data::Session*> owner,
-		const QString &data) {
-	return std::make_shared<EmojiThumbnail>(owner, data);
+		const QString &data,
+		Fn<bool()> paused,
+		Fn<QColor()> textColor) {
+	return std::make_shared<EmojiThumbnail>(
+		owner,
+		data,
+		std::move(paused),
+		std::move(textColor));
 }
 
 std::shared_ptr<DynamicImage> MakePhotoThumbnail(

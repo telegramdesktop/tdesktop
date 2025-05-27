@@ -93,11 +93,12 @@ void DefaultIconEmoji::paint(QPainter &p, const Context &context) {
 	const auto &st = (_tag == Data::CustomEmojiSizeTag::Normal)
 		? st::normalForumTopicIcon
 		: st::defaultForumTopicIcon;
+	const auto general = Data::IsForumGeneralIconTitle(_icon.title);
 	if (_image.isNull()) {
-		_image = Data::IsForumGeneralIconTitle(_icon.title)
+		_image = general
 			? Data::ForumTopicGeneralIconFrame(
 				st.size,
-				Data::ParseForumGeneralIconColor(_icon.colorId))
+				QColor(255, 255, 255))
 			: Data::ForumTopicIconFrame(_icon.colorId, _icon.title, st);
 	}
 	const auto full = (_tag == Data::CustomEmojiSizeTag::Normal)
@@ -106,7 +107,9 @@ void DefaultIconEmoji::paint(QPainter &p, const Context &context) {
 	const auto esize = full / style::DevicePixelRatio();
 	const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
 	const auto skip = (customSize - st.size) / 2;
-	p.drawImage(context.position + QPoint(skip, skip), _image);
+	p.drawImage(context.position + QPoint(skip, skip), general
+		? style::colorizeImage(_image, context.textColor)
+		: _image);
 }
 
 void DefaultIconEmoji::unload() {

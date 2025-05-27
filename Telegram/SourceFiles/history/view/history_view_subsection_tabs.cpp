@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/controls/subsection_tabs_slider.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -36,284 +37,6 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kDefaultLimit = 5; AssertIsDebug()// 10;
-constexpr auto kMaxNameLines = 3;
-
-class VerticalSlider final : public Ui::RpWidget {
-public:
-	explicit VerticalSlider(not_null<QWidget*> parent);
-
-	struct Section {
-		std::shared_ptr<Ui::DynamicImage> userpic;
-		QString text;
-	};
-
-	void setSections(std::vector<Section> sections, Fn<bool()> paused);
-	void setActiveSectionFast(int active);
-
-	void fitHeightToSections();
-
-	[[nodiscard]] rpl::producer<int> sectionActivated() const {
-		return _sectionActivated.events();
-	}
-
-	[[nodiscard]] int sectionsCount() const;
-	[[nodiscard]] int lookupSectionTop(int index) const;
-
-private:
-	struct Tab {
-		std::shared_ptr<Ui::DynamicImage> userpic;
-		Ui::Text::String text;
-		std::unique_ptr<Ui::RippleAnimation> ripple;
-		int top = 0;
-		int height = 0;
-		bool subscribed = false;
-	};
-	struct Range {
-		int top = 0;
-		int height = 0;
-	};
-
-	void paintEvent(QPaintEvent *e) override;
-	void timerEvent(QTimerEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-
-	void startRipple(int index);
-	[[nodiscard]] int getIndexFromPosition(QPoint position) const;
-	[[nodiscard]] QImage prepareRippleMask(int index, const Tab &tab);
-
-	void activateCallback();
-	[[nodiscard]] Range getFinalActiveRange() const;
-
-	const style::ChatTabsVertical &_st;
-	Ui::RoundRect _bar;
-	std::vector<Tab> _tabs;
-	int _active = -1;
-	int _pressed = -1;
-	Ui::Animations::Simple _activeTop;
-	Ui::Animations::Simple _activeHeight;
-
-	int _timerId = -1;
-	crl::time _callbackAfterMs = 0;
-
-	rpl::event_stream<int> _sectionActivated;
-	Fn<bool()> _paused;
-
-};
-
-VerticalSlider::VerticalSlider(not_null<QWidget*> parent)
-: RpWidget(parent)
-, _st(st::chatTabsVertical)
-, _bar(_st.barRadius, _st.barFg) {
-	setCursor(style::cur_pointer);
-}
-
-void VerticalSlider::setSections(
-		std::vector<Section> sections,
-		Fn<bool()> paused) {
-	auto old = base::take(_tabs);
-	_tabs.reserve(sections.size());
-
-	for (auto &section : sections) {
-		const auto i = ranges::find(old, section.userpic, &Tab::userpic);
-		if (i != end(old)) {
-			_tabs.push_back(std::move(*i));
-			old.erase(i);
-		} else {
-			_tabs.push_back({ .userpic = std::move(section.userpic), });
-		}
-		_tabs.back().text = Ui::Text::String(
-			_st.nameStyle,
-			section.text,
-			kDefaultTextOptions,
-			_st.nameWidth);
-	}
-	for (const auto &was : old) {
-		if (was.subscribed) {
-			was.userpic->subscribeToUpdates(nullptr);
-		}
-	}
-}
-
-void VerticalSlider::setActiveSectionFast(int active) {
-	_active = active;
-	_activeTop.stop();
-	_activeHeight.stop();
-}
-
-void VerticalSlider::fitHeightToSections() {
-	auto top = 0;
-	for (auto &tab : _tabs) {
-		tab.top = top;
-		tab.height = _st.baseHeight + std::min(
-			_st.nameStyle.font->height * kMaxNameLines,
-			tab.text.countHeight(_st.nameWidth, true));
-		top += tab.height;
-	}
-	resize(_st.width, top);
-}
-
-int VerticalSlider::sectionsCount() const {
-	return int(_tabs.size());
-}
-
-int VerticalSlider::lookupSectionTop(int index) const {
-	Expects(index >= 0 && index < _tabs.size());
-
-	return _tabs[index].top;
-}
-
-VerticalSlider::Range VerticalSlider::getFinalActiveRange() const {
-	return (_active >= 0)
-		? Range{ _tabs[_active].top, _tabs[_active].height }
-		: Range();
-}
-
-void VerticalSlider::paintEvent(QPaintEvent *e) {
-	const auto finalRange = getFinalActiveRange();
-	const auto range = Range{
-		int(base::SafeRound(_activeTop.value(finalRange.top))),
-		int(base::SafeRound(_activeHeight.value(finalRange.height))),
-	};
-
-	auto p = QPainter(this);
-	auto clip = e->rect();
-	const auto drawRect = [&](QRect rect) {
-		_bar.paint(p, rect);
-	};
-	const auto nameLeft = (_st.width - _st.nameWidth) / 2;
-	for (auto &tab : _tabs) {
-		if (!clip.intersects(QRect(0, tab.top, width(), tab.height))) {
-			continue;
-		}
-		const auto divider = std::max(std::min(tab.height, range.height), 1);
-		const auto active = 1.
-			- std::clamp(
-				std::abs(range.top - tab.top) / float64(divider),
-				0.,
-				1.);
-		if (tab.ripple) {
-			const auto color = anim::color(
-				_st.rippleBg,
-				_st.rippleBgActive,
-				active);
-			tab.ripple->paint(p, 0, tab.top, width(), &color);
-			if (tab.ripple->empty()) {
-				tab.ripple.reset();
-			}
-		}
-
-		if (!tab.subscribed) {
-			tab.subscribed = true;
-			tab.userpic->subscribeToUpdates([=] { update(); });
-		}
-		const auto &image = tab.userpic->image(_st.userpicSize);
-		const auto userpicLeft = (width() - _st.userpicSize) / 2;
-		p.drawImage(userpicLeft, tab.top + _st.userpicTop, image);
-		p.setPen(anim::pen(_st.nameFg, _st.nameFgActive, active));
-		tab.text.draw(p, {
-			.position = QPoint(nameLeft, tab.top + _st.nameTop),
-			.outerWidth = width(),
-			.availableWidth = _st.nameWidth,
-			.align = style::al_top,
-			.paused = _paused && _paused(),
-		});
-	}
-	if (range.height > 0) {
-		const auto add = _st.barStroke / 2;
-		drawRect(myrtlrect(-add, range.top, _st.barStroke, range.height));
-	}
-}
-
-void VerticalSlider::timerEvent(QTimerEvent *e) {
-	activateCallback();
-}
-
-void VerticalSlider::startRipple(int index) {
-	if (!_st.ripple.showDuration) {
-		return;
-	}
-	auto &tab = _tabs[index];
-	if (!tab.ripple) {
-		auto mask = prepareRippleMask(index, tab);
-		tab.ripple = std::make_unique<Ui::RippleAnimation>(
-			_st.ripple,
-			std::move(mask),
-			[this] { update(); });
-	}
-	const auto point = mapFromGlobal(QCursor::pos());
-	tab.ripple->add(point - QPoint(0, tab.top));
-}
-
-QImage VerticalSlider::prepareRippleMask(int index, const Tab &tab) {
-	return Ui::RippleAnimation::RectMask(QSize(width(), tab.height));
-}
-
-int VerticalSlider::getIndexFromPosition(QPoint position) const {
-	const auto count = int(_tabs.size());
-	for (auto i = 0; i != count; ++i) {
-		const auto &tab = _tabs[i];
-		if (position.y() < tab.top + tab.height) {
-			return i;
-		}
-	}
-	return count - 1;
-}
-
-void VerticalSlider::mousePressEvent(QMouseEvent *e) {
-	for (auto i = 0, count = int(_tabs.size()); i != count; ++i) {
-		auto &tab = _tabs[i];
-		if (tab.top <= e->y() && e->y() < tab.top + tab.height) {
-			startRipple(i);
-			_pressed = i;
-			break;
-		}
-	}
-}
-
-void VerticalSlider::mouseReleaseEvent(QMouseEvent *e) {
-	const auto pressed = std::exchange(_pressed, -1);
-	if (pressed < 0) {
-		return;
-	}
-
-	const auto index = getIndexFromPosition(e->pos());
-	if (pressed < _tabs.size()) {
-		if (_tabs[pressed].ripple) {
-			_tabs[pressed].ripple->lastStop();
-		}
-	}
-	if (index == pressed) {
-		if (_active != index) {
-			_callbackAfterMs = crl::now() + _st.duration;
-			activateCallback();
-
-			const auto from = getFinalActiveRange();
-			_active = index;
-			const auto to = getFinalActiveRange();
-			const auto updater = [this] { update(); };
-			_activeTop.start(updater, from.top, to.top, _st.duration);
-			_activeHeight.start(
-				updater,
-				from.height,
-				to.height,
-				_st.duration);
-		}
-	}
-}
-
-void VerticalSlider::activateCallback() {
-	if (_timerId >= 0) {
-		killTimer(_timerId);
-		_timerId = -1;
-	}
-	auto ms = crl::now();
-	if (ms >= _callbackAfterMs) {
-		_sectionActivated.fire_copy(_active);
-	} else {
-		_timerId = startTimer(_callbackAfterMs - ms, Qt::PreciseTimer);
-	}
-}
 
 } // namespace
 
@@ -370,18 +93,13 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 		st::chatTabsScroll,
 		true);
 	scroll->show();
-	const auto tabs = scroll->setOwnedWidget(
-		object_ptr<Ui::SettingsSlider>(scroll, st::chatTabsSlider));
-	tabs->sectionActivated() | rpl::start_with_next([=](int active) {
-		if (active >= 0
-			&& active < _slice.size()
-			&& _active != _slice[active]) {
-			auto params = Window::SectionShow();
-			params.way = Window::SectionShow::Way::ClearStack;
-			params.animated = anim::type::instant;
-			_controller->showThread(_slice[active], {}, params);
-		}
-	}, tabs->lifetime());
+	const auto slider = scroll->setOwnedWidget(
+		object_ptr<Ui::HorizontalSlider>(scroll));
+	setupSlider(scroll, slider, false);
+
+	_horizontal->resize(
+		_horizontal->width(),
+		std::max(toggle->height(), slider->height()));
 
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
@@ -393,36 +111,6 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 		scroll->scrollToX(scroll->scrollLeft() - y);
 		return true;
 	});
-
-	rpl::merge(
-		scroll->scrolls(),
-		_scrollCheckRequests.events(),
-		scroll->widthValue() | rpl::skip(1) | rpl::map_to(rpl::empty)
-	) | rpl::start_with_next([=] {
-		const auto width = scroll->width();
-		const auto left = scroll->scrollLeft();
-		const auto max = scroll->scrollLeftMax();
-		const auto availableLeft = left;
-		const auto availableRight = (max - left);
-		if (max <= 2 * width && _afterAvailable > 0) {
-			_beforeLimit *= 2;
-			_afterLimit *= 2;
-		}
-		if (availableLeft < width
-			&& _beforeSkipped.value_or(0) > 0
-			&& !_slice.empty()) {
-			_around = _slice.front();
-			refreshSlice();
-		} else if (availableRight < width) {
-			if (_afterAvailable > 0) {
-				_around = _slice.back();
-				refreshSlice();
-			} else if (!_afterSkipped.has_value()) {
-				_loading = true;
-				loadMore();
-			}
-		}
-	}, _horizontal->lifetime());
 
 	_horizontal->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -437,89 +125,6 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 				_horizontal->rect().marginsRemoved(
 					{ 0, 0, 0, st::lineWidth })),
 			st::windowBg);
-	}, _horizontal->lifetime());
-
-	_refreshed.events_starting_with_copy(
-		rpl::empty
-	) | rpl::start_with_next([=] {
-		auto sections = std::vector<TextWithEntities>();
-		const auto manager = &_history->owner().customEmojiManager();
-		auto activeIndex = -1;
-		for (const auto &thread : _slice) {
-			if (thread == _active) {
-				activeIndex = int(sections.size());
-			}
-			if (const auto topic = thread->asTopic()) {
-				sections.push_back(topic->titleWithIcon());
-			} else if (const auto sublist = thread->asSublist()) {
-				const auto peer = sublist->sublistPeer();
-				sections.push_back(TextWithEntities().append(
-					Ui::Text::SingleCustomEmoji(
-						manager->peerUserpicEmojiData(peer),
-						u"@"_q)
-				).append(' ').append(peer->shortName()));
-			} else {
-				sections.push_back(tr::lng_filters_all_short(
-					tr::now,
-					Ui::Text::WithEntities));
-			}
-		}
-		const auto paused = [=] {
-			return _controller->isGifPausedAtLeastFor(
-				Window::GifPauseReason::Any);
-		};
-
-		auto scrollSavingThread = (Data::Thread*)nullptr;
-		auto scrollSavingShift = 0;
-		auto scrollSavingIndex = -1;
-		if (const auto count = tabs->sectionsCount()) {
-			const auto scrollLeft = scroll->scrollLeft();
-			auto indexLeft = tabs->lookupSectionLeft(0);
-			for (auto index = 0; index != count; ++index) {
-				const auto nextLeft = (index + 1 != count)
-					? tabs->lookupSectionLeft(index + 1)
-					: (indexLeft + scrollLeft + 1);
-				if (indexLeft <= scrollLeft && nextLeft > scrollLeft) {
-					scrollSavingThread = _sectionsSlice[index];
-					scrollSavingShift = scrollLeft - indexLeft;
-					break;
-				}
-				indexLeft = nextLeft;
-			}
-			scrollSavingIndex = scrollSavingThread
-				? int(ranges::find(_slice, not_null(scrollSavingThread))
-					- begin(_slice))
-				: -1;
-			if (scrollSavingIndex == _slice.size()) {
-				scrollSavingIndex = -1;
-				for (auto index = 0; index != count; ++index) {
-					const auto thread = _sectionsSlice[index];
-					if (ranges::contains(_slice, thread)) {
-						scrollSavingThread = thread;
-						scrollSavingShift = scrollLeft
-							- tabs->lookupSectionLeft(index);
-						scrollSavingIndex = index;
-						break;
-					}
-				}
-			}
-		}
-
-		tabs->setSections(sections, Core::TextContext({
-			.session = &_history->session(),
-		}), paused);
-		tabs->fitWidthToSections();
-		tabs->setActiveSectionFast(activeIndex);
-		_sectionsSlice = _slice;
-		_horizontal->resize(
-			_horizontal->width(),
-			std::max(toggle->height(), tabs->height()));
-		if (scrollSavingIndex >= 0) {
-			scroll->scrollToX(tabs->lookupSectionLeft(scrollSavingIndex)
-				+ scrollSavingShift);
-		}
-
-		_scrollCheckRequests.fire({});
 	}, _horizontal->lifetime());
 }
 
@@ -547,48 +152,14 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 		_vertical,
 		st::chatTabsScroll);
 	scroll->show();
-	const auto tabs = scroll->setOwnedWidget(
-		object_ptr<VerticalSlider>(scroll));
-	tabs->sectionActivated() | rpl::start_with_next([=](int active) {
-		if (active >= 0
-			&& active < _slice.size()
-			&& _active != _slice[active]) {
-			auto params = Window::SectionShow();
-			params.way = Window::SectionShow::Way::ClearStack;
-			params.animated = anim::type::instant;
-			_controller->showThread(_slice[active], {}, params);
-		}
-	}, tabs->lifetime());
 
-	rpl::merge(
-		scroll->scrolls(),
-		_scrollCheckRequests.events(),
-		scroll->heightValue() | rpl::skip(1) | rpl::map_to(rpl::empty)
-	) | rpl::start_with_next([=] {
-		const auto height = scroll->height();
-		const auto top = scroll->scrollTop();
-		const auto max = scroll->scrollTopMax();
-		const auto availableTop = top;
-		const auto availableBottom = (max - top);
-		if (max <= 2 * height && _afterAvailable > 0) {
-			_beforeLimit *= 2;
-			_afterLimit *= 2;
-		}
-		if (availableTop < height
-			&& _beforeSkipped.value_or(0) > 0
-			&& !_slice.empty()) {
-			_around = _slice.front();
-			refreshSlice();
-		} else if (availableBottom < height) {
-			if (_afterAvailable > 0) {
-				_around = _slice.back();
-				refreshSlice();
-			} else if (!_afterSkipped.has_value()) {
-				_loading = true;
-				loadMore();
-			}
-		}
-	}, _vertical->lifetime());
+	const auto slider = scroll->setOwnedWidget(
+		object_ptr<Ui::VerticalSlider>(scroll));
+	setupSlider(scroll, slider, true);
+
+	_vertical->resize(
+		std::max(toggle->width(), slider->width()),
+		_vertical->height());
 
 	_vertical->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -600,61 +171,149 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 	_vertical->paintRequest() | rpl::start_with_next([=](QRect clip) {
 		QPainter(_vertical).fillRect(clip, st::windowBg);
 	}, _vertical->lifetime());
+}
+
+void SubsectionTabs::setupSlider(
+		not_null<Ui::ScrollArea*> scroll,
+		not_null<Ui::SubsectionSlider*> slider,
+		bool vertical) {
+	slider->sectionActivated() | rpl::start_with_next([=](int active) {
+		if (active >= 0
+			&& active < _slice.size()
+			&& _active != _slice[active]) {
+			auto params = Window::SectionShow();
+			params.way = Window::SectionShow::Way::ClearStack;
+			params.animated = anim::type::instant;
+			_controller->showThread(_slice[active], {}, params);
+		}
+	}, slider->lifetime());
+
+	rpl::merge(
+		scroll->scrolls(),
+		_scrollCheckRequests.events(),
+		scroll->heightValue() | rpl::skip(1) | rpl::map_to(rpl::empty)
+	) | rpl::start_with_next([=] {
+		const auto full = vertical ? scroll->height() : scroll->width();
+		const auto scrollValue = vertical
+			? scroll->scrollTop()
+			: scroll->scrollLeft();
+		const auto scrollMax = vertical
+			? scroll->scrollTopMax()
+			: scroll->scrollLeftMax();
+		const auto availableFrom = scrollValue;
+		const auto availableTill = (scrollMax - scrollValue);
+		if (scrollMax <= 2 * full && _afterAvailable > 0) {
+			_beforeLimit *= 2;
+			_afterLimit *= 2;
+		}
+		if (availableFrom < full
+			&& _beforeSkipped.value_or(0) > 0
+			&& !_slice.empty()) {
+			_around = _slice.front();
+			refreshSlice();
+		} else if (availableTill < full) {
+			if (_afterAvailable > 0) {
+				_around = _slice.back();
+				refreshSlice();
+			} else if (!_afterSkipped.has_value()) {
+				_loading = true;
+				loadMore();
+			}
+		}
+	}, scroll->lifetime());
 
 	_refreshed.events_starting_with_copy(
 		rpl::empty
 	) | rpl::start_with_next([=] {
-		auto sections = std::vector<VerticalSlider::Section>();
-		auto activeIndex = -1;
-		for (const auto &thread : _slice) {
-			if (thread == _active) {
-				activeIndex = int(sections.size());
-			}
-			if (const auto topic = thread->asTopic()) {
-				sections.push_back({
-					.userpic = (topic->iconId()
-						? Ui::MakeEmojiThumbnail(
-							&topic->owner(),
-							Data::SerializeCustomEmojiId(topic->iconId()))
-						: Ui::MakeUserpicThumbnail(
-						_controller->session().user())),
-					.text = topic->title(),
-				});
-			} else if (const auto sublist = thread->asSublist()) {
-				const auto peer = sublist->sublistPeer();
-				sections.push_back({
-					.userpic = Ui::MakeUserpicThumbnail(peer),
-					.text = peer->shortName(),
-				});
-			} else {
-				sections.push_back({
-					.userpic = Ui::MakeUserpicThumbnail(
-						_controller->session().user()),
-					.text = tr::lng_filters_all_short(tr::now),
-				});
-			}
-		}
+		const auto manager = &_history->owner().customEmojiManager();
 		const auto paused = [=] {
 			return _controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Any);
 		};
+		auto sections = std::vector<Ui::SubsectionTab>();
+		auto activeIndex = -1;
+		for (const auto &thread : _slice) {
+			const auto index = int(sections.size());
+			if (thread == _active) {
+				activeIndex = index;
+			}
+			const auto textFg = [=] {
+				return anim::color(
+					st::windowSubTextFg,
+					st::windowActiveTextFg,
+					slider->buttonActive(slider->buttonAt(index)));
+			};
+			if (const auto topic = thread->asTopic()) {
+				if (vertical) {
+					sections.push_back({
+						.text = { topic->title() },
+						.userpic = (topic->iconId()
+							? Ui::MakeEmojiThumbnail(
+								&topic->owner(),
+								Data::SerializeCustomEmojiId(topic->iconId()),
+								paused,
+								textFg)
+							: Ui::MakeEmojiThumbnail(
+								&topic->owner(),
+								Data::TopicIconEmojiEntity({
+									.title = (topic->isGeneral()
+										? Data::ForumGeneralIconTitle()
+										: topic->title()),
+									.colorId = (topic->isGeneral()
+										? Data::ForumGeneralIconColor(
+											st::windowSubTextFg->c)
+										: topic->colorId()),
+								}),
+								paused,
+								textFg)),
+					});
+				} else {
+					sections.push_back({
+						.text = topic->titleWithIcon(),
+					});
+				}
+			} else if (const auto sublist = thread->asSublist()) {
+				const auto peer = sublist->sublistPeer();
+				if (vertical) {
+					sections.push_back({
+						.text = peer->shortName(),
+						.userpic = Ui::MakeUserpicThumbnail(peer),
+					});
+				} else {
+					sections.push_back({
+						.text = TextWithEntities().append(
+							Ui::Text::SingleCustomEmoji(
+								manager->peerUserpicEmojiData(peer),
+								u"@"_q)
+						).append(' ').append(peer->shortName()),
+					});
+				}
+			} else {
+				sections.push_back({
+					.text = tr::lng_filters_all_short(tr::now),
+					.userpic = Ui::MakeAllSubsectionsThumbnail(textFg),
+				});
+			}
+		}
 
 		auto scrollSavingThread = (Data::Thread*)nullptr;
 		auto scrollSavingShift = 0;
 		auto scrollSavingIndex = -1;
-		if (const auto count = tabs->sectionsCount()) {
-			const auto scrollTop = scroll->scrollTop();
-			auto indexTop = tabs->lookupSectionTop(0);
+		if (const auto count = slider->sectionsCount()) {
+			const auto scrollValue = vertical
+				? scroll->scrollTop()
+				: scroll->scrollLeft();
+			auto indexPosition = slider->lookupSectionPosition(0);
 			for (auto index = 0; index != count; ++index) {
-				const auto nextTop = (index + 1 != count)
-					? tabs->lookupSectionTop(index + 1)
-					: (indexTop + scrollTop + 1);
-				if (indexTop <= scrollTop && nextTop > scrollTop) {
+				const auto nextPosition = (index + 1 != count)
+					? slider->lookupSectionPosition(index + 1)
+					: (indexPosition + scrollValue + 1);
+				if (indexPosition <= scrollValue && nextPosition > scrollValue) {
 					scrollSavingThread = _sectionsSlice[index];
-					scrollSavingShift = scrollTop - indexTop;
+					scrollSavingShift = scrollValue - indexPosition;
 					break;
 				}
-				indexTop = nextTop;
+				indexPosition = nextPosition;
 			}
 			scrollSavingIndex = scrollSavingThread
 				? int(ranges::find(_slice, not_null(scrollSavingThread))
@@ -666,8 +325,8 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 					const auto thread = _sectionsSlice[index];
 					if (ranges::contains(_slice, thread)) {
 						scrollSavingThread = thread;
-						scrollSavingShift = scrollTop
-							- tabs->lookupSectionTop(index);
+						scrollSavingShift = scrollValue
+							- slider->lookupSectionPosition(index);
 						scrollSavingIndex = index;
 						break;
 					}
@@ -675,20 +334,27 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 			}
 		}
 
-		tabs->setSections(sections, paused);
-		tabs->fitHeightToSections();
-		tabs->setActiveSectionFast(activeIndex);
+		slider->setSections({
+			.tabs = std::move(sections),
+			.context = Core::TextContext({
+				.session = &_history->session(),
+			}),
+		}, paused);
+		slider->setActiveSectionFast(activeIndex);
+
 		_sectionsSlice = _slice;
-		_vertical->resize(
-			std::max(toggle->width(), tabs->width()),
-			_vertical->height());
 		if (scrollSavingIndex >= 0) {
-			scroll->scrollToY(tabs->lookupSectionTop(scrollSavingIndex)
-				+ scrollSavingShift);
+			const auto position = scrollSavingShift
+				+ slider->lookupSectionPosition(scrollSavingIndex);
+			if (vertical) {
+				scroll->scrollToY(position);
+			} else {
+				scroll->scrollToX(position);
+			}
 		}
 
 		_scrollCheckRequests.fire({});
-	}, _vertical->lifetime());
+	}, scroll->lifetime());
 }
 
 void SubsectionTabs::loadMore() {
@@ -910,9 +576,7 @@ bool SubsectionTabs::UsedFor(not_null<Data::Thread*> thread) {
 		return true;
 	}
 	const auto channel = history->peer->asChannel();
-	return channel
-		&& channel->isForum()
-		&& ((channel->flags() & ChannelDataFlag::ForumTabs) || true); AssertIsDebug();
+	return channel && channel->useSubsectionTabs();
 }
 
 } // namespace HistoryView

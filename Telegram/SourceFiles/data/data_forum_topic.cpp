@@ -152,10 +152,10 @@ QImage ForumTopicGeneralIconFrame(int size, const QColor &color) {
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 
-	const auto use = size * 0.8;
-	const auto skip = size * 0.1;
+	const auto use = size * 1.;
+	const auto skip = size * 0.;
 	auto p = QPainter(&result);
-	svg.render(&p, QRectF(skip, 0, use, use));
+	svg.render(&p, QRectF(skip, skip, use, use));
 	p.end();
 
 	return style::colorizeImage(result, color);

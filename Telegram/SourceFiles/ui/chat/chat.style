@@ -1255,7 +1255,7 @@ newPeerWidth: 320px;
 swipeBackSize: 150px;
 
 chatTabsToggle: IconButton(defaultIconButton) {
-	width: 56px;
+	width: 64px;
 	height: 36px;
 	icon: icon {{ "top_bar_profile-flip_horizontal", menuIconFg }};
 	iconOver: icon {{ "top_bar_profile-flip_horizontal", menuIconFgOver }};
@@ -1285,6 +1285,13 @@ chatTabsSlider: SettingsSlider(defaultSettingsSlider) {
 	ripple: defaultRippleAnimation;
 }
 
+ChatTabsOutline {
+	radius: pixels;
+	stroke: pixels;
+	fg: color;
+	skip: pixels;
+}
+
 ChatTabsVertical {
 	barStroke: pixels;
 	barRadius: pixels;
@@ -1311,16 +1318,26 @@ chatTabsVertical: ChatTabsVertical {
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(10px);
 	}
-	nameWidth: 46px;
-	nameTop: 46px;
+	nameWidth: 54px;
+	nameTop: 42px;
 	nameFg: windowSubTextFg;
 	nameFgActive: lightButtonFg;
 	userpicTop: 8px;
-	userpicSize: 36px;
-	baseHeight: 56px;
-	width: 56px;
+	userpicSize: 28px;
+	baseHeight: 50px;
+	width: 64px;
 	ripple: defaultRippleAnimation;
 	rippleBg: windowBgOver;
 	rippleBgActive: lightButtonBgOver;
 	duration: 150;
+}
+
+chatTabsOutlineHorizontal: ChatTabsOutline {
+	stroke: 8px;
+	radius: 4px;
+	fg: sliderBgActive;
+	skip: 8px;
+}
+
+chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
 }

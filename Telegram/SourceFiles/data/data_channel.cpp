@@ -408,6 +408,11 @@ void ChannelData::setPendingRequestsCount(
 	}
 }
 
+bool ChannelData::useSubsectionTabs() const {
+	return isForum()
+		&& ((flags() & ChannelDataFlag::ForumTabs) || true); AssertIsDebug();
+}
+
 ChatRestrictionsInfo ChannelData::KickedRestrictedRights(
 		not_null<PeerData*> participant) {
 	using Flag = ChatRestriction;
