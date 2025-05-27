@@ -75,7 +75,7 @@ struct PollData {
 	int totalVoters = 0;
 	int version = 0;
 
-	static constexpr auto kMaxOptions = 10;
+	static constexpr auto kMaxOptions = 32;
 
 private:
 	bool applyResultToAnswers(

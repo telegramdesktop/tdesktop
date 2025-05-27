@@ -82,6 +82,8 @@ public:
 	[[nodiscard]] int giftResalePriceMin() const;
 	[[nodiscard]] int giftResaleReceiveThousandths() const;
 
+	[[nodiscard]] int pollOptionsLimit() const;
+
 	void refresh(bool force = false);
 
 private:
