@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "dialogs/dialogs_common.h"
+
 class History;
 
 namespace Data {
@@ -53,12 +55,27 @@ public:
 	void hide();
 
 private:
+	struct Item {
+		not_null<Data::Thread*> thread;
+		Dialogs::BadgesState badges;
+		DocumentId iconId = 0;
+		QString name;
+
+		friend inline constexpr auto operator<=>(
+			const Item &,
+			const Item &) = default;
+		friend inline constexpr bool operator==(
+			const Item &,
+			const Item &) = default;
+	};
+
 	void track();
 	void setupHorizontal(not_null<QWidget*> parent);
 	void setupVertical(not_null<QWidget*> parent);
 	void toggleModes();
 	void setVisible(bool shown);
 	void refreshSlice();
+	void scheduleRefresh();
 	void loadMore();
 	[[nodiscard]] rpl::producer<> dataChanged() const;
 
@@ -74,8 +91,8 @@ private:
 	Ui::RpWidget *_vertical = nullptr;
 	Ui::RpWidget *_shadow = nullptr;
 
-	std::vector<not_null<Data::Thread*>> _slice;
-	std::vector<not_null<Data::Thread*>> _sectionsSlice;
+	std::vector<Item> _slice;
+	std::vector<Item> _sectionsSlice;
 
 	not_null<Data::Thread*> _active;
 	not_null<Data::Thread*> _around;
@@ -83,6 +100,7 @@ private:
 	int _afterLimit = 0;
 	int _afterAvailable = 0;
 	bool _loading = false;
+	bool _refreshScheduled = false;
 	std::optional<int> _beforeSkipped;
 	std::optional<int> _afterSkipped;
 

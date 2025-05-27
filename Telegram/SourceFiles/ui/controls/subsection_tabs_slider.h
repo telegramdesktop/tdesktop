@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "dialogs/dialogs_common.h"
 #include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/buttons.h"
@@ -25,10 +26,7 @@ class SubsectionButton;
 struct SubsectionTab {
 	TextWithEntities text;
 	std::shared_ptr<DynamicImage> userpic;
-	int counter = 0;
-	bool muted = false;
-	bool mention = false;
-	bool reaciton = false;
+	Dialogs::BadgesState badges;
 };
 
 struct SubsectionTabs {

@@ -93,6 +93,9 @@ struct BadgesState {
 	friend inline constexpr auto operator<=>(
 		BadgesState,
 		BadgesState) = default;
+	friend inline constexpr bool operator==(
+		BadgesState,
+		BadgesState) = default;
 
 	[[nodiscard]] bool empty() const {
 		return !unread && !mention && !reaction;

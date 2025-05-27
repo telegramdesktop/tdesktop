@@ -8,9 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/subsection_tabs_slider.h"
 
 #include "base/call_delayed.h"
+#include "dialogs/dialogs_three_state_icon.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/dynamic_image.h"
+#include "ui/unread_badge_paint.h"
 #include "styles/style_chat.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_filter_icons.h"
 
 namespace Ui {
@@ -105,6 +108,41 @@ void VerticalButton::paintEvent(QPaintEvent *e) {
 		.align = style::al_top,
 		.paused = _delegate->buttonPaused(),
 	});
+
+	const auto &state = _data.badges;
+	const auto top = _st.userpicTop / 2;
+	auto right = width() - textLeft;
+	UnreadBadgeStyle st;
+	if (state.unread) {
+		st.muted = state.unreadMuted;
+		const auto counter = (state.unreadCounter <= 0)
+			? QString()
+			: ((state.mention || state.reaction)
+				&& (state.unreadCounter > 999))
+			? (u"99+"_q)
+			: (state.unreadCounter > 999999)
+			? (u"99999+"_q)
+			: QString::number(state.unreadCounter);
+		const auto badge = PaintUnreadBadge(p, counter, right, top, st);
+		right -= badge.width() + st.padding;
+	}
+	if (state.mention || state.reaction) {
+		UnreadBadgeStyle st;
+		st.sizeId = state.mention
+			? UnreadBadgeSize::Dialogs
+			: UnreadBadgeSize::ReactionInDialogs;
+		st.muted = state.mention
+			? state.mentionMuted
+			: state.reactionMuted;
+		st.padding = 0;
+		st.textTop = 0;
+		const auto counter = QString();
+		const auto badge = PaintUnreadBadge(p, counter, right, top, st);
+		(state.mention
+			? st::dialogsUnreadMention.icon
+			: st::dialogsUnreadReaction.icon).paintInCenter(p, badge);
+		right -= badge.width() + st.padding + st::dialogsUnreadPadding;
+	}
 }
 
 HorizontalButton::HorizontalButton(
@@ -118,7 +156,28 @@ HorizontalButton::HorizontalButton(
 }
 
 void HorizontalButton::updateSize() {
-	resize(_st.strictSkip + _text.maxWidth(), _st.height);
+	auto width = _st.strictSkip + _text.maxWidth();
+
+	const auto &state = _data.badges;
+	UnreadBadgeStyle st;
+	if (state.unread) {
+		const auto counter = (state.unreadCounter <= 0)
+			? QString()
+			: QString::number(state.unreadCounter);
+		const auto badge = CountUnreadBadgeSize(counter, st);
+		width += badge.width() + st.padding;
+	}
+	if (state.mention || state.reaction) {
+		st.sizeId = state.mention
+			? UnreadBadgeSize::Dialogs
+			: UnreadBadgeSize::ReactionInDialogs;
+		st.padding = 0;
+		st.textTop = 0;
+		const auto counter = QString();
+		const auto badge = CountUnreadBadgeSize(counter, st);
+		width += badge.width() + st.padding + st::dialogsUnreadPadding;
+	}
+	resize(width, _st.height);
 }
 
 void HorizontalButton::dataUpdatedHook() {
@@ -149,6 +208,36 @@ void HorizontalButton::paintEvent(QPaintEvent *e) {
 		.availableWidth = _text.maxWidth(),
 		.paused = _delegate->buttonPaused(),
 	});
+
+	auto right = width() - _st.strictSkip + (_st.strictSkip / 2);
+	UnreadBadgeStyle st;
+	const auto &state = _data.badges;
+	const auto badgeTop = (height() - st.size) / 2;
+	if (state.unread) {
+		st.muted = state.unreadMuted;
+		const auto counter = (state.unreadCounter <= 0)
+			? QString()
+			: QString::number(state.unreadCounter);
+		const auto badge = PaintUnreadBadge(p, counter, right, badgeTop, st);
+		right -= badge.width() + st.padding;
+	}
+	if (state.mention || state.reaction) {
+		UnreadBadgeStyle st;
+		st.sizeId = state.mention
+			? UnreadBadgeSize::Dialogs
+			: UnreadBadgeSize::ReactionInDialogs;
+		st.muted = state.mention
+			? state.mentionMuted
+			: state.reactionMuted;
+		st.padding = 0;
+		st.textTop = 0;
+		const auto counter = QString();
+		const auto badge = PaintUnreadBadge(p, counter, right, badgeTop, st);
+		(state.mention
+			? st::dialogsUnreadMention.icon
+			: st::dialogsUnreadReaction.icon).paintInCenter(p, badge);
+		right -= badge.width() + st.padding + st::dialogsUnreadPadding;
+	}
 }
 
 } // namespace

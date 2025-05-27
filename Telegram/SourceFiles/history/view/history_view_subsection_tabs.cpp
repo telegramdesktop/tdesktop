@@ -180,11 +180,11 @@ void SubsectionTabs::setupSlider(
 	slider->sectionActivated() | rpl::start_with_next([=](int active) {
 		if (active >= 0
 			&& active < _slice.size()
-			&& _active != _slice[active]) {
+			&& _active != _slice[active].thread) {
 			auto params = Window::SectionShow();
 			params.way = Window::SectionShow::Way::ClearStack;
 			params.animated = anim::type::instant;
-			_controller->showThread(_slice[active], {}, params);
+			_controller->showThread(_slice[active].thread, {}, params);
 		}
 	}, slider->lifetime());
 
@@ -209,11 +209,11 @@ void SubsectionTabs::setupSlider(
 		if (availableFrom < full
 			&& _beforeSkipped.value_or(0) > 0
 			&& !_slice.empty()) {
-			_around = _slice.front();
+			_around = _slice.front().thread;
 			refreshSlice();
 		} else if (availableTill < full) {
 			if (_afterAvailable > 0) {
-				_around = _slice.back();
+				_around = _slice.back().thread;
 				refreshSlice();
 			} else if (!_afterSkipped.has_value()) {
 				_loading = true;
@@ -232,9 +232,9 @@ void SubsectionTabs::setupSlider(
 		};
 		auto sections = std::vector<Ui::SubsectionTab>();
 		auto activeIndex = -1;
-		for (const auto &thread : _slice) {
+		for (const auto &item : _slice) {
 			const auto index = int(sections.size());
-			if (thread == _active) {
+			if (item.thread == _active) {
 				activeIndex = index;
 			}
 			const auto textFg = [=] {
@@ -243,23 +243,24 @@ void SubsectionTabs::setupSlider(
 					st::windowActiveTextFg,
 					slider->buttonActive(slider->buttonAt(index)));
 			};
-			if (const auto topic = thread->asTopic()) {
+			if (const auto topic = item.thread->asTopic()) {
 				if (vertical) {
+					const auto general = topic->isGeneral();
 					sections.push_back({
-						.text = { topic->title() },
-						.userpic = (topic->iconId()
+						.text = { item.name },
+						.userpic = (item.iconId
 							? Ui::MakeEmojiThumbnail(
 								&topic->owner(),
-								Data::SerializeCustomEmojiId(topic->iconId()),
+								Data::SerializeCustomEmojiId(item.iconId),
 								paused,
 								textFg)
 							: Ui::MakeEmojiThumbnail(
 								&topic->owner(),
 								Data::TopicIconEmojiEntity({
-									.title = (topic->isGeneral()
+									.title = (general
 										? Data::ForumGeneralIconTitle()
-										: topic->title()),
-									.colorId = (topic->isGeneral()
+										: item.name),
+									.colorId = (general
 										? Data::ForumGeneralIconColor(
 											st::windowSubTextFg->c)
 										: topic->colorId()),
@@ -272,7 +273,7 @@ void SubsectionTabs::setupSlider(
 						.text = topic->titleWithIcon(),
 					});
 				}
-			} else if (const auto sublist = thread->asSublist()) {
+			} else if (const auto sublist = item.thread->asSublist()) {
 				const auto peer = sublist->sublistPeer();
 				if (vertical) {
 					sections.push_back({
@@ -294,6 +295,8 @@ void SubsectionTabs::setupSlider(
 					.userpic = Ui::MakeAllSubsectionsThumbnail(textFg),
 				});
 			}
+			auto &section = sections.back();
+			section.badges = item.badges;
 		}
 
 		auto scrollSavingThread = (Data::Thread*)nullptr;
@@ -309,21 +312,24 @@ void SubsectionTabs::setupSlider(
 					? slider->lookupSectionPosition(index + 1)
 					: (indexPosition + scrollValue + 1);
 				if (indexPosition <= scrollValue && nextPosition > scrollValue) {
-					scrollSavingThread = _sectionsSlice[index];
+					scrollSavingThread = _sectionsSlice[index].thread;
 					scrollSavingShift = scrollValue - indexPosition;
 					break;
 				}
 				indexPosition = nextPosition;
 			}
 			scrollSavingIndex = scrollSavingThread
-				? int(ranges::find(_slice, not_null(scrollSavingThread))
-					- begin(_slice))
+				? int(ranges::find(
+					_slice,
+					not_null(scrollSavingThread),
+					&Item::thread
+				) - begin(_slice))
 				: -1;
 			if (scrollSavingIndex == _slice.size()) {
 				scrollSavingIndex = -1;
 				for (auto index = 0; index != count; ++index) {
-					const auto thread = _sectionsSlice[index];
-					if (ranges::contains(_slice, thread)) {
+					const auto thread = _sectionsSlice[index].thread;
+					if (ranges::contains(_slice, thread, &Item::thread)) {
 						scrollSavingThread = thread;
 						scrollSavingShift = scrollValue
 							- slider->lookupSectionPosition(index);
@@ -483,6 +489,7 @@ void SubsectionTabs::setVisible(bool shown) {
 }
 
 void SubsectionTabs::track() {
+	using Event = Data::Session::ChatListEntryRefresh;
 	if (const auto forum = _history->peer->forum()) {
 		forum->topicDestroyed(
 		) | rpl::start_with_next([=](not_null<Data::ForumTopic*> topic) {
@@ -490,6 +497,19 @@ void SubsectionTabs::track() {
 				_around = _history;
 				refreshSlice();
 			}
+		}, _lifetime);
+
+		forum->topicsList()->unreadStateChanges(
+		) | rpl::start_with_next([=] {
+			scheduleRefresh();
+		}, _lifetime);
+
+		forum->owner().chatListEntryRefreshes(
+		) | rpl::filter([=](const Event &event) {
+			const auto topic = event.filterId ? nullptr : event.key.topic();
+			return (topic && topic->forum() == forum);
+		}) | rpl::start_with_next([=] {
+			scheduleRefresh();
 		}, _lifetime);
 	} else if (const auto monoforum = _history->peer->monoforum()) {
 		monoforum->sublistDestroyed(
@@ -499,12 +519,29 @@ void SubsectionTabs::track() {
 				refreshSlice();
 			}
 		}, _lifetime);
+
+		monoforum->chatsList()->unreadStateChanges(
+		) | rpl::start_with_next([=] {
+			scheduleRefresh();
+		}, _lifetime);
+
+		monoforum->owner().chatListEntryRefreshes(
+		) | rpl::filter([=](const Event &event) {
+			const auto sublist = event.filterId
+				? nullptr
+				: event.key.sublist();
+			return (sublist && sublist->parent() == monoforum);
+		}) | rpl::start_with_next([=] {
+			scheduleRefresh();
+		}, _lifetime);
 	} else {
 		Unexpected("Peer in SubsectionTabs::track.");
 	}
 }
 
 void SubsectionTabs::refreshSlice() {
+	_refreshScheduled = false;
+
 	const auto forum = _history->peer->forum();
 	const auto monoforum = _history->peer->monoforum();
 	Assert(forum || monoforum);
@@ -512,15 +549,25 @@ void SubsectionTabs::refreshSlice() {
 	const auto list = forum
 		? forum->topicsList()
 		: monoforum->chatsList();
-	auto slice = std::vector<not_null<Data::Thread*>>();
+	auto slice = std::vector<Item>();
+	slice.reserve(_slice.size() + 10);
 	const auto guard = gsl::finally([&] {
 		if (_slice != slice) {
 			_slice = std::move(slice);
 			_refreshed.fire({});
 		}
 	});
+	const auto push = [&](not_null<Data::Thread*> thread) {
+		const auto topic = thread->asTopic();
+		slice.push_back({
+			.thread = thread,
+			.badges = thread->chatListBadgesState(),
+			.iconId = topic ? topic->iconId() : DocumentId(),
+			.name = thread->chatListName(),
+		});
+	};
 	if (!list) {
-		slice.push_back(_history);
+		push(_history);
 		_beforeSkipped = _afterSkipped = 0;
 		_afterAvailable = 0;
 		return;
@@ -542,11 +589,23 @@ void SubsectionTabs::refreshSlice() {
 	_afterAvailable = std::max(0, int(chats.end() - till));
 	_afterSkipped = list->loaded() ? _afterAvailable : std::optional<int>();
 	if (from == chats.begin()) {
-		slice.push_back(_history);
+		push(_history);
 	}
 	for (auto i = from; i != till; ++i) {
-		slice.push_back((*i)->thread());
+		push((*i)->thread());
 	}
+}
+
+void SubsectionTabs::scheduleRefresh() {
+	if (_refreshScheduled) {
+		return;
+	}
+	_refreshScheduled = true;
+	InvokeQueued(_shadow, [=] {
+		if (_refreshScheduled) {
+			refreshSlice();
+		}
+	});
 }
 
 bool SubsectionTabs::switchTo(
