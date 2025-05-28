@@ -1,33 +1,32 @@
-{%- set TOOLSET = "gcc-toolset-14" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
 # syntax=docker/dockerfile:1
 
 FROM rockylinux:8 AS builder
 ENV LANG C.UTF-8
-ENV PATH /opt/rh/{{ TOOLSET }}/root/usr/bin:$PATH
-ENV LIBRARY_PATH /opt/rh/{{ TOOLSET }}/root/usr/lib64:/opt/rh/{{ TOOLSET }}/root/usr/lib:/usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
+ENV TOOLSET gcc-toolset-14
+ENV PATH /opt/rh/$TOOLSET/root/usr/bin:$PATH
+ENV LIBRARY_PATH /opt/rh/$TOOLSET/root/usr/lib64:/opt/rh/$TOOLSET/root/usr/lib:/usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
 ENV LD_LIBRARY_PATH $LIBRARY_PATH
-ENV PKG_CONFIG_PATH /opt/rh/{{ TOOLSET }}/root/usr/lib64/pkgconfig:/opt/rh/{{ TOOLSET }}/root/usr/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
+ENV PKG_CONFIG_PATH /opt/rh/$TOOLSET/root/usr/lib64/pkgconfig:/opt/rh/$TOOLSET/root/usr/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
 RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
 	&& dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
 		python3.11-pip python3.11-devel gperf flex bison clang clang-tools-extra \
 		lld nasm yasm file which perl-open perl-XML-Parser perl-IPC-Cmd \
-		xorg-x11-util-macros {{ TOOLSET }}-gcc {{ TOOLSET }}-gcc-c++ \
-		{{ TOOLSET }}-binutils {{ TOOLSET }}-gdb {{ TOOLSET }}-libasan-devel \
-		libffi-devel fontconfig-devel freetype-devel libX11-devel wayland-devel \
-		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
-		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
-		glib2-devel gobject-introspection-devel at-spi2-core-devel gtk3-devel \
-		boost1.78-devel \
+		xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
+		$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
+		freetype-devel libX11-devel wayland-devel alsa-lib-devel \
+		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
+		libdrm-devel vulkan-devel libva-devel libvdpau-devel glib2-devel \
+		gobject-introspection-devel at-spi2-core-devel gtk3-devel boost1.78-devel \
 	&& dnf clean all
 
 RUN alternatives --set python3 /usr/bin/python3.11
 RUN python3 -m pip install meson ninja
 RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
-RUN echo set debuginfod enabled on > /opt/rh/{{ TOOLSET }}/root/etc/gdbinit.d/00-debuginfod.gdb
+RUN echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debuginfod.gdb
 RUN adduser user
 
 WORKDIR {{ LibrariesPath }}
