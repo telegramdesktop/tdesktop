@@ -3,12 +3,12 @@
 # syntax=docker/dockerfile:1
 
 FROM rockylinux:8 AS builder
-ENV LANG C.UTF-8
-ENV TOOLSET gcc-toolset-14
-ENV PATH /opt/rh/$TOOLSET/root/usr/bin:$PATH
-ENV LIBRARY_PATH /opt/rh/$TOOLSET/root/usr/lib64:/opt/rh/$TOOLSET/root/usr/lib:/usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
-ENV LD_LIBRARY_PATH $LIBRARY_PATH
-ENV PKG_CONFIG_PATH /opt/rh/$TOOLSET/root/usr/lib64/pkgconfig:/opt/rh/$TOOLSET/root/usr/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
+ENV LANG=C.UTF-8
+ENV TOOLSET=gcc-toolset-14
+ENV PATH=/opt/rh/$TOOLSET/root/usr/bin:$PATH
+ENV LIBRARY_PATH=/opt/rh/$TOOLSET/root/usr/lib64:/opt/rh/$TOOLSET/root/usr/lib:/usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
+ENV LD_LIBRARY_PATH=$LIBRARY_PATH
+ENV PKG_CONFIG_PATH=/opt/rh/$TOOLSET/root/usr/lib64/pkgconfig:/opt/rh/$TOOLSET/root/usr/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
 RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
@@ -30,15 +30,15 @@ RUN echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debu
 RUN adduser user
 
 WORKDIR {{ LibrariesPath }}
-ENV AR gcc-ar
-ENV RANLIB gcc-ranlib
-ENV NM gcc-nm
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened
-ENV CXXFLAGS $CFLAGS
+ENV AR=gcc-ar
+ENV RANLIB=gcc-ranlib
+ENV NM=gcc-nm
+ENV CFLAGS='{% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
+ENV CXXFLAGS=$CFLAGS
 
-ENV CMAKE_GENERATOR Ninja
-ENV CMAKE_BUILD_TYPE None
-ENV CMAKE_BUILD_PARALLEL_LEVEL ''
+ENV CMAKE_GENERATOR=Ninja
+ENV CMAKE_BUILD_TYPE=None
+ENV CMAKE_BUILD_PARALLEL_LEVEL=
 
 FROM builder AS patches
 RUN git init patches \
@@ -676,7 +676,7 @@ COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 
-ENV QT 6.9.0
+ENV QT=6.9.0
 RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
@@ -809,8 +809,8 @@ COPY --link --from=patches {{ LibrariesPath }}/patches patches
 RUN patch -p1 -d /usr/lib64/gobject-introspection -i $PWD/patches/gobject-introspection.patch && rm -rf patches
 
 WORKDIR ../tdesktop
-ENV BOOST_INCLUDEDIR /usr/include/boost1.78
-ENV BOOST_LIBRARYDIR /usr/lib64/boost1.78
+ENV BOOST_INCLUDEDIR=/usr/include/boost1.78
+ENV BOOST_LIBRARYDIR=/usr/lib64/boost1.78
 
 USER user
 VOLUME [ "/usr/src/tdesktop" ]
