@@ -1446,6 +1446,8 @@ PRIVATE
     settings/cloud_password/settings_cloud_password_start.h
     settings/cloud_password/settings_cloud_password_step.cpp
     settings/cloud_password/settings_cloud_password_step.h
+    settings/cloud_password/settings_cloud_password_validate_icon.cpp
+    settings/cloud_password/settings_cloud_password_validate_icon.h
     settings/settings_active_sessions.cpp
     settings/settings_active_sessions.h
     settings/settings_advanced.cpp

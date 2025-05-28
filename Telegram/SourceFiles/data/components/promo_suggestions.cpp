@@ -306,4 +306,9 @@ std::optional<UserIds> PromoSuggestions::knownBirthdaysToday() const {
 	return _contactBirthdaysToday;
 }
 
+QString PromoSuggestions::SugValidatePassword() {
+	static const auto key = u"VALIDATE_PASSWORD"_q;
+	return key;
+}
+
 } // namespace Data

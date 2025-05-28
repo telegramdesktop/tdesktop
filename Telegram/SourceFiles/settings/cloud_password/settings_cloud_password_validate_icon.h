@@ -7,12 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_type.h"
+template <typename Object>
+class object_ptr;
+
+namespace Main {
+class Session;
+} // namespace Main
+
+namespace Ui {
+class RpWidget;
+} // namespace Ui
 
 namespace Settings {
 
-Type CloudPasswordInputId();
-Type CloudPasswordSuggestionInputId();
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateValidateGoodIcon(
+	not_null<Main::Session*> session);
 
 } // namespace Settings
 

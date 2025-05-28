@@ -840,6 +840,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_suggestion_phone_number_about" = "Keep your number up to date to ensure you can always log into Telegram. {link}";
 "lng_settings_suggestion_phone_number_about_link" = "https://telegram.org/faq#q-i-have-a-new-phone-number-what-do-i-do";
 "lng_settings_suggestion_phone_number_change" = "Please change your phone number in the official Telegram app on your phone as soon as possible. {emoji}";
+"lng_settings_suggestion_password_title" = "Your password";
+"lng_settings_suggestion_password_about" = "Your account is protected by 2-Step Veritifaction. Do you still remember your password?";
+"lng_settings_suggestion_password_yes" = "Yes, definitely";
+"lng_settings_suggestion_password_no" = "Not sure";
+"lng_settings_suggestion_password_step_input_title" = "Enter your password";
+"lng_settings_suggestion_password_step_input_about" = "Do you still remember your password?";
+"lng_settings_suggestion_password_step_finish_title" = "Perfect!";
+"lng_settings_suggestion_password_step_finish_about" = "You still remember your password.";
 
 "lng_settings_power_menu" = "Battery and Animations";
 "lng_settings_power_title" = "Power Usage";
