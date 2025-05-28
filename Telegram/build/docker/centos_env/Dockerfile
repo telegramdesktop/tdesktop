@@ -146,7 +146,7 @@ RUN git clone -b v2.4.1 --depth=1 https://github.com/cisco/openh264.git \
 	&& cd .. \
 	&& rm -rf openh264
 
-FROM builder AS libde265
+FROM builder AS de265
 RUN git clone -b v1.0.15 --depth=1 https://github.com/strukturag/libde265.git \
 	&& cd libde265 \
 	&& cmake -B build . \
@@ -155,11 +155,11 @@ RUN git clone -b v1.0.15 --depth=1 https://github.com/strukturag/libde265.git \
 		-DENABLE_DECODER=OFF \
 		-DENABLE_SDL=OFF \
 	&& cmake --build build \
-	&& DESTDIR="{{ LibrariesPath }}/libde265-cache" cmake --install build \
+	&& DESTDIR="{{ LibrariesPath }}/de265-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libde265
 
-FROM builder AS libvpx
+FROM builder AS vpx
 RUN git init libvpx \
 	&& cd libvpx \
 	&& git remote add origin https://github.com/webmproject/libvpx.git \
@@ -175,11 +175,11 @@ RUN git init libvpx \
 		--enable-webm-io \
 		--size-limit=4096x4096 \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libvpx-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/vpx-cache" install \
 	&& cd .. \
 	&& rm -rf libvpx
 
-FROM builder AS libwebp
+FROM builder AS webp
 RUN git clone -b chrome-m116-5845 --depth=1 https://github.com/webmproject/libwebp.git \
 	&& cd libwebp \
 	&& cmake -B build . \
@@ -193,11 +193,11 @@ RUN git clone -b chrome-m116-5845 --depth=1 https://github.com/webmproject/libwe
 		-DWEBP_BUILD_WEBPINFO=OFF \
 		-DWEBP_BUILD_EXTRAS=OFF \
 	&& cmake --build build \
-	&& DESTDIR="{{ LibrariesPath }}/libwebp-cache" cmake --install build \
+	&& DESTDIR="{{ LibrariesPath }}/webp-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libwebp
 
-FROM builder AS libavif
+FROM builder AS avif
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 
 RUN git clone -b v1.0.4 --depth=1 https://github.com/AOMediaCodec/libavif.git \
@@ -206,12 +206,12 @@ RUN git clone -b v1.0.4 --depth=1 https://github.com/AOMediaCodec/libavif.git \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DAVIF_CODEC_DAV1D=ON \
 	&& cmake --build build \
-	&& DESTDIR="{{ LibrariesPath }}/libavif-cache" cmake --install build \
+	&& DESTDIR="{{ LibrariesPath }}/avif-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libavif
 
-FROM builder AS libheif
-COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
+FROM builder AS heif
+COPY --link --from=de265 {{ LibrariesPath }}/de265-cache /
 
 RUN git clone -b v1.18.2 --depth=1 https://github.com/strukturag/libheif.git \
 	&& cd libheif \
@@ -229,11 +229,11 @@ RUN git clone -b v1.18.2 --depth=1 https://github.com/strukturag/libheif.git \
 		-DWITH_DAV1D=OFF \
 		-DWITH_EXAMPLES=OFF \
 	&& cmake --build build \
-	&& DESTDIR="{{ LibrariesPath }}/libheif-cache" cmake --install build \
+	&& DESTDIR="{{ LibrariesPath }}/heif-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libheif
 
-FROM builder AS libjxl
+FROM builder AS jxl
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
@@ -256,7 +256,7 @@ RUN git clone -b v0.11.1 --depth=1 https://github.com/libjxl/libjxl.git \
 		-DJPEGXL_ENABLE_OPENEXR=OFF \
 		-DJPEGXL_ENABLE_SKCMS=OFF \
 	&& cmake --build build \
-	&& export DESTDIR="{{ LibrariesPath }}/libjxl-cache" \
+	&& export DESTDIR="{{ LibrariesPath }}/jxl-cache" \
 	&& cmake --install build \
 	&& cp build/lib/libjpegli-static.a $DESTDIR/usr/local/lib64/libjpeg.a \
 	&& ar rcs $DESTDIR/usr/local/lib64/libjpeg.a build/lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o \
@@ -352,77 +352,77 @@ RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodule
 	&& cd .. \
 	&& rm -rf libxcb-cursor
 
-FROM builder AS libXext
+FROM builder AS xext
 RUN git clone -b libXext-1.3.5 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxext.git \
 	&& cd libxext \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXext-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xext-cache" install \
 	&& cd .. \
 	&& rm -rf libxext
 
-FROM builder AS libXtst
+FROM builder AS xtst
 RUN git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git \
 	&& cd libxtst \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXtst-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xtst-cache" install \
 	&& cd .. \
 	&& rm -rf libxtst
 
-FROM builder AS libXfixes
+FROM builder AS xfixes
 RUN git clone -b libXfixes-5.0.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxfixes.git \
 	&& cd libxfixes \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXfixes-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xfixes-cache" install \
 	&& cd .. \
 	&& rm -rf libxfixes
 
-FROM builder AS libXv
-COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
+FROM builder AS xv
+COPY --link --from=xext {{ LibrariesPath }}/xext-cache /
 
 RUN git clone -b libXv-1.0.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git \
 	&& cd libxv \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXv-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xv-cache" install \
 	&& cd .. \
 	&& rm -rf libxv
 
-FROM builder AS libXrandr
+FROM builder AS xrandr
 RUN git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git \
 	&& cd libxrandr \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXrandr-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xrandr-cache" install \
 	&& cd .. \
 	&& rm -rf libxrandr
 
-FROM builder AS libXrender
+FROM builder AS xrender
 RUN git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git \
 	&& cd libxrender \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXrender-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xrender-cache" install \
 	&& cd .. \
 	&& rm -rf libxrender
 
-FROM builder AS libXdamage
+FROM builder AS xdamage
 RUN git clone -b libXdamage-1.1.6 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxdamage.git \
 	&& cd libxdamage \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXdamage-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xdamage-cache" install \
 	&& cd .. \
 	&& rm -rf libxdamage
 
-FROM builder AS libXcomposite
+FROM builder AS xcomposite
 RUN git clone -b libXcomposite-0.4.6 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcomposite.git \
 	&& cd libxcomposite \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXcomposite-cache" install \
+	&& make DESTDIR="{{ LibrariesPath }}/xcomposite-cache" install \
 	&& cd .. \
 	&& rm -rf libxcomposite
 
@@ -452,9 +452,9 @@ FROM builder AS ffmpeg
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
-COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
-COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
+COPY --link --from=vpx {{ LibrariesPath }}/vpx-cache /
+COPY --link --from=xext {{ LibrariesPath }}/xext-cache /
+COPY --link --from=xv {{ LibrariesPath }}/xv-cache /
 COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
 RUN git clone -b n6.1.1 --depth=1 https://github.com/FFmpeg/FFmpeg.git \
@@ -663,8 +663,8 @@ RUN git clone -b xkbcommon-1.6.0 --depth=1 https://github.com/xkbcommon/libxkbco
 FROM patches AS qt
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
-COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
-COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
+COPY --link --from=webp {{ LibrariesPath }}/webp-cache /
+COPY --link --from=jxl {{ LibrariesPath }}/jxl-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
@@ -714,11 +714,11 @@ RUN git clone -b v2024.02.16 --depth=1 https://chromium.googlesource.com/breakpa
 FROM builder AS webrtc
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
-COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
+COPY --link --from=vpx {{ LibrariesPath }}/vpx-cache /
+COPY --link --from=jxl {{ LibrariesPath }}/jxl-cache /
 COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
+COPY --link --from=xtst {{ LibrariesPath }}/xtst-cache /
 COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 
 # Shallow clone on a specific commit.
@@ -772,12 +772,12 @@ COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
-COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
-COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
-COPY --link --from=libavif {{ LibrariesPath }}/libavif-cache /
-COPY --link --from=libheif {{ LibrariesPath }}/libheif-cache /
-COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
+COPY --link --from=de265 {{ LibrariesPath }}/de265-cache /
+COPY --link --from=vpx {{ LibrariesPath }}/vpx-cache /
+COPY --link --from=webp {{ LibrariesPath }}/webp-cache /
+COPY --link --from=avif {{ LibrariesPath }}/avif-cache /
+COPY --link --from=heif {{ LibrariesPath }}/heif-cache /
+COPY --link --from=jxl {{ LibrariesPath }}/jxl-cache /
 COPY --link --from=rnnoise {{ LibrariesPath }}/rnnoise-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
@@ -786,14 +786,14 @@ COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
 COPY --link --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
 COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
 COPY --link --from=xcb-cursor {{ LibrariesPath }}/xcb-cursor-cache /
-COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
-COPY --link --from=libXfixes {{ LibrariesPath }}/libXfixes-cache /
-COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
-COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
-COPY --link --from=libXrandr {{ LibrariesPath }}/libXrandr-cache /
-COPY --link --from=libXrender {{ LibrariesPath }}/libXrender-cache /
-COPY --link --from=libXdamage {{ LibrariesPath }}/libXdamage-cache /
-COPY --link --from=libXcomposite {{ LibrariesPath }}/libXcomposite-cache /
+COPY --link --from=xext {{ LibrariesPath }}/xext-cache /
+COPY --link --from=xfixes {{ LibrariesPath }}/xfixes-cache /
+COPY --link --from=xv {{ LibrariesPath }}/xv-cache /
+COPY --link --from=xtst {{ LibrariesPath }}/xtst-cache /
+COPY --link --from=xrandr {{ LibrariesPath }}/xrandr-cache /
+COPY --link --from=xrender {{ LibrariesPath }}/xrender-cache /
+COPY --link --from=xdamage {{ LibrariesPath }}/xdamage-cache /
+COPY --link --from=xcomposite {{ LibrariesPath }}/xcomposite-cache /
 COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
 COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openal {{ LibrariesPath }}/openal-cache /
