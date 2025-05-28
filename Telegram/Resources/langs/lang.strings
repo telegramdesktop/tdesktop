@@ -6586,4 +6586,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mac_hold_to_quit" = "Hold {text} to Quit";
 
+
+"lng_context_forward_msg_no_quote" = "Forward as copy";
+
+
+
 // Keys finished

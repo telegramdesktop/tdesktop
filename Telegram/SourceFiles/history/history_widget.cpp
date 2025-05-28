@@ -8731,6 +8731,24 @@ void HistoryWidget::forwardSelected() {
 	});
 }
 
+
+
+void HistoryWidget::forwardSelectedWithoutQuote() {
+	if (!_list) {
+		return;
+	}
+	const auto weak = Ui::MakeWeak(this);
+	Window::ShowForwardMessagesBox(controller(), Data::ForwardDraft{
+		.ids = getSelectedItems(),
+		.options = Data::ForwardOptions::NoSenderNames // Ensures sender names are removed
+		}, [=] {
+			if (const auto strong = weak.data()) {
+				strong->clearSelected();
+			}
+		});
+}
+
+
 void HistoryWidget::confirmDeleteSelected() {
 	if (!_list) return;
 

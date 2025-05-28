@@ -2219,6 +2219,14 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	if (msgIds.empty()) {
 		return nullptr;
 	}
+	// We know user wants to drop sender names if draft.options = NoSenderNames or NoNamesAndCaptions.
+	
+
+	const bool dropNames = (draft.options == Data::ForwardOptions::NoSenderNames)
+		|| (draft.options == Data::ForwardOptions::NoNamesAndCaptions);
+
+	const bool dropCaptions = (draft.options == Data::ForwardOptions::NoNamesAndCaptions);
+
 
 	class ListBox final : public PeerListBox {
 	public:
@@ -2427,9 +2435,15 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		};
 		auto box = Box<ListBox>(std::move(controller), std::move(init));
 		const auto boxRaw = box.data();
+
+		Ui::ForwardOptions forcedOptions = {
+		.sendersCount = sendersCount,
+		.captionsCount = captionsCount,
+		.dropNames = dropNames,
+		.dropCaptions = dropCaptions,
+			};
 		boxRaw->setForwardOptions({
-			.sendersCount = sendersCount,
-			.captionsCount = captionsCount,
+			forcedOptions
 		});
 		show->showBox(std::move(box));
 		auto state = State{ boxRaw, controllerRaw };
@@ -2437,48 +2451,90 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	}();
 
 	{ // Chosen a single.
-		auto chosen = [show, draft = std::move(draft)](
-				not_null<Data::Thread*> thread) mutable {
+		auto chosen = [show, draft = std::move(draft)](not_null<Data::Thread*> thread) mutable {
 			const auto peer = thread->peer();
+
+			// Handle "Forward to Self" corner case, as before
 			if (peer->isSelf()
 				&& !draft.ids.empty()
 				&& draft.ids.front().peer != peer->id) {
 				ForwardToSelf(show, draft);
 				return true;
 			}
-			const auto id = SeparateId(
-				(peer->isForum()
-					? SeparateType::Forum
-					: SeparateType::Chat),
-				thread);
-			auto controller = Core::App().windowFor(id);
-			if (!controller) {
-				return false;
-			}
-			if (controller->maybeSession() != &peer->session()) {
-				controller = Core::App().ensureSeparateWindowFor(id);
-				if (controller->maybeSession() != &peer->session()) {
+
+			// Decide whether to skip the normal "open chat" flow
+			if (draft.options == Data::ForwardOptions::NoSenderNames
+				|| draft.options == Data::ForwardOptions::NoNamesAndCaptions) {
+
+				// 1) Prepare the message IDs
+				const auto session = &show->session();
+				const auto itemsList = session->data().idsToItems(draft.ids);
+				const auto msgIds = session->data().itemsToIds(itemsList);
+				if (msgIds.empty()) {
 					return false;
 				}
+
+				// 2) Build a "send" function, same as in multi-forward
+				auto send = ShareBox::DefaultForwardCallback(
+					show,
+					session->data().message(msgIds.front())->history(),
+					msgIds
+				);
+
+				// 3) Call send() right away for this single thread
+				// Example: immediate send with no extra text/comment:
+				send(
+					/* 1) Recipients */ std::vector<not_null<Data::Thread*>>{ thread },
+					/* 2) Text       */ TextWithTags(QString()),
+					/* 3) Options    */ Api::SendOptions{},
+					/* 4) ForwardOps */ draft.options
+				);
+
+
+				// We have sent the messages already, so return true
+				return true;
+
 			}
-			const auto content = controller->sessionController()->content();
-			return content->setForwardDraft(thread, std::move(draft));
-		};
+			else {
+				// Normal path: open the chat window, show the forward draft
+				const auto id = SeparateId(
+					(peer->isForum() ? SeparateType::Forum : SeparateType::Chat),
+					thread
+				);
+				auto controller = Core::App().windowFor(id);
+				if (!controller) {
+					return false;
+				}
+				if (controller->maybeSession() != &peer->session()) {
+					controller = Core::App().ensureSeparateWindowFor(id);
+					if (controller->maybeSession() != &peer->session()) {
+						return false;
+					}
+				}
+				const auto content = controller->sessionController()->content();
+				return content->setForwardDraft(thread, std::move(draft));
+			}
+			};
+
 		auto callback = [=, chosen = std::move(chosen)](
-				Controller::Chosen thread) mutable {
-			const auto weak = Ui::MakeWeak(state->box);
-			if (!chosen(thread)) {
-				return;
-			} else if (const auto strong = weak.data()) {
-				strong->closeBox();
-			}
-			if (successCallback) {
-				successCallback();
-			}
-		};
-		state->controller->singleChosen(
-		) | rpl::start_with_next(std::move(callback), state->box->lifetime());
+			Controller::Chosen thread) mutable {
+				const auto weak = Ui::MakeWeak(state->box);
+				if (!chosen(thread)) {
+					return; // we failed to forward
+				}
+				else if (const auto strong = weak.data()) {
+					strong->closeBox(); // close the "choose recipient" box
+				}
+				if (successCallback) {
+					successCallback();
+				}
+			};
+
+		// Listen to "singleChosen" from the controller
+		state->controller->singleChosen()
+			| rpl::start_with_next(std::move(callback), state->box->lifetime());
 	}
+
 
 	const auto comment = Ui::CreateChild<Ui::SlideWrap<Ui::InputField>>(
 		state->box.get(),
@@ -2592,6 +2648,57 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			: SendMenu::Type::Scheduled;
 	};
 
+	////const auto showForwardOptions = true;
+	//const bool canShowForwardOptions = !skipForwardOptionsUI;
+	//const auto showMenu = [=](not_null<Ui::RpWidget*> parent) {
+	//	if (state->menu) {
+	//		state->menu = nullptr;
+	//		return;
+	//	}
+	//	state->menu.emplace(parent, st::popupMenuWithIcons);
+
+	//	if (canShowForwardOptions) {
+	//		auto createView = [&](
+	//				rpl::producer<QString> &&text,
+	//				bool checked) {
+	//			auto item = base::make_unique_q<Menu::ItemWithCheck>(
+	//				state->menu->menu(),
+	//				st::popupMenuWithIcons.menu,
+	//				Ui::CreateChild<QAction>(state->menu->menu().get()),
+	//				nullptr,
+	//				nullptr);
+	//			std::move(
+	//				text
+	//			) | rpl::start_with_next([action = item->action()](
+	//					QString text) {
+	//				action->setText(text);
+	//			}, item->lifetime());
+	//			item->init(checked);
+	//			const auto view = item->checkView();
+	//			state->menu->addAction(std::move(item));
+	//			return view;
+	//		};
+	//		Ui::FillForwardOptions(
+	//			std::move(createView),
+	//			state->box->forwardOptions(),
+	//			[=](Ui::ForwardOptions o) {
+	//				state->box->setForwardOptions(o);
+	//			},
+	//			state->menu->lifetime());
+
+	//		state->menu->addSeparator();
+	//	}
+	//	state->menu->setForcedVerticalOrigin(
+	//		Ui::PopupMenu::VerticalOrigin::Bottom);
+	//	SendMenu::FillSendMenu(
+	//		state->menu.get(),
+	//		show,
+	//		SendMenu::Details{ sendMenuType() },
+	//		SendMenu::DefaultCallback(show, crl::guard(parent, submit)));
+	//	//if (showForwardOptions || !state->menu->empty()) {
+	//		state->menu->popup(QCursor::pos());
+	//	//}
+	//};
 	const auto showForwardOptions = true;
 	const auto showMenu = [=](not_null<Ui::RpWidget*> parent) {
 		if (state->menu) {
@@ -2602,25 +2709,25 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 
 		if (showForwardOptions) {
 			auto createView = [&](
-					rpl::producer<QString> &&text,
-					bool checked) {
-				auto item = base::make_unique_q<Menu::ItemWithCheck>(
-					state->menu->menu(),
-					st::popupMenuWithIcons.menu,
-					Ui::CreateChild<QAction>(state->menu->menu().get()),
-					nullptr,
-					nullptr);
-				std::move(
-					text
-				) | rpl::start_with_next([action = item->action()](
+				rpl::producer<QString>&& text,
+				bool checked) {
+					auto item = base::make_unique_q<Menu::ItemWithCheck>(
+						state->menu->menu(),
+						st::popupMenuWithIcons.menu,
+						Ui::CreateChild<QAction>(state->menu->menu().get()),
+						nullptr,
+						nullptr);
+					std::move(
+						text
+					) | rpl::start_with_next([action = item->action()](
 						QString text) {
-					action->setText(text);
-				}, item->lifetime());
-				item->init(checked);
-				const auto view = item->checkView();
-				state->menu->addAction(std::move(item));
-				return view;
-			};
+							action->setText(text);
+						}, item->lifetime());
+					item->init(checked);
+					const auto view = item->checkView();
+					state->menu->addAction(std::move(item));
+					return view;
+				};
 			Ui::FillForwardOptions(
 				std::move(createView),
 				state->box->forwardOptions(),
@@ -2646,7 +2753,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		if (showForwardOptions || !state->menu->empty()) {
 			state->menu->popup(QCursor::pos());
 		}
-	};
+		};
 
 	state->refreshStarsToSend = [=] {
 		auto perMessage = 0;

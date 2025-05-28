@@ -2695,6 +2695,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->forwardSelected();
 				}, &st::menuIconForward);
 			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+					_widget->forwardSelectedWithoutQuote();
+					}, &st::menuIconForward);
+			}
 			if (selectedState.count > 0 && selectedState.canDeleteCount == selectedState.count) {
 				_menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 					_widget->confirmDeleteSelected();
@@ -2714,6 +2719,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					}, &st::menuIconForward);
+
+					_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+						forwardItemNoQuote(itemId);
+						}, & st::menuIconForward);
 				}
 				if (item->canDelete()) {
 					const auto callback = [=] { deleteItem(itemId); };
@@ -2939,6 +2948,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->forwardSelected();
 				}, &st::menuIconForward);
 			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+					_widget->forwardSelectedWithoutQuote();
+					}, &st::menuIconForward);
+			}
 			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
 				_menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 					_widget->confirmDeleteSelected();
@@ -2956,6 +2970,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
 					}, &st::menuIconForward);
+
+					_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+						forwardAsGroupNoQuote(itemId);
+						}, & st::menuIconForward);
 				}
 				if (canDelete) {
 					const auto callback = [=] {
@@ -4576,11 +4594,32 @@ void HistoryInner::forwardItem(FullMsgId itemId) {
 	Window::ShowForwardMessagesBox(_controller, { 1, itemId });
 }
 
+void HistoryInner::forwardItemNoQuote(FullMsgId itemId) {
+	Window::ShowForwardMessagesBox(
+		_controller,
+		Data::ForwardDraft{
+			.ids = { itemId },
+			.options = Data::ForwardOptions::NoSenderNames
+		}
+	);
+}
+
 void HistoryInner::forwardAsGroup(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		Window::ShowForwardMessagesBox(
 			_controller,
 			session().data().itemOrItsGroup(item));
+	}
+}
+void HistoryInner::forwardAsGroupNoQuote(FullMsgId itemId) {
+	if (const auto item = session().data().message(itemId)) {
+		Window::ShowForwardMessagesBox(
+			_controller,
+			Data::ForwardDraft{
+				.ids = session().data().itemOrItsGroup(item),
+				.options = Data::ForwardOptions::NoSenderNames
+			}
+		);
 	}
 }
 
