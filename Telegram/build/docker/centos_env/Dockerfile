@@ -1,5 +1,4 @@
 {%- set GIT = "https://github.com" -%}
-{%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set TOOLSET = "gcc-toolset-14" -%}
 {%- set QT = "6.9.0" -%}
 {%- set QT_TAG = "v" ~ QT -%}
@@ -278,7 +277,7 @@ RUN git clone -b master --depth=1 {{ GIT }}/desktop-app/rnnoise.git \
 	&& rm -rf rnnoise
 
 FROM builder AS xcb-proto
-RUN git clone -b xcb-proto-1.16.0 --depth=1 {{ GIT_FREEDESKTOP }}/xcbproto.git \
+RUN git clone -b xcb-proto-1.16.0 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/xcbproto.git \
 	&& cd xcbproto \
 	&& ./autogen.sh \
 	&& make -j$(nproc) \
@@ -289,7 +288,7 @@ RUN git clone -b xcb-proto-1.16.0 --depth=1 {{ GIT_FREEDESKTOP }}/xcbproto.git \
 FROM builder AS xcb
 COPY --link --from=xcb-proto {{ LibrariesPath }}/xcb-proto-cache /
 
-RUN git clone -b libxcb-1.16 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
+RUN git clone -b libxcb-1.16 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxcb.git \
 	&& cd libxcb \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -298,7 +297,7 @@ RUN git clone -b libxcb-1.16 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
 	&& rm -rf libxcb
 
 FROM builder AS xcb-wm
-RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
+RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules {{ GIT }}/gitlab-freedesktop-mirrors/libxcb-wm.git \
 	&& cd libxcb-wm \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -307,7 +306,7 @@ RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules {{
 	&& rm -rf libxcb-wm
 
 FROM builder AS xcb-util
-RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-util.git \
+RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT }}/gitlab-freedesktop-mirrors/libxcb-util.git \
 	&& cd libxcb-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -318,7 +317,7 @@ RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules {{ GI
 FROM builder AS xcb-image
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 
-RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-image.git \
+RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT }}/gitlab-freedesktop-mirrors/libxcb-image.git \
 	&& cd libxcb-image \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -327,7 +326,7 @@ RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules
 	&& rm -rf libxcb-image
 
 FROM builder AS xcb-keysyms
-RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
+RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT }}/gitlab-freedesktop-mirrors/libxcb-keysyms.git \
 	&& cd libxcb-keysyms \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -336,7 +335,7 @@ RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodul
 	&& rm -rf libxcb-keysyms
 
 FROM builder AS xcb-render-util
-RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
+RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive --shallow-submodules {{ GIT }}/gitlab-freedesktop-mirrors/libxcb-render-util.git \
 	&& cd libxcb-render-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -349,7 +348,7 @@ COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
 COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
 
-RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-cursor.git \
+RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodules {{ GIT }}/gitlab-freedesktop-mirrors/libxcb-cursor.git \
 	&& cd libxcb-cursor \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -358,7 +357,7 @@ RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodule
 	&& rm -rf libxcb-cursor
 
 FROM builder AS libXext
-RUN git clone -b libXext-1.3.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxext.git \
+RUN git clone -b libXext-1.3.5 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxext.git \
 	&& cd libxext \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -367,7 +366,7 @@ RUN git clone -b libXext-1.3.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxext.git \
 	&& rm -rf libxext
 
 FROM builder AS libXtst
-RUN git clone -b libXtst-1.2.4 --depth=1 {{ GIT_FREEDESKTOP }}/libxtst.git \
+RUN git clone -b libXtst-1.2.4 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxtst.git \
 	&& cd libxtst \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -376,7 +375,7 @@ RUN git clone -b libXtst-1.2.4 --depth=1 {{ GIT_FREEDESKTOP }}/libxtst.git \
 	&& rm -rf libxtst
 
 FROM builder AS libXfixes
-RUN git clone -b libXfixes-5.0.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxfixes.git \
+RUN git clone -b libXfixes-5.0.3 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxfixes.git \
 	&& cd libxfixes \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -387,7 +386,7 @@ RUN git clone -b libXfixes-5.0.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxfixes.git \
 FROM builder AS libXv
 COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
 
-RUN git clone -b libXv-1.0.12 --depth=1 {{ GIT_FREEDESKTOP }}/libxv.git \
+RUN git clone -b libXv-1.0.12 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxv.git \
 	&& cd libxv \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -396,7 +395,7 @@ RUN git clone -b libXv-1.0.12 --depth=1 {{ GIT_FREEDESKTOP }}/libxv.git \
 	&& rm -rf libxv
 
 FROM builder AS libXrandr
-RUN git clone -b libXrandr-1.5.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxrandr.git \
+RUN git clone -b libXrandr-1.5.3 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxrandr.git \
 	&& cd libxrandr \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -405,7 +404,7 @@ RUN git clone -b libXrandr-1.5.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxrandr.git \
 	&& rm -rf libxrandr
 
 FROM builder AS libXrender
-RUN git clone -b libXrender-0.9.11 --depth=1 {{ GIT_FREEDESKTOP }}/libxrender.git \
+RUN git clone -b libXrender-0.9.11 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxrender.git \
 	&& cd libxrender \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -414,7 +413,7 @@ RUN git clone -b libXrender-0.9.11 --depth=1 {{ GIT_FREEDESKTOP }}/libxrender.gi
 	&& rm -rf libxrender
 
 FROM builder AS libXdamage
-RUN git clone -b libXdamage-1.1.6 --depth=1 {{ GIT_FREEDESKTOP }}/libxdamage.git \
+RUN git clone -b libXdamage-1.1.6 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxdamage.git \
 	&& cd libxdamage \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -423,7 +422,7 @@ RUN git clone -b libXdamage-1.1.6 --depth=1 {{ GIT_FREEDESKTOP }}/libxdamage.git
 	&& rm -rf libxdamage
 
 FROM builder AS libXcomposite
-RUN git clone -b libXcomposite-0.4.6 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposite.git \
+RUN git clone -b libXcomposite-0.4.6 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/libxcomposite.git \
 	&& cd libxcomposite \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -432,7 +431,7 @@ RUN git clone -b libXcomposite-0.4.6 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposi
 	&& rm -rf libxcomposite
 
 FROM builder AS wayland
-RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
+RUN git clone -b 1.19.0 --depth=1 {{ GIT }}/gitlab-freedesktop-mirrors/wayland.git \
 	&& cd wayland \
 	&& sed -i "/subdir('tests')/d" meson.build \
 	&& meson build \
