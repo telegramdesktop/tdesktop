@@ -1,6 +1,4 @@
 {%- set TOOLSET = "gcc-toolset-14" -%}
-{%- set QT = "6.9.0" -%}
-{%- set QT_TAG = "v" ~ QT -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
 # syntax=docker/dockerfile:1
@@ -679,13 +677,14 @@ COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 
-RUN git clone -b {{ QT_TAG }} --depth=1 https://github.com/qt/qt5.git \
+ENV QT 6.9.0
+RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
 	&& cd qtbase \
-	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
+	&& find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd ../qtwayland \
-	&& find ../../patches/qtwayland_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
+	&& find ../../patches/qtwayland_$QT -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
 	&& cmake -B build . \
 		-DCMAKE_INSTALL_PREFIX=/usr/local \
