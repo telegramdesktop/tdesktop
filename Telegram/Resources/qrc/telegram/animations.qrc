@@ -36,6 +36,7 @@
     <file alias="topics.tgs">../../animations/edit_peers/topics.tgs</file>
     <file alias="topics_tabs.tgs">../../animations/edit_peers/topics_tabs.tgs</file>
     <file alias="topics_list.tgs">../../animations/edit_peers/topics_list.tgs</file>
+    <file alias="direct_messages.tgs">../../animations/edit_peers/direct_messages.tgs</file>
 
     <file alias="dice_idle.tgs">../../animations/dice/dice_idle.tgs</file>
     <file alias="dart_idle.tgs">../../animations/dice/dart_idle.tgs</file>

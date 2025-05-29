@@ -1891,9 +1891,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_monoforum" = "Direct Messages";
 "lng_manage_monoforum_off" = "Off";
 "lng_manage_monoforum_free" = "Free";
-"lng_manage_monoforum_allow" = "Allow Direct Messages";
-"lng_manage_monoforum_about" = "Allow users to write direct private messages to your channel, with the option to charge a fee for every message.";
-"lng_manage_monoforum_price_about" = "Charge users for the ability to write a direct message to your channel. Your channel will receive {percent} of the selected fee ({amount}) for each incoming message.";
+"lng_manage_monoforum_allow" = "Allow Channel Messages";
+"lng_manage_monoforum_price" = "Price for each message";
+"lng_manage_monoforum_about" = "Allow users to send messages to your channel, with the option to charge a fee for each message.";
+"lng_manage_monoforum_price_about" = "Your channel will receive {percent} of the selected fee ({amount}) for each incoming message.";
 
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";

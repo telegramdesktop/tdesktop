@@ -1087,7 +1087,7 @@ void Controller::fillDirectMessagesButton() {
 		tr::lng_manage_monoforum(),
 		std::move(label),
 		[=] { showEditDirectMessagesBox(); },
-		{ .icon = &st::menuIconChatBubble, .newBadge = true });
+		{ .icon = &st::menuIconChats, .newBadge = true });
 }
 //
 //void Controller::fillInviteLinkButton() {

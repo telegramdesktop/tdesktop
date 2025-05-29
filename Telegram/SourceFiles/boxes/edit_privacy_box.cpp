@@ -511,8 +511,9 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		current->moveToLeft((outer - current->width()) / 2, 0, outer);
 	};
 	const auto updateByValue = [=](int value) {
-		current->setText(
-			tr::lng_action_gift_for_stars(tr::now, lt_count, value));
+		current->setText(value > 0
+			? tr::lng_action_gift_for_stars(tr::now, lt_count, value)
+			: tr::lng_manage_monoforum_free(tr::now));
 
 		state->index = 0;
 		auto maxIndex = valuesCount - 1;
@@ -1178,7 +1179,9 @@ rpl::producer<int> SetupChargeSlider(
 	const auto chargeStars = savedValue.value_or(defaultValue);
 	state->stars = chargeStars;
 
-	Ui::AddSubsectionTitle(container, (group || broadcast)
+	Ui::AddSubsectionTitle(container, broadcast
+		? tr::lng_manage_monoforum_price()
+		: group
 		? tr::lng_rights_charge_price()
 		: tr::lng_messages_privacy_price());
 
@@ -1251,17 +1254,32 @@ void EditDirectMessagesPriceBox(
 		std::optional<int> savedValue,
 		Fn<void(std::optional<int>)> callback) {
 	box->setTitle(tr::lng_manage_monoforum());
+	box->setWidth(st::boxWideWidth);
 
-	const auto toggle = box->addRow(object_ptr<Ui::SettingsButton>(
+	const auto container = box->verticalLayout();
+
+	Settings::AddDividerTextWithLottie(container, {
+		.lottie = u"direct_messages"_q,
+		.lottieSize = st::settingsFilterIconSize,
+		.lottieMargins = st::settingsFilterIconPadding,
+		.showFinished = box->showFinishes(),
+		.about = tr::lng_manage_monoforum_about(
+			Ui::Text::RichLangValue
+		),
+		.aboutMargins = st::settingsFilterDividerLabelPadding,
+	});
+
+	Ui::AddSkip(container);
+
+	const auto toggle = container->add(object_ptr<Ui::SettingsButton>(
 		box,
 		tr::lng_manage_monoforum_allow(),
-		st::settingsButtonNoIcon
-	), {})->toggleOn(rpl::single(savedValue.has_value()));
-	Ui::AddSkip(box->verticalLayout());
+		st::settingsButtonNoIcon));
+	toggle->toggleOn(rpl::single(savedValue.has_value()));
 
-	Ui::AddDividerText(
-		box->verticalLayout(),
-		tr::lng_manage_monoforum_about());
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	const auto wrap = box->addRow(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
