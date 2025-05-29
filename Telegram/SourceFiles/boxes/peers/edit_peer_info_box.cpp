@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "boxes/peers/edit_peer_reactions.h"
 #include "boxes/peers/replace_boost_box.h"
+#include "boxes/peers/toggle_topics_box.h"
 #include "boxes/peers/verify_peers_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/edit_privacy_box.h" // EditDirectMessagesPriceBox
@@ -377,6 +378,7 @@ private:
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
 		std::optional<bool> forum;
+		std::optional<bool> forumTabs;
 		std::optional<bool> autotranslate;
 		std::optional<bool> signatures;
 		std::optional<bool> signatureProfiles;
@@ -481,6 +483,7 @@ private:
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
 	std::optional<EditPeerTypeData> _typeDataSavedValue;
 	std::optional<bool> _forumSavedValue;
+	std::optional<bool> _forumTabsSavedValue;
 	std::optional<bool> _autotranslateSavedValue;
 	std::optional<bool> _signaturesSavedValue;
 	std::optional<bool> _signatureProfilesSavedValue;
@@ -1104,21 +1107,30 @@ void Controller::fillDirectMessagesButton() {
 void Controller::fillForumButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
+	_forumSavedValue = _peer->isForum();
+	_forumTabsSavedValue = !_peer->isChannel()
+		|| !_peer->isForum()
+		|| _peer->asChannel()->useSubsectionTabs();
+
+	const auto changes = std::make_shared<rpl::event_stream<>>();
+	const auto label = [=] {
+		return !*_forumSavedValue
+			? tr::lng_manage_monoforum_off(tr::now)
+			: *_forumTabsSavedValue
+			? tr::lng_edit_topics_tabs(tr::now)
+			: tr::lng_edit_topics_list(tr::now);
+	};
 	const auto button = _controls.forumToggle = _controls.buttonsLayout->add(
 		EditPeerInfoBox::CreateButton(
 			_controls.buttonsLayout,
 			tr::lng_forum_topics_switch(),
-			rpl::single(QString()),
+			changes->events_starting_with({}) | rpl::map(label),
 			[] {},
 			st::manageGroupTopicsButton,
 			{ &st::menuIconTopics }));
-	const auto unlocks = std::make_shared<rpl::event_stream<bool>>();
-	button->toggleOn(
-		rpl::single(_peer->isForum()) | rpl::then(unlocks->events())
-	)->toggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
-		if (_controls.forumToggleLocked && toggled) {
-			unlocks->fire(false);
+
+	button->setClickedCallback(crl::guard(this, [=] {
+		if (!*_forumSavedValue && _controls.forumToggleLocked) {
 			if (_discussionLinkSavedValue && *_discussionLinkSavedValue) {
 				ShowForumForDiscussionError(_navigation);
 			} else {
@@ -1130,13 +1142,21 @@ void Controller::fillForumButton() {
 						Ui::Text::RichLangValue));
 			}
 		} else {
-			_forumSavedValue = toggled;
-			if (toggled) {
-				_savingData.hiddenPreHistory = false;
-			}
-			refreshHistoryVisibility();
+			_navigation->uiShow()->show(Box(
+				Ui::ToggleTopicsBox,
+				*_forumSavedValue,
+				*_forumTabsSavedValue,
+				crl::guard(this, [=](bool topics, bool topicsTabs) {
+					_forumSavedValue = topics;
+					_forumTabsSavedValue = !topics || topicsTabs;
+					if (topics) {
+						_savingData.hiddenPreHistory = false;
+					}
+					changes->fire({});
+					refreshHistoryVisibility();
+				})));
 		}
-	}, _controls.buttonsLayout->lifetime());
+	}));
 	refreshForumToggleLocked();
 }
 
@@ -2143,6 +2163,7 @@ bool Controller::validateForum(Saving &to) const {
 		return true;
 	}
 	to.forum = _forumSavedValue;
+	to.forumTabs = _forumTabsSavedValue;
 	return true;
 }
 
@@ -2589,8 +2610,13 @@ void Controller::togglePreHistoryHidden(
 
 void Controller::saveForum() {
 	const auto channel = _peer->asChannel();
+	const auto nowForum = _peer->isForum();
+	const auto nowForumTabs = !channel
+		|| !nowForum
+		|| channel->useSubsectionTabs();
 	if (!_savingData.forum
-		|| *_savingData.forum == _peer->isForum()) {
+		|| (*_savingData.forum == nowForum
+			&& *_savingData.forumTabs == nowForumTabs)) {
 		return continueSave();
 	} else if (!channel) {
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
@@ -2608,7 +2634,7 @@ void Controller::saveForum() {
 	_api.request(MTPchannels_ToggleForum(
 		channel->inputChannel,
 		MTP_bool(*_savingData.forum),
-		MTP_bool(channel->flags() & ChannelDataFlag::ForumTabs)
+		MTP_bool(*_savingData.forum && *_savingData.forumTabs)
 	)).done([=](const MTPUpdates &result) {
 		const auto weak = base::make_weak(this);
 		channel->session().api().applyUpdates(result);

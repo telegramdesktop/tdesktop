@@ -1177,3 +1177,13 @@ infoGiftTooltip: ImportantTooltip(defaultImportantTooltip) {
 	padding: margins(8px, 2px, 8px, 3px);
 }
 infoGiftTooltipFont: font(11px semibold);
+
+topicsLayoutButtonLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	margin: margins(10px, 4px, 10px, 4px);
+	textFg: windowSubTextFg;
+}
+topicsLayoutButtonIconPadding: margins(4px, 0px, 4px, 0px);
+topicsLayoutButtonIconSize: 140px;
+topicsLayoutButtonPadding: margins(4px, 0px, 4px, 12px);
+topicsLayoutButtonSkip: 0px;

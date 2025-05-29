@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_flags.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -1896,10 +1897,11 @@ void SessionController::showForum(
 	if (_shownForum.current() != forum) {
 		return;
 	}
-	forum->destroyed(
-	) | rpl::start_with_next([=, history = forum->history()] {
+	const auto history = forum->history();
+	const auto closeAndShowHistory = [=](bool showOnlyIfEmpty) {
 		const auto now = activeChatCurrent().owningHistory();
-		const auto showHistory = !now || (now == history);
+		const auto showHistory = !now
+			|| (!showOnlyIfEmpty && (now == history));
 		const auto weak = base::make_weak(this);
 		closeForum();
 		if (weak && showHistory) {
@@ -1908,6 +1910,19 @@ void SessionController::showForum(
 				anim::type::normal,
 				anim::activation::background,
 			});
+		}
+	};
+	forum->destroyed(
+	) | rpl::start_with_next([=] {
+		closeAndShowHistory(false);
+	}, _shownForumLifetime);
+	using FlagChange = Data::Flags<ChannelDataFlags>::Change;
+	forum->channel()->flagsValue(
+	) | rpl::start_with_next([=](FlagChange change) {
+		if (change.diff & ChannelDataFlag::ForumTabs) {
+			if (HistoryView::SubsectionTabs::UsedFor(history)) {
+				closeAndShowHistory(true);
+			}
 		}
 	}, _shownForumLifetime);
 	content()->showForum(forum, params);

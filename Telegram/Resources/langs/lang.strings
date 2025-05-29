@@ -3216,6 +3216,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feature_transcribe" = "Voice-to-Text Conversion";
 "lng_feature_autotranslate" = "Autotranslation of Messages";
 
+"lng_edit_topics_enable" = "Enable Topics";
+"lng_edit_topics_about" = "The group chat will be divided into topics created by admins or users.";
+"lng_edit_topics_layout" = "Topics layout";
+"lng_edit_topics_layout_about" = "Choose how topics appear for all members.";
+"lng_edit_topics_tabs" = "Tabs";
+"lng_edit_topics_list" = "List";
+
 "lng_giveaway_new_title" = "Boosts via Gifts";
 "lng_giveaway_new_about" = "Get more boosts for your channel by gifting Premium to your subscribers.";
 "lng_giveaway_new_about_group" = "Get more boosts for your group by gifting Premium to your members.";

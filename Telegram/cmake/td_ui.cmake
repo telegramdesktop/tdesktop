@@ -58,6 +58,8 @@ PRIVATE
 
     boxes/peers/edit_peer_history_visibility_box.cpp
     boxes/peers/edit_peer_history_visibility_box.h
+    boxes/peers/toggle_topics_box.cpp
+    boxes/peers/toggle_topics_box.h
 
     calls/group/ui/calls_group_recording_box.cpp
     calls/group/ui/calls_group_recording_box.h

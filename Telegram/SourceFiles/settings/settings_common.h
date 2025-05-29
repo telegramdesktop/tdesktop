@@ -204,7 +204,8 @@ struct LottieIcon {
 [[nodiscard]] LottieIcon CreateLottieIcon(
 	not_null<QWidget*> parent,
 	Lottie::IconDescriptor &&descriptor,
-	style::margins padding = {});
+	style::margins padding = {},
+	Fn<QColor()> colorOverride = nullptr);
 
 struct SliderWithLabel {
 	object_ptr<Ui::RpWidget> widget;

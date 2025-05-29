@@ -242,7 +242,8 @@ void AddDividerTextWithLottie(
 LottieIcon CreateLottieIcon(
 		not_null<QWidget*> parent,
 		Lottie::IconDescriptor &&descriptor,
-		style::margins padding) {
+		style::margins padding,
+		Fn<QColor()> colorOverride) {
 	Expects(!descriptor.frame); // I'm not sure it considers limitFps.
 
 	descriptor.limitFps = true;
@@ -262,7 +263,9 @@ LottieIcon CreateLottieIcon(
 	const auto looped = raw->lifetime().make_state<bool>(true);
 
 	const auto start = [=] {
-		icon->animate([=] { raw->update(); }, 0, icon->framesCount() - 1);
+		icon->animate([=] {
+			raw->update();
+		}, 0, icon->framesCount() - 1);
 	};
 	const auto animate = [=](anim::repeat repeat) {
 		*looped = (repeat == anim::repeat::loop);
@@ -272,7 +275,9 @@ LottieIcon CreateLottieIcon(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(raw);
 		const auto left = (raw->width() - width) / 2;
-		icon->paint(p, left, padding.top());
+		icon->paint(p, left, padding.top(), colorOverride
+			? colorOverride()
+			: std::optional<QColor>());
 		if (!icon->animating() && icon->frameIndex() > 0 && *looped) {
 			start();
 		}

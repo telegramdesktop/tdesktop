@@ -979,12 +979,13 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::CallNotEmpty
 			| Flag::Forbidden
 			| (!minimal
-				? (Flag::Left | Flag::Creator | Flag::ForumTabs)
+				? (Flag::Left | Flag::Creator)
 				: Flag())
 			| Flag::NoForwards
 			| Flag::JoinToWrite
 			| Flag::RequestToJoin
 			| Flag::Forum
+			| Flag::ForumTabs
 			| ((!minimal && !data.is_stories_hidden_min())
 				? Flag::StoriesHidden
 				: Flag())
@@ -1016,8 +1017,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				: Flag())
 			| (!minimal
 				? ((data.is_left() ? Flag::Left : Flag())
-					| (data.is_creator() ? Flag::Creator : Flag())
-					| (data.is_forum_tabs() ? Flag::ForumTabs : Flag()))
+					| (data.is_creator() ? Flag::Creator : Flag()))
 				: Flag())
 			| (data.is_noforwards() ? Flag::NoForwards : Flag())
 			| (data.is_join_to_send() ? Flag::JoinToWrite : Flag())
@@ -1025,6 +1025,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| ((data.is_forum() && data.is_megagroup())
 				? Flag::Forum
 				: Flag())
+			| (data.is_forum_tabs() ? Flag::ForumTabs : Flag())
 			| ((!minimal
 				&& !data.is_stories_hidden_min()
 				&& data.is_stories_hidden())

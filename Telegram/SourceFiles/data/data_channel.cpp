@@ -410,7 +410,7 @@ void ChannelData::setPendingRequestsCount(
 
 bool ChannelData::useSubsectionTabs() const {
 	return isForum()
-		&& ((flags() & ChannelDataFlag::ForumTabs) || true); AssertIsDebug();
+		&& (flags() & ChannelDataFlag::ForumTabs);
 }
 
 ChatRestrictionsInfo ChannelData::KickedRestrictedRights(

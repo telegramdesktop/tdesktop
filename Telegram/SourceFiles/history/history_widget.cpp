@@ -2623,6 +2623,7 @@ void HistoryWidget::showHistory(
 				channel->flagsValue(
 				) | rpl::start_with_next([=] {
 					refreshJoinChannelText();
+					validateSubsectionTabs();
 				}, _list->lifetime());
 			} else {
 				refreshJoinChannelText();
@@ -8245,8 +8246,18 @@ void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
 
 void HistoryWidget::validateSubsectionTabs() {
 	if (!_history || !HistoryView::SubsectionTabs::UsedFor(_history)) {
-		_subsectionTabsLifetime.destroy();
-		_subsectionTabs = nullptr;
+		if (_subsectionTabs) {
+			_subsectionTabsLifetime.destroy();
+			_subsectionTabs = nullptr;
+			updateControlsGeometry();
+			if (const auto forum = _history->asForum()) {
+				controller()->showForum(forum, {
+					Window::SectionShow::Way::Backward,
+					anim::type::normal,
+					anim::activation::background,
+				});
+			}
+		}
 		return;
 	} else if (_subsectionTabs) {
 		return;
@@ -8259,6 +8270,7 @@ void HistoryWidget::validateSubsectionTabs() {
 			_history);
 	}
 	_subsectionTabs->removeRequests() | rpl::start_with_next([=] {
+		_subsectionTabsLifetime.destroy();
 		_subsectionTabs = nullptr;
 		updateControlsGeometry();
 	}, _subsectionTabsLifetime);

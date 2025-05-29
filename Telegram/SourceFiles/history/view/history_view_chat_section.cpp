@@ -928,6 +928,7 @@ void ChatWidget::setupComposeControls() {
 				channel->flagsValue()
 			) | rpl::start_with_next([=] {
 				refreshJoinGroupButton();
+				validateSubsectionTabs();
 			}, lifetime());
 		} else {
 			refreshJoinGroupButton();
@@ -1522,8 +1523,18 @@ void ChatWidget::edit(
 
 void ChatWidget::validateSubsectionTabs() {
 	if (!HistoryView::SubsectionTabs::UsedFor(_history)) {
-		_subsectionTabsLifetime.destroy();
-		_subsectionTabs = nullptr;
+		if (_subsectionTabs) {
+			_subsectionTabsLifetime.destroy();
+			_subsectionTabs = nullptr;
+			updateControlsGeometry();
+			if (const auto forum = _history->asForum()) {
+				controller()->showForum(forum, {
+					Window::SectionShow::Way::Backward,
+					anim::type::normal,
+					anim::activation::background,
+				});
+			}
+		}
 		return;
 	} else if (_subsectionTabs) {
 		return;
@@ -1537,6 +1548,7 @@ void ChatWidget::validateSubsectionTabs() {
 			thread);
 	}
 	_subsectionTabs->removeRequests() | rpl::start_with_next([=] {
+		_subsectionTabsLifetime.destroy();
 		_subsectionTabs = nullptr;
 		updateControlsGeometry();
 	}, _subsectionTabsLifetime);
