@@ -712,13 +712,21 @@ RUN git clone -b v2024.02.16 --depth=1 https://chromium.googlesource.com/breakpa
 	&& rm -rf breakpad
 
 FROM builder AS webrtc
+COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
+COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 COPY --link --from=vpx {{ LibrariesPath }}/vpx-cache /
 COPY --link --from=jxl {{ LibrariesPath }}/jxl-cache /
 COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
+COPY --link --from=xext {{ LibrariesPath }}/xext-cache /
+COPY --link --from=xfixes {{ LibrariesPath }}/xfixes-cache /
 COPY --link --from=xtst {{ LibrariesPath }}/xtst-cache /
+COPY --link --from=xrandr {{ LibrariesPath }}/xrandr-cache /
+COPY --link --from=xrender {{ LibrariesPath }}/xrender-cache /
+COPY --link --from=xdamage {{ LibrariesPath }}/xdamage-cache /
+COPY --link --from=xcomposite {{ LibrariesPath }}/xcomposite-cache /
 COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 
 # Shallow clone on a specific commit.
