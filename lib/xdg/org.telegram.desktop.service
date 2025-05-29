@@ -1,3 +1,4 @@
 [D-BUS Service]
 Name=org.telegram.desktop
 Exec=@CMAKE_INSTALL_FULL_BINDIR@/telegram-desktop
+SystemdService=telegram-desktop.service
