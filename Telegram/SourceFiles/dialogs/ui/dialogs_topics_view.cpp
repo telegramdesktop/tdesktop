@@ -110,6 +110,7 @@ void TopicsView::prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint) {
 			_jumpToTopic = false;
 		}
 	}
+	_allLoaded = _forum->topicsList()->loaded();
 }
 
 void TopicsView::prepare(PeerId frontPeerId, Fn<void()> customEmojiRepaint) {
@@ -182,6 +183,7 @@ void TopicsView::prepare(PeerId frontPeerId, Fn<void()> customEmojiRepaint) {
 			_jumpToTopic = false;
 		}
 	}
+	_allLoaded = _monoforum->chatsList()->loaded();
 }
 
 int TopicsView::jumpToTopicWidth() const {
@@ -207,10 +209,13 @@ void TopicsView::paint(
 	rect.setWidth(rect.width() - _lastTopicJumpGeometry.rightCut);
 	auto skipBig = _jumpToTopic && !context.active;
 	if (_titles.empty()) {
+		const auto text = (_monoforum && _allLoaded)
+			? tr::lng_filters_no_chats(tr::now)
+			: tr::lng_contacts_loading(tr::now);
 		p.drawText(
 			rect.x(),
 			rect.y() + st::normalFont->ascent,
-			tr::lng_contacts_loading(tr::now));
+			text);
 		return;
 	}
 	for (const auto &title : _titles) {

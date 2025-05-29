@@ -81,6 +81,7 @@ LayoutButton::LayoutButton(
 	const auto icon = iconWidget.release();
 	setClickedCallback([=] {
 		group->setValue(type);
+		iconAnimate(anim::repeat::once);
 	});
 	group->value() | rpl::start_with_next([=](LayoutType value) {
 		const auto active = (value == type);
@@ -93,9 +94,6 @@ LayoutButton::LayoutButton(
 		}
 		_active = active;
 		_text.update();
-		if (_active) {
-			iconAnimate(anim::repeat::once);
-		}
 		_activeAnimation.start([=] {
 			icon->update();
 		}, _active ? 0. : 1., _active ? 0. : 1., st::fadeWrapDuration);
@@ -169,6 +167,10 @@ void ToggleTopicsBox(
 			tr::lng_edit_topics_enable(),
 			st::settingsButtonNoIcon));
 	toggle->toggleOn(rpl::single(enabled));
+
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	const auto group = std::make_shared<Ui::RadioenumGroup<LayoutType>>(tabs
 		? LayoutType::Tabs

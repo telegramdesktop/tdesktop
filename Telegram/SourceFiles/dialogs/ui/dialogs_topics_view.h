@@ -121,6 +121,7 @@ private:
 	JumpToLastGeometry _lastTopicJumpGeometry;
 	int _version = -1;
 	bool _jumpToTopic = false;
+	bool _allLoaded = false;
 
 	rpl::lifetime _lifetime;
 

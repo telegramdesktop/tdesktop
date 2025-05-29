@@ -1695,7 +1695,9 @@ void TopBarWidget::updateOnlineDisplay() {
 	} else if (const auto monoforum = peer->monoforum()) {
 		const auto chats = monoforum->chatsList();
 		const auto count = chats->fullSize().current();
-		text = tr::lng_filters_chats_count(tr::now, lt_count, count);
+		text = (count > 0)
+			? tr::lng_filters_chats_count(tr::now, lt_count, count)
+			: tr::lng_filters_no_chats(tr::now);
 	} else if (peer->isMonoforum()) {
 		text = tr::lng_chat_status_direct(tr::now);
 	} else if (const auto channel = peer->asChannel()) {

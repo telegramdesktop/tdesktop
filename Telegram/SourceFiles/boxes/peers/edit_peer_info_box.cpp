@@ -1087,7 +1087,7 @@ void Controller::fillDirectMessagesButton() {
 		tr::lng_manage_monoforum(),
 		std::move(label),
 		[=] { showEditDirectMessagesBox(); },
-		{ &st::menuIconChatBubble });
+		{ .icon = &st::menuIconChatBubble, .newBadge = true });
 }
 //
 //void Controller::fillInviteLinkButton() {
@@ -1127,7 +1127,7 @@ void Controller::fillForumButton() {
 			changes->events_starting_with({}) | rpl::map(label),
 			[] {},
 			st::manageGroupTopicsButton,
-			{ &st::menuIconTopics }));
+			{ .icon = &st::menuIconTopics, .newBadge = true }));
 
 	button->setClickedCallback(crl::guard(this, [=] {
 		if (!*_forumSavedValue && _controls.forumToggleLocked) {

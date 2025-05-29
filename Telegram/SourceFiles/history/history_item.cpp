@@ -4632,20 +4632,30 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareChatCreate = [this](const MTPDmessageActionChatCreate &action) {
 		auto result = PreparedServiceText();
-		result.links.push_back(fromLink());
-		result.text = tr::lng_action_created_chat(
-			tr::now,
-			lt_from,
-			fromLinkText(), // Link 1.
-			lt_title,
-			{ .text = qs(action.vtitle()) },
-			Ui::Text::WithEntities);
+		if (_history->peer->isMonoforum()) {
+			result.text = tr::lng_action_created_monoforum(
+				tr::now,
+				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = tr::lng_action_created_chat(
+				tr::now,
+				lt_from,
+				fromLinkText(), // Link 1.
+				lt_title,
+				{ .text = qs(action.vtitle()) },
+				Ui::Text::WithEntities);
+		}
 		return result;
 	};
 
 	auto prepareChannelCreate = [this](const MTPDmessageActionChannelCreate &action) {
 		auto result = PreparedServiceText();
-		if (isPost()) {
+		if (_history->peer->isMonoforum()) {
+			result.text = tr::lng_action_created_monoforum(
+				tr::now,
+				Ui::Text::WithEntities);
+		} else if (isPost()) {
 			result.text = tr::lng_action_created_channel(
 				tr::now,
 				Ui::Text::WithEntities);
