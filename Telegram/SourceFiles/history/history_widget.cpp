@@ -2474,6 +2474,7 @@ void HistoryWidget::showHistory(
 		_silent.destroy();
 		updateBotKeyboard();
 
+		_subsectionCheckLifetime.destroy();
 		if (_subsectionTabs) {
 			_subsectionTabsLifetime.destroy();
 			controller()->saveSubsectionTabs(base::take(_subsectionTabs));
@@ -2623,7 +2624,6 @@ void HistoryWidget::showHistory(
 				channel->flagsValue(
 				) | rpl::start_with_next([=] {
 					refreshJoinChannelText();
-					validateSubsectionTabs();
 				}, _list->lifetime());
 			} else {
 				refreshJoinChannelText();
@@ -8245,6 +8245,21 @@ void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
 }
 
 void HistoryWidget::validateSubsectionTabs() {
+	if (!_subsectionCheckLifetime
+		&& _history
+		&& _history->peer->isMegagroup()) {
+		_subsectionCheckLifetime = _history->peer->asChannel()->flagsValue(
+		) | rpl::skip(
+			1
+		) | rpl::filter([=](Data::Flags<ChannelDataFlags>::Change change) {
+			const auto mask = ChannelDataFlag::Forum
+				| ChannelDataFlag::ForumTabs
+				| ChannelDataFlag::MonoforumAdmin;
+			return change.diff & mask;
+		}) | rpl::start_with_next([=] {
+			validateSubsectionTabs();
+		});
+	}
 	if (!_history || !HistoryView::SubsectionTabs::UsedFor(_history)) {
 		if (_subsectionTabs) {
 			_subsectionTabsLifetime.destroy();

@@ -409,6 +409,7 @@ private:
 	std::unique_ptr<EmptyPainter> _emptyPainter;
 	std::unique_ptr<SubsectionTabs> _subsectionTabs;
 	rpl::lifetime _subsectionTabsLifetime;
+	rpl::lifetime _subsectionCheckLifetime;
 	bool _canSendTexts = false;
 	bool _skipScrollEvent = false;
 	bool _synteticScrollEvent = false;
