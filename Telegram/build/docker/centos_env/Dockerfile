@@ -19,13 +19,22 @@ RUN dnf -y install epel-release \
 		$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
 		freetype-devel libX11-devel wayland-devel alsa-lib-devel \
 		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
-		libdrm-devel vulkan-devel libva-devel libvdpau-devel glib2-devel \
-		gobject-introspection-devel at-spi2-core-devel gtk3-devel boost1.78-devel \
+		libdrm-devel vulkan-devel libva-devel libvdpau-devel libselinux-devel \
+		libmount-devel systemd-devel glib2-devel gobject-introspection-devel \
+		at-spi2-core-devel gtk3-devel boost1.78-devel \
 	&& dnf clean all
 
 RUN alternatives --set python3 /usr/bin/python3.11
 RUN python3 -m pip install meson ninja
+RUN cat <<EOF > /usr/local/bin/pkg-config && chmod +x /usr/local/bin/pkg-config
+#!/bin/sh
+for i in "\$@"; do
+	[ "\$i" = "--version" ] && exec /usr/bin/pkg-config "\$i"
+done
+exec /usr/bin/pkg-config --static "\$@"
+EOF
 RUN sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/")/ -O0 {% if LTO %}-fno-lto -fno-use-linker-plugin -fuse-ld=lld{% endif %}")/' /usr/share/cmake/Modules/Compiler/GNU.cmake
+RUN sed -i 's/NO_DEFAULT_PATH//g; s/PKG_CONFIG_ALLOW_SYSTEM_LIBS/PKG_CONFIG_IS_DUMB/g' /usr/share/cmake/Modules/FindPkgConfig.cmake
 RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
 RUN echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debuginfod.gdb
 RUN adduser user
@@ -36,7 +45,7 @@ ENV RANLIB=gcc-ranlib
 ENV NM=gcc-nm
 ENV CFLAGS='{% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
 ENV CXXFLAGS=$CFLAGS
-ENV LDFLAGS='{% if not LTO %}-fuse-ld=lld{% endif %} -pthread -ldl -Wl,--as-needed -Wl,-z,muldefs'
+ENV LDFLAGS='{% if not LTO %}-fuse-ld=lld{% endif %} -static-libstdc++ -static-libgcc -static-libasan -pthread -ldl -Wl,--as-needed -Wl,-z,muldefs'
 
 ENV CMAKE_GENERATOR=Ninja
 ENV CMAKE_BUILD_TYPE=None
@@ -77,7 +86,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin https://github.com/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 22989737aea515bf6a94d74a65490d37409831bc \
+	&& git fetch --depth=1 origin 65c6e9f8e88f37396e935dd6e6e494f512a96f99 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -86,7 +95,9 @@ RUN git clone -b v1.3.1 --depth=1 https://github.com/madler/zlib.git \
 	&& cd zlib \
 	&& cmake -B build . -DZLIB_BUILD_EXAMPLES=OFF \
 	&& cmake --build build \
-	&& DESTDIR="{{ LibrariesPath }}/zlib-cache" cmake --install build \
+	&& export DESTDIR="{{ LibrariesPath }}/zlib-cache" \
+	&& cmake --install build \
+	&& rm $DESTDIR/usr/local/lib/libz.so* \
 	&& cd .. \
 	&& rm -rf zlib
 
@@ -117,7 +128,7 @@ RUN git clone -b lcms2.15 --depth=1 https://github.com/mm2/Little-CMS.git \
 	&& cd Little-CMS \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 	&& meson compile -C build \
 	&& DESTDIR="{{ LibrariesPath }}/lcms2-cache" meson install -C build \
 	&& cd .. \
@@ -160,7 +171,7 @@ RUN git clone -b 1.4.1 --depth=1 https://github.com/videolan/dav1d.git \
 	&& cd dav1d \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 		-Denable_tools=false \
 		-Denable_tests=false \
 	&& meson compile -C build \
@@ -173,7 +184,7 @@ RUN git clone -b v2.4.1 --depth=1 https://github.com/cisco/openh264.git \
 	&& cd openh264 \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 	&& meson compile -C build \
 	&& DESTDIR="{{ LibrariesPath }}/openh264-cache" meson install -C build \
 	&& cd .. \
@@ -291,8 +302,11 @@ RUN git clone -b v0.11.1 --depth=1 https://github.com/libjxl/libjxl.git \
 	&& cmake --build build \
 	&& export DESTDIR="{{ LibrariesPath }}/jxl-cache" \
 	&& cmake --install build \
+	&& rm $DESTDIR/usr/local/lib64/libjpeg.so* \
 	&& cp build/lib/libjpegli-static.a $DESTDIR/usr/local/lib64/libjpeg.a \
-	&& ar rcs $DESTDIR/usr/local/lib64/libjpeg.a build/lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o \
+	&& mkdir build/hwy \
+	&& ar --output=build/hwy x /usr/local/lib64/libhwy.a \
+	&& ar rcs $DESTDIR/usr/local/lib64/libjpeg.a build/lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o build/hwy/* \
 	&& cd .. \
 	&& rm -rf libjxl
 
@@ -319,16 +333,18 @@ COPY --link --from=xcb-proto {{ LibrariesPath }}/xcb-proto-cache /
 
 RUN git clone -b libxcb-1.16 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git \
 	&& cd libxcb \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-cache" install \
+	&& export DESTDIR="{{ LibrariesPath }}/xcb-cache" \
+	&& make install \
+	&& rm $DESTDIR/usr/local/lib/{libxcb.{,l}a,pkgconfig/xcb.pc} \
 	&& cd .. \
 	&& rm -rf libxcb
 
 FROM builder AS xcb-wm
 RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-wm.git \
 	&& cd libxcb-wm \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-wm-cache" install \
 	&& cd .. \
@@ -337,7 +353,7 @@ RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules ht
 FROM builder AS xcb-util
 RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-util.git \
 	&& cd libxcb-util \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-util-cache" install \
 	&& cd .. \
@@ -348,7 +364,7 @@ COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 
 RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-image.git \
 	&& cd libxcb-image \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-image-cache" install \
 	&& cd .. \
@@ -357,7 +373,7 @@ RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules
 FROM builder AS xcb-keysyms
 RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-keysyms.git \
 	&& cd libxcb-keysyms \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-keysyms-cache" install \
 	&& cd .. \
@@ -366,7 +382,7 @@ RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodul
 FROM builder AS xcb-render-util
 RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-render-util.git \
 	&& cd libxcb-render-util \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-render-util-cache" install \
 	&& cd .. \
@@ -379,7 +395,7 @@ COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
 
 RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-cursor.git \
 	&& cd libxcb-cursor \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-cursor-cache" install \
 	&& cd .. \
@@ -388,7 +404,7 @@ RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodule
 FROM builder AS xext
 RUN git clone -b libXext-1.3.5 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxext.git \
 	&& cd libxext \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xext-cache" install \
 	&& cd .. \
@@ -397,7 +413,7 @@ RUN git clone -b libXext-1.3.5 --depth=1 https://github.com/gitlab-freedesktop-m
 FROM builder AS xtst
 RUN git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git \
 	&& cd libxtst \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xtst-cache" install \
 	&& cd .. \
@@ -406,7 +422,7 @@ RUN git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-m
 FROM builder AS xfixes
 RUN git clone -b libXfixes-5.0.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxfixes.git \
 	&& cd libxfixes \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xfixes-cache" install \
 	&& cd .. \
@@ -417,7 +433,7 @@ COPY --link --from=xext {{ LibrariesPath }}/xext-cache /
 
 RUN git clone -b libXv-1.0.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git \
 	&& cd libxv \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xv-cache" install \
 	&& cd .. \
@@ -426,7 +442,7 @@ RUN git clone -b libXv-1.0.12 --depth=1 https://github.com/gitlab-freedesktop-mi
 FROM builder AS xrandr
 RUN git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git \
 	&& cd libxrandr \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xrandr-cache" install \
 	&& cd .. \
@@ -435,7 +451,7 @@ RUN git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop
 FROM builder AS xrender
 RUN git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git \
 	&& cd libxrender \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xrender-cache" install \
 	&& cd .. \
@@ -444,7 +460,7 @@ RUN git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedeskt
 FROM builder AS xdamage
 RUN git clone -b libXdamage-1.1.6 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxdamage.git \
 	&& cd libxdamage \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xdamage-cache" install \
 	&& cd .. \
@@ -453,7 +469,7 @@ RUN git clone -b libXdamage-1.1.6 --depth=1 https://github.com/gitlab-freedeskto
 FROM builder AS xcomposite
 RUN git clone -b libXcomposite-0.4.6 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcomposite.git \
 	&& cd libxcomposite \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcomposite-cache" install \
 	&& cd .. \
@@ -465,7 +481,7 @@ RUN git clone -b 1.19.0 --depth=1 https://github.com/gitlab-freedesktop-mirrors/
 	&& sed -i "/subdir('tests')/d" meson.build \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 		-Ddocumentation=false \
 		-Ddtd_validation=false \
 		-Dicon_directory=/usr/share/icons \
@@ -495,7 +511,6 @@ RUN git clone -b n6.1.1 --depth=1 https://github.com/FFmpeg/FFmpeg.git \
 	&& ./configure \
 		--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
 		--extra-cxxflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
-		--pkg-config-flags=--static \
 		--disable-debug \
 		--disable-programs \
 		--disable-doc \
@@ -667,6 +682,7 @@ RUN git clone -b openssl-3.2.1 --depth=1 https://github.com/openssl/openssl.git 
 	&& cd openssl \
 	&& ./config \
 		--openssldir=/etc/ssl \
+		no-shared \
 		no-tests \
 		no-dso \
 	&& make -j$(nproc) \
@@ -681,7 +697,7 @@ RUN git clone -b xkbcommon-1.6.0 --depth=1 https://github.com/xkbcommon/libxkbco
 	&& cd libxkbcommon \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 		-Denable-docs=false \
 		-Denable-wayland=false \
 		-Denable-xkbregistry=false \
