@@ -872,8 +872,8 @@ historyGiftToChannel: IconButton(defaultIconButton) {
 	ripple: universalRippleAnimation;
 }
 historyDirectMessage: IconButton(historyGiftToChannel) {
-	icon: icon{{ "menu/chat_bubble", windowActiveTextFg }};
-	iconOver: icon{{ "menu/chat_bubble", windowActiveTextFg }};
+	icon: icon{{ "menu/chat_discuss", windowActiveTextFg }};
+	iconOver: icon{{ "menu/chat_discuss", windowActiveTextFg }};
 }
 historyUnblock: FlatButton(historyComposeButton) {
 	color: attentionButtonFg;

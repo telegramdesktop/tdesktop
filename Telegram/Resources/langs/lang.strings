@@ -164,6 +164,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_status_members_online" = "{members_count}, {online_count}";
 "lng_chat_status_subscribers#one" = "{count} subscriber";
 "lng_chat_status_subscribers#other" = "{count} subscribers";
+"lng_chat_status_direct" = "Direct messages";
 
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";

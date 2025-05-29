@@ -1696,6 +1696,8 @@ void TopBarWidget::updateOnlineDisplay() {
 		const auto chats = monoforum->chatsList();
 		const auto count = chats->fullSize().current();
 		text = tr::lng_filters_chats_count(tr::now, lt_count, count);
+	} else if (peer->isMonoforum()) {
+		text = tr::lng_chat_status_direct(tr::now);
 	} else if (const auto channel = peer->asChannel()) {
 		if (channel->isMegagroup()
 			&& channel->canViewMembers()
