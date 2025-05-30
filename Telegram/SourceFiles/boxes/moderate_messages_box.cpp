@@ -591,6 +591,7 @@ void SafeSubmitOnEnter(not_null<Ui::GenericBox*> box) {
 void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	const auto container = box->verticalLayout();
 
+	const auto userpicPeer = peer->userpicPaintingPeer();
 	const auto maybeUser = peer->asUser();
 	const auto isBot = maybeUser && maybeUser->isBot();
 
@@ -601,8 +602,9 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 		container,
-		peer,
-		st::mainMenuUserpic);
+		userpicPeer,
+		st::mainMenuUserpic,
+		peer->userpicForceForumShape());
 	userpic->showSavedMessagesOnSelf(true);
 	Ui::IconWithTitle(
 		container,
@@ -614,7 +616,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 				: maybeUser
 				? tr::lng_profile_delete_conversation() | Ui::Text::ToBold()
 				: rpl::single(
-					peer->name()
+					userpicPeer->name()
 				) | Ui::Text::ToBold() | rpl::type_erased(),
 			box->getDelegate()->style().title));
 

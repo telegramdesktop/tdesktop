@@ -1087,6 +1087,9 @@ void Filler::addManageChat() {
 
 void Filler::addBoostChat() {
 	if (const auto channel = _peer->asChannel()) {
+		if (channel->isMonoforum()) {
+			return;
+		}
 		const auto text = channel->isMegagroup()
 			? tr::lng_boost_group_button(tr::now)
 			: tr::lng_boost_channel_button(tr::now);
@@ -1101,6 +1104,9 @@ void Filler::addBoostChat() {
 
 void Filler::addViewStatistics() {
 	if (const auto channel = _peer->asChannel()) {
+		if (channel->isMonoforum()) {
+			return;
+		}
 		const auto controller = _controller;
 		const auto weak = base::make_weak(_thread);
 		const auto peer = _peer;
@@ -1219,7 +1225,7 @@ void Filler::addThemeEdit() {
 }
 
 void Filler::addTTLSubmenu(bool addSeparator) {
-	if (_thread->asTopic()) {
+	if (_thread->asTopic() || !_peer || _peer->isMonoforum()) {
 		return; // #TODO later forum
 	}
 	const auto validator = TTLMenu::TTLValidator(
@@ -1346,6 +1352,7 @@ void Filler::addViewAsMessages() {
 void Filler::addViewAsTopics() {
 	if (!_peer
 		|| !_peer->isForum()
+		|| (_peer->asChannel()->flags() & ChannelDataFlag::ForumTabs)
 		|| !_controller->adaptive().isOneColumn()) {
 		return;
 	}

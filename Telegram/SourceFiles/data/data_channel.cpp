@@ -652,6 +652,9 @@ bool ChannelData::canPostStories() const {
 }
 
 bool ChannelData::canEditStories() const {
+	if (isMonoforum()) {
+		return false;
+	}
 	return amCreator()
 		|| (adminRights() & AdminRight::EditStories);
 }
@@ -678,7 +681,9 @@ bool ChannelData::hiddenPreHistory() const {
 }
 
 bool ChannelData::canAddMembers() const {
-	return isMegagroup()
+	return isMonoforum()
+		? false
+		: isMegagroup()
 		? !amRestricted(ChatRestriction::AddParticipants)
 		: ((adminRights() & AdminRight::InviteByLinkOrAdd) || amCreator());
 }

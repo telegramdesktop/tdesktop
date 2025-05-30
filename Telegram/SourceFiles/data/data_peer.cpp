@@ -1206,6 +1206,8 @@ int PeerData::nameVersion() const {
 const QString &PeerData::name() const {
 	if (const auto to = migrateTo()) {
 		return to->name();
+	} else if (const auto broadcast = monoforumBroadcast()) {
+		return broadcast->name();
 	}
 	return _name;
 }
@@ -1213,6 +1215,10 @@ const QString &PeerData::name() const {
 const QString &PeerData::shortName() const {
 	if (const auto user = asUser()) {
 		return user->firstName.isEmpty() ? user->lastName : user->firstName;
+	} else if (const auto to = migrateTo()) {
+		return to->shortName();
+	} else if (const auto broadcast = monoforumBroadcast()) {
+		return broadcast->shortName();
 	}
 	return _name;
 }
@@ -1554,7 +1560,8 @@ bool PeerData::canRevokeFullHistory() const {
 	} else if (const auto megagroup = asMegagroup()) {
 		return megagroup->amCreator()
 			&& megagroup->membersCountKnown()
-			&& megagroup->canDelete();
+			&& megagroup->canDelete()
+			&& !megagroup->isMonoforum();
 	}
 	return false;
 }
