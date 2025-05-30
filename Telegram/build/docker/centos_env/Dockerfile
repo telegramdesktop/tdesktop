@@ -35,6 +35,7 @@ exec /usr/bin/pkg-config --static "\$@"
 EOF
 RUN sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/")/ -O0 {% if LTO %}-fno-lto -fno-use-linker-plugin -fuse-ld=lld{% endif %}")/' /usr/share/cmake/Modules/Compiler/GNU.cmake
 RUN sed -i 's/NO_DEFAULT_PATH//g; s/PKG_CONFIG_ALLOW_SYSTEM_LIBS/PKG_CONFIG_IS_DUMB/g' /usr/share/cmake/Modules/FindPkgConfig.cmake
+RUN sed -i 's/set(OpenGL_GL_PREFERENCE "")/set(OpenGL_GL_PREFERENCE "LEGACY")/' /usr/share/cmake/Modules/FindOpenGL.cmake
 RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
 RUN echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debuginfod.gdb
 RUN adduser user
