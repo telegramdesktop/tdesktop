@@ -1877,8 +1877,7 @@ void SessionController::showForum(
 		const SectionShow &params) {
 	if (showForumInDifferentWindow(forum, params)) {
 		return;
-	} else if (HistoryView::SubsectionTabs::UsedFor(
-			forum->owner().history(forum->channel()))) {
+	} else if (forum->channel()->useSubsectionTabs()) {
 		showPeerHistory(forum->channel(), params);
 		return;
 	}

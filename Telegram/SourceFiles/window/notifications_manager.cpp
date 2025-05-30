@@ -1176,9 +1176,11 @@ Window::SessionController *Manager::openNotificationMessage(
 		}
 	});
 
-	const auto separateId = topic
-		? Window::SeparateId(Window::SeparateType::Forum, history)
-		: Window::SeparateId(history->peer);
+	const auto separateId = !topic
+		? Window::SeparateId(history->peer)
+		: history->peer->asChannel()->useSubsectionTabs()
+		? Window::SeparateId(Window::SeparateType::Chat, topic)
+		: Window::SeparateId(Window::SeparateType::Forum, history);
 	const auto separate = Core::App().separateWindowFor(separateId);
 	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
 	if (openSeparated && !separate && !topic) {

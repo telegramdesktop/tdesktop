@@ -31,14 +31,10 @@ SeparateId::SeparateId(SeparateType type, not_null<Main::Session*> session)
 , account(&session->account()) {
 }
 
-SeparateId::SeparateId(
-	SeparateType type,
-	not_null<Data::Thread*> thread,
-	ChannelData *parentChat)
+SeparateId::SeparateId(SeparateType type, not_null<Data::Thread*> thread)
 : type(type)
 , account(&thread->session().account())
-, thread(thread)
-, parentChat((type == SeparateType::SavedSublist) ? parentChat : nullptr) {
+, thread(thread) {
 }
 
 SeparateId::SeparateId(not_null<Data::Thread*> thread)
@@ -77,12 +73,9 @@ Data::Folder *SeparateId::folder() const {
 }
 
 Data::SavedSublist *SeparateId::sublist() const {
-	const auto monoforum = parentChat ? parentChat->monoforum() : nullptr;
 	return (type != SeparateType::SavedSublist)
 		? nullptr
-		: monoforum
-		? monoforum->sublist(thread->peer()).get()
-		: thread->owner().savedMessages().sublist(thread->peer()).get();
+		: thread->asSublist();
 }
 
 bool SeparateId::hasChatsList() const {

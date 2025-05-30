@@ -911,8 +911,10 @@ void Widget::chosenRow(const ChosenRow &row) {
 		if (controller()->shownForum().current() == forum) {
 			controller()->closeForum();
 		} else if (row.newWindow) {
-			controller()->showInNewWindow(
-				Window::SeparateId(Window::SeparateType::Forum, history));
+			const auto type = forum->channel()->useSubsectionTabs()
+				? Window::SeparateType::Chat
+				: Window::SeparateType::Forum;
+			controller()->showInNewWindow(Window::SeparateId(type, history));
 		} else {
 			controller()->showForum(
 				forum,

@@ -46,10 +46,7 @@ struct SeparateId {
 	SeparateId(std::nullptr_t);
 	SeparateId(not_null<Main::Account*> account);
 	SeparateId(SeparateType type, not_null<Main::Session*> session);
-	SeparateId(
-		SeparateType type,
-		not_null<Data::Thread*> thread,
-		ChannelData *parentChat = nullptr);
+	SeparateId(SeparateType type, not_null<Data::Thread*> thread);
 	SeparateId(not_null<Data::Thread*> thread);
 	SeparateId(not_null<PeerData*> peer);
 	SeparateId(
@@ -60,7 +57,6 @@ struct SeparateId {
 	Storage::SharedMediaType sharedMediaType = {};
 	Main::Account *account = nullptr;
 	Data::Thread *thread = nullptr; // For types except Main and Archive.
-	ChannelData *parentChat = nullptr;
 	[[nodiscard]] bool valid() const {
 		return account != nullptr;
 	}

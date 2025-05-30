@@ -669,7 +669,7 @@ void Filler::addNewWindow() {
 			if (const auto sublist = weak.get()) {
 				controller->showInNewWindow(SeparateId(
 					SeparateType::SavedSublist,
-					sublist->owner().history(sublist->sublistPeer())));
+					sublist));
 			}
 		}, &st::menuIconNewWindow);
 		AddSeparatorAndShiftUp(_addAction);
@@ -690,7 +690,9 @@ void Filler::addNewWindow() {
 	_addAction(tr::lng_context_new_window(tr::now), [=] {
 		Ui::PreventDelayedActivation();
 		if (const auto strong = weak.get()) {
-			const auto forum = !strong->asTopic() && peer->isForum();
+			const auto forum = !strong->asTopic()
+				&& peer->isForum()
+				&& !peer->asChannel()->useSubsectionTabs();
 			controller->showInNewWindow(SeparateId(
 				forum ? SeparateType::Forum : SeparateType::Chat,
 				strong));
@@ -2472,7 +2474,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 				return true;
 			}
 			const auto id = SeparateId(
-				(peer->isForum()
+				((peer->isForum() && !peer->asChannel()->useSubsectionTabs())
 					? SeparateType::Forum
 					: SeparateType::Chat),
 				thread);
