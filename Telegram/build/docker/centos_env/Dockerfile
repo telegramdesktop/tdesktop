@@ -36,11 +36,42 @@ ENV RANLIB=gcc-ranlib
 ENV NM=gcc-nm
 ENV CFLAGS='{% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
 ENV CXXFLAGS=$CFLAGS
-ENV LDFLAGS='{% if not LTO %}-fuse-ld=lld{% endif %}'
+ENV LDFLAGS='{% if not LTO %}-fuse-ld=lld{% endif %} -pthread -ldl -Wl,--as-needed -Wl,-z,muldefs'
 
 ENV CMAKE_GENERATOR=Ninja
 ENV CMAKE_BUILD_TYPE=None
 ENV CMAKE_BUILD_PARALLEL_LEVEL=
+
+RUN git clone --depth=1 https://github.com/yugr/Implib.so.git \
+	&& mkdir Implib.so/build \
+	&& cd Implib.so/build \
+	&& implib() { \
+		LIBFILE=$(basename $1); \
+		LIBNAME=$(basename $1 .so); \
+		../implib-gen.py -q $1; \
+		gcc $CFLAGS -c -o $LIBFILE.tramp.o $LIBFILE.tramp.S; \
+		gcc $CFLAGS -c -o $LIBFILE.init.o $LIBFILE.init.c; \
+		ar rcs /usr/local/lib64/$LIBNAME.a $LIBFILE.tramp.o $LIBFILE.init.o; \
+	} \
+	&& implib /usr/lib64/libgtk-3.so \
+	&& implib /usr/lib64/libgdk-3.so \
+	&& implib /usr/lib64/libgdk_pixbuf-2.0.so \
+	&& implib /usr/lib64/libpango-1.0.so \
+	&& implib /usr/lib64/libvdpau.so \
+	&& implib /usr/lib64/libva-x11.so \
+	&& implib /usr/lib64/libva-drm.so \
+	&& implib /usr/lib64/libva.so \
+	&& implib /usr/lib64/libEGL.so \
+	&& implib /usr/lib64/libGL.so \
+	&& implib /usr/lib64/libdrm.so \
+	&& implib /usr/lib64/libwayland-egl.so \
+	&& implib /usr/lib64/libwayland-cursor.so \
+	&& implib /usr/lib64/libwayland-client.so \
+	&& implib /usr/lib64/libwayland-server.so \
+	&& implib /usr/lib64/libX11-xcb.so \
+	&& implib /usr/lib64/libxcb.so \
+	&& cd ../.. \
+	&& rm -rf Implib.so
 
 FROM builder AS patches
 RUN git init patches \

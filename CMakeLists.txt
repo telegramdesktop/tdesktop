@@ -21,8 +21,6 @@ project(Telegram
 
 if (APPLE)
     enable_language(OBJC OBJCXX)
-elseif (LINUX)
-    enable_language(ASM)
 endif()
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
@@ -39,7 +37,6 @@ include(cmake/variables.cmake)
 include(cmake/nice_target_sources.cmake)
 include(cmake/target_compile_options_if_exists.cmake)
 include(cmake/target_link_frameworks.cmake)
-include(cmake/target_link_optional_libraries.cmake)
 include(cmake/target_link_options_if_exists.cmake)
 include(cmake/target_link_static_libraries.cmake)
 include(cmake/init_target.cmake)
