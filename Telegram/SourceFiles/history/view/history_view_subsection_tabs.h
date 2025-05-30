@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
 #include "dialogs/dialogs_common.h"
 
 class History;
@@ -21,6 +22,7 @@ class SessionController;
 
 namespace Ui {
 class RpWidget;
+class PopupMenu;
 class ScrollArea;
 class SubsectionSlider;
 } // namespace Ui
@@ -83,9 +85,12 @@ private:
 		not_null<Ui::ScrollArea*> scroll,
 		not_null<Ui::SubsectionSlider*> slider,
 		bool vertical);
+	void showThreadContextMenu(not_null<Data::Thread*> thread);
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<History*> _history;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	Ui::RpWidget *_horizontal = nullptr;
 	Ui::RpWidget *_vertical = nullptr;

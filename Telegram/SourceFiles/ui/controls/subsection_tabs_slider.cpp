@@ -270,6 +270,10 @@ void SubsectionButton::setActiveShown(float64 activeShown) {
 	}
 }
 
+void SubsectionButton::contextMenuEvent(QContextMenuEvent *e) {
+	_delegate->buttonContextMenu(this, e);
+}
+
 SubsectionSlider::SubsectionSlider(not_null<QWidget*> parent, bool vertical)
 : RpWidget(parent)
 , _vertical(vertical)
@@ -407,6 +411,10 @@ rpl::producer<int> SubsectionSlider::sectionActivated() const {
 	return _sectionActivated.events();
 }
 
+rpl::producer<int> SubsectionSlider::sectionContextMenu() const {
+	return _sectionContextMenu.events();
+}
+
 int SubsectionSlider::lookupSectionPosition(int index) const {
 	Expects(index >= 0 && index < _tabs.size());
 
@@ -470,6 +478,19 @@ float64 SubsectionSlider::buttonActive(not_null<SubsectionButton*> button) {
 	return (checkSize > 0)
 		? (1. - (std::abs(currentRange.from - from) / float64(checkSize)))
 		: 0.;
+}
+
+void SubsectionSlider::buttonContextMenu(
+		not_null<SubsectionButton*> button,
+		not_null<QContextMenuEvent*> e) {
+	const auto i = ranges::find(
+		_tabs,
+		button.get(),
+		&std::unique_ptr<SubsectionButton>::get);
+	Assert(i != end(_tabs));
+
+	_sectionContextMenu.fire(int(i - begin(_tabs)));
+	e->accept();
 }
 
 Text::MarkedContext SubsectionSlider::buttonContext() {

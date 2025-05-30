@@ -495,6 +495,10 @@ void Filler::addToggleTopicClosed() {
 void Filler::addTogglePin() {
 	if ((!_sublist && !_peer) || (_topic && !_topic->canTogglePinned())) {
 		return;
+	} else if (_request.section == Section::SubsectionTabsMenu
+		&& !_sublist
+		&& !_topic) {
+		return;
 	}
 	const auto controller = _controller;
 	const auto filterId = _request.filterId;
@@ -602,6 +606,10 @@ void Filler::addToggleFolder() {
 		|| !history->owner().chatsFilters().has()
 		|| !history->inChatList()) {
 		return;
+	} else if (_request.section == Section::SubsectionTabsMenu
+		&& !_sublist
+		&& !_topic) {
+		return;
 	}
 	_addAction(PeerMenuCallback::Args{
 		.text = tr::lng_filters_menu_add(tr::now),
@@ -689,7 +697,9 @@ void Filler::addNewWindow() {
 }
 
 void Filler::addToggleArchive() {
-	if (!_peer || _topic) {
+	if (!_peer
+		|| _topic
+		|| _request.section == Section::SubsectionTabsMenu) {
 		return;
 	}
 	const auto peer = _peer;
@@ -721,7 +731,7 @@ void Filler::addToggleArchive() {
 }
 
 void Filler::addClearHistory() {
-	if (_topic) {
+	if (_topic || _peer->isMonoforum()) {
 		return;
 	}
 	const auto channel = _peer->asChannel();
@@ -1261,7 +1271,8 @@ void Filler::fill() {
 	case Section::Profile: fillProfileActions(); break;
 	case Section::Replies: fillRepliesActions(); break;
 	case Section::Scheduled: fillScheduledActions(); break;
-	case Section::ContextMenu: fillContextMenuActions(); break;
+	case Section::ContextMenu:
+	case Section::SubsectionTabsMenu: fillContextMenuActions(); break;
 	default: Unexpected("_request.section in Filler::fill.");
 	}
 }

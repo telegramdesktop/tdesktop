@@ -23,13 +23,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/controls/subsection_tabs_slider.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
@@ -185,6 +189,12 @@ void SubsectionTabs::setupSlider(
 			params.way = Window::SectionShow::Way::ClearStack;
 			params.animated = anim::type::instant;
 			_controller->showThread(_slice[active].thread, {}, params);
+		}
+	}, slider->lifetime());
+
+	slider->sectionContextMenu() | rpl::start_with_next([=](int index) {
+		if (index >= 0 && index < _slice.size()) {
+			showThreadContextMenu(_slice[index].thread);
 		}
 	}, slider->lifetime());
 
@@ -361,6 +371,27 @@ void SubsectionTabs::setupSlider(
 
 		_scrollCheckRequests.fire({});
 	}, scroll->lifetime());
+}
+
+void SubsectionTabs::showThreadContextMenu(not_null<Data::Thread*> thread) {
+	_menu = nullptr;
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		_horizontal ? _horizontal : _vertical,
+		st::popupMenuExpandedSeparator);
+
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+	Window::FillDialogsEntryMenu(
+		_controller,
+		Dialogs::EntryState{
+			.key = Dialogs::Key{ thread },
+			.section = Dialogs::EntryState::Section::SubsectionTabsMenu,
+		},
+		addAction);
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(QCursor::pos());
+	}
 }
 
 void SubsectionTabs::loadMore() {

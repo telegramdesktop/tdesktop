@@ -42,6 +42,9 @@ public:
 	virtual bool buttonPaused() = 0;
 	virtual float64 buttonActive(not_null<SubsectionButton*> button) = 0;
 	virtual Text::MarkedContext buttonContext() = 0;
+	virtual void buttonContextMenu(
+		not_null<SubsectionButton*> button,
+		not_null<QContextMenuEvent*> e) = 0;
 };
 
 class SubsectionButton : public RippleButton {
@@ -59,6 +62,8 @@ public:
 
 protected:
 	virtual void dataUpdatedHook() = 0;
+
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	const not_null<SubsectionButtonDelegate*> _delegate;
 	SubsectionTab _data;
@@ -79,10 +84,14 @@ public:
 
 	[[nodiscard]] int sectionsCount() const;
 	[[nodiscard]] rpl::producer<int> sectionActivated() const;
+	[[nodiscard]] rpl::producer<int> sectionContextMenu() const;
 	[[nodiscard]] int lookupSectionPosition(int index) const;
 
 	bool buttonPaused() override;
 	float64 buttonActive(not_null<SubsectionButton*> button) override;
+	void buttonContextMenu(
+		not_null<SubsectionButton*> button,
+		not_null<QContextMenuEvent*> e) override;
 	Text::MarkedContext buttonContext() override;
 	[[nodiscard]] not_null<SubsectionButton*> buttonAt(int index);
 
@@ -125,6 +134,7 @@ protected:
 	bool _reorderAllowed = false;
 
 	rpl::event_stream<int> _sectionActivated;
+	rpl::event_stream<int> _sectionContextMenu;
 	Fn<bool()> _paused;
 
 };

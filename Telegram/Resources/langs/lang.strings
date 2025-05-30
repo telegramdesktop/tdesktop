@@ -170,7 +170,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_status" = "group";
 "lng_scam_badge" = "SCAM";
 "lng_fake_badge" = "FAKE";
-"lng_direct_badge" = "MESSAGES";
+"lng_direct_badge" = "DIRECT";
 
 "lng_remember" = "Remember this choice";
 

@@ -113,6 +113,7 @@ struct EntryState {
 		Replies,
 		SavedSublist,
 		ContextMenu,
+		SubsectionTabsMenu,
 		ShortcutMessages,
 	};
 
