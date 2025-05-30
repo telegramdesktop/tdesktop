@@ -146,6 +146,7 @@ parts:
       craftctl set version="$version"
     override-build: |
       craftctl default
+      mv "$CRAFT_PART_INSTALL"/usr/bin/{Telegram,telegram-desktop}
 
       APP_ID=org.telegram.desktop
       sed -i "s/^Icon=$APP_ID$/Icon=snap.telegram-desktop./g" "$CRAFT_PART_INSTALL/usr/share/applications/$APP_ID.desktop"
