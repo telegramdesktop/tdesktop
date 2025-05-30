@@ -632,7 +632,7 @@ Cover::Cover(
 		Ui::UserpicButton::Role::OpenPhoto,
 		Ui::UserpicButton::Source::PeerPhoto,
 		_st.photo,
-		_peer->monoforumBroadcast() != nullptr))
+		_peer->userpicForceForumShape()))
 , _changePersonal((role == Role::Info
 	|| topic
 	|| !_peer->isUser()

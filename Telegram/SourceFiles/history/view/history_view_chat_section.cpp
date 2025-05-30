@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "base/call_delayed.h"
@@ -58,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "data/components/scheduled_messages.h"
+#include "data/data_histories.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -619,9 +621,7 @@ void ChatWidget::subscribeToTopic() {
 
 	_topic->destroyed(
 	) | rpl::start_with_next([=] {
-		controller()->showBackFromStack(Window::SectionShow(
-			anim::type::normal,
-			anim::activation::background));
+		closeCurrent();
 	}, _topicLifetime);
 
 	if (!_topic->creating()) {
@@ -633,6 +633,17 @@ void ChatWidget::subscribeToTopic() {
 	}
 
 	_cornerButtons.updateUnreadThingsVisibility();
+}
+
+void ChatWidget::closeCurrent() {
+	const auto thread = controller()->windowId().chat();
+	if ((_sublist && thread == _sublist) || (_topic && thread == _topic)) {
+		controller()->window().close();
+	} else {
+		controller()->showBackFromStack(Window::SectionShow(
+			anim::type::normal,
+			anim::activation::background));
+	}
 }
 
 void ChatWidget::subscribeToPinnedMessages() {
@@ -2496,9 +2507,7 @@ void ChatWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 		refreshUnreadCountBadge(count);
 	}, lifetime());
 
-	refreshUnreadCountBadge(_replies->unreadCountKnown()
-		? _replies->unreadCountCurrent()
-		: std::optional<int>());
+	unreadCountUpdated();
 
 	const auto isTopic = (_topic != nullptr);
 	const auto isTopicCreating = isTopic && _topic->creating();
@@ -2533,14 +2542,62 @@ void ChatWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 void ChatWidget::subscribeToSublist() {
 	Expects(_sublist != nullptr);
 
+	// Must be done before unreadCountUpdated(), or we auto-close.
+	if (_sublist->unreadMark()) {
+		_sublist->owner().histories().changeSublistUnreadMark(
+			_sublist,
+			false);
+	}
+
 	_sublist->unreadCountValue(
 	) | rpl::start_with_next([=](std::optional<int> count) {
 		refreshUnreadCountBadge(count);
 	}, lifetime());
 
-	refreshUnreadCountBadge(_sublist->unreadCountKnown()
-		? _sublist->unreadCountCurrent()
-		: std::optional<int>());
+	using Flag = Data::SublistUpdate::Flag;
+	session().changes().sublistUpdates(
+		_sublist,
+		Flag::UnreadView | Flag::UnreadReactions | Flag::CloudDraft
+	) | rpl::start_with_next([=](const Data::SublistUpdate &update) {
+		if (update.flags & Flag::UnreadView) {
+			unreadCountUpdated();
+		}
+		if (update.flags & Flag::UnreadReactions) {
+			_cornerButtons.updateUnreadThingsVisibility();
+		}
+		if (update.flags & Flag::CloudDraft) {
+			_composeControls->applyCloudDraft();
+		}
+	}, lifetime());
+
+	_sublist->destroyed(
+	) | rpl::start_with_next([=] {
+		closeCurrent();
+	}, lifetime());
+
+	unreadCountUpdated();
+}
+
+void ChatWidget::unreadCountUpdated() {
+	if (_sublist && _sublist->unreadMark()) {
+		crl::on_main(this, [=] {
+			const auto guard = Ui::MakeWeak(this);
+			controller()->showPeerHistory(_sublist->owningHistory());
+			if (guard) {
+				closeCurrent();
+			}
+		});
+	} else {
+		refreshUnreadCountBadge(_replies
+			? (_replies->unreadCountKnown()
+				? _replies->unreadCountCurrent()
+				: std::optional<int>())
+			: _sublist
+			? (_sublist->unreadCountKnown()
+				? _sublist->unreadCountCurrent()
+				: std::optional<int>())
+			: std::optional<int>());
+	}
 }
 
 void ChatWidget::restoreState(not_null<ChatMemento*> memento) {

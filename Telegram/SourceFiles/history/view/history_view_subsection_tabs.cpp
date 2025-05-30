@@ -590,9 +590,12 @@ void SubsectionTabs::refreshSlice() {
 	});
 	const auto push = [&](not_null<Data::Thread*> thread) {
 		const auto topic = thread->asTopic();
+		const auto sublist = thread->asSublist();
 		slice.push_back({
 			.thread = thread,
-			.badges = thread->chatListBadgesState(),
+			.badges = ((topic || sublist)
+				? thread->chatListBadgesState()
+				: Dialogs::BadgesState()),
 			.iconId = topic ? topic->iconId() : DocumentId(),
 			.name = thread->chatListName(),
 		});

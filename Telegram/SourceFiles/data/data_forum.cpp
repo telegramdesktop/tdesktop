@@ -175,30 +175,31 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 	_topicsDeleted.emplace(rootId);
 
 	const auto i = _topics.find(rootId);
-	if (i != end(_topics)) {
-		const auto raw = i->second.get();
-		Core::App().notifications().clearFromTopic(raw);
-		owner().removeChatListEntry(raw);
-
-		if (ranges::contains(_lastTopics, not_null(raw))) {
-			reorderLastTopics();
-		}
-
-		_topicDestroyed.fire(raw);
-		session().changes().topicUpdated(
-			raw,
-			Data::TopicUpdate::Flag::Destroyed);
-		session().changes().entryUpdated(
-			raw,
-			Data::EntryUpdate::Flag::Destroyed);
-		_topics.erase(i);
-
-		_history->destroyMessagesByTopic(rootId);
-		session().storage().unload(Storage::SharedMediaUnloadThread(
-			_history->peer->id,
-			rootId));
-		_history->setForwardDraft(rootId, PeerId(), {});
+	if (i == end(_topics)) {
+		return;
 	}
+	const auto raw = i->second.get();
+	Core::App().notifications().clearFromTopic(raw);
+	owner().removeChatListEntry(raw);
+
+	if (ranges::contains(_lastTopics, not_null(raw))) {
+		reorderLastTopics();
+	}
+
+	_topicDestroyed.fire(raw);
+	session().changes().topicUpdated(
+		raw,
+		Data::TopicUpdate::Flag::Destroyed);
+	session().changes().entryUpdated(
+		raw,
+		Data::EntryUpdate::Flag::Destroyed);
+	_topics.erase(i);
+
+	_history->destroyMessagesByTopic(rootId);
+	session().storage().unload(Storage::SharedMediaUnloadThread(
+		_history->peer->id,
+		rootId));
+	_history->setForwardDraft(rootId, PeerId(), {});
 }
 
 void Forum::reorderLastTopics() {

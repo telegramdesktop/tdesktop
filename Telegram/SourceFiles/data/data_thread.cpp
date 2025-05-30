@@ -95,6 +95,17 @@ HistoryUnreadThings::ConstProxy Thread::unreadReactions() const {
 	};
 }
 
+bool Thread::canToggleUnread(bool nowUnread) const {
+	if ((asTopic() || asForum()) && !nowUnread) {
+		return false;
+	} else if (asSublist() && owningHistory()->peer->isSelf()) {
+		return false;
+	} else if (asHistory() && peer()->amMonoforumAdmin()) {
+		return false;
+	}
+	return true;
+}
+
 const base::flat_set<MsgId> &Thread::unreadMentionsIds() const {
 	if (!_unreadThings) {
 		static const auto Result = base::flat_set<MsgId>();

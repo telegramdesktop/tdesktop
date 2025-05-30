@@ -480,6 +480,15 @@ void SavedSublist::setUnreadCount(std::optional<int> count) {
 	}
 }
 
+void SavedSublist::setUnreadMark(bool unread) {
+	if (unreadMark() == unread) {
+		return;
+	}
+	const auto notifier = unreadStateChangeNotifier(
+		!unreadCountCurrent());
+	Thread::setUnreadMarkFlag(unread);
+}
+
 bool SavedSublist::unreadCountKnown() const {
 	return !inMonoforum() || _unreadCount.current().has_value();
 }
@@ -620,6 +629,9 @@ void SavedSublist::readTill(
 	if (!IsServerMsgId(tillId)) {
 		return;
 	}
+	if (unreadMark()) {
+		owner().histories().changeSublistUnreadMark(this, false);
+	}
 	const auto was = computeInboxReadTillFull();
 	const auto now = tillId;
 	if (now < was) {
@@ -713,6 +725,7 @@ void SavedSublist::applyMonoforumDialog(
 		data.vread_inbox_max_id().v,
 		data.vunread_count().v);
 	setOutboxReadTill(data.vread_outbox_max_id().v);
+	setUnreadMark(data.is_unread_mark());
 	applyMaybeLast(topItem);
 }
 
@@ -1016,10 +1029,16 @@ Dialogs::UnreadState SavedSublist::unreadStateFor(
 		int count,
 		bool known) const {
 	auto result = Dialogs::UnreadState();
+	const auto mark = !count && unreadMark();
 	const auto muted = this->muted();
 	result.messages = count;
 	result.chats = count ? 1 : 0;
+	result.marks = mark ? 1 : 0;
+	result.reactions = unreadReactions().has() ? 1 : 0;
+	result.messagesMuted = muted ? result.messages : 0;
 	result.chatsMuted = muted ? result.chats : 0;
+	result.marksMuted = muted ? result.marks : 0;
+	result.reactionsMuted = muted ? result.reactions : 0;
 	result.known = known;
 	return result;
 }

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_messages.h"
 
 #include "apiwrap.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_unread_things.h"
 #include "main/main_session.h"
+#include "window/notifications_manager.h"
 
 namespace Data {
 namespace {
@@ -50,11 +52,13 @@ SavedMessages::SavedMessages(
 
 SavedMessages::~SavedMessages() {
 	auto &changes = session().changes();
-	for (const auto &[peer, sublist] : _sublists) {
-		_owningHistory->setForwardDraft(MsgId(), peer->id, {});
+	if (_owningHistory) {
+		for (const auto &[peer, sublist] : _sublists) {
+			_owningHistory->setForwardDraft(MsgId(), peer->id, {});
 
-		const auto raw = sublist.get();
-		changes.entryRemoved(raw);
+			const auto raw = sublist.get();
+			changes.entryRemoved(raw);
+		}
 	}
 }
 
@@ -306,6 +310,36 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 	}, [&](const MTPDdialogPeerFolder &data) {
 		DEBUG_LOG(("API Error: Folder in updateSavedDialogPinned."));
 	});
+}
+
+void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
+	const auto i = _sublists.find(sublistPeer);
+	if (i == end(_sublists)) {
+		return;
+	}
+	const auto raw = i->second.get();
+	//Core::App().notifications().clearFromTopic(raw); // #TODO monoforum
+	owner().removeChatListEntry(raw);
+
+	if (ranges::contains(_lastSublists, not_null(raw))) {
+		reorderLastSublists();
+	}
+
+	_sublistDestroyed.fire(raw);
+	session().changes().sublistUpdated(
+		raw,
+		Data::SublistUpdate::Flag::Destroyed);
+	session().changes().entryUpdated(
+		raw,
+		Data::EntryUpdate::Flag::Destroyed);
+	_sublists.erase(i);
+
+	const auto history = owningHistory();
+	history->destroyMessagesBySublist(sublistPeer);
+	//session().storage().unload(Storage::SharedMediaUnloadThread(
+	//	_history->peer->id,
+	//	rootId));
+	history->setForwardDraft(MsgId(), sublistPeer->id, {});
 }
 
 void SavedMessages::reorderLastSublists() {

@@ -1373,6 +1373,32 @@ void ApiWrap::deleteAllFromParticipantSend(
 	}).send();
 }
 
+void ApiWrap::deleteSublistHistory(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> sublistPeer) {
+	deleteSublistHistorySend(channel, sublistPeer);
+}
+
+void ApiWrap::deleteSublistHistorySend(
+		not_null<ChannelData*> parentChat,
+		not_null<PeerData*> sublistPeer) {
+	request(MTPmessages_DeleteSavedHistory(
+		MTP_flags(MTPmessages_DeleteSavedHistory::Flag::f_parent_peer),
+		parentChat->input,
+		sublistPeer->input,
+		MTP_int(0), // max_id
+		MTP_int(0), // min_date
+		MTP_int(0) // max_date
+	)).done([=](const MTPmessages_AffectedHistory &result) {
+		const auto offset = applyAffectedHistory(parentChat, result);
+		if (offset > 0) {
+			deleteSublistHistorySend(parentChat, sublistPeer);
+		} else if (const auto monoforum = parentChat->monoforum()) {
+			monoforum->applySublistDeleted(sublistPeer);
+		}
+	}).send();
+}
+
 void ApiWrap::scheduleStickerSetRequest(uint64 setId, uint64 access) {
 	if (!_stickerSetRequests.contains(setId)) {
 		_stickerSetRequests.emplace(setId, StickerSetRequest{ access });

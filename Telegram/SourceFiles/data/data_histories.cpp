@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -497,6 +498,24 @@ void Histories::changeDialogUnreadMark(
 		MTP_flags(unread ? Flag::f_unread : Flag(0)),
 		MTPInputPeer(), // parent_peer
 		MTP_inputDialogPeer(history->peer->input)
+	)).send();
+}
+
+void Histories::changeSublistUnreadMark(
+		not_null<Data::SavedSublist*> sublist,
+		bool unread) {
+	const auto parent = sublist->parentChat();
+	if (!parent) {
+		return;
+	}
+	sublist->setUnreadMark(unread);
+
+	using Flag = MTPmessages_MarkDialogUnread::Flag;
+	session().api().request(MTPmessages_MarkDialogUnread(
+		MTP_flags(Flag::f_parent_peer
+			| (unread ? Flag::f_unread : Flag(0))),
+		parent->input,
+		MTP_inputDialogPeer(sublist->sublistPeer()->input)
 	)).send();
 }
 

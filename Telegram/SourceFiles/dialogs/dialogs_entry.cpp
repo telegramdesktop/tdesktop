@@ -287,6 +287,10 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 				}
 			}
 		}
+	} else if (const auto sublist = asSublist()) {
+		session().changes().sublistUpdated(
+			sublist,
+			Data::SublistUpdate::Flag::UnreadView);
 	}
 	updateChatListEntryPostponed();
 }

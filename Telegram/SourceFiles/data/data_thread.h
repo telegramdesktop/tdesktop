@@ -80,6 +80,7 @@ public:
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadReactions() const;
 	virtual void hasUnreadMentionChanged(bool has) = 0;
 	virtual void hasUnreadReactionChanged(bool has) = 0;
+	bool canToggleUnread(bool nowUnread) const;
 
 	void removeNotification(not_null<HistoryItem*> item);
 	void clearNotifications();

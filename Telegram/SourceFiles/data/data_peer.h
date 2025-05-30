@@ -307,6 +307,7 @@ public:
 	[[nodiscard]] not_null<const PeerData*> migrateToOrMe() const;
 	[[nodiscard]] not_null<PeerData*> userpicPaintingPeer();
 	[[nodiscard]] not_null<const PeerData*> userpicPaintingPeer() const;
+	[[nodiscard]] bool userpicForceForumShape() const;
 
 	// isMonoforum() ? monoforumLink() : nullptr
 	[[nodiscard]] ChannelData *monoforumBroadcast() const;

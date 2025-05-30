@@ -231,6 +231,9 @@ public:
 	void deleteAllFromParticipant(
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> from);
+	void deleteSublistHistory(
+		not_null<ChannelData*> parentChat,
+		not_null<PeerData*> sublistPeer);
 
 	void requestWebPageDelayed(not_null<WebPageData*> page);
 	void clearWebPageRequest(not_null<WebPageData*> page);
@@ -539,6 +542,9 @@ private:
 	void deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> from);
+	void deleteSublistHistorySend(
+		not_null<ChannelData*> parentChat,
+		not_null<PeerData*> sublistPeer);
 
 	void uploadAlbumMedia(
 		not_null<HistoryItem*> item,

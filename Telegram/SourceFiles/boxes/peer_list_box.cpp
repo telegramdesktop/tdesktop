@@ -714,7 +714,7 @@ void PeerListRow::elementsPaint(
 }
 
 QString PeerListRow::generateName() {
-	return peer()->name();
+	return peer()->userpicPaintingPeer()->name();
 }
 
 QString PeerListRow::generateShortName() {
@@ -724,12 +724,12 @@ QString PeerListRow::generateShortName() {
 		? tr::lng_replies_messages(tr::now)
 		: _isVerifyCodesChat
 		? tr::lng_verification_codes(tr::now)
-		: peer()->shortName();
+		: peer()->userpicPaintingPeer()->shortName();
 }
 
 Ui::PeerUserpicView &PeerListRow::ensureUserpicView() {
-	if (!_userpic.cloud && peer()->hasUserpic()) {
-		_userpic = peer()->createUserpicView();
+	if (!_userpic.cloud && peer()->userpicPaintingPeer()->hasUserpic()) {
+		_userpic = peer()->userpicPaintingPeer()->createUserpicView();
 	}
 	return _userpic;
 }
@@ -738,7 +738,7 @@ PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback(
 		bool forceRound) {
 	const auto saved = !_savedMessagesStatus.isEmpty();
 	const auto replies = _isRepliesMessagesChat;
-	const auto peer = this->peer();
+	const auto peer = this->peer()->userpicPaintingPeer();
 	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
 	if (forceRound && peer->isForum()) {
 		return ForceRoundUserpicCallback(peer);

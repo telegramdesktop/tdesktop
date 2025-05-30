@@ -1174,6 +1174,10 @@ not_null<const PeerData*> PeerData::userpicPaintingPeer() const {
 	return const_cast<PeerData*>(this)->userpicPaintingPeer();
 }
 
+bool PeerData::userpicForceForumShape() const {
+	return monoforumBroadcast() != nullptr;
+}
+
 ChannelData *PeerData::monoforumBroadcast() const {
 	const auto monoforum = asMonoforum();
 	return monoforum ? monoforum->monoforumLink() : nullptr;

@@ -241,6 +241,8 @@ private:
 		int limitAfter);
 
 	void onScroll();
+	void closeCurrent();
+	void unreadCountUpdated();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
 	void updateAdaptiveLayout();

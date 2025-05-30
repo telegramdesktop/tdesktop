@@ -204,6 +204,42 @@ void Changes::topicRemoved(not_null<ForumTopic*> topic) {
 	_topicChanges.drop(topic);
 }
 
+void Changes::sublistUpdated(
+		not_null<SavedSublist*> sublist,
+		SublistUpdate::Flags flags) {
+	const auto drop = (flags & SublistUpdate::Flag::Destroyed);
+	_sublistChanges.updated(sublist, flags, drop);
+	if (!drop) {
+		scheduleNotifications();
+	}
+}
+
+rpl::producer<SublistUpdate> Changes::sublistUpdates(
+		SublistUpdate::Flags flags) const {
+	return _sublistChanges.updates(flags);
+}
+
+rpl::producer<SublistUpdate> Changes::sublistUpdates(
+		not_null<SavedSublist*> sublist,
+		SublistUpdate::Flags flags) const {
+	return _sublistChanges.updates(sublist, flags);
+}
+
+rpl::producer<SublistUpdate> Changes::sublistFlagsValue(
+		not_null<SavedSublist*> sublist,
+		SublistUpdate::Flags flags) const {
+	return _sublistChanges.flagsValue(sublist, flags);
+}
+
+rpl::producer<SublistUpdate> Changes::realtimeSublistUpdates(
+		SublistUpdate::Flag flag) const {
+	return _sublistChanges.realtimeUpdates(flag);
+}
+
+void Changes::sublistRemoved(not_null<SavedSublist*> sublist) {
+	_sublistChanges.drop(sublist);
+}
+
 void Changes::messageUpdated(
 		not_null<HistoryItem*> item,
 		MessageUpdate::Flags flags) {
@@ -323,6 +359,7 @@ void Changes::sendNotifications() {
 	_messageChanges.sendNotifications();
 	_entryChanges.sendNotifications();
 	_topicChanges.sendNotifications();
+	_sublistChanges.sendNotifications();
 	_storyChanges.sendNotifications();
 }
 

@@ -1309,6 +1309,9 @@ void SessionNavigation::showPeerInfo(
 		const SectionShow &params) {
 	if (const auto topic = thread->asTopic()) {
 		showSection(std::make_shared<Info::Memento>(topic), params);
+	} else if (const auto sublist = thread->asSublist()
+		; sublist && sublist->parentChat()) {
+		showPeerInfo(sublist->sublistPeer()->id, params);
 	} else {
 		showPeerInfo(thread->peer()->id, params);
 	}

@@ -202,10 +202,12 @@ UserpicButton::UserpicButton(
 UserpicButton::UserpicButton(
 	QWidget *parent,
 	not_null<PeerData*> peer,
-	const style::UserpicButton &st)
+	const style::UserpicButton &st,
+	bool forceForumShape)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _peer(peer)
+, _forceForumShape(forceForumShape)
 , _role(Role::Custom)
 , _source(Source::PeerPhoto) {
 	Expects(_role != Role::OpenPhoto);

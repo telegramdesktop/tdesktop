@@ -74,7 +74,8 @@ public:
 	UserpicButton(
 		QWidget *parent,
 		not_null<PeerData*> peer, // Role::Custom, Source::PeerPhoto
-		const style::UserpicButton &st);
+		const style::UserpicButton &st,
+		bool forceForumShape = false);
 	~UserpicButton();
 
 	enum class ChosenType {

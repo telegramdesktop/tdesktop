@@ -2151,9 +2151,13 @@ void HistoryItem::addToUnreadThings(HistoryUnreadThings::AddType type) {
 		}
 	}
 	if (reaction) {
+		const auto sublist = this->savedSublist();
 		const auto toHistory = history->unreadReactions().add(id, type);
 		const auto toTopic = topic && topic->unreadReactions().add(id, type);
-		if (toHistory || toTopic) {
+		const auto toSublist = sublist
+			&& sublist->parentChat()
+			&& sublist->unreadReactions().add(id, type);
+		if (toHistory || toTopic || toSublist) {
 			if (type == HistoryUnreadThings::AddType::New) {
 				changes->messageUpdated(
 					this,
@@ -2169,6 +2173,11 @@ void HistoryItem::addToUnreadThings(HistoryUnreadThings::AddType type) {
 					changes->topicUpdated(
 						topic,
 						Data::TopicUpdate::Flag::UnreadReactions);
+				}
+				if (toSublist) {
+					changes->sublistUpdated(
+						sublist,
+						Data::SublistUpdate::Flag::UnreadReactions);
 				}
 			}
 		}

@@ -82,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/components/factchecks.h"
 #include "data/components/sponsored_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
@@ -4963,9 +4964,17 @@ auto HistoryInner::DelegateMixin()
 
 bool CanSendReply(not_null<const HistoryItem*> item) {
 	const auto peer = item->history()->peer;
-	const auto topic = item->topic();
-	return topic
-		? Data::CanSendAnything(topic)
-		: (Data::CanSendAnything(peer)
-			&& (!peer->isChannel() || peer->asChannel()->amIn()));
+	if (const auto topic = item->topic()) {
+		return Data::CanSendAnything(topic);
+	} else if (!Data::CanSendAnything(peer)) {
+		return false;
+	} else if (const auto channel = peer->asChannel()) {
+		if (const auto sublist = item->savedSublist()) {
+			if (sublist->sublistPeer() == peer) {
+				return false;
+			}
+		}
+		return channel->amIn();
+	}
+	return true;
 }

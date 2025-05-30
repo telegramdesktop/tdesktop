@@ -50,6 +50,7 @@ public:
 
 	void apply(const MTPDupdatePinnedSavedDialogs &update);
 	void apply(const MTPDupdateSavedDialogPinned &update);
+	void applySublistDeleted(not_null<PeerData*> sublistPeer);
 
 	void listMessageChanged(HistoryItem *from, HistoryItem *to);
 	[[nodiscard]] int recentSublistsListVersion() const;

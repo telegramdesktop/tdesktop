@@ -499,6 +499,8 @@ void Filler::addTogglePin() {
 		&& !_sublist
 		&& !_topic) {
 		return;
+	} else if (_sublist && !_peer->isSelf()) {
+		return;
 	}
 	const auto controller = _controller;
 	const auto filterId = _request.filterId;
@@ -526,7 +528,7 @@ void Filler::addTogglePin() {
 }
 
 void Filler::addToggleMuteSubmenu(bool addSeparator) {
-	if (!_thread || _thread->peer()->isSelf()) {
+	if (!_thread || _thread->peer()->isSelf() || _thread->asSublist()) {
 		return;
 	}
 	PeerMenuAddMuteSubmenuAction(_controller, _thread, _addAction);
@@ -550,16 +552,18 @@ void Filler::addSupportInfo() {
 }
 
 void Filler::addInfo() {
-	if (_peer
-		&& (_peer->isSelf()
-			|| _peer->isRepliesChat()
-			|| _peer->isVerifyCodes())) {
+	const auto sublist = _thread ? _thread->asSublist() : nullptr;
+	const auto infoPeer = sublist ? sublist->sublistPeer().get() : _peer;
+	if (infoPeer
+		&& (infoPeer->isSelf()
+			|| infoPeer->isRepliesChat()
+			|| infoPeer->isVerifyCodes())) {
 		return;
 	} else if (!_thread) {
 		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
 		const auto thread = _controller->activeChatCurrent().thread();
-		if (thread && thread == _thread) {
+		if (thread && !thread->asSublist() && thread == _thread) {
 			if (Core::App().settings().thirdSectionInfoEnabled()
 				|| Core::App().settings().tabbedReplacedWithInfo()) {
 				return;
@@ -570,16 +574,16 @@ void Filler::addInfo() {
 	const auto weak = base::make_weak(_thread);
 	const auto text = _thread->asTopic()
 		? tr::lng_context_view_topic(tr::now)
-		: (_peer->isChat() || _peer->isMegagroup())
+		: (infoPeer->isChat() || infoPeer->isMegagroup())
 		? tr::lng_context_view_group(tr::now)
-		: _peer->isUser()
+		: infoPeer->isUser()
 		? tr::lng_context_view_profile(tr::now)
 		: tr::lng_context_view_channel(tr::now);
 	_addAction(text, [=] {
 		if (const auto strong = weak.get()) {
 			controller->showPeerInfo(strong);
 		}
-	}, _peer->isUser() ? &st::menuIconProfile : &st::menuIconInfo);
+	}, infoPeer->isUser() ? &st::menuIconProfile : &st::menuIconInfo);
 }
 
 void Filler::addStoryArchive() {
@@ -624,12 +628,9 @@ void Filler::addToggleFolder() {
 
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
-	const auto history = _request.key.history();
-	if (!_thread) {
-		return;
-	}
 	const auto unread = IsUnreadThread(_thread);
-	if ((_thread->asTopic() || peer->isForum()) && !unread) {
+	const auto history = _request.key.history();
+	if (!_thread || !_thread->canToggleUnread(unread)) {
 		return;
 	}
 	const auto weak = base::make_weak(_thread);
@@ -643,6 +644,8 @@ void Filler::addToggleUnreadMark() {
 		}
 		if (unread) {
 			MarkAsReadThread(thread);
+		} else if (const auto sublist = thread->asSublist()) {
+			peer->owner().histories().changeSublistUnreadMark(sublist, true);
 		} else if (history) {
 			peer->owner().histories().changeDialogUnreadMark(history, true);
 		}
@@ -751,14 +754,16 @@ void Filler::addClearHistory() {
 }
 
 void Filler::addDeleteChat() {
-	if (_topic || _peer->isChannel()) {
+	if (_topic || (!_sublist && _peer->isChannel())) {
 		return;
 	}
 	_addAction({
-		.text = (_peer->isUser()
+		.text = ((_peer->isUser() || _sublist)
 			? tr::lng_profile_delete_conversation(tr::now)
 			: tr::lng_profile_clear_and_exit(tr::now)),
-		.handler = DeleteAndLeaveHandler(_controller, _peer),
+		.handler = (_sublist
+			? DeleteSublistHandler(_controller, _sublist)
+			: DeleteAndLeaveHandler(_controller, _peer)),
 		.icon = &st::menuIconDeleteAttention,
 		.isAttention = true,
 	});
@@ -766,7 +771,7 @@ void Filler::addDeleteChat() {
 
 void Filler::addLeaveChat() {
 	const auto channel = _peer->asChannel();
-	if (_topic || !channel || !channel->amIn()) {
+	if (_topic || _sublist || !channel || !channel->amIn()) {
 		return;
 	}
 	_addAction({
@@ -1263,7 +1268,7 @@ void Filler::addSendGift() {
 void Filler::fill() {
 	if (_folder) {
 		fillArchiveActions();
-	} else if (_sublist) {
+	} else if (_sublist && _peer->isSelf()) {
 		fillSavedSublistActions();
 	} else switch (_request.section) {
 	case Section::ChatsList: fillChatsListActions(); break;
@@ -3232,6 +3237,19 @@ Fn<void()> DeleteAndLeaveHandler(
 	};
 }
 
+Fn<void()> DeleteSublistHandler(
+		not_null<Window::SessionController*> controller,
+		not_null<Data::SavedSublist*> sublist) {
+	const auto weak = base::make_weak(sublist.get());
+	return [=] {
+		if (const auto strong = weak.get()) {
+			if (!controller->showFrozenError()) {
+				controller->show(Box(DeleteSublistBox, strong));
+			}
+		}
+	};
+}
+
 void FillDialogsEntryMenu(
 		not_null<SessionController*> controller,
 		Dialogs::EntryState request,
@@ -3345,8 +3363,7 @@ void MarkAsReadThread(not_null<Data::Thread*> thread) {
 	if (!IsUnreadThread(thread)) {
 		return;
 	} else if (const auto forum = thread->asForum()) {
-		forum->enumerateTopics([](
-			not_null<Data::ForumTopic*> topic) {
+		forum->enumerateTopics([](not_null<Data::ForumTopic*> topic) {
 			MarkAsReadThread(topic);
 		});
 	} else if (const auto history = thread->asHistory()) {
@@ -3356,6 +3373,8 @@ void MarkAsReadThread(not_null<Data::Thread*> thread) {
 		}
 	} else if (const auto topic = thread->asTopic()) {
 		topic->readTillEnd();
+	} else if (const auto sublist = thread->asSublist()) {
+		sublist->readTillEnd();
 	}
 }
 

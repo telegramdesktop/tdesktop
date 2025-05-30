@@ -58,13 +58,13 @@ public:
 	[[nodiscard]] rpl::producer<> changes() const;
 	[[nodiscard]] std::optional<int> fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
-	[[nodiscard]] rpl::producer<std::optional<int>> maybeFullCount() const;
 	void loadFullCount();
 
 	[[nodiscard]] bool unreadCountKnown() const;
 	[[nodiscard]] int unreadCountCurrent() const;
 	[[nodiscard]] int displayedUnreadCount() const;
 	[[nodiscard]] rpl::producer<std::optional<int>> unreadCountValue() const;
+	void setUnreadMark(bool unread);
 
 	void applyMonoforumDialog(
 		const MTPDmonoForumDialog &dialog,

@@ -398,14 +398,18 @@ void History::applyCloudDraft(MsgId topicRootId, PeerId monoforumPeerId) {
 		createLocalDraftFromCloud(topicRootId, monoforumPeerId);
 		if (const auto thread = threadFor(topicRootId, monoforumPeerId)) {
 			thread->updateChatListSortPosition();
-			if (!topicRootId) {
-				session().changes().historyUpdated(
-					this,
-					UpdateFlag::CloudDraft);
-			} else {
+			if (topicRootId) {
 				session().changes().topicUpdated(
 					thread->asTopic(),
 					Data::TopicUpdate::Flag::CloudDraft);
+			} else if (monoforumPeerId) {
+				session().changes().sublistUpdated(
+					thread->asSublist(),
+					Data::SublistUpdate::Flag::CloudDraft);
+			} else {
+				session().changes().historyUpdated(
+					this,
+					UpdateFlag::CloudDraft);
 			}
 		}
 	}
@@ -625,6 +629,20 @@ void History::destroyMessagesByTopic(MsgId topicRootId) {
 	toDestroy.reserve(_items.size());
 	for (const auto &message : _items) {
 		if (message->topicRootId() == topicRootId) {
+			toDestroy.push_back(message.get());
+		}
+	}
+	for (const auto item : toDestroy) {
+		item->destroy();
+	}
+}
+
+void History::destroyMessagesBySublist(not_null<PeerData*> sublistPeer) {
+	auto toDestroy = std::vector<not_null<HistoryItem*>>();
+	toDestroy.reserve(_items.size());
+	const auto peerId = sublistPeer->id;
+	for (const auto &message : _items) {
+		if (message->sublistPeerId() == peerId) {
 			toDestroy.push_back(message.get());
 		}
 	}
