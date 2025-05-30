@@ -23,7 +23,6 @@ class Error;
 
 namespace Data {
 class Forum;
-class SavedMessages;
 enum class StorySourcesList : uchar;
 struct ReactionId;
 } // namespace Data
@@ -109,14 +108,10 @@ public:
 	void showForum(
 		not_null<Data::Forum*> forum,
 		const Window::SectionShow &params);
-	void showMonoforum(
-		not_null<Data::SavedMessages*> monoforum,
-		const Window::SectionShow &params);
 	void setInnerFocus(bool unfocusSearch = false);
 	[[nodiscard]] bool searchHasFocus() const;
 
 	[[nodiscard]] Data::Forum *openedForum() const;
-	[[nodiscard]] Data::SavedMessages *openedMonoforum() const;
 
 	void jumpToTop(bool belowPinned = false);
 	void raiseWithTooltip();
@@ -254,9 +249,6 @@ private:
 		anim::type animated);
 	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
 	void changeOpenedForum(Data::Forum *forum, anim::type animated);
-	void changeOpenedMonoforum(
-		Data::SavedMessages *monoforum,
-		anim::type animated);
 	void hideChildList();
 	void destroyChildListCanvas();
 	[[nodiscard]] QPixmap grabForFolderSlideAnimation();
@@ -266,8 +258,7 @@ private:
 		Window::SlideDirection direction);
 
 	void openChildList(
-		Data::Forum *forum,
-		Data::SavedMessages *monoforum,
+		not_null<Data::Forum*> forum,
 		const Window::SectionShow &params);
 	void closeChildList(anim::type animated);
 
@@ -343,7 +334,7 @@ private:
 	Ui::SlideWrap<Ui::RpWidget> *_topBarSuggestion = nullptr;
 	rpl::event_stream<int> _topBarSuggestionHeightChanged;
 	rpl::event_stream<bool> _searchStateForTopBarSuggestion;
-	rpl::event_stream<bool> _openedFolderOrForumOrMonoforumChanges;
+	rpl::event_stream<bool> _openedFolderOrForumChanges;
 
 	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<InnerWidget> _inner;
@@ -369,7 +360,6 @@ private:
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;
-	Data::SavedMessages *_openedMonoforum = nullptr;
 	SearchState _searchState;
 	History *_searchInMigrated = nullptr;
 	rpl::lifetime _searchTagsLifetime;

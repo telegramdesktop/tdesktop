@@ -1594,18 +1594,6 @@ void MainWidget::showForum(
 	}
 }
 
-void MainWidget::showMonoforum(
-		not_null<Data::SavedMessages*> monoforum,
-		const SectionShow &params) {
-	Expects(_dialogs != nullptr);
-
-	_dialogs->showMonoforum(monoforum, params);
-
-	if (params.activation != anim::activation::background) {
-		_controller->window().hideSettingsAndLayer();
-	}
-}
-
 PeerData *MainWidget::peer() const {
 	return _history->peer();
 }

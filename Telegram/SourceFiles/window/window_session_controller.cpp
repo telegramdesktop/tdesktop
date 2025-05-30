@@ -605,15 +605,10 @@ void SessionNavigation::showPeerByLinkResolved(
 		showPeerInfo(peer, params);
 	} else if (resolveType == ResolveType::HashtagSearch) {
 		searchMessages(info.text, peer->owner().history(peer));
-	} else if ((peer->isForum() || peer->amMonoforumAdmin())
-			&& resolveType != ResolveType::Boost) {
+	} else if (peer->isForum() && resolveType != ResolveType::Boost) {
 		const auto itemId = info.messageId;
 		if (!itemId) {
-			if (peer->isForum()) {
-				parentController()->showForum(peer->forum(), params);
-			} else {
-				parentController()->showMonoforum(peer->monoforum(), params);
-			}
+			parentController()->showForum(peer->forum(), params);
 		} else if (const auto item = peer->owner().message(peer, itemId)) {
 			showMessageByLinkResolved(item, info);
 		} else {
@@ -1929,7 +1924,6 @@ void SessionController::showForum(
 		}
 	}, _shownForumLifetime);
 	content()->showForum(forum, params);
-	closeMonoforum();
 }
 
 void SessionController::closeForum() {
@@ -1978,57 +1972,6 @@ const rpl::variable<Data::Folder*> &SessionController::openedFolder() const {
 
 const rpl::variable<Data::Forum*> &SessionController::shownForum() const {
 	return _shownForum;
-}
-
-void SessionController::showMonoforum(
-		not_null<Data::SavedMessages*> monoforum,
-		const SectionShow &params) {
-	// if (showForumInDifferentWindow(forum, params)) {
-	// 	return;
-	// }
-	_shownMonoforumLifetime.destroy();
-	if (_shownMonoforum.current() != monoforum) {
-		resetFakeUnreadWhileOpened();
-	}
-	if (monoforum
-		&& _activeChatEntry.current().key.peer()
-		&& adaptive().isOneColumn()) {
-		clearSectionStack(params);
-	}
-	_shownMonoforum = monoforum.get();
-	if (_shownMonoforum.current() != monoforum) {
-		return;
-	}
-	monoforum->destroyed(
-	) | rpl::start_with_next([=] {
-		closeMonoforum();
-	}, _shownMonoforumLifetime);
-	content()->showMonoforum(monoforum, params);
-	closeForum();
-}
-
-void SessionController::closeMonoforum() {
-	if (const auto monoforum = _shownMonoforum.current()) {
-		const auto id = windowId();
-		if (id.type == SeparateType::SavedSublist) {
-			const auto initial = id.parentChat;
-			if (!initial
-				|| !initial->monoforum()
-				|| initial == monoforum->parentChat()) {
-				Core::App().closeWindow(_window);
-			} else {
-				showMonoforum(initial->monoforum());
-			}
-			return;
-		}
-	}
-	_shownMonoforumLifetime.destroy();
-	_shownMonoforum = nullptr;
-}
-
-auto SessionController::shownMonoforum() const
--> const rpl::variable<Data::SavedMessages*> & {
-	return _shownMonoforum;
 }
 
 void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {

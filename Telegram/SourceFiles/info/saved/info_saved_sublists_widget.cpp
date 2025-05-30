@@ -58,7 +58,7 @@ SublistsWidget::SublistsWidget(
 		this,
 		controller->parentController(),
 		rpl::single(Dialogs::InnerWidget::ChildListShown())));
-	_list->showSavedSublists(nullptr);
+	_list->showSavedSublists();
 	_list->setNarrowRatio(0.);
 
 	_list->chosenRow() | rpl::start_with_next([=](Dialogs::ChosenRow row) {

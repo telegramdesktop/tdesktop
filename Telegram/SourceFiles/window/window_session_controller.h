@@ -415,12 +415,6 @@ public:
 	void closeForum();
 	const rpl::variable<Data::Forum*> &shownForum() const;
 
-	void showMonoforum(
-		not_null<Data::SavedMessages*> monoforum,
-		const SectionShow &params = SectionShow::Way::ClearStack);
-	void closeMonoforum();
-	const rpl::variable<Data::SavedMessages*> &shownMonoforum() const;
-
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
 	Dialogs::RowDescriptor activeChatEntryCurrent() const;
@@ -770,8 +764,6 @@ private:
 	rpl::variable<Data::Folder*> _openedFolder;
 	rpl::variable<Data::Forum*> _shownForum;
 	rpl::lifetime _shownForumLifetime;
-	rpl::variable<Data::SavedMessages*> _shownMonoforum;
-	rpl::lifetime _shownMonoforumLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 

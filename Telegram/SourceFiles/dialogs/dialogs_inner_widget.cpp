@@ -781,55 +781,11 @@ void InnerWidget::changeOpenedForum(Data::Forum *forum) {
 	}
 }
 
-void InnerWidget::changeOpenedMonoforum(Data::SavedMessages *monoforum) {
-	if (_savedSublists == monoforum) {
-		return;
-	}
-	stopReorderPinned();
-	clearSelection();
-
-	if (monoforum) {
-		saveChatsFilterScrollState(_filterId);
-	}
-	_filterId = monoforum
-		? 0
-		: _controller->activeChatsFilterCurrent();
-	if (_openedForum) {
-		// If we close it inside forum destruction we should not schedule.
-		session().data().forumIcons().scheduleUserpicsReset(_openedForum);
-	}
-	_savedSublists = monoforum;
-	_st = &st::defaultDialogRow;
-	refreshShownList();
-
-	_openedForumLifetime.destroy();
-	if (monoforum) {
-		rpl::merge(
-			monoforum->chatsListChanges(),
-			monoforum->chatsListLoadedEvents()
-		) | rpl::start_with_next([=] {
-			refresh();
-		}, _openedForumLifetime);
-	}
-
-	refreshWithCollapsedRows(true);
-	if (_loadMoreCallback) {
-		_loadMoreCallback();
-	}
-
-	if (!monoforum) {
-		restoreChatsFilterScrollState(_filterId);
-	}
-}
-
-void InnerWidget::showSavedSublists(ChannelData *parentChat) {
-	Expects(!parentChat || parentChat->monoforum());
+void InnerWidget::showSavedSublists() {
 	Expects(!_geometryInited);
 	Expects(!_savedSublists);
 
-	_savedSublists = parentChat
-		? parentChat->monoforum()
-		: &session().data().savedMessages();
+	_savedSublists = &session().data().savedMessages();
 
 	stopReorderPinned();
 	clearSelection();
