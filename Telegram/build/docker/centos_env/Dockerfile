@@ -35,6 +35,7 @@ ENV RANLIB=gcc-ranlib
 ENV NM=gcc-nm
 ENV CFLAGS='{% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
 ENV CXXFLAGS=$CFLAGS
+ENV LDFLAGS='{% if not LTO %}-fuse-ld=lld{% endif %}'
 
 ENV CMAKE_GENERATOR=Ninja
 ENV CMAKE_BUILD_TYPE=None
