@@ -128,6 +128,12 @@ void SavedMessages::loadMore() {
 	_loadMore.call();
 }
 
+void SavedMessages::clearAllUnreadReactions() {
+	for (const auto &[peer, sublist] : _sublists) {
+		sublist->unreadReactions().clear();
+	}
+}
+
 void SavedMessages::sendLoadMore() {
 	if (_loadMoreRequestId || _chatsList.loaded()) {
 		return;

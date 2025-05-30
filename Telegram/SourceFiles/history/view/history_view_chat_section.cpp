@@ -2198,7 +2198,7 @@ void ChatWidget::cornerButtonsShowAtPosition(
 
 Data::Thread *ChatWidget::cornerButtonsThread() {
 	return _sublist
-		? nullptr
+		? static_cast<Data::Thread*>(_sublist)
 		: _topic
 		? static_cast<Data::Thread*>(_topic)
 		: _history;
@@ -2233,7 +2233,9 @@ bool ChatWidget::cornerButtonsUnreadMayBeShown() {
 }
 
 bool ChatWidget::cornerButtonsHas(CornerButtonType type) {
-	return _topic || (type == CornerButtonType::Down);
+	return _topic
+		|| (_sublist && type == CornerButtonType::Reactions)
+		|| (type == CornerButtonType::Down);
 }
 
 void ChatWidget::showAtStart() {

@@ -3090,12 +3090,14 @@ void UnpinAllMessages(
 		const auto sendRequest = [=](auto self) -> void {
 			const auto history = strong->owningHistory();
 			const auto topicRootId = strong->topicRootId();
+			const auto sublist = strong->asSublist();
 			using Flag = MTPmessages_UnpinAllMessages::Flag;
 			api->request(MTPmessages_UnpinAllMessages(
-				MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag()),
+				MTP_flags((topicRootId ? Flag::f_top_msg_id : Flag())
+					| (sublist ? Flag::f_saved_peer_id : Flag())),
 				history->peer->input,
 				MTP_int(topicRootId.bare),
-				MTPInputPeer() // saved_peer_id
+				sublist ? sublist->sublistPeer()->input : MTPInputPeer()
 			)).done([=](const MTPmessages_AffectedHistory &result) {
 				const auto peer = history->peer;
 				const auto offset = api->applyAffectedHistory(peer, result);

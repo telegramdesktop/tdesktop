@@ -725,6 +725,7 @@ void SavedSublist::applyMonoforumDialog(
 		data.vread_inbox_max_id().v,
 		data.vunread_count().v);
 	setOutboxReadTill(data.vread_outbox_max_id().v);
+	unreadReactions().setCount(data.vunread_reactions_count().v);
 	setUnreadMark(data.is_unread_mark());
 	applyMaybeLast(topItem);
 }

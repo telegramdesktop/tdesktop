@@ -836,11 +836,19 @@ void History::clearUnreadMentionsFor(MsgId topicRootId) {
 	}
 }
 
-void History::clearUnreadReactionsFor(MsgId topicRootId) {
+void History::clearUnreadReactionsFor(
+		MsgId topicRootId,
+		Data::SavedSublist *sublist) {
 	const auto forum = peer->forum();
-	if (!topicRootId) {
+	const auto monoforum = peer->monoforum();
+	const auto sublistPeerId = sublist ? sublist->sublistPeer()->id : 0;
+	if ((!topicRootId && !sublist)
+		|| (!topicRootId && forum)
+		|| (!sublist && monoforum)) {
 		if (forum) {
 			forum->clearAllUnreadReactions();
+		} else if (monoforum) {
+			monoforum->clearAllUnreadReactions();
 		}
 		unreadReactions().clear();
 		return;
@@ -848,6 +856,8 @@ void History::clearUnreadReactionsFor(MsgId topicRootId) {
 		if (const auto topic = forum->topicFor(topicRootId)) {
 			topic->unreadReactions().clear();
 		}
+	} else if (monoforum) {
+		sublist->unreadReactions().clear();
 	}
 	const auto &ids = unreadReactionsIds();
 	if (ids.empty()) {
@@ -859,7 +869,8 @@ void History::clearUnreadReactionsFor(MsgId topicRootId) {
 	items.reserve(ids.size());
 	for (const auto &id : ids) {
 		if (const auto item = owner->message(peerId, id)) {
-			if (item->topicRootId() == topicRootId) {
+			if ((topicRootId && item->topicRootId() == topicRootId)
+				|| (sublist && item->sublistPeerId() == sublistPeerId)) {
 				items.emplace(id);
 			}
 		}

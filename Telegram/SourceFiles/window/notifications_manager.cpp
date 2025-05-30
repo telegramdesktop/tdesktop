@@ -1167,6 +1167,9 @@ Window::SessionController *Manager::openNotificationMessage(
 		&& item->isRegular()
 		&& (item->out() || (item->mentionsMe() && !history->peer->isUser()));
 	const auto topic = item ? item->topic() : nullptr;
+	const auto sublist = (item && item->history()->amMonoforumAdmin())
+		? item->savedSublist()
+		: nullptr;
 
 	const auto guard = gsl::finally([&] {
 		if (topic) {
@@ -1223,13 +1226,9 @@ Window::SessionController *Manager::openNotificationMessage(
 	if (window) {
 		window->widget()->showFromTray();
 		if (topic) {
-			using namespace HistoryView;
-			window->showSection(
-				std::make_shared<ChatMemento>(ChatViewId{
-					.history = history,
-					.repliesRootId = topic->rootId(),
-				}, itemId),
-				SectionShow::Way::Forward);
+			window->showTopic(topic, itemId, SectionShow::Way::Forward);
+		} else if (sublist) {
+			window->showSublist(sublist, itemId, SectionShow::Way::Forward);
 		} else {
 			window->showPeerHistory(
 				history->peer->id,

@@ -284,7 +284,9 @@ public:
 
 	void clearLastKeyboard();
 	void clearUnreadMentionsFor(MsgId topicRootId);
-	void clearUnreadReactionsFor(MsgId topicRootId);
+	void clearUnreadReactionsFor(
+		MsgId topicRootId,
+		Data::SavedSublist *sublist);
 
 	Data::Draft *draft(Data::DraftKey key) const;
 	void setDraft(Data::DraftKey key, std::unique_ptr<Data::Draft> &&draft);

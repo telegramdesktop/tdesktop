@@ -1476,6 +1476,9 @@ void HistoryItem::markReactionsRead() {
 	if (const auto topic = this->topic()) {
 		topic->updateChatListEntry();
 		topic->unreadReactions().erase(id);
+	} else if (const auto sublist = this->savedSublist()) {
+		sublist->updateChatListEntry();
+		sublist->unreadReactions().erase(id);
 	}
 }
 
@@ -2195,6 +2198,8 @@ void HistoryItem::destroyHistoryEntry() {
 		history()->unreadReactions().erase(id);
 		if (const auto topic = this->topic()) {
 			topic->unreadReactions().erase(id);
+		} else if (const auto sublist = this->savedSublist()) {
+			sublist->unreadReactions().erase(id);
 		}
 	}
 	if (isRegular() && _history->peer->isMegagroup()) {

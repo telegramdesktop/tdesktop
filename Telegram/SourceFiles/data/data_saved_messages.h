@@ -47,6 +47,7 @@ public:
 
 	void preloadSublists();
 	void loadMore();
+	void clearAllUnreadReactions();
 
 	void apply(const MTPDupdatePinnedSavedDialogs &update);
 	void apply(const MTPDupdateSavedDialogPinned &update);
