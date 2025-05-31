@@ -3,4 +3,4 @@ set -e
 
 cd Telegram
 ./configure.sh "$@"
-cmake --build ../out
+cmake --build ../out --config "${CONFIG:-Release}"
