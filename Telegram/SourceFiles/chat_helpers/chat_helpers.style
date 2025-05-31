@@ -1594,3 +1594,5 @@ frozenInfoBox: Box(defaultBox) {
 	}
 	shadowIgnoreTopSkip: true;
 }
+
+roundVideoFont: font(14px semibold);
