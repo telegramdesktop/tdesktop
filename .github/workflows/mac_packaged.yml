@@ -168,7 +168,6 @@ jobs:
           -DCMAKE_CXX_FLAGS_DEBUG="" \
           -DCMAKE_EXE_LINKER_FLAGS="-s" \
           -DTDESKTOP_API_TEST=ON \
-          -DDESKTOP_APP_USE_PACKAGED_LAZY=ON \
           $DEFINE
 
           cmake --build build --parallel
