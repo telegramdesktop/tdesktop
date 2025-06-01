@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "logs.h"
 
-#if !defined TDESKTOP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+#ifdef LIB_FFMPEG_USE_IMPLIB
 #include "base/platform/linux/base_linux_library.h"
 #include <deque>
-#endif // !TDESKTOP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
+#endif // LIB_FFMPEG_USE_IMPLIB
 
 #include <QImage>
 
@@ -91,7 +91,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 }
 
-#if !defined TDESKTOP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+#ifdef LIB_FFMPEG_USE_IMPLIB
 [[nodiscard]] auto CheckHwLibs() {
 	auto list = std::deque{
 		AV_PIX_FMT_CUDA,
@@ -117,7 +117,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	}
 	return list;
 }
-#endif // !TDESKTOP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
+#endif // LIB_FFMPEG_USE_IMPLIB
 
 [[nodiscard]] bool InitHw(AVCodecContext *context, AVHWDeviceType type) {
 	AVCodecContext *parent = static_cast<AVCodecContext*>(context->opaque);
@@ -160,9 +160,9 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		}
 		return false;
 	};
-#if !defined TDESKTOP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+#ifdef LIB_FFMPEG_USE_IMPLIB
 	static const auto list = CheckHwLibs();
-#else // !TDESKTOP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
+#else // LIB_FFMPEG_USE_IMPLIB
 	const auto list = std::array{
 #ifdef Q_OS_WIN
 		AV_PIX_FMT_D3D11,
@@ -176,7 +176,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		AV_PIX_FMT_CUDA,
 #endif // Q_OS_WIN || Q_OS_MAC
 	};
-#endif // TDESKTOP_USE_PACKAGED || Q_OS_WIN || Q_OS_MAC
+#endif // LIB_FFMPEG_USE_IMPLIB
 	for (const auto format : list) {
 		if (!has(format)) {
 			continue;
