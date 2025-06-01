@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "logs.h"
 
-#ifdef LIB_FFMPEG_USE_IMPLIB
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
 #include "base/platform/linux/base_linux_library.h"
 #include <deque>
-#endif // LIB_FFMPEG_USE_IMPLIB
+#endif // !Q_OS_WIN && !Q_OS_MAC
 
 #include <QImage>
 
@@ -25,6 +25,16 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libavutil/display.h>
 } // extern "C"
+
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+extern "C" {
+void _libvdpau_so_tramp_resolve_all(void) __attribute__((weak));
+void _libva_drm_so_tramp_resolve_all(void) __attribute__((weak));
+void _libva_x11_so_tramp_resolve_all(void) __attribute__((weak));
+void _libva_so_tramp_resolve_all(void) __attribute__((weak));
+void _libdrm_so_tramp_resolve_all(void) __attribute__((weak));
+} // extern "C"
+#endif // !Q_OS_WIN && !Q_OS_MAC
 
 namespace FFmpeg {
 namespace {
@@ -91,23 +101,24 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 }
 
-#ifdef LIB_FFMPEG_USE_IMPLIB
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
 [[nodiscard]] auto CheckHwLibs() {
 	auto list = std::deque{
 		AV_PIX_FMT_CUDA,
 	};
-	if (base::Platform::LoadLibrary("libvdpau.so.1")) {
+	if (!_libvdpau_so_tramp_resolve_all
+			|| base::Platform::LoadLibrary("libvdpau.so.1")) {
 		list.push_front(AV_PIX_FMT_VDPAU);
 	}
 	if ([&] {
 		const auto list = std::array{
-			"libva-drm.so.2",
-			"libva-x11.so.2",
-			"libva.so.2",
-			"libdrm.so.2",
+			std::make_pair(_libva_drm_so_tramp_resolve_all, "libva-drm.so.2"),
+			std::make_pair(_libva_x11_so_tramp_resolve_all, "libva-x11.so.2"),
+			std::make_pair(_libva_so_tramp_resolve_all, "libva.so.2"),
+			std::make_pair(_libdrm_so_tramp_resolve_all, "libdrm.so.2"),
 		};
-		for (const auto lib : list) {
-			if (!base::Platform::LoadLibrary(lib)) {
+		for (const auto &lib : list) {
+			if (lib.first && !base::Platform::LoadLibrary(lib.second)) {
 				return false;
 			}
 		}
@@ -117,7 +128,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	}
 	return list;
 }
-#endif // LIB_FFMPEG_USE_IMPLIB
+#endif // !Q_OS_WIN && !Q_OS_MAC
 
 [[nodiscard]] bool InitHw(AVCodecContext *context, AVHWDeviceType type) {
 	AVCodecContext *parent = static_cast<AVCodecContext*>(context->opaque);
@@ -160,9 +171,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		}
 		return false;
 	};
-#ifdef LIB_FFMPEG_USE_IMPLIB
-	static const auto list = CheckHwLibs();
-#else // LIB_FFMPEG_USE_IMPLIB
+#if defined Q_OS_WIN || defined Q_OS_MAC
 	const auto list = std::array{
 #ifdef Q_OS_WIN
 		AV_PIX_FMT_D3D11,
@@ -170,13 +179,11 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		AV_PIX_FMT_CUDA,
 #elif defined Q_OS_MAC // Q_OS_WIN
 		AV_PIX_FMT_VIDEOTOOLBOX,
-#else // Q_OS_WIN || Q_OS_MAC
-		AV_PIX_FMT_VAAPI,
-		AV_PIX_FMT_VDPAU,
-		AV_PIX_FMT_CUDA,
 #endif // Q_OS_WIN || Q_OS_MAC
 	};
-#endif // LIB_FFMPEG_USE_IMPLIB
+#else // Q_OS_WIN || Q_OS_MAC
+	static const auto list = CheckHwLibs();
+#endif // !Q_OS_WIN && !Q_OS_MAC
 	for (const auto format : list) {
 		if (!has(format)) {
 			continue;

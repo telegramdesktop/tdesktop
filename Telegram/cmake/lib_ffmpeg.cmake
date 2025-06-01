@@ -29,10 +29,6 @@ PUBLIC
     desktop-app::external_ffmpeg
 )
 
-if (LINUX AND NOT DESKTOP_APP_USE_PACKAGED)
-    target_compile_definitions(lib_ffmpeg PRIVATE LIB_FFMPEG_USE_IMPLIB)
-endif()
-
 if (DESKTOP_APP_SPECIAL_TARGET)
     target_compile_definitions(lib_ffmpeg PRIVATE LIB_FFMPEG_USE_QT_PRIVATE_API)
 endif()
