@@ -756,8 +756,12 @@ bool AddPinMessageAction(
 		return false;
 	}
 	const auto topic = item->topic();
+	const auto sublist = item->savedSublist();
 	if (context != Context::History && context != Context::Pinned) {
-		if (context != Context::Replies || !topic) {
+		if ((context != Context::Replies || !topic)
+			&& (context != Context::Monoforum
+				|| !sublist
+				|| !item->history()->amMonoforumAdmin())) {
 			return false;
 		}
 	}

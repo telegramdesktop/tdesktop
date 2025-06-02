@@ -83,7 +83,9 @@ void PinMessageBox(
 			object->setAllowTextLines();
 			state->pinForPeer = Ui::MakeWeak(object.data());
 			return object;
-		} else if (!pinningOld && (peer->isChat() || peer->isMegagroup())) {
+		} else if (!pinningOld
+			&& (peer->isChat() || peer->isMegagroup())
+			&& !peer->isMonoforum()) {
 			auto object = object_ptr<Ui::Checkbox>(
 				box,
 				tr::lng_pinned_notify(tr::now),

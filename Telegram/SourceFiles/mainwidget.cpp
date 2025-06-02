@@ -223,6 +223,8 @@ StackItemSection::StackItemSection(
 rpl::producer<> StackItemSection::sectionRemoveRequests() const {
 	if (const auto topic = _memento->topicForRemoveRequests()) {
 		return rpl::merge(_memento->removeRequests(), topic->destroyed());
+	} else if (const auto sublist = _memento->sublistForRemoveRequests()) {
+		return rpl::merge(_memento->removeRequests(), sublist->destroyed());
 	}
 	return _memento->removeRequests();
 }

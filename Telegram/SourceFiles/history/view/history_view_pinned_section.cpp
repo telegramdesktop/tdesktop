@@ -90,6 +90,10 @@ Data::ForumTopic *PinnedMemento::topicForRemoveRequests() const {
 	return _thread->asTopic();
 }
 
+Data::SavedSublist *PinnedMemento::sublistForRemoveRequests() const {
+	return _thread->asSublist();
+}
+
 PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,

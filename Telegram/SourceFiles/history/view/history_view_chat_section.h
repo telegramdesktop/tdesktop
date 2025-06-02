@@ -503,6 +503,7 @@ public:
 	}
 
 	Data::ForumTopic *topicForRemoveRequests() const override;
+	Data::SavedSublist *sublistForRemoveRequests() const override;
 
 	[[nodiscard]] not_null<ListMemento*> list() {
 		return &_list;

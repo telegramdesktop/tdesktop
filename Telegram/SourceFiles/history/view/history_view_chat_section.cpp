@@ -151,10 +151,14 @@ void ChatMemento::setFromTopic(not_null<Data::ForumTopic*> topic) {
 }
 
 
-Data::ForumTopic *ChatMemento::topicForRemoveRequests() const {// #TODO monoforums
+Data::ForumTopic *ChatMemento::topicForRemoveRequests() const {
 	return _id.repliesRootId
 		? _id.history->peer->forumTopicFor(_id.repliesRootId)
 		: nullptr;
+}
+
+Data::SavedSublist *ChatMemento::sublistForRemoveRequests() const {
+	return _id.sublist;
 }
 
 void ChatMemento::setReadInformation(
@@ -656,7 +660,8 @@ void ChatWidget::subscribeToPinnedMessages() {
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
 		if (_pinnedTracker
 			&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
-			&& (_topic == update.entry.get())) {
+			&& (_topic == update.entry.get()
+				|| _sublist == update.entry.get())) {
 			checkPinnedBarState();
 		}
 	}, lifetime());
@@ -1833,7 +1838,7 @@ void ChatWidget::refreshUnreadCountBadge(std::optional<int> count) {
 }
 
 void ChatWidget::updatePinnedViewer() {
-	if (_scroll->isHidden() || !_topic || !_pinnedTracker) {
+	if (_scroll->isHidden() || (!_topic && !_sublist) || !_pinnedTracker) {
 		return;
 	}
 	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
@@ -1866,7 +1871,7 @@ void ChatWidget::updatePinnedViewer() {
 void ChatWidget::checkLastPinnedClickedIdReset(
 		int wasScrollTop,
 		int nowScrollTop) {
-	if (_scroll->isHidden() || !_topic) {
+	if (_scroll->isHidden() || (!_topic && !_sublist)) {
 		return;
 	}
 	if (wasScrollTop < nowScrollTop && _pinnedClickedId) {
@@ -1948,15 +1953,16 @@ void ChatWidget::setupTranslateBar() {
 }
 
 void ChatWidget::setupPinnedTracker() {
-	Expects(_topic != nullptr);
+	Expects(_topic || _sublist);
 
-	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(_topic);
+	const auto thread = _topic ? (Data::Thread*)_topic : _sublist;
+	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(thread);
 	_pinnedBar = nullptr;
 
 	SharedMediaViewer(
-		&_topic->session(),
+		&session(),
 		Storage::SharedMediaKey(
-			_topic->channel()->id,
+			_peer->id,
 			_repliesRootId,
 			_monoforumPeerId,
 			Storage::SharedMediaType::Pinned,
@@ -1966,7 +1972,7 @@ void ChatWidget::setupPinnedTracker() {
 	) | rpl::filter([=](const SparseIdsSlice &result) {
 		return result.fullCount().has_value();
 	}) | rpl::start_with_next([=](const SparseIdsSlice &result) {
-		_topic->setHasPinnedMessages(*result.fullCount() != 0);
+		thread->setHasPinnedMessages(*result.fullCount() != 0);
 		if (result.skippedAfter() == 0) {
 			auto &settings = _history->session().settings();
 			const auto peerId = _peer->id;
@@ -1985,7 +1991,7 @@ void ChatWidget::setupPinnedTracker() {
 			}
 		}
 		checkPinnedBarState();
-	}, _topicLifetime);
+	}, lifetime());
 }
 
 void ChatWidget::checkPinnedBarState() {
@@ -2138,8 +2144,9 @@ void ChatWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 		if (!id.message) {
 			return;
 		}
+		const auto thread = _topic ? (Data::Thread*)_topic : _sublist;
 		controller()->showSection(
-			std::make_shared<PinnedMemento>(_topic, id.message.msg));
+			std::make_shared<PinnedMemento>(thread, id.message.msg));
 	};
 	const auto context = [copy = _inner](FullMsgId itemId) {
 		if (const auto raw = copy.data()) {
@@ -2591,6 +2598,7 @@ void ChatWidget::subscribeToSublist() {
 	}, lifetime());
 
 	unreadCountUpdated();
+	subscribeToPinnedMessages();
 }
 
 void ChatWidget::unreadCountUpdated() {
@@ -2782,7 +2790,10 @@ void ChatWidget::updateInnerVisibleArea() {
 }
 
 void ChatWidget::updatePinnedVisibility() {
-	if (!_loaded || !_repliesRootId) {
+	if (_sublist) {
+		setPinnedVisibility(true);
+		return;
+	} else if (!_loaded || !_repliesRootId) {
 		return;
 	} else if (!_topic && (!_repliesRoot || _repliesRoot->isEmpty())) {
 		setPinnedVisibility(!_repliesRoot);
@@ -2803,7 +2814,10 @@ void ChatWidget::updatePinnedVisibility() {
 }
 
 void ChatWidget::setPinnedVisibility(bool shown) {
-	if (animatingShow() || !_repliesRootId) {
+	if (animatingShow()) {
+	} else if (_sublist) {
+		_repliesRootVisible = shown;
+	} else if (!_repliesRootId) {
 		return;
 	} else if (!_topic) {
 		if (!_repliesRootViewInitScheduled) {
