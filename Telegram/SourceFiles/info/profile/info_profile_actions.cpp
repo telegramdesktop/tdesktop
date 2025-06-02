@@ -2188,24 +2188,6 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 		std::move(viewChannel),
 		tracker);
 
-	auto viewDirectVisible = channel->flagsValue() | rpl::map([=] {
-		return channel->monoforumLink() != nullptr;
-	}) | rpl::distinct_until_changed();
-	auto viewDirect = [=] {
-		if (const auto linked = channel->monoforumLink()) {
-			window->showPeerHistory(linked);
-			//if (const auto monoforum = linked->monoforum()) {
-			//	window->showMonoforum(monoforum);
-			//}
-		}
-	};
-	AddMainButton( // #TODO monoforum
-		_wrap,
-		rpl::single(u"View Direct Messages"_q),
-		std::move(viewDirectVisible),
-		std::move(viewDirect),
-		tracker);
-
 	return tracker;
 }
 

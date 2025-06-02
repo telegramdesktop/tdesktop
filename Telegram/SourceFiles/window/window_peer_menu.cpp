@@ -293,6 +293,7 @@ private:
 	void addThemeEdit();
 	void addBlockUser();
 	void addViewDiscussion();
+	void addDirectMessages();
 	void addToggleTopicClosed();
 	void addExportChat();
 	void addTranslate();
@@ -870,6 +871,23 @@ void Filler::addViewDiscussion() {
 			chat,
 			Window::SectionShow::Way::Forward);
 	}, &st::menuIconDiscussion);
+}
+
+void Filler::addDirectMessages() {
+	const auto channel = _peer->asBroadcast();
+	if (!channel) {
+		return;
+	}
+	const auto monoforum = channel->broadcastMonoforum();
+	if (!monoforum || !monoforum->amMonoforumAdmin()) {
+		return;
+	}
+	const auto navigation = _controller;
+	_addAction(tr::lng_profile_direct_messages(tr::now), [=] {
+		navigation->showPeerHistory(
+			monoforum,
+			Window::SectionShow::Way::Forward);
+	}, &st::menuIconChatDiscuss);
 }
 
 void Filler::addExportChat() {
@@ -1461,6 +1479,7 @@ void Filler::fillHistoryActions() {
 	addCreatePoll();
 	addThemeEdit();
 	addViewDiscussion();
+	addDirectMessages();
 	addExportChat();
 	addTranslate();
 	addReport();
@@ -1485,6 +1504,7 @@ void Filler::fillProfileActions() {
 	addManageTopic();
 	addToggleTopicClosed();
 	addViewDiscussion();
+	addDirectMessages();
 	addExportChat();
 	addToggleFolder();
 	addBlockUser();

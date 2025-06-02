@@ -445,7 +445,6 @@ void SavedSublist::setInboxReadTill(
 		&& _inboxReadTillId >= _list.front()) {
 		unreadCount = 0;
 	}
-	const auto wasUnreadCount = _unreadCount;
 	if (_unreadCount.current() != unreadCount
 		&& (changed || unreadCount.has_value())) {
 		setUnreadCount(unreadCount);
@@ -593,24 +592,7 @@ std::optional<int> SavedSublist::computeUnreadCountLocally(
 }
 
 void SavedSublist::requestUnreadCount() {
-	if (_reloadUnreadCountRequestId) {
-		return;
-	}
-	//const auto weak = base::make_weak(this); // #TODO monoforum
-	//const auto session = &_parent->session();
-	//const auto apply = [weak](MsgId readTill, int unreadCount) {
-	//	if (const auto strong = weak.get()) {
-	//		strong->setInboxReadTill(readTill, unreadCount);
-	//	}
-	//};
-	//_reloadUnreadCountRequestId = session->api().request(
-	//	...
-	//).done([=](const ... &result) {
-	//	if (weak) {
-	//		_reloadUnreadCountRequestId = 0;
-	//	}
-	//	...
-	//}).send();
+	parent()->requestSublist(sublistPeer());
 }
 
 void SavedSublist::readTill(not_null<HistoryItem*> item) {
