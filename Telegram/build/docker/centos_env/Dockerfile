@@ -172,7 +172,7 @@ RUN git clone -b v1.5.2 --depth=1 https://github.com/xiph/opus.git \
 	&& rm -rf opus
 
 FROM builder AS dav1d
-RUN git clone -b 1.4.1 --depth=1 https://github.com/videolan/dav1d.git \
+RUN git clone -b 1.5.1 --depth=1 https://github.com/videolan/dav1d.git \
 	&& cd dav1d \
 	&& meson build \
 		--buildtype=plain \
@@ -185,7 +185,7 @@ RUN git clone -b 1.4.1 --depth=1 https://github.com/videolan/dav1d.git \
 	&& rm -rf dav1d
 
 FROM builder AS openh264
-RUN git clone -b v2.4.1 --depth=1 https://github.com/cisco/openh264.git \
+RUN git clone -b v2.6.0 --depth=1 https://github.com/cisco/openh264.git \
 	&& cd openh264 \
 	&& meson build \
 		--buildtype=plain \
@@ -196,7 +196,7 @@ RUN git clone -b v2.4.1 --depth=1 https://github.com/cisco/openh264.git \
 	&& rm -rf openh264
 
 FROM builder AS de265
-RUN git clone -b v1.0.15 --depth=1 https://github.com/strukturag/libde265.git \
+RUN git clone -b v1.0.16 --depth=1 https://github.com/strukturag/libde265.git \
 	&& cd libde265 \
 	&& cmake -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -229,7 +229,7 @@ RUN git init libvpx \
 	&& rm -rf libvpx
 
 FROM builder AS webp
-RUN git clone -b chrome-m116-5845 --depth=1 https://github.com/webmproject/libwebp.git \
+RUN git clone -b v1.5.0 --depth=1 https://github.com/webmproject/libwebp.git \
 	&& cd libwebp \
 	&& cmake -B build . \
 		-DWEBP_BUILD_ANIM_UTILS=OFF \
@@ -249,12 +249,12 @@ RUN git clone -b chrome-m116-5845 --depth=1 https://github.com/webmproject/libwe
 FROM builder AS avif
 COPY --link --from=dav1d /usr/src/dav1d-cache /
 
-RUN git clone -b v1.0.4 --depth=1 https://github.com/AOMediaCodec/libavif.git \
+RUN git clone -b v1.3.0 --depth=1 https://github.com/AOMediaCodec/libavif.git \
 	&& cd libavif \
-	&& sed -i 's/BUILD_SHARED_LIBS OR VCPKG_TARGET_TRIPLET/TRUE/' CMakeLists.txt \
 	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
-		-DAVIF_CODEC_DAV1D=ON \
+		-DAVIF_CODEC_DAV1D=SYSTEM \
+		-DAVIF_LIBYUV=OFF \
 	&& cmake --build build \
 	&& DESTDIR=/usr/src/avif-cache cmake --install build \
 	&& cd .. \
@@ -263,7 +263,7 @@ RUN git clone -b v1.0.4 --depth=1 https://github.com/AOMediaCodec/libavif.git \
 FROM builder AS heif
 COPY --link --from=de265 /usr/src/de265-cache /
 
-RUN git clone -b v1.18.2 --depth=1 https://github.com/strukturag/libheif.git \
+RUN git clone -b v1.19.8 --depth=1 https://github.com/strukturag/libheif.git \
 	&& cd libheif \
 	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
@@ -272,11 +272,13 @@ RUN git clone -b v1.18.2 --depth=1 https://github.com/strukturag/libheif.git \
 		-DWITH_X265=OFF \
 		-DWITH_AOM_DECODER=OFF \
 		-DWITH_AOM_ENCODER=OFF \
+		-DWITH_OpenH264_DECODER=OFF \
 		-DWITH_RAV1E=OFF \
 		-DWITH_RAV1E_PLUGIN=OFF \
 		-DWITH_SvtEnc=OFF \
 		-DWITH_SvtEnc_PLUGIN=OFF \
 		-DWITH_DAV1D=OFF \
+		-DWITH_LIBSHARPYUV=OFF \
 		-DWITH_EXAMPLES=OFF \
 	&& cmake --build build \
 	&& DESTDIR=/usr/src/heif-cache cmake --install build \
