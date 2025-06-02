@@ -860,7 +860,10 @@ void Widget::chosenRow(const ChosenRow &row) {
 
 	const auto history = row.key.history();
 	const auto topicJump = history
-		? history->peer->forumTopicFor(row.message.fullId.msg)
+		? history->peer->forumTopicFor(row.topicJumpRootId)
+		: nullptr;
+	const auto sublistJump = history
+		? history->peer->monoforumSublistFor(row.sublistJumpPeerId)
 		: nullptr;
 
 	if (topicJump) {
@@ -876,6 +879,16 @@ void Widget::chosenRow(const ChosenRow &row) {
 			}
 			controller()->showThread(
 				topicJump,
+				ShowAtUnreadMsgId,
+				Window::SectionShow::Way::ClearStack);
+		}
+		return;
+	} else if (sublistJump) {
+		if (row.newWindow) {
+			controller()->showInNewWindow(Window::SeparateId(sublistJump));
+		} else {
+			controller()->showThread(
+				sublistJump,
 				ShowAtUnreadMsgId,
 				Window::SectionShow::Way::ClearStack);
 		}

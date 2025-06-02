@@ -1464,11 +1464,7 @@ bool InnerWidget::isRowActive(
 		}
 		return false;
 	} else if (const auto sublist = entry.key.sublist()) {
-		if (!sublist->parentChat()) {
-			// In case we're viewing a Saved Messages sublist,
-			// we want to highlight the Saved Messages row as active.
-			return key.history() && key.peer()->isSelf();
-		}
+		return key.history() && key.history() == sublist->owningHistory();
 	}
 	return false;
 }
@@ -1909,9 +1905,14 @@ RowDescriptor InnerWidget::computeChatPreviewRow() const {
 	auto result = computeChosenRow();
 	if (const auto peer = result.key.peer()) {
 		const auto topicId = _pressedTopicJump
-			? _pressedTopicJumpRootId // #TODO monoforums
-			: 0;
-		if (const auto topic = peer->forumTopicFor(topicId)) {
+			? _pressedTopicJumpRootId
+			: MsgId();
+		const auto sublistPeerId = _pressedTopicJump
+			? _pressedSublistJumpPeerId
+			: PeerId();
+		if (const auto sublist = peer->monoforumSublistFor(sublistPeerId)) {
+			return { sublist, FullMsgId() };
+		} else if (const auto topic = peer->forumTopicFor(topicId)) {
 			return { topic, FullMsgId() };
 		}
 	}
@@ -2422,6 +2423,7 @@ void InnerWidget::mousePressReleased(
 	auto collapsedPressed = _collapsedPressed;
 	setCollapsedPressed(-1);
 	const auto pressedTopicRootId = _pressedTopicJumpRootId;
+	const auto pressedSublistPeerId = _pressedSublistJumpPeerId;
 	const auto pressedTopicJump = _pressedTopicJump;
 	const auto pressedRightButton = _pressedRightButton;
 	auto pressed = _pressed;
@@ -2505,7 +2507,10 @@ void InnerWidget::mousePressReleased(
 			} else if (pressedRightButton && peerSearchPressed >= 0) {
 				showSponsoredMenu(peerSearchPressed, globalPosition);
 			} else {
-				chooseRow(modifiers, pressedTopicRootId);
+				chooseRow(
+					modifiers,
+					pressedTopicRootId,
+					pressedSublistPeerId);
 			}
 		}
 	}
@@ -2557,6 +2562,9 @@ void InnerWidget::setPressed(
 				: nullptr;
 			const auto item = history ? history->chatListMessage() : nullptr;
 			_pressedTopicJumpRootId = item ? item->topicRootId() : MsgId();
+			_pressedSublistJumpPeerId = item
+				? item->sublistPeerId()
+				: PeerId();
 		}
 	}
 }
@@ -2603,6 +2611,9 @@ void InnerWidget::setFilteredPressed(
 				: nullptr;
 			const auto item = history ? history->chatListMessage() : nullptr;
 			_pressedTopicJumpRootId = item ? item->topicRootId() : MsgId();
+			_pressedSublistJumpPeerId = item
+				? item->sublistPeerId()
+				: PeerId();
 		}
 	}
 }
@@ -4763,7 +4774,8 @@ bool InnerWidget::isUserpicPressOnWide() const {
 
 bool InnerWidget::chooseRow(
 		Qt::KeyboardModifiers modifiers,
-		MsgId pressedTopicRootId) {
+		MsgId pressedTopicRootId,
+		PeerId pressedSublistPeerId) {
 	if (chooseHashtag()) {
 		return true;
 	} else if (_selectedMorePosts) {
@@ -4805,12 +4817,9 @@ bool InnerWidget::chooseRow(
 		if (!chosen.message.fullId) {
 			if (const auto history = chosen.key.history()) {
 				if (history->peer->forum()) {
-					if (pressedTopicRootId) {
-						chosen.message.fullId = {
-							history->peer->id,
-							pressedTopicRootId,
-						};
-					}
+					chosen.topicJumpRootId = pressedTopicRootId;
+				} else if (history->peer->amMonoforumAdmin()) {
+					chosen.sublistJumpPeerId = pressedSublistPeerId;
 				}
 			}
 		}

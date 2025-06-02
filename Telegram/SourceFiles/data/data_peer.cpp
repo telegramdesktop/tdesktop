@@ -668,6 +668,8 @@ bool PeerData::canCreatePolls() const {
 				&& !user->isSupport()
 				&& !user->isRepliesChat()
 				&& !user->isVerifyCodes());
+	} else if (isMonoforum()) {
+		return false;
 	}
 	return Data::CanSend(this, ChatRestriction::SendPolls);
 }

@@ -2126,7 +2126,10 @@ void HistoryWidget::setupDirectMessageButton() {
 	}, _directMessage->lifetime());
 	_directMessage->setClickedCallback([=] {
 		if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
-			if (const auto monoforum = channel->monoforumLink()) {
+			if (channel->invitePeekExpires()) {
+				controller()->showToast(
+					tr::lng_channel_invite_private(tr::now));
+			} else if (const auto monoforum = channel->monoforumLink()) {
 				controller()->showPeerHistory(
 					monoforum,
 					Window::SectionShow::Way::Forward);
@@ -6038,7 +6041,7 @@ bool HistoryWidget::showSendingFilesError(
 	return true;
 }
 
-MsgId HistoryWidget::resolveReplyToTopicRootId() { // #TODO monoforums
+MsgId HistoryWidget::resolveReplyToTopicRootId() {
 	Expects(_peer != nullptr);
 
 	const auto replyToInfo = replyTo();

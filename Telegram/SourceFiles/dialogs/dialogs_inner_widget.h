@@ -84,6 +84,8 @@ enum class ChatTypeFilter : uchar;
 struct ChosenRow {
 	Key key;
 	Data::MessagePosition message;
+	MsgId topicJumpRootId;
+	PeerId sublistJumpPeerId;
 	QByteArray sponsoredRandomId;
 	bool userpicClick : 1 = false;
 	bool filteredRow : 1 = false;
@@ -163,7 +165,8 @@ public:
 	void chatPreviewShown(bool shown, RowDescriptor row = {});
 	bool chooseRow(
 		Qt::KeyboardModifiers modifiers = {},
-		MsgId pressedTopicRootId = {});
+		MsgId pressedTopicRootId = {},
+		PeerId pressedSublistPeerId = {});
 
 	void scrollToEntry(const RowDescriptor &entry);
 
@@ -543,6 +546,7 @@ private:
 	Row *_selected = nullptr;
 	Row *_pressed = nullptr;
 	MsgId _pressedTopicJumpRootId;
+	PeerId _pressedSublistJumpPeerId;
 	bool _selectedTopicJump = false;
 	bool _pressedTopicJump = false;
 

@@ -660,6 +660,7 @@ bool SubsectionTabs::switchTo(
 	}
 	_shadow->setParent(parent);
 	_shadow->show();
+	_refreshed.fire({});
 	return true;
 }
 

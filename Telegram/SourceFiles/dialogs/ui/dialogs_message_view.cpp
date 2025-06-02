@@ -267,10 +267,17 @@ int MessageView::countWidth() const {
 	auto result = 0;
 	if (!_senderCache.isEmpty()) {
 		result += _senderCache.maxWidth();
-		if (!_imagesCache.empty()) {
+		if (!_imagesCache.empty() && !_leftIcon) {
 			result += st::dialogsMiniPreviewSkip
 				+ st::dialogsMiniPreviewRight;
 		}
+	}
+	if (_leftIcon) {
+		const auto w = _leftIcon->icon.icon.width();
+		result += w
+			+ (_imagesCache.empty()
+				? _leftIcon->skipText
+				: _leftIcon->skipMedia);
 	}
 	if (!_imagesCache.empty()) {
 		result += (_imagesCache.size()
