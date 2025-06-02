@@ -147,12 +147,18 @@ not_null<Ui::SettingsButton*> AddButton(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		PeerData *migrated,
 		Type type,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
 		parent,
-		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
+		Profile::SharedMediaCountValue(
+			peer,
+			topicRootId,
+			monoforumPeerId,
+			migrated,
+			type),
 		MediaText(type),
 		tracker)->entity();
 	const auto separateId = SeparateId(peer, topicRootId, type);

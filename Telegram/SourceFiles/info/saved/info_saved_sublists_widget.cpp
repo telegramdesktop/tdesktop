@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Saved {
 
 SublistsMemento::SublistsMemento(not_null<Main::Session*> session)
-: ContentMemento(session->user(), nullptr, PeerId()) {
+: ContentMemento(session->user(), nullptr, nullptr, PeerId()) {
 }
 
 Section SublistsMemento::section() const {
@@ -113,6 +113,7 @@ void SublistsWidget::setupOtherTypes() {
 			controller(),
 			peer,
 			MsgId(), // topicRootId
+			PeerId(), // monoforumPeerId
 			nullptr, // migrated
 			buttonType,
 			tracker);

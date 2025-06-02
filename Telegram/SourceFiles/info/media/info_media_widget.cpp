@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/media/info_media_widget.h"
 
+#include "history/history.h"
 #include "info/media/info_media_inner_widget.h"
 #include "info/info_controller.h"
 #include "main/main_session.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 
@@ -70,6 +72,7 @@ Memento::Memento(not_null<Controller*> controller)
 		? controller->storiesPeer()
 		: controller->parentController()->session().user()),
 	controller->topic(),
+	controller->sublist(),
 	controller->migratedPeerId(),
 	(controller->section().type() == Section::Type::Downloads
 		? Type::File
@@ -79,23 +82,31 @@ Memento::Memento(not_null<Controller*> controller)
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type)
-: Memento(peer, nullptr, migratedPeerId, type) {
+: Memento(peer, nullptr, nullptr, migratedPeerId, type) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic, Type type)
-: Memento(topic->channel(), topic, PeerId(), type) {
+: Memento(topic->channel(), topic, nullptr, PeerId(), type) {
+}
+
+Memento::Memento(not_null<Data::SavedSublist*> sublist, Type type)
+: Memento(sublist->owningHistory()->peer, nullptr, sublist, PeerId(), type) {
 }
 
 Memento::Memento(
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
+	Data::SavedSublist *sublist,
 	PeerId migratedPeerId,
 	Type type)
-: ContentMemento(peer, topic, migratedPeerId)
+: ContentMemento(peer, topic, sublist, migratedPeerId)
 , _type(type) {
 	_searchState.query.type = type;
 	_searchState.query.peerId = peer->id;
-	_searchState.query.topicRootId = topic ? topic->rootId() : 0;
+	_searchState.query.topicRootId = topic ? topic->rootId() : MsgId();
+	_searchState.query.monoforumPeerId = sublist
+		? sublist->sublistPeer()->id
+		: PeerId();
 	_searchState.query.migratedPeerId = migratedPeerId;
 	if (migratedPeerId) {
 		_searchState.migratedList = Storage::SparseIdsList();

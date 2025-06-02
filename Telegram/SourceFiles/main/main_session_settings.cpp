@@ -40,7 +40,7 @@ QByteArray SessionSettings::serialize() const {
 		+ sizeof(qint32) * 11
 		+ (_mutePeriods.size() * sizeof(quint64))
 		+ sizeof(qint32) * 2
-		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 3)
+		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 4)
 		+ sizeof(qint32)
 		+ _groupEmojiSectionHidden.size() * sizeof(quint64)
 		+ sizeof(qint32) * 2;
@@ -68,32 +68,33 @@ QByteArray SessionSettings::serialize() const {
 			<< qint32(_archiveInMainMenu.current() ? 1 : 0)
 			<< qint32(_skipArchiveInSearch.current() ? 1 : 0)
 			<< qint32(0) // old _mediaLastPlaybackPosition.size());
-			<< qint32(0) // very old _hiddenPinnedMessages.size());
+			<< qint32(0) // very very old _hiddenPinnedMessages.size());
 			<< qint32(_dialogsFiltersEnabled ? 1 : 0)
 			<< qint32(_supportAllSilent ? 1 : 0)
 			<< qint32(_photoEditorHintShowsCount)
-			<< qint32(0) // old _hiddenPinnedMessages.size());
+			<< qint32(0) // very old _hiddenPinnedMessages.size());
 			<< qint32(_mutePeriods.size());
 		for (const auto &period : _mutePeriods) {
 			stream << quint64(period);
 		}
 		stream
 			<< qint32(0) // old _skipPremiumStickersSet
-			<< qint32(_hiddenPinnedMessages.size());
-		for (const auto &[key, value] : _hiddenPinnedMessages) {
-			stream
-				<< SerializePeerId(key.peerId)
-				<< qint64(key.topicRootId.bare)
-				<< qint64(value.bare);
-		}
-		stream
+			<< qint32(0) // old _hiddenPinnedMessages.size());
 			<< qint32(_groupEmojiSectionHidden.size());
 		for (const auto &peerId : _groupEmojiSectionHidden) {
 			stream << SerializePeerId(peerId);
 		}
 		stream
 			<< qint32(_lastNonPremiumLimitDownload)
-			<< qint32(_lastNonPremiumLimitUpload);
+			<< qint32(_lastNonPremiumLimitUpload)
+			<< qint32(_hiddenPinnedMessages.size());
+		for (const auto &[key, value] : _hiddenPinnedMessages) {
+			stream
+				<< SerializePeerId(key.peerId)
+				<< qint64(key.topicRootId.bare)
+				<< SerializePeerId(key.monoforumPeerId)
+				<< qint64(value.bare);
+		}
 	}
 
 	Ensures(result.size() == size);
@@ -401,6 +402,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		auto count = qint32(0);
 		stream >> count;
 		if (stream.status() == QDataStream::Ok) {
+			// Legacy.
 			for (auto i = 0; i != count; ++i) {
 				auto keyPeerId = quint64();
 				auto keyTopicRootId = qint64();
@@ -437,6 +439,33 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		stream
 			>> lastNonPremiumLimitDownload
 			>> lastNonPremiumLimitUpload;
+	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto keyPeerId = quint64();
+				auto keyTopicRootId = qint64();
+				auto keyMonoforumPeerId = quint64();
+				auto value = qint64();
+				stream
+					>> keyPeerId
+					>> keyTopicRootId
+					>> keyMonoforumPeerId
+					>> value;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
+				hiddenPinnedMessages.emplace(ThreadId{
+					DeserializePeerId(keyPeerId),
+					keyTopicRootId,
+					DeserializePeerId(keyMonoforumPeerId),
+				}, value);
+			}
+		}
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -595,16 +624,22 @@ rpl::producer<bool> SessionSettings::skipArchiveInSearchChanges() const {
 
 MsgId SessionSettings::hiddenPinnedMessageId(
 		PeerId peerId,
-		MsgId topicRootId) const {
-	const auto i = _hiddenPinnedMessages.find({ peerId, topicRootId });
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const {
+	const auto i = _hiddenPinnedMessages.find({
+		peerId,
+		topicRootId,
+		monoforumPeerId,
+	});
 	return (i != end(_hiddenPinnedMessages)) ? i->second : 0;
 }
 
 void SessionSettings::setHiddenPinnedMessageId(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		MsgId msgId) {
-	const auto id = ThreadId{ peerId, topicRootId };
+	const auto id = ThreadId{ peerId, topicRootId, monoforumPeerId };
 	if (msgId) {
 		_hiddenPinnedMessages[id] = msgId;
 	} else {

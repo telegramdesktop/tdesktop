@@ -141,7 +141,7 @@ public:
 	void destroyMessagesByTopic(MsgId topicRootId);
 	void destroyMessagesBySublist(not_null<PeerData*> sublistPeer);
 
-	void unpinMessagesFor(MsgId topicRootId);
+	void unpinMessagesFor(MsgId topicRootId, PeerId monoforumPeerId);
 
 	not_null<HistoryItem*> addNewMessage(
 		MsgId id,

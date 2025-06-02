@@ -404,6 +404,7 @@ void Session::clear() {
 		channel->setFlags(channel->flags()
 			& ~(ChannelDataFlag::Forum | ChannelDataFlag::MonoforumAdmin));
 	}
+	_savedMessages->clear();
 
 	_sendActionManager->clear();
 

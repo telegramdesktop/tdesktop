@@ -2927,8 +2927,12 @@ void SessionController::openPhoto(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	}
-	_window->openInMediaView(
-		Media::View::OpenRequest(this, photo, item, message.topicRootId));
+	_window->openInMediaView(Media::View::OpenRequest(
+		this,
+		photo,
+		item,
+		message.topicRootId,
+		message.monoforumPeerId));
 }
 
 void SessionController::openPhoto(
@@ -2963,11 +2967,17 @@ void SessionController::openDocument(
 			document,
 			item,
 			message.topicRootId,
+			message.monoforumPeerId,
 			false,
 			usedTimestamp));
 		return;
 	}
-	Data::ResolveDocument(this, document, item, message.topicRootId);
+	Data::ResolveDocument(
+		this,
+		document,
+		item,
+		message.topicRootId,
+		message.monoforumPeerId);
 }
 
 bool SessionController::openSharedStory(HistoryItem *item) {

@@ -1474,6 +1474,16 @@ Data::SavedMessages *PeerData::monoforum() const {
 	return nullptr;
 }
 
+Data::SavedSublist *PeerData::monoforumSublistFor(
+		PeerId sublistPeerId) const {
+	if (!sublistPeerId) {
+		return nullptr;
+	} else if (const auto monoforum = this->monoforum()) {
+		return monoforum->sublistLoaded(owner().peer(sublistPeerId));
+	}
+	return nullptr;
+}
+
 bool PeerData::allowsForwarding() const {
 	if (isUser()) {
 		return true;
@@ -1807,12 +1817,14 @@ void SetTopPinnedMessageId(
 		session.settings().setHiddenPinnedMessageId(
 			peer->id,
 			MsgId(0), // topicRootId
+			PeerId(0), // monoforumPeerId
 			0);
 		session.saveSettingsDelayed();
 	}
 	session.storage().add(Storage::SharedMediaAddExisting(
 		peer->id,
 		MsgId(0), // topicRootId
+		PeerId(0), // monoforumPeerId
 		Storage::SharedMediaType::Pinned,
 		messageId,
 		{ messageId, ServerMaxMsgId }));
@@ -1822,22 +1834,25 @@ void SetTopPinnedMessageId(
 FullMsgId ResolveTopPinnedId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
 				topicRootId,
+				monoforumPeerId,
 				Storage::SharedMediaType::Pinned,
 				ServerMaxMsgId - 1),
 			1,
 			1));
-	const auto old = (!topicRootId && migrated)
+	const auto old = (!topicRootId && !monoforumPeerId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
 					MsgId(0), // topicRootId
+					PeerId(0), // monoforumPeerId
 					Storage::SharedMediaType::Pinned,
 					ServerMaxMsgId - 1),
 				1,
@@ -1859,22 +1874,25 @@ FullMsgId ResolveTopPinnedId(
 FullMsgId ResolveMinPinnedId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
 				topicRootId,
+				monoforumPeerId,
 				Storage::SharedMediaType::Pinned,
 				1),
 			1,
 			1));
-	const auto old = (!topicRootId && migrated)
+	const auto old = (!topicRootId && !monoforumPeerId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
 					MsgId(0), // topicRootId
+					PeerId(0), // monoforumPeerId
 					Storage::SharedMediaType::Pinned,
 					1),
 				1,

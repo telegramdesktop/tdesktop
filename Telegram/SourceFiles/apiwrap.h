@@ -289,6 +289,7 @@ public:
 	void requestSharedMedia(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		Storage::SharedMediaType type,
 		MsgId messageId,
 		SliceType slice);
@@ -505,18 +506,21 @@ private:
 	void resolveJumpToHistoryDate(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		const QDate &date,
 		Fn<void(not_null<PeerData*>, MsgId)> callback);
 	template <typename Callback>
 	void requestMessageAfterDate(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		const QDate &date,
 		Callback &&callback);
 
 	void sharedMediaDone(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
 	void globalMediaDone(
@@ -665,6 +669,7 @@ private:
 	struct SharedMediaRequest {
 		not_null<PeerData*> peer;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 		SharedMediaType mediaType = {};
 		MsgId aroundId = 0;
 		SliceType sliceType = {};

@@ -170,6 +170,7 @@ private:
 			not_null<DocumentData*>> data;
 		HistoryItem *item = nullptr;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 	};
 	enum class SavePhotoVideo {
 		None,
@@ -674,6 +675,7 @@ private:
 	History *_migrated = nullptr;
 	History *_history = nullptr; // if conversation photos or files overview
 	MsgId _topicRootId = 0;
+	PeerId _monoforumPeerId = 0;
 	PeerData *_peer = nullptr;
 	UserData *_user = nullptr; // if user profile photos overview
 

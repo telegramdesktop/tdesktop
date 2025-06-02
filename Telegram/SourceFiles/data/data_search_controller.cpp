@@ -132,6 +132,7 @@ GlobalMediaResult ParseGlobalMediaResult(
 std::optional<SearchRequest> PrepareSearchRequest(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+	    PeerId monoforumPeerId,
 		Storage::SharedMediaType type,
 		const QString &query,
 		MsgId messageId,
@@ -168,11 +169,14 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		int64(0x3FFFFFFF)));
 	using Flag = MTPmessages_Search::Flag;
 	return MTPmessages_Search(
-		MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag(0)),
+		MTP_flags((topicRootId ? Flag::f_top_msg_id : Flag(0))
+			| (monoforumPeerId ? Flag::f_saved_peer_id : Flag(0))),
 		peer->input,
 		MTP_string(query),
 		MTP_inputPeerEmpty(),
-		MTPInputPeer(), // saved_peer_id
+		(monoforumPeerId
+			? peer->owner().peer(monoforumPeerId)->input
+			: MTPInputPeer()),
 		MTPVector<MTPReaction>(), // saved_reaction
 		MTP_int(topicRootId),
 		filter,
@@ -369,12 +373,14 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 	auto createSimpleViewer = [=](
 			PeerId peerId,
 			MsgId topicRootId,
+			PeerId monoforumPeerId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
 			int limitAfter) {
 		return simpleIdsSlice(
 			peerId,
 			topicRootId,
+			monoforumPeerId,
 			simpleKey,
 			query,
 			limitBefore,
@@ -384,6 +390,7 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 		SparseIdsMergedSlice::Key(
 			query.peerId,
 			query.topicRootId,
+			query.monoforumPeerId,
 			query.migratedPeerId,
 			aroundId),
 		limitBefore,
@@ -394,6 +401,7 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		MsgId aroundId,
 		const Query &query,
 		int limitBefore,
@@ -402,8 +410,12 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 	Expects(IsServerMsgId(aroundId) || (aroundId == 0));
 	Expects((aroundId != 0)
 		|| (limitBefore == 0 && limitAfter == 0));
-	Expects((query.peerId == peerId && query.topicRootId == topicRootId)
-		|| (query.migratedPeerId == peerId && MsgId(0) == topicRootId));
+	Expects((query.peerId == peerId
+		&& query.topicRootId == topicRootId
+		&& query.monoforumPeerId == monoforumPeerId)
+		|| (query.migratedPeerId == peerId
+			&& MsgId(0) == topicRootId
+			&& PeerId(0) == monoforumPeerId));
 
 	auto it = _cache.find(query);
 	if (it == _cache.end()) {
@@ -437,7 +449,9 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 		_session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (item->history()->peer->id == peerId)
-				&& (!topicRootId || item->topicRootId() == topicRootId);
+				&& (!topicRootId || item->topicRootId() == topicRootId)
+				&& (!monoforumPeerId
+					|| item->sublistPeerId() == monoforumPeerId);
 		}) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return builder->removeOne(item->id);
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
@@ -510,6 +524,7 @@ void SearchController::requestMore(
 	auto prepared = PrepareSearchRequest(
 		listData->peer,
 		query.topicRootId,
+		query.monoforumPeerId,
 		query.type,
 		query.query,
 		key.aroundId,

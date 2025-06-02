@@ -18,6 +18,16 @@ namespace Data {
 class Session;
 class SavedSublist;
 
+struct SavedMessagesOffsets {
+	TimeId date = 0;
+	MsgId id = 0;
+	PeerData *peer = nullptr;
+
+	friend inline constexpr auto operator<=>(
+		SavedMessagesOffsets,
+		SavedMessagesOffsets) = default;
+};
+
 class SavedMessages final {
 public:
 	explicit SavedMessages(
@@ -37,6 +47,7 @@ public:
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList();
 	[[nodiscard]] not_null<SavedSublist*> sublist(not_null<PeerData*> peer);
 	[[nodiscard]] SavedSublist *sublistLoaded(not_null<PeerData*> peer);
+	void requestSublist(not_null<PeerData*> peer, Fn<void()> done = nullptr);
 
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
@@ -59,13 +70,31 @@ public:
 	[[nodiscard]] auto recentSublists() const
 		-> const std::vector<not_null<SavedSublist*>> &;
 
+	void clear();
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	struct SublistRequest {
+		mtpRequestId id = 0;
+		std::vector<Fn<void()>> callbacks;
+	};
+	struct ApplyResult {
+		SavedMessagesOffsets offset;
+		bool allLoaded = false;
+	};
+
 	void loadPinned();
-	void apply(const MTPmessages_SavedDialogs &result, bool pinned);
+	ApplyResult applyReceivedSublists(
+		const MTPmessages_SavedDialogs &result,
+		SavedMessagesOffsets &updateOffsets);
+	ApplyResult applyReceivedSublists(
+		const MTPmessages_SavedDialogs &result,
+		bool pinned = false);
 
 	void reorderLastSublists();
+	void requestSomeStale();
+	void finishSublistRequest(not_null<PeerData*> peer);
 
 	void sendLoadMore();
 	void sendLoadMoreRequests();
@@ -80,13 +109,14 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		std::unique_ptr<SavedSublist>> _sublists;
+	base::flat_map<not_null<PeerData*>, SublistRequest> _sublistRequests;
+	base::flat_set<not_null<PeerData*>> _stalePeers;
+	mtpRequestId _staleRequestId = 0;
 
 	mtpRequestId _loadMoreRequestId = 0;
 	mtpRequestId _pinnedRequestId = 0;
 
-	TimeId _offsetDate = 0;
-	MsgId _offsetId = 0;
-	PeerData *_offsetPeer = nullptr;
+	SavedMessagesOffsets _offset;
 
 	SingleQueuedInvokation _loadMore;
 	bool _loadMoreScheduled = false;

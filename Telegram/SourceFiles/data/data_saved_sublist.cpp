@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 
 #include "apiwrap.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_drafts.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_unread_things.h"
 #include "main/main_session.h"
+#include "window/notifications_manager.h"
 
 namespace Data {
 namespace {
@@ -221,7 +223,7 @@ void SavedSublist::applyItemRemoved(MsgId id) {
 
 void SavedSublist::requestChatListMessage() {
 	if (!chatListMessageKnown()) {
-		//forum()->requestTopic(_rootId); // #TODO monoforum
+		parent()->requestSublist(sublistPeer());
 	}
 }
 
@@ -648,7 +650,7 @@ void SavedSublist::readTill(
 			_readRequestTimer.callOnce(0);
 		}
 	}
-	// Core::App().notifications().clearIncomingFromSublist(this); // #TODO monoforum
+	Core::App().notifications().clearIncomingFromSublist(this);
 }
 
 void SavedSublist::sendReadTillRequest() {

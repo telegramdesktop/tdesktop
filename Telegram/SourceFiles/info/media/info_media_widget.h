@@ -35,6 +35,7 @@ public:
 	explicit Memento(not_null<Controller*> controller);
 	Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type);
 	Memento(not_null<Data::ForumTopic*> topic, Type type);
+	Memento(not_null<Data::SavedSublist*> sublist, Type type);
 
 	using SearchState = Api::DelayedSearchController::SavedState;
 
@@ -92,6 +93,7 @@ private:
 	Memento(
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist,
 		PeerId migratedPeerId,
 		Type type);
 

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 
@@ -48,6 +49,14 @@ Memento::Memento(not_null<Data::ForumTopic*> topic, Section section)
 : Memento(DefaultStack(topic, section)) {
 }
 
+Memento::Memento(not_null<Data::SavedSublist*> sublist)
+: Memento(sublist, Section::Type::Profile) {
+}
+
+Memento::Memento(not_null<Data::SavedSublist*> sublist, Section section)
+: Memento(DefaultStack(sublist, section)) {
+}
+
 Memento::Memento(Settings::Tag settings, Section section)
 : Memento(DefaultStack(settings, section)) {
 }
@@ -66,9 +75,12 @@ Memento::Memento(
 Memento::Memento(std::vector<std::shared_ptr<ContentMemento>> stack)
 : _stack(std::move(stack)) {
 	auto topics = base::flat_set<not_null<Data::ForumTopic*>>();
+	auto sublists = base::flat_set<not_null<Data::SavedSublist*>>();
 	for (auto &entry : _stack) {
 		if (const auto topic = entry->topic()) {
 			topics.emplace(topic);
+		} else if (const auto sublist = entry->sublist()) {
+			sublists.emplace(sublist);
 		}
 	}
 	for (const auto &topic : topics) {
@@ -76,6 +88,21 @@ Memento::Memento(std::vector<std::shared_ptr<ContentMemento>> stack)
 		) | rpl::start_with_next([=] {
 			for (auto i = begin(_stack); i != end(_stack);) {
 				if (i->get()->topic() == topic) {
+					i = _stack.erase(i);
+				} else {
+					++i;
+				}
+			}
+			if (_stack.empty()) {
+				_removeRequests.fire({});
+			}
+		}, _lifetime);
+	}
+	for (const auto &sublist : sublists) {
+		sublist->destroyed(
+		) | rpl::start_with_next([=] {
+			for (auto i = begin(_stack); i != end(_stack);) {
+				if (i->get()->sublist() == sublist) {
 					i = _stack.erase(i);
 				} else {
 					++i;
@@ -101,6 +128,14 @@ std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 		Section section) {
 	auto result = std::vector<std::shared_ptr<ContentMemento>>();
 	result.push_back(DefaultContent(topic, section));
+	return result;
+}
+
+std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
+		not_null<Data::SavedSublist*> sublist,
+		Section section) {
+	auto result = std::vector<std::shared_ptr<ContentMemento>>();
+	result.push_back(DefaultContent(sublist, section));
 	return result;
 }
 
@@ -201,6 +236,20 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		return std::make_shared<Media::Memento>(topic, section.mediaType());
 	case Section::Type::Members:
 		return std::make_shared<Members::Memento>(peer, migratedPeerId);
+	}
+	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
+}
+
+std::shared_ptr<ContentMemento> Memento::DefaultContent(
+		not_null<Data::SavedSublist*> sublist,
+		Section section) {
+	switch (section.type()) {
+	case Section::Type::Profile:
+		return std::make_shared<Profile::Memento>(sublist);
+	case Section::Type::Media:
+		return std::make_shared<Media::Memento>(
+			sublist,
+			section.mediaType());
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 }

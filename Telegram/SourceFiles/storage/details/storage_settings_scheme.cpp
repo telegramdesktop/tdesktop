@@ -1084,6 +1084,7 @@ bool ReadSetting(
 			context.sessionSettings().setHiddenPinnedMessageId(
 				DeserializePeerId(i.key()),
 				MsgId(0), // topicRootId
+				PeerId(0), // monoforumPeerId
 				MsgId(i.value()));
 		}
 		context.legacyRead = true;

@@ -651,8 +651,38 @@ void History::destroyMessagesBySublist(not_null<PeerData*> sublistPeer) {
 	}
 }
 
-void History::unpinMessagesFor(MsgId topicRootId) {
-	if (!topicRootId) {
+void History::unpinMessagesFor(MsgId topicRootId, PeerId monoforumPeerId) {
+	if (topicRootId) {
+		session().storage().remove(
+			Storage::SharedMediaRemoveAll(
+				peer->id,
+				topicRootId,
+				Storage::SharedMediaType::Pinned));
+		if (const auto topic = peer->forumTopicFor(topicRootId)) {
+			topic->setHasPinnedMessages(false);
+		}
+		for (const auto &item : _items) {
+			if (item->isPinned() && item->topicRootId() == topicRootId) {
+				item->setIsPinned(false);
+			}
+		}
+	} else if (monoforumPeerId) {
+		session().storage().remove(
+			Storage::SharedMediaRemoveAll(
+				peer->id,
+				monoforumPeerId,
+				Storage::SharedMediaType::Pinned));
+		if (const auto sublist = peer->monoforumSublistFor(
+				monoforumPeerId)) {
+			sublist->setHasPinnedMessages(false);
+		}
+		for (const auto &item : _items) {
+			if (item->isPinned()
+				&& item->sublistPeerId() == monoforumPeerId) {
+				item->setIsPinned(false);
+			}
+		}
+	} else {
 		session().storage().remove(
 			Storage::SharedMediaRemoveAll(
 				peer->id,
@@ -665,20 +695,6 @@ void History::unpinMessagesFor(MsgId topicRootId) {
 		}
 		for (const auto &item : _items) {
 			if (item->isPinned()) {
-				item->setIsPinned(false);
-			}
-		}
-	} else {
-		session().storage().remove(
-			Storage::SharedMediaRemoveAll(
-				peer->id,
-				topicRootId,
-				Storage::SharedMediaType::Pinned));
-		if (const auto topic = peer->forumTopicFor(topicRootId)) {
-			topic->setHasPinnedMessages(false);
-		}
-		for (const auto &item : _items) {
-			if (item->isPinned() && item->topicRootId() == topicRootId) {
 				item->setIsPinned(false);
 			}
 		}
@@ -898,6 +914,7 @@ not_null<HistoryItem*> History::addNewToBack(
 			storage.add(Storage::SharedMediaAddExisting(
 				peer->id,
 				MsgId(0), // topicRootId
+				PeerId(0), // monoforumPeerId
 				types,
 				item->id,
 				{ from, till }));
@@ -909,11 +926,24 @@ not_null<HistoryItem*> History::addNewToBack(
 				storage.add(Storage::SharedMediaAddExisting(
 					peer->id,
 					topic->rootId(),
+					PeerId(), // monoforumPeerId
 					types,
 					item->id,
 					{ item->id, item->id}));
 				if (pinned) {
 					topic->setHasPinnedMessages(true);
+				}
+			}
+			if (const auto sublist = item->savedSublist()) {
+				storage.add(Storage::SharedMediaAddExisting(
+					peer->id,
+					MsgId(), // topicRootId
+					item->sublistPeerId(),
+					types,
+					item->id,
+					{ item->id, item->id }));
+				if (pinned) {
+					sublist->setHasPinnedMessages(true);
 				}
 			}
 		}
@@ -1182,7 +1212,8 @@ void History::applyServiceChanges(
 				if (id && item) {
 					session().storage().add(Storage::SharedMediaAddSlice(
 						peer->id,
-						MsgId(0),
+						MsgId(0), // topicRootId
+						PeerId(0), // monoforumPeerId
 						Storage::SharedMediaType::Pinned,
 						{ id },
 						{ id, ServerMaxMsgId }));
@@ -1191,10 +1222,21 @@ void History::applyServiceChanges(
 						session().storage().add(Storage::SharedMediaAddSlice(
 							peer->id,
 							topic->rootId(),
+							PeerId(), // monoforumPeerId
 							Storage::SharedMediaType::Pinned,
 							{ id },
 							{ id, ServerMaxMsgId }));
 						topic->setHasPinnedMessages(true);
+					}
+					if (const auto sublist = item->savedSublist()) {
+						session().storage().add(Storage::SharedMediaAddSlice(
+							peer->id,
+							MsgId(), // topicRootId
+							item->sublistPeerId(),
+							Storage::SharedMediaType::Pinned,
+							{ id },
+							{ id, ServerMaxMsgId }));
+						sublist->setHasPinnedMessages(true);
 					}
 				}
 			}, [&](const MTPDmessageReplyStoryHeader &data) {
@@ -1470,6 +1512,7 @@ void History::addEdgesToSharedMedia() {
 		session().storage().add(Storage::SharedMediaAddSlice(
 			peer->id,
 			MsgId(0), // topicRootId
+			PeerId(0), // monoforumPeerId
 			type,
 			{},
 			{ from, till }));
@@ -1683,6 +1726,7 @@ void History::addToSharedMedia(
 			session().storage().add(Storage::SharedMediaAddSlice(
 				peer->id,
 				MsgId(0), // topicRootId
+				PeerId(0), // monoforumPeerId
 				type,
 				std::move(medias[i]),
 				{ from, till }));
@@ -3162,11 +3206,9 @@ void History::forceFullResize() {
 Data::Thread *History::threadFor(MsgId topicRootId, PeerId monoforumPeerId) {
 	return topicRootId
 		? peer->forumTopicFor(topicRootId)
-		: !monoforumPeerId
-		? static_cast<Data::Thread*>(this)
-		: peer->monoforum()
-		? peer->monoforum()->sublistLoaded(owner().peer(monoforumPeerId))
-		: nullptr;
+		: monoforumPeerId
+		? peer->monoforumSublistFor(monoforumPeerId)
+		: static_cast<Data::Thread*>(this);
 }
 
 const Data::Thread *History::threadFor(

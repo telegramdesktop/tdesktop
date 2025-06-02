@@ -38,6 +38,7 @@ class ForumTopic;
 class Session;
 class GroupCall;
 class SavedMessages;
+class SavedSublist;
 struct ReactionId;
 class WallPaper;
 
@@ -260,6 +261,8 @@ public:
 	[[nodiscard]] Data::ForumTopic *forumTopicFor(MsgId rootId) const;
 
 	[[nodiscard]] Data::SavedMessages *monoforum() const;
+	[[nodiscard]] Data::SavedSublist *monoforumSublistFor(
+		PeerId sublistPeerId) const;
 
 	[[nodiscard]] Data::PeerNotifySettings &notify() {
 		return _notify;
@@ -616,10 +619,12 @@ void SetTopPinnedMessageId(
 [[nodiscard]] FullMsgId ResolveTopPinnedId(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	PeerData *migrated = nullptr);
 [[nodiscard]] FullMsgId ResolveMinPinnedId(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	PeerData *migrated = nullptr);
 
 } // namespace Data

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class ForumTopic;
+class SavedSublist;
 class PhotoMedia;
 } // namespace Data
 
@@ -74,6 +75,7 @@ private:
 	const not_null<PeerData*> _peer;
 	PeerData * const _migrated = nullptr;
 	Data::ForumTopic * const _topic = nullptr;
+	Data::SavedSublist * const _sublist = nullptr;
 
 	PeerData *_reactionGroup = nullptr;
 

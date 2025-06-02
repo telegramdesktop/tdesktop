@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/random.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
+#include "data/data_peer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/empty_userpic.h"
@@ -131,6 +133,12 @@ using Manager = Platform::Notifications::Manager;
 		return;
 	}
 	const auto notificationTopicRootId = [topicObject longLongValue];
+	NSNumber *monoforumPeerObject = [notificationUserInfo objectForKey:@"monoforumpeer"];
+	if (!monoforumPeerObject) {
+		LOG(("App Error: A notification with unknown monoforum peer was received"));
+		return;
+	}
+	const auto notificationMonoforumPeerId = [monoforumPeerObject unsignedLongLongValue];
 
 	NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
 	const auto notificationMsgId = msgObject ? [msgObject longLongValue] : 0LL;
@@ -140,6 +148,7 @@ using Manager = Platform::Notifications::Manager;
 			.sessionId = notificationSessionId,
 			.peerId = PeerId(notificationPeerId),
 			.topicRootId = MsgId(notificationTopicRootId),
+			.monoforumPeerId = PeerId(notificationMonoforumPeerId),
 		},
 		.msgId = notificationMsgId,
 	};
@@ -210,6 +219,7 @@ public:
 	void clearAll();
 	void clearFromItem(not_null<HistoryItem*> item);
 	void clearFromTopic(not_null<Data::ForumTopic*> topic);
+	void clearFromSublist(not_null<Data::SavedSublist*> sublist);
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void updateDelegate();
@@ -237,6 +247,9 @@ private:
 	struct ClearFromTopic {
 		ContextId contextId;
 	};
+	struct ClearFromSublist {
+		ContextId contextId;
+	}
 	struct ClearFromHistory {
 		ContextId partialContextId;
 	};
@@ -250,6 +263,7 @@ private:
 	using ClearTask = std::variant<
 		ClearFromItem,
 		ClearFromTopic,
+		ClearFromSublist,
 		ClearFromHistory,
 		ClearFromSession,
 		ClearAll,
@@ -311,6 +325,8 @@ void Manager::Private::showNotification(
 			@"peer",
 			[NSNumber numberWithLongLong:info.topicRootId.bare],
 			@"topic",
+			[NSNumber numberWithUnsignedLongLong:info.monoforumPeerId.value],
+			@"monoforumpeer",
 			[NSNumber numberWithLongLong:info.itemId.bare],
 			@"msgid",
 			[NSNumber numberWithUnsignedLongLong:_managerId],
@@ -351,6 +367,7 @@ void Manager::Private::clearingThreadLoop() {
 		auto clearAll = false;
 		auto clearFromItems = base::flat_set<NotificationId>();
 		auto clearFromTopics = base::flat_set<ContextId>();
+		auto clearFromSublists = base::flat_set<ContextId>();
 		auto clearFromHistories = base::flat_set<ContextId>();
 		auto clearFromSessions = base::flat_set<uint64>();
 		{
@@ -368,6 +385,8 @@ void Manager::Private::clearingThreadLoop() {
 					clearFromItems.emplace(value.id);
 				}, [&](const ClearFromTopic &value) {
 					clearFromTopics.emplace(value.contextId);
+				}, [&](const ClearFromSublist &value) {
+					clearFromSublists.emplace(value.contextId);
 				}, [&](const ClearFromHistory &value) {
 					clearFromHistories.emplace(value.partialContextId);
 				}, [&](const ClearFromSession &value) {
@@ -395,21 +414,35 @@ void Manager::Private::clearingThreadLoop() {
 				return true;
 			}
 			const auto notificationTopicRootId = [topicObject longLongValue];
+			NSNumber *monoforumPeerObject = [notificationUserInfo objectForKey:@"monoforumpeer"];
+			if (!monoforumPeerObject) {
+				return true;
+			}
+			const auto notificationMonoforumPeerId = [monoforumPeerObject unsignedLongLongValue];
 			NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
 			const auto msgId = msgObject ? [msgObject longLongValue] : 0LL;
 			const auto partialContextId = ContextId{
 				.sessionId = notificationSessionId,
 				.peerId = PeerId(notificationPeerId),
 			};
-			const auto contextId = ContextId{
+			const auto contextId = notificationTopicRootId
+			? ContextId{
 				.sessionId = notificationSessionId,
 				.peerId = PeerId(notificationPeerId),
 				.topicRootId = MsgId(notificationTopicRootId),
-			};
+			}
+			: notificationMonoforumPeerId
+			? ContextId{
+				.sessionId = notificationSessionId,
+				.peerId = PeerId(notificationPeerId),
+				.monoforumPeerId = PeerId(notificationMonoforumPeerId),
+			}
+			: partialContextId;
 			const auto id = NotificationId{ contextId, MsgId(msgId) };
 			return clearFromSessions.contains(notificationSessionId)
 				|| clearFromHistories.contains(partialContextId)
 				|| clearFromTopics.contains(contextId)
+				|| clearFromSublists.contains(contextId)
 				|| (msgId && clearFromItems.contains(id));
 		};
 
@@ -450,6 +483,7 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id,
 		.topicRootId = item->topicRootId(),
+		.monoforumPeerId = item->sublistPeerId(),
 	}, item->id });
 }
 
@@ -458,6 +492,15 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		.sessionId = topic->session().uniqueId(),
 		.peerId = topic->history()->peer->id,
 		.topicRootId = topic->rootId(),
+	} });
+}
+
+void Manager::Private::clearFromSublist(
+		not_null<Data::SavedSublist*> sublist) {
+	putClearTask(ClearFromSublist{ ContextId{
+		.sessionId = sublist->session().uniqueId(),
+		.peerId = sublist->owningHistory()->peer->id,
+		.monoforumPeerId = sublist->sublistPeer()->id,
 	} });
 }
 
@@ -509,6 +552,10 @@ void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 
 void Manager::doClearFromTopic(not_null<Data::ForumTopic*> topic) {
 	_private->clearFromTopic(topic);
+}
+
+void Manager::doClearFromSublist(not_null<Data::SavedSublist*> sublist) {
+	_private->clearFromSublist(sublist);
 }
 
 void Manager::doClearFromHistory(not_null<History*> history) {

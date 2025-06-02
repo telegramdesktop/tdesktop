@@ -188,7 +188,7 @@ std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
 }
 
 Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(peer, nullptr, PeerId()) {
+: ContentMemento(peer, nullptr, nullptr, PeerId()) {
 }
 
 Section Memento::section() const {

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
+#include "data/data_saved_sublist.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
@@ -46,6 +47,7 @@ InnerWidget::InnerWidget(
 , _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
 , _topic(_controller->key().topic())
+, _sublist(_controller->key().sublist())
 , _content(setupContent(this, origin)) {
 	_content->heightValue(
 	) | rpl::start_with_next([this](int height) {
@@ -82,7 +84,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 
 	AddDetails(result, _controller, _peer, _topic, origin);
 	result->add(setupSharedMedia(result.data()));
-	if (_topic) {
+	if (_topic || _sublist) {
 		return result;
 	}
 	{
@@ -147,7 +149,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			content,
 			_controller,
 			_peer,
-			_topic ? _topic->rootId() : 0,
+			_topic ? _topic->rootId() : MsgId(),
+			_sublist ? _sublist->sublistPeer()->id : PeerId(),
 			_migrated,
 			type,
 			tracker);

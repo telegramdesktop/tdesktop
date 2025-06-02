@@ -110,11 +110,13 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		auto requestMediaAround = [
 			peer = session->data().peer(key.peerId),
 			topicRootId = key.topicRootId,
+			monoforumPeerId = key.monoforumPeerId,
 			type = key.type
 		](const SparseIdsSliceBuilder::AroundData &data) {
 			peer->session().api().requestSharedMedia(
 				peer,
 				topicRootId,
+				monoforumPeerId,
 				type,
 				data.aroundId,
 				data.direction);
@@ -131,6 +133,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		) | rpl::filter([=](const SliceUpdate &update) {
 			return (update.peerId == key.peerId)
 				&& (update.topicRootId == key.topicRootId)
+				&& (update.monoforumPeerId == key.monoforumPeerId)
 				&& (update.type == key.type);
 		}) | rpl::filter([=](const SliceUpdate &update) {
 			return builder->applyUpdate(update.data);
@@ -151,6 +154,8 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			return (update.peerId == key.peerId)
 				&& (!update.topicRootId
 					|| update.topicRootId == key.topicRootId)
+				&& (!update.monoforumPeerId
+					|| update.monoforumPeerId == key.monoforumPeerId)
 				&& update.types.test(key.type);
 		}) | rpl::filter([=] {
 			return builder->removeAll();
@@ -236,6 +241,7 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 	auto createSimpleViewer = [=](
 			PeerId peerId,
 			MsgId topicRootId,
+			PeerId monoforumPeerId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
 			int limitAfter) {
@@ -244,6 +250,7 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 			Storage::SharedMediaKey(
 				peerId,
 				topicRootId,
+				monoforumPeerId,
 				key.type,
 				simpleKey),
 			limitBefore,

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/search_field_controller.h"
 #include "data/data_shared_media.h"
+#include "history/history.h"
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
 #include "info/global_media/info_global_media_widget.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_download_manager.h"
@@ -33,6 +35,9 @@ Key::Key(not_null<PeerData*> peer) : _value(peer) {
 }
 
 Key::Key(not_null<Data::ForumTopic*> topic) : _value(topic) {
+}
+
+Key::Key(not_null<Data::SavedSublist*> sublist) : _value(sublist) {
 }
 
 Key::Key(Settings::Tag settings) : _value(settings) {
@@ -69,6 +74,8 @@ PeerData *Key::peer() const {
 		return *peer;
 	} else if (const auto topic = this->topic()) {
 		return topic->channel();
+	} else if (const auto sublist = this->sublist()) {
+		return sublist->owningHistory()->peer;
 	}
 	return nullptr;
 }
@@ -77,6 +84,14 @@ Data::ForumTopic *Key::topic() const {
 	if (const auto topic = std::get_if<not_null<Data::ForumTopic*>>(
 			&_value)) {
 		return *topic;
+	}
+	return nullptr;
+}
+
+Data::SavedSublist *Key::sublist() const {
+	if (const auto sublist = std::get_if<not_null<Data::SavedSublist*>>(
+			&_value)) {
+		return *sublist;
 	}
 	return nullptr;
 }
@@ -195,6 +210,7 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 			SparseIdsMergedSlice::Key(
 				peer()->id,
 				topicId,
+				sublist() ? sublist()->sublistPeer()->id : PeerId(),
 				migratedPeerId(),
 				aroundId),
 			section().mediaType()),
@@ -487,6 +503,7 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 			SparseIdsMergedSlice::Key(
 				query.peerId,
 				query.topicRootId,
+				query.monoforumPeerId,
 				query.migratedPeerId,
 				aroundId),
 			query.type),

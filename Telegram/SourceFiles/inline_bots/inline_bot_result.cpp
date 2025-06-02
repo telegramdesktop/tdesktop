@@ -347,9 +347,9 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 Media::View::OpenRequest Result::openRequest() {
 	using namespace Media::View;
 	if (_document) {
-		return OpenRequest(nullptr, _document, nullptr, MsgId());
+		return OpenRequest(nullptr, _document, nullptr, MsgId(), PeerId());
 	} else if (_photo) {
-		return OpenRequest(nullptr, _photo, nullptr, MsgId());
+		return OpenRequest(nullptr, _photo, nullptr, MsgId(), PeerId());
 	}
 	return {};
 }

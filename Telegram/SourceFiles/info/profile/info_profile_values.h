@@ -113,6 +113,7 @@ struct LinkWithUrl {
 [[nodiscard]] rpl::producer<int> SharedMediaCountValue(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	PeerData *migrated,
 	Storage::SharedMediaType type);
 [[nodiscard]] rpl::producer<int> CommonGroupsCountValue(

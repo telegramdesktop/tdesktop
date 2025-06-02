@@ -110,10 +110,12 @@ public:
 
 	[[nodiscard]] MsgId hiddenPinnedMessageId(
 		PeerId peerId,
-		MsgId topicRootId = 0) const;
+		MsgId topicRootId = 0,
+		PeerId monoforumPeerId = 0) const;
 	void setHiddenPinnedMessageId(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		MsgId msgId);
 
 	[[nodiscard]] bool dialogsFiltersEnabled() const {
@@ -149,6 +151,7 @@ private:
 	struct ThreadId {
 		PeerId peerId;
 		MsgId topicRootId;
+		PeerId monoforumPeerId;
 
 		friend inline constexpr auto operator<=>(
 			ThreadId,

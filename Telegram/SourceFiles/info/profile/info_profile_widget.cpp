@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_widget.h"
 
 #include "dialogs/ui/dialogs_stories_content.h"
+#include "history/history.h"
 #include "info/profile/info_profile_inner_widget.h"
 #include "info/profile/info_profile_members.h"
 #include "ui/widgets/scroll_area.h"
@@ -15,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
@@ -25,6 +27,7 @@ Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	controller->peer(),
 	controller->topic(),
+	controller->sublist(),
 	controller->migratedPeerId(),
 	{ v::null }) {
 }
@@ -33,20 +36,25 @@ Memento::Memento(
 	not_null<PeerData*> peer,
 	PeerId migratedPeerId,
 	Origin origin)
-: Memento(peer, nullptr, migratedPeerId, origin) {
+: Memento(peer, nullptr, nullptr, migratedPeerId, origin) {
 }
 
 Memento::Memento(
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
+	Data::SavedSublist *sublist,
 	PeerId migratedPeerId,
 	Origin origin)
-: ContentMemento(peer, topic, migratedPeerId)
+: ContentMemento(peer, topic, sublist, migratedPeerId)
 , _origin(origin) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
-: ContentMemento(topic->channel(), topic, 0) {
+: ContentMemento(topic->channel(), topic, nullptr, 0) {
+}
+
+Memento::Memento(not_null<Data::SavedSublist*> sublist)
+: ContentMemento(sublist->owningHistory()->peer, nullptr, sublist, 0) {
 }
 
 Section Memento::section() const {

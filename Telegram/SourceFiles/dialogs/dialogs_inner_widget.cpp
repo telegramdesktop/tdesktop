@@ -1909,7 +1909,7 @@ RowDescriptor InnerWidget::computeChatPreviewRow() const {
 	auto result = computeChosenRow();
 	if (const auto peer = result.key.peer()) {
 		const auto topicId = _pressedTopicJump
-			? _pressedTopicJumpRootId
+			? _pressedTopicJumpRootId // #TODO monoforums
 			: 0;
 		if (const auto topic = peer->forumTopicFor(topicId)) {
 			return { topic, FullMsgId() };

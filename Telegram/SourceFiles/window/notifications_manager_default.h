@@ -70,6 +70,7 @@ private:
 	void doClearAll() override;
 	void doClearAllFast() override;
 	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override;
+	void doClearFromSublist(not_null<Data::SavedSublist*> sublist) override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	void doClearFromItem(not_null<HistoryItem*> item) override;
@@ -111,6 +112,7 @@ private:
 
 		not_null<History*> history;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 		not_null<PeerData*> peer;
 		Data::ReactionId reaction;
 		QString author;
@@ -203,6 +205,7 @@ public:
 		not_null<Manager*> manager,
 		not_null<History*> history,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		not_null<PeerData*> peer,
 		const QString &author,
 		HistoryItem *item,
@@ -231,7 +234,10 @@ public:
 
 	// Called only by Manager.
 	bool unlinkItem(HistoryItem *del);
-	bool unlinkHistory(History *history = nullptr, MsgId topicRootId = 0);
+	bool unlinkHistory(
+		History *history = nullptr,
+		MsgId topicRootId = 0,
+		PeerId monoforumPeerId = 0);
 	bool unlinkSession(not_null<Main::Session*> session);
 	bool checkLastInput(
 		bool hasReplyingNotifications,
@@ -285,6 +291,8 @@ private:
 	History *_history = nullptr;
 	Data::ForumTopic *_topic = nullptr;
 	MsgId _topicRootId = 0;
+	Data::SavedSublist *_sublist = nullptr;
+	PeerId _monoforumPeerId = 0;
 	Ui::PeerUserpicView _userpicView;
 	QString _author;
 	Data::ReactionId _reaction;

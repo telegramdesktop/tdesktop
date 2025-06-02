@@ -3040,14 +3040,18 @@ void HidePinnedBar(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		Fn<void()> onHidden) {
 	const auto callback = crl::guard(navigation, [=](Fn<void()> &&close) {
 		close();
 		auto &session = peer->session();
-		const auto migrated = topicRootId ? nullptr : peer->migrateFrom();
+		const auto migrated = (topicRootId || monoforumPeerId)
+			? nullptr
+			: peer->migrateFrom();
 		const auto top = Data::ResolveTopPinnedId(
 			peer,
 			topicRootId,
+			monoforumPeerId,
 			migrated);
 		const auto universal = !top
 			? MsgId(0)
@@ -3058,6 +3062,7 @@ void HidePinnedBar(
 			session.settings().setHiddenPinnedMessageId(
 				peer->id,
 				topicRootId,
+				monoforumPeerId,
 				universal);
 			session.saveSettingsDelayed();
 			if (onHidden) {
@@ -3091,6 +3096,7 @@ void UnpinAllMessages(
 			const auto history = strong->owningHistory();
 			const auto topicRootId = strong->topicRootId();
 			const auto sublist = strong->asSublist();
+			const auto monoforumPeerId = strong->monoforumPeerId();
 			using Flag = MTPmessages_UnpinAllMessages::Flag;
 			api->request(MTPmessages_UnpinAllMessages(
 				MTP_flags((topicRootId ? Flag::f_top_msg_id : Flag())
@@ -3104,7 +3110,7 @@ void UnpinAllMessages(
 				if (offset > 0) {
 					self(self);
 				} else {
-					history->unpinMessagesFor(topicRootId);
+					history->unpinMessagesFor(topicRootId, monoforumPeerId);
 				}
 			}).send();
 		};

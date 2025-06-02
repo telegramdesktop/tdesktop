@@ -2978,17 +2978,27 @@ void ApiWrap::resolveJumpToDate(
 		Fn<void(not_null<PeerData*>, MsgId)> callback) {
 	if (const auto peer = chat.peer()) {
 		const auto topic = chat.topic();
-		const auto rootId = topic ? topic->rootId() : 0;
-		resolveJumpToHistoryDate(peer, rootId, date, std::move(callback));
+		const auto sublist = chat.sublist();
+		const auto rootId = topic ? topic->rootId() : MsgId();
+		const auto monoforumPeerId = sublist
+			? sublist->sublistPeer()->id
+			: PeerId();
+		resolveJumpToHistoryDate(
+			peer,
+			rootId,
+			monoforumPeerId,
+			date,
+			std::move(callback));
 	}
 }
 
 template <typename Callback>
 void ApiWrap::requestMessageAfterDate(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		const QDate &date,
-		Callback &&callback) {
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	PeerId monoforumPeerId,
+	const QDate &date,
+	Callback &&callback) {
 	// API returns a message with date <= offset_date.
 	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
 	// This should give us the first message with date >= desired_date.
@@ -3011,7 +3021,7 @@ void ApiWrap::requestMessageAfterDate(
 				return &messages.vmessages().v;
 			};
 			const auto list = result.match([&](
-					const MTPDmessages_messages &data) {
+				const MTPDmessages_messages &data) {
 				return handleMessages(data);
 			}, [&](const MTPDmessages_messagesSlice &data) {
 				return handleMessages(data);
@@ -3054,6 +3064,18 @@ void ApiWrap::requestMessageAfterDate(
 			MTP_int(maxId),
 			MTP_int(minId),
 			MTP_long(historyHash)));
+	} else if (monoforumPeerId) {
+		send(MTPmessages_GetSavedHistory(
+			MTP_flags(MTPmessages_GetSavedHistory::Flag::f_parent_peer),
+			peer->input,
+			session().data().peer(monoforumPeerId)->input,
+			MTP_int(offsetId),
+			MTP_int(offsetDate),
+			MTP_int(addOffset),
+			MTP_int(limit),
+			MTP_int(maxId),
+			MTP_int(minId),
+			MTP_long(historyHash)));
 	} else {
 		send(MTPmessages_GetHistory(
 			peer->input,
@@ -3070,28 +3092,41 @@ void ApiWrap::requestMessageAfterDate(
 void ApiWrap::resolveJumpToHistoryDate(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		const QDate &date,
 		Fn<void(not_null<PeerData*>, MsgId)> callback) {
 	if (const auto channel = peer->migrateTo()) {
 		return resolveJumpToHistoryDate(
 			channel,
 			topicRootId,
+			monoforumPeerId,
 			date,
 			std::move(callback));
 	}
 	const auto jumpToDateInPeer = [=] {
-		requestMessageAfterDate(peer, topicRootId, date, [=](MsgId itemId) {
-			callback(peer, itemId);
-		});
+		requestMessageAfterDate(
+			peer,
+			topicRootId,
+			monoforumPeerId,
+			date,
+			[=](MsgId itemId) { callback(peer, itemId); });
 	};
-	if (const auto chat = topicRootId ? nullptr : peer->migrateFrom()) {
-		requestMessageAfterDate(chat, 0, date, [=](MsgId itemId) {
-			if (itemId) {
-				callback(chat, itemId);
-			} else {
-				jumpToDateInPeer();
-			}
-		});
+	const auto migrated = (topicRootId || monoforumPeerId)
+		? nullptr
+		: peer->migrateFrom();
+	if (migrated) {
+		requestMessageAfterDate(
+			migrated,
+			MsgId(),
+			PeerId(),
+			date,
+			[=](MsgId itemId) {
+				if (itemId) {
+					callback(migrated, itemId);
+				} else {
+					jumpToDateInPeer();
+				}
+			});
 	} else {
 		jumpToDateInPeer();
 	}
@@ -3140,12 +3175,14 @@ void ApiWrap::requestHistory(
 void ApiWrap::requestSharedMedia(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		SharedMediaType type,
 		MsgId messageId,
 		SliceType slice) {
 	const auto key = SharedMediaRequest{
 		peer,
 		topicRootId,
+		monoforumPeerId,
 		type,
 		messageId,
 		slice,
@@ -3157,6 +3194,7 @@ void ApiWrap::requestSharedMedia(
 	const auto prepared = Api::PrepareSearchRequest(
 		peer,
 		topicRootId,
+		monoforumPeerId,
 		type,
 		QString(),
 		messageId,
@@ -3179,7 +3217,12 @@ void ApiWrap::requestSharedMedia(
 				messageId,
 				slice,
 				result);
-			sharedMediaDone(peer, topicRootId, type, std::move(parsed));
+			sharedMediaDone(
+				peer,
+				topicRootId,
+				monoforumPeerId,
+				type,
+				std::move(parsed));
 			finish();
 		}).fail([=] {
 			_sharedMediaRequests.remove(key);
@@ -3192,16 +3235,19 @@ void ApiWrap::requestSharedMedia(
 void ApiWrap::sharedMediaDone(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed) {
 	const auto topic = peer->forumTopicFor(topicRootId);
-	if (topicRootId && !topic) {
+	const auto sublist = peer->monoforumSublistFor(monoforumPeerId);
+	if ((topicRootId && !topic) || (monoforumPeerId && !sublist)) {
 		return;
 	}
 	const auto hasMessages = !parsed.messageIds.empty();
 	_session->storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
 		topicRootId,
+		monoforumPeerId,
 		type,
 		std::move(parsed.messageIds),
 		parsed.noSkipRange,
@@ -3211,6 +3257,9 @@ void ApiWrap::sharedMediaDone(
 		peer->owner().history(peer)->setHasPinnedMessages(true);
 		if (topic) {
 			topic->setHasPinnedMessages(true);
+		}
+		if (sublist) {
+			sublist->setHasPinnedMessages(true);
 		}
 	}
 }
@@ -3245,16 +3294,12 @@ void ApiWrap::sendAction(const SendAction &action) {
 		&& !action.options.shortcutId
 		&& !action.replaceMediaOf) {
 		const auto topicRootId = action.replyTo.topicRootId;
-		const auto monoforumPeerId = action.replyTo.monoforumPeerId;
 		const auto topic = topicRootId
 			? action.history->peer->forumTopicFor(topicRootId)
 			: nullptr;
-		const auto monoforum = monoforumPeerId
-			? action.history->peer->monoforum()
-			: nullptr;
-		const auto sublist = monoforum
-			? monoforum->sublistLoaded(
-				action.history->owner().peer(monoforumPeerId))
+		const auto monoforumPeerId = action.replyTo.monoforumPeerId;
+		const auto sublist = monoforumPeerId
+			? action.history->peer->monoforumSublistFor(monoforumPeerId)
 			: nullptr;
 		if (topic) {
 			topic->readTillEnd();

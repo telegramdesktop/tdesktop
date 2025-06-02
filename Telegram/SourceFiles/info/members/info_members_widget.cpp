@@ -26,7 +26,7 @@ Memento::Memento(not_null<Controller*> controller)
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
-: ContentMemento(peer, nullptr, migratedPeerId) {
+: ContentMemento(peer, nullptr, nullptr, migratedPeerId) {
 }
 
 Section Memento::section() const {

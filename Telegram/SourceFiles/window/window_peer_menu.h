@@ -218,6 +218,7 @@ void HidePinnedBar(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	Fn<void()> onHidden);
 void UnpinAllMessages(
 	not_null<Window::SessionNavigation*> navigation,

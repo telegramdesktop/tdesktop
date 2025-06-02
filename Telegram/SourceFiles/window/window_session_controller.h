@@ -523,6 +523,7 @@ public:
 	struct MessageContext {
 		FullMsgId id;
 		MsgId topicRootId;
+		PeerId monoforumPeerId;
 	};
 	void openPhoto(
 		not_null<PhotoData*> photo,

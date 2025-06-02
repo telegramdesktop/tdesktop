@@ -1513,6 +1513,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 		storage.add(Storage::SharedMediaAddExisting(
 			_history->peer->id,
 			MsgId(0), // topicRootId
+			PeerId(0), // monoforumPeerId
 			Storage::SharedMediaType::Pinned,
 			id,
 			{ id, id }));
@@ -1521,10 +1522,21 @@ void HistoryItem::setIsPinned(bool pinned) {
 			storage.add(Storage::SharedMediaAddExisting(
 				_history->peer->id,
 				topic->rootId(),
+				PeerId(), // monoforumPeerId
 				Storage::SharedMediaType::Pinned,
 				id,
 				{ id, id }));
 			topic->setHasPinnedMessages(true);
+		}
+		if (const auto sublist = this->savedSublist()) {
+			storage.add(Storage::SharedMediaAddExisting(
+				_history->peer->id,
+				MsgId(0), // topicRootId
+				sublistPeerId(),
+				Storage::SharedMediaType::Pinned,
+				id,
+				{ id, id }));
+			sublist->setHasPinnedMessages(true);
 		}
 	} else {
 		_flags &= ~MessageFlag::Pinned;
@@ -2238,12 +2250,16 @@ void HistoryItem::addToSharedMediaIndex() {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
 				_history->peer->id,
 				topicRootId(),
+				sublistPeerId(),
 				types,
 				id));
 			if (types.test(Storage::SharedMediaType::Pinned)) {
 				_history->setHasPinnedMessages(true);
 				if (const auto topic = this->topic()) {
 					topic->setHasPinnedMessages(true);
+				}
+				if (const auto sublist = this->savedSublist()) {
+					sublist->setHasPinnedMessages(true);
 				}
 			}
 		}

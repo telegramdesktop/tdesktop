@@ -543,6 +543,7 @@ rpl::producer<int> KickedCountValue(not_null<ChannelData*> channel) {
 rpl::producer<int> SharedMediaCountValue(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		PeerData *migrated,
 		Storage::SharedMediaType type) {
 	auto aroundId = 0;
@@ -553,6 +554,7 @@ rpl::producer<int> SharedMediaCountValue(
 			SparseIdsMergedSlice::Key(
 				peer->id,
 				topicRootId,
+				monoforumPeerId,
 				migrated ? migrated->id : 0,
 				aroundId),
 			type),

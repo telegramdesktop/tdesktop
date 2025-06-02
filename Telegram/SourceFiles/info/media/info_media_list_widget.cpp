@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_download_manager.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/history.h"
@@ -512,7 +513,7 @@ void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
 		: Data::StoriesContext{ Data::StoriesContextSaved() };
 	_controller->parentController()->openPhoto(
 		photo,
-		{ id, topicRootId() },
+		{ id, topicRootId(), monoforumPeerId() },
 		_controller->storiesPeer() ? &context : nullptr);
 }
 
@@ -527,7 +528,7 @@ void ListWidget::openDocument(
 	_controller->parentController()->openDocument(
 		document,
 		showInMediaView,
-		{ id, topicRootId() },
+		{ id, topicRootId(), monoforumPeerId() },
 		_controller->storiesPeer() ? &context : nullptr);
 }
 
@@ -794,6 +795,11 @@ void ListWidget::restoreScrollState() {
 MsgId ListWidget::topicRootId() const {
 	const auto topic = _controller->key().topic();
 	return topic ? topic->rootId() : MsgId(0);
+}
+
+PeerId ListWidget::monoforumPeerId() const {
+	const auto sublist = _controller->key().sublist();
+	return sublist ? sublist->sublistPeer()->id : PeerId(0);
 }
 
 QMargins ListWidget::padding() const {

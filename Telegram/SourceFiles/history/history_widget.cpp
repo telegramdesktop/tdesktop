@@ -6038,7 +6038,7 @@ bool HistoryWidget::showSendingFilesError(
 	return true;
 }
 
-MsgId HistoryWidget::resolveReplyToTopicRootId() {
+MsgId HistoryWidget::resolveReplyToTopicRootId() { // #TODO monoforums
 	Expects(_peer != nullptr);
 
 	const auto replyToInfo = replyTo();
@@ -7601,6 +7601,7 @@ void HistoryWidget::updatePinnedViewer() {
 		_minPinnedId = Data::ResolveMinPinnedId(
 			_peer,
 			MsgId(0), // topicRootId
+			PeerId(0), // monoforumPeerId
 			_migrated ? _migrated->peer.get() : nullptr);
 	}
 	if (_pinnedClickedId
@@ -7680,6 +7681,7 @@ void HistoryWidget::checkPinnedBarState() {
 	const auto currentPinnedId = Data::ResolveTopPinnedId(
 		_peer,
 		MsgId(0), // topicRootId
+		PeerId(0), // monoforumPeerId
 		_migrated ? _migrated->peer.get() : nullptr);
 	const auto universalPinnedId = !currentPinnedId
 		? int32(0)
@@ -7713,6 +7715,7 @@ void HistoryWidget::checkPinnedBarState() {
 	auto pinnedRefreshed = Info::Profile::SharedMediaCountValue(
 		_peer,
 		MsgId(0), // topicRootId
+		PeerId(0), // monoforumPeerId
 		nullptr,
 		Storage::SharedMediaType::Pinned
 	) | rpl::distinct_until_changed(
@@ -8593,6 +8596,7 @@ void HistoryWidget::hidePinnedMessage() {
 			controller(),
 			_peer,
 			MsgId(0), // topicRootId
+			PeerId(0), // monoforumPeerId
 			crl::guard(this, callback));
 	}
 }

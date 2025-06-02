@@ -678,7 +678,7 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 }
 
 Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(peer, nullptr, PeerId()) {
+: ContentMemento(peer, nullptr, nullptr, PeerId()) {
 }
 
 Section Memento::section() const {

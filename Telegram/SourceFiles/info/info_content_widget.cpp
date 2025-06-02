@@ -307,6 +307,7 @@ QRect ContentWidget::floatPlayerAvailableRect() const {
 void ContentWidget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 	const auto peer = _controller->key().peer();
 	const auto topic = _controller->key().topic();
+	const auto sublist = _controller->key().sublist();
 	if (!peer && !topic) {
 		return;
 	}
@@ -316,6 +317,8 @@ void ContentWidget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 		Dialogs::EntryState{
 			.key = (topic
 				? Dialogs::Key{ topic }
+				: sublist
+				? Dialogs::Key{ sublist }
 				: Dialogs::Key{ peer->owner().history(peer) }),
 			.section = Dialogs::EntryState::Section::Profile,
 		},
@@ -465,6 +468,8 @@ void ContentWidget::setupSwipeHandler(not_null<Ui::RpWidget*> widget) {
 Key ContentMemento::key() const {
 	if (const auto topic = this->topic()) {
 		return Key(topic);
+	} else if (const auto sublist = this->sublist()) {
+		return Key(sublist);
 	} else if (const auto peer = this->peer()) {
 		return Key(peer);
 	} else if (const auto poll = this->poll()) {
@@ -489,12 +494,14 @@ Key ContentMemento::key() const {
 ContentMemento::ContentMemento(
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
+	Data::SavedSublist *sublist,
 	PeerId migratedPeerId)
 : _peer(peer)
-, _migratedPeerId((!topic && peer->migrateFrom())
+, _migratedPeerId((!topic && !sublist && peer->migrateFrom())
 	? peer->migrateFrom()->id
 	: 0)
-, _topic(topic) {
+, _topic(topic)
+, _sublist(sublist) {
 	if (_topic) {
 		_peer->owner().itemIdChanged(
 		) | rpl::start_with_next([=](const Data::Session::IdChange &change) {

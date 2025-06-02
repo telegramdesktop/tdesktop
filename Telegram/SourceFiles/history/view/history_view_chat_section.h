@@ -394,6 +394,7 @@ private:
 	rpl::variable<bool> _areComments = false;
 
 	Data::SavedSublist *_sublist = nullptr;
+	PeerId _monoforumPeerId;
 
 	std::shared_ptr<SendActionPainter> _sendAction;
 	std::shared_ptr<Ui::ChatTheme> _theme;

@@ -151,7 +151,7 @@ void ChatMemento::setFromTopic(not_null<Data::ForumTopic*> topic) {
 }
 
 
-Data::ForumTopic *ChatMemento::topicForRemoveRequests() const {
+Data::ForumTopic *ChatMemento::topicForRemoveRequests() const {// #TODO monoforums
 	return _id.repliesRootId
 		? _id.history->peer->forumTopicFor(_id.repliesRootId)
 		: nullptr;
@@ -233,6 +233,9 @@ ChatWidget::ChatWidget(
 , _topic(lookupTopic())
 , _areComments(computeAreComments())
 , _sublist(_id.sublist)
+, _monoforumPeerId((_sublist && _sublist->parentChat())
+	? _sublist->sublistPeer()->id
+	: PeerId())
 , _sendAction(_repliesRootId
 	? _history->owner().sendActionManager().repliesPainter(
 		_history,
@@ -772,7 +775,7 @@ void ChatWidget::setupComposeControls() {
 	_composeControls->setHistory({
 		.history = _history.get(),
 		.topicRootId = _topic ? _topic->rootId() : MsgId(),
-		.monoforumPeerId = _sublist ? _sublist->sublistPeer()->id : PeerId(),
+		.monoforumPeerId = _monoforumPeerId,
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
 		.sendActionFactory = [=] { return prepareSendAction({}); },
 		.slowmodeSecondsLeft = SlowmodeSecondsLeft(_peer),
@@ -1781,20 +1784,17 @@ SendMenu::Details ChatWidget::sendMenuDetails() const {
 }
 
 FullReplyTo ChatWidget::replyTo() const {
-	const auto monoforumPeerId = (_sublist && _sublist->parentChat())
-		? _sublist->sublistPeer()->id
-		: PeerId();
 	if (auto custom = _composeControls->replyingToMessage()) {
 		const auto item = custom.messageId
 			? session().data().message(custom.messageId)
 			: nullptr;
 		const auto sublistPeerId = item ? item->sublistPeerId() : PeerId();
 		if (!item
-			|| !monoforumPeerId
-			|| (sublistPeerId == monoforumPeerId)) {
+			|| !_monoforumPeerId
+			|| (sublistPeerId == _monoforumPeerId)) {
 			// Never answer to a message in a wrong monoforum peer id.
 			custom.topicRootId = _repliesRootId;
-			custom.monoforumPeerId = monoforumPeerId;
+			custom.monoforumPeerId = _monoforumPeerId;
 			return custom;
 		}
 	}
@@ -1803,7 +1803,7 @@ FullReplyTo ChatWidget::replyTo() const {
 			? FullMsgId(_peer->id, _repliesRootId)
 			: FullMsgId()),
 		.topicRootId = _repliesRootId,
-		.monoforumPeerId = monoforumPeerId,
+		.monoforumPeerId = _monoforumPeerId,
 	};
 }
 
@@ -1850,7 +1850,10 @@ void ChatWidget::updatePinnedViewer() {
 		_pinnedClickedId = FullMsgId();
 	}
 	if (_pinnedClickedId && !_minPinnedId) {
-		_minPinnedId = Data::ResolveMinPinnedId(_peer, _repliesRootId);
+		_minPinnedId = Data::ResolveMinPinnedId(
+			_peer,
+			_repliesRootId,
+			_monoforumPeerId);
 	}
 	if (_pinnedClickedId && _minPinnedId && _minPinnedId >= _pinnedClickedId) {
 		// After click on the last pinned message we should the top one.
@@ -1955,6 +1958,7 @@ void ChatWidget::setupPinnedTracker() {
 		Storage::SharedMediaKey(
 			_topic->channel()->id,
 			_repliesRootId,
+			_monoforumPeerId,
 			Storage::SharedMediaType::Pinned,
 			ServerMaxMsgId - 1),
 		1,
@@ -1968,10 +1972,15 @@ void ChatWidget::setupPinnedTracker() {
 			const auto peerId = _peer->id;
 			const auto hiddenId = settings.hiddenPinnedMessageId(
 				peerId,
-				_repliesRootId);
+				_repliesRootId,
+				_monoforumPeerId);
 			const auto last = result.size() ? result[result.size() - 1] : 0;
 			if (hiddenId && hiddenId != last) {
-				settings.setHiddenPinnedMessageId(peerId, _repliesRootId, 0);
+				settings.setHiddenPinnedMessageId(
+					peerId,
+					_repliesRootId,
+					_monoforumPeerId,
+					0);
 				_history->session().saveSettingsDelayed();
 			}
 		}
@@ -1987,10 +1996,12 @@ void ChatWidget::checkPinnedBarState() {
 		? MsgId(0)
 		: _peer->session().settings().hiddenPinnedMessageId(
 			_peer->id,
-			_repliesRootId);
+			_repliesRootId,
+			_monoforumPeerId);
 	const auto currentPinnedId = Data::ResolveTopPinnedId(
 		_peer,
-		_repliesRootId);
+		_repliesRootId,
+		_monoforumPeerId);
 	const auto universalPinnedId = !currentPinnedId
 		? MsgId(0)
 		: currentPinnedId.msg;
@@ -2021,6 +2032,7 @@ void ChatWidget::checkPinnedBarState() {
 	auto pinnedRefreshed = Info::Profile::SharedMediaCountValue(
 		_peer,
 		_repliesRootId,
+		_monoforumPeerId,
 		nullptr,
 		Storage::SharedMediaType::Pinned
 	) | rpl::distinct_until_changed(
@@ -2187,6 +2199,7 @@ void ChatWidget::hidePinnedMessage() {
 			controller(),
 			_peer,
 			_repliesRootId,
+			_monoforumPeerId,
 			crl::guard(this, callback));
 	}
 }
@@ -3193,7 +3206,9 @@ void ChatWidget::listShowPremiumToast(not_null<DocumentData*> document) {
 void ChatWidget::listOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	controller()->openPhoto(photo, { context, _repliesRootId });
+	controller()->openPhoto(
+		photo,
+		{ context, _repliesRootId, _monoforumPeerId });
 }
 
 void ChatWidget::listOpenDocument(
@@ -3203,7 +3218,7 @@ void ChatWidget::listOpenDocument(
 	controller()->openDocument(
 		document,
 		showInMediaView,
-		{ context, _repliesRootId });
+		{ context, _repliesRootId, _monoforumPeerId });
 }
 
 void ChatWidget::listPaintEmpty(

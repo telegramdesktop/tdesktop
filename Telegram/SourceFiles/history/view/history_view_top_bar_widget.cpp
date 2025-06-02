@@ -751,7 +751,7 @@ void TopBarWidget::infoClicked() {
 		_controller->showSection(std::make_shared<Info::Memento>(topic));
 	} else if (const auto sublist = key.sublist()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
-			sublist->owningHistory()->peer,
+			sublist,
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else if (key.peer()->savedSublistsInfo()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
