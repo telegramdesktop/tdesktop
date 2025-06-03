@@ -559,7 +559,7 @@ void GroupInfoBox::prepare() {
 		&_navigation->parentController()->window(),
 		Ui::UserpicButton::Role::ChoosePhoto,
 		st::defaultUserpicButton,
-		(_type == Type::Forum));
+		(_type == Type::Forum) ? Ui::PeerUserpicShape::Forum : Ui::PeerUserpicShape::Auto);
 	_photo->showCustomOnChosen();
 	_title.create(
 		this,

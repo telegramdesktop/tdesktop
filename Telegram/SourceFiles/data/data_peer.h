@@ -186,6 +186,12 @@ struct PeerBarDetails {
 	int paysPerMessage = 0;
 };
 
+struct PaintUserpicContext {
+	QPoint position;
+	int size = 0;
+	Ui::PeerUserpicShape shape = Ui::PeerUserpicShape::Auto;
+};
+
 class PeerData {
 protected:
 	PeerData(not_null<Data::Session*> owner, PeerId id);
@@ -310,7 +316,7 @@ public:
 	[[nodiscard]] not_null<const PeerData*> migrateToOrMe() const;
 	[[nodiscard]] not_null<PeerData*> userpicPaintingPeer();
 	[[nodiscard]] not_null<const PeerData*> userpicPaintingPeer() const;
-	[[nodiscard]] bool userpicForceForumShape() const;
+	[[nodiscard]] Ui::PeerUserpicShape userpicShape() const;
 
 	// isMonoforum() ? monoforumLink() : nullptr
 	[[nodiscard]] ChannelData *monoforumBroadcast() const;
@@ -348,15 +354,10 @@ public:
 		bool hasVideo);
 	void setUserpicPhoto(const MTPPhoto &data);
 
-	struct PaintUserpicContext {
-		QPoint position;
-		int size = 0;
-		bool forumLayout = false;
-	};
 	void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
-		const PaintUserpicContext &context) const;
+		PaintUserpicContext context) const;
 	void paintUserpic(
 			Painter &p,
 			Ui::PeerUserpicView &view,
@@ -367,7 +368,9 @@ public:
 		paintUserpic(p, view, {
 			.position = { x, y },
 			.size = size,
-			.forumLayout = !forceCircle && (isForum() || isMonoforum()),
+			.shape = (forceCircle
+				? Ui::PeerUserpicShape::Circle
+				: Ui::PeerUserpicShape::Auto),
 		});
 	}
 	void paintUserpicLeft(

@@ -107,6 +107,7 @@ void VerticalButton::paintEvent(QPaintEvent *e) {
 		.availableWidth = _st.nameWidth,
 		.align = style::al_top,
 		.paused = _delegate->buttonPaused(),
+		.elisionLines = kMaxNameLines,
 	});
 
 	const auto &state = _data.badges;

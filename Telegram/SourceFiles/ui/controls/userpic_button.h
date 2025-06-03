@@ -62,7 +62,7 @@ public:
 		not_null<::Window::Controller*> window,
 		Role role,
 		const style::UserpicButton &st,
-		bool forceForumShape = false);
+		PeerUserpicShape shape = PeerUserpicShape::Auto);
 	UserpicButton(
 		QWidget *parent,
 		not_null<::Window::SessionController*> controller,
@@ -70,12 +70,12 @@ public:
 		Role role,
 		Source source,
 		const style::UserpicButton &st,
-		bool forceForumShape = false);
+		PeerUserpicShape shape = PeerUserpicShape::Auto);
 	UserpicButton(
 		QWidget *parent,
 		not_null<PeerData*> peer, // Role::Custom, Source::PeerPhoto
 		const style::UserpicButton &st,
-		bool forceForumShape = false);
+		PeerUserpicShape shape = PeerUserpicShape::Auto);
 	~UserpicButton();
 
 	enum class ChosenType {
@@ -96,7 +96,7 @@ public:
 		bool enabled,
 		Fn<void(ChosenImage)> chosen);
 	void showSavedMessagesOnSelf(bool enabled);
-	void forceForumShape(bool force);
+	void overrideShape(PeerUserpicShape shape);
 
 	// Role::ChoosePhoto or Role::ChangePhoto
 	[[nodiscard]] rpl::producer<ChosenImage> chosenImages() const {
@@ -163,8 +163,9 @@ private:
 	::Window::SessionController *_controller = nullptr;
 	::Window::Controller *_window = nullptr;
 	PeerData *_peer = nullptr;
-	bool _forceForumShape = false;
+	PeerUserpicShape _shape = PeerUserpicShape::Auto;
 	PeerUserpicView _userpicView;
+	QImage _monoforumMask;
 	std::shared_ptr<Data::PhotoMedia> _nonPersonalView;
 	Role _role = Role::ChangePhoto;
 	bool _notShownYet = true;

@@ -656,7 +656,7 @@ Notification::Notification(
 , _topicRootId(topicRootId)
 , _sublist(history->peer->monoforumSublistFor(monoforumPeerId))
 , _monoforumPeerId(monoforumPeerId)
-, _userpicView(_peer->createUserpicView())
+, _userpicView(_peer->userpicPaintingPeer()->createUserpicView())
 , _author(author)
 , _reaction(reaction)
 , _item(item)

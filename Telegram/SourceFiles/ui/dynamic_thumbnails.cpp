@@ -250,22 +250,13 @@ QImage PeerUserpic::image(int size) {
 
 		auto p = Painter(&_frame);
 		auto &view = _subscribed->view;
-		if (!_forceRound) {
-			_peer->paintUserpic(p, view, 0, 0, size);
-		} else if (const auto cloud = _peer->userpicCloudImage(view)) {
-			const auto full = size * style::DevicePixelRatio();
-			Ui::ValidateUserpicCache(view, cloud, nullptr, full, false);
-			p.drawImage(QRect(0, 0, size, size), view.cached);
-		} else {
-			const auto full = size * style::DevicePixelRatio();
-			const auto r = full / 2.;
-			const auto empty = PeerData::GenerateUserpicImage(
-				_peer,
-				view,
-				full,
-				r);
-			p.drawImage(QRect(0, 0, size, size), empty);
-		}
+		_peer->paintUserpic(p, view, {
+			.position = QPoint(),
+			.size = size,
+			.shape = (_forceRound
+				? Ui::PeerUserpicShape::Circle
+				: Ui::PeerUserpicShape::Auto),
+		});
 	}
 	return _frame;
 }

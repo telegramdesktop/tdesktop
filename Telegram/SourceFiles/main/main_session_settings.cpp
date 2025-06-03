@@ -39,11 +39,10 @@ QByteArray SessionSettings::serialize() const {
 		+ Serialize::bytearraySize(autoDownload)
 		+ sizeof(qint32) * 11
 		+ (_mutePeriods.size() * sizeof(quint64))
-		+ sizeof(qint32) * 2
-		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 4)
-		+ sizeof(qint32)
+		+ sizeof(qint32) * 3
 		+ _groupEmojiSectionHidden.size() * sizeof(quint64)
-		+ sizeof(qint32) * 2;
+		+ sizeof(qint32) * 3
+		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 4);
 
 	auto result = QByteArray();
 	result.reserve(size);

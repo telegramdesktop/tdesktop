@@ -427,20 +427,30 @@ QImage *PeerData::userpicCloudImage(Ui::PeerUserpicView &view) const {
 void PeerData::paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
-		const PaintUserpicContext &context) const {
+		PaintUserpicContext context) const {
 	if (const auto broadcast = monoforumBroadcast()) {
+		if (context.shape == Ui::PeerUserpicShape::Auto) {
+			context.shape = Ui::PeerUserpicShape::Monoforum;
+		}
 		broadcast->paintUserpic(p, view, context);
 		return;
 	}
 	const auto size = context.size;
 	const auto cloud = userpicCloudImage(view);
 	const auto ratio = style::DevicePixelRatio();
+	if (context.shape == Ui::PeerUserpicShape::Auto) {
+		context.shape = isForum()
+			? Ui::PeerUserpicShape::Forum
+			: isMonoforum()
+			? Ui::PeerUserpicShape::Monoforum
+			: Ui::PeerUserpicShape::Circle;
+	}
 	Ui::ValidateUserpicCache(
 		view,
 		cloud,
 		cloud ? nullptr : ensureEmptyUserpic().get(),
 		size * ratio,
-		context.forumLayout);
+		context.shape);
 	p.drawImage(QRect(context.position, QSize(size, size)), view.cached);
 }
 
@@ -1176,8 +1186,12 @@ not_null<const PeerData*> PeerData::userpicPaintingPeer() const {
 	return const_cast<PeerData*>(this)->userpicPaintingPeer();
 }
 
-bool PeerData::userpicForceForumShape() const {
-	return monoforumBroadcast() != nullptr;
+Ui::PeerUserpicShape PeerData::userpicShape() const {
+	return isForum()
+		? Ui::PeerUserpicShape::Forum
+		: isMonoforum()
+		? Ui::PeerUserpicShape::Monoforum
+		: Ui::PeerUserpicShape::Circle;
 }
 
 ChannelData *PeerData::monoforumBroadcast() const {

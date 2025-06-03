@@ -604,7 +604,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		container,
 		userpicPeer,
 		st::mainMenuUserpic,
-		peer->userpicForceForumShape());
+		peer->userpicShape());
 	userpic->showSavedMessagesOnSelf(true);
 	Ui::IconWithTitle(
 		container,

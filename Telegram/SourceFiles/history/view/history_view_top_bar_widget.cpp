@@ -936,7 +936,7 @@ void TopBarWidget::refreshInfoButton() {
 			Ui::UserpicButton::Role::Custom,
 			Ui::UserpicButton::Source::PeerPhoto,
 			st::topBarInfoButton,
-			infoPeer->userpicForceForumShape());
+			infoPeer->userpicShape());
 		info->showSavedMessagesOnSelf(true);
 		_info.destroy();
 		_info = std::move(info);

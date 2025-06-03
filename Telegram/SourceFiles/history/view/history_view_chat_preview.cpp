@@ -368,7 +368,7 @@ void Item::setupTop() {
 			_top.get(),
 			_thread->peer()->userpicPaintingPeer(),
 			st::previewUserpic,
-			_thread->peer()->userpicForceForumShape());
+			_thread->peer()->userpicShape());
 	if (userpic) {
 		userpic->showSavedMessagesOnSelf(true);
 		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);

@@ -17,6 +17,13 @@ class EmptyUserpic;
 
 [[nodiscard]] float64 ForumUserpicRadiusMultiplier();
 
+enum class PeerUserpicShape : uint8 {
+	Auto,
+	Circle,
+	Forum,
+	Monoforum,
+};
+
 struct PeerUserpicView {
 	[[nodiscard]] bool null() const {
 		return cached.isNull() && !cloud && empty.null();
@@ -25,8 +32,8 @@ struct PeerUserpicView {
 	QImage cached;
 	std::shared_ptr<QImage> cloud;
 	base::weak_ptr<const EmptyUserpic> empty;
-	uint32 paletteVersion : 31 = 0;
-	uint32 forum : 1 = 0;
+	uint32 paletteVersion : 30 = 0;
+	uint32 shape : 2 = 0;
 };
 
 [[nodiscard]] bool PeerUserpicLoading(const PeerUserpicView &view);
@@ -36,6 +43,6 @@ void ValidateUserpicCache(
 	const QImage *cloud,
 	const EmptyUserpic *empty,
 	int size,
-	bool forum);
+	PeerUserpicShape shape);
 
 } // namespace Ui

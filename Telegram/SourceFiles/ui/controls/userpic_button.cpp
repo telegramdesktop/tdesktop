@@ -160,12 +160,12 @@ UserpicButton::UserpicButton(
 	not_null<Window::Controller*> window,
 	Role role,
 	const style::UserpicButton &st,
-	bool forceForumShape)
+	PeerUserpicShape shape)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _controller(window->sessionController())
 , _window(window)
-, _forceForumShape(forceForumShape)
+, _shape(shape)
 , _role(role) {
 	Expects(_role == Role::ChangePhoto || _role == Role::ChoosePhoto);
 
@@ -181,13 +181,13 @@ UserpicButton::UserpicButton(
 	Role role,
 	Source source,
 	const style::UserpicButton &st,
-	bool forceForumShape)
+	PeerUserpicShape shape)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _controller(controller)
 , _window(&controller->window())
 , _peer(peer)
-, _forceForumShape(forceForumShape)
+, _shape(shape)
 , _role(role)
 , _source(source) {
 	if (_source == Source::Custom) {
@@ -203,11 +203,11 @@ UserpicButton::UserpicButton(
 	QWidget *parent,
 	not_null<PeerData*> peer,
 	const style::UserpicButton &st,
-	bool forceForumShape)
+	PeerUserpicShape shape)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _peer(peer)
-, _forceForumShape(forceForumShape)
+, _shape(shape)
 , _role(Role::Custom)
 , _source(Source::PeerPhoto) {
 	Expects(_role != Role::OpenPhoto);
@@ -407,7 +407,7 @@ void UserpicButton::choosePhotoLocally() {
 						CameraBox,
 						_window,
 						_peer,
-						_forceForumShape,
+						(_shape == PeerUserpicShape::Forum),
 						callback(ChosenType::Set)));
 				}, &st::menuIconPhotoSet);
 			}
@@ -648,7 +648,8 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 		auto size = QSize{ _st.photoSize, _st.photoSize };
 		const auto ratio = style::DevicePixelRatio();
 		request.outer = request.resize = size * ratio;
-		if (useForumShape()) {
+		if (_shape == PeerUserpicShape::Monoforum) {
+		} else if (useForumShape()) {
 			const auto radius = int(_st.photoSize
 				* Ui::ForumUserpicRadiusMultiplier());
 			if (_roundingCorners[0].width() != radius * ratio) {
@@ -661,7 +662,24 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 			}
 			request.mask = _ellipseMask;
 		}
-		p.drawImage(QRect(photoPosition, size), _streamed->frame(request));
+		auto frame = _streamed->frame(request);
+
+		if (_shape == PeerUserpicShape::Monoforum) {
+			if (_monoforumMask.isNull()) {
+				_monoforumMask = MonoforumShapeMask(request.resize);
+			}
+			constexpr auto format = QImage::Format_ARGB32_Premultiplied;
+			if (frame.format() != format) {
+				frame = std::move(frame).convertToFormat(format);
+			}
+			auto q = QPainter(&frame);
+			q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+			q.drawImage(
+				QRect(QPoint(), frame.size() / frame.devicePixelRatio()),
+				_monoforumMask);
+			q.end();
+		}
+		p.drawImage(QRect(photoPosition, size), frame);
 		if (!paused) {
 			_streamed->markFrameShown();
 		}
@@ -892,9 +910,8 @@ void UserpicButton::processNewPeerPhoto() {
 }
 
 bool UserpicButton::useForumShape() const {
-	return _forceForumShape
-		|| (_peer && _peer->isForum())
-		|| (_peer && _peer->isMonoforum());
+	return (_shape == PeerUserpicShape::Forum)
+		|| (_peer && _peer->isForum() && _shape == PeerUserpicShape::Auto);
 }
 
 void UserpicButton::grabOldUserpic() {
@@ -946,8 +963,8 @@ void UserpicButton::switchChangePhotoOverlay(
 	}
 }
 
-void UserpicButton::forceForumShape(bool force) {
-	_forceForumShape = force;
+void UserpicButton::overrideShape(PeerUserpicShape shape) {
+	_shape = shape;
 	prepare();
 }
 
@@ -1083,28 +1100,11 @@ void UserpicButton::prepareUserpicPixmap() {
 	_userpic = CreateSquarePixmap(size, [&](Painter &p) {
 		if (_userpicHasImage) {
 			if (_showPeerUserpic) {
-				if (useForumShape()) {
-					const auto ratio = style::DevicePixelRatio();
-					if (const auto cloud = _peer->userpicCloudImage(_userpicView)) {
-						Ui::ValidateUserpicCache(
-							_userpicView,
-							cloud,
-							nullptr,
-							size * ratio,
-							true);
-						p.drawImage(QRect(0, 0, size, size), _userpicView.cached);
-					} else {
-						const auto empty = PeerData::GenerateUserpicImage(
-							_peer,
-							_userpicView,
-							size * ratio,
-							(size * ratio)
-								* Ui::ForumUserpicRadiusMultiplier());
-						p.drawImage(QRect(0, 0, size, size), empty);
-					}
-				} else {
-					_peer->paintUserpic(p, _userpicView, 0, 0, size);
-				}
+				_peer->paintUserpic(p, _userpicView, {
+					.position = QPoint(),
+					.size = size,
+					.shape = _shape,
+				});
 			} else if (_nonPersonalView) {
 				using Size = Data::PhotoSize;
 				if (const auto full = _nonPersonalView->image(Size::Large)) {
