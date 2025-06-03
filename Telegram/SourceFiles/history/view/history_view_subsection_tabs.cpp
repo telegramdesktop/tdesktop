@@ -201,7 +201,9 @@ void SubsectionTabs::setupSlider(
 	rpl::merge(
 		scroll->scrolls(),
 		_scrollCheckRequests.events(),
-		scroll->heightValue() | rpl::skip(1) | rpl::map_to(rpl::empty)
+		(vertical
+			? scroll->heightValue()
+			: scroll->widthValue()) | rpl::skip(1) | rpl::map_to(rpl::empty)
 	) | rpl::start_with_next([=] {
 		const auto full = vertical ? scroll->height() : scroll->width();
 		const auto scrollValue = vertical
