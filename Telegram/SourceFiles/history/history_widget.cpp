@@ -3632,10 +3632,11 @@ void HistoryWidget::unreadCountUpdated() {
 		});
 	} else {
 		const auto hideCounter = _history->isForum()
-			|| _history->amMonoforumAdmin()
 			|| !_history->trackUnreadMessages();
 		_cornerButtons.updateJumpDownVisibility(hideCounter
 			? 0
+			: _history->amMonoforumAdmin()
+			? _history->chatListUnreadState().messages
 			: _history->chatListBadgesState().unreadCounter);
 	}
 }

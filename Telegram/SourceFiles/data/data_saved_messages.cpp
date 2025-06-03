@@ -521,6 +521,27 @@ auto SavedMessages::recentSublists() const
 	return _lastSublists;
 }
 
+void SavedMessages::markUnreadCountsUnknown(MsgId readTillId) {
+	for (const auto &[peer, sublist] : _sublists) {
+		if (sublist->unreadCountCurrent() > 0) {
+			sublist->setInboxReadTill(readTillId, std::nullopt);
+		}
+	}
+}
+
+void SavedMessages::updateUnreadCounts(
+		MsgId readTillId,
+		const base::flat_map<not_null<SavedSublist*>, int> &counts) {
+	for (const auto &[peer, sublist] : _sublists) {
+		const auto raw = sublist.get();
+		const auto i = counts.find(raw);
+		const auto count = (i != end(counts)) ? i->second : 0;
+		if (raw->unreadCountCurrent() != count) {
+			raw->setInboxReadTill(readTillId, count);
+		}
+	}
+}
+
 rpl::producer<> SavedMessages::destroyed() const {
 	if (!_parentChat) {
 		return rpl::never<>();

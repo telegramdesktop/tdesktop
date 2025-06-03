@@ -184,6 +184,7 @@ private:
 
 	base::Timer _readRequestTimer;
 	mtpRequestId _readRequestId = 0;
+	MsgId _sentReadTill = 0;
 
 	mtpRequestId _reloadUnreadCountRequestId = 0;
 

@@ -70,6 +70,11 @@ public:
 	[[nodiscard]] auto recentSublists() const
 		-> const std::vector<not_null<SavedSublist*>> &;
 
+	void markUnreadCountsUnknown(MsgId readTillId);
+	void updateUnreadCounts(
+		MsgId readTillId,
+		const base::flat_map<not_null<SavedSublist*>, int> &counts);
+
 	void clear();
 
 	[[nodiscard]] rpl::lifetime &lifetime();

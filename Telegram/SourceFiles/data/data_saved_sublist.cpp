@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_saved_sublist.h"
 
+#include "api/api_unread_things.h"
 #include "apiwrap.h"
 #include "core/application.h"
 #include "data/data_changes.h"
@@ -61,7 +62,7 @@ SavedSublist::~SavedSublist() {
 	if (_readRequestTimer.isActive()) {
 		sendReadTillRequest();
 	}
-	// session().api().unreadThings().cancelRequests(this);
+	session().api().unreadThings().cancelRequests(this);
 }
 
 bool SavedSublist::inMonoforum() const {
@@ -444,6 +445,9 @@ void SavedSublist::setInboxReadTill(
 		&& !_list.empty()
 		&& _inboxReadTillId >= _list.front()) {
 		unreadCount = 0;
+	} else if (_lastServerMessage.value_or(nullptr)
+		&& (*_lastServerMessage)->id <= newReadTillId) {
+		unreadCount = 0;
 	}
 	if (_unreadCount.current() != unreadCount
 		&& (changed || unreadCount.has_value())) {
@@ -646,10 +650,11 @@ void SavedSublist::sendReadTillRequest() {
 	const auto api = &_parent->session().api();
 	api->request(base::take(_readRequestId)).cancel();
 
+	_sentReadTill = computeInboxReadTillFull();
 	_readRequestId = api->request(MTPmessages_ReadSavedHistory(
 		parentChat->input,
 		sublistPeer()->input,
-		MTP_int(computeInboxReadTillFull())
+		MTP_int(_sentReadTill.bare)
 	)).done(crl::guard(this, [=] {
 		_readRequestId = 0;
 		reloadUnreadCountIfNeeded();
@@ -708,6 +713,20 @@ void SavedSublist::applyMonoforumDialog(
 	setInboxReadTill(
 		data.vread_inbox_max_id().v,
 		data.vunread_count().v);
+	if (!unreadCountKnown() && !_readRequestId) {
+		// We got read_inbox_max_id < than our current inboxReadTillId,
+		// we need either to send a read request with this new value,
+		// or to downgrade inboxReadTillId locally.
+		if (_sentReadTill < computeInboxReadTillFull()) {
+			sendReadTillRequest();
+		} else {
+			// Just if nothing else helps.
+			_inboxReadTillId = 0;
+			setInboxReadTill(
+				data.vread_inbox_max_id().v,
+				data.vunread_count().v);
+		}
+	}
 	setOutboxReadTill(data.vread_outbox_max_id().v);
 	unreadReactions().setCount(data.vunread_reactions_count().v);
 	setUnreadMark(data.is_unread_mark());

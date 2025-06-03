@@ -3108,8 +3108,70 @@ void History::applyDialogTopMessage(MsgId topMessageId) {
 	}
 }
 
+void History::tryMarkMonoforumIntervalRead(
+		MsgId wasInboxReadBefore,
+		MsgId nowInboxReadBefore) {
+	if (!amMonoforumAdmin() || (nowInboxReadBefore <= wasInboxReadBefore)) {
+		return;
+	} else if (loadedAtBottom() && nowInboxReadBefore >= minMsgId()) {
+		// Count for each sublist how many messages are still not read.
+		auto counts = base::flat_map<not_null<Data::SavedSublist*>, int>();
+		for (const auto &block : blocks) {
+			for (const auto &message : block->messages) {
+				const auto item = message->data();
+				if (!item->isRegular() || item->id < nowInboxReadBefore) {
+					continue;
+				}
+				if (const auto sublist = item->savedSublist()) {
+					++counts[sublist];
+				}
+			}
+		}
+		if (const auto monoforum = peer->monoforum()) {
+			monoforum->updateUnreadCounts(nowInboxReadBefore - 1, counts);
+		}
+	} else if (minMsgId() <= wasInboxReadBefore
+		&& maxMsgId() >= nowInboxReadBefore) {
+		// Count for each sublist how many messages were read.
+		for (const auto &block : blocks) {
+			for (const auto &message : block->messages) {
+				const auto item = message->data();
+				if (!item->isRegular() || item->id < wasInboxReadBefore) {
+					continue;
+				} else if (item->id >= nowInboxReadBefore) {
+					break;
+				}
+				if (const auto sublist = item->savedSublist()) {
+					const auto unread = sublist->unreadCountCurrent();
+					if (unread > 0) {
+						sublist->setInboxReadTill(item->id, unread - 1);
+					}
+				}
+			}
+		}
+	} else {
+		// We can't invalidate sublist unread counts here, because no read
+		// request was yet sent to the server (so it can't return correct
+		// values yet), we need to do that after we send read request.
+		_flags |= Flag::MonoforumUnreadInvalidatePending;
+	}
+}
+
+void History::validateMonoforumUnread(MsgId readTillId) {
+	if (!(_flags & Flag::MonoforumUnreadInvalidatePending)) {
+		return;
+	}
+	_flags &= ~Flag::MonoforumUnreadInvalidatePending;
+	if (!amMonoforumAdmin()) {
+		return;
+	} else if (const auto monoforum = peer->monoforum()) {
+		monoforum->markUnreadCountsUnknown(readTillId);
+	}
+}
+
 void History::setInboxReadTill(MsgId upTo) {
 	if (_inboxReadBefore) {
+		tryMarkMonoforumIntervalRead(*_inboxReadBefore, upTo + 1);
 		accumulate_max(*_inboxReadBefore, upTo + 1);
 	} else {
 		_inboxReadBefore = upTo + 1;

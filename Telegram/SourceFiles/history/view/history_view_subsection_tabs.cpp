@@ -349,7 +349,6 @@ void SubsectionTabs::setupSlider(
 				}
 			}
 		}
-
 		slider->setSections({
 			.tabs = std::move(sections),
 			.context = Core::TextContext({
@@ -591,11 +590,24 @@ void SubsectionTabs::refreshSlice() {
 	const auto push = [&](not_null<Data::Thread*> thread) {
 		const auto topic = thread->asTopic();
 		const auto sublist = thread->asSublist();
+		const auto badges = [&] {
+			if (!topic && !sublist) {
+				return Dialogs::BadgesState();
+			} else if (thread->chatListUnreadState().known) {
+				return thread->chatListBadgesState();
+			}
+			const auto i = ranges::find(_slice, thread, &Item::thread);
+			if (i != end(_slice)) {
+				// While the unread count is unknown (possibly loading)
+				// we can preserve the old badges state, because it won't
+				// glitch that way when we stop knowing it for a moment.
+				return i->badges;
+			}
+			return thread->chatListBadgesState();
+		}();
 		slice.push_back({
 			.thread = thread,
-			.badges = ((topic || sublist)
-				? thread->chatListBadgesState()
-				: Dialogs::BadgesState()),
+			.badges = badges,
 			.iconId = topic ? topic->iconId() : DocumentId(),
 			.name = thread->chatListName(),
 		});

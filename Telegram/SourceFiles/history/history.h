@@ -430,6 +430,10 @@ public:
 	// Interface for Data::Histories.
 	void setInboxReadTill(MsgId upTo);
 	std::optional<int> countStillUnreadLocal(MsgId readTillId) const;
+	void tryMarkMonoforumIntervalRead(
+		MsgId wasInboxReadBefore,
+		MsgId nowInboxReadBefore);
+	void validateMonoforumUnread(MsgId readTillId);
 
 	[[nodiscard]] bool isTopPromoted() const;
 
@@ -466,7 +470,7 @@ public:
 private:
 	friend class HistoryBlock;
 
-	enum class Flag : uchar {
+	enum class Flag : ushort {
 		HasPendingResizedItems = (1 << 0),
 		PendingAllItemsResize = (1 << 1),
 		IsTopPromoted = (1 << 2),
@@ -475,6 +479,7 @@ private:
 		FakeUnreadWhileOpened = (1 << 5),
 		HasPinnedMessages = (1 << 6),
 		ResolveChatListMessage = (1 << 7),
+		MonoforumUnreadInvalidatePending = (1 << 8),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
