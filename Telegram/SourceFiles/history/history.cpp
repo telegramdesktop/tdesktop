@@ -2896,10 +2896,7 @@ bool History::shouldBeInChatList() const {
 	} else if (isPinnedDialog(FilterId())) {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
-		if (channel->isMonoforum()) {
-			return !lastMessageKnown()
-				|| (lastMessage() != nullptr);
-		} else if (!channel->amIn()) {
+		if (!channel->amIn()) {
 			return isTopPromoted();
 		}
 	} else if (const auto chat = peer->asChat()) {

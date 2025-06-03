@@ -4970,9 +4970,7 @@ bool CanSendReply(not_null<const HistoryItem*> item) {
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
 		if (const auto sublist = item->savedSublist()) {
-			if (sublist->sublistPeer() == peer) {
-				return false;
-			}
+			return (sublist->sublistPeer() != peer);
 		}
 		return channel->amIn();
 	}
