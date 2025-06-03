@@ -87,7 +87,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin https://github.com/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 65c6e9f8e88f37396e935dd6e6e494f512a96f99 \
+	&& git fetch --depth=1 origin a405719f0963abf7cb93354a390617c0f0d90f17 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -726,7 +726,7 @@ COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 
-ENV QT=6.9.0
+ENV QT=6.9.1
 RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
