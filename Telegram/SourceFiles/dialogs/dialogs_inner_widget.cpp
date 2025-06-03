@@ -3382,6 +3382,9 @@ void InnerWidget::applySearchState(SearchState state) {
 		) | rpl::start_with_next([=] {
 			refresh();
 			moveSearchIn();
+			if (_loadingAnimation) {
+				_loadingAnimation->move(0, searchedOffset());
+			}
 		}, _searchTags->lifetime());
 	} else {
 		_searchTags = nullptr;
