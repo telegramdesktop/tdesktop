@@ -71,6 +71,7 @@ public:
 	[[nodiscard]] bool paidMessagesAvailable() const;
 	[[nodiscard]] int paidMessageStarsMax() const;
 	[[nodiscard]] int paidMessageCommission() const;
+	[[nodiscard]] int paidMessageChannelStarsDefault() const;
 
 	[[nodiscard]] int pinnedGiftsLimit() const;
 

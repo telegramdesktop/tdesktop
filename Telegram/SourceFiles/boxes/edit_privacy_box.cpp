@@ -45,7 +45,6 @@ namespace {
 
 constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
 constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
-constexpr auto kDefaultDirectMessagesPrice = 10;
 constexpr auto kDefaultPrivateMessagesPrice = 10;
 
 using Exceptions = Api::UserPrivacy::Exceptions;
@@ -1227,24 +1226,33 @@ rpl::producer<int> SetupChargeSlider(
 	const auto skip = 2 * st::defaultVerticalListSkip;
 	Ui::AddSkip(container, skip);
 
-	auto dollars = state->stars.value() | rpl::map([=](int stars) {
-		const auto ratio = peer->session().appConfig().starsWithdrawRate();
+	const auto details = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
+	state->stars.value() | rpl::start_with_next([=](int stars) {
+		while (details->count()) {
+			delete details->widgetAt(0);
+		}
+		if (!stars) {
+			Ui::AddDivider(details);
+			return;
+		}
+		const auto &appConfig = peer->session().appConfig();
+		const auto percent = appConfig.paidMessageCommission();
+		const auto ratio = appConfig.starsWithdrawRate();
 		const auto dollars = int(base::SafeRound(stars * ratio));
-		return '~' + Ui::FillAmountAndCurrency(dollars, u"USD"_q);
-	});
-	const auto percent = peer->session().appConfig().paidMessageCommission();
-	Ui::AddDividerText(
-		container,
-		(broadcast
-			? tr::lng_manage_monoforum_price_about
-			: group
-			? tr::lng_rights_charge_price_about
-			: tr::lng_messages_privacy_price_about)(
-			lt_percent,
-			rpl::single(QString::number(percent / 10.) + '%'),
-			lt_amount,
-			std::move(dollars)));
-
+		const auto amount = Ui::FillAmountAndCurrency(dollars, u"USD"_q);
+		Ui::AddDividerText(
+			details,
+			(broadcast
+				? tr::lng_manage_monoforum_price_about
+				: group
+				? tr::lng_rights_charge_price_about
+				: tr::lng_messages_privacy_price_about)(
+					lt_percent,
+					rpl::single(QString::number(percent / 10.) + '%'),
+					lt_amount,
+					rpl::single('~' + amount)));
+	}, details->lifetime());
 	return state->stars.value();
 }
 
@@ -1298,7 +1306,7 @@ void EditDirectMessagesPriceBox(
 		inner,
 		channel,
 		savedValue,
-		kDefaultDirectMessagesPrice,
+		channel->session().appConfig().paidMessageChannelStarsDefault(),
 		true
 	) | rpl::start_with_next([=](int stars) {
 		*result = stars;
