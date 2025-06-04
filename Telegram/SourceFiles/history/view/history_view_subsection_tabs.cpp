@@ -283,6 +283,12 @@ void SubsectionTabs::setupSlider(
 		}
 	}, scroll->lifetime());
 
+	using ImagePointer = std::shared_ptr<Ui::DynamicImage>;
+	struct Cache {
+		base::flat_map<not_null<PeerData*>, ImagePointer> userpics;
+	};
+	const auto cache = std::make_shared<Cache>();
+
 	_refreshed.events_starting_with_copy(
 		rpl::empty
 	) | rpl::start_with_next([=] {
@@ -291,6 +297,7 @@ void SubsectionTabs::setupSlider(
 			return _controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Any);
 		};
+		auto updated = Cache();
 		auto sections = std::vector<Ui::SubsectionTab>();
 		auto activeIndex = -1;
 		for (const auto &item : _slice) {
@@ -337,9 +344,13 @@ void SubsectionTabs::setupSlider(
 			} else if (const auto sublist = item.thread->asSublist()) {
 				const auto peer = sublist->sublistPeer();
 				if (vertical) {
+					auto was = cache->userpics[peer];
+					auto userpic = updated.userpics[peer] = was
+						? was
+						: Ui::MakeUserpicThumbnail(peer);
 					sections.push_back({
 						.text = peer->shortName(),
-						.userpic = Ui::MakeUserpicThumbnail(peer),
+						.userpic = std::move(userpic),
 					});
 				} else {
 					sections.push_back({
@@ -359,6 +370,7 @@ void SubsectionTabs::setupSlider(
 			auto &section = sections.back();
 			section.badges = item.badges;
 		}
+		*cache = std::move(updated);
 
 		auto scrollSavingThread = (Data::Thread*)nullptr;
 		auto scrollSavingShift = 0;
