@@ -341,11 +341,15 @@ void SubsectionTabs::setupSlider(
 				scrollSavingIndex = -1;
 				for (auto index = 0; index != count; ++index) {
 					const auto thread = _sectionsSlice[index].thread;
-					if (ranges::contains(_slice, thread, &Item::thread)) {
+					const auto i = ranges::find(
+						_slice,
+						thread,
+						&Item::thread);
+					if (i != end(_slice)) {
 						scrollSavingThread = thread;
 						scrollSavingShift = scrollValue
 							- slider->lookupSectionPosition(index);
-						scrollSavingIndex = index;
+						scrollSavingIndex = int(i - begin(_slice));
 						break;
 					}
 				}
