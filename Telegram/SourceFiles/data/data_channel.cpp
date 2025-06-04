@@ -947,11 +947,6 @@ void ChannelData::growSlowmodeLastMessage(TimeId when) {
 }
 
 int ChannelData::starsPerMessage() const {
-	if (const auto broadcast = monoforumBroadcast()) {
-		if (!amMonoforumAdmin()) {
-			return broadcast->starsPerMessage();
-		}
-	}
 	return _starsPerMessage;
 }
 

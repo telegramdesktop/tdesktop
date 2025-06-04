@@ -110,7 +110,7 @@ public:
 		DeleteChat,
 		ClearHistory,
 	};
-	void clear(ClearType type);
+	void clear(ClearType type, bool markEmpty = false);
 	void clearUpTill(MsgId availableMinId);
 
 	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);

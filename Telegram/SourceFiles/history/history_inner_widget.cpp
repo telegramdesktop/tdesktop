@@ -4542,6 +4542,10 @@ void HistoryInner::refreshAboutView(bool force) {
 				session().api().requestFullPeer(user);
 			}
 		}
+	} else if (const auto monoforum = _peer->asChannel()) {
+		if (monoforum->isMonoforum() && !monoforum->amMonoforumAdmin()) {
+			refresh();
+		}
 	}
 }
 

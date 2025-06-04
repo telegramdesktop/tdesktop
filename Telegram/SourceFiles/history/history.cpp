@@ -2992,7 +2992,7 @@ void History::dialogEntryApplied() {
 		return;
 	}
 	if (!chatListMessage()) {
-		clear(ClearType::Unload);
+		clear(ClearType::Unload, true);
 		addNewerSlice(QVector<MTPMessage>());
 		addOlderSlice(QVector<MTPMessage>());
 		if (const auto channel = peer->asChannel()) {
@@ -3762,7 +3762,7 @@ std::vector<MsgId> History::collectMessagesFromParticipantToDelete(
 	return result;
 }
 
-void History::clear(ClearType type) {
+void History::clear(ClearType type, bool markEmpty) {
 	_unreadBarView = nullptr;
 	_firstUnreadView = nullptr;
 	removeJoinedMessage();
@@ -3772,7 +3772,7 @@ void History::clear(ClearType type) {
 	owner().notifyHistoryUnloaded(this);
 	lastKeyboardInited = false;
 	if (type == ClearType::Unload) {
-		_loadedAtTop = _loadedAtBottom = false;
+		_loadedAtTop = _loadedAtBottom = markEmpty;
 	} else {
 		// Leave the 'sending' messages in local messages.
 		auto local = base::flat_set<not_null<HistoryItem*>>();

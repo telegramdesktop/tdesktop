@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h"
 #include "data/business/data_business_common.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -61,6 +62,7 @@ public:
 	enum class Type {
 		PremiumRequired,
 		StarsCharged,
+		FreeDirect,
 	};
 
 	EmptyChatLockedBox(not_null<Element*> parent, Type type);
@@ -421,7 +423,9 @@ int EmptyChatLockedBox::buttonSkip() {
 }
 
 rpl::producer<QString> EmptyChatLockedBox::button() {
-	return (_type == Type::PremiumRequired)
+	return (_type == Type::FreeDirect)
+		? nullptr
+		: (_type == Type::PremiumRequired)
 		? tr::lng_send_non_premium_go()
 		: tr::lng_send_charges_stars_go();
 }
@@ -512,6 +516,9 @@ bool AboutView::refresh() {
 		return true;
 	}
 	const auto user = _history->peer->asUser();
+	const auto monoforum = _history->peer->isMonoforum()
+		? _history->peer->asChannel()
+		: nullptr;
 	const auto info = user ? user->botInfo.get() : nullptr;
 	if (!info) {
 		if (user
@@ -538,6 +545,14 @@ bool AboutView::refresh() {
 			} else {
 				makeIntro(user);
 			}
+			return true;
+		} else if (monoforum && _history->isDisplayedEmpty()) {
+			if (_item) {
+				return false;
+			}
+			setItem(
+				makeStarsPerMessage(monoforum->starsPerMessageChecked()),
+				nullptr);
 			return true;
 		}
 		if (_item) {
@@ -813,28 +828,46 @@ AdminLog::OwnedItem AboutView::makePremiumRequired() {
 }
 
 AdminLog::OwnedItem AboutView::makeStarsPerMessage(int stars) {
+	auto name = Ui::Text::Bold(_history->peer->shortName());
+	auto cost = Ui::Text::IconEmoji(
+		&st::starIconEmoji
+	).append(Ui::Text::Bold(Lang::FormatCountDecimal(stars)));
 	const auto item = _history->makeMessage({
 		.id = _history->nextNonHistoryEntryId(),
 		.flags = (MessageFlag::FakeAboutView
 			| MessageFlag::FakeHistoryItem
 			| MessageFlag::Local),
 		.from = _history->peer->id,
-	}, PreparedServiceText{ tr::lng_send_charges_stars_text(
-		tr::now,
-		lt_user,
-		Ui::Text::Bold(_history->peer->shortName()),
-		lt_amount,
-		Ui::Text::IconEmoji(
-			&st::starIconEmoji
-		).append(Ui::Text::Bold(Lang::FormatCountDecimal(stars))),
-		Ui::Text::RichLangValue),
+	}, PreparedServiceText{ !_history->peer->isMonoforum()
+		? tr::lng_send_charges_stars_text(
+			tr::now,
+			lt_user,
+			std::move(name),
+			lt_amount,
+			std::move(cost),
+			Ui::Text::RichLangValue)
+		: stars
+		? tr::lng_send_charges_stars_channel(
+			tr::now,
+			lt_channel,
+			std::move(name),
+			lt_amount,
+			std::move(cost),
+			Ui::Text::RichLangValue)
+		: tr::lng_send_free_channel(
+			tr::now,
+			lt_channel,
+			std::move(name),
+			Ui::Text::RichLangValue),
 	});
 	auto result = AdminLog::OwnedItem(_delegate, item);
 	result->overrideMedia(std::make_unique<ServiceBox>(
 		result.get(),
 		std::make_unique<EmptyChatLockedBox>(
 			result.get(),
-			EmptyChatLockedBox::Type::StarsCharged)));
+			(stars
+				? EmptyChatLockedBox::Type::StarsCharged
+				: EmptyChatLockedBox::Type::FreeDirect))));
 	return result;
 }
 
