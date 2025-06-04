@@ -1713,6 +1713,9 @@ bool HistoryItem::skipNotification() const {
 		if (forwarded->imported) {
 			return true;
 		}
+	} else if (_history->amMonoforumAdmin()
+		&& from() == _history->peer->monoforumBroadcast()) {
+		return true;
 	}
 	return false;
 }
