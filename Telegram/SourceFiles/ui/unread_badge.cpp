@@ -139,7 +139,7 @@ int PeerBadge::drawGetWidth(Painter &p, Descriptor &&descriptor) {
 
 	const auto peer = descriptor.peer;
 	if ((descriptor.scam && (peer->isScam() || peer->isFake()))
-		|| descriptor.direct && peer->isMonoforum()) {
+		|| (descriptor.direct && peer->isMonoforum())) {
 		return drawTextBadge(p, descriptor);
 	}
 	const auto verifyCheck = descriptor.verified && peer->isVerified();

@@ -41,7 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kDefaultLimit = 5; AssertIsDebug()// 10;
+constexpr auto kDefaultLimit = 12;
 
 } // namespace
 
@@ -349,7 +349,7 @@ void SubsectionTabs::setupSlider(
 						? was
 						: Ui::MakeUserpicThumbnail(peer);
 					sections.push_back({
-						.text = peer->shortName(),
+						.text = { peer->shortName() },
 						.userpic = std::move(userpic),
 					});
 				} else {
@@ -363,7 +363,7 @@ void SubsectionTabs::setupSlider(
 				}
 			} else {
 				sections.push_back({
-					.text = tr::lng_filters_all_short(tr::now),
+					.text = { tr::lng_filters_all_short(tr::now) },
 					.userpic = Ui::MakeAllSubsectionsThumbnail(textFg),
 				});
 			}

@@ -300,7 +300,6 @@ void SubsectionSlider::setupBar() {
 	}, _bar->lifetime());
 	_bar->paintRequest() | rpl::start_with_next([=](QRect clip) {
 		const auto start = -_barSt.stroke / 2;
-		const auto finalRange = getFinalActiveRange();
 		const auto currentRange = getCurrentActiveRange();
 		const auto from = currentRange.from + _barSt.skip;
 		const auto size = currentRange.size - 2 * _barSt.skip;
@@ -471,7 +470,6 @@ bool SubsectionSlider::buttonPaused() {
 }
 
 float64 SubsectionSlider::buttonActive(not_null<SubsectionButton*> button) {
-	const auto finalRange = getFinalActiveRange();
 	const auto currentRange = getCurrentActiveRange();
 	const auto from = _vertical ? button->y() : button->x();
 	const auto size = _vertical ? button->height() : button->width();
@@ -505,8 +503,7 @@ not_null<SubsectionButton*> SubsectionSlider::buttonAt(int index) {
 }
 
 VerticalSlider::VerticalSlider(not_null<QWidget*> parent)
-: SubsectionSlider(parent, true)
-, _st(st::chatTabsVertical) {
+: SubsectionSlider(parent, true) {
 }
 
 VerticalSlider::~VerticalSlider() = default;

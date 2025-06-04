@@ -69,10 +69,10 @@ private:
 		DocumentId iconId = 0;
 		QString name;
 
-		friend inline constexpr auto operator<=>(
+		friend inline auto operator<=>(
 			const Item &,
 			const Item &) = default;
-		friend inline constexpr bool operator==(
+		friend inline bool operator==(
 			const Item &,
 			const Item &) = default;
 	};

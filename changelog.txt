@@ -1,3 +1,9 @@
+5.15 (04.06.25)
+
+- Send Direct Messages to Channels.
+- Enable New Tab Layout for Topics.
+- Create Polls with Up To 12 Options.
+
 5.14.3 (18.05.25)
 
 - Fix stale birthday suggestions removing.

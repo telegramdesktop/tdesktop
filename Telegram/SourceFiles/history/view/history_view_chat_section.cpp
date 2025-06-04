@@ -2978,9 +2978,6 @@ rpl::producer<Data::MessagesSlice> ChatWidget::sublistSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	const auto messageId = aroundId.fullId.msg
-		? aroundId.fullId.msg
-		: (ServerMaxMsgId - 1);
 	return _sublist->source(
 		aroundId,
 		limitBefore,

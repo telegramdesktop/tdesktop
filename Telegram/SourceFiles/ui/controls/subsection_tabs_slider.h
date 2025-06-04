@@ -148,8 +148,6 @@ private:
 	std::unique_ptr<SubsectionButton> makeButton(
 		SubsectionTab &&data) override;
 
-	const style::ChatTabsVertical &_st;
-
 };
 
 class HorizontalSlider final : public SubsectionSlider {

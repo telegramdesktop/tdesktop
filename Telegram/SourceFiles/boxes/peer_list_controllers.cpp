@@ -1275,7 +1275,7 @@ std::unique_ptr<PeerListRow> ChooseSublistBoxController::createSearchRow(
 auto ChooseSublistBoxController::createRow(
 	not_null<Data::SavedSublist*> sublist)
 -> std::unique_ptr<PeerListRow> {
-	if (const auto skip = _filter && !_filter(sublist)) {
+	if (_filter && !_filter(sublist)) {
 		return nullptr;
 	}
 	auto result = std::make_unique<PeerListRow>(sublist->sublistPeer());

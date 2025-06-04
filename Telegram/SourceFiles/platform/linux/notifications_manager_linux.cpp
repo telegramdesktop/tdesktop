@@ -369,9 +369,10 @@ Manager::Private::Private(not_null<Manager*> manager)
 				.contextId = ContextId{
 					.sessionId = dict.lookup_value("session").get_uint64(),
 					.peerId = PeerId(dict.lookup_value("peer").get_uint64()),
-					.topicRootId = dict.lookup_value("topic").get_int64(),
-					.monoforumPeerId = dict.lookup_value(
-						"monoforumpeer").get_uint64(),
+					.topicRootId = MsgId(
+						dict.lookup_value("topic").get_int64()),
+					.monoforumPeerId = PeerId(dict.lookup_value(
+						"monoforumpeer").get_uint64()),
 				},
 				.msgId = dict.lookup_value("msgid").get_int64(),
 			};

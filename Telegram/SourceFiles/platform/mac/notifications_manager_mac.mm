@@ -249,7 +249,7 @@ private:
 	};
 	struct ClearFromSublist {
 		ContextId contextId;
-	}
+	};
 	struct ClearFromHistory {
 		ContextId partialContextId;
 	};
