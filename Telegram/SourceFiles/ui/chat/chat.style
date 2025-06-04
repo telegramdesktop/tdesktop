@@ -1055,6 +1055,8 @@ chatSimilarSkip: 12px;
 premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
 premiumRequiredCircle: 60px;
+directMessagesIcon: icon{{ "chat/large_messages", msgServiceFg }};
+starsPerMessageWidth: 226px;
 
 repliesEmptyIcon: icon{{ "chat/large_quickreply", msgServiceFg }};
 greetingEmptyIcon: icon{{ "chat/large_greeting", msgServiceFg }};

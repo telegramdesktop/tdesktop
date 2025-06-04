@@ -403,7 +403,9 @@ EmptyChatLockedBox::EmptyChatLockedBox(not_null<Element*> parent, Type type)
 EmptyChatLockedBox::~EmptyChatLockedBox() = default;
 
 int EmptyChatLockedBox::width() {
-	return st::premiumRequiredWidth;
+	return (_type == Type::PremiumRequired)
+		? st::premiumRequiredWidth
+		: st::starsPerMessageWidth;
 }
 
 int EmptyChatLockedBox::top() {
@@ -460,7 +462,9 @@ void EmptyChatLockedBox::draw(
 	p.setBrush(context.st->msgServiceBg()); // ?
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(geometry);
-	st::premiumRequiredIcon.paintInCenter(p, geometry);
+	(_type == Type::PremiumRequired
+		? st::premiumRequiredIcon
+		: st::directMessagesIcon).paintInCenter(p, geometry);
 }
 
 void EmptyChatLockedBox::stickerClearLoopPlayed() {
