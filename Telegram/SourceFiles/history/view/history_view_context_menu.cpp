@@ -113,7 +113,8 @@ bool HasEditMessageAction(
 		|| (context != Context::History
 			&& context != Context::Replies
 			&& context != Context::ShortcutMessages
-			&& context != Context::ScheduledTopic)) {
+			&& context != Context::ScheduledTopic
+			&& context != Context::Monoforum)) {
 		return false;
 	}
 	const auto peer = item->history()->peer;
@@ -1154,6 +1155,97 @@ void ShowWhoReadInfo(
 	controller->showSection(std::move(memento));
 }
 
+[[nodiscard]] rpl::producer<not_null<UserData*>> LookupMessageAuthor(
+		not_null<HistoryItem*> item) {
+	struct Author {
+		UserData *user = nullptr;
+		std::vector<Fn<void(UserData*)>> callbacks;
+	};
+	struct Authors {
+		base::flat_map<FullMsgId, Author> map;
+	};
+	static auto Cache = base::flat_map<not_null<Main::Session*>, Authors>();
+
+	const auto channel = item->history()->peer->asChannel();
+	const auto session = &channel->session();
+	const auto id = item->fullId();
+	if (!Cache.contains(session)) {
+		Cache.emplace(session);
+		session->lifetime().add([session] {
+			Cache.remove(session);
+		});
+	}
+
+	return [channel, id](auto consumer) {
+		const auto session = &channel->session();
+		auto &map = Cache[session].map;
+		auto i = map.find(id);
+		if (i == end(map)) {
+			i = map.emplace(id).first;
+			const auto finishWith = [=](UserData *user) {
+				auto &entry = Cache[session].map[id];
+				entry.user = user;
+				for (const auto &callback : base::take(entry.callbacks)) {
+					callback(user);
+				}
+			};
+			session->api().request(MTPchannels_GetMessageAuthor(
+				channel->inputChannel,
+				MTP_int(id.msg.bare)
+			)).done([=](const MTPUser &result) {
+				finishWith(session->data().processUser(result));
+			}).fail([=] {
+				finishWith(nullptr);
+			}).send();
+		} else if (const auto user = i->second.user
+			; user || i->second.callbacks.empty()) {
+			if (user) {
+				consumer.put_next(not_null(user));
+			}
+			return rpl::lifetime();
+		}
+
+		auto lifetime = rpl::lifetime();
+		const auto done = [=](UserData *result) {
+			if (result) {
+				consumer.put_next(not_null(result));
+			}
+		};
+		const auto guard = lifetime.make_state<base::has_weak_ptr>();
+		i->second.callbacks.push_back(crl::guard(guard, done));
+		return lifetime;
+	};
+}
+
+[[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> MakeMessageAuthorAction(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<HistoryItem*> item,
+		not_null<Window::SessionController*> controller) {
+	const auto parent = menu->menu();
+	const auto user = std::make_shared<UserData*>(nullptr);
+	const auto action = Ui::Menu::CreateAction(
+		parent,
+		tr::lng_contacts_loading(tr::now),
+		[=] { if (*user) { controller->showPeerInfo(*user); } });
+	action->setDisabled(true);
+	auto lifetime = LookupMessageAuthor(
+		item
+	) | rpl::start_with_next([=](not_null<UserData*> author) {
+		action->setText(
+			tr::lng_context_sent_by(tr::now, lt_user, author->name()));
+		action->setDisabled(false);
+		*user = author;
+	});
+	auto result = base::make_unique_q<Ui::Menu::Action>(
+		menu->menu(),
+		st::whoSentItem,
+		action,
+		nullptr,
+		nullptr);
+	result->lifetime().add(std::move(lifetime));
+	return result;
+}
+
 } // namespace
 
 ContextMenuRequest::ContextMenuRequest(
@@ -1292,7 +1384,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	if (hasWhoReactedItem) {
 		AddWhoReactedAction(result, list, item, list->controller());
 	} else if (item) {
-		MaybeAddWhenEditedForwardedAction(result, item);
+		MaybeAddWhenEditedForwardedAction(result, item, list->controller());
 	}
 
 	return result;
@@ -1466,9 +1558,10 @@ void AddSaveSoundForNotifications(
 	}, &st::menuIconSoundAdd);
 }
 
-void AddWhenEditedForwardedActionHelper(
+void AddWhenEditedForwardedAuthorActionHelper(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<HistoryItem*> item,
+		not_null<Window::SessionController*> controller,
 		bool insertSeparator) {
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		if (!forwarded->story && forwarded->psaType.isEmpty()) {
@@ -1488,6 +1581,12 @@ void AddWhenEditedForwardedActionHelper(
 				menu.get(),
 				Api::WhenEdited(item->from(), edited->date)));
 		}
+	}
+	if (item->canLookupMessageAuthor()) {
+		if (insertSeparator && !menu->empty()) {
+			menu->addSeparator(&st::expandedMenuSeparator);
+		}
+		menu->addAction(MakeMessageAuthorAction(menu, item, controller));
 	}
 }
 
@@ -1539,7 +1638,11 @@ void AddWhoReactedAction(
 		menu->addSeparator(&st::expandedMenuSeparator);
 	}
 	if (item->history()->peer->isUser()) {
-		AddWhenEditedForwardedActionHelper(menu, item, false);
+		AddWhenEditedForwardedAuthorActionHelper(
+			menu,
+			item,
+			controller,
+			false);
 		menu->addAction(Ui::WhenReadContextAction(
 			menu.get(),
 			Api::WhoReacted(item, context, st::defaultWhoRead, whoReadIds),
@@ -1551,14 +1654,19 @@ void AddWhoReactedAction(
 			Data::ReactedMenuFactory(&controller->session()),
 			participantChosen,
 			showAllChosen));
-		AddWhenEditedForwardedActionHelper(menu, item, true);
+		AddWhenEditedForwardedAuthorActionHelper(
+			menu,
+			item,
+			controller,
+			true);
 	}
 }
 
 void MaybeAddWhenEditedForwardedAction(
 		not_null<Ui::PopupMenu*> menu,
-		not_null<HistoryItem*> item) {
-	AddWhenEditedForwardedActionHelper(menu, item, true);
+		not_null<HistoryItem*> item,
+		not_null<Window::SessionController*> controller) {
+	AddWhenEditedForwardedAuthorActionHelper(menu, item, controller, true);
 }
 
 void AddEditTagAction(

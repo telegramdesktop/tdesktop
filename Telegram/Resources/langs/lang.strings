@@ -4252,6 +4252,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_reacted#other" = "{count} Reacted";
 "lng_context_seen_reacted_none" = "Nobody Reacted";
 "lng_context_seen_reacted_all" = "Show All Reactions";
+"lng_context_sent_by" = "Sent by {user}";
 "lng_context_set_as_quick" = "Set As Quick";
 "lng_context_filter_by_tag" = "Filter by Tag";
 "lng_context_tag_add_name" = "Add Name";

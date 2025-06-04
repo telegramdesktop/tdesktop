@@ -269,6 +269,11 @@ whenReadPadding: margins(34px, 3px, 17px, 4px);
 whenReadIconPosition: point(8px, 0px);
 whenReadSkip: 3px;
 whenReadShowPadding: margins(6px, 0px, 6px, 2px);
+whoSentItem: Menu(defaultMenu) {
+	itemPadding: margins(17px, 3px, 17px, 4px);
+	itemRightSkip: 0px;
+	itemStyle: whenReadStyle;
+}
 
 switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;

@@ -3103,7 +3103,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			leaderOrSelf,
 			_controller);
 	} else if (leaderOrSelf) {
-		HistoryView::MaybeAddWhenEditedForwardedAction(_menu, leaderOrSelf);
+		HistoryView::MaybeAddWhenEditedForwardedAction(
+			_menu,
+			leaderOrSelf,
+			_controller);
 	}
 
 	if (_menu->empty()) {

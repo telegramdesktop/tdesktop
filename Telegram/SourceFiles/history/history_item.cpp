@@ -1706,6 +1706,10 @@ bool HistoryItem::isSponsored() const {
 	return _flags & MessageFlag::Sponsored;
 }
 
+bool HistoryItem::canLookupMessageAuthor() const {
+	return isRegular() && _history->amMonoforumAdmin() && _from->isChannel();
+}
+
 bool HistoryItem::skipNotification() const {
 	if (isSilent() && (_flags & MessageFlag::IsContactSignUp)) {
 		return true;
@@ -1713,8 +1717,7 @@ bool HistoryItem::skipNotification() const {
 		if (forwarded->imported) {
 			return true;
 		}
-	} else if (_history->amMonoforumAdmin()
-		&& from() == _history->peer->monoforumBroadcast()) {
+	} else if (canLookupMessageAuthor()) {
 		return true;
 	}
 	return false;

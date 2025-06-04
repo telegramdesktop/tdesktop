@@ -88,7 +88,8 @@ void AddWhoReactedAction(
 	not_null<Window::SessionController*> controller);
 void MaybeAddWhenEditedForwardedAction(
 	not_null<Ui::PopupMenu*> menu,
-	not_null<HistoryItem*> item);
+	not_null<HistoryItem*> item,
+	not_null<Window::SessionController*> controller);
 void ShowWhoReactedMenu(
 	not_null<base::unique_qptr<Ui::PopupMenu>*> menu,
 	QPoint position,
