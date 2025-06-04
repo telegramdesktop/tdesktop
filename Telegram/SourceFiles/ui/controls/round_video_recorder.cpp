@@ -915,10 +915,6 @@ void RoundVideoRecorder::Private::drawLogoOnYUV420P(
 		not_null<AVFrame*> frame) {
 	const auto width = frame->width;
 	const auto height = frame->height;
-	const auto centerX = width / 2;
-	const auto centerY = height / 2;
-	const auto radius = std::min(centerX, centerY);
-	const auto radiusSquared = radius * radius;
 
 	const auto logoBottom = height - kLogoSize + kLogoYShift;
 	const auto logoStartX = kLogoXShift;
@@ -933,20 +929,13 @@ void RoundVideoRecorder::Private::drawLogoOnYUV420P(
 	const auto ySkip = frame->linesize[0] - width;
 
 	const auto uvWidth = width / 2;
-	const auto uvHeight = height / 2;
 	auto uData = frame->data[1];
 	auto vData = frame->data[2];
 	const auto uvSkip = frame->linesize[1] - uvWidth;
 	auto yMaskIndex = 0;
 
 	for (auto y = 0; y < height; ++y) {
-		const auto dy = y - centerY;
-		const auto dySquared = dy * dy;
-
 		for (auto x = 0; x < width; ++x) {
-			const auto dx = x - centerX;
-			const auto distanceSquared = dx * dx + dySquared;
-
 			if (_circleMask[yMaskIndex]) {
 				*yData = static_cast<uint8_t>(*yData * kOverlayOpacity
 					+ 16 * kOverlayOpaque);

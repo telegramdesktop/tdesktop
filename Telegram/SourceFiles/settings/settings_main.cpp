@@ -547,7 +547,7 @@ void SetupValidatePasswordSuggestion(
 			0,
 			0,
 			0));
-	const auto label = content->add(
+	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
 			tr::lng_settings_suggestion_password_about(),
