@@ -635,7 +635,7 @@ void SubsectionTabs::refreshSlice() {
 	const auto push = [&](not_null<Data::Thread*> thread) {
 		const auto topic = thread->asTopic();
 		const auto sublist = thread->asSublist();
-		const auto badges = [&] {
+		auto badges = [&] {
 			if (!topic && !sublist) {
 				return Dialogs::BadgesState();
 			} else if (thread->chatListUnreadState().known) {
@@ -650,6 +650,10 @@ void SubsectionTabs::refreshSlice() {
 			}
 			return thread->chatListBadgesState();
 		}();
+		if (topic) {
+			// Don't show the small indicators for non-visited unread topics.
+			badges.unread = false;
+		}
 		slice.push_back({
 			.thread = thread,
 			.badges = badges,
