@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/controls/subsection_tabs_slider.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -56,7 +57,7 @@ SubsectionTabs::SubsectionTabs(
 , _afterLimit(kDefaultLimit) {
 	track();
 	refreshSlice();
-	setupHorizontal(parent);
+	setup(parent);
 
 	dataChanged() | rpl::start_with_next([=] {
 		if (_loading) {
@@ -70,6 +71,15 @@ SubsectionTabs::~SubsectionTabs() {
 	delete base::take(_horizontal);
 	delete base::take(_vertical);
 	delete base::take(_shadow);
+}
+
+void SubsectionTabs::setup(not_null<Ui::RpWidget*> parent) {
+	const auto peerId = _history->peer->id;
+	if (session().settings().verticalSubsectionTabs(peerId)) {
+		setupVertical(parent);
+	} else {
+		setupHorizontal(parent);
+	}
 }
 
 void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
@@ -397,7 +407,7 @@ void SubsectionTabs::setupSlider(
 		slider->setSections({
 			.tabs = std::move(sections),
 			.context = Core::TextContext({
-				.session = &_history->session(),
+				.session = &session(),
 			}),
 		}, paused);
 		slider->setActiveSectionFast(activeIndex);
@@ -466,6 +476,11 @@ void SubsectionTabs::toggleModes() {
 	} else {
 		setupHorizontal(_vertical->parentWidget());
 	}
+	const auto peerId = _history->peer->id;
+	const auto vertical = (_vertical != nullptr);
+	session().settings().setVerticalSubsectionTabs(peerId, vertical);
+	session().saveSettingsDelayed();
+
 	_layoutRequests.fire({});
 }
 
@@ -701,6 +716,10 @@ void SubsectionTabs::scheduleRefresh() {
 			refreshSlice();
 		}
 	});
+}
+
+Main::Session &SubsectionTabs::session() {
+	return _history->session();
 }
 
 bool SubsectionTabs::switchTo(

@@ -810,7 +810,7 @@ bool HistoryInner::canHaveFromUserpics() const {
 	} else if (const auto channel = _peer->asBroadcast()) {
 		return channel->signatureProfiles();
 	}
-	return !_removeFromUserpics;
+	return _isChatWide || !_removeFromUserpics;
 }
 
 void HistoryInner::toggleRemoveFromUserpics(bool remove) {

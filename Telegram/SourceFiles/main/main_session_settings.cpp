@@ -42,7 +42,9 @@ QByteArray SessionSettings::serialize() const {
 		+ sizeof(qint32) * 3
 		+ _groupEmojiSectionHidden.size() * sizeof(quint64)
 		+ sizeof(qint32) * 3
-		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 4);
+		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 4)
+		+ sizeof(qint32)
+		+ _verticalSubsectionTabs.size() * sizeof(quint64);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -93,6 +95,10 @@ QByteArray SessionSettings::serialize() const {
 				<< qint64(key.topicRootId.bare)
 				<< SerializePeerId(key.monoforumPeerId)
 				<< qint64(value.bare);
+		}
+		stream << qint32(_verticalSubsectionTabs.size());
+		for (const auto &peerId : _verticalSubsectionTabs) {
+			stream << SerializePeerId(peerId);
 		}
 	}
 
@@ -153,6 +159,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	std::vector<int> appDictionariesEnabled;
 	qint32 appAutoDownloadDictionaries = app.autoDownloadDictionaries() ? 1 : 0;
 	base::flat_map<ThreadId, MsgId> hiddenPinnedMessages;
+	base::flat_set<PeerId> verticalSubsectionTabs;
 	qint32 dialogsFiltersEnabled = _dialogsFiltersEnabled ? 1 : 0;
 	qint32 supportAllSilent = _supportAllSilent ? 1 : 0;
 	qint32 photoEditorHintShowsCount = _photoEditorHintShowsCount;
@@ -466,6 +473,22 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto peerId = quint64();
+				stream >> peerId;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
+				verticalSubsectionTabs.emplace(DeserializePeerId(peerId));
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -512,6 +535,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_mutePeriods = std::move(mutePeriods);
 	_lastNonPremiumLimitDownload = lastNonPremiumLimitDownload;
 	_lastNonPremiumLimitUpload = lastNonPremiumLimitUpload;
+	_verticalSubsectionTabs = std::move(verticalSubsectionTabs);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -643,6 +667,20 @@ void SessionSettings::setHiddenPinnedMessageId(
 		_hiddenPinnedMessages[id] = msgId;
 	} else {
 		_hiddenPinnedMessages.remove(id);
+	}
+}
+
+bool SessionSettings::verticalSubsectionTabs(PeerId peerId) const {
+	return _verticalSubsectionTabs.contains(peerId);
+}
+
+void SessionSettings::setVerticalSubsectionTabs(
+		PeerId peerId,
+		bool vertical) {
+	if (vertical) {
+		_verticalSubsectionTabs.emplace(peerId);
+	} else {
+		_verticalSubsectionTabs.remove(peerId);
 	}
 }
 

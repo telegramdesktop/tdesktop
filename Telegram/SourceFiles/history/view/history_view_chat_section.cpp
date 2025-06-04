@@ -1590,6 +1590,9 @@ void ChatWidget::validateSubsectionTabs() {
 		updateControlsGeometry();
 		orderWidgets();
 	}, _subsectionTabsLifetime);
+	_inner->overrideChatMode((_subsectionTabs->leftSkip() > 0)
+		? ElementChatMode::Narrow
+		: std::optional<ElementChatMode>());
 	updateControlsGeometry();
 	orderWidgets();
 }

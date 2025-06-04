@@ -6474,7 +6474,7 @@ void HistoryWidget::updateControlsGeometry() {
 	_topBars->resize(
 		innerWidth,
 		scrollAreaTop - _topBars->y() + st::lineWidth);
-	if (_scroll->y() != scrollAreaTop) {
+	if (_scroll->y() != scrollAreaTop || _scroll->x() != tabsLeftSkip) {
 		_scroll->moveToLeft(tabsLeftSkip, scrollAreaTop);
 		if (_autocomplete) {
 			_autocomplete->setBoundings(_scroll->geometry());
@@ -8301,6 +8301,7 @@ void HistoryWidget::validateSubsectionTabs() {
 		updateControlsGeometry();
 		orderWidgets();
 	}, _subsectionTabsLifetime);
+	_list->toggleRemoveFromUserpics(_subsectionTabs->leftSkip() > 0);
 	updateControlsGeometry();
 	orderWidgets();
 }

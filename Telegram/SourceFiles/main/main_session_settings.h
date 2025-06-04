@@ -118,6 +118,9 @@ public:
 		PeerId monoforumPeerId,
 		MsgId msgId);
 
+	[[nodiscard]] bool verticalSubsectionTabs(PeerId peerId) const;
+	void setVerticalSubsectionTabs(PeerId peerId, bool vertical);
+
 	[[nodiscard]] bool dialogsFiltersEnabled() const {
 		return _dialogsFiltersEnabled;
 	}
@@ -167,6 +170,7 @@ private:
 	rpl::variable<bool> _archiveInMainMenu = false;
 	rpl::variable<bool> _skipArchiveInSearch = false;
 	base::flat_map<ThreadId, MsgId> _hiddenPinnedMessages;
+	base::flat_set<PeerId> _verticalSubsectionTabs;
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
 	std::vector<TimeId> _mutePeriods;
