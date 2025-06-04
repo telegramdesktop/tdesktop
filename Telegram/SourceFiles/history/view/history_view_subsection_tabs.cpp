@@ -231,18 +231,40 @@ void SubsectionTabs::setupSlider(
 			: scroll->scrollLeftMax();
 		const auto availableFrom = scrollValue;
 		const auto availableTill = (scrollMax - scrollValue);
-		if (scrollMax <= 2 * full && _afterAvailable > 0) {
+		if (scrollMax <= 3 * full && _afterAvailable > 0) {
 			_beforeLimit *= 2;
 			_afterLimit *= 2;
 		}
+		const auto findMiddle = [&] {
+			Expects(!_slice.empty());
+
+			auto best = -1;
+			auto bestDistance = -1;
+			const auto ideal = scrollValue + (full / 2);
+			for (auto i = 0, count = int(_slice.size()); i != count; ++i) {
+				const auto a = slider->lookupSectionPosition(i);
+				const auto b = (i + 1 == count)
+					? (full + scrollMax)
+					: slider->lookupSectionPosition(i + 1);
+				const auto middle = (a + b) / 2;
+				const auto distance = std::abs(middle - ideal);
+				if (best < 0 || distance < bestDistance) {
+					best = i;
+					bestDistance = distance;
+				}
+			}
+
+			Ensures(best >= 0);
+			return best;
+		};
 		if (availableFrom < full
 			&& _beforeSkipped.value_or(0) > 0
 			&& !_slice.empty()) {
-			_around = _slice.front().thread;
+			_around = _slice[findMiddle()].thread;
 			refreshSlice();
 		} else if (availableTill < full) {
 			if (_afterAvailable > 0) {
-				_around = _slice.back().thread;
+				_around = _slice[findMiddle()].thread;
 				refreshSlice();
 			} else if (!_afterSkipped.has_value()) {
 				_loading = true;
