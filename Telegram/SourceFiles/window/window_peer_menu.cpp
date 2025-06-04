@@ -529,7 +529,10 @@ void Filler::addTogglePin() {
 }
 
 void Filler::addToggleMuteSubmenu(bool addSeparator) {
-	if (!_thread || _thread->peer()->isSelf() || _thread->asSublist()) {
+	if (!_thread
+		|| _thread->peer()->isSelf()
+		|| _thread->asSublist()
+		|| (_thread->asHistory() && _thread->asHistory()->isForum())) {
 		return;
 	}
 	PeerMenuAddMuteSubmenuAction(_controller, _thread, _addAction);
@@ -1470,6 +1473,7 @@ void Filler::fillContextMenuActions() {
 
 void Filler::fillHistoryActions() {
 	addToggleMuteSubmenu(true);
+	addCreateTopic();
 	addInfo();
 	addViewAsTopics();
 	addManageChat();
