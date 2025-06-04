@@ -97,9 +97,17 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 		st::chatTabsScroll,
 		true);
 	scroll->show();
+	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(_horizontal);
 	const auto slider = scroll->setOwnedWidget(
 		object_ptr<Ui::HorizontalSlider>(scroll));
 	setupSlider(scroll, slider, false);
+
+	shadow->showOn(rpl::single(
+		rpl::empty
+	) | rpl::then(
+		scroll->scrolls()
+	) | rpl::map([=] { return scroll->scrollLeft() > 0; }));
+	shadow->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_horizontal->resize(
 		_horizontal->width(),
@@ -121,6 +129,7 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 		const auto togglew = toggle->width();
 		const auto height = size.height();
 		scroll->setGeometry(togglew, 0, size.width() - togglew, height);
+		shadow->setGeometry(togglew, 0, st::lineWidth, height);
 	}, scroll->lifetime());
 
 	_horizontal->paintRequest() | rpl::start_with_next([=](QRect clip) {
@@ -156,10 +165,17 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 		_vertical,
 		st::chatTabsScroll);
 	scroll->show();
-
+	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(_vertical);
 	const auto slider = scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalSlider>(scroll));
 	setupSlider(scroll, slider, true);
+
+	shadow->showOn(rpl::single(
+		rpl::empty
+	) | rpl::then(
+		scroll->scrolls()
+	) | rpl::map([=] { return scroll->scrollTop() > 0; }));
+	shadow->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_vertical->resize(
 		std::max(toggle->width(), slider->width()),
@@ -170,6 +186,7 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 		const auto toggleh = toggle->height();
 		const auto width = size.width();
 		scroll->setGeometry(0, toggleh, width, size.height() - toggleh);
+		shadow->setGeometry(0, toggleh, width, st::lineWidth);
 	}, scroll->lifetime());
 
 	_vertical->paintRequest() | rpl::start_with_next([=](QRect clip) {
