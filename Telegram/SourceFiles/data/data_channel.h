@@ -82,7 +82,7 @@ enum class ChannelDataFlag : uint64 {
 	Monoforum = (1ULL << 39),
 	MonoforumAdmin = (1ULL << 40),
 	MonoforumDisabled = (1ULL << 41),
-	ForumTabs = (1ULL << 41),
+	ForumTabs = (1ULL << 42),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
