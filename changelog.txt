@@ -1,3 +1,12 @@
+5.15.1 (05.06.25)
+
+- Fix launch on Windows 7.
+- Fix launch on older Linux distributions.
+- Fix crash in group chat message right click.
+- Fix unread counters in channel direct messages.
+- Don't generate "User joined" message in channel direct messages.
+- Fix some other glitches in new forums and channel direct messages.
+
 5.15 (04.06.25)
 
 - Send Direct Messages to Channels.
