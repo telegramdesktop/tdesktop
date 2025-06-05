@@ -110,7 +110,6 @@ jobs:
           -D CMAKE_CONFIGURATION_TYPES=Debug \
           -D CMAKE_C_FLAGS_DEBUG="-O0" \
           -D CMAKE_CXX_FLAGS_DEBUG="-O0" \
-          -D CMAKE_EXE_LINKER_FLAGS="-s" \
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
           -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
