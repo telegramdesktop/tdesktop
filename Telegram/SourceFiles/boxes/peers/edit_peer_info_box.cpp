@@ -82,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "api/api_invite_links.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_credits.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -133,7 +134,7 @@ void AddButtonWithCount(
 not_null<Ui::SettingsButton*> AddButtonWithText(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
-		rpl::producer<QString> &&label,
+		rpl::producer<TextWithEntities> &&label,
 		Fn<void()> callback,
 		Settings::IconDescriptor &&descriptor) {
 	return parent->add(EditPeerInfoBox::CreateButton(
@@ -143,6 +144,20 @@ not_null<Ui::SettingsButton*> AddButtonWithText(
 		std::move(callback),
 		st::manageGroupTopButtonWithText,
 		std::move(descriptor)));
+}
+
+not_null<Ui::SettingsButton*> AddButtonWithText(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> &&text,
+		rpl::producer<QString> &&label,
+		Fn<void()> callback,
+		Settings::IconDescriptor &&descriptor) {
+	return AddButtonWithText(
+		parent,
+		std::move(text),
+		std::move(label) | Ui::Text::ToWithEntities(),
+		std::move(callback),
+		std::move(descriptor));
 }
 
 void AddButtonDelete(
@@ -1077,10 +1092,14 @@ void Controller::fillDirectMessagesButton() {
 	auto label = _starsPerDirectMessageSavedValue->value(
 	) | rpl::map([](int starsPerMessage) {
 		return (starsPerMessage < 0)
-			? tr::lng_manage_monoforum_off()
+			? tr::lng_manage_monoforum_off(Ui::Text::WithEntities)
 			: !starsPerMessage
-			? tr::lng_manage_monoforum_free()
-			: rpl::single(Lang::FormatCountDecimal(starsPerMessage));
+			? tr::lng_manage_monoforum_free(Ui::Text::WithEntities)
+			: rpl::single(Ui::Text::IconEmoji(
+				&st::starIconEmojiColored
+			).append(' ').append(
+				Lang::FormatStarsAmountDecimal(
+					StarsAmount{ starsPerMessage })));
 	}) | rpl::flatten_latest();
 	AddButtonWithText(
 		_controls.buttonsLayout,
@@ -2866,6 +2885,22 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 		Fn<void()> callback,
 		const style::SettingsCountButton &st,
 		Settings::IconDescriptor &&descriptor) {
+	return CreateButton(
+		parent,
+		std::move(text),
+		std::move(count) | Ui::Text::ToWithEntities(),
+		std::move(callback),
+		st,
+		std::move(descriptor));
+}
+
+object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> &&text,
+		rpl::producer<TextWithEntities> &&labelText,
+		Fn<void()> callback,
+		const style::SettingsCountButton &st,
+		Settings::IconDescriptor &&descriptor) {
 	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
 		rpl::duplicate(text),
@@ -2886,37 +2921,49 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 			std::move(descriptor));
 	}
 
-	auto labelText = rpl::combine(
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		rpl::duplicate(labelText),
+		st.label);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->show();
+
+	rpl::combine(
 		rpl::duplicate(text),
-		std::move(count),
+		std::move(labelText),
 		button->widthValue()
-	) | rpl::map([&st](const QString &text, const QString &count, int width) {
+	) | rpl::start_with_next([&st, label](
+			const QString &text,
+			const TextWithEntities &labelText,
+			int width) {
 		const auto available = width
 			- st.button.padding.left()
 			- (st.button.style.font->spacew * 2)
 			- st.button.style.font->width(text)
 			- st.labelPosition.x();
-		const auto required = st.label.style.font->width(count);
-		return (required > available)
-			? st.label.style.font->elided(count, std::max(available, 0))
-			: count;
-	});
+		const auto required = label->textMaxWidth();
+		label->resizeToWidth(std::min(required, available));
+		label->moveToRight(
+			st.labelPosition.x(),
+			st.labelPosition.y(),
+			width);
+	}, label->lifetime());
 
 	if (badge) {
 		rpl::combine(
 			std::move(text),
-			rpl::duplicate(labelText),
+			label->widthValue(),
 			button->widthValue()
 		) | rpl::start_with_next([=](
 				const QString &text,
-				const QString &label,
+				int labelWidth,
 				int width) {
 			const auto space = st.button.style.font->spacew;
 			const auto left = st.button.padding.left()
 				+ st.button.style.font->width(text)
 				+ space;
 			const auto right = st.labelPosition.x()
-				+ st.label.style.font->width(label)
+				+ labelWidth
 				+ (space * 2);
 			const auto available = width - left - right;
 			badge->setVisible(available >= badge->width());
@@ -2929,23 +2976,6 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 			}
 		}, badge->lifetime());
 	}
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		button,
-		std::move(labelText),
-		st.label);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	label->show();
-
-	rpl::combine(
-		button->widthValue(),
-		label->widthValue()
-	) | rpl::start_with_next([=, &st](int outerWidth, int width) {
-		label->moveToRight(
-			st.labelPosition.x(),
-			st.labelPosition.y(),
-			outerWidth);
-	}, label->lifetime());
 
 	return result;
 }
