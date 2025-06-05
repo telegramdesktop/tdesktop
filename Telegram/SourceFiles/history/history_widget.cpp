@@ -4834,6 +4834,10 @@ void HistoryWidget::doneShow() {
 	controller()->widget()->setInnerFocus();
 	_preserveScrollTop = false;
 	checkSuggestToGigagroup();
+
+	if (_history) {
+		_history->saveMeAsActiveSubsectionThread();
+	}
 }
 
 void HistoryWidget::cornerButtonsShowAtPosition(

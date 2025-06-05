@@ -79,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
 #include "data/data_chat_filters.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "info/downloads/info_downloads_widget.h"
@@ -920,7 +921,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		&& history->isForum()
 		&& !row.message.fullId
 		&& (!controller()->adaptive().isOneColumn()
-			|| !history->peer->forum()->channel()->viewForumAsMessages())) {
+			|| !history->peer->forum()->channel()->viewForumAsMessages()
+			|| history->peer->forum()->channel()->useSubsectionTabs())) {
 		const auto forum = history->peer->forum();
 		if (controller()->shownForum().current() == forum) {
 			controller()->closeForum();
@@ -939,6 +941,26 @@ void Widget::chosenRow(const ChosenRow &row) {
 				controller()->showThread(
 					history,
 					ShowAtUnreadMsgId,
+					Window::SectionShow::Way::ClearStack);
+			}
+		}
+		return;
+	} else if (history
+		&& history->amMonoforumAdmin()
+		&& !row.message.fullId) {
+		const auto monoforum = history->peer->monoforum();
+		if (row.newWindow) {
+			controller()->showInNewWindow(
+				Window::SeparateId(Window::SeparateType::Chat, history));
+		} else {
+			if (const auto active = monoforum->activeSubsectionThread()) {
+				controller()->showThread(
+					active,
+					ShowAtUnreadMsgId,
+					Window::SectionShow::Way::ClearStack);
+			} else {
+				controller()->showPeerHistory(
+					history,
 					Window::SectionShow::Way::ClearStack);
 			}
 		}

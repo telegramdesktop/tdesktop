@@ -189,6 +189,9 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		reorderLastTopics();
 	}
 
+	if (_activeSubsectionTopic == raw) {
+		_activeSubsectionTopic = nullptr;
+	}
 	_topicDestroyed.fire(raw);
 	session().changes().topicUpdated(
 		raw,
@@ -257,6 +260,20 @@ void Forum::recentTopicsInvalidate(not_null<ForumTopic*> topic) {
 
 const std::vector<not_null<ForumTopic*>> &Forum::recentTopics() const {
 	return _lastTopics;
+}
+
+void Forum::saveActiveSubsectionThread(not_null<Thread*> thread) {
+	if (const auto topic = thread->asTopic()) {
+		Assert(topic->forum() == this);
+		_activeSubsectionTopic = topic->creating() ? nullptr : topic;
+	} else {
+		Assert(thread == history());
+		_activeSubsectionTopic = nullptr;
+	}
+}
+
+Thread *Forum::activeSubsectionThread() const {
+	return _activeSubsectionTopic;
 }
 
 void Forum::listMessageChanged(HistoryItem *from, HistoryItem *to) {

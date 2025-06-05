@@ -409,8 +409,8 @@ void ChannelData::setPendingRequestsCount(
 }
 
 bool ChannelData::useSubsectionTabs() const {
-	return isForum()
-		&& (flags() & ChannelDataFlag::ForumTabs);
+	return amMonoforumAdmin()
+		|| (isForum() && (flags() & ChannelDataFlag::ForumTabs));
 }
 
 ChatRestrictionsInfo ChannelData::KickedRestrictedRights(

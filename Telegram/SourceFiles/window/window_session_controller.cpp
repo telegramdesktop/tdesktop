@@ -586,7 +586,8 @@ void SessionNavigation::showPeerByLinkResolved(
 		if (const auto forum = peer->forum()) {
 			if (controller->windowId().hasChatsList()
 				&& !controller->adaptive().isOneColumn()
-				&& controller->shownForum().current() != forum) {
+				&& controller->shownForum().current() != forum
+				&& !forum->channel()->useSubsectionTabs()) {
 				controller->showForum(forum);
 			}
 		}
@@ -1878,7 +1879,11 @@ void SessionController::showForum(
 	if (showForumInDifferentWindow(forum, params)) {
 		return;
 	} else if (forum->channel()->useSubsectionTabs()) {
-		showPeerHistory(forum->channel(), params);
+		if (const auto active = forum->activeSubsectionThread()) {
+			showThread(active, ShowAtUnreadMsgId, params);
+		} else {
+			showPeerHistory(forum->channel(), params);
+		}
 		return;
 	}
 	_shownForumLifetime.destroy();
@@ -1992,9 +1997,9 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 			Data::PeerFlagValue(
 				channel,
 				ChannelData::Flag::Forum
-			) | rpl::filter(
-				rpl::mappers::_1
-			) | rpl::start_with_next([=] {
+			) | rpl::filter([=](bool forum) {
+				return forum && !channel->useSubsectionTabs();
+			}) | rpl::start_with_next([=] {
 				clearSectionStack(
 					{ anim::type::normal, anim::activation::background });
 				showForum(channel->forum(),
