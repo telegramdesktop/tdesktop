@@ -292,7 +292,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						? tr::lng_dialogs_suggestions_birthday_contact_title(
 							tr::now,
 							lt_text,
-							{ first->name() },
+							{ first->shortName() },
 							Ui::Text::RichLangValue)
 						: tr::lng_dialogs_suggestions_birthday_contacts_title(
 							tr::now,
