@@ -110,8 +110,9 @@ void Widget::setInnerFocus() {
 rpl::producer<QString> Widget::title() {
 	if (controller()->key().topic()) {
 		return tr::lng_info_topic_title();
-	} else if (controller()->key().sublist()) {
-		return tr::lng_info_user_title();
+	} else if (controller()->key().sublist()
+		&& controller()->key().sublist()->parentChat()) {
+		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
 	if (const auto user = peer->asUser()) {
@@ -119,7 +120,9 @@ rpl::producer<QString> Widget::title() {
 			? tr::lng_info_bot_title()
 			: tr::lng_info_user_title();
 	} else if (const auto channel = peer->asChannel()) {
-		return channel->isMegagroup()
+		return channel->isMonoforum()
+			? tr::lng_profile_direct_messages()
+			: channel->isMegagroup()
 			? tr::lng_info_group_title()
 			: tr::lng_info_channel_title();
 	} else if (peer->isChat()) {

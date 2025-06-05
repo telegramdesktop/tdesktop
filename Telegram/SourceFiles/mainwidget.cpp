@@ -2370,6 +2370,9 @@ void MainWidget::updateControlsGeometry() {
 						(thread->asTopic()
 							? std::make_shared<Info::Memento>(
 								thread->asTopic())
+							: thread->asSublist()
+							? std::make_shared<Info::Memento>(
+								thread->asSublist())
 							: Info::Memento::Default(
 								thread->asHistory()->peer)),
 						params.withThirdColumn());
@@ -2633,6 +2636,9 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::move(_thirdSectionFromStack);
 	} else if (const auto topic = key.topic()) {
 		return std::make_shared<Info::Memento>(topic);
+	} else if (const auto sublist = key.sublist()
+		; sublist && sublist->parentChat()) {
+		return std::make_shared<Info::Memento>(sublist);
 	} else if (const auto peer = key.peer()) {
 		return std::make_shared<Info::Memento>(
 			peer,
