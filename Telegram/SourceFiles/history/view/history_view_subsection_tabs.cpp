@@ -218,6 +218,7 @@ void SubsectionTabs::setupSlider(
 			const auto thread = _slice[active].thread;
 			if (newWindow) {
 				_controller->showInNewWindow(Window::SeparateId(thread));
+				_refreshed.fire({}); // This should activate current section.
 			} else {
 				auto params = Window::SectionShow();
 				params.way = Window::SectionShow::Way::ClearStack;
