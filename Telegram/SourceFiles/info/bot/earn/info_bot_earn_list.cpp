@@ -247,12 +247,12 @@ void InnerWidget::fill() {
 				})
 			),
 			peer()->isSelf()
-				? rpl::duplicate(overallBalanceValue)
+				? rpl::duplicate(overallBalanceValue) | rpl::type_erased()
 				: rpl::duplicate(availableBalanceValue),
 			rpl::duplicate(dateValue),
 			_state.isWithdrawalEnabled,
 			(peer()->isSelf()
-				? rpl::duplicate(overallBalanceValue)
+				? rpl::duplicate(overallBalanceValue) | rpl::type_erased()
 				: rpl::duplicate(availableBalanceValue)
 			) | rpl::map([=](StarsAmount v) {
 				return v ? ToUsd(v, multiplier, kMinorLength) : QString();

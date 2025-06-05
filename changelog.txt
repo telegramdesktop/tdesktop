@@ -1,3 +1,8 @@
+5.15.2 (05.06.25)
+
+- Fix sending messages in new forum layout.
+- Add statistics for user stars.
+
 5.15.1 (05.06.25)
 
 - Fix launch on Windows 7.
