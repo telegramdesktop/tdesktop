@@ -2334,6 +2334,9 @@ History *History::migrateSibling() const {
 Dialogs::UnreadState History::chatListUnreadState() const {
 	if (const auto forum = peer->forum()) {
 		return AdjustedForumUnreadState(forum->topicsList()->unreadState());
+	} else if (const auto monoforum = peer->monoforum()) {
+		return AdjustedForumUnreadState(
+			monoforum->chatsList()->unreadState());
 	}
 	return computeUnreadState();
 }
