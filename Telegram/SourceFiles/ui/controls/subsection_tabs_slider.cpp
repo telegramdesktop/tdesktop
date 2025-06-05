@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/subsection_tabs_slider.h"
 
-#include "base/call_delayed.h"
 #include "dialogs/dialogs_three_state_icon.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/dynamic_image.h"
@@ -384,14 +383,13 @@ void SubsectionSlider::activate(int index) {
 			}
 		}
 	};
-	const auto duration = st::chatTabsSlider.duration;
-	_activeFrom.start(callback, was.from, now.from, duration);
-	_activeSize.start(callback, was.size, now.size, duration);
-	base::call_delayed(duration, this, [=] {
-		if (_active == index) {
-			_sectionActivated.fire_copy(index);
-		}
-	});
+	const auto weak = Ui::MakeWeak(_bar);
+	_sectionActivated.fire_copy(index);
+	if (weak) {
+		const auto duration = st::chatTabsSlider.duration;
+		_activeFrom.start(callback, was.from, now.from, duration);
+		_activeSize.start(callback, was.size, now.size, duration);
+	}
 }
 
 void SubsectionSlider::setActiveSectionFast(int active) {
