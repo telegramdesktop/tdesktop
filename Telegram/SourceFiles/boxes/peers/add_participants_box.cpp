@@ -1522,6 +1522,7 @@ void AddSpecialBoxController::editAdminDone(
 	}
 
 	_additional.applyAdminLocally(user, rights, rank);
+	// _adminDoneCallback should call changes().chatAdminUpdated.
 	if (const auto callback = _adminDoneCallback) {
 		callback(user, rights, rank);
 	}

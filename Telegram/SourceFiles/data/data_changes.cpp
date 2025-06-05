@@ -340,6 +340,23 @@ rpl::producer<StoryUpdate> Changes::realtimeStoryUpdates(
 	return _storyChanges.realtimeUpdates(flag);
 }
 
+void Changes::chatAdminChanged(
+		not_null<PeerData*> peer,
+		not_null<UserData*> user,
+		ChatAdminRights rights,
+		QString rank) {
+	_chatAdminChanges.fire({
+		.peer = peer,
+		.user = user,
+		.rights = rights,
+		.rank = std::move(rank),
+	});
+}
+
+rpl::producer<ChatAdminChange> Changes::chatAdminChanges() const {
+	return _chatAdminChanges.events();
+}
+
 void Changes::scheduleNotifications() {
 	if (!_notify) {
 		_notify = true;

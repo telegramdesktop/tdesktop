@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "data/data_chat_participant_status.h"
 
 class History;
 class PeerData;
@@ -271,6 +272,13 @@ struct StoryUpdate {
 
 };
 
+struct ChatAdminChange {
+	not_null<PeerData*> peer;
+	not_null<UserData*> user;
+	ChatAdminRights rights;
+	QString rank;
+};
+
 class Changes final {
 public:
 	explicit Changes(not_null<Main::Session*> session);
@@ -383,6 +391,13 @@ public:
 	[[nodiscard]] rpl::producer<StoryUpdate> realtimeStoryUpdates(
 		StoryUpdate::Flag flag) const;
 
+	void chatAdminChanged(
+		not_null<PeerData*> peer,
+		not_null<UserData*> user,
+		ChatAdminRights rights,
+		QString rank);
+	[[nodiscard]] rpl::producer<ChatAdminChange> chatAdminChanges() const;
+
 	void sendNotifications();
 
 private:
@@ -435,6 +450,7 @@ private:
 	Manager<HistoryItem, MessageUpdate> _messageChanges;
 	Manager<Dialogs::Entry, EntryUpdate> _entryChanges;
 	Manager<Story, StoryUpdate> _storyChanges;
+	rpl::event_stream<ChatAdminChange> _chatAdminChanges;
 
 	bool _notify = false;
 
