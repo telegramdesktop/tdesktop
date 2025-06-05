@@ -3440,9 +3440,10 @@ Data::HistoryMessages *History::maybeMessages() {
 HistoryItem *History::insertJoinedMessage() {
 	const auto channel = peer->asChannel();
 	if (!channel
+		|| channel->isMonoforum()
 		|| _joinedMessage
 		|| !channel->amIn()
-		|| (peer->isMegagroup()
+		|| (channel->isMegagroup()
 			&& channel->mgInfo->joinedMessageFound)) {
 		return _joinedMessage;
 	}
