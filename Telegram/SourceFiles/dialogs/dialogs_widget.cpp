@@ -872,7 +872,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		} else if (row.newWindow) {
 			controller()->showInNewWindow(Window::SeparateId(topicJump));
 		} else {
-			if (!controller()->adaptive().isOneColumn()) {
+			if (!controller()->adaptive().isOneColumn()
+				&& !topicJump->channel()->useSubsectionTabs()) {
 				controller()->showForum(
 					topicJump->forum(),
 					Window::SectionShow().withChildColumn());
@@ -931,7 +932,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		} else {
 			controller()->showForum(
 				forum,
-				Window::SectionShow().withChildColumn());
+				Window::SectionShow(
+					Window::SectionShow::Way::ClearStack).withChildColumn());
 			if (controller()->shownForum().current() == forum
 				&& forum->channel()->viewForumAsMessages()) {
 				controller()->showThread(
