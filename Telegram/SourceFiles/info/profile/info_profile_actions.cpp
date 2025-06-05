@@ -1044,6 +1044,9 @@ private:
 	void addShowTopicsListButton(
 		Ui::MultiSlideTracker &tracker,
 		not_null<Data::Forum*> forum);
+	void addViewChannelButton(
+		Ui::MultiSlideTracker &tracker,
+		not_null<ChannelData*> channel);
 
 	void addReportReaction(Ui::MultiSlideTracker &tracker);
 	void addReportReaction(
@@ -2182,9 +2185,16 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 
 Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 		not_null<ChannelData*> channel) {
+	Ui::MultiSlideTracker tracker;
+	addViewChannelButton(tracker, channel);
+	return tracker;
+}
+
+void DetailsFiller::addViewChannelButton(
+		Ui::MultiSlideTracker &tracker,
+		not_null<ChannelData*> channel) {
 	using namespace rpl::mappers;
 
-	Ui::MultiSlideTracker tracker;
 	auto window = _controller->parentController();
 	auto activePeerValue = window->activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {
@@ -2205,8 +2215,6 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 		std::move(viewChannelVisible),
 		std::move(viewChannel),
 		tracker);
-
-	return tracker;
 }
 
 Ui::MultiSlideTracker DetailsFiller::fillDiscussionButtons(
@@ -2238,6 +2246,8 @@ Ui::MultiSlideTracker DetailsFiller::fillDiscussionButtons(
 		if (channel->useSubsectionTabs()) {
 			addShowTopicsListButton(tracker, forum);
 		}
+	} else if (const auto broadcast = channel->monoforumBroadcast()) {
+		addViewChannelButton(tracker, broadcast);
 	}
 
 	return tracker;
