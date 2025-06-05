@@ -156,6 +156,9 @@ bool CanSendAnyOf(
 		}
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
+		if (channel->monoforumDisabled()) {
+			return false;
+		}
 		using Flag = ChannelDataFlag;
 		const auto allowed = channel->amIn()
 			|| ((channel->flags() & Flag::HasLink)
@@ -221,6 +224,9 @@ SendError RestrictionError(
 		}
 		const auto all = restricted.isWithEveryone();
 		const auto channel = peer->asChannel();
+		if (channel && channel->monoforumDisabled()) {
+			return tr::lng_action_direct_messages_disabled(tr::now);
+		}
 		if (!all && channel) {
 			auto restrictedUntil = channel->restrictedUntil();
 			if (restrictedUntil > 0

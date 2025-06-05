@@ -527,7 +527,13 @@ InnerWidget::InnerWidget(
 			RowDescriptor previous,
 			RowDescriptor next) {
 		updateDialogRow(previous);
+		if (const auto sublist = previous.key.sublist()) {
+			updateDialogRow({ { sublist->owningHistory() }, {} });
+		}
 		updateDialogRow(next);
+		if (const auto sublist = next.key.sublist()) {
+			updateDialogRow({ { sublist->owningHistory() }, {} });
+		}
 	}, lifetime());
 
 	_controller->activeChatsFilter(
