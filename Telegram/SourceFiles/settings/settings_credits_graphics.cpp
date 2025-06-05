@@ -2789,17 +2789,19 @@ void AddWithdrawalWidget(
 	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	auto about = Ui::CreateLabelWithCustomEmoji(
 		container,
-		tr::lng_bot_earn_learn_credits_out_about(
-			lt_link,
-			tr::lng_channel_earn_about_link(
-				lt_emoji,
-				rpl::single(arrow),
-				Ui::Text::RichLangValue
-			) | rpl::map([](TextWithEntities text) {
-				return Ui::Text::Link(
-					std::move(text),
-					tr::lng_bot_earn_balance_about_url(tr::now));
-			}),
+		(peer->isSelf()
+			? tr::lng_self_earn_learn_credits_out_about
+			: tr::lng_bot_earn_learn_credits_out_about)(
+				lt_link,
+				tr::lng_channel_earn_about_link(
+					lt_emoji,
+					rpl::single(arrow),
+					Ui::Text::RichLangValue
+				) | rpl::map([](TextWithEntities text) {
+					return Ui::Text::Link(
+						std::move(text),
+						tr::lng_bot_earn_balance_about_url(tr::now));
+				}),
 			Ui::Text::RichLangValue),
 		Core::TextContext({ .session = session }),
 		st::boxDividerLabel);

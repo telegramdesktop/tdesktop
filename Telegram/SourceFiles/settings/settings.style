@@ -696,3 +696,12 @@ settingsGiftIconEmoji: IconEmoji {
 	icon: icon{{ "settings/mini_gift", windowFg }};
 	padding: margins(1px, 2px, 1px, 0px);
 }
+
+settingsCreditsButtonBuy: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "settings/add", activeButtonFg, point(0px, 7px) }};
+	iconOver: icon {{ "settings/add", activeButtonFgOver, point(0px, 7px) }};
+}
+settingsCreditsButtonStats: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_share", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
+}

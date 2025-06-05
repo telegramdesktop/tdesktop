@@ -123,7 +123,11 @@ not_null<Button*> AddButtonWithIcon(
 		const style::SettingsButton &st,
 		IconDescriptor &&descriptor) {
 	return container->add(
-		CreateButtonWithIcon(container, std::move(text), st, std::move(descriptor)));
+		CreateButtonWithIcon(
+			container,
+			std::move(text),
+			st,
+			std::move(descriptor)));
 }
 
 void CreateRightLabel(

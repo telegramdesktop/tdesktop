@@ -2780,6 +2780,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_more_options" = "More Options";
 "lng_credits_balance_me" = "your balance";
 "lng_credits_buy_button" = "Buy More Stars";
+"lng_credits_buy_button_short" = "Top Up";
+"lng_credits_stats_button_short" = "Stats";
 "lng_credits_gift_button" = "Gift Stars to Friends";
 "lng_credits_box_out_title" = "Confirm Your Purchase";
 "lng_credits_box_out_sure#one" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Star**?";
@@ -6431,6 +6433,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_balance_button_locked" = "Withdraw";
 "lng_bot_earn_balance_button_buy_ads" = "Buy Ads";
 "lng_bot_earn_learn_credits_out_about" = "You can withdraw Stars using Fragment, or use Stars to advertise your bot. {link}";
+"lng_self_earn_learn_credits_out_about" = "You can withdraw from 10 Stars using Fragment. {link}";
 "lng_bot_earn_out_ph" = "Enter amount to withdraw";
 "lng_bot_earn_balance_password_title" = "Two-step verification";
 "lng_bot_earn_balance_password_description" = "Please enter your password to collect.";
