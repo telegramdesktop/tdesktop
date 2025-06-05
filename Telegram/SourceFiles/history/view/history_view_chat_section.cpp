@@ -306,7 +306,7 @@ ChatWidget::ChatWidget(
 	_topBar->show();
 
 	if (_repliesRootView) {
-		_repliesRootView->move(0, _topBar->height());
+		_repliesRootView->move(0, 0);
 	}
 
 	_topBar->deleteSelectionRequest(
