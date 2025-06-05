@@ -302,6 +302,7 @@ RUN git clone -b v0.11.1 --depth=1 https://github.com/libjxl/libjxl.git \
 	&& cmake --build build \
 	&& export DESTDIR=/usr/src/jxl-cache \
 	&& cmake --install build \
+	&& sed -i 's/-lstdc++//' $DESTDIR/usr/local/lib64/pkgconfig/libjxl*.pc \
 	&& rm $DESTDIR/usr/local/lib64/libjpeg.so* \
 	&& cp build/lib/libjpegli-static.a $DESTDIR/usr/local/lib64/libjpeg.a \
 	&& mkdir build/hwy \
