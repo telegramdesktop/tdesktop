@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
@@ -1040,6 +1041,9 @@ private:
 		not_null<ChannelData*> channel);
 	Ui::MultiSlideTracker fillDiscussionButtons(
 		not_null<ChannelData*> channel);
+	void addShowTopicsListButton(
+		Ui::MultiSlideTracker &tracker,
+		not_null<Data::Forum*> forum);
 
 	void addReportReaction(Ui::MultiSlideTracker &tracker);
 	void addReportReaction(
@@ -2103,23 +2107,37 @@ void DetailsFiller::addReportReaction(
 }
 
 Ui::MultiSlideTracker DetailsFiller::fillTopicButtons() {
+	Ui::MultiSlideTracker tracker;
+	addShowTopicsListButton(tracker, _topic->forum());
+	return tracker;
+}
+
+void DetailsFiller::addShowTopicsListButton(
+		Ui::MultiSlideTracker &tracker,
+		not_null<Data::Forum*> forum) {
 	using namespace rpl::mappers;
 
-	Ui::MultiSlideTracker tracker;
 	const auto window = _controller->parentController();
-
-	const auto forum = _topic->forum();
+	const auto channel = forum->channel();
 	auto showTopicsVisible = rpl::combine(
 		window->adaptive().oneColumnValue(),
 		window->shownForum().value(),
 		_1 || (_2 != forum));
+	const auto callback = [=] {
+		if (const auto forum = channel->forum()) {
+			if (channel->useSubsectionTabs()) {
+				window->searchInChat(forum->history());
+			} else {
+				window->showForum(forum);
+			}
+		}
+	};
 	AddMainButton(
 		_wrap,
 		tr::lng_forum_show_topics_list(),
 		std::move(showTopicsVisible),
-		[=] { window->showForum(forum); },
+		callback,
 		tracker);
-	return tracker;
 }
 
 Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
@@ -2215,6 +2233,12 @@ Ui::MultiSlideTracker DetailsFiller::fillDiscussionButtons(
 		std::move(viewDiscussionVisible),
 		std::move(viewDiscussion),
 		tracker);
+
+	if (const auto forum = channel->forum()) {
+		if (channel->useSubsectionTabs()) {
+			addShowTopicsListButton(tracker, forum);
+		}
+	}
 
 	return tracker;
 }
