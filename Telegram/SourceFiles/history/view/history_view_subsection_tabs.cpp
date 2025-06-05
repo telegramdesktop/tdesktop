@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_subsection_tabs.h"
 
+#include "base/qt/qt_key_modifiers.h"
 #include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
@@ -35,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "window/window_peer_menu.h"
+#include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
@@ -209,13 +211,19 @@ void SubsectionTabs::setupSlider(
 		not_null<Ui::SubsectionSlider*> slider,
 		bool vertical) {
 	slider->sectionActivated() | rpl::start_with_next([=](int active) {
+		const auto newWindow = base::IsCtrlPressed();
 		if (active >= 0
 			&& active < _slice.size()
-			&& _active != _slice[active].thread) {
-			auto params = Window::SectionShow();
-			params.way = Window::SectionShow::Way::ClearStack;
-			params.animated = anim::type::instant;
-			_controller->showThread(_slice[active].thread, {}, params);
+			&& (newWindow || _active != _slice[active].thread)) {
+			const auto thread = _slice[active].thread;
+			if (newWindow) {
+				_controller->showInNewWindow(Window::SeparateId(thread));
+			} else {
+				auto params = Window::SectionShow();
+				params.way = Window::SectionShow::Way::ClearStack;
+				params.animated = anim::type::instant;
+				_controller->showThread(thread, ShowAtUnreadMsgId, params);
+			}
 		}
 	}, slider->lifetime());
 
