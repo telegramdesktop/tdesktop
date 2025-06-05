@@ -713,7 +713,7 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	if ((!chat && !megagroup)
 		|| (megagroup
 			&& (megagroup->flags() & ChannelDataFlag::ParticipantsHidden))
-		|| megagroup->isMonoforum()) {
+		|| (megagroup && megagroup->isMonoforum())) {
 		return false;
 	}
 	const auto &appConfig = peer->session().appConfig();
