@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/notify/data_notify_settings.h"
@@ -1022,6 +1023,10 @@ public:
 	DetailsFiller(
 		not_null<Controller*> controller,
 		not_null<Ui::RpWidget*> parent,
+		not_null<Data::SavedSublist*> sublist);
+	DetailsFiller(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
 		not_null<Data::ForumTopic*> topic);
 
 	object_ptr<Ui::RpWidget> fill();
@@ -1070,6 +1075,7 @@ private:
 	not_null<Ui::RpWidget*> _parent;
 	not_null<PeerData*> _peer;
 	Data::ForumTopic *_topic = nullptr;
+	Data::SavedSublist *_sublist = nullptr;
 	Origin _origin;
 	object_ptr<Ui::VerticalLayout> _wrap;
 
@@ -1166,6 +1172,17 @@ DetailsFiller::DetailsFiller(
 , _parent(parent)
 , _peer(peer)
 , _origin(origin)
+, _wrap(_parent) {
+}
+
+DetailsFiller::DetailsFiller(
+	not_null<Controller*> controller,
+	not_null<Ui::RpWidget*> parent,
+	not_null<Data::SavedSublist*> sublist)
+: _controller(controller)
+, _parent(parent)
+, _peer(sublist->sublistPeer())
+, _sublist(sublist)
 , _wrap(_parent) {
 }
 
@@ -2178,7 +2195,9 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 	if (!user->isVerifyCodes()) {
 		addSendMessageButton();
 	}
-	addReportReaction(tracker);
+	if (!_sublist) {
+		addReportReaction(tracker);
+	}
 
 	return tracker;
 }
@@ -2261,7 +2280,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	} else {
 		add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	}
-	if (const auto user = _peer->asUser()) {
+	if (const auto user = _sublist ? nullptr : _peer->asUser()) {
 		add(setupPersonalChannel(user));
 	}
 	add(CreateSkipWidget(_wrap));
@@ -2276,7 +2295,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 			}
 		}
 	}
-	if (!_peer->isSelf()) {
+	if (!_sublist && !_peer->isSelf()) {
 		add(setupMuteToggle());
 	}
 	setupMainButtons();
@@ -2742,6 +2761,14 @@ object_ptr<Ui::RpWidget> SetupDetails(
 object_ptr<Ui::RpWidget> SetupDetails(
 		not_null<Controller*> controller,
 		not_null<Ui::RpWidget*> parent,
+		not_null<Data::SavedSublist*> sublist) {
+	DetailsFiller filler(controller, parent, sublist);
+	return filler.fill();
+}
+
+object_ptr<Ui::RpWidget> SetupDetails(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
 		not_null<Data::ForumTopic*> topic) {
 	DetailsFiller filler(controller, parent, topic);
 	return filler.fill();
@@ -2988,7 +3015,9 @@ Cover *AddCover(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
-		Data::ForumTopic *topic) {
+		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist) {
+	const auto shown = sublist ? sublist->sublistPeer() : peer;
 	const auto result = topic
 		? container->add(object_ptr<Cover>(
 			container,
@@ -2997,13 +3026,13 @@ Cover *AddCover(
 		: container->add(object_ptr<Cover>(
 			container,
 			controller->parentController(),
-			peer,
+			shown,
 			[=] { return controller->wrapWidget(); }));
 	result->showSection(
 	) | rpl::start_with_next([=](Section section) {
 		controller->showSection(topic
 			? std::make_shared<Info::Memento>(topic, section)
-			: std::make_shared<Info::Memento>(peer, section));
+			: std::make_shared<Info::Memento>(shown, section));
 	}, result->lifetime());
 	result->setOnlineCount(rpl::single(0));
 	return result;
@@ -3014,9 +3043,12 @@ void AddDetails(
 		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist,
 		Origin origin) {
 	if (topic) {
 		container->add(SetupDetails(controller, container, topic));
+	} else if (sublist) {
+		container->add(SetupDetails(controller, container, sublist));
 	} else {
 		container->add(SetupDetails(controller, container, peer, origin));
 	}

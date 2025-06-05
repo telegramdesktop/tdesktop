@@ -77,12 +77,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}
 
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	_cover = AddCover(result, _controller, _peer, _topic);
+	_cover = AddCover(result, _controller, _peer, _topic, _sublist);
 	if (_topic && _topic->creating()) {
 		return result;
 	}
 
-	AddDetails(result, _controller, _peer, _topic, origin);
+	AddDetails(result, _controller, _peer, _topic, _sublist, origin);
 	result->add(setupSharedMedia(result.data()));
 	if (_topic || _sublist) {
 		return result;

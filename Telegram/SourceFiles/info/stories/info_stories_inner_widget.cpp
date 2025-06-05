@@ -135,8 +135,10 @@ void InnerWidget::createProfileTop() {
 	const auto peer = key.storiesPeer();
 
 	startTop();
-	Profile::AddCover(_top, _controller, peer, nullptr);
-	Profile::AddDetails(_top, _controller, peer, nullptr, { v::null });
+
+	using namespace Profile;
+	AddCover(_top, _controller, peer, nullptr, nullptr);
+	AddDetails(_top, _controller, peer, nullptr, nullptr, { v::null });
 
 	auto tracker = Ui::MultiSlideTracker();
 	const auto dividerWrap = _top->add(
