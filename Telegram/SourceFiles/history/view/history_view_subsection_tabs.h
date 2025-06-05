@@ -83,6 +83,9 @@ private:
 	void toggleModes();
 	void setVisible(bool shown);
 	void refreshSlice();
+	void refreshAroundMiddle(
+		not_null<Ui::ScrollArea*> scroll,
+		not_null<Ui::SubsectionSlider*> slider);
 	void scheduleRefresh();
 	void loadMore();
 	void setup(not_null<Ui::RpWidget*> parent);
