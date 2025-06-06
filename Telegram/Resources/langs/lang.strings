@@ -2257,8 +2257,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_message_price_paid#other" = "Messages now cost {count} Stars each in this group.";
 "lng_action_direct_messages_enabled" = "Channel enabled Direct Messages.";
 "lng_action_direct_messages_paid#one" = "Channel allows Direct Messages for {count} Star each.";
-"lng_action_direct_messages_paid#other" = "Channel allows Direct Messages for {count} Stars each";
+"lng_action_direct_messages_paid#other" = "Channel allows Direct Messages for {count} Stars each.";
 "lng_action_direct_messages_disabled" = "Channel disabled Direct Messages.";
+"lng_action_todo_marked_done" = "{from} marked {tasks} as done.";
+"lng_action_todo_marked_done_self" = "You marked {tasks} as done.";
+"lng_action_todo_marked_not_done" = "{from} marked {tasks} as not done.";
+"lng_action_todo_marked_not_done_self" = "You marked {tasks} as not done.";
+"lng_action_todo_added" = "{from} added {tasks} to the list.";
+"lng_action_todo_added_self" = "You added {tasks} to the list.";
+"lng_action_todo_tasks_fallback#one" = "task";
+"lng_action_todo_tasks_fallback#other" = "{count} tasks";
+"lng_action_todo_tasks_and_one" = "{tasks}, {task}";
+"lng_action_todo_tasks_and_last" = "{tasks} and {task}";
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
 
@@ -3791,6 +3801,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 "lng_in_dlg_poll" = "Poll";
 "lng_in_dlg_story" = "Story";
+"lng_in_dlg_todo_list" = "To-Do List";
 "lng_in_dlg_story_expired" = "Expired story";
 "lng_in_dlg_media_count#one" = "{count} media";
 "lng_in_dlg_media_count#other" = "{count} media";
@@ -5843,6 +5854,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_show_more#one" = "Show more ({count})";
 "lng_polls_show_more#other" = "Show more ({count})";
 "lng_polls_votes_collapse" = "Collapse";
+
+"lng_todo_title" = "To-Do List";
+"lng_todo_title_group" = "Group To-Do List";
+"lng_todo_completed#one" = "{count} of {total} completed";
+"lng_todo_completed#other" = "{count} of {total} completed";
+"lng_todo_completed_none" = "None of {total} completed";
 
 "lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
 "lng_outdated_title_bits" = "PLEASE SWITCH TO A 64-BIT OPERATING SYSTEM.";

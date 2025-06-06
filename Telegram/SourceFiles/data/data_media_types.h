@@ -196,6 +196,7 @@ public:
 	virtual const GiftCode *gift() const;
 	virtual CloudImage *location() const;
 	virtual PollData *poll() const;
+	virtual TodoListData *todolist() const;
 	virtual const WallPaper *paper() const;
 	virtual bool paperForBoth() const;
 	virtual FullStoryId storyId() const;
@@ -607,6 +608,33 @@ public:
 
 private:
 	not_null<PollData*> _poll;
+
+};
+
+class MediaTodoList final : public Media {
+public:
+	MediaTodoList(
+		not_null<HistoryItem*> parent,
+		not_null<TodoListData*> todolist);
+	~MediaTodoList();
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	TodoListData *todolist() const override;
+
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+private:
+	not_null<TodoListData*> _todolist;
 
 };
 

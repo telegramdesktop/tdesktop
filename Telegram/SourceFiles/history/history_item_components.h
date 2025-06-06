@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bubble.h"
 
 struct WebPageData;
+struct TodoListItem;
 class VoiceSeekClickHandler;
 class ReplyKeyboard;
 
@@ -660,6 +661,26 @@ struct HistoryServiceTopicInfo
 			&& !unhidden;
 	}
 };
+
+struct HistoryServiceTodoCompletions
+: RuntimeComponent<HistoryServiceTodoCompletions, HistoryItem>
+, HistoryServiceDependentData {
+	std::vector<int> completed;
+	std::vector<int> incompleted;
+};
+
+[[nodiscard]] TextWithEntities ComposeTodoTasksList(
+	HistoryItem *itemWithList,
+	const std::vector<int> &ids);
+
+struct HistoryServiceTodoAppendTasks
+: RuntimeComponent<HistoryServiceTodoAppendTasks, HistoryItem>
+, HistoryServiceDependentData {
+	std::vector<TodoListItem> list;
+};
+
+[[nodiscard]] TextWithEntities ComposeTodoTasksList(
+	not_null<HistoryServiceTodoAppendTasks*> append);
 
 struct HistoryServiceGameScore
 : RuntimeComponent<HistoryServiceGameScore, HistoryItem>

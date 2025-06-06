@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
+#include "data/data_todo_list.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "api/api_bot.h"
@@ -69,6 +70,38 @@ base::options::toggle FastButtonsModeOption({
 	.name = "Fast buttons mode",
 	.description = "Trigger inline keyboard buttons by 1-9 keyboard keys.",
 });
+
+[[nodiscard]] TextWithEntities ComposeTodoTasksList(
+		int fullCount,
+		const std::vector<TextWithEntities> &names) {
+	const auto count = int(names.size());
+	if (!count) {
+		return tr::lng_action_todo_tasks_fallback(
+			tr::now,
+			lt_count,
+			fullCount,
+			Ui::Text::WithEntities);
+	} else if (count == 1) {
+		return names.front();
+	}
+	auto full = names.front();
+	for (auto i = 1; i != count - 1; ++i) {
+		full = tr::lng_action_todo_tasks_and_one(
+			tr::now,
+			lt_tasks,
+			full,
+			lt_task,
+			names[i],
+			Ui::Text::WithEntities);
+	}
+	return tr::lng_action_todo_tasks_and_last(
+		tr::now,
+		lt_tasks,
+		full,
+		lt_task,
+		names.back(),
+		Ui::Text::WithEntities);
+}
 
 } // namespace
 
@@ -1223,6 +1256,38 @@ MessageFactcheck FromMTP(
 	result.hash = data.vhash().v;
 	result.needCheck = data.is_need_check();
 	return result;
+}
+
+TextWithEntities ComposeTodoTasksList(
+		HistoryItem *itemWithList,
+		const std::vector<int> &ids) {
+	const auto media = itemWithList ? itemWithList->media() : nullptr;
+	const auto list = media ? media->todolist() : nullptr;
+	auto names = std::vector<TextWithEntities>();
+	if (list) {
+		names.reserve(ids.size());
+		for (const auto &id : ids) {
+			const auto i = ranges::find(list->items, id, &TodoListItem::id);
+			if (i == end(list->items)) {
+				names.clear();
+				break;
+			}
+			names.push_back(
+				TextWithEntities().append('"').append(i->text).append('"'));
+		}
+	}
+	return ComposeTodoTasksList(ids.size(), names);
+}
+
+TextWithEntities ComposeTodoTasksList(
+		not_null<HistoryServiceTodoAppendTasks*> append) {
+	auto names = std::vector<TextWithEntities>();
+	names.reserve(append->list.size());
+	for (const auto &task : append->list) {
+		names.push_back(
+			TextWithEntities().append('"').append(task.text).append('"'));
+	}
+	return ComposeTodoTasksList(names.size(), names);
 }
 
 HistoryDocumentCaptioned::HistoryDocumentCaptioned()

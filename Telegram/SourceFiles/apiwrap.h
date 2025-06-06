@@ -77,6 +77,7 @@ class ConfirmPhone;
 class PeerPhoto;
 class PeerColors;
 class Polls;
+class TodoLists;
 class ChatParticipants;
 class UnreadThings;
 class Ringtones;
@@ -413,6 +414,7 @@ public:
 	[[nodiscard]] Api::ConfirmPhone &confirmPhone();
 	[[nodiscard]] Api::PeerPhoto &peerPhoto();
 	[[nodiscard]] Api::Polls &polls();
+	[[nodiscard]] Api::TodoLists &todoLists();
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
 	[[nodiscard]] Api::UnreadThings &unreadThings();
 	[[nodiscard]] Api::Ringtones &ringtones();
@@ -764,6 +766,7 @@ private:
 	const std::unique_ptr<Api::ConfirmPhone> _confirmPhone;
 	const std::unique_ptr<Api::PeerPhoto> _peerPhoto;
 	const std::unique_ptr<Api::Polls> _polls;
+	const std::unique_ptr<Api::TodoLists> _todoLists;
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
 	const std::unique_ptr<Api::Ringtones> _ringtones;

@@ -598,12 +598,15 @@ void MonoforumSenderBar::Paint(
 	});
 }
 
-void ServicePreMessage::init(PreparedServiceText string) {
+void ServicePreMessage::init(
+		PreparedServiceText string,
+		ClickHandlerPtr fullClickHandler) {
 	text = Ui::Text::String(
 		st::serviceTextStyle,
 		string.text,
 		kMarkupTextOptions,
 		st::msgMinWidth);
+	handler = std::move(fullClickHandler);
 	for (auto i = 0; i != int(string.links.size()); ++i) {
 		text.setLink(i + 1, string.links[i]);
 	}
@@ -687,10 +690,16 @@ ClickHandlerPtr ServicePreMessage::textState(
 	if (trect.contains(point)) {
 		auto textRequest = request.forText();
 		textRequest.align = style::al_center;
-		return text.getState(
+		const auto link = text.getState(
 			point - trect.topLeft(),
 			trect.width(),
 			textRequest).link;
+		if (link) {
+			return link;
+		}
+	}
+	if (handler && rect.contains(point)) {
+		return handler;
 	}
 	return {};
 }
@@ -1282,6 +1291,16 @@ void Element::validateText() {
 			? _textItem->customTextLinks()
 			: contextDependentText.links;
 		setTextWithLinks(markedText, customLinks);
+
+		if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
+			if (!done->completed.empty() && !done->incompleted.empty()) {
+				setServicePreMessage(
+					item->composeTodoIncompleted(done),
+					done->lnk);
+			} else {
+				setServicePreMessage({});
+			}
+		}
 	} else {
 		const auto unavailable = item->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
@@ -1606,11 +1625,13 @@ void Element::setDisplayDate(bool displayDate) {
 	}
 }
 
-void Element::setServicePreMessage(PreparedServiceText text) {
+void Element::setServicePreMessage(
+		PreparedServiceText text,
+		ClickHandlerPtr fullClickHandler) {
 	if (!text.text.empty()) {
 		AddComponents(ServicePreMessage::Bit());
 		const auto service = Get<ServicePreMessage>();
-		service->init(std::move(text));
+		service->init(std::move(text), std::move(fullClickHandler));
 		setPendingResize();
 	} else if (Has<ServicePreMessage>()) {
 		RemoveComponents(ServicePreMessage::Bit());

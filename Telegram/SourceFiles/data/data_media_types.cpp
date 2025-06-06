@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/media/history_view_poll.h"
 #include "history/view/media/history_view_theme_document.h"
+#include "history/view/media/history_view_todo_list.h"
 #include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
 #include "history/view/media/history_view_service_box.h"
@@ -65,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_stories.h"
 #include "data/data_story.h"
+#include "data/data_todo_list.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -642,6 +644,10 @@ CloudImage *Media::location() const {
 }
 
 PollData *Media::poll() const {
+	return nullptr;
+}
+
+TodoListData *Media::todolist() const {
 	return nullptr;
 }
 
@@ -2313,6 +2319,67 @@ std::unique_ptr<HistoryView::Media> MediaPoll::createView(
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::Poll>(message, _poll);
+}
+
+MediaTodoList::MediaTodoList(
+	not_null<HistoryItem*> parent,
+	not_null<TodoListData*> todolist)
+: Media(parent)
+, _todolist(todolist) {
+}
+
+MediaTodoList::~MediaTodoList() {
+}
+
+std::unique_ptr<Media> MediaTodoList::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaTodoList>(parent, _todolist);
+}
+
+TodoListData *MediaTodoList::todolist() const {
+	return _todolist;
+}
+
+TextWithEntities MediaTodoList::notificationText() const {
+	return TextWithEntities()
+		.append(QChar(0x2611))
+		.append(QChar(' '))
+		.append(Ui::Text::Colorized(_todolist->title));
+}
+
+QString MediaTodoList::pinnedTextSubstring() const {
+	return QChar(171) + _todolist->title.text + QChar(187);
+}
+
+TextForMimeData MediaTodoList::clipboardText() const {
+	auto result = TextWithEntities();
+	result
+		.append(u"[ "_q)
+		.append(tr::lng_in_dlg_todo_list(tr::now))
+		.append(u" : "_q)
+		.append(_todolist->title)
+		.append(u" ]"_q);
+	for (const auto &item : _todolist->items) {
+		result.append(u"\n- "_q).append(item.text);
+	}
+	return TextForMimeData::Rich(std::move(result));
+}
+
+bool MediaTodoList::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+bool MediaTodoList::updateSentMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+std::unique_ptr<HistoryView::Media> MediaTodoList::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
+	return std::make_unique<HistoryView::TodoList>(
+		message,
+		_todolist,
+		replacing);
 }
 
 MediaDice::MediaDice(not_null<HistoryItem*> parent, QString emoji, int value)

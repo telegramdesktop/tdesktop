@@ -178,6 +178,8 @@ PRIVATE
     api/api_statistics_sender.h
     api/api_text_entities.cpp
     api/api_text_entities.h
+    api/api_todo_lists.cpp
+    api/api_todo_lists.h
     api/api_toggling_media.cpp
     api/api_toggling_media.h
     api/api_transcribes.cpp
@@ -649,6 +651,8 @@ PRIVATE
     data/data_streaming.h
     data/data_thread.cpp
     data/data_thread.h
+    data/data_todo_list.cpp
+    data/data_todo_list.h
     data/data_types.cpp
     data/data_types.h
     data/data_unread_value.cpp
@@ -812,6 +816,8 @@ PRIVATE
     history/view/media/history_view_story_mention.h
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_theme_document.h
+    history/view/media/history_view_todo_list.cpp
+    history/view/media/history_view_todo_list.h
     history/view/media/history_view_unique_gift.cpp
     history/view/media/history_view_unique_gift.h
     history/view/media/history_view_userpic_suggestion.cpp

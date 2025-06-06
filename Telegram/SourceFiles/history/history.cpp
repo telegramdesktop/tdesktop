@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_histories.h"
 #include "data/data_history_messages.h"
+#include "data/data_todo_list.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
@@ -1329,6 +1330,28 @@ void History::applyServiceChanges(
 		if (!data.is_active() && !data.is_missed() && !item->out()) {
 			if (const auto user = item->history()->peer->asUser()) {
 				Core::App().calls().showConferenceInvite(user, item->id);
+			}
+		}
+	}, [&](const MTPDmessageActionTodoCompletions &data) {
+		if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
+			const auto list = done->msg
+				? done->msg
+				: owner().message(peer, done->msgId);
+			if (const auto media = list ? list->media() : nullptr) {
+				if (const auto todolist = media->todolist()) {
+					todolist->apply(item, data);
+				}
+			}
+		}
+	}, [&](const MTPDmessageActionTodoAppendTasks &data) {
+		if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
+			const auto list = done->msg
+				? done->msg
+				: owner().message(peer, done->msgId);
+			if (const auto media = list ? list->media() : nullptr) {
+				if (const auto todolist = media->todolist()) {
+					todolist->apply(data);
+				}
 			}
 		}
 	}, [](const auto &) {

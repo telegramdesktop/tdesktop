@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_todo_list.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -1704,6 +1705,16 @@ void Session::requestDocumentViewRepaint(
 
 void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
 	if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
+		for (const auto &view : i->second) {
+			requestViewResize(view);
+		}
+	}
+}
+
+void Session::requestTodoListViewRepaint(
+		not_null<const TodoListData*> todolist) {
+	if (const auto i = _todoListViews.find(todolist)
+		; i != _todoListViews.end()) {
 		for (const auto &view : i->second) {
 			requestViewResize(view);
 		}
@@ -4098,6 +4109,39 @@ not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
 	return result;
 }
 
+not_null<TodoListData*> Session::todoList(TodoListId id) {
+	auto i = _todoLists.find(id);
+	if (i == _todoLists.cend()) {
+		i = _todoLists.emplace(
+			id,
+			std::make_unique<TodoListData>(this, id)).first;
+	}
+	return i->second.get();
+}
+
+not_null<TodoListData*> Session::processTodoList(
+		TodoListId id,
+		const MTPTodoList &todolist) {
+	const auto &data = todolist.data();
+	const auto result = todoList(id);
+	const auto changed = result->applyChanges(data);
+	if (changed) {
+		notifyTodoListUpdateDelayed(result);
+	}
+	return result;
+}
+
+not_null<TodoListData*> Session::processTodoList(
+		TodoListId id,
+		const MTPDmessageMediaToDo &data) {
+	const auto result = processTodoList(id, data.vtodo());
+	const auto changed = result->applyCompletions(data.vcompletions());
+	if (changed) {
+		notifyTodoListUpdateDelayed(result);
+	}
+	return result;
+}
+
 void Session::checkPollsClosings() {
 	const auto now = base::unixtime::now();
 	auto closest = 0;
@@ -4308,6 +4352,24 @@ void Session::unregisterPollView(
 	}
 }
 
+void Session::registerTodoListView(
+		not_null<const TodoListData*> todolist,
+		not_null<ViewElement*> view) {
+	_todoListViews[todolist].insert(view);
+}
+
+void Session::unregisterTodoListView(
+		not_null<const TodoListData*> todolist,
+		not_null<ViewElement*> view) {
+	const auto i = _todoListViews.find(todolist);
+	if (i != _todoListViews.end()) {
+		auto &items = i->second;
+		if (items.remove(view) && items.empty()) {
+			_todoListViews.erase(i);
+		}
+	}
+}
+
 void Session::registerContactView(
 		UserId contactId,
 		not_null<ViewElement*> view) {
@@ -4488,37 +4550,54 @@ QString Session::findContactPhone(UserId contactId) const {
 	return QString();
 }
 
-bool Session::hasPendingWebPageGamePollNotification() const {
+bool Session::hasPendingWebPageGamePollTodoListNotification() const {
 	return !_webpagesUpdated.empty()
 		|| !_gamesUpdated.empty()
-		|| !_pollsUpdated.empty();
+		|| !_pollsUpdated.empty()
+		|| !_todoListsUpdated.empty();
 }
 
 void Session::notifyWebPageUpdateDelayed(not_null<WebPageData*> page) {
-	const auto invoke = !hasPendingWebPageGamePollNotification();
+	const auto invoke = !hasPendingWebPageGamePollTodoListNotification();
 	_webpagesUpdated.insert(page);
 	if (invoke) {
-		crl::on_main(_session, [=] { sendWebPageGamePollNotifications(); });
+		crl::on_main(_session, [=] {
+			sendWebPageGamePollTodoListNotifications();
+		});
 	}
 }
 
 void Session::notifyGameUpdateDelayed(not_null<GameData*> game) {
-	const auto invoke = !hasPendingWebPageGamePollNotification();
+	const auto invoke = !hasPendingWebPageGamePollTodoListNotification();
 	_gamesUpdated.insert(game);
 	if (invoke) {
-		crl::on_main(_session, [=] { sendWebPageGamePollNotifications(); });
+		crl::on_main(_session, [=] {
+			sendWebPageGamePollTodoListNotifications();
+		});
 	}
 }
 
 void Session::notifyPollUpdateDelayed(not_null<PollData*> poll) {
-	const auto invoke = !hasPendingWebPageGamePollNotification();
+	const auto invoke = !hasPendingWebPageGamePollTodoListNotification();
 	_pollsUpdated.insert(poll);
 	if (invoke) {
-		crl::on_main(_session, [=] { sendWebPageGamePollNotifications(); });
+		crl::on_main(_session, [=] {
+			sendWebPageGamePollTodoListNotifications();
+		});
 	}
 }
 
-void Session::sendWebPageGamePollNotifications() {
+void Session::notifyTodoListUpdateDelayed(not_null<TodoListData*> todolist) {
+	const auto invoke = !hasPendingWebPageGamePollTodoListNotification();
+	_todoListsUpdated.insert(todolist);
+	if (invoke) {
+		crl::on_main(_session, [=] {
+			sendWebPageGamePollTodoListNotifications();
+		});
+	}
+}
+
+void Session::sendWebPageGamePollTodoListNotifications() {
 	auto resize = std::vector<not_null<ViewElement*>>();
 	for (const auto &page : base::take(_webpagesUpdated)) {
 		_webpageUpdates.fire_copy(page);
@@ -4534,6 +4613,12 @@ void Session::sendWebPageGamePollNotifications() {
 	}
 	for (const auto &poll : base::take(_pollsUpdated)) {
 		if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
+			resize.insert(end(resize), begin(i->second), end(i->second));
+		}
+	}
+	for (const auto &todolist : base::take(_todoListsUpdated)) {
+		if (const auto i = _todoListViews.find(todolist)
+			; i != _todoListViews.end()) {
 			resize.insert(end(resize), begin(i->second), end(i->second));
 		}
 	}

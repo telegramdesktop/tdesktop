@@ -23,6 +23,7 @@ struct HistoryMessageReplyMarkup;
 struct HistoryMessageTranslation;
 struct HistoryMessageForwarded;
 struct HistoryServiceDependentData;
+struct HistoryServiceTodoCompletions;
 enum class HistorySelfDestructType;
 struct PreparedServiceText;
 struct MessageFactcheck;
@@ -644,6 +645,13 @@ private:
 		CallId linkCallId);
 	[[nodiscard]] PreparedServiceText prepareCallScheduledText(
 		TimeId scheduleDate);
+	[[nodiscard]] PreparedServiceText prepareTodoCompletionsText();
+	[[nodiscard]] PreparedServiceText prepareTodoAppendTasksText();
+
+	[[nodiscard]] PreparedServiceText composeTodoIncompleted(
+		not_null<HistoryServiceTodoCompletions*> done);
+	[[nodiscard]] PreparedServiceText composeTodoCompleted(
+		not_null<HistoryServiceTodoCompletions*> done);
 
 	[[nodiscard]] PreparedServiceText prepareServiceTextForMessage(
 		const MTPMessageMedia &media,

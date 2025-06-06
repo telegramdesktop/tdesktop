@@ -128,6 +128,7 @@ struct WebPageData;
 struct GameData;
 struct BotAppData;
 struct PollData;
+struct TodoListData;
 
 using PhotoId = uint64;
 using VideoId = uint64;
@@ -136,6 +137,7 @@ using DocumentId = uint64;
 using WebPageId = uint64;
 using GameId = uint64;
 using PollId = uint64;
+using TodoListId = FullMsgId;
 using WallPaperId = uint64;
 using CallId = uint64;
 using BotAppId = uint64;

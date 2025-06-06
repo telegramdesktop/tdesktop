@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "data/data_poll.h" // PollData::publicVotes.
+#include "data/data_todo_list.h"
 #include "data/data_stories.h"
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -358,7 +359,9 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			item,
 			item->history()->owner().processPoll(media));
 	}, [&](const MTPDmessageMediaToDo &media) -> Result {
-		return nullptr; // #TODO todo
+		return std::make_unique<Data::MediaTodoList>(
+			item,
+			item->history()->owner().processTodoList(item->fullId(), media));
 	}, [&](const MTPDmessageMediaDice &media) -> Result {
 		return std::make_unique<Data::MediaDice>(
 			item,
@@ -820,6 +823,10 @@ HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 		return same;
 	} else if (const auto results = Get<HistoryServiceGiveawayResults>()) {
 		return results;
+	} else if (const auto done = Get<HistoryServiceTodoCompletions>()) {
+		return done;
+	} else if (const auto append = Get<HistoryServiceTodoAppendTasks>()) {
+		return append;
 	}
 	return nullptr;
 }
@@ -877,6 +884,10 @@ void HistoryItem::updateDependentServiceText() {
 		updateServiceText(prepareGameScoreText());
 	} else if (Has<HistoryServicePayment>()) {
 		updateServiceText(preparePaymentSentText());
+	} else if (Has<HistoryServiceTodoCompletions>()) {
+		updateServiceText(prepareTodoCompletionsText());
+	} else if (Has<HistoryServiceTodoAppendTasks>()) {
+		updateServiceText(prepareTodoAppendTasksText());
 	}
 }
 
@@ -4528,12 +4539,32 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		refund->transactionId = qs(data.vcharge().data().vid());
 		const auto id = fullId();
 		refund->link = std::make_shared<LambdaClickHandler>([=](
-				ClickContext context) {
+			ClickContext context) {
 			const auto my = context.other.value<ClickHandlerContext>();
 			if (const auto window = my.sessionWindow.get()) {
 				Settings::ShowRefundInfoBox(window, id);
 			}
 		});
+	} else if (type == mtpc_messageActionTodoCompletions) {
+		const auto &data = action.c_messageActionTodoCompletions();
+		UpdateComponents(HistoryServiceTodoCompletions::Bit());
+		const auto done = Get<HistoryServiceTodoCompletions>();
+		done->completed = data.vcompleted().v
+			| ranges::views::transform(&MTPint::v)
+			| ranges::to_vector;
+		done->incompleted = data.vincompleted().v
+			| ranges::views::transform(&MTPint::v)
+			| ranges::to_vector;
+	} else if (type == mtpc_messageActionTodoAppendTasks) {
+		const auto session = &_history->session();
+		const auto &data = action.c_messageActionTodoAppendTasks();
+		UpdateComponents(HistoryServiceTodoAppendTasks::Bit());
+		const auto append = Get<HistoryServiceTodoAppendTasks>();
+		append->list = ranges::views::all(
+			data.vlist().v
+		) | ranges::views::transform([&](const MTPTodoItem &item) {
+			return TodoListItemFromMTP(session, item);
+		}) | ranges::to_vector;
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -5874,14 +5905,12 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareTodoCompletions = [&](const MTPDmessageActionTodoCompletions &action) {
-		auto result = PreparedServiceText(); // #TODO todo
-		return result;
+	auto prepareTodoCompletions = [&](const MTPDmessageActionTodoCompletions &) {
+		return prepareTodoCompletionsText();
 	};
 
-	auto prepareTodoAppendTasks = [&](const MTPDmessageActionTodoAppendTasks &action) {
-		auto result = PreparedServiceText(); // #TODO todo
-		return result;
+	auto prepareTodoAppendTasks = [&](const MTPDmessageActionTodoAppendTasks &) {
+		return prepareTodoAppendTasksText();
 	};
 
 	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {
@@ -6546,6 +6575,92 @@ PreparedServiceText HistoryItem::prepareCallScheduledText(
 			updateServiceText(prepareCallScheduledText(scheduleDate));
 		});
 	}
+	return result;
+}
+
+PreparedServiceText HistoryItem::composeTodoIncompleted(
+		not_null<HistoryServiceTodoCompletions*> done) {
+	const auto tasks = ComposeTodoTasksList(done->msg, done->incompleted);
+	if (out()) {
+		return {
+			tr::lng_action_todo_marked_not_done_self(
+				tr::now,
+				lt_tasks,
+				tasks,
+				Ui::Text::WithEntities),
+		};
+	}
+	return {
+		.text = tr::lng_action_todo_marked_not_done(
+			tr::now,
+			lt_from,
+			fromLinkText(),
+			lt_tasks,
+			tasks,
+			Ui::Text::WithEntities),
+		.links = { fromLink() },
+	};
+}
+
+PreparedServiceText HistoryItem::composeTodoCompleted(
+		not_null<HistoryServiceTodoCompletions*> done) {
+	const auto tasks = ComposeTodoTasksList(done->msg, done->completed);
+	if (out()) {
+		return {
+			tr::lng_action_todo_marked_done_self(
+				tr::now,
+				lt_tasks,
+				tasks,
+				Ui::Text::WithEntities),
+		};
+	}
+	return {
+		.text = tr::lng_action_todo_marked_done(
+			tr::now,
+			lt_from,
+			fromLinkText(),
+			lt_tasks,
+			tasks,
+			Ui::Text::WithEntities),
+		.links = { fromLink() },
+	};
+}
+
+PreparedServiceText HistoryItem::prepareTodoCompletionsText() {
+	auto result = PreparedServiceText();
+	const auto done = Get<HistoryServiceTodoCompletions>();
+	Assert(done != nullptr);
+
+	return done->completed.empty()
+		? composeTodoIncompleted(done)
+		: composeTodoCompleted(done);
+}
+
+PreparedServiceText HistoryItem::prepareTodoAppendTasksText() {
+	auto result = PreparedServiceText();
+	auto append = Get<HistoryServiceTodoAppendTasks>();
+	Assert(append != nullptr);
+
+	const auto tasks = ComposeTodoTasksList(append);
+	if (out()) {
+		return {
+			tr::lng_action_todo_added_self(
+				tr::now,
+				lt_tasks,
+				tasks,
+				Ui::Text::WithEntities),
+		};
+	}
+	return {
+		.text = tr::lng_action_todo_added(
+			tr::now,
+			lt_from,
+			fromLinkText(),
+			lt_tasks,
+			tasks,
+			Ui::Text::WithEntities),
+		.links = { fromLink() },
+	};
 	return result;
 }
 

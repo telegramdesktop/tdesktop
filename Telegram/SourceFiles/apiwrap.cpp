@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_polls.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
+#include "api/api_todo_lists.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
@@ -178,6 +179,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _confirmPhone(std::make_unique<Api::ConfirmPhone>(this))
 , _peerPhoto(std::make_unique<Api::PeerPhoto>(this))
 , _polls(std::make_unique<Api::Polls>(this))
+, _todoLists(std::make_unique<Api::TodoLists>(this))
 , _chatParticipants(std::make_unique<Api::ChatParticipants>(this))
 , _unreadThings(std::make_unique<Api::UnreadThings>(this))
 , _ringtones(std::make_unique<Api::Ringtones>(this))
@@ -2574,7 +2576,10 @@ void ApiWrap::refreshFileReference(
 	});
 }
 
-void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req) {
+void ApiWrap::gotWebPages(
+		ChannelData *channel,
+		const MTPmessages_Messages &result,
+		mtpRequestId req) {
 	WebPageData::ApplyChanges(_session, channel, result);
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
 		if (i->second == req) {
@@ -2588,7 +2593,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &resu
 			++i;
 		}
 	}
-	_session->data().sendWebPageGamePollNotifications();
+	_session->data().sendWebPageGamePollTodoListNotifications();
 }
 
 void ApiWrap::updateStickers() {
@@ -4790,6 +4795,10 @@ Api::PeerPhoto &ApiWrap::peerPhoto() {
 
 Api::Polls &ApiWrap::polls() {
 	return *_polls;
+}
+
+Api::TodoLists &ApiWrap::todoLists() {
+	return *_todoLists;
 }
 
 Api::ChatParticipants &ApiWrap::chatParticipants() {

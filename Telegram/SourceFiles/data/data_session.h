@@ -536,6 +536,7 @@ public:
 	void requestDocumentViewRepaint(not_null<const DocumentData*> document);
 	void markMediaRead(not_null<const DocumentData*> document);
 	void requestPollViewRepaint(not_null<const PollData*> poll);
+	void requestTodoListViewRepaint(not_null<const TodoListData*> todolist);
 
 	void photoLoadProgress(not_null<PhotoData*> photo);
 	void photoLoadDone(not_null<PhotoData*> photo);
@@ -690,6 +691,14 @@ public:
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
 
+	[[nodiscard]] not_null<TodoListData*> todoList(TodoListId id);
+	not_null<TodoListData*> processTodoList(
+		TodoListId id,
+		const MTPTodoList &todolist);
+	not_null<TodoListData*> processTodoList(
+		TodoListId id,
+		const MTPDmessageMediaToDo &data);
+
 	[[nodiscard]] not_null<CloudImage*> location(
 		const LocationPoint &point);
 
@@ -729,6 +738,12 @@ public:
 	void unregisterPollView(
 		not_null<const PollData*> poll,
 		not_null<ViewElement*> view);
+	void registerTodoListView(
+		not_null<const TodoListData*> todolist,
+		not_null<ViewElement*> view);
+	void unregisterTodoListView(
+		not_null<const TodoListData*> todolist,
+		not_null<ViewElement*> view);
 	void registerContactView(
 		UserId contactId,
 		not_null<ViewElement*> view);
@@ -758,8 +773,9 @@ public:
 	void notifyWebPageUpdateDelayed(not_null<WebPageData*> page);
 	void notifyGameUpdateDelayed(not_null<GameData*> game);
 	void notifyPollUpdateDelayed(not_null<PollData*> poll);
-	[[nodiscard]] bool hasPendingWebPageGamePollNotification() const;
-	void sendWebPageGamePollNotifications();
+	void notifyTodoListUpdateDelayed(not_null<TodoListData*> todolist);
+	[[nodiscard]] bool hasPendingWebPageGamePollTodoListNotification() const;
+	void sendWebPageGamePollTodoListNotifications();
 	[[nodiscard]] rpl::producer<not_null<WebPageData*>> webPageUpdates() const;
 
 	void channelDifferenceTooLong(not_null<ChannelData*> channel);
@@ -1066,6 +1082,9 @@ private:
 	std::unordered_map<
 		PollId,
 		std::unique_ptr<PollData>> _polls;
+	std::map<
+		TodoListId,
+		std::unique_ptr<TodoListData>> _todoLists;
 	std::unordered_map<
 		GameId,
 		std::unique_ptr<GameData>> _games;
@@ -1078,6 +1097,9 @@ private:
 	std::unordered_map<
 		not_null<const PollData*>,
 		base::flat_set<not_null<ViewElement*>>> _pollViews;
+	std::unordered_map<
+		not_null<const TodoListData*>,
+		base::flat_set<not_null<ViewElement*>>> _todoListViews;
 	std::unordered_map<
 		UserId,
 		base::flat_set<not_null<HistoryItem*>>> _contactItems;
@@ -1094,6 +1116,7 @@ private:
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
+	base::flat_set<not_null<TodoListData*>> _todoListsUpdated;
 
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;

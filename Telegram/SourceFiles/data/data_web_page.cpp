@@ -372,7 +372,7 @@ void WebPageData::ApplyChanges(
 		}, [&](const auto &) {
 		});
 	}
-	session->data().sendWebPageGamePollNotifications();
+	session->data().sendWebPageGamePollTodoListNotifications();
 }
 
 QString WebPageData::displayedSiteName() const {

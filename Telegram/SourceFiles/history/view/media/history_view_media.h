@@ -209,6 +209,14 @@ public:
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements);
 	virtual QImage locationTakeImage();
+
+	struct TodoTaskInfo {
+		int id = 0;
+		PeerData *completedBy = nullptr;
+		TimeId completionDate = TimeId();
+	};
+	virtual std::vector<TodoTaskInfo> takeTasksInfo();
+
 	virtual void checkAnimation() {
 	}
 
