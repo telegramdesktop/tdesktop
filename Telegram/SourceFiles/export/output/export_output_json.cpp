@@ -680,6 +680,34 @@ QByteArray SerializeMessage(
 		pushAction("paid_messages_price_change");
 		push("price_stars", data.stars);
 		push("is_broadcast_messages_allowed", data.broadcastAllowed);
+	}, [&](const ActionTodoCompletions &data) {
+		pushActor();
+		pushAction("todo_completions");
+		auto completed = QByteArrayList();
+		for (const auto index : data.completed) {
+			completed.push_back(QByteArray::number(index));
+		}
+		auto incompleted = QByteArrayList();
+		for (const auto index : data.incompleted) {
+			incompleted.push_back(QByteArray::number(index));
+		}
+		pushBare("completed", '[' + completed.join(',') + ']');
+		pushBare("incompleted", '[' + incompleted.join(',') + ']');
+	}, [&](const ActionTodoAppendTasks &data) {
+		pushActor();
+		pushAction("todo_append_tasks");
+		const auto items = ranges::views::all(
+			data.items
+		) | ranges::views::transform([&](const TodoListItem &item) {
+			context.nesting.push_back(Context::kArray);
+			auto result = SerializeObject(context, {
+				{ "text", SerializeText(context, item.text) },
+				{ "id", NumberToString(item.id) },
+			});
+			context.nesting.pop_back();
+			return result;
+		}) | ranges::to_vector;
+		pushBare("items", SerializeArray(context, items));
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
@@ -807,7 +835,7 @@ QByteArray SerializeMessage(
 		) | ranges::views::transform([&](const Poll::Answer &answer) {
 			context.nesting.push_back(Context::kArray);
 			auto result = SerializeObject(context, {
-				{ "text", SerializeString(answer.text) },
+				{ "text", SerializeText(context, answer.text) },
 				{ "voters", NumberToString(answer.votes) },
 				{ "chosen", answer.my ? "true" : "false" },
 			});
@@ -818,9 +846,34 @@ QByteArray SerializeMessage(
 		context.nesting.pop_back();
 
 		pushBare("poll", SerializeObject(context, {
-			{ "question", SerializeString(data.question) },
+			{ "question", SerializeText(context, data.question) },
 			{ "closed", data.closed ? "true" : "false" },
 			{ "total_voters", NumberToString(data.totalVotes) },
+			{ "answers", serialized }
+		}));
+	}, [&](const TodoList &data) {
+		context.nesting.push_back(Context::kObject);
+		const auto items = ranges::views::all(
+			data.items
+		) | ranges::views::transform([&](const TodoListItem &item) {
+			context.nesting.push_back(Context::kArray);
+			auto result = SerializeObject(context, {
+				{ "text", SerializeText(context, item.text) },
+				{ "id", NumberToString(item.id) },
+			});
+			context.nesting.pop_back();
+			return result;
+		}) | ranges::to_vector;
+		const auto serialized = SerializeArray(context, items);
+		context.nesting.pop_back();
+
+		pushBare("todo_list", SerializeObject(context, {
+			{ "title", SerializeText(context, data.title) },
+			{ "others_can_append", data.othersCanAppend ? "true" : "false" },
+			{
+				"others_can_complete",
+				data.othersCanComplete ? "true" : "false",
+			},
 			{ "answers", serialized }
 		}));
 	}, [&](const GiveawayStart &data) {

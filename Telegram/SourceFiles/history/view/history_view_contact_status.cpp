@@ -1222,10 +1222,13 @@ void PaysStatus::setupHandlers() {
 	) | rpl::start_with_next([=] {
 		const auto user = _user;
 		const auto exception = [=](bool refund) {
-			using Flag = MTPaccount_AddNoPaidMessagesException::Flag;
+			using Flag = MTPaccount_ToggleNoPaidMessagesException::Flag;
 			const auto api = &user->session().api();
-			api->request(MTPaccount_AddNoPaidMessagesException(
-				MTP_flags(refund ? Flag::f_refund_charged : Flag()),
+			const auto require = false;
+			api->request(MTPaccount_ToggleNoPaidMessagesException(
+				MTP_flags((refund ? Flag::f_refund_charged : Flag())
+					| (require ? Flag::f_require_payment : Flag())),
+				MTPInputPeer(), // parent_peer // #TODO monoforum
 				user->inputUser
 			)).done([=] {
 				user->clearPaysPerMessage();
@@ -1268,6 +1271,8 @@ void PaysStatus::setupHandlers() {
 			}, box->lifetime());
 
 			user->session().api().request(MTPaccount_GetPaidMessagesRevenue(
+				MTP_flags(0),
+				MTPInputPeer(), // parent_peer // #TODO monoforum
 				user->inputUser
 			)).done(crl::guard(_inner, [=](
 					const MTPaccount_PaidMessagesRevenue &result) {

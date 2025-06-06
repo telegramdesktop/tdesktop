@@ -357,6 +357,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return std::make_unique<Data::MediaPoll>(
 			item,
 			item->history()->owner().processPoll(media));
+	}, [&](const MTPDmessageMediaToDo &media) -> Result {
+		return nullptr; // #TODO todo
 	}, [&](const MTPDmessageMediaDice &media) -> Result {
 		return std::make_unique<Data::MediaDice>(
 			item,
@@ -2102,6 +2104,7 @@ void HistoryItem::applyEditionToHistoryCleared() {
 			MTP_int(id),
 			peerToMTP(PeerId(0)), // from_id
 			peerToMTP(_history->peer->id),
+			MTPPeer(), // saved_peer_id
 			MTPMessageReplyHeader(),
 			MTP_int(date()),
 			MTP_messageActionHistoryClear(),
@@ -4553,6 +4556,24 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		}, [](const MTPDmessageReplyStoryHeader &data) {
 		});
 	}
+
+	const auto savedSublistPeer = message.vsaved_peer_id()
+		? peerFromMTP(*message.vsaved_peer_id())
+		: PeerId();
+	const auto requiresMonoforumPeer = _history->peer->amMonoforumAdmin();
+	if (savedSublistPeer || requiresMonoforumPeer) {
+		UpdateComponents(HistoryMessageSaved::Bit());
+		const auto saved = Get<HistoryMessageSaved>();
+		saved->sublistPeerId = savedSublistPeer
+			? savedSublistPeer
+			: _from->id;
+		if (_history->peer->isSelf()) {
+			saved->savedMessagesSublist
+				= _history->owner().savedMessages().sublist(
+					_history->owner().peer(saved->sublistPeerId));
+		}
+	}
+
 	setServiceMessageByAction(action);
 }
 
@@ -5853,6 +5874,16 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareTodoCompletions = [&](const MTPDmessageActionTodoCompletions &action) {
+		auto result = PreparedServiceText(); // #TODO todo
+		return result;
+	};
+
+	auto prepareTodoAppendTasks = [&](const MTPDmessageActionTodoAppendTasks &action) {
+		auto result = PreparedServiceText(); // #TODO todo
+		return result;
+	};
+
 	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {
 		Unexpected("PhoneCall type in setServiceMessageFromMtp.");
 	};
@@ -5907,6 +5938,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		preparePaidMessagesRefunded,
 		preparePaidMessagesPrice,
 		prepareConferenceCall,
+		prepareTodoCompletions,
+		prepareTodoAppendTasks,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

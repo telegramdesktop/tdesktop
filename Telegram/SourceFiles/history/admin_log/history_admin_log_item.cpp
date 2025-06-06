@@ -131,6 +131,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 		const auto reply = PrepareLogReply(data.vreply_to());
 		const auto removeFlags = Flag::f_out
 			| Flag::f_post
+			| Flag::f_saved_peer_id
 			| Flag::f_reactions_are_possible
 			| Flag::f_reactions
 			| Flag::f_ttl_period
@@ -140,6 +141,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
+			MTPPeer(), // saved_peer_id
 			reply.value_or(MTPMessageReplyHeader()),
 			MTP_int(newDate),
 			data.vaction(),
@@ -150,6 +152,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 		const auto reply = PrepareLogReply(data.vreply_to());
 		const auto removeFlags = Flag::f_out
 			| Flag::f_post
+			| Flag::f_saved_peer_id
 			| (reply ? Flag() : Flag::f_reply_to)
 			| Flag::f_replies
 			| Flag::f_edit_date

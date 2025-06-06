@@ -44,6 +44,39 @@ inline auto NumberToString(Type value, int length = 0, char filler = '0')
 		filler).replace(',', '.');
 }
 
+struct TextPart {
+	enum class Type {
+		Text,
+		Unknown,
+		Mention,
+		Hashtag,
+		BotCommand,
+		Url,
+		Email,
+		Bold,
+		Italic,
+		Code,
+		Pre,
+		TextUrl,
+		MentionName,
+		Phone,
+		Cashtag,
+		Underline,
+		Strike,
+		Blockquote,
+		BankCard,
+		Spoiler,
+		CustomEmoji,
+	};
+	Type type = Type::Text;
+	Utf8String text;
+	Utf8String additional;
+
+	[[nodiscard]] static Utf8String UnavailableEmoji() {
+		return "(unavailable)";
+	}
+};
+
 struct UserpicsInfo {
 	int count = 0;
 };
@@ -198,17 +231,29 @@ struct PaidMedia {
 
 struct Poll {
 	struct Answer {
-		Utf8String text;
+		std::vector<TextPart> text;
 		QByteArray option;
 		int votes = 0;
 		bool my = false;
 	};
 
 	uint64 id = 0;
-	Utf8String question;
+	std::vector<TextPart> question;
 	std::vector<Answer> answers;
 	int totalVotes = 0;
 	bool closed = false;
+};
+
+struct TodoListItem {
+	std::vector<TextPart> text;
+	int id = 0;
+};
+
+struct TodoList {
+	bool othersCanAppend = false;
+	bool othersCanComplete = false;
+	std::vector<TextPart> title;
+	std::vector<TodoListItem> items;
 };
 
 struct GiveawayStart {
@@ -370,6 +415,7 @@ struct Media {
 		Game,
 		Invoice,
 		Poll,
+		TodoList,
 		GiveawayStart,
 		GiveawayResults,
 		PaidMedia,
@@ -403,39 +449,6 @@ Media ParseMedia(
 	const MTPMessageMedia &data,
 	const QString &folder,
 	TimeId date);
-
-struct TextPart {
-	enum class Type {
-		Text,
-		Unknown,
-		Mention,
-		Hashtag,
-		BotCommand,
-		Url,
-		Email,
-		Bold,
-		Italic,
-		Code,
-		Pre,
-		TextUrl,
-		MentionName,
-		Phone,
-		Cashtag,
-		Underline,
-		Strike,
-		Blockquote,
-		BankCard,
-		Spoiler,
-		CustomEmoji,
-	};
-	Type type = Type::Text;
-	Utf8String text;
-	Utf8String additional;
-
-	[[nodiscard]] static Utf8String UnavailableEmoji() {
-		return "(unavailable)";
-	}
-};
 
 struct ActionChatCreate {
 	Utf8String title;
@@ -676,6 +689,15 @@ struct ActionPaidMessagesPrice {
 	bool broadcastAllowed = false;
 };
 
+struct ActionTodoCompletions {
+	std::vector<int> completed;
+	std::vector<int> incompleted;
+};
+
+struct ActionTodoAppendTasks {
+	std::vector<TodoListItem> items;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -723,7 +745,9 @@ struct ServiceAction {
 		ActionPrizeStars,
 		ActionStarGift,
 		ActionPaidMessagesRefunded,
-		ActionPaidMessagesPrice> content;
+		ActionPaidMessagesPrice,
+		ActionTodoCompletions,
+		ActionTodoAppendTasks> content;
 };
 
 ServiceAction ParseServiceAction(

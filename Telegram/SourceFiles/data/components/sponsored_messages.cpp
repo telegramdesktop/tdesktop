@@ -263,7 +263,10 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 		}
 	}
 	request.requestId = _session->api().request(
-		MTPmessages_GetSponsoredMessages(history->peer->input)
+		MTPmessages_GetSponsoredMessages(
+			MTP_flags(0),
+			history->peer->input,
+			MTPint()) // msg_id
 	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parse(history, result);
 		if (done) {

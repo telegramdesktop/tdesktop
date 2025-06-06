@@ -621,7 +621,14 @@ private:
 	[[nodiscard]] QByteArray pushPhotoMedia(
 		const Data::Photo &data,
 		const QString &basePath);
-	[[nodiscard]] QByteArray pushPoll(const Data::Poll &data);
+	[[nodiscard]] QByteArray pushPoll(
+		const Data::Poll &data,
+		const QString &internalLinksDomain,
+		const QString &relativeLinkBase);
+	[[nodiscard]] QByteArray pushTodoList(
+		const Data::TodoList &data,
+		const QString &internalLinksDomain,
+		const QString &relativeLinkBase);
 	[[nodiscard]] QByteArray pushGiveaway(
 		const PeersMap &peers,
 		const Data::GiveawayStart &data);
@@ -1395,6 +1402,50 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ QString::number(data.stars).toUtf8()
 			+ " Telegram Stars.";
 		return result;
+	}, [&](const ActionTodoCompletions &data) {
+		auto completed = QByteArrayList();
+		for (const auto index : data.completed) {
+			completed.push_back(QByteArray::number(index));
+		}
+		auto incompleted = QByteArrayList();
+		for (const auto index : data.incompleted) {
+			incompleted.push_back(QByteArray::number(index));
+		}
+		const auto list = [](const QByteArrayList &v) {
+			return v.isEmpty()
+				? QByteArray()
+				: (v.size() > 1)
+				? (v.mid(0, v.size() - 1).join(", ") + " and " + v.back())
+				: v.front();
+		};
+		if (completed.isEmpty() && !incompleted.isEmpty()) {
+			return serviceFrom
+				+ " marked "
+				+ list(incompleted)
+				+ " as not done yet in "
+				+ wrapReplyToLink("this todo list") + ".";
+		} else if (!completed.isEmpty() && incompleted.isEmpty()) {
+			return serviceFrom
+				+ " marked "
+				+ list(completed)
+				+ " as done in "
+				+ wrapReplyToLink("this todo list") + ".";
+		}
+		return serviceFrom
+			+ " marked "
+			+ list(completed)
+			+ " as done and "
+			+ list(incompleted)
+			+ " as not done yet in "
+			+ wrapReplyToLink("this todo list") + ".";
+	}, [&](const ActionTodoAppendTasks &data) {
+		auto tasks = QByteArrayList();
+		for (const auto &task : data.items) {
+			tasks.push_back("&quot;"
+				+ FormatText(task.text, internalLinksDomain, _base)
+				+ "&quot;");
+		}
+		return serviceFrom + " added tasks: " + tasks.join(", ");
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
@@ -1721,7 +1772,9 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 		Assert(!message.media.ttl);
 		return pushPhotoMedia(*photo, basePath);
 	} else if (const auto poll = std::get_if<Poll>(&content)) {
-		return pushPoll(*poll);
+		return pushPoll(*poll, internalLinksDomain, _base);
+	} else if (const auto todo = std::get_if<TodoList>(&content)) {
+		return pushTodoList(*todo, internalLinksDomain, _base);
 	} else if (const auto giveaway = std::get_if<GiveawayStart>(&content)) {
 		return pushGiveaway(peers, *giveaway);
 	} else if (const auto giveaway = std::get_if<GiveawayResults>(&content)) {
@@ -1999,13 +2052,19 @@ QByteArray HtmlWriter::Wrap::pushPhotoMedia(
 	return result;
 }
 
-QByteArray HtmlWriter::Wrap::pushPoll(const Data::Poll &data) {
+QByteArray HtmlWriter::Wrap::pushPoll(
+		const Data::Poll &data,
+		const QString &internalLinksDomain,
+		const QString &relativeLinkBase) {
 	using namespace Data;
 
 	auto result = pushDiv("media_wrap clearfix");
 	result.append(pushDiv("media_poll"));
 	result.append(pushDiv("question bold"));
-	result.append(SerializeString(data.question));
+	result.append(FormatText(
+		data.question,
+		internalLinksDomain,
+		relativeLinkBase));
 	result.append(popTag());
 	result.append(pushDiv("details"));
 	if (data.closed) {
@@ -2036,12 +2095,46 @@ QByteArray HtmlWriter::Wrap::pushPoll(const Data::Poll &data) {
 	};
 	for (const auto &answer : data.answers) {
 		result.append(pushDiv("answer"));
-		result.append("- " + SerializeString(answer.text) + details(answer));
+		result.append("- "
+			+ FormatText(answer.text, internalLinksDomain, relativeLinkBase)
+			+ details(answer));
 		result.append(popTag());
 	}
 	result.append(pushDiv("total details	"));
 	result.append(votes(data.totalVotes));
 	result.append(popTag());
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushTodoList(
+		const Data::TodoList &data,
+		const QString &internalLinksDomain,
+		const QString &relativeLinkBase) {
+	using namespace Data;
+
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushDiv("media_poll"));
+	result.append(pushDiv("question bold"));
+	result.append(FormatText(
+		data.title,
+		internalLinksDomain,
+		relativeLinkBase));
+	result.append(popTag());
+	result.append(pushDiv("details"));
+	result.append(SerializeString("To-do List"));
+	result.append(popTag());
+	const auto details = [&](const TodoListItem &item) {
+		return QByteArray(""); // #TODO todo
+	};
+	for (const auto &item : data.items) {
+		result.append(pushDiv("answer"));
+		result.append("- "
+			+ FormatText(item.text, internalLinksDomain, relativeLinkBase)
+			+ details(item));
+		result.append(popTag());
+	}
 	result.append(popTag());
 	result.append(popTag());
 	return result;
@@ -2436,6 +2529,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.description = data.description;
 		result.status = Data::FormatMoneyAmount(data.amount, data.currency);
 	}, [](const Poll &data) {
+	}, [](const TodoList &data) {
 	}, [](const GiveawayStart &data) {
 	}, [](const GiveawayResults &data) {
 	}, [&](const PaidMedia &data) {
