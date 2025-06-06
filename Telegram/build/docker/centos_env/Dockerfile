@@ -353,7 +353,7 @@ RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules ht
 	&& rm -rf libxcb-wm
 
 FROM builder AS xcb-util
-RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-util.git \
+RUN git clone -b xcb-util-0.4.1-gitlab --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-util.git \
 	&& cd libxcb-util \
 	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
@@ -364,7 +364,7 @@ RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules https
 FROM builder AS xcb-image
 COPY --link --from=xcb-util /usr/src/xcb-util-cache /
 
-RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-image.git \
+RUN git clone -b xcb-util-image-0.4.1-gitlab --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-image.git \
 	&& cd libxcb-image \
 	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
@@ -373,8 +373,12 @@ RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules
 	&& rm -rf libxcb-image
 
 FROM builder AS xcb-keysyms
-RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-keysyms.git \
+RUN git init libxcb-keysyms \
 	&& cd libxcb-keysyms \
+	&& git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-keysyms.git \
+	&& git fetch --depth=1 origin ef5cb393d27511ba511c68a54f8ff7b9aab4a384 \
+	&& git reset --hard FETCH_HEAD \
+	&& git submodule update --init --recursive --depth=1 \
 	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR=/usr/src/xcb-keysyms-cache install \
@@ -382,8 +386,12 @@ RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodul
 	&& rm -rf libxcb-keysyms
 
 FROM builder AS xcb-render-util
-RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-render-util.git \
+RUN git init libxcb-render-util \
 	&& cd libxcb-render-util \
+	&& git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-render-util.git \
+	&& git fetch --depth=1 origin 5ad9853d6ddcac394d42dd2d4e34436b5db9da39 \
+	&& git reset --hard FETCH_HEAD \
+	&& git submodule update --init --recursive --depth=1 \
 	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR=/usr/src/xcb-render-util-cache install \
@@ -395,8 +403,12 @@ COPY --link --from=xcb-util /usr/src/xcb-util-cache /
 COPY --link --from=xcb-image /usr/src/xcb-image-cache /
 COPY --link --from=xcb-render-util /usr/src/xcb-render-util-cache /
 
-RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-cursor.git \
+RUN git init libxcb-cursor \
 	&& cd libxcb-cursor \
+	&& git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-cursor.git \
+	&& git fetch --depth=1 origin 4929f6051658ba5424b41703a1fb63f9db896065 \
+	&& git reset --hard FETCH_HEAD \
+	&& git submodule update --init --recursive --depth=1 \
 	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
 	&& make DESTDIR=/usr/src/xcb-cursor-cache install \
