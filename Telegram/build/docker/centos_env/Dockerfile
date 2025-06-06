@@ -48,7 +48,7 @@ ENV LDFLAGS='{% if not LTO %}-fuse-ld=lld{% endif %} -static-libstdc++ -static-l
 
 ENV CMAKE_GENERATOR=Ninja
 ENV CMAKE_BUILD_TYPE=None
-ENV CMAKE_BUILD_PARALLEL_LEVEL=
+ENV CMAKE_BUILD_PARALLEL_LEVEL='{{ JOBS }}'
 
 RUN git init Implib.so \
 	&& cd Implib.so \
