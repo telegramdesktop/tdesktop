@@ -50,9 +50,13 @@ ENV CMAKE_GENERATOR=Ninja
 ENV CMAKE_BUILD_TYPE=None
 ENV CMAKE_BUILD_PARALLEL_LEVEL=
 
-RUN git clone --depth=1 https://github.com/yugr/Implib.so.git \
-	&& mkdir Implib.so/build \
-	&& cd Implib.so/build \
+RUN git init Implib.so \
+	&& cd Implib.so \
+	&& git remote add origin https://github.com/yugr/Implib.so.git \
+	&& git fetch --depth=1 origin ecf7bb51a92a0fb16834c5b698570ab25f9f1d21 \
+	&& git reset --hard FETCH_HEAD \
+	&& mkdir build \
+	&& cd build \
 	&& implib() { \
 		LIBFILE=$(basename $1); \
 		LIBNAME=$(basename $1 .so); \
