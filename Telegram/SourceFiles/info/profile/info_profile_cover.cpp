@@ -830,7 +830,8 @@ void Cover::refreshUploadPhotoOverlay() {
 		if (const auto chat = _peer->asChat()) {
 			return chat->canEditInformation();
 		} else if (const auto channel = _peer->asChannel()) {
-			return channel->canEditInformation();
+			return channel->canEditInformation()
+				&& !channel->isMonoforum();
 		} else if (const auto user = _peer->asUser()) {
 			return user->isSelf()
 				|| (user->isContact()
