@@ -1,3 +1,8 @@
+5.15.3 (09.06.25)
+
+- Fix new contact top bar appearance.
+- Remove change photo button for channel direct messages.
+
 5.15.2 (05.06.25)
 
 - Fix sending messages in new forum layout.
