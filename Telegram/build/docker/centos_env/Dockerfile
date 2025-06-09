@@ -413,7 +413,7 @@ RUN git init libxcb-cursor \
 	&& git fetch --depth=1 origin 4929f6051658ba5424b41703a1fb63f9db896065 \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
-	&& ./autogen.sh --enable-static --disable-shared \
+	&& ./autogen.sh --enable-static --disable-shared --with-cursorpath='~/.local/share/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps' \
 	&& make -j$(nproc) \
 	&& make DESTDIR=/usr/src/xcb-cursor-cache install \
 	&& cd .. \
