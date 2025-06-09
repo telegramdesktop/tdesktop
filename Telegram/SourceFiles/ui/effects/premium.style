@@ -33,6 +33,7 @@ PremiumCover {
 	titlePadding: margins;
 	titleFont: font;
 	about: FlatLabel;
+	aboutMaxWidth: pixels;
 	additionalShadowForDarkThemes: bool;
 }
 ComposePremiumRequired {
@@ -64,6 +65,7 @@ defaultPremiumCover: PremiumCover {
 		textFg: premiumButtonFg;
 		minWidth: 190px;
 	}
+	aboutMaxWidth: 0px;
 	additionalShadowForDarkThemes: true;
 }
 userPremiumCoverAbout: FlatLabel(boxDividerLabel) {

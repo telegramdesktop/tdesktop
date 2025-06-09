@@ -107,6 +107,7 @@ TopBar::TopBar(
 , _logo(descriptor.logo)
 , _titleFont(st.titleFont)
 , _titlePadding(st.titlePadding)
+, _aboutMaxWidth(st.aboutMaxWidth)
 , _about(this, std::move(descriptor.about), st.about)
 , _ministars(this, descriptor.optimizeMinistars, MiniStars::Type::BiStars) {
 	std::move(
@@ -212,8 +213,11 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 	const auto aboutTop = titleTop
 		+ titlePathRect.height()
 		+ _titlePadding.bottom();
-	_about->resizeToWidth(availableWidth);
-	_about->moveToLeft(padding.left(), aboutTop);
+	_about->resizeToWidth(_aboutMaxWidth ? _aboutMaxWidth : availableWidth);
+	_about->moveToLeft(
+		padding.left()
+			+ (_aboutMaxWidth ? (availableWidth - _about->width()) / 2 : 0),
+		aboutTop);
 	_about->setOpacity(_progress.body);
 
 	RpWidget::resizeEvent(e);

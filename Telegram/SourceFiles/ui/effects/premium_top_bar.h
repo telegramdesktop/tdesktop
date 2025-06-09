@@ -92,6 +92,7 @@ private:
 	const QString _logo;
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
+	const int _aboutMaxWidth = 0;
 	object_ptr<FlatLabel> _about;
 	ColoredMiniStars _ministars;
 	QSvgRenderer _star;
