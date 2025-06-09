@@ -706,3 +706,9 @@ settingsCreditsButtonStats: RoundButton(inviteLinkCopy) {
 	icon: icon {{ "info/edit/links_share", activeButtonFg }};
 	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
 }
+
+settingsCreditsButton: SettingsButton(settingsButton) {
+	padding: margins(62px, 8px, 22px, 8px);
+}
+settingsButtonIconGift: icon {{ "settings/gift", menuIconColor }};
+settingsButtonIconEarn: icon {{ "settings/earn", menuIconColor }};

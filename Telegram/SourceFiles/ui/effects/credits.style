@@ -18,7 +18,8 @@ creditsSettingsBigBalance: FlatLabel(defaultFlatLabel) {
 }
 creditsSettingsBigBalanceSkip: 4px;
 creditsSettingsBigBalanceButton: RoundButton(defaultActiveButton) {
-	height: 42px;
+	width: 240px;
+	height: 40px;
 	textTop: 12px;
 	style: semiboldTextStyle;
 }
@@ -29,9 +30,13 @@ creditsSettingsBigBalanceButtonGift: RoundButton(defaultLightButton) {
 }
 
 creditsPremiumCover: PremiumCover(defaultPremiumCover) {
+	starTopSkip: 39px;
+	titleFont: font(15px semibold);
 	about: FlatLabel(userPremiumCoverAbout) {
 		textFg: boxTitleFg;
 	}
+	aboutMaxWidth: 236px;
+	additionalShadowForDarkThemes: false;
 }
 creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
 	starSize: size(64px, 62px);
@@ -214,16 +219,12 @@ giftBoxLockMargins: margins(-2px, 1px, 0px, 0px);
 giftBoxPinIcon: icon {{ "dialogs/dialogs_pinned", premiumButtonFg }};
 
 creditsHistoryEntriesList: PeerList(defaultPeerList) {
-	padding: margins(
-		0px,
-		7px,
-		0px,
-		7px);
+	padding: margins(0px, 7px, 0px, 7px);
 	item: PeerListItem(defaultPeerListItem) {
-		height: 66px;
-		photoPosition: point(18px, 6px);
+		height: 72px;
+		photoPosition: point(18px, 7px);
 		namePosition: point(70px, 6px);
-		statusPosition: point(70px, 43px);
+		statusPosition: point(70px, 46px);
 		photoSize: 42px;
 	}
 }
@@ -296,4 +297,18 @@ giftTooManyPinnedBox: Box(giftBox) {
 }
 giftTooManyPinnedChoose: FlatLabel(giftBoxAbout) {
 	textFg: windowSubTextFg;
+}
+
+creditsHistoryTabsSlider: SettingsSlider(defaultTabsSlider) {
+	height: 39px;
+	labelTop: 7px;
+	barTop: 36px;
+	barSkip: 0px;
+	rippleBottomSkip: 0px;
+}
+creditsHistoryTabsSliderPadding: margins(14px, 0px, 24px, 0px);
+creditsHistoryRowDescriptionSkip: 20px;
+creditsHistoryRowRightTop: 16px;
+creditsHistoryRowRightStyle: TextStyle(defaultTextStyle) {
+	font: font(fsize);
 }

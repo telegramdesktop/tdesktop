@@ -2795,10 +2795,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_premium_gift_duration" = "Duration";
 "lng_credits_more_options" = "More Options";
 "lng_credits_balance_me" = "your balance";
-"lng_credits_buy_button" = "Buy More Stars";
+"lng_credits_balance_me_count" = "Your balance: {emoji} {amount}";
+"lng_credits_buy_button" = "Top Up Balance";
 "lng_credits_buy_button_short" = "Top Up";
 "lng_credits_stats_button_short" = "Stats";
+"lng_credits_stats_button" = "View Statistics";
 "lng_credits_gift_button" = "Gift Stars to Friends";
+"lng_credits_earn_button" = "Earn Stars from Mini Apps";
 "lng_credits_box_out_title" = "Confirm Your Purchase";
 "lng_credits_box_out_sure#one" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Star**?";
 "lng_credits_box_out_sure#other" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Stars**?";

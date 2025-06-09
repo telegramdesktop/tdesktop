@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
@@ -921,16 +920,15 @@ void CreditsRow::init() {
 			}
 		});
 	}
-	auto &manager = _session->data().customEmojiManager();
 	if (_entry) {
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setMarkedText(
-			st::semiboldTextStyle,
+			st::creditsHistoryRowRightStyle,
 			TextWithEntities()
 				.append(_entry.in ? QChar('+') : kMinus)
 				.append(Lang::FormatCreditsAmountDecimal(_entry.credits.abs()))
 				.append(QChar(' '))
-				.append(manager.creditsEmoji()),
+				.append(Ui::MakeCreditsIconEntity()),
 			kMarkupTextOptions,
 			_context);
 	}
@@ -1041,7 +1039,6 @@ void CreditsRow::rightActionPaint(
 		p.drawTextRight(rightSkip, y - statusFont->height / 2, outerWidth, t);
 		return;
 	}
-	y += _rowHeight / 2;
 	p.setPen(_entry.pending
 		? st::creditsStroke
 		: _entry.in
@@ -1050,7 +1047,7 @@ void CreditsRow::rightActionPaint(
 	_rightText.draw(p, Ui::Text::PaintContext{
 		.position = QPoint(
 			outerWidth - _rightText.maxWidth() - rightSkip,
-			y - font->height / 2),
+			y + st::creditsHistoryRowRightTop),
 		.outerWidth = outerWidth,
 		.availableWidth = outerWidth,
 	});
@@ -1079,7 +1076,7 @@ void CreditsRow::paintStatusText(
 		available -= thumbnailSpace;
 	}
 	_description.draw(p, {
-		.position = QPoint(x, y - _description.minHeight()),
+		.position = QPoint(x, y - st::creditsHistoryRowDescriptionSkip),
 		.outerWidth = outer,
 		.availableWidth = available,
 		.elisionLines = 1,
@@ -1130,7 +1127,16 @@ CreditsController::CreditsController(CreditsDescriptor d)
 , _entryClickedCallback(std::move(d.entryClickedCallback))
 , _api(d.peer, d.in, d.out)
 , _firstSlice(std::move(d.firstSlice))
-, _context(Core::TextContext({ .session = _session })) {
+, _context([&]() -> Ui::Text::MarkedContext {
+	const auto height = st::creditsHistoryRowRightStyle.font->height
+		- st::lineWidth;
+	auto customEmojiFactory = [=](const auto &...) {
+		return std::make_unique<Ui::Text::ShiftedEmoji>(
+			Ui::MakeCreditsIconEmoji(height, 1),
+			QPoint(-st::lineWidth, st::lineWidth));
+	};
+	return { .customEmojiFactory = std::move(customEmojiFactory) };
+}()) {
 	PeerListController::setStyleOverrides(&st::creditsHistoryEntriesList);
 }
 
