@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/create_poll_box.h"
+#include "boxes/create_todo_list_box.h"
 
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
@@ -17,7 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "data/data_poll.h"
+#include "data/data_session.h"
+#include "data/data_todo_list.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/view/history_view_schedule_box.h"
@@ -31,9 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/fade_wrap.h"
@@ -48,31 +49,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kQuestionLimit = 255;
-constexpr auto kMaxOptionsCount = PollData::kMaxOptions;
-constexpr auto kOptionLimit = 100;
-constexpr auto kWarnQuestionLimit = 80;
-constexpr auto kWarnOptionLimit = 30;
-constexpr auto kSolutionLimit = 200;
-constexpr auto kWarnSolutionLimit = 60;
+constexpr auto kMaxOptionsCount = TodoListData::kMaxOptions;
+constexpr auto kWarnTitleLimit = 12;
+constexpr auto kWarnTaskLimit = 24;
 constexpr auto kErrorLimit = 99;
 
-class Options {
+class Tasks {
 public:
-	Options(
+	Tasks(
 		not_null<Ui::BoxContent*> box,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
-		ChatHelpers::TabbedPanel *emojiPanel,
-		bool chooseCorrectEnabled);
+		ChatHelpers::TabbedPanel *emojiPanel);
 
-	[[nodiscard]] bool hasOptions() const;
+	[[nodiscard]] bool hasTasks() const;
 	[[nodiscard]] bool isValid() const;
-	[[nodiscard]] bool hasCorrect() const;
-	[[nodiscard]] std::vector<PollAnswer> toPollAnswers() const;
+	[[nodiscard]] std::vector<TodoListItem> toTodoListItems() const;
 	void focusFirst();
-
-	void enableChooseCorrect(bool enabled);
 
 	[[nodiscard]] rpl::producer<int> usedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
@@ -80,21 +73,18 @@ public:
 	[[nodiscard]] rpl::producer<> tabbed() const;
 
 private:
-	class Option {
+	class Task {
 	public:
-		Option(
+		Task(
 			not_null<QWidget*> outer,
 			not_null<Ui::VerticalLayout*> container,
 			not_null<Main::Session*> session,
-			int position,
-			std::shared_ptr<Ui::RadiobuttonGroup> group);
+			int position);
 
-		Option(const Option &other) = delete;
-		Option &operator=(const Option &other) = delete;
+		Task(const Task &other) = delete;
+		Task &operator=(const Task &other) = delete;
 
 		void toggleRemoveAlways(bool toggled);
-		void enableChooseCorrect(
-			std::shared_ptr<Ui::RadiobuttonGroup> group);
 
 		void show(anim::type animated);
 		void destroy(FnMut<void()> done);
@@ -106,7 +96,6 @@ private:
 		[[nodiscard]] bool isEmpty() const;
 		[[nodiscard]] bool isGood() const;
 		[[nodiscard]] bool isTooLong() const;
-		[[nodiscard]] bool isCorrect() const;
 		[[nodiscard]] bool hasFocus() const;
 		void setFocus() const;
 		void clearValue();
@@ -116,25 +105,22 @@ private:
 
 		[[nodiscard]] not_null<Ui::InputField*> field() const;
 
-		[[nodiscard]] PollAnswer toPollAnswer(int index) const;
+		[[nodiscard]] TodoListItem toTodoListItem(int index) const;
 
 		[[nodiscard]] rpl::producer<Qt::MouseButton> removeClicks() const;
 
 	private:
 		void createRemove();
 		void createWarning();
-		void toggleCorrectSpace(bool visible);
 		void updateFieldGeometry();
 
 		base::unique_qptr<Ui::SlideWrap<Ui::RpWidget>> _wrap;
 		not_null<Ui::RpWidget*> _content;
-		base::unique_qptr<Ui::FadeWrapScaled<Ui::Radiobutton>> _correct;
-		Ui::Animations::Simple _correctShown;
-		bool _hasCorrect = false;
 		Ui::InputField *_field = nullptr;
 		base::unique_qptr<Ui::PlainShadow> _shadow;
 		base::unique_qptr<Ui::CrossButton> _remove;
 		rpl::variable<bool> *_removeAlways = nullptr;
+		int _limit = 0;
 
 	};
 
@@ -142,28 +128,25 @@ private:
 	[[nodiscard]] bool correctShadows() const;
 	void fixShadows();
 	void removeEmptyTail();
-	void addEmptyOption();
-	void checkLastOption();
+	void addEmptyTask();
+	void checkLastTask();
 	void validateState();
 	void fixAfterErase();
-	void destroy(std::unique_ptr<Option> option);
-	void removeDestroyed(not_null<Option*> field);
+	void destroy(std::unique_ptr<Task> task);
+	void removeDestroyed(not_null<Task*> field);
 	int findField(not_null<Ui::InputField*> field) const;
-	[[nodiscard]] auto createChooseCorrectGroup()
-		-> std::shared_ptr<Ui::RadiobuttonGroup>;
 
 	not_null<Ui::BoxContent*> _box;
 	not_null<Ui::VerticalLayout*> _container;
 	const not_null<Window::SessionController*> _controller;
 	ChatHelpers::TabbedPanel * const _emojiPanel;
-	std::shared_ptr<Ui::RadiobuttonGroup> _chooseCorrectGroup;
 	int _position = 0;
-	std::vector<std::unique_ptr<Option>> _list;
-	std::vector<std::unique_ptr<Option>> _destroyed;
+	int _tasksLimit = 0;
+	std::vector<std::unique_ptr<Task>> _list;
+	std::vector<std::unique_ptr<Task>> _destroyed;
 	rpl::variable<int> _usedCount = 0;
-	bool _hasOptions = false;
+	bool _hasTasks = false;
 	bool _isValid = false;
-	bool _hasCorrect = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
 	rpl::event_stream<> _backspaceInFront;
 	rpl::event_stream<> _tabbed;
@@ -223,12 +206,11 @@ void FocusAtEnd(not_null<Ui::InputField*> field) {
 	field->ensureCursorVisible();
 }
 
-Options::Option::Option(
+Tasks::Task::Task(
 	not_null<QWidget*> outer,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Main::Session*> session,
-	int position,
-	std::shared_ptr<Ui::RadiobuttonGroup> group)
+	int position)
 : _wrap(container->insert(
 	position,
 	object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
@@ -242,9 +224,10 @@ Options::Option::Option(
 			? st::createPollOptionFieldPremium
 			: st::createPollOptionField,
 		Ui::InputField::Mode::NoNewlines,
-		tr::lng_polls_create_option_add())) {
+		tr::lng_todo_create_list_add()))
+, _limit(session->appConfig().todoListItemTextLimit()) {
 	InitField(outer, _field, session);
-	_field->setMaxLength(kOptionLimit + kErrorLimit);
+	_field->setMaxLength(_limit + kErrorLimit);
 	_field->show();
 	_field->customTab(true);
 
@@ -260,31 +243,17 @@ Options::Option::Option(
 		_content->resize(_content->width(), height);
 	}, _field->lifetime());
 
-	_field->changes(
-	) | rpl::start_with_next([=] {
-		Ui::PostponeCall(crl::guard(_field, [=] {
-			if (_hasCorrect) {
-				_correct->toggle(isGood(), anim::type::normal);
-			}
-		}));
-	}, _field->lifetime());
-
 	createShadow();
 	createRemove();
 	createWarning();
-	enableChooseCorrect(group);
-	_correctShown.stop();
-	if (_correct) {
-		_correct->finishAnimating();
-	}
 	updateFieldGeometry();
 }
 
-bool Options::Option::hasShadow() const {
+bool Tasks::Task::hasShadow() const {
 	return (_shadow != nullptr);
 }
 
-void Options::Option::createShadow() {
+void Tasks::Task::createShadow() {
 	Expects(_content != nullptr);
 
 	if (_shadow) {
@@ -303,11 +272,11 @@ void Options::Option::createShadow() {
 	}, _shadow->lifetime());
 }
 
-void Options::Option::destroyShadow() {
+void Tasks::Task::destroyShadow() {
 	_shadow = nullptr;
 }
 
-void Options::Option::createRemove() {
+void Tasks::Task::createRemove() {
 	using namespace rpl::mappers;
 
 	const auto field = this->field();
@@ -347,15 +316,15 @@ void Options::Option::createRemove() {
 	_remove.reset(remove);
 }
 
-void Options::Option::createWarning() {
+void Tasks::Task::createWarning() {
 	using namespace rpl::mappers;
 
 	const auto field = this->field();
 	const auto warning = CreateWarningLabel(
 		field,
 		field,
-		kOptionLimit,
-		kWarnOptionLimit);
+		_limit,
+		kWarnTaskLimit);
 	rpl::combine(
 		field->sizeValue(),
 		warning->sizeValue()
@@ -371,183 +340,118 @@ void Options::Option::createWarning() {
 	}, warning->lifetime());
 }
 
-bool Options::Option::isEmpty() const {
+bool Tasks::Task::isEmpty() const {
 	return field()->getLastText().trimmed().isEmpty();
 }
 
-bool Options::Option::isGood() const {
+bool Tasks::Task::isGood() const {
 	return !field()->getLastText().trimmed().isEmpty() && !isTooLong();
 }
 
-bool Options::Option::isTooLong() const {
-	return (field()->getLastText().size() > kOptionLimit);
+bool Tasks::Task::isTooLong() const {
+	return (field()->getLastText().size() > _limit);
 }
 
-bool Options::Option::isCorrect() const {
-	return isGood() && _correct && _correct->entity()->Checkbox::checked();
-}
-
-bool Options::Option::hasFocus() const {
+bool Tasks::Task::hasFocus() const {
 	return field()->hasFocus();
 }
 
-void Options::Option::setFocus() const {
+void Tasks::Task::setFocus() const {
 	FocusAtEnd(field());
 }
 
-void Options::Option::clearValue() {
+void Tasks::Task::clearValue() {
 	field()->setText(QString());
 }
 
-void Options::Option::setPlaceholder() const {
-	field()->setPlaceholder(tr::lng_polls_create_option_add());
+void Tasks::Task::setPlaceholder() const {
+	field()->setPlaceholder(tr::lng_todo_create_list_add());
 }
 
-void Options::Option::toggleRemoveAlways(bool toggled) {
+void Tasks::Task::toggleRemoveAlways(bool toggled) {
 	*_removeAlways = toggled;
 }
 
-void Options::Option::enableChooseCorrect(
-		std::shared_ptr<Ui::RadiobuttonGroup> group) {
-	if (!group) {
-		if (_correct) {
-			_hasCorrect = false;
-			_correct->hide(anim::type::normal);
-			toggleCorrectSpace(false);
-		}
-		return;
-	}
-	static auto Index = 0;
-	const auto button = Ui::CreateChild<Ui::FadeWrapScaled<Ui::Radiobutton>>(
-		_content.get(),
-		object_ptr<Ui::Radiobutton>(
-			_content.get(),
-			group,
-			++Index,
-			QString(),
-			st::defaultCheckbox));
-	button->entity()->resize(
-		button->entity()->height(),
-		button->entity()->height());
-	button->hide(anim::type::instant);
-	_content->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		const auto left = st::createPollFieldPadding.left();
-		button->moveToLeft(
-			left,
-			(size.height() - button->heightNoMargins()) / 2);
-	}, button->lifetime());
-	_correct.reset(button);
-	_hasCorrect = true;
-	if (isGood()) {
-		_correct->show(anim::type::normal);
-	} else {
-		_correct->hide(anim::type::instant);
-	}
-	toggleCorrectSpace(true);
+void Tasks::Task::updateFieldGeometry() {
+	_field->resizeToWidth(_content->width());
+	_field->moveToLeft(0, 0);
 }
 
-void Options::Option::toggleCorrectSpace(bool visible) {
-	_correctShown.start(
-		[=] { updateFieldGeometry(); },
-		visible ? 0. : 1.,
-		visible ? 1. : 0.,
-		st::fadeWrapDuration);
-}
-
-void Options::Option::updateFieldGeometry() {
-	const auto shown = _correctShown.value(_hasCorrect ? 1. : 0.);
-	const auto skip = st::defaultRadio.diameter
-		+ st::defaultCheckbox.textPosition.x();
-	const auto left = anim::interpolate(0, skip, shown);
-	_field->resizeToWidth(_content->width() - left);
-	_field->moveToLeft(left, 0);
-}
-
-not_null<Ui::InputField*> Options::Option::field() const {
+not_null<Ui::InputField*> Tasks::Task::field() const {
 	return _field;
 }
 
-void Options::Option::removePlaceholder() const {
+void Tasks::Task::removePlaceholder() const {
 	field()->setPlaceholder(rpl::single(QString()));
 }
 
-PollAnswer Options::Option::toPollAnswer(int index) const {
+TodoListItem Tasks::Task::toTodoListItem(int index) const {
 	Expects(index >= 0 && index < kMaxOptionsCount);
 
 	const auto text = field()->getTextWithTags();
 
-	auto result = PollAnswer{
-		TextWithEntities{
+	auto result = TodoListItem{
+		.text = TextWithEntities{
 			.text = text.text,
 			.entities = TextUtilities::ConvertTextTagsToEntities(text.tags),
 		},
-		QByteArray(1, ('0' + index)),
+		.id = (index + 1)
 	};
 	TextUtilities::Trim(result.text);
-	result.correct = _correct ? _correct->entity()->Checkbox::checked() : false;
 	return result;
 }
 
-rpl::producer<Qt::MouseButton> Options::Option::removeClicks() const {
+rpl::producer<Qt::MouseButton> Tasks::Task::removeClicks() const {
 	return _remove->clicks();
 }
 
-Options::Options(
+Tasks::Tasks(
 	not_null<Ui::BoxContent*> box,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller,
-	ChatHelpers::TabbedPanel *emojiPanel,
-	bool chooseCorrectEnabled)
+	ChatHelpers::TabbedPanel *emojiPanel)
 : _box(box)
 , _container(container)
 , _controller(controller)
 , _emojiPanel(emojiPanel)
-, _chooseCorrectGroup(chooseCorrectEnabled
-	? createChooseCorrectGroup()
-	: nullptr)
-, _position(_container->count()) {
-	checkLastOption();
+, _position(_container->count())
+, _tasksLimit(controller->session().appConfig().todoListItemsLimit()) {
+	checkLastTask();
 }
 
-bool Options::full() const {
-	const auto limit = _controller->session().appConfig().pollOptionsLimit();
-	return (_list.size() >= limit);
+bool Tasks::full() const {
+	return (_list.size() >= _tasksLimit);
 }
 
-bool Options::hasOptions() const {
-	return _hasOptions;
+bool Tasks::hasTasks() const {
+	return _hasTasks;
 }
 
-bool Options::isValid() const {
+bool Tasks::isValid() const {
 	return _isValid;
 }
 
-bool Options::hasCorrect() const {
-	return _hasCorrect;
-}
-
-rpl::producer<int> Options::usedCount() const {
+rpl::producer<int> Tasks::usedCount() const {
 	return _usedCount.value();
 }
 
-rpl::producer<not_null<QWidget*>> Options::scrollToWidget() const {
+rpl::producer<not_null<QWidget*>> Tasks::scrollToWidget() const {
 	return _scrollToWidget.events();
 }
 
-rpl::producer<> Options::backspaceInFront() const {
+rpl::producer<> Tasks::backspaceInFront() const {
 	return _backspaceInFront.events();
 }
 
-rpl::producer<> Options::tabbed() const {
+rpl::producer<> Tasks::tabbed() const {
 	return _tabbed.events();
 }
 
-void Options::Option::show(anim::type animated) {
+void Tasks::Task::show(anim::type animated) {
 	_wrap->show(animated);
 }
 
-void Options::Option::destroy(FnMut<void()> done) {
+void Tasks::Task::destroy(FnMut<void()> done) {
 	if (anim::Disabled() || _wrap->isHidden()) {
 		Ui::PostponeCall(std::move(done));
 		return;
@@ -559,55 +463,37 @@ void Options::Option::destroy(FnMut<void()> done) {
 		std::move(done));
 }
 
-std::vector<PollAnswer> Options::toPollAnswers() const {
-	auto result = std::vector<PollAnswer>();
+std::vector<TodoListItem> Tasks::toTodoListItems() const {
+	auto result = std::vector<TodoListItem>();
 	result.reserve(_list.size());
 	auto counter = int(0);
-	const auto makeAnswer = [&](const std::unique_ptr<Option> &option) {
-		return option->toPollAnswer(counter++);
+	const auto makeTask = [&](const std::unique_ptr<Task> &task) {
+		return task->toTodoListItem(counter++);
 	};
 	ranges::copy(
 		_list
-		| ranges::views::filter(&Option::isGood)
-		| ranges::views::transform(makeAnswer),
+		| ranges::views::filter(&Task::isGood)
+		| ranges::views::transform(makeTask),
 		ranges::back_inserter(result));
 	return result;
 }
 
-void Options::focusFirst() {
+void Tasks::focusFirst() {
 	Expects(!_list.empty());
 
 	_list.front()->setFocus();
 }
 
-std::shared_ptr<Ui::RadiobuttonGroup> Options::createChooseCorrectGroup() {
-	auto result = std::make_shared<Ui::RadiobuttonGroup>(0);
-	result->setChangedCallback([=](int) {
-		validateState();
-	});
-	return result;
-}
-
-void Options::enableChooseCorrect(bool enabled) {
-	_chooseCorrectGroup = enabled
-		? createChooseCorrectGroup()
-		: nullptr;
-	for (auto &option : _list) {
-		option->enableChooseCorrect(_chooseCorrectGroup);
-	}
-	validateState();
-}
-
-bool Options::correctShadows() const {
+bool Tasks::correctShadows() const {
 	// Last one should be without shadow.
 	const auto noShadow = ranges::find(
 		_list,
 		true,
-		ranges::not_fn(&Option::hasShadow));
+		ranges::not_fn(&Task::hasShadow));
 	return (noShadow == end(_list) - 1);
 }
 
-void Options::fixShadows() {
+void Tasks::fixShadows() {
 	if (correctShadows()) {
 		return;
 	}
@@ -617,18 +503,18 @@ void Options::fixShadows() {
 	_list.back()->destroyShadow();
 }
 
-void Options::removeEmptyTail() {
+void Tasks::removeEmptyTail() {
 	// Only one option at the end of options list can be empty.
 	// Remove all other trailing empty options.
 	// Only last empty and previous option have non-empty placeholders.
 	const auto focused = ranges::find_if(
 		_list,
-		&Option::hasFocus);
+		&Task::hasFocus);
 	const auto end = _list.end();
 	const auto reversed = ranges::views::reverse(_list);
 	const auto emptyItem = ranges::find_if(
 		reversed,
-		ranges::not_fn(&Option::isEmpty)).base();
+		ranges::not_fn(&Task::isEmpty)).base();
 	const auto focusLast = (focused > emptyItem) && (focused < end);
 	if (emptyItem == end) {
 		return;
@@ -643,13 +529,13 @@ void Options::removeEmptyTail() {
 	fixAfterErase();
 }
 
-void Options::destroy(std::unique_ptr<Option> option) {
-	const auto value = option.get();
-	option->destroy([=] { removeDestroyed(value); });
-	_destroyed.push_back(std::move(option));
+void Tasks::destroy(std::unique_ptr<Task> task) {
+	const auto value = task.get();
+	task->destroy([=] { removeDestroyed(value); });
+	_destroyed.push_back(std::move(task));
 }
 
-void Options::fixAfterErase() {
+void Tasks::fixAfterErase() {
 	Expects(!_list.empty());
 
 	const auto last = _list.end() - 1;
@@ -662,7 +548,7 @@ void Options::fixAfterErase() {
 	fixShadows();
 }
 
-void Options::addEmptyOption() {
+void Tasks::addEmptyTask() {
 	if (full()) {
 		return;
 	} else if (!_list.empty() && _list.back()->isEmpty()) {
@@ -672,12 +558,11 @@ void Options::addEmptyOption() {
 		(*(_list.end() - 2))->removePlaceholder();
 		(*(_list.end() - 2))->toggleRemoveAlways(true);
 	}
-	_list.push_back(std::make_unique<Option>(
+	_list.push_back(std::make_unique<Task>(
 		_box,
 		_container,
 		&_controller->session(),
-		_position + _list.size() + _destroyed.size(),
-		_chooseCorrectGroup));
+		_position + _list.size() + _destroyed.size()));
 	const auto field = _list.back()->field();
 	if (const auto emojiPanel = _emojiPanel) {
 		const auto emojiToggle = Ui::AddEmojiToggleToField(
@@ -778,92 +663,87 @@ void Options::addEmptyOption() {
 	fixShadows();
 }
 
-void Options::removeDestroyed(not_null<Option*> option) {
+void Tasks::removeDestroyed(not_null<Task*> task) {
 	const auto i = ranges::find(
 		_destroyed,
-		option.get(),
-		&std::unique_ptr<Option>::get);
+		task.get(),
+		&std::unique_ptr<Task>::get);
 	Assert(i != end(_destroyed));
 	_destroyed.erase(i);
 }
 
-void Options::validateState() {
-	checkLastOption();
-	_hasOptions = (ranges::count_if(_list, &Option::isGood) > 1);
-	_isValid = _hasOptions && ranges::none_of(_list, &Option::isTooLong);
-	_hasCorrect = ranges::any_of(_list, &Option::isCorrect);
+void Tasks::validateState() {
+	checkLastTask();
+	_hasTasks = (ranges::count_if(_list, &Task::isGood) > 0);
+	_isValid = _hasTasks && ranges::none_of(_list, &Task::isTooLong);
 
 	const auto lastEmpty = !_list.empty() && _list.back()->isEmpty();
 	_usedCount = _list.size() - (lastEmpty ? 1 : 0);
 }
 
-int Options::findField(not_null<Ui::InputField*> field) const {
+int Tasks::findField(not_null<Ui::InputField*> field) const {
 	const auto result = ranges::find(
 		_list,
 		field,
-		&Option::field) - begin(_list);
+		&Task::field) - begin(_list);
 
 	Ensures(result >= 0 && result < _list.size());
 	return result;
 }
 
-void Options::checkLastOption() {
+void Tasks::checkLastTask() {
 	removeEmptyTail();
-	addEmptyOption();
+	addEmptyTask();
 }
 
 } // namespace
 
-CreatePollBox::CreatePollBox(
+CreateTodoListBox::CreateTodoListBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	PollData::Flags chosen,
-	PollData::Flags disabled,
 	rpl::producer<int> starsRequired,
 	Api::SendType sendType,
 	SendMenu::Details sendMenuDetails)
 : _controller(controller)
-, _chosen(chosen)
-, _disabled(disabled)
 , _sendType(sendType)
 , _sendMenuDetails([result = sendMenuDetails] { return result; })
-, _starsRequired(std::move(starsRequired)) {
+, _starsRequired(std::move(starsRequired))
+, _titleLimit(controller->session().appConfig().todoListTitleLimit()) {
 }
 
-rpl::producer<CreatePollBox::Result> CreatePollBox::submitRequests() const {
+auto CreateTodoListBox::submitRequests() const -> rpl::producer<Result> {
 	return _submitRequests.events();
 }
 
-void CreatePollBox::setInnerFocus() {
+void CreateTodoListBox::setInnerFocus() {
 	_setInnerFocus();
 }
 
-void CreatePollBox::submitFailed(const QString &error) {
+void CreateTodoListBox::submitFailed(const QString &error) {
 	showToast(error);
 }
 
-not_null<Ui::InputField*> CreatePollBox::setupQuestion(
+not_null<Ui::InputField*> CreateTodoListBox::setupTitle(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
 	const auto session = &_controller->session();
 	const auto isPremium = session->user()->isPremium();
-	Ui::AddSubsectionTitle(container, tr::lng_polls_create_question());
 
-	const auto question = container->add(
+	const auto title = container->add(
 		object_ptr<Ui::InputField>(
 			container,
 			st::createPollField,
 			Ui::InputField::Mode::MultiLine,
-			tr::lng_polls_create_question_placeholder()),
+			tr::lng_todo_create_title_placeholder()),
 		st::createPollFieldPadding
 			+ (isPremium
 				? QMargins(0, 0, st::defaultComposeFiles.emoji.inner.width, 0)
 				: QMargins()));
-	InitField(getDelegate()->outerContainer(), question, session);
-	question->setMaxLength(kQuestionLimit + kErrorLimit);
-	question->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-	question->customTab(true);
+	InitField(getDelegate()->outerContainer(), title, session);
+	title->setMaxLength(_titleLimit + kErrorLimit);
+	title->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	title->customTab(true);
 
 	if (isPremium) {
 		using Selector = ChatHelpers::TabbedSelector;
@@ -885,32 +765,32 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 		emojiPanel->selector()->setCurrentPeer(session->user());
 
 		const auto emojiToggle = Ui::AddEmojiToggleToField(
-			question,
+			title,
 			this,
 			_controller,
 			emojiPanel,
 			st::createPollOptionFieldPremiumEmojiPosition);
 		emojiPanel->selector()->emojiChosen(
 		) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
-			if (question->hasFocus()) {
-				Ui::InsertEmojiAtCursor(question->textCursor(), data.emoji);
+			if (title->hasFocus()) {
+				Ui::InsertEmojiAtCursor(title->textCursor(), data.emoji);
 			}
 		}, emojiToggle->lifetime());
 		emojiPanel->selector()->customEmojiChosen(
 		) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
-			if (question->hasFocus()) {
-				Data::InsertCustomEmoji(question, data.document);
+			if (title->hasFocus()) {
+				Data::InsertCustomEmoji(title, data.document);
 			}
 		}, emojiToggle->lifetime());
 	}
 
 	const auto warning = CreateWarningLabel(
 		container,
-		question,
-		kQuestionLimit,
-		kWarnQuestionLimit);
+		title,
+		_titleLimit,
+		kWarnTitleLimit);
 	rpl::combine(
-		question->geometryValue(),
+		title->geometryValue(),
 		warning->sizeValue()
 	) | rpl::start_with_next([=](QRect geometry, QSize label) {
 		warning->moveToLeft(
@@ -926,115 +806,44 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 			geometry.width());
 	}, warning->lifetime());
 
-	return question;
+	return title;
 }
 
-not_null<Ui::InputField*> CreatePollBox::setupSolution(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<bool> shown) {
+object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
 	using namespace Settings;
 
-	const auto outer = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container))
-	)->setDuration(0)->toggleOn(std::move(shown));
-	const auto inner = outer->entity();
-
-	const auto session = &_controller->session();
-	Ui::AddSkip(inner);
-	Ui::AddSubsectionTitle(inner, tr::lng_polls_solution_title());
-	const auto solution = inner->add(
-		object_ptr<Ui::InputField>(
-			inner,
-			st::createPollSolutionField,
-			Ui::InputField::Mode::MultiLine,
-			tr::lng_polls_solution_placeholder()),
-		st::createPollFieldPadding);
-	InitField(getDelegate()->outerContainer(), solution, session);
-	solution->setMaxLength(kSolutionLimit + kErrorLimit);
-	solution->setInstantReplaces(Ui::InstantReplaces::Default());
-	solution->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
-	solution->setMarkdownReplacesEnabled(rpl::single(
-		Ui::MarkdownEnabledState{ Ui::MarkdownEnabled{ {
-			Ui::InputField::kTagBold,
-			Ui::InputField::kTagItalic,
-			Ui::InputField::kTagUnderline,
-			Ui::InputField::kTagStrikeOut,
-			Ui::InputField::kTagCode,
-			Ui::InputField::kTagSpoiler,
-		} } }
-	));
-	solution->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller->uiShow(), solution));
-	solution->customTab(true);
-
-	const auto warning = CreateWarningLabel(
-		inner,
-		solution,
-		kSolutionLimit,
-		kWarnSolutionLimit);
-	rpl::combine(
-		solution->geometryValue(),
-		warning->sizeValue()
-	) | rpl::start_with_next([=](QRect geometry, QSize label) {
-		warning->moveToLeft(
-			(inner->width()
-				- label.width()
-				- st::createPollWarningPosition.x()),
-			(geometry.y()
-				- st::createPollFieldPadding.top()
-				- st::defaultSubsectionTitlePadding.bottom()
-				- st::defaultSubsectionTitle.style.font->height
-				+ st::defaultSubsectionTitle.style.font->ascent
-				- st::createPollWarning.style.font->ascent),
-			geometry.width());
-	}, warning->lifetime());
-
-	inner->add(
-		object_ptr<Ui::FlatLabel>(
-			inner,
-			tr::lng_polls_solution_about(),
-			st::boxDividerLabel),
-		st::createPollFieldTitlePadding);
-
-	return solution;
-}
-
-object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
-	using namespace Settings;
-
-	const auto id = base::RandomValue<uint64>();
-	const auto error = lifetime().make_state<Errors>(Error::Question);
+	const auto id = FullMsgId{
+		PeerId(),
+		_controller->session().data().nextNonHistoryEntryId(),
+	};
+	const auto error = lifetime().make_state<Errors>(Error::Title);
 
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
 
-	const auto question = setupQuestion(container);
+	const auto title = setupTitle(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			tr::lng_polls_create_options(),
+			tr::lng_todo_create_list(),
 			st::defaultSubsectionTitle),
 		st::createPollFieldTitlePadding);
-	const auto options = lifetime().make_state<Options>(
+	const auto tasks = lifetime().make_state<Tasks>(
 		this,
 		container,
 		_controller,
-		_emojiPanel ? _emojiPanel.get() : nullptr,
-		(_chosen & PollData::Flag::Quiz));
-	auto limit = options->usedCount() | rpl::after_next([=](int count) {
+		_emojiPanel ? _emojiPanel.get() : nullptr);
+	auto limit = tasks->usedCount() | rpl::after_next([=](int count) {
 		setCloseByEscape(!count);
 		setCloseByOutsideClick(!count);
 	}) | rpl::map([=](int count) {
 		const auto appConfig = &_controller->session().appConfig();
-		const auto max = appConfig->pollOptionsLimit();
+		const auto max = appConfig->todoListItemsLimit();
 		return (count < max)
-			? tr::lng_polls_create_limit(tr::now, lt_count, max - count)
-			: tr::lng_polls_create_maximum(tr::now);
+			? tr::lng_todo_create_limit(tr::now, lt_count, max - count)
+			: tr::lng_todo_create_maximum(tr::now);
 	}) | rpl::after_next([=] {
 		container->resizeToWidth(container->widthNoMargins());
 	});
@@ -1047,166 +856,92 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				st::boxDividerLabel),
 			st::createPollLimitPadding));
 
-	question->tabbed(
+	title->tabbed(
 	) | rpl::start_with_next([=] {
-		options->focusFirst();
-	}, question->lifetime());
+		tasks->focusFirst();
+	}, title->lifetime());
 
 	Ui::AddSkip(container);
-	Ui::AddSubsectionTitle(container, tr::lng_polls_create_settings());
+	Ui::AddSubsectionTitle(container, tr::lng_todo_create_settings());
 
-	const auto anonymous = (!(_disabled & PollData::Flag::PublicVotes))
-		? container->add(
-			object_ptr<Ui::Checkbox>(
-				container,
-				tr::lng_polls_create_anonymous(tr::now),
-				!(_chosen & PollData::Flag::PublicVotes),
-				st::defaultCheckbox),
-			st::createPollCheckboxMargin)
-		: nullptr;
-	const auto hasMultiple = !(_chosen & PollData::Flag::Quiz)
-		|| !(_disabled & PollData::Flag::Quiz);
-	const auto multiple = hasMultiple
-		? container->add(
-			object_ptr<Ui::Checkbox>(
-				container,
-				tr::lng_polls_create_multiple_choice(tr::now),
-				(_chosen & PollData::Flag::MultiChoice),
-				st::defaultCheckbox),
-			st::createPollCheckboxMargin)
-		: nullptr;
-	const auto quiz = container->add(
+	const auto allowAdd = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
-			tr::lng_polls_create_quiz_mode(tr::now),
-			(_chosen & PollData::Flag::Quiz),
+			tr::lng_todo_create_allow_add(tr::now),
+			true,
+			st::defaultCheckbox),
+		st::createPollCheckboxMargin);
+	const auto allowMark = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			tr::lng_todo_create_allow_mark(tr::now),
+			true,
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
 
-	const auto solution = setupSolution(
-		container,
-		rpl::single(quiz->checked()) | rpl::then(quiz->checkedChanges()));
-
-	options->tabbed(
+	tasks->tabbed(
 	) | rpl::start_with_next([=] {
-		if (quiz->checked()) {
-			solution->setFocus();
-		} else {
-			question->setFocus();
-		}
-	}, question->lifetime());
+		title->setFocus();
+	}, title->lifetime());
 
-	solution->tabbed(
-	) | rpl::start_with_next([=] {
-		question->setFocus();
-	}, solution->lifetime());
-
-	quiz->setDisabled(_disabled & PollData::Flag::Quiz);
-	if (multiple) {
-		multiple->setDisabled((_disabled & PollData::Flag::MultiChoice)
-			|| (_chosen & PollData::Flag::Quiz));
-		multiple->events(
-		) | rpl::filter([=](not_null<QEvent*> e) {
-			return (e->type() == QEvent::MouseButtonPress)
-				&& quiz->checked();
-		}) | rpl::start_with_next([show = uiShow()] {
-			show->showToast(tr::lng_polls_create_one_answer(tr::now));
-		}, multiple->lifetime());
-	}
-
-	using namespace rpl::mappers;
-	quiz->checkedChanges(
-	) | rpl::start_with_next([=](bool checked) {
-		if (multiple) {
-			if (checked && multiple->checked()) {
-				multiple->setChecked(false);
-			}
-			multiple->setDisabled(checked
-				|| (_disabled & PollData::Flag::MultiChoice));
-		}
-		options->enableChooseCorrect(checked);
-	}, quiz->lifetime());
-
-	const auto isValidQuestion = [=] {
-		const auto text = question->getLastText().trimmed();
-		return !text.isEmpty() && (text.size() <= kQuestionLimit);
+	const auto isValidTitle = [=] {
+		const auto text = title->getLastText().trimmed();
+		return !text.isEmpty() && (text.size() <= _titleLimit);
 	};
-	question->submits(
+	title->submits(
 	) | rpl::start_with_next([=] {
-		if (isValidQuestion()) {
-			options->focusFirst();
+		if (isValidTitle()) {
+			tasks->focusFirst();
 		}
-	}, question->lifetime());
+	}, title->lifetime());
 
 	_setInnerFocus = [=] {
-		question->setFocusFast();
+		title->setFocusFast();
 	};
 
 	const auto collectResult = [=] {
-		const auto textWithTags = question->getTextWithTags();
-		using Flag = PollData::Flag;
-		auto result = PollData(&_controller->session().data(), id);
-		result.question.text = textWithTags.text;
-		result.question.entities = TextUtilities::ConvertTextTagsToEntities(
+		const auto textWithTags = title->getTextWithTags();
+		using Flag = TodoListData::Flag;
+		auto result = TodoListData(&_controller->session().data(), id);
+		result.title.text = textWithTags.text;
+		result.title.entities = TextUtilities::ConvertTextTagsToEntities(
 			textWithTags.tags);
-		TextUtilities::Trim(result.question);
-		result.answers = options->toPollAnswers();
-		const auto solutionWithTags = quiz->checked()
-			? solution->getTextWithAppliedMarkdown()
-			: TextWithTags();
-		result.solution = TextWithEntities{
-			solutionWithTags.text,
-			TextUtilities::ConvertTextTagsToEntities(solutionWithTags.tags)
-		};
-		const auto publicVotes = (anonymous && !anonymous->checked());
-		const auto multiChoice = (multiple && multiple->checked());
+		TextUtilities::Trim(result.title);
+		result.items = tasks->toTodoListItems();
+		const auto allowAddTasks = allowAdd->checked();
+		const auto allowMarkTasks = allowMark->checked();
 		result.setFlags(Flag(0)
-			| (publicVotes ? Flag::PublicVotes : Flag(0))
-			| (multiChoice ? Flag::MultiChoice : Flag(0))
-			| (quiz->checked() ? Flag::Quiz : Flag(0)));
+			| (allowAddTasks ? Flag::OthersCanAppend : Flag(0))
+			| (allowMarkTasks ? Flag::OthersCanComplete : Flag(0)));
 		return result;
 	};
 	const auto collectError = [=] {
-		if (isValidQuestion()) {
-			*error &= ~Error::Question;
+		if (isValidTitle()) {
+			*error &= ~Error::Title;
 		} else {
-			*error |= Error::Question;
+			*error |= Error::Title;
 		}
-		if (!options->hasOptions()) {
-			*error |= Error::Options;
-		} else if (!options->isValid()) {
+		if (!tasks->hasTasks()) {
+			*error |= Error::Tasks;
+		} else if (!tasks->isValid()) {
 			*error |= Error::Other;
 		} else {
-			*error &= ~(Error::Options | Error::Other);
-		}
-		if (quiz->checked() && !options->hasCorrect()) {
-			*error |= Error::Correct;
-		} else {
-			*error &= ~Error::Correct;
-		}
-		if (quiz->checked()
-			&& solution->getLastText().trimmed().size() > kSolutionLimit) {
-			*error |= Error::Solution;
-		} else {
-			*error &= ~Error::Solution;
+			*error &= ~(Error::Tasks | Error::Other);
 		}
 	};
 	const auto showError = [show = uiShow()](
 			tr::phrase<> text) {
 		show->showToast(text(tr::now));
 	};
+
 	const auto send = [=](Api::SendOptions sendOptions) {
 		collectError();
-		if (*error & Error::Question) {
-			showError(tr::lng_polls_choose_question);
-			question->setFocus();
-		} else if (*error & Error::Options) {
-			showError(tr::lng_polls_choose_answers);
-			options->focusFirst();
-		} else if (*error & Error::Correct) {
-			showError(tr::lng_polls_choose_correct);
-		} else if (*error & Error::Solution) {
-			solution->showError();
+		if (*error & Error::Title) {
+			showError(tr::lng_todo_choose_title);
+			title->setFocus();
+		} else if (*error & Error::Tasks) {
+			showError(tr::lng_todo_choose_tasks);
+			tasks->focusFirst();
 		} else if (!*error) {
 			_submitRequests.fire({ collectResult(), sendOptions });
 		}
@@ -1215,14 +950,14 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		_controller->uiShow(),
 		crl::guard(this, send));
 
-	options->scrollToWidget(
+	tasks->scrollToWidget(
 	) | rpl::start_with_next([=](not_null<QWidget*> widget) {
 		scrollToWidget(widget);
 	}, lifetime());
 
-	options->backspaceInFront(
+	tasks->backspaceInFront(
 	) | rpl::start_with_next([=] {
-		FocusAtEnd(question);
+		FocusAtEnd(title);
 	}, lifetime());
 
 	const auto isNormal = (_sendType == Api::SendType::Normal);
@@ -1232,10 +967,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			_sendMenuDetails());
 	};
 	const auto submit = addButton(
-		tr::lng_polls_create_button(),
+		tr::lng_todo_create_button(),
 		[=] { isNormal ? send({}) : schedule(); });
 	submit->setText(PaidSendButtonText(_starsRequired.value(), isNormal
-		? tr::lng_polls_create_button()
+		? tr::lng_todo_create_button()
 		: tr::lng_schedule_button()));
 	const auto sendMenuDetails = [=] {
 		collectError();
@@ -1251,8 +986,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	return result;
 }
 
-void CreatePollBox::prepare() {
-	setTitle(tr::lng_polls_create_title());
+void CreateTodoListBox::prepare() {
+	setTitle(tr::lng_todo_create_title());
 
 	const auto inner = setInnerWidget(setupContent());
 

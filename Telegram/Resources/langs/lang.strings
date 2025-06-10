@@ -5860,6 +5860,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_todo_completed#one" = "{count} of {total} completed";
 "lng_todo_completed#other" = "{count} of {total} completed";
 "lng_todo_completed_none" = "None of {total} completed";
+"lng_todo_create" = "Create To-Do List";
+"lng_todo_create_title" = "New To-Do List";
+"lng_todo_create_title_placeholder" = "Title";
+"lng_todo_create_list" = "Tasks List";
+"lng_todo_create_list_add" = "Add a task...";
+"lng_todo_create_limit#one" = "You can add {count} more task.";
+"lng_todo_create_limit#other" = "You can add {count} more tasks.";
+"lng_todo_create_maximum" = "You have added the maximum number of tasks.";
+"lng_todo_create_settings" = "Settings";
+"lng_todo_create_allow_add" = "Allow Others to Add Tasks";
+"lng_todo_create_allow_mark" = "Allow Others to Mark As Done";
+"lng_todo_create_button" = "Create";
+"lng_todo_choose_title" = "Please enter a title.";
+"lng_todo_choose_tasks" = "Please enter at least one task.";
 
 "lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
 "lng_outdated_title_bits" = "PLEASE SWITCH TO A 64-BIT OPERATING SYSTEM.";

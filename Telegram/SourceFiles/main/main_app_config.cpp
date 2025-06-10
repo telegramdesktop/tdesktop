@@ -145,9 +145,21 @@ int AppConfig::giftResaleReceiveThousandths() const {
 }
 
 int AppConfig::pollOptionsLimit() const {
+	return get<int>(u"poll_answers_max"_q, 12);
+}
+
+int AppConfig::todoListItemsLimit() const {
 	return get<int>(
-		u"poll_answers_max"_q,
-		_account->mtp().isTestMode() ? 12 : 10);
+		u"todo_items_max"_q,
+		_account->mtp().isTestMode() ? 10 : 30);
+}
+
+int AppConfig::todoListTitleLimit() const {
+	return get<int>(u"todo_title_length_max"_q, 32);
+}
+
+int AppConfig::todoListItemTextLimit() const {
+	return get<int>(u"todo_item_length_max"_q, 64);
 }
 
 void AppConfig::refresh(bool force) {

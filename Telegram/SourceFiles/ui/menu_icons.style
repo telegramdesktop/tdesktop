@@ -57,6 +57,7 @@ menuIconStats: icon {{ "menu/stats", menuIconColor }};
 menuIconBoosts: icon {{ "menu/boosts", menuIconColor }};
 menuIconEarn: icon {{ "menu/earn", menuIconColor }};
 menuIconCreatePoll: icon {{ "menu/create_poll", menuIconColor }};
+menuIconCreateTodoList: icon {{ "menu/select", menuIconColor }};
 menuIconQrCode: icon {{ "menu/qr_code", menuIconColor }};
 menuIconExpand: icon {{ "menu/expand", menuIconColor }};
 menuIconCollapse: icon {{ "menu/collapse", menuIconColor }};

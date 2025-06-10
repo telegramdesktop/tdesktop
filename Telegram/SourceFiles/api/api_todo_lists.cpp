@@ -10,15 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "api/api_common.h"
 //#include "api/api_updates.h"
 #include "apiwrap.h"
-//#include "base/random.h"
-//#include "data/business/data_shortcut_messages.h"
-//#include "data/data_changes.h"
-//#include "data/data_histories.h"
+#include "base/random.h"
+#include "data/business/data_shortcut_messages.h" // ShortcutIdToMTP
+#include "data/data_changes.h"
+#include "data/data_histories.h"
 #include "data/data_todo_list.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
-//#include "history/history_item_helpers.h" // ShouldSendSilent
+#include "history/history_item_helpers.h" // ShouldSendSilent
 #include "main/main_session.h"
 
 namespace Api {
@@ -37,98 +37,98 @@ TodoLists::TodoLists(not_null<ApiWrap*> api)
 , _api(&api->instance())
 , _sendTimer([=] { sendAccumulatedToggles(false); }) {
 }
-//
-//void TodoLists::create(
-//		const PollData &data,
-//		SendAction action,
-//		Fn<void()> done,
-//		Fn<void()> fail) {
-//	_session->api().sendAction(action);
-//
-//	const auto history = action.history;
-//	const auto peer = history->peer;
-//	const auto topicRootId = action.replyTo.messageId
-//		? action.replyTo.topicRootId
-//		: 0;
-//	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
-//	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-//	if (action.replyTo) {
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
-//	}
-//	const auto clearCloudDraft = action.clearDraft;
-//	if (clearCloudDraft) {
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
-//		history->clearLocalDraft(topicRootId, monoforumPeerId);
-//		history->clearCloudDraft(topicRootId, monoforumPeerId);
-//		history->startSavingCloudDraft(topicRootId, monoforumPeerId);
-//	}
-//	const auto silentPost = ShouldSendSilent(peer, action.options);
-//	const auto starsPaid = std::min(
-//		peer->starsPerMessageChecked(),
-//		action.options.starsApproved);
-//	if (silentPost) {
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-//	}
-//	if (action.options.scheduled) {
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
-//	}
-//	if (action.options.shortcutId) {
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
-//	}
-//	if (action.options.effectId) {
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
-//	}
-//	if (starsPaid) {
-//		action.options.starsApproved -= starsPaid;
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
-//	}
-//	const auto sendAs = action.options.sendAs;
-//	if (sendAs) {
-//		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
-//	}
-//	auto &histories = history->owner().histories();
-//	const auto randomId = base::RandomValue<uint64>();
-//	histories.sendPreparedMessage(
-//		history,
-//		action.replyTo,
-//		randomId,
-//		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
-//			MTP_flags(sendFlags),
-//			peer->input,
-//			Data::Histories::ReplyToPlaceholder(),
-//			PollDataToInputMedia(&data),
-//			MTP_string(),
-//			MTP_long(randomId),
-//			MTPReplyMarkup(),
-//			MTPVector<MTPMessageEntity>(),
-//			MTP_int(action.options.scheduled),
-//			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-//			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
-//			MTP_long(action.options.effectId),
-//			MTP_long(starsPaid)
-//		), [=](const MTPUpdates &result, const MTP::Response &response) {
-//		if (clearCloudDraft) {
-//			history->finishSavingCloudDraft(
-//				topicRootId,
-//				monoforumPeerId,
-//				UnixtimeFromMsgId(response.outerMsgId));
-//		}
-//		_session->changes().historyUpdated(
-//			history,
-//			(action.options.scheduled
-//				? Data::HistoryUpdate::Flag::ScheduledSent
-//				: Data::HistoryUpdate::Flag::MessageSent));
-//		done();
-//	}, [=](const MTP::Error &error, const MTP::Response &response) {
-//		if (clearCloudDraft) {
-//			history->finishSavingCloudDraft(
-//				topicRootId,
-//				monoforumPeerId,
-//				UnixtimeFromMsgId(response.outerMsgId));
-//		}
-//		fail();
-//	});
-//}
+
+void TodoLists::create(
+		const TodoListData &data,
+		SendAction action,
+		Fn<void()> done,
+		Fn<void()> fail) {
+	_session->api().sendAction(action);
+
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto topicRootId = action.replyTo.messageId
+		? action.replyTo.topicRootId
+		: 0;
+	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (action.replyTo) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
+	}
+	const auto clearCloudDraft = action.clearDraft;
+	if (clearCloudDraft) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
+		history->clearLocalDraft(topicRootId, monoforumPeerId);
+		history->clearCloudDraft(topicRootId, monoforumPeerId);
+		history->startSavingCloudDraft(topicRootId, monoforumPeerId);
+	}
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
+	if (silentPost) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+	}
+	if (action.options.scheduled) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+	}
+	if (action.options.shortcutId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
+	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
+	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+	}
+	const auto sendAs = action.options.sendAs;
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
+	auto &histories = history->owner().histories();
+	const auto randomId = base::RandomValue<uint64>();
+	histories.sendPreparedMessage(
+		history,
+		action.replyTo,
+		randomId,
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
+			MTP_flags(sendFlags),
+			peer->input,
+			Data::Histories::ReplyToPlaceholder(),
+			TodoListDataToInputMedia(&data),
+			MTP_string(),
+			MTP_long(randomId),
+			MTPReplyMarkup(),
+			MTPVector<MTPMessageEntity>(),
+			MTP_int(action.options.scheduled),
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
+			MTP_long(action.options.effectId),
+			MTP_long(starsPaid)
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				monoforumPeerId,
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		_session->changes().historyUpdated(
+			history,
+			(action.options.scheduled
+				? Data::HistoryUpdate::Flag::ScheduledSent
+				: Data::HistoryUpdate::Flag::MessageSent));
+		done();
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				monoforumPeerId,
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		fail();
+	});
+}
 
 void TodoLists::toggleCompletion(FullMsgId itemId, int id, bool completed) {
 	auto &entry = _toggles[itemId];

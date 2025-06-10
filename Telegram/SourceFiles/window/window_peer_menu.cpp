@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/moderate_messages_box.h"
 #include "boxes/choose_filter_box.h"
 #include "boxes/create_poll_box.h"
+#include "boxes/create_todo_list_box.h"
 #include "boxes/pin_messages_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/report_messages_box.h"
@@ -59,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "api/api_chat_filters.h"
 #include "api/api_polls.h"
+#include "api/api_todo_lists.h"
 #include "api/api_updates.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
@@ -290,6 +292,7 @@ private:
 	void addManageTopic();
 	void addManageChat();
 	void addCreatePoll();
+	void addCreateTodoList();
 	void addThemeEdit();
 	void addBlockUser();
 	void addViewDiscussion();
@@ -314,6 +317,8 @@ private:
 	void addVideoChat();
 	void addViewStatistics();
 	void addBoostChat();
+
+	[[nodiscard]] bool skipCreateActions() const;
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -1165,7 +1170,7 @@ void Filler::addViewStatistics() {
 	}
 }
 
-void Filler::addCreatePoll() {
+bool Filler::skipCreateActions() const {
 	const auto isJoinChannel = [&] {
 		if (_request.section != Section::Replies) {
 			if (const auto c = _peer->asChannel(); c && !c->amIn()) {
@@ -1190,10 +1195,13 @@ void Filler::addCreatePoll() {
 	const auto isBlocked = [&] {
 		return _peer && _peer->isUser() && _peer->asUser()->isBlocked();
 	}();
-	if (isBlocked || isJoinChannel || isBotStart) {
+	return isBlocked || isJoinChannel || isBotStart;
+}
+
+void Filler::addCreatePoll() {
+	if (skipCreateActions()) {
 		return;
 	}
-
 	const auto can = _topic
 		? Data::CanSend(_topic, ChatRestriction::SendPolls)
 		: _peer->canCreatePolls();
@@ -1227,6 +1235,42 @@ void Filler::addCreatePoll() {
 		tr::lng_polls_create(tr::now),
 		std::move(callback),
 		&st::menuIconCreatePoll);
+}
+
+void Filler::addCreateTodoList() {
+	if (skipCreateActions()) {
+		return;
+	}
+	const auto can = _topic
+		? Data::CanSend(_topic, ChatRestriction::SendPolls)
+		: _peer->canCreateTodoLists();
+	if (!can) {
+		return;
+	}
+	const auto peer = _peer;
+	const auto controller = _controller;
+	const auto source = (_request.section == Section::Scheduled)
+		? Api::SendType::Scheduled
+		: Api::SendType::Normal;
+	const auto sendMenuType = (_request.section == Section::Scheduled)
+		? SendMenu::Type::Disabled
+		: (_request.section == Section::Replies
+			|| _peer->starsPerMessageChecked())
+		? SendMenu::Type::SilentOnly
+		: SendMenu::Type::Scheduled;
+	const auto replyTo = _request.currentReplyTo;
+	auto callback = [=] {
+		PeerMenuCreateTodoList(
+			controller,
+			peer,
+			replyTo,
+			source,
+			{ sendMenuType });
+	};
+	_addAction(
+		tr::lng_todo_create(tr::now),
+		std::move(callback),
+		&st::menuIconCreateTodoList);
 }
 
 void Filler::addThemeEdit() {
@@ -1481,6 +1525,7 @@ void Filler::fillHistoryActions() {
 	addSupportInfo();
 	addBoostChat();
 	addCreatePoll();
+	addCreateTodoList();
 	addThemeEdit();
 	addViewDiscussion();
 	addDirectMessages();
@@ -1525,12 +1570,14 @@ void Filler::fillRepliesActions() {
 	}
 	addBoostChat();
 	addCreatePoll();
+	addCreateTodoList();
 	addToggleTopicClosed();
 	addDeleteTopic();
 }
 
 void Filler::fillScheduledActions() {
 	addCreatePoll();
+	addCreateTodoList();
 }
 
 void Filler::fillArchiveActions() {
@@ -1861,6 +1908,74 @@ void PeerMenuCreatePoll(
 		}
 		const auto api = &peer->session().api();
 		api->polls().create(result.poll, action, crl::guard(weak, [=] {
+			state->create = nullptr;
+			weak->closeBox();
+		}), crl::guard(weak, [=] {
+			state->lock = false;
+			weak->submitFailed(tr::lng_attach_failed(tr::now));
+		}));
+	};
+	box->submitRequests(
+	) | rpl::start_with_next(state->create, box->lifetime());
+	controller->show(std::move(box), Ui::LayerOption::CloseOther);
+}
+
+void PeerMenuCreateTodoList(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		FullReplyTo replyTo,
+		Api::SendType sendType,
+		SendMenu::Details sendMenuDetails) {
+	auto starsRequired = peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::FullInfo
+		| Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked();
+	});
+	auto box = Box<CreateTodoListBox>(
+		controller,
+		std::move(starsRequired),
+		sendType,
+		sendMenuDetails);
+	struct State {
+		Fn<void(const CreateTodoListBox::Result &)> create;
+		SendPaymentHelper sendPayment;
+		bool lock = false;
+	};
+	const auto weak = QPointer<CreateTodoListBox>(box);
+	const auto state = box->lifetime().make_state<State>();
+	state->create = [=](const CreateTodoListBox::Result &result) {
+		const auto withPaymentApproved = crl::guard(weak, [=](int stars) {
+			if (const auto onstack = state->create) {
+				auto copy = result;
+				copy.options.starsApproved = stars;
+				onstack(copy);
+			}
+		});
+		const auto checked = state->sendPayment.check(
+			controller,
+			peer,
+			1,
+			result.options.starsApproved,
+			withPaymentApproved);
+		if (!checked || std::exchange(state->lock, true)) {
+			return;
+		}
+		auto action = Api::SendAction(
+			peer->owner().history(peer),
+			result.options);
+		action.replyTo = replyTo;
+		const auto local = action.history->localDraft(
+			replyTo.topicRootId,
+			replyTo.monoforumPeerId);
+		if (local) {
+			action.clearDraft = local->textWithTags.text.isEmpty();
+		} else {
+			action.clearDraft = false;
+		}
+		const auto api = &peer->session().api();
+		api->todoLists().create(result.todolist, action, crl::guard(weak, [=] {
 			state->create = nullptr;
 			weak->closeBox();
 		}), crl::guard(weak, [=] {

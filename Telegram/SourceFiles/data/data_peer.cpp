@@ -684,6 +684,10 @@ bool PeerData::canCreatePolls() const {
 	return Data::CanSend(this, ChatRestriction::SendPolls);
 }
 
+bool PeerData::canCreateTodoLists() const {
+	return Data::CanSend(this, ChatRestriction::SendPolls) || isUser();
+}
+
 bool PeerData::canCreateTopics() const {
 	if (const auto channel = asChannel()) {
 		return channel->isForum()

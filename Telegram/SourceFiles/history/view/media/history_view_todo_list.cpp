@@ -121,7 +121,7 @@ void TodoList::setupPreviousState(const std::vector<TodoTaskInfo> &info) {
 }
 
 QSize TodoList::countOptimalSize() {
-	updateTexts();
+ 	updateTexts();
 
 	const auto paddings = st::msgPadding.left() + st::msgPadding.right();
 

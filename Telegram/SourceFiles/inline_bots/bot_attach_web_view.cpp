@@ -2626,6 +2626,26 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				{ sendMenuType });
 		}, &st::menuIconCreatePoll);
 	}
+	if (peer->canCreateTodoLists()) {
+		++minimal;
+		raw->addAction(tr::lng_todo_create(tr::now), [=] {
+			const auto action = actionFactory();
+			const auto source = action.options.scheduled
+				? Api::SendType::Scheduled
+				: Api::SendType::Normal;
+			const auto sendMenuType = (action.replyTo.topicRootId
+				|| action.history->peer->starsPerMessageChecked())
+				? SendMenu::Type::SilentOnly
+				: SendMenu::Type::Scheduled;
+			const auto replyTo = action.replyTo;
+			Window::PeerMenuCreateTodoList(
+				controller,
+				peer,
+				replyTo,
+				source,
+				{ sendMenuType });
+		}, &st::menuIconCreateTodoList);
+	}
 	const auto session = &controller->session();
 	const auto locationType = ChatRestriction::SendOther;
 	const auto config = ResolveMapsConfig(session);

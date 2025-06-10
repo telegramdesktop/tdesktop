@@ -26,11 +26,11 @@ class TodoLists final {
 public:
 	explicit TodoLists(not_null<ApiWrap*> api);
 
-	//void create(
-	//	const PollData &data,
-	//	SendAction action,
-	//	Fn<void()> done,
-	//	Fn<void()> fail);
+	void create(
+		const TodoListData &data,
+		SendAction action,
+		Fn<void()> done,
+		Fn<void()> fail);
 	void toggleCompletion(FullMsgId itemId, int id, bool completed);
 
 private:
