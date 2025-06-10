@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
@@ -32,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -744,6 +747,29 @@ rpl::producer<int> BoostsController::totalBoostsValue() const {
 	return _totalBoosts.value();
 }
 
+struct CreditsRowDescriptionData {
+	uint64 rowId = 0;
+	uint64 bareGiftStickerId = 0;
+};
+
+[[nodiscard]] QString SerializeCreditsRowDescriptionData(
+		const CreditsRowDescriptionData &data) {
+	return QString("%1;%2").arg(data.rowId).arg(data.bareGiftStickerId);
+}
+
+[[nodiscard]] CreditsRowDescriptionData DeserializeCreditsRowDescriptionData(
+		const QString &str) {
+	auto data = CreditsRowDescriptionData();
+	const auto parts = str.split(';');
+	if (parts.size() >= 1) {
+		data.rowId = parts[0].toULongLong();
+	}
+	if (parts.size() >= 2) {
+		data.bareGiftStickerId = parts[1].toULongLong();
+	}
+	return data;
+}
+
 class CreditsRow final : public PeerListRow {
 public:
 	struct Descriptor final {
@@ -757,6 +783,8 @@ public:
 
 	CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor);
 	CreditsRow(const Descriptor &descriptor);
+
+	void init();
 
 	[[nodiscard]] const Data::CreditsHistoryEntry &entry() const;
 	[[nodiscard]] const Data::SubscriptionEntry &subscription() const;
@@ -789,12 +817,11 @@ public:
 		const style::PeerListItem &st) const override;
 
 private:
-	void init();
-
 	const not_null<Main::Session*> _session;
 	const Data::CreditsHistoryEntry _entry;
 	const Data::SubscriptionEntry _subscription;
 	const Ui::Text::MarkedContext _context;
+
 	const int _rowHeight;
 
 	PaintRoundImageCallback _paintUserpicCallback;
@@ -835,7 +862,6 @@ CreditsRow::CreditsRow(
 			st::boostsListBox.item,
 			_subscription.subscription.credits);
 	}
-	init();
 }
 
 CreditsRow::CreditsRow(const Descriptor &descriptor)
@@ -845,7 +871,6 @@ CreditsRow::CreditsRow(const Descriptor &descriptor)
 , _subscription(descriptor.subscription)
 , _context(descriptor.context)
 , _rowHeight(descriptor.rowHeight) {
-	init();
 }
 
 void CreditsRow::init() {
@@ -903,6 +928,19 @@ void CreditsRow::init() {
 				langDayOfMonthFull(_subscription.until.date())));
 		_description.setText(st::defaultTextStyle, _subscription.title);
 	}
+	if (_entry.bareGiftStickerId) {
+		_description.setMarkedText(
+			st::defaultTextStyle,
+			Ui::Text::SingleCustomEmoji(
+				SerializeCreditsRowDescriptionData({
+					PeerListRow::id(),
+					_entry.bareGiftStickerId,
+				}))
+			.append(' ')
+			.append(description),
+			kMarkupTextOptions,
+			_context);
+	}
 	const auto descriptionPhotoId = (!_entry.subscriptionUntil.isNull())
 		? _entry.photoId
 		: _subscription.photoId;
@@ -933,12 +971,12 @@ void CreditsRow::init() {
 			_context);
 	}
 	if (!_paintUserpicCallback) {
-		_paintUserpicCallback = _entry.stargift
+		_paintUserpicCallback = /*_entry.stargift
 			? Ui::GenerateGiftStickerUserpicCallback(
 				_session,
 				_entry.bareGiftStickerId,
 				_context.repaint)
-			: !isSpecial
+			: */!isSpecial
 			? PeerListRow::generatePaintUserpicCallback(false)
 			: Ui::GenerateCreditsPaintUserpicCallback(_entry);
 	}
@@ -1116,6 +1154,8 @@ private:
 	Data::CreditsStatusSlice::OffsetToken _apiToken;
 	Ui::Text::MarkedContext _context;
 
+	base::flat_map<PeerListRowId, not_null<PeerListRow*>> _rowsById;
+
 	rpl::variable<bool> _allLoaded = false;
 	bool _requesting = false;
 
@@ -1130,10 +1170,28 @@ CreditsController::CreditsController(CreditsDescriptor d)
 , _context([&]() -> Ui::Text::MarkedContext {
 	const auto height = st::creditsHistoryRowRightStyle.font->height
 		- st::lineWidth;
-	auto customEmojiFactory = [=](const auto &...) {
-		return std::make_unique<Ui::Text::ShiftedEmoji>(
-			Ui::MakeCreditsIconEmoji(height, 1),
-			QPoint(-st::lineWidth, st::lineWidth));
+	auto customEmojiFactory = [=](
+			QStringView data,
+			const Ui::Text::MarkedContext &context
+		) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+		if (data == Ui::kCreditsCurrency) {
+			return std::make_unique<Ui::Text::ShiftedEmoji>(
+				Ui::MakeCreditsIconEmoji(height, 1),
+				QPoint(-st::lineWidth, st::lineWidth));
+		}
+		const auto desc = DeserializeCreditsRowDescriptionData(
+			data.toString());
+		if (!desc.rowId || !desc.bareGiftStickerId) {
+			return nullptr;
+		}
+		const auto it = _rowsById.find(desc.rowId);
+		if (it != _rowsById.end()) {
+			const auto row = it->second;
+			return _session->data().customEmojiManager().create(
+				desc.bareGiftStickerId,
+				[=]{ delegate()->peerListUpdateRow(row); });
+		}
+		return nullptr;
 	};
 	return { .customEmojiFactory = std::move(customEmojiFactory) };
 }()) {
@@ -1187,15 +1245,19 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 				delegate()->peerListUpdateRow(row);
 			},
 		};
+		auto owned = std::unique_ptr<CreditsRow>(nullptr);
 		if (i.bareActorId) {
 			const auto peer = session().data().peer(PeerId(i.bareActorId));
-			return std::make_unique<CreditsRow>(peer, descriptor);
+			owned = std::make_unique<CreditsRow>(peer, descriptor);
 		} else if (const auto peerId = PeerId(i.barePeerId + s.barePeerId)) {
 			const auto peer = session().data().peer(peerId);
-			return std::make_unique<CreditsRow>(peer, descriptor);
+			owned = std::make_unique<CreditsRow>(peer, descriptor);
 		} else {
-			return std::make_unique<CreditsRow>(descriptor);
+			owned = std::make_unique<CreditsRow>(descriptor);
 		}
+		_rowsById.emplace(owned->id(), owned.get());
+		owned->init();
+		return owned;
 	};
 
 	auto giftPacksRequested = false;
