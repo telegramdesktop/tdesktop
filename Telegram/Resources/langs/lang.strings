@@ -2797,6 +2797,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_balance_me" = "your balance";
 "lng_credits_balance_me_count" = "Your balance: {emoji} {amount}";
 "lng_credits_buy_button" = "Top Up Balance";
+"lng_credits_topup_button" = "{emoji} Top Up Balance";
 "lng_credits_buy_button_short" = "Top Up";
 "lng_credits_stats_button_short" = "Stats";
 "lng_credits_stats_button" = "View Statistics";

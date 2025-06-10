@@ -20,7 +20,7 @@ creditsSettingsBigBalanceSkip: 4px;
 creditsSettingsBigBalanceButton: RoundButton(defaultActiveButton) {
 	width: 240px;
 	height: 40px;
-	textTop: 12px;
+	textTop: 11px;
 	style: semiboldTextStyle;
 }
 creditsSettingsBigBalanceButtonGift: RoundButton(defaultLightButton) {

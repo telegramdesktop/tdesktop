@@ -698,14 +698,7 @@ settingsGiftIconEmoji: IconEmoji {
 	padding: margins(1px, 2px, 1px, 0px);
 }
 
-settingsCreditsButtonBuy: RoundButton(inviteLinkCopy) {
-	icon: icon {{ "settings/add", activeButtonFg, point(0px, 7px) }};
-	iconOver: icon {{ "settings/add", activeButtonFgOver, point(0px, 7px) }};
-}
-settingsCreditsButtonStats: RoundButton(inviteLinkCopy) {
-	icon: icon {{ "info/edit/links_share", activeButtonFg }};
-	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
-}
+settingsCreditsButtonBuyIcon: icon {{ "settings/add", windowBgActive, point(7px, 0px) }};
 
 settingsCreditsButton: SettingsButton(settingsButton) {
 	padding: margins(62px, 8px, 22px, 8px);

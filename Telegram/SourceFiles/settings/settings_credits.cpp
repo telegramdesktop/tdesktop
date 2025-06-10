@@ -405,12 +405,41 @@ void Credits::setupContent() {
 				content,
 				object_ptr<Ui::RoundButton>(
 					content,
-					rpl::conditional(
-						state->buyStars.loadingValue(),
-						rpl::single(QString()),
-						tr::lng_credits_buy_button()),
+					nullptr,
 					st::creditsSettingsBigBalanceButton)),
 			st::boxRowPadding)->entity();
+		button->setContext([&]() -> Ui::Text::MarkedContext {
+			auto customEmojiFactory = [=](const auto &...) {
+				const auto &icon = st::settingsIconAdd;
+				auto image = QImage(
+					(icon.size() + QSize(st::lineWidth * 4, 0))
+						* style::DevicePixelRatio(),
+					QImage::Format_ARGB32_Premultiplied);
+				const auto r = Rect(icon.size()) - Margins(st::lineWidth * 2);
+				image.setDevicePixelRatio(style::DevicePixelRatio());
+				image.fill(Qt::transparent);
+				{
+					auto p = QPainter(&image);
+					auto hq = PainterHighQualityEnabler(p);
+					p.setPen(Qt::NoPen);
+					p.setBrush(st::activeButtonFg);
+					p.drawEllipse(r);
+					icon.paintInCenter(p, r, st::windowBgActive->c);
+				}
+				return std::make_unique<Ui::Text::StaticCustomEmoji>(
+					std::move(image),
+					u"topup_button"_q);
+			};
+			return { .customEmojiFactory = std::move(customEmojiFactory) };
+		}());
+		button->setText(
+			rpl::conditional(
+				state->buyStars.loadingValue(),
+				rpl::single(TextWithEntities()),
+				tr::lng_credits_topup_button(
+					lt_emoji,
+					rpl::single(Ui::Text::SingleCustomEmoji(u"+"_q)),
+					Ui::Text::WithEntities)));
 		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		const auto show = _controller->uiShow();
 		button->setClickedCallback(state->buyStars.handler(show, paid));
