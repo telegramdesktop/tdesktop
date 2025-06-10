@@ -2966,7 +2966,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 				std::move(currencyValue)
 			) | rpl::map([](CreditsAmount credits, CreditsAmount currency) {
 				auto creditsText = (credits > CreditsAmount(0))
-					? Ui::Text::SingleCustomEmoji(Ui::kCreditsCurrency)
+					? Ui::MakeCreditsIconEntity()
 						.append(QChar(' '))
 						.append(Info::ChannelEarn::MajorPart(credits))
 						.append(Info::ChannelEarn::MinorPart(credits))

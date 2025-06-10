@@ -204,32 +204,22 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						repeat(repeat);
 					});
 
-					const auto fontH = content->contentTitleSt().font->height;
-					auto customEmojiFactory = [=](
-						QStringView data,
-						const Ui::Text::MarkedContext &context
-					) -> std::unique_ptr<Ui::Text::CustomEmoji> {
-						return Ui::MakeCreditsIconEmoji(fontH, 1);
-					};
-					using namespace Ui::Text;
-					auto context = MarkedContext{
-						.customEmojiFactory = std::move(customEmojiFactory),
-					};
-
 					content->setContent(
 						tr::lng_dialogs_suggestions_credits_sub_low_title(
 							tr::now,
 							lt_count,
 							float64(needed - whole),
 							lt_emoji,
-							Ui::Text::SingleCustomEmoji(Ui::kCreditsCurrency),
+							Ui::MakeCreditsIconEntity(),
 							lt_channels,
 							{ peers },
 							Ui::Text::Bold),
 						tr::lng_dialogs_suggestions_credits_sub_low_about(
 							tr::now,
 							TextWithEntities::Simple),
-						std::move(context));
+						Ui::MakeCreditsIconContext(
+							content->contentTitleSt().font->height,
+							1));
 					state->desiredWrapToggle.force_assign(
 						Toggle{ true, anim::type::normal });
 				};
