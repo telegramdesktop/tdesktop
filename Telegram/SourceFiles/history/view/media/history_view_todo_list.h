@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class RippleAnimation;
+class FireworksAnimation;
 } // namespace Ui
 
 namespace HistoryView {
@@ -51,6 +52,11 @@ public:
 	uint16 fullSelectionLength() const override;
 	TextForMimeData selectedText(TextSelection selection) const override;
 
+	void paintBubbleFireworks(
+		Painter &p,
+		const QRect &bubble,
+		crl::time ms) const override;
+
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
@@ -80,6 +86,7 @@ private:
 	void updateTasks(bool skipAnimations);
 	void startToggleAnimation(Task &task);
 	void updateCompletionStatus();
+	void maybeStartFireworks();
 	void setupPreviousState(const std::vector<TodoTaskInfo> &info);
 
 	int paintTask(
@@ -122,6 +129,7 @@ private:
 	std::vector<Task> _tasks;
 	Ui::Text::String _completionStatusLabel;
 
+	mutable std::unique_ptr<Ui::FireworksAnimation> _fireworksAnimation;
 	mutable QPoint _lastLinkPoint;
 	mutable QImage _userpicCircleCache;
 	mutable QImage _fillingIconCache;

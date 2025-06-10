@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/fireworks_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/painter.h"
 #include "data/data_media_types.h"
@@ -276,13 +277,18 @@ void TodoList::updateTasks(bool skipAnimations) {
 		&Task::id,
 		&TodoListItem::id);
 	if (!changed) {
+		auto animated = false;
 		auto &&tasks = ranges::views::zip(_tasks, _todolist->items);
 		for (auto &&[task, original] : tasks) {
 			const auto wasDate = task.completionDate;
 			task.fillData(_todolist, original, context);
 			if (!skipAnimations && (!wasDate != !task.completionDate)) {
 				startToggleAnimation(task);
+				animated = true;
 			}
+		}
+		if (animated) {
+			maybeStartFireworks();
 		}
 		return;
 	}
@@ -337,6 +343,15 @@ void TodoList::toggleCompletion(int id) {
 		_parent->data()->fullId(),
 		id,
 		!selected);
+
+	maybeStartFireworks();
+}
+
+void TodoList::maybeStartFireworks() {
+	if (!ranges::contains(_tasks, TimeId(), &Task::completionDate)) {
+		_fireworksAnimation = std::make_unique<Ui::FireworksAnimation>(
+			[=] { repaint(); });
+	}
 }
 
 void TodoList::updateCompletionStatus() {
@@ -623,6 +638,16 @@ TextState TodoList::textState(QPoint point, StateRequest request) const {
 		tshift += height;
 	}
 	return result;
+}
+
+void TodoList::paintBubbleFireworks(
+		Painter &p,
+		const QRect &bubble,
+		crl::time ms) const {
+	if (!_fireworksAnimation || _fireworksAnimation->paint(p, bubble)) {
+		return;
+	}
+	_fireworksAnimation = nullptr;
 }
 
 void TodoList::clickHandlerPressedChanged(
