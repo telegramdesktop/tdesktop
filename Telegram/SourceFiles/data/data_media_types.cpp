@@ -2332,7 +2332,10 @@ MediaTodoList::~MediaTodoList() {
 }
 
 std::unique_ptr<Media> MediaTodoList::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaTodoList>(parent, _todolist);
+	const auto id = parent->fullId();
+	return std::make_unique<MediaTodoList>(
+		parent,
+		parent->history()->owner().duplicateTodoList(id, _todolist));
 }
 
 TodoListData *MediaTodoList::todolist() const {

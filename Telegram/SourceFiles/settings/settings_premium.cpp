@@ -386,6 +386,15 @@ using Order = std::vector<QString>;
 				PremiumFeature::Effects,
 			},
 		},
+		{
+			u"todo_lists"_q,AssertIsDebug()
+			Entry{
+				&st::settingsPremiumIconTranslations,
+				tr::lng_premium_summary_subtitle_todo_lists(),
+				tr::lng_premium_summary_about_todo_lists(),
+				PremiumFeature::TodoLists,
+			},
+		},
 	};
 }
 
@@ -1608,6 +1617,8 @@ std::vector<PremiumFeature> PremiumFeaturesOrder(
 			return PremiumFeature::Wallpapers;
 		} else if (s == u"effects"_q) {
 			return PremiumFeature::Effects;
+		} else if (s == u"todo_lists"_q) {AssertIsDebug()
+			return PremiumFeature::TodoLists;
 		}
 		return PremiumFeature::kCount;
 	}) | ranges::views::filter([](PremiumFeature type) {

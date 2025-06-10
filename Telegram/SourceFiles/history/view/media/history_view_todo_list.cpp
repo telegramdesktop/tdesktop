@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_todo_list.h"
 
 #include "base/unixtime.h"
+#include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/ui_integration.h" // TextContext
 #include "lang/lang_keys.h"
 #include "history/history.h"
@@ -35,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_todo_lists.h"
+#include "window/window_peer_menu.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -324,6 +327,18 @@ void TodoList::startToggleAnimation(Task &task) {
 }
 
 void TodoList::toggleCompletion(int id) {
+	if (!canComplete()) {
+		_parent->delegate()->elementShowTooltip(
+			tr::lng_todo_mark_restricted(
+				tr::now,
+				lt_user,
+				Ui::Text::Bold(_parent->data()->from()->shortName()),
+				Ui::Text::RichLangValue), [] {});
+		return;
+	} else if (!_parent->history()->session().premium()) {
+		Window::PeerMenuTodoWantsPremium(Window::TodoWantsPremium::Mark);
+		return;
+	}
 	const auto i = ranges::find(
 		_tasks,
 		id,
@@ -477,7 +492,11 @@ int TodoList::paintTask(
 		p.setOpacity(1.);
 	}
 
-	paintRadio(p, task, left, top, context);
+	if (canComplete()) {
+		paintRadio(p, task, left, top, context);
+	} else {
+		paintStatus(p, task, left, top, context);
+	}
 
 	top += st::historyPollAnswerPadding.top();
 	p.setPen(stm->historyTextFg);
@@ -584,6 +603,39 @@ void TodoList::paintRadio(
 	p.setOpacity(o);
 }
 
+void TodoList::paintStatus(
+		Painter &p,
+		const Task &task,
+		int left,
+		int top,
+		const PaintContext &context) const {
+	top += st::historyPollAnswerPadding.top();
+
+	const auto stm = context.messageStyle();
+
+	const auto &radio = st::historyPollRadio;
+	const auto completed = (task.completionDate != 0);
+
+	const auto rect = QRect(left, top, radio.diameter, radio.diameter);
+	if (completed) {
+		const auto &icon = stm->historyPollChosen;
+		icon.paint(
+			p,
+			left + (radio.diameter - icon.width()) / 2,
+			top + (radio.diameter - icon.height()) / 2,
+			width(),
+			stm->msgFileBg->c);
+	} else {
+		p.setPen(Qt::NoPen);
+		p.setBrush(stm->msgFileBg);
+
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(style::centerrect(
+			rect,
+			QRect(0, 0, st::mediaUnreadSize, st::mediaUnreadSize)));
+	}
+}
+
 TextSelection TodoList::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
@@ -600,7 +652,6 @@ TextForMimeData TodoList::selectedText(TextSelection selection) const {
 
 TextState TodoList::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
-	const auto can = canComplete();
 	const auto padding = st::msgPadding;
 	auto paintw = width();
 	auto tshift = st::historyPollQuestionTop;
@@ -622,10 +673,9 @@ TextState TodoList::textState(QPoint point, StateRequest request) const {
 	for (const auto &task : _tasks) {
 		const auto height = countTaskHeight(task, paintw);
 		if (point.y() >= tshift && point.y() < tshift + height) {
-			if (can) {
-				_lastLinkPoint = point;
-				result.link = task.handler;
-			} else if (task.completionDate) {
+			_lastLinkPoint = point;
+			result.link = task.handler;
+			if (task.completionDate) {
 				result.customTooltip = true;
 				using Flag = Ui::Text::StateRequest::Flag;
 				if (request.flags & Flag::LookupCustomTooltip) {

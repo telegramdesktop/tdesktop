@@ -4142,6 +4142,19 @@ not_null<TodoListData*> Session::processTodoList(
 	return result;
 }
 
+not_null<TodoListData*> Session::duplicateTodoList(
+		TodoListId id,
+		not_null<TodoListData*> existing) {
+	const auto result = todoList(id);
+	result->title = existing->title;
+	result->items = existing->items;
+	for (auto &item : result->items) {
+		item.completedBy = nullptr;
+		item.completionDate = TimeId();
+	}
+	return result;
+}
+
 void Session::checkPollsClosings() {
 	const auto now = base::unixtime::now();
 	auto closest = 0;

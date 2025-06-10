@@ -111,6 +111,12 @@ void PeerMenuCreatePoll(
 	PollData::Flags disabled = PollData::Flags(),
 	Api::SendType sendType = Api::SendType::Normal,
 	SendMenu::Details sendMenuDetails = SendMenu::Details());
+enum class TodoWantsPremium {
+	Create,
+	Add,
+	Mark,
+};
+void PeerMenuTodoWantsPremium(TodoWantsPremium type);
 void PeerMenuCreateTodoList(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,

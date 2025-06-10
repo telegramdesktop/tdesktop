@@ -2628,7 +2628,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	}
 	if (peer->canCreateTodoLists()) {
 		++minimal;
-		raw->addAction(tr::lng_todo_create(tr::now), [=] {
+		raw->addAction(tr::lng_todo_menu_item(tr::now), [=] {
 			const auto action = actionFactory();
 			const auto source = action.options.scheduled
 				? Api::SendType::Scheduled

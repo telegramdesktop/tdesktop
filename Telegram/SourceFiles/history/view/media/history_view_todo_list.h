@@ -103,6 +103,12 @@ private:
 		int left,
 		int top,
 		const PaintContext &context) const;
+	void paintStatus(
+		Painter &p,
+		const Task &task,
+		int left,
+		int top,
+		const PaintContext &context) const;
 	void paintBottom(
 		Painter &p,
 		int left,

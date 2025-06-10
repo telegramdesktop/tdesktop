@@ -698,6 +698,9 @@ public:
 	not_null<TodoListData*> processTodoList(
 		TodoListId id,
 		const MTPDmessageMediaToDo &data);
+	[[nodiscard]] not_null<TodoListData*> duplicateTodoList(
+		TodoListId id,
+		not_null<TodoListData*> existing);
 
 	[[nodiscard]] not_null<CloudImage*> location(
 		const LocationPoint &point);
