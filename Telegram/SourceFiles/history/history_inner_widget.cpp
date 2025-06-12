@@ -2721,11 +2721,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	};
 
 	const auto addTodoListAction = [&](HistoryItem *item) {
-		const auto media = item ? item->media() : nullptr;
-		const auto todolist = media ? media->todolist() : nullptr;
-		if (!todolist
-			|| !item->isRegular()
-			|| (!item->out() && !todolist->othersCanAppend())) {
+		if (!item || !Window::PeerMenuShowAddTodoListTasks(item)) {
 			return;
 		}
 		const auto itemId = item->fullId();

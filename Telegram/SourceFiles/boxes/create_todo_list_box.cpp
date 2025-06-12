@@ -72,7 +72,7 @@ public:
 	[[nodiscard]] std::vector<TodoListItem> toTodoListItems() const;
 	void focusFirst();
 
-	[[nodiscard]] rpl::producer<int> usedCount() const;
+	[[nodiscard]] rpl::producer<int> addedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
 	[[nodiscard]] rpl::producer<> backspaceInFront() const;
 	[[nodiscard]] rpl::producer<> tabbed() const;
@@ -162,7 +162,7 @@ private:
 	int _tasksLimit = 0;
 	std::vector<std::unique_ptr<Task>> _list;
 	std::vector<std::unique_ptr<Task>> _destroyed;
-	rpl::variable<int> _usedCount = 0;
+	rpl::variable<int> _addedCount = 0;
 	bool _hasTasks = false;
 	bool _isValid = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
@@ -222,6 +222,26 @@ void FocusAtEnd(not_null<Ui::InputField*> field) {
 	field->setFocus();
 	field->setCursorPosition(field->getLastText().size());
 	field->ensureCursorVisible();
+}
+
+[[nodiscard]] base::unique_qptr<ChatHelpers::TabbedPanel> MakeEmojiPanel(
+		not_null<QWidget*> outer,
+		not_null<Window::SessionController*> controller) {
+	auto result = base::make_unique_q<ChatHelpers::TabbedPanel>(
+		outer,
+		controller,
+		object_ptr<ChatHelpers::TabbedSelector>(
+			nullptr,
+			controller->uiShow(),
+			Window::GifPauseReason::Layer,
+			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+	result->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	result ->hide();
+	result->selector()->setCurrentPeer(controller->session().user());
+	return result;
 }
 
 Tasks::Task::Task(
@@ -482,8 +502,8 @@ bool Tasks::isValid() const {
 	return _isValid;
 }
 
-rpl::producer<int> Tasks::usedCount() const {
-	return _usedCount.value();
+rpl::producer<int> Tasks::addedCount() const {
+	return _addedCount.value();
 }
 
 rpl::producer<not_null<QWidget*>> Tasks::scrollToWidget() const {
@@ -747,7 +767,7 @@ void Tasks::validateState() {
 	_isValid = _hasTasks && ranges::none_of(_list, &Task::isTooLong);
 
 	const auto lastEmpty = !_list.empty() && _list.back()->isEmpty();
-	_usedCount = _list.size()
+	_addedCount = _list.size()
 		- (lastEmpty ? 1 : 0)
 		- (_existingLocked ? _existingCount : 0);
 }
@@ -817,37 +837,22 @@ not_null<Ui::InputField*> CreateTodoListBox::setupTitle(
 	title->customTab(true);
 
 	if (isPremium) {
-		using Selector = ChatHelpers::TabbedSelector;
-		const auto outer = getDelegate()->outerContainer();
-		_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
-			outer,
-			_controller,
-			object_ptr<Selector>(
-				nullptr,
-				_controller->uiShow(),
-				Window::GifPauseReason::Layer,
-				Selector::Mode::EmojiOnly));
-		const auto emojiPanel = _emojiPanel.get();
-		emojiPanel->setDesiredHeightValues(
-			1.,
-			st::emojiPanMinHeight / 2,
-			st::emojiPanMinHeight);
-		emojiPanel->hide();
-		emojiPanel->selector()->setCurrentPeer(session->user());
-
+		_emojiPanel = MakeEmojiPanel(
+			getDelegate()->outerContainer(),
+			_controller);
 		const auto emojiToggle = Ui::AddEmojiToggleToField(
 			title,
 			this,
 			_controller,
-			emojiPanel,
+			_emojiPanel.get(),
 			st::createPollOptionFieldPremiumEmojiPosition);
-		emojiPanel->selector()->emojiChosen(
+		_emojiPanel->selector()->emojiChosen(
 		) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
 			if (title->hasFocus()) {
 				Ui::InsertEmojiAtCursor(title->textCursor(), data.emoji);
 			}
 		}, emojiToggle->lifetime());
-		emojiPanel->selector()->customEmojiChosen(
+		_emojiPanel->selector()->customEmojiChosen(
 		) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 			if (title->hasFocus()) {
 				Data::InsertCustomEmoji(title, data.document);
@@ -906,7 +911,7 @@ object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
 		container,
 		_controller,
 		_emojiPanel ? _emojiPanel.get() : nullptr);
-	auto limit = tasks->usedCount() | rpl::after_next([=](int count) {
+	auto limit = tasks->addedCount() | rpl::after_next([=](int count) {
 		setCloseByEscape(!count);
 		setCloseByOutsideClick(!count);
 	}) | rpl::map([=](int count) {
@@ -1094,21 +1099,32 @@ object_ptr<Ui::RpWidget> AddTodoListTasksBox::setupContent() {
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
 
+	if (_controller->session().premium()) {
+		_emojiPanel = MakeEmojiPanel(
+			getDelegate()->outerContainer(),
+			_controller);
+	}
+
+	const auto media = _item->media();
+	const auto todolist = media ? media->todolist() : nullptr;
+	Assert(todolist != nullptr);
 	const auto tasks = lifetime().make_state<Tasks>(
 		this,
 		container,
 		_controller,
 		_emojiPanel ? _emojiPanel.get() : nullptr,
-		_item->media()->todolist()->items,
+		todolist->items,
 		true);
-	auto limit = tasks->usedCount() | rpl::after_next([=](int count) {
+	const auto already = int(todolist->items.size());
+	auto limit = tasks->addedCount() | rpl::after_next([=](int count) {
 		setCloseByEscape(!count);
 		setCloseByOutsideClick(!count);
 	}) | rpl::map([=](int count) {
 		const auto appConfig = &_controller->session().appConfig();
 		const auto max = appConfig->todoListItemsLimit();
-		return (count < max)
-			? tr::lng_todo_create_limit(tr::now, lt_count, max - count)
+		const auto total = already + count;
+		return (total < max)
+			? tr::lng_todo_create_limit(tr::now, lt_count, max - total)
 			: tr::lng_todo_create_maximum(tr::now);
 	}) | rpl::after_next([=] {
 		container->resizeToWidth(container->widthNoMargins());

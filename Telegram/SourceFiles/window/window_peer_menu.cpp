@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/delayed_activation.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "menu/menu_mute.h"
@@ -2027,12 +2028,27 @@ void PeerMenuCreateTodoList(
 	controller->show(std::move(box), Ui::LayerOption::CloseOther);
 }
 
+bool PeerMenuShowAddTodoListTasks(not_null<HistoryItem*> item) {
+	const auto media = item ? item->media() : nullptr;
+	const auto todolist = media ? media->todolist() : nullptr;
+	const auto appConfig = &item->history()->session().appConfig();
+	return item->isRegular()
+		&& todolist
+		&& (todolist->items.size() < appConfig->todoListItemsLimit())
+		&& (item->out() || todolist->othersCanAppend());
+}
+
 void PeerMenuAddTodoListTasks(
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item) {
 	const auto session = &item->history()->session();
 	if (!session->premium()) {
 		PeerMenuTodoWantsPremium(TodoWantsPremium::Add);
+		return;
+	}
+	const auto media = item->media();
+	const auto todolist = media ? media->todolist() : nullptr;
+	if (!todolist) {
 		return;
 	}
 	auto box = Box<AddTodoListTasksBox>(controller, item);
