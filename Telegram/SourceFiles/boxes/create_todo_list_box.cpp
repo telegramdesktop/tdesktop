@@ -17,11 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_changes.h"
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_todo_list.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/view/history_view_schedule_box.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -60,7 +63,9 @@ public:
 		not_null<Ui::BoxContent*> box,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
-		ChatHelpers::TabbedPanel *emojiPanel);
+		ChatHelpers::TabbedPanel *emojiPanel,
+		std::vector<TodoListItem> existing = {},
+		bool existingLocked = false);
 
 	[[nodiscard]] bool hasTasks() const;
 	[[nodiscard]] bool isValid() const;
@@ -79,7 +84,10 @@ private:
 			not_null<QWidget*> outer,
 			not_null<Ui::VerticalLayout*> container,
 			not_null<Main::Session*> session,
-			int position);
+			int id,
+			TextWithEntities text,
+			int position,
+			bool locked);
 
 		Task(const Task &other) = delete;
 		Task &operator=(const Task &other) = delete;
@@ -93,6 +101,8 @@ private:
 		void createShadow();
 		void destroyShadow();
 
+		[[nodiscard]] int id() const;
+		[[nodiscard]] bool locked() const;
 		[[nodiscard]] bool isEmpty() const;
 		[[nodiscard]] bool isGood() const;
 		[[nodiscard]] bool isTooLong() const;
@@ -105,7 +115,7 @@ private:
 
 		[[nodiscard]] not_null<Ui::InputField*> field() const;
 
-		[[nodiscard]] TodoListItem toTodoListItem(int index) const;
+		[[nodiscard]] TodoListItem toTodoListItem(int nextId) const;
 
 		[[nodiscard]] rpl::producer<Qt::MouseButton> removeClicks() const;
 
@@ -114,6 +124,7 @@ private:
 		void createWarning();
 		void updateFieldGeometry();
 
+		int _id = 0;
 		base::unique_qptr<Ui::SlideWrap<Ui::RpWidget>> _wrap;
 		not_null<Ui::RpWidget*> _content;
 		Ui::InputField *_field = nullptr;
@@ -129,6 +140,11 @@ private:
 	void fixShadows();
 	void removeEmptyTail();
 	void addEmptyTask();
+	void addTask(
+		int id,
+		TextWithEntities text,
+		anim::type animated);
+	void initTaskField(not_null<Task*> task);
 	void checkLastTask();
 	void validateState();
 	void fixAfterErase();
@@ -139,6 +155,8 @@ private:
 	not_null<Ui::BoxContent*> _box;
 	not_null<Ui::VerticalLayout*> _container;
 	const not_null<Window::SessionController*> _controller;
+	const int _existingCount = 0;
+	const bool _existingLocked = false;
 	ChatHelpers::TabbedPanel * const _emojiPanel;
 	int _position = 0;
 	int _tasksLimit = 0;
@@ -210,8 +228,12 @@ Tasks::Task::Task(
 	not_null<QWidget*> outer,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Main::Session*> session,
-	int position)
-: _wrap(container->insert(
+	int id,
+	TextWithEntities text,
+	int position,
+	bool locked)
+: _id(id)
+, _wrap(container->insert(
 	position,
 	object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
 		container,
@@ -228,8 +250,17 @@ Tasks::Task::Task(
 , _limit(session->appConfig().todoListItemTextLimit()) {
 	InitField(outer, _field, session);
 	_field->setMaxLength(_limit + kErrorLimit);
+	_field->setTextWithTags({
+		text.text,
+		TextUtilities::ConvertEntitiesToTextTags(text.entities)
+	});
+	_field->finishAnimating();
 	_field->show();
-	_field->customTab(true);
+	if (locked) {
+		_field->setDisabled(true);
+	} else {
+		_field->customTab(true);
+	}
 
 	_wrap->hide(anim::type::instant);
 
@@ -244,8 +275,10 @@ Tasks::Task::Task(
 	}, _field->lifetime());
 
 	createShadow();
-	createRemove();
-	createWarning();
+	if (!locked) {
+		createRemove();
+		createWarning();
+	}
 	updateFieldGeometry();
 }
 
@@ -345,7 +378,9 @@ bool Tasks::Task::isEmpty() const {
 }
 
 bool Tasks::Task::isGood() const {
-	return !field()->getLastText().trimmed().isEmpty() && !isTooLong();
+	return !locked()
+		&& !field()->getLastText().trimmed().isEmpty()
+		&& !isTooLong();
 }
 
 bool Tasks::Task::isTooLong() const {
@@ -357,7 +392,9 @@ bool Tasks::Task::hasFocus() const {
 }
 
 void Tasks::Task::setFocus() const {
-	FocusAtEnd(field());
+	if (!locked()) {
+		FocusAtEnd(field());
+	}
 }
 
 void Tasks::Task::clearValue() {
@@ -369,7 +406,9 @@ void Tasks::Task::setPlaceholder() const {
 }
 
 void Tasks::Task::toggleRemoveAlways(bool toggled) {
-	*_removeAlways = toggled;
+	if (_removeAlways) {
+		*_removeAlways = toggled;
+	}
 }
 
 void Tasks::Task::updateFieldGeometry() {
@@ -385,37 +424,49 @@ void Tasks::Task::removePlaceholder() const {
 	field()->setPlaceholder(rpl::single(QString()));
 }
 
-TodoListItem Tasks::Task::toTodoListItem(int index) const {
-	Expects(index >= 0 && index < kMaxOptionsCount);
+int Tasks::Task::id() const {
+	return _id;
+}
 
+bool Tasks::Task::locked() const {
+	return !_remove;
+}
+
+TodoListItem Tasks::Task::toTodoListItem(int nextId) const {
 	const auto text = field()->getTextWithTags();
-
 	auto result = TodoListItem{
 		.text = TextWithEntities{
 			.text = text.text,
 			.entities = TextUtilities::ConvertTextTagsToEntities(text.tags),
 		},
-		.id = (index + 1)
+		.id = _id ? _id : nextId,
 	};
 	TextUtilities::Trim(result.text);
 	return result;
 }
 
 rpl::producer<Qt::MouseButton> Tasks::Task::removeClicks() const {
-	return _remove->clicks();
+	return _remove ? _remove->clicks() : rpl::never<Qt::MouseButton>();
 }
 
 Tasks::Tasks(
 	not_null<Ui::BoxContent*> box,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller,
-	ChatHelpers::TabbedPanel *emojiPanel)
+	ChatHelpers::TabbedPanel *emojiPanel,
+	std::vector<TodoListItem> existing,
+	bool existingLocked)
 : _box(box)
 , _container(container)
 , _controller(controller)
+, _existingCount(existing.size())
+, _existingLocked(existingLocked)
 , _emojiPanel(emojiPanel)
 , _position(_container->count())
 , _tasksLimit(controller->session().appConfig().todoListItemsLimit()) {
+	for (const auto &task : existing) {
+		addTask(task.id, task.text, anim::type::instant);
+	}
 	checkLastTask();
 }
 
@@ -466,22 +517,21 @@ void Tasks::Task::destroy(FnMut<void()> done) {
 std::vector<TodoListItem> Tasks::toTodoListItems() const {
 	auto result = std::vector<TodoListItem>();
 	result.reserve(_list.size());
-	auto counter = int(0);
-	const auto makeTask = [&](const std::unique_ptr<Task> &task) {
-		return task->toTodoListItem(counter++);
-	};
-	ranges::copy(
-		_list
-		| ranges::views::filter(&Task::isGood)
-		| ranges::views::transform(makeTask),
-		ranges::back_inserter(result));
+	auto usedId = 0;
+	for (const auto &task : _list) {
+		if (task->isGood()) {
+			result.push_back(task->toTodoListItem(++usedId));
+		} else if (const auto id = task->id()) {
+			usedId = std::max(usedId, id);
+		}
+	}
 	return result;
 }
 
 void Tasks::focusFirst() {
-	Expects(!_list.empty());
-
-	_list.front()->setFocus();
+	const auto locked = _existingLocked ? _existingCount : 0;
+	Assert(locked < _list.size());
+	FocusAtEnd((_list.begin() + locked)->get()->field());
 }
 
 bool Tasks::correctShadows() const {
@@ -549,21 +599,45 @@ void Tasks::fixAfterErase() {
 }
 
 void Tasks::addEmptyTask() {
-	if (full()) {
+	if (!_list.empty() && _list.back()->isEmpty()) {
 		return;
-	} else if (!_list.empty() && _list.back()->isEmpty()) {
+	}
+	const auto locked = _existingLocked ? _existingCount : 0;
+	addTask(
+		0, // id
+		TextWithEntities(),
+		(locked < _list.size()) ? anim::type::normal : anim::type::instant);
+}
+
+void Tasks::addTask(
+		int id,
+		TextWithEntities text,
+		anim::type animated) {
+	if (full()) {
 		return;
 	}
 	if (_list.size() > 1) {
 		(*(_list.end() - 2))->removePlaceholder();
 		(*(_list.end() - 2))->toggleRemoveAlways(true);
 	}
+	const auto locked = id && _existingLocked;
 	_list.push_back(std::make_unique<Task>(
 		_box,
 		_container,
 		&_controller->session(),
-		_position + _list.size() + _destroyed.size()));
-	const auto field = _list.back()->field();
+		id,
+		std::move(text),
+		_position + _list.size() + _destroyed.size(),
+		locked));
+	if (!locked) {
+		initTaskField(_list.back().get());
+	}
+	_list.back()->show(animated);
+	fixShadows();
+}
+
+void Tasks::initTaskField(not_null<Task*> task) {
+	const auto field = task->field();
 	if (const auto emojiPanel = _emojiPanel) {
 		const auto emojiToggle = Ui::AddEmojiToggleToField(
 			field,
@@ -637,7 +711,7 @@ void Tasks::addEmptyTask() {
 		return base::EventFilterResult::Cancel;
 	});
 
-	_list.back()->removeClicks(
+	task->removeClicks(
 	) | rpl::start_with_next([=] {
 		Ui::PostponeCall(crl::guard(field, [=] {
 			Expects(!_list.empty());
@@ -656,11 +730,6 @@ void Tasks::addEmptyTask() {
 			validateState();
 		}));
 	}, field->lifetime());
-
-	_list.back()->show((_list.size() == 1)
-		? anim::type::instant
-		: anim::type::normal);
-	fixShadows();
 }
 
 void Tasks::removeDestroyed(not_null<Task*> task) {
@@ -678,7 +747,9 @@ void Tasks::validateState() {
 	_isValid = _hasTasks && ranges::none_of(_list, &Task::isTooLong);
 
 	const auto lastEmpty = !_list.empty() && _list.back()->isEmpty();
-	_usedCount = _list.size() - (lastEmpty ? 1 : 0);
+	_usedCount = _list.size()
+		- (lastEmpty ? 1 : 0)
+		- (_existingLocked ? _existingCount : 0);
 }
 
 int Tasks::findField(not_null<Ui::InputField*> field) const {
@@ -728,7 +799,7 @@ not_null<Ui::InputField*> CreateTodoListBox::setupTitle(
 	using namespace Settings;
 
 	const auto session = &_controller->session();
-	const auto isPremium = session->user()->isPremium();
+	const auto isPremium = session->premium();
 
 	const auto title = container->add(
 		object_ptr<Ui::InputField>(
@@ -992,4 +1063,86 @@ void CreateTodoListBox::prepare() {
 	const auto inner = setInnerWidget(setupContent());
 
 	setDimensionsToContent(st::boxWideWidth, inner);
+}
+
+AddTodoListTasksBox::AddTodoListTasksBox(
+	QWidget*,
+	not_null<Window::SessionController*> controller,
+	not_null<HistoryItem*> item)
+: _controller(controller)
+, _item(item) {
+	_controller->session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		if (update.item == item) {
+			closeBox();
+		}
+	}, lifetime());
+}
+
+void AddTodoListTasksBox::prepare() {
+	setTitle(tr::lng_todo_add_title());
+
+	const auto inner = setInnerWidget(setupContent());
+
+	setDimensionsToContent(st::boxWideWidth, inner);
+
+	scrollToY(ScrollMax);
+}
+
+object_ptr<Ui::RpWidget> AddTodoListTasksBox::setupContent() {
+	auto result = object_ptr<Ui::VerticalLayout>(this);
+	const auto container = result.data();
+
+	const auto tasks = lifetime().make_state<Tasks>(
+		this,
+		container,
+		_controller,
+		_emojiPanel ? _emojiPanel.get() : nullptr,
+		_item->media()->todolist()->items,
+		true);
+	auto limit = tasks->usedCount() | rpl::after_next([=](int count) {
+		setCloseByEscape(!count);
+		setCloseByOutsideClick(!count);
+	}) | rpl::map([=](int count) {
+		const auto appConfig = &_controller->session().appConfig();
+		const auto max = appConfig->todoListItemsLimit();
+		return (count < max)
+			? tr::lng_todo_create_limit(tr::now, lt_count, max - count)
+			: tr::lng_todo_create_maximum(tr::now);
+	}) | rpl::after_next([=] {
+		container->resizeToWidth(container->widthNoMargins());
+	});
+	container->add(
+		object_ptr<Ui::DividerLabel>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(limit),
+				st::boxDividerLabel),
+			st::createPollLimitPadding));
+
+	_setInnerFocus = [=] {
+		tasks->focusFirst();
+	};
+
+	tasks->scrollToWidget(
+	) | rpl::start_with_next([=](not_null<QWidget*> widget) {
+		scrollToWidget(widget);
+	}, lifetime());
+
+	const auto submit = addButton(tr::lng_settings_save(), [=] {
+		_submitRequests.fire({ tasks->toTodoListItems() });
+	});
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+	return result;
+}
+
+auto AddTodoListTasksBox::submitRequests() const -> rpl::producer<Result> {
+	return _submitRequests.events();
+}
+
+void AddTodoListTasksBox::setInnerFocus() {
+	_setInnerFocus();
 }

@@ -2017,13 +2017,36 @@ void PeerMenuCreateTodoList(
 		api->todoLists().create(result.todolist, action, crl::guard(weak, [=] {
 			state->create = nullptr;
 			weak->closeBox();
-		}), crl::guard(weak, [=] {
+		}), crl::guard(weak, [=](const QString &error) {
 			state->lock = false;
-			weak->submitFailed(tr::lng_attach_failed(tr::now));
+			weak->submitFailed(error);
 		}));
 	};
 	box->submitRequests(
 	) | rpl::start_with_next(state->create, box->lifetime());
+	controller->show(std::move(box), Ui::LayerOption::CloseOther);
+}
+
+void PeerMenuAddTodoListTasks(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	if (!session->premium()) {
+		PeerMenuTodoWantsPremium(TodoWantsPremium::Add);
+		return;
+	}
+	auto box = Box<AddTodoListTasksBox>(controller, item);
+	const auto raw = box.data();
+	box->submitRequests(
+	) | rpl::start_with_next([=](const AddTodoListTasksBox::Result &result) {
+		const auto show = raw->uiShow();
+		raw->closeBox();
+		session->api().todoLists().add(
+			item,
+			result.items,
+			[] {},
+			[=](const QString &error) { show->showToast(error); });
+	}, box->lifetime());
 	controller->show(std::move(box), Ui::LayerOption::CloseOther);
 }
 

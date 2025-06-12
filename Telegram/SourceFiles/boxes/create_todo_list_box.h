@@ -76,3 +76,32 @@ private:
 	int _titleLimit = 0;
 
 };
+
+class AddTodoListTasksBox : public Ui::BoxContent {
+public:
+	struct Result {
+		std::vector<TodoListItem> items;
+	};
+
+	AddTodoListTasksBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item);
+
+	[[nodiscard]] rpl::producer<Result> submitRequests() const;
+
+	void setInnerFocus() override;
+
+protected:
+	void prepare() override;
+
+private:
+	[[nodiscard]] object_ptr<Ui::RpWidget> setupContent();
+
+	const not_null<Window::SessionController*> _controller;
+	const not_null<HistoryItem*> _item;
+	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
+	Fn<void()> _setInnerFocus;
+	rpl::event_stream<Result> _submitRequests;
+
+};

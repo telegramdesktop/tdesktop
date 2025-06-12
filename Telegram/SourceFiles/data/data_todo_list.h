@@ -70,6 +70,9 @@ private:
 
 };
 
+[[nodiscard]] MTPVector<MTPTodoItem> TodoListItemsToMTP(
+	not_null<Main::Session*> session,
+	const std::vector<TodoListItem> &tasks);
 [[nodiscard]] MTPTodoList TodoListDataToMTP(
 	not_null<const TodoListData*> todolist);
 [[nodiscard]] MTPInputMedia TodoListDataToInputMedia(

@@ -177,22 +177,23 @@ bool TodoListData::othersCanComplete() const {
 	return (_flags & Flag::OthersCanComplete);
 }
 
-MTPTodoList TodoListDataToMTP(not_null<const TodoListData*> todolist) {
+MTPVector<MTPTodoItem> TodoListItemsToMTP(
+		not_null<Main::Session*> session,
+		const std::vector<TodoListItem> &tasks) {
 	const auto convert = [&](const TodoListItem &item) {
 		return MTP_todoItem(
 			MTP_int(item.id),
 			MTP_textWithEntities(
 				MTP_string(item.text.text),
-				Api::EntitiesToMTP(
-					&todolist->session(),
-					item.text.entities)));
+				Api::EntitiesToMTP(session, item.text.entities)));
 	};
 	auto items = QVector<MTPTodoItem>();
-	items.reserve(todolist->items.size());
-	ranges::transform(
-		todolist->items,
-		ranges::back_inserter(items),
-		convert);
+	items.reserve(tasks.size());
+	ranges::transform(tasks, ranges::back_inserter(items), convert);
+	return MTP_vector<MTPTodoItem>(items);
+}
+
+MTPTodoList TodoListDataToMTP(not_null<const TodoListData*> todolist) {
 	using Flag = MTPDtodoList::Flag;
 	const auto flags = Flag()
 		| (todolist->othersCanAppend()
@@ -208,7 +209,7 @@ MTPTodoList TodoListDataToMTP(not_null<const TodoListData*> todolist) {
 			Api::EntitiesToMTP(
 				&todolist->session(),
 				todolist->title.entities)),
-		MTP_vector<MTPTodoItem>(items));
+		TodoListItemsToMTP(&todolist->session(), todolist->items));
 }
 
 MTPInputMedia TodoListDataToInputMedia(

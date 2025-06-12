@@ -42,7 +42,7 @@ void TodoLists::create(
 		const TodoListData &data,
 		SendAction action,
 		Fn<void()> done,
-		Fn<void()> fail) {
+		Fn<void(QString)> fail) {
 	_session->api().sendAction(action);
 
 	const auto history = action.history;
@@ -118,7 +118,9 @@ void TodoLists::create(
 			(action.options.scheduled
 				? Data::HistoryUpdate::Flag::ScheduledSent
 				: Data::HistoryUpdate::Flag::MessageSent));
-		done();
+		if (const auto onstack = done) {
+			onstack();
+		}
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(
@@ -126,8 +128,35 @@ void TodoLists::create(
 				monoforumPeerId,
 				UnixtimeFromMsgId(response.outerMsgId));
 		}
-		fail();
+		if (const auto onstack = fail) {
+			onstack(error.type());
+		}
 	});
+}
+
+void TodoLists::add(
+		not_null<HistoryItem*> item,
+		const std::vector<TodoListItem> &items,
+		Fn<void()> done,
+		Fn<void(QString)> fail) {
+	if (items.empty()) {
+		return;
+	}
+	const auto session = _session;
+	_session->api().request(MTPmessages_AppendTodoList(
+		item->history()->peer->input,
+		MTP_int(item->id.bare),
+		TodoListItemsToMTP(&item->history()->session(), items)
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+		if (const auto onstack = done) {
+			onstack();
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (const auto onstack = fail) {
+			onstack(error.type());
+		}
+	}).send();
 }
 
 void TodoLists::toggleCompletion(FullMsgId itemId, int id, bool completed) {

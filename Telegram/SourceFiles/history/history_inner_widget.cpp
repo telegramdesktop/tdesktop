@@ -94,6 +94,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
+#include "data/data_todo_list.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -2719,6 +2720,24 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
+	const auto addTodoListAction = [&](HistoryItem *item) {
+		const auto media = item ? item->media() : nullptr;
+		const auto todolist = media ? media->todolist() : nullptr;
+		if (!todolist
+			|| !item->isRegular()
+			|| (!item->out() && !todolist->othersCanAppend())) {
+			return;
+		}
+		const auto itemId = item->fullId();
+		_menu->addAction(
+			tr::lng_todo_add_title(tr::now),
+			crl::guard(this, [=] {
+				if (const auto item = session->data().message(itemId)) {
+					Window::PeerMenuAddTodoListTasks(_controller, item);
+				}
+			}),
+			&st::menuIconCreateTodoList);
+	};
 	const auto lnkPhoto = link
 		? reinterpret_cast<PhotoData*>(
 			link->property(kPhotoLinkMediaProperty).toULongLong())
@@ -2889,6 +2908,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			addItemActions(item, item);
 		} else {
 			addReplyAction(partItemOrLeader);
+			addTodoListAction(partItemOrLeader);
 			addItemActions(item, albumPartItem);
 			if (item && !isUponSelected) {
 				const auto media = (view ? view->media() : nullptr);

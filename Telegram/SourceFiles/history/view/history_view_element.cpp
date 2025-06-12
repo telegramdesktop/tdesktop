@@ -620,7 +620,7 @@ int ServicePreMessage::resizeToWidth(int newWidth, ElementChatMode mode) {
 			st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
 	}
 	auto contentWidth = width;
-	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
+	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.right();
 	if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
 		contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
 	}

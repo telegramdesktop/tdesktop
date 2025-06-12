@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 class HistoryItem;
+struct TodoListItem;
 struct TodoListData;
 
 namespace Main {
@@ -30,7 +31,12 @@ public:
 		const TodoListData &data,
 		SendAction action,
 		Fn<void()> done,
-		Fn<void()> fail);
+		Fn<void(QString)> fail);
+	void add(
+		not_null<HistoryItem*> item,
+		const std::vector<TodoListItem> &items,
+		Fn<void()> done,
+		Fn<void(QString)> fail);
 	void toggleCompletion(FullMsgId itemId, int id, bool completed);
 
 private:
