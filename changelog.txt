@@ -1,3 +1,8 @@
+5.15.4 (12.06.25)
+
+- Fix updating messages in Saved Messages subchats.
+- Fix possible issues with mouse cursor on Linux.
+
 5.15.3 (09.06.25)
 
 - Fix new contact top bar appearance.
