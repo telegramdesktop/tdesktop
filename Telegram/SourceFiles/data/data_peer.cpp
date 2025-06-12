@@ -685,7 +685,8 @@ bool PeerData::canCreatePolls() const {
 }
 
 bool PeerData::canCreateTodoLists() const {
-	return Data::CanSend(this, ChatRestriction::SendPolls) || isUser();
+	return session().premium()
+		&& (Data::CanSend(this, ChatRestriction::SendPolls) || isUser());
 }
 
 bool PeerData::canCreateTopics() const {

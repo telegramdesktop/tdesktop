@@ -30,19 +30,23 @@ namespace SendMenu {
 struct Details;
 } // namespace SendMenu
 
-class CreateTodoListBox : public Ui::BoxContent {
+class EditTodoListBox : public Ui::BoxContent {
 public:
 	struct Result {
 		TodoListData todolist;
 		Api::SendOptions options;
 	};
 
-	CreateTodoListBox(
+	EditTodoListBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
 		rpl::producer<int> starsRequired,
 		Api::SendType sendType,
 		SendMenu::Details sendMenuDetails);
+	EditTodoListBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item);
 
 	[[nodiscard]] rpl::producer<Result> submitRequests() const;
 	void submitFailed(const QString &error);
@@ -68,6 +72,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const Api::SendType _sendType = Api::SendType();
 	const Fn<SendMenu::Details()> _sendMenuDetails;
+	HistoryItem *_editingItem = nullptr;
 	rpl::variable<int> _starsRequired;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	Fn<void()> _setInnerFocus;

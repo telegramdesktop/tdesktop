@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/create_todo_list_box.h"
+#include "boxes/edit_todo_list_box.h"
 
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
@@ -85,7 +85,6 @@ private:
 			not_null<Ui::VerticalLayout*> container,
 			not_null<Main::Session*> session,
 			int id,
-			TextWithEntities text,
 			int position,
 			bool locked);
 
@@ -144,7 +143,7 @@ private:
 		int id,
 		TextWithEntities text,
 		anim::type animated);
-	void initTaskField(not_null<Task*> task);
+	void initTaskField(not_null<Task*> task, TextWithEntities text);
 	void checkLastTask();
 	void validateState();
 	void fixAfterErase();
@@ -249,7 +248,6 @@ Tasks::Task::Task(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Main::Session*> session,
 	int id,
-	TextWithEntities text,
 	int position,
 	bool locked)
 : _id(id)
@@ -270,11 +268,6 @@ Tasks::Task::Task(
 , _limit(session->appConfig().todoListItemTextLimit()) {
 	InitField(outer, _field, session);
 	_field->setMaxLength(_limit + kErrorLimit);
-	_field->setTextWithTags({
-		text.text,
-		TextUtilities::ConvertEntitiesToTextTags(text.entities)
-	});
-	_field->finishAnimating();
 	_field->show();
 	if (locked) {
 		_field->setDisabled(true);
@@ -487,7 +480,7 @@ Tasks::Tasks(
 	for (const auto &task : existing) {
 		addTask(task.id, task.text, anim::type::instant);
 	}
-	checkLastTask();
+	validateState();
 }
 
 bool Tasks::full() const {
@@ -539,10 +532,13 @@ std::vector<TodoListItem> Tasks::toTodoListItems() const {
 	result.reserve(_list.size());
 	auto usedId = 0;
 	for (const auto &task : _list) {
+		if (const auto id = task->id()) {
+			usedId = id;
+		} else if (task->isGood()) {
+			++usedId;
+		}
 		if (task->isGood()) {
-			result.push_back(task->toTodoListItem(++usedId));
-		} else if (const auto id = task->id()) {
-			usedId = std::max(usedId, id);
+			result.push_back(task->toTodoListItem(usedId));
 		}
 	}
 	return result;
@@ -646,17 +642,28 @@ void Tasks::addTask(
 		_container,
 		&_controller->session(),
 		id,
-		std::move(text),
 		_position + _list.size() + _destroyed.size(),
 		locked));
+	const auto field = _list.back()->field();
 	if (!locked) {
-		initTaskField(_list.back().get());
+		initTaskField(_list.back().get(), std::move(text));
+	} else {
+		InitMessageFieldHandlers(
+			_controller,
+			field,
+			Window::GifPauseReason::Layer,
+			[](not_null<DocumentData*>) { return true; });
+		field->setTextWithTags({
+			text.text,
+			TextUtilities::ConvertEntitiesToTextTags(text.entities)
+		});
 	}
+	field->finishAnimating();
 	_list.back()->show(animated);
 	fixShadows();
 }
 
-void Tasks::initTaskField(not_null<Task*> task) {
+void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 	const auto field = task->field();
 	if (const auto emojiPanel = _emojiPanel) {
 		const auto emojiToggle = Ui::AddEmojiToggleToField(
@@ -686,6 +693,10 @@ void Tasks::initTaskField(not_null<Task*> task) {
 			}, _emojiPanelLifetime);
 		}, emojiToggle->lifetime());
 	}
+	field->setTextWithTags({
+		text.text,
+		TextUtilities::ConvertEntitiesToTextTags(text.entities)
+	});
 	field->submits(
 	) | rpl::start_with_next([=] {
 		const auto index = findField(field);
@@ -789,7 +800,7 @@ void Tasks::checkLastTask() {
 
 } // namespace
 
-CreateTodoListBox::CreateTodoListBox(
+EditTodoListBox::EditTodoListBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
 	rpl::producer<int> starsRequired,
@@ -802,25 +813,41 @@ CreateTodoListBox::CreateTodoListBox(
 , _titleLimit(controller->session().appConfig().todoListTitleLimit()) {
 }
 
-auto CreateTodoListBox::submitRequests() const -> rpl::producer<Result> {
+EditTodoListBox::EditTodoListBox(
+	QWidget*,
+	not_null<Window::SessionController*> controller,
+	not_null<HistoryItem*> item)
+: _controller(controller)
+, _sendMenuDetails([] { return SendMenu::Details(); })
+, _editingItem(item)
+, _titleLimit(controller->session().appConfig().todoListTitleLimit()) {
+	_controller->session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		if (update.item == item) {
+			closeBox();
+		}
+	}, lifetime());
+}
+
+auto EditTodoListBox::submitRequests() const -> rpl::producer<Result> {
 	return _submitRequests.events();
 }
 
-void CreateTodoListBox::setInnerFocus() {
+void EditTodoListBox::setInnerFocus() {
 	_setInnerFocus();
 }
 
-void CreateTodoListBox::submitFailed(const QString &error) {
+void EditTodoListBox::submitFailed(const QString &error) {
 	showToast(error);
 }
 
-not_null<Ui::InputField*> CreateTodoListBox::setupTitle(
+not_null<Ui::InputField*> EditTodoListBox::setupTitle(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
 	const auto session = &_controller->session();
 	const auto isPremium = session->premium();
-
 	const auto title = container->add(
 		object_ptr<Ui::InputField>(
 			container,
@@ -860,6 +887,15 @@ not_null<Ui::InputField*> CreateTodoListBox::setupTitle(
 		}, emojiToggle->lifetime());
 	}
 
+	const auto media = _editingItem ? _editingItem->media() : nullptr;
+	if (const auto todolist = media ? media->todolist() : nullptr) {
+		const auto &text = todolist->title;
+		title->setTextWithTags({
+			text.text,
+			TextUtilities::ConvertEntitiesToTextTags(text.entities)
+		});
+	}
+
 	const auto warning = CreateWarningLabel(
 		container,
 		title,
@@ -885,7 +921,7 @@ not_null<Ui::InputField*> CreateTodoListBox::setupTitle(
 	return title;
 }
 
-object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
+object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 	using namespace Settings;
 
 	const auto id = FullMsgId{
@@ -906,11 +942,14 @@ object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
 			tr::lng_todo_create_list(),
 			st::defaultSubsectionTitle),
 		st::createPollFieldTitlePadding);
+	const auto media = _editingItem ? _editingItem->media() : nullptr;
+	const auto todolist = media ? media->todolist() : nullptr;
 	const auto tasks = lifetime().make_state<Tasks>(
 		this,
 		container,
 		_controller,
-		_emojiPanel ? _emojiPanel.get() : nullptr);
+		_emojiPanel ? _emojiPanel.get() : nullptr,
+		todolist ? todolist->items : std::vector<TodoListItem>());
 	auto limit = tasks->addedCount() | rpl::after_next([=](int count) {
 		setCloseByEscape(!count);
 		setCloseByOutsideClick(!count);
@@ -944,14 +983,14 @@ object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
 		object_ptr<Ui::Checkbox>(
 			container,
 			tr::lng_todo_create_allow_add(tr::now),
-			true,
+			!todolist || todolist->othersCanAppend(),
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
 	const auto allowMark = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
 			tr::lng_todo_create_allow_mark(tr::now),
-			true,
+			!todolist || todolist->othersCanComplete(),
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
 
@@ -1019,6 +1058,14 @@ object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
 			showError(tr::lng_todo_choose_tasks);
 			tasks->focusFirst();
 		} else if (!*error) {
+			if (_editingItem) {
+				sendOptions = {
+					.scheduled = (_editingItem->isScheduled()
+						? _editingItem->date()
+						: TimeId()),
+					.shortcutId = _editingItem->shortcutId(),
+				};
+			}
 			_submitRequests.fire({ collectResult(), sendOptions });
 		}
 	};
@@ -1043,9 +1090,13 @@ object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
 			_sendMenuDetails());
 	};
 	const auto submit = addButton(
-		tr::lng_todo_create_button(),
+		(_editingItem
+			? tr::lng_settings_save()
+			: tr::lng_todo_create_button()),
 		[=] { isNormal ? send({}) : schedule(); });
-	submit->setText(PaidSendButtonText(_starsRequired.value(), isNormal
+	submit->setText(PaidSendButtonText(_starsRequired.value(), _editingItem
+		? tr::lng_settings_save()
+		: isNormal
 		? tr::lng_todo_create_button()
 		: tr::lng_schedule_button()));
 	const auto sendMenuDetails = [=] {
@@ -1062,7 +1113,7 @@ object_ptr<Ui::RpWidget> CreateTodoListBox::setupContent() {
 	return result;
 }
 
-void CreateTodoListBox::prepare() {
+void EditTodoListBox::prepare() {
 	setTitle(tr::lng_todo_create_title());
 
 	const auto inner = setInnerWidget(setupContent());

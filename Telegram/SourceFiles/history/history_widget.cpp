@@ -8559,6 +8559,11 @@ void HistoryWidget::editMessage(
 	} else if (_voiceRecordBar->isActive()) {
 		controller()->showToast(tr::lng_edit_caption_voice(tr::now));
 		return;
+	} else if (const auto media = item->media()) {
+		if (const auto todolist = media->todolist()) {
+			Window::PeerMenuEditTodoList(controller(), item);
+			return;
+		}
 	} else if (_composeSearch) {
 		_composeSearch->hideAnimated();
 	}

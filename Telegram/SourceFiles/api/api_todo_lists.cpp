@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_todo_lists.h"
 
-//#include "api/api_common.h"
-//#include "api/api_updates.h"
+#include "api/api_editing.h"
 #include "apiwrap.h"
 #include "base/random.h"
 #include "data/business/data_shortcut_messages.h" // ShortcutIdToMTP
@@ -130,6 +129,23 @@ void TodoLists::create(
 		}
 		if (const auto onstack = fail) {
 			onstack(error.type());
+		}
+	});
+}
+
+void TodoLists::edit(
+		not_null<HistoryItem*> item,
+		const TodoListData &data,
+		SendOptions options,
+		Fn<void()> done,
+		Fn<void(QString)> fail) {
+	EditTodoList(item, data, options, [=](mtpRequestId) {
+		if (const auto onstack = done) {
+			onstack();
+		}
+	}, [=](const QString &error, mtpRequestId) {
+		if (const auto onstack = fail) {
+			onstack(error);
 		}
 	});
 }

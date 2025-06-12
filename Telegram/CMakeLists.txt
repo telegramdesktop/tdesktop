@@ -273,8 +273,6 @@ PRIVATE
     boxes/connection_box.h
     boxes/create_poll_box.cpp
     boxes/create_poll_box.h
-    boxes/create_todo_list_box.cpp
-    boxes/create_todo_list_box.h
     boxes/delete_messages_box.cpp
     boxes/delete_messages_box.h
     boxes/dictionaries_manager.cpp
@@ -285,6 +283,8 @@ PRIVATE
     boxes/edit_caption_box.h
     boxes/edit_privacy_box.cpp
     boxes/edit_privacy_box.h
+    boxes/edit_todo_list_box.cpp
+    boxes/edit_todo_list_box.h
     boxes/gift_credits_box.cpp
     boxes/gift_credits_box.h
     boxes/gift_premium_box.cpp

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_session.h"
+#include "data/data_todo_list.h"
 #include "data/data_web_page.h"
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/history.h"
@@ -356,6 +357,24 @@ mtpRequestId EditTextMessage(
 		callback,
 		fail,
 		std::nullopt);
+}
+
+void EditTodoList(
+		not_null<HistoryItem*> item,
+		const TodoListData &data,
+		SendOptions options,
+		Fn<void(mtpRequestId requestId)> done,
+		Fn<void(const QString &error, mtpRequestId requestId)> fail) {
+	const auto callback = [=](Fn<void()> applyUpdates, mtpRequestId id) {
+		applyUpdates();
+		done(id);
+	};
+	EditMessage(
+		item,
+		options,
+		callback,
+		fail,
+		MTP_inputMediaTodo(TodoListDataToMTP(&data)));
 }
 
 } // namespace Api

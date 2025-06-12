@@ -231,6 +231,8 @@ ScheduledWidget::ScheduledWidget(
 				_composeControls->editMessage(
 					fullId,
 					_inner->getSelectedTextRange(item));
+			} else if (media->todolist()) {
+				Window::PeerMenuEditTodoList(controller, item);
 			}
 		}
 	}, _inner->lifetime());

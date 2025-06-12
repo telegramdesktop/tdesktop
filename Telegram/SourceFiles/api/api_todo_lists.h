@@ -22,6 +22,7 @@ class Session;
 namespace Api {
 
 struct SendAction;
+struct SendOptions;
 
 class TodoLists final {
 public:
@@ -30,6 +31,12 @@ public:
 	void create(
 		const TodoListData &data,
 		SendAction action,
+		Fn<void()> done,
+		Fn<void(QString)> fail);
+	void edit(
+		not_null<HistoryItem*> item,
+		const TodoListData &data,
+		SendOptions options,
 		Fn<void()> done,
 		Fn<void(QString)> fail);
 	void add(

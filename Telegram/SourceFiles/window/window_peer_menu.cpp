@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/moderate_messages_box.h"
 #include "boxes/choose_filter_box.h"
 #include "boxes/create_poll_box.h"
-#include "boxes/create_todo_list_box.h"
+#include "boxes/edit_todo_list_box.h"
 #include "boxes/pin_messages_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/report_messages_box.h"
@@ -1244,7 +1244,8 @@ void Filler::addCreateTodoList() {
 		return;
 	}
 	const auto can = _topic
-		? Data::CanSend(_topic, ChatRestriction::SendPolls)
+		? (_peer->session().premium()
+			&& Data::CanSend(_topic, ChatRestriction::SendPolls))
 		: _peer->canCreateTodoLists();
 	if (!can) {
 		return;
@@ -1973,19 +1974,19 @@ void PeerMenuCreateTodoList(
 	) | rpl::map([=] {
 		return peer->starsPerMessageChecked();
 	});
-	auto box = Box<CreateTodoListBox>(
+	auto box = Box<EditTodoListBox>(
 		controller,
 		std::move(starsRequired),
 		sendType,
 		sendMenuDetails);
 	struct State {
-		Fn<void(const CreateTodoListBox::Result &)> create;
+		Fn<void(const EditTodoListBox::Result &)> create;
 		SendPaymentHelper sendPayment;
 		bool lock = false;
 	};
-	const auto weak = QPointer<CreateTodoListBox>(box);
+	const auto weak = QPointer<EditTodoListBox>(box);
 	const auto state = box->lifetime().make_state<State>();
-	state->create = [=](const CreateTodoListBox::Result &result) {
+	state->create = [=](const EditTodoListBox::Result &result) {
 		const auto withPaymentApproved = crl::guard(weak, [=](int stars) {
 			if (const auto onstack = state->create) {
 				auto copy = result;
@@ -2025,6 +2026,34 @@ void PeerMenuCreateTodoList(
 	};
 	box->submitRequests(
 	) | rpl::start_with_next(state->create, box->lifetime());
+	controller->show(std::move(box), Ui::LayerOption::CloseOther);
+}
+
+void PeerMenuEditTodoList(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto todolist = media ? media->todolist() : nullptr;
+	if (!todolist) {
+		return;
+	} else if (!item->history()->session().premium()) {
+		PeerMenuTodoWantsPremium(TodoWantsPremium::Add);
+		return;
+	}
+	auto box = Box<EditTodoListBox>(controller, item);
+	const auto weak = QPointer<EditTodoListBox>(box);
+	box->submitRequests(
+	) | rpl::start_with_next([=](const EditTodoListBox::Result &result) {
+		const auto api = &item->history()->session().api();
+		api->todoLists().edit(
+			item,
+			result.todolist,
+			result.options,
+			crl::guard(weak, [=] { weak->closeBox(); }),
+			crl::guard(weak, [=](const QString &error) {
+				weak->submitFailed(error);
+			}));
+	}, box->lifetime());
 	controller->show(std::move(box), Ui::LayerOption::CloseOther);
 }
 

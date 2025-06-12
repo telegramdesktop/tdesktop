@@ -58,4 +58,11 @@ mtpRequestId EditTextMessage(
 	Fn<void(const QString &error, mtpRequestId requestId)> fail,
 	bool spoilered);
 
+void EditTodoList(
+	not_null<HistoryItem*> item,
+	const TodoListData &data,
+	SendOptions options,
+	Fn<void(mtpRequestId requestId)> done,
+	Fn<void(const QString &error, mtpRequestId requestId)> fail);
+
 } // namespace Api

@@ -123,6 +123,9 @@ void PeerMenuCreateTodoList(
 	FullReplyTo replyTo = FullReplyTo(),
 	Api::SendType sendType = Api::SendType::Normal,
 	SendMenu::Details sendMenuDetails = SendMenu::Details());
+void PeerMenuEditTodoList(
+	not_null<Window::SessionController*> controller,
+	not_null<HistoryItem*> item);
 [[nodiscard]] bool PeerMenuShowAddTodoListTasks(not_null<HistoryItem*> item);
 void PeerMenuAddTodoListTasks(
 	not_null<Window::SessionController*> controller,

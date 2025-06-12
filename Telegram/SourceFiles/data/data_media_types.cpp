@@ -2367,6 +2367,10 @@ TextForMimeData MediaTodoList::clipboardText() const {
 	return TextForMimeData::Rich(std::move(result));
 }
 
+bool MediaTodoList::allowsEdit() const {
+	return parent()->out();
+}
+
 bool MediaTodoList::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }

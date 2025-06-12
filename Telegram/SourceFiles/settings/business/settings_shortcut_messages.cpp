@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -399,6 +400,8 @@ ShortcutMessages::ShortcutMessages(
 				_composeControls->editMessage(
 					fullId,
 					_inner->getSelectedTextRange(item));
+			} else if (media->todolist()) {
+				Window::PeerMenuEditTodoList(_controller, item);
 			}
 		}
 	}, _inner->lifetime());
