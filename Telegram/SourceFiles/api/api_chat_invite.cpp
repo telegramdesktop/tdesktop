@@ -437,6 +437,12 @@ void CheckChatInvite(
 			}
 		});
 	}, [=](const MTP::Error &error) {
+		if (MTP::IsFloodError(error)) {
+			if (const auto strong = weak.get()) {
+				strong->show(Ui::MakeInformBox(tr::lng_flood_error()));
+			}
+			return;
+		}
 		if (error.code() != 400) {
 			return;
 		}

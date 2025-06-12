@@ -324,7 +324,7 @@ void ApiWrap::checkChatInvite(
 	request(base::take(_checkInviteRequestId)).cancel();
 	_checkInviteRequestId = request(MTPmessages_CheckChatInvite(
 		MTP_string(hash)
-	)).done(std::move(done)).fail(std::move(fail)).send();
+	)).done(std::move(done)).fail(std::move(fail)).handleFloodErrors().send();
 }
 
 void ApiWrap::checkFilterInvite(
