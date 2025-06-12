@@ -3847,6 +3847,11 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 			}
 		}
 		saved->sublistPeerId = config.savedSublistPeer;
+		if (_history->peer->isSelf()) {
+			saved->savedMessagesSublist
+				= _history->owner().savedMessages().sublist(
+					_history->owner().peer(saved->sublistPeerId));
+		}
 	}
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
