@@ -1177,6 +1177,7 @@ void Manager::notificationActivated(
 					.topicRootId = topicRootId,
 					.monoforumPeerId = monoforumPeerId,
 				},
+				SuggestPostOptions(),
 				MessageCursor{
 					length,
 					length,

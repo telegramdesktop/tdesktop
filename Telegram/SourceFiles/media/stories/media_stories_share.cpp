@@ -174,7 +174,7 @@ namespace Media::Stories {
 					Data::ShortcutIdToMTP(session, options.shortcutId),
 					MTP_long(options.effectId),
 					MTP_long(starsPaid),
-					SuggestToMTP(options.suggest)
+					Api::SuggestToMTP(options.suggest)
 				), [=](
 						const MTPUpdates &result,
 						const MTP::Response &response) {

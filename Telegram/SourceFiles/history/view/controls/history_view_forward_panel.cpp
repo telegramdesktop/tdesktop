@@ -353,6 +353,7 @@ void ClearDraftReplyTo(
 		.topicRootId = topicRootId,
 		.monoforumPeerId = monoforumPeerId,
 	};
+	draft.suggest = SuggestPostOptions();
 	if (Data::DraftIsNull(&draft)) {
 		history->clearLocalDraft(topicRootId, monoforumPeerId);
 	} else {

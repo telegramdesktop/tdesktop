@@ -190,6 +190,7 @@ struct HistoryItem::CreateConfig {
 	TimeId editDate = 0;
 	HistoryMessageMarkupData markup;
 	HistoryMessageRepliesData replies;
+	HistoryMessageSuggestInfo suggest;
 	bool imported = false;
 
 	// For messages created from existing messages (forwarded).
@@ -3841,6 +3842,9 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 			mask |= HistoryMessageRestrictions::Bit();
 		}
 	}
+	if (config.suggest.exists) {
+		mask |= HistoryMessageSuggestedPost::Bit();
+	}
 
 	UpdateComponents(mask);
 
@@ -3933,6 +3937,13 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		}
 	} else if (!config.restrictions.empty()) {
 		flagSensitiveContent();
+	}
+
+	if (const auto suggest = Get<HistoryMessageSuggestedPost>()) {
+		suggest->stars = config.suggest.stars;
+		suggest->date = config.suggest.date;
+		suggest->accepted = config.suggest.accepted;
+		suggest->rejected = config.suggest.rejected;
 	}
 
 	if (out() && isSending()) {
@@ -4137,6 +4148,9 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 	if (fields.flags & MessageFlag::HasViews) {
 		config.viewsCount = 1;
 	}
+	if (fields.suggest.exists) {
+		config.suggest = fields.suggest;
+	}
 
 	createComponents(std::move(config));
 }
@@ -4261,6 +4275,7 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 	config.postAuthor = qs(data.vpost_author().value_or_empty());
 	config.restrictions = Data::UnavailableReason::Extract(
 		data.vrestriction_reason());
+	config.suggest = HistoryMessageSuggestInfo(data.vsuggested_post());
 	createComponents(std::move(config));
 }
 

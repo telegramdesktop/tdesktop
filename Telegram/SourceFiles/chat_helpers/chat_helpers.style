@@ -1144,6 +1144,30 @@ historyGiftToUser: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_gift", historyComposeIconFg }};
 	iconOver: icon {{ "chat/input_gift", historyComposeIconFgOver }};
 }
+historySuggestPostToggle: IconButton(historyDirectMessage) {
+	icon: icon{{ "menu/chat_discuss", historyComposeIconFg }};
+	iconOver: icon{{ "menu/chat_discuss", historyComposeIconFgOver }};
+}
+historySuggestIconPosition: point(12px, 12px);
+
+suggestOptionsPrice: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 20px, 2px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+
+	style: defaultTextStyle;
+}
 
 historyAttachEmojiInner: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_smile_face", historyComposeIconFg }};

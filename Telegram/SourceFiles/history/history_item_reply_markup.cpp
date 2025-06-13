@@ -312,7 +312,7 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	if (!data) {
 		return;
 	}
-	const auto &fields = data->c_messageReplies();
+	const auto &fields = data->data();
 	if (const auto list = fields.vrecent_repliers()) {
 		recentRepliers.reserve(list->v.size());
 		for (const auto &id : list->v) {
@@ -325,4 +325,32 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	maxId = fields.vmax_id().value_or_empty();
 	isNull = false;
 	pts = fields.vreplies_pts().v;
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+		const MTPSuggestedPost *data) {
+	if (!data) {
+		return;
+	}
+	const auto &fields = data->data();
+	stars = fields.vstars_amount().v;
+	date = fields.vschedule_date().value_or_empty();
+	accepted = fields.is_accepted();
+	rejected = fields.is_rejected();
+	exists = true;
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+	const Api::SendOptions &options)
+: HistoryMessageSuggestInfo(options.suggest) {
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+		SuggestPostOptions options) {
+	if (!options.exists) {
+		return;
+	}
+	stars = options.stars;
+	date = options.date;
+	exists = true;
 }

@@ -2170,7 +2170,7 @@ void ApiWrap::saveDraftsToCloud() {
 				cloudDraft->webpage,
 				textWithTags.text.isEmpty()),
 			MTP_long(0), // effect
-			MTPSuggestedPost() //
+			Api::SuggestToMTP(cloudDraft->suggest)
 		)).done([=](const MTPBool &result, const MTP::Response &response) {
 			const auto requestId = response.requestId;
 			history->finishSavingCloudDraft(
@@ -3508,7 +3508,7 @@ void ApiWrap::forwardMessages(
 				.shortcutId = action.options.shortcutId,
 				.starsPaid = action.options.starsApproved,
 				.postAuthor = NewMessagePostAuthor(action),
-
+				.suggest = HistoryMessageSuggestInfo(action.options),
 				// forwarded messages don't have effects
 				//.effectId = action.options.effectId,
 			}, item);
@@ -3603,6 +3603,7 @@ void ApiWrap::sendSharedContact(
 		.starsPaid = action.options.starsApproved,
 		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
+		.suggest = HistoryMessageSuggestInfo(action.options),
 	}, TextWithEntities(), MTP_messageMediaContact(
 		MTP_string(phone),
 		MTP_string(firstName),
@@ -3986,6 +3987,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			.starsPaid = starsPaid,
 			.postAuthor = NewMessagePostAuthor(action),
 			.effectId = action.options.effectId,
+			.suggest = HistoryMessageSuggestInfo(action.options),
 		}, sending, media);
 		const auto done = [=](
 				const MTPUpdates &result,
@@ -4036,7 +4038,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					mtpShortcut,
 					MTP_long(action.options.effectId),
 					MTP_long(starsPaid),
-					SuggestToMTP(action.options.suggest)
+					Api::SuggestToMTP(action.options.suggest)
 				), done, fail);
 		} else {
 			histories.sendPreparedMessage(
@@ -4056,7 +4058,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					mtpShortcut,
 					MTP_long(action.options.effectId),
 					MTP_long(starsPaid),
-					SuggestToMTP(action.options.suggest)
+					Api::SuggestToMTP(action.options.suggest)
 				), done, fail);
 		}
 		isFirst = false;
@@ -4392,7 +4394,7 @@ void ApiWrap::sendMediaWithRandomId(
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
 			MTP_long(options.effectId),
 			MTP_long(starsPaid),
-			SuggestToMTP(options.suggest)
+			Api::SuggestToMTP(options.suggest)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (done) done(true);
 		if (updateRecentStickers) {
@@ -4476,7 +4478,7 @@ void ApiWrap::sendMultiPaidMedia(
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
 			MTP_long(options.effectId),
 			MTP_long(starsPaid),
-			SuggestToMTP(options.suggest)
+			Api::SuggestToMTP(options.suggest)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (const auto album = _sendingAlbums.take(groupId)) {
 			const auto copy = (*album)->items;

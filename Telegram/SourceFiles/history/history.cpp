@@ -239,6 +239,9 @@ void History::createLocalDraftFromCloud(
 
 	draft->reply.topicRootId = topicRootId;
 	draft->reply.monoforumPeerId = monoforumPeerId;
+	if (!suggestDraftAllowed()) {
+		draft->suggest = SuggestPostOptions();
+	}
 	auto existing = localDraft(topicRootId, monoforumPeerId);
 	if (Data::DraftIsNull(existing)
 		|| !existing->date
@@ -247,12 +250,14 @@ void History::createLocalDraftFromCloud(
 			setLocalDraft(std::make_unique<Data::Draft>(
 				draft->textWithTags,
 				draft->reply,
+				draft->suggest,
 				draft->cursor,
 				draft->webpage));
 			existing = localDraft(topicRootId, monoforumPeerId);
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
 			existing->reply = draft->reply;
+			existing->suggest = draft->suggest;
 			existing->cursor = draft->cursor;
 			existing->webpage = draft->webpage;
 		}
@@ -325,6 +330,7 @@ Data::Draft *History::createCloudDraft(
 				.topicRootId = topicRootId,
 				.monoforumPeerId = monoforumPeerId,
 			},
+			SuggestPostOptions(),
 			MessageCursor(),
 			Data::WebPageDraft()));
 		cloudDraft(topicRootId, monoforumPeerId)->date = TimeId(0);
@@ -337,18 +343,23 @@ Data::Draft *History::createCloudDraft(
 			setCloudDraft(std::make_unique<Data::Draft>(
 				fromDraft->textWithTags,
 				reply,
+				fromDraft->suggest,
 				fromDraft->cursor,
 				fromDraft->webpage));
 			existing = cloudDraft(topicRootId, monoforumPeerId);
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
 			existing->reply = fromDraft->reply;
+			existing->suggest = fromDraft->suggest;
 			existing->cursor = fromDraft->cursor;
 			existing->webpage = fromDraft->webpage;
 		}
 		existing->date = base::unixtime::now();
 		existing->reply.topicRootId = topicRootId;
 		existing->reply.monoforumPeerId = monoforumPeerId;
+		if (!suggestDraftAllowed()) {
+			existing->suggest = SuggestPostOptions();
+		}
 	}
 
 	if (const auto thread = threadFor(topicRootId, monoforumPeerId)) {
@@ -3380,6 +3391,10 @@ void History::monoforumChanged(Data::SavedMessages *old) {
 
 bool History::amMonoforumAdmin() const {
 	return (_flags & Flag::IsMonoforumAdmin);
+}
+
+bool History::suggestDraftAllowed() const {
+	return peer->isMonoforum() || !peer->amMonoforumAdmin();
 }
 
 not_null<History*> History::migrateToOrMe() const {

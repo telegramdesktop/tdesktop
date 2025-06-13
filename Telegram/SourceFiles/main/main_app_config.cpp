@@ -162,6 +162,10 @@ int AppConfig::todoListItemTextLimit() const {
 	return get<int>(u"todo_item_length_max"_q, 64);
 }
 
+int AppConfig::suggestedPostStarsMax() const {
+	return get<int>(u"stars_suggested_post_amount_max"_q, 100'000);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

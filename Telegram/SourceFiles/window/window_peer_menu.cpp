@@ -1224,11 +1224,13 @@ void Filler::addCreatePoll() {
 		: SendMenu::Type::Scheduled;
 	const auto flag = PollData::Flags();
 	const auto replyTo = _request.currentReplyTo;
+	const auto suggest = _request.currentSuggest;
 	auto callback = [=] {
 		PeerMenuCreatePoll(
 			controller,
 			peer,
 			replyTo,
+			suggest,
 			flag,
 			flag,
 			source,
@@ -1263,11 +1265,13 @@ void Filler::addCreateTodoList() {
 		? SendMenu::Type::SilentOnly
 		: SendMenu::Type::Scheduled;
 	const auto replyTo = _request.currentReplyTo;
+	const auto suggest = _request.currentSuggest;
 	auto callback = [=] {
 		PeerMenuCreateTodoList(
 			controller,
 			peer,
 			replyTo,
+			suggest,
 			source,
 			{ sendMenuType });
 	};
@@ -1852,6 +1856,7 @@ void PeerMenuCreatePoll(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		FullReplyTo replyTo,
+		SuggestPostOptions suggest,
 		PollData::Flags chosen,
 		PollData::Flags disabled,
 		Api::SendType sendType,
@@ -1902,6 +1907,7 @@ void PeerMenuCreatePoll(
 			peer->owner().history(peer),
 			result.options);
 		action.replyTo = replyTo;
+		action.options.suggest = suggest;
 		const auto local = action.history->localDraft(
 			replyTo.topicRootId,
 			replyTo.monoforumPeerId);
@@ -1962,6 +1968,7 @@ void PeerMenuCreateTodoList(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		FullReplyTo replyTo,
+		SuggestPostOptions suggest,
 		Api::SendType sendType,
 		SendMenu::Details sendMenuDetails) {
 	if (!peer->session().premium()) {
@@ -2008,6 +2015,7 @@ void PeerMenuCreateTodoList(
 			peer->owner().history(peer),
 			result.options);
 		action.replyTo = replyTo;
+		action.options.suggest = suggest;
 		const auto local = action.history->localDraft(
 			replyTo.topicRootId,
 			replyTo.monoforumPeerId);

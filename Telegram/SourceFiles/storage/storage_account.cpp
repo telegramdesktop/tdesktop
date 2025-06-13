@@ -67,6 +67,7 @@ constexpr auto kMultiDraftCursorsTagOld = quint64(0xFFFF'FFFF'FFFF'FF02ULL);
 constexpr auto kMultiDraftTag = quint64(0xFFFF'FFFF'FFFF'FF03ULL);
 constexpr auto kMultiDraftCursorsTag = quint64(0xFFFF'FFFF'FFFF'FF04ULL);
 constexpr auto kRichDraftsTag = quint64(0xFFFF'FFFF'FFFF'FF05ULL);
+constexpr auto kDraftsTag2 = quint64(0xFFFF'FFFF'FFFF'FF06ULL);
 
 enum { // Local Storage Keys
 	lskUserMap = 0x00,
@@ -1187,6 +1188,7 @@ void EnumerateDrafts(
 		callback(
 			key,
 			draft->reply,
+			draft->suggest,
 			draft->textWithTags,
 			draft->webpage,
 			draft->cursor);
@@ -1200,6 +1202,7 @@ void EnumerateDrafts(
 			callback(
 				key,
 				draft.reply,
+				draft.suggest,
 				draft.textWithTags,
 				draft.webpage,
 				cursor);
@@ -1265,6 +1268,7 @@ void Account::writeDrafts(not_null<History*> history) {
 	const auto sizeCallback = [&](
 			auto&&, // key
 			const FullReplyTo &reply,
+			SuggestPostOptions suggest,
 			const TextWithTags &text,
 			const Data::WebPageDraft &webpage,
 			auto&&) { // cursor
@@ -1272,6 +1276,7 @@ void Account::writeDrafts(not_null<History*> history) {
 			+ Serialize::stringSize(text.text)
 			+ TextUtilities::SerializeTagsSize(text.tags)
 			+ sizeof(qint64) + sizeof(qint64) // messageId
+			+ sizeof(quint64) // suggest
 			+ Serialize::stringSize(webpage.url)
 			+ sizeof(qint32) // webpage.forceLargeMedia
 			+ sizeof(qint32) // webpage.forceSmallMedia
@@ -1287,13 +1292,14 @@ void Account::writeDrafts(not_null<History*> history) {
 
 	EncryptedDescriptor data(size);
 	data.stream
-		<< quint64(kRichDraftsTag)
+		<< quint64(kDraftsTag2)
 		<< SerializePeerId(peerId)
 		<< quint32(count);
 
 	const auto writeCallback = [&](
 			const Data::DraftKey &key,
 			const FullReplyTo &reply,
+			SuggestPostOptions suggest,
 			const TextWithTags &text,
 			const Data::WebPageDraft &webpage,
 			auto&&) { // cursor
@@ -1303,6 +1309,9 @@ void Account::writeDrafts(not_null<History*> history) {
 			<< TextUtilities::SerializeTags(text.tags)
 			<< qint64(reply.messageId.peer.value)
 			<< qint64(reply.messageId.msg.bare)
+			<< quint64(quint64(quint32(suggest.date))
+				| (quint64(suggest.stars) << 32)
+				| (quint64(suggest.exists) << 63))
 			<< webpage.url
 			<< qint32(webpage.forceLargeMedia ? 1 : 0)
 			<< qint32(webpage.forceSmallMedia ? 1 : 0)
@@ -1359,6 +1368,7 @@ void Account::writeDraftCursors(not_null<History*> history) {
 	const auto writeCallback = [&](
 			const Data::DraftKey &key,
 			auto&&, // reply
+			auto&&, // suggest
 			auto&&, // text
 			auto&&, // webpage
 			const MessageCursor &cursor) { // cursor
@@ -1519,12 +1529,14 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	}
 	auto map = Data::HistoryDrafts();
 	const auto keysOld = (tag == kMultiDraftTagOld);
-	const auto rich = (tag == kRichDraftsTag);
+	const auto withSuggest = (tag == kDraftsTag2);
+	const auto rich = (tag == kRichDraftsTag) || withSuggest;
 	for (auto i = 0; i != count; ++i) {
 		TextWithTags text;
 		QByteArray textTagsSerialized;
 		qint64 keyValue = 0;
 		qint64 messageIdPeer = 0, messageIdMsg = 0;
+		quint64 suggestSerialized = 0;
 		qint32 keyValueOld = 0;
 		QString webpageUrl;
 		qint32 webpageForceLargeMedia = 0;
@@ -1558,7 +1570,11 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 				>> text.text
 				>> textTagsSerialized
 				>> messageIdPeer
-				>> messageIdMsg
+				>> messageIdMsg;
+			if (withSuggest) {
+				draft.stream >> suggestSerialized;
+			}
+			draft.stream
 				>> webpageUrl
 				>> webpageForceLargeMedia
 				>> webpageForceSmallMedia
@@ -1580,6 +1596,13 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 						PeerId(messageIdPeer),
 						MsgId(messageIdMsg)),
 					.topicRootId = key.topicRootId(),
+				},
+				SuggestPostOptions{
+					.exists = uint32(suggestSerialized >> 63),
+					.stars = uint32(
+						(suggestSerialized & ~(1ULL << 63)) >> 32),
+					.date = TimeId(
+						uint32(suggestSerialized & 0xFFFF'FFFFULL)),
 				},
 				MessageCursor(),
 				Data::WebPageDraft{
@@ -1654,6 +1677,7 @@ void Account::readDraftsWithCursorsLegacy(
 			std::make_unique<Data::Draft>(
 				msgData,
 				FullReplyTo{ FullMsgId(peerId, MsgId(msgReplyTo)) },
+				SuggestPostOptions(),
 				MessageCursor(),
 				Data::WebPageDraft{
 					.removed = (msgPreviewCancelled == 1),
@@ -1665,6 +1689,7 @@ void Account::readDraftsWithCursorsLegacy(
 			std::make_unique<Data::Draft>(
 				editData,
 				FullReplyTo{ FullMsgId(peerId, editMsgId) },
+				SuggestPostOptions(),
 				MessageCursor(),
 				Data::WebPageDraft{
 					.removed = (editPreviewCancelled == 1),

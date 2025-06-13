@@ -19,17 +19,7 @@ namespace Api {
 
 inline constexpr auto kScheduledUntilOnlineTimestamp = TimeId(0x7FFFFFFE);
 
-struct SuggestOptions {
-	int stars = 0;
-	TimeId date = 0;
-
-	friend inline bool operator==(
-		const SuggestOptions &,
-		const SuggestOptions &) = default;
-};
-
-[[nodiscard]] MTPSuggestedPost SuggestToMTP(
-	const std::optional<SuggestOptions> &suggest);
+[[nodiscard]] MTPSuggestedPost SuggestToMTP(SuggestPostOptions suggest);
 
 struct SendOptions {
 	uint64 price = 0;
@@ -43,7 +33,7 @@ struct SendOptions {
 	bool invertCaption = false;
 	bool hideViaBot = false;
 	crl::time ttlSeconds = 0;
-	std::optional<SuggestOptions> suggest;
+	SuggestPostOptions suggest;
 
 	friend inline bool operator==(
 		const SendOptions &,

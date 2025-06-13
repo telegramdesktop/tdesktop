@@ -166,6 +166,7 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 			+ ";n:"
 			+ normalizedName },
 		FullReplyTo(),
+		SuggestPostOptions(),
 		MessageCursor(),
 		Data::WebPageDraft()
 	};

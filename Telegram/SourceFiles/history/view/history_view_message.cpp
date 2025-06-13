@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_message.h"
 
+#include "base/unixtime.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "core/ui_integration.h"
 #include "history/view/history_view_cursor_state.h"
@@ -454,6 +455,20 @@ Message::~Message() {
 void Message::initPaidInformation() {
 	const auto item = data();
 	if (!item->history()->peer->isUser()) {
+
+
+		if (const auto suggest = item->Get<HistoryMessageSuggestedPost>()) {
+			if (!suggest->stars && !suggest->date) {
+				setServicePreMessage({ { u"suggestion to publish for free anytime"_q } });
+			} else if (!suggest->date) {
+				setServicePreMessage({ { u"suggestion to publish for %1 stars anytime"_q.arg(suggest->stars) }});
+			} else if (!suggest->stars) {
+				setServicePreMessage({ { u"suggestion to publish for free %1"_q.arg(langDateTime(base::unixtime::parse(suggest->date))) }});
+			} else {
+				setServicePreMessage({ { u"suggestion to publish for %1 stars %2"_q.arg(suggest->stars).arg(langDateTime(base::unixtime::parse(suggest->date))) } });
+			}
+		}
+
 		return;
 	}
 	const auto media = this->media();

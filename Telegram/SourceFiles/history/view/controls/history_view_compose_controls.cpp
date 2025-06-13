@@ -1006,6 +1006,7 @@ void ComposeControls::setCurrentDialogsEntryState(
 	unregisterDraftSources();
 	state.currentReplyTo.topicRootId = _topicRootId;
 	state.currentReplyTo.monoforumPeerId = _monoforumPeerId;
+	state.currentSuggest = SuggestPostOptions();
 	_currentDialogsEntryState = state;
 	updateForwarding();
 	registerDraftSource();
@@ -1299,7 +1300,11 @@ void ComposeControls::saveFieldToHistoryLocalDraft() {
 		const auto key = draftKeyCurrent();
 		_history->setDraft(
 			key,
-			std::make_unique<Data::Draft>(_field, id, _preview->draft()));
+			std::make_unique<Data::Draft>(
+				_field,
+				id,
+				SuggestPostOptions(),
+				_preview->draft()));
 	} else {
 		_history->clearDraft(draftKeyCurrent());
 	}
@@ -1414,6 +1419,7 @@ void ComposeControls::init() {
 		const auto topicRootId = _topicRootId;
 		const auto monoforumPeerId = _monoforumPeerId;
 		const auto reply = _header->replyingToMessage();
+		const auto suggest = SuggestPostOptions();
 		const auto webpage = _preview->draft();
 
 		const auto done = [=](
@@ -1441,7 +1447,7 @@ void ComposeControls::init() {
 		EditDraftOptions({
 			.show = _show,
 			.history = history,
-			.draft = Data::Draft(_field, reply, _preview->draft()),
+			.draft = Data::Draft(_field, reply, suggest, _preview->draft()),
 			.usedLink = _preview->link(),
 			.forward = _header->forwardDraft(),
 			.links = _preview->links(),
@@ -1891,6 +1897,7 @@ void ComposeControls::registerDraftSource() {
 		const auto draft = [=] {
 			return Storage::MessageDraft{
 				_header->getDraftReply(),
+				SuggestPostOptions(),
 				_field->getTextWithTags(),
 				_preview->draft(),
 			};
@@ -2980,6 +2987,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 				.topicRootId = key.topicRootId(),
 				.monoforumPeerId = key.monoforumPeerId(),
 			},
+			SuggestPostOptions(),
 			cursor,
 			Data::WebPageDraft::FromItem(item)));
 	applyDraft();
@@ -3076,6 +3084,7 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 				std::make_unique<Data::Draft>(
 					TextWithTags(),
 					id,
+					SuggestPostOptions(),
 					MessageCursor(),
 					Data::WebPageDraft()));
 		}

@@ -359,6 +359,7 @@ WebViewContext ResolveContext(
 		if (const auto thread = state.key.thread()) {
 			context.action = Api::SendAction(thread);
 			context.action->replyTo = state.currentReplyTo;
+			context.action->options.suggest = state.currentSuggest;
 		} else {
 			context.action = Api::SendAction(bot->owner().history(bot));
 		}
@@ -373,6 +374,7 @@ WebViewContext ResolveContext(
 			.key = (topic ? Key{ topic } : Key{ history }),
 			.section = (topic ? Section::Replies : Section::History),
 			.currentReplyTo = context.action->replyTo,
+			.currentSuggest = context.action->options.suggest,
 		};
 	}
 	return context;
@@ -2615,11 +2617,11 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				? SendMenu::Type::SilentOnly
 				: SendMenu::Type::Scheduled;
 			const auto flag = PollData::Flags();
-			const auto replyTo = action.replyTo;
 			Window::PeerMenuCreatePoll(
 				controller,
 				peer,
-				replyTo,
+				action.replyTo,
+				action.options.suggest,
 				flag,
 				flag,
 				source,
@@ -2637,11 +2639,11 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				|| action.history->peer->starsPerMessageChecked())
 				? SendMenu::Type::SilentOnly
 				: SendMenu::Type::Scheduled;
-			const auto replyTo = action.replyTo;
 			Window::PeerMenuCreateTodoList(
 				controller,
 				peer,
-				replyTo,
+				action.replyTo,
+				action.options.suggest,
 				source,
 				{ sendMenuType });
 		}, &st::menuIconCreateTodoList);

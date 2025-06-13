@@ -88,6 +88,8 @@ public:
 	[[nodiscard]] int todoListTitleLimit() const;
 	[[nodiscard]] int todoListItemTextLimit() const;
 
+	[[nodiscard]] int suggestedPostStarsMax() const;
+
 	void refresh(bool force = false);
 
 private:

@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "data/data_chat_participant_status.h"
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -135,4 +139,17 @@ struct HistoryMessageRepliesData {
 	int repliesCount = 0;
 	bool isNull = true;
 	int pts = 0;
+};
+
+struct HistoryMessageSuggestInfo {
+	HistoryMessageSuggestInfo() = default;
+	explicit HistoryMessageSuggestInfo(const MTPSuggestedPost *data);
+	explicit HistoryMessageSuggestInfo(const Api::SendOptions &options);
+	explicit HistoryMessageSuggestInfo(SuggestPostOptions options);
+
+	int stars = 0;
+	TimeId date = 0;
+	bool accepted = false;
+	bool rejected = false;
+	bool exists = false;
 };

@@ -21,6 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 
 namespace Data {
+namespace {
+
+constexpr auto kMaxSuggestStars = 1'000'000'000;
+
+} // namespace
 
 WebPageDraft WebPageDraft::FromItem(not_null<HistoryItem*> item) {
 	const auto previewMedia = item->media();
@@ -45,6 +50,7 @@ WebPageDraft WebPageDraft::FromItem(not_null<HistoryItem*> item) {
 Draft::Draft(
 	const TextWithTags &textWithTags,
 	FullReplyTo reply,
+	SuggestPostOptions suggest,
 	const MessageCursor &cursor,
 	WebPageDraft webpage,
 	mtpRequestId saveRequestId)
@@ -58,6 +64,7 @@ Draft::Draft(
 Draft::Draft(
 	not_null<const Ui::InputField*> field,
 	FullReplyTo reply,
+	SuggestPostOptions suggest,
 	WebPageDraft webpage,
 	mtpRequestId saveRequestId)
 : textWithTags(field->getTextWithTags())
@@ -106,9 +113,22 @@ void ApplyPeerCloudDraft(
 			}
 		}, [](const auto &) {});
 	}
+	auto suggest = SuggestPostOptions();
+	if (!history->suggestDraftAllowed()) {
+		// Don't apply suggest options in unsupported chats.
+	} else if (const auto suggested = draft.vsuggested_post()) {
+		const auto &data = suggested->data();
+		suggest.exists = 1;
+		suggest.date = data.vschedule_date().value_or_empty();
+		suggest.stars = uint32(std::clamp(
+			data.vstars_amount().v,
+			uint64(),
+			uint64(kMaxSuggestStars)));
+	}
 	auto cloudDraft = std::make_unique<Draft>(
 		textWithTags,
 		replyTo,
+		suggest,
 		MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
 		std::move(webpage));
 	cloudDraft->date = date;
@@ -150,18 +170,19 @@ void SetChatLinkDraft(not_null<PeerData*> peer, TextWithEntities draft) {
 	const auto history = peer->owner().history(peer->id);
 	const auto topicRootId = MsgId();
 	const auto monoforumPeerId = PeerId();
-	history->setLocalDraft(std::make_unique<Data::Draft>(
+	history->setLocalDraft(std::make_unique<Draft>(
 		textWithTags,
 		FullReplyTo{
 			.topicRootId = topicRootId,
 			.monoforumPeerId = monoforumPeerId,
 		},
+		SuggestPostOptions(),
 		cursor,
-		Data::WebPageDraft()));
+		WebPageDraft()));
 	history->clearLocalEditDraft(topicRootId, monoforumPeerId);
 	history->session().changes().entryUpdated(
 		history,
-		Data::EntryUpdate::Flag::LocalDraftSet);
+		EntryUpdate::Flag::LocalDraftSet);
 }
 
 } // namespace Data

@@ -239,6 +239,7 @@ void SendExistingMedia(
 		.starsPaid = starsPaid,
 		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
+		.suggest = HistoryMessageSuggestInfo(action.options),
 	}, media, caption);
 
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
@@ -426,6 +427,7 @@ bool SendDice(MessageToSend &message) {
 		.starsPaid = starsPaid,
 		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
+		.suggest = HistoryMessageSuggestInfo(action.options),
 	}, TextWithEntities(), MTP_messageMediaDice(
 		MTP_int(0),
 		MTP_string(emoji)));
@@ -652,6 +654,7 @@ void SendConfirmedFile(
 			.postAuthor = NewMessagePostAuthor(action),
 			.groupedId = groupId,
 			.effectId = file->to.options.effectId,
+			.suggest = HistoryMessageSuggestInfo(file->to.options),
 		}, caption, media);
 	}
 

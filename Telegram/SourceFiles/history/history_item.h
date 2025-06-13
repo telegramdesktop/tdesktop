@@ -82,6 +82,7 @@ struct HistoryItemCommonFields {
 	uint64 groupedId = 0;
 	EffectId effectId = 0;
 	HistoryMessageMarkupData markup;
+	HistoryMessageSuggestInfo suggest;
 	bool ignoreForwardFrom = false;
 	bool ignoreForwardCaptions = false;
 };

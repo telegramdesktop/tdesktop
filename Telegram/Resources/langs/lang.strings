@@ -4415,6 +4415,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_preview_reply_to" = "Reply to {name}";
 "lng_preview_reply_to_quote" = "Reply to quote from {name}";
 
+"lng_suggest_bar_title" = "Suggest a Post Below";
+"lng_suggest_bar_text" = "Click to offer a price for publishing.";
+"lng_suggest_bar_priced" = "{amount} for publishing anytime.";
+"lng_suggest_bar_priced_dated" = "{amount} {date}";
+"lng_suggest_bar_dated" = "Publish on {date}";
+"lng_suggest_options_title" = "Suggest a Message";
+"lng_suggest_options_price" = "Enter Price in Stars";
+"lng_suggest_options_price_about" = "Choose how many Stars you want to offer {channel} to publish this message.";
+"lng_suggest_options_date" = "Time";
+"lng_suggest_options_date_any" = "Anytime";
+"lng_suggest_options_date_about" = "Select the date and time you want the message to be published.";
+"lng_suggest_options_offer" = "Offer {amount}";
+
 "lng_reply_in_another_title" = "Reply in...";
 "lng_reply_in_another_chat" = "Reply in Another Chat";
 "lng_reply_in_author" = "Message author";

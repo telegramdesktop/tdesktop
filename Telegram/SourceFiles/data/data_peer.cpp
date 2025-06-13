@@ -685,6 +685,9 @@ bool PeerData::canCreatePolls() const {
 }
 
 bool PeerData::canCreateTodoLists() const {
+	if (isMonoforum()) {
+		return false;
+	}
 	return session().premium()
 		&& (Data::CanSend(this, ChatRestriction::SendPolls) || isUser());
 }

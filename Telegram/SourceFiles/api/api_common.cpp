@@ -14,13 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 
-MTPSuggestedPost SuggestToMTP(const std::optional<SuggestOptions> &suggest) {
+MTPSuggestedPost SuggestToMTP(SuggestPostOptions suggest) {
 	using Flag = MTPDsuggestedPost::Flag;
-	return suggest
+	return suggest.exists
 		? MTP_suggestedPost(
-			MTP_flags(suggest->date ? Flag::f_schedule_date : Flag()),
-			MTP_long(suggest->stars),
-			MTP_int(suggest->date))
+			MTP_flags(suggest.date ? Flag::f_schedule_date : Flag()),
+			MTP_long(suggest.stars),
+			MTP_int(suggest.date))
 		: MTPSuggestedPost();
 }
 
