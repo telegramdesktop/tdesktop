@@ -4950,7 +4950,8 @@ void Session::insertCheckedServiceNotification(
 				MTPlong(), // effect
 				MTPFactCheck(),
 				MTPint(), // report_delivery_until_date
-				MTPlong()), // paid_message_stars
+				MTPlong(), // paid_message_stars
+				MTPSuggestedPost()),
 			localFlags,
 			NewMessageType::Unread);
 	}

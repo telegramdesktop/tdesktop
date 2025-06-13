@@ -163,7 +163,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			| Flag::f_restriction_reason
 			| Flag::f_ttl_period
 			| Flag::f_factcheck
-			| Flag::f_report_delivery_until_date;
+			| Flag::f_report_delivery_until_date
+			| Flag::f_suggested_post;
 		return MTP_message(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			data.vid(),
@@ -195,7 +196,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTP_long(data.veffect().value_or_empty()),
 			MTPFactCheck(),
 			MTPint(), // report_delivery_until_date
-			MTP_long(data.vpaid_message_stars().value_or_empty()));
+			MTP_long(data.vpaid_message_stars().value_or_empty()),
+			MTPSuggestedPost());
 	});
 }
 

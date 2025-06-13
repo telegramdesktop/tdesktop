@@ -3963,6 +3963,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_effect;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_effect;
 		}
+		if (action.options.suggest) {
+			sendFlags |= MTPmessages_SendMessage::Flag::f_suggested_post;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
+		}
 		const auto starsPaid = std::min(
 			peer->starsPerMessageChecked(),
 			action.options.starsApproved);
@@ -4030,7 +4034,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 					mtpShortcut,
 					MTP_long(action.options.effectId),
-					MTP_long(starsPaid)
+					MTP_long(starsPaid),
+					SuggestToMTP(action.options.suggest)
 				), done, fail);
 		} else {
 			histories.sendPreparedMessage(
@@ -4049,7 +4054,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 					mtpShortcut,
 					MTP_long(action.options.effectId),
-					MTP_long(starsPaid)
+					MTP_long(starsPaid),
+					SuggestToMTP(action.options.suggest)
 				), done, fail);
 		}
 		isFirst = false;
@@ -4355,6 +4361,7 @@ void ApiWrap::sendMediaWithRandomId(
 		| (options.sendAs ? Flag::f_send_as : Flag(0))
 		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
 		| (options.effectId ? Flag::f_effect : Flag(0))
+		| (options.suggest ? Flag::f_suggested_post : Flag(0))
 		| (options.invertCaption ? Flag::f_invert_media : Flag(0))
 		| (starsPaid ? Flag::f_allow_paid_stars : Flag(0));
 
@@ -4383,7 +4390,8 @@ void ApiWrap::sendMediaWithRandomId(
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
 			MTP_long(options.effectId),
-			MTP_long(starsPaid)
+			MTP_long(starsPaid),
+			SuggestToMTP(options.suggest)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (done) done(true);
 		if (updateRecentStickers) {
@@ -4438,6 +4446,7 @@ void ApiWrap::sendMultiPaidMedia(
 		| (options.sendAs ? Flag::f_send_as : Flag(0))
 		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
 		| (options.effectId ? Flag::f_effect : Flag(0))
+		| (options.suggest ? Flag::f_suggested_post : Flag(0))
 		| (options.invertCaption ? Flag::f_invert_media : Flag(0))
 		| (starsPaid ? Flag::f_allow_paid_stars : Flag(0));
 
@@ -4465,7 +4474,8 @@ void ApiWrap::sendMultiPaidMedia(
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
 			MTP_long(options.effectId),
-			MTP_long(starsPaid)
+			MTP_long(starsPaid),
+			SuggestToMTP(options.suggest)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (const auto album = _sendingAlbums.take(groupId)) {
 			const auto copy = (*album)->items;

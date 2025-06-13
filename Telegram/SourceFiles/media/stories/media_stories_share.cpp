@@ -135,6 +135,9 @@ namespace Media::Stories {
 			if (options.effectId) {
 				sendFlags |= SendFlag::f_effect;
 			}
+			if (options.suggest) {
+				sendFlags |= SendFlag::f_suggested_post;
+			}
 			if (options.invertCaption) {
 				sendFlags |= SendFlag::f_invert_media;
 			}
@@ -170,7 +173,8 @@ namespace Media::Stories {
 					MTP_inputPeerEmpty(),
 					Data::ShortcutIdToMTP(session, options.shortcutId),
 					MTP_long(options.effectId),
-					MTP_long(starsPaid)
+					MTP_long(starsPaid),
+					SuggestToMTP(options.suggest)
 				), [=](
 						const MTPUpdates &result,
 						const MTP::Response &response) {

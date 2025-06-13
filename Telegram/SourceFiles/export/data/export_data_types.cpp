@@ -1757,6 +1757,14 @@ ServiceAction ParseServiceAction(
 				| ranges::views::transform(ParseTodoListItem)
 				| ranges::to_vector,
 		};
+	}, [&](const MTPDmessageActionSuggestedPostApproval &data) {
+		result.content = ActionSuggestedPostApproval{
+			.rejectComment = data.vreject_comment().value_or_empty(),
+			.scheduleDate = data.vschedule_date().value_or_empty(),
+			.stars = int(data.vstars_amount().value_or_empty()),
+			.rejected = data.is_rejected(),
+			.balanceTooLow = data.is_balance_too_low(),
+		};
 	}, [&](const MTPDmessageActionConferenceCall &data) {
 		auto content = ActionPhoneCall();
 		using State = ActionPhoneCall::State;

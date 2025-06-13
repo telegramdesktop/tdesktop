@@ -150,7 +150,8 @@ void ShareBotGame(
 			MTPInputPeer(), // send_as
 			MTPInputQuickReplyShortcut(),
 			MTPlong(),
-			MTPlong()
+			MTPlong(),
+			MTPSuggestedPost()
 		), [=](const MTPUpdates &, const MTP::Response &) {
 	}, [=](const MTP::Error &error, const MTP::Response &) {
 		history->session().api().sendMessageFail(error, history->peer);

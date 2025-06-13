@@ -1446,6 +1446,24 @@ auto HtmlWriter::Wrap::pushMessage(
 				+ "&quot;");
 		}
 		return serviceFrom + " added tasks: " + tasks.join(", ");
+	}, [&](const ActionSuggestedPostApproval &data) {
+		return serviceFrom
+			+ (data.rejected ? " rejected " : " approved ")
+			+ "your suggested post"
+			+ (data.stars
+				? ", for " + QString::number(data.stars).toUtf8() + " stars"
+				: "")
+			+ (data.scheduleDate
+				? (", "
+					+ FormatDateText(data.scheduleDate)
+					+ " at "
+					+ FormatTimeText(data.scheduleDate))
+				: "")
+			+ (data.rejectComment.isEmpty()
+				? "."
+				: (", with comment: &quot;"
+					+ SerializeString(data.rejectComment)
+					+ "&quot;"));
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

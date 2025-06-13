@@ -708,6 +708,18 @@ QByteArray SerializeMessage(
 			return result;
 		}) | ranges::to_vector;
 		pushBare("items", SerializeArray(context, items));
+	}, [&](const ActionSuggestedPostApproval &data) {
+		pushActor();
+		pushAction("process_suggested_post");
+		if (data.rejected) {
+			pushBare("rejected", "true");
+			if (!data.rejectComment.isEmpty()) {
+				push("comment", data.rejectComment);
+			}
+		} else {
+			push("stars_amount", NumberToString(data.stars));
+			push("scheduled_date", data.scheduleDate);
+		}
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

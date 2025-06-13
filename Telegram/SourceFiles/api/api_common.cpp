@@ -14,6 +14,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 
+MTPSuggestedPost SuggestToMTP(const std::optional<SuggestOptions> &suggest) {
+	using Flag = MTPDsuggestedPost::Flag;
+	return suggest
+		? MTP_suggestedPost(
+			MTP_flags(suggest->date ? Flag::f_schedule_date : Flag()),
+			MTP_long(suggest->stars),
+			MTP_int(suggest->date))
+		: MTPSuggestedPost();
+}
+
 SendAction::SendAction(
 	not_null<Data::Thread*> thread,
 	SendOptions options)

@@ -698,6 +698,14 @@ struct ActionTodoAppendTasks {
 	std::vector<TodoListItem> items;
 };
 
+struct ActionSuggestedPostApproval {
+	Utf8String rejectComment;
+	TimeId scheduleDate = 0;
+	int stars = 0;
+	bool rejected = false;
+	bool balanceTooLow = false;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -747,7 +755,8 @@ struct ServiceAction {
 		ActionPaidMessagesRefunded,
 		ActionPaidMessagesPrice,
 		ActionTodoCompletions,
-		ActionTodoAppendTasks> content;
+		ActionTodoAppendTasks,
+		ActionSuggestedPostApproval> content;
 };
 
 ServiceAction ParseServiceAction(

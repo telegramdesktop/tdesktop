@@ -77,6 +77,9 @@ void TodoLists::create(
 	if (action.options.effectId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
 	}
+	if (action.options.suggest) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
+	}
 	if (starsPaid) {
 		action.options.starsApproved -= starsPaid;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
@@ -104,7 +107,8 @@ void TodoLists::create(
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
-			MTP_long(starsPaid)
+			MTP_long(starsPaid),
+			SuggestToMTP(action.options.suggest)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(

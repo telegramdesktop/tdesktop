@@ -5913,6 +5913,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareTodoAppendTasksText();
 	};
 
+	auto prepareSuggestedPostApproval = [&](const MTPDmessageActionSuggestedPostApproval &) {
+		return PreparedServiceText{ { "process_suggested" } }; AssertIsDebug();
+	};
+
 	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {
 		Unexpected("PhoneCall type in setServiceMessageFromMtp.");
 	};
@@ -5969,6 +5973,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareConferenceCall,
 		prepareTodoCompletions,
 		prepareTodoAppendTasks,
+		prepareSuggestedPostApproval,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

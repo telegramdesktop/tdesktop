@@ -1228,7 +1228,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPlong(), // effect
 				MTPFactCheck(),
 				MTPint(), // report_delivery_until_date
-				MTPlong()), // paid_message_stars
+				MTPlong(), // paid_message_stars
+				MTPSuggestedPost()),
 			MessageFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1267,7 +1268,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPlong(), // effect
 				MTPFactCheck(),
 				MTPint(), // report_delivery_until_date
-				MTPlong()), // paid_message_stars
+				MTPlong(), // paid_message_stars
+				MTPSuggestedPost()),
 			MessageFlags(),
 			NewMessageType::Unread);
 	} break;
