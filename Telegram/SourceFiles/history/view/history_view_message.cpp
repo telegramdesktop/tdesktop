@@ -3692,7 +3692,7 @@ bool Message::hasFromName() const {
 	case Context::AdminLog:
 		return true;
 	case Context::Monoforum:
-		return data()->out();
+		return data()->out() || data()->from()->isChannel();
 	case Context::History:
 	case Context::ChatPreview:
 	case Context::TTLViewer:
