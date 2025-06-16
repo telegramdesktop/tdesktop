@@ -152,8 +152,7 @@ void SaveChannelAdmin(
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
 		user->inputUser,
-		MTP_chatAdminRights(MTP_flags(
-			MTPDchatAdminRights::Flags::from_raw(uint32(newRights.flags)))),
+		AdminRightsToMTP(newRights),
 		MTP_string(rank)
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);

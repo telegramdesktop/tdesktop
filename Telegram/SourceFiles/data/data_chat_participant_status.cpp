@@ -30,14 +30,48 @@ namespace {
 [[nodiscard]] ChatAdminRights ChatAdminRightsFlags(
 		const MTPChatAdminRights &rights) {
 	return rights.match([](const MTPDchatAdminRights &data) {
-		return ChatAdminRights::from_raw(int32(data.vflags().v));
+		using Flag = ChatAdminRight;
+		return (data.is_change_info() ? Flag::ChangeInfo : Flag())
+			| (data.is_post_messages() ? Flag::PostMessages : Flag())
+			| (data.is_edit_messages() ? Flag::EditMessages : Flag())
+			| (data.is_delete_messages() ? Flag::DeleteMessages : Flag())
+			| (data.is_ban_users() ? Flag::BanUsers : Flag())
+			| (data.is_invite_users() ? Flag::InviteByLinkOrAdd : Flag())
+			| (data.is_pin_messages() ? Flag::PinMessages : Flag())
+			| (data.is_add_admins() ? Flag::AddAdmins : Flag())
+			| (data.is_anonymous() ? Flag::Anonymous : Flag())
+			| (data.is_manage_call() ? Flag::ManageCall : Flag())
+			| (data.is_other() ? Flag::Other : Flag())
+			| (data.is_manage_topics() ? Flag::ManageTopics : Flag())
+			| (data.is_post_stories() ? Flag::PostStories : Flag())
+			| (data.is_edit_stories() ? Flag::EditStories : Flag())
+			| (data.is_delete_stories() ? Flag::DeleteStories : Flag())
+			| (data.is_manage_direct() ? Flag::ManageDirect : Flag());
 	});
 }
 
 [[nodiscard]] ChatRestrictions ChatBannedRightsFlags(
 		const MTPChatBannedRights &rights) {
 	return rights.match([](const MTPDchatBannedRights &data) {
-		return ChatRestrictions::from_raw(int32(data.vflags().v));
+		using Flag = ChatRestriction;
+		return (data.is_view_messages() ? Flag::ViewMessages : Flag())
+			| (data.is_send_stickers() ? Flag::SendStickers : Flag())
+			| (data.is_send_gifs() ? Flag::SendGifs : Flag())
+			| (data.is_send_games() ? Flag::SendGames : Flag())
+			| (data.is_send_inline() ? Flag::SendInline : Flag())
+			| (data.is_send_polls() ? Flag::SendPolls : Flag())
+			| (data.is_send_photos() ? Flag::SendPhotos : Flag())
+			| (data.is_send_videos() ? Flag::SendVideos : Flag())
+			| (data.is_send_roundvideos() ? Flag::SendVideoMessages : Flag())
+			| (data.is_send_audios() ? Flag::SendMusic : Flag())
+			| (data.is_send_voices() ? Flag::SendVoiceMessages : Flag())
+			| (data.is_send_docs() ? Flag::SendFiles : Flag())
+			| (data.is_send_messages() ? Flag::SendOther : Flag())
+			| (data.is_embed_links() ? Flag::EmbedLinks : Flag())
+			| (data.is_change_info() ? Flag::ChangeInfo : Flag())
+			| (data.is_invite_users() ? Flag::AddParticipants : Flag())
+			| (data.is_pin_messages() ? Flag::PinMessages : Flag())
+			| (data.is_manage_topics() ? Flag::CreateTopics : Flag());
 	});
 }
 
@@ -54,9 +88,59 @@ ChatAdminRightsInfo::ChatAdminRightsInfo(const MTPChatAdminRights &rights)
 : flags(ChatAdminRightsFlags(rights)) {
 }
 
+MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info) {
+	using Flag = MTPDchatAdminRights::Flag;
+	using R = ChatAdminRight;
+	const auto flags = info.flags;
+	return MTP_chatAdminRights(MTP_flags(Flag()
+		| ((flags & R::ChangeInfo) ? Flag::f_change_info : Flag())
+		| ((flags & R::PostMessages) ? Flag::f_post_messages : Flag())
+		| ((flags & R::EditMessages) ? Flag::f_edit_messages : Flag())
+		| ((flags & R::DeleteMessages) ? Flag::f_delete_messages : Flag())
+		| ((flags & R::BanUsers) ? Flag::f_ban_users : Flag())
+		| ((flags & R::InviteByLinkOrAdd) ? Flag::f_invite_users : Flag())
+		| ((flags & R::PinMessages) ? Flag::f_pin_messages : Flag())
+		| ((flags & R::AddAdmins) ? Flag::f_add_admins : Flag())
+		| ((flags & R::Anonymous) ? Flag::f_anonymous : Flag())
+		| ((flags & R::ManageCall) ? Flag::f_manage_call : Flag())
+		| ((flags & R::Other) ? Flag::f_other : Flag())
+		| ((flags & R::ManageTopics) ? Flag::f_manage_topics : Flag())
+		| ((flags & R::PostStories) ? Flag::f_post_stories : Flag())
+		| ((flags & R::EditStories) ? Flag::f_edit_stories : Flag())
+		| ((flags & R::DeleteStories) ? Flag::f_delete_stories : Flag())
+		| ((flags & R::ManageDirect) ? Flag::f_manage_direct : Flag())));
+}
+
 ChatRestrictionsInfo::ChatRestrictionsInfo(const MTPChatBannedRights &rights)
 : flags(ChatBannedRightsFlags(rights))
 , until(ChatBannedRightsUntilDate(rights)) {
+}
+
+MTPChatBannedRights RestrictionsToMTP(ChatRestrictionsInfo info) {
+	using Flag = MTPDchatBannedRights::Flag;
+	using R = ChatRestriction;
+	const auto flags = info.flags;
+	return MTP_chatBannedRights(
+		MTP_flags(Flag()
+			| ((flags & R::ViewMessages) ? Flag::f_view_messages : Flag())
+			| ((flags & R::SendStickers) ? Flag::f_send_stickers : Flag())
+			| ((flags & R::SendGifs) ? Flag::f_send_gifs : Flag())
+			| ((flags & R::SendGames) ? Flag::f_send_games : Flag())
+			| ((flags & R::SendInline) ? Flag::f_send_inline : Flag())
+			| ((flags & R::SendPolls) ? Flag::f_send_polls : Flag())
+			| ((flags & R::SendPhotos) ? Flag::f_send_photos : Flag())
+			| ((flags & R::SendVideos) ? Flag::f_send_videos : Flag())
+			| ((flags & R::SendVideoMessages) ? Flag::f_send_roundvideos : Flag())
+			| ((flags & R::SendMusic) ? Flag::f_send_audios : Flag())
+			| ((flags & R::SendVoiceMessages) ? Flag::f_send_voices : Flag())
+			| ((flags & R::SendFiles) ? Flag::f_send_docs : Flag())
+			| ((flags & R::SendOther) ? Flag::f_send_messages : Flag())
+			| ((flags & R::EmbedLinks) ? Flag::f_embed_links : Flag())
+			| ((flags & R::ChangeInfo) ? Flag::f_change_info : Flag())
+			| ((flags & R::AddParticipants) ? Flag::f_invite_users : Flag())
+			| ((flags & R::PinMessages) ? Flag::f_pin_messages : Flag())
+			| ((flags & R::CreateTopics) ? Flag::f_manage_topics : Flag())),
+		MTP_int(info.until));
 }
 
 namespace Data {

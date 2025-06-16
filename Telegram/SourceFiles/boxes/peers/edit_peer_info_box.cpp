@@ -183,10 +183,7 @@ void SaveDefaultRestrictions(
 	const auto requestId = api->request(
 		MTPmessages_EditChatDefaultBannedRights(
 			peer->input,
-			MTP_chatBannedRights(
-				MTP_flags(
-					MTPDchatBannedRights::Flags::from_raw(uint32(rights))),
-				MTP_int(0)))
+			RestrictionsToMTP({ rights, 0 }))
 	).done([=](const MTPUpdates &result) {
 		api->clearModifyRequest(key);
 		api->applyUpdates(result);

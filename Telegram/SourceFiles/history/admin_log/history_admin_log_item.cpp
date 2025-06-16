@@ -287,6 +287,7 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::ManageTopics, tr::lng_admin_log_admin_manage_topics },
 		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
 		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
+		{ Flag::ManageDirect, tr::lng_admin_log_admin_manage_direct },
 		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
 		{ Flag::Anonymous, tr::lng_admin_log_admin_remain_anonymous },
 	};

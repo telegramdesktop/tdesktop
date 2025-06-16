@@ -5207,6 +5207,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_channel_edit_stories" = "Edit stories of others";
 "lng_rights_channel_delete_stories" = "Delete stories of others";
 "lng_rights_channel_manage_calls" = "Manage live streams";
+"lng_rights_channel_manage_direct" = "Manage direct messages";
 "lng_rights_group_info" = "Change group info";
 "lng_rights_group_ban" = "Ban users";
 "lng_rights_group_invite_link" = "Invite users via link";
@@ -5530,6 +5531,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_create_topics" = "Create topics";
 "lng_admin_log_admin_manage_calls" = "Manage video chats";
 "lng_admin_log_admin_manage_calls_channel" = "Manage live streams";
+"lng_admin_log_admin_manage_direct" = "Manage direct messages";
 "lng_admin_log_admin_add_admins" = "Add new admins";
 "lng_admin_log_subscription_extend" = "{name} renewed subscription until {date}";
 
@@ -6197,6 +6199,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_channel_delete_messages" = "delete messages";
 "lng_request_channel_add_subscribers" = "add subscribers";
 "lng_request_channel_manage_livestreams" = "manage live streams";
+"lng_request_channel_manage_direct" = "manage direct messages";
 "lng_request_channel_add_admins" = "add new admins";
 "lng_request_channel_create" = "Create a New Channel for This";
 

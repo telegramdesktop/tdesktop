@@ -520,6 +520,8 @@ bool ShowWallPaper(
 			result |= ChatAdminRight::AddAdmins;
 		} else if (element == u"manage_video_chats"_q) {
 			result |= ChatAdminRight::ManageCall;
+		} else if (element == u"manage_direct_messages"_q) {
+			result |= ChatAdminRight::ManageDirect;
 		} else if (element == u"anonymous"_q) {
 			result |= ChatAdminRight::Anonymous;
 		} else if (element == u"manage_chat"_q) {

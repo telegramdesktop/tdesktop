@@ -642,45 +642,38 @@ void ChannelData::setAvailableMinId(MsgId availableMinId) {
 }
 
 bool ChannelData::canBanMembers() const {
-	return amCreator()
-		|| (adminRights() & AdminRight::BanUsers);
+	return amCreator() || (adminRights() & AdminRight::BanUsers);
 }
 
 bool ChannelData::canPostMessages() const {
-	return amCreator()
-		|| (adminRights() & AdminRight::PostMessages);
+	return amCreator() || (adminRights() & AdminRight::PostMessages);
 }
 
 bool ChannelData::canEditMessages() const {
-	return amCreator()
-		|| (adminRights() & AdminRight::EditMessages);
+	return amCreator() || (adminRights() & AdminRight::EditMessages);
 }
 
 bool ChannelData::canDeleteMessages() const {
-	return amCreator()
-		|| (adminRights() & AdminRight::DeleteMessages);
+	return amCreator() || (adminRights() & AdminRight::DeleteMessages);
 }
 
 bool ChannelData::canPostStories() const {
-	return amCreator()
-		|| (adminRights() & AdminRight::PostStories);
+	return amCreator() || (adminRights() & AdminRight::PostStories);
 }
 
 bool ChannelData::canEditStories() const {
 	if (isMonoforum()) {
 		return false;
 	}
-	return amCreator()
-		|| (adminRights() & AdminRight::EditStories);
+	return amCreator() || (adminRights() & AdminRight::EditStories);
 }
 
 bool ChannelData::canDeleteStories() const {
-	return amCreator()
-		|| (adminRights() & AdminRight::DeleteStories);
+	return amCreator() || (adminRights() & AdminRight::DeleteStories);
 }
 
 bool ChannelData::canAccessMonoforum() const {
-	return canPostMessages();
+	return amCreator() || (adminRights() & AdminRight::ManageDirect);
 }
 
 bool ChannelData::canPostPaidMedia() const {
@@ -704,8 +697,7 @@ bool ChannelData::canAddMembers() const {
 }
 
 bool ChannelData::canAddAdmins() const {
-	return amCreator()
-		|| (adminRights() & AdminRight::AddAdmins);
+	return amCreator() || (adminRights() & AdminRight::AddAdmins);
 }
 
 bool ChannelData::allowsForwarding() const {

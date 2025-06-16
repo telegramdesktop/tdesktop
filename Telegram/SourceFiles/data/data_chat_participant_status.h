@@ -36,6 +36,7 @@ enum class ChatAdminRight {
 	PostStories = (1 << 14),
 	EditStories = (1 << 15),
 	DeleteStories = (1 << 16),
+	ManageDirect = (1 << 17),
 };
 inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
 using ChatAdminRights = base::flags<ChatAdminRight>;
@@ -75,6 +76,8 @@ struct ChatAdminRightsInfo {
 	ChatAdminRights flags;
 };
 
+[[nodiscard]] MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info);
+
 struct ChatRestrictionsInfo {
 	ChatRestrictionsInfo() = default;
 	ChatRestrictionsInfo(ChatRestrictions flags, TimeId until)
@@ -86,6 +89,9 @@ struct ChatRestrictionsInfo {
 	ChatRestrictions flags;
 	TimeId until = 0;
 };
+
+[[nodiscard]] MTPChatBannedRights RestrictionsToMTP(
+	ChatRestrictionsInfo info);
 
 namespace Data {
 
