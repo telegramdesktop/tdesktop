@@ -1678,7 +1678,9 @@ int PeerData::starsPerMessage() const {
 
 int PeerData::starsPerMessageChecked() const {
 	if (const auto channel = asChannel()) {
-		if (channel->adminRights() || channel->amCreator()) {
+		if (channel->adminRights()
+			|| channel->amCreator()
+			|| amMonoforumAdmin()) {
 			return 0;
 		}
 	}
