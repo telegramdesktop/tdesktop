@@ -878,6 +878,12 @@ Dialogs::BadgesState SavedSublist::chatListBadgesState() const {
 			> _parent->owningHistory()->inboxReadTillId());
 		result.unreadMuted = muted();
 	}
+	if (_parent->owningHistory()->muted()) {
+		result.unreadMuted
+			= result.mentionMuted
+			= result.reactionMuted
+			= true;
+	}
 	return result;
 }
 
