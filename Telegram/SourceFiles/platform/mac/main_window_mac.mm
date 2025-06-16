@@ -529,6 +529,18 @@ void MainWindow::createGlobalMenu() {
 	)->setShortcutContext(Qt::WidgetShortcut);
 
 	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
+
+	window->addAction(
+		tr::lng_mac_menu_fullscreen(tr::now),
+		this,
+		[=] {
+			NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
+			[nsWindow toggleFullScreen:nsWindow];
+		},
+		QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_F)
+	)->setShortcutContext(Qt::WidgetShortcut);
+	window->addSeparator();
+
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
 	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
 		Expects(sessionController() != nullptr && !controller().locked());
