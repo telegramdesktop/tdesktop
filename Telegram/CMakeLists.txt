@@ -511,6 +511,8 @@ PRIVATE
     data/components/promo_suggestions.h
     data/components/recent_peers.cpp
     data/components/recent_peers.h
+    data/components/recent_shared_media_gifts.cpp
+    data/components/recent_shared_media_gifts.h
     data/components/scheduled_messages.cpp
     data/components/scheduled_messages.h
     data/components/sponsored_messages.cpp

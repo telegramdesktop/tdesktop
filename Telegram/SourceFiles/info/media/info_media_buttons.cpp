@@ -10,18 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
+#include "data/components/recent_shared_media_gifts.h"
 #include "data/data_channel.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_stories_ids.h"
 #include "data/data_user.h"
-#include "history/view/history_view_chat_section.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
+#include "history/view/history_view_chat_section.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_values.h"
 #include "info/stories/info_stories_widget.h"
+#include "main/main_session.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
@@ -293,14 +298,86 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Ui::MultiSlideTracker &tracker) {
-	auto result = AddCountedButton(
-		parent,
-		Profile::PeerGiftsCountValue(peer),
-		[](int count) {
-			return tr::lng_profile_peer_gifts(tr::now, lt_count, count);
-		},
-		tracker)->entity();
-	result->addClickHandler([=] {
+
+	auto count = Profile::PeerGiftsCountValue(peer);
+	auto textFromCount = [](int count) {
+		return tr::lng_profile_peer_gifts(tr::now, lt_count, count);
+	};
+
+	using namespace ::Settings;
+	auto forked = std::move(count)
+		| start_spawning(parent->lifetime());
+	auto text = rpl::duplicate(
+		forked
+	) | rpl::map([textFromCount](int count) {
+		return (count > 0)
+			? textFromCount(count)
+			: QString();
+	});
+
+	struct State final {
+		std::optional<MTP::Sender> api;
+		std::vector<std::unique_ptr<Ui::Text::CustomEmoji>> emojiList;
+		rpl::event_stream<> textRefreshed;
+		QPointer<Ui::SettingsButton> button;
+	};
+	const auto state = parent->lifetime().make_state<State>();
+
+	const auto refresh = [=] {
+		if (state->button) {
+			state->button->update();
+		}
+	};
+
+	state->api.emplace(&navigation->session().mtp());
+
+	auto customs = state->textRefreshed.events(
+	) | rpl::map([=]() -> TextWithEntities {
+		auto result = TextWithEntities();
+		for (const auto &custom : state->emojiList) {
+			result.append(Ui::Text::SingleCustomEmoji(custom->entityData()));
+		}
+		return result;
+	});
+
+	const auto wrap = parent->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			parent,
+			object_ptr<Ui::SettingsButton>(
+				parent,
+				rpl::combine(
+					std::move(text),
+					std::move(customs)
+				) | rpl::map([=](QString text, TextWithEntities customs) {
+					return TextWithEntities()
+						.append(std::move(text))
+						.append(QChar(' '))
+						.append(std::move(customs));
+				}),
+				st::infoSharedMediaButton,
+				Core::TextContext({
+					.session = &navigation->session(),
+					.details = { .session = &navigation->session() },
+					.repaint = refresh,
+					.customEmojiLoopLimit = 1,
+				}))));
+	wrap->setDuration(st::infoSlideDuration);
+	wrap->toggleOn(rpl::duplicate(forked) | rpl::map(rpl::mappers::_1 > 0));
+	tracker.track(wrap);
+
+	navigation->session().recentSharedGifts().request(peer, [=](
+			std::vector<DocumentId> ids) {
+		state->emojiList.clear();
+		for (const auto &id : ids) {
+			state->emojiList.push_back(
+				peer->owner().customEmojiManager().create(id, refresh));
+		}
+		state->textRefreshed.fire({});
+	});
+
+	state->button = wrap->entity();
+
+	wrap->entity()->addClickHandler([=] {
 		if (navigation->showFrozenError()) {
 			return;
 		}
@@ -309,7 +386,7 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 				peer,
 				Section::Type::PeerGifts));
 	});
-	return result;
+	return wrap->entity();
 }
 
 } // namespace Info::Media
