@@ -46,7 +46,9 @@ namespace {
 			| (data.is_post_stories() ? Flag::PostStories : Flag())
 			| (data.is_edit_stories() ? Flag::EditStories : Flag())
 			| (data.is_delete_stories() ? Flag::DeleteStories : Flag())
-			| (data.is_manage_direct() ? Flag::ManageDirect : Flag());
+			| (data.is_manage_direct_messages()
+				? Flag::ManageDirect
+				: Flag());
 	});
 }
 
@@ -108,7 +110,9 @@ MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info) {
 		| ((flags & R::PostStories) ? Flag::f_post_stories : Flag())
 		| ((flags & R::EditStories) ? Flag::f_edit_stories : Flag())
 		| ((flags & R::DeleteStories) ? Flag::f_delete_stories : Flag())
-		| ((flags & R::ManageDirect) ? Flag::f_manage_direct : Flag())));
+		| ((flags & R::ManageDirect)
+			? Flag::f_manage_direct_messages
+			: Flag())));
 }
 
 ChatRestrictionsInfo::ChatRestrictionsInfo(const MTPChatBannedRights &rights)

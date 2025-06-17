@@ -1047,8 +1047,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		}
 
 		channel->setPhoto(data.vphoto());
-		channel->setStarsPerMessage(
-			data.vsend_paid_messages_stars().value_or_empty());
+		const auto hasStarsPerMessage
+			= data.vsend_paid_messages_stars().has_value();
+		if (!hasStarsPerMessage) {
+			channel->setStarsPerMessage(0);
+		}
 
 		if (const auto monoforum = data.vlinked_monoforum_id()) {
 			if (const auto linked = channelLoaded(monoforum->v)) {

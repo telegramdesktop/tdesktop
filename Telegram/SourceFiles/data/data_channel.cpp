@@ -1246,6 +1246,8 @@ void ApplyChannelUpdate(
 	}
 
 	channel->setMessagesTTL(update.vttl_period().value_or_empty());
+	channel->setStarsPerMessage(
+		update.vsend_paid_messages_stars().value_or_empty());
 	using Flag = ChannelDataFlag;
 	const auto mask = Flag::CanSetUsername
 		| Flag::CanViewParticipants
