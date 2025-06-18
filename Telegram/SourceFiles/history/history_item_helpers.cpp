@@ -762,6 +762,9 @@ MessageFlags FlagsFromMTP(
 		| ((flags & MTP::f_invert_media) ? Flag::InvertMedia : Flag())
 		| ((flags & MTP::f_video_processing_pending)
 			? Flag::EstimatedDate
+			: Flag())
+		| ((flags & MTP::f_paid_suggested_post)
+			? Flag::PaidSuggestedPost
 			: Flag());
 }
 

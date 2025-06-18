@@ -3172,9 +3172,17 @@ void HistoryWidget::applySuggestOptions(SuggestPostOptions suggest) {
 		controller(),
 		_peer,
 		suggest);
-	_suggestOptions->repaints() | rpl::start_with_next([=] {
+	_suggestOptions->updates() | rpl::start_with_next([=] {
 		updateField();
+		saveDraftWithTextNow();
 	}, _suggestOptions->lifetime());
+	saveDraftWithTextNow();
+}
+
+void HistoryWidget::saveDraftWithTextNow() {
+	_saveDraftText = true;
+	_saveDraftStart = crl::now();
+	saveDraft();
 }
 
 void HistoryWidget::refreshSuggestPostToggle() {
@@ -4644,9 +4652,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (_preview) {
 		_preview->apply({ .removed = true });
 	}
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
+	saveDraftWithTextNow();
 
 	hideSelectorControlsAnimated();
 
@@ -7680,9 +7686,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 		result.messageSendingFrom.localId);
 
 	clearFieldText();
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
+	saveDraftWithTextNow();
 
 	auto &bots = cRefRecentInlineBots();
 	const auto index = bots.indexOf(result.bot);
@@ -8296,9 +8300,7 @@ bool HistoryWidget::sendExistingDocument(
 
 	if (_autocomplete && _autocomplete->stickersShown()) {
 		clearFieldText();
-		//_saveDraftText = true;
-		//_saveDraftStart = crl::now();
-		//saveDraft();
+		//saveDraftWithTextNow();
 
 		// won't be needed if SendInlineBotResult will clear the cloud draft
 		saveCloudDraft();
@@ -8634,10 +8636,7 @@ void HistoryWidget::setReplyFieldsFromProcessing() {
 		refreshTopBarActiveChat();
 	}
 
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
-
+	saveDraftWithTextNow();
 	setInnerFocus();
 }
 
@@ -8702,10 +8701,7 @@ void HistoryWidget::editMessage(
 	updateField();
 	SelectTextInFieldWithMargins(_field, selection);
 
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
-
+	saveDraftWithTextNow();
 	setInnerFocus();
 }
 
@@ -8794,9 +8790,7 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		}
 	}
 	if (wasReply) {
-		_saveDraftText = true;
-		_saveDraftStart = crl::now();
-		saveDraft();
+		saveDraftWithTextNow();
 	}
 	if (!_editMsgId
 		&& _keyboard->singleUse()
@@ -8841,9 +8835,7 @@ void HistoryWidget::cancelEdit() {
 		_saveEditMsgRequestId = 0;
 	}
 
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
+	saveDraftWithTextNow();
 
 	mouseMoveEvent(nullptr);
 	if (!readyToForward()
@@ -8891,6 +8883,7 @@ bool HistoryWidget::cancelSuggestPost() {
 	_suggestOptions = nullptr;
 	updateControlsVisibility();
 	updateControlsGeometry();
+	saveDraftWithTextNow();
 	return true;
 }
 

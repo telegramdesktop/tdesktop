@@ -1593,6 +1593,10 @@ bool HistoryItem::isEditingMedia() const {
 	return Has<HistoryMessageSavedMediaData>();
 }
 
+bool HistoryItem::isPaidSuggestedPost() const {
+	return _flags & MessageFlag::PaidSuggestedPost;
+}
+
 void HistoryItem::clearSavedMedia() {
 	RemoveComponents(HistoryMessageSavedMediaData::Bit());
 }
@@ -1884,6 +1888,21 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 			}
 		} else {
 			clearReplies();
+		}
+	}
+
+	if (!edition.useSameSuggest) {
+		if (edition.suggest.exists) {
+			if (!Has<HistoryMessageSuggestedPost>()) {
+				AddComponents(HistoryMessageSuggestedPost::Bit());
+			}
+			auto suggest = Get<HistoryMessageSuggestedPost>();
+			suggest->stars = edition.suggest.stars;
+			suggest->date = edition.suggest.date;
+			suggest->accepted = edition.suggest.accepted;
+			suggest->rejected = edition.suggest.rejected;
+		} else {
+			RemoveComponents(HistoryMessageSuggestedPost::Bit());
 		}
 	}
 
@@ -2398,7 +2417,8 @@ bool HistoryItem::allowsSendNow() const {
 		&& isScheduled()
 		&& !isSending()
 		&& !hasFailed()
-		&& !isEditingMedia();
+		&& !isEditingMedia()
+		&& !isPaidSuggestedPost();
 }
 
 bool HistoryItem::allowsReschedule() const {
@@ -2425,7 +2445,8 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 		&& !isTooOldForEdit(now)
 		&& (!_media || _media->allowsEdit())
 		&& !isLegacyMessage()
-		&& !isEditingMedia();
+		&& !isEditingMedia()
+		&& !isPaidSuggestedPost();
 }
 
 bool HistoryItem::allowsEditMedia() const {
@@ -5928,8 +5949,15 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareTodoAppendTasksText();
 	};
 
-	auto prepareSuggestedPostApproval = [&](const MTPDmessageActionSuggestedPostApproval &) {
-		return PreparedServiceText{ { "process_suggested" } }; AssertIsDebug();
+	auto prepareSuggestedPostApproval = [&](const MTPDmessageActionSuggestedPostApproval &data) {
+		if (data.is_balance_too_low()) {
+			return PreparedServiceText{ { u"balance too low :( need %1 stars"_q.arg(data.vstars_amount().value_or_empty()) } };
+		} else if (data.is_rejected()) {
+			return PreparedServiceText{ { u"rejected :( comment: %1"_q.arg(qs(data.vreject_comment().value_or_empty())) } };
+		} else if (const auto date = data.vschedule_date().value_or_empty()) {
+			return PreparedServiceText{ { u"approved!! for date: %1"_q.arg(langDateTime(base::unixtime::parse(date))) } };
+		}
+		return PreparedServiceText{ { "approved!!" } }; AssertIsDebug();
 	};
 
 	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {

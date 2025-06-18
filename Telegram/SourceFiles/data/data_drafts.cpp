@@ -56,6 +56,7 @@ Draft::Draft(
 	mtpRequestId saveRequestId)
 : textWithTags(textWithTags)
 , reply(std::move(reply))
+, suggest(suggest)
 , cursor(cursor)
 , webpage(webpage)
 , saveRequestId(saveRequestId) {
@@ -69,6 +70,7 @@ Draft::Draft(
 	mtpRequestId saveRequestId)
 : textWithTags(field->getTextWithTags())
 , reply(std::move(reply))
+, suggest(suggest)
 , cursor(field)
 , webpage(webpage) {
 }

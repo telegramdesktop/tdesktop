@@ -28,7 +28,7 @@ public:
 
 	[[nodiscard]] SuggestPostOptions values() const;
 
-	[[nodiscard]] rpl::producer<> repaints() const;
+	[[nodiscard]] rpl::producer<> updates() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -44,7 +44,7 @@ private:
 	Ui::Text::String _text;
 
 	SuggestPostOptions _values;
-	rpl::event_stream<> _repaints;
+	rpl::event_stream<> _updates;
 
 	rpl::lifetime _lifetime;
 

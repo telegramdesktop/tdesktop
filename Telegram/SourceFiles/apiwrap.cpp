@@ -2154,6 +2154,9 @@ void ApiWrap::saveDraftsToCloud() {
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
 		}
+		if (cloudDraft->suggest) {
+			flags |= MTPmessages_SaveDraft::Flag::f_suggested_post;
+		}
 		auto entities = Api::EntitiesToMTP(
 			_session,
 			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),

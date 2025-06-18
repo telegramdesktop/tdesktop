@@ -353,6 +353,8 @@ enum class MessageFlag : uint64 {
 	ReactionsAllowed      = (1ULL << 50),
 
 	HideDisplayDate       = (1ULL << 51),
+
+	PaidSuggestedPost     = (1ULL << 52),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

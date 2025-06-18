@@ -391,6 +391,7 @@ private:
 	void saveDraft(bool delayed = false);
 	void saveCloudDraft();
 	void saveDraftDelayed();
+	void saveDraftWithTextNow();
 	void showMembersDropdown();
 	void windowIsVisibleChanged();
 	void saveFieldToHistoryLocalDraft();

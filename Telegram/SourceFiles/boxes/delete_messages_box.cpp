@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl_validator.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -31,6 +32,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+
+namespace {
+
+constexpr auto kPaidShowLive = 86400;
+
+} // namespace
 
 DeleteMessagesBox::DeleteMessagesBox(
 	QWidget*,
@@ -492,7 +499,41 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+bool DeleteMessagesBox::hasPaidSuggestedPosts() const {
+	const auto now = base::unixtime::now();
+	for (const auto &id : _ids) {
+		if (const auto item = _session->data().message(id)) {
+			if (item->isPaidSuggestedPost()) {
+				const auto date = item->date();
+				if (now < date || now - date <= kPaidShowLive) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 void DeleteMessagesBox::deleteAndClear() {
+	if (hasPaidSuggestedPosts() && !_confirmedDeletePaidSuggestedPosts) {
+		const auto weak = Ui::MakeWeak(this);
+		const auto callback = [=](Fn<void()> close) {
+			close();
+			if (const auto strong = weak.data()) {
+				strong->_confirmedDeletePaidSuggestedPosts = true;
+				strong->deleteAndClear();
+			}
+		};
+		AssertIsDebug();
+		uiShow()->show(Ui::MakeConfirmBox({
+			.text = u"You won't receive Stars for this post if you delete it now. The post must remain visible for at least 24 hours after it was published."_q,
+			.confirmed = callback,
+			.confirmText = u"Delete Anyway"_q,
+			.confirmStyle = &st::attentionBoxButton,
+			.title = u"Stars will be lost"_q,
+		}));
+		return;
+	}
 	if (_revoke
 		&& _revokeRemember
 		&& _revokeRemember->toggled()

@@ -638,6 +638,7 @@ void SendConfirmedFile(
 		edition.useSameMarkup = true;
 		edition.useSameReplies = true;
 		edition.useSameReactions = true;
+		edition.useSameSuggest = true;
 		edition.savePreviousMedia = true;
 		itemToEdit->applyEdition(std::move(edition));
 	} else {

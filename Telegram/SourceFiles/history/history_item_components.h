@@ -618,6 +618,7 @@ struct HistoryMessageSuggestedPost
 : RuntimeComponent<HistoryMessageSuggestedPost, HistoryItem> {
 	int stars = 0;
 	TimeId date = 0;
+	mtpRequestId requestId = 0;
 	bool accepted = false;
 	bool rejected = false;
 };

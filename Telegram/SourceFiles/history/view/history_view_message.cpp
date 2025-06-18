@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_message.h"
 
+#include "api/api_suggest_post.h"
 #include "base/unixtime.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "core/ui_integration.h"
@@ -24,11 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "ui/effects/glare.h"
 #include "ui/effects/reaction_fly_animation.h"
-#include "ui/rect.h"
-#include "ui/round_rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_extended_data.h"
 #include "ui/power_saving.h"
+#include "ui/rect.h"
+#include "ui/round_rect.h"
 #include "data/components/factchecks.h"
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
@@ -456,17 +457,45 @@ void Message::initPaidInformation() {
 	const auto item = data();
 	if (!item->history()->peer->isUser()) {
 
-
 		if (const auto suggest = item->Get<HistoryMessageSuggestedPost>()) {
+			auto text = PreparedServiceText();
 			if (!suggest->stars && !suggest->date) {
-				setServicePreMessage({ { u"suggestion to publish for free anytime"_q } });
+				text = { { u"suggestion to publish for free anytime"_q } };
 			} else if (!suggest->date) {
-				setServicePreMessage({ { u"suggestion to publish for %1 stars anytime"_q.arg(suggest->stars) }});
+				text = { { u"suggestion to publish for %1 stars anytime"_q.arg(suggest->stars) } };
 			} else if (!suggest->stars) {
-				setServicePreMessage({ { u"suggestion to publish for free %1"_q.arg(langDateTime(base::unixtime::parse(suggest->date))) }});
+				text = { { u"suggestion to publish for free %1"_q.arg(langDateTime(base::unixtime::parse(suggest->date))) } };
 			} else {
-				setServicePreMessage({ { u"suggestion to publish for %1 stars %2"_q.arg(suggest->stars).arg(langDateTime(base::unixtime::parse(suggest->date))) } });
+				text = { { u"suggestion to publish for %1 stars %2"_q.arg(suggest->stars).arg(langDateTime(base::unixtime::parse(suggest->date))) } };
 			}
+			const auto channelIsAuthor = item->from()->isChannel();
+			const auto amMonoforumAdmin = item->history()->peer->amMonoforumAdmin();
+			const auto broadcast = item->history()->peer->monoforumBroadcast();
+			const auto canDecline = item->isRegular()
+				&& !(suggest->accepted || suggest->rejected)
+				&& (channelIsAuthor ? !amMonoforumAdmin : amMonoforumAdmin);
+			const auto canAccept = canDecline
+				&& (channelIsAuthor
+					? !amMonoforumAdmin
+					: (amMonoforumAdmin
+						&& broadcast
+						&& broadcast->canPostMessages()));
+			if (canDecline) {
+				text.links.push_back(Api::DeclineClickHandler(item));
+				text.text.append(", ").append(Ui::Text::Link("[Decline]", text.links.size()));
+				if (canAccept) {
+					text.links.push_back(Api::AcceptClickHandler(item));
+					text.text.append(", ").append(Ui::Text::Link("[Accept]", text.links.size()));
+
+					text.links.push_back(Api::SuggestChangesClickHandler(item));
+					text.text.append(", ").append(Ui::Text::Link("[SuggestChanges]", text.links.size()));
+				}
+			} else if (suggest->accepted) {
+				text.text.append(", accepted!");
+			} else if (suggest->rejected) {
+				text.text.append(", rejected :(");
+			}
+			setServicePreMessage(std::move(text));
 		}
 
 		return;

@@ -94,15 +94,27 @@ void EditOptionsBox(
 		st::settingsButtonNoIcon);
 
 	time->setClickedCallback([=] {
-		box->uiShow()->show(Box(Ui::ChooseDateTimeBox, Ui::ChooseDateTimeBoxArgs{
+		const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+		const auto parentWeak = Ui::MakeWeak(box);
+		const auto done = [=](TimeId result) {
+			if (parentWeak) {
+				state->date = result;
+			}
+			if (const auto strong = weak->data()) {
+				strong->closeBox();
+			}
+		};
+		auto dateBox = Box(Ui::ChooseDateTimeBox, Ui::ChooseDateTimeBoxArgs{
 			.title = tr::lng_suggest_options_date(),
 			.submit = tr::lng_settings_save(),
-			.done = [=](TimeId result) { state->date = result; },
+			.done = done,
 			.min = [] { return base::unixtime::now() + 1; },
 			.time = (state->date.current()
 				? state->date.current()
 				: (base::unixtime::now() + 86400)),
-		}));
+		});
+		*weak = dateBox.data();
+		box->uiShow()->show(std::move(dateBox));
 	});
 
 	Ui::AddSkip(container);
@@ -172,7 +184,7 @@ void SuggestOptions::edit() {
 	const auto apply = [=](SuggestPostOptions values) {
 		_values = values;
 		updateTexts();
-		_repaints.fire({});
+		_updates.fire({});
 	};
 	const auto broadcast = _peer->monoforumBroadcast();
 	const auto &appConfig = _peer->session().appConfig();
@@ -226,8 +238,8 @@ SuggestPostOptions SuggestOptions::values() const {
 	return result;
 }
 
-rpl::producer<> SuggestOptions::repaints() const {
-	return _repaints.events();
+rpl::producer<> SuggestOptions::updates() const {
+	return _updates.events();
 }
 
 rpl::lifetime &SuggestOptions::lifetime() {

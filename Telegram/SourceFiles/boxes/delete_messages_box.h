@@ -58,6 +58,7 @@ private:
 	[[nodiscard]] bool hasScheduledMessages() const;
 	[[nodiscard]] std::optional<RevokeConfig> revokeText(
 		not_null<PeerData*> peer) const;
+	[[nodiscard]] bool hasPaidSuggestedPosts() const;
 
 	const not_null<Main::Session*> _session;
 
@@ -82,6 +83,7 @@ private:
 	object_ptr<Ui::LinkButton> _autoDeleteSettings = { nullptr };
 
 	int _fullHeight = 0;
+	bool _confirmedDeletePaidSuggestedPosts = false;
 
 	Fn<void()> _deleteConfirmedCallback;
 

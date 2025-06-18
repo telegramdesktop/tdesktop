@@ -257,6 +257,7 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 	}
 	return (a->textWithTags == b->textWithTags)
 		&& (a->reply == b->reply)
+		&& (a->suggest == b->suggest)
 		&& (a->webpage == b->webpage);
 }
 

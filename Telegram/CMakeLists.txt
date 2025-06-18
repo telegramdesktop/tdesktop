@@ -176,6 +176,8 @@ PRIVATE
     api/api_statistics_data_deserialize.h
     api/api_statistics_sender.cpp
     api/api_statistics_sender.h
+    api/api_suggest_post.cpp
+    api/api_suggest_post.h
     api/api_text_entities.cpp
     api/api_text_entities.h
     api/api_todo_lists.cpp
