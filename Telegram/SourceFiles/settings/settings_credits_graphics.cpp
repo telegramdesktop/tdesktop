@@ -1157,7 +1157,8 @@ void GenericCreditsEntryBox(
 		&& giftChannel->canTransferGifts();
 	const auto starGiftCanManage = isStarGift
 		&& !creditsHistoryStarGift
-		&& (e.in || giftToChannelCanManage);
+		&& (e.in || giftToChannelCanManage)
+		&& !e.fromGiftSlug;
 	const auto starGiftCanTransfer = isStarGift
 		&& !creditsHistoryStarGift
 		&& (e.in || giftToChannelCanTransfer);
