@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_folder.h"
@@ -54,8 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/view/media/history_view_media.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_service_message.h"
-#include "history/view/history_view_sublist_section.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -222,6 +223,8 @@ StackItemSection::StackItemSection(
 rpl::producer<> StackItemSection::sectionRemoveRequests() const {
 	if (const auto topic = _memento->topicForRemoveRequests()) {
 		return rpl::merge(_memento->removeRequests(), topic->destroyed());
+	} else if (const auto sublist = _memento->sublistForRemoveRequests()) {
+		return rpl::merge(_memento->removeRequests(), sublist->destroyed());
 	}
 	return _memento->removeRequests();
 }
@@ -556,6 +559,7 @@ bool MainWidget::setForwardDraft(
 	const auto history = thread->owningHistory();
 	const auto items = session().data().idsToItems(draft.ids);
 	const auto topicRootId = thread->topicRootId();
+	const auto monoforumPeerId = thread->monoforumPeerId();
 	const auto error = GetErrorForSending(
 		history->peer,
 		{
@@ -568,7 +572,7 @@ bool MainWidget::setForwardDraft(
 		return false;
 	}
 
-	history->setForwardDraft(topicRootId, std::move(draft));
+	history->setForwardDraft(topicRootId, monoforumPeerId, std::move(draft));
 	_controller->showThread(
 		thread,
 		ShowAtUnreadMsgId,
@@ -595,12 +599,16 @@ bool MainWidget::shareUrl(
 	};
 	const auto history = thread->owningHistory();
 	const auto topicRootId = thread->topicRootId();
+	const auto monoforumPeerId = thread->monoforumPeerId();
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
-		FullReplyTo{ .topicRootId = topicRootId },
+		FullReplyTo{
+			.topicRootId = topicRootId,
+			.monoforumPeerId = monoforumPeerId,
+		},
 		cursor,
 		Data::WebPageDraft()));
-	history->clearLocalEditDraft(topicRootId);
+	history->clearLocalEditDraft(topicRootId, monoforumPeerId);
 	history->session().changes().entryUpdated(
 		thread,
 		Data::EntryUpdate::Flag::LocalDraftSet);
@@ -638,6 +646,17 @@ bool MainWidget::filesOrForwardDrop(
 			_controller,
 			Core::ShareMimeMediaData(data),
 			forum);
+		if (_hider) {
+			_hider->startHide();
+			clearHider(_hider);
+		}
+		return true;
+	} else if (const auto history = thread->asHistory()
+		; history && history->peer->monoforum()) {
+		Window::ShowDropMediaBox(
+			_controller,
+			Core::ShareMimeMediaData(data),
+			history->peer->monoforum());
 		if (_hider) {
 			_hider->startHide();
 			clearHider(_hider);
@@ -776,8 +795,12 @@ void MainWidget::searchMessages(
 		}
 	} else {
 		if (const auto sublist = inChat.sublist()) {
+			using namespace HistoryView;
 			controller()->showSection(
-				std::make_shared<HistoryView::SublistMemento>(sublist));
+				std::make_shared<ChatMemento>(ChatViewId{
+					.history = sublist->owningHistory(),
+					.sublist = sublist,
+				}));
 		} else if (!tags.empty()) {
 			inChat = controller()->session().data().history(
 				controller()->session().user());
@@ -1495,7 +1518,7 @@ void MainWidget::showHistory(
 						: Window::SlideDirection::FromRight,
 					animationParams);
 			} else {
-				_history->show();
+				_history->showFast();
 				crl::on_main(this, [=] {
 					_controller->widget()->setInnerFocus();
 				});
@@ -1515,6 +1538,8 @@ void MainWidget::showHistory(
 	}
 
 	floatPlayerCheckVisibility();
+
+	controller()->dropSubsectionTabs();
 }
 
 void MainWidget::showMessage(
@@ -1540,6 +1565,12 @@ void MainWidget::showMessage(
 	}
 	if (const auto topic = item->topic()) {
 		_controller->showTopic(topic, item->id, params);
+		if (params.activation != anim::activation::background) {
+			_controller->window().activate();
+		}
+	} else if (const auto sublist = item->savedSublist()
+		; sublist && sublist->parentChat()) {
+		_controller->showSublist(sublist, item->id, params);
 		if (params.activation != anim::activation::background) {
 			_controller->window().activate();
 		}
@@ -2010,6 +2041,8 @@ bool MainWidget::showBackFromStack(const SectionShow &params) {
 		});
 		return (_dialogs != nullptr);
 	}
+	session().api().saveCurrentDraftToCloud();
+
 	auto item = std::move(_stack.back());
 	_stack.pop_back();
 	if (const auto currentHistoryPeer = _history->peer()) {
@@ -2337,6 +2370,9 @@ void MainWidget::updateControlsGeometry() {
 						(thread->asTopic()
 							? std::make_shared<Info::Memento>(
 								thread->asTopic())
+							: thread->asSublist()
+							? std::make_shared<Info::Memento>(
+								thread->asSublist())
 							: Info::Memento::Default(
 								thread->asHistory()->peer)),
 						params.withThirdColumn());
@@ -2600,14 +2636,17 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::move(_thirdSectionFromStack);
 	} else if (const auto topic = key.topic()) {
 		return std::make_shared<Info::Memento>(topic);
+	} else if (const auto sublist = key.sublist()
+		; sublist && sublist->parentChat()) {
+		return std::make_shared<Info::Memento>(sublist);
 	} else if (const auto peer = key.peer()) {
 		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
-	} else if (key.sublist()) {
+	} else if (const auto sublist = key.sublist()) {
 		return std::make_shared<Info::Memento>(
-			session().user(),
-			Info::Memento::DefaultSection(session().user()));
+			sublist->owningHistory()->peer,
+			Info::Memento::DefaultSection(sublist->owningHistory()->peer));
 	}
 	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }

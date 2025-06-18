@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_participant_status.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -565,15 +566,7 @@ bool CanCreateModerateMessagesBox(const HistoryItemsList &items) {
 		&& !options.participants.empty();
 }
 
-void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
-	const auto container = box->verticalLayout();
-
-	const auto maybeUser = peer->asUser();
-	const auto isBot = maybeUser && maybeUser->isBot();
-
-	Ui::AddSkip(container);
-	Ui::AddSkip(container);
-
+void SafeSubmitOnEnter(not_null<Ui::GenericBox*> box) {
 	base::install_event_filter(box, [=](not_null<QEvent*> event) {
 		if (event->type() == QEvent::KeyPress) {
 			if (const auto k = static_cast<QKeyEvent*>(event.get())) {
@@ -587,17 +580,31 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 						},
 						.confirmText = tr::lng_box_yes(),
 						.cancelText = tr::lng_box_no(),
-					}));
+						}));
 				}
 			}
 		}
 		return base::EventFilterResult::Continue;
 	});
+}
+
+void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
+	const auto container = box->verticalLayout();
+
+	const auto userpicPeer = peer->userpicPaintingPeer();
+	const auto maybeUser = peer->asUser();
+	const auto isBot = maybeUser && maybeUser->isBot();
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	SafeSubmitOnEnter(box);
 
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 		container,
-		peer,
-		st::mainMenuUserpic);
+		userpicPeer,
+		st::mainMenuUserpic,
+		peer->userpicShape());
 	userpic->showSavedMessagesOnSelf(true);
 	Ui::IconWithTitle(
 		container,
@@ -609,7 +616,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 				: maybeUser
 				? tr::lng_profile_delete_conversation() | Ui::Text::ToBold()
 				: rpl::single(
-					peer->name()
+					userpicPeer->name()
 				) | Ui::Text::ToBold() | rpl::type_erased(),
 			box->getDelegate()->style().title));
 
@@ -750,6 +757,57 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		//	peer->session().api().deleteConversation(from, false);
 		//}
 		peer->session().api().deleteConversation(peer, revoke);
+		close();
+	}, st::attentionBoxButton);
+	box->addButton(tr::lng_cancel(), close);
+}
+
+void DeleteSublistBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Data::SavedSublist*> sublist) {
+	const auto container = box->verticalLayout();
+
+	const auto weak = base::make_weak(sublist.get());
+	const auto peer = sublist->sublistPeer();
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	SafeSubmitOnEnter(box);
+
+	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+		container,
+		peer,
+		st::mainMenuUserpic);
+	Ui::IconWithTitle(
+		container,
+		userpic,
+		Ui::CreateChild<Ui::FlatLabel>(
+			container,
+			tr::lng_profile_delete_conversation() | Ui::Text::ToBold(),
+			box->getDelegate()->style().title));
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_sure_delete_history(
+				lt_contact,
+				rpl::single(peer->name())),
+			st::boxLabel));
+
+	Ui::AddSkip(container);
+
+	const auto close = crl::guard(box, [=] { box->closeBox(); });
+	box->addButton(tr::lng_box_delete(), [=] {
+		const auto strong = weak.get();
+		const auto parentChat = strong ? strong->parentChat() : nullptr;
+		if (!parentChat) {
+			return;
+		}
+		peer->session().api().deleteSublistHistory(parentChat, peer);
 		close();
 	}, st::attentionBoxButton);
 	box->addButton(tr::lng_cancel(), close);

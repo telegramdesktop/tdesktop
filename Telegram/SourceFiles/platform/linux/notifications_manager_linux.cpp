@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/core_settings.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
+#include "data/data_peer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
@@ -156,6 +158,7 @@ public:
 	void clearAll();
 	void clearFromItem(not_null<HistoryItem*> item);
 	void clearFromTopic(not_null<Data::ForumTopic*> topic);
+	void clearFromSublist(not_null<Data::SavedSublist*> sublist);
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearNotification(NotificationId id);
@@ -366,7 +369,10 @@ Manager::Private::Private(not_null<Manager*> manager)
 				.contextId = ContextId{
 					.sessionId = dict.lookup_value("session").get_uint64(),
 					.peerId = PeerId(dict.lookup_value("peer").get_uint64()),
-					.topicRootId = dict.lookup_value("topic").get_int64(),
+					.topicRootId = MsgId(
+						dict.lookup_value("topic").get_int64()),
+					.monoforumPeerId = PeerId(dict.lookup_value(
+						"monoforumpeer").get_uint64()),
 				},
 				.msgId = dict.lookup_value("msgid").get_int64(),
 			};
@@ -531,6 +537,7 @@ void Manager::Private::showNotification(
 		.sessionId = peer->session().uniqueId(),
 		.peerId = peer->id,
 		.topicRootId = info.topicRootId,
+		.monoforumPeerId = info.monoforumPeerId,
 	};
 	const auto notificationId = NotificationId{
 		.contextId = key,
@@ -591,6 +598,10 @@ void Manager::Private::showNotification(
 				GLib::Variant::new_string("topic"),
 				GLib::Variant::new_variant(
 					GLib::Variant::new_int64(info.topicRootId.bare))),
+			GLib::Variant::new_dict_entry(
+				GLib::Variant::new_string("monoforumpeer"),
+				GLib::Variant::new_variant(
+					GLib::Variant::new_uint64(info.monoforumPeerId.value))),
 			GLib::Variant::new_dict_entry(
 				GLib::Variant::new_string("msgid"),
 				GLib::Variant::new_variant(
@@ -809,6 +820,7 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id,
 		.topicRootId = item->topicRootId(),
+		.monoforumPeerId = item->sublistPeerId(),
 	});
 	if (i != _notifications.cend()
 			&& i->second.remove(item->id)
@@ -822,6 +834,15 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		.sessionId = topic->session().uniqueId(),
 		.peerId = topic->history()->peer->id,
 		.topicRootId = topic->rootId(),
+	});
+}
+
+void Manager::Private::clearFromSublist(
+		not_null<Data::SavedSublist*> sublist) {
+	_notifications.remove(ContextId{
+		.sessionId = sublist->session().uniqueId(),
+		.peerId = sublist->owningHistory()->peer->id,
+		.monoforumPeerId = sublist->sublistPeer()->id,
 	});
 }
 
@@ -887,6 +908,10 @@ void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 
 void Manager::doClearFromTopic(not_null<Data::ForumTopic*> topic) {
 	_private->clearFromTopic(topic);
+}
+
+void Manager::doClearFromSublist(not_null<Data::SavedSublist*> sublist) {
+	_private->clearFromSublist(sublist);
 }
 
 void Manager::doClearFromHistory(not_null<History*> history) {

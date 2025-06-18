@@ -494,8 +494,15 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
 		});
-	}).fail([=] {
+	}).fail([=](const MTP::Error &error) {
 		_botsRequests.remove(channel);
+		if (error.type() == u"CHANNEL_MONOFORUM_UNSUPPORTED"_q) {
+			channel->mgInfo->bots.clear();
+			channel->mgInfo->botStatus = -1;
+			channel->session().changes().peerUpdated(
+				channel,
+				Data::PeerUpdate::Flag::FullInfo);
+		}
 	}).send();
 
 	_botsRequests[channel] = requestId;

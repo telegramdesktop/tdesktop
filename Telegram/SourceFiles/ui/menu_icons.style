@@ -233,7 +233,7 @@ menuIconCancelAttention: icon {{ "menu/cancel", menuIconAttentionColor }};
 menuIconBlockAttention: icon {{ "menu/block", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};
-menuIconInviteSettings: icon {{ "menu/invite", windowBgActive }};
+menuIconInviteSettings: icon {{ "menu/invite", lightButtonFg }};
 
 playerSpeedSlow: icon {{ "player/speed/audiospeed_menu_0.5", menuIconColor }};
 playerSpeedSlowActive: icon {{ "player/speed/audiospeed_menu_0.5", mediaPlayerActiveFg }};

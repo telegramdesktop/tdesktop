@@ -24,10 +24,15 @@ namespace {
 [[nodiscard]] bool IsOldForPin(
 		MsgId id,
 		not_null<PeerData*> peer,
-		MsgId topicRootId) {
+		MsgId topicRootId,
+		PeerId monoforumPeerId) {
 	const auto normal = peer->migrateToOrMe();
 	const auto migrated = normal->migrateFrom();
-	const auto top = Data::ResolveTopPinnedId(normal, topicRootId, migrated);
+	const auto top = Data::ResolveTopPinnedId(
+		normal,
+		topicRootId,
+		monoforumPeerId,
+		migrated);
 	if (!top) {
 		return false;
 	} else if (peer == migrated) {
@@ -53,7 +58,14 @@ void PinMessageBox(
 	const auto peer = item->history()->peer;
 	const auto msgId = item->id;
 	const auto topicRootId = item->topic() ? item->topicRootId() : MsgId();
-	const auto pinningOld = IsOldForPin(msgId, peer, topicRootId);
+	const auto monoforumPeerId = item->history()->peer->amMonoforumAdmin()
+		? item->sublistPeerId()
+		: PeerId();
+	const auto pinningOld = IsOldForPin(
+		msgId,
+		peer,
+		topicRootId,
+		monoforumPeerId);
 	const auto state = box->lifetime().make_state<State>();
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
@@ -71,7 +83,9 @@ void PinMessageBox(
 			object->setAllowTextLines();
 			state->pinForPeer = Ui::MakeWeak(object.data());
 			return object;
-		} else if (!pinningOld && (peer->isChat() || peer->isMegagroup())) {
+		} else if (!pinningOld
+			&& (peer->isChat() || peer->isMegagroup())
+			&& !peer->isMonoforum()) {
 			auto object = object_ptr<Ui::Checkbox>(
 				box,
 				tr::lng_pinned_notify(tr::now),

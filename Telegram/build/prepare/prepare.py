@@ -456,7 +456,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 7119a74e3f
+    git checkout a405719f0963abf7cb93354a390617c0f0d90f17
 """)
 
 stage('msys64', """
@@ -749,7 +749,7 @@ win:
 
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
-    git clone -b 1.4.1 https://code.videolan.org/videolan/dav1d.git
+    git clone -b 1.5.1 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
 win32:
     SET "TARGET=x86"
@@ -817,7 +817,7 @@ mac:
 """)
 
 stage('openh264', """
-    git clone -b v2.4.1 https://github.com/cisco/openh264.git
+    git clone -b v2.6.0 https://github.com/cisco/openh264.git
     cd openh264
 win32:
     SET "TARGET=x86"
@@ -878,7 +878,7 @@ mac:
 """)
 
 stage('libavif', """
-    git clone -b v1.0.4 https://github.com/AOMediaCodec/libavif.git
+    git clone -b v1.3.0 https://github.com/AOMediaCodec/libavif.git
     cd libavif
 win:
     cmake . ^
@@ -888,7 +888,8 @@ win:
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DBUILD_SHARED_LIBS=OFF ^
         -DAVIF_ENABLE_WERROR=OFF ^
-        -DAVIF_CODEC_DAV1D=ON
+        -DAVIF_CODEC_DAV1D=SYSTEM ^
+        -DAVIF_LIBYUV=OFF
     cmake --build . --config Debug --parallel
     cmake --install . --config Debug
 release:
@@ -901,16 +902,15 @@ mac:
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D AVIF_ENABLE_WERROR=OFF \\
-        -D AVIF_CODEC_DAV1D=ON \\
-        -D CMAKE_DISABLE_FIND_PACKAGE_libsharpyuv=ON
+        -D AVIF_CODEC_DAV1D=SYSTEM \\
+        -D AVIF_LIBYUV=OFF
     cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
     cmake --install . --config MinSizeRel
 """)
 
 stage('libde265', """
-    git clone -b v1.0.15 https://github.com/strukturag/libde265.git
+    git clone -b v1.0.16 https://github.com/strukturag/libde265.git
     cd libde265
-    git cherry-pick 5c5af1e
 win:
     cmake . ^
         -A %WIN32X64% ^
@@ -943,7 +943,7 @@ mac:
 """)
 
 stage('libwebp', """
-    git clone -b v1.4.0 https://github.com/webmproject/libwebp.git
+    git clone -b v1.5.0 https://github.com/webmproject/libwebp.git
     cd libwebp
 win:
     nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
@@ -983,11 +983,13 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.18.2 https://github.com/strukturag/libheif.git
+    git clone -b v1.19.8 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' libheif/CMakeLists.txt
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' heifio/CMakeLists.txt
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' heifio/CMakeLists.txt
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
@@ -996,10 +998,15 @@ win:
         -DBUILD_TESTING=OFF ^
         -DENABLE_PLUGIN_LOADING=OFF ^
         -DWITH_LIBDE265=ON ^
+        -DWITH_OpenH264_DECODER=OFF ^
         -DWITH_SvtEnc=OFF ^
         -DWITH_SvtEnc_PLUGIN=OFF ^
         -DWITH_RAV1E=OFF ^
         -DWITH_RAV1E_PLUGIN=OFF ^
+        -DWITH_LIBSHARPYUV=OFF ^
+        -DCMAKE_DISABLE_FIND_PACKAGE_TIFF=TRUE ^
+        -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE ^
+        -DCMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE ^
         -DWITH_EXAMPLES=OFF
     cmake --build . --config Debug --parallel
     cmake --install . --config Debug
@@ -1017,14 +1024,17 @@ mac:
         -D WITH_AOM_ENCODER=OFF \\
         -D WITH_AOM_DECODER=OFF \\
         -D WITH_X265=OFF \\
+        -D WITH_OpenH264_DECODER=OFF \\
         -D WITH_SvtEnc=OFF \\
         -D WITH_RAV1E=OFF \\
         -D WITH_DAV1D=ON \\
         -D WITH_LIBDE265=ON \\
         -D LIBDE265_INCLUDE_DIR=$USED_PREFIX/include/ \\
         -D LIBDE265_LIBRARY=$USED_PREFIX/lib/libde265.a \\
-        -D LIBSHARPYUV_INCLUDE_DIR=$USED_PREFIX/include/webp/ \\
-        -D LIBSHARPYUV_LIBRARY=$USED_PREFIX/lib/libsharpyuv.a \\
+        -D WITH_LIBSHARPYUV=OFF \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_TIFF=TRUE \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE \\
         -D WITH_EXAMPLES=OFF
     cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
     cmake --install . --config MinSizeRel
@@ -1557,7 +1567,6 @@ release:
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 win:
-    git revert --no-edit 6ad56dce34
     setlocal enabledelayedexpansion
     for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
         git apply %%i -v
@@ -1746,7 +1755,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout c4192e8
+    git checkout 62321fd
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg

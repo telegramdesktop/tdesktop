@@ -41,6 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "data/components/sponsored_messages.h"
+#include "data/data_channel.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -260,8 +262,8 @@ void DefaultElementDelegate::elementHandleViaClick(
 	not_null<UserData*> bot) {
 }
 
-bool DefaultElementDelegate::elementIsChatWide() {
-	return false;
+ElementChatMode DefaultElementDelegate::elementChatMode() {
+	return ElementChatMode::Default;
 }
 
 void DefaultElementDelegate::elementReplyTo(const FullReplyTo &to) {
@@ -408,7 +410,7 @@ void UnreadBar::paint(
 		const PaintContext &context,
 		int y,
 		int w,
-		bool chatWide) const {
+		ElementChatMode mode) const {
 	const auto previousTranslation = p.transform().dx();
 	if (previousTranslation != 0) {
 		p.translate(-previousTranslation, 0);
@@ -432,7 +434,7 @@ void UnreadBar::paint(
 	p.setPen(st->historyUnreadBarFg());
 
 	int maxwidth = w;
-	if (chatWide) {
+	if (mode == ElementChatMode::Wide) {
 		maxwidth = qMin(
 			maxwidth,
 			st::msgMaxWidth
@@ -475,6 +477,127 @@ void DateBadge::paint(
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
 }
 
+void MonoforumSenderBar::init(
+		not_null<PeerData*> parentChat,
+		not_null<PeerData*> peer) {
+	sender = peer;
+	text.setText(st::semiboldTextStyle, peer->name());
+	const auto skip = st::monoforumBarUserpicSkip;
+	const auto userpic = st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		- 2 * skip;
+	width = skip + userpic + skip * 2 + text.maxWidth() + st::msgServicePadding.right();
+}
+
+int MonoforumSenderBar::height() const {
+	return st::msgServiceMargin.top()
+		+ st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		+ st::msgServiceMargin.bottom();
+}
+
+void MonoforumSenderBar::paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine) const {
+	Paint(p, st, sender, text, width, view, y, w, chatWide, skipPatternLine);
+}
+
+void MonoforumSenderBar::PaintFor(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<Element*> itemView,
+		Ui::PeerUserpicView &userpicView,
+		int y,
+		int w,
+		bool chatWide) {
+	const auto sublist = itemView->data()->savedSublist();
+	const auto sender = (sublist && sublist->parentChat())
+		? sublist->sublistPeer().get()
+		: nullptr;
+	if (!sender || sender->isMonoforum()) {
+		return;
+	}
+	auto text = Ui::Text::String(st::semiboldTextStyle, sender->name());
+	const auto skip = st::monoforumBarUserpicSkip;
+	const auto userpic = st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		- 2 * skip;
+	const auto width = skip
+		+ userpic
+		+ skip * 2
+		+ text.maxWidth()
+		+ st::msgServicePadding.right();
+	Paint(p, st, sender, text, width, userpicView, y, w, chatWide, true);
+}
+
+void MonoforumSenderBar::Paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<PeerData*> sender,
+		const Ui::Text::String &text,
+		int width,
+		Ui::PeerUserpicView &view,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine) {
+	Expects(sender != nullptr);
+
+	int left = st::msgServiceMargin.left();
+	const auto maxwidth = chatWide
+		? std::min(w, WideChatWidth())
+		: w;
+	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+
+	const auto use = std::min(w, width);
+
+	left += (w - use) / 2;
+	int h = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
+	ServiceMessagePainter::PaintBubble(
+		p,
+		st->msgServiceBg(),
+		st->serviceBgCornersNormal(),
+		QRect(left, y + st::msgServiceMargin.top(), use, h));
+
+	const auto skip = st::monoforumBarUserpicSkip;
+	if (!skipPatternLine) {
+		auto pen = st->msgServiceBg()->p;
+		pen.setWidthF(skip);
+		pen.setCapStyle(Qt::RoundCap);
+		pen.setDashPattern({ 2., 2. });
+		p.setPen(pen);
+		const auto top = y + st::msgServiceMargin.top() + (h / 2);
+		p.drawLine(0, top, left, top);
+		p.drawLine(left + use, top, 2 * w, top);
+	}
+
+	const auto userpic = st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		- 2 * skip;
+	const auto available = use - (skip + userpic + skip * 2 + st::msgServicePadding.right());
+
+	sender->paintUserpic(p, view, left + skip, y + st::msgServiceMargin.top() + skip, userpic);
+
+	p.setFont(st::msgServiceFont);
+	p.setPen(st->msgServiceFg());
+	text.draw(p, {
+		.position = {
+			left + skip + userpic + skip * 2,
+			y + st::msgServiceMargin.top() + st::msgServicePadding.top(),
+		},
+		.availableWidth = available,
+		.elisionLines = 1,
+	});
+}
+
 void ServicePreMessage::init(PreparedServiceText string) {
 	text = Ui::Text::String(
 		st::serviceTextStyle,
@@ -486,9 +609,9 @@ void ServicePreMessage::init(PreparedServiceText string) {
 	}
 }
 
-int ServicePreMessage::resizeToWidth(int newWidth, bool chatWide) {
+int ServicePreMessage::resizeToWidth(int newWidth, ElementChatMode mode) {
 	width = newWidth;
-	if (chatWide) {
+	if (mode == ElementChatMode::Wide) {
 		accumulate_min(
 			width,
 			st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
@@ -521,7 +644,7 @@ void ServicePreMessage::paint(
 		Painter &p,
 		const PaintContext &context,
 		QRect g,
-		bool chatWide) const {
+		ElementChatMode mode) const {
 	const auto top = g.top() - height - st::msgMargin.top();
 	p.translate(0, top);
 
@@ -864,7 +987,8 @@ not_null<PurchasedTag*> Element::enforcePurchasedTag() {
 int Element::AdditionalSpaceForSelectionCheckbox(
 		not_null<const Element*> view,
 		QRect countedGeometry) {
-	if (!view->hasOutLayout() || view->delegate()->elementIsChatWide()) {
+	if (!view->hasOutLayout()
+		|| view->delegate()->elementChatMode() == ElementChatMode::Wide) {
 		return 0;
 	}
 	if (countedGeometry.isEmpty()) {
@@ -1220,6 +1344,7 @@ void Element::validateTextSkipBlock(bool has, int width, int height) {
 }
 
 void Element::previousInBlocksChanged() {
+	recountMonoforumSenderBarInBlocks();
 	recountDisplayDateInBlocks();
 	recountAttachToPreviousInBlocks();
 }
@@ -1255,7 +1380,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	const auto item = data();
 	if (!Has<DateBadge>()
 		&& !Has<UnreadBar>()
-		&& !Has<ServicePreMessage>()) {
+		&& !Has<ServicePreMessage>()
+		&& !Has<MonoforumSenderBar>()) {
 		const auto prev = previous->data();
 		const auto previousMarkup = prev->inlineReplyMarkup();
 		const auto possible = (std::abs(prev->date() - item->date())
@@ -1367,6 +1493,14 @@ bool Element::isInOneDayWithPrevious() const {
 	return !data()->isEmpty() && !displayDate();
 }
 
+bool Element::displayMonoforumSender() const {
+	return Has<MonoforumSenderBar>();
+}
+
+bool Element::isInOneBunchWithPrevious() const {
+	return !data()->isEmpty() && !displayMonoforumSender();
+}
+
 void Element::recountAttachToPreviousInBlocks() {
 	if (isHidden() || data()->isEmpty()) {
 		if (const auto next = nextDisplayedInBlocks()) {
@@ -1383,6 +1517,37 @@ void Element::recountAttachToPreviousInBlocks() {
 		previous->setAttachToNext(attachToPrevious, this);
 	}
 	setAttachToPrevious(attachToPrevious, previous);
+}
+
+void Element::recountMonoforumSenderBarInBlocks() {
+	const auto item = data();
+	const auto sublist = item->savedSublist();
+	const auto parentChat = sublist ? sublist->parentChat() : nullptr;
+	const auto barPeer = [&]() -> PeerData* {
+		if (!parentChat
+			|| isHidden()
+			|| item->isEmpty()
+			|| item->isSponsored()) {
+			return nullptr;
+		}
+		const auto sublistPeer = sublist->sublistPeer();
+		if (const auto previous = previousDisplayedInBlocks()) {
+			const auto prev = previous->data();
+			if (const auto prevSublist = prev->savedSublist()) {
+				Assert(prevSublist->parentChat() == parentChat);
+				if (prevSublist->sublistPeer() == sublistPeer) {
+					return nullptr;
+				}
+			}
+		}
+		return (sublistPeer == parentChat) ? nullptr : sublistPeer.get();
+	}();
+	if (barPeer && !Has<MonoforumSenderBar>()) {
+		AddComponents(MonoforumSenderBar::Bit());
+		Get<MonoforumSenderBar>()->init(parentChat, barPeer);
+	} else if (!barPeer && Has<MonoforumSenderBar>()) {
+		RemoveComponents(MonoforumSenderBar::Bit());
+	}
 }
 
 void Element::recountDisplayDateInBlocks() {
@@ -1534,7 +1699,8 @@ bool Element::hasOutLayout() const {
 }
 
 bool Element::hasRightLayout() const {
-	return hasOutLayout() && !_delegate->elementIsChatWide();
+	return hasOutLayout()
+		&& (_delegate->elementChatMode() != ElementChatMode::Wide);
 }
 
 bool Element::drawBubble() const {

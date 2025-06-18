@@ -69,7 +69,7 @@ jobs:
         run: |
           brew update
           brew upgrade || true
-          brew install ada-url autoconf automake boost cmake ffmpeg libtool openal-soft openh264 openssl opus ninja pkg-config python qt yasm xz
+          brew install ada-url autoconf automake boost cmake ffmpeg jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qt yasm xz
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
           xcodebuild -version > CACHE_KEY.txt
@@ -166,9 +166,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug \
           -DCMAKE_C_FLAGS_DEBUG="" \
           -DCMAKE_CXX_FLAGS_DEBUG="" \
-          -DCMAKE_EXE_LINKER_FLAGS="-s" \
           -DTDESKTOP_API_TEST=ON \
-          -DDESKTOP_APP_USE_PACKAGED_LAZY=ON \
           $DEFINE
 
           cmake --build build --parallel

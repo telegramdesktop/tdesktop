@@ -957,4 +957,3 @@ void InnerWidget::showFinished() {
 }
 
 } // namespace Info::Statistics
-

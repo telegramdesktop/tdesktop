@@ -138,26 +138,39 @@ bool MessageView::dependsOn(not_null<const HistoryItem*> item) const {
 
 bool MessageView::prepared(
 		not_null<const HistoryItem*> item,
-		Data::Forum *forum) const {
+		Data::Forum *forum,
+		Data::SavedMessages *monoforum) const {
 	return (_textCachedFor == item.get())
-		&& (!forum
+		&& ((!forum && !monoforum)
 			|| (_topics
 				&& _topics->forum() == forum
+				&& _topics->monoforum() == monoforum
 				&& _topics->prepared()));
 }
 
 void MessageView::prepare(
 		not_null<const HistoryItem*> item,
 		Data::Forum *forum,
+		Data::SavedMessages *monoforum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options) {
-	if (!forum) {
+	if (!forum && !monoforum) {
 		_topics = nullptr;
-	} else if (!_topics || _topics->forum() != forum) {
-		_topics = std::make_unique<TopicsView>(forum);
-		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+	} else if (!_topics
+		|| _topics->forum() != forum
+		|| _topics->monoforum() != monoforum) {
+		_topics = std::make_unique<TopicsView>(forum, monoforum);
+		if (forum) {
+			_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		} else {
+			_topics->prepare(item->sublistPeerId(), customEmojiRepaint);
+		}
 	} else if (!_topics->prepared()) {
-		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		if (forum) {
+			_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		} else {
+			_topics->prepare(item->sublistPeerId(), customEmojiRepaint);
+		}
 	}
 	if (_textCachedFor == item.get()) {
 		return;
@@ -254,10 +267,17 @@ int MessageView::countWidth() const {
 	auto result = 0;
 	if (!_senderCache.isEmpty()) {
 		result += _senderCache.maxWidth();
-		if (!_imagesCache.empty()) {
+		if (!_imagesCache.empty() && !_leftIcon) {
 			result += st::dialogsMiniPreviewSkip
 				+ st::dialogsMiniPreviewRight;
 		}
+	}
+	if (_leftIcon) {
+		const auto w = _leftIcon->icon.icon.width();
+		result += w
+			+ (_imagesCache.empty()
+				? _leftIcon->skipText
+				: _leftIcon->skipMedia);
 	}
 	if (!_imagesCache.empty()) {
 		result += (_imagesCache.size()

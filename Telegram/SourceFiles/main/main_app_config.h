@@ -71,6 +71,7 @@ public:
 	[[nodiscard]] bool paidMessagesAvailable() const;
 	[[nodiscard]] int paidMessageStarsMax() const;
 	[[nodiscard]] int paidMessageCommission() const;
+	[[nodiscard]] int paidMessageChannelStarsDefault() const;
 
 	[[nodiscard]] int pinnedGiftsLimit() const;
 
@@ -81,6 +82,8 @@ public:
 	[[nodiscard]] int giftResalePriceMax() const;
 	[[nodiscard]] int giftResalePriceMin() const;
 	[[nodiscard]] int giftResaleReceiveThousandths() const;
+
+	[[nodiscard]] int pollOptionsLimit() const;
 
 	void refresh(bool force = false);
 

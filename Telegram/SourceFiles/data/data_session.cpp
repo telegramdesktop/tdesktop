@@ -341,6 +341,19 @@ void Session::subscribeForTopicRepliesLists() {
 		}
 	}, _lifetime);
 
+	sublistReadTillUpdates(
+	) | rpl::start_with_next([=](const SublistReadTillUpdate &update) {
+		if (const auto parentChat = channelLoaded(update.parentChatId)) {
+			if (const auto monoforum = parentChat->monoforum()) {
+				const auto sublistPeerId = update.sublistPeerId;
+				const auto peer = monoforum->owner().peer(sublistPeerId);
+				if (const auto sublist = monoforum->sublistLoaded(peer)) {
+					sublist->apply(update);
+				}
+			}
+		}
+	}, _lifetime);
+
 	session().changes().messageUpdates(
 		MessageUpdate::Flag::NewAdded
 		| MessageUpdate::Flag::NewMaybeAdded
@@ -349,6 +362,11 @@ void Session::subscribeForTopicRepliesLists() {
 	) | rpl::start_with_next([=](const MessageUpdate &update) {
 		if (const auto topic = update.item->topic()) {
 			topic->replies()->apply(update);
+		} else if (update.flags == MessageUpdate::Flag::ReplyToTopAdded) {
+			// Not interested in this one for sublist.
+			return;
+		} else if (const auto sublist = update.item->savedSublist()) {
+			sublist->apply(update);
 		}
 	}, _lifetime);
 
@@ -372,19 +390,21 @@ void Session::clear() {
 	// Optimization: clear notifications before destroying items.
 	Core::App().notifications().clearFromSession(_session);
 
-	// We must clear all forums before clearing customEmojiManager.
+	// We must clear all [mono]forums before clearing customEmojiManager.
 	// Because in Data::ForumTopic an Ui::Text::CustomEmoji is cached.
 	auto forums = base::flat_set<not_null<ChannelData*>>();
 	for (const auto &[peerId, peer] : _peers) {
 		if (const auto channel = peer->asChannel()) {
-			if (channel->isForum()) {
+			if (channel->isForum() || channel->amMonoforumAdmin()) {
 				forums.emplace(channel);
 			}
 		}
 	}
 	for (const auto &channel : forums) {
-		channel->setFlags(channel->flags() & ~ChannelDataFlag::Forum);
+		channel->setFlags(channel->flags()
+			& ~(ChannelDataFlag::Forum | ChannelDataFlag::MonoforumAdmin));
 	}
+	_savedMessages->clear();
 
 	_sendActionManager->clear();
 
@@ -959,15 +979,19 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::CallActive
 			| Flag::CallNotEmpty
 			| Flag::Forbidden
-			| (!minimal ? (Flag::Left | Flag::Creator) : Flag())
+			| (!minimal
+				? (Flag::Left | Flag::Creator)
+				: Flag())
 			| Flag::NoForwards
 			| Flag::JoinToWrite
 			| Flag::RequestToJoin
 			| Flag::Forum
+			| Flag::ForumTabs
 			| ((!minimal && !data.is_stories_hidden_min())
 				? Flag::StoriesHidden
 				: Flag())
-			| Flag::AutoTranslation;
+			| Flag::AutoTranslation
+			| Flag::Monoforum;
 		const auto storiesState = minimal
 			? std::optional<Data::Stories::PeerSourceState>()
 			: data.is_stories_unavailable()
@@ -993,8 +1017,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				? Flag::CallNotEmpty
 				: Flag())
 			| (!minimal
-				? (data.is_left() ? Flag::Left : Flag())
-				| (data.is_creator() ? Flag::Creator : Flag())
+				? ((data.is_left() ? Flag::Left : Flag())
+					| (data.is_creator() ? Flag::Creator : Flag()))
 				: Flag())
 			| (data.is_noforwards() ? Flag::NoForwards : Flag())
 			| (data.is_join_to_send() ? Flag::JoinToWrite : Flag())
@@ -1002,12 +1026,14 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| ((data.is_forum() && data.is_megagroup())
 				? Flag::Forum
 				: Flag())
+			| (data.is_forum_tabs() ? Flag::ForumTabs : Flag())
 			| ((!minimal
 				&& !data.is_stories_hidden_min()
 				&& data.is_stories_hidden())
 				? Flag::StoriesHidden
 				: Flag())
-			| (data.is_autotranslation() ? Flag::AutoTranslation : Flag());
+			| (data.is_autotranslation() ? Flag::AutoTranslation : Flag())
+			| (data.is_monoforum() ? Flag::Monoforum : Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 		channel->setBotVerifyDetailsIcon(
 			data.vbot_verification_icon().value_or_empty());
@@ -1022,6 +1048,16 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		channel->setPhoto(data.vphoto());
 		channel->setStarsPerMessage(
 			data.vsend_paid_messages_stars().value_or_empty());
+
+		if (const auto monoforum = data.vlinked_monoforum_id()) {
+			if (const auto linked = channelLoaded(monoforum->v)) {
+				channel->setMonoforumLink(linked);
+			} else {
+				channel->updateFull();
+			}
+		} else {
+			channel->setMonoforumLink(nullptr);
+		}
 
 		if (wasInChannel != channel->amIn()) {
 			flags |= UpdateFlag::ChannelAmIn;
@@ -2310,6 +2346,9 @@ void Session::applyDialog(
 
 bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
 	if ([[maybe_unused]] const auto sublist = entry->asSublist()) {
+		if (sublist->parentChat()) {
+			return false;
+		}
 		const auto saved = &savedMessages();
 		return pinnedChatsOrder(saved).size() < pinnedChatsLimit(saved);
 	} else if (const auto topic = entry->asTopic()) {
@@ -2351,6 +2390,9 @@ int Session::pinnedChatsLimit(not_null<Data::Forum*> forum) const {
 }
 
 int Session::pinnedChatsLimit(not_null<Data::SavedMessages*> saved) const {
+	if (saved->parentChat()) {
+		return 0;
+	}
 	const auto limits = Data::PremiumLimits(_session);
 	return limits.savedSublistsPinnedCurrent();
 }
@@ -2391,6 +2433,9 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
 		not_null<SavedMessages*> saved) const {
+	if (saved->parentChat()) {
+		return rpl::single(0);
+	}
 	// Premium limit from appconfig.
 	// We always use premium limit in the MainList limit producer,
 	// because it slices the list to that limit. We don't want to slice
@@ -2887,6 +2932,15 @@ void Session::updateRepliesReadTill(RepliesReadTillUpdate update) {
 auto Session::repliesReadTillUpdates() const
 -> rpl::producer<RepliesReadTillUpdate> {
 	return _repliesReadTillUpdates.events();
+}
+
+void Session::updateSublistReadTill(SublistReadTillUpdate update) {
+	_sublistReadTillUpdates.fire(std::move(update));
+}
+
+auto Session::sublistReadTillUpdates() const
+-> rpl::producer<SublistReadTillUpdate> {
+	return _sublistReadTillUpdates.events();
 }
 
 int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {
@@ -4563,12 +4617,12 @@ not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 
 not_null<Dialogs::MainList*> Session::chatsListFor(
 		not_null<Dialogs::Entry*> entry) {
-	const auto topic = entry->asTopic();
-	return topic
-		? topic->forum()->topicsList()
-		: entry->asSublist()
-		? _savedMessages->chatsList()
-		: chatsList(entry->folder());
+	if (const auto topic = entry->asTopic()) {
+		return topic->forum()->topicsList();
+	} else if (const auto sublist = entry->asSublist()) {
+		return sublist->parent()->chatsList();
+	}
+	return chatsList(entry->folder());
 }
 
 not_null<Dialogs::MainList*> Session::chatsList(Data::Folder *folder) {
@@ -4644,6 +4698,13 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 		}
 		if (const auto forum = history->peer->forum()) {
 			forum->preloadTopics();
+		} else if (const auto monoforum = history->peer->monoforum()) {
+			monoforum->preloadSublists();
+		}
+		if (const auto broadcast = history->peer->monoforumBroadcast()) {
+			if (!broadcast->isFullLoaded()) {
+				broadcast->updateFull();
+			}
 		}
 	}
 }

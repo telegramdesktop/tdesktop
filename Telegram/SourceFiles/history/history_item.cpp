@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "api/api_sensitive_content.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
 #include "calls/calls_instance.h" // Core::App().calls().joinGroupCall.
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_message.h"
@@ -28,8 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h" // ShowRefundInfoBox.
 #include "storage/file_upload.h"
 #include "storage/storage_shared_media.h"
-#include "main/main_account.h"
-#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "menu/menu_ttl_validator.h"
@@ -72,7 +69,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_non_panel_process.h" // ProcessNonPanelPaymentFormFactory.
 #include "platform/platform_notifications_manager.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
-#include "styles/style_dialogs.h"
 
 namespace {
 
@@ -541,6 +537,7 @@ HistoryItem::HistoryItem(
 	const auto topicRootId = fields.replyTo.topicRootId;
 	config.reply.messageId = config.reply.topMessageId = topicRootId;
 	config.reply.topicPost = (topicRootId != 0) ? 1 : 0;
+	config.reply.monoforumPeerId = fields.replyTo.monoforumPeerId;
 	if (const auto originalReply = original->Get<HistoryMessageReply>()) {
 		if (originalReply->external()) {
 			config.reply = originalReply->fields().clone(this);
@@ -791,9 +788,6 @@ HistoryItem::~HistoryItem() {
 	clearSavedMedia();
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
-	}
-	if (const auto saved = Get<HistoryMessageSaved>()) {
-		saved->sublist->removeOne(this);
 	}
 	clearDependencyMessage();
 	applyTTL(0);
@@ -1482,6 +1476,9 @@ void HistoryItem::markReactionsRead() {
 	if (const auto topic = this->topic()) {
 		topic->updateChatListEntry();
 		topic->unreadReactions().erase(id);
+	} else if (const auto sublist = this->savedSublist()) {
+		sublist->updateChatListEntry();
+		sublist->unreadReactions().erase(id);
 	}
 }
 
@@ -1516,6 +1513,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 		storage.add(Storage::SharedMediaAddExisting(
 			_history->peer->id,
 			MsgId(0), // topicRootId
+			PeerId(0), // monoforumPeerId
 			Storage::SharedMediaType::Pinned,
 			id,
 			{ id, id }));
@@ -1524,10 +1522,21 @@ void HistoryItem::setIsPinned(bool pinned) {
 			storage.add(Storage::SharedMediaAddExisting(
 				_history->peer->id,
 				topic->rootId(),
+				PeerId(), // monoforumPeerId
 				Storage::SharedMediaType::Pinned,
 				id,
 				{ id, id }));
 			topic->setHasPinnedMessages(true);
+		}
+		if (const auto sublist = this->savedSublist()) {
+			storage.add(Storage::SharedMediaAddExisting(
+				_history->peer->id,
+				MsgId(0), // topicRootId
+				sublistPeerId(),
+				Storage::SharedMediaType::Pinned,
+				id,
+				{ id, id }));
+			sublist->setHasPinnedMessages(true);
 		}
 	} else {
 		_flags &= ~MessageFlag::Pinned;
@@ -1697,6 +1706,10 @@ bool HistoryItem::isSponsored() const {
 	return _flags & MessageFlag::Sponsored;
 }
 
+bool HistoryItem::canLookupMessageAuthor() const {
+	return isRegular() && _history->amMonoforumAdmin() && _from->isChannel();
+}
+
 bool HistoryItem::skipNotification() const {
 	if (isSilent() && (_flags & MessageFlag::IsContactSignUp)) {
 		return true;
@@ -1704,6 +1717,8 @@ bool HistoryItem::skipNotification() const {
 		if (forwarded->imported) {
 			return true;
 		}
+	} else if (canLookupMessageAuthor()) {
+		return true;
 	}
 	return false;
 }
@@ -2157,9 +2172,13 @@ void HistoryItem::addToUnreadThings(HistoryUnreadThings::AddType type) {
 		}
 	}
 	if (reaction) {
+		const auto sublist = this->savedSublist();
 		const auto toHistory = history->unreadReactions().add(id, type);
 		const auto toTopic = topic && topic->unreadReactions().add(id, type);
-		if (toHistory || toTopic) {
+		const auto toSublist = sublist
+			&& sublist->parentChat()
+			&& sublist->unreadReactions().add(id, type);
+		if (toHistory || toTopic || toSublist) {
 			if (type == HistoryUnreadThings::AddType::New) {
 				changes->messageUpdated(
 					this,
@@ -2175,6 +2194,11 @@ void HistoryItem::addToUnreadThings(HistoryUnreadThings::AddType type) {
 					changes->topicUpdated(
 						topic,
 						Data::TopicUpdate::Flag::UnreadReactions);
+				}
+				if (toSublist) {
+					changes->sublistUpdated(
+						sublist,
+						Data::SublistUpdate::Flag::UnreadReactions);
 				}
 			}
 		}
@@ -2192,6 +2216,8 @@ void HistoryItem::destroyHistoryEntry() {
 		history()->unreadReactions().erase(id);
 		if (const auto topic = this->topic()) {
 			topic->unreadReactions().erase(id);
+		} else if (const auto sublist = this->savedSublist()) {
+			sublist->unreadReactions().erase(id);
 		}
 	}
 	if (isRegular() && _history->peer->isMegagroup()) {
@@ -2230,12 +2256,16 @@ void HistoryItem::addToSharedMediaIndex() {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
 				_history->peer->id,
 				topicRootId(),
+				sublistPeerId(),
 				types,
 				id));
 			if (types.test(Storage::SharedMediaType::Pinned)) {
 				_history->setHasPinnedMessages(true);
 				if (const auto topic = this->topic()) {
 					topic->setHasPinnedMessages(true);
+				}
+				if (const auto sublist = this->savedSublist()) {
+					sublist->setHasPinnedMessages(true);
 				}
 			}
 		}
@@ -3439,8 +3469,12 @@ FullStoryId HistoryItem::replyToStory() const {
 }
 
 FullReplyTo HistoryItem::replyTo() const {
+	const auto monoforumPeerId = _history->peer->amMonoforumAdmin()
+		? sublistPeerId()
+		: PeerId();
 	auto result = FullReplyTo{
 		.topicRootId = topicRootId(),
+		.monoforumPeerId = monoforumPeerId,
 	};
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto &fields = reply->fields();
@@ -3559,23 +3593,40 @@ bool HistoryItem::isEmpty() const {
 
 Data::SavedSublist *HistoryItem::savedSublist() const {
 	if (const auto saved = Get<HistoryMessageSaved>()) {
-		return saved->sublist;
+		if (saved->savedMessagesSublist) {
+			return saved->savedMessagesSublist;
+		} else if (const auto monoforum = _history->peer->monoforum()) {
+			const auto peer = _history->owner().peer(saved->sublistPeerId);
+			return monoforum->sublist(peer).get();
+		}
 	} else if (_history->peer->isSelf()) {
 		const auto sublist = _history->owner().savedMessages().sublist(
 			_history->peer);
 		const auto that = const_cast<HistoryItem*>(this);
 		that->AddComponents(HistoryMessageSaved::Bit());
-		that->Get<HistoryMessageSaved>()->sublist = sublist;
+		const auto saved = that->Get<HistoryMessageSaved>();
+		saved->sublistPeerId = _history->peer->id;
+		saved->savedMessagesSublist = sublist;
+		return sublist;
+	} else if (const auto monoforum = _history->peer->monoforum()) {
+		const auto sublist = monoforum->sublist(_from);
+		const auto that = const_cast<HistoryItem*>(this);
+		that->AddComponents(HistoryMessageSaved::Bit());
+		that->Get<HistoryMessageSaved>()->sublistPeerId = _from->id;
 		return sublist;
 	}
 	return nullptr;
 }
 
-PeerData *HistoryItem::savedSublistPeer() const {
-	if (const auto sublist = savedSublist()) {
-		return sublist->peer();
+PeerId HistoryItem::sublistPeerId() const {
+	if (const auto saved = Get<HistoryMessageSaved>()) {
+		return saved->sublistPeerId;
+	} else if (_history->peer->isSelf()) {
+		return _history->peer->id;
+	} else if (_history->peer->monoforum()) {
+		return _from->id;
 	}
-	return nullptr;
+	return PeerId();
 }
 
 PeerData *HistoryItem::savedFromSender() const {
@@ -3764,7 +3815,10 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	} else if (config.inlineMarkup) {
 		mask |= HistoryMessageReplyMarkup::Bit();
 	}
-	if (_history->peer->isSelf()) {
+	const auto requiresMonoforumPeer = _history->peer->amMonoforumAdmin();
+	if (_history->peer->isSelf()
+		|| config.savedSublistPeer
+		|| requiresMonoforumPeer) {
 		mask |= HistoryMessageSaved::Bit();
 	}
 	if (!config.restrictions.empty()) {
@@ -3778,7 +3832,11 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 
 	if (const auto saved = Get<HistoryMessageSaved>()) {
 		if (!config.savedSublistPeer) {
-			if (config.savedFromPeer) {
+			if (config.reply.monoforumPeerId) {
+				config.savedSublistPeer = config.reply.monoforumPeerId;
+			} else if (!_history->peer->isSelf()) {
+				config.savedSublistPeer = _from->id;
+			} else if (config.savedFromPeer) {
 				config.savedSublistPeer = config.savedFromPeer;
 			} else if (config.originalSenderId) {
 				config.savedSublistPeer = config.originalSenderId;
@@ -3788,8 +3846,12 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 				config.savedSublistPeer = _history->session().userPeerId();
 			}
 		}
-		const auto peer = _history->owner().peer(config.savedSublistPeer);
-		saved->sublist = _history->owner().savedMessages().sublist(peer);
+		saved->sublistPeerId = config.savedSublistPeer;
+		if (_history->peer->isSelf()) {
+			saved->savedMessagesSublist
+				= _history->owner().savedMessages().sublist(
+					_history->owner().peer(saved->sublistPeerId));
+		}
 	}
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
@@ -4019,6 +4081,11 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 			? replyTo.messageId.peer
 			: PeerId();
 		const auto to = LookupReplyTo(_history, replyTo.messageId);
+		config.reply.monoforumPeerId = (to && to->sublistPeerId())
+			? to->sublistPeerId()
+			: replyTo.monoforumPeerId
+			? replyTo.monoforumPeerId
+			: PeerId();
 		const auto replyToTop = replyTo.topicRootId
 			? replyTo.topicRootId
 			: LookupReplyToTop(_history, to);
@@ -4606,20 +4673,30 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareChatCreate = [this](const MTPDmessageActionChatCreate &action) {
 		auto result = PreparedServiceText();
-		result.links.push_back(fromLink());
-		result.text = tr::lng_action_created_chat(
-			tr::now,
-			lt_from,
-			fromLinkText(), // Link 1.
-			lt_title,
-			{ .text = qs(action.vtitle()) },
-			Ui::Text::WithEntities);
+		if (_history->peer->isMonoforum()) {
+			result.text = tr::lng_action_created_monoforum(
+				tr::now,
+				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = tr::lng_action_created_chat(
+				tr::now,
+				lt_from,
+				fromLinkText(), // Link 1.
+				lt_title,
+				{ .text = qs(action.vtitle()) },
+				Ui::Text::WithEntities);
+		}
 		return result;
 	};
 
 	auto prepareChannelCreate = [this](const MTPDmessageActionChannelCreate &action) {
 		auto result = PreparedServiceText();
-		if (isPost()) {
+		if (_history->peer->isMonoforum()) {
+			result.text = tr::lng_action_created_monoforum(
+				tr::now,
+				Ui::Text::WithEntities);
+		} else if (isPost()) {
 			result.text = tr::lng_action_created_channel(
 				tr::now,
 				Ui::Text::WithEntities);
@@ -5748,8 +5825,23 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto preparePaidMessagesPrice = [&](const MTPDmessageActionPaidMessagesPrice &action) {
 		const auto stars = action.vstars().v;
+		const auto broadcastAllowed = action.is_broadcast_messages_allowed();
 		auto result = PreparedServiceText();
-		result.text = stars
+		result.text = _history->peer->isBroadcast()
+			? (stars > 0
+				? tr::lng_action_direct_messages_paid(
+					tr::now,
+					lt_count,
+					stars,
+					Ui::Text::WithEntities)
+				: broadcastAllowed
+				? tr::lng_action_direct_messages_enabled(
+					tr::now,
+					Ui::Text::WithEntities)
+				: tr::lng_action_direct_messages_disabled(
+					tr::now,
+					Ui::Text::WithEntities))
+			: stars
 			? tr::lng_action_message_price_paid(
 				tr::now,
 				lt_count,

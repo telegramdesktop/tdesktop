@@ -404,12 +404,15 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 	Assert(i != end(items));
 	items.erase(i);
 	if (moveCaption) {
-		const auto caption = item->originalText();
+		auto caption = item->originalText();
 		const auto firstId = items.front().msgId;
 		if (const auto first = item->history()->owner().message(firstId)) {
 			// We don't need to finishEdition() here, because the whole
 			// album will be rebuilt after one item was removed from it.
-			first->setText(caption);
+			auto firstCaption = first->originalText();
+			first->setText(firstCaption.text.isEmpty()
+				? std::move(caption)
+				: firstCaption.append('\n').append(std::move(caption)));
 			refreshMediaCaption(first);
 		}
 	}

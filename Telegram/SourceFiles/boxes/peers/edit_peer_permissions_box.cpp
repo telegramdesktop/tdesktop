@@ -53,6 +53,7 @@ namespace {
 constexpr auto kSlowmodeValues = 7;
 constexpr auto kBoostsUnrestrictValues = 5;
 constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
+constexpr auto kDefaultChargeStars = 10;
 
 [[nodiscard]] auto Dependencies(PowerSaving::Flags)
 -> std::vector<std::pair<PowerSaving::Flag, PowerSaving::Flag>> {
@@ -1196,7 +1197,8 @@ void ShowEditPeerPermissionsBox(
 		state->starsPerMessage = SetupChargeSlider(
 			chargeInner,
 			peer,
-			starsPerMessage);
+			(starsPerMessage > 0) ? starsPerMessage : std::optional<int>(),
+			kDefaultChargeStars);
 	}
 
 	static constexpr auto kSendRestrictions = Flag::EmbedLinks

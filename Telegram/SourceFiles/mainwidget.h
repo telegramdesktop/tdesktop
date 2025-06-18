@@ -32,6 +32,7 @@ class Thread;
 class WallPaper;
 struct ForwardDraft;
 class Forum;
+class SavedMessages;
 struct ReportInput;
 } // namespace Data
 

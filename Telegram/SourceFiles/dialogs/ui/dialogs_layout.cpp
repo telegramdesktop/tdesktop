@@ -62,12 +62,12 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 [[nodiscard]] bool ShowSendActionInDialogs(Data::Thread *thread) {
 	const auto history = thread ? thread->owningHistory().get() : nullptr;
-	if (!history) {
+	if (!history || thread->asSublist()) {
 		return false;
 	} else if (const auto user = history->peer->asUser()) {
 		return !user->lastseen().isHidden();
 	}
-	return !history->isForum();
+	return !history->isForum() && !history->amMonoforumAdmin();
 }
 
 void PaintRowTopRight(
@@ -458,7 +458,9 @@ void PaintRow(
 
 	const auto promoted = (history && history->useTopPromotion())
 		&& !context.search;
-	const auto verifyInfo = (from && !from->isSelf())
+	const auto verifyInfo = (from
+		&& (!from->isSelf()
+			|| (!(flags & Flag::SavedMessages) && !(flags & Flag::MyNotes))))
 		? from->botVerifyDetails()
 		: nullptr;
 	if (promoted) {
@@ -748,6 +750,11 @@ void PaintRow(
 				: context.selected
 				? &st::dialogsScamFgOver
 				: &st::dialogsScamFg),
+			.direct = (context.active
+				? &st::dialogsDraftFgActive
+				: context.selected
+				? &st::windowSubTextFgOver
+				: &st::windowSubTextFg),
 			.premiumFg = (context.active
 				? &st::dialogsVerifiedIconBgActive
 				: context.selected
@@ -926,7 +933,7 @@ const style::icon *ChatTypeIcon(
 			st::dialogsForumIcon,
 			context.active,
 			context.selected);
-	} else {
+	} else if (!peer->isMonoforum()) {
 		return &ThreeStateIcon(
 			st::dialogsChatIcon,
 			context.active,
@@ -960,10 +967,12 @@ void RowPainter::Paint(
 		if (!thread) {
 			return nullptr;
 		}
-		if ((!peer || !peer->isForum()) && (!item || !badgesState.unread)) {
+		if ((!peer || (!peer->isForum() && !peer->amMonoforumAdmin()))
+			&& (!item || !badgesState.unread)) {
 			// Draw item, if there are unread messages.
 			const auto draft = thread->owningHistory()->cloudDraft(
-				thread->topicRootId());
+				thread->topicRootId(),
+				thread->monoforumPeerId());
 			if (!Data::DraftIsNull(draft)) {
 				return draft;
 			}
@@ -992,11 +1001,11 @@ void RowPainter::Paint(
 			? history->peer->migrateTo()
 			: history->peer.get())
 		: sublist
-		? sublist->peer().get()
+		? sublist->sublistPeer().get()
 		: nullptr;
 	const auto allowUserOnline = true;// !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
-		| ((sublist && from->isSelf())
+		| ((sublist && !sublist->parentChat() && from->isSelf())
 			? Flag::MyNotes
 			: (peer && peer->isSelf())
 			? Flag::SavedMessages
@@ -1044,21 +1053,23 @@ void RowPainter::Paint(
 			? nullptr
 			: thread
 			? &thread->lastItemDialogsView()
-			: sublist
-			? &sublist->lastItemDialogsView()
 			: nullptr;
 		if (view) {
-			const auto forum = context.st->topicsHeight
-				? row->history()->peer->forum()
+			const auto forum = (peer && context.st->topicsHeight)
+				? peer->forum()
 				: nullptr;
-			if (!view->prepared(item, forum)) {
+			const auto monoforum = (peer && context.st->topicsHeight)
+				? peer->monoforum()
+				: nullptr;
+			if (!view->prepared(item, forum, monoforum)) {
 				view->prepare(
 					item,
 					forum,
+					monoforum,
 					[=] { entry->updateChatListEntry(); },
 					{});
 			}
-			if (forum) {
+			if (forum || monoforum) {
 				rect.setHeight(context.st->topicsHeight + rect.height());
 			}
 			view->paint(p, rect, context);
@@ -1152,8 +1163,13 @@ void RowPainter::Paint(
 			availableWidth,
 			st::dialogsTextFont->height);
 		auto &view = row->itemView();
-		if (!view.prepared(item, nullptr)) {
-			view.prepare(item, nullptr, row->repaint(), previewOptions);
+		if (!view.prepared(item, nullptr, nullptr)) {
+			view.prepare(
+				item,
+				nullptr,
+				nullptr,
+				row->repaint(),
+				previewOptions);
 		}
 		view.paint(p, itemRect, context);
 	};

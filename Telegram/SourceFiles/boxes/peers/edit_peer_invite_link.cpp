@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -1163,8 +1164,11 @@ void SingleRowController::prepare() {
 		return;
 	}
 	const auto topic = strong->asTopic();
+	const auto sublist = strong->asSublist();
 	auto row = topic
 		? ChooseTopicBoxController::MakeRow(topic)
+		: sublist
+		? std::make_unique<PeerListRow>(sublist->sublistPeer())
 		: std::make_unique<PeerListRow>(strong->peer());
 	const auto raw = row.get();
 	if (_status) {

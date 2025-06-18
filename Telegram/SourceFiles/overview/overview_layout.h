@@ -181,7 +181,7 @@ private:
 
 };
 
-struct Info : public RuntimeComponent<Info, LayoutItemBase> {
+struct Info : RuntimeComponent<Info, LayoutItemBase> {
 	int top = 0;
 };
 

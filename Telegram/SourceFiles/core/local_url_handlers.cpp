@@ -847,6 +847,7 @@ bool OpenMediaTimestamp(
 				document,
 				context,
 				context ? context->topicRootId() : MsgId(0),
+				context ? context->sublistPeerId() : PeerId(0),
 				false,
 				time));
 		} else if (document->isSong() || document->isVoiceMessage()) {

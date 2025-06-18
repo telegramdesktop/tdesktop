@@ -423,7 +423,7 @@ bool Service::consumeHorizontalScroll(QPoint position, int delta) {
 
 QRect Service::countGeometry() const {
 	auto result = QRect(0, 0, width(), height());
-	if (delegate()->elementIsChatWide()) {
+	if (delegate()->elementChatMode() == ElementChatMode::Wide) {
 		result.setWidth(qMin(result.width(), st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 	}
 	auto margins = st::msgServiceMargin;
@@ -452,6 +452,9 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	if (const auto bar = Get<UnreadBar>()) {
 		newHeight += bar->height();
 	}
+	if (const auto monoforumBar = Get<MonoforumSenderBar>()) {
+		newHeight += monoforumBar->height();
+	}
 
 	data()->resolveDependent();
 
@@ -466,7 +469,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 			+ media->resizeGetHeight(newWidth)
 			+ st::msgServiceMargin.bottom();
 	} else if (!text().isEmpty()) {
-		if (delegate()->elementIsChatWide()) {
+		if (delegate()->elementChatMode() == ElementChatMode::Wide) {
 			accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
 		}
 		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
@@ -525,6 +528,9 @@ int Service::marginTop() const {
 	if (const auto bar = Get<UnreadBar>()) {
 		result += bar->height();
 	}
+	if (const auto monoforumBar = Get<MonoforumSenderBar>()) {
+		result += monoforumBar->height();
+	}
 	return result;
 }
 
@@ -541,19 +547,22 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	const auto st = context.st;
 	if (const auto bar = Get<UnreadBar>()) {
 		auto unreadbarh = bar->height();
-		auto dateh = 0;
+		auto aboveh = 0;
 		if (const auto date = Get<DateBadge>()) {
-			dateh = date->height();
+			aboveh += date->height();
 		}
-		if (context.clip.intersects(QRect(0, dateh, width(), unreadbarh))) {
-			p.translate(0, dateh);
+		if (const auto sender = Get<MonoforumSenderBar>()) {
+			aboveh += sender->height();
+		}
+		if (context.clip.intersects(QRect(0, aboveh, width(), unreadbarh))) {
+			p.translate(0, aboveh);
 			bar->paint(
 				p,
 				context,
 				0,
 				width(),
-				delegate()->elementIsChatWide());
-			p.translate(0, -dateh);
+				delegate()->elementChatMode());
+			p.translate(0, -aboveh);
 		}
 	}
 

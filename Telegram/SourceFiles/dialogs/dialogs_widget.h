@@ -111,6 +111,8 @@ public:
 	void setInnerFocus(bool unfocusSearch = false);
 	[[nodiscard]] bool searchHasFocus() const;
 
+	[[nodiscard]] Data::Forum *openedForum() const;
+
 	void jumpToTop(bool belowPinned = false);
 	void raiseWithTooltip();
 

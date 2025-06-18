@@ -187,7 +187,8 @@ void ResolveDocument(
 		Window::SessionController *controller,
 		not_null<DocumentData*> document,
 		HistoryItem *item,
-		MsgId topicRootId) {
+		MsgId topicRootId,
+		PeerId monoforumPeerId) {
 	if (document->isNull()) {
 		return;
 	}
@@ -202,7 +203,7 @@ void ResolveDocument(
 			controller->openDocument(
 				document,
 				true,
-				{ msgId, topicRootId });
+				{ msgId, topicRootId, monoforumPeerId });
 		}
 	};
 

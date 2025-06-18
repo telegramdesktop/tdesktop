@@ -26,6 +26,7 @@ namespace Data {
 class Session;
 class Folder;
 struct WebPageDraft;
+class SavedSublist;
 
 [[nodiscard]] MTPInputReplyTo ReplyToForMTP(
 	not_null<History*> history,
@@ -71,6 +72,9 @@ public:
 		Fn<void()> callback = nullptr);
 	void dialogEntryApplied(not_null<History*> history);
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
+	void changeSublistUnreadMark(
+		not_null<Data::SavedSublist*> sublist,
+		bool unread);
 	void requestFakeChatListMessage(not_null<History*> history);
 
 	void requestGroupAround(not_null<HistoryItem*> item);

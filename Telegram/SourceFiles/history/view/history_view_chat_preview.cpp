@@ -366,8 +366,9 @@ void Item::setupTop() {
 		? nullptr
 		: Ui::CreateChild<Ui::UserpicButton>(
 			_top.get(),
-			_thread->peer(),
-			st::previewUserpic);
+			_thread->peer()->userpicPaintingPeer(),
+			st::previewUserpic,
+			_thread->peer()->userpicShape());
 	if (userpic) {
 		userpic->showSavedMessagesOnSelf(true);
 		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);

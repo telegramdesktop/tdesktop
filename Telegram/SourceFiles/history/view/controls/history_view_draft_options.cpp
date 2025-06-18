@@ -1375,18 +1375,20 @@ void ShowReplyToChatBox(
 	auto chosen = [=](not_null<Data::Thread*> thread) mutable {
 		const auto history = thread->owningHistory();
 		const auto topicRootId = thread->topicRootId();
-		const auto draft = history->localDraft(topicRootId);
+		const auto monoforumPeerId = thread->monoforumPeerId();
+		const auto draft = history->localDraft(topicRootId, monoforumPeerId);
 		const auto textWithTags = draft
 			? draft->textWithTags
 			: TextWithTags();
 		const auto cursor = draft ? draft->cursor : MessageCursor();
 		reply.topicRootId = topicRootId;
+		reply.monoforumPeerId = monoforumPeerId;
 		history->setLocalDraft(std::make_unique<Data::Draft>(
 			textWithTags,
 			reply,
 			cursor,
 			Data::WebPageDraft()));
-		history->clearLocalEditDraft(topicRootId);
+		history->clearLocalEditDraft(topicRootId, monoforumPeerId);
 		history->session().changes().entryUpdated(
 			thread,
 			Data::EntryUpdate::Flag::LocalDraftSet);

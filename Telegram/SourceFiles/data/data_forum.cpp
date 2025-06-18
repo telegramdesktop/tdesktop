@@ -48,7 +48,6 @@ Forum::Forum(not_null<History*> history)
 , _topicsList(&session(), {}, owner().maxPinnedChatsLimitValue(this)) {
 	Expects(_history->peer->isChannel());
 
-
 	if (_history->inChatList()) {
 		preloadTopics();
 	}
@@ -73,8 +72,11 @@ Forum::~Forum() {
 	auto &changes = session().changes();
 	const auto peerId = _history->peer->id;
 	for (const auto &[rootId, topic] : _topics) {
-		storage.unload(Storage::SharedMediaUnloadThread(peerId, rootId));
-		_history->setForwardDraft(rootId, {});
+		storage.unload(Storage::SharedMediaUnloadThread(
+			peerId,
+			rootId,
+			PeerId()));
+		_history->setForwardDraft(rootId, PeerId(), {});
 
 		const auto raw = topic.get();
 		changes.topicRemoved(raw);
@@ -176,34 +178,39 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 	_topicsDeleted.emplace(rootId);
 
 	const auto i = _topics.find(rootId);
-	if (i != end(_topics)) {
-		const auto raw = i->second.get();
-		Core::App().notifications().clearFromTopic(raw);
-		owner().removeChatListEntry(raw);
-
-		if (ranges::contains(_lastTopics, not_null(raw))) {
-			reorderLastTopics();
-		}
-
-		_topicDestroyed.fire(raw);
-		session().changes().topicUpdated(
-			raw,
-			Data::TopicUpdate::Flag::Destroyed);
-		session().changes().entryUpdated(
-			raw,
-			Data::EntryUpdate::Flag::Destroyed);
-		_topics.erase(i);
-
-		_history->destroyMessagesByTopic(rootId);
-		session().storage().unload(Storage::SharedMediaUnloadThread(
-			_history->peer->id,
-			rootId));
-		_history->setForwardDraft(rootId, {});
+	if (i == end(_topics)) {
+		return;
 	}
+	const auto raw = i->second.get();
+	Core::App().notifications().clearFromTopic(raw);
+	owner().removeChatListEntry(raw);
+
+	if (ranges::contains(_lastTopics, not_null(raw))) {
+		reorderLastTopics();
+	}
+
+	if (_activeSubsectionTopic == raw) {
+		_activeSubsectionTopic = nullptr;
+	}
+	_topicDestroyed.fire(raw);
+	session().changes().topicUpdated(
+		raw,
+		Data::TopicUpdate::Flag::Destroyed);
+	session().changes().entryUpdated(
+		raw,
+		Data::EntryUpdate::Flag::Destroyed);
+	_topics.erase(i);
+
+	_history->destroyMessagesByTopic(rootId);
+	session().storage().unload(Storage::SharedMediaUnloadThread(
+		_history->peer->id,
+		rootId,
+		PeerId()));
+	_history->setForwardDraft(rootId, PeerId(), {});
 }
 
 void Forum::reorderLastTopics() {
-	// We want first kShowChatNamesCount histories, by last message date.
+	// We want first kShowTopicNamesCount histories, by last message date.
 	const auto pred = [](not_null<ForumTopic*> a, not_null<ForumTopic*> b) {
 		const auto aItem = a->chatListMessage();
 		const auto bItem = b->chatListMessage();
@@ -253,6 +260,20 @@ void Forum::recentTopicsInvalidate(not_null<ForumTopic*> topic) {
 
 const std::vector<not_null<ForumTopic*>> &Forum::recentTopics() const {
 	return _lastTopics;
+}
+
+void Forum::saveActiveSubsectionThread(not_null<Thread*> thread) {
+	if (const auto topic = thread->asTopic()) {
+		Assert(topic->forum() == this);
+		_activeSubsectionTopic = topic->creating() ? nullptr : topic;
+	} else {
+		Assert(thread == history());
+		_activeSubsectionTopic = nullptr;
+	}
+}
+
+Thread *Forum::activeSubsectionThread() const {
+	return _activeSubsectionTopic;
 }
 
 void Forum::listMessageChanged(HistoryItem *from, HistoryItem *to) {

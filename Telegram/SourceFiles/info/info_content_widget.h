@@ -210,6 +210,7 @@ public:
 	ContentMemento(
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist,
 		PeerId migratedPeerId);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
@@ -239,6 +240,9 @@ public:
 	}
 	Data::ForumTopic *topic() const {
 		return _topic;
+	}
+	Data::SavedSublist *sublist() const {
+		return _sublist;
 	}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
@@ -311,6 +315,7 @@ private:
 	PeerData * const _peer = nullptr;
 	const PeerId _migratedPeerId = 0;
 	Data::ForumTopic *_topic = nullptr;
+	Data::SavedSublist *_sublist = nullptr;
 	UserData * const _settingsSelf = nullptr;
 	PeerData * const _storiesPeer = nullptr;
 	Stories::Tab _storiesTab = {};

@@ -158,6 +158,7 @@ private:
 	void setupSelectRestriction();
 
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] PeerId monoforumPeerId() const;
 
 	QMargins padding() const;
 	bool isItemLayout(

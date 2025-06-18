@@ -196,7 +196,7 @@ bool HiddenSenderInfo::paintCustomUserpic(
 		image.isNull() ? nullptr : &image,
 		image.isNull() ? &emptyUserpic : nullptr,
 		size * style::DevicePixelRatio(),
-		false);
+		Ui::PeerUserpicShape::Circle);
 	p.drawImage(QRect(x, y, size, size), view.cached);
 	return valid;
 }
@@ -417,6 +417,13 @@ FullReplyTo ReplyToFromMTP(
 			};
 		}
 		return FullReplyTo();
+	}, [&](const MTPDinputReplyToMonoForum &data) {
+		const auto parsed = Data::PeerFromInputMTP(
+			&history->owner(),
+			data.vmonoforum_peer_id());
+		return FullReplyTo{
+			.monoforumPeerId = parsed ? parsed->id : PeerId(),
+		};
 	});
 }
 

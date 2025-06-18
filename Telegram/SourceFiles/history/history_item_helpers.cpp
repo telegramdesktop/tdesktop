@@ -503,6 +503,8 @@ TimeId NewMessageDate(const Api::SendOptions &options) {
 PeerId NewMessageFromId(const Api::SendAction &action) {
 	return action.options.sendAs
 		? action.options.sendAs->id
+		: action.history->peer->amMonoforumAdmin()
+		? action.history->peer->monoforumBroadcast()->id
 		: action.history->peer->amAnonymous()
 		? PeerId()
 		: action.history->session().userPeerId();

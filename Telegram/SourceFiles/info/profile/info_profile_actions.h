@@ -16,6 +16,7 @@ class VerticalLayout;
 
 namespace Data {
 class ForumTopic;
+class SavedSublist;
 } // namespace Data
 
 namespace Info {
@@ -55,12 +56,14 @@ Cover *AddCover(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
-	Data::ForumTopic *topic);
+	Data::ForumTopic *topic,
+	Data::SavedSublist *sublist);
 void AddDetails(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
+	Data::SavedSublist *sublist,
 	Origin origin);
 
 } // namespace Info::Profile

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -31,7 +32,9 @@ UnreadThings::UnreadThings(not_null<ApiWrap*> api) : _api(api) {
 
 bool UnreadThings::trackMentions(Data::Thread *thread) const {
 	const auto peer = thread ? thread->peer().get() : nullptr;
-	return peer && (peer->isChat() || peer->isMegagroup());
+	return peer
+		&& (peer->isChat() || peer->isMegagroup())
+		&& !peer->isMonoforum();
 }
 
 bool UnreadThings::trackReactions(Data::Thread *thread) const {
@@ -93,7 +96,7 @@ void UnreadThings::cancelRequests(not_null<Data::Thread*> thread) {
 void UnreadThings::requestMentions(
 		not_null<Data::Thread*> thread,
 		int loaded) {
-	if (_mentionsRequests.contains(thread)) {
+	if (_mentionsRequests.contains(thread) || thread->asSublist()) {
 		return;
 	}
 	const auto offsetId = std::max(
@@ -138,12 +141,15 @@ void UnreadThings::requestReactions(
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto history = thread->owningHistory();
+	const auto sublist = thread->asSublist();
 	const auto topic = thread->asTopic();
 	using Flag = MTPmessages_GetUnreadReactions::Flag;
 	const auto requestId = _api->request(MTPmessages_GetUnreadReactions(
-		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
+		MTP_flags((topic ? Flag::f_top_msg_id : Flag())
+			| (sublist ? Flag::f_saved_peer_id : Flag())),
 		history->peer->input,
 		MTP_int(topic ? topic->rootId() : 0),
+		(sublist ? sublist->sublistPeer()->input : MTPInputPeer()),
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),

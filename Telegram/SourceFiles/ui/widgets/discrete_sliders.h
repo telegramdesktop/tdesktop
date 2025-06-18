@@ -37,7 +37,8 @@ public:
 	void setSections(const std::vector<QString> &labels);
 	void setSections(
 		const std::vector<TextWithEntities> &labels,
-		Text::MarkedContext context = {});
+		Text::MarkedContext context = {},
+		Fn<bool()> paused = nullptr);
 	int activeSection() const {
 		return _activeIndex;
 	}
@@ -50,6 +51,9 @@ public:
 	[[nodiscard]] rpl::producer<int> sectionActivated() const {
 		return _sectionActivated.events();
 	}
+
+	[[nodiscard]] int sectionsCount() const;
+	[[nodiscard]] int lookupSectionLeft(int index) const;
 
 protected:
 	void timerEvent(QTimerEvent *e) override;
@@ -98,7 +102,9 @@ protected:
 
 	void setSelectOnPress(bool selectOnPress);
 
-	std::vector<Section> &sectionsRef();
+	[[nodiscard]] std::vector<Section> &sectionsRef();
+
+	[[nodiscard]] bool paused() const;
 
 private:
 	void activateCallback();
@@ -109,6 +115,7 @@ private:
 	void setSelectedSection(int index);
 
 	std::vector<Section> _sections;
+	Fn<bool()> _paused;
 	int _activeIndex = 0;
 	bool _selectOnPress = true;
 	bool _snapToLabel = false;

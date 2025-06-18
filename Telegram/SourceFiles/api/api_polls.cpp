@@ -47,6 +47,7 @@ void Polls::create(
 	const auto topicRootId = action.replyTo.messageId
 		? action.replyTo.topicRootId
 		: 0;
+	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (action.replyTo) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
@@ -54,9 +55,9 @@ void Polls::create(
 	const auto clearCloudDraft = action.clearDraft;
 	if (clearCloudDraft) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
-		history->clearLocalDraft(topicRootId);
-		history->clearCloudDraft(topicRootId);
-		history->startSavingCloudDraft(topicRootId);
+		history->clearLocalDraft(topicRootId, monoforumPeerId);
+		history->clearCloudDraft(topicRootId, monoforumPeerId);
+		history->startSavingCloudDraft(topicRootId, monoforumPeerId);
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	const auto starsPaid = std::min(
@@ -106,6 +107,7 @@ void Polls::create(
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(
 				topicRootId,
+				monoforumPeerId,
 				UnixtimeFromMsgId(response.outerMsgId));
 		}
 		_session->changes().historyUpdated(
@@ -118,6 +120,7 @@ void Polls::create(
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(
 				topicRootId,
+				monoforumPeerId,
 				UnixtimeFromMsgId(response.outerMsgId));
 		}
 		fail();

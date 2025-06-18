@@ -35,6 +35,7 @@ public:
 		PeerId migratedPeerId,
 		Origin origin = { v::null });
 	explicit Memento(not_null<Data::ForumTopic*> topic);
+	explicit Memento(not_null<Data::SavedSublist*> sublist);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -56,6 +57,7 @@ private:
 	Memento(
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist,
 		PeerId migratedPeerId,
 		Origin origin);
 

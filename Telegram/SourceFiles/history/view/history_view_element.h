@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/weak_ptr.h"
+#include "ui/userpic_view.h"
 
 class History;
 class HistoryBlock;
@@ -58,6 +59,7 @@ enum class Context : char {
 	Pinned,
 	AdminLog,
 	ContactPreview,
+	Monoforum,
 	SavedSublist,
 	TTLViewer,
 	ShortcutMessages,
@@ -74,6 +76,12 @@ enum class OnlyEmojiAndSpaces : char {
 struct SelectionModeResult {
 	bool inSelectionMode = false;
 	float64 progress = 0.0;
+};
+
+enum class ElementChatMode : char {
+	Default,
+	Wide,
+	Narrow, // monoforum with left tabs
 };
 
 class Element;
@@ -112,7 +120,7 @@ public:
 		const QString &query,
 		const FullMsgId &context) = 0;
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
-	virtual bool elementIsChatWide() = 0;
+	virtual ElementChatMode elementChatMode() = 0;
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
 	virtual void elementReplyTo(const FullReplyTo &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
@@ -167,7 +175,7 @@ public:
 		const QString &query,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
-	bool elementIsChatWide() override;
+	ElementChatMode elementChatMode() override;
 	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementStartPremium(
@@ -220,7 +228,7 @@ QString DateTooltipText(not_null<Element*> view);
 
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
-struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
+struct UnreadBar : RuntimeComponent<UnreadBar, Element> {
 	void init(const QString &string);
 
 	static int height();
@@ -231,7 +239,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 		const PaintContext &context,
 		int y,
 		int w,
-		bool chatWide) const;
+		ElementChatMode mode) const;
 
 	QString text;
 	int width = 0;
@@ -241,7 +249,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 
 // Any HistoryView::Element can have this Component for
 // displaying the day mark above the message.
-struct DateBadge : public RuntimeComponent<DateBadge, Element> {
+struct DateBadge : RuntimeComponent<DateBadge, Element> {
 	void init(const QString &date);
 
 	int height() const;
@@ -257,19 +265,59 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+struct MonoforumSenderBar : RuntimeComponent<MonoforumSenderBar, Element> {
+	void init(not_null<PeerData*> parentChat, not_null<PeerData*> peer);
+
+	int height() const;
+	void paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine) const;
+	static void PaintFor(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<Element*> itemView,
+		Ui::PeerUserpicView &userpicView,
+		int y,
+		int w,
+		bool chatWide);
+
+	PeerData *sender = nullptr;
+	Ui::Text::String text;
+	ClickHandlerPtr link;
+	mutable Ui::PeerUserpicView view;
+	int width = 0;
+
+private:
+	static void Paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<PeerData*> sender,
+		const Ui::Text::String &text,
+		int width,
+		Ui::PeerUserpicView &view,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine);
+
+};
+
 // Any HistoryView::Element can have this Component for
 // displaying some text in layout of a service message above the message.
-struct ServicePreMessage
-	: public RuntimeComponent<ServicePreMessage, Element> {
+struct ServicePreMessage : RuntimeComponent<ServicePreMessage, Element> {
 	void init(PreparedServiceText string);
 
-	int resizeToWidth(int newWidth, bool chatWide);
+	int resizeToWidth(int newWidth, ElementChatMode mode);
 
 	void paint(
 		Painter &p,
 		const PaintContext &context,
 		QRect g,
-		bool chatWide) const;
+		ElementChatMode mode) const;
 	[[nodiscard]] ClickHandlerPtr textState(
 		QPoint point,
 		const StateRequest &request,
@@ -281,7 +329,7 @@ struct ServicePreMessage
 
 };
 
-struct FakeBotAboutTop : public RuntimeComponent<FakeBotAboutTop, Element> {
+struct FakeBotAboutTop : RuntimeComponent<FakeBotAboutTop, Element> {
 	void init();
 
 	Ui::Text::String text;
@@ -289,7 +337,7 @@ struct FakeBotAboutTop : public RuntimeComponent<FakeBotAboutTop, Element> {
 	int height = 0;
 };
 
-struct PurchasedTag : public RuntimeComponent<PurchasedTag, Element> {
+struct PurchasedTag : RuntimeComponent<PurchasedTag, Element> {
 	Ui::Text::String text;
 };
 
@@ -418,6 +466,9 @@ public:
 	[[nodiscard]] int displayedDateHeight() const;
 	[[nodiscard]] bool displayDate() const;
 	[[nodiscard]] bool isInOneDayWithPrevious() const;
+
+	[[nodiscard]] bool displayMonoforumSender() const;
+	[[nodiscard]] bool isInOneBunchWithPrevious() const;
 
 	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const = 0;
@@ -629,14 +680,17 @@ protected:
 	std::unique_ptr<Reactions::InlineList> _reactions;
 
 private:
+	void recountMonoforumSenderBarInBlocks();
+
 	// This should be called only from previousInBlocksChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<DateBadge>().
 	void recountDisplayDateInBlocks();
 
 	// This should be called only from previousInBlocksChanged() or when
-	// DateBadge or UnreadBar bit is changed in the Composer mask
-	// then the result should be cached in a client side flag
+	// DateBadge or UnreadBar or MonoforumSenderBar bit
+	// is changed in the Composer mask then the result
+	// should be cached in a client side flag
 	// HistoryView::Element::Flag::AttachedToPrevious.
 	void recountAttachToPreviousInBlocks();
 

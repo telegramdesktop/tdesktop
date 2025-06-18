@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -197,6 +198,7 @@ private:
 
 	History *_history = nullptr;
 	MsgId _topicRootId = 0;
+	PeerId _monoforumPeerId = 0;
 
 	Preview _preview;
 	rpl::event_stream<> _editCancelled;
@@ -254,6 +256,7 @@ FieldHeader::FieldHeader(
 void FieldHeader::setHistory(const SetHistoryArgs &args) {
 	_history = *args.history;
 	_topicRootId = args.topicRootId;
+	_monoforumPeerId = args.monoforumPeerId;
 }
 
 void FieldHeader::updateTopicRootId(MsgId topicRootId) {
@@ -282,7 +285,7 @@ void FieldHeader::init() {
 			st::historyLinkIcon.paint(p, position, width());
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
-		} else if (const auto reply = replyingToMessage()) {
+		} else if (const auto reply = replyingToMessage(); reply.replying()) {
 			if (!reply.quote.empty()) {
 				st::historyQuoteIcon.paint(p, position, width());
 			} else {
@@ -760,6 +763,7 @@ void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
 }
 
 void FieldHeader::replyToMessage(FullReplyTo id) {
+	id.monoforumPeerId = 0;
 	_replyTo = id;
 }
 
@@ -956,6 +960,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	unregisterDraftSources();
 	_history = history;
 	_topicRootId = args.topicRootId;
+	_monoforumPeerId = args.monoforumPeerId;
 	_historyLifetime.destroy();
 	_header->setHistory(args);
 	registerDraftSource();
@@ -999,6 +1004,7 @@ void ComposeControls::setCurrentDialogsEntryState(
 		Dialogs::EntryState state) {
 	unregisterDraftSources();
 	state.currentReplyTo.topicRootId = _topicRootId;
+	state.currentReplyTo.monoforumPeerId = _monoforumPeerId;
 	_currentDialogsEntryState = state;
 	updateForwarding();
 	registerDraftSource();
@@ -1405,6 +1411,7 @@ void ComposeControls::init() {
 	) | rpl::start_with_next([=] {
 		const auto history = _history;
 		const auto topicRootId = _topicRootId;
+		const auto monoforumPeerId = _monoforumPeerId;
 		const auto reply = _header->replyingToMessage();
 		const auto webpage = _preview->draft();
 
@@ -1417,7 +1424,10 @@ void ComposeControls::init() {
 			} else {
 				cancelReplyMessage();
 			}
-			history->setForwardDraft(topicRootId, std::move(forward));
+			history->setForwardDraft(
+				topicRootId,
+				monoforumPeerId,
+				std::move(forward));
 			_preview->apply(webpage);
 			_field->setFocus();
 		};
@@ -1440,6 +1450,7 @@ void ComposeControls::init() {
 			.clearOldDraft = [=] { ClearDraftReplyTo(
 				history,
 				topicRootId,
+				monoforumPeerId,
 				replyToId); },
 		});
 	}, _wrap->lifetime());
@@ -1807,9 +1818,10 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 	switch (_currentDialogsEntryState.section) {
 	case Section::History:
 	case Section::Replies:
+	case Section::SavedSublist:
 		return (type == DraftType::Edit)
-			? Key::LocalEdit(_topicRootId)
-			: Key::Local(_topicRootId);
+			? Key::LocalEdit(_topicRootId, _monoforumPeerId)
+			: Key::Local(_topicRootId, _monoforumPeerId);
 	case Section::Scheduled:
 		return (type == DraftType::Edit)
 			? Key::ScheduledEdit()
@@ -2037,7 +2049,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 }
 
 void ComposeControls::cancelForward() {
-	_history->setForwardDraft(_topicRootId, {});
+	_history->setForwardDraft(_topicRootId, _monoforumPeerId, {});
 	updateForwarding();
 }
 
@@ -2901,9 +2913,11 @@ void ComposeControls::toggleTabbedSelectorMode() {
 				&& !_regularWindow->adaptive().isOneColumn()) {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
-			const auto topic = _history->peer->forumTopicFor(_topicRootId);
+			const auto thread = _history->threadFor(
+				_topicRootId,
+				_monoforumPeerId);
 			pushTabbedSelectorToThirdSection(
-				(topic ? topic : (Data::Thread*)_history),
+				thread ? thread : _history,
 				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();
@@ -2957,6 +2971,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 			FullReplyTo{
 				.messageId = item->fullId(),
 				.topicRootId = key.topicRootId(),
+				.monoforumPeerId = key.monoforumPeerId(),
 			},
 			cursor,
 			Data::WebPageDraft::FromItem(item)));
@@ -3037,6 +3052,7 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
 	id.topicRootId = _topicRootId;
+	id.monoforumPeerId = _monoforumPeerId;
 	if (!id) {
 		cancelReplyMessage();
 		return;
@@ -3044,6 +3060,7 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 	if (isEditingMessage()) {
 		const auto key = draftKey(DraftType::Normal);
 		Assert(key.topicRootId() == id.topicRootId);
+		Assert(key.monoforumPeerId() == id.monoforumPeerId);
 		if (const auto localDraft = _history->draft(key)) {
 			localDraft->reply = id;
 		} else {
@@ -3087,12 +3104,11 @@ void ComposeControls::cancelReplyMessage() {
 }
 
 void ComposeControls::updateForwarding() {
-	const auto rootId = _topicRootId;
-	const auto thread = (_history && rootId)
-		? _history->peer->forumTopicFor(rootId)
+	const auto thread = (_history && (_topicRootId || _monoforumPeerId))
+		? _history->threadFor(_topicRootId, _monoforumPeerId)
 		: (Data::Thread*)_history;
 	_header->updateForwarding(thread, thread
-		? _history->resolveForwardDraft(rootId)
+		? _history->resolveForwardDraft(_topicRootId, _monoforumPeerId)
 		: Data::ResolvedForwardDraft());
 	updateSendButtonType();
 }
@@ -3107,7 +3123,7 @@ bool ComposeControls::handleCancelRequest() {
 	} else if (isEditingMessage()) {
 		maybeCancelEditMessage();
 		return true;
-	} else if (replyingToMessage()) {
+	} else if (replyingToMessage().replying()) {
 		cancelReplyMessage();
 		return true;
 	} else if (readyToForward()) {
@@ -3185,6 +3201,11 @@ void ComposeControls::initForwardProcess() {
 				&& topic->rootId() == _topicRootId) {
 				updateForwarding();
 			}
+		} else if (const auto sublist = update.entry->asSublist()) {
+			if (sublist->owningHistory() == _history
+				&& sublist->sublistPeer()->id == _monoforumPeerId) {
+				updateForwarding();
+			}
 		}
 	}, _wrap->lifetime());
 
@@ -3208,6 +3229,7 @@ bool ComposeControls::isEditingMessage() const {
 FullReplyTo ComposeControls::replyingToMessage() const {
 	auto result = _header->replyingToMessage();
 	result.topicRootId = _topicRootId;
+	result.monoforumPeerId = _monoforumPeerId;
 	return result;
 }
 

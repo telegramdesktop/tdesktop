@@ -28,7 +28,7 @@ MainList::MainList(
 	std::move(
 		pinnedLimit
 	) | rpl::start_with_next([=](int limit) {
-		_pinned.setLimit(limit);
+		_pinned.setLimit(std::max(limit, 1));
 	}, _lifetime);
 
 	session->changes().realtimeNameUpdates(

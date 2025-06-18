@@ -45,8 +45,7 @@ namespace {
 
 constexpr auto kPremiumsRowId = PeerId(FakeChatId(BareId(1))).value;
 constexpr auto kMiniAppsRowId = PeerId(FakeChatId(BareId(2))).value;
-constexpr auto kStarsMin = 1;
-constexpr auto kDefaultChargeStars = 10;
+constexpr auto kDefaultPrivateMessagesPrice = 10;
 
 using Exceptions = Api::UserPrivacy::Exceptions;
 
@@ -464,6 +463,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		int valuesCount,
 		Fn<int(int)> valueByIndex,
 		int value,
+		int minValue,
 		int maxValue,
 		Fn<void(int)> valueProgress,
 		Fn<void(int)> valueFinished) {
@@ -473,7 +473,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 	const auto labels = raw->add(object_ptr<Ui::RpWidget>(raw));
 	const auto min = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		QString::number(kStarsMin),
+		QString::number(minValue),
 		*labelStyle);
 	const auto max = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
@@ -510,8 +510,9 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		current->moveToLeft((outer - current->width()) / 2, 0, outer);
 	};
 	const auto updateByValue = [=](int value) {
-		current->setText(
-			tr::lng_action_gift_for_stars(tr::now, lt_count, value));
+		current->setText(value > 0
+			? tr::lng_action_gift_for_stars(tr::now, lt_count, value)
+			: tr::lng_manage_monoforum_free(tr::now));
 
 		state->index = 0;
 		auto maxIndex = valuesCount - 1;
@@ -1035,7 +1036,8 @@ void EditMessagesPrivacyBox(
 		state->stars = SetupChargeSlider(
 			chargeInner,
 			session->user(),
-			savedValue);
+			(savedValue > 0) ? savedValue : std::optional<int>(),
+			kDefaultPrivateMessagesPrice);
 
 		Ui::AddSkip(chargeInner);
 		Ui::AddSubsectionTitle(
@@ -1164,25 +1166,31 @@ void EditMessagesPrivacyBox(
 rpl::producer<int> SetupChargeSlider(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
-		int savedValue) {
+		std::optional<int> savedValue,
+		int defaultValue,
+		bool allowZero) {
 	struct State {
 		rpl::variable<int> stars;
 	};
-	const auto group = !peer->isUser();
+	const auto broadcast = peer->isBroadcast();
+	const auto group = !broadcast && !peer->isUser();
 	const auto state = container->lifetime().make_state<State>();
-	const auto chargeStars = savedValue ? savedValue : kDefaultChargeStars;
+	const auto chargeStars = savedValue.value_or(defaultValue);
 	state->stars = chargeStars;
 
-	Ui::AddSubsectionTitle(container, group
+	Ui::AddSubsectionTitle(container, broadcast
+		? tr::lng_manage_monoforum_price()
+		: group
 		? tr::lng_rights_charge_price()
 		: tr::lng_messages_privacy_price());
 
 	auto values = std::vector<int>();
+	const auto minStars = allowZero ? 0 : 1;
 	const auto maxStars = peer->session().appConfig().paidMessageStarsMax();
-	if (chargeStars < kStarsMin) {
+	if (chargeStars < minStars) {
 		values.push_back(chargeStars);
 	}
-	for (auto i = kStarsMin; i < std::min(100, maxStars); ++i) {
+	for (auto i = minStars; i < std::min(100, maxStars); ++i) {
 		values.push_back(i);
 	}
 	for (auto i = 100; i < std::min(1000, maxStars); i += 10) {
@@ -1209,6 +1217,7 @@ rpl::producer<int> SetupChargeSlider(
 			valuesCount,
 			[=](int index) { return values[index]; },
 			chargeStars,
+			minStars,
 			maxStars,
 			setStars,
 			setStars),
@@ -1217,21 +1226,100 @@ rpl::producer<int> SetupChargeSlider(
 	const auto skip = 2 * st::defaultVerticalListSkip;
 	Ui::AddSkip(container, skip);
 
-	auto dollars = state->stars.value() | rpl::map([=](int stars) {
-		const auto ratio = peer->session().appConfig().starsWithdrawRate();
+	const auto details = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
+	state->stars.value() | rpl::start_with_next([=](int stars) {
+		while (details->count()) {
+			delete details->widgetAt(0);
+		}
+		if (!stars) {
+			Ui::AddDivider(details);
+			return;
+		}
+		const auto &appConfig = peer->session().appConfig();
+		const auto percent = appConfig.paidMessageCommission();
+		const auto ratio = appConfig.starsWithdrawRate();
 		const auto dollars = int(base::SafeRound(stars * ratio));
-		return '~' + Ui::FillAmountAndCurrency(dollars, u"USD"_q);
-	});
-	const auto percent = peer->session().appConfig().paidMessageCommission();
-	Ui::AddDividerText(
-		container,
-		(group
-			? tr::lng_rights_charge_price_about
-			: tr::lng_messages_privacy_price_about)(
-			lt_percent,
-			rpl::single(QString::number(percent / 10.) + '%'),
-			lt_amount,
-			std::move(dollars)));
-
+		const auto amount = Ui::FillAmountAndCurrency(dollars, u"USD"_q);
+		Ui::AddDividerText(
+			details,
+			(broadcast
+				? tr::lng_manage_monoforum_price_about
+				: group
+				? tr::lng_rights_charge_price_about
+				: tr::lng_messages_privacy_price_about)(
+					lt_percent,
+					rpl::single(QString::number(percent / 10.) + '%'),
+					lt_amount,
+					rpl::single('~' + amount)));
+	}, details->lifetime());
 	return state->stars.value();
+}
+
+void EditDirectMessagesPriceBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<ChannelData*> channel,
+		std::optional<int> savedValue,
+		Fn<void(std::optional<int>)> callback) {
+	box->setTitle(tr::lng_manage_monoforum());
+	box->setWidth(st::boxWideWidth);
+
+	const auto container = box->verticalLayout();
+
+	Settings::AddDividerTextWithLottie(container, {
+		.lottie = u"direct_messages"_q,
+		.lottieSize = st::settingsFilterIconSize,
+		.lottieMargins = st::settingsFilterIconPadding,
+		.showFinished = box->showFinishes(),
+		.about = tr::lng_manage_monoforum_about(
+			Ui::Text::RichLangValue
+		),
+		.aboutMargins = st::settingsFilterDividerLabelPadding,
+	});
+
+	Ui::AddSkip(container);
+
+	const auto toggle = container->add(object_ptr<Ui::SettingsButton>(
+		box,
+		tr::lng_manage_monoforum_allow(),
+		st::settingsButtonNoIcon));
+	toggle->toggleOn(rpl::single(savedValue.has_value()));
+
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
+
+	const auto wrap = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)),
+		{});
+	wrap->toggle(savedValue.has_value(), anim::type::instant);
+	wrap->toggleOn(toggle->toggledChanges());
+
+	const auto result = box->lifetime().make_state<int>(
+		savedValue.value_or(0));
+
+	const auto inner = wrap->entity();
+	Ui::AddSkip(inner);
+	SetupChargeSlider(
+		inner,
+		channel,
+		savedValue,
+		channel->session().appConfig().paidMessageChannelStarsDefault(),
+		true
+	) | rpl::start_with_next([=](int stars) {
+		*result = stars;
+	}, box->lifetime());
+
+	box->addButton(tr::lng_settings_save(), [=] {
+		const auto weak = Ui::MakeWeak(box);
+		callback(toggle->toggled() ? *result : std::optional<int>());
+		if (const auto strong = weak.data()) {
+			strong->closeBox();
+		}
+	});
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
 }

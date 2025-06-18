@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/saved/info_saved_sublists_widget.h"
 //
 #include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/dialogs_inner_widget.h"
-#include "history/view/history_view_sublist_section.h"
+#include "history/view/history_view_chat_section.h"
 #include "info/media/info_media_buttons.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
@@ -28,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Saved {
 
 SublistsMemento::SublistsMemento(not_null<Main::Session*> session)
-: ContentMemento(session->user(), nullptr, PeerId()) {
+: ContentMemento(session->user(), nullptr, nullptr, PeerId()) {
 }
 
 Section SublistsMemento::section() const {
@@ -63,10 +64,14 @@ SublistsWidget::SublistsWidget(
 	_list->chosenRow() | rpl::start_with_next([=](Dialogs::ChosenRow row) {
 		if (const auto sublist = row.key.sublist()) {
 			using namespace Window;
+			using namespace HistoryView;
 			auto params = SectionShow(SectionShow::Way::Forward);
 			params.dropSameFromStack = true;
 			controller->showSection(
-				std::make_shared<HistoryView::SublistMemento>(sublist),
+				std::make_shared<ChatMemento>(ChatViewId{
+					.history = sublist->owningHistory(),
+					.sublist = sublist,
+				}),
 				params);
 		}
 	}, _list->lifetime());
@@ -108,6 +113,7 @@ void SublistsWidget::setupOtherTypes() {
 			controller(),
 			peer,
 			MsgId(), // topicRootId
+			PeerId(), // monoforumPeerId
 			nullptr, // migrated
 			buttonType,
 			tracker);

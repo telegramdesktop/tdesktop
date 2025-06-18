@@ -130,7 +130,6 @@ parts:
       - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
-      - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
     override-pull: |
       craftctl default
 
@@ -147,6 +146,7 @@ parts:
       craftctl set version="$version"
     override-build: |
       craftctl default
+      mv "$CRAFT_PART_INSTALL"/usr/bin/{Telegram,telegram-desktop}
 
       APP_ID=org.telegram.desktop
       sed -i "s/^Icon=$APP_ID$/Icon=snap.telegram-desktop./g" "$CRAFT_PART_INSTALL/usr/share/applications/$APP_ID.desktop"
@@ -170,7 +170,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 7119a74e3f9b782f3cc29bf52fc78f2e8b0ca352
+    source-commit: a405719f0963abf7cb93354a390617c0f0d90f17
     plugin: dump
     override-pull: |
       craftctl default
@@ -405,7 +405,7 @@ parts:
       - mesa-vulkan-drivers
       - xkb-data
     override-pull: |
-      QT=6.9.0
+      QT=6.9.1
 
       git clone -b v${QT} --depth=1 https://github.com/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
@@ -501,7 +501,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: c4192e8e2e10ccb72704daa79fa108becfa57b01
+    source-commit: 62321fd7128ab2650b459d4195781af8185e46b5
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s

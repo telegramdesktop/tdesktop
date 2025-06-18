@@ -500,8 +500,8 @@ dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 }
 
 dialogsSearchInHeight: 38px;
-dialogsSearchInPhotoSize: 26px;
-dialogsSearchInPhotoPadding: 12px;
+dialogsSearchInPhotoSize: 28px;
+dialogsSearchInPhotoPadding: 10px;
 dialogsSearchInSkip: 10px;
 dialogsSearchInNameTop: 9px;
 dialogsSearchInDownTop: 15px;

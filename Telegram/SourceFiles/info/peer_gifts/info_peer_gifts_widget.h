@@ -34,6 +34,14 @@ struct Filter {
 	bool skipSaved : 1 = false;
 	bool skipUnsaved : 1 = false;
 
+	[[nodiscard]] bool skipsSomething() const {
+		return skipLimited
+			|| skipUnlimited
+			|| skipSaved
+			|| skipUnsaved
+			|| skipUnique;
+	}
+
 	friend inline bool operator==(Filter, Filter) = default;
 };
 

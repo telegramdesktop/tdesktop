@@ -21,10 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_top_bar_widget.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_contact_status.h"
-#include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_group_call_bar.h"
+#include "history/view/history_view_requests_bar.h"
+#include "history/view/history_view_top_bar_widget.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -78,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
 #include "data/data_chat_filters.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "info/downloads/info_downloads_widget.h"
@@ -859,7 +861,10 @@ void Widget::chosenRow(const ChosenRow &row) {
 
 	const auto history = row.key.history();
 	const auto topicJump = history
-		? history->peer->forumTopicFor(row.message.fullId.msg)
+		? history->peer->forumTopicFor(row.topicJumpRootId)
+		: nullptr;
+	const auto sublistJump = history
+		? history->peer->monoforumSublistFor(row.sublistJumpPeerId)
 		: nullptr;
 
 	if (topicJump) {
@@ -868,13 +873,24 @@ void Widget::chosenRow(const ChosenRow &row) {
 		} else if (row.newWindow) {
 			controller()->showInNewWindow(Window::SeparateId(topicJump));
 		} else {
-			if (!controller()->adaptive().isOneColumn()) {
+			if (!controller()->adaptive().isOneColumn()
+				&& !topicJump->channel()->useSubsectionTabs()) {
 				controller()->showForum(
 					topicJump->forum(),
 					Window::SectionShow().withChildColumn());
 			}
 			controller()->showThread(
 				topicJump,
+				ShowAtUnreadMsgId,
+				Window::SectionShow::Way::ClearStack);
+		}
+		return;
+	} else if (sublistJump) {
+		if (row.newWindow) {
+			controller()->showInNewWindow(Window::SeparateId(sublistJump));
+		} else {
+			controller()->showThread(
+				sublistJump,
 				ShowAtUnreadMsgId,
 				Window::SectionShow::Way::ClearStack);
 		}
@@ -905,21 +921,46 @@ void Widget::chosenRow(const ChosenRow &row) {
 		&& history->isForum()
 		&& !row.message.fullId
 		&& (!controller()->adaptive().isOneColumn()
-			|| !history->peer->forum()->channel()->viewForumAsMessages())) {
+			|| !history->peer->forum()->channel()->viewForumAsMessages()
+			|| history->peer->forum()->channel()->useSubsectionTabs())) {
 		const auto forum = history->peer->forum();
 		if (controller()->shownForum().current() == forum) {
 			controller()->closeForum();
 		} else if (row.newWindow) {
-			controller()->showInNewWindow(
-				Window::SeparateId(Window::SeparateType::Forum, history));
+			const auto type = forum->channel()->useSubsectionTabs()
+				? Window::SeparateType::Chat
+				: Window::SeparateType::Forum;
+			controller()->showInNewWindow(Window::SeparateId(type, history));
 		} else {
 			controller()->showForum(
 				forum,
-				Window::SectionShow().withChildColumn());
-			if (forum->channel()->viewForumAsMessages()) {
+				Window::SectionShow(
+					Window::SectionShow::Way::ClearStack).withChildColumn());
+			if (controller()->shownForum().current() == forum
+				&& forum->channel()->viewForumAsMessages()) {
 				controller()->showThread(
 					history,
 					ShowAtUnreadMsgId,
+					Window::SectionShow::Way::ClearStack);
+			}
+		}
+		return;
+	} else if (history
+		&& history->amMonoforumAdmin()
+		&& !row.message.fullId) {
+		const auto monoforum = history->peer->monoforum();
+		if (row.newWindow) {
+			controller()->showInNewWindow(
+				Window::SeparateId(Window::SeparateType::Chat, history));
+		} else {
+			if (const auto active = monoforum->activeSubsectionThread()) {
+				controller()->showThread(
+					active,
+					ShowAtUnreadMsgId,
+					Window::SectionShow::Way::ClearStack);
+			} else {
+				controller()->showPeerHistory(
+					history,
 					Window::SectionShow::Way::ClearStack);
 			}
 		}
@@ -1102,7 +1143,7 @@ void Widget::updateFrozenAccountBar() {
 
 void Widget::updateTopBarSuggestions() {
 	if (_topBarSuggestion) {
-		_openedFolderOrForumChanges.fire(_openedForum || _openedFolder);
+		_openedFolderOrForumChanges.fire(_openedFolder || _openedForum);
 	}
 }
 
@@ -1963,7 +2004,7 @@ void Widget::refreshTopBars() {
 					? Dialogs::Key(history)
 					: Dialogs::Key(_openedFolder)),
 				.section = Dialogs::EntryState::Section::ChatsList,
-			}, history ? history->sendActionPainter().get() : nullptr);
+			}, history ? history->sendActionPainter() : nullptr);
 		if (_forumSearchRequested) {
 			showSearchInTopBar(anim::type::instant);
 		}
@@ -2119,6 +2160,10 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 
 bool Widget::searchHasFocus() const {
 	return _searchHasFocus;
+}
+
+Data::Forum *Widget::openedForum() const {
+	return _openedForum;
 }
 
 void Widget::jumpToTop(bool belowPinned) {
@@ -2589,7 +2634,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
-				? sublist->peer().get()
+				? sublist->sublistPeer().get()
 				: nullptr;
 			_historiesRequest = histories.sendRequest(history, type, [=](
 					Fn<void()> finish) {
@@ -2765,7 +2810,7 @@ void Widget::searchMore() {
 				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
-				? sublist->peer().get()
+				? sublist->sublistPeer().get()
 				: nullptr;
 			_historiesRequest = histories.sendRequest(history, type, [=](
 					Fn<void()> finish) {
@@ -3471,7 +3516,10 @@ bool Widget::applySearchState(SearchState state) {
 			showSearchInTopBar(anim::type::normal);
 		} else if (_layout == Layout::Main) {
 			_forumSearchRequested = true;
-			controller()->showForum(forum);
+			auto params = Window::SectionShow(
+				Window::SectionShow::Way::ClearStack);
+			params.forceTopicsList = true;
+			controller()->showForum(forum, params);
 		} else {
 			return false;
 		}
@@ -4168,7 +4216,7 @@ PeerData *Widget::searchInPeer() const {
 		: _openedForum
 		? _openedForum->channel().get()
 		: _searchState.inChat.sublist()
-		? session().user().get()
+		? _searchState.inChat.sublist()->owningHistory()->peer.get()
 		: _searchState.inChat.peer();
 }
 
@@ -4300,6 +4348,19 @@ bool Widget::cancelSearch(CancelSearchOptions options) {
 		}
 	}
 	updateForceDisplayWide();
+	if (clearingInChat) {
+		if (const auto forum = controller()->shownForum().current()) {
+			if (forum->channel()->useSubsectionTabs()) {
+				const auto id = controller()->windowId();
+				const auto initial = id.forum();
+				if (!initial) {
+					controller()->closeForum();
+				} else if (initial != forum) {
+					controller()->showForum(initial);
+				}
+			}
+		}
+	}
 	return clearingQuery || clearingInChat || clearSearchFocus;
 }
 

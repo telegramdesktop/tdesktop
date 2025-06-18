@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_main.h"
 
+#include "settings/cloud_password/settings_cloud_password_input.h"
 #include "api/api_credits.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -467,7 +468,7 @@ void SetupValidatePhoneNumberSuggestion(
 	yes->setClickedCallback([=] {
 		controller->session().promoSuggestions().dismiss(
 			kSugValidatePhone.utf8());
-		 mainWrap->toggle(false, anim::type::normal);
+		mainWrap->toggle(false, anim::type::normal);
 	});
 	const auto no = Ui::CreateChild<Ui::RoundButton>(
 		wrap,
@@ -522,6 +523,77 @@ void SetupValidatePhoneNumberSuggestion(
 	Ui::AddSkip(content);
 }
 
+void SetupValidatePasswordSuggestion(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
+	if (!controller->session().promoSuggestions().current(
+			Data::PromoSuggestions::SugValidatePassword())
+		|| controller->session().promoSuggestions().current(
+			kSugValidatePhone.utf8())) {
+		return;
+	}
+	const auto mainWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = mainWrap->entity();
+	Ui::AddSubsectionTitle(
+		content,
+		tr::lng_settings_suggestion_password_title(),
+		QMargins(
+			st::boxRowPadding.left()
+				- st::defaultSubsectionTitlePadding.left(),
+			0,
+			0,
+			0));
+	content->add(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_settings_suggestion_password_about(),
+			st::boxLabel),
+		st::boxRowPadding);
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	const auto wrap = content->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			content,
+			st::inviteLinkButton.height),
+		st::inviteLinkButtonsPadding);
+	const auto yes = Ui::CreateChild<Ui::RoundButton>(
+		wrap,
+		tr::lng_settings_suggestion_password_yes(),
+		st::inviteLinkButton);
+	yes->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	yes->setClickedCallback([=] {
+		controller->session().promoSuggestions().dismiss(
+			Data::PromoSuggestions::SugValidatePassword());
+		mainWrap->toggle(false, anim::type::normal);
+	});
+	const auto no = Ui::CreateChild<Ui::RoundButton>(
+		wrap,
+		tr::lng_settings_suggestion_password_no(),
+		st::inviteLinkButton);
+	no->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	no->setClickedCallback([=] {
+		showOther(Settings::CloudPasswordSuggestionInputId());
+	});
+
+	wrap->widthValue() | rpl::start_with_next([=](int width) {
+		const auto buttonWidth = (width - st::inviteLinkButtonsSkip) / 2;
+		yes->setFullWidth(buttonWidth);
+		no->setFullWidth(buttonWidth);
+		yes->moveToLeft(0, 0, width);
+		no->moveToRight(0, 0, width);
+	}, wrap->lifetime());
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddDivider(content);
+	Ui::AddSkip(content);
+}
+
 void SetupSections(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -530,6 +602,10 @@ void SetupSections(
 	Ui::AddSkip(container);
 
 	SetupValidatePhoneNumberSuggestion(
+		controller,
+		container,
+		showOther);
+	SetupValidatePasswordSuggestion(
 		controller,
 		container,
 		showOther);

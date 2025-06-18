@@ -42,6 +42,7 @@ using Type = Storage::SharedMediaType;
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	PeerData *migrated,
 	Type type,
 	Ui::MultiSlideTracker &tracker);

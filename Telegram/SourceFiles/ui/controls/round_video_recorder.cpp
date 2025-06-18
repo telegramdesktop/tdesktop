@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_bytes_io_wrap.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio_capture.h"
+#include "ui/controls/round_video_recorder_data.h"
 #include "ui/image/image_prepare.h"
 #include "ui/arc_angles.h"
 #include "ui/dynamic_image.h"
@@ -38,6 +39,13 @@ constexpr auto kMinithumbsInRow = 16;
 constexpr auto kFadeDuration = crl::time(150);
 constexpr auto kSkipFrames = 8;
 constexpr auto kMinScale = 0.7;
+constexpr auto &kPlainLogoFrames = RoundVideoData::kLogoFrames;
+constexpr auto kLogoSize = RoundVideoData::kLogoSize;
+constexpr auto kLogoXShift = -10;
+constexpr auto kLogoYShift = 10;
+constexpr auto kOverlayOpacity = 0.1;
+constexpr auto kOverlayOpaque = 1. - kOverlayOpacity;
+constexpr auto kOverlayUVOpaque = 128 * kOverlayOpaque;
 
 using namespace FFmpeg;
 
@@ -47,6 +55,115 @@ using namespace FFmpeg;
 	const auto outer = full - margin.top() - margin.bottom();
 	const auto inner = outer - 2 * st::msgWaveformMin;
 	return inner * style::DevicePixelRatio();
+}
+
+[[nodiscard]] QImage CircularTextImage(
+		const QString &text,
+		int width,
+		int height,
+		int radius,
+		float64 startAngle = 0.0,
+		float64 endAngle = 360.0,
+		const QColor &textColor = Qt::black,
+		const QColor &bgColor = Qt::white,
+		const QFont &font = QFont(),
+		bool reverseDirection = false) {
+	auto image = QImage(width, height, QImage::Format_ARGB32);
+	image.fill(bgColor);
+
+	auto painter = QPainter(&image);
+	painter.setRenderHint(QPainter::Antialiasing, true);
+	painter.setPen(textColor);
+	painter.setFont(font);
+
+	auto center = QPoint(width / 2, height / 2);
+	painter.translate(center);
+
+	if (endAngle < startAngle) {
+		std::swap(startAngle, endAngle);
+	}
+
+	const auto startRad = float64(startAngle - 90) * M_PI / 180.0;
+	const auto endRad = float64(endAngle - 90) * M_PI / 180.0;
+	const auto angleRange = float64(endRad) - float64(startRad);
+
+	const auto &metrics = QFontMetrics(font);
+
+	for (auto i = 0; i < text.length(); ++i) {
+		const auto ratio = (text.length() <= 1)
+			? 0.5
+			: reverseDirection
+			? 1.0 - static_cast<float64>(i) / (text.length() - 1)
+			: static_cast<float64>(i) / (text.length() - 1);
+
+		const auto angle = startRad + ratio * angleRange;
+
+		const auto x = radius * std::cos(angle);
+		const auto y = radius * std::sin(angle);
+
+		const auto degrees = (angle * 180.0 / M_PI) - 90;
+		painter.save();
+		painter.translate(x, y);
+		painter.rotate(degrees);
+		const auto offset = (i == text.length() - 1) ? 2. : 0.;
+		painter.drawText(
+			-metrics.horizontalAdvance(text[i]) / 2 + offset,
+			metrics.ascent() / 2,
+			QString(text[i]));
+		painter.restore();
+	}
+
+	return image;
+}
+
+using PrecomputedLogo = std::array<std::array<float, kLogoSize>, kLogoSize>;
+[[nodiscard]] const std::vector<PrecomputedLogo> &PrecomputedLogos() {
+	static std::vector<PrecomputedLogo> precomputedLogos;
+
+	if (!precomputedLogos.empty()) {
+		return precomputedLogos;
+	}
+	constexpr auto kAntialiasRadius = 0.4;
+	precomputedLogos.resize(kPlainLogoFrames.size());
+	const auto antialiasFactor = 1.0
+		/ (2. * kAntialiasRadius * kAntialiasRadius);
+
+	for (auto index = size_t(0); index < kPlainLogoFrames.size(); ++index) {
+		uint8_t logoFrame[kLogoSize][kLogoSize] = {{ 0 }};
+		RoundVideoData::DecompressLogoRLEFrame(
+			kPlainLogoFrames[index],
+			logoFrame);
+
+		for (auto y = 0; y < kLogoSize; ++y) {
+			for (auto x = 0; x < kLogoSize; ++x) {
+				auto blendedValue = 0.;
+				auto weightSum = 0.;
+
+				const auto minY = std::max(0, y - 1);
+				const auto maxY = std::min(kLogoSize - 1, y + 1);
+				const auto minX = std::max(0, x - 1);
+				const auto maxX = std::min(kLogoSize - 1, x + 1);
+
+				for (auto sampleY = minY; sampleY <= maxY; ++sampleY) {
+					const auto dy = sampleY - y;
+					for (auto sampleX = minX; sampleX <= maxX; ++sampleX) {
+						const auto dx = sampleX - x;
+						const auto distanceSq = dx * dx + dy * dy;
+						const auto weight
+							= std::exp(-distanceSq * antialiasFactor);
+
+						blendedValue += logoFrame[sampleY][sampleX] * weight;
+						weightSum += weight;
+					}
+				}
+
+				precomputedLogos[index][y][x] = (weightSum > 0)
+					? (blendedValue / weightSum)
+					: 0;
+			}
+		}
+	}
+	return precomputedLogos;
 }
 
 } // namespace
@@ -77,6 +194,7 @@ private:
 
 	void initEncoding();
 	void initCircleMask();
+	void initCircularTextImage();
 	void initMinithumbsCanvas();
 	void maybeSaveMinithumb(
 		not_null<AVFrame*> frame,
@@ -102,7 +220,7 @@ private:
 	void updateResultDuration(int64 pts, AVRational timeBase);
 
 	void mirrorYUV420P(not_null<AVFrame*> frame);
-	void cutCircleFromYUV420P(not_null<AVFrame*> frame);
+	void drawLogoOnYUV420P(not_null<AVFrame*> frame);
 
 	[[nodiscard]] RoundVideoResult appendToPrevious(RoundVideoResult video);
 	[[nodiscard]] static FormatPointer OpenInputContext(
@@ -158,6 +276,9 @@ private:
 
 	ReadBytesWrap _forConcat1, _forConcat2;
 
+	uint8_t _logoFrameCounter = 0;
+	QImage _circularTextImage;
+
 	std::vector<bool> _circleMask; // Always nice to use vector<bool>! :D
 
 	base::ConcurrentTimer _timeoutTimer;
@@ -178,6 +299,7 @@ RoundVideoRecorder::Private::Private(
 , _timeoutTimer(_weak, [=] { timeout(); }) {
 	initEncoding();
 	initCircleMask();
+	initCircularTextImage();
 	initMinithumbsCanvas();
 
 	_timeoutTimer.callOnce(kInitTimeout);
@@ -673,7 +795,7 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 		_videoFrame->linesize);
 
 	mirrorYUV420P(_videoFrame.get());
-	cutCircleFromYUV420P(_videoFrame.get());
+	drawLogoOnYUV420P(_videoFrame.get());
 
 	_videoFrame->pts = mcstimestamp - _videoFirstTimestamp;
 	maybeSaveMinithumb(_videoFrame.get(), frame, crop);
@@ -747,6 +869,23 @@ void RoundVideoRecorder::Private::initCircleMask() {
 	}
 }
 
+void RoundVideoRecorder::Private::initCircularTextImage() {
+	constexpr auto kCircularTextRadius = kSide / 2 + 17;
+	constexpr auto kCircularTextStartAngle = 125;
+	constexpr auto kCircularTextEndAngle = 145;
+	_circularTextImage = CircularTextImage(
+		u"Telegram"_q.toUpper(),
+		kSide,
+		kSide,
+		kCircularTextRadius,
+		kCircularTextStartAngle,
+		kCircularTextEndAngle,
+		Qt::white,
+		Qt::transparent,
+		st::roundVideoFont,
+		true);
+}
+
 void RoundVideoRecorder::Private::initMinithumbsCanvas() {
 	const auto width = kMinithumbsInRow * _minithumbSize;
 	const auto seconds = (kMaxDuration + 999) / 1000;
@@ -772,45 +911,74 @@ void RoundVideoRecorder::Private::mirrorYUV420P(not_null<AVFrame*> frame) {
 	}
 }
 
-void RoundVideoRecorder::Private::cutCircleFromYUV420P(
+void RoundVideoRecorder::Private::drawLogoOnYUV420P(
 		not_null<AVFrame*> frame) {
 	const auto width = frame->width;
 	const auto height = frame->height;
 
-	auto yMaskIndex = 0;
+	const auto logoBottom = height - kLogoSize + kLogoYShift;
+	const auto logoStartX = kLogoXShift;
+	const auto logoEndX = logoStartX + kLogoSize;
+	const auto logoStartY = logoBottom;
+	const auto logoEndY = logoBottom + kLogoSize;
+
+	const auto &currentLogo = PrecomputedLogos()[_logoFrameCounter];
+	_logoFrameCounter = (_logoFrameCounter + 1) % kPlainLogoFrames.size();
+
 	auto yData = frame->data[0];
 	const auto ySkip = frame->linesize[0] - width;
-	for (int y = 0; y < height; ++y) {
-		for (int x = 0; x < width; ++x) {
+
+	const auto uvWidth = width / 2;
+	auto uData = frame->data[1];
+	auto vData = frame->data[2];
+	const auto uvSkip = frame->linesize[1] - uvWidth;
+	auto yMaskIndex = 0;
+
+	for (auto y = 0; y < height; ++y) {
+		for (auto x = 0; x < width; ++x) {
 			if (_circleMask[yMaskIndex]) {
-				*yData = 255;
+				*yData = static_cast<uint8_t>(*yData * kOverlayOpacity
+					+ 16 * kOverlayOpaque);
 			}
+
+			if ((x >= logoStartX && x < logoEndX)
+				&& (y >= logoStartY && y < logoEndY)) {
+				const auto logoX = x - kLogoXShift;
+				const auto logoY = y - logoBottom;
+
+				const auto blendedValue = currentLogo[logoX][logoY];
+				if (blendedValue > 0) {
+					const auto logoFactor = blendedValue / 255.0f;
+					*yData = static_cast<uint8_t>(*yData * (1 - logoFactor)
+						+ 255 * logoFactor);
+				}
+			}
+
+			const auto textAlpha = qAlpha(_circularTextImage.pixel(x, y))
+				/ 255.;
+			*yData = std::min(
+				*yData + static_cast<uint8_t>(textAlpha * 100),
+				255);
+
 			++yData;
 			++yMaskIndex;
 		}
 		yData += ySkip;
-	}
 
-	const auto whalf = width / 2;
-	const auto hhalf = height / 2;
-
-	auto uvMaskIndex = 0;
-	auto uData = frame->data[1];
-	auto vData = frame->data[2];
-	const auto uSkip = frame->linesize[1] - whalf;
-	for (auto y = 0; y != hhalf; ++y) {
-		for (auto x = 0; x != whalf; ++x) {
-			if (_circleMask[uvMaskIndex]) {
-				*uData = 128;
-				*vData = 128;
+		if (y % 2 == 0) {
+			for (auto x = 0; x < uvWidth; ++x) {
+				if (_circleMask[(y * width) + (x * 2)]) {
+					*uData = static_cast<uint8_t>(*uData * kOverlayOpacity
+						+ kOverlayUVOpaque);
+					*vData = static_cast<uint8_t>(*vData * kOverlayOpacity
+						+ kOverlayUVOpaque);
+				}
+				++uData;
+				++vData;
 			}
-			++uData;
-			++vData;
-			uvMaskIndex += 2;
+			uData += uvSkip;
+			vData += uvSkip;
 		}
-		uData += uSkip;
-		vData += uSkip;
-		uvMaskIndex += width;
 	}
 }
 

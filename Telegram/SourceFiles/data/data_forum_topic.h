@@ -181,7 +181,7 @@ public:
 	void setMuted(bool muted) override;
 
 	[[nodiscard]] auto sendActionPainter()
-		->not_null<HistoryView::SendActionPainter*> override;
+		-> HistoryView::SendActionPainter* override;
 
 private:
 	enum class Flag : uchar {

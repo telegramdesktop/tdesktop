@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/send_gif_with_caption_box.h"
 
+#include "api/api_editing.h"
 #include "base/event_filter.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/field_autocomplete.h"
@@ -18,13 +19,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_groups.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/view/controls/history_view_characters_limit.h"
+#include "history/view/history_view_message.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/clip/media_clip_reader.h"
@@ -32,10 +37,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/emoji_button_factory.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/fields/input_field.h"
 #include "ui/rect.h"
+#include "ui/text/text_entity.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -224,11 +230,10 @@ namespace {
 	return input;
 }
 
-} // namespace
-
-void SendGifWithCaptionBox(
+void CaptionBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<DocumentData*> document,
+		rpl::producer<QString> confirmText,
+		TextWithTags initialText,
 		not_null<PeerData*> peer,
 		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions, TextWithTags)> done) {
@@ -237,23 +242,15 @@ void SendGifWithCaptionBox(
 	if (!controller) {
 		return;
 	}
-	box->setTitle(tr::lng_send_gif_with_caption());
 	box->setWidth(st::boxWidth);
 	box->getDelegate()->setStyle(st::sendGifBox);
-
-	const auto container = box->verticalLayout();
-	[[maybe_unused]] const auto gifWidget = AddGifWidget(
-		container,
-		document,
-		st::boxWidth);
-
-	Ui::AddSkip(container);
 
 	const auto input = AddInputField(box, controller);
 	box->setFocusCallback([=] {
 		input->setFocus();
 	});
 
+	input->setTextWithTags(std::move(initialText));
 	input->setSubmitSettings(Core::App().settings().sendSubmitWay());
 	InitMessageField(controller, input, [=](not_null<DocumentData*>) {
 		return true;
@@ -318,7 +315,7 @@ void SendGifWithCaptionBox(
 		done(std::move(options), input->getTextWithTags());
 	};
 	const auto confirm = box->addButton(
-		tr::lng_send_button(),
+		std::move(confirmText),
 		[=] { send({}); });
 	SendMenu::SetupMenuAndShortcuts(
 		confirm,
@@ -337,6 +334,91 @@ void SendGifWithCaptionBox(
 	});
 	input->submits(
 	) | rpl::start_with_next([=] { send({}); }, input->lifetime());
+}
+
+} // namespace
+
+void SendGifWithCaptionBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<DocumentData*> document,
+		not_null<PeerData*> peer,
+		const SendMenu::Details &details,
+		Fn<void(Api::SendOptions, TextWithTags)> c) {
+	box->setTitle(tr::lng_send_gif_with_caption());
+	[[maybe_unused]] const auto gifWidget = AddGifWidget(
+		box->verticalLayout(),
+		document,
+		st::boxWidth);
+	Ui::AddSkip(box->verticalLayout());
+	CaptionBox(box, tr::lng_send_button(), {}, peer, details, std::move(c));
+}
+
+void EditCaptionBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<HistoryView::Element*> view) {
+	using namespace TextUtilities;
+
+	box->setTitle(tr::lng_context_upload_edit_caption());
+
+	const auto data = &view->data()->history()->peer->owner();
+
+	struct State {
+		FullMsgId fullId;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->fullId = view->data()->fullId();
+
+	data->itemIdChanged(
+	) | rpl::start_with_next([=](Data::Session::IdChange event) {
+		if (event.oldId == state->fullId.msg) {
+			state->fullId = event.newId;
+		}
+	}, box->lifetime());
+
+	auto done = [=, show = box->uiShow()](
+			Api::SendOptions,
+			TextWithTags textWithTags) {
+		const auto item = data->message(state->fullId);
+		if (!item) {
+			show->showToast(tr::lng_message_not_found(tr::now));
+			return;
+		}
+		if (!(item->media() && item->media()->allowsEditCaption())) {
+			show->showToast(tr::lng_edit_error(tr::now));
+			return;
+		}
+		auto text = TextWithEntities{
+			std::move(textWithTags.text),
+			ConvertTextTagsToEntities(std::move(textWithTags.tags)),
+		};
+		if (item->isUploading()) {
+			item->setText(std::move(text));
+			data->requestViewResize(view);
+			if (item->groupId()) {
+				data->groups().refreshMessage(item, true);
+			}
+			box->closeBox();
+		} else {
+			Api::EditCaption(
+				item,
+				std::move(text),
+				{ .invertCaption = item->invertMedia() },
+				[=] { box->closeBox(); },
+				[=](const QString &e) { box->uiShow()->showToast(e); });
+		}
+	};
+
+	const auto item = view->data();
+	CaptionBox(
+		box,
+		tr::lng_settings_save(),
+		TextWithTags{
+			.text = item->originalText().text,
+			.tags = ConvertEntitiesToTextTags(item->originalText().entities),
+		},
+		item->history()->peer,
+		{},
+		std::move(done));
 }
 
 } // namespace Ui

@@ -110,11 +110,16 @@ public:
 
 	[[nodiscard]] MsgId hiddenPinnedMessageId(
 		PeerId peerId,
-		MsgId topicRootId = 0) const;
+		MsgId topicRootId = 0,
+		PeerId monoforumPeerId = 0) const;
 	void setHiddenPinnedMessageId(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		MsgId msgId);
+
+	[[nodiscard]] bool verticalSubsectionTabs(PeerId peerId) const;
+	void setVerticalSubsectionTabs(PeerId peerId, bool vertical);
 
 	[[nodiscard]] bool dialogsFiltersEnabled() const {
 		return _dialogsFiltersEnabled;
@@ -149,6 +154,7 @@ private:
 	struct ThreadId {
 		PeerId peerId;
 		MsgId topicRootId;
+		PeerId monoforumPeerId;
 
 		friend inline constexpr auto operator<=>(
 			ThreadId,
@@ -164,6 +170,7 @@ private:
 	rpl::variable<bool> _archiveInMainMenu = false;
 	rpl::variable<bool> _skipArchiveInSearch = false;
 	base::flat_map<ThreadId, MsgId> _hiddenPinnedMessages;
+	base::flat_set<PeerId> _verticalSubsectionTabs;
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
 	std::vector<TimeId> _mutePeriods;

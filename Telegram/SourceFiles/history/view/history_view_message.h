@@ -35,8 +35,7 @@ class InlineList;
 } // namespace Reactions
 
 // Special type of Component for the channel actions log.
-struct LogEntryOriginal
-	: public RuntimeComponent<LogEntryOriginal, Element> {
+struct LogEntryOriginal : RuntimeComponent<LogEntryOriginal, Element> {
 	LogEntryOriginal();
 	LogEntryOriginal(LogEntryOriginal &&other);
 	LogEntryOriginal &operator=(LogEntryOriginal &&other);
@@ -45,13 +44,12 @@ struct LogEntryOriginal
 	std::unique_ptr<WebPage> page;
 };
 
-struct Factcheck
-: public RuntimeComponent<Factcheck, Element> {
+struct Factcheck : RuntimeComponent<Factcheck, Element> {
 	std::unique_ptr<WebPage> page;
 	bool expanded = false;
 };
 
-struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
+struct PsaTooltipState : RuntimeComponent<PsaTooltipState, Element> {
 	QString type;
 	mutable ClickHandlerPtr link;
 	mutable Ui::Animations::Simple buttonVisibleAnimation;

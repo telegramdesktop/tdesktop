@@ -57,7 +57,7 @@ struct BotKeyboardButton;
 extern const char kOptionFastButtonsMode[];
 [[nodiscard]] bool FastButtonsMode();
 
-struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
+struct HistoryMessageVia : RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(not_null<Data::Session*> owner, UserId userId);
 	void resize(int32 availw) const;
 
@@ -68,7 +68,8 @@ struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryIte
 	ClickHandlerPtr link;
 };
 
-struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
+struct HistoryMessageViews
+: RuntimeComponent<HistoryMessageViews, HistoryItem> {
 	static constexpr auto kMaxRecentRepliers = 3;
 
 	struct Part {
@@ -87,13 +88,15 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 	int forwardsCount = 0;
 };
 
-struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
+struct HistoryMessageSigned
+: RuntimeComponent<HistoryMessageSigned, HistoryItem> {
 	QString author;
 	UserData *viaBusinessBot = nullptr;
 	bool isAnonymousRank = false;
 };
 
-struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
+struct HistoryMessageEdited
+: RuntimeComponent<HistoryMessageEdited, HistoryItem> {
 	TimeId date = 0;
 };
 
@@ -134,7 +137,8 @@ private:
 
 };
 
-struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
+struct HistoryMessageForwarded
+: RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
 	void create(
 		const HistoryMessageVia *via,
 		not_null<const HistoryItem*> item) const;
@@ -162,13 +166,19 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	bool story = false;
 };
 
-struct HistoryMessageSavedMediaData : public RuntimeComponent<HistoryMessageSavedMediaData, HistoryItem> {
+struct HistoryMessageSavedMediaData
+: RuntimeComponent<HistoryMessageSavedMediaData, HistoryItem> {
 	TextWithEntities text;
 	std::unique_ptr<Data::Media> media;
 };
 
-struct HistoryMessageSaved : public RuntimeComponent<HistoryMessageSaved, HistoryItem> {
-	Data::SavedSublist *sublist = nullptr;
+struct HistoryMessageSaved
+: RuntimeComponent<HistoryMessageSaved, HistoryItem> {
+	PeerId sublistPeerId = 0;
+
+	// This can't change after the message is created, but is required
+	// frequently in reactions, so we cache the value here.
+	Data::SavedSublist *savedMessagesSublist = nullptr;
 };
 
 class ReplyToMessagePointer final {
@@ -256,6 +266,7 @@ struct ReplyFields {
 	QString externalSenderName;
 	QString externalPostAuthor;
 	PeerId externalPeerId = 0;
+	PeerId monoforumPeerId = 0;
 	MsgId messageId = 0;
 	MsgId topMessageId = 0;
 	StoryId storyId = 0;
@@ -273,7 +284,7 @@ struct ReplyFields {
 	const MTPInputReplyTo &reply);
 
 struct HistoryMessageReply
-	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {
+: RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply();
 	HistoryMessageReply(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
@@ -357,7 +368,7 @@ private:
 };
 
 struct HistoryMessageTranslation
-	: public RuntimeComponent<HistoryMessageTranslation, HistoryItem> {
+: RuntimeComponent<HistoryMessageTranslation, HistoryItem> {
 	TextWithEntities text;
 	LanguageId to;
 	bool requested = false;
@@ -366,7 +377,7 @@ struct HistoryMessageTranslation
 };
 
 struct HistoryMessageReplyMarkup
-	: public RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem> {
+: RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem> {
 	using Button = HistoryMessageMarkupButton;
 
 	void createForwarded(const HistoryMessageReplyMarkup &original);
@@ -564,7 +575,7 @@ private:
 
 // Special type of Component for the channel actions log.
 struct HistoryMessageLogEntryOriginal
-: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {
+: RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {
 	HistoryMessageLogEntryOriginal();
 	HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other);
 	HistoryMessageLogEntryOriginal &operator=(HistoryMessageLogEntryOriginal &&other);
@@ -596,19 +607,19 @@ struct MessageFactcheck {
 	const tl::conditional<MTPFactCheck> &factcheck);
 
 struct HistoryMessageFactcheck
-: public RuntimeComponent<HistoryMessageFactcheck, HistoryItem> {
+: RuntimeComponent<HistoryMessageFactcheck, HistoryItem> {
 	MessageFactcheck data;
 	WebPageData *page = nullptr;
 	bool requested = false;
 };
 
 struct HistoryMessageRestrictions
-: public RuntimeComponent<HistoryMessageRestrictions, HistoryItem> {
+: RuntimeComponent<HistoryMessageRestrictions, HistoryItem> {
 	std::vector<Data::UnavailableReason> reasons;
 };
 
 struct HistoryServiceData
-: public RuntimeComponent<HistoryServiceData, HistoryItem> {
+: RuntimeComponent<HistoryServiceData, HistoryItem> {
 	std::vector<ClickHandlerPtr> textLinks;
 };
 
@@ -624,13 +635,13 @@ struct HistoryServiceDependentData {
 };
 
 struct HistoryServicePinned
-: public RuntimeComponent<HistoryServicePinned, HistoryItem>
-, public HistoryServiceDependentData {
+: RuntimeComponent<HistoryServicePinned, HistoryItem>
+, HistoryServiceDependentData {
 };
 
 struct HistoryServiceTopicInfo
-: public RuntimeComponent<HistoryServiceTopicInfo, HistoryItem>
-, public HistoryServiceDependentData {
+: RuntimeComponent<HistoryServiceTopicInfo, HistoryItem>
+, HistoryServiceDependentData {
 	QString title;
 	DocumentId iconId = 0;
 	bool closed = false;
@@ -651,14 +662,14 @@ struct HistoryServiceTopicInfo
 };
 
 struct HistoryServiceGameScore
-: public RuntimeComponent<HistoryServiceGameScore, HistoryItem>
-, public HistoryServiceDependentData {
+: RuntimeComponent<HistoryServiceGameScore, HistoryItem>
+, HistoryServiceDependentData {
 	int score = 0;
 };
 
 struct HistoryServicePayment
-: public RuntimeComponent<HistoryServicePayment, HistoryItem>
-, public HistoryServiceDependentData {
+: RuntimeComponent<HistoryServicePayment, HistoryItem>
+, HistoryServiceDependentData {
 	QString slug;
 	TextWithEntities amount;
 	ClickHandlerPtr invoiceLink;
@@ -668,22 +679,22 @@ struct HistoryServicePayment
 };
 
 struct HistoryServiceSameBackground
-: public RuntimeComponent<HistoryServiceSameBackground, HistoryItem>
-, public HistoryServiceDependentData {
+: RuntimeComponent<HistoryServiceSameBackground, HistoryItem>
+, HistoryServiceDependentData {
 };
 
 struct HistoryServiceGiveawayResults
-: public RuntimeComponent<HistoryServiceGiveawayResults, HistoryItem>
-, public HistoryServiceDependentData {
+: RuntimeComponent<HistoryServiceGiveawayResults, HistoryItem>
+, HistoryServiceDependentData {
 };
 
 struct HistoryServiceCustomLink
-: public RuntimeComponent<HistoryServiceCustomLink, HistoryItem> {
+: RuntimeComponent<HistoryServiceCustomLink, HistoryItem> {
 	ClickHandlerPtr link;
 };
 
 struct HistoryServicePaymentRefund
-: public RuntimeComponent<HistoryServicePaymentRefund, HistoryItem> {
+: RuntimeComponent<HistoryServicePaymentRefund, HistoryItem> {
 	ClickHandlerPtr link;
 	PeerData *peer = nullptr;
 	QString transactionId;
@@ -706,7 +717,7 @@ struct TimeToLiveSingleView {
 };
 
 struct HistoryServiceSelfDestruct
-: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
+: RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
 	using Type = HistorySelfDestructType;
 
 	Type type = Type::Photo;
@@ -715,24 +726,25 @@ struct HistoryServiceSelfDestruct
 };
 
 struct HistoryServiceOngoingCall
-: public RuntimeComponent<HistoryServiceOngoingCall, HistoryItem> {
+: RuntimeComponent<HistoryServiceOngoingCall, HistoryItem> {
 	CallId id = 0;
 	ClickHandlerPtr link;
 	rpl::lifetime lifetime;
 };
 
 struct HistoryServiceChatThemeChange
-: public RuntimeComponent<HistoryServiceChatThemeChange, HistoryItem> {
+: RuntimeComponent<HistoryServiceChatThemeChange, HistoryItem> {
 	ClickHandlerPtr link;
 };
 
 struct HistoryServiceTTLChange
-: public RuntimeComponent<HistoryServiceTTLChange, HistoryItem> {
+: RuntimeComponent<HistoryServiceTTLChange, HistoryItem> {
 	ClickHandlerPtr link;
 };
 
 class FileClickHandler;
-struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryView::Document> {
+struct HistoryDocumentThumbed
+: RuntimeComponent<HistoryDocumentThumbed, HistoryView::Document> {
 	std::shared_ptr<FileClickHandler> linksavel;
 	std::shared_ptr<FileClickHandler> linkopenwithl;
 	std::shared_ptr<FileClickHandler> linkcancell;
@@ -744,13 +756,15 @@ struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, 
 	mutable bool blurred : 1 = false;
 };
 
-struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryView::Document> {
+struct HistoryDocumentCaptioned
+: RuntimeComponent<HistoryDocumentCaptioned, HistoryView::Document> {
 	HistoryDocumentCaptioned();
 
 	Ui::Text::String caption;
 };
 
-struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryView::Document> {
+struct HistoryDocumentNamed
+: RuntimeComponent<HistoryDocumentNamed, HistoryView::Document> {
 	Ui::Text::String name;
 };
 
@@ -762,7 +776,8 @@ struct HistoryDocumentVoicePlayback {
 	Ui::Animations::Basic progressAnimation;
 };
 
-class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryView::Document> {
+class HistoryDocumentVoice
+: public RuntimeComponent<HistoryDocumentVoice, HistoryView::Document> {
 	// We don't use float64 because components should align to pointer even on 32bit systems.
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 

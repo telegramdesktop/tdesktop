@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "data/data_search_controller.h"
 
+namespace tr {
+template <typename ...Tags>
+struct phrase;
+} // namespace tr
+
 namespace Data {
 class ForumTopic;
 } // namespace Data
@@ -19,8 +24,9 @@ namespace Info::Media {
 
 using Type = Storage::SharedMediaType;
 
-std::optional<int> TypeToTabIndex(Type type);
-Type TabIndexToType(int index);
+[[nodiscard]] std::optional<int> TypeToTabIndex(Type type);
+[[nodiscard]] Type TabIndexToType(int index);
+[[nodiscard]] tr::phrase<> SharedMediaTitle(Type type);
 
 class InnerWidget;
 
@@ -29,6 +35,7 @@ public:
 	explicit Memento(not_null<Controller*> controller);
 	Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type);
 	Memento(not_null<Data::ForumTopic*> topic, Type type);
+	Memento(not_null<Data::SavedSublist*> sublist, Type type);
 
 	using SearchState = Api::DelayedSearchController::SavedState;
 
@@ -86,6 +93,7 @@ private:
 	Memento(
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist,
 		PeerId migratedPeerId,
 		Type type);
 

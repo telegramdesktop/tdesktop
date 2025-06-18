@@ -177,13 +177,14 @@ struct FullReplyTo {
 	TextWithEntities quote;
 	FullStoryId storyId;
 	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
 	int quoteOffset = 0;
 
-	[[nodiscard]] bool valid() const {
+	[[nodiscard]] bool replying() const {
 		return messageId || (storyId && storyId.peer);
 	}
 	explicit operator bool() const {
-		return valid();
+		return replying() || monoforumPeerId;
 	}
 	friend inline auto operator<=>(FullReplyTo, FullReplyTo) = default;
 	friend inline bool operator==(FullReplyTo, FullReplyTo) = default;

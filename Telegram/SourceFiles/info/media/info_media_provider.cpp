@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
+#include "data/data_saved_sublist.h"
 #include "styles/style_info.h"
 #include "styles/style_overview.h"
 
@@ -40,7 +41,10 @@ Provider::Provider(not_null<AbstractController*> controller)
 , _peer(_controller->key().peer())
 , _topicRootId(_controller->key().topic()
 	? _controller->key().topic()->rootId()
-	: 0)
+	: MsgId())
+, _monoforumPeerId(_controller->key().sublist()
+	? _controller->key().sublist()->sublistPeer()->id
+	: PeerId())
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {
@@ -331,13 +335,23 @@ SparseIdsMergedSlice::Key Provider::sliceKey(
 		UniversalMsgId universalId) const {
 	using Key = SparseIdsMergedSlice::Key;
 	if (!_topicRootId && _migrated) {
-		return Key(_peer->id, _topicRootId, _migrated->id, universalId);
+		return Key(
+			_peer->id,
+			_topicRootId,
+			_monoforumPeerId,
+			_migrated->id,
+			universalId);
 	}
 	if (universalId < 0) {
 		// Convert back to plain id for non-migrated histories.
 		universalId = universalId + ServerMaxMsgId;
 	}
-	return Key(_peer->id, _topicRootId, 0, universalId);
+	return Key(
+		_peer->id,
+		_topicRootId,
+		_monoforumPeerId,
+		PeerId(),
+		universalId);
 }
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {

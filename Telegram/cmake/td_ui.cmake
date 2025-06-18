@@ -58,6 +58,8 @@ PRIVATE
 
     boxes/peers/edit_peer_history_visibility_box.cpp
     boxes/peers/edit_peer_history_visibility_box.h
+    boxes/peers/toggle_topics_box.cpp
+    boxes/peers/toggle_topics_box.h
 
     calls/group/ui/calls_group_recording_box.cpp
     calls/group/ui/calls_group_recording_box.h
@@ -379,12 +381,15 @@ PRIVATE
     ui/controls/invite_link_label.h
     ui/controls/peer_list_dummy.cpp
     ui/controls/peer_list_dummy.h
+    ui/controls/round_video_recorder_data.h
     ui/controls/round_video_recorder.cpp
     ui/controls/round_video_recorder.h
     ui/controls/send_as_button.cpp
     ui/controls/send_as_button.h
     ui/controls/send_button.cpp
     ui/controls/send_button.h
+    ui/controls/subsection_tabs_slider.cpp
+    ui/controls/subsection_tabs_slider.h
     ui/controls/swipe_handler.cpp
     ui/controls/swipe_handler.h
     ui/controls/swipe_handler_data.h

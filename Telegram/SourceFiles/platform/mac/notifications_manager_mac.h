@@ -25,6 +25,7 @@ protected:
 	void doClearAllFast() override;
 	void doClearFromItem(not_null<HistoryItem*> item) override;
 	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override;
+	void doClearFromSublist(not_null<Data::SavedSublist*> sublist) override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	QString accountNameSeparator() override;

@@ -27,12 +27,14 @@ struct LanguageId;
 
 namespace Data {
 struct Draft;
+class Forum;
 class Session;
 class Folder;
 class ChatFilter;
 struct SponsoredFrom;
 class SponsoredMessages;
 class HistoryMessages;
+class SavedMessages;
 } // namespace Data
 
 namespace Dialogs {
@@ -60,8 +62,12 @@ public:
 	[[nodiscard]] not_null<History*> owningHistory() override {
 		return this;
 	}
-	[[nodiscard]] Data::Thread *threadFor(MsgId topicRootId);
-	[[nodiscard]] const Data::Thread *threadFor(MsgId topicRootId) const;
+	[[nodiscard]] Data::Thread *threadFor(
+		MsgId topicRootId,
+		PeerId monoforumPeerId);
+	[[nodiscard]] const Data::Thread *threadFor(
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const;
 
 	[[nodiscard]] auto delegateMixin() const
 			-> not_null<HistoryMainElementDelegateMixin*> {
@@ -70,6 +76,9 @@ public:
 
 	void forumChanged(Data::Forum *old);
 	[[nodiscard]] bool isForum() const;
+
+	void monoforumChanged(Data::SavedMessages *old);
+	[[nodiscard]] bool amMonoforumAdmin() const;
 
 	[[nodiscard]] not_null<History*> migrateToOrMe() const;
 	[[nodiscard]] History *migrateFrom() const;
@@ -101,7 +110,7 @@ public:
 		DeleteChat,
 		ClearHistory,
 	};
-	void clear(ClearType type);
+	void clear(ClearType type, bool markEmpty = false);
 	void clearUpTill(MsgId availableMinId);
 
 	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);
@@ -130,8 +139,9 @@ public:
 	void destroyMessage(not_null<HistoryItem*> item);
 	void destroyMessagesByDates(TimeId minDate, TimeId maxDate);
 	void destroyMessagesByTopic(MsgId topicRootId);
+	void destroyMessagesBySublist(not_null<PeerData*> sublistPeer);
 
-	void unpinMessagesFor(MsgId topicRootId);
+	void unpinMessagesFor(MsgId topicRootId, PeerId monoforumPeerId);
 
 	not_null<HistoryItem*> addNewMessage(
 		MsgId id,
@@ -268,13 +278,15 @@ public:
 	void setHasPendingResizedItems();
 
 	[[nodiscard]] auto sendActionPainter()
-	-> not_null<HistoryView::SendActionPainter*> override {
+	-> HistoryView::SendActionPainter* override {
 		return &_sendActionPainter;
 	}
 
 	void clearLastKeyboard();
 	void clearUnreadMentionsFor(MsgId topicRootId);
-	void clearUnreadReactionsFor(MsgId topicRootId);
+	void clearUnreadReactionsFor(
+		MsgId topicRootId,
+		Data::SavedSublist *sublist);
 
 	Data::Draft *draft(Data::DraftKey key) const;
 	void setDraft(Data::DraftKey key, std::unique_ptr<Data::Draft> &&draft);
@@ -283,60 +295,89 @@ public:
 	[[nodiscard]] const Data::HistoryDrafts &draftsMap() const;
 	void setDraftsMap(Data::HistoryDrafts &&map);
 
-	Data::Draft *localDraft(MsgId topicRootId) const {
-		return draft(Data::DraftKey::Local(topicRootId));
+	Data::Draft *localDraft(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) const {
+		return draft(Data::DraftKey::Local(topicRootId, monoforumPeerId));
 	}
-	Data::Draft *localEditDraft(MsgId topicRootId) const {
-		return draft(Data::DraftKey::LocalEdit(topicRootId));
+	Data::Draft *localEditDraft(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) const {
+		return draft(
+			Data::DraftKey::LocalEdit(topicRootId, monoforumPeerId));
 	}
-	Data::Draft *cloudDraft(MsgId topicRootId) const {
-		return draft(Data::DraftKey::Cloud(topicRootId));
+	Data::Draft *cloudDraft(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) const {
+		return draft(Data::DraftKey::Cloud(topicRootId, monoforumPeerId));
 	}
 	void setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
 		setDraft(
-			Data::DraftKey::Local(draft->reply.topicRootId),
+			Data::DraftKey::Local(
+				draft->reply.topicRootId,
+				draft->reply.monoforumPeerId),
 			std::move(draft));
 	}
 	void setLocalEditDraft(std::unique_ptr<Data::Draft> &&draft) {
 		setDraft(
-			Data::DraftKey::LocalEdit(draft->reply.topicRootId),
+			Data::DraftKey::LocalEdit(
+				draft->reply.topicRootId,
+				draft->reply.monoforumPeerId),
 			std::move(draft));
 	}
 	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
 		setDraft(
-			Data::DraftKey::Cloud(draft->reply.topicRootId),
+			Data::DraftKey::Cloud(
+				draft->reply.topicRootId,
+				draft->reply.monoforumPeerId),
 			std::move(draft));
 	}
-	void clearLocalDraft(MsgId topicRootId) {
-		clearDraft(Data::DraftKey::Local(topicRootId));
+	void clearLocalDraft(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) {
+		clearDraft(Data::DraftKey::Local(topicRootId, monoforumPeerId));
 	}
-	void clearCloudDraft(MsgId topicRootId) {
-		clearDraft(Data::DraftKey::Cloud(topicRootId));
+	void clearCloudDraft(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) {
+		clearDraft(Data::DraftKey::Cloud(topicRootId, monoforumPeerId));
 	}
-	void clearLocalEditDraft(MsgId topicRootId) {
-		clearDraft(Data::DraftKey::LocalEdit(topicRootId));
+	void clearLocalEditDraft(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) {
+		clearDraft(Data::DraftKey::LocalEdit(topicRootId, monoforumPeerId));
 	}
 	void clearDrafts();
 	Data::Draft *createCloudDraft(
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		const Data::Draft *fromDraft);
 	[[nodiscard]] bool skipCloudDraftUpdate(
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		TimeId date) const;
-	void startSavingCloudDraft(MsgId topicRootId);
-	void finishSavingCloudDraft(MsgId topicRootId, TimeId savedAt);
+	void startSavingCloudDraft(MsgId topicRootId, PeerId monoforumPeerId);
+	void finishSavingCloudDraft(
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
+		TimeId savedAt);
 	void takeLocalDraft(not_null<History*> from);
-	void applyCloudDraft(MsgId topicRootId);
-	void draftSavedToCloud(MsgId topicRootId);
+	void applyCloudDraft(MsgId topicRootId, PeerId monoforumPeerId);
+	void draftSavedToCloud(MsgId topicRootId, PeerId monoforumPeerId);
 	void requestChatListMessage();
 
 	[[nodiscard]] const Data::ForwardDraft &forwardDraft(
-		MsgId topicRootId) const;
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const;
 	[[nodiscard]] Data::ResolvedForwardDraft resolveForwardDraft(
 		const Data::ForwardDraft &draft) const;
 	[[nodiscard]] Data::ResolvedForwardDraft resolveForwardDraft(
-		MsgId topicRootId);
-	void setForwardDraft(MsgId topicRootId, Data::ForwardDraft &&draft);
+		MsgId topicRootId,
+		PeerId monoforumPeerId);
+	void setForwardDraft(
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
+		Data::ForwardDraft &&draft);
 
 	History *migrateSibling() const;
 	[[nodiscard]] bool useTopPromotion() const;
@@ -389,6 +430,10 @@ public:
 	// Interface for Data::Histories.
 	void setInboxReadTill(MsgId upTo);
 	std::optional<int> countStillUnreadLocal(MsgId readTillId) const;
+	void tryMarkMonoforumIntervalRead(
+		MsgId wasInboxReadBefore,
+		MsgId nowInboxReadBefore);
+	void validateMonoforumUnread(MsgId readTillId);
 
 	[[nodiscard]] bool isTopPromoted() const;
 
@@ -425,14 +470,16 @@ public:
 private:
 	friend class HistoryBlock;
 
-	enum class Flag : uchar {
+	enum class Flag : ushort {
 		HasPendingResizedItems = (1 << 0),
 		PendingAllItemsResize = (1 << 1),
 		IsTopPromoted = (1 << 2),
 		IsForum = (1 << 3),
-		FakeUnreadWhileOpened = (1 << 4),
-		HasPinnedMessages = (1 << 5),
-		ResolveChatListMessage = (1 << 6),
+		IsMonoforumAdmin = (1 << 4),
+		FakeUnreadWhileOpened = (1 << 5),
+		HasPinnedMessages = (1 << 6),
+		ResolveChatListMessage = (1 << 7),
+		MonoforumUnreadInvalidatePending = (1 << 8),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
@@ -542,7 +589,9 @@ private:
 
 	void viewReplaced(not_null<const Element*> was, Element *now);
 
-	void createLocalDraftFromCloud(MsgId topicRootId);
+	void createLocalDraftFromCloud(
+		MsgId topicRootId,
+		PeerId monoforumPeerId);
 
 	HistoryItem *insertJoinedMessage();
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
@@ -600,9 +649,9 @@ private:
 	std::unique_ptr<HistoryTranslation> _translation;
 
 	Data::HistoryDrafts _drafts;
-	base::flat_map<MsgId, TimeId> _acceptCloudDraftsAfter;
-	base::flat_map<MsgId, int> _savingCloudDraftRequests;
-	Data::ForwardDrafts _forwardDrafts;
+	base::flat_map<Data::DraftKey, TimeId> _acceptCloudDraftsAfter;
+	base::flat_map<Data::DraftKey, int> _savingCloudDraftRequests;
+	base::flat_map<Data::DraftKey, Data::ForwardDraft> _forwardDrafts;
 
 	QString _topPromotedMessage;
 	QString _topPromotedType;

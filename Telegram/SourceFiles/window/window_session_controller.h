@@ -26,6 +26,7 @@ enum class WindowLayout;
 
 namespace Data {
 struct StoriesContext;
+class SavedMessages;
 enum class StorySourcesList : uchar;
 } // namespace Data
 
@@ -73,8 +74,13 @@ enum class CloudThemeType;
 class Thread;
 class Forum;
 class ForumTopic;
+class SavedSublist;
 class WallPaper;
 } // namespace Data
+
+namespace HistoryView {
+class SubsectionTabs;
+} // namespace HistoryView
 
 namespace HistoryView::Reactions {
 class CachedIconFactory;
@@ -165,6 +171,7 @@ struct SectionShow {
 	bool thirdColumn = false;
 	bool childColumn = false;
 	bool forbidLayer = false;
+	bool forceTopicsList = false;
 	bool reapplyLocalDraft = false;
 	bool dropSameFromStack = false;
 	Origin origin;
@@ -198,6 +205,10 @@ public:
 		const SectionShow &params = SectionShow());
 	void showTopic(
 		not_null<Data::ForumTopic*> topic,
+		MsgId itemId = 0,
+		const SectionShow &params = SectionShow());
+	void showSublist(
+		not_null<Data::SavedSublist*> sublist,
 		MsgId itemId = 0,
 		const SectionShow &params = SectionShow());
 	void showThread(
@@ -513,6 +524,7 @@ public:
 	struct MessageContext {
 		FullMsgId id;
 		MsgId topicRootId;
+		PeerId monoforumPeerId;
 	};
 	void openPhoto(
 		not_null<PhotoData*> photo,
@@ -647,6 +659,14 @@ public:
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
 
+	void saveSubsectionTabs(
+		std::unique_ptr<HistoryView::SubsectionTabs> tabs);
+	[[nodiscard]] auto restoreSubsectionTabsFor(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::Thread*> thread)
+		-> std::unique_ptr<HistoryView::SubsectionTabs>;
+	void dropSubsectionTabs();
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -760,6 +780,8 @@ private:
 	base::has_weak_ptr _storyOpenGuard;
 
 	QString _premiumRef;
+	std::unique_ptr<HistoryView::SubsectionTabs> _savedSubsectionTabs;
+	rpl::lifetime _savedSubsectionTabsLifetime;
 
 	rpl::lifetime _lifetime;
 

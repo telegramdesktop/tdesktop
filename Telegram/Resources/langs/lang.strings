@@ -164,11 +164,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_status_members_online" = "{members_count}, {online_count}";
 "lng_chat_status_subscribers#one" = "{count} subscriber";
 "lng_chat_status_subscribers#other" = "{count} subscribers";
+"lng_chat_status_direct" = "Direct messages";
 
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
 "lng_scam_badge" = "SCAM";
 "lng_fake_badge" = "FAKE";
+"lng_direct_badge" = "DIRECT";
 
 "lng_remember" = "Remember this choice";
 
@@ -840,6 +842,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_suggestion_phone_number_about" = "Keep your number up to date to ensure you can always log into Telegram. {link}";
 "lng_settings_suggestion_phone_number_about_link" = "https://telegram.org/faq#q-i-have-a-new-phone-number-what-do-i-do";
 "lng_settings_suggestion_phone_number_change" = "Please change your phone number in the official Telegram app on your phone as soon as possible. {emoji}";
+"lng_settings_suggestion_password_title" = "Your password";
+"lng_settings_suggestion_password_about" = "Your account is protected by 2-Step Veritifaction. Do you still remember your password?";
+"lng_settings_suggestion_password_yes" = "Yes, definitely";
+"lng_settings_suggestion_password_no" = "Not sure";
+"lng_settings_suggestion_password_step_input_title" = "Enter your password";
+"lng_settings_suggestion_password_step_input_about" = "Do you still remember your password?";
+"lng_settings_suggestion_password_step_finish_title" = "Perfect!";
+"lng_settings_suggestion_password_step_finish_about" = "You still remember your password.";
 
 "lng_settings_power_menu" = "Battery and Animations";
 "lng_settings_power_title" = "Power Usage";
@@ -1481,6 +1491,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_hide_participants_about" = "Switch this on to hide the list of members in this group. Admins will remain visible.";
 "lng_profile_view_channel" = "View Channel";
 "lng_profile_view_discussion" = "View discussion";
+"lng_profile_direct_messages" = "Direct messages";
 "lng_profile_join_channel" = "Join Channel";
 "lng_profile_join_group" = "Join Group";
 "lng_profile_apply_to_join_group" = "Apply to Join Group";
@@ -1878,6 +1889,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_linked_channel_posted" = "All new posts from this channel are forwarded to the group.";
 "lng_manage_discussion_group_warning" = "\"Chat history for new members\" will be switched to **Visible**.";
 
+"lng_manage_monoforum" = "Direct Messages";
+"lng_manage_monoforum_off" = "Off";
+"lng_manage_monoforum_free" = "Free";
+"lng_manage_monoforum_allow" = "Allow Channel Messages";
+"lng_manage_monoforum_price" = "Price for each message";
+"lng_manage_monoforum_about" = "Allow users to send messages to your channel, with the option to charge a fee for each message.";
+"lng_manage_monoforum_price_about" = "Your channel will receive {percent} of the selected fee ({amount}) for each incoming message.";
+
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";
 "lng_manage_history_visibility_shown_about" = "New members will see messages that were sent before they joined.";
@@ -2061,6 +2080,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created the group «{title}»";
+"lng_action_created_monoforum" = "Direct messages were enabled in this channel.";
 "lng_action_ttl_changed" = "{from} set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_you" = "You set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_channel" = "Messages in this channel will be automatically deleted after {duration}";
@@ -2235,6 +2255,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_message_price_free" = "Messages are now free in this group.";
 "lng_action_message_price_paid#one" = "Messages now cost {count} Star each in this group.";
 "lng_action_message_price_paid#other" = "Messages now cost {count} Stars each in this group.";
+"lng_action_direct_messages_enabled" = "Channel enabled Direct Messages.";
+"lng_action_direct_messages_paid#one" = "Channel allows Direct Messages for {count} Star each.";
+"lng_action_direct_messages_paid#other" = "Channel allows Direct Messages for {count} Stars each";
+"lng_action_direct_messages_disabled" = "Channel disabled Direct Messages.";
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
 
@@ -2756,6 +2780,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_more_options" = "More Options";
 "lng_credits_balance_me" = "your balance";
 "lng_credits_buy_button" = "Buy More Stars";
+"lng_credits_buy_button_short" = "Top Up";
+"lng_credits_stats_button_short" = "Stats";
 "lng_credits_gift_button" = "Gift Stars to Friends";
 "lng_credits_box_out_title" = "Confirm Your Purchase";
 "lng_credits_box_out_sure#one" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Star**?";
@@ -3195,6 +3221,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feature_custom_emoji_pack" = "Custom Emoji Pack";
 "lng_feature_transcribe" = "Voice-to-Text Conversion";
 "lng_feature_autotranslate" = "Autotranslation of Messages";
+
+"lng_edit_topics_enable" = "Enable Topics";
+"lng_edit_topics_about" = "The group chat will be divided into topics created by admins or users.";
+"lng_edit_topics_layout" = "Topics layout";
+"lng_edit_topics_layout_about" = "Choose how topics appear for all members.";
+"lng_edit_topics_tabs" = "Tabs";
+"lng_edit_topics_list" = "List";
 
 "lng_giveaway_new_title" = "Boosts via Gifts";
 "lng_giveaway_new_about" = "Get more boosts for your channel by gifting Premium to your subscribers.";
@@ -4197,6 +4230,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_pin_msg" = "Pin";
 "lng_context_unpin_msg" = "Unpin";
 "lng_context_cancel_upload" = "Cancel Upload";
+"lng_context_upload_edit_caption" = "Edit Caption";
 "lng_context_copy_selected" = "Copy Selected Text";
 "lng_context_copy_selected_items" = "Copy Selected as Text";
 "lng_context_forward_selected" = "Forward Selected";
@@ -4220,6 +4254,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_reacted#other" = "{count} Reacted";
 "lng_context_seen_reacted_none" = "Nobody Reacted";
 "lng_context_seen_reacted_all" = "Show All Reactions";
+"lng_context_sent_by" = "Sent by {user}";
 "lng_context_set_as_quick" = "Set As Quick";
 "lng_context_filter_by_tag" = "Filter by Tag";
 "lng_context_tag_add_name" = "Add Name";
@@ -5265,6 +5300,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_non_premium_message_toast" = "**{user}** only accepts messages from contacts and {link} subscribers.";
 "lng_send_non_premium_message_toast_link" = "Telegram Premium";
 
+"lng_send_charges_stars_channel" = "{channel} charges {amount} per message to its admin.";
+"lng_send_free_channel" = "Send a direct message to the administrator of {channel}.";
 "lng_send_charges_stars_text" = "{user} charges {amount} for each message.";
 "lng_send_charges_stars_go" = "Buy Stars";
 
@@ -6071,6 +6108,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_messages#other" = "{count} messages";
 "lng_forum_show_topics_list" = "Show Topics List";
 
+"lng_monoforum_choose_to_reply" = "Choose a message to reply.";
+
 "lng_request_peer_requirements" = "Requirements";
 "lng_request_peer_rights" = "You must have these admin rights: {rights}.";
 "lng_request_peer_rights_and" = "{rights} and {last}";
@@ -6394,6 +6433,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_balance_button_locked" = "Withdraw";
 "lng_bot_earn_balance_button_buy_ads" = "Buy Ads";
 "lng_bot_earn_learn_credits_out_about" = "You can withdraw Stars using Fragment, or use Stars to advertise your bot. {link}";
+"lng_self_earn_learn_credits_out_about" = "You can withdraw from 10 Stars using Fragment. {link}";
 "lng_bot_earn_out_ph" = "Enter amount to withdraw";
 "lng_bot_earn_balance_password_title" = "Two-step verification";
 "lng_bot_earn_balance_password_description" = "Please enter your password to collect.";

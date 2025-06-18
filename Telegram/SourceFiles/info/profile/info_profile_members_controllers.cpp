@@ -39,6 +39,10 @@ void MemberListRow::setType(Type type) {
 		: QString());
 }
 
+MemberListRow::Type MemberListRow::type() const {
+	return _type;
+}
+
 bool MemberListRow::rightActionDisabled() const {
 	return true;
 }

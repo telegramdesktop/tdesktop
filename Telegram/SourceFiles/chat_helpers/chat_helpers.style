@@ -269,6 +269,11 @@ whenReadPadding: margins(34px, 3px, 17px, 4px);
 whenReadIconPosition: point(8px, 0px);
 whenReadSkip: 3px;
 whenReadShowPadding: margins(6px, 0px, 6px, 2px);
+whoSentItem: Menu(defaultMenu) {
+	itemPadding: margins(17px, 3px, 17px, 4px);
+	itemRightSkip: 0px;
+	itemStyle: whenReadStyle;
+}
 
 switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
@@ -870,6 +875,10 @@ historyGiftToChannel: IconButton(defaultIconButton) {
 	rippleAreaPosition: point(3px, 3px);
 	rippleAreaSize: 40px;
 	ripple: universalRippleAnimation;
+}
+historyDirectMessage: IconButton(historyGiftToChannel) {
+	icon: icon{{ "menu/chat_discuss", windowActiveTextFg }};
+	iconOver: icon{{ "menu/chat_discuss", windowActiveTextFg }};
 }
 historyUnblock: FlatButton(historyComposeButton) {
 	color: attentionButtonFg;
@@ -1594,3 +1603,5 @@ frozenInfoBox: Box(defaultBox) {
 	}
 	shadowIgnoreTopSkip: true;
 }
+
+roundVideoFont: font(14px semibold);

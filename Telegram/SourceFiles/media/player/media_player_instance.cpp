@@ -85,6 +85,7 @@ struct Instance::ShuffleData {
 	std::vector<UniversalMsgId> playedIds;
 	History *history = nullptr;
 	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
 	History *migrated = nullptr;
 	bool scheduled = false;
 	int indexInPlayedIds = 0;
@@ -247,6 +248,7 @@ void Instance::setHistory(
 	if (history) {
 		data->history = history->migrateToOrMe();
 		data->topicRootId = 0;
+		data->monoforumPeerId = 0;
 		data->migrated = data->history->migrateFrom();
 		setSession(data, &history->session());
 	} else {
@@ -349,6 +351,7 @@ bool Instance::validPlaylist(not_null<const Data*> data) const {
 		const auto inSameDomain = [](const Key &a, const Key &b) {
 			return (a.peerId == b.peerId)
 				&& (a.topicRootId == b.topicRootId)
+				&& (a.monoforumPeerId == b.monoforumPeerId)
 				&& (a.migratedPeerId == b.migratedPeerId);
 		};
 		const auto countDistanceInData = [&](const Key &a, const Key &b) {
@@ -422,6 +425,7 @@ auto Instance::playlistKey(not_null<const Data*> data) const
 		(item->isScheduled()
 			? SparseIdsMergedSlice::kScheduledTopicId
 			: data->topicRootId),
+		data->monoforumPeerId,
 		data->migrated ? data->migrated->peer->id : 0,
 		universalId);
 }
@@ -479,6 +483,7 @@ auto Instance::playlistOtherKey(not_null<const Data*> data) const
 	return SliceKey(
 		data->history->peer->id,
 		data->topicRootId,
+		data->monoforumPeerId,
 		data->migrated ? data->migrated->peer->id : 0,
 		(data->playlistSlice->skippedBefore() == 0
 			? ServerMaxMsgId - 1
@@ -905,6 +910,7 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 		&& (key->topicRootId == SparseIdsMergedSlice::kScheduledTopicId);
 	if (raw->history != data->history
 		|| raw->topicRootId != data->topicRootId
+		|| raw->monoforumPeerId != data->monoforumPeerId
 		|| raw->migrated != data->migrated
 		|| raw->scheduled != scheduled) {
 		raw->history = data->history;
@@ -962,6 +968,7 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 			SliceKey(
 				raw->history->peer->id,
 				raw->topicRootId,
+				raw->monoforumPeerId,
 				raw->migrated ? raw->migrated->peer->id : 0,
 				last),
 			data->overview),

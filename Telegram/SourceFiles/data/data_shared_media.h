@@ -74,11 +74,13 @@ public:
 		Key(
 			PeerId peerId,
 			MsgId topicRootId,
+			PeerId monoforumPeerId,
 			PeerId migratedPeerId,
 			Type type,
 			UniversalMsgId universalId)
 		: peerId(peerId)
 		, topicRootId(topicRootId)
+		, monoforumPeerId(monoforumPeerId)
 		, migratedPeerId(migratedPeerId)
 		, type(type)
 		, universalId(universalId) {
@@ -91,6 +93,7 @@ public:
 
 		PeerId peerId = 0;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 		PeerId migratedPeerId = 0;
 		Type type = Type::kCount;
 		UniversalMsgId universalId;
@@ -120,6 +123,7 @@ public:
 		return {
 			key.peerId,
 			key.topicRootId,
+			key.monoforumPeerId,
 			key.migratedPeerId,
 			v::is<MessageId>(key.universalId)
 				? v::get<MessageId>(key.universalId)
@@ -130,6 +134,7 @@ public:
 		return {
 			key.peerId,
 			key.topicRootId,
+			key.monoforumPeerId,
 			key.migratedPeerId,
 			ServerMaxMsgId - 1
 		};

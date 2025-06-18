@@ -269,10 +269,12 @@ inline auto DefaultRestrictionValue(
 			| Flag::Left
 			| Flag::Forum
 			| Flag::JoinToWrite
+			| Flag::Monoforum
 			| Flag::HasLink
 			| Flag::Forbidden
 			| Flag::Creator
-			| Flag::Broadcast;
+			| Flag::Broadcast
+			| Flag::MonoforumDisabled;
 		return rpl::combine(
 			PeerFlagsValue(channel, mask),
 			AdminRightValue(
@@ -287,12 +289,16 @@ inline auto DefaultRestrictionValue(
 					bool unrestrictedByBoosts,
 					ChatRestrictions sendRestriction,
 					ChatRestrictions defaultSendRestriction) {
+				if (flags & Flag::MonoforumDisabled) {
+					return false;
+				}
 				const auto notAmInFlags = Flag::Left | Flag::Forbidden;
 				const auto forumRestriction = forbidInForums
 					&& (flags & Flag::Forum);
 				const auto allowed = !(flags & notAmInFlags)
 					|| ((flags & Flag::HasLink)
-						&& !(flags & Flag::JoinToWrite));
+						&& !(flags & Flag::JoinToWrite))
+					|| (flags & Flag::Monoforum);
 				const auto restricted = sendRestriction
 					| (defaultSendRestriction && !unrestrictedByBoosts);
 				return allowed

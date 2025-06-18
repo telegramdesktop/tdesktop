@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "data/data_peer_values.h"
+#include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_channel.h"
@@ -867,6 +869,45 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 		*weak = owned.data();
 		delegate()->peerListUiShow()->showBox(std::move(owned));
 		return;
+	} else if (const auto monoforum = peer->monoforum()) {
+		const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+		auto callback = [=](not_null<Data::SavedSublist*> sublist) {
+			const auto exists = guard.get();
+			if (!exists) {
+				if (*weak) {
+					(*weak)->closeBox();
+				}
+				return;
+			}
+			auto onstack = std::move(_callback);
+			onstack(sublist);
+			if (guard) {
+				_callback = std::move(onstack);
+			} else if (*weak) {
+				(*weak)->closeBox();
+			}
+		};
+		const auto filter = [=](not_null<Data::SavedSublist*> sublist) {
+			return guard && (!_filter || _filter(sublist));
+		};
+		auto owned = Box<PeerListBox>(
+			std::make_unique<ChooseSublistBoxController>(
+				monoforum,
+				std::move(callback),
+				filter),
+			[=](not_null<PeerListBox*> box) {
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+
+				monoforum->destroyed(
+				) | rpl::start_with_next([=] {
+					box->closeBox();
+				}, box->lifetime());
+			});
+		*weak = owned.data();
+		delegate()->peerListUiShow()->showBox(std::move(owned));
+		return;
 	}
 	const auto history = peer->owner().history(peer);
 	auto callback = std::move(_callback);
@@ -1135,6 +1176,111 @@ auto ChooseTopicBoxController::createRow(not_null<Data::ForumTopic*> topic)
 -> std::unique_ptr<Row> {
 	const auto skip = _filter && !_filter(topic);
 	return skip ? nullptr : std::make_unique<Row>(topic);
+};
+
+ChooseSublistBoxController::ChooseSublistBoxController(
+	not_null<Data::SavedMessages*> monoforum,
+	FnMut<void(not_null<Data::SavedSublist*>)> callback,
+	Fn<bool(not_null<Data::SavedSublist*>)> filter)
+: _monoforum(monoforum)
+, _callback(std::move(callback))
+, _filter(std::move(filter)) {
+	setStyleOverrides(&st::chooseTopicList);
+
+	_monoforum->chatsListChanges(
+	) | rpl::start_with_next([=] {
+		refreshRows();
+	}, lifetime());
+
+	_monoforum->sublistDestroyed(
+	) | rpl::start_with_next([=](not_null<Data::SavedSublist*> sublist) {
+		const auto id = sublist->sublistPeer()->id.value;
+		if (const auto row = delegate()->peerListFindRow(id)) {
+			delegate()->peerListRemoveRow(row);
+			delegate()->peerListRefreshRows();
+		}
+	}, lifetime());
+}
+
+Main::Session &ChooseSublistBoxController::session() const {
+	return _monoforum->session();
+}
+
+void ChooseSublistBoxController::rowClicked(not_null<PeerListRow*> row) {
+	const auto weak = base::make_weak(this);
+	auto onstack = base::take(_callback);
+	onstack(_monoforum->sublist(row->peer()));
+	if (weak) {
+		_callback = std::move(onstack);
+	}
+}
+
+void ChooseSublistBoxController::prepare() {
+	delegate()->peerListSetTitle(tr::lng_forward_choose());
+	setSearchNoResultsText(tr::lng_topics_not_found(tr::now));
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
+	refreshRows(true);
+
+	session().changes().entryUpdates(
+		Data::EntryUpdate::Flag::Repaint
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		if (const auto sublist = update.entry->asSublist()) {
+			if (sublist->parent() == _monoforum) {
+				const auto id = sublist->sublistPeer()->id.value;
+				if (const auto row = delegate()->peerListFindRow(id)) {
+					delegate()->peerListUpdateRow(row);
+				}
+			}
+		}
+	}, lifetime());
+}
+
+void ChooseSublistBoxController::refreshRows(bool initial) {
+	auto added = false;
+	for (const auto &row : _monoforum->chatsList()->indexed()->all()) {
+		if (const auto sublist = row->sublist()) {
+			const auto id = sublist->sublistPeer()->id.value;
+			auto already = delegate()->peerListFindRow(id);
+			if (initial || !already) {
+				if (auto created = createRow(sublist)) {
+					delegate()->peerListAppendRow(std::move(created));
+					added = true;
+				}
+			} else if (already->isSearchResult()) {
+				delegate()->peerListAppendFoundRow(already);
+				added = true;
+			}
+		}
+	}
+	if (added) {
+		delegate()->peerListRefreshRows();
+	}
+}
+
+void ChooseSublistBoxController::loadMoreRows() {
+	_monoforum->loadMore();
+}
+
+std::unique_ptr<PeerListRow> ChooseSublistBoxController::createSearchRow(
+		PeerListRowId id) {
+	const auto peer = session().data().peer(PeerId(id));
+	if (const auto sublist = _monoforum->sublistLoaded(peer)) {
+		auto result = std::make_unique<PeerListRow>(sublist->sublistPeer());
+		result->setCustomStatus(QString());
+		return result;
+	}
+	return nullptr;
+}
+
+auto ChooseSublistBoxController::createRow(
+	not_null<Data::SavedSublist*> sublist)
+-> std::unique_ptr<PeerListRow> {
+	if (_filter && !_filter(sublist)) {
+		return nullptr;
+	}
+	auto result = std::make_unique<PeerListRow>(sublist->sublistPeer());
+	result->setCustomStatus(QString());
+	return result;
 };
 
 void PaintRestrictionBadge(

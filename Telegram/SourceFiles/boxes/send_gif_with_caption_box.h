@@ -18,9 +18,17 @@ namespace SendMenu {
 struct Details;
 } // namespace SendMenu
 
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
+
 namespace Ui {
 
 class GenericBox;
+
+void EditCaptionBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<HistoryView::Element*> view);
 
 void SendGifWithCaptionBox(
 	not_null<Ui::GenericBox*> box,

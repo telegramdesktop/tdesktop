@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_separate_id.h"
 
+#include "data/data_channel.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
 #include "data/data_saved_messages.h"
@@ -44,12 +45,13 @@ SeparateId::SeparateId(not_null<PeerData*> peer)
 : SeparateId(SeparateType::Chat, peer->owner().history(peer)) {
 }
 
-SeparateId::SeparateId(SeparateSharedMedia data)
+SeparateId::SeparateId(
+	not_null<Data::Thread*> thread,
+	Storage::SharedMediaType sharedMediaType)
 : type(SeparateType::SharedMedia)
-, sharedMedia(data.type)
-, account(&data.peer->session().account())
-, sharedMediaDataPeer(data.peer)
-, sharedMediaDataTopicRootId(data.topicRootId) {
+, sharedMediaType(sharedMediaType)
+, account(&thread->session().account())
+, thread(thread) {
 }
 
 bool SeparateId::primary() const {
@@ -71,27 +73,15 @@ Data::Folder *SeparateId::folder() const {
 }
 
 Data::SavedSublist *SeparateId::sublist() const {
-	return (type == SeparateType::SavedSublist)
-		? thread->owner().savedMessages().sublist(thread->peer()).get()
-		: nullptr;
+	return (type != SeparateType::SavedSublist)
+		? nullptr
+		: thread->asSublist();
 }
 
 bool SeparateId::hasChatsList() const {
 	return (type == SeparateType::Primary)
 		|| (type == SeparateType::Archive)
 		|| (type == SeparateType::Forum);
-}
-
-PeerData *SeparateId::sharedMediaPeer() const {
-	return (type == SeparateType::SharedMedia)
-		? sharedMediaDataPeer
-		: nullptr;
-}
-
-MsgId SeparateId::sharedMediaTopicRootId() const {
-	return (type == SeparateType::SharedMedia)
-		? sharedMediaDataTopicRootId
-		: MsgId();
 }
 
 } // namespace Window

@@ -894,6 +894,7 @@ void Instance::show(
 					: nullptr;
 				const auto item = (HistoryItem*)nullptr;
 				const auto topicRootId = MsgId(0);
+				const auto monoforumPeerId = PeerId(0);
 				if (event.context.startsWith("-photo")) {
 					const auto id = event.context.mid(6).toULongLong();
 					const auto photo = _shownSession->data().photo(id);
@@ -902,7 +903,8 @@ void Instance::show(
 							controller,
 							photo,
 							item,
-							topicRootId
+							topicRootId,
+							monoforumPeerId
 						});
 					}
 				} else if (event.context.startsWith("-video")) {
@@ -913,7 +915,8 @@ void Instance::show(
 							controller,
 							video,
 							item,
-							topicRootId
+							topicRootId,
+							monoforumPeerId
 						});
 					}
 				}

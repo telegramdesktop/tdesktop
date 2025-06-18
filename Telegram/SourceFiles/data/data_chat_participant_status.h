@@ -190,18 +190,21 @@ struct SendError {
 	struct Args {
 		QString text;
 		int boostsToLift = 0;
+		bool monoforumAdmin = false;
 		bool premiumToLift = false;
 		bool frozen = false;
 	};
 	SendError(Args &&args)
 	: text(std::move(args.text))
 	, boostsToLift(args.boostsToLift)
+	, monoforumAdmin(args.monoforumAdmin)
 	, premiumToLift(args.premiumToLift)
 	, frozen(args.frozen) {
 	}
 
 	QString text;
 	int boostsToLift = 0;
+	bool monoforumAdmin = false;
 	bool premiumToLift = false;
 	bool frozen = false;
 
@@ -210,7 +213,7 @@ struct SendError {
 	}
 
 	explicit operator bool() const {
-		return !text.isEmpty();
+		return monoforumAdmin || !text.isEmpty();
 	}
 	[[nodiscard]] bool has_value() const {
 		return !text.isEmpty();

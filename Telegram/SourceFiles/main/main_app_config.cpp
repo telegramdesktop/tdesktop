@@ -105,6 +105,10 @@ int AppConfig::paidMessageCommission() const {
 	return get<int>(u"stars_paid_message_commission_permille"_q, 850);
 }
 
+int AppConfig::paidMessageChannelStarsDefault() const {
+	return get<int>(u"stars_paid_messages_channel_amount_default"_q, 10);
+}
+
 int AppConfig::pinnedGiftsLimit() const {
 	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
 }
@@ -138,6 +142,12 @@ int AppConfig::giftResalePriceMin() const {
 
 int AppConfig::giftResaleReceiveThousandths() const {
 	return get<int>(u"stars_stargift_resale_commission_permille"_q, 800);
+}
+
+int AppConfig::pollOptionsLimit() const {
+	return get<int>(
+		u"poll_answers_max"_q,
+		_account->mtp().isTestMode() ? 12 : 10);
 }
 
 void AppConfig::refresh(bool force) {

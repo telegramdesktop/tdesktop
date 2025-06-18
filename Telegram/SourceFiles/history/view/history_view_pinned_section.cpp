@@ -90,6 +90,10 @@ Data::ForumTopic *PinnedMemento::topicForRemoveRequests() const {
 	return _thread->asTopic();
 }
 
+Data::SavedSublist *PinnedMemento::sublistForRemoveRequests() const {
+	return _thread->asSublist();
+}
+
 PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
@@ -195,6 +199,7 @@ void PinnedWidget::setupClearButton() {
 				controller(),
 				_history->peer,
 				_thread->topicRootId(),
+				_thread->monoforumPeerId(),
 				crl::guard(this, callback));
 		} else {
 			Window::UnpinAllMessages(controller(), _thread);
@@ -517,6 +522,7 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 			SparseIdsMergedSlice::Key(
 				_history->peer->id,
 				_thread->topicRootId(),
+				_thread->monoforumPeerId(),
 				_migratedPeer ? _migratedPeer->id : 0,
 				messageId),
 			Storage::SharedMediaType::Pinned),

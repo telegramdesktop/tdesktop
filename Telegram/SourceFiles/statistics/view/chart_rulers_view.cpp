@@ -20,8 +20,11 @@ namespace Statistic {
 namespace {
 
 [[nodiscard]] QString FormatF(float64 absoluteValue) {
-	constexpr auto kTooMuch = int(10'000);
-	return (absoluteValue >= kTooMuch)
+	static constexpr auto kTooMuch = int(10'000);
+	static constexpr auto kTooSmall = 1e-9;
+	return (std::abs(absoluteValue) <= kTooSmall)
+		? u"0"_q
+		: (absoluteValue >= kTooMuch)
 		? Lang::FormatCountToShort(absoluteValue).string
 		: QString::number(absoluteValue);
 }

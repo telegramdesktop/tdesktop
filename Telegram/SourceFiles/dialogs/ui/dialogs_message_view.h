@@ -24,6 +24,7 @@ class SpoilerAnimation;
 
 namespace Data {
 class Forum;
+class SavedMessages;
 } // namespace Data
 
 namespace HistoryView {
@@ -56,10 +57,12 @@ public:
 
 	[[nodiscard]] bool prepared(
 		not_null<const HistoryItem*> item,
-		Data::Forum *forum) const;
+		Data::Forum *forum,
+		Data::SavedMessages *monoforum) const;
 	void prepare(
 		not_null<const HistoryItem*> item,
 		Data::Forum *forum,
+		Data::SavedMessages *monoforum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options);
 

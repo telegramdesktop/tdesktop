@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
@@ -433,32 +434,74 @@ void Credits::setupContent() {
 	};
 	const auto state = content->lifetime().make_state<State>();
 
-	const auto button = content->add(
-		object_ptr<Ui::RoundButton>(
-			content,
-			rpl::conditional(
-				state->buyStars.loadingValue(),
-				rpl::single(QString()),
-				tr::lng_credits_buy_button()),
-			st::creditsSettingsBigBalanceButton),
-		st::boxRowPadding);
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	const auto show = _controller->uiShow();
-	button->setClickedCallback(state->buyStars.handler(show, paid));
-	{
-		using namespace Info::Statistics;
-		const auto loadingAnimation = InfiniteRadialAnimationWidget(
-			button,
-			button->height() / 2);
-		AddChildToWidgetCenter(button, loadingAnimation);
-		loadingAnimation->showOn(state->buyStars.loadingValue());
-	}
 	const auto paddings = rect::m::sum::h(st::boxRowPadding);
-	button->widthValue() | rpl::filter([=] {
-		return (button->widthNoMargins() != (content->width() - paddings));
-	}) | rpl::start_with_next([=] {
-		button->resizeToWidth(content->width() - paddings);
-	}, button->lifetime());
+	if (!_controller->session().credits().statsEnabled()) {
+		const auto button = content->add(
+			object_ptr<Ui::RoundButton>(
+				content,
+				rpl::conditional(
+					state->buyStars.loadingValue(),
+					rpl::single(QString()),
+					tr::lng_credits_buy_button()),
+				st::creditsSettingsBigBalanceButton),
+			st::boxRowPadding);
+		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		const auto show = _controller->uiShow();
+		button->setClickedCallback(state->buyStars.handler(show, paid));
+		{
+			using namespace Info::Statistics;
+			const auto loadingAnimation = InfiniteRadialAnimationWidget(
+				button,
+				button->height() / 2);
+			AddChildToWidgetCenter(button, loadingAnimation);
+			loadingAnimation->showOn(state->buyStars.loadingValue());
+		}
+		button->widthValue() | rpl::filter([=] {
+			return button->widthNoMargins() != (content->width() - paddings);
+		}) | rpl::start_with_next([=] {
+			button->resizeToWidth(content->width() - paddings);
+		}, button->lifetime());
+	} else {
+		const auto wrap = content->add(
+			object_ptr<Ui::FixedHeightWidget>(
+				content,
+				st::inviteLinkButton.height),
+			st::boxRowPadding);
+		const auto buy = Ui::CreateChild<Ui::RoundButton>(
+			wrap,
+			tr::lng_credits_buy_button_short(),
+			st::settingsCreditsButtonBuy);
+		buy->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		const auto show = _controller->uiShow();
+		buy->setClickedCallback(state->buyStars.handler(show, paid));
+		{
+			using namespace Info::Statistics;
+			const auto loadingAnimation = InfiniteRadialAnimationWidget(
+				buy,
+				buy->height() / 2);
+			AddChildToWidgetCenter(buy, loadingAnimation);
+			loadingAnimation->showOn(state->buyStars.loadingValue());
+		}
+		const auto stats = Ui::CreateChild<Ui::RoundButton>(
+			wrap,
+			tr::lng_credits_stats_button_short(),
+			st::settingsCreditsButtonStats);
+		stats->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		const auto self = _controller->session().user();
+		const auto controller = _controller->parentController();
+		stats->setClickedCallback([=] {
+			controller->showSection(Info::BotEarn::Make(self));
+		});
+
+		wrap->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			const auto buttonWidth = (width - st::inviteLinkButtonsSkip) / 2;
+			buy->setFullWidth(buttonWidth);
+			stats->setFullWidth(buttonWidth);
+			buy->moveToLeft(0, 0, width);
+			stats->moveToRight(0, 0, width);
+		}, wrap->lifetime());
+	}
 
 	Ui::AddSkip(content);
 

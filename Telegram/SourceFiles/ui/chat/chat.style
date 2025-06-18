@@ -49,6 +49,7 @@ msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
 msgServiceMargin: margins(10px, 10px, 10px, 2px);
+monoforumBarUserpicSkip: 2px;
 
 msgDateSpace: 12px;
 msgDateDelta: point(2px, 5px);
@@ -1054,6 +1055,8 @@ chatSimilarSkip: 12px;
 premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
 premiumRequiredCircle: 60px;
+directMessagesIcon: icon{{ "chat/large_messages", msgServiceFg }};
+starsPerMessageWidth: 226px;
 
 repliesEmptyIcon: icon{{ "chat/large_quickreply", msgServiceFg }};
 greetingEmptyIcon: icon{{ "chat/large_greeting", msgServiceFg }};
@@ -1252,3 +1255,91 @@ newPeerUserpicsPadding: margins(0px, 3px, 0px, 0px);
 newPeerWidth: 320px;
 
 swipeBackSize: 150px;
+
+chatTabsToggle: IconButton(defaultIconButton) {
+	width: 64px;
+	height: 36px;
+	icon: icon {{ "top_bar_profile-flip_horizontal", menuIconFg }};
+	iconOver: icon {{ "top_bar_profile-flip_horizontal", menuIconFgOver }};
+	ripple: emptyRippleAnimation;
+}
+chatTabsToggleActive: icon {{ "top_bar_profile-flip_horizontal", windowActiveTextFg }};
+chatTabsScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+chatTabsSlider: SettingsSlider(defaultSettingsSlider) {
+	padding: 0px;
+	height: 36px;
+	barTop: 33px;
+	barSkip: 0px;
+	barStroke: 6px;
+	barRadius: 2px;
+	barFg: transparent;
+	barSnapToLabel: true;
+	strictSkip: 18px;
+	labelTop: 9px;
+	labelStyle: semiboldTextStyle;
+	labelFg: windowSubTextFg;
+	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}
+
+ChatTabsOutline {
+	radius: pixels;
+	stroke: pixels;
+	fg: color;
+	skip: pixels;
+}
+
+ChatTabsVertical {
+	barStroke: pixels;
+	barRadius: pixels;
+	barFg: color;
+	nameStyle: TextStyle;
+	nameWidth: pixels;
+	nameTop: pixels;
+	nameFg: color;
+	nameFgActive: color;
+	userpicTop: pixels;
+	userpicSize: pixels;
+	baseHeight: pixels;
+	width: pixels;
+	ripple: RippleAnimation;
+	rippleBg: color;
+	rippleBgActive: color;
+	duration: int;
+}
+
+chatTabsVertical: ChatTabsVertical {
+	barStroke: 8px;
+	barRadius: 4px;
+	barFg: sliderBgActive;
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(10px);
+	}
+	nameWidth: 54px;
+	nameTop: 42px;
+	nameFg: windowSubTextFg;
+	nameFgActive: lightButtonFg;
+	userpicTop: 8px;
+	userpicSize: 28px;
+	baseHeight: 50px;
+	width: 64px;
+	ripple: defaultRippleAnimation;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	duration: 150;
+}
+
+chatTabsOutlineHorizontal: ChatTabsOutline {
+	stroke: 8px;
+	radius: 4px;
+	fg: sliderBgActive;
+	skip: 8px;
+}
+
+chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
+}

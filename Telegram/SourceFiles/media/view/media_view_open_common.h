@@ -30,11 +30,13 @@ public:
 		Window::SessionController *controller,
 		not_null<PhotoData*> photo,
 		HistoryItem *item,
-		MsgId topicRootId)
+		MsgId topicRootId,
+		PeerId monoforumPeerId)
 	: _controller(controller)
 	, _photo(photo)
 	, _item(item)
-	, _topicRootId(topicRootId) {
+	, _topicRootId(topicRootId)
+	, _monoforumPeerId(monoforumPeerId) {
 	}
 	OpenRequest(
 		Window::SessionController *controller,
@@ -50,12 +52,14 @@ public:
 		not_null<DocumentData*> document,
 		HistoryItem *item,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		bool continueStreaming = false,
 		crl::time startTime = 0)
 	: _controller(controller)
 	, _document(document)
 	, _item(item)
 	, _topicRootId(topicRootId)
+	, _monoforumPeerId(monoforumPeerId)
 	, _continueStreaming(continueStreaming)
 	, _startTime(startTime) {
 	}
@@ -91,6 +95,9 @@ public:
 
 	[[nodiscard]] MsgId topicRootId() const {
 		return _topicRootId;
+	}
+	[[nodiscard]] PeerId monoforumPeerId() const {
+		return _monoforumPeerId;
 	}
 
 	[[nodiscard]] DocumentData *document() const {
@@ -129,6 +136,7 @@ private:
 	PeerData *_peer = nullptr;
 	HistoryItem *_item = nullptr;
 	MsgId _topicRootId = 0;
+	PeerId _monoforumPeerId = 0;
 	std::optional<Data::CloudTheme> _cloudTheme = std::nullopt;
 	bool _continueStreaming = false;
 	crl::time _startTime = 0;

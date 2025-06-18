@@ -740,8 +740,9 @@ void InnerWidget::elementSearchInList(
 void InnerWidget::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
-bool InnerWidget::elementIsChatWide() {
-	return _isChatWide;
+HistoryView::ElementChatMode InnerWidget::elementChatMode() {
+	using Mode = HistoryView::ElementChatMode;
+	return _isChatWide ? Mode::Wide : Mode::Default;
 }
 
 not_null<Ui::PathShiftGradient*> InnerWidget::elementPathShiftGradient() {

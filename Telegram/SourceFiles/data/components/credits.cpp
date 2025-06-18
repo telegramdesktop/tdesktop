@@ -47,10 +47,23 @@ void Credits::load(bool force) {
 			&& _lastLoaded + kReloadThreshold > crl::now())) {
 		return;
 	}
-	_loader = std::make_unique<Api::CreditsStatus>(_session->user());
-	_loader->request({}, [=](Data::CreditsStatusSlice slice) {
-		_loader = nullptr;
-		apply(slice.balance);
+	const auto self = _session->user();
+	_loader = std::make_unique<rpl::lifetime>();
+	_loader->make_state<Api::CreditsStatus>(self)->request({}, [=](
+			Data::CreditsStatusSlice slice) {
+		const auto balance = slice.balance;
+		const auto apiStats
+			= _loader->make_state<Api::CreditsEarnStatistics>(self);
+		const auto finish = [=](bool statsEnabled) {
+			_statsEnabled = statsEnabled;
+			apply(balance);
+			_loader = nullptr;
+		};
+		apiStats->request() | rpl::start_with_error_done([=] {
+			finish(false);
+		}, [=] {
+			finish(true);
+		}, *_loader);
 	});
 }
 
@@ -146,6 +159,10 @@ void Credits::applyCurrency(PeerId peerId, uint64 balance) {
 rpl::producer<> Credits::refreshedByPeerId(PeerId peerId) {
 	return _refreshedByPeerId.events(
 	) | rpl::filter(rpl::mappers::_1 == peerId) | rpl::to_empty;
+}
+
+bool Credits::statsEnabled() const {
+	return _statsEnabled;
 }
 
 } // namespace Data

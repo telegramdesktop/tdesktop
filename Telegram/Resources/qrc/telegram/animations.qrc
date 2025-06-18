@@ -9,6 +9,7 @@
     <file alias="cloud_password/password_input.tgs">../../animations/cloud_password/password_input.tgs</file>
     <file alias="cloud_password/hint.tgs">../../animations/cloud_password/hint.tgs</file>
     <file alias="cloud_password/email.tgs">../../animations/cloud_password/email.tgs</file>
+    <file alias="cloud_password/validate.tgs">../../animations/cloud_password/validate.tgs</file>
     <file alias="ttl.tgs">../../animations/ttl.tgs</file>
     <file alias="discussion.tgs">../../animations/discussion.tgs</file>
     <file alias="stats.tgs">../../animations/stats.tgs</file>
@@ -32,6 +33,10 @@
     <file alias="hello_status.tgs">../../animations/hello_status.tgs</file>
     <file alias="starref_link.tgs">../../animations/starref_link.tgs</file>
     <file alias="media_forbidden.tgs">../../animations/media_forbidden.tgs</file>
+    <file alias="topics.tgs">../../animations/edit_peers/topics.tgs</file>
+    <file alias="topics_tabs.tgs">../../animations/edit_peers/topics_tabs.tgs</file>
+    <file alias="topics_list.tgs">../../animations/edit_peers/topics_list.tgs</file>
+    <file alias="direct_messages.tgs">../../animations/edit_peers/direct_messages.tgs</file>
 
     <file alias="dice_idle.tgs">../../animations/dice/dice_idle.tgs</file>
     <file alias="dart_idle.tgs">../../animations/dice/dart_idle.tgs</file>
