@@ -789,7 +789,7 @@ void Stickers::somethingReceived(
 void Stickers::setPackAndEmoji(
 		StickersSet &set,
 		StickersPack &&pack,
-		const std::vector<TimeId> &&dates,
+		std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs) {
 	set.stickers = std::move(pack);
 	set.dates = std::move(dates);

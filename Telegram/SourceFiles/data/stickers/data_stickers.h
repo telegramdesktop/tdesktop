@@ -291,7 +291,7 @@ private:
 	void setPackAndEmoji(
 		StickersSet &set,
 		StickersPack &&pack,
-		const std::vector<TimeId> &&dates,
+		std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs);
 	void somethingReceived(
 		const QVector<MTPStickerSet> &list,
