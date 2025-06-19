@@ -602,7 +602,8 @@ void MonoforumSenderBar::Paint(
 
 void ServicePreMessage::init(
 		PreparedServiceText string,
-		ClickHandlerPtr fullClickHandler) {
+		ClickHandlerPtr fullClickHandler,
+		std::unique_ptr<Media> media) {
 	text = Ui::Text::String(
 		st::serviceTextStyle,
 		string.text,
@@ -612,6 +613,7 @@ void ServicePreMessage::init(
 	for (auto i = 0; i != int(string.links.size()); ++i) {
 		text.setLink(i + 1, string.links[i]);
 	}
+	this->media = std::move(media);
 }
 
 int ServicePreMessage::resizeToWidth(int newWidth, ElementChatMode mode) {
@@ -621,27 +623,38 @@ int ServicePreMessage::resizeToWidth(int newWidth, ElementChatMode mode) {
 			width,
 			st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
 	}
-	auto contentWidth = width;
-	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.right();
-	if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
-		contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+
+	if (media) {
+		media->initDimensions();
+		media->resizeGetHeight(width);
 	}
 
-	auto maxWidth = text.maxWidth()
-		+ st::msgServicePadding.left()
-		+ st::msgServicePadding.right();
-	auto minHeight = text.minHeight();
+	if (media && media->hideServiceText()) {
+		height = media->height() + st::msgServiceMargin.bottom();
+	} else {
+		auto contentWidth = width;
+		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.right();
+		if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
+			contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+		}
 
-	auto nwidth = qMax(contentWidth
-		- st::msgServicePadding.left()
-		- st::msgServicePadding.right(), 0);
-	height = (contentWidth >= maxWidth)
-		? minHeight
-		: text.countHeight(nwidth);
-	height += st::msgServicePadding.top()
-		+ st::msgServicePadding.bottom()
-		+ st::msgServiceMargin.top()
-		+ st::msgServiceMargin.bottom();
+		auto maxWidth = text.maxWidth()
+			+ st::msgServicePadding.left()
+			+ st::msgServicePadding.right();
+		auto minHeight = text.minHeight();
+
+		auto nwidth = qMax(contentWidth
+			- st::msgServicePadding.left()
+			- st::msgServicePadding.right(), 0);
+		height = (contentWidth >= maxWidth)
+			? minHeight
+			: text.countHeight(nwidth);
+		height += st::msgServicePadding.top()
+			+ st::msgServicePadding.bottom()
+			+ st::msgServiceMargin.top()
+			+ st::msgServiceMargin.bottom();
+	}
+
 	return height;
 }
 
@@ -650,41 +663,53 @@ void ServicePreMessage::paint(
 		const PaintContext &context,
 		QRect g,
 		ElementChatMode mode) const {
-	const auto top = g.top() - height - st::msgMargin.top();
-	p.translate(0, top);
+	if (media && media->hideServiceText()) {
+		const auto left = (width - media->width()) / 2;
+		const auto top = g.top() - height - st::msgMargin.bottom();
+		const auto position = QPoint(left, top);
+		p.translate(position);
+		media->draw(p, context.translated(-position).withSelection({}));
+		p.translate(-position);
+	} else {
+		const auto top = g.top() - height - st::msgMargin.top();
+		p.translate(0, top);
 
-	const auto rect = QRect(0, 0, width, height)
-		- st::msgServiceMargin;
-	const auto trect = rect - st::msgServicePadding;
+		const auto rect = QRect(0, 0, width, height)
+			- st::msgServiceMargin;
+		const auto trect = rect - st::msgServicePadding;
 
-	ServiceMessagePainter::PaintComplexBubble(
-		p,
-		context.st,
-		rect.left(),
-		rect.width(),
-		text,
-		trect);
+		ServiceMessagePainter::PaintComplexBubble(
+			p,
+			context.st,
+			rect.left(),
+			rect.width(),
+			text,
+			trect);
 
-	p.setBrush(Qt::NoBrush);
-	p.setPen(context.st->msgServiceFg());
-	p.setFont(st::msgServiceFont);
-	text.draw(p, {
-		.position = trect.topLeft(),
-		.availableWidth = trect.width(),
-		.align = style::al_top,
-		.palette = &context.st->serviceTextPalette(),
-		.now = context.now,
-		.fullWidthSelection = false,
-		//.selection = context.selection,
-	});
+		p.setBrush(Qt::NoBrush);
+		p.setPen(context.st->msgServiceFg());
+		p.setFont(st::msgServiceFont);
+		text.draw(p, {
+			.position = trect.topLeft(),
+			.availableWidth = trect.width(),
+			.align = style::al_top,
+			.palette = &context.st->serviceTextPalette(),
+			.now = context.now,
+			.fullWidthSelection = false,
+			//.selection = context.selection,
+		});
 
-	p.translate(0, -top);
+		p.translate(0, -top);
+	}
 }
 
 ClickHandlerPtr ServicePreMessage::textState(
 		QPoint point,
 		const StateRequest &request,
 		QRect g) const {
+	if (media && media->hideServiceText()) {
+		return {};
+	}
 	const auto top = g.top() - height - st::msgMargin.top();
 	const auto rect = QRect(0, top, width, height)
 		- st::msgServiceMargin;
@@ -1082,6 +1107,7 @@ void Element::refreshMedia(Element *replacing) {
 				.maxWidth = st::chatSuggestInfoWidth,
 				.serviceLink = decision->lnk,
 				.service = true,
+				.fullAreaLink = true,
 				.hideServiceText = true,
 			});
 	} else {
@@ -1639,11 +1665,15 @@ void Element::setDisplayDate(bool displayDate) {
 
 void Element::setServicePreMessage(
 		PreparedServiceText text,
-		ClickHandlerPtr fullClickHandler) {
-	if (!text.text.empty()) {
+		ClickHandlerPtr fullClickHandler,
+		std::unique_ptr<Media> media) {
+	if (!text.text.empty() || media) {
 		AddComponents(ServicePreMessage::Bit());
 		const auto service = Get<ServicePreMessage>();
-		service->init(std::move(text), std::move(fullClickHandler));
+		service->init(
+			std::move(text),
+			std::move(fullClickHandler),
+			std::move(media));
 		setPendingResize();
 	} else if (Has<ServicePreMessage>()) {
 		RemoveComponents(ServicePreMessage::Bit());

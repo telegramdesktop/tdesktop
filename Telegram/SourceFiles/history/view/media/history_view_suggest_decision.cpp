@@ -11,11 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_media_generic.h"
+#include "history/view/media/history_view_unique_gift.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
+#include "ui/chat/chat_style.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h"
 #include "styles/style_chat.h"
@@ -23,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
+
+constexpr auto kFadedOpacity = 0.85;
 
 enum EmojiType {
 	kAgreement,
@@ -114,12 +118,17 @@ auto GenerateSuggestDecisionMedia(
 					? st::chatSuggestInfoTitleMargin
 					: st::chatSuggestInfoFullMargin));
 			if (withComment) {
-				pushText(
+				const auto fadedFg = [](const PaintContext &context) {
+					auto result = context.st->msgServiceFg()->c;
+					result.setAlphaF(result.alphaF() * kFadedOpacity);
+					return result;
+				};
+				push(std::make_unique<TextPartColored>(
 					TextWithEntities().append('"').append(
 						decision->rejectComment
 					).append('"'),
 					st::chatSuggestInfoLastMargin,
-					style::al_top);
+					fadedFg));
 			}
 		} else {
 			const auto stars = decision->stars;
@@ -130,6 +139,7 @@ auto GenerateSuggestDecisionMedia(
 				),
 				st::chatSuggestInfoTitleMargin,
 				style::al_top);
+			const auto date = base::unixtime::parse(decision->date);
 			pushText(
 				TextWithEntities(
 				).append(Emoji(kCalendar)).append(' ').append(
@@ -138,8 +148,16 @@ auto GenerateSuggestDecisionMedia(
 						lt_channel,
 						Ui::Text::Bold(broadcast->name()),
 						lt_date,
-						Ui::Text::Bold(Ui::FormatDateTime(
-							base::unixtime::parse(decision->date))),
+						Ui::Text::Bold(tr::lng_mediaview_date_time(
+							tr::now,
+							lt_date,
+							QLocale().toString(
+								date.date(),
+								QLocale::ShortFormat),
+							lt_time,
+							QLocale().toString(
+								date.time(),
+								QLocale::ShortFormat))),
 						Ui::Text::WithEntities)),
 				(stars
 					? st::chatSuggestInfoMiddleMargin
@@ -186,6 +204,77 @@ auto GenerateSuggestDecisionMedia(
 					st::chatSuggestInfoLastMargin);
 			}
 		}
+	};
+}
+
+auto GenerateSuggestRequestMedia(
+	not_null<Element*> parent,
+	not_null<const HistoryMessageSuggestedPost*> suggest)
+	-> Fn<void(
+		not_null<MediaGeneric*>,
+		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	return [=](
+			not_null<MediaGeneric*> media,
+			Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
+		const auto normalFg = [](const PaintContext &context) {
+			return context.st->msgServiceFg()->c;
+		};
+		const auto fadedFg = [](const PaintContext &context) {
+			auto result = context.st->msgServiceFg()->c;
+			result.setAlphaF(result.alphaF() * kFadedOpacity);
+			return result;
+		};
+		const auto from = parent->data()->from();
+		const auto peer = parent->history()->peer;
+
+		auto pushText = [&](
+				TextWithEntities text,
+				QMargins margins = {},
+				style::align align = style::al_left,
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+			push(std::make_unique<MediaGenericTextPart>(
+				std::move(text),
+				margins,
+				st::defaultTextStyle,
+				links,
+				Ui::Text::MarkedContext(),
+				align));
+		};
+
+		pushText(
+			(from->isSelf()
+				? tr::lng_suggest_action_your(
+					tr::now,
+					Ui::Text::WithEntities)
+				: tr::lng_suggest_action_his(
+					tr::now,
+					lt_from,
+					Ui::Text::Bold(from->shortName()),
+					Ui::Text::WithEntities)),
+			st::chatSuggestInfoTitleMargin,
+			style::al_top);
+
+		auto entries = std::vector<AttributeTable::Entry>();
+		entries.push_back({
+			tr::lng_suggest_action_price_label(tr::now),
+			Ui::Text::Bold(suggest->stars
+				? tr::lng_prize_credits_amount(
+					tr::now,
+					lt_count,
+					suggest->stars)
+				: tr::lng_suggest_action_price_free(tr::now)),
+		});
+		entries.push_back({
+			tr::lng_suggest_action_time_label(tr::now),
+			Ui::Text::Bold(suggest->date
+				? Ui::FormatDateTime(base::unixtime::parse(suggest->date))
+				: tr::lng_suggest_action_time_any(tr::now)),
+		});
+		push(std::make_unique<AttributeTable>(
+			std::move(entries),
+			st::chatSuggestInfoLastMargin,
+			fadedFg,
+			normalFg));
 	};
 }
 

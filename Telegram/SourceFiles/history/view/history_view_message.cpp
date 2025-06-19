@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
+#include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_web_page.h"
+#include "history/view/media/history_view_suggest_decision.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_group_call_bar.h" // UserpicInRow.
@@ -458,17 +460,14 @@ void Message::initPaidInformation() {
 	if (!item->history()->peer->isUser()) {
 
 		if (const auto suggest = item->Get<HistoryMessageSuggestedPost>()) {
-			auto text = PreparedServiceText();
-			if (!suggest->stars && !suggest->date) {
-				text = { { u"suggestion to publish for free anytime"_q } };
-			} else if (!suggest->date) {
-				text = { { u"suggestion to publish for %1 stars anytime"_q.arg(suggest->stars) } };
-			} else if (!suggest->stars) {
-				text = { { u"suggestion to publish for free %1"_q.arg(langDateTime(base::unixtime::parse(suggest->date))) } };
-			} else {
-				text = { { u"suggestion to publish for %1 stars %2"_q.arg(suggest->stars).arg(langDateTime(base::unixtime::parse(suggest->date))) } };
-			}
-			setServicePreMessage(std::move(text));
+			setServicePreMessage({}, {}, std::make_unique<MediaGeneric>(
+				this,
+				GenerateSuggestRequestMedia(this, suggest),
+				MediaGenericDescriptor{
+					.maxWidth = st::chatSuggestWidth,
+					.service = true,
+					.hideServiceText = true,
+				}));
 		}
 
 		return;

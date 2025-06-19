@@ -4436,7 +4436,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_action_your" = "You suggest to post this message.";
 "lng_suggest_action_his" = "{from} suggests to post this message.";
 "lng_suggest_action_price_label" = "Price";
+"lng_suggest_action_price_free" = "Free";
 "lng_suggest_action_time_label" = "Time";
+"lng_suggest_action_time_any" = "Anytime";
 "lng_suggest_action_agreement" = "Agreement reached!";
 "lng_suggest_action_agree_date" = "The post will be automatically published on {channel} {date}.";
 "lng_suggest_action_your_charged" = "You have been charged {amount}.";
