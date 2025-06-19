@@ -468,33 +468,6 @@ void Message::initPaidInformation() {
 			} else {
 				text = { { u"suggestion to publish for %1 stars %2"_q.arg(suggest->stars).arg(langDateTime(base::unixtime::parse(suggest->date))) } };
 			}
-			const auto channelIsAuthor = item->from()->isChannel();
-			const auto amMonoforumAdmin = item->history()->peer->amMonoforumAdmin();
-			const auto broadcast = item->history()->peer->monoforumBroadcast();
-			const auto canDecline = item->isRegular()
-				&& !(suggest->accepted || suggest->rejected)
-				&& (channelIsAuthor ? !amMonoforumAdmin : amMonoforumAdmin);
-			const auto canAccept = canDecline
-				&& (channelIsAuthor
-					? !amMonoforumAdmin
-					: (amMonoforumAdmin
-						&& broadcast
-						&& broadcast->canPostMessages()));
-			if (canDecline) {
-				text.links.push_back(Api::DeclineClickHandler(item));
-				text.text.append(", ").append(Ui::Text::Link("[Decline]", text.links.size()));
-				if (canAccept) {
-					text.links.push_back(Api::AcceptClickHandler(item));
-					text.text.append(", ").append(Ui::Text::Link("[Accept]", text.links.size()));
-
-					text.links.push_back(Api::SuggestChangesClickHandler(item));
-					text.text.append(", ").append(Ui::Text::Link("[SuggestChanges]", text.links.size()));
-				}
-			} else if (suggest->accepted) {
-				text.text.append(", accepted!");
-			} else if (suggest->rejected) {
-				text.text.append(", rejected :(");
-			}
 			setServicePreMessage(std::move(text));
 		}
 

@@ -141,7 +141,8 @@ public:
 		QMargins margins,
 		const style::TextStyle &st = st::defaultTextStyle,
 		const base::flat_map<uint16, ClickHandlerPtr> &links = {},
-		const Ui::Text::MarkedContext &context = {});
+		const Ui::Text::MarkedContext &context = {},
+		style::align align = style::al_top);
 
 	void draw(
 		Painter &p,
@@ -165,6 +166,7 @@ protected:
 private:
 	Ui::Text::String _text;
 	QMargins _margins;
+	style::align _align = {};
 
 };
 

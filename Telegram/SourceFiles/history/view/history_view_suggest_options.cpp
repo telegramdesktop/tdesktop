@@ -78,9 +78,7 @@ void EditOptionsBox(
 	Ui::AddSkip(container);
 	Ui::AddDividerText(
 		container,
-		tr::lng_suggest_options_price_about(
-			lt_channel,
-			rpl::single(args.channelName)));
+		tr::lng_suggest_options_price_about());
 	Ui::AddSkip(container);
 
 	const auto time = Settings::AddButtonWithLabel(

@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_message.h"
+#include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_similar_channels.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/view/media/history_view_custom_emoji.h"
+#include "history/view/media/history_view_suggest_decision.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
@@ -1072,6 +1074,16 @@ void Element::refreshMedia(Element *replacing) {
 				this,
 				std::make_unique<LargeEmoji>(this, emoji));
 		}
+	} else if (const auto decision = item->Get<HistoryServiceSuggestDecision>()) {
+		_media = std::make_unique<MediaGeneric>(
+			this,
+			GenerateSuggestDecisionMedia(this, decision),
+			MediaGenericDescriptor{
+				.maxWidth = st::chatSuggestInfoWidth,
+				.serviceLink = decision->lnk,
+				.service = true,
+				.hideServiceText = true,
+			});
 	} else {
 		_media = nullptr;
 	}

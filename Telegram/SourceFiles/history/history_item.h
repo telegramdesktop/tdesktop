@@ -22,6 +22,7 @@ struct HistoryMessageMarkupData;
 struct HistoryMessageReplyMarkup;
 struct HistoryMessageTranslation;
 struct HistoryMessageForwarded;
+struct HistoryMessageSuggestedPost;
 struct HistoryServiceDependentData;
 struct HistoryServiceTodoCompletions;
 enum class HistorySelfDestructType;
@@ -29,6 +30,7 @@ struct PreparedServiceText;
 struct MessageFactcheck;
 class ReplyKeyboard;
 struct LanguageId;
+enum class SuggestionActions : uchar;
 
 namespace base {
 template <typename Enum>
@@ -353,7 +355,9 @@ public:
 	void overrideMedia(std::unique_ptr<Data::Media> media);
 
 	void applyEditionToHistoryCleared();
-	void updateReplyMarkup(HistoryMessageMarkupData &&markup);
+	void updateReplyMarkup(
+		HistoryMessageMarkupData &&markup,
+		bool ignoreSuggestButtons = false);
 	void contributeToSlowmode(TimeId realDate = 0);
 
 	void clearMediaAsExpired();
@@ -575,7 +579,16 @@ private:
 
 	[[nodiscard]] bool checkDiscussionLink(ChannelId id) const;
 
-	void setReplyMarkup(HistoryMessageMarkupData &&markup);
+	void setReplyMarkup(
+		HistoryMessageMarkupData &&markup,
+		bool ignoreSuggestButtons = false);
+	[[nodiscard]] SuggestionActions computeSuggestionActions() const;
+	[[nodiscard]] SuggestionActions computeSuggestionActions(
+		const HistoryMessageSuggestedPost *suggest) const;
+	[[nodiscard]] SuggestionActions computeSuggestionActions(
+		bool accepted,
+		bool rejected) const;
+	void updateSuggestControls(const HistoryMessageSuggestedPost *suggest);
 
 	void changeReplyToTopCounter(
 		not_null<HistoryMessageReply*> reply,

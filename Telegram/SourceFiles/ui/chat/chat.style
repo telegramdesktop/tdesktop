@@ -1052,6 +1052,12 @@ chatSimilarName: TextStyle(defaultTextStyle) {
 chatSimilarWidthMax: 424px;
 chatSimilarSkip: 12px;
 
+chatSuggestInfoWidth: 272px;
+chatSuggestInfoTitleMargin: margins(16px, 16px, 16px, 6px);
+chatSuggestInfoMiddleMargin: margins(16px, 4px, 16px, 4px);
+chatSuggestInfoLastMargin: margins(16px, 4px, 16px, 16px);
+chatSuggestInfoFullMargin: margins(16px, 16px, 16px, 16px);
+
 premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
 premiumRequiredCircle: 60px;

@@ -17,7 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/choose_date_time.h"
+#include "ui/layers/generic_box.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat.h"
+#include "styles/style_layers.h"
 
 namespace Api {
 namespace {
@@ -128,6 +134,49 @@ void RequestApprovalDate(
 	controller->uiShow()->show(std::move(dateBox));
 }
 
+void RequestDeclineComment(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	const auto id = item->fullId();
+	controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto callback = std::make_shared<Fn<void()>>();
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_suggest_decline_text(
+				lt_from,
+				rpl::single(Ui::Text::Bold(item->from()->shortName())),
+				Ui::Text::WithEntities),
+			.confirmed = [=](Fn<void()> close) { (*callback)(); close(); },
+			.confirmText = tr::lng_suggest_action_decline(),
+			.confirmStyle = &st::attentionBoxButton,
+			.title = tr::lng_suggest_decline_title(),
+		});
+		const auto reason = box->addRow(object_ptr<Ui::InputField>(
+			box,
+			st::factcheckField,
+			Ui::InputField::Mode::NoNewlines,
+			tr::lng_suggest_decline_reason()));
+		box->setFocusCallback([=] {
+			reason->setFocusFast();
+		});
+		*callback = [=, weak = Ui::MakeWeak(box)] {
+			const auto item = controller->session().data().message(id);
+			if (!item) {
+				return;
+			}
+			SendDecline(controller, item, reason->getLastText().trimmed());
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		};
+		reason->submits(
+		) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
+			if (!(modifiers & Qt::ShiftModifier)) {
+				(*callback)();
+			}
+		}, box->lifetime());
+	}));
+}
+
 } // namespace
 
 std::shared_ptr<ClickHandler> AcceptClickHandler(
@@ -157,24 +206,14 @@ std::shared_ptr<ClickHandler> AcceptClickHandler(
 
 std::shared_ptr<ClickHandler> DeclineClickHandler(
 		not_null<HistoryItem*> item) {
-	const auto session = &item->history()->session();
 	const auto id = item->fullId();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto controller = my.sessionWindow.get();
-		if (!controller || &controller->session() != session) {
+		if (!controller) {
 			return;
 		}
-		const auto item = session->data().message(id);
-		if (!item) {
-			return;
-		}
-		const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
-		if (!suggestion) {
-			return;
-		} else {
-			SendDecline(controller, item, "sorry, bro..");
-		}
+		RequestDeclineComment(controller, item);
 	});
 }
 

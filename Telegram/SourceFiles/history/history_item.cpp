@@ -828,6 +828,8 @@ HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 		return done;
 	} else if (const auto append = Get<HistoryServiceTodoAppendTasks>()) {
 		return append;
+	} else if (const auto decision = Get<HistoryServiceSuggestDecision>()) {
+		return decision;
 	}
 	return nullptr;
 }
@@ -1068,8 +1070,58 @@ bool HistoryItem::checkDiscussionLink(ChannelId id) const {
 	return false;
 }
 
-void HistoryItem::setReplyMarkup(HistoryMessageMarkupData &&markup) {
+SuggestionActions HistoryItem::computeSuggestionActions() const {
+	return computeSuggestionActions(Get<HistoryMessageSuggestedPost>());
+}
+
+SuggestionActions HistoryItem::computeSuggestionActions(
+		const HistoryMessageSuggestedPost *suggest) const {
+	return suggest
+		? computeSuggestionActions(suggest->accepted, suggest->rejected)
+		: SuggestionActions::None;
+}
+
+SuggestionActions HistoryItem::computeSuggestionActions(
+		bool accepted,
+		bool rejected) const {
+	const auto channelIsAuthor = from()->isChannel();
+	const auto amMonoforumAdmin = history()->peer->amMonoforumAdmin();
+	const auto broadcast = history()->peer->monoforumBroadcast();
+	const auto canDecline = isRegular()
+		&& !(accepted || rejected)
+		&& (channelIsAuthor ? !amMonoforumAdmin : amMonoforumAdmin);
+	const auto canAccept = canDecline
+		&& (channelIsAuthor
+			? !amMonoforumAdmin
+			: (amMonoforumAdmin
+				&& broadcast
+				&& broadcast->canPostMessages()));
+	return canAccept
+		? SuggestionActions::AcceptAndDecline
+		: canDecline
+		? SuggestionActions::Decline
+		: SuggestionActions::None;
+}
+
+void HistoryItem::updateSuggestControls(
+		const HistoryMessageSuggestedPost *suggest) {
+	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
+		markup->updateSuggestControls(computeSuggestionActions(suggest));
+	}
+}
+
+void HistoryItem::setReplyMarkup(
+		HistoryMessageMarkupData &&markup,
+		bool ignoreSuggestButtons) {
 	const auto requestUpdate = [&] {
+		const auto actions = computeSuggestionActions();
+		if (actions != SuggestionActions::None
+			&& !Has<HistoryMessageReplyMarkup>()) {
+			AddComponents(HistoryMessageReplyMarkup::Bit());
+		}
+		if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
+			markup->updateSuggestControls(actions);
+		}
 		history()->owner().requestItemResize(this);
 		history()->session().changes().messageUpdated(
 			this,
@@ -1901,8 +1953,10 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 			suggest->date = edition.suggest.date;
 			suggest->accepted = edition.suggest.accepted;
 			suggest->rejected = edition.suggest.rejected;
+			updateSuggestControls(suggest);
 		} else {
 			RemoveComponents(HistoryMessageSuggestedPost::Bit());
+			updateSuggestControls(nullptr);
 		}
 	}
 
@@ -1942,7 +1996,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 	const auto wasSublist = savedSublist();
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
-		setReplyMarkup({});
+		setReplyMarkup({}, true);
 		removeFromSharedMediaIndex();
 		refreshMedia(nullptr);
 		setTextValue({});
@@ -2144,8 +2198,10 @@ void HistoryItem::applyEditionToHistoryCleared() {
 		).c_messageService());
 }
 
-void HistoryItem::updateReplyMarkup(HistoryMessageMarkupData &&markup) {
-	setReplyMarkup(std::move(markup));
+void HistoryItem::updateReplyMarkup(
+		HistoryMessageMarkupData &&markup,
+		bool ignoreSuggestButtons) {
+	setReplyMarkup(std::move(markup), ignoreSuggestButtons);
 }
 
 void HistoryItem::contributeToSlowmode(TimeId realDate) {
@@ -3865,6 +3921,12 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	}
 	if (config.suggest.exists) {
 		mask |= HistoryMessageSuggestedPost::Bit();
+		if (computeSuggestionActions(
+			config.suggest.accepted,
+			config.suggest.rejected
+		) != SuggestionActions::None) {
+			mask |= HistoryMessageReplyMarkup::Bit();
+		}
 	}
 
 	UpdateComponents(mask);
@@ -3965,6 +4027,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		suggest->date = config.suggest.date;
 		suggest->accepted = config.suggest.accepted;
 		suggest->rejected = config.suggest.rejected;
+		updateSuggestControls(suggest);
 	}
 
 	if (out() && isSending()) {
@@ -4601,6 +4664,15 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		) | ranges::views::transform([&](const MTPTodoItem &item) {
 			return TodoListItemFromMTP(session, item);
 		}) | ranges::to_vector;
+	} else if (type == mtpc_messageActionSuggestedPostApproval) {
+		const auto &data = action.c_messageActionSuggestedPostApproval();
+		UpdateComponents(HistoryServiceSuggestDecision::Bit());
+		const auto decision = Get<HistoryServiceSuggestDecision>();
+		decision->stars = data.vstars_amount().value_or_empty();
+		decision->balanceTooLow = data.is_balance_too_low();
+		decision->rejected = data.is_rejected();
+		decision->rejectComment = qs(data.vreject_comment().value_or_empty());
+		decision->date = data.vschedule_date().value_or_empty();
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -4629,7 +4701,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		: PeerId();
 	const auto requiresMonoforumPeer = _history->peer->amMonoforumAdmin();
 	if (savedSublistPeer || requiresMonoforumPeer) {
-		UpdateComponents(HistoryMessageSaved::Bit());
+		AddComponents(HistoryMessageSaved::Bit());
 		const auto saved = Get<HistoryMessageSaved>();
 		saved->sublistPeerId = savedSublistPeer
 			? savedSublistPeer
@@ -5950,14 +6022,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareSuggestedPostApproval = [&](const MTPDmessageActionSuggestedPostApproval &data) {
-		if (data.is_balance_too_low()) {
-			return PreparedServiceText{ { u"balance too low :( need %1 stars"_q.arg(data.vstars_amount().value_or_empty()) } };
-		} else if (data.is_rejected()) {
-			return PreparedServiceText{ { u"rejected :( comment: %1"_q.arg(qs(data.vreject_comment().value_or_empty())) } };
-		} else if (const auto date = data.vschedule_date().value_or_empty()) {
-			return PreparedServiceText{ { u"approved!! for date: %1"_q.arg(langDateTime(base::unixtime::parse(date))) } };
-		}
-		return PreparedServiceText{ { "approved!!" } }; AssertIsDebug();
+		return PreparedServiceText{ { u"hello"_q } };
 	};
 
 	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {

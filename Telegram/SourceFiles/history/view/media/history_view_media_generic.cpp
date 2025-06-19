@@ -236,9 +236,11 @@ MediaGenericTextPart::MediaGenericTextPart(
 	QMargins margins,
 	const style::TextStyle &st,
 	const base::flat_map<uint16, ClickHandlerPtr> &links,
-	const Ui::Text::MarkedContext &context)
+	const Ui::Text::MarkedContext &context,
+	style::align align)
 : _text(st::msgMinWidth)
-, _margins(margins) {
+, _margins(margins)
+, _align(align) {
 	_text.setMarkedText(
 		st,
 		text,
@@ -254,12 +256,18 @@ void MediaGenericTextPart::draw(
 		not_null<const MediaGeneric*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
+	const auto use = (width() - _margins.left() - _margins.right());
 	setupPen(p, owner, context);
 	_text.draw(p, {
-		.position = { (outerWidth - width()) / 2, _margins.top() },
+		.position = {
+			((_align == style::al_top)
+				? ((outerWidth - use) / 2)
+				: _margins.left()),
+			_margins.top(),
+		},
 		.outerWidth = outerWidth,
-		.availableWidth = width(),
-		.align = style::al_top,
+		.availableWidth = use,
+		.align = _align,
 		.palette = &(owner->service()
 			? context.st->serviceTextPalette()
 			: context.messageStyle()->textPalette),
@@ -284,11 +292,17 @@ TextState MediaGenericTextPart::textState(
 		QPoint point,
 		StateRequest request,
 		int outerWidth) const {
-	point -= QPoint{ (outerWidth - width()) / 2, _margins.top() };
+	const auto use = (width() - _margins.left() - _margins.right());
+	point -= QPoint{
+		((_align == style::al_top)
+			? ((outerWidth - use) / 2)
+			: _margins.left()),
+		_margins.top(),
+	};
 	auto result = TextState();
 	auto forText = request.forText();
-	forText.align = style::al_top;
-	result.link = _text.getState(point, width(), forText).link;
+	forText.align = _align;
+	result.link = _text.getState(point, use, forText).link;
 	return result;
 }
 

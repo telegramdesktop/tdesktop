@@ -58,6 +58,12 @@ struct BotKeyboardButton;
 extern const char kOptionFastButtonsMode[];
 [[nodiscard]] bool FastButtonsMode();
 
+enum class SuggestionActions : uchar {
+	None,
+	Decline,
+	AcceptAndDecline,
+};
+
 struct HistoryMessageVia : RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(not_null<Data::Session*> owner, UserId userId);
 	void resize(int32 availw) const;
@@ -383,6 +389,7 @@ struct HistoryMessageReplyMarkup
 
 	void createForwarded(const HistoryMessageReplyMarkup &original);
 	void updateData(HistoryMessageMarkupData &&markup);
+	void updateSuggestControls(SuggestionActions actions);
 
 	[[nodiscard]] bool hiddenBy(Data::Media *media) const;
 
@@ -690,6 +697,16 @@ struct HistoryServiceTodoAppendTasks
 
 [[nodiscard]] TextWithEntities ComposeTodoTasksList(
 	not_null<HistoryServiceTodoAppendTasks*> append);
+
+struct HistoryServiceSuggestDecision
+: RuntimeComponent<HistoryServiceSuggestDecision, HistoryItem>
+, HistoryServiceDependentData {
+	int stars = 0;
+	TimeId date = 0;
+	QString rejectComment;
+	bool rejected = false;
+	bool balanceTooLow = false;
+};
 
 struct HistoryServiceGameScore
 : RuntimeComponent<HistoryServiceGameScore, HistoryItem>

@@ -1214,6 +1214,95 @@ bool HistoryMessageReplyMarkup::hiddenBy(Data::Media *media) const {
 	return false;
 }
 
+void HistoryMessageReplyMarkup::updateSuggestControls(
+		SuggestionActions actions) {
+	if (actions == SuggestionActions::AcceptAndDecline) {
+		data.flags |= ReplyMarkupFlag::SuggestionAccept;
+	} else {
+		data.flags &= ~ReplyMarkupFlag::SuggestionAccept;
+	}
+	if (actions == SuggestionActions::None) {
+		data.flags &= ~ReplyMarkupFlag::SuggestionDecline;
+	} else {
+		data.flags |= ReplyMarkupFlag::Inline
+			| ReplyMarkupFlag::SuggestionDecline;
+	}
+	using Type = HistoryMessageMarkupButton::Type;
+	const auto has = [&](Type type) {
+		return !data.rows.empty()
+			&& ranges::contains(
+				data.rows.back(),
+				type,
+				&HistoryMessageMarkupButton::type);
+	};
+	if (actions == SuggestionActions::AcceptAndDecline) {
+		//     ... rows ...
+		// [decline] | [accept]
+		//   [suggestchanges]
+		if (has(Type::SuggestChange)) {
+			// Nothing changed.
+		} else {
+			if (has(Type::SuggestDecline)) {
+				data.rows.pop_back();
+			}
+			data.rows.push_back({
+				{
+					Type::SuggestDecline,
+					tr::lng_suggest_action_decline(tr::now),
+				},
+				{
+					Type::SuggestAccept,
+					tr::lng_suggest_action_accept(tr::now),
+				},
+			});
+			data.rows.push_back({ {
+				Type::SuggestChange,
+				tr::lng_suggest_action_change(tr::now),
+			} });
+			data.flags |= ReplyMarkupFlag::SuggestionAccept
+				| ReplyMarkupFlag::SuggestionDecline;
+		}
+		if (data.rows.size() > 2) {
+			data.flags |= ReplyMarkupFlag::SuggestionSeparator;
+		} else {
+			data.flags &= ~ReplyMarkupFlag::SuggestionSeparator;
+		}
+	} else {
+		while (!data.rows.empty()) {
+			if (has(Type::SuggestChange) || has(Type::SuggestAccept)) {
+				data.rows.pop_back();
+			} else if (has(Type::SuggestDecline)
+				&& actions == SuggestionActions::None) {
+				data.rows.pop_back();
+			} else {
+				break;
+			}
+		}
+		data.flags &= ~ReplyMarkupFlag::SuggestionAccept;
+		if (actions == SuggestionActions::None) {
+			data.flags &= ReplyMarkupFlag::SuggestionDecline;
+			data.flags &= ~ReplyMarkupFlag::SuggestionSeparator;
+		} else {
+			if (!has(Type::SuggestDecline)) {
+				// ... rows ...
+				//  [decline]
+				data.rows.push_back({ {
+					Type::SuggestDecline,
+					tr::lng_suggest_action_decline(tr::now),
+				} });
+				data.flags |= ReplyMarkupFlag::SuggestionDecline;
+			}
+			if (data.rows.size() > 1) {
+				data.flags |= ReplyMarkupFlag::SuggestionSeparator;
+			} else {
+				data.flags &= ~ReplyMarkupFlag::SuggestionSeparator;
+			}
+		}
+	}
+
+	inlineKeyboard = nullptr;
+}
+
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;
 
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(
