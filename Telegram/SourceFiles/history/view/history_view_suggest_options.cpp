@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "data/data_channel.h"
+#include "data/data_media_types.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -36,8 +38,12 @@ void ChooseSuggestTimeBox(
 		? std::clamp(args.value, now + min, now + max)
 		: (now + 86400);
 	Ui::ChooseDateTimeBox(box, {
-		.title = std::move(args.title),
-		.submit = std::move(args.submit),
+		.title = ((args.mode == SuggestMode::New)
+			? tr::lng_suggest_options_date()
+			: tr::lng_suggest_menu_edit_time()),
+		.submit = ((args.mode == SuggestMode::New)
+			? tr::lng_settings_save()
+			: tr::lng_suggest_options_update()),
 		.done = std::move(args.done),
 		.min = [=] { return now + min; },
 		.time = value,
@@ -56,7 +62,9 @@ void ChooseSuggestPriceBox(
 
 	const auto limit = args.session->appConfig().suggestedPostStarsMax();
 
-	box->setTitle(tr::lng_suggest_options_title());
+	box->setTitle((args.mode == SuggestMode::New)
+		? tr::lng_suggest_options_title()
+		: tr::lng_suggest_options_change());
 
 	const auto container = box->verticalLayout();
 
@@ -117,10 +125,9 @@ void ChooseSuggestPriceBox(
 		};
 		auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
 			.session = args.session,
-			.title = tr::lng_suggest_options_date(),
-			.submit = tr::lng_settings_save(),
 			.done = done,
 			.value = state->date.current(),
+			.mode = args.mode,
 		});
 		*weak = dateBox.data();
 		box->uiShow()->show(std::move(dateBox));
@@ -150,25 +157,38 @@ void ChooseSuggestPriceBox(
 	});
 }
 
+bool CanEditSuggestedMessage(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	return !media || media->allowsEditCaption();
+}
+
 SuggestOptions::SuggestOptions(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
-	SuggestPostOptions values)
+	SuggestPostOptions values,
+	SuggestMode mode)
 : _controller(controller)
 , _peer(peer)
+, _mode(mode)
 , _values(values) {
 	updateTexts();
 }
 
 SuggestOptions::~SuggestOptions() = default;
 
-void SuggestOptions::paintBar(QPainter &p, int x, int y, int outerWidth) {
+void SuggestOptions::paintIcon(QPainter &p, int x, int y, int outerWidth) {
 	st::historyDirectMessage.icon.paint(
 		p,
 		QPoint(x, y) + st::historySuggestIconPosition,
 		outerWidth);
+}
 
-	x += st::historyReplySkip;
+void SuggestOptions::paintBar(QPainter &p, int x, int y, int outerWidth) {
+	paintIcon(p, x, y, outerWidth);
+	paintLines(p, x + st::historyReplySkip, y, outerWidth);
+}
+
+void SuggestOptions::paintLines(QPainter &p, int x, int y, int outerWidth) {
 	auto available = outerWidth
 		- x
 		- st::historyReplyCancel.width
@@ -207,7 +227,9 @@ void SuggestOptions::edit() {
 void SuggestOptions::updateTexts() {
 	_title.setText(
 		st::semiboldTextStyle,
-		tr::lng_suggest_bar_title(tr::now));
+		((_mode == SuggestMode::New)
+			? tr::lng_suggest_bar_title(tr::now)
+			: tr::lng_suggest_options_change(tr::now)));
 	_text.setMarkedText(st::defaultTextStyle, composeText());
 }
 

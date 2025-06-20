@@ -316,38 +316,32 @@ auto GenerateSuggestRequestMedia(
 			style::al_top);
 
 		auto entries = std::vector<AttributeTable::Entry>();
-		if (!changes || changes->price) {
-			entries.push_back({
-				(changes
-					? tr::lng_suggest_change_price_label
-					: tr::lng_suggest_action_price_label)(tr::now),
-				Ui::Text::Bold(suggest->stars
-					? tr::lng_prize_credits_amount(
-						tr::now,
-						lt_count,
-						suggest->stars)
-					: tr::lng_suggest_action_price_free(tr::now)),
-			});
-		}
-		if (!changes || changes->date) {
-			entries.push_back({
-				(changes
-					? tr::lng_suggest_change_time_label
-					: tr::lng_suggest_action_time_label)(tr::now),
-				Ui::Text::Bold(suggest->date
-					? Ui::FormatDateTime(base::unixtime::parse(suggest->date))
-					: tr::lng_suggest_action_time_any(tr::now)),
-			});
-		}
-		if (!entries.empty()) {
-			push(std::make_unique<AttributeTable>(
-				std::move(entries),
-				((changes && changes->message)
-					? st::chatSuggestTableMiddleMargin
-					: st::chatSuggestTableLastMargin),
-				fadedFg,
-				normalFg));
-		}
+		entries.push_back({
+			((changes && changes->price)
+				? tr::lng_suggest_change_price_label
+				: tr::lng_suggest_action_price_label)(tr::now),
+			Ui::Text::Bold(suggest->stars
+				? tr::lng_prize_credits_amount(
+					tr::now,
+					lt_count,
+					suggest->stars)
+				: tr::lng_suggest_action_price_free(tr::now)),
+		});
+		entries.push_back({
+			((changes && changes->date)
+				? tr::lng_suggest_change_time_label
+				: tr::lng_suggest_action_time_label)(tr::now),
+			Ui::Text::Bold(suggest->date
+				? Ui::FormatDateTime(base::unixtime::parse(suggest->date))
+				: tr::lng_suggest_action_time_any(tr::now)),
+		});
+		push(std::make_unique<AttributeTable>(
+			std::move(entries),
+			((changes && changes->message)
+				? st::chatSuggestTableMiddleMargin
+				: st::chatSuggestTableLastMargin),
+			fadedFg,
+			normalFg));
 		if (changes && changes->message) {
 			push(std::make_unique<TextPartColored>(
 				tr::lng_suggest_change_text_label(

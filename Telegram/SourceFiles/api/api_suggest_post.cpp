@@ -9,8 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "chat_helpers/message_field.h"
 #include "core/click_handler_types.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
+#include "data/data_saved_sublist.h"
 #include "history/view/history_view_suggest_options.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -134,9 +137,8 @@ void RequestApprovalDate(
 	using namespace HistoryView;
 	auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
 		.session = &controller->session(),
-		.title = tr::lng_suggest_options_date(),
-		.submit = tr::lng_settings_save(),
 		.done = done,
+		.mode = SuggestMode::New,
 	});
 	*weak = dateBox.data();
 	controller->uiShow()->show(std::move(dateBox));
@@ -266,10 +268,9 @@ void SuggestApprovalDate(
 	using namespace HistoryView;
 	auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
 		.session = &controller->session(),
-		.title = tr::lng_suggest_menu_edit_time(),
-		.submit = tr::lng_profile_suggest_button(),
 		.done = done,
 		.value = suggestion->date,
+		.mode = SuggestMode::Change,
 	});
 	*weak = dateBox.data();
 	controller->uiShow()->show(std::move(dateBox));
@@ -311,6 +312,7 @@ void SuggestApprovalPrice(
 			.stars = uint32(suggestion->stars),
 			.date = suggestion->date,
 		},
+		.mode = SuggestMode::Change,
 	});
 	*weak = dateBox.data();
 	controller->uiShow()->show(std::move(dateBox));
@@ -373,9 +375,47 @@ std::shared_ptr<ClickHandler> SuggestChangesClickHandler(
 		const auto menu = Ui::CreateChild<Ui::PopupMenu>(
 			window->widget(),
 			st::popupMenuWithIcons);
-		menu->addAction(tr::lng_suggest_menu_edit_message(tr::now), [=] {
-
-		}, &st::menuIconEdit);
+		if (HistoryView::CanEditSuggestedMessage(item)) {
+			menu->addAction(tr::lng_suggest_menu_edit_message(tr::now), [=] {
+				const auto item = session->data().message(id);
+				if (!item) {
+					return;
+				}
+				const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+				if (!suggestion) {
+					return;
+				}
+				const auto history = item->history();
+				const auto editData = PrepareEditText(item);
+				const auto cursor = MessageCursor{
+					int(editData.text.size()),
+					int(editData.text.size()),
+					Ui::kQFixedMax
+				};
+				const auto monoforumPeerId = history->amMonoforumAdmin()
+					? item->sublistPeerId()
+					: PeerId();
+				const auto previewDraft = Data::WebPageDraft::FromItem(item);
+				history->setLocalEditDraft(std::make_unique<Data::Draft>(
+					editData,
+					FullReplyTo{
+						.messageId = FullMsgId(history->peer->id, item->id),
+						.monoforumPeerId = monoforumPeerId,
+					},
+					SuggestPostOptions{
+						.exists = 1,
+						.stars = uint32(suggestion->stars),
+						.date = suggestion->date,
+					},
+					cursor,
+					previewDraft));
+				history->session().changes().entryUpdated(
+					(monoforumPeerId
+						? item->savedSublist()
+						: (Data::Thread*)history.get()),
+					Data::EntryUpdate::Flag::LocalDraftSet);
+			}, &st::menuIconEdit);
+		}
 		menu->addAction(tr::lng_suggest_menu_edit_price(tr::now), [=] {
 			if (const auto item = session->data().message(id)) {
 				SuggestApprovalPrice(window, item);

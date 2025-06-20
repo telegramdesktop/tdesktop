@@ -2269,6 +2269,12 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		if (!_replyEditMsg) {
 			requestMessageData(_editMsgId);
 		}
+		if (editDraft && editDraft->suggest) {
+			using namespace HistoryView;
+			applySuggestOptions(editDraft->suggest, SuggestMode::Change);
+		} else {
+			cancelSuggestPost();
+		}
 	} else {
 		const auto draft = _history->localDraft(MsgId(), PeerId());
 		_processingReplyTo = draft ? draft->reply : FullReplyTo();
@@ -2276,7 +2282,8 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			_processingReplyItem = session().data().message(
 				_processingReplyTo.messageId);
 		} else if (draft && draft->suggest) {
-			applySuggestOptions(draft->suggest);
+			using namespace HistoryView;
+			applySuggestOptions(draft->suggest, SuggestMode::New);
 		}
 		processReply();
 	}
@@ -2352,7 +2359,9 @@ void HistoryWidget::showHistory(
 		if (_peer->id == peerId) {
 			updateForwarding();
 
-			if (showAtMsgId == ShowAtUnreadMsgId
+			if (params.reapplyLocalDraft) {
+				return;
+			} else if (showAtMsgId == ShowAtUnreadMsgId
 				&& insideJumpToEndInsteadOfToUnread()) {
 				DEBUG_LOG(("JumpToEnd(%1, %2, %3): "
 					"Jumping to end instead of unread."
@@ -3164,14 +3173,17 @@ void HistoryWidget::refreshSendGiftToggle() {
 	}
 }
 
-void HistoryWidget::applySuggestOptions(SuggestPostOptions suggest) {
+void HistoryWidget::applySuggestOptions(
+		SuggestPostOptions suggest,
+		HistoryView::SuggestMode mode) {
 	Expects(suggest.exists);
 
 	using namespace HistoryView;
 	_suggestOptions = std::make_unique<SuggestOptions>(
 		controller(),
 		_peer,
-		suggest);
+		suggest,
+		mode);
 	_suggestOptions->updates() | rpl::start_with_next([=] {
 		updateField();
 		saveDraftWithTextNow();
@@ -3193,7 +3205,8 @@ void HistoryWidget::refreshSuggestPostToggle() {
 		_toggleSuggestPost.create(this, st::historySuggestPostToggle);
 		_toggleSuggestPost->setVisible(!_suggestOptions);
 		_toggleSuggestPost->addClickHandler([=] {
-			applySuggestOptions({ .exists = 1 });
+			using namespace HistoryView;
+			applySuggestOptions({ .exists = 1 }, SuggestMode::New);
 			cancelReply();
 			_processingReplyTo = FullReplyTo();
 			_processingReplyItem = nullptr;
@@ -4419,7 +4432,7 @@ TextWithEntities HistoryWidget::prepareTextForEditMsg() const {
 	return left;
 }
 
-void HistoryWidget::saveEditMsg() {
+void HistoryWidget::saveEditMessage(Api::SendOptions options) {
 	Expects(_history != nullptr);
 
 	if (_saveEditMsgRequestId) {
@@ -4442,9 +4455,11 @@ void HistoryWidget::saveEditMsg() {
 			|| webPageDraft.url.isEmpty()
 			|| !webPageDraft.manual)
 		&& !hasMediaWithCaption) {
-		const auto suggestModerateActions = false;
-		controller()->show(
-			Box<DeleteMessagesBox>(item, suggestModerateActions));
+		if (item->computeSuggestionActions() == SuggestionActions::None) {
+			const auto suggestModerateActions = false;
+			controller()->show(
+				Box<DeleteMessagesBox>(item, suggestModerateActions));
+		}
 		return;
 	} else {
 		const auto maxCaptionSize = !hasMediaWithCaption
@@ -4506,11 +4521,27 @@ void HistoryWidget::saveEditMsg() {
 		})();
 	};
 
+	options.invertCaption = _mediaEditManager.invertCaption();
+	options.suggest = suggestOptions();
+
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		saveEditMessage(copy);
+	};
+	const auto checked = checkSendPayment(
+		1 + int(_forwardPanel->items().size()),
+		options.starsApproved,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+
 	_saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
 		webPageDraft,
-		{ .invertCaption = _mediaEditManager.invertCaption() },
+		options,
 		done,
 		fail,
 		_mediaEditManager.spoilered());
@@ -4611,7 +4642,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (!_history) {
 		return;
 	} else if (_editMsgId) {
-		saveEditMsg();
+		saveEditMessage({});
 		return;
 	} else if (!options.scheduled && showSlowmodeError()) {
 		return;
@@ -7386,10 +7417,14 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	} else if (_previewDrawPreview) {
 		editDraftOptions();
 	} else if (_editMsgId) {
-		controller()->showPeerHistory(
-			_peer,
-			Window::SectionShow::Way::Forward,
-			_editMsgId);
+		if (_suggestOptions) {
+			_suggestOptions->edit();
+		} else {
+			controller()->showPeerHistory(
+				_peer,
+				Window::SectionShow::Way::Forward,
+				_editMsgId);
+		}
 	} else if (_replyTo
 		&& ((e->modifiers() & Qt::ControlModifier)
 			|| (e->button() != Qt::LeftButton))) {
@@ -8834,6 +8869,7 @@ void HistoryWidget::cancelEdit() {
 	_replyEditMsg = nullptr;
 	setEditMsgId(0);
 	_history->clearLocalEditDraft(MsgId(), PeerId());
+	cancelSuggestPost();
 	applyDraft();
 
 	if (_saveEditMsgRequestId) {
@@ -9367,14 +9403,18 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		const auto paused = p.inactive();
 		const auto pausedSpoiler = paused || On(PowerSaving::kChatSpoiler);
 		auto replyLeft = st::historyReplySkip;
-		(_editMsgId
-			? st::historyEditIcon
-			: (_replyTo && !_replyTo.quote.empty())
-			? st::historyQuoteIcon
-			: st::historyReplyIcon).paint(
-				p,
-				st::historyReplyIconPosition + QPoint(0, backy),
-				width());
+		if (_suggestOptions) {
+			_suggestOptions->paintIcon(p, 0, backy, width());
+		} else {
+			(_editMsgId
+				? st::historyEditIcon
+				: (_replyTo && !_replyTo.quote.empty())
+				? st::historyQuoteIcon
+				: st::historyReplyIcon).paint(
+					p,
+					st::historyReplyIconPosition + QPoint(0, backy),
+					width());
+		}
 		if (drawMsgText) {
 			if (hasPreview) {
 				if (preview) {
@@ -9412,37 +9452,41 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				}
 				replyLeft += st::historyReplyPreview + st::msgReplyBarSkip;
 			}
-			p.setPen(st::historyReplyNameFg);
-			if (_editMsgId) {
-				paintEditHeader(p, rect, replyLeft, backy);
+			if (_suggestOptions) {
+				_suggestOptions->paintLines(p, replyLeft, backy, width());
 			} else {
-				_replyToName.drawElided(
-					p,
-					replyLeft,
-					backy + st::msgReplyPadding.top(),
-					width()
+				p.setPen(st::historyReplyNameFg);
+				if (_editMsgId) {
+					paintEditHeader(p, rect, replyLeft, backy);
+				} else {
+					_replyToName.drawElided(
+						p,
+						replyLeft,
+						backy + st::msgReplyPadding.top(),
+						width()
+							- replyLeft
+							- _fieldBarCancel->width()
+							- st::msgReplyPadding.right());
+				}
+				p.setPen(st::historyComposeAreaFg);
+				_replyEditMsgText.draw(p, {
+					.position = QPoint(
+						replyLeft,
+						st::msgReplyPadding.top()
+							+ st::msgServiceNameFont->height
+							+ backy),
+					.availableWidth = width()
 						- replyLeft
 						- _fieldBarCancel->width()
-						- st::msgReplyPadding.right());
+						- st::msgReplyPadding.right(),
+					.palette = &st::historyComposeAreaPalette,
+					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.now = now,
+					.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
+					.pausedSpoiler = pausedSpoiler,
+					.elisionLines = 1,
+				});
 			}
-			p.setPen(st::historyComposeAreaFg);
-			_replyEditMsgText.draw(p, {
-				.position = QPoint(
-					replyLeft,
-					st::msgReplyPadding.top()
-						+ st::msgServiceNameFont->height
-						+ backy),
-				.availableWidth = width()
-					- replyLeft
-					- _fieldBarCancel->width()
-					- st::msgReplyPadding.right(),
-				.palette = &st::historyComposeAreaPalette,
-				.spoiler = Ui::Text::DefaultSpoilerCache(),
-				.now = now,
-				.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
-				.pausedSpoiler = pausedSpoiler,
-				.elisionLines = 1,
-			});
 		} else {
 			p.setFont(st::msgDateFont);
 			p.setPen(st::historyComposeAreaFgService);

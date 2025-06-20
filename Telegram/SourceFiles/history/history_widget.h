@@ -110,6 +110,7 @@ class ComposeSearch;
 class SubsectionTabs;
 struct SelectedQuote;
 class SuggestOptions;
+enum class SuggestMode;
 } // namespace HistoryView
 
 namespace HistoryView::Controls {
@@ -589,7 +590,7 @@ private:
 	void createUnreadBarAndResize();
 
 	[[nodiscard]] TextWithEntities prepareTextForEditMsg() const;
-	void saveEditMsg();
+	void saveEditMessage(Api::SendOptions options = {});
 
 	void setupPreview();
 	void editDraftOptions();
@@ -682,7 +683,9 @@ private:
 	void refreshScheduledToggle();
 	void refreshSendGiftToggle();
 	void refreshSuggestPostToggle();
-	void applySuggestOptions(SuggestPostOptions suggest);
+	void applySuggestOptions(
+		SuggestPostOptions suggest,
+		HistoryView::SuggestMode mode);
 	void setupSendAsToggle();
 	void refreshSendAsToggle();
 	void refreshAttachBotsMenu();

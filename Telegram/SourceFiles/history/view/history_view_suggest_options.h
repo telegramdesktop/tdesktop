@@ -23,12 +23,16 @@ class SessionController;
 
 namespace HistoryView {
 
+enum class SuggestMode {
+	New,
+	Change,
+};
+
 struct SuggestTimeBoxArgs {
 	not_null<Main::Session*> session;
-	rpl::producer<QString> title;
-	rpl::producer<QString> submit;
 	Fn<void(TimeId)> done;
 	TimeId value = 0;
+	SuggestMode mode = SuggestMode::New;
 };
 void ChooseSuggestTimeBox(
 	not_null<Ui::GenericBox*> box,
@@ -39,21 +43,28 @@ struct SuggestPriceBoxArgs {
 	bool updating = false;
 	Fn<void(SuggestPostOptions)> done;
 	SuggestPostOptions value;
+	SuggestMode mode = SuggestMode::New;
 };
 void ChooseSuggestPriceBox(
 	not_null<Ui::GenericBox*> box,
 	SuggestPriceBoxArgs &&args);
+
+[[nodiscard]] bool CanEditSuggestedMessage(not_null<HistoryItem*> item);
 
 class SuggestOptions final {
 public:
 	SuggestOptions(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
-		SuggestPostOptions values);
+		SuggestPostOptions values,
+		SuggestMode mode);
 	~SuggestOptions();
 
 	void paintBar(QPainter &p, int x, int y, int outerWidth);
 	void edit();
+
+	void paintIcon(QPainter &p, int x, int y, int outerWidth);
+	void paintLines(QPainter &p, int x, int y, int outerWidth);
 
 	[[nodiscard]] SuggestPostOptions values() const;
 
@@ -68,6 +79,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
+	const SuggestMode _mode = SuggestMode::New;
 
 	Ui::Text::String _title;
 	Ui::Text::String _text;

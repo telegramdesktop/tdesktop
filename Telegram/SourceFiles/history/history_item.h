@@ -544,6 +544,13 @@ public:
 	[[nodiscard]] bool canUpdateDate() const;
 	void customEmojiRepaint();
 
+	[[nodiscard]] SuggestionActions computeSuggestionActions() const;
+	[[nodiscard]] SuggestionActions computeSuggestionActions(
+		const HistoryMessageSuggestedPost *suggest) const;
+	[[nodiscard]] SuggestionActions computeSuggestionActions(
+		bool accepted,
+		bool rejected) const;
+
 	[[nodiscard]] bool needsUpdateForVideoQualities(const MTPMessage &data);
 
 	[[nodiscard]] TimeId ttlDestroyAt() const {
@@ -582,12 +589,6 @@ private:
 	void setReplyMarkup(
 		HistoryMessageMarkupData &&markup,
 		bool ignoreSuggestButtons = false);
-	[[nodiscard]] SuggestionActions computeSuggestionActions() const;
-	[[nodiscard]] SuggestionActions computeSuggestionActions(
-		const HistoryMessageSuggestedPost *suggest) const;
-	[[nodiscard]] SuggestionActions computeSuggestionActions(
-		bool accepted,
-		bool rejected) const;
 	void updateSuggestControls(const HistoryMessageSuggestedPost *suggest);
 
 	void changeReplyToTopCounter(

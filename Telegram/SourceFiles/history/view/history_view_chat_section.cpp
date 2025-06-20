@@ -2381,13 +2381,14 @@ bool ChatWidget::showInternal(
 		const Window::SectionShow &params) {
 	if (auto logMemento = dynamic_cast<ChatMemento*>(memento.get())) {
 		if (logMemento->id() == _id) {
-			restoreState(logMemento);
-			if (!logMemento->highlightId()) {
-				showAtPosition(Data::UnreadMessagePosition);
-			}
 			if (params.reapplyLocalDraft) {
 				_composeControls->applyDraft(
 					ComposeControls::FieldHistoryAction::NewEntry);
+			} else {
+				restoreState(logMemento);
+				if (!logMemento->highlightId()) {
+					showAtPosition(Data::UnreadMessagePosition);
+				}
 			}
 			return true;
 		}

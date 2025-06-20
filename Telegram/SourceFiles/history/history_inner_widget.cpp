@@ -2410,6 +2410,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					highlightId);
 			}, &st::menuIconViewReplies);
 		}
+		_menu->addAction(u"Add Offer"_q, [=] {
+
+		}, &st::menuIconDiscussion);
 		const auto t = base::unixtime::now();
 		const auto editItem = (albumPartItem && albumPartItem->allowsEdit(t))
 			? albumPartItem
