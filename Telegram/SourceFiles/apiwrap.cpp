@@ -3410,6 +3410,9 @@ void ApiWrap::forwardMessages(
 	if (sendAs) {
 		sendFlags |= SendFlag::f_send_as;
 	}
+	if (action.options.suggest) {
+		sendFlags |= SendFlag::f_suggested_post;
+	}
 	const auto kGeneralId = Data::ForumTopic::kGeneralId;
 	const auto topicRootId = action.replyTo.topicRootId;
 	const auto topMsgId = (topicRootId == kGeneralId)
@@ -3422,7 +3425,7 @@ void ApiWrap::forwardMessages(
 	const auto monoforumPeer = monoforumPeerId
 		? session().data().peer(monoforumPeerId).get()
 		: nullptr;
-	if (monoforumPeer) {
+	if (monoforumPeer || (action.options.suggest && action.replyTo)) {
 		sendFlags |= SendFlag::f_reply_to;
 	}
 
@@ -3454,14 +3457,17 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
 				MTP_int(topMsgId),
-				(monoforumPeer
+				(action.options.suggest
+					? ReplyToForMTP(history, action.replyTo)
+					: monoforumPeer
 					? MTP_inputReplyToMonoForum(monoforumPeer->input)
 					: MTPInputReplyTo()),
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 				MTPint(), // video_timestamp
-				MTP_long(starsPaid)
+				MTP_long(starsPaid),
+				Api::SuggestToMTP(action.options.suggest)
 			)).done([=](const MTPUpdates &result) {
 				if (!scheduled) {
 					this->updates().checkForSentToScheduled(result);

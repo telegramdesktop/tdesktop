@@ -134,7 +134,12 @@ void MediaGeneric::draw(Painter &p, const PaintContext &context) const {
 		const auto radius = st::msgServiceGiftBoxRadius;
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
-		p.drawRoundedRect(QRect(0, 0, width(), height()), radius, radius);
+		const auto rect = QRect(0, 0, width(), height());
+		p.drawRoundedRect(rect, radius, radius);
+		//if (context.selected()) {
+		//	p.setBrush(context.st->serviceTextPalette().selectBg);
+		//	p.drawRoundedRect(rect, radius, radius);
+		//}
 	}
 
 	auto translated = 0;

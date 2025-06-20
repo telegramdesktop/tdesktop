@@ -89,6 +89,8 @@ public:
 	[[nodiscard]] int todoListItemTextLimit() const;
 
 	[[nodiscard]] int suggestedPostStarsMax() const;
+	[[nodiscard]] int suggestedPostDelayMin() const;
+	[[nodiscard]] int suggestedPostDelayMax() const;
 
 	void refresh(bool force = false);
 

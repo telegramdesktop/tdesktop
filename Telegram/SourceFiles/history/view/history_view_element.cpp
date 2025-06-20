@@ -668,7 +668,9 @@ void ServicePreMessage::paint(
 		const auto top = g.top() - height - st::msgMargin.bottom();
 		const auto position = QPoint(left, top);
 		p.translate(position);
-		media->draw(p, context.translated(-position).withSelection({}));
+		media->draw(p, context.selected()
+			? context.translated(-position)
+			: context.translated(-position).withSelection({}));
 		p.translate(-position);
 	} else {
 		const auto top = g.top() - height - st::msgMargin.top();

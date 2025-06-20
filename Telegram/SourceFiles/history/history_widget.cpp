@@ -981,7 +981,7 @@ HistoryWidget::HistoryWidget(
 			action.replyTo.messageId);
 		if (action.replaceMediaOf) {
 		} else if (action.options.scheduled) {
-			cancelReply(lastKeyboardUsed);
+			cancelReplyOrSuggest(lastKeyboardUsed);
 			crl::on_main(this, [=, history = action.history] {
 				controller->showSection(
 					std::make_shared<HistoryView::ScheduledMemento>(history));
@@ -989,7 +989,7 @@ HistoryWidget::HistoryWidget(
 		} else {
 			fastShowAtEnd(action.history);
 			if (!_justMarkingAsRead
-				&& cancelReply(lastKeyboardUsed)
+				&& cancelReplyOrSuggest(lastKeyboardUsed)
 				&& !action.clearDraft) {
 				saveCloudDraft();
 			}
@@ -8758,6 +8758,12 @@ bool HistoryWidget::lastForceReplyReplied() const {
 			== FullMsgId(_peer->id, _history->lastKeyboardId));
 }
 
+bool HistoryWidget::cancelReplyOrSuggest(bool lastKeyboardUsed) {
+	const auto ok1 = cancelReply(lastKeyboardUsed);
+	const auto ok2 = cancelSuggestPost();
+	return ok1 || ok2;
+}
+
 bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 	bool wasReply = false;
 	if (_replyTo) {
@@ -8804,7 +8810,7 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 }
 
 void HistoryWidget::cancelReplyAfterMediaSend(bool lastKeyboardUsed) {
-	if (cancelReply(lastKeyboardUsed)) {
+	if (cancelReplyOrSuggest(lastKeyboardUsed)) {
 		saveCloudDraft();
 	}
 }
@@ -8989,7 +8995,7 @@ bool HistoryWidget::updateCanSendMessage() {
 	_canSendMessages = newCanSendMessages;
 	_canSendTexts = newCanSendTexts;
 	if (!_canSendMessages) {
-		cancelReply();
+		cancelReplyOrSuggest();
 	}
 	refreshSuggestPostToggle();
 	refreshScheduledToggle();
@@ -9064,8 +9070,9 @@ void HistoryWidget::escape() {
 		}
 	} else if (_autocomplete && !_autocomplete->isHidden()) {
 		_autocomplete->hideAnimated();
-	} else if (_replyTo && _field->getTextWithTags().text.isEmpty()) {
-		cancelReply();
+	} else if ((_replyTo || _suggestOptions)
+		&& _field->getTextWithTags().empty()) {
+		cancelReplyOrSuggest();
 	} else if (auto &voice = _voiceRecordBar; voice->isActive()) {
 		voice->showDiscardBox(nullptr, anim::type::normal);
 	} else {

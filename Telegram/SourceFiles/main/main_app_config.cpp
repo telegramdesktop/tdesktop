@@ -166,6 +166,14 @@ int AppConfig::suggestedPostStarsMax() const {
 	return get<int>(u"stars_suggested_post_amount_max"_q, 100'000);
 }
 
+int AppConfig::suggestedPostDelayMin() const {
+	return get<int>(u"stars_suggested_post_future_min"_q, 300);
+}
+
+int AppConfig::suggestedPostDelayMax() const {
+	return get<int>(u"appConfig.stars_suggested_post_future_max"_q, 2678400);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

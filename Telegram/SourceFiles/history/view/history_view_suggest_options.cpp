@@ -25,23 +25,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace HistoryView {
-namespace {
 
-struct EditOptionsArgs {
-	int starsLimit = 0;
-	QString channelName;
-	SuggestPostOptions values;
-	Fn<void(SuggestPostOptions)> save;
-};
-
-void EditOptionsBox(
+void ChooseSuggestTimeBox(
 		not_null<Ui::GenericBox*> box,
-		EditOptionsArgs &&args) {
+		SuggestTimeBoxArgs &&args) {
+	const auto now = base::unixtime::now();
+	const auto min = args.session->appConfig().suggestedPostDelayMin() + 60;
+	const auto max = args.session->appConfig().suggestedPostDelayMax();
+	const auto value = args.value
+		? std::clamp(args.value, now + min, now + max)
+		: (now + 86400);
+	Ui::ChooseDateTimeBox(box, {
+		.title = std::move(args.title),
+		.submit = std::move(args.submit),
+		.done = std::move(args.done),
+		.min = [=] { return now + min; },
+		.time = value,
+		.max = [=] { return now + max; },
+	});
+}
+
+void ChooseSuggestPriceBox(
+		not_null<Ui::GenericBox*> box,
+		SuggestPriceBoxArgs &&args) {
 	struct State {
 		rpl::variable<TimeId> date;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->date = args.values.date;
+	state->date = args.value.date;
+
+	const auto limit = args.session->appConfig().suggestedPostStarsMax();
 
 	box->setTitle(tr::lng_suggest_options_title());
 
@@ -57,8 +70,8 @@ void EditOptionsBox(
 		wrap,
 		st::editTagField,
 		tr::lng_paid_cost_placeholder(),
-		args.values.stars ? QString::number(args.values.stars) : QString(),
-		args.starsLimit);
+		args.value.stars ? QString::number(args.value.stars) : QString(),
+		limit);
 	const auto field = owned.data();
 	wrap->widthValue() | rpl::start_with_next([=](int width) {
 		field->move(0, 0);
@@ -102,14 +115,12 @@ void EditOptionsBox(
 				strong->closeBox();
 			}
 		};
-		auto dateBox = Box(Ui::ChooseDateTimeBox, Ui::ChooseDateTimeBoxArgs{
+		auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
+			.session = args.session,
 			.title = tr::lng_suggest_options_date(),
 			.submit = tr::lng_settings_save(),
 			.done = done,
-			.min = [] { return base::unixtime::now() + 1; },
-			.time = (state->date.current()
-				? state->date.current()
-				: (base::unixtime::now() + 86400)),
+			.value = state->date.current(),
 		});
 		*weak = dateBox.data();
 		box->uiShow()->show(std::move(dateBox));
@@ -120,15 +131,15 @@ void EditOptionsBox(
 	AssertIsDebug()//tr::lng_suggest_options_offer
 	const auto save = [=] {
 		const auto now = uint32(field->getLastText().toULongLong());
-		if (now > args.starsLimit) {
+		if (now > limit) {
 			field->showError();
 			return;
 		}
-		const auto weak = Ui::MakeWeak(box);
-		args.save({ .stars = now, .date = state->date.current()});
-		if (const auto strong = weak.data()) {
-			strong->closeBox();
-		}
+		args.done({
+			.exists = true,
+			.stars = now,
+			.date = state->date.current(),
+		});
 	};
 
 	QObject::connect(field, &Ui::NumberInput::submitted, box, save);
@@ -138,8 +149,6 @@ void EditOptionsBox(
 		box->closeBox();
 	});
 }
-
-} // namespace
 
 SuggestOptions::SuggestOptions(
 	not_null<Window::SessionController*> controller,
@@ -179,18 +188,19 @@ void SuggestOptions::paintBar(QPainter &p, int x, int y, int outerWidth) {
 }
 
 void SuggestOptions::edit() {
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto apply = [=](SuggestPostOptions values) {
 		_values = values;
 		updateTexts();
 		_updates.fire({});
+		if (const auto strong = weak->data()) {
+			strong->closeBox();
+		}
 	};
-	const auto broadcast = _peer->monoforumBroadcast();
-	const auto &appConfig = _peer->session().appConfig();
-	_controller->show(Box(EditOptionsBox, EditOptionsArgs{
-		.starsLimit = appConfig.suggestedPostStarsMax(),
-		.channelName = (broadcast ? broadcast : _peer.get())->shortName(),
-		.values = _values,
-		.save = apply,
+	*weak = _controller->show(Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
+		.session = &_peer->session(),
+		.done = apply,
+		.value = _values,
 	}));
 }
 

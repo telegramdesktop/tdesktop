@@ -9,11 +9,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 
+namespace Ui {
+class GenericBox;
+} // namespace Ui
+
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
 
 namespace HistoryView {
+
+struct SuggestTimeBoxArgs {
+	not_null<Main::Session*> session;
+	rpl::producer<QString> title;
+	rpl::producer<QString> submit;
+	Fn<void(TimeId)> done;
+	TimeId value = 0;
+};
+void ChooseSuggestTimeBox(
+	not_null<Ui::GenericBox*> box,
+	SuggestTimeBoxArgs &&args);
+
+struct SuggestPriceBoxArgs {
+	not_null<Main::Session*> session;
+	bool updating = false;
+	Fn<void(SuggestPostOptions)> done;
+	SuggestPostOptions value;
+};
+void ChooseSuggestPriceBox(
+	not_null<Ui::GenericBox*> box,
+	SuggestPriceBoxArgs &&args);
 
 class SuggestOptions final {
 public:
