@@ -15,6 +15,8 @@ class HistoryItem;
 struct HistoryMessageEdited;
 struct HistoryMessageForwarded;
 struct HistoryMessageReplyMarkup;
+struct HistoryMessageSuggestedPost;
+struct HistoryMessageReply;
 
 namespace Data {
 struct ReactionId;
@@ -175,6 +177,10 @@ private:
 	bool updateBottomInfo();
 
 	void initPaidInformation();
+	void refreshSuggestedInfo(
+		not_null<HistoryItem*> item,
+		not_null<const HistoryMessageSuggestedPost*> suggest,
+		const HistoryMessageReply *reply);
 	void initLogEntryOriginal();
 	void initPsa();
 	void fromNameUpdated(int width) const;

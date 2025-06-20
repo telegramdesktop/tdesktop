@@ -57,9 +57,8 @@ struct MediaGenericDescriptor {
 		Painter&,
 		const PaintContext&,
 		not_null<const MediaGeneric*>)> paintBg;
-	ClickHandlerPtr serviceLink;
+	ClickHandlerPtr fullAreaLink;
 	bool service = false;
-	bool fullAreaLink = false;
 	bool hideServiceText = false;
 };
 
@@ -129,9 +128,9 @@ private:
 		Painter&,
 		const PaintContext&,
 		not_null<const MediaGeneric*>)> _paintBg;
+	ClickHandlerPtr _fullAreaLink;
 	int _maxWidthCap = 0;
 	bool _service : 1 = false;
-	bool _fullAreaLink : 1 = false;
 	bool _hideServiceText : 1 = false;
 
 };

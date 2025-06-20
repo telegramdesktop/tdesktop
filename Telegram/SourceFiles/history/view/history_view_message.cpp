@@ -421,7 +421,9 @@ Message::Message(
 , _bottomInfo(
 		&data->history()->owner().reactions(),
 		BottomInfoDataFromMessage(this)) {
-	if (const auto media = data->media()) {
+	if (data->Get<HistoryMessageSuggestedPost>()) {
+		_hideReply = 1;
+	} else if (const auto media = data->media()) {
 		if (media->giveawayResults()) {
 			_hideReply = 1;
 		}
@@ -455,21 +457,33 @@ Message::~Message() {
 	}
 }
 
+void Message::refreshSuggestedInfo(
+		not_null<HistoryItem*> item,
+		not_null<const HistoryMessageSuggestedPost*> suggest,
+		const HistoryMessageReply *replyData) {
+	const auto link = (replyData && replyData->resolvedMessage)
+		? JumpToMessageClickHandler(
+			replyData->resolvedMessage.get(),
+			item->fullId())
+		: ClickHandlerPtr();
+	setServicePreMessage({}, link, std::make_unique<MediaGeneric>(
+		this,
+		GenerateSuggestRequestMedia(this, suggest),
+		MediaGenericDescriptor{
+			.maxWidth = st::chatSuggestWidth,
+			.fullAreaLink = link,
+			.service = true,
+			.hideServiceText = true,
+		}));
+}
+
 void Message::initPaidInformation() {
 	const auto item = data();
-	if (!item->history()->peer->isUser()) {
-
+	if (item->history()->peer->isMonoforum()) {
 		if (const auto suggest = item->Get<HistoryMessageSuggestedPost>()) {
-			setServicePreMessage({}, {}, std::make_unique<MediaGeneric>(
-				this,
-				GenerateSuggestRequestMedia(this, suggest),
-				MediaGenericDescriptor{
-					.maxWidth = st::chatSuggestWidth,
-					.service = true,
-					.hideServiceText = true,
-				}));
+			const auto replyData = item->Get<HistoryMessageReply>();
+			refreshSuggestedInfo(item, suggest, replyData);
 		}
-
 		return;
 	}
 	const auto media = this->media();
@@ -826,6 +840,22 @@ QSize Message::performCountOptimalSize() {
 		AddComponents(Reply::Bit());
 	} else {
 		RemoveComponents(Reply::Bit());
+	}
+
+	if (item->history()->peer->isMonoforum()) {
+		if (const auto suggest = item->Get<HistoryMessageSuggestedPost>()) {
+			if (const auto service = Get<ServicePreMessage>()) {
+				// Ok, we didn't have the message, but now we have.
+				// That means this is not a plain post suggestion,
+				// but a suggestion of changes to previous suggestion.
+				if (service->media
+					&& !service->handler
+					&& replyData
+					&& replyData->resolvedMessage) {
+					refreshSuggestedInfo(item, suggest, replyData);
+				}
+			}
+		}
 	}
 
 	const auto factcheck = item->Get<HistoryMessageFactcheck>();

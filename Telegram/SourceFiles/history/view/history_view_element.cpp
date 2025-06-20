@@ -1107,9 +1107,8 @@ void Element::refreshMedia(Element *replacing) {
 			GenerateSuggestDecisionMedia(this, decision),
 			MediaGenericDescriptor{
 				.maxWidth = st::chatSuggestInfoWidth,
-				.serviceLink = decision->lnk,
+				.fullAreaLink = decision->lnk,
 				.service = true,
-				.fullAreaLink = true,
 				.hideServiceText = true,
 			});
 	} else {

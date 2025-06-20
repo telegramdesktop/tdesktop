@@ -57,6 +57,53 @@ enum EmojiType {
 	return QString::fromUtf8(Raw(type));
 }
 
+struct Changes {
+	bool date = false;
+	bool price = false;
+	bool message = true;
+};
+[[nodiscard]] std::optional<Changes> ResolveChanges(
+		not_null<HistoryItem*> changed,
+		HistoryItem *original) {
+	const auto wasSuggest = original
+		? original->Get<HistoryMessageSuggestedPost>()
+		: nullptr;
+	const auto nowSuggest = changed->Get<HistoryMessageSuggestedPost>();
+	if (!wasSuggest || !nowSuggest) {
+		return {};
+	}
+	auto result = Changes();
+	if (wasSuggest->date != nowSuggest->date) {
+		result.date = true;
+	}
+	if (wasSuggest->stars != nowSuggest->stars) {
+		result.price = true;
+	}
+	const auto wasText = original->originalText();
+	const auto nowText = changed->originalText();
+	const auto mediaSame = [&] {
+		const auto wasMedia = original->media();
+		const auto nowMedia = changed->media();
+		if (!wasMedia && !nowMedia) {
+			return true;
+		} else if (!wasMedia
+			|| !nowMedia
+			|| !wasMedia->allowsEditCaption()
+			|| !nowMedia->allowsEditCaption()) {
+			return false;
+		}
+		// We treat as "same" only same photo or same file.
+		return (wasMedia->photo() == nowMedia->photo())
+			&& (wasMedia->document() == nowMedia->document());
+	};
+	if (!result.price && !result.date) {
+		result.message = true;
+	} else if (wasText == nowText && mediaSame()) {
+		result.message = false;
+	}
+	return result;
+}
+
 } // namespace
 
 auto GenerateSuggestDecisionMedia(
@@ -224,8 +271,14 @@ auto GenerateSuggestRequestMedia(
 			result.setAlphaF(result.alphaF() * kFadedOpacity);
 			return result;
 		};
-		const auto from = parent->data()->from();
-		const auto peer = parent->history()->peer;
+		const auto item = parent->data();
+		const auto replyData = item->Get<HistoryMessageReply>();
+		const auto original = replyData
+			? replyData->resolvedMessage.get()
+			: nullptr;
+		const auto changes = ResolveChanges(item, original);
+		const auto from = item->from();
+		const auto peer = item->history()->peer;
 
 		auto pushText = [&](
 				TextWithEntities text,
@@ -242,39 +295,67 @@ auto GenerateSuggestRequestMedia(
 		};
 
 		pushText(
-			(from->isSelf()
+			((!changes && from->isSelf())
 				? tr::lng_suggest_action_your(
 					tr::now,
 					Ui::Text::WithEntities)
-				: tr::lng_suggest_action_his(
-					tr::now,
-					lt_from,
-					Ui::Text::Bold(from->shortName()),
-					Ui::Text::WithEntities)),
+				: (!changes
+					? tr::lng_suggest_action_his
+					: changes->message
+					? tr::lng_suggest_change_content
+					: (changes->date && changes->price)
+					? tr::lng_suggest_change_price_time
+					: changes->price
+					? tr::lng_suggest_change_price
+					: tr::lng_suggest_change_time)(
+						tr::now,
+						lt_from,
+						Ui::Text::Bold(from->shortName()),
+						Ui::Text::WithEntities)),
 			st::chatSuggestInfoTitleMargin,
 			style::al_top);
 
 		auto entries = std::vector<AttributeTable::Entry>();
-		entries.push_back({
-			tr::lng_suggest_action_price_label(tr::now),
-			Ui::Text::Bold(suggest->stars
-				? tr::lng_prize_credits_amount(
+		if (!changes || changes->price) {
+			entries.push_back({
+				(changes
+					? tr::lng_suggest_change_price_label
+					: tr::lng_suggest_action_price_label)(tr::now),
+				Ui::Text::Bold(suggest->stars
+					? tr::lng_prize_credits_amount(
+						tr::now,
+						lt_count,
+						suggest->stars)
+					: tr::lng_suggest_action_price_free(tr::now)),
+			});
+		}
+		if (!changes || changes->date) {
+			entries.push_back({
+				(changes
+					? tr::lng_suggest_change_time_label
+					: tr::lng_suggest_action_time_label)(tr::now),
+				Ui::Text::Bold(suggest->date
+					? Ui::FormatDateTime(base::unixtime::parse(suggest->date))
+					: tr::lng_suggest_action_time_any(tr::now)),
+			});
+		}
+		if (!entries.empty()) {
+			push(std::make_unique<AttributeTable>(
+				std::move(entries),
+				((changes && changes->message)
+					? st::chatSuggestTableMiddleMargin
+					: st::chatSuggestTableLastMargin),
+				fadedFg,
+				normalFg));
+		}
+		if (changes && changes->message) {
+			push(std::make_unique<TextPartColored>(
+				tr::lng_suggest_change_text_label(
 					tr::now,
-					lt_count,
-					suggest->stars)
-				: tr::lng_suggest_action_price_free(tr::now)),
-		});
-		entries.push_back({
-			tr::lng_suggest_action_time_label(tr::now),
-			Ui::Text::Bold(suggest->date
-				? Ui::FormatDateTime(base::unixtime::parse(suggest->date))
-				: tr::lng_suggest_action_time_any(tr::now)),
-		});
-		push(std::make_unique<AttributeTable>(
-			std::move(entries),
-			st::chatSuggestInfoLastMargin,
-			fadedFg,
-			normalFg));
+					Ui::Text::WithEntities),
+				st::chatSuggestInfoLastMargin,
+				fadedFg));
+		}
 	};
 }
 

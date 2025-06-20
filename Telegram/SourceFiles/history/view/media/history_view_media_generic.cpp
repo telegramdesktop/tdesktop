@@ -77,19 +77,15 @@ MediaGeneric::MediaGeneric(
 	MediaGenericDescriptor &&descriptor)
 : Media(parent)
 , _paintBg(std::move(descriptor.paintBg))
+, _fullAreaLink(descriptor.fullAreaLink)
 , _maxWidthCap(descriptor.maxWidth)
 , _service(descriptor.service)
-, _fullAreaLink(descriptor.fullAreaLink)
 , _hideServiceText(descriptor.hideServiceText) {
 	generate(this, [&](std::unique_ptr<Part> part) {
 		_entries.push_back({
 			.object = std::move(part),
 		});
 	});
-	if (descriptor.serviceLink) {
-		parent->data()->setCustomServiceLink(
-			std::move(descriptor.serviceLink));
-	}
 }
 
 MediaGeneric::~MediaGeneric() {
@@ -164,11 +160,8 @@ TextState MediaGeneric::textState(
 	}
 
 	if (_fullAreaLink && QRect(0, 0, width(), height()).contains(point)) {
-		const auto link = _parent->data()->Get<HistoryServiceCustomLink>();
-		if (link) {
-			result.link = link->link;
-			return result;
-		}
+		result.link = _fullAreaLink;
+		return result;
 	}
 
 	for (const auto &entry : _entries) {
