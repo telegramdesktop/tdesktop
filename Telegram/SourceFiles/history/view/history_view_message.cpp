@@ -3869,6 +3869,9 @@ int Message::minWidthForMedia() const {
 		accumulate_max(result, added + st::semiboldFont->width(
 			tr::lng_replies_view_original(tr::now)));
 	}
+	if (const auto keyboard = data()->inlineReplyKeyboard()) {
+		accumulate_max(result, keyboard->naturalWidth());
+	}
 	return result;
 }
 
