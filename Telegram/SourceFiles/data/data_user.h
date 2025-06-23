@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/stars_amount.h"
+#include "core/credits_amount.h"
 #include "data/components/credits.h"
 #include "data/data_birthday.h"
 #include "data/data_peer.h"
@@ -28,7 +28,7 @@ using DisallowedGiftTypes = base::flags<DisallowedGiftType>;
 } // namespace Api
 
 struct StarRefProgram {
-	StarsAmount revenuePerUser;
+	CreditsAmount revenuePerUser;
 	TimeId endDate = 0;
 	ushort commission = 0;
 	uint8 durationMonths = 0;

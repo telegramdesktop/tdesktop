@@ -1681,11 +1681,21 @@ ServiceAction ParseServiceAction(
 		content.transactionId = data.vcharge().data().vid().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionGiftStars &data) {
-		auto content = ActionGiftStars();
+		auto content = ActionGiftCredits();
 		content.cost = Ui::FillAmountAndCurrency(
 			data.vamount().v,
 			qs(data.vcurrency())).toUtf8();
-		content.credits = data.vstars().v;
+		content.amount = CreditsAmount(data.vstars().v, CreditsType::Stars);
+		result.content = content;
+	}, [&](const MTPDmessageActionGiftTon &data) {
+		auto content = ActionGiftCredits();
+		content.cost = Ui::FillAmountAndCurrency(
+			data.vamount().v,
+			qs(data.vcurrency())).toUtf8();
+		content.amount = CreditsAmount(
+			data.vamount().v / uint64(1'000'000'000),
+			data.vamount().v % uint64(1'000'000'000),
+			CreditsType::Ton);
 		result.content = content;
 	}, [&](const MTPDmessageActionPrizeStars &data) {
 		result.content = ActionPrizeStars{
@@ -1761,7 +1771,7 @@ ServiceAction ParseServiceAction(
 		result.content = ActionSuggestedPostApproval{
 			.rejectComment = data.vreject_comment().value_or_empty(),
 			.scheduleDate = data.vschedule_date().value_or_empty(),
-			.stars = int(data.vstars_amount().value_or_empty()),
+			.price = CreditsAmountFromTL(data.vprice()),
 			.rejected = data.is_rejected(),
 			.balanceTooLow = data.is_balance_too_low(),
 		};

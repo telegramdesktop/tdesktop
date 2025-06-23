@@ -333,7 +333,7 @@ HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
 		return;
 	}
 	const auto &fields = data->data();
-	stars = fields.vstars_amount().v;
+	price = CreditsAmountFromTL(fields.vprice());
 	date = fields.vschedule_date().value_or_empty();
 	accepted = fields.is_accepted();
 	rejected = fields.is_rejected();
@@ -350,7 +350,7 @@ HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
 	if (!options.exists) {
 		return;
 	}
-	stars = options.stars;
+	price = options.price();
 	date = options.date;
 	exists = true;
 }

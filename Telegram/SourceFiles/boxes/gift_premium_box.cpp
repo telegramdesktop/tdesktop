@@ -411,7 +411,7 @@ void AddTableRow(
 		table->st().defaultValue.style.font->height);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		Lang::FormatStarsAmountDecimal(entry.credits),
+		Lang::FormatCreditsAmountDecimal(entry.credits),
 		table->st().defaultValue,
 		st::defaultPopupMenu);
 
@@ -1630,8 +1630,8 @@ void AddCreditsHistoryEntryTable(
 			const auto full = int(base::SafeRound(entry.credits.value()
 				/ (1. - (entry.starrefCommission / 1000.))));
 			auto value = Ui::Text::IconEmoji(&st::starIconEmojiColored);
-			const auto starsText = Lang::FormatStarsAmountDecimal(
-				StarsAmount{ full });
+			const auto starsText = Lang::FormatCreditsAmountDecimal(
+				CreditsAmount{ full });
 			AddTableRow(
 				table,
 				tr::lng_credits_box_history_entry_gift_full_price(),
@@ -1787,7 +1787,7 @@ void AddCreditsHistoryEntryTable(
 		auto value = Ui::Text::IconEmoji(&st::starIconEmojiColored);
 		const auto full = (entry.in ? 1 : -1)
 			* (entry.credits + entry.paidMessagesAmount);
-		const auto starsText = Lang::FormatStarsAmountDecimal(full);
+		const auto starsText = Lang::FormatCreditsAmountDecimal(full);
 		AddTableRow(
 			table,
 			tr::lng_credits_paid_messages_full(),

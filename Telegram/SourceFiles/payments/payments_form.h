@@ -211,7 +211,7 @@ struct CreditsReceiptData {
 	QString description;
 	PhotoData *photo = nullptr;
 	PeerId peerId = PeerId(0);
-	StarsAmount credits;
+	CreditsAmount credits;
 	TimeId date = 0;
 };
 

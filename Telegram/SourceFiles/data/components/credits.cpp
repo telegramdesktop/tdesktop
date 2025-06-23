@@ -19,11 +19,6 @@ constexpr auto kReloadThreshold = 60 * crl::time(1000);
 
 } // namespace
 
-StarsAmount FromTL(const MTPStarsAmount &value) {
-	const auto &data = value.data();
-	return StarsAmount(data.vamount().v, data.vnanos().v);
-}
-
 Credits::Credits(not_null<Main::Session*> session)
 : _session(session)
 , _reload([=] { load(true); }) {
@@ -32,7 +27,7 @@ Credits::Credits(not_null<Main::Session*> session)
 Credits::~Credits() = default;
 
 void Credits::apply(const MTPDupdateStarsBalance &data) {
-	apply(FromTL(data.vbalance()));
+	apply(CreditsAmountFromTL(data.vbalance()));
 }
 
 rpl::producer<float64> Credits::rateValue(
@@ -80,13 +75,13 @@ rpl::producer<bool> Credits::loadedValue() const {
 	) | rpl::then(_loadedChanges.events() | rpl::map_to(true));
 }
 
-StarsAmount Credits::balance() const {
+CreditsAmount Credits::balance() const {
 	return _nonLockedBalance.current();
 }
 
-StarsAmount Credits::balance(PeerId peerId) const {
+CreditsAmount Credits::balance(PeerId peerId) const {
 	const auto it = _cachedPeerBalances.find(peerId);
-	return (it != _cachedPeerBalances.end()) ? it->second : StarsAmount();
+	return (it != _cachedPeerBalances.end()) ? it->second : CreditsAmount();
 }
 
 uint64 Credits::balanceCurrency(PeerId peerId) const {
@@ -94,19 +89,19 @@ uint64 Credits::balanceCurrency(PeerId peerId) const {
 	return (it != _cachedPeerCurrencyBalances.end()) ? it->second : 0;
 }
 
-rpl::producer<StarsAmount> Credits::balanceValue() const {
+rpl::producer<CreditsAmount> Credits::balanceValue() const {
 	return _nonLockedBalance.value();
 }
 
 void Credits::updateNonLockedValue() {
 	_nonLockedBalance = (_balance >= _locked)
 		? (_balance - _locked)
-		: StarsAmount();
+		: CreditsAmount();
 }
 
-void Credits::lock(StarsAmount count) {
+void Credits::lock(CreditsAmount count) {
 	Expects(loaded());
-	Expects(count >= StarsAmount(0));
+	Expects(count >= CreditsAmount(0));
 	Expects(_locked + count <= _balance);
 
 	_locked += count;
@@ -114,8 +109,8 @@ void Credits::lock(StarsAmount count) {
 	updateNonLockedValue();
 }
 
-void Credits::unlock(StarsAmount count) {
-	Expects(count >= StarsAmount(0));
+void Credits::unlock(CreditsAmount count) {
+	Expects(count >= CreditsAmount(0));
 	Expects(_locked >= count);
 
 	_locked -= count;
@@ -123,12 +118,12 @@ void Credits::unlock(StarsAmount count) {
 	updateNonLockedValue();
 }
 
-void Credits::withdrawLocked(StarsAmount count) {
-	Expects(count >= StarsAmount(0));
+void Credits::withdrawLocked(CreditsAmount count) {
+	Expects(count >= CreditsAmount(0));
 	Expects(_locked >= count);
 
 	_locked -= count;
-	apply(_balance >= count ? (_balance - count) : StarsAmount(0));
+	apply(_balance >= count ? (_balance - count) : CreditsAmount(0));
 	invalidate();
 }
 
@@ -136,7 +131,7 @@ void Credits::invalidate() {
 	_reload.call();
 }
 
-void Credits::apply(StarsAmount balance) {
+void Credits::apply(CreditsAmount balance) {
 	_balance = balance;
 	updateNonLockedValue();
 
@@ -146,7 +141,7 @@ void Credits::apply(StarsAmount balance) {
 	}
 }
 
-void Credits::apply(PeerId peerId, StarsAmount balance) {
+void Credits::apply(PeerId peerId, CreditsAmount balance) {
 	_cachedPeerBalances[peerId] = balance;
 	_refreshedByPeerId.fire_copy(peerId);
 }
@@ -166,3 +161,27 @@ bool Credits::statsEnabled() const {
 }
 
 } // namespace Data
+
+CreditsAmount CreditsAmountFromTL(const MTPStarsAmount &amount) {
+	return amount.match([&](const MTPDstarsAmount &data) {
+		return CreditsAmount(
+			data.vamount().v,
+			data.vnanos().v,
+			CreditsType::Stars);
+	}, [&](const MTPDstarsTonAmount &data) {
+		return CreditsAmount(
+			data.vamount().v / uint64(1'000'000'000),
+			data.vamount().v % uint64(1'000'000'000),
+			CreditsType::Ton);
+	});
+}
+
+CreditsAmount CreditsAmountFromTL(const MTPStarsAmount *amount) {
+	return amount ? CreditsAmountFromTL(*amount) : CreditsAmount();
+}
+
+MTPStarsAmount StarsAmountToTL(CreditsAmount amount) {
+	return amount.ton() ? MTP_starsTonAmount(
+		MTP_long(amount.whole() * uint64(1'000'000'000) + amount.nano())
+	) : MTP_starsAmount(MTP_long(amount.whole()), MTP_int(amount.nano()));
+}

@@ -80,16 +80,15 @@ constexpr auto kTransactionsLimit = 100;
 		}, [](const auto &) { return (const MTPDstarGift*)nullptr; })
 		: nullptr;
 	const auto reaction = tl.data().is_reaction();
-	const auto amount = Data::FromTL(tl.data().vstars());
-	const auto starrefAmount = tl.data().vstarref_amount()
-		? Data::FromTL(*tl.data().vstarref_amount())
-		: StarsAmount();
+	const auto amount = CreditsAmountFromTL(tl.data().vstars());
+	const auto starrefAmount = CreditsAmountFromTL(
+		tl.data().vstarref_amount());
 	const auto starrefCommission
 		= tl.data().vstarref_commission_permille().value_or_empty();
 	const auto starrefBarePeerId = tl.data().vstarref_peer()
 		? peerFromMTP(*tl.data().vstarref_peer()).value
 		: 0;
-	const auto incoming = (amount >= StarsAmount());
+	const auto incoming = (amount >= CreditsAmount());
 	const auto paidMessagesCount
 		= tl.data().vpaid_messages().value_or_empty();
 	const auto premiumMonthsForStars
@@ -108,7 +107,7 @@ constexpr auto kTransactionsLimit = 100;
 		.date = base::unixtime::parse(tl.data().vdate().v),
 		.photoId = photo ? photo->id : 0,
 		.extended = std::move(extended),
-		.credits = Data::FromTL(tl.data().vstars()),
+		.credits = CreditsAmountFromTL(tl.data().vstars()),
 		.bareMsgId = uint64(tl.data().vmsg_id().value_or_empty()),
 		.barePeerId = saveActorId ? peer->id.value : barePeerId,
 		.bareGiveawayMsgId = uint64(
@@ -116,7 +115,7 @@ constexpr auto kTransactionsLimit = 100;
 		.bareGiftStickerId = giftStickerId,
 		.bareActorId = saveActorId ? barePeerId : uint64(0),
 		.uniqueGift = parsedGift ? parsedGift->unique : nullptr,
-		.starrefAmount = paidMessagesCount ? StarsAmount() : starrefAmount,
+		.starrefAmount = paidMessagesCount ? CreditsAmount() : starrefAmount,
 		.starrefCommission = paidMessagesCount ? 0 : starrefCommission,
 		.starrefRecipientId = paidMessagesCount ? 0 : starrefBarePeerId,
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
@@ -147,7 +146,7 @@ constexpr auto kTransactionsLimit = 100;
 		.paidMessagesCount = paidMessagesCount,
 		.paidMessagesAmount = (paidMessagesCount
 			? starrefAmount
-			: StarsAmount()),
+			: CreditsAmount()),
 		.paidMessagesCommission = paidMessagesCount ? starrefCommission : 0,
 		.starsConverted = int(nonUniqueGift
 			? nonUniqueGift->vconvert_stars().v
@@ -216,7 +215,7 @@ constexpr auto kTransactionsLimit = 100;
 	return Data::CreditsStatusSlice{
 		.list = std::move(entries),
 		.subscriptions = std::move(subscriptions),
-		.balance = Data::FromTL(status.data().vbalance()),
+		.balance = CreditsAmountFromTL(status.data().vbalance()),
 		.subscriptionsMissingBalance
 			= status.data().vsubscriptions_missing_balance().value_or_empty(),
 		.allLoaded = !status.data().vnext_offset().has_value()
@@ -300,11 +299,14 @@ void CreditsStatus::request(
 	using TLResult = MTPpayments_StarsStatus;
 
 	_requestId = _api.request(MTPpayments_GetStarsStatus(
+		MTP_flags(0),
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
 		const auto &balance = result.data().vbalance();
-		_peer->session().credits().apply(_peer->id, Data::FromTL(balance));
+		_peer->session().credits().apply(
+			_peer->id,
+			CreditsAmountFromTL(balance));
 		if (const auto onstack = done) {
 			onstack(StatusFromTL(result, _peer));
 		}
@@ -420,13 +422,15 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 			)).done([=](const MTPpayments_StarsRevenueStats &result) {
 				const auto &data = result.data();
 				const auto &status = data.vstatus().data();
-				using Data::FromTL;
 				_data = Data::CreditsEarnStatistics{
 					.revenueGraph = StatisticalGraphFromTL(
 						data.vrevenue_graph()),
-					.currentBalance = FromTL(status.vcurrent_balance()),
-					.availableBalance = FromTL(status.vavailable_balance()),
-					.overallRevenue = FromTL(status.voverall_revenue()),
+					.currentBalance = CreditsAmountFromTL(
+						status.vcurrent_balance()),
+					.availableBalance = CreditsAmountFromTL(
+						status.vavailable_balance()),
+					.overallRevenue = CreditsAmountFromTL(
+						status.voverall_revenue()),
 					.usdRate = data.vusd_rate().v,
 					.isWithdrawalEnabled = status.is_withdrawal_enabled(),
 					.nextWithdrawalAt = status.vnext_withdrawal_at()

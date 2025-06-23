@@ -1949,7 +1949,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 				AddComponents(HistoryMessageSuggestedPost::Bit());
 			}
 			auto suggest = Get<HistoryMessageSuggestedPost>();
-			suggest->stars = edition.suggest.stars;
+			suggest->price = edition.suggest.price;
 			suggest->date = edition.suggest.date;
 			suggest->accepted = edition.suggest.accepted;
 			suggest->rejected = edition.suggest.rejected;
@@ -4023,7 +4023,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	}
 
 	if (const auto suggest = Get<HistoryMessageSuggestedPost>()) {
-		suggest->stars = config.suggest.stars;
+		suggest->price = config.suggest.price;
 		suggest->date = config.suggest.date;
 		suggest->accepted = config.suggest.accepted;
 		suggest->rejected = config.suggest.rejected;
@@ -4668,7 +4668,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		const auto &data = action.c_messageActionSuggestedPostApproval();
 		UpdateComponents(HistoryServiceSuggestDecision::Bit());
 		const auto decision = Get<HistoryServiceSuggestDecision>();
-		decision->stars = data.vstars_amount().value_or_empty();
+		decision->price = CreditsAmountFromTL(data.vprice());
 		decision->balanceTooLow = data.is_balance_too_low();
 		decision->rejected = data.is_rejected();
 		decision->rejectComment = qs(data.vreject_comment().value_or_empty());
@@ -5735,6 +5735,42 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGiftTon = [&](
+			const MTPDmessageActionGiftTon &action) {
+		auto result = PreparedServiceText();
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? _history->peer : _from;
+		const auto amount = action.vamount().v;
+		const auto currency = qs(action.vcurrency());
+		const auto cost = AmountAndStarCurrency(
+			&_history->session(),
+			amount,
+			currency);
+		const auto anonymous = _from->isServiceUser();
+		if (anonymous) {
+			result.text = tr::lng_action_gift_received_anonymous(
+				tr::now,
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(peer->createOpenLink());
+			result.text = isSelf
+				? tr::lng_action_gift_sent(tr::now,
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities)
+				: tr::lng_action_gift_received(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities);
+		}
+		return result;
+	};
+
 	auto prepareGiftPrize = [&](
 			const MTPDmessageActionPrizeStars &action) {
 		auto result = PreparedServiceText();
@@ -6073,6 +6109,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareBoostApply,
 		preparePaymentRefunded,
 		prepareGiftStars,
+		prepareGiftTon,
 		prepareGiftPrize,
 		prepareStarGift,
 		prepareStarGiftUnique,
@@ -6194,6 +6231,12 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			_from,
 			Data::GiftType::Credits,
 			data.vstars().v);
+	}, [&](const MTPDmessageActionGiftTon &data) {
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftType::Ton,
+			data.vamount().v);
 	}, [&](const MTPDmessageActionPrizeStars &data) {
 		_media = std::make_unique<Data::MediaGiftBox>(
 			this,

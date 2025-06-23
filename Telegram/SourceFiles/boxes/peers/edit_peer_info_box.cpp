@@ -1095,8 +1095,8 @@ void Controller::fillDirectMessagesButton() {
 			: rpl::single(Ui::Text::IconEmoji(
 				&st::starIconEmojiColored
 			).append(' ').append(
-				Lang::FormatStarsAmountDecimal(
-					StarsAmount{ starsPerMessage })));
+				Lang::FormatCreditsAmountDecimal(
+					CreditsAmount{ starsPerMessage })));
 	}) | rpl::flatten_latest();
 	AddButtonWithText(
 		_controls.buttonsLayout,
@@ -1907,7 +1907,7 @@ void Controller::fillBotCreditsButton() {
 	auto &lifetime = _controls.buttonsLayout->lifetime();
 	const auto state = lifetime.make_state<State>();
 	if (const auto balance = _peer->session().credits().balance(_peer->id)) {
-		state->balance = Lang::FormatStarsAmountDecimal(balance);
+		state->balance = Lang::FormatCreditsAmountDecimal(balance);
 	}
 
 	const auto wrap = _controls.buttonsLayout->add(
@@ -1932,7 +1932,7 @@ void Controller::fillBotCreditsButton() {
 			if (data.balance) {
 				wrap->toggle(true, anim::type::normal);
 			}
-			state->balance = Lang::FormatStarsAmountDecimal(data.balance);
+			state->balance = Lang::FormatCreditsAmountDecimal(data.balance);
 		});
 	}
 	{

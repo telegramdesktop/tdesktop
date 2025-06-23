@@ -470,6 +470,7 @@ PRIVATE
     core/crash_report_window.h
     core/crash_reports.cpp
     core/crash_reports.h
+    core/credits_amount.h
     core/deadlock_detector.h
     core/file_utilities.cpp
     core/file_utilities.h
@@ -483,7 +484,6 @@ PRIVATE
     core/sandbox.h
     core/shortcuts.cpp
     core/shortcuts.h
-    core/stars_amount.h
     core/ui_integration.cpp
     core/ui_integration.h
     core/update_checker.cpp

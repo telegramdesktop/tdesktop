@@ -136,6 +136,7 @@ struct GiveawayResults {
 enum class GiftType : uchar {
 	Premium, // count - months
 	Credits, // count - credits
+	Ton, // count - nano tons
 	StarGift, // count - stars
 };
 
@@ -155,7 +156,7 @@ struct GiftCode {
 	int starsUpgradedBySender = 0;
 	int limitedCount = 0;
 	int limitedLeft = 0;
-	int count = 0;
+	int64 count = 0;
 	GiftType type = GiftType::Premium;
 	bool viaGiveaway : 1 = false;
 	bool transferred : 1 = false;
@@ -678,7 +679,7 @@ public:
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,
 		GiftType type,
-		int count);
+		int64 count);
 	MediaGiftBox(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,

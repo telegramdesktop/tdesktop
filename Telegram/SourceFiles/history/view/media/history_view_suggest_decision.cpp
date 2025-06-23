@@ -76,7 +76,7 @@ struct Changes {
 	if (wasSuggest->date != nowSuggest->date) {
 		result.date = true;
 	}
-	if (wasSuggest->stars != nowSuggest->stars) {
+	if (wasSuggest->price != nowSuggest->price) {
 		result.price = true;
 	}
 	const auto wasText = original->originalText();
@@ -178,7 +178,7 @@ auto GenerateSuggestDecisionMedia(
 					fadedFg));
 			}
 		} else {
-			const auto stars = decision->stars;
+			const auto price = decision->price;
 			pushText(
 				TextWithEntities(
 				).append(Emoji(kAgreement)).append(' ').append(
@@ -206,12 +206,16 @@ auto GenerateSuggestDecisionMedia(
 								date.time(),
 								QLocale::ShortFormat))),
 						Ui::Text::WithEntities)),
-				(stars
+				(price
 					? st::chatSuggestInfoMiddleMargin
 					: st::chatSuggestInfoLastMargin));
-			if (stars) {
-				const auto amount = Ui::Text::Bold(
-					tr::lng_prize_credits_amount(tr::now, lt_count, stars));
+			if (price) {
+				const auto amount = Ui::Text::Bold(price.ton()
+					? (Lang::FormatCreditsAmountDecimal(price) + u" TON"_q)
+					: tr::lng_prize_credits_amount(
+						tr::now,
+						lt_count_decimal,
+						price.value()));
 				pushText(
 					TextWithEntities(
 					).append(Emoji(kMoney)).append(' ').append(
@@ -320,12 +324,14 @@ auto GenerateSuggestRequestMedia(
 			((changes && changes->price)
 				? tr::lng_suggest_change_price_label
 				: tr::lng_suggest_action_price_label)(tr::now),
-			Ui::Text::Bold(suggest->stars
-				? tr::lng_prize_credits_amount(
+			Ui::Text::Bold(!suggest->price
+				? tr::lng_suggest_action_price_free(tr::now)
+				: suggest->price.ton() AssertIsDebug()
+				? (Lang::FormatCreditsAmountDecimal(suggest->price) + u" TON"_q)
+				: tr::lng_prize_credits_amount(
 					tr::now,
 					lt_count,
-					suggest->stars)
-				: tr::lng_suggest_action_price_free(tr::now)),
+					suggest->price.value())),
 		});
 		entries.push_back({
 			((changes && changes->date)

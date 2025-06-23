@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "scheme.h"
 #include "base/optional.h"
 #include "base/variant.h"
+#include "core/credits_amount.h"
 #include "data/data_peer_id.h"
 
 #include <QtCore/QSize>
@@ -658,9 +659,9 @@ struct ActionPaymentRefunded {
 	Utf8String transactionId;
 };
 
-struct ActionGiftStars {
+struct ActionGiftCredits {
 	Utf8String cost;
-	int credits = 0;
+	CreditsAmount amount;
 };
 
 struct ActionPrizeStars {
@@ -701,7 +702,7 @@ struct ActionTodoAppendTasks {
 struct ActionSuggestedPostApproval {
 	Utf8String rejectComment;
 	TimeId scheduleDate = 0;
-	int stars = 0;
+	CreditsAmount price;
 	bool rejected = false;
 	bool balanceTooLow = false;
 };
@@ -749,7 +750,7 @@ struct ServiceAction {
 		ActionGiveawayResults,
 		ActionBoostApply,
 		ActionPaymentRefunded,
-		ActionGiftStars,
+		ActionGiftCredits,
 		ActionPrizeStars,
 		ActionStarGift,
 		ActionPaidMessagesRefunded,

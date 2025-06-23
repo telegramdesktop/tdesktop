@@ -136,6 +136,33 @@ auto EmptyMessageDraftSources()
 	return cWorkingDir() + u"tdata/tdld/"_q;
 }
 
+[[nodiscard]] std::pair<quint64, quint64> SerializeSuggest(
+		SuggestPostOptions options) {
+	return {
+		((quint64(options.exists) << 63)
+			| (quint64(quint32(options.date)))),
+		((quint64(options.ton) << 63)
+			| (quint64(options.priceWhole) << 32)
+			| (quint64(options.priceNano))),
+	};
+}
+
+[[nodiscard]] SuggestPostOptions DeserializeSuggest(
+		std::pair<quint64, quint64> suggest) {
+	const auto exists = (suggest.first >> 63) ? 1 : 0;
+	const auto date = TimeId(uint32(suggest.first & 0xFFFF'FFFFULL));
+	const auto ton = (suggest.second >> 63) ? 1 : 0;
+	const auto priceWhole = uint32((suggest.second >> 32) & 0x7FFF'FFFFULL);
+	const auto priceNano = uint32(suggest.second & 0xFFFF'FFFFULL);
+	return {
+		.exists = uint32(exists),
+		.priceWhole = priceWhole,
+		.priceNano = priceNano,
+		.ton = uint32(ton),
+		.date = date,
+	};
+}
+
 } // namespace
 
 Account::Account(not_null<Main::Account*> owner, const QString &dataName)
@@ -1276,7 +1303,7 @@ void Account::writeDrafts(not_null<History*> history) {
 			+ Serialize::stringSize(text.text)
 			+ TextUtilities::SerializeTagsSize(text.tags)
 			+ sizeof(qint64) + sizeof(qint64) // messageId
-			+ sizeof(quint64) // suggest
+			+ (sizeof(quint64) * 2) // suggest
 			+ Serialize::stringSize(webpage.url)
 			+ sizeof(qint32) // webpage.forceLargeMedia
 			+ sizeof(qint32) // webpage.forceSmallMedia
@@ -1303,15 +1330,15 @@ void Account::writeDrafts(not_null<History*> history) {
 			const TextWithTags &text,
 			const Data::WebPageDraft &webpage,
 			auto&&) { // cursor
+		const auto serialized = SerializeSuggest(suggest);
 		data.stream
 			<< key.serialize()
 			<< text.text
 			<< TextUtilities::SerializeTags(text.tags)
 			<< qint64(reply.messageId.peer.value)
 			<< qint64(reply.messageId.msg.bare)
-			<< quint64(quint64(quint32(suggest.date))
-				| (quint64(suggest.stars) << 32)
-				| (quint64(suggest.exists) << 63))
+			<< serialized.first
+			<< serialized.second
 			<< webpage.url
 			<< qint32(webpage.forceLargeMedia ? 1 : 0)
 			<< qint32(webpage.forceSmallMedia ? 1 : 0)
@@ -1536,7 +1563,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		QByteArray textTagsSerialized;
 		qint64 keyValue = 0;
 		qint64 messageIdPeer = 0, messageIdMsg = 0;
-		quint64 suggestSerialized = 0;
+		std::pair<quint64, quint64> suggestSerialized;
 		qint32 keyValueOld = 0;
 		QString webpageUrl;
 		qint32 webpageForceLargeMedia = 0;
@@ -1572,7 +1599,9 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 				>> messageIdPeer
 				>> messageIdMsg;
 			if (withSuggest) {
-				draft.stream >> suggestSerialized;
+				draft.stream
+					>> suggestSerialized.first
+					>> suggestSerialized.second;
 			}
 			draft.stream
 				>> webpageUrl
@@ -1597,13 +1626,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 						MsgId(messageIdMsg)),
 					.topicRootId = key.topicRootId(),
 				},
-				SuggestPostOptions{
-					.exists = uint32(suggestSerialized >> 63),
-					.stars = uint32(
-						(suggestSerialized & ~(1ULL << 63)) >> 32),
-					.date = TimeId(
-						uint32(suggestSerialized & 0xFFFF'FFFFULL)),
-				},
+				DeserializeSuggest(suggestSerialized),
 				MessageCursor(),
 				Data::WebPageDraft{
 					.url = webpageUrl,

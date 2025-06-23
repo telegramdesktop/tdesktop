@@ -18,7 +18,7 @@ namespace Info::ChannelEarn {
 	float64 rate,
 	int afterFloat);
 [[nodiscard]] QString ToUsd(
-	StarsAmount value,
+	CreditsAmount value,
 	float64 rate,
 	int afterFloat);
 

@@ -927,7 +927,7 @@ void CreditsRow::init() {
 			st::semiboldTextStyle,
 			TextWithEntities()
 				.append(_entry.in ? QChar('+') : kMinus)
-				.append(Lang::FormatStarsAmountDecimal(_entry.credits.abs()))
+				.append(Lang::FormatCreditsAmountDecimal(_entry.credits.abs()))
 				.append(QChar(' '))
 				.append(manager.creditsEmoji()),
 			kMarkupTextOptions,

@@ -2007,7 +2007,7 @@ void SoldOutBox(
 		Data::CreditsHistoryEntry{
 			.firstSaleDate = base::unixtime::parse(gift.info.firstSaleDate),
 			.lastSaleDate = base::unixtime::parse(gift.info.lastSaleDate),
-			.credits = StarsAmount(gift.info.stars),
+			.credits = CreditsAmount(gift.info.stars),
 			.bareGiftStickerId = gift.info.document->id,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			.limitedCount = gift.info.limitedCount,
@@ -2039,8 +2039,8 @@ void AddUpgradeButton(
 		tr::lng_gift_send_unique(
 			lt_price,
 			rpl::single(star.append(' '
-				+ Lang::FormatStarsAmountDecimal(
-					StarsAmount{ cost }))),
+				+ Lang::FormatCreditsAmountDecimal(
+					CreditsAmount{ cost }))),
 			Text::WithEntities),
 		st::boxLabel,
 		st::defaultPopupMenu,
@@ -2355,9 +2355,9 @@ void SendGiftBox(
 				tr::lng_gift_send_stars_balance(
 					lt_amount,
 					peer->session().credits().balanceValue(
-					) | rpl::map([=](StarsAmount amount) {
+					) | rpl::map([=](CreditsAmount amount) {
 						return base::duplicate(star).append(
-							Lang::FormatStarsAmountDecimal(amount));
+							Lang::FormatCreditsAmountDecimal(amount));
 					}),
 					lt_link,
 					tr::lng_gift_send_stars_balance_link(
@@ -4614,8 +4614,8 @@ void UpgradeBox(
 				? tr::lng_gift_upgrade_button(
 					lt_price,
 					rpl::single(star.append(
-						' ' + Lang::FormatStarsAmountDecimal(
-							StarsAmount{ cost }))),
+						' ' + Lang::FormatCreditsAmountDecimal(
+							CreditsAmount{ cost }))),
 					Ui::Text::WithEntities)
 				: tr::lng_gift_upgrade_confirm(Ui::Text::WithEntities)),
 			&controller->session(),

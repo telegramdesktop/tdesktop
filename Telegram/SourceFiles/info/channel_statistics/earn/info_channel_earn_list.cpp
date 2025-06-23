@@ -258,9 +258,9 @@ void InnerWidget::load() {
 				}
 				const auto &data = d.vstatus().data();
 				auto &e = _state.creditsEarn;
-				e.currentBalance = Data::FromTL(data.vcurrent_balance());
-				e.availableBalance = Data::FromTL(data.vavailable_balance());
-				e.overallRevenue = Data::FromTL(data.voverall_revenue());
+				e.currentBalance = CreditsAmountFromTL(data.vcurrent_balance());
+				e.availableBalance = CreditsAmountFromTL(data.vavailable_balance());
+				e.overallRevenue = CreditsAmountFromTL(data.voverall_revenue());
 				e.isWithdrawalEnabled = data.is_withdrawal_enabled();
 				e.nextWithdrawalAt = data.vnext_withdrawal_at()
 					? base::unixtime::parse(
@@ -395,7 +395,7 @@ void InnerWidget::fill() {
 	//constexpr auto kApproximately = QChar(0x2248);
 	const auto multiplier = data.usdRate;
 
-	const auto creditsToUsdMap = [=](StarsAmount c) {
+	const auto creditsToUsdMap = [=](CreditsAmount c) {
 		const auto creditsMultiplier = _state.creditsEarn.usdRate
 			* Data::kEarnMultiplier;
 		return c ? ToUsd(c, creditsMultiplier, 0) : QString();
@@ -707,7 +707,7 @@ void InnerWidget::fill() {
 
 		const auto addOverview = [&](
 				rpl::producer<EarnInt> currencyValue,
-				rpl::producer<StarsAmount> creditsValue,
+				rpl::producer<CreditsAmount> creditsValue,
 				const tr::phrase<> &text,
 				bool showCurrency,
 				bool showCredits) {
@@ -741,8 +741,10 @@ void InnerWidget::fill() {
 
 			const auto creditsLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				rpl::duplicate(creditsValue) | rpl::map([](StarsAmount value) {
-					return Lang::FormatStarsAmountDecimal(value);
+				rpl::duplicate(
+					creditsValue
+				) | rpl::map([](CreditsAmount value) {
+					return Lang::FormatCreditsAmountDecimal(value);
 				}),
 				st::channelEarnOverviewMajorLabel);
 			const auto icon = Ui::CreateSingleStarWidget(
@@ -761,7 +763,7 @@ void InnerWidget::fill() {
 					int available,
 					const QSize &size,
 					const QSize &creditsSize,
-					StarsAmount credits) {
+					CreditsAmount credits) {
 				const auto skip = st::channelEarnOverviewSubMinorLabelPos.x();
 				line->resize(line->width(), size.height());
 				minorLabel->moveToLeft(

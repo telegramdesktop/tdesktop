@@ -135,8 +135,8 @@ void InnerWidget::fill() {
 			return _state.overallRevenue;
 		})
 	);
-	auto valueToString = [](StarsAmount v) {
-		return Lang::FormatStarsAmountDecimal(v);
+	auto valueToString = [](CreditsAmount v) {
+		return Lang::FormatCreditsAmountDecimal(v);
 	};
 
 	if (data.revenueGraph.chart) {
@@ -161,7 +161,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
 		const auto addOverview = [&](
-				rpl::producer<StarsAmount> value,
+				rpl::producer<CreditsAmount> value,
 				const tr::phrase<> &text) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
@@ -177,8 +177,10 @@ void InnerWidget::fill() {
 				line,
 				std::move(
 					value
-				) | rpl::map([=](StarsAmount v) {
-					return v ? ToUsd(v, multiplier, kMinorLength) : QString();
+				) | rpl::map([=](CreditsAmount v) {
+					return v
+						? ToUsd(v, multiplier, kMinorLength)
+						: QString();
 				}),
 				st::channelEarnOverviewSubMinorLabel);
 			rpl::combine(
@@ -254,7 +256,7 @@ void InnerWidget::fill() {
 			(peer()->isSelf()
 				? rpl::duplicate(overallBalanceValue) | rpl::type_erased()
 				: rpl::duplicate(availableBalanceValue)
-			) | rpl::map([=](StarsAmount v) {
+			) | rpl::map([=](CreditsAmount v) {
 				return v ? ToUsd(v, multiplier, kMinorLength) : QString();
 			}));
 		container->resizeToWidth(container->width());

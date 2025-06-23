@@ -78,7 +78,9 @@ void ChooseSuggestPriceBox(
 		wrap,
 		st::editTagField,
 		tr::lng_paid_cost_placeholder(),
-		args.value.stars ? QString::number(args.value.stars) : QString(),
+		(args.value.price()
+			? QString::number(args.value.price().value())
+			: QString()),
 		limit);
 	const auto field = owned.data();
 	wrap->widthValue() | rpl::start_with_next([=](int width) {
@@ -137,14 +139,18 @@ void ChooseSuggestPriceBox(
 	Ui::AddDividerText(container, tr::lng_suggest_options_date_about());
 	AssertIsDebug()//tr::lng_suggest_options_offer
 	const auto save = [=] {
-		const auto now = uint32(field->getLastText().toULongLong());
+		const auto now = field->getLastText().toDouble();
 		if (now > limit) {
 			field->showError();
 			return;
 		}
+		const auto value = CreditsAmount(
+			int(std::floor(now)),
+			int(base::SafeRound((now - std::floor(now)) * 1'000'000'000.)));
 		args.done({
 			.exists = true,
-			.stars = now,
+			.priceWhole = uint32(value.whole()),
+			.priceNano = uint32(value.nano()),
 			.date = state->date.current(),
 		});
 	};
@@ -234,17 +240,33 @@ void SuggestOptions::updateTexts() {
 }
 
 TextWithEntities SuggestOptions::composeText() const {
-	if (!_values.stars && !_values.date) {
+	if (!_values.price() && !_values.date) {
 		return tr::lng_suggest_bar_text(tr::now, Ui::Text::WithEntities);
+	} else if (!_values.date && _values.price().ton()) {
+		return tr::lng_suggest_bar_priced(AssertIsDebug()
+			tr::now,
+			lt_amount,
+			TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " TON" },
+			Ui::Text::WithEntities);
 	} else if (!_values.date) {
 		return tr::lng_suggest_bar_priced(
 			tr::now,
 			lt_amount,
-			TextWithEntities{ QString::number(_values.stars) + " stars" },
+			TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " stars" },
 			Ui::Text::WithEntities);
-	} else if (!_values.stars) {
+	} else if (!_values.price()) {
 		return tr::lng_suggest_bar_dated(
 			tr::now,
+			lt_date,
+			TextWithEntities{
+				langDateTime(base::unixtime::parse(_values.date)),
+			},
+			Ui::Text::WithEntities);
+	} else if (_values.price().ton()) {
+		return tr::lng_suggest_bar_priced_dated(
+			tr::now,
+			lt_amount,
+			TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " TON," },
 			lt_date,
 			TextWithEntities{
 				langDateTime(base::unixtime::parse(_values.date)),
@@ -254,7 +276,7 @@ TextWithEntities SuggestOptions::composeText() const {
 	return tr::lng_suggest_bar_priced_dated(
 		tr::now,
 		lt_amount,
-		TextWithEntities{ QString::number(_values.stars) + " stars," },
+		TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " stars," },
 		lt_date,
 		TextWithEntities{
 			langDateTime(base::unixtime::parse(_values.date)),

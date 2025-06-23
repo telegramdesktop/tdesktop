@@ -623,7 +623,7 @@ struct HistoryMessageFactcheck
 
 struct HistoryMessageSuggestedPost
 : RuntimeComponent<HistoryMessageSuggestedPost, HistoryItem> {
-	int stars = 0;
+	CreditsAmount price;
 	TimeId date = 0;
 	mtpRequestId requestId = 0;
 	bool accepted = false;
@@ -701,7 +701,7 @@ struct HistoryServiceTodoAppendTasks
 struct HistoryServiceSuggestDecision
 : RuntimeComponent<HistoryServiceSuggestDecision, HistoryItem>
 , HistoryServiceDependentData {
-	int stars = 0;
+	CreditsAmount price;
 	TimeId date = 0;
 	QString rejectComment;
 	bool rejected = false;

@@ -2514,7 +2514,7 @@ MediaGiftBox::MediaGiftBox(
 	not_null<HistoryItem*> parent,
 	not_null<PeerData*> from,
 	GiftType type,
-	int count)
+	int64 count)
 : MediaGiftBox(parent, from, GiftCode{ .count = count, .type = type }) {
 }
 

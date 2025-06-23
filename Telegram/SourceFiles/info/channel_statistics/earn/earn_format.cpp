@@ -50,11 +50,11 @@ QString ToUsd(
 		Data::EarnInt value,
 		float64 rate,
 		int afterFloat) {
-	return ToUsd(StarsAmount(value), rate, afterFloat);
+	return ToUsd(CreditsAmount(value), rate, afterFloat);
 }
 
 QString ToUsd(
-		StarsAmount value,
+		CreditsAmount value,
 		float64 rate,
 		int afterFloat) {
 	constexpr auto kApproximately = QChar(0x2248);

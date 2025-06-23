@@ -21,11 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 
 namespace Data {
-namespace {
-
-constexpr auto kMaxSuggestStars = 1'000'000'000;
-
-} // namespace
 
 WebPageDraft WebPageDraft::FromItem(not_null<HistoryItem*> item) {
 	const auto previewMedia = item->media();
@@ -122,10 +117,10 @@ void ApplyPeerCloudDraft(
 		const auto &data = suggested->data();
 		suggest.exists = 1;
 		suggest.date = data.vschedule_date().value_or_empty();
-		suggest.stars = uint32(std::clamp(
-			data.vstars_amount().v,
-			uint64(),
-			uint64(kMaxSuggestStars)));
+		const auto price = CreditsAmountFromTL(data.vprice());
+		suggest.priceWhole = price.whole();
+		suggest.priceNano = price.nano();
+		suggest.ton = price.ton() ? 1 : 0;
 	}
 	auto cloudDraft = std::make_unique<Draft>(
 		textWithTags,

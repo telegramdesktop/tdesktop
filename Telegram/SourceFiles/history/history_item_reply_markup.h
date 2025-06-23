@@ -154,7 +154,7 @@ struct HistoryMessageSuggestInfo {
 	explicit HistoryMessageSuggestInfo(const Api::SendOptions &options);
 	explicit HistoryMessageSuggestInfo(SuggestPostOptions options);
 
-	int stars = 0;
+	CreditsAmount price;
 	TimeId date = 0;
 	bool accepted = false;
 	bool rejected = false;

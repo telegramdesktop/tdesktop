@@ -19,7 +19,7 @@ MTPSuggestedPost SuggestToMTP(SuggestPostOptions suggest) {
 	return suggest.exists
 		? MTP_suggestedPost(
 			MTP_flags(suggest.date ? Flag::f_schedule_date : Flag()),
-			MTP_long(suggest.stars),
+			StarsAmountToTL(suggest.price()),
 			MTP_int(suggest.date))
 		: MTPSuggestedPost();
 }

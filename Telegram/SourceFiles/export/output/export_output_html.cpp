@@ -1353,16 +1353,16 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " refunded back "
 			+ amount;
 		return result;
-	}, [&](const ActionGiftStars &data) {
-		if (!data.credits || data.cost.isEmpty()) {
+	}, [&](const ActionGiftCredits &data) {
+		if (!data.amount || data.cost.isEmpty()) {
 			return serviceFrom + " sent you a gift.";
 		}
 		return serviceFrom
 			+ " sent you a gift for "
 			+ data.cost
 			+ ": "
-			+ QString::number(data.credits).toUtf8()
-			+ " Telegram Stars.";
+			+ QString::number(data.amount.value()).toUtf8()
+			+ (data.amount.ton() ? " TON." : " Telegram Stars.");
 	}, [&](const ActionPrizeStars &data) {
 		return "You won a prize in a giveaway organized by "
 			+ peers.wrapPeerName(data.peerId)
@@ -1450,8 +1450,10 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom
 			+ (data.rejected ? " rejected " : " approved ")
 			+ "your suggested post"
-			+ (data.stars
-				? ", for " + QString::number(data.stars).toUtf8() + " stars"
+			+ (data.price
+				? (", for "
+					+ QString::number(data.price.value()).toUtf8()
+					+ (data.price.ton() ? " TON" : " stars"))
 				: "")
 			+ (data.scheduleDate
 				? (", "

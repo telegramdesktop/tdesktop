@@ -940,19 +940,20 @@ rpl::producer<uint64> AddCurrencyAction(
 	return state->balance.value();
 }
 
-rpl::producer<StarsAmount> AddCreditsAction(
+rpl::producer<CreditsAmount> AddCreditsAction(
 		not_null<UserData*> user,
 		not_null<Ui::VerticalLayout*> wrap,
 		not_null<Controller*> controller) {
 	struct State final {
-		rpl::variable<StarsAmount> balance;
+		rpl::variable<CreditsAmount> balance;
 	};
 	const auto state = wrap->lifetime().make_state<State>();
 	const auto parentController = controller->parentController();
 	const auto wrapButton = AddActionButton(
 		wrap,
 		tr::lng_manage_peer_bot_balance_credits(),
-		state->balance.value() | rpl::map(rpl::mappers::_1 > StarsAmount(0)),
+		state->balance.value(
+		) | rpl::map(rpl::mappers::_1 > CreditsAmount(0)),
 		[=] { parentController->showSection(Info::BotEarn::Make(user)); },
 		nullptr);
 	{
@@ -992,7 +993,7 @@ rpl::producer<StarsAmount> AddCreditsAction(
 	) | rpl::start_with_next([=, &st](
 			int width,
 			const QString &button,
-			StarsAmount balance) {
+			CreditsAmount balance) {
 		const auto available = width
 			- rect::m::sum::h(st.padding)
 			- st.style.font->width(button)
@@ -1000,7 +1001,7 @@ rpl::producer<StarsAmount> AddCreditsAction(
 		name->setMarkedText(
 			base::duplicate(icon)
 				.append(QChar(' '))
-				.append(Lang::FormatStarsAmountDecimal(balance)),
+				.append(Lang::FormatCreditsAmountDecimal(balance)),
 			Core::TextContext({
 				.session = &user->session(),
 				.repaint = [=] { name->update(); },
@@ -2404,7 +2405,7 @@ void ActionsFiller::addBalanceActions(not_null<UserData*> user) {
 			std::move(currencyBalance),
 			std::move(creditsBalance)
 		) | rpl::map((rpl::mappers::_1 > 0)
-			|| (rpl::mappers::_2 > StarsAmount(0))));
+			|| (rpl::mappers::_2 > CreditsAmount(0))));
 }
 
 void ActionsFiller::addInviteToGroupAction(not_null<UserData*> user) {

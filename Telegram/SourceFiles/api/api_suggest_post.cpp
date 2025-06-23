@@ -220,7 +220,9 @@ void SendSuggest(
 	auto action = SendAction(item->history());
 	action.options.suggest.exists = 1;
 	action.options.suggest.date = suggestion->date;
-	action.options.suggest.stars = suggestion->stars;
+	action.options.suggest.priceWhole = suggestion->price.whole();
+	action.options.suggest.priceNano = suggestion->price.nano();
+	action.options.suggest.ton = suggestion->price.ton() ? 1 : 0;
 	action.options.starsApproved = starsApproved;
 	action.replyTo.monoforumPeerId = item->history()->amMonoforumAdmin()
 		? item->sublistPeerId()
@@ -308,8 +310,10 @@ void SuggestApprovalPrice(
 		.session = &controller->session(),
 		.done = done,
 		.value = {
-			.exists = true,
-			.stars = uint32(suggestion->stars),
+			.exists = uint32(1),
+			.priceWhole = uint32(suggestion->price.whole()),
+			.priceNano = uint32(suggestion->price.nano()),
+			.ton = uint32(suggestion->price.ton() ? 1 : 0),
 			.date = suggestion->date,
 		},
 		.mode = SuggestMode::Change,
@@ -403,8 +407,10 @@ std::shared_ptr<ClickHandler> SuggestChangesClickHandler(
 						.monoforumPeerId = monoforumPeerId,
 					},
 					SuggestPostOptions{
-						.exists = 1,
-						.stars = uint32(suggestion->stars),
+						.exists = uint32(1),
+						.priceWhole = uint32(suggestion->price.whole()),
+						.priceNano = uint32(suggestion->price.nano()),
+						.ton = uint32(suggestion->price.ton() ? 1 : 0),
 						.date = suggestion->date,
 					},
 					cursor,

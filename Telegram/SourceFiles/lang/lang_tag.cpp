@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "lang/lang_tag.h"
 
-#include "core/stars_amount.h"
+#include "core/credits_amount.h"
 #include "lang/lang_keys.h"
 #include "ui/text/text.h"
 #include "base/qt/qt_common_adapters.h"
@@ -952,18 +952,18 @@ QString FormatExactCountDecimal(float64 number) {
 	return QLocale().toString(number, 'f', QLocale::FloatingPointShortest);
 }
 
-ShortenedCount FormatStarsAmountToShort(StarsAmount amount) {
+ShortenedCount FormatCreditsAmountToShort(CreditsAmount amount) {
 	const auto attempt = FormatCountToShort(amount.whole());
 	return attempt.shortened ? attempt : ShortenedCount{
-		.string = FormatStarsAmountDecimal(amount),
+		.string = FormatCreditsAmountDecimal(amount),
 	};
 }
 
-QString FormatStarsAmountDecimal(StarsAmount amount) {
+QString FormatCreditsAmountDecimal(CreditsAmount amount) {
 	return FormatExactCountDecimal(amount.value());
 }
 
-QString FormatStarsAmountRounded(StarsAmount amount) {
+QString FormatCreditsAmountRounded(CreditsAmount amount) {
 	const auto value = amount.value();
 	return FormatExactCountDecimal(base::SafeRound(value * 100.) / 100.);
 }

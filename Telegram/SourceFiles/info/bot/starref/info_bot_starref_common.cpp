@@ -603,7 +603,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 			const auto layout = box->verticalLayout();
 			const auto session = &initialRecipient->session();
 			auto text = Ui::Text::Colorized(Ui::CreditsEmoji(session));
-			text.append(Lang::FormatStarsAmountRounded(average));
+			text.append(Lang::FormatCreditsAmountRounded(average));
 			layout->add(
 				object_ptr<Ui::FlatLabel>(
 					box,

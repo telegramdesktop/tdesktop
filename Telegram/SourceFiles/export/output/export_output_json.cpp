@@ -644,14 +644,17 @@ QByteArray SerializeMessage(
 		pushBare("peer_name", wrapPeerName(data.peerId));
 		push("peer_id", data.peerId);
 		push("charge_id", data.transactionId);
-	}, [&](const ActionGiftStars &data) {
+	}, [&](const ActionGiftCredits &data) {
 		pushActor();
-		pushAction("send_stars_gift");
+		pushAction(data.amount.ton()
+			? "send_ton_gift"
+			: "send_stars_gift");
 		if (!data.cost.isEmpty()) {
 			push("cost", data.cost);
 		}
-		if (data.credits) {
-			push("stars", data.credits);
+		if (data.amount) {
+			push("amount_whole", data.amount.whole());
+			push("amount_nano", data.amount.nano());
 		}
 	}, [&](const ActionPrizeStars &data) {
 		pushActor();
@@ -717,7 +720,9 @@ QByteArray SerializeMessage(
 				push("comment", data.rejectComment);
 			}
 		} else {
-			push("stars_amount", NumberToString(data.stars));
+			push("price_amount_whole", NumberToString(data.price.whole()));
+			push("price_amount_nano", NumberToString(data.price.nano()));
+			push("price_currency", data.price.ton() ? "TON" : "Stars");
 			push("scheduled_date", data.scheduleDate);
 		}
 	}, [](v::null_t) {});

@@ -376,6 +376,10 @@ bool PremiumGift::gift() const {
 	return _data.slug.isEmpty() || !_data.channel;
 }
 
+bool PremiumGift::tonGift() const {
+	return (_data.type == Data::GiftType::Ton);
+}
+
 bool PremiumGift::starGift() const {
 	return (_data.type == Data::GiftType::StarGift);
 }
