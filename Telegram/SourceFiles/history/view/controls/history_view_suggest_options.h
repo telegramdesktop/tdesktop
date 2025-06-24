@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Ui {
 class GenericBox;
 } // namespace Ui
@@ -54,7 +58,7 @@ void ChooseSuggestPriceBox(
 class SuggestOptions final {
 public:
 	SuggestOptions(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
 		SuggestPostOptions values,
 		SuggestMode mode);
@@ -77,7 +81,7 @@ private:
 
 	[[nodiscard]] TextWithEntities composeText() const;
 
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<PeerData*> _peer;
 	const SuggestMode _mode = SuggestMode::New;
 

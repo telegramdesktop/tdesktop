@@ -5,9 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/history_view_suggest_options.h"
+#include "history/view/controls/history_view_suggest_options.h"
 
 #include "base/unixtime.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
@@ -29,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
-#include "window/window_session_controller.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -381,11 +381,11 @@ bool CanEditSuggestedMessage(not_null<HistoryItem*> item) {
 }
 
 SuggestOptions::SuggestOptions(
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
 	SuggestPostOptions values,
 	SuggestMode mode)
-: _controller(controller)
+: _show(std::move(show))
 , _peer(peer)
 , _mode(mode)
 , _values(values) {
@@ -435,7 +435,7 @@ void SuggestOptions::edit() {
 			strong->closeBox();
 		}
 	};
-	*weak = _controller->show(Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
+	*weak = _show->show(Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
 		.session = &_peer->session(),
 		.done = apply,
 		.value = _values,

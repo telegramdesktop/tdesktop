@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_saved_sublist.h"
-#include "history/view/history_view_suggest_options.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"

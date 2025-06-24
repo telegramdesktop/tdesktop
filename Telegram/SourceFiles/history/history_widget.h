@@ -216,7 +216,8 @@ public:
 		not_null<PeerData*> peer);
 
 	[[nodiscard]] FullReplyTo replyTo() const;
-	[[nodiscard]] SuggestPostOptions suggestOptions() const;
+	[[nodiscard]] SuggestPostOptions suggestOptions(
+		bool skipNoAdminCheck = false) const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	bool lastForceReplyReplied() const;
 	bool cancelReplyOrSuggest(bool lastKeyboardUsed = false);

@@ -54,8 +54,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
-#include "history/view/controls/history_view_voice_record_bar.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/controls/history_view_ttl_button.h"
+#include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_webpage_preview.h"
@@ -134,7 +135,10 @@ public:
 	void updateTopicRootId(MsgId topicRootId);
 	void init();
 
-	void editMessage(FullMsgId id, bool photoEditAllowed = false);
+	void editMessage(
+		FullMsgId id,
+		SuggestPostOptions suggest,
+		bool photoEditAllowed = false);
 	void replyToMessage(FullReplyTo id);
 	void updateForwarding(
 		Data::Thread *thread,
@@ -159,6 +163,7 @@ public:
 	[[nodiscard]] SendMenu::Details saveMenuDetails(bool hasSendText) const;
 
 	[[nodiscard]] FullReplyTo getDraftReply() const;
+	[[nodiscard]] SuggestPostOptions suggestOptions() const;
 	[[nodiscard]] rpl::producer<> editCancelled() const {
 		return _editCancelled.events();
 	}
@@ -170,6 +175,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> previewCancelled() const {
 		return _previewCancelled.events();
+	}
+	[[nodiscard]] rpl::producer<> saveDraftRequests() const {
+		return _saveDraftRequests.events();
 	}
 
 	[[nodiscard]] rpl::producer<bool> visibleChanged();
@@ -187,6 +195,9 @@ private:
 	void paintForwardInfo(Painter &p);
 
 	bool hasPreview() const;
+
+	void applySuggestOptions(SuggestPostOptions suggest, SuggestMode mode);
+	void cancelSuggestPost();
 
 	struct Preview {
 		Controls::WebpageParsed parsed;
@@ -206,11 +217,13 @@ private:
 	rpl::event_stream<> _replyCancelled;
 	rpl::event_stream<> _forwardCancelled;
 	rpl::event_stream<> _previewCancelled;
+	rpl::event_stream<> _saveDraftRequests;
 	rpl::lifetime _previewLifetime;
 
 	rpl::variable<FullMsgId> _editMsgId;
 	rpl::variable<FullReplyTo> _replyTo;
 	std::unique_ptr<ForwardPanel> _forwardPanel;
+	std::unique_ptr<SuggestOptions> _suggestOptions;
 	rpl::producer<> _toForwardUpdated;
 
 	HistoryItem *_shownMessage = nullptr;
@@ -282,7 +295,9 @@ void FieldHeader::init() {
 		p.fillRect(rect(), st::historyComposeAreaBg);
 
 		const auto position = st::historyReplyIconPosition;
-		if (_preview.parsed) {
+		if (_suggestOptions) {
+			_suggestOptions->paintIcon(p, 0, 0, width());
+		} else if (_preview.parsed) {
 			st::historyLinkIcon.paint(p, position, width());
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
@@ -647,7 +662,11 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 			st::historyEditMedia.paintInCenter(p, to);
 			p.setOpacity(1.);
 		}
+	}
 
+	if (_suggestOptions) {
+		_suggestOptions->paintLines(p, textLeft, 0, width());
+		return;
 	}
 
 	p.setPen(st::historyReplyNameFg);
@@ -734,6 +753,12 @@ FullReplyTo FieldHeader::getDraftReply() const {
 		: _replyTo.current();
 }
 
+SuggestPostOptions FieldHeader::suggestOptions() const {
+	return _suggestOptions
+		? _suggestOptions->values()
+		: SuggestPostOptions();
+}
+
 void FieldHeader::updateControlsGeometry(QSize size) {
 	_cancel->moveToRight(0, 0);
 	_clickableRect = QRect(
@@ -748,7 +773,10 @@ void FieldHeader::updateControlsGeometry(QSize size) {
 		st::historyReplyPreview);
 }
 
-void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
+void FieldHeader::editMessage(
+		FullMsgId id,
+		SuggestPostOptions suggest,
+		bool photoEditAllowed) {
 	_photoEditAllowed = photoEditAllowed;
 	_editMsgId = id;
 	if (!id) {
@@ -760,7 +788,36 @@ void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
 		_inPhotoEdit = false;
 		_inPhotoEditOver.stop();
 	}
+	if (id && suggest) {
+		applySuggestOptions(suggest, SuggestMode::Change);
+	} else {
+		cancelSuggestPost();
+	}
 	update();
+}
+
+void FieldHeader::applySuggestOptions(
+		SuggestPostOptions suggest,
+		SuggestMode mode) {
+	Expects(suggest.exists);
+
+	using namespace HistoryView;
+	_suggestOptions = std::make_unique<SuggestOptions>(
+		_show,
+		_history->peer,
+		suggest,
+		mode);
+	_suggestOptions->updates() | rpl::start_with_next([=] {
+		update();
+		_saveDraftRequests.fire({});
+	}, _suggestOptions->lifetime());
+}
+
+void FieldHeader::cancelSuggestPost() {
+	if (!_suggestOptions) {
+		return;
+	}
+	_suggestOptions = nullptr;
 }
 
 void FieldHeader::replyToMessage(FullReplyTo id) {
@@ -802,6 +859,7 @@ MessageToEdit FieldHeader::queryToEdit() {
 			.scheduled = item->isScheduled() ? item->date() : 0,
 			.shortcutId = item->shortcutId(),
 			.invertCaption = _mediaEditManager.invertCaption(),
+			.suggest = suggestOptions(),
 		},
 		.spoilered = _mediaEditManager.spoilered(),
 	};
@@ -1467,9 +1525,12 @@ void ComposeControls::init() {
 		if (_preview) {
 			_preview->apply({ .removed = true });
 		}
-		_saveDraftText = true;
-		_saveDraftStart = crl::now();
-		saveDraft();
+		saveDraftWithTextNow();
+	}, _wrap->lifetime());
+
+	_header->saveDraftRequests(
+	) | rpl::start_with_next([=] {
+		saveDraftWithTextNow();
 	}, _wrap->lifetime());
 
 	_header->editCancelled(
@@ -1704,9 +1765,7 @@ void ComposeControls::initFieldAutocomplete() {
 			if (!_showSlowmodeError || !_showSlowmodeError()) {
 				setText({});
 			}
-			//_saveDraftText = true;
-			//_saveDraftStart = crl::now();
-			//saveDraft();
+			//saveDraftWithTextNow();
 			// Won't be needed if SendInlineBotResult clears the cloud draft.
 			//saveCloudDraft();
 			_fileChosen.fire(std::move(data));
@@ -1845,6 +1904,12 @@ Data::DraftKey ComposeControls::draftKeyCurrent() const {
 	return draftKey(isEditingMessage() ? DraftType::Edit : DraftType::Normal);
 }
 
+void ComposeControls::saveDraftWithTextNow() {
+	_saveDraftText = true;
+	_saveDraftStart = crl::now();
+	saveDraft();
+}
+
 void ComposeControls::saveDraft(bool delayed) {
 	if (delayed) {
 		const auto now = crl::now();
@@ -1897,7 +1962,7 @@ void ComposeControls::registerDraftSource() {
 		const auto draft = [=] {
 			return Storage::MessageDraft{
 				_header->getDraftReply(),
-				SuggestPostOptions(),
+				_header->suggestOptions(),
 				_field->getTextWithTags(),
 				_preview->draft(),
 			};
@@ -1948,6 +2013,9 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	const auto editingId = (draft && draft == editDraft)
 		? draft->reply.messageId
 		: FullMsgId();
+	const auto editingSuggest = (draft && draft == editDraft)
+		? draft->suggest
+		: SuggestPostOptions();
 
 	InvokeQueued(_autocomplete.get(), [=] {
 		if (_autocomplete) {
@@ -1968,7 +2036,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		if (hadFocus) {
 			_field->setFocus();
 		}
-		_header->editMessage({});
+		_header->editMessage({}, {});
 		_header->replyToMessage({});
 		if (_preview) {
 			_preview->apply({ .removed = true });
@@ -2015,7 +2083,10 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 						Data::PhotoSize::Large,
 						item->fullId());
 				}
-				_header->editMessage(editingId, _photoEditMedia != nullptr);
+				_header->editMessage(
+					editingId,
+					editingSuggest,
+					_photoEditMedia != nullptr);
 				if (_preview) {
 					_preview->apply(
 						Data::WebPageDraft::FromItem(item),
@@ -2026,7 +2097,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			}
 			_canReplaceMedia = _canAddMedia = false;
 			_photoEditMedia = nullptr;
-			_header->editMessage(editingId, false);
+			_header->editMessage(editingId, SuggestPostOptions(), false);
 			return false;
 		};
 		if (!resolve()) {
@@ -2048,7 +2119,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_canReplaceMedia = _canAddMedia = false;
 		_photoEditMedia = nullptr;
 		_header->replyToMessage(draft->reply);
-		_header->editMessage({});
+		_header->editMessage({}, {});
 		if (_preview) {
 			_preview->setDisabled(false);
 		}
@@ -3036,10 +3107,7 @@ void ComposeControls::cancelEditMessage() {
 
 	_history->clearDraft(draftKey(DraftType::Edit));
 	applyDraft();
-
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
+	saveDraftWithTextNow();
 }
 
 void ComposeControls::maybeCancelEditMessage() {
@@ -3091,10 +3159,7 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 	} else {
 		_header->replyToMessage(id);
 	}
-
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
+	saveDraftWithTextNow();
 }
 
 void ComposeControls::cancelReplyMessage() {
@@ -3112,9 +3177,7 @@ void ComposeControls::cancelReplyMessage() {
 			}
 		}
 		if (wasReply) {
-			_saveDraftText = true;
-			_saveDraftStart = crl::now();
-			saveDraft();
+			saveDraftWithTextNow();
 		}
 	}
 }

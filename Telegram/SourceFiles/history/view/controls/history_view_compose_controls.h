@@ -331,6 +331,7 @@ private:
 	[[nodiscard]] Data::DraftKey draftKeyCurrent() const;
 	void saveDraft(bool delayed = false);
 	void saveDraftDelayed();
+	void saveDraftWithTextNow();
 	void saveCloudDraft();
 
 	void writeDrafts();

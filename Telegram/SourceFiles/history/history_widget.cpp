@@ -97,8 +97,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
-#include "history/view/controls/history_view_voice_record_bar.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/controls/history_view_ttl_button.h"
+#include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_cursor_state.h"
@@ -118,7 +119,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_subsection_tabs.h"
-#include "history/view/history_view_suggest_options.h"
 #include "history/view/history_view_translate_bar.h"
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
@@ -1902,7 +1902,7 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 				.topicRootId = topicRootId,
 				.monoforumPeerId = monoforumPeerId,
 			},
-			SuggestPostOptions(),
+			suggestOptions(true),
 			_preview->draft(),
 			_saveEditMsgRequestId));
 	} else {
@@ -2935,7 +2935,7 @@ void HistoryWidget::registerDraftSource() {
 			(editMsgId
 				? FullReplyTo{ FullMsgId(peerId, editMsgId) }
 				: _replyTo),
-			(editMsgId ? SuggestPostOptions() : suggestOptions()),
+			suggestOptions(editMsgId != 0),
 			_field->getTextWithTags(),
 			_preview->draft(),
 		};
@@ -3180,7 +3180,7 @@ void HistoryWidget::applySuggestOptions(
 
 	using namespace HistoryView;
 	_suggestOptions = std::make_unique<SuggestOptions>(
-		controller(),
+		controller()->uiShow(),
 		_peer,
 		suggest,
 		mode);
@@ -4522,7 +4522,7 @@ void HistoryWidget::saveEditMessage(Api::SendOptions options) {
 	};
 
 	options.invertCaption = _mediaEditManager.invertCaption();
-	options.suggest = suggestOptions();
+	options.suggest = suggestOptions(true);
 
 	const auto withPaymentApproved = [=](int approved) {
 		auto copy = options;
@@ -6700,8 +6700,11 @@ FullReplyTo HistoryWidget::replyTo() const {
 		: FullReplyTo();
 }
 
-SuggestPostOptions HistoryWidget::suggestOptions() const {
-	return (_history && _history->suggestDraftAllowed() && _suggestOptions)
+SuggestPostOptions HistoryWidget::suggestOptions(
+		bool skipNoAdminCheck) const {
+	const auto checked = skipNoAdminCheck
+		|| (_history && _history->suggestDraftAllowed());
+	return (checked && _suggestOptions)
 		? _suggestOptions->values()
 		: SuggestPostOptions();
 }

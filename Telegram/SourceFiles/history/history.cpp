@@ -3394,7 +3394,7 @@ bool History::amMonoforumAdmin() const {
 }
 
 bool History::suggestDraftAllowed() const {
-	return peer->isMonoforum() || !peer->amMonoforumAdmin();
+	return peer->isMonoforum() && !peer->amMonoforumAdmin();
 }
 
 not_null<History*> History::migrateToOrMe() const {
