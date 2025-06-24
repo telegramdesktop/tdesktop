@@ -13,6 +13,7 @@ class CustomEmoji;
 
 namespace Ui::Earn {
 
+[[nodiscard]] QImage IconCurrencyColored(int size, const QColor &c);
 [[nodiscard]] QImage IconCurrencyColored(
 	const style::font &font,
 	const QColor &c);

@@ -395,6 +395,8 @@ PRIVATE
     ui/controls/swipe_handler_data.h
     ui/controls/tabbed_search.cpp
     ui/controls/tabbed_search.h
+    ui/controls/ton_common.cpp
+    ui/controls/ton_common.h
     ui/controls/who_reacted_context_action.cpp
     ui/controls/who_reacted_context_action.h
     ui/controls/window_outdated_bar.cpp

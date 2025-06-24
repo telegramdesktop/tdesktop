@@ -1352,3 +1352,21 @@ chatTabsOutlineHorizontal: ChatTabsOutline {
 
 chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
 }
+
+tonInput: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 7px, 0px, 7px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+
+	heightMin: 34px;
+	heightMax: 100px;
+}
+starsFieldIconPosition: point(0px, 10px);
+tonFieldIconSize: 16px;
+tonFieldIconPosition: point(2px, 9px);

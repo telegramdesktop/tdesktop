@@ -2756,11 +2756,6 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		_session->credits().apply(data);
 	} break;
 
-	case mtpc_updateStarsTonBalance: {
-		const auto &data = update.c_updateStarsBalance();
-		_session->credits().apply(data);
-	} break;
-
 	case mtpc_updatePaidReactionPrivacy: {
 		const auto &data = update.c_updatePaidReactionPrivacy();
 		_session->api().globalPrivacy().updatePaidReactionShownPeer(

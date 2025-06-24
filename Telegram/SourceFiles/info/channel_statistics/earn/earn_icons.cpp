@@ -47,10 +47,8 @@ namespace {
 
 } // namespace
 
-QImage IconCurrencyColored(
-		const style::font &font,
-		const QColor &c) {
-	const auto s = Size(font->ascent);
+QImage IconCurrencyColored(int size, const QColor &c) {
+	const auto s = Size(size);
 	auto svg = QSvgRenderer(CurrencySvg(c));
 	auto image = QImage(
 		s * style::DevicePixelRatio(),
@@ -62,6 +60,12 @@ QImage IconCurrencyColored(
 		svg.render(&p, Rect(s));
 	}
 	return image;
+}
+
+QImage IconCurrencyColored(
+		const style::font &font,
+		const QColor &c) {
+	return IconCurrencyColored(font->ascent, c);
 }
 
 QByteArray CurrencySvgColored(const QColor &c) {

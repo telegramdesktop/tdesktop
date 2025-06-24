@@ -4422,8 +4422,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_bar_dated" = "Publish on {date}";
 "lng_suggest_options_title" = "Suggest a Message";
 "lng_suggest_options_change" = "Suggest Changes";
-"lng_suggest_options_price" = "Enter Price in Stars";
-"lng_suggest_options_price_about" = "Choose how many Stars to pay to publish this message.";
+"lng_suggest_options_stars_offer" = "Offer Stars";
+"lng_suggest_options_stars_price" = "Enter Price in Stars";
+"lng_suggest_options_stars_price_about" = "Choose how many Stars to pay to publish this message.";
+"lng_suggest_options_ton_offer" = "Offer TON";
+"lng_suggest_options_ton_price" = "Enter Price in TON";
+"lng_suggest_options_ton_price_about" = "Choose how many TON to pay to publish this message.";
 "lng_suggest_options_date" = "Time";
 "lng_suggest_options_date_any" = "Anytime";
 "lng_suggest_options_date_about" = "Select the date and time you want the message to be published.";

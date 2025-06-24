@@ -132,12 +132,16 @@ void Credits::invalidate() {
 }
 
 void Credits::apply(CreditsAmount balance) {
-	_balance = balance;
-	updateNonLockedValue();
+	if (balance.ton()) {
+		_balanceTon = balance;
+	} else {
+		_balance = balance;
+		updateNonLockedValue();
 
-	const auto was = std::exchange(_lastLoaded, crl::now());
-	if (!was) {
-		_loadedChanges.fire({});
+		const auto was = std::exchange(_lastLoaded, crl::now());
+		if (!was) {
+			_loadedChanges.fire({});
+		}
 	}
 }
 

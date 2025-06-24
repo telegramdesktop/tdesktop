@@ -56,6 +56,7 @@ private:
 	base::flat_map<PeerId, uint64> _cachedPeerCurrencyBalances;
 
 	CreditsAmount _balance;
+	CreditsAmount _balanceTon;
 	CreditsAmount _locked;
 	rpl::variable<CreditsAmount> _nonLockedBalance;
 	rpl::event_stream<> _loadedChanges;
