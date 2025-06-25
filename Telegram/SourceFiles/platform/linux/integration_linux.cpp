@@ -22,6 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <gio/gio.hpp>
 #include <xdpinhibit/xdpinhibit.hpp>
 
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif // __GLIBC__
+
 namespace Platform {
 namespace {
 
@@ -166,6 +170,14 @@ LinuxIntegration::LinuxIntegration()
 		g_warning("Qt is running without GLib event loop integration, "
 			"expect various functionality to not to work.");
 	}
+
+#ifdef __GLIBC__
+	mallopt(M_ARENA_MAX, 1);
+	QObject::connect(
+		QCoreApplication::eventDispatcher(),
+		&QAbstractEventDispatcher::aboutToBlock,
+		[] { malloc_trim(0); });
+#endif // __GLIBC__
 }
 
 void LinuxIntegration::init() {
