@@ -1775,6 +1775,14 @@ ServiceAction ParseServiceAction(
 			.rejected = data.is_rejected(),
 			.balanceTooLow = data.is_balance_too_low(),
 		};
+	}, [&](const MTPDmessageActionSuggestedPostSuccess &data) {
+		result.content = ActionSuggestedPostSuccess{
+			.price = CreditsAmountFromTL(data.vprice()),
+		};
+	}, [&](const MTPDmessageActionSuggestedPostRefund &data) {
+		result.content = ActionSuggestedPostRefund{
+			.payerInitiated = data.is_payer_initiated(),
+		};
 	}, [&](const MTPDmessageActionConferenceCall &data) {
 		auto content = ActionPhoneCall();
 		using State = ActionPhoneCall::State;

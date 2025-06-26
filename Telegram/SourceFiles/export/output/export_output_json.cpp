@@ -725,6 +725,16 @@ QByteArray SerializeMessage(
 			push("price_currency", data.price.ton() ? "TON" : "Stars");
 			push("scheduled_date", data.scheduleDate);
 		}
+	}, [&](const ActionSuggestedPostSuccess &data) {
+		pushActor();
+		pushAction("suggested_post_success");
+		push("price_amount_whole", NumberToString(data.price.whole()));
+		push("price_amount_nano", NumberToString(data.price.nano()));
+		push("price_currency", data.price.ton() ? "TON" : "Stars");
+	}, [&](const ActionSuggestedPostRefund &data) {
+		pushActor();
+		pushAction("suggested_post_refund");
+		push("user_initiated", data.payerInitiated);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/box_content.h"
 
+enum class PaidPostType : uchar;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -58,7 +60,7 @@ private:
 	[[nodiscard]] bool hasScheduledMessages() const;
 	[[nodiscard]] std::optional<RevokeConfig> revokeText(
 		not_null<PeerData*> peer) const;
-	[[nodiscard]] bool hasPaidSuggestedPosts() const;
+	[[nodiscard]] PaidPostType paidPostType() const;
 
 	const not_null<Main::Session*> _session;
 

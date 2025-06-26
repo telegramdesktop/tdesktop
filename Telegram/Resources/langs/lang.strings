@@ -4472,6 +4472,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_decline_title" = "Decline";
 "lng_suggest_decline_text" = "Do you want to decline publishing this post from {from}?";
 "lng_suggest_decline_reason" = "Add a reason (optional)";
+"lng_suggest_warn_title_stars" = "Stars will be lost";
+"lng_suggest_warn_title_ton" = "TON will be lost";
+"lng_suggest_warn_text_stars" = "You won't receive **Stars** for the post if you delete it now. The post must remain visible for at least **24 hours** after it was published.";
+"lng_suggest_warn_text_ton" = "You won't receive **TON** for the post if you delete it now. The post must remain visible for at least **24 hours** after it was published.";
+"lng_suggest_warn_delete_anyway" = "Delete Anyway";
 
 "lng_reply_in_another_title" = "Reply in...";
 "lng_reply_in_another_chat" = "Reply in Another Chat";

@@ -830,6 +830,8 @@ HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 		return append;
 	} else if (const auto decision = Get<HistoryServiceSuggestDecision>()) {
 		return decision;
+	} else if (const auto finish = Get<HistoryServiceSuggestFinish>()) {
+		return finish;
 	}
 	return nullptr;
 }
@@ -1645,8 +1647,12 @@ bool HistoryItem::isEditingMedia() const {
 	return Has<HistoryMessageSavedMediaData>();
 }
 
-bool HistoryItem::isPaidSuggestedPost() const {
-	return _flags & MessageFlag::PaidSuggestedPost;
+PaidPostType HistoryItem::paidType() const {
+	return (_flags & MessageFlag::StarsPaidSuggested)
+		? PaidPostType::Stars
+		: (_flags & MessageFlag::TonPaidSuggested)
+		? PaidPostType::Ton
+		: PaidPostType::None;
 }
 
 void HistoryItem::clearSavedMedia() {
@@ -2474,7 +2480,7 @@ bool HistoryItem::allowsSendNow() const {
 		&& !isSending()
 		&& !hasFailed()
 		&& !isEditingMedia()
-		&& !isPaidSuggestedPost();
+		&& (paidType() == PaidPostType::None);
 }
 
 bool HistoryItem::allowsReschedule() const {
@@ -2502,7 +2508,7 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 		&& (!_media || _media->allowsEdit())
 		&& !isLegacyMessage()
 		&& !isEditingMedia()
-		&& !isPaidSuggestedPost();
+		&& (paidType() == PaidPostType::None);
 }
 
 bool HistoryItem::allowsEditMedia() const {
@@ -4673,6 +4679,18 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		decision->rejected = data.is_rejected();
 		decision->rejectComment = qs(data.vreject_comment().value_or_empty());
 		decision->date = data.vschedule_date().value_or_empty();
+	} else if (type == mtpc_messageActionSuggestedPostSuccess) {
+		const auto &data = action.c_messageActionSuggestedPostSuccess();
+		UpdateComponents(HistoryServiceSuggestFinish::Bit());
+		const auto finish = Get<HistoryServiceSuggestFinish>();
+		finish->successPrice = CreditsAmountFromTL(data.vprice());
+	} else if (type == mtpc_messageActionSuggestedPostRefund) {
+		const auto &data = action.c_messageActionSuggestedPostRefund();
+		UpdateComponents(HistoryServiceSuggestFinish::Bit());
+		const auto finish = Get<HistoryServiceSuggestFinish>();
+		finish->refundType = data.is_payer_initiated()
+			? SuggestRefundType::User
+			: SuggestRefundType::Admin;
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -6058,7 +6076,15 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareSuggestedPostApproval = [&](const MTPDmessageActionSuggestedPostApproval &data) {
-		return PreparedServiceText{ { u"hello"_q } };
+		return PreparedServiceText{ { tr::lng_suggest_action_agreement(tr::now) } };
+	};
+
+	auto prepareSuggestedPostSuccess = [&](const MTPDmessageActionSuggestedPostSuccess &data) {
+		return PreparedServiceText{ { u"hello"_q } }; AssertIsDebug();
+	};
+
+	auto prepareSuggestedPostRefund = [&](const MTPDmessageActionSuggestedPostRefund &data) {
+		return PreparedServiceText{ { u"hello"_q } }; AssertIsDebug();
 	};
 
 	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {
@@ -6119,6 +6145,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareTodoCompletions,
 		prepareTodoAppendTasks,
 		prepareSuggestedPostApproval,
+		prepareSuggestedPostSuccess,
+		prepareSuggestedPostRefund,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

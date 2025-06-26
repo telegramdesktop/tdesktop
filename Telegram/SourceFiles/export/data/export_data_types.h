@@ -707,6 +707,14 @@ struct ActionSuggestedPostApproval {
 	bool balanceTooLow = false;
 };
 
+struct ActionSuggestedPostSuccess {
+	CreditsAmount price;
+};
+
+struct ActionSuggestedPostRefund {
+	bool payerInitiated = false;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -757,7 +765,9 @@ struct ServiceAction {
 		ActionPaidMessagesPrice,
 		ActionTodoCompletions,
 		ActionTodoAppendTasks,
-		ActionSuggestedPostApproval> content;
+		ActionSuggestedPostApproval,
+		ActionSuggestedPostSuccess,
+		ActionSuggestedPostRefund> content;
 };
 
 ServiceAction ParseServiceAction(

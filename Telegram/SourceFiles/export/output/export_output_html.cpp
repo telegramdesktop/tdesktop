@@ -1466,6 +1466,15 @@ auto HtmlWriter::Wrap::pushMessage(
 				: (", with comment: &quot;"
 					+ SerializeString(data.rejectComment)
 					+ "&quot;"));
+	}, [&](const ActionSuggestedPostSuccess &data) {
+		return "The paid post was shown for 24 hours and "
+			+ QString::number(data.price.value()).toUtf8()
+			+ (data.price.ton() ? " TON" : " stars")
+			+ " were transferred to the channel.";
+	}, [&](const ActionSuggestedPostRefund &data) {
+		return QByteArray() + (data.payerInitiated
+			? "The user refunded the payment, post was deleted."
+			: "The admin deleted the post early, the payment was refunded.");
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

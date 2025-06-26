@@ -708,6 +708,19 @@ struct HistoryServiceSuggestDecision
 	bool balanceTooLow = false;
 };
 
+enum class SuggestRefundType {
+	None,
+	User,
+	Admin,
+};
+
+struct HistoryServiceSuggestFinish
+: RuntimeComponent<HistoryServiceSuggestFinish, HistoryItem>
+, HistoryServiceDependentData {
+	CreditsAmount successPrice;
+	SuggestRefundType refundType = SuggestRefundType::None;
+};
+
 struct HistoryServiceGameScore
 : RuntimeComponent<HistoryServiceGameScore, HistoryItem>
 , HistoryServiceDependentData {

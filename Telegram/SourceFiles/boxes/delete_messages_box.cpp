@@ -499,23 +499,32 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-bool DeleteMessagesBox::hasPaidSuggestedPosts() const {
+PaidPostType DeleteMessagesBox::paidPostType() const {
+	auto result = PaidPostType::None;
 	const auto now = base::unixtime::now();
 	for (const auto &id : _ids) {
 		if (const auto item = _session->data().message(id)) {
-			if (item->isPaidSuggestedPost()) {
+			const auto type = item->paidType();
+			if (type != PaidPostType::None) {
 				const auto date = item->date();
 				if (now < date || now - date <= kPaidShowLive) {
-					return true;
+					if (type == PaidPostType::Ton) {
+						return type;
+					} else if (type == PaidPostType::Stars) {
+						result = type;
+					}
 				}
 			}
 		}
 	}
-	return false;
+	return result;
 }
 
 void DeleteMessagesBox::deleteAndClear() {
-	if (hasPaidSuggestedPosts() && !_confirmedDeletePaidSuggestedPosts) {
+	const auto warnPaidType = _confirmedDeletePaidSuggestedPosts
+		? PaidPostType::None
+		: paidPostType();
+	if (warnPaidType != PaidPostType::None) {
 		const auto weak = Ui::MakeWeak(this);
 		const auto callback = [=](Fn<void()> close) {
 			close();
@@ -524,13 +533,19 @@ void DeleteMessagesBox::deleteAndClear() {
 				strong->deleteAndClear();
 			}
 		};
-		AssertIsDebug();
+		const auto ton = (warnPaidType == PaidPostType::Ton);
 		uiShow()->show(Ui::MakeConfirmBox({
-			.text = u"You won't receive Stars for this post if you delete it now. The post must remain visible for at least 24 hours after it was published."_q,
+			.text = (ton
+				? tr::lng_suggest_warn_text_ton
+				: tr::lng_suggest_warn_text_stars)(
+					tr::now,
+					Ui::Text::RichLangValue),
 			.confirmed = callback,
-			.confirmText = u"Delete Anyway"_q,
+			.confirmText = tr::lng_suggest_warn_delete_anyway(tr::now),
 			.confirmStyle = &st::attentionBoxButton,
-			.title = u"Stars will be lost"_q,
+			.title = (ton
+				? tr::lng_suggest_warn_title_ton
+				: tr::lng_suggest_warn_title_stars)(tr::now),
 		}));
 		return;
 	}

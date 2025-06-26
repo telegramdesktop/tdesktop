@@ -95,6 +95,12 @@ enum class HistoryReactionSource : char {
 	Existing,
 };
 
+enum class PaidPostType : uchar {
+	None,
+	Stars,
+	Ton,
+};
+
 class HistoryItem final : public RuntimeComposer<HistoryItem> {
 public:
 	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
@@ -314,7 +320,6 @@ public:
 	[[nodiscard]] bool hasRealFromId() const;
 	[[nodiscard]] bool isPostHidingAuthor() const;
 	[[nodiscard]] bool isPostShowingAuthor() const;
-	[[nodiscard]] bool isPaidSuggestedPost() const;
 	[[nodiscard]] bool isRegular() const;
 	[[nodiscard]] bool isUploading() const;
 	void sendFailed();
@@ -325,6 +330,7 @@ public:
 	[[nodiscard]] bool hasUnpaidContent() const;
 	[[nodiscard]] bool inHighlightProcess() const;
 	void highlightProcessDone();
+	[[nodiscard]] PaidPostType paidType() const;
 
 	void setCommentsInboxReadTill(MsgId readTillId);
 	void setCommentsMaxId(MsgId maxId);
