@@ -437,6 +437,8 @@ public:
 	[[nodiscard]] bool requiresSendInlineRight() const;
 	[[nodiscard]] Data::SendError errorTextForForward(
 		not_null<Data::Thread*> to) const;
+	[[nodiscard]] Data::SendError errorTextForForwardIgnoreRights(
+		not_null<Data::Thread*> to) const;
 	[[nodiscard]] const HistoryMessageTranslation *translation() const;
 	[[nodiscard]] bool translationShowRequiresCheck(LanguageId to) const;
 	bool translationShowRequiresRequest(LanguageId to);

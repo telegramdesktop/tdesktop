@@ -37,7 +37,7 @@ namespace Api {
 namespace {
 
 void SendApproval(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item,
 		TimeId scheduleDate = 0) {
 	using Flag = MTPmessages_ToggleSuggestedPostApproval::Flag;
@@ -50,8 +50,7 @@ void SendApproval(
 	}
 
 	const auto id = item->fullId();
-	const auto weak = base::make_weak(controller);
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	const auto finish = [=] {
 		if (const auto item = session->data().message(id)) {
 			const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
@@ -71,15 +70,13 @@ void SendApproval(
 		session->api().applyUpdates(result);
 		finish();
 	}).fail([=](const MTP::Error &error) {
-		if (const auto window = weak.get()) {
-			window->showToast(error.type());
-		}
+		show->showToast(error.type());
 		finish();
 	}).send();
 }
 
 void SendDecline(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item,
 		const QString &comment) {
 	using Flag = MTPmessages_ToggleSuggestedPostApproval::Flag;
@@ -92,8 +89,7 @@ void SendDecline(
 	}
 
 	const auto id = item->fullId();
-	const auto weak = base::make_weak(controller);
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	const auto finish = [=] {
 		if (const auto item = session->data().message(id)) {
 			const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
@@ -114,21 +110,19 @@ void SendDecline(
 		session->api().applyUpdates(result);
 		finish();
 	}).fail([=](const MTP::Error &error) {
-		if (const auto window = weak.get()) {
-			window->showToast(error.type());
-		}
+		show->showToast(error.type());
 		finish();
 	}).send();
 }
 
 void RequestApprovalDate(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
 	const auto id = item->fullId();
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto done = [=](TimeId result) {
-		if (const auto item = controller->session().data().message(id)) {
-			SendApproval(controller, item, result);
+		if (const auto item = show->session().data().message(id)) {
+			SendApproval(show, item, result);
 		}
 		if (const auto strong = weak->data()) {
 			strong->closeBox();
@@ -136,19 +130,19 @@ void RequestApprovalDate(
 	};
 	using namespace HistoryView;
 	auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
-		.session = &controller->session(),
+		.session = &show->session(),
 		.done = done,
 		.mode = SuggestMode::New,
 	});
 	*weak = dateBox.data();
-	controller->uiShow()->show(std::move(dateBox));
+	show->show(std::move(dateBox));
 }
 
 void RequestDeclineComment(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
 	const auto id = item->fullId();
-	controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto callback = std::make_shared<Fn<void()>>();
 		Ui::ConfirmBox(box, {
 			.text = tr::lng_suggest_decline_text(
@@ -169,11 +163,11 @@ void RequestDeclineComment(
 			reason->setFocusFast();
 		});
 		*callback = [=, weak = Ui::MakeWeak(box)] {
-			const auto item = controller->session().data().message(id);
+			const auto item = show->session().data().message(id);
 			if (!item) {
 				return;
 			}
-			SendDecline(controller, item, reason->getLastText().trimmed());
+			SendDecline(show, item, reason->getLastText().trimmed());
 			if (const auto strong = weak.data()) {
 				strong->closeBox();
 			}
@@ -191,24 +185,21 @@ struct SendSuggestState {
 	SendPaymentHelper sendPayment;
 };
 void SendSuggest(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item,
 		std::shared_ptr<SendSuggestState> state,
 		Fn<void(SuggestPostOptions&)> modify,
 		Fn<void()> done = nullptr,
 		int starsApproved = 0) {
 	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
-	if (!suggestion) {
-		return;
-	}
 	const auto id = item->fullId();
 	const auto withPaymentApproved = [=](int stars) {
-		if (const auto item = controller->session().data().message(id)) {
-			SendSuggest(controller, item, state, modify, done, stars);
+		if (const auto item = show->session().data().message(id)) {
+			SendSuggest(show, item, state, modify, done, stars);
 		}
 	};
 	const auto checked = state->sendPayment.check(
-		controller->uiShow(),
+		show,
 		item->history()->peer,
 		1,
 		starsApproved,
@@ -218,18 +209,23 @@ void SendSuggest(
 	}
 	const auto isForward = item->Get<HistoryMessageForwarded>();
 	auto action = SendAction(item->history());
+
 	action.options.suggest.exists = 1;
-	action.options.suggest.date = suggestion->date;
-	action.options.suggest.priceWhole = suggestion->price.whole();
-	action.options.suggest.priceNano = suggestion->price.nano();
-	action.options.suggest.ton = suggestion->price.ton() ? 1 : 0;
+	if (suggestion) {
+		action.options.suggest.date = suggestion->date;
+		action.options.suggest.priceWhole = suggestion->price.whole();
+		action.options.suggest.priceNano = suggestion->price.nano();
+		action.options.suggest.ton = suggestion->price.ton() ? 1 : 0;
+	}
+	modify(action.options.suggest);
+
 	action.options.starsApproved = starsApproved;
 	action.replyTo.monoforumPeerId = item->history()->amMonoforumAdmin()
 		? item->sublistPeerId()
 		: PeerId();
 	action.replyTo.messageId = item->fullId();
-	modify(action.options.suggest);
-	controller->session().api().forwardMessages({
+	show->session().api().sendAction(action);
+	show->session().api().forwardMessages({
 		.items = { item },
 		.options = (isForward
 			? Data::ForwardOptions::PreserveInfo
@@ -241,7 +237,7 @@ void SendSuggest(
 }
 
 void SuggestApprovalDate(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
 	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
 	if (!suggestion) {
@@ -251,7 +247,7 @@ void SuggestApprovalDate(
 	const auto state = std::make_shared<SendSuggestState>();
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto done = [=](TimeId result) {
-		const auto item = controller->session().data().message(id);
+		const auto item = show->session().data().message(id);
 		if (!item) {
 			return;
 		}
@@ -261,7 +257,7 @@ void SuggestApprovalDate(
 			}
 		};
 		SendSuggest(
-			controller,
+			show,
 			item,
 			state,
 			[=](SuggestPostOptions &options) { options.date = result; },
@@ -270,27 +266,25 @@ void SuggestApprovalDate(
 	using namespace HistoryView;
 	const auto admin = item->history()->amMonoforumAdmin();
 	auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
-		.session = &controller->session(),
+		.session = &show->session(),
 		.done = done,
 		.value = suggestion->date,
 		.mode = (admin ? SuggestMode::ChangeAdmin : SuggestMode::ChangeUser),
 	});
 	*weak = dateBox.data();
-	controller->uiShow()->show(std::move(dateBox));
+	show->show(std::move(dateBox));
 }
 
-void SuggestApprovalPrice(
-		not_null<Window::SessionController*> controller,
-		not_null<HistoryItem*> item) {
-	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
-	if (!suggestion) {
-		return;
-	}
+void SuggestOfferForMessage(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<HistoryItem*> item,
+		SuggestPostOptions values,
+		HistoryView::SuggestMode mode) {
 	const auto id = item->fullId();
 	const auto state = std::make_shared<SendSuggestState>();
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto done = [=](SuggestPostOptions result) {
-		const auto item = controller->session().data().message(id);
+		const auto item = show->session().data().message(id);
 		if (!item) {
 			return;
 		}
@@ -300,28 +294,39 @@ void SuggestApprovalPrice(
 			}
 		};
 		SendSuggest(
-			controller,
+			show,
 			item,
 			state,
 			[=](SuggestPostOptions &options) { options = result; },
 			close);
 	};
 	using namespace HistoryView;
-	const auto admin = item->history()->amMonoforumAdmin();
-	auto dateBox = Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
-		.session = &controller->session(),
+	auto priceBox = Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
+		.session = &show->session(),
 		.done = done,
-		.value = {
-			.exists = uint32(1),
-			.priceWhole = uint32(suggestion->price.whole()),
-			.priceNano = uint32(suggestion->price.nano()),
-			.ton = uint32(suggestion->price.ton() ? 1 : 0),
-			.date = suggestion->date,
-		},
-		.mode = (admin ? SuggestMode::ChangeAdmin : SuggestMode::ChangeUser),
+		.value = values,
+		.mode = mode,
 	});
-	*weak = dateBox.data();
-	controller->uiShow()->show(std::move(dateBox));
+	*weak = priceBox.data();
+	show->show(std::move(priceBox));
+}
+
+void SuggestApprovalPrice(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<HistoryItem*> item) {
+	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	if (!suggestion) {
+		return;
+	}
+	const auto admin = item->history()->amMonoforumAdmin();
+	using namespace HistoryView;
+	SuggestOfferForMessage(show, item, {
+		.exists = uint32(1),
+		.priceWhole = uint32(suggestion->price.whole()),
+		.priceNano = uint32(suggestion->price.nano()),
+		.ton = uint32(suggestion->price.ton() ? 1 : 0),
+		.date = suggestion->date,
+	}, admin ? SuggestMode::ChangeAdmin : SuggestMode::ChangeUser);
 }
 
 } // namespace
@@ -340,13 +345,14 @@ std::shared_ptr<ClickHandler> AcceptClickHandler(
 		if (!item) {
 			return;
 		}
+		const auto show = controller->uiShow();
 		const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
 		if (!suggestion) {
 			return;
 		} else if (!suggestion->date) {
-			RequestApprovalDate(controller, item);
+			RequestApprovalDate(show, item);
 		} else {
-			SendApproval(controller, item);
+			SendApproval(show, item);
 		}
 	});
 }
@@ -360,7 +366,7 @@ std::shared_ptr<ClickHandler> DeclineClickHandler(
 		if (!controller) {
 			return;
 		}
-		RequestDeclineComment(controller, item);
+		RequestDeclineComment(controller->uiShow(), item);
 	});
 }
 
@@ -426,16 +432,27 @@ std::shared_ptr<ClickHandler> SuggestChangesClickHandler(
 		}
 		menu->addAction(tr::lng_suggest_menu_edit_price(tr::now), [=] {
 			if (const auto item = session->data().message(id)) {
-				SuggestApprovalPrice(window, item);
+				SuggestApprovalPrice(window->uiShow(), item);
 			}
 		}, &st::menuIconTagSell);
 		menu->addAction(tr::lng_suggest_menu_edit_time(tr::now), [=] {
 			if (const auto item = session->data().message(id)) {
-				SuggestApprovalDate(window, item);
+				SuggestApprovalDate(window->uiShow(), item);
 			}
 		}, &st::menuIconSchedule);
 		menu->popup(QCursor::pos());
 	});
+}
+
+void AddOfferToMessage(
+		std::shared_ptr<Main::SessionShow> show,
+		FullMsgId itemId) {
+	const auto session = &show->session();
+	const auto item = session->data().message(itemId);
+	if (!item || !HistoryView::CanAddOfferToMessage(item)) {
+		return;
+	}
+	SuggestOfferForMessage(show, item, {}, HistoryView::SuggestMode::New);
 }
 
 } // namespace Api

@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
@@ -382,6 +384,19 @@ void ChooseSuggestPriceBox(
 bool CanEditSuggestedMessage(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 	return !media || media->allowsEditCaption();
+}
+
+bool CanAddOfferToMessage(not_null<HistoryItem*> item) {
+	const auto history = item->history();
+	const auto broadcast = history->peer->monoforumBroadcast();
+	return broadcast
+		&& !history->amMonoforumAdmin()
+		&& !item->Get<HistoryMessageSuggestedPost>()
+		&& !item->groupId()
+		&& item->isRegular()
+		&& !item->isService()
+		&& !item->errorTextForForwardIgnoreRights(
+			history->owner().history(broadcast)).has_value();
 }
 
 SuggestOptions::SuggestOptions(

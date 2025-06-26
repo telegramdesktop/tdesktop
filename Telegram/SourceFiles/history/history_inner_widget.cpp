@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions.h"
@@ -76,6 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "api/api_attached_stickers.h"
+#include "api/api_suggest_post.h"
 #include "api/api_toggling_media.h"
 #include "api/api_who_reacted.h"
 #include "api/api_views.h"
@@ -2410,9 +2412,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					highlightId);
 			}, &st::menuIconViewReplies);
 		}
-		_menu->addAction(u"Add Offer"_q, [=] {
-
-		}, &st::menuIconDiscussion);
 		const auto t = base::unixtime::now();
 		const auto editItem = (albumPartItem && albumPartItem->allowsEdit(t))
 			? albumPartItem
@@ -2812,6 +2811,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						forwardItem(itemId);
 					}, &st::menuIconForward);
 				}
+				if (HistoryView::CanAddOfferToMessage(item)) {
+					_menu->addAction(tr::lng_context_add_offer(tr::now), [=] {
+						Api::AddOfferToMessage(_controller->uiShow(), itemId);
+					}, &st::menuIconTagSell);
+				}
 				if (item->canDelete()) {
 					const auto callback = [=] { deleteItem(itemId); };
 					if (item->isUploading()) {
@@ -3061,6 +3065,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
 					}, &st::menuIconForward);
+				}
+				if (HistoryView::CanAddOfferToMessage(item)) {
+					_menu->addAction(tr::lng_context_add_offer(tr::now), [=] {
+						Api::AddOfferToMessage(_controller->uiShow(), itemId);
+					}, &st::menuIconTagSell);
 				}
 				if (canDelete) {
 					const auto callback = [=] {

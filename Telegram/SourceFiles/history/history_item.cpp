@@ -2695,11 +2695,26 @@ Data::SendError HistoryItem::errorTextForForward(
 	} else if (requiresInline && !Data::CanSend(to, kInline)) {
 		const auto forInline = Data::RestrictionError(peer, kInline);
 		return forInline ? forInline : tr::lng_forward_cant(tr::now);
-	} else if (_media
+	} else if (const auto specific = errorTextForForwardIgnoreRights(to)) {
+		return specific;
+	} else if (!Data::CanSend(to, requiredRight, false)) {
+		return tr::lng_forward_cant(tr::now);
+	}
+	return {};
+}
+
+Data::SendError HistoryItem::errorTextForForwardIgnoreRights(
+		not_null<Data::Thread*> to) const {
+	const auto peer = to->peer();
+	if (_media
 		&& _media->poll()
 		&& _media->poll()->publicVotes()
 		&& peer->isBroadcast()) {
 		return tr::lng_restricted_send_public_polls(tr::now);
+	} else if (_media
+		&& _media->todolist()
+		&& (peer->isBroadcast() || peer->isMonoforum())) {
+		return tr::lng_restricted_send_todo_lists(tr::now);
 	} else if (_media
 		&& _media->invoice()
 		&& _media->invoice()->isPaidMedia
@@ -2707,8 +2722,6 @@ Data::SendError HistoryItem::errorTextForForward(
 		&& peer->isFullLoaded()
 		&& !peer->asBroadcast()->canPostPaidMedia()) {
 		return tr::lng_restricted_send_paid_media(tr::now);
-	} else if (!Data::CanSend(to, requiredRight, false)) {
-		return tr::lng_forward_cant(tr::now);
 	}
 	return {};
 }

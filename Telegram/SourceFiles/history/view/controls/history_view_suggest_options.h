@@ -56,6 +56,8 @@ void ChooseSuggestPriceBox(
 
 [[nodiscard]] bool CanEditSuggestedMessage(not_null<HistoryItem*> item);
 
+[[nodiscard]] bool CanAddOfferToMessage(not_null<HistoryItem*> item);
+
 class SuggestOptions final {
 public:
 	SuggestOptions(

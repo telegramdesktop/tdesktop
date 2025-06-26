@@ -4232,6 +4232,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_edit_msg" = "Edit";
 "lng_context_add_factcheck" = "Add Fact Check";
 "lng_context_edit_factcheck" = "Edit Fact Check";
+"lng_context_add_offer" = "Add Offer";
 "lng_context_forward_msg" = "Forward";
 "lng_context_send_now_msg" = "Send Now";
 "lng_context_reschedule" = "Reschedule";
@@ -5363,6 +5364,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_polls_all" = "Sorry, sending polls is not allowed in this group.";
 
 "lng_restricted_send_public_polls" = "Sorry, polls with visible votes can't be forwarded to channels.";
+"lng_restricted_send_todo_lists" = "Sorry, To-Do lists can't be forwarded to channels.";
 "lng_restricted_send_paid_media" = "Sorry, paid media can't be sent to this channel.";
 
 "lng_restricted_send_voice_messages" = "{user} doesn't accept voice messages.";

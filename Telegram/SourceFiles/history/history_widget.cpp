@@ -2200,6 +2200,10 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 	_pinnedClickedId = FullMsgId();
 	_minPinnedId = std::nullopt;
 	if (_history->isReadyFor(_showAtMsgId)) {
+		_history->forgetScrollState();
+		if (_migrated) {
+			_migrated->forgetScrollState();
+		}
 		historyLoaded();
 	} else {
 		firstLoadMessages();
