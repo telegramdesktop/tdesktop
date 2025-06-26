@@ -121,7 +121,10 @@ void ChooseSuggestPriceBox(
 		button.geometry = QRect(QPoint(x, y), r.size());
 		x += r.width() + st::giftBoxTabSkip;
 	}
-	const auto buttons = box->addRow(object_ptr<Ui::RpWidget>(box));
+	const auto buttons = box->addRow(
+		object_ptr<Ui::RpWidget>(box),
+		(st::boxRowPadding
+			- QMargins(padding.left() / 2, 0, padding.right() / 2, 0)));
 	const auto height = y
 		+ state->buttons.back().geometry.height()
 		+ st::giftBoxTabsMargin.bottom();
