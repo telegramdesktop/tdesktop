@@ -414,7 +414,7 @@ SuggestOptions::SuggestOptions(
 SuggestOptions::~SuggestOptions() = default;
 
 void SuggestOptions::paintIcon(QPainter &p, int x, int y, int outerWidth) {
-	st::historyDirectMessage.icon.paint(
+	st::historySuggestIconActive.paint(
 		p,
 		QPoint(x, y) + st::historySuggestIconPosition,
 		outerWidth);

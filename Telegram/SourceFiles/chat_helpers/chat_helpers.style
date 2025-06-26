@@ -1144,11 +1144,12 @@ historyGiftToUser: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_gift", historyComposeIconFg }};
 	iconOver: icon {{ "chat/input_gift", historyComposeIconFgOver }};
 }
-historySuggestPostToggle: IconButton(historyDirectMessage) {
-	icon: icon{{ "menu/chat_discuss", historyComposeIconFg }};
-	iconOver: icon{{ "menu/chat_discuss", historyComposeIconFgOver }};
+historySuggestPostToggle: IconButton(historyAttach) {
+	icon: icon{{ "chat/input_paid", historyComposeIconFg }};
+	iconOver: icon{{ "chat/input_paid", historyComposeIconFgOver }};
 }
-historySuggestIconPosition: point(12px, 12px);
+historySuggestIconPosition: point(4px, 4px);
+historySuggestIconActive: icon{{ "chat/input_paid", windowActiveTextFg }};
 
 suggestOptionsPrice: InputField(defaultInputField) {
 	textBg: transparent;
