@@ -2911,6 +2911,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_small_balance_star_gift" = "Buy **Stars** to send gifts to {user} and other contacts.";
 "lng_credits_small_balance_for_message" = "Buy **Stars** to send messages to {user}.";
 "lng_credits_small_balance_for_messages" = "Buy **Stars** to send messages.";
+"lng_credits_small_balance_for_suggest" = "Buy **Stars** to suggest post to {channel}.";
 "lng_credits_small_balance_fallback" = "Buy **Stars** to unlock content and services on Telegram.";
 "lng_credits_purchase_blocked" = "Sorry, you can't purchase this item with Telegram Stars.";
 "lng_credits_enough" = "You have enough stars at the moment. {link}";
@@ -4478,6 +4479,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_warn_text_stars" = "You won't receive **Stars** for the post if you delete it now. The post must remain visible for at least **24 hours** after it was published.";
 "lng_suggest_warn_text_ton" = "You won't receive **TON** for the post if you delete it now. The post must remain visible for at least **24 hours** after it was published.";
 "lng_suggest_warn_delete_anyway" = "Delete Anyway";
+"lng_suggest_low_ton_title" = "{amount} TON Needed";
+"lng_suggest_low_ton_text" = "Buy **TON** to suggest message to {channel} and others.";
+"lng_suggest_low_ton_fragment" = "Buy on Fragment";
+"lng_suggest_low_ton_fragment_url" = "https://fragment.com/ads/topup";
 
 "lng_reply_in_another_title" = "Reply in...";
 "lng_reply_in_another_chat" = "Reply in Another Chat";

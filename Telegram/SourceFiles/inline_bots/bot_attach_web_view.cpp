@@ -1910,8 +1910,8 @@ void WebViewInstance::botSendPreparedMessage(
 				const auto checked = state->sendPayment.check(
 					uiShow(),
 					strong->peer(),
+					options,
 					1,
-					options.starsApproved,
 					withPaymentApproved);
 				if (!checked) {
 					return;
@@ -2545,8 +2545,8 @@ void ChooseAndSendLocation(
 			const auto checked = state->sendPayment.check(
 				strong,
 				action.history->peer,
+				action.options,
 				1,
-				action.options.starsApproved,
 				withPaymentApproved);
 			if (!checked) {
 				return;

@@ -1195,13 +1195,13 @@ void ChatWidget::sendingFilesConfirmed(
 
 bool ChatWidget::checkSendPayment(
 		int messagesCount,
-		int starsApproved,
+		Api::SendOptions options,
 		Fn<void(int)> withPaymentApproved) {
 	return _sendPayment.check(
 		controller(),
 		_peer,
+		options,
 		messagesCount,
-		starsApproved,
 		std::move(withPaymentApproved));
 }
 
@@ -1215,7 +1215,7 @@ void ChatWidget::sendingFilesConfirmed(
 	};
 	const auto checked = checkSendPayment(
 		bundle->totalCount,
-		options.starsApproved,
+		options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
@@ -1386,7 +1386,7 @@ void ChatWidget::sendVoice(const ComposeControls::VoiceToSend &data) {
 	};
 	const auto checked = checkSendPayment(
 		1,
-		data.options.starsApproved,
+		data.options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
@@ -1438,7 +1438,7 @@ void ChatWidget::send(Api::SendOptions options) {
 		};
 		const auto checked = checkSendPayment(
 			request.messagesCount,
-			options.starsApproved,
+			options,
 			withPaymentApproved);
 		if (!checked) {
 			return;
@@ -1669,7 +1669,7 @@ bool ChatWidget::sendExistingDocument(
 	};
 	const auto checked = checkSendPayment(
 		1,
-		messageToSend.action.options.starsApproved,
+		messageToSend.action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return false;
@@ -1709,7 +1709,7 @@ bool ChatWidget::sendExistingPhoto(
 	};
 	const auto checked = checkSendPayment(
 		1,
-		options.starsApproved,
+		options,
 		withPaymentApproved);
 	if (!checked) {
 		return false;
@@ -1752,7 +1752,7 @@ void ChatWidget::sendInlineResult(
 	};
 	const auto checked = checkSendPayment(
 		1,
-		options.starsApproved,
+		options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
@@ -3158,7 +3158,7 @@ void ChatWidget::sendBotCommandWithOptions(
 	};
 	const auto checked = checkSendPayment(
 		1,
-		options.starsApproved,
+		options,
 		withPaymentApproved);
 	if (!checked) {
 		return;

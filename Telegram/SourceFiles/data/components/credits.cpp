@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/components/credits.h"
 
+#include "apiwrap.h"
 #include "api/api_credits.h"
 #include "data/data_user.h"
 #include "main/main_app_config.h"
@@ -93,6 +94,54 @@ rpl::producer<CreditsAmount> Credits::balanceValue() const {
 	return _nonLockedBalance.value();
 }
 
+void Credits::tonLoad(bool force) {
+	if (_tonRequestId
+		|| (!force
+			&& _tonLastLoaded
+			&& _tonLastLoaded + kReloadThreshold > crl::now())) {
+		return;
+	}
+	_tonRequestId = _session->api().request(MTPpayments_GetStarsStatus(
+		MTP_flags(MTPpayments_GetStarsStatus::Flag::f_ton),
+		MTP_inputPeerSelf()
+	)).done([=](const MTPpayments_StarsStatus &result) {
+		_tonRequestId = 0;
+		const auto amount = CreditsAmountFromTL(result.data().vbalance());
+		if (amount.ton()) {
+			apply(amount);
+		} else if (amount.empty()) {
+			apply(CreditsAmount(0, CreditsType::Ton));
+		} else {
+			LOG(("API Error: Got weird balance."));
+		}
+	}).fail([=](const MTP::Error &error) {
+		_tonRequestId = 0;
+		LOG(("API Error: Couldn't get TON balance, error: %1"
+			).arg(error.type()));
+	}).send();
+}
+
+bool Credits::tonLoaded() const {
+	return _tonLastLoaded != 0;
+}
+
+rpl::producer<bool> Credits::tonLoadedValue() const {
+	if (tonLoaded()) {
+		return rpl::single(true);
+	}
+	return rpl::single(
+		false
+	) | rpl::then(_tonLoadedChanges.events() | rpl::map_to(true));
+}
+
+CreditsAmount Credits::tonBalance() const {
+	return _tonBalance.current();
+}
+
+rpl::producer<CreditsAmount> Credits::tonBalanceValue() const {
+	return _tonBalance.value();
+}
+
 void Credits::updateNonLockedValue() {
 	_nonLockedBalance = (_balance >= _locked)
 		? (_balance - _locked)
@@ -133,7 +182,12 @@ void Credits::invalidate() {
 
 void Credits::apply(CreditsAmount balance) {
 	if (balance.ton()) {
-		_balanceTon = balance;
+		_tonBalance = balance;
+
+		const auto was = std::exchange(_tonLastLoaded, crl::now());
+		if (!was) {
+			_tonLoadedChanges.fire({});
+		}
 	} else {
 		_balance = balance;
 		updateNonLockedValue();

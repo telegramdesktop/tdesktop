@@ -19,12 +19,8 @@ public:
 	~Credits();
 
 	void load(bool force = false);
-	void apply(CreditsAmount balance);
-	void apply(PeerId peerId, CreditsAmount balance);
-
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] rpl::producer<bool> loadedValue() const;
-
 	[[nodiscard]] CreditsAmount balance() const;
 	[[nodiscard]] CreditsAmount balance(PeerId peerId) const;
 	[[nodiscard]] rpl::producer<CreditsAmount> balanceValue() const;
@@ -32,6 +28,15 @@ public:
 		not_null<PeerData*> ownedBotOrChannel);
 
 	[[nodiscard]] rpl::producer<> refreshedByPeerId(PeerId peerId);
+
+	void tonLoad(bool force = false);
+	[[nodiscard]] bool tonLoaded() const;
+	[[nodiscard]] rpl::producer<bool> tonLoadedValue() const;
+	[[nodiscard]] CreditsAmount tonBalance() const;
+	[[nodiscard]] rpl::producer<CreditsAmount> tonBalanceValue() const;
+
+	void apply(CreditsAmount balance);
+	void apply(PeerId peerId, CreditsAmount balance);
 
 	[[nodiscard]] bool statsEnabled() const;
 
@@ -56,12 +61,16 @@ private:
 	base::flat_map<PeerId, uint64> _cachedPeerCurrencyBalances;
 
 	CreditsAmount _balance;
-	CreditsAmount _balanceTon;
 	CreditsAmount _locked;
 	rpl::variable<CreditsAmount> _nonLockedBalance;
 	rpl::event_stream<> _loadedChanges;
 	crl::time _lastLoaded = 0;
 	float64 _rate = 0.;
+
+	rpl::variable<CreditsAmount> _tonBalance;
+	rpl::event_stream<> _tonLoadedChanges;
+	crl::time _tonLastLoaded = false;
+	mtpRequestId _tonRequestId = 0;
 
 	bool _statsEnabled = false;
 

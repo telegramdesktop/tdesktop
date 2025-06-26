@@ -44,7 +44,7 @@ void ChooseSuggestTimeBox(
 	SuggestTimeBoxArgs &&args);
 
 struct SuggestPriceBoxArgs {
-	not_null<Main::Session*> session;
+	not_null<PeerData*> peer;
 	bool updating = false;
 	Fn<void(SuggestPostOptions)> done;
 	SuggestPostOptions value;
@@ -57,6 +57,11 @@ void ChooseSuggestPriceBox(
 [[nodiscard]] bool CanEditSuggestedMessage(not_null<HistoryItem*> item);
 
 [[nodiscard]] bool CanAddOfferToMessage(not_null<HistoryItem*> item);
+
+void InsufficientTonBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<PeerData*> peer,
+	CreditsAmount required);
 
 class SuggestOptions final {
 public:

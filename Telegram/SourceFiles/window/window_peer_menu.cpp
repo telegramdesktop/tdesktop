@@ -1798,6 +1798,10 @@ void PeerMenuShareContactBox(
 				state->share = nullptr;
 				return;
 			}
+
+			auto action = Api::SendAction(strong, options);
+			action.clearDraft = false;
+
 			const auto withPaymentApproved = [=](int stars) {
 				if (const auto onstack = state->share) {
 					auto copy = options;
@@ -1808,8 +1812,8 @@ void PeerMenuShareContactBox(
 			const auto checked = state->sendPayment.check(
 				navigation,
 				peer,
+				action.options,
 				1,
-				options.starsApproved,
 				withPaymentApproved);
 			if (!checked) {
 				return;
@@ -1818,8 +1822,6 @@ void PeerMenuShareContactBox(
 				strong,
 				ShowAtTheEndMsgId,
 				Window::SectionShow::Way::ClearStack);
-			auto action = Api::SendAction(strong, options);
-			action.clearDraft = false;
 			strong->session().api().shareContact(user, action);
 			state->share = nullptr;
 		};
@@ -1887,6 +1889,12 @@ void PeerMenuCreatePoll(
 	const auto weak = QPointer<CreatePollBox>(box);
 	const auto state = box->lifetime().make_state<State>();
 	state->create = [=](const CreatePollBox::Result &result) {
+		auto action = Api::SendAction(
+			peer->owner().history(peer),
+			result.options);
+		action.replyTo = replyTo;
+		action.options.suggest = suggest;
+
 		const auto withPaymentApproved = crl::guard(weak, [=](int stars) {
 			if (const auto onstack = state->create) {
 				auto copy = result;
@@ -1897,17 +1905,13 @@ void PeerMenuCreatePoll(
 		const auto checked = state->sendPayment.check(
 			controller,
 			peer,
+			action.options,
 			1,
-			result.options.starsApproved,
 			withPaymentApproved);
 		if (!checked || std::exchange(state->lock, true)) {
 			return;
 		}
-		auto action = Api::SendAction(
-			peer->owner().history(peer),
-			result.options);
-		action.replyTo = replyTo;
-		action.options.suggest = suggest;
+
 		const auto local = action.history->localDraft(
 			replyTo.topicRootId,
 			replyTo.monoforumPeerId);
@@ -2002,20 +2006,22 @@ void PeerMenuCreateTodoList(
 				onstack(copy);
 			}
 		});
-		const auto checked = state->sendPayment.check(
-			controller,
-			peer,
-			1,
-			result.options.starsApproved,
-			withPaymentApproved);
-		if (!checked || std::exchange(state->lock, true)) {
-			return;
-		}
 		auto action = Api::SendAction(
 			peer->owner().history(peer),
 			result.options);
 		action.replyTo = replyTo;
 		action.options.suggest = suggest;
+
+		const auto checked = state->sendPayment.check(
+			controller,
+			peer,
+			action.options,
+			1,
+			withPaymentApproved);
+		if (!checked || std::exchange(state->lock, true)) {
+			return;
+		}
+
 		const auto local = action.history->localDraft(
 			replyTo.topicRootId,
 			replyTo.monoforumPeerId);

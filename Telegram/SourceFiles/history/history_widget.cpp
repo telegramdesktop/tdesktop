@@ -4540,7 +4540,7 @@ void HistoryWidget::saveEditMessage(Api::SendOptions options) {
 	};
 	const auto checked = checkSendPayment(
 		1 + int(_forwardPanel->items().size()),
-		options.starsApproved,
+		options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
@@ -4629,15 +4629,15 @@ void HistoryWidget::sendVoice(const VoiceToSend &data) {
 		copy.options.starsApproved = approved;
 		sendVoice(copy);
 	};
+	auto action = prepareSendAction(data.options);
 	const auto checked = checkSendPayment(
 		1 + int(_forwardPanel->items().size()),
-		data.options.starsApproved,
+		action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
 	}
 
-	auto action = prepareSendAction(data.options);
 	session().api().sendVoiceMessage(
 		data.bytes,
 		data.waveform,
@@ -4678,7 +4678,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 			message.textWithTags,
 			ignoreSlowmodeCountdown,
 			withPaymentApproved,
-			options.starsApproved)) {
+			message.action.options)) {
 		return;
 	}
 
@@ -5011,14 +5011,14 @@ FullMsgId HistoryWidget::cornerButtonsCurrentId() {
 
 bool HistoryWidget::checkSendPayment(
 		int messagesCount,
-		int starsApproved,
+		Api::SendOptions options,
 		Fn<void(int)> withPaymentApproved) {
 	return _peer
 		&& _sendPayment.check(
 			controller(),
 			_peer,
+			options,
 			messagesCount,
-			starsApproved,
 			std::move(withPaymentApproved));
 }
 
@@ -5209,9 +5209,11 @@ void HistoryWidget::sendBotCommand(
 		copy.starsApproved = approved;
 		sendBotCommand(request, copy);
 	};
+
+	const auto action = prepareSendAction(options);
 	const auto checked = checkSendPayment(
 		1,
-		options.starsApproved,
+		action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
@@ -5226,7 +5228,7 @@ void HistoryWidget::sendBotCommand(
 		? request.command
 		: Bot::WrapCommandInChat(_peer, request.command, request.context);
 
-	auto message = Api::MessageToSend(prepareSendAction(options));
+	auto message = Api::MessageToSend(action);
 	message.textWithTags = { toSend, TextWithTags::Tags() };
 	message.action.replyTo = request.replyTo
 		? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/)
@@ -6233,7 +6235,7 @@ bool HistoryWidget::showSendMessageError(
 		const TextWithTags &textWithTags,
 		bool ignoreSlowmodeCountdown,
 		Fn<void(int starsApproved)> withPaymentApproved,
-		int starsApproved) {
+		Api::SendOptions options) {
 	if (!_canSendMessages) {
 		return false;
 	}
@@ -6254,7 +6256,7 @@ bool HistoryWidget::showSendMessageError(
 	return withPaymentApproved
 		&& !checkSendPayment(
 			request.messagesCount,
-			starsApproved,
+			options,
 			withPaymentApproved);
 }
 
@@ -6369,6 +6371,11 @@ void HistoryWidget::sendingFilesConfirmed(
 void HistoryWidget::sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options) {
+	const auto compress = bundle->way.sendImagesAsPhotos();
+	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
+	auto action = prepareSendAction(options);
+	action.clearDraft = false;
+
 	const auto withPaymentApproved = [=](int approved) {
 		auto copy = options;
 		copy.starsApproved = approved;
@@ -6376,16 +6383,12 @@ void HistoryWidget::sendingFilesConfirmed(
 	};
 	const auto checked = checkSendPayment(
 		bundle->totalCount,
-		options.starsApproved,
+		action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
 	}
 
-	const auto compress = bundle->way.sendImagesAsPhotos();
-	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
-	auto action = prepareSendAction(options);
-	action.clearDraft = false;
 	if (bundle->sendComment) {
 		auto message = Api::MessageToSend(action);
 		message.textWithTags = base::take(bundle->caption);
@@ -7715,9 +7718,13 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 		copy.options.starsApproved = approved;
 		sendInlineResult(copy);
 	};
+
+	auto action = prepareSendAction(result.options);
+	action.generateLocal = true;
+
 	const auto checked = checkSendPayment(
 		1,
-		result.options.starsApproved,
+		action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
@@ -7725,9 +7732,6 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 
 	controller()->sendingAnimation().appendSending(
 		result.messageSendingFrom);
-
-	auto action = prepareSendAction(result.options);
-	action.generateLocal = true;
 	session().api().sendInlineResult(
 		result.bot,
 		result.result.get(),
@@ -8336,7 +8340,7 @@ bool HistoryWidget::sendExistingDocument(
 	};
 	const auto checked = checkSendPayment(
 		1,
-		messageToSend.action.options.starsApproved,
+		messageToSend.action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return false;
@@ -8375,6 +8379,7 @@ bool HistoryWidget::sendExistingPhoto(
 	} else if (showSlowmodeError()) {
 		return false;
 	}
+	const auto action = prepareSendAction(options);
 
 	const auto withPaymentApproved = [=](int approved) {
 		auto copy = options;
@@ -8383,15 +8388,13 @@ bool HistoryWidget::sendExistingPhoto(
 	};
 	const auto checked = checkSendPayment(
 		1,
-		options.starsApproved,
+		action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return false;
 	}
 
-	Api::SendExistingPhoto(
-		Api::MessageToSend(prepareSendAction(options)),
-		photo);
+	Api::SendExistingPhoto(Api::MessageToSend(action), photo);
 
 	hideSelectorControlsAnimated();
 

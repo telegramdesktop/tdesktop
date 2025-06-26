@@ -198,18 +198,8 @@ void SendSuggest(
 			SendSuggest(show, item, state, modify, done, stars);
 		}
 	};
-	const auto checked = state->sendPayment.check(
-		show,
-		item->history()->peer,
-		1,
-		starsApproved,
-		withPaymentApproved);
-	if (!checked) {
-		return;
-	}
 	const auto isForward = item->Get<HistoryMessageForwarded>();
 	auto action = SendAction(item->history());
-
 	action.options.suggest.exists = 1;
 	if (suggestion) {
 		action.options.suggest.date = suggestion->date;
@@ -218,12 +208,22 @@ void SendSuggest(
 		action.options.suggest.ton = suggestion->price.ton() ? 1 : 0;
 	}
 	modify(action.options.suggest);
-
 	action.options.starsApproved = starsApproved;
 	action.replyTo.monoforumPeerId = item->history()->amMonoforumAdmin()
 		? item->sublistPeerId()
 		: PeerId();
 	action.replyTo.messageId = item->fullId();
+
+	const auto checked = state->sendPayment.check(
+		show,
+		item->history()->peer,
+		action.options,
+		1,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+
 	show->session().api().sendAction(action);
 	show->session().api().forwardMessages({
 		.items = { item },
@@ -302,7 +302,7 @@ void SuggestOfferForMessage(
 	};
 	using namespace HistoryView;
 	auto priceBox = Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
-		.session = &show->session(),
+		.peer = item->history()->peer,
 		.done = done,
 		.value = values,
 		.mode = mode,

@@ -992,7 +992,14 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				? Flag::StoriesHidden
 				: Flag())
 			| Flag::AutoTranslation
-			| Flag::Monoforum;
+			| Flag::Monoforum
+			| Flag::HasStarsPerMessage
+			| Flag::StarsPerMessageKnown;
+		const auto hasStarsPerMessage
+			= data.vsend_paid_messages_stars().has_value();
+		if (!hasStarsPerMessage) {
+			channel->setStarsPerMessage(0);
+		}
 		const auto storiesState = minimal
 			? std::optional<Data::Stories::PeerSourceState>()
 			: data.is_stories_unavailable()
@@ -1034,7 +1041,13 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				? Flag::StoriesHidden
 				: Flag())
 			| (data.is_autotranslation() ? Flag::AutoTranslation : Flag())
-			| (data.is_monoforum() ? Flag::Monoforum : Flag());
+			| (data.is_monoforum() ? Flag::Monoforum : Flag())
+			| (hasStarsPerMessage
+				? (Flag::HasStarsPerMessage
+					| (channel->starsPerMessageKnown()
+						? Flag::StarsPerMessageKnown
+						: Flag()))
+				: Flag::StarsPerMessageKnown);
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 		channel->setBotVerifyDetailsIcon(
 			data.vbot_verification_icon().value_or_empty());
@@ -1047,12 +1060,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		}
 
 		channel->setPhoto(data.vphoto());
-		const auto hasStarsPerMessage
-			= data.vsend_paid_messages_stars().has_value();
-		if (!hasStarsPerMessage) {
-			channel->setStarsPerMessage(0);
-		}
-
 		if (const auto monoforum = data.vlinked_monoforum_id()) {
 			if (const auto linked = channelLoaded(monoforum->v)) {
 				channel->setMonoforumLink(linked);

@@ -719,6 +719,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		| Flag::CanPinMessages
 		| Flag::VoiceMessagesForbidden
 		| Flag::ReadDatesPrivate
+		| Flag::HasStarsPerMessage
 		| Flag::MessageMoneyRestrictionsKnown
 		| Flag::RequiresPremiumToWrite;
 	user->setFlags((user->flags() & ~mask)
@@ -732,6 +733,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			? Flag::VoiceMessagesForbidden
 			: Flag())
 		| (update.is_read_dates_private() ? Flag::ReadDatesPrivate : Flag())
+		| (user->starsPerMessage() ? Flag::HasStarsPerMessage : Flag())
 		| Flag::MessageMoneyRestrictionsKnown
 		| (update.is_contact_require_premium()
 			? Flag::RequiresPremiumToWrite

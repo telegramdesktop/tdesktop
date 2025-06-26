@@ -371,7 +371,7 @@ private:
 
 	[[nodiscard]] bool checkSendPayment(
 		int messagesCount,
-		int starsApproved,
+		Api::SendOptions options,
 		Fn<void(int)> withPaymentApproved);
 
 	void checkSuggestToGigagroup();
@@ -489,7 +489,7 @@ private:
 		const TextWithTags &textWithTags,
 		bool ignoreSlowmodeCountdown,
 		Fn<void(int starsApproved)> withPaymentApproved = nullptr,
-		int starsApproved = 0);
+		Api::SendOptions options = {});
 
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,

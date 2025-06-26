@@ -1370,3 +1370,11 @@ tonInput: InputField(defaultInputField) {
 starsFieldIconPosition: point(0px, 10px);
 tonFieldIconSize: 16px;
 tonFieldIconPosition: point(2px, 9px);
+
+lowTonIconPadding: margins(12px, 20px, 12px, 0px);
+lowTonTitlePadding: margins(0px, 12px, 0px, 12px);
+lowTonTextPadding: margins(0px, 0px, 0px, 8px);
+lowTonText: FlatLabel(defaultFlatLabel) {
+	minWidth: 100px;
+	align: align(top);
+}

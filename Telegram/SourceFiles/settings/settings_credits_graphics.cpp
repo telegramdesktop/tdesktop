@@ -2396,6 +2396,10 @@ void SmallBalanceBox(
 		return value.recipientId
 			? owner->peer(value.recipientId)->shortName()
 			: QString();
+	}, [&](SmallBalanceForSuggest value) {
+		return value.recipientId
+			? owner->peer(value.recipientId)->shortName()
+			: QString();
 	});
 
 	auto needed = show->session().credits().balanceValue(
@@ -2442,6 +2446,11 @@ void SmallBalanceBox(
 							lt_user,
 							rpl::single(Ui::Text::Bold(name)),
 							Ui::Text::RichLangValue))
+					: v::is<SmallBalanceForSuggest>(source)
+					? tr::lng_credits_small_balance_for_suggest(
+						lt_channel,
+						rpl::single(Ui::Text::Bold(name)),
+						Ui::Text::RichLangValue)
 					: name.isEmpty()
 					? tr::lng_credits_small_balance_fallback(
 						Ui::Text::RichLangValue)

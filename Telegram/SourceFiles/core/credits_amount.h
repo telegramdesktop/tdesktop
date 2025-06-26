@@ -101,8 +101,10 @@ public:
 		return result;
 	}
 
-	friend inline auto operator<=>(CreditsAmount, CreditsAmount) = default;
-	friend inline bool operator==(CreditsAmount, CreditsAmount) = default;
+	friend inline constexpr auto operator<=>(CreditsAmount, CreditsAmount)
+		= default;
+	friend inline constexpr bool operator==(CreditsAmount, CreditsAmount)
+		= default;
 
 	[[nodiscard]] CreditsAmount abs() const {
 		return (_whole < 0) ? CreditsAmount(-_whole, -_nano) : *this;

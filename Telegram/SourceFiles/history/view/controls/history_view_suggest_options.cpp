@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/ui_integration.h"
+#include "data/components/credits.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_media_types.h"
@@ -19,9 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/choose_date_time.h"
@@ -30,8 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
+#include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -81,13 +87,19 @@ void ChooseSuggestPriceBox(
 		std::vector<Button> buttons;
 		rpl::variable<TimeId> date;
 		rpl::variable<bool> ton;
+		Fn<void()> save;
+		bool savePending = false;
 		bool inButton = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	state->date = args.value.date;
 	state->ton = (args.value.ton != 0);
 
-	const auto limit = args.session->appConfig().suggestedPostStarsMax();
+	const auto peer = args.peer;
+	const auto session = &peer->session();
+	session->credits().load();
+	session->credits().tonLoad();
+	const auto limit = session->appConfig().suggestedPostStarsMax();
 
 	box->setTitle((args.mode == SuggestMode::New)
 		? tr::lng_suggest_options_title()
@@ -196,7 +208,7 @@ void ChooseSuggestPriceBox(
 	Ui::AddSkip(container);
 
 	const auto added = st::boxRowPadding - st::defaultSubsectionTitlePadding;
-	const auto manager = &args.session->data().customEmojiManager();
+	const auto manager = &session->data().customEmojiManager();
 	const auto makeIcon = [&](
 			not_null<QWidget*> parent,
 			TextWithEntities text) {
@@ -205,7 +217,7 @@ void ChooseSuggestPriceBox(
 			rpl::single(text),
 			st::defaultFlatLabel,
 			st::defaultPopupMenu,
-			Core::TextContext({ .session = args.session }));
+			Core::TextContext({ .session = session }));
 	};
 
 	const auto starsWrap = container->add(
@@ -333,7 +345,7 @@ void ChooseSuggestPriceBox(
 			}
 		};
 		auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
-			.session = args.session,
+			.session = session,
 			.done = done,
 			.value = state->date.current(),
 			.mode = args.mode,
@@ -344,8 +356,8 @@ void ChooseSuggestPriceBox(
 
 	Ui::AddSkip(container);
 	Ui::AddDividerText(container, tr::lng_suggest_options_date_about());
-	AssertIsDebug()//tr::lng_suggest_options_offer
-	const auto save = [=] {
+	AssertIsDebug();//tr::lng_suggest_options_offer
+	state->save = [=] {
 		auto nanos = int64();
 		if (state->ton.current()) {
 			const auto now = Ui::ParseTonAmountString(
@@ -363,22 +375,74 @@ void ChooseSuggestPriceBox(
 			}
 			nanos = now * Ui::kNanosInOne;
 		}
+		const auto ton = uint32(state->ton.current() ? 1 : 0);
 		const auto value = CreditsAmount(
 			nanos / Ui::kNanosInOne,
-			nanos % Ui::kNanosInOne);
+			nanos % Ui::kNanosInOne,
+			ton ? CreditsType::Ton : CreditsType::Stars);
+		const auto credits = &session->credits();
+		if (ton) {
+			if (!credits->tonLoaded()) {
+				state->savePending = true;
+				return;
+			} else if (credits->tonBalance() < value) {
+				box->uiShow()->show(
+					Box(InsufficientTonBox, peer, value));
+				return;
+			}
+		} else {
+			if (!credits->loaded()) {
+				state->savePending = true;
+				return;
+			}
+			using namespace Settings;
+			const auto required = peer->starsPerMessageChecked()
+				+ int(base::SafeRound(value.value()));
+			const auto done = [=](SmallBalanceResult result) {
+				if (result == SmallBalanceResult::Success
+					|| result == SmallBalanceResult::Already) {
+					state->save();
+				}
+			};
+			MaybeRequestBalanceIncrease(
+				Main::MakeSessionShow(box->uiShow(), session),
+				required,
+				SmallBalanceForSuggest{ peer->id },
+				done);
+			return;
+		}
+		state->save = nullptr;
 		args.done({
 			.exists = true,
 			.priceWhole = uint32(value.whole()),
 			.priceNano = uint32(value.nano()),
-			.ton = uint32(state->ton.current() ? 1 : 0),
+			.ton = ton,
 			.date = state->date.current(),
 		});
 	};
 
-	QObject::connect(starsField, &Ui::NumberInput::submitted, box, save);
-	tonField->submits() | rpl::start_with_next(save, tonField->lifetime());
+	const auto credits = &session->credits();
+	rpl::combine(
+		credits->tonBalanceValue(),
+		credits->balanceValue()
+	) | rpl::filter([=] {
+		return state->savePending;
+	}) | rpl::start_with_next([=] {
+		state->savePending = false;
+		if (const auto onstack = state->save) {
+			onstack();
+		}
+	}, box->lifetime());
 
-	box->addButton(tr::lng_settings_save(), save);
+	QObject::connect(
+		starsField,
+		&Ui::NumberInput::submitted,
+		box,
+		state->save);
+	tonField->submits(
+	) | rpl::start_with_next(state->save, tonField->lifetime());
+
+	box->addButton(tr::lng_settings_save(), state->save);
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
 	});
@@ -400,6 +464,52 @@ bool CanAddOfferToMessage(not_null<HistoryItem*> item) {
 		&& !item->isService()
 		&& !item->errorTextForForwardIgnoreRights(
 			history->owner().history(broadcast)).has_value();
+}
+
+void InsufficientTonBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer,
+		CreditsAmount required) {
+	auto icon = Settings::CreateLottieIcon(
+		box->verticalLayout(),
+		{
+			.name = u"diamond"_q,
+			.sizeOverride = Size(st::changePhoneIconSize),
+		},
+		{});
+	box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+		animate(anim::repeat::loop);
+	});
+	box->addRow(std::move(icon.widget), st::lowTonIconPadding);
+	const auto add = required - peer->session().credits().tonBalance();
+	const auto nano = add.whole() * Ui::kNanosInOne + add.nano();
+	const auto amount = Ui::FormatTonAmount(nano).full;
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_suggest_low_ton_title(tr::now, lt_amount, amount),
+				st::boxTitle)),
+		st::boxRowPadding + st::lowTonTitlePadding);
+	const auto label = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_suggest_low_ton_text(
+				lt_channel,
+				rpl::single(Ui::Text::Bold(peer->name())),
+				Ui::Text::RichLangValue),
+			st::lowTonText),
+		st::boxRowPadding + st::lowTonTextPadding);
+	label->setTryMakeSimilarLines(true);
+	label->resizeToWidth(
+		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
+	box->addButton(tr::lng_suggest_low_ton_fragment(), [=] {
+		UrlClickHandler::Open(tr::lng_suggest_low_ton_fragment_url(tr::now));
+	});
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
 }
 
 SuggestOptions::SuggestOptions(
@@ -458,7 +568,7 @@ void SuggestOptions::edit() {
 		}
 	};
 	*weak = _show->show(Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
-		.session = &_peer->session(),
+		.peer = _peer,
 		.done = apply,
 		.value = _values,
 	}));

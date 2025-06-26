@@ -149,6 +149,10 @@ struct SendPaymentDetails {
 	not_null<PeerData*> peer,
 	int messagesCount);
 
+[[nodiscard]] bool SuggestPaymentDataReady(
+	not_null<PeerData*> peer,
+	SuggestPostOptions suggest);
+
 struct PaidConfirmStyles {
 	const style::FlatLabel *label = nullptr;
 	const style::Checkbox *checkbox = nullptr;
@@ -158,34 +162,37 @@ void ShowSendPaidConfirm(
 	not_null<PeerData*> peer,
 	SendPaymentDetails details,
 	Fn<void()> confirmed,
-	PaidConfirmStyles styles = {});
+	PaidConfirmStyles styles = {},
+	int suggestStarsPrice = 0);
 void ShowSendPaidConfirm(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> peer,
 	SendPaymentDetails details,
 	Fn<void()> confirmed,
-	PaidConfirmStyles styles = {});
+	PaidConfirmStyles styles = {},
+	int suggestStarsPrice = 0);
 void ShowSendPaidConfirm(
 	std::shared_ptr<Main::SessionShow> show,
 	const std::vector<not_null<PeerData*>> &peers,
 	SendPaymentDetails details,
 	Fn<void()> confirmed,
-	PaidConfirmStyles styles = {});
+	PaidConfirmStyles styles = {},
+	int suggestStarsPrice = 0);
 
 class SendPaymentHelper final {
 public:
 	[[nodiscard]] bool check(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
+		Api::SendOptions options,
 		int messagesCount,
-		int starsApproved,
 		Fn<void(int)> resend,
 		PaidConfirmStyles styles = {});
 	[[nodiscard]] bool check(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<PeerData*> peer,
+		Api::SendOptions options,
 		int messagesCount,
-		int starsApproved,
 		Fn<void(int)> resend,
 		PaidConfirmStyles styles = {});
 
