@@ -143,8 +143,12 @@ auto GenerateSuggestDecisionMedia(
 				TextWithEntities(
 				).append(Emoji(kWarning)).append(' ').append(
 					(sublistPeer->isSelf()
-						? tr::lng_suggest_action_your_not_enough
-						: tr::lng_suggest_action_his_not_enough)(
+						? (decision->price.ton()
+							? tr::lng_suggest_action_your_not_enough_ton
+							: tr::lng_suggest_action_your_not_enough_stars)
+						: (decision->price.ton()
+							? tr::lng_suggest_action_his_not_enough_ton
+							: tr::lng_suggest_action_his_not_enough_stars))(
 							tr::now,
 							Ui::Text::RichLangValue)),
 				st::chatSuggestInfoFullMargin,
@@ -237,7 +241,9 @@ auto GenerateSuggestDecisionMedia(
 				pushText(
 					TextWithEntities(
 					).append(Emoji(kHourglass)).append(' ').append(
-						tr::lng_suggest_action_agree_receive(
+						(price.ton()
+							? tr::lng_suggest_action_agree_receive_ton
+							: tr::lng_suggest_action_agree_receive_stars)(
 							tr::now,
 							lt_channel,
 							Ui::Text::Bold(broadcast->name()),
@@ -247,7 +253,9 @@ auto GenerateSuggestDecisionMedia(
 				pushText(
 					TextWithEntities(
 					).append(Emoji(kReload)).append(' ').append(
-						tr::lng_suggest_action_agree_removed(
+						(price.ton()
+							? tr::lng_suggest_action_agree_removed_ton
+							: tr::lng_suggest_action_agree_removed_stars)(
 							tr::now,
 							lt_channel,
 							Ui::Text::Bold(broadcast->name()),

@@ -29,7 +29,8 @@ namespace HistoryView {
 
 enum class SuggestMode {
 	New,
-	Change,
+	ChangeUser,
+	ChangeAdmin,
 };
 
 struct SuggestTimeBoxArgs {

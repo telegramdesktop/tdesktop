@@ -2271,7 +2271,11 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		}
 		if (editDraft && editDraft->suggest) {
 			using namespace HistoryView;
-			applySuggestOptions(editDraft->suggest, SuggestMode::Change);
+			applySuggestOptions(
+				editDraft->suggest,
+				(_history->amMonoforumAdmin()
+					? SuggestMode::ChangeAdmin
+					: SuggestMode::ChangeUser));
 		} else {
 			cancelSuggestPost();
 		}
@@ -3030,6 +3034,7 @@ bool HistoryWidget::updateReplaceMediaButton() {
 				controller(),
 				{ _history->peer->id, _editMsgId },
 				_field->getTextWithTags(),
+				suggestOptions(),
 				_mediaEditManager.spoilered(),
 				_mediaEditManager.invertCaption(),
 				crl::guard(_list, [=] { cancelEdit(); }));
@@ -6276,6 +6281,7 @@ bool HistoryWidget::confirmSendingFiles(
 				{ _history->peer->id, _editMsgId },
 				std::move(list),
 				_field->getTextWithTags(),
+				suggestOptions(),
 				_mediaEditManager.spoilered(),
 				_mediaEditManager.invertCaption(),
 				crl::guard(_list, [=] { cancelEdit(); }));
@@ -7412,6 +7418,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			_photoEditMedia,
 			{ _history->peer->id, _editMsgId },
 			_field->getTextWithTags(),
+			suggestOptions(),
 			_mediaEditManager.spoilered(),
 			_mediaEditManager.invertCaption(),
 			crl::guard(_list, [=] { cancelEdit(); }));

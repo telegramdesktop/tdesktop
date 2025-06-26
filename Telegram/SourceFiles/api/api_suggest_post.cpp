@@ -268,11 +268,12 @@ void SuggestApprovalDate(
 			close);
 	};
 	using namespace HistoryView;
+	const auto admin = item->history()->amMonoforumAdmin();
 	auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
 		.session = &controller->session(),
 		.done = done,
 		.value = suggestion->date,
-		.mode = SuggestMode::Change,
+		.mode = (admin ? SuggestMode::ChangeAdmin : SuggestMode::ChangeUser),
 	});
 	*weak = dateBox.data();
 	controller->uiShow()->show(std::move(dateBox));
@@ -306,6 +307,7 @@ void SuggestApprovalPrice(
 			close);
 	};
 	using namespace HistoryView;
+	const auto admin = item->history()->amMonoforumAdmin();
 	auto dateBox = Box(ChooseSuggestPriceBox, SuggestPriceBoxArgs{
 		.session = &controller->session(),
 		.done = done,
@@ -316,7 +318,7 @@ void SuggestApprovalPrice(
 			.ton = uint32(suggestion->price.ton() ? 1 : 0),
 			.date = suggestion->date,
 		},
-		.mode = SuggestMode::Change,
+		.mode = (admin ? SuggestMode::ChangeAdmin : SuggestMode::ChangeUser),
 	});
 	*weak = dateBox.data();
 	controller->uiShow()->show(std::move(dateBox));

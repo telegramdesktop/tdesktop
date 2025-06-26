@@ -3661,7 +3661,19 @@ void ApiWrap::editMedia(
 	if (list.files.empty()) return;
 
 	auto &file = list.files.front();
-	const auto to = FileLoadTaskOptions(action);
+	auto to = FileLoadTaskOptions(action);
+	const auto existing = to.replaceMediaOf
+		? session().data().message(action.history->peer, to.replaceMediaOf)
+		: nullptr;
+	if (existing && existing->computeSuggestionActions()
+		== SuggestionActions::AcceptAndDecline) {
+		to.replyTo.messageId = {
+			action.history->peer->id,
+			to.replaceMediaOf
+		};
+		to.replyTo.monoforumPeerId = existing->sublistPeerId();
+		to.replaceMediaOf = MsgId();
+	}
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		&session(),
 		file.path,

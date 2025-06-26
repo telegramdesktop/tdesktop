@@ -95,13 +95,17 @@ void ChooseSuggestPriceBox(
 	state->buttons.push_back({
 		.text = Ui::Text::String(
 			st::semiboldTextStyle,
-			tr::lng_suggest_options_stars_offer(tr::now)),
+			(args.mode == SuggestMode::ChangeAdmin
+				? tr::lng_suggest_options_stars_request(tr::now)
+				: tr::lng_suggest_options_stars_offer(tr::now))),
 		.active = !state->ton.current(),
 	});
 	state->buttons.push_back({
 		.text = Ui::Text::String(
 			st::semiboldTextStyle,
-			tr::lng_suggest_options_ton_offer(tr::now)),
+			(args.mode == SuggestMode::ChangeAdmin
+				? tr::lng_suggest_options_ton_request(tr::now)
+				: tr::lng_suggest_options_ton_offer(tr::now))),
 		.active = state->ton.current(),
 	});
 

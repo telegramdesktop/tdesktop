@@ -6236,7 +6236,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			this,
 			_from,
 			Data::GiftType::Ton,
-			data.vamount().v);
+			data.vcrypto_amount().v);
 	}, [&](const MTPDmessageActionPrizeStars &data) {
 		_media = std::make_unique<Data::MediaGiftBox>(
 			this,

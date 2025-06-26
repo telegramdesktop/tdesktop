@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
 #include "chat_helpers/stickers_gift_box_pack.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
@@ -47,7 +48,7 @@ PremiumGift::PremiumGift(
 PremiumGift::~PremiumGift() = default;
 
 int PremiumGift::top() {
-	return starGift()
+	return (starGift() || tonGift())
 		? st::msgServiceStarGiftStickerTop
 		: st::msgServiceGiftBoxStickerTop;
 }
@@ -57,7 +58,7 @@ int PremiumGift::width() {
 }
 
 QSize PremiumGift::size() {
-	return starGift()
+	return (starGift() || tonGift())
 		? QSize(
 			st::msgServiceStarGiftStickerSize,
 			st::msgServiceStarGiftStickerSize)
@@ -68,7 +69,10 @@ QSize PremiumGift::size() {
 
 TextWithEntities PremiumGift::title() {
 	using namespace Ui::Text;
-	if (starGift()) {
+	if (tonGift()) {
+		AssertIsDebug();
+		return { QString::number(_data.count / 1'000'000'000LL) + u" TON"_q };
+	} else if (starGift()) {
 		const auto peer = _parent->history()->peer;
 		return peer->isSelf()
 			? tr::lng_action_gift_self_subtitle(tr::now, WithEntities)
@@ -114,7 +118,10 @@ TextWithEntities PremiumGift::title() {
 }
 
 TextWithEntities PremiumGift::subtitle() {
-	if (starGift()) {
+	if (tonGift()) {
+		AssertIsDebug();
+		return { u"Use TON to suggest posts to channels."_q };
+	} else if (starGift()) {
 		const auto toChannel = _data.channel
 			&& _parent->history()->peer->isServiceUser();
 		return !_data.message.empty()
@@ -242,6 +249,14 @@ bool PremiumGift::buttonMinistars() {
 }
 
 ClickHandlerPtr PremiumGift::createViewLink() {
+	if (tonGift()) {
+		return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto window = my.sessionWindow.get()) {
+				window->showSettings(Settings::CreditsId());
+			}
+		});
+	}
 	if (auto link = OpenStarGiftLink(_parent->data())) {
 		return link;
 	}
@@ -400,6 +415,17 @@ int PremiumGift::credits() const {
 
 void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
+		return;
+	} else if (tonGift()) {
+		const auto document = ChatHelpers::GenerateLocalTgsSticker(
+			&_parent->history()->session(),
+			"diamond");
+		const auto sticker = document->sticker();
+		Assert(sticker != nullptr);
+		_sticker.emplace(_parent, document, false, _parent);
+		_sticker->setPlayingOnce(true);
+		_sticker->initSize(st::msgServiceStarGiftStickerSize);
+		_parent->repaint();
 		return;
 	} else if (const auto document = _data.document) {
 		const auto sticker = document->sticker();

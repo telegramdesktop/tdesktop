@@ -420,9 +420,13 @@ void FieldHeader::init() {
 				if (_preview.parsed) {
 					_editOptionsRequests.fire({});
 				} else if (isEditingMessage()) {
-					_jumpToItemRequests.fire(FullReplyTo{
-						.messageId = _editMsgId.current()
-					});
+					if (_suggestOptions) {
+						_suggestOptions->edit();
+					} else {
+						_jumpToItemRequests.fire(FullReplyTo{
+							.messageId = _editMsgId.current()
+						});
+					}
 				} else if (reply && (e->modifiers() & Qt::ControlModifier)) {
 					_jumpToItemRequests.fire_copy(reply);
 				} else if (reply || readyToForward()) {
@@ -789,7 +793,7 @@ void FieldHeader::editMessage(
 		_inPhotoEditOver.stop();
 	}
 	if (id && suggest) {
-		applySuggestOptions(suggest, SuggestMode::Change);
+		applySuggestOptions(suggest, SuggestMode::ChangeAdmin);
 	} else {
 		cancelSuggestPost();
 	}
@@ -1227,6 +1231,7 @@ bool ComposeControls::confirmMediaEdit(Ui::PreparedList &list) {
 			_editingId,
 			std::move(list),
 			_field->getTextWithTags(),
+			_header->suggestOptions(),
 			queryToEdit.spoilered,
 			queryToEdit.options.invertCaption,
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
@@ -1466,6 +1471,7 @@ void ComposeControls::init() {
 			_photoEditMedia,
 			_editingId,
 			_field->getTextWithTags(),
+			_header->suggestOptions(),
 			queryToEdit.spoilered,
 			queryToEdit.options.invertCaption,
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
@@ -3093,6 +3099,7 @@ bool ComposeControls::updateReplaceMediaButton() {
 				_regularWindow,
 				_editingId,
 				_field->getTextWithTags(),
+				_header->suggestOptions(),
 				queryToEdit.spoilered,
 				queryToEdit.options.invertCaption,
 				crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));

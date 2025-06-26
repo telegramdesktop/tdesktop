@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/scheduled_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_todo_list.h"
 #include "data/data_web_page.h"
@@ -62,76 +63,39 @@ mtpRequestId SuggestMessage(
 	const auto session = &item->history()->session();
 	const auto api = &session->api();
 
-	const auto text = textWithEntities.text;
-	const auto sentEntities = EntitiesToMTP(
-		session,
-		textWithEntities.entities,
-		ConvertOption::SkipLocal);
-
-	const auto emptyFlag = MTPmessages_SendMessage::Flag(0);
-	auto replyTo = FullReplyTo{
+	const auto thread = item->history()->amMonoforumAdmin()
+		? item->savedSublist()
+		: (Data::Thread*)item->history();
+	auto action = SendAction(thread, options);
+	action.replyTo = FullReplyTo{
 		.messageId = item->fullId(),
 		.monoforumPeerId = (item->history()->amMonoforumAdmin()
 			? item->sublistPeerId()
 			: PeerId()),
 	};
-	const auto flags = emptyFlag
-		| MTPmessages_SendMessage::Flag::f_reply_to
-		| MTPmessages_SendMessage::Flag::f_suggested_post
-		| (webpage.removed
-			? MTPmessages_SendMessage::Flag::f_no_webpage
-			: emptyFlag)
-		| (((!webpage.removed && !webpage.url.isEmpty() && webpage.invert)
-			|| options.invertCaption)
-			? MTPmessages_SendMessage::Flag::f_invert_media
-			: emptyFlag)
-		| (!sentEntities.v.isEmpty()
-			? MTPmessages_SendMessage::Flag::f_entities
-			: emptyFlag)
-		| (options.starsApproved
-			? MTPmessages_SendMessage::Flag::f_allow_paid_stars
-			: emptyFlag);
-	const auto randomId = base::RandomValue<uint64>();
-	return api->request(MTPmessages_SendMessage(
-		MTP_flags(flags),
-		item->history()->peer->input,
-		ReplyToForMTP(item->history(), replyTo),
-		MTP_string(text),
-		MTP_long(randomId),
-		MTPReplyMarkup(),
-		sentEntities,
-		MTPint(), // schedule_date
-		MTPInputPeer(), // send_as
-		MTPInputQuickReplyShortcut(), // quick_reply_shortcut
-		MTPlong(), // effect
-		MTP_long(options.starsApproved),
-		Api::SuggestToMTP(options.suggest)
-	)).done([=](
-			const MTPUpdates &result,
-			[[maybe_unused]] mtpRequestId requestId) {
-		const auto apply = [=] { api->applyUpdates(result); };
 
-		if constexpr (WithId<DoneCallback>) {
-			done(apply, requestId);
-		} else if constexpr (WithoutId<DoneCallback>) {
-			done(apply);
-		} else if constexpr (WithoutCallback<DoneCallback>) {
-			done();
-			apply();
-		} else {
-			t_bad_callback(done);
-		}
-	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+	auto message = MessageToSend(std::move(action));
+	message.textWithTags = TextWithTags{
+		textWithEntities.text,
+		TextUtilities::ConvertEntitiesToTextTags(textWithEntities.entities)
+	};
+	message.webPage = webpage;
+	api->sendMessage(std::move(message));
+
+	const auto requestId = -1;
+	crl::on_main(session, [=] {
+		const auto type = u"MESSAGE_NOT_MODIFIED"_q;
 		if constexpr (ErrorWithId<FailCallback>) {
-			fail(error.type(), requestId);
+			fail(type, requestId);
 		} else if constexpr (ErrorWithoutId<FailCallback>) {
-			fail(error.type());
+			fail(type);
 		} else if constexpr (WithoutCallback<FailCallback>) {
 			fail();
 		} else {
 			t_bad_callback(fail);
 		}
-	}).send();
+	});
+	return requestId;
 }
 
 template <typename DoneCallback, typename FailCallback>
@@ -253,7 +217,7 @@ mtpRequestId SuggestMessageOrMedia(
 				MTPstring()); // query
 		}
 	}
-	if (inputMedia || (!webpage.removed && !webpage.url.isEmpty())) {
+	if (inputMedia) {
 		return SuggestMedia(
 			item,
 			textWithEntities,
