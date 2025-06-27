@@ -817,7 +817,7 @@ RUN git init tg_owt \
 	&& rm -rf tg_owt
 
 FROM builder AS ada
-RUN git clone -b v3.2.2 --depth=1 https://github.com/ada-url/ada.git \
+RUN git clone -b v3.2.4 --depth=1 https://github.com/ada-url/ada.git \
 	&& cd ada \
 	&& cmake -B build . \
         -D ADA_TESTING=OFF \

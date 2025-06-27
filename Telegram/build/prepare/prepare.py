@@ -1874,7 +1874,7 @@ release:
 """)
 
 stage('ada', """
-    git clone -b v3.2.2 https://github.com/ada-url/ada.git
+    git clone -b v3.2.4 https://github.com/ada-url/ada.git
     cd ada
 win:
     cmake -B out . ^
