@@ -552,6 +552,7 @@ HistoryItem::HistoryItem(
 			}
 		}
 	}
+	config.suggest = fields.suggest;
 	if (!dropForwardInfo) {
 		config.originalDate = original->originalDate();
 		if (const auto info = original->originalHiddenSenderInfo()) {
