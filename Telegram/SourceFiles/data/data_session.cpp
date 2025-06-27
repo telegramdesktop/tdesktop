@@ -1060,15 +1060,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		}
 
 		channel->setPhoto(data.vphoto());
-		if (const auto monoforum = data.vlinked_monoforum_id()) {
-			if (const auto linked = channelLoaded(monoforum->v)) {
-				channel->setMonoforumLink(linked);
-			} else {
-				channel->updateFull();
-			}
-		} else {
-			channel->setMonoforumLink(nullptr);
-		}
+		applyMonoforumLinkedId(
+			channel,
+			data.vlinked_monoforum_id().value_or_empty());
 
 		if (wasInChannel != channel->amIn()) {
 			flags |= UpdateFlag::ChannelAmIn;
@@ -1152,10 +1146,29 @@ UserData *Session::processUsers(const MTPVector<MTPUser> &data) {
 
 PeerData *Session::processChats(const MTPVector<MTPChat> &data) {
 	auto result = (PeerData*)nullptr;
+	_postponedMonoforumLinkedIds.emplace();
 	for (const auto &chat : data.v) {
 		result = processChat(chat);
 	}
+	const auto ids = base::take(_postponedMonoforumLinkedIds);
+	for (const auto &[channel, linkedId] : *ids) {
+		applyMonoforumLinkedId(channel, linkedId);
+	}
 	return result;
+}
+
+void Session::applyMonoforumLinkedId(
+		not_null<ChannelData*> channel,
+		ChannelId linkedId) {
+	if (!linkedId) {
+		channel->setMonoforumLink(nullptr);
+	} else if (_postponedMonoforumLinkedIds) {
+		_postponedMonoforumLinkedIds->emplace(channel, linkedId);
+	} else if (const auto linked = channelLoaded(linkedId)) {
+		channel->setMonoforumLink(linked);
+	} else {
+		channel->updateFull();
+	}
 }
 
 void Session::applyMaximumChatVersions(const MTPVector<MTPChat> &data) {
@@ -4809,11 +4822,11 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 		} else if (const auto monoforum = history->peer->monoforum()) {
 			monoforum->preloadSublists();
 		}
-		if (const auto broadcast = history->peer->monoforumBroadcast()) {
-			if (!broadcast->isFullLoaded()) {
-				broadcast->updateFull();
-			}
-		}
+		//if (const auto broadcast = history->peer->monoforumBroadcast()) {
+		//	if (!broadcast->isFullLoaded()) {
+		//		broadcast->updateFull();
+		//	}
+		//}
 	}
 }
 

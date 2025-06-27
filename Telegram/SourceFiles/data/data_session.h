@@ -992,6 +992,10 @@ private:
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 	void highlightProcessDone(uint64 processId);
 
+	void applyMonoforumLinkedId(
+		not_null<ChannelData*> channel,
+		ChannelId linkedId);
+
 	void checkPollsClosings();
 
 	const not_null<Main::Session*> _session;
@@ -1156,6 +1160,10 @@ private:
 		base::flat_set<not_null<ViewElement*>>> _viewsByTag;
 
 	std::unordered_map<PeerId, std::unique_ptr<PeerData>> _peers;
+
+	std::optional<base::flat_map<
+		not_null<ChannelData*>,
+		ChannelId>> _postponedMonoforumLinkedIds;
 
 	MessageIdsList _mimeForwardIds;
 
