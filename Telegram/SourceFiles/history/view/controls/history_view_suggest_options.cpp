@@ -118,7 +118,10 @@ void ChooseSuggestPriceBox(
 		session->credits().load();
 		session->credits().tonLoad();
 	}
-	const auto limit = session->appConfig().suggestedPostStarsMax();
+	const auto starsMin = 0;
+	const auto starsMax = session->appConfig().suggestedPostStarsMax();
+	const auto nanoTonMin = session->appConfig().suggestedPostNanoTonMin();
+	const auto nanoTonMax = session->appConfig().suggestedPostNanoTonMax();
 
 	box->setStyle(st::suggestPriceBox);
 	box->setTitle((args.mode == SuggestMode::New)
@@ -264,7 +267,7 @@ void ChooseSuggestPriceBox(
 		((args.value.exists && args.value.priceWhole && !args.value.ton)
 			? QString::number(args.value.priceWhole)
 			: QString()),
-		limit);
+		starsMax);
 	const auto starsField = ownedStarsField.data();
 	const auto starsIcon = makeIcon(starsField, manager->creditsEmoji());
 
@@ -343,17 +346,16 @@ void ChooseSuggestPriceBox(
 		if (ton) {
 			const auto text = tonField->getLastText();
 			const auto now = Ui::ParseTonAmountString(text);
-			if (now && ((*now < 0) || (*now > limit * Ui::kNanosInOne))) {
-				tonField->showError();
-				return {};
-			} else if (!now && !text.isEmpty()) {
+			if (now
+				&& *now
+				&& ((*now < nanoTonMin) || (*now > nanoTonMax))) {
 				tonField->showError();
 				return {};
 			}
 			nanos = now.value_or(0);
 		} else {
 			const auto now = starsField->getLastText().toLongLong();
-			if (now < 0 || now > limit) {
+			if (now < starsMin || now > starsMax) {
 				starsField->showError();
 				return {};
 			}

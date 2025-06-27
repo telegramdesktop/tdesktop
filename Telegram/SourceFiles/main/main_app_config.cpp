@@ -166,6 +166,16 @@ int AppConfig::suggestedPostStarsMax() const {
 	return get<int>(u"stars_suggested_post_amount_max"_q, 100'000);
 }
 
+int64 AppConfig::suggestedPostNanoTonMin() const {
+	return get<int64>(u"ton_suggested_post_amount_min"_q, 10'000'000LL);
+}
+
+int64 AppConfig::suggestedPostNanoTonMax() const {
+	return get<int64>(
+		u"ton_suggested_post_amount_max"_q,
+		10'000'000'000'000LL);
+}
+
 int AppConfig::suggestedPostDelayMin() const {
 	return get<int>(u"stars_suggested_post_future_min"_q, 300);
 }

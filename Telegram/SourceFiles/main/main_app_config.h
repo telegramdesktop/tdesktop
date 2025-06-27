@@ -31,6 +31,8 @@ public:
 			return getDouble(key, fallback);
 		} else if constexpr (std::is_same_v<Type, int>) {
 			return int(base::SafeRound(getDouble(key, double(fallback))));
+		} else if constexpr (std::is_same_v<Type, int64>) {
+			return int64(base::SafeRound(getDouble(key, double(fallback))));
 		} else if constexpr (std::is_same_v<Type, QString>) {
 			return getString(key, fallback);
 		} else if constexpr (std::is_same_v<Type, std::vector<QString>>) {
@@ -89,6 +91,8 @@ public:
 	[[nodiscard]] int todoListItemTextLimit() const;
 
 	[[nodiscard]] int suggestedPostStarsMax() const;
+	[[nodiscard]] int64 suggestedPostNanoTonMin() const;
+	[[nodiscard]] int64 suggestedPostNanoTonMax() const;
 	[[nodiscard]] int suggestedPostDelayMin() const;
 	[[nodiscard]] int suggestedPostDelayMax() const;
 
