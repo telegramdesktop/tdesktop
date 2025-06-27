@@ -135,7 +135,6 @@ menuIconTopics: icon {{ "menu/topics", menuIconColor }};
 menuIconGroupReactions: icon {{ "menu/group_reactions", menuIconColor }};
 menuIconLinks: icon {{ "menu/links_profile", menuIconColor }};
 menuIconGroupLog: icon {{ "menu/group_log", menuIconColor }};
-menuIconGroupCreate: icon {{ "menu/groups_create", menuIconColor }};
 menuIconSigned: icon {{ "menu/signed", menuIconColor }};
 menuIconAntispam: icon {{ "menu/antispam", menuIconColor }};
 menuIconChatDiscuss: icon {{ "menu/chat_discuss", menuIconColor }};
@@ -200,6 +199,7 @@ menuBlueIconColorNames: icon{{ "settings/premium/features/feature_color_names", 
 menuBlueIconWallpaper: icon{{ "settings/premium/features/feature_wallpaper", lightButtonFg }};
 menuBlueIconEmojiStatus: icon{{ "settings/premium/features/feature_status", lightButtonFg }};
 menuBlueIconEmojiPack: icon{{ "settings/premium/features/feature_emoji_pack", lightButtonFg }};
+menuBlueIconGroupCreate: icon {{ "menu/groups_create", lightButtonFg }};
 
 mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
 mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
@@ -232,6 +232,7 @@ menuIconRestoreAttention: icon {{ "menu/restore", menuIconAttentionColor }};
 menuIconTagRemoveAttention: icon {{ "menu/tag_remove", menuIconAttentionColor }};
 menuIconCancelAttention: icon {{ "menu/cancel", menuIconAttentionColor }};
 menuIconBlockAttention: icon {{ "menu/block", menuIconAttentionColor }};
+menuIconRemoveAttention: icon {{ "menu/remove", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};
 menuIconInviteSettings: icon {{ "menu/invite", lightButtonFg }};

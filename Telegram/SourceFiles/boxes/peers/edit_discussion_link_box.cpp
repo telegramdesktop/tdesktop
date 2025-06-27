@@ -273,7 +273,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 				above,
 				tr::lng_manage_discussion_group_create(),
 				st::infoCreateDiscussionLinkButton,
-				{ &st::menuIconGroupCreate }
+				{ &st::menuBlueIconGroupCreate }
 			)->addClickHandler([=, parent = above.data()] {
 				const auto guarded = crl::guard(parent, callback);
 				navigation->uiShow()->showBox(Box<GroupInfoBox>(
@@ -293,10 +293,10 @@ void Controller::choose(not_null<ChatData*> chat) {
 					? tr::lng_manage_discussion_group_unlink
 					: tr::lng_manage_linked_channel_unlink)(),
 				st::infoUnlinkDiscussionLinkButton,
-				{ &st::menuIconRemove }
+				{ &st::menuIconRemoveAttention }
 			)->addClickHandler([=] { callback(nullptr); });
-			Ui::AddSkip(below);
 		}
+		Ui::AddSkip(below);
 		Ui::AddDividerText(
 			below,
 			(channel->isBroadcast()
