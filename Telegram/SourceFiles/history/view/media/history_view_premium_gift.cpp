@@ -119,8 +119,7 @@ TextWithEntities PremiumGift::title() {
 
 TextWithEntities PremiumGift::subtitle() {
 	if (tonGift()) {
-		AssertIsDebug();
-		return { u"Use TON to suggest posts to channels."_q };
+		return tr::lng_action_gift_got_ton(tr::now, Ui::Text::WithEntities);
 	} else if (starGift()) {
 		const auto toChannel = _data.channel
 			&& _parent->history()->peer->isServiceUser();
