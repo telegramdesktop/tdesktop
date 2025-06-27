@@ -125,17 +125,23 @@ void ChooseSuggestPriceBox(
 	const auto container = box->verticalLayout();
 
 	box->setStyle(st::suggestPriceBox);
-	box->setNoContentMargin(true);
 
-	Ui::AddSkip(container, st::boxTitleHeight * 1.1);
-	box->addRow(object_ptr<Ui::CenterWrap<>>(
-		box,
-		object_ptr<Ui::FlatLabel>(
+	auto title = (args.mode == SuggestMode::New)
+		? tr::lng_suggest_options_title()
+		: tr::lng_suggest_options_change();
+	if (admin) {
+		box->setTitle(std::move(title));
+	} else {
+		box->setNoContentMargin(true);
+
+		Ui::AddSkip(container, st::boxTitleHeight * 1.1);
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,
-			((args.mode == SuggestMode::New)
-				? tr::lng_suggest_options_title()
-				: tr::lng_suggest_options_change()),
-			st::settingsPremiumUserTitle)));
+			object_ptr<Ui::FlatLabel>(
+				box,
+				std::move(title),
+				st::settingsPremiumUserTitle)));
+	}
 
 	state->buttons.push_back({
 		.text = Ui::Text::String(
@@ -164,10 +170,15 @@ void ChooseSuggestPriceBox(
 		button.geometry = QRect(QPoint(x, y), r.size());
 		x += r.width() + st::giftBoxTabSkip;
 	}
+	const auto buttonsSkip = admin ? 0 : st::normalFont->height;
 	const auto buttons = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		(st::boxRowPadding
-			- QMargins(padding.left() / 2, -st::normalFont->height, padding.right() / 2, 0)));
+			- QMargins(
+				padding.left() / 2,
+				-buttonsSkip,
+				padding.right() / 2,
+				0)));
 	const auto height = y
 		+ state->buttons.back().geometry.height()
 		+ st::giftBoxTabsMargin.bottom();
@@ -531,8 +542,11 @@ void ChooseSuggestPriceBox(
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
 
-
-	{
+	if (admin) {
+		box->addTopButton(st::boxTitleClose, [=] {
+			box->closeBox();
+		});
+	} else {
 		const auto close = Ui::CreateChild<Ui::IconButton>(
 			container,
 			st::boxTitleClose);
@@ -540,9 +554,7 @@ void ChooseSuggestPriceBox(
 		container->widthValue() | rpl::start_with_next([=](int) {
 			close->moveToRight(0, 0);
 		}, close->lifetime());
-	}
 
-	{
 		session->credits().load(true);
 		session->credits().tonLoad(true);
 		const auto balance = Settings::AddBalanceWidget(
