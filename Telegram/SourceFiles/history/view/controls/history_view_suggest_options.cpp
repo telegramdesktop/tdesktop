@@ -122,13 +122,21 @@ void ChooseSuggestPriceBox(
 	const auto starsMax = session->appConfig().suggestedPostStarsMax();
 	const auto nanoTonMin = session->appConfig().suggestedPostNanoTonMin();
 	const auto nanoTonMax = session->appConfig().suggestedPostNanoTonMax();
+	const auto container = box->verticalLayout();
 
 	box->setStyle(st::suggestPriceBox);
-	box->setTitle((args.mode == SuggestMode::New)
-		? tr::lng_suggest_options_title()
-		: tr::lng_suggest_options_change());
+	box->setNoContentMargin(true);
 
-	const auto container = box->verticalLayout();
+	Ui::AddSkip(container, st::boxTitleHeight * 1.1);
+	box->addRow(object_ptr<Ui::CenterWrap<>>(
+		box,
+		object_ptr<Ui::FlatLabel>(
+			box,
+			((args.mode == SuggestMode::New)
+				? tr::lng_suggest_options_title()
+				: tr::lng_suggest_options_change()),
+			st::settingsPremiumUserTitle)));
+
 	state->buttons.push_back({
 		.text = Ui::Text::String(
 			st::semiboldTextStyle,
@@ -159,7 +167,7 @@ void ChooseSuggestPriceBox(
 	const auto buttons = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		(st::boxRowPadding
-			- QMargins(padding.left() / 2, 0, padding.right() / 2, 0)));
+			- QMargins(padding.left() / 2, -st::normalFont->height, padding.right() / 2, 0)));
 	const auto height = y
 		+ state->buttons.back().geometry.height()
 		+ st::giftBoxTabsMargin.bottom();
@@ -253,7 +261,7 @@ void ChooseSuggestPriceBox(
 	Ui::AddSubsectionTitle(
 		starsInner,
 		tr::lng_suggest_options_stars_price(),
-		QMargins(added.left(), 0, added.right(), 0));
+		QMargins(added.left(), 0, added.right(), -st::defaultSubsectionTitlePadding.bottom()));
 
 	const auto starsFieldWrap = starsInner->add(
 		object_ptr<Ui::FixedHeightWidget>(
@@ -295,7 +303,7 @@ void ChooseSuggestPriceBox(
 	Ui::AddSubsectionTitle(
 		tonInner,
 		tr::lng_suggest_options_ton_price(),
-		QMargins(added.left(), 0, added.right(), 0));
+		QMargins(added.left(), 0, added.right(), -st::defaultSubsectionTitlePadding.bottom()));
 
 	const auto tonFieldWrap = tonInner->add(
 		object_ptr<Ui::FixedHeightWidget>(
@@ -522,6 +530,39 @@ void ChooseSuggestPriceBox(
 	}) | rpl::start_with_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
+
+
+	{
+		const auto close = Ui::CreateChild<Ui::IconButton>(
+			container,
+			st::boxTitleClose);
+		close->setClickedCallback([=] { box->closeBox(); });
+		container->widthValue() | rpl::start_with_next([=](int) {
+			close->moveToRight(0, 0);
+		}, close->lifetime());
+	}
+
+	{
+		session->credits().load(true);
+		session->credits().tonLoad(true);
+		const auto balance = Settings::AddBalanceWidget(
+			container,
+			session,
+			rpl::conditional(
+				state->ton.value(),
+				session->credits().tonBalanceValue(),
+				session->credits().balanceValue()),
+			false);
+		rpl::combine(
+			balance->sizeValue(),
+			container->sizeValue()
+		) | rpl::start_with_next([=](const QSize &, const QSize &) {
+			balance->moveToLeft(
+				st::creditsHistoryRightSkip * 2,
+				st::creditsHistoryRightSkip);
+			balance->update();
+		}, balance->lifetime());
+	}
 }
 
 bool CanEditSuggestedMessage(not_null<HistoryItem*> item) {
@@ -546,6 +587,11 @@ void InsufficientTonBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
 		CreditsAmount required) {
+	box->setStyle(st::suggestPriceBox);
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
 	auto icon = Settings::CreateLottieIcon(
 		box->verticalLayout(),
 		{
@@ -571,21 +617,24 @@ void InsufficientTonBox(
 	const auto label = box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
-			tr::lng_suggest_low_ton_text(
-				lt_channel,
-				rpl::single(Ui::Text::Bold(peer->name())),
-				Ui::Text::RichLangValue),
+			tr::lng_suggest_low_ton_text(Ui::Text::RichLangValue),
 			st::lowTonText),
 		st::boxRowPadding + st::lowTonTextPadding);
 	label->setTryMakeSimilarLines(true);
 	label->resizeToWidth(
 		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
-	box->addButton(tr::lng_suggest_low_ton_fragment(), [=] {
-		UrlClickHandler::Open(tr::lng_suggest_low_ton_fragment_url(tr::now));
-	});
-	box->addButton(tr::lng_cancel(), [=] {
-		box->closeBox();
-	});
+
+	const auto url = tr::lng_suggest_low_ton_fragment_url(tr::now);
+	const auto button = box->addButton(
+		tr::lng_suggest_low_ton_fragment(),
+		[=] { UrlClickHandler::Open(url); });
+	const auto buttonWidth = st::boxWidth
+		- rect::m::sum::h(st::suggestPriceBox.buttonPadding);
+	button->widthValue() | rpl::filter([=] {
+		return (button->widthNoMargins() != buttonWidth);
+	}) | rpl::start_with_next([=] {
+		button->resizeToWidth(buttonWidth);
+	}, button->lifetime());
 }
 
 SuggestOptions::SuggestOptions(

@@ -4497,8 +4497,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_warn_text_ton" = "You won't receive **TON** for the post if you delete it now. The post must remain visible for at least **24 hours** after it was published.";
 "lng_suggest_warn_delete_anyway" = "Delete Anyway";
 "lng_suggest_low_ton_title" = "{amount} TON Needed";
-"lng_suggest_low_ton_text" = "Buy **TON** to suggest message to {channel} and others.";
-"lng_suggest_low_ton_fragment" = "Buy on Fragment";
+"lng_suggest_low_ton_text" = "You can add funds to your balance via the third-party platform Fragment.";
+"lng_suggest_low_ton_fragment" = "Add Funds via Fragment";
 "lng_suggest_low_ton_fragment_url" = "https://fragment.com/ads/topup";
 
 "lng_reply_in_another_title" = "Reply in...";

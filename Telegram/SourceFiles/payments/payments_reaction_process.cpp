@@ -251,6 +251,7 @@ void ShowPaidReactionDetails(
 		.chosen = chosen,
 		.max = max,
 		.top = std::move(top),
+		.session = &channel->session(),
 		.channel = channel->name(),
 		.submit = std::move(submitText),
 		.balanceValue = session->credits().balanceValue(),

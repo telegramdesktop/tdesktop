@@ -487,6 +487,7 @@ void SendCreditsBox(
 		session->credits().load(true);
 		const auto balance = Settings::AddBalanceWidget(
 			content,
+			session,
 			session->credits().balanceValue(),
 			false);
 		rpl::combine(

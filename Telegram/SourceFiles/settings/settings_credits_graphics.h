@@ -79,6 +79,7 @@ void FillCreditOptions(
 
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
 	not_null<Ui::RpWidget*> parent,
+	not_null<Main::Session*> session,
 	rpl::producer<CreditsAmount> balanceValue,
 	bool rightAlign,
 	rpl::producer<float64> opacityValue = nullptr);

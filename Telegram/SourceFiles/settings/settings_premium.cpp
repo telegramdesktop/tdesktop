@@ -389,7 +389,7 @@ using Order = std::vector<QString>;
 		{
 			u"todo"_q,
 			Entry{
-				&st::settingsPremiumIconTranslations,
+				&st::settingsPremiumIconChecklist,
 				tr::lng_premium_summary_subtitle_todo_lists(),
 				tr::lng_premium_summary_about_todo_lists(),
 				PremiumFeature::TodoLists,

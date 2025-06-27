@@ -256,6 +256,7 @@ void ConfirmSubscriptionBox(
 	{
 		const auto balance = Settings::AddBalanceWidget(
 			content,
+			session,
 			session->credits().balanceValue(),
 			true);
 		session->credits().load(true);

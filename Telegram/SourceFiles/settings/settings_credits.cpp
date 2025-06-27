@@ -607,6 +607,7 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 	{
 		const auto balance = AddBalanceWidget(
 			content,
+			&_controller->session(),
 			_controller->session().credits().balanceValue(),
 			true,
 			content->heightValue() | rpl::map([=](int height) {

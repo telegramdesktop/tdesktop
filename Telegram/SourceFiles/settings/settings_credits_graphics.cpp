@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/info_channel_earn_widget.h" // Info::ChannelEarn::Make.
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
@@ -684,19 +685,17 @@ void FillCreditOptions(
 
 not_null<Ui::RpWidget*> AddBalanceWidget(
 		not_null<Ui::RpWidget*> parent,
+		not_null<Main::Session*> session,
 		rpl::producer<CreditsAmount> balanceValue,
 		bool rightAlign,
 		rpl::producer<float64> opacityValue) {
 	struct State final {
-		QImage star;
 		float64 opacity = 1.0;
 		Ui::Text::String label;
 		Ui::Text::String count;
 	};
 	const auto balance = Ui::CreateChild<Balance>(parent);
 	const auto state = balance->lifetime().make_state<State>();
-	state->star = QImage(Ui::GenerateStars(st::creditsBalanceStarHeight, 1));
-	const auto starSize = state->star.size() / style::DevicePixelRatio();
 	state->label = Ui::Text::String(
 		st::defaultTextStyle,
 		tr::lng_credits_summary_balance(tr::now));
@@ -708,22 +707,40 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 			state->opacity = value;
 		}, balance->lifetime());
 	}
-	const auto diffBetweenStarAndCount = state->count.style()->font->spacew;
 	const auto resize = [=] {
 		balance->resize(
-			std::max(
-				state->label.maxWidth(),
-				state->count.maxWidth()
-					+ starSize.width()
-					+ diffBetweenStarAndCount),
-			state->label.style()->font->height + starSize.height());
+			std::max(state->label.maxWidth(), state->count.maxWidth()),
+			(state->label.style()->font->height
+				+ state->count.style()->font->height));
 	};
 	std::move(
 		balanceValue
 	) | rpl::start_with_next([=](CreditsAmount value) {
-		state->count.setText(
+		auto text = TextWithEntities();
+		const auto manager = &session->data().customEmojiManager();
+		if (value.ton()) {
+			text.append(Ui::Text::SingleCustomEmoji(
+				manager->registerInternalEmoji(
+					Ui::Earn::IconCurrencyColored(
+						st::tonFieldIconSize,
+						st::windowActiveTextFg->c),
+					st::channelEarnCurrencyLearnMargins,
+					false))
+			).append(' ').append(Lang::FormatCreditsAmountDecimal(value));
+		} else {
+			text.append(
+				manager->creditsEmoji()
+			).append(' ').append(
+				Lang::FormatCreditsAmountToShort(value).string);
+		}
+		state->count.setMarkedText(
 			st::semiboldTextStyle,
-			Lang::FormatCreditsAmountToShort(value).string);
+			text,
+			kMarkupTextOptions,
+			Core::TextContext({
+				.session = session,
+				.repaint = [=] { balance->update(); },
+			}));
 		balance->setBalance(value);
 		resize();
 	}, balance->lifetime());
@@ -742,22 +759,10 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 		});
 		state->count.draw(p, {
 			.position = QPoint(
-				(rightAlign
-					? (balance->width() - state->count.maxWidth())
-					: (starSize.width() + diffBetweenStarAndCount)),
-				state->label.minHeight()
-					+ (starSize.height() - state->count.minHeight()) / 2),
+				rightAlign ? (balance->width() - state->count.maxWidth()) : 0,
+				state->label.minHeight()),
 			.availableWidth = balance->width(),
 		});
-		p.drawImage(
-			(rightAlign
-				? (balance->width()
-					- state->count.maxWidth()
-					- starSize.width()
-					- diffBetweenStarAndCount)
-				: 0),
-			state->label.minHeight(),
-			state->star);
 	}, balance->lifetime());
 	return balance;
 }
@@ -2489,6 +2494,7 @@ void SmallBalanceBox(
 	{
 		const auto balance = AddBalanceWidget(
 			content,
+			&show->session(),
 			show->session().credits().balanceValue(),
 			true);
 		show->session().credits().load(true);

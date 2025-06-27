@@ -1365,7 +1365,7 @@ chatTabsOutlineHorizontal: ChatTabsOutline {
 chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
 }
 
-suggestPriceTonIconMargins: margins(0px, 1px, 0px, 0px);
+suggestPriceTonIconMargins: margins(0px, 2px, 0px, 0px);
 suggestPriceBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 22px, 22px, 22px);
 	buttonHeight: 42px;
