@@ -85,9 +85,11 @@ CreditsAmount Credits::balance(PeerId peerId) const {
 	return (it != _cachedPeerBalances.end()) ? it->second : CreditsAmount();
 }
 
-uint64 Credits::balanceCurrency(PeerId peerId) const {
+CreditsAmount Credits::balanceCurrency(PeerId peerId) const {
 	const auto it = _cachedPeerCurrencyBalances.find(peerId);
-	return (it != _cachedPeerCurrencyBalances.end()) ? it->second : 0;
+	return (it != _cachedPeerCurrencyBalances.end())
+		? it->second
+		: CreditsAmount();
 }
 
 rpl::producer<CreditsAmount> Credits::balanceValue() const {
@@ -204,7 +206,7 @@ void Credits::apply(PeerId peerId, CreditsAmount balance) {
 	_refreshedByPeerId.fire_copy(peerId);
 }
 
-void Credits::applyCurrency(PeerId peerId, uint64 balance) {
+void Credits::applyCurrency(PeerId peerId, CreditsAmount balance) {
 	_cachedPeerCurrencyBalances[peerId] = balance;
 	_refreshedByPeerId.fire_copy(peerId);
 }
@@ -227,10 +229,17 @@ CreditsAmount CreditsAmountFromTL(const MTPStarsAmount &amount) {
 			data.vnanos().v,
 			CreditsType::Stars);
 	}, [&](const MTPDstarsTonAmount &data) {
-		return CreditsAmount(
-			data.vamount().v / uint64(1'000'000'000),
-			data.vamount().v % uint64(1'000'000'000),
+		const auto isNegative = (static_cast<int64_t>(data.vamount().v) < 0);
+		const auto absValue = isNegative
+			? uint64(~data.vamount().v + 1)
+			: data.vamount().v;
+		const auto result = CreditsAmount(
+			int64(absValue / 1'000'000'000),
+			absValue % 1'000'000'000,
 			CreditsType::Ton);
+		return isNegative
+			? CreditsAmount(0, CreditsType::Ton) - result
+			: result;
 	});
 }
 

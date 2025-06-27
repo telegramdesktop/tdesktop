@@ -40,8 +40,8 @@ public:
 
 	[[nodiscard]] bool statsEnabled() const;
 
-	void applyCurrency(PeerId peerId, uint64 balance);
-	[[nodiscard]] uint64 balanceCurrency(PeerId peerId) const;
+	void applyCurrency(PeerId peerId, CreditsAmount balance);
+	[[nodiscard]] CreditsAmount balanceCurrency(PeerId peerId) const;
 
 	void lock(CreditsAmount count);
 	void unlock(CreditsAmount count);
@@ -58,7 +58,7 @@ private:
 	std::unique_ptr<rpl::lifetime> _loader;
 
 	base::flat_map<PeerId, CreditsAmount> _cachedPeerBalances;
-	base::flat_map<PeerId, uint64> _cachedPeerCurrencyBalances;
+	base::flat_map<PeerId, CreditsAmount> _cachedPeerCurrencyBalances;
 
 	CreditsAmount _balance;
 	CreditsAmount _locked;

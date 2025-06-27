@@ -22,6 +22,10 @@ QString MajorPart(EarnInt value) {
 	return (diff <= 0) ? QString(kZero) : string.mid(0, diff);
 }
 
+QString MajorPart(CreditsAmount value) {
+	return QString::number(int64(value.value()));
+}
+
 QString MinorPart(EarnInt value) {
 	if (!value) {
 		return QString(kDot) + kZero + kZero;
@@ -44,6 +48,10 @@ QString MinorPart(EarnInt value) {
 		ch--;
 	}
 	return result.chopped(zeroCount);
+}
+
+QString MinorPart(CreditsAmount value) {
+	return QString::number(value.value(), 'f', 2).right(3);
 }
 
 QString ToUsd(

@@ -1841,9 +1841,8 @@ void Controller::fillBotCurrencyButton() {
 
 	auto &lifetime = _controls.buttonsLayout->lifetime();
 	const auto state = lifetime.make_state<State>();
-	const auto format = [=](uint64 balance) {
-		return Info::ChannelEarn::MajorPart(balance)
-			+ Info::ChannelEarn::MinorPart(balance);
+	const auto format = [=](const CreditsAmount &balance) {
+		return Lang::FormatCreditsAmountDecimal(balance);
 	};
 	const auto was = _peer->session().credits().balanceCurrency(
 		_peer->id);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_statistics.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peer_list_widgets.h"
+#include "info/channel_statistics/earn/earn_format.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/ui_integration.h" // TextContext
 #include "data/data_channel.h"

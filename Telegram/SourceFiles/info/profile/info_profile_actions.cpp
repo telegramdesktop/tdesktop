@@ -849,19 +849,20 @@ template <typename Text, typename ToggleOn, typename Callback>
 		st));
 }
 
-rpl::producer<uint64> AddCurrencyAction(
+rpl::producer<CreditsAmount> AddCurrencyAction(
 		not_null<UserData*> user,
 		not_null<Ui::VerticalLayout*> wrap,
 		not_null<Controller*> controller) {
 	struct State final {
-		rpl::variable<uint64> balance;
+		rpl::variable<CreditsAmount> balance;
 	};
 	const auto state = wrap->lifetime().make_state<State>();
 	const auto parentController = controller->parentController();
 	const auto wrapButton = AddActionButton(
 		wrap,
 		tr::lng_manage_peer_bot_balance_currency(),
-		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
+		state->balance.value(
+		) | rpl::map(rpl::mappers::_1 > CreditsAmount(0)),
 		[=] { parentController->showSection(Info::ChannelEarn::Make(user)); },
 		nullptr);
 	{
@@ -889,14 +890,14 @@ rpl::producer<uint64> AddCurrencyAction(
 			= std::make_shared<rpl::lifetime>();
 		const auto currencyLoad
 			= currencyLoadLifetime->make_state<Api::EarnStatistics>(user);
-		const auto done = [=](Data::EarnInt balance) {
+		const auto done = [=](CreditsAmount balance) {
 			if ([[maybe_unused]] const auto strong = weak.data()) {
 				state->balance = balance;
 				currencyLoadLifetime->destroy();
 			}
 		};
 		currencyLoad->request() | rpl::start_with_error_done(
-			[=](const QString &error) { done(0); },
+			[=](const QString &error) { done({}); },
 			[=] { done(currencyLoad->data().currentBalance); },
 			*currencyLoadLifetime);
 	}
@@ -918,7 +919,7 @@ rpl::producer<uint64> AddCurrencyAction(
 	) | rpl::start_with_next([=, &st](
 			int width,
 			const QString &button,
-			Data::EarnInt balance) {
+			CreditsAmount balance) {
 		const auto available = width
 			- rect::m::sum::h(st.padding)
 			- st.style.font->width(button)
@@ -2404,7 +2405,7 @@ void ActionsFiller::addBalanceActions(not_null<UserData*> user) {
 		rpl::combine(
 			std::move(currencyBalance),
 			std::move(creditsBalance)
-		) | rpl::map((rpl::mappers::_1 > 0)
+		) | rpl::map((rpl::mappers::_1 > CreditsAmount(0))
 			|| (rpl::mappers::_2 > CreditsAmount(0))));
 }
 
@@ -2915,18 +2916,20 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 		auto creditsValue = rpl::single(
 			rpl::empty_value()
 		) | rpl::then(rpl::duplicate(refreshed)) | rpl::map([=] {
-			return channel->session().credits().balance(channel->id).whole();
+			return channel->session().credits().balance(channel->id);
 		});
 		auto currencyValue = rpl::single(
 			rpl::empty_value()
 		) | rpl::then(rpl::duplicate(refreshed)) | rpl::map([=] {
 			return channel->session().credits().balanceCurrency(channel->id);
 		});
+		const auto emptyAmount = CreditsAmount(0);
 		balanceWrap->toggleOn(
 			rpl::combine(
 				rpl::duplicate(creditsValue),
 				rpl::duplicate(currencyValue)
-			) | rpl::map(rpl::mappers::_1 > 0 || rpl::mappers::_2 > 0),
+			) | rpl::map(rpl::mappers::_1 > emptyAmount
+				|| rpl::mappers::_2 > emptyAmount),
 			anim::type::normal);
 		balanceWrap->finishAnimating();
 
@@ -2961,13 +2964,14 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 			rpl::combine(
 				std::move(creditsValue),
 				std::move(currencyValue)
-			) | rpl::map([](uint64 credits, uint64 currency) {
-				auto creditsText = (credits > 0)
+			) | rpl::map([](CreditsAmount credits, CreditsAmount currency) {
+				auto creditsText = (credits > CreditsAmount(0))
 					? Ui::Text::SingleCustomEmoji(Ui::kCreditsCurrency)
 						.append(QChar(' '))
-						.append(QString::number(credits))
+						.append(Info::ChannelEarn::MajorPart(credits))
+						.append(Info::ChannelEarn::MinorPart(credits))
 					: TextWithEntities();
-				auto currencyText = (currency > 0)
+				auto currencyText = (currency > CreditsAmount(0))
 					? Ui::Text::SingleCustomEmoji("_")
 						.append(QChar(' '))
 						.append(Info::ChannelEarn::MajorPart(currency))

@@ -80,7 +80,7 @@ constexpr auto kTransactionsLimit = 100;
 		}, [](const auto &) { return (const MTPDstarGift*)nullptr; })
 		: nullptr;
 	const auto reaction = tl.data().is_reaction();
-	const auto amount = CreditsAmountFromTL(tl.data().vstars());
+	const auto amount = CreditsAmountFromTL(tl.data().vamount());
 	const auto starrefAmount = CreditsAmountFromTL(
 		tl.data().vstarref_amount());
 	const auto starrefCommission
@@ -107,7 +107,7 @@ constexpr auto kTransactionsLimit = 100;
 		.date = base::unixtime::parse(tl.data().vdate().v),
 		.photoId = photo ? photo->id : 0,
 		.extended = std::move(extended),
-		.credits = CreditsAmountFromTL(tl.data().vstars()),
+		.credits = CreditsAmountFromTL(tl.data().vamount()),
 		.bareMsgId = uint64(tl.data().vmsg_id().value_or_empty()),
 		.barePeerId = saveActorId ? peer->id.value : barePeerId,
 		.bareGiveawayMsgId = uint64(

@@ -33,7 +33,7 @@ struct EarnHistoryEntry final {
 	Type type;
 	Status status;
 
-	EarnInt amount = 0;
+	CreditsAmount amount;
 	QDateTime date;
 	QDateTime dateTo;
 
@@ -45,7 +45,7 @@ struct EarnHistoryEntry final {
 };
 
 struct EarnHistorySlice final {
-	using OffsetToken = int;
+	using OffsetToken = QString;
 	std::vector<EarnHistoryEntry> list;
 	int total = 0;
 	bool allLoaded = false;
@@ -58,9 +58,9 @@ struct EarnStatistics final {
 	}
 	Data::StatisticalGraph topHoursGraph;
 	Data::StatisticalGraph revenueGraph;
-	EarnInt currentBalance = 0;
-	EarnInt availableBalance = 0;
-	EarnInt overallRevenue = 0;
+	CreditsAmount currentBalance;
+	CreditsAmount availableBalance;
+	CreditsAmount overallRevenue;
 	float64 usdRate = 0.;
 	bool switchedOff = false;
 

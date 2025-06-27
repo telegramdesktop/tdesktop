@@ -695,19 +695,23 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		makeRequest(MTPstats_GetBroadcastRevenueStats(
-			MTP_flags(0),
+		makeRequest(MTPpayments_GetStarsRevenueStats(
+			MTP_flags(MTPpayments_getStarsRevenueStats::Flag::f_ton),
 			(_isUser ? user()->input : channel()->input)
-		)).done([=](const MTPstats_BroadcastRevenueStats &result) {
+		)).done([=](const MTPpayments_StarsRevenueStats &result) {
 			const auto &data = result.data();
-			const auto &balances = data.vbalances().data();
+			const auto &balances = data.vstatus().data();
+			const auto amount = [](const auto &a) {
+				return CreditsAmountFromTL(a);
+			};
 			_data = Data::EarnStatistics{
-				.topHoursGraph = StatisticalGraphFromTL(
-					data.vtop_hours_graph()),
+				.topHoursGraph = data.vtop_hours_graph()
+					? StatisticalGraphFromTL(*data.vtop_hours_graph())
+					: Data::StatisticalGraph(),
 				.revenueGraph = StatisticalGraphFromTL(data.vrevenue_graph()),
-				.currentBalance = balances.vcurrent_balance().v,
-				.availableBalance = balances.vavailable_balance().v,
-				.overallRevenue = balances.voverall_revenue().v,
+				.currentBalance = amount(balances.vcurrent_balance()),
+				.availableBalance = amount(balances.vavailable_balance()),
+				.overallRevenue = amount(balances.voverall_revenue()),
 				.usdRate = data.vusd_rate().v,
 			};
 
@@ -745,39 +749,60 @@ void EarnStatistics::requestHistory(
 	if (_requestId) {
 		return;
 	}
+
 	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
 	constexpr auto kTlLimit = tl::make_int(kLimit);
-	_requestId = api().request(MTPstats_GetBroadcastRevenueTransactions(
+
+	_requestId = api().request(MTPpayments_GetStarsTransactions(
+		MTP_flags(MTPpayments_getStarsTransactions::Flag::f_ton
+			| MTPpayments_getStarsTransactions::Flag::f_inbound
+			| MTPpayments_getStarsTransactions::Flag::f_outbound),
+		MTP_string(), // Subscription ID.
 		(_isUser ? user()->input : channel()->input),
-		MTP_int(token),
-		(!token) ? kTlFirstSlice : kTlLimit
-	)).done([=](const MTPstats_BroadcastRevenueTransactions &result) {
+		MTP_string(token),
+		token.isEmpty() ? kTlFirstSlice : kTlLimit
+	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
 
-		const auto &tlTransactions = result.data().vtransactions().v;
+		const auto nextToken = result.data().vnext_offset().value_or_empty();
+		qDebug() << "next" << nextToken;
+
+		const auto &tlTransactions
+			= result.data().vhistory().value_or_empty();
 
 		auto list = std::vector<Data::EarnHistoryEntry>();
 		list.reserve(tlTransactions.size());
 		for (const auto &tlTransaction : tlTransactions) {
-			list.push_back(tlTransaction.match([&](
-					const MTPDbroadcastRevenueTransactionProceeds &d) {
-				return Data::EarnHistoryEntry{
+			const auto &d = tlTransaction.data();
+			const auto isProceed = d.vads_proceeds_from_date()
+				|| d.vads_proceeds_to_date();
+			const auto isRefund = d.is_refund();
+			const auto amount = CreditsAmountFromTL(d.vamount());
+			if (isProceed) {
+				list.push_back(Data::EarnHistoryEntry{
 					.type = Data::EarnHistoryEntry::Type::In,
-					.amount = d.vamount().v,
-					.date = base::unixtime::parse(d.vfrom_date().v),
-					.dateTo = base::unixtime::parse(d.vto_date().v),
-				};
-			}, [&](const MTPDbroadcastRevenueTransactionWithdrawal &d) {
-				return Data::EarnHistoryEntry{
+					.amount = amount,
+					.date = base::unixtime::parse(
+						d.vads_proceeds_from_date()->v),
+					.dateTo = base::unixtime::parse(
+						d.vads_proceeds_to_date()->v),
+				});
+			} else if (isRefund) {
+				list.push_back(Data::EarnHistoryEntry{
+					.type = Data::EarnHistoryEntry::Type::Return,
+					.amount = amount,
+					.date = base::unixtime::parse(d.vdate().v),
+					// .provider = qs(d.vprovider()),
+				});
+			} else {
+				list.push_back(Data::EarnHistoryEntry{
 					.type = Data::EarnHistoryEntry::Type::Out,
 					.status = d.is_pending()
 						? Data::EarnHistoryEntry::Status::Pending
 						: d.is_failed()
 						? Data::EarnHistoryEntry::Status::Failed
 						: Data::EarnHistoryEntry::Status::Success,
-					.amount = (std::numeric_limits<Data::EarnInt>::max()
-						- d.vamount().v
-						+ 1),
+					.amount = amount,
 					.date = base::unixtime::parse(d.vdate().v),
 					// .provider = qs(d.vprovider()),
 					.successDate = d.vtransaction_date()
@@ -786,21 +811,14 @@ void EarnStatistics::requestHistory(
 					.successLink = d.vtransaction_url()
 						? qs(*d.vtransaction_url())
 						: QString(),
-				};
-			}, [&](const MTPDbroadcastRevenueTransactionRefund &d) {
-				return Data::EarnHistoryEntry{
-					.type = Data::EarnHistoryEntry::Type::Return,
-					.amount = d.vamount().v,
-					.date = base::unixtime::parse(d.vdate().v),
-					// .provider = qs(d.vprovider()),
-				};
-			}));
+				});
+			}
 		}
-		const auto nextToken = token + tlTransactions.size();
 		done(Data::EarnHistorySlice{
 			.list = std::move(list),
-			.total = result.data().vcount().v,
-			.allLoaded = (result.data().vcount().v == nextToken),
+			.total = int(tlTransactions.size()),
+			// .total = result.data().vcount().v,
+			.allLoaded = nextToken.isEmpty(),
 			.token = Data::EarnHistorySlice::OffsetToken(nextToken),
 		});
 	}).fail([=] {

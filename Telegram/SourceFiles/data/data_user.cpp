@@ -790,14 +790,14 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				= std::make_shared<rpl::lifetime>();
 			const auto currencyLoad
 				= currencyLoadLifetime->make_state<Api::EarnStatistics>(user);
-			const auto apply = [=](Data::EarnInt balance) {
+			const auto apply = [=](const CreditsAmount &balance) {
 				if (const auto strong = weak.get()) {
 					strong->credits().applyCurrency(id, balance);
 				}
 				currencyLoadLifetime->destroy();
 			};
 			currencyLoad->request() | rpl::start_with_error_done(
-				[=](const QString &error) { apply(0); },
+				[=](const QString &error) { apply({}); },
 				[=] { apply(currencyLoad->data().currentBalance); },
 				*currencyLoadLifetime);
 			base::timer_once(kTimeout) | rpl::start_with_next([=] {

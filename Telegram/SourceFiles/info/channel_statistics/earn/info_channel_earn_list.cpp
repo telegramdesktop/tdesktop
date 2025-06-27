@@ -249,7 +249,6 @@ void InnerWidget::load() {
 		) | rpl::start_with_next([=, peerId = _peer->id](
 				const MTPUpdates &updates) {
 			using TLCreditsUpdate = MTPDupdateStarsRevenueStatus;
-			using TLCurrencyUpdate = MTPDupdateBroadcastRevenueTransactions;
 			using TLNotificationUpdate = MTPDupdateServiceNotification;
 			Api::PerformForUpdate<TLCreditsUpdate>(updates, [&](
 					const TLCreditsUpdate &d) {
@@ -257,29 +256,39 @@ void InnerWidget::load() {
 					return;
 				}
 				const auto &data = d.vstatus().data();
-				auto &e = _state.creditsEarn;
-				e.currentBalance = CreditsAmountFromTL(data.vcurrent_balance());
-				e.availableBalance = CreditsAmountFromTL(data.vavailable_balance());
-				e.overallRevenue = CreditsAmountFromTL(data.voverall_revenue());
-				e.isWithdrawalEnabled = data.is_withdrawal_enabled();
-				e.nextWithdrawalAt = data.vnext_withdrawal_at()
-					? base::unixtime::parse(
-						data.vnext_withdrawal_at()->v)
-					: QDateTime();
-				state->apiCreditsHistory.request({}, [=](
-						const Data::CreditsStatusSlice &data) {
-					_state.creditsStatusSlice = data;
-					_stateUpdated.fire({});
+				const auto isCredits = data.vcurrent_balance().match([](
+						const MTPDstarsAmount &) {
+					return true;
+				}, [](const MTPDstarsTonAmount &) {
+					return false;
 				});
-			});
-			Api::PerformForUpdate<TLCurrencyUpdate>(updates, [&](
-					const TLCurrencyUpdate &d) {
-				if (peerId == peerFromMTP(d.vpeer())) {
-					const auto &data = d.vbalances().data();
-					auto &e = _state.currencyEarn;
-					e.currentBalance = data.vcurrent_balance().v;
-					e.availableBalance = data.vavailable_balance().v;
-					e.overallRevenue = data.voverall_revenue().v;
+				if (isCredits) {
+					auto &credits = _state.creditsEarn;
+					credits.currentBalance = CreditsAmountFromTL(
+						data.vcurrent_balance());
+					credits.availableBalance = CreditsAmountFromTL(
+						data.vavailable_balance());
+					credits.overallRevenue = CreditsAmountFromTL(
+						data.voverall_revenue());
+					credits.isWithdrawalEnabled
+						= data.is_withdrawal_enabled();
+					credits.nextWithdrawalAt = data.vnext_withdrawal_at()
+						? base::unixtime::parse(
+							data.vnext_withdrawal_at()->v)
+						: QDateTime();
+					state->apiCreditsHistory.request({}, [=](
+							const Data::CreditsStatusSlice &data) {
+						_state.creditsStatusSlice = data;
+						_stateUpdated.fire({});
+					});
+				} else {
+					auto &currency = _state.currencyEarn;
+					currency.currentBalance = CreditsAmountFromTL(
+						data.vcurrent_balance());
+					currency.availableBalance = CreditsAmountFromTL(
+						data.vavailable_balance());
+					currency.overallRevenue = CreditsAmountFromTL(
+						data.voverall_revenue());
 					_stateUpdated.fire({});
 				}
 			});
@@ -405,7 +414,7 @@ void InnerWidget::fill() {
 	const auto withdrawalEnabled = WithdrawalEnabled(session);
 	const auto addEmojiToMajor = [=](
 			not_null<Ui::FlatLabel*> label,
-			rpl::producer<EarnInt> value,
+			rpl::producer<CreditsAmount> value,
 			std::optional<bool> isIn,
 			std::optional<QMargins> margins) {
 		const auto &st = label->st();
@@ -425,9 +434,11 @@ void InnerWidget::fill() {
 			: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
 		std::move(
 			value
-		) | rpl::start_with_next([=](EarnInt v) {
+		) | rpl::start_with_next([=](CreditsAmount v) {
 			label->setMarkedText(
-				base::duplicate(prepended).append(icon).append(MajorPart(v)),
+				base::duplicate(prepended)
+					.append(icon)
+					.append(QString::number(v.whole())),
 				Core::TextContext({ .session = session }));
 		}, label->lifetime());
 	};
@@ -706,7 +717,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
 		const auto addOverview = [&](
-				rpl::producer<EarnInt> currencyValue,
+				rpl::producer<CreditsAmount> currencyValue,
 				rpl::producer<CreditsAmount> creditsValue,
 				const tr::phrase<> &text,
 				bool showCurrency,
@@ -724,15 +735,17 @@ void InnerWidget::fill() {
 				{});
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				rpl::duplicate(currencyValue) | rpl::map([=](EarnInt v) {
-					return MinorPart(v).left(kMinorLength);
+				rpl::duplicate(
+					currencyValue
+				) | rpl::map([](CreditsAmount v) {
+					return MinorPart(v);
 				}),
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				std::move(
 					currencyValue
-				) | rpl::map([=](EarnInt value) {
+				) | rpl::map([=](CreditsAmount value) {
 					return value
 						? ToUsd(value, multiplier, kMinorLength)
 						: QString();
