@@ -759,17 +759,26 @@ ReplyKeyboard::ReplyKeyboard(
 			for (auto j = 0; j != rowSize; ++j) {
 				auto button = Button();
 				using Type = HistoryMessageMarkupButton::Type;
-				const auto isBuy = (row[j].type == Type::Buy);
 				static const auto RegExp = QRegularExpression("\\b"
 					+ Ui::kCreditsCurrency
 					+ "\\b");
-				const auto text = isBuy
+				const auto type = row[j].type;
+				const auto text = (type == Type::Buy)
 					? base::duplicate(row[j].text).replace(
 						RegExp,
 						QChar(0x2B50))
 					: row[j].text;
+				const auto withEmoji = [&](const style::IconEmoji &icon) {
+					return Ui::Text::IconEmoji(&icon).append(text);
+				};
 				const auto textWithEntities = [&] {
-					if (!isBuy) {
+					if (type == Type::SuggestAccept) {
+						return withEmoji(st::chatSuggestAcceptIcon);
+					} else if (type == Type::SuggestDecline) {
+						return withEmoji(st::chatSuggestDeclineIcon);
+					} else if (type == Type::SuggestChange) {
+						return withEmoji(st::chatSuggestChangeIcon);
+					} else if (type != Type::Buy) {
 						return TextWithEntities();
 					}
 					auto result = TextWithEntities();
@@ -785,7 +794,7 @@ ReplyKeyboard::ReplyKeyboard(
 						? TextWithEntities()
 						: result;
 				}();
-				button.type = row.at(j).type;
+				button.type = type;
 				button.link = std::make_shared<ReplyMarkupClickHandler>(
 					owner,
 					i,

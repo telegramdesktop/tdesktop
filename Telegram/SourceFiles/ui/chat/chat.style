@@ -1060,6 +1060,18 @@ chatSuggestInfoLastMargin: margins(16px, 4px, 16px, 16px);
 chatSuggestTableMiddleMargin: margins(8px, 4px, 8px, 4px);
 chatSuggestTableLastMargin: margins(8px, 4px, 8px, 16px);
 chatSuggestInfoFullMargin: margins(16px, 16px, 16px, 16px);
+chatSuggestAcceptIcon: IconEmoji {
+	icon: icon{{ "chat/paid_approve", windowFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
+chatSuggestDeclineIcon: IconEmoji {
+	icon: icon{{ "chat/paid_decline", windowFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
+chatSuggestChangeIcon: IconEmoji {
+	icon: icon{{ "chat/paid_edit", windowFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
 
 premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
