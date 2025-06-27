@@ -710,7 +710,10 @@ ClickHandlerPtr ServicePreMessage::textState(
 		const StateRequest &request,
 		QRect g) const {
 	if (media && media->hideServiceText()) {
-		return {};
+		const auto left = (width - media->width()) / 2;
+		const auto top = g.top() - height - st::msgMargin.bottom();
+		const auto position = QPoint(left, top);
+		return media->textState(point - position, request).link;
 	}
 	const auto top = g.top() - height - st::msgMargin.top();
 	const auto rect = QRect(0, top, width, height)
