@@ -256,7 +256,6 @@ void TodoList::updateTexts() {
 			}));
 	}
 	if (_flags != _todolist->flags() || _subtitle.isEmpty()) {
-		using Flag = PollData::Flag;
 		_flags = _todolist->flags();
 		_subtitle.setText(
 			st::msgDateTextStyle,

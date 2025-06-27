@@ -101,9 +101,21 @@ public:
 		return result;
 	}
 
-	friend inline constexpr auto operator<=>(CreditsAmount, CreditsAmount)
-		= default;
-	friend inline constexpr bool operator==(CreditsAmount, CreditsAmount)
+// AppleClang :/
+//	friend inline auto operator<=>(CreditsAmount, CreditsAmount)
+//		= default;
+	friend inline constexpr auto operator<=>(
+			CreditsAmount a,
+			CreditsAmount b) {
+		if (const auto r1 = (int(a._ton) <=> int(b._ton)); r1 != 0) {
+			return r1;
+		} else if (auto r2 = (a._whole <=> b._whole); r2 != 0) {
+			return r2;
+		}
+		return (a._nano <=> b._nano);
+	}
+
+	friend inline bool operator==(CreditsAmount, CreditsAmount)
 		= default;
 
 	[[nodiscard]] CreditsAmount abs() const {

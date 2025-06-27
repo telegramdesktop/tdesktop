@@ -81,7 +81,7 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 	auto digitsCount = 0;
 	for (auto i = 0; i != result.text.size();) {
 		const auto ch = result.text[i];
-		const auto atSeparator = result.text.midRef(i).startsWith(separator);
+		const auto atSeparator = QStringView(result.text).mid(i).startsWith(separator);
 		if (ch >= '0' && ch <= '9' && digitsCount < kMaxDigitsCount) {
 			++i;
 			++digitsCount;

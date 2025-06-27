@@ -83,7 +83,6 @@ void ConfirmApproval(
 		not_null<HistoryItem*> item,
 		TimeId scheduleDate = 0,
 		Fn<void()> accepted = nullptr) {
-	using Flag = MTPmessages_ToggleSuggestedPostApproval::Flag;
 	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
 	if (!suggestion
 		|| suggestion->accepted
