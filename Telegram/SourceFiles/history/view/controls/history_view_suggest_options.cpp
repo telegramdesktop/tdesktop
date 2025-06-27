@@ -395,23 +395,24 @@ void ChooseSuggestPriceBox(
 				state->savePending = true;
 				return;
 			}
-			using namespace Settings;
 			const auto required = peer->starsPerMessageChecked()
 				+ int(base::SafeRound(value.value()));
-			const auto done = [=](SmallBalanceResult result) {
-				if (result == SmallBalanceResult::Success
-					|| result == SmallBalanceResult::Already) {
-					state->save();
-				}
-			};
-			MaybeRequestBalanceIncrease(
-				Main::MakeSessionShow(box->uiShow(), session),
-				required,
-				SmallBalanceForSuggest{ peer->id },
-				done);
-			return;
+			if (credits->balance() < CreditsAmount(required)) {
+				using namespace Settings;
+				const auto done = [=](SmallBalanceResult result) {
+					if (result == SmallBalanceResult::Success
+						|| result == SmallBalanceResult::Already) {
+						state->save();
+					}
+				};
+				MaybeRequestBalanceIncrease(
+					Main::MakeSessionShow(box->uiShow(), session),
+					required,
+					SmallBalanceForSuggest{ peer->id },
+					done);
+				return;
+			}
 		}
-		state->save = nullptr;
 		args.done({
 			.exists = true,
 			.priceWhole = uint32(value.whole()),
