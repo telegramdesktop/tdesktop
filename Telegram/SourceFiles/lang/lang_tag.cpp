@@ -968,6 +968,15 @@ QString FormatCreditsAmountRounded(CreditsAmount amount) {
 	return FormatExactCountDecimal(base::SafeRound(value * 100.) / 100.);
 }
 
+QString FormatCreditsAmountWithCurrency(CreditsAmount amount) {
+	return (amount.ton()
+		? tr::lng_suggest_ton_amount
+		: tr::lng_prize_credits_amount)(
+			tr::now,
+			lt_count_decimal,
+			amount.value());
+}
+
 PluralResult Plural(
 		ushort keyBase,
 		float64 value,

@@ -70,8 +70,8 @@ QSize PremiumGift::size() {
 TextWithEntities PremiumGift::title() {
 	using namespace Ui::Text;
 	if (tonGift()) {
-		AssertIsDebug();
-		return { QString::number(_data.count / 1'000'000'000LL) + u" TON"_q };
+		return { Lang::FormatCreditsAmountWithCurrency(
+			CreditsAmount(0, _data.count, CreditsType::Ton)) };
 	} else if (starGift()) {
 		const auto peer = _parent->history()->peer;
 		return peer->isSelf()

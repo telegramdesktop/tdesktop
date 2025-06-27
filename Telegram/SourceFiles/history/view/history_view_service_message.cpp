@@ -742,6 +742,8 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				result.link = done->lnk;
 			} else if (const auto append = item->Get<HistoryServiceTodoAppendTasks>()) {
 				result.link = append->lnk;
+			} else if (const auto finish = item->Get<HistoryServiceSuggestFinish>()) {
+				result.link = finish->lnk;
 			} else if (media && data()->showSimilarChannels()) {
 				result = media->textState(mediaPoint, request);
 			}

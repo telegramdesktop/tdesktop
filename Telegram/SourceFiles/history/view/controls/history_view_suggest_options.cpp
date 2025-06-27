@@ -58,10 +58,13 @@ void ChooseSuggestTimeBox(
 		: (now + 86400);
 	const auto done = args.done;
 	Ui::ChooseDateTimeBox(box, {
-		.title = ((args.mode == SuggestMode::New)
+		.title = ((args.mode == SuggestMode::New
+			|| args.mode == SuggestMode::Publish)
 			? tr::lng_suggest_options_date()
 			: tr::lng_suggest_menu_edit_time()),
-		.submit = ((args.mode == SuggestMode::New)
+		.submit = ((args.mode == SuggestMode::Publish)
+			? tr::lng_suggest_options_date_publish()
+			: (args.mode == SuggestMode::New)
 			? tr::lng_settings_save()
 			: tr::lng_suggest_options_update()),
 		.done = done,
@@ -70,7 +73,9 @@ void ChooseSuggestTimeBox(
 		.max = [=] { return now + max; },
 	});
 
-	box->addLeftButton(tr::lng_suggest_options_date_any(), [=] {
+	box->addLeftButton((args.mode == SuggestMode::Publish)
+		? tr::lng_suggest_options_date_now()
+		: tr::lng_suggest_options_date_any(), [=] {
 		done(TimeId());
 	});
 }
@@ -96,9 +101,14 @@ void ChooseSuggestPriceBox(
 	state->ton = (args.value.ton != 0);
 
 	const auto peer = args.peer;
+	const auto admin = peer->amMonoforumAdmin();
+	const auto broadcast = peer->monoforumBroadcast();
+	const auto usePeer = broadcast ? broadcast : peer;
 	const auto session = &peer->session();
-	session->credits().load();
-	session->credits().tonLoad();
+	if (!admin) {
+		session->credits().load();
+		session->credits().tonLoad();
+	}
 	const auto limit = session->appConfig().suggestedPostStarsMax();
 
 	box->setTitle((args.mode == SuggestMode::New)
@@ -109,7 +119,7 @@ void ChooseSuggestPriceBox(
 	state->buttons.push_back({
 		.text = Ui::Text::String(
 			st::semiboldTextStyle,
-			(args.mode == SuggestMode::ChangeAdmin
+			(admin
 				? tr::lng_suggest_options_stars_request(tr::now)
 				: tr::lng_suggest_options_stars_offer(tr::now))),
 		.active = !state->ton.current(),
@@ -117,7 +127,7 @@ void ChooseSuggestPriceBox(
 	state->buttons.push_back({
 		.text = Ui::Text::String(
 			st::semiboldTextStyle,
-			(args.mode == SuggestMode::ChangeAdmin
+			(admin
 				? tr::lng_suggest_options_ton_request(tr::now)
 				: tr::lng_suggest_options_ton_offer(tr::now))),
 		.active = state->ton.current(),
@@ -381,16 +391,15 @@ void ChooseSuggestPriceBox(
 			nanos % Ui::kNanosInOne,
 			ton ? CreditsType::Ton : CreditsType::Stars);
 		const auto credits = &session->credits();
-		if (ton) {
+		if (!admin && ton) {
 			if (!credits->tonLoaded()) {
 				state->savePending = true;
 				return;
 			} else if (credits->tonBalance() < value) {
-				box->uiShow()->show(
-					Box(InsufficientTonBox, peer, value));
+				box->uiShow()->show(Box(InsufficientTonBox, usePeer, value));
 				return;
 			}
-		} else {
+		} else if (!admin) {
 			if (!credits->loaded()) {
 				state->savePending = true;
 				return;
@@ -408,7 +417,7 @@ void ChooseSuggestPriceBox(
 				MaybeRequestBalanceIncrease(
 					Main::MakeSessionShow(box->uiShow(), session),
 					required,
-					SmallBalanceForSuggest{ peer->id },
+					SmallBalanceForSuggest{ usePeer->id },
 					done);
 				return;
 			}

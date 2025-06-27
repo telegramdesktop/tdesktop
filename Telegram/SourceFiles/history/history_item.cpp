@@ -6093,11 +6093,25 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareSuggestedPostSuccess = [&](const MTPDmessageActionSuggestedPostSuccess &data) {
-		return PreparedServiceText{ { u"hello"_q } }; AssertIsDebug();
+		const auto price = CreditsAmountFromTL(&data.vprice());
+		const auto amount = Lang::FormatCreditsAmountWithCurrency(price);
+		auto result = PreparedServiceText();
+		result.links.push_back(_from->createOpenLink());
+		result.text = tr::lng_action_suggest_success(
+			tr::now,
+			lt_from,
+			Ui::Text::Link(_from->shortName(), 1),
+			lt_amount,
+			TextWithEntities{ amount },
+			Ui::Text::WithEntities);
+		return result;
 	};
 
 	auto prepareSuggestedPostRefund = [&](const MTPDmessageActionSuggestedPostRefund &data) {
-		return PreparedServiceText{ { u"hello"_q } }; AssertIsDebug();
+		return PreparedServiceText{ { data.is_payer_initiated()
+			? tr::lng_action_suggest_refund_user(tr::now)
+			: tr::lng_action_suggest_refund_admin(tr::now)
+		} };
 	};
 
 	auto prepareConferenceCall = [&](const MTPDmessageActionConferenceCall &) -> PreparedServiceText {

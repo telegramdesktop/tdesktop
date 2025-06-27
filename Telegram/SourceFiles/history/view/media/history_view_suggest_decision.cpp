@@ -214,12 +214,8 @@ auto GenerateSuggestDecisionMedia(
 					? st::chatSuggestInfoMiddleMargin
 					: st::chatSuggestInfoLastMargin));
 			if (price) {
-				const auto amount = Ui::Text::Bold(price.ton()
-					? (Lang::FormatCreditsAmountDecimal(price) + u" TON"_q)
-					: tr::lng_prize_credits_amount(
-						tr::now,
-						lt_count_decimal,
-						price.value()));
+				const auto amount = Ui::Text::Bold(
+					Lang::FormatCreditsAmountWithCurrency(price));
 				pushText(
 					TextWithEntities(
 					).append(Emoji(kMoney)).append(' ').append(
@@ -334,12 +330,7 @@ auto GenerateSuggestRequestMedia(
 				: tr::lng_suggest_action_price_label)(tr::now),
 			Ui::Text::Bold(!suggest->price
 				? tr::lng_suggest_action_price_free(tr::now)
-				: suggest->price.ton() AssertIsDebug()
-				? (Lang::FormatCreditsAmountDecimal(suggest->price) + u" TON"_q)
-				: tr::lng_prize_credits_amount(
-					tr::now,
-					lt_count,
-					suggest->price.value())),
+				: Lang::FormatCreditsAmountWithCurrency(suggest->price)),
 		});
 		entries.push_back({
 			((changes && changes->date)

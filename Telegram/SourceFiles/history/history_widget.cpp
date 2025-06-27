@@ -2275,11 +2275,7 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		}
 		if (editDraft && editDraft->suggest) {
 			using namespace HistoryView;
-			applySuggestOptions(
-				editDraft->suggest,
-				(_history->amMonoforumAdmin()
-					? SuggestMode::ChangeAdmin
-					: SuggestMode::ChangeUser));
+			applySuggestOptions(editDraft->suggest, SuggestMode::Change);
 		} else {
 			cancelSuggestPost();
 		}

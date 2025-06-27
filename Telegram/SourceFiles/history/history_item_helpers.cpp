@@ -224,7 +224,7 @@ std::optional<SendPaymentDetails> ComputePaymentDetails(
 bool SuggestPaymentDataReady(
 		not_null<PeerData*> peer,
 		SuggestPostOptions suggest) {
-	if (!suggest.exists || !suggest.price()) {
+	if (!suggest.exists || !suggest.price() || peer->amMonoforumAdmin()) {
 		return true;
 	} else if (suggest.ton && !peer->session().credits().tonLoaded()) {
 		peer->session().credits().tonLoad();
@@ -441,12 +441,13 @@ bool SendPaymentHelper::check(
 		PaidConfirmStyles styles) {
 	clear();
 
+	const auto admin = peer->amMonoforumAdmin();
 	const auto suggest = options.suggest;
 	const auto starsApproved = options.starsApproved;
-	const auto suggestPriceStars = suggest.ton
+	const auto checkSuggestPriceStars = (admin || suggest.ton)
 		? 0
 		: int(base::SafeRound(suggest.price().value()));
-	const auto suggestPriceTon = suggest.ton
+	const auto checkSuggestPriceTon = (!admin && suggest.ton)
 		? suggest.price()
 		: CreditsAmount();
 	const auto details = ComputePaymentDetails(peer, messagesCount);
@@ -491,32 +492,33 @@ bool SendPaymentHelper::check(
 	} else if (const auto stars = details->stars; stars > starsApproved) {
 		ShowSendPaidConfirm(show, peer, *details, [=] {
 			resend(stars);
-		}, styles, suggestPriceStars);
+		}, styles, checkSuggestPriceStars);
 		return false;
-	} else if (suggestPriceStars
-		&& (CreditsAmount(details->stars + suggestPriceStars)
+	} else if (checkSuggestPriceStars
+		&& (CreditsAmount(details->stars + checkSuggestPriceStars)
 			> peer->session().credits().balance())) {
-		const auto peerId = peer->id;
+		using namespace Settings;
+		const auto broadcast = peer->monoforumBroadcast();
+		const auto broadcastId = (broadcast ? broadcast : peer)->id;
 		const auto forMessages = details->stars;
-		const auto required = forMessages + suggestPriceStars;
-		const auto done = [=](Settings::SmallBalanceResult result) {
-			if (result == Settings::SmallBalanceResult::Success
-				|| result == Settings::SmallBalanceResult::Already) {
+		const auto required = forMessages + checkSuggestPriceStars;
+		const auto done = [=](SmallBalanceResult result) {
+			if (result == SmallBalanceResult::Success
+				|| result == SmallBalanceResult::Already) {
 				resend(forMessages);
 			}
 		};
-		using namespace Settings;
 		MaybeRequestBalanceIncrease(
 			show,
 			required,
-			SmallBalanceForSuggest{ peerId },
+			SmallBalanceForSuggest{ broadcastId },
 			done);
 		return false;
 	}
-	if (suggestPriceTon
-		&& suggestPriceTon > peer->session().credits().tonBalance()) {
-		show->show(
-			Box(HistoryView::InsufficientTonBox, peer, suggestPriceTon));
+	if (checkSuggestPriceTon
+		&& checkSuggestPriceTon > peer->session().credits().tonBalance()) {
+		using namespace HistoryView;
+		show->show(Box(InsufficientTonBox, peer, checkSuggestPriceTon));
 		return false;
 	}
 	return true;

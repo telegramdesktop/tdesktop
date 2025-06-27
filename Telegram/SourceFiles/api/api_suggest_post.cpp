@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "chat_helpers/message_field.h"
 #include "core/click_handler_types.h"
+#include "data/components/credits.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_saved_sublist.h"
 #include "history/view/controls/history_view_suggest_options.h"
@@ -22,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/boxes/choose_date_time.h"
 #include "ui/layers/generic_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -75,6 +78,138 @@ void SendApproval(
 	}).send();
 }
 
+void ConfirmApproval(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<HistoryItem*> item,
+		TimeId scheduleDate = 0,
+		Fn<void()> accepted = nullptr) {
+	using Flag = MTPmessages_ToggleSuggestedPostApproval::Flag;
+	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	if (!suggestion
+		|| suggestion->accepted
+		|| suggestion->rejected
+		|| suggestion->requestId) {
+		return;
+	}
+	const auto id = item->fullId();
+	const auto price = suggestion->price;
+	const auto admin = item->history()->amMonoforumAdmin();
+	if (!admin && !price.empty()) {
+		const auto credits = &item->history()->session().credits();
+		if (price.ton()) {
+			if (!credits->tonLoaded()) {
+				credits->tonLoad();
+				return;
+			} else if (price > credits->tonBalance()) {
+				const auto peer = item->history()->peer;
+				show->show(
+					Box(HistoryView::InsufficientTonBox, peer, price));
+				return;
+			}
+		} else {
+			if (!credits->loaded()) {
+				credits->load();
+				return;
+			} else if (price > credits->balance()) {
+				using namespace Settings;
+				const auto peer = item->history()->peer;
+				const auto broadcast = peer->monoforumBroadcast();
+				const auto broadcastId = (broadcast ? broadcast : peer)->id;
+				const auto done = [=](SmallBalanceResult result) {
+					if (result == SmallBalanceResult::Success
+						|| result == SmallBalanceResult::Already) {
+						const auto item = peer->owner().message(id);
+						if (item) {
+							ConfirmApproval(
+								show,
+								item,
+								scheduleDate,
+								accepted);
+						}
+					}
+				};
+				MaybeRequestBalanceIncrease(
+					show,
+					int(base::SafeRound(price.value())),
+					SmallBalanceForSuggest{ broadcastId },
+					done);
+				return;
+			}
+		}
+	}
+	const auto peer = item->history()->peer;
+	const auto broadcast = peer->monoforumBroadcast();
+	const auto channelName = (broadcast ? broadcast : peer)->name();
+	const auto amount = Lang::FormatCreditsAmountWithCurrency(price);
+	const auto date = langDateTime(base::unixtime::parse(scheduleDate));
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto callback = std::make_shared<Fn<void()>>();
+		auto text = admin
+			? tr::lng_suggest_accept_text(
+				tr::now,
+				lt_from,
+				Ui::Text::Bold(item->from()->shortName()),
+				Ui::Text::WithEntities)
+			: tr::lng_suggest_accept_text_to(
+				tr::now,
+				lt_channel,
+				Ui::Text::Bold(channelName),
+				Ui::Text::WithEntities);
+		if (price) {
+			text.append("\n\n").append(admin
+				? (scheduleDate
+					? tr::lng_suggest_accept_receive(
+						tr::now,
+						lt_channel,
+						Ui::Text::Bold(channelName),
+						lt_amount,
+						Ui::Text::Bold(amount),
+						lt_date,
+						Ui::Text::Bold(date),
+						Ui::Text::WithEntities)
+					: tr::lng_suggest_accept_receive_now(
+						tr::now,
+						lt_channel,
+						Ui::Text::Bold(channelName),
+						lt_amount,
+						Ui::Text::Bold(amount),
+						Ui::Text::WithEntities))
+				: (scheduleDate
+					? tr::lng_suggest_accept_pay(
+						tr::now,
+						lt_amount,
+						Ui::Text::Bold(amount),
+						lt_date,
+						Ui::Text::Bold(date),
+						Ui::Text::WithEntities)
+					: tr::lng_suggest_accept_pay_now(
+						tr::now,
+						lt_amount,
+						Ui::Text::Bold(amount),
+						Ui::Text::WithEntities)));
+		}
+		Ui::ConfirmBox(box, {
+			.text = text,
+			.confirmed = [=](Fn<void()> close) { (*callback)(); close(); },
+			.confirmText = tr::lng_suggest_accept_send(),
+			.title = tr::lng_suggest_accept_title(),
+		});
+		*callback = [=, weak = Ui::MakeWeak(box)] {
+			if (const auto onstack = accepted) {
+				onstack();
+			}
+			const auto item = show->session().data().message(id);
+			if (!item) {
+				return;
+			}
+			SendApproval(show, item, scheduleDate);
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		};
+	}));
+}
+
 void SendDecline(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item,
@@ -120,19 +255,23 @@ void RequestApprovalDate(
 		not_null<HistoryItem*> item) {
 	const auto id = item->fullId();
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto done = [=](TimeId result) {
-		if (const auto item = show->session().data().message(id)) {
-			SendApproval(show, item, result);
-		}
+	const auto close = [=] {
 		if (const auto strong = weak->data()) {
 			strong->closeBox();
+		}
+	};
+	const auto done = [=](TimeId result) {
+		if (const auto item = show->session().data().message(id)) {
+			ConfirmApproval(show, item, result, close);
+		} else {
+			close();
 		}
 	};
 	using namespace HistoryView;
 	auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
 		.session = &show->session(),
 		.done = done,
-		.mode = SuggestMode::New,
+		.mode = SuggestMode::Publish,
 	});
 	*weak = dateBox.data();
 	show->show(std::move(dateBox));
@@ -142,13 +281,22 @@ void RequestDeclineComment(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
 	const auto id = item->fullId();
+	const auto admin = item->history()->amMonoforumAdmin();
+	const auto peer = item->history()->peer;
+	const auto broadcast = peer->monoforumBroadcast();
+	const auto channelName = (broadcast ? broadcast : peer)->name();
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto callback = std::make_shared<Fn<void()>>();
 		Ui::ConfirmBox(box, {
-			.text = tr::lng_suggest_decline_text(
-				lt_from,
-				rpl::single(Ui::Text::Bold(item->from()->shortName())),
-				Ui::Text::WithEntities),
+			.text = (admin
+				? tr::lng_suggest_decline_text(
+					lt_from,
+					rpl::single(Ui::Text::Bold(item->from()->shortName())),
+					Ui::Text::WithEntities)
+				: tr::lng_suggest_decline_text_to(
+					lt_channel,
+					rpl::single(Ui::Text::Bold(channelName)),
+					Ui::Text::WithEntities)),
 			.confirmed = [=](Fn<void()> close) { (*callback)(); close(); },
 			.confirmText = tr::lng_suggest_action_decline(),
 			.confirmStyle = &st::attentionBoxButton,
@@ -264,12 +412,11 @@ void SuggestApprovalDate(
 			close);
 	};
 	using namespace HistoryView;
-	const auto admin = item->history()->amMonoforumAdmin();
 	auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
 		.session = &show->session(),
 		.done = done,
 		.value = suggestion->date,
-		.mode = (admin ? SuggestMode::ChangeAdmin : SuggestMode::ChangeUser),
+		.mode = SuggestMode::Change,
 	});
 	*weak = dateBox.data();
 	show->show(std::move(dateBox));
@@ -318,7 +465,6 @@ void SuggestApprovalPrice(
 	if (!suggestion) {
 		return;
 	}
-	const auto admin = item->history()->amMonoforumAdmin();
 	using namespace HistoryView;
 	SuggestOfferForMessage(show, item, {
 		.exists = uint32(1),
@@ -326,7 +472,7 @@ void SuggestApprovalPrice(
 		.priceNano = uint32(suggestion->price.nano()),
 		.ton = uint32(suggestion->price.ton() ? 1 : 0),
 		.date = suggestion->date,
-	}, admin ? SuggestMode::ChangeAdmin : SuggestMode::ChangeUser);
+	}, SuggestMode::Change);
 }
 
 } // namespace
@@ -352,7 +498,7 @@ std::shared_ptr<ClickHandler> AcceptClickHandler(
 		} else if (!suggestion->date) {
 			RequestApprovalDate(show, item);
 		} else {
-			SendApproval(show, item);
+			ConfirmApproval(show, item);
 		}
 	});
 }

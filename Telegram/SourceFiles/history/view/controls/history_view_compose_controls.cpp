@@ -793,7 +793,7 @@ void FieldHeader::editMessage(
 		_inPhotoEditOver.stop();
 	}
 	if (id && suggest) {
-		applySuggestOptions(suggest, SuggestMode::ChangeAdmin);
+		applySuggestOptions(suggest, SuggestMode::Change);
 	} else {
 		cancelSuggestPost();
 	}
