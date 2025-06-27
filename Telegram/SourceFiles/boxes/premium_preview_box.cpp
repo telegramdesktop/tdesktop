@@ -542,7 +542,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::LastSeen: return "last_seen";
 		case PremiumFeature::MessagePrivacy: return "message_privacy";
 		case PremiumFeature::Effects: return "effects";
-		case PremiumFeature::TodoLists: return "todo_lists"; AssertIsDebug()
+		case PremiumFeature::TodoLists: return "todo";
 
 		case PremiumFeature::BusinessLocation: return "business_location";
 		case PremiumFeature::BusinessHours: return "business_hours";

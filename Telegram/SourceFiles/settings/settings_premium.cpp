@@ -387,7 +387,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			u"todo_lists"_q,AssertIsDebug()
+			u"todo"_q,
 			Entry{
 				&st::settingsPremiumIconTranslations,
 				tr::lng_premium_summary_subtitle_todo_lists(),
@@ -1617,7 +1617,7 @@ std::vector<PremiumFeature> PremiumFeaturesOrder(
 			return PremiumFeature::Wallpapers;
 		} else if (s == u"effects"_q) {
 			return PremiumFeature::Effects;
-		} else if (s == u"todo_lists"_q) {AssertIsDebug()
+		} else if (s == u"todo"_q) {
 			return PremiumFeature::TodoLists;
 		}
 		return PremiumFeature::kCount;

@@ -2640,7 +2640,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_subtitle_filter_tags" = "Tag Your Chats";
 "lng_premium_summary_about_filter_tags" = "Display folder names for each chat in the chat list.";
 "lng_premium_summary_subtitle_todo_lists" = "To-Do Lists";
-"lng_premium_summary_about_todo_lists" = "Create To-Do Lists, I guess..";
+"lng_premium_summary_about_todo_lists" = "Plan, assign, and complete tasks - seamlessly and efficiently.";
 "lng_premium_summary_bottom_subtitle" = "About Telegram Premium";
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
