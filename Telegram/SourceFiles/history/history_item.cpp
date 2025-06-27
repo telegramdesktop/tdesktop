@@ -3704,7 +3704,9 @@ bool HistoryItem::isEmpty() const {
 }
 
 Data::SavedSublist *HistoryItem::savedSublist() const {
-	if (const auto saved = Get<HistoryMessageSaved>()) {
+	if (isBusinessShortcut()) {
+		return nullptr;
+	} else if (const auto saved = Get<HistoryMessageSaved>()) {
 		if (saved->savedMessagesSublist) {
 			return saved->savedMessagesSublist;
 		} else if (const auto monoforum = _history->peer->monoforum()) {
@@ -3928,9 +3930,10 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		mask |= HistoryMessageReplyMarkup::Bit();
 	}
 	const auto requiresMonoforumPeer = _history->peer->amMonoforumAdmin();
-	if (_history->peer->isSelf()
-		|| config.savedSublistPeer
-		|| requiresMonoforumPeer) {
+	if (!isBusinessShortcut()
+		&& (_history->peer->isSelf()
+			|| config.savedSublistPeer
+			|| requiresMonoforumPeer)) {
 		mask |= HistoryMessageSaved::Bit();
 	}
 	if (!config.restrictions.empty()) {
@@ -4724,7 +4727,8 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		? peerFromMTP(*message.vsaved_peer_id())
 		: PeerId();
 	const auto requiresMonoforumPeer = _history->peer->amMonoforumAdmin();
-	if (savedSublistPeer || requiresMonoforumPeer) {
+	if (!isBusinessShortcut()
+		&& (savedSublistPeer || requiresMonoforumPeer)) {
 		AddComponents(HistoryMessageSaved::Bit());
 		const auto saved = Get<HistoryMessageSaved>();
 		saved->sublistPeerId = savedSublistPeer
