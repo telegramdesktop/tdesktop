@@ -2640,7 +2640,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_effects" = "Add over 500 animated effects to private messages.";
 "lng_premium_summary_subtitle_filter_tags" = "Tag Your Chats";
 "lng_premium_summary_about_filter_tags" = "Display folder names for each chat in the chat list.";
-"lng_premium_summary_subtitle_todo_lists" = "To-Do Lists";
+"lng_premium_summary_subtitle_todo_lists" = "Checklists";
 "lng_premium_summary_about_todo_lists" = "Plan, assign, and complete tasks - seamlessly and efficiently.";
 "lng_premium_summary_bottom_subtitle" = "About Telegram Premium";
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
@@ -3808,7 +3808,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 "lng_in_dlg_poll" = "Poll";
 "lng_in_dlg_story" = "Story";
-"lng_in_dlg_todo_list" = "To-Do List";
+"lng_in_dlg_todo_list" = "Checklist";
 "lng_in_dlg_story_expired" = "Expired story";
 "lng_in_dlg_media_count#one" = "{count} media";
 "lng_in_dlg_media_count#other" = "{count} media";
@@ -5386,7 +5386,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_polls_all" = "Sorry, sending polls is not allowed in this group.";
 
 "lng_restricted_send_public_polls" = "Sorry, polls with visible votes can't be forwarded to channels.";
-"lng_restricted_send_todo_lists" = "Sorry, To-Do lists can't be forwarded to channels.";
+"lng_restricted_send_todo_lists" = "Sorry, Checklists can't be forwarded to channels.";
 "lng_restricted_send_paid_media" = "Sorry, paid media can't be sent to this channel.";
 
 "lng_restricted_send_voice_messages" = "{user} doesn't accept voice messages.";
@@ -5946,14 +5946,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_show_more#other" = "Show more ({count})";
 "lng_polls_votes_collapse" = "Collapse";
 
-"lng_todo_title" = "To-Do List";
-"lng_todo_title_group" = "Group To-Do List";
+"lng_todo_title" = "Checklist";
+"lng_todo_title_group" = "Group Checklist";
 "lng_todo_completed#one" = "{count} of {total} completed";
 "lng_todo_completed#other" = "{count} of {total} completed";
 "lng_todo_completed_none" = "None of {total} completed";
-"lng_todo_menu_item" = "To-Do List";
-"lng_todo_create" = "Create To-Do List";
-"lng_todo_create_title" = "New To-Do List";
+"lng_todo_menu_item" = "Checklist";
+"lng_todo_create" = "Create Checklist";
+"lng_todo_create_title" = "New Checklist";
 "lng_todo_create_title_placeholder" = "Title";
 "lng_todo_create_list" = "Tasks List";
 "lng_todo_create_list_add" = "Add a task...";
@@ -5968,7 +5968,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_todo_choose_tasks" = "Please enter at least one task.";
 
 "lng_todo_add_title" = "Add Tasks";
-"lng_todo_create_premium" = "Only subscribers of {link} can create To-Do Lists.";
+"lng_todo_create_premium" = "Only subscribers of {link} can create Checklists.";
 "lng_todo_add_premium" = "Only subscribers of {link} can add tasks.";
 "lng_todo_mark_premium" = "Only subscribers of {link} can mark tasks as done.";
 "lng_todo_premium_link" = "Telegram Premium";
