@@ -1365,6 +1365,17 @@ chatTabsOutlineHorizontal: ChatTabsOutline {
 chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
 }
 
+suggestPriceTonIconMargins: margins(0px, 1px, 0px, 0px);
+suggestPriceBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 22px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+	shadowIgnoreTopSkip: true;
+}
 tonInput: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(0px, 7px, 0px, 7px);
@@ -1382,6 +1393,9 @@ tonInput: InputField(defaultInputField) {
 starsFieldIconPosition: point(0px, 10px);
 tonFieldIconSize: 16px;
 tonFieldIconPosition: point(2px, 9px);
+
+suggestBarTonIconSize: 14px;
+suggestBarTonIconMargins: margins(0px, 3px, 0px, 0px);
 
 lowTonIconPadding: margins(12px, 20px, 12px, 0px);
 lowTonTitlePadding: margins(0px, 12px, 0px, 12px);

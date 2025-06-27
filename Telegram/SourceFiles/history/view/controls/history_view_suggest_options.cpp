@@ -90,8 +90,11 @@ void ChooseSuggestPriceBox(
 	};
 	struct State {
 		std::vector<Button> buttons;
+		rpl::event_stream<> fieldsChanges;
+		rpl::variable<CreditsAmount> price;
 		rpl::variable<TimeId> date;
 		rpl::variable<bool> ton;
+		Fn<std::optional<CreditsAmount>()> computePrice;
 		Fn<void()> save;
 		bool savePending = false;
 		bool inButton = false;
@@ -99,6 +102,12 @@ void ChooseSuggestPriceBox(
 	const auto state = box->lifetime().make_state<State>();
 	state->date = args.value.date;
 	state->ton = (args.value.ton != 0);
+	state->price = args.value.price();
+	const auto updatePrice = [=] {
+		if (const auto price = state->computePrice()) {
+			state->price = *price;
+		}
+	};
 
 	const auto peer = args.peer;
 	const auto admin = peer->amMonoforumAdmin();
@@ -111,6 +120,7 @@ void ChooseSuggestPriceBox(
 	}
 	const auto limit = session->appConfig().suggestedPostStarsMax();
 
+	box->setStyle(st::suggestPriceBox);
 	box->setTitle((args.mode == SuggestMode::New)
 		? tr::lng_suggest_options_title()
 		: tr::lng_suggest_options_change());
@@ -186,6 +196,7 @@ void ChooseSuggestPriceBox(
 					state->buttons[i].active = true;
 					state->buttons[1 - i].active = false;
 					buttons->update();
+					updatePrice();
 					break;
 				}
 			}
@@ -257,6 +268,8 @@ void ChooseSuggestPriceBox(
 	const auto starsField = ownedStarsField.data();
 	const auto starsIcon = makeIcon(starsField, manager->creditsEmoji());
 
+	QObject::connect(starsField, &Ui::NumberInput::changed, updatePrice);
+
 	starsFieldWrap->widthValue() | rpl::start_with_next([=](int width) {
 		starsIcon->move(st::starsFieldIconPosition);
 		starsField->move(0, 0);
@@ -303,6 +316,9 @@ void ChooseSuggestPriceBox(
 			st::channelEarnCurrencyCommonMargins,
 			false)));
 
+	tonField->changes(
+	) | rpl::start_with_next(updatePrice, tonField->lifetime());
+
 	tonFieldWrap->widthValue() | rpl::start_with_next([=](int width) {
 		tonIcon->move(st::tonFieldIconPosition);
 		tonField->move(0, 0);
@@ -320,6 +336,34 @@ void ChooseSuggestPriceBox(
 	starsWrap->toggleOn(
 		state->ton.value() | rpl::map(!rpl::mappers::_1),
 		anim::type::instant);
+
+	state->computePrice = [=]() -> std::optional<CreditsAmount> {
+		auto nanos = int64();
+		const auto ton = uint32(state->ton.current() ? 1 : 0);
+		if (ton) {
+			const auto text = tonField->getLastText();
+			const auto now = Ui::ParseTonAmountString(text);
+			if (now && ((*now < 0) || (*now > limit * Ui::kNanosInOne))) {
+				tonField->showError();
+				return {};
+			} else if (!now && !text.isEmpty()) {
+				tonField->showError();
+				return {};
+			}
+			nanos = now.value_or(0);
+		} else {
+			const auto now = starsField->getLastText().toLongLong();
+			if (now < 0 || now > limit) {
+				starsField->showError();
+				return {};
+			}
+			nanos = now * Ui::kNanosInOne;
+		}
+		return CreditsAmount(
+			nanos / Ui::kNanosInOne,
+			nanos % Ui::kNanosInOne,
+			ton ? CreditsType::Ton : CreditsType::Stars);
+	};
 
 	box->setFocusCallback([=] {
 		if (state->ton.current()) {
@@ -366,30 +410,14 @@ void ChooseSuggestPriceBox(
 
 	Ui::AddSkip(container);
 	Ui::AddDividerText(container, tr::lng_suggest_options_date_about());
-	AssertIsDebug();//tr::lng_suggest_options_offer
+
 	state->save = [=] {
-		auto nanos = int64();
-		if (state->ton.current()) {
-			const auto now = Ui::ParseTonAmountString(
-				tonField->getLastText());
-			if (!now || (*now < 0) || (*now > limit * Ui::kNanosInOne)) {
-				tonField->showError();
-				return;
-			}
-			nanos = *now;
-		} else {
-			const auto now = starsField->getLastText().toLongLong();
-			if (now < 0 || now > limit) {
-				starsField->showError();
-				return;
-			}
-			nanos = now * Ui::kNanosInOne;
-		}
 		const auto ton = uint32(state->ton.current() ? 1 : 0);
-		const auto value = CreditsAmount(
-			nanos / Ui::kNanosInOne,
-			nanos % Ui::kNanosInOne,
-			ton ? CreditsType::Ton : CreditsType::Stars);
+		const auto price = state->computePrice();
+		if (!price) {
+			return;
+		}
+		const auto value = *price;
 		const auto credits = &session->credits();
 		if (!admin && ton) {
 			if (!credits->tonLoaded()) {
@@ -452,10 +480,46 @@ void ChooseSuggestPriceBox(
 	tonField->submits(
 	) | rpl::start_with_next(state->save, tonField->lifetime());
 
-	box->addButton(tr::lng_settings_save(), state->save);
-	box->addButton(tr::lng_cancel(), [=] {
-		box->closeBox();
-	});
+	const auto button = box->addButton(rpl::single(QString()), state->save);
+	const auto coloredTonIcon = Ui::Text::SingleCustomEmoji(
+		manager->registerInternalEmoji(
+			Ui::Earn::IconCurrencyColored(
+				st::tonFieldIconSize,
+				st::windowActiveTextFg->c),
+			st::suggestPriceTonIconMargins));
+	button->setContext(Core::TextContext({ .session = &peer->session() }));
+	button->setText(state->price.value(
+	) | rpl::map([=](CreditsAmount price) {
+		if (args.mode == SuggestMode::Change) {
+			return tr::lng_suggest_options_update(
+				tr::now,
+				Ui::Text::WithEntities);
+		} else if (price.empty()) {
+			return tr::lng_suggest_options_offer_free(
+				tr::now,
+				Ui::Text::WithEntities);
+		} else if (price.ton()) {
+			return tr::lng_suggest_options_offer(
+				tr::now,
+				lt_amount,
+				TextWithEntities{ coloredTonIcon }.append(
+					Lang::FormatCreditsAmountDecimal(price)),
+				Ui::Text::WithEntities);
+		}
+		return tr::lng_suggest_options_offer(
+			tr::now,
+			lt_amount,
+			Ui::Text::IconEmoji(&st::starIconEmoji).append(
+				Lang::FormatCreditsAmountDecimal(price)),
+			Ui::Text::WithEntities);
+	}));
+	const auto buttonWidth = st::boxWidth
+		- rect::m::sum::h(st::suggestPriceBox.buttonPadding);
+	button->widthValue() | rpl::filter([=] {
+		return (button->widthNoMargins() != buttonWidth);
+	}) | rpl::start_with_next([=] {
+		button->resizeToWidth(buttonWidth);
+	}, button->lifetime());
 }
 
 bool CanEditSuggestedMessage(not_null<HistoryItem*> item) {
@@ -590,52 +654,48 @@ void SuggestOptions::updateTexts() {
 		((_mode == SuggestMode::New)
 			? tr::lng_suggest_bar_title(tr::now)
 			: tr::lng_suggest_options_change(tr::now)));
-	_text.setMarkedText(st::defaultTextStyle, composeText());
+	_text.setMarkedText(
+		st::defaultTextStyle,
+		composeText(),
+		kMarkupTextOptions,
+		Core::TextContext({ .session = &_peer->session() }));
 }
 
 TextWithEntities SuggestOptions::composeText() const {
+	const auto manager = &_peer->owner().customEmojiManager();
+	const auto top = st::giftBoxByStarsStarTop;
+	const auto amount = _values.price().ton()
+		? Ui::Text::SingleCustomEmoji(
+			manager->registerInternalEmoji(
+				Ui::Earn::IconCurrencyColored(
+					st::suggestBarTonIconSize,
+					st::windowActiveTextFg->c),
+				st::suggestBarTonIconMargins,
+				false)).append(
+					Lang::FormatCreditsAmountDecimal(_values.price()))
+		: manager->ministarEmoji({ 0, top, 0, 0 }).append(
+			Lang::FormatCreditsAmountDecimal(_values.price()));
+	const auto date = langDateTime(base::unixtime::parse(_values.date));
 	if (!_values.price() && !_values.date) {
 		return tr::lng_suggest_bar_text(tr::now, Ui::Text::WithEntities);
-	} else if (!_values.date && _values.price().ton()) {
-		return tr::lng_suggest_bar_priced(AssertIsDebug()
-			tr::now,
-			lt_amount,
-			TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " TON" },
-			Ui::Text::WithEntities);
 	} else if (!_values.date) {
 		return tr::lng_suggest_bar_priced(
 			tr::now,
 			lt_amount,
-			TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " stars" },
+			amount,
 			Ui::Text::WithEntities);
 	} else if (!_values.price()) {
 		return tr::lng_suggest_bar_dated(
 			tr::now,
 			lt_date,
-			TextWithEntities{
-				langDateTime(base::unixtime::parse(_values.date)),
-			},
-			Ui::Text::WithEntities);
-	} else if (_values.price().ton()) {
-		return tr::lng_suggest_bar_priced_dated(
-			tr::now,
-			lt_amount,
-			TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " TON," },
-			lt_date,
-			TextWithEntities{
-				langDateTime(base::unixtime::parse(_values.date)),
-			},
+			TextWithEntities{ date },
 			Ui::Text::WithEntities);
 	}
-	return tr::lng_suggest_bar_priced_dated(
-		tr::now,
-		lt_amount,
-		TextWithEntities{ Lang::FormatCreditsAmountDecimal(_values.price()) + " stars," },
-		lt_date,
-		TextWithEntities{
-			langDateTime(base::unixtime::parse(_values.date)),
-		},
-		Ui::Text::WithEntities);
+	return TextWithEntities().append(
+		amount
+	).append("   ").append(
+		QString::fromUtf8("\xf0\x9f\x93\x86 ")
+	).append(date);
 }
 
 SuggestPostOptions SuggestOptions::values() const {

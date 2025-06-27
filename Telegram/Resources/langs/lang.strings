@@ -4424,7 +4424,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_bar_title" = "Suggest a Post Below";
 "lng_suggest_bar_text" = "Click to offer a price for publishing.";
 "lng_suggest_bar_priced" = "{amount} for publishing anytime.";
-"lng_suggest_bar_priced_dated" = "{amount} {date}";
 "lng_suggest_bar_dated" = "Publish on {date}";
 "lng_suggest_options_title" = "Suggest a Message";
 "lng_suggest_options_change" = "Suggest Changes";
@@ -4442,6 +4441,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_options_date_now" = "Publish Now";
 "lng_suggest_options_date_about" = "Select the date and time you want the message to be published.";
 "lng_suggest_options_offer" = "Offer {amount}";
+"lng_suggest_options_offer_free" = "Offer for Free";
 "lng_suggest_options_update" = "Update Terms";
 
 "lng_suggest_action_decline" = "Decline";
