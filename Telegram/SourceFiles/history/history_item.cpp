@@ -4098,14 +4098,6 @@ void HistoryItem::setupForwardedComponent(const CreateConfig &config) {
 	forwarded->savedFromMsgId = config.savedFromMsgId;
 	forwarded->savedFromSender = _history->owner().peerLoaded(
 		config.savedFromSenderId);
-	if (forwarded->savedFromPeer
-		&& !forwarded->savedFromPeer->isFullLoaded()
-		&& forwarded->savedFromPeer->isChannel()) {
-		_history->session().api().requestFullPeer(forwarded->savedFromPeer);
-	} else if (config.savedFromPeer) {
-		_history->session().api().requestFullPeer(
-			_history->owner().peer(config.savedFromPeer));
-	}
 	forwarded->savedFromOutgoing = config.savedFromOutgoing;
 	if (!forwarded->savedFromSender
 		&& !config.savedFromSenderName.isEmpty()) {

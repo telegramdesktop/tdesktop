@@ -858,6 +858,13 @@ QSize Message::performCountOptimalSize() {
 		}
 	}
 
+	if (const auto postSender = item->discussionPostOriginalSender()) {
+		if (!postSender->isFullLoaded()) {
+			// We need it for available reactions list.
+			postSender->updateFull();
+		}
+	}
+
 	const auto factcheck = item->Get<HistoryMessageFactcheck>();
 	if (factcheck && !factcheck->data.text.empty()) {
 		AddComponents(Factcheck::Bit());
