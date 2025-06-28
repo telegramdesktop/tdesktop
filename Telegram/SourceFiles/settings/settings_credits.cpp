@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "info/info_memento.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
@@ -63,7 +65,8 @@ class Credits : public Section<Credits> {
 public:
 	Credits(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		not_null<Window::SessionController*> controller,
+		CreditsType type);
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
@@ -83,6 +86,7 @@ private:
 	void setupHistory(not_null<Ui::VerticalLayout*> container);
 	void setupSubscriptions(not_null<Ui::VerticalLayout*> container);
 	const not_null<Window::SessionController*> _controller;
+	const CreditsType _creditsType;
 
 	QWidget *_parent = nullptr;
 
@@ -103,11 +107,17 @@ private:
 
 Credits::Credits(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
+	not_null<Window::SessionController*> controller,
+	CreditsType type)
 : Section(parent)
 , _controller(controller)
+, _creditsType(type)
 , _star(Ui::GenerateStars(st::creditsTopupButton.height, 1))
-, _balanceStar(Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
+, _balanceStar((_creditsType == CreditsType::Ton)
+		? Ui::Earn::IconCurrencyColored(
+			st::tonFieldIconSize,
+			st::windowActiveTextFg->c)
+		: Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
 	setupContent();
 
 	_controller->session().premiumPossibleValue(
@@ -119,6 +129,9 @@ Credits::Credits(
 }
 
 rpl::producer<QString> Credits::title() {
+	if (_creditsType == CreditsType::Ton) {
+		return tr::lng_credits_currency_summary_title();
+	}
 	return tr::lng_premium_summary_title();
 }
 
@@ -387,6 +400,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 
 void Credits::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	const auto isCurrency = _creditsType == CreditsType::Ton;
 	const auto paid = [=] {
 		if (_parent) {
 			Ui::StartFireworks(_parent);
@@ -436,13 +450,21 @@ void Credits::setupContent() {
 			rpl::conditional(
 				state->buyStars.loadingValue(),
 				rpl::single(TextWithEntities()),
-				tr::lng_credits_topup_button(
-					lt_emoji,
-					rpl::single(Ui::Text::SingleCustomEmoji(u"+"_q)),
-					Ui::Text::WithEntities)));
+				isCurrency
+					? tr::lng_credits_currency_summary_in_button(
+						Ui::Text::WithEntities)
+					: tr::lng_credits_topup_button(
+						lt_emoji,
+						rpl::single(Ui::Text::SingleCustomEmoji(u"+"_q)),
+						Ui::Text::WithEntities)));
 		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		const auto show = _controller->uiShow();
-		button->setClickedCallback(state->buyStars.handler(show, paid));
+		if (isCurrency) {
+			const auto url = tr::lng_suggest_low_ton_fragment_url(tr::now);
+			button->setClickedCallback([=] { UrlClickHandler::Open(url); });
+		} else {
+			button->setClickedCallback(state->buyStars.handler(show, paid));
+		}
 		{
 			using namespace Info::Statistics;
 			const auto loadingAnimation = InfiniteRadialAnimationWidget(
@@ -462,8 +484,16 @@ void Credits::setupContent() {
 		const auto height = textSt.style.font->height;
 		auto customEmojiFactory = [=](const auto &...) {
 			return std::make_unique<Ui::Text::ShiftedEmoji>(
-				Ui::MakeCreditsIconEmoji(height, 1),
-				QPoint(-st::lineWidth, st::lineWidth));
+				isCurrency
+					? std::make_unique<Ui::Text::StaticCustomEmoji>(
+						Ui::Earn::IconCurrencyColored(
+							st::tonFieldIconSize,
+							st::windowActiveTextFg->c),
+						u"currency_icon:%1"_q.arg(height))
+					: Ui::MakeCreditsIconEmoji(height, 1),
+				isCurrency
+					? QPoint(0, st::lineWidth * 2)
+					: QPoint(-st::lineWidth, st::lineWidth));
 		};
 		return { .customEmojiFactory = std::move(customEmojiFactory) };
 	}();
@@ -476,7 +506,9 @@ void Credits::setupContent() {
 					lt_emoji,
 					rpl::single(Ui::MakeCreditsIconEntity()),
 					lt_amount,
-					_controller->session().credits().balanceValue(
+					(isCurrency
+						? _controller->session().credits().tonBalanceValue()
+						: _controller->session().credits().balanceValue()
 					) | rpl::map(
 						Lang::FormatCreditsAmountDecimal
 					) | rpl::map(Ui::Text::Bold),
@@ -489,12 +521,18 @@ void Credits::setupContent() {
 	Ui::AddSkip(content);
 
 	Ui::AddSkip(content);
-	Ui::AddDivider(content);
+	if (isCurrency) {
+		Ui::AddDividerText(
+			content,
+			tr::lng_credits_currency_summary_in_subtitle());
+	} else {
+		Ui::AddDivider(content);
+	}
 	Ui::AddSkip(content, st::lineWidth * 4);
 
 	const auto controller = _controller->parentController();
 	const auto self = _controller->session().user();
-	{
+	if (!isCurrency) {
 		const auto wrap = content->add(
 			object_ptr<Ui::SlideWrap<Ui::AbstractButton>>(
 				content,
@@ -511,15 +549,17 @@ void Credits::setupContent() {
 			return _controller->session().credits().statsEnabled();
 		}));
 	}
-	AddButtonWithIcon(
-		content,
-		tr::lng_credits_gift_button(),
-		st::settingsCreditsButton,
-		{ &st::settingsButtonIconGift })->setClickedCallback([=] {
-		Ui::ShowGiftCreditsBox(controller, paid);
-	});
+	if (!isCurrency) {
+		AddButtonWithIcon(
+			content,
+			tr::lng_credits_gift_button(),
+			st::settingsCreditsButton,
+			{ &st::settingsButtonIconGift })->setClickedCallback([=] {
+			Ui::ShowGiftCreditsBox(controller, paid);
+		});
+	}
 
-	if (Info::BotStarRef::Join::Allowed(self)) {
+	if (!isCurrency && Info::BotStarRef::Join::Allowed(self)) {
 		AddButtonWithIcon(
 			content,
 			tr::lng_credits_earn_button(),
@@ -529,10 +569,12 @@ void Credits::setupContent() {
 		});
 	}
 
-	Ui::AddSkip(content, st::lineWidth * 4);
-	Ui::AddDivider(content);
+	if (!isCurrency) {
+		Ui::AddSkip(content, st::lineWidth * 4);
+		Ui::AddDivider(content);
 
-	setupSubscriptions(content);
+		setupSubscriptions(content);
+	}
 	setupHistory(content);
 
 	Ui::ResizeFitChild(this, content);
@@ -541,6 +583,7 @@ void Credits::setupContent() {
 QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 		not_null<QWidget*> parent) {
 	_parent = parent;
+	const auto isCurrency = _creditsType == CreditsType::Ton;
 
 	const auto content = [&]() -> Ui::Premium::TopBarAbstract* {
 		const auto weak = base::make_weak(_controller);
@@ -555,10 +598,13 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 			st::creditsPremiumCover,
 			Ui::Premium::TopBarDescriptor{
 				.clickContextOther = clickContextOther,
-				.title = tr::lng_credits_summary_title(),
-				.about = tr::lng_credits_summary_about(
-					TextWithEntities::Simple),
+				.title = title(),
+				.about = (isCurrency
+					? tr::lng_credits_currency_summary_about
+					: tr::lng_credits_summary_about)(
+						TextWithEntities::Simple),
 				.light = true,
+				.logo = isCurrency ? u"diamond"_q : QString(),
 				.gradientStops = Ui::Premium::CreditsIconGradientStops(),
 			});
 	}();
@@ -589,7 +635,9 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 		const auto balance = AddBalanceWidget(
 			content,
 			&_controller->session(),
-			_controller->session().credits().balanceValue(),
+			isCurrency
+				? _controller->session().credits().tonBalanceValue()
+				: _controller->session().credits().balanceValue(),
 			true,
 			content->heightValue() | rpl::map([=](int height) {
 				const auto ratio = float64(height - content->minimumHeight())
@@ -658,6 +706,9 @@ void Credits::showFinished() {
 	_showFinished.fire({});
 }
 
+class Currency {
+};
+
 } // namespace
 
 template <>
@@ -668,7 +719,27 @@ struct SectionFactory<Credits> : AbstractSectionFactory {
 		not_null<Ui::ScrollArea*> scroll,
 		rpl::producer<Container> containerValue
 	) const final override {
-		return object_ptr<Credits>(parent, controller);
+		return object_ptr<Credits>(parent, controller, CreditsType::Stars);
+	}
+	bool hasCustomTopBar() const final override {
+		return true;
+	}
+
+	[[nodiscard]] static const std::shared_ptr<SectionFactory> &Instance() {
+		static const auto result = std::make_shared<SectionFactory>();
+		return result;
+	}
+};
+
+template <>
+struct SectionFactory<Currency> : AbstractSectionFactory {
+	object_ptr<AbstractSection> create(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue
+	) const final override {
+		return object_ptr<Credits>(parent, controller, CreditsType::Ton);
 	}
 	bool hasCustomTopBar() const final override {
 		return true;
@@ -682,6 +753,10 @@ struct SectionFactory<Credits> : AbstractSectionFactory {
 
 Type CreditsId() {
 	return Credits::Id();
+}
+
+Type CurrencyId() {
+	return SectionFactory<Currency>::Instance();
 }
 
 BuyStarsHandler::BuyStarsHandler() = default;

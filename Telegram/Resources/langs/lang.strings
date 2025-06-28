@@ -2773,6 +2773,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_credits_summary_title" = "Telegram Stars";
 "lng_credits_summary_about" = "Buy Stars to unlock content and services in miniapps on Telegram.";
+"lng_credits_currency_summary_title" = "TON Balance";
+"lng_credits_currency_summary_about" = "Offer TON to submit post suggestions to channels on Telegram.";
+"lng_credits_currency_summary_subtitle" = "You can withdraw your TON using Fragment.";
+"lng_credits_currency_summary_in_button" = "Top-up via Fragment";
+"lng_credits_currency_summary_in_subtitle" = "You can top-up your TON balance via Fragment.";
 "lng_credits_summary_options_subtitle" = "Choose package";
 "lng_credits_summary_options_credits#one" = "{count} Star";
 "lng_credits_summary_options_credits#other" = "{count} Stars";
@@ -2857,6 +2862,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_gift_examples" = "Examples";
 "lng_credits_box_history_entry_ads" = "Ads Platform";
 "lng_credits_box_history_entry_premium_bot" = "Stars Top-Up";
+"lng_credits_box_history_entry_currency_in" = "TON Top-Up";
 "lng_credits_box_history_entry_api" = "Paid Broadcast";
 "lng_credits_box_history_entry_floodskip_about#one" = "{count} Message";
 "lng_credits_box_history_entry_floodskip_about#other" = "{count} Messages";

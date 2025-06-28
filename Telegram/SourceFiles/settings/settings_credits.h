@@ -20,6 +20,7 @@ class SessionShow;
 namespace Settings {
 
 [[nodiscard]] Type CreditsId();
+[[nodiscard]] Type CurrencyId();
 
 class BuyStarsHandler final : public base::has_weak_ptr {
 public:
