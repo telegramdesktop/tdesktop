@@ -42,7 +42,9 @@ MiniStars::MiniStars(
 , _appearProgressTill((type != Type::SlowStars) ? 0.2 : 0.01)
 , _disappearProgressAfter(0.8)
 , _distanceProgressStart(0.5)
-, _sprite(u":/gui/icons/settings/starmini.svg"_q)
+, _sprite((type == Type::DiamondStars)
+	? u":/gui/icons/settings/starmini.svg"_q
+	: u":/gui/icons/settings/star.svg"_q)
 , _animation([=](crl::time now) {
 	if (now > _nextBirthTime && !_paused) {
 		createStar(now);

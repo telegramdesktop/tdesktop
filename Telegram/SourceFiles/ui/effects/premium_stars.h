@@ -20,6 +20,7 @@ public:
 		MonoStars,
 		BiStars,
 		SlowStars,
+		DiamondStars,
 	};
 
 	MiniStars(

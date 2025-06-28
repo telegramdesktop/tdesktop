@@ -23,6 +23,10 @@ namespace Ui {
 class FlatLabel;
 } // namespace Ui
 
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace Ui::Premium {
 
 class TopBarAbstract : public RpWidget {
@@ -97,6 +101,7 @@ private:
 	ColoredMiniStars _ministars;
 	QSvgRenderer _star;
 	QImage _dollar;
+	std::unique_ptr<Lottie::Icon> _lottie;
 
 	struct {
 		float64 top = 0.;
