@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_main.h"
 
-#include "settings/cloud_password/settings_cloud_password_input.h"
 #include "api/api_credits.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/settings_advanced.h"
 #include "settings/settings_business.h"
 #include "settings/settings_calls.h"
@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/new_badges.h"
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "data/components/credits.h"
@@ -72,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/call_delayed.h"
 #include "base/platform/base_platform_info.h"
+#include "styles/style_chat.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h" // boxLabel
@@ -750,6 +752,50 @@ void SetupPremium(
 			controller->setPremiumRef("settings");
 			showOther(CreditsId());
 		});
+	}
+	{
+		const auto wrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		wrap->toggleOn(
+			controller->session().credits().tonBalanceValue(
+			) | rpl::map([](CreditsAmount c) -> bool { return !c.empty(); }));
+		wrap->finishAnimating();
+		controller->session().credits().tonLoad();
+		const auto button = AddButtonWithLabel(
+			wrap->entity(),
+			tr::lng_settings_currency(),
+			controller->session().credits().tonBalanceValue(
+			) | rpl::map([=](CreditsAmount c) {
+				return c
+					? Lang::FormatCreditsAmountToShort(c).string
+					: QString();
+			}),
+			st::settingsButton);
+		button->addClickHandler([=] {
+			controller->setPremiumRef("settings");
+			showOther(CurrencyId());
+		});
+
+		const auto badge = Ui::CreateChild<Ui::RpWidget>(button.get());
+		const auto image = Ui::Earn::IconCurrencyColored(
+			st::tonFieldIconSize,
+			st::menuIconColor->c);
+
+		badge->resize(Size(st::tonFieldIconSize));
+		badge->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(badge);
+			p.drawImage(0, 0, image);
+		}, badge->lifetime());
+
+		button->sizeValue() | rpl::start_with_next([=](const QSize &s) {
+			badge->moveToLeft(
+				button->st().iconLeft
+					+ (st::menuIconShop.width() - badge->width()) / 2,
+				(s.height() - badge->height()) / 2);
+		}, badge->lifetime());
 	}
 	const auto button = AddButtonWithIcon(
 		container,
