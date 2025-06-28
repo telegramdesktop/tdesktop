@@ -1729,7 +1729,7 @@ void AddCreditsHistoryEntryTable(
 			(entry.gift
 				? tr::lng_credits_box_history_entry_peer_in
 				: tr::lng_credits_box_history_entry_via)(),
-			(entry.gift
+			((entry.gift && entry.credits.stars())
 				? tr::lng_credits_box_history_entry_anonymous
 				: tr::lng_credits_box_history_entry_fragment)(
 					Ui::Text::RichLangValue));

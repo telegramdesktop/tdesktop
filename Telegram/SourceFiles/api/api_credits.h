@@ -75,7 +75,11 @@ private:
 
 class CreditsHistory final {
 public:
-	CreditsHistory(not_null<PeerData*> peer, bool in, bool out);
+	CreditsHistory(
+		not_null<PeerData*> peer,
+		bool in,
+		bool out,
+		bool currency = false);
 
 	void request(
 		const Data::CreditsStatusSlice::OffsetToken &token,

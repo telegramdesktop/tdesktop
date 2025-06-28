@@ -309,6 +309,7 @@ creditsHistoryTabsSlider: SettingsSlider(defaultTabsSlider) {
 creditsHistoryTabsSliderPadding: margins(14px, 0px, 24px, 0px);
 creditsHistoryRowDescriptionSkip: 20px;
 creditsHistoryRowRightTop: 16px;
+creditsHistoryRowRightMinorTop: 18px;
 creditsHistoryRowRightStyle: TextStyle(defaultTextStyle) {
 	font: font(fsize);
 }

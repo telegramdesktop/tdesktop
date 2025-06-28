@@ -318,13 +318,18 @@ void CreditsStatus::request(
 	}).send();
 }
 
-CreditsHistory::CreditsHistory(not_null<PeerData*> peer, bool in, bool out)
+CreditsHistory::CreditsHistory(
+	not_null<PeerData*> peer,
+	bool in,
+	bool out,
+	bool currency)
 : _peer(peer)
-, _flags((in == out)
+, _flags(((in == out)
 	? HistoryTL::Flags(0)
 	: HistoryTL::Flags(0)
 		| (in ? HistoryTL::Flag::f_inbound : HistoryTL::Flags(0))
 		| (out ? HistoryTL::Flag::f_outbound : HistoryTL::Flags(0)))
+	| (currency ? HistoryTL::Flag::f_ton : HistoryTL::Flags(0)))
 , _api(&peer->session().api().instance()) {
 }
 

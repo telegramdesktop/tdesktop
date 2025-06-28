@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/info_channel_earn_widget.h" // Info::ChannelEarn::Make.
+#include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
@@ -1429,6 +1430,7 @@ void GenericCreditsEntryBox(
 		constexpr auto kMinus = QChar(0x2212);
 		auto &lifetime = content->lifetime();
 		const auto text = lifetime.make_state<Ui::Text::String>();
+		auto minorText = (Ui::Text::String*)(nullptr);
 		const auto roundedText = e.refunded
 			? tr::lng_channel_earn_history_return(tr::now)
 			: e.pending
@@ -1466,19 +1468,48 @@ void GenericCreditsEntryBox(
 					Ui::Text::WithEntities),
 				kMarkupTextOptions,
 				context);
-		} else {
+		} else if (e.credits.stars()) {
 			auto t = TextWithEntities()
 				.append((e.in && (creditsHistoryStarGift || !isStarGift))
-					? u"+"_q
+					? QChar('+')
 					: (e.gift && !creditsHistoryStarGift)
-					? QString()
-					: QString(kMinus))
+					? QChar()
+					: kMinus)
 				.append(Lang::FormatCreditsAmountDecimal(e.credits.abs()))
 				.append(QChar(' '))
 				.append(owner->customEmojiManager().creditsEmoji());
 			text->setMarkedText(
 				st::semiboldTextStyle,
 				std::move(t),
+				kMarkupTextOptions,
+				context);
+		} else if (e.credits.ton()) {
+			auto t = TextWithEntities()
+				.append((e.in ? QChar('+') : kMinus))
+				.append(Info::ChannelEarn::MajorPart(e.credits.abs()));
+			text->setMarkedText(
+				st::channelEarnHistoryMajorLabel.style,
+				std::move(t),
+				kMarkupTextOptions,
+				context);
+
+			auto minor = TextWithEntities()
+				.append(Info::ChannelEarn::MinorPart(e.credits.abs()))
+				.append(QChar(' '))
+				.append(
+					Ui::Text::SingleCustomEmoji(
+						owner->customEmojiManager().registerInternalEmoji(
+							Ui::Earn::IconCurrencyColored(
+								st::tonFieldIconSize,
+								(e.in
+									? st::boxTextFgGood->c
+									: st::menuIconAttentionColor->c)),
+							QMargins(0, st::lineWidth * 1, 0, 0),
+							false)));
+			minorText = lifetime.make_state<Ui::Text::String>();
+			minorText->setMarkedText(
+				st::channelEarnHistoryMinorLabel.style,
+				std::move(minor),
 				kMarkupTextOptions,
 				context);
 		}
@@ -1490,7 +1521,9 @@ void GenericCreditsEntryBox(
 				+ roundedSkip
 				+ roundedFont->height
 			: 0;
-		const auto fullWidth = text->maxWidth() + roundedWidth;
+		const auto fullWidth = text->maxWidth()
+			+ roundedWidth
+			+ (minorText ? minorText->maxWidth() : 0);
 		amount->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(amount);
@@ -1506,13 +1539,21 @@ void GenericCreditsEntryBox(
 				? st::windowBoldFg
 				: st::menuIconAttentionColor);
 			const auto x = (amount->width() - fullWidth) / 2;
+			const auto y = (amount->height() - font->height) / 2;
 			text->draw(p, Ui::Text::PaintContext{
-				.position = QPoint(
-					x,
-					(amount->height() - font->height) / 2),
+				.position = QPoint(x, y),
 				.outerWidth = amount->width(),
 				.availableWidth = amount->width(),
 			});
+			if (minorText) {
+				minorText->draw(p, Ui::Text::PaintContext{
+					.position = QPoint(
+						x + text->maxWidth(),
+						y + st::lineWidth * 2),
+					.outerWidth = amount->width(),
+					.availableWidth = amount->width(),
+				});
+			}
 
 			if (rounded) {
 				const auto roundedLeft = fullWidth
@@ -1620,7 +1661,7 @@ void GenericCreditsEntryBox(
 			about->setTextColorOverride(st::menuIconAttentionColor->c);
 		}
 	} else if (isStarGift) {
-	} else if (e.gift || isPrize) {
+	} else if ((e.gift || isPrize) && e.credits.stars()) {
 		Ui::AddSkip(content);
 		auto link = tr::lng_credits_box_history_entry_gift_about_link(
 			lt_emoji,
@@ -1805,7 +1846,7 @@ void GenericCreditsEntryBox(
 
 	Ui::AddSkip(content);
 
-	if (!isStarGift) {
+	if (!isStarGift && e.credits.stars()) {
 		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,
 			object_ptr<Ui::FlatLabel>(

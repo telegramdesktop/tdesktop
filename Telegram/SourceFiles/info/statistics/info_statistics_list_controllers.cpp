@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peer_list_widgets.h"
 #include "info/channel_statistics/earn/earn_format.h"
+#include "info/channel_statistics/earn/earn_icons.h"
+#include "info/channel_statistics/earn/earn_format.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/ui_integration.h" // TextContext
 #include "data/data_channel.h"
@@ -42,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_boxes.h"
 #include "styles/style_color_indices.h"
+#include "styles/style_channel_earn.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h" // dialogsStoriesFull.
 #include "styles/style_layers.h" // boxRowPadding.
@@ -49,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 #include "styles/style_window.h"
+#include "styles/style_chat.h"
 
 namespace Info::Statistics {
 namespace {
@@ -830,6 +834,7 @@ private:
 
 	Ui::Text::String _description;
 	Ui::Text::String _rightText;
+	Ui::Text::String _rightMinorText;
 
 	std::shared_ptr<Ui::DynamicImage> _descriptionThumbnail;
 	QImage _descriptionThumbnailCache;
@@ -910,6 +915,8 @@ void CreditsRow::init() {
 		: (_entry.peerType
 			== Data::CreditsHistoryEntry::PeerType::PremiumBot)
 		? tr::lng_credits_box_history_entry_via_premium_bot(tr::now)
+		: (_entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)
+		? tr::lng_credits_box_history_entry_fragment(tr::now)
 		: (_entry.gift && isSpecial)
 		? tr::lng_credits_box_history_entry_anonymous(tr::now)
 		: (_name == name)
@@ -960,15 +967,35 @@ void CreditsRow::init() {
 	}
 	if (_entry) {
 		constexpr auto kMinus = QChar(0x2212);
+		const auto isCurrency = _entry.credits.ton();
 		_rightText.setMarkedText(
-			st::creditsHistoryRowRightStyle,
+			isCurrency
+				? st::channelEarnHistoryMajorLabel.style
+				: st::creditsHistoryRowRightStyle,
 			TextWithEntities()
 				.append(_entry.in ? QChar('+') : kMinus)
-				.append(Lang::FormatCreditsAmountDecimal(_entry.credits.abs()))
+				.append(isCurrency
+					? Info::ChannelEarn::MajorPart(_entry.credits)
+					: Lang::FormatCreditsAmountDecimal(_entry.credits.abs()))
 				.append(QChar(' '))
-				.append(Ui::MakeCreditsIconEntity()),
+				.append(isCurrency
+					? TextWithEntities()
+					: Ui::MakeCreditsIconEntity()),
 			kMarkupTextOptions,
 			_context);
+		if (isCurrency) {
+			_rightMinorText.setMarkedText(
+				st::channelEarnHistoryMinorLabel.style,
+				TextWithEntities()
+					.append(Info::ChannelEarn::MinorPart(_entry.credits))
+					.append(QChar(' '))
+					.append(
+						Ui::Text::SingleCustomEmoji(_entry.in
+							? u"ton:in"_q
+							: u"ton:out"_q)),
+				kMarkupTextOptions,
+				_context);
+		}
 	}
 	if (!_paintUserpicCallback) {
 		_paintUserpicCallback = /*_entry.stargift
@@ -1023,7 +1050,9 @@ QSize CreditsRow::rightActionSize() const {
 		return QSize(maxWidth + st::boxRowPadding.right(), _rowHeight);
 	} else if (_subscription || _entry) {
 		return QSize(
-			_rightText.maxWidth() + st::boxRowPadding.right() / 2,
+			_rightText.maxWidth()
+				+ _rightMinorText.maxWidth()
+				+ st::boxRowPadding.right() / 2,
 			_rowHeight);
 	} else if (!_entry && !_subscription) {
 		return QSize();
@@ -1046,7 +1075,6 @@ void CreditsRow::rightActionPaint(
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	const auto &font = _rightText.style()->font;
 	const auto rightSkip = st::boxRowPadding.right();
 	if (_rightLabel) {
 		return _rightLabel->draw(p, x, y, _rowHeight);
@@ -1082,9 +1110,15 @@ void CreditsRow::rightActionPaint(
 		: _entry.in
 		? st::boxTextFgGood
 		: st::menuIconAttentionColor);
+	const auto xMinor = outerWidth - _rightMinorText.maxWidth() - rightSkip;
+	_rightMinorText.draw(p, Ui::Text::PaintContext{
+		.position = QPoint(xMinor, y + st::creditsHistoryRowRightMinorTop),
+		.outerWidth = outerWidth,
+		.availableWidth = outerWidth,
+	});
 	_rightText.draw(p, Ui::Text::PaintContext{
 		.position = QPoint(
-			outerWidth - _rightText.maxWidth() - rightSkip,
+			xMinor - _rightText.maxWidth(),
 			y + st::creditsHistoryRowRightTop),
 		.outerWidth = outerWidth,
 		.availableWidth = outerWidth,
@@ -1178,6 +1212,18 @@ CreditsController::CreditsController(CreditsDescriptor d)
 			return std::make_unique<Ui::Text::ShiftedEmoji>(
 				Ui::MakeCreditsIconEmoji(height, 1),
 				QPoint(-st::lineWidth, st::lineWidth));
+		}
+		if (data.startsWith(u"ton"_q)) {
+			const auto in = data.split(u":"_q)[1].startsWith(u"in"_q);
+			return std::make_unique<Ui::Text::ShiftedEmoji>(
+				std::make_unique<Ui::Text::StaticCustomEmoji>(
+					Ui::Earn::IconCurrencyColored(
+						st::tonFieldIconSize,
+						in
+							? st::boxTextFgGood->c
+							: st::menuIconAttentionColor->c),
+					data.toString()),
+				QPoint(0, st::lineWidth));
 		}
 		const auto desc = DeserializeCreditsRowDescriptionData(
 			data.toString());

@@ -380,9 +380,10 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	const auto apiLifetime = content->lifetime().make_state<rpl::lifetime>();
 	{
 		using Api = Api::CreditsHistory;
-		const auto apiFull = apiLifetime->make_state<Api>(self, true, true);
-		const auto apiIn = apiLifetime->make_state<Api>(self, true, false);
-		const auto apiOut = apiLifetime->make_state<Api>(self, false, true);
+		const auto c = (_creditsType == CreditsType::Ton);
+		const auto apiFull = apiLifetime->make_state<Api>(self, true, true, c);
+		const auto apiIn = apiLifetime->make_state<Api>(self, true, false, c);
+		const auto apiOut = apiLifetime->make_state<Api>(self, false, true, c);
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
