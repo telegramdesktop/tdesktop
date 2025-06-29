@@ -153,5 +153,8 @@ QString currentVersionText() {
 	} else if (Platform::IsWindowsARM64()) {
 		result += " arm64";
 	}
+#ifdef _DEBUG
+	result += " DEBUG";
+#endif
 	return result;
 }
