@@ -76,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
+constexpr auto kHorizontalBar = QChar(0x2015);
 
 [[nodiscard]] QString CreateMessageLink(
 		not_null<Main::Session*> session,
@@ -135,9 +136,10 @@ constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
 
 [[nodiscard]] object_ptr<Ui::FlatLabel> MakeMaybeMultilineTokenValue(
 		not_null<Ui::TableLayout*> table,
-		const QString &token,
+		QString token,
 		Settings::CreditsEntryBoxStyleOverrides st) {
 	constexpr auto kOneLineCount = 24;
+	token = token.replace(QChar('-'), kHorizontalBar);
 	const auto oneLine = token.length() <= kOneLineCount;
 	return object_ptr<Ui::FlatLabel>(
 		table,
@@ -1381,7 +1383,9 @@ void AddStarGiftTable(
 			auto label = MakeMaybeMultilineTokenValue(table, address, st);
 			label->setClickHandlerFilter([=](const auto &...) {
 				TextUtilities::SetClipboardText(
-					TextForMimeData::Simple(address));
+					TextForMimeData::Simple(
+						base::duplicate(address)
+							.replace(kHorizontalBar, QChar('-'))));
 				show->showToast(
 					tr::lng_gift_unique_address_copied(tr::now));
 				return false;
@@ -1806,7 +1810,9 @@ void AddCreditsHistoryEntryTable(
 		auto label = MakeMaybeMultilineTokenValue(table, entry.id, st);
 		label->setClickHandlerFilter([=](const auto &...) {
 			TextUtilities::SetClipboardText(
-				TextForMimeData::Simple(entry.id));
+				TextForMimeData::Simple(
+					base::duplicate(entry.id)
+						.replace(kHorizontalBar, QChar('-'))));
 			show->showToast(
 				tr::lng_credits_box_history_entry_id_copied(tr::now));
 			return false;
