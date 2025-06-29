@@ -107,12 +107,14 @@ public:
 	friend inline constexpr auto operator<=>(
 			CreditsAmount a,
 			CreditsAmount b) {
-		if (const auto r1 = (int(a._ton) <=> int(b._ton)); r1 != 0) {
+		if (const auto r1 = (a._whole <=> b._whole); r1 != 0) {
 			return r1;
-		} else if (auto r2 = (a._whole <=> b._whole); r2 != 0) {
+		} else if (const auto r2 = (a._nano <=> b._nano); r2 != 0) {
 			return r2;
 		}
-		return (a._nano <=> b._nano);
+		return (a._whole || a._nano)
+			? (int(a._ton) <=> int(b._ton))
+			: std::strong_ordering::equal;
 	}
 
 	friend inline bool operator==(CreditsAmount, CreditsAmount)
