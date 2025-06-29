@@ -175,7 +175,11 @@ not_null<MaskedInputField*> AddInputFieldForCredits(
 	const auto input = CreateChild<NumberInput>(
 		inputContainer,
 		st,
-		tr::lng_bot_earn_out_ph(),
+		tr::lng_bot_earn_out_ph_max(
+			lt_amount,
+			currentValue.value() | rpl::map([](CreditsAmount amount) {
+				return QString::number(amount.whole());
+			})),
 		QString::number(currentValue.current().whole()),
 		currentValue.current().whole());
 	rpl::duplicate(

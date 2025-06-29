@@ -89,6 +89,10 @@ int AppConfig::starrefCommissionMax() const {
 	return get<int>(u"starref_max_commission_permille"_q, 900);
 }
 
+int AppConfig::starsWithdrawMax() const {
+	return get<int>(u"stars_revenue_withdrawal_max"_q, 100);
+}
+
 float64 AppConfig::starsWithdrawRate() const {
 	return get<float64>(u"stars_usd_withdraw_rate_x1000"_q, 1300) / 1000.;
 }

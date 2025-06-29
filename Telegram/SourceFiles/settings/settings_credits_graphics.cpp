@@ -2615,9 +2615,15 @@ void AddWithdrawalWidget(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
+	const auto starsWithdrawMax = CreditsAmount(
+		controller->session().appConfig().starsWithdrawMax());
 	const auto input = Ui::AddInputFieldForCredits(
 		withdrawalWrap->entity(),
-		rpl::duplicate(availableBalanceValue));
+		rpl::duplicate(
+			availableBalanceValue
+		) | rpl::map([=](CreditsAmount amount) {
+			return (amount > starsWithdrawMax) ? starsWithdrawMax : amount;
+		}));
 
 	Ui::AddSkip(withdrawalWrap->entity());
 	Ui::AddSkip(withdrawalWrap->entity());
