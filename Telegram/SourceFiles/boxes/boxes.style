@@ -349,7 +349,7 @@ aboutVersionLink: LinkButton(defaultLinkButton) {
 	color: windowSubTextFg;
 	overColor: windowSubTextFg;
 }
-aboutTextTop: 34px;
+aboutTopSkip: 19px;
 aboutSkip: 14px;
 aboutLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 300px;

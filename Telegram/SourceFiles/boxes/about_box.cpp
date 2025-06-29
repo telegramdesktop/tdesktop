@@ -7,18 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/about_box.h"
 
-#include "lang/lang_keys.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
-#include "ui/boxes/confirm_box.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
-#include "ui/text/text_utilities.h"
 #include "base/platform/base_platform_info.h"
-#include "core/file_utilities.h"
-#include "core/click_handler_types.h"
-#include "core/update_checker.h"
 #include "core/application.h"
+#include "core/file_utilities.h"
+#include "core/update_checker.h"
+#include "lang/lang_keys.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/wrap/vertical_layout.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -57,78 +55,73 @@ rpl::producer<TextWithEntities> Text3() {
 
 } // namespace
 
-AboutBox::AboutBox(QWidget *parent)
-: _version(this, tr::lng_about_version(tr::now, lt_version, currentVersionText()), st::aboutVersionLink)
-, _text1(this, Text1(), st::aboutLabel)
-, _text2(this, Text2(), st::aboutLabel)
-, _text3(this, Text3(), st::aboutLabel) {
-}
+void AboutBox(not_null<Ui::GenericBox*> box) {
+	box->setTitle(rpl::single(u"Telegram Desktop"_q));
 
-void AboutBox::prepare() {
-	setTitle(rpl::single(u"Telegram Desktop"_q));
+	auto layout = box->verticalLayout();
 
-	addButton(tr::lng_close(), [this] { closeBox(); });
+	const auto version = layout->add(
+		object_ptr<Ui::LinkButton>(
+			box,
+			tr::lng_about_version(
+				tr::now,
+				lt_version,
+				currentVersionText()),
+			st::aboutVersionLink),
+		QMargins(
+			st::boxRowPadding.left(),
+			-st::lineWidth * 3,
+			st::boxRowPadding.right(),
+			st::boxRowPadding.bottom()));
+	version->setClickedCallback([=] {
+		if (cRealAlphaVersion()) {
+			auto url = u"https://tdesktop.com/"_q;
+			if (Platform::IsWindows32Bit()) {
+				url += u"win/%1.zip"_q;
+			} else if (Platform::IsWindows64Bit()) {
+				url += u"win64/%1.zip"_q;
+			} else if (Platform::IsWindowsARM64()) {
+				url += u"winarm/%1.zip"_q;
+			} else if (Platform::IsMac()) {
+				url += u"mac/%1.zip"_q;
+			} else if (Platform::IsLinux()) {
+				url += u"linux/%1.tar.xz"_q;
+			} else {
+				Unexpected("Platform value.");
+			}
+			url = url.arg(u"talpha%1_%2"_q
+				.arg(cRealAlphaVersion())
+				.arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
 
-	_text1->setLinksTrusted();
-	_text2->setLinksTrusted();
-	_text3->setLinksTrusted();
+			QGuiApplication::clipboard()->setText(url);
 
-	_version->setClickedCallback([this] { showVersionHistory(); });
-
-	setDimensions(st::aboutWidth, st::aboutTextTop + _text1->height() + st::aboutSkip + _text2->height() + st::aboutSkip + _text3->height());
-}
-
-void AboutBox::resizeEvent(QResizeEvent *e) {
-	BoxContent::resizeEvent(e);
-
-	const auto available = width()
-		- st::boxPadding.left()
-		- st::boxPadding.right();
-	_version->moveToLeft(st::boxPadding.left(), st::aboutVersionTop);
-	_text1->resizeToWidth(available);
-	_text1->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
-	_text2->resizeToWidth(available);
-	_text2->moveToLeft(st::boxPadding.left(), _text1->y() + _text1->height() + st::aboutSkip);
-	_text3->resizeToWidth(available);
-	_text3->moveToLeft(st::boxPadding.left(), _text2->y() + _text2->height() + st::aboutSkip);
-}
-
-void AboutBox::showVersionHistory() {
-	if (cRealAlphaVersion()) {
-		auto url = u"https://tdesktop.com/"_q;
-		if (Platform::IsWindows32Bit()) {
-			url += u"win/%1.zip"_q;
-		} else if (Platform::IsWindows64Bit()) {
-			url += u"win64/%1.zip"_q;
-		} else if (Platform::IsWindowsARM64()) {
-			url += u"winarm/%1.zip"_q;
-		} else if (Platform::IsMac()) {
-			url += u"mac/%1.zip"_q;
-		} else if (Platform::IsLinux()) {
-			url += u"linux/%1.tar.xz"_q;
+			box->getDelegate()->show(
+				Ui::MakeInformBox(
+					"The link to the current private alpha "
+					"version of Telegram Desktop was copied "
+					"to the clipboard."));
 		} else {
-			Unexpected("Platform value.");
+			File::OpenUrl(Core::App().changelogLink());
 		}
-		url = url.arg(u"talpha%1_%2"_q.arg(cRealAlphaVersion()).arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
+	});
 
-		QGuiApplication::clipboard()->setText(url);
+	Ui::AddSkip(layout, st::aboutTopSkip);
 
-		getDelegate()->show(
-			Ui::MakeInformBox(
-				"The link to the current private alpha "
-				"version of Telegram Desktop was copied to the clipboard."),
-			Ui::LayerOption::CloseOther);
-	} else {
-		File::OpenUrl(Core::App().changelogLink());
-	}
-}
+	const auto addText = [&](rpl::producer<TextWithEntities> text) {
+		const auto label = layout->add(
+			object_ptr<Ui::FlatLabel>(box, std::move(text), st::aboutLabel),
+			st::boxRowPadding);
+		label->setLinksTrusted();
+		Ui::AddSkip(layout, st::aboutSkip);
+	};
 
-void AboutBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		closeBox();
-	} else {
-		BoxContent::keyPressEvent(e);
-	}
+	addText(Text1());
+	addText(Text2());
+	addText(Text3());
+
+	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+
+	box->setWidth(st::aboutWidth);
 }
 
 QString telegramFaqLink() {

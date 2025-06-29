@@ -403,7 +403,7 @@ MainMenu::MainMenu(
 	_version->setLink(
 		2,
 		std::make_shared<LambdaClickHandler>([=] {
-			controller->show(Box<AboutBox>());
+			controller->show(Box(AboutBox));
 		}));
 
 	rpl::combine(

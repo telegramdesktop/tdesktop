@@ -369,7 +369,7 @@ void MainWindow::createGlobalMenu() {
 	{
 		auto callback = [=] {
 			ensureWindowShown();
-			controller().show(Box<AboutBox>());
+			controller().show(Box(AboutBox));
 		};
 		main->addAction(
 			tr::lng_mac_menu_about_telegram(
