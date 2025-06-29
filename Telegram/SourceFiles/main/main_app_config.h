@@ -70,6 +70,7 @@ public:
 	[[nodiscard]] int starrefCommissionMax() const;
 
 	[[nodiscard]] float64 starsWithdrawRate() const;
+	[[nodiscard]] float64 currencyWithdrawRate() const;
 	[[nodiscard]] bool paidMessagesAvailable() const;
 	[[nodiscard]] int paidMessageStarsMax() const;
 	[[nodiscard]] int paidMessageCommission() const;

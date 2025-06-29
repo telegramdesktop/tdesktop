@@ -15,7 +15,7 @@ namespace Data {
 
 using EarnInt = uint64;
 
-constexpr auto kEarnMultiplier = EarnInt(1000000000);
+constexpr auto kEarnMultiplier = EarnInt(1);
 
 struct EarnHistoryEntry final {
 	enum class Type {

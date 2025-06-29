@@ -93,6 +93,10 @@ float64 AppConfig::starsWithdrawRate() const {
 	return get<float64>(u"stars_usd_withdraw_rate_x1000"_q, 1300) / 1000.;
 }
 
+float64 AppConfig::currencyWithdrawRate() const {
+	return get<float64>(u"ton_usd_rate"_q, 1);
+}
+
 bool AppConfig::paidMessagesAvailable() const {
 	return get<bool>(u"stars_paid_messages_available"_q, false);
 }

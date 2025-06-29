@@ -24,6 +24,7 @@ public:
 	[[nodiscard]] CreditsAmount balance() const;
 	[[nodiscard]] CreditsAmount balance(PeerId peerId) const;
 	[[nodiscard]] rpl::producer<CreditsAmount> balanceValue() const;
+	[[nodiscard]] float64 usdRate() const;
 	[[nodiscard]] rpl::producer<float64> rateValue(
 		not_null<PeerData*> ownedBotOrChannel);
 

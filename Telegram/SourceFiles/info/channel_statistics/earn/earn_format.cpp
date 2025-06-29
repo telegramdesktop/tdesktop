@@ -70,10 +70,10 @@ QString ToUsd(
 	const auto result = int64(base::SafeRound(value.value() * rate));
 	return QString(kApproximately)
 		+ QChar('$')
-		+ MajorPart(result)
-		+ ((afterFloat > 0)
-			? MinorPart(result).left(afterFloat)
-			: MinorPart(result));
+		+ QString::number(
+			value.value() * rate,
+			'f',
+			afterFloat ? afterFloat : 2);
 }
 
 } // namespace Info::ChannelEarn

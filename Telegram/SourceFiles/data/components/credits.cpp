@@ -36,6 +36,10 @@ rpl::producer<float64> Credits::rateValue(
 	return rpl::single(_session->appConfig().starsWithdrawRate());
 }
 
+float64 Credits::usdRate() const {
+	return _session->appConfig().currencyWithdrawRate();
+}
+
 void Credits::load(bool force) {
 	if (_loader
 		|| (!force

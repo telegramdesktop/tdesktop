@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
@@ -57,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_channel_earn.h"
 
 namespace Settings {
 namespace {
@@ -517,6 +519,25 @@ void Credits::setupContent() {
 				textSt,
 				st::defaultPopupMenu,
 				std::move(context))));
+	if (isCurrency) {
+		const auto rate = _controller->session().credits().usdRate();
+		const auto wrap = content->add(
+			object_ptr<Ui::SlideWrap<>>(
+				content,
+				object_ptr<Ui::CenterWrap<>>(
+					content,
+					object_ptr<Ui::FlatLabel>(
+						content,
+						_controller->session().credits().tonBalanceValue(
+						) | rpl::map([=](CreditsAmount value) {
+							using namespace Info::ChannelEarn;
+							return value ? ToUsd(value, rate, 3) : QString();
+						}),
+						st::channelEarnOverviewSubMinorLabel))));
+		wrap->toggleOn(_controller->session().credits().tonBalanceValue(
+			) | rpl::map(rpl::mappers::_1 > CreditsAmount(0)));
+		wrap->finishAnimating();
+	}
 	Ui::AddSkip(content, st::lineWidth);
 	Ui::AddSkip(content, st::lineWidth);
 	Ui::AddSkip(content);
