@@ -36,38 +36,61 @@ int GiftBoxPack::monthsForStars(int stars) const {
 	}
 }
 
-DocumentData *GiftBoxPack::lookup(int months) const {
-	const auto it = ranges::lower_bound(_localMonths, months);
-	const auto fallback = _documents.empty() ? nullptr : _documents[0];
-	if (it == begin(_localMonths)) {
-		return fallback;
-	} else if (it == end(_localMonths)) {
-		return _documents.back();
+DocumentData *GiftBoxPack::lookup(int months, Type type) const {
+	const auto it = _setsData.find(type);
+	if (it == _setsData.end() || it->second.documents.empty()) {
+		return nullptr;
 	}
-	const auto left = *(it - 1);
-	const auto right = *it;
+
+	const auto& documents = it->second.documents;
+	const auto itMonths = ranges::lower_bound(_localMonths, months);
+	const auto fallback = documents[0];
+
+	if (itMonths == begin(_localMonths)) {
+		return fallback;
+	} else if (itMonths == end(_localMonths)) {
+		return documents.back();
+	}
+
+	const auto left = *(itMonths - 1);
+	const auto right = *itMonths;
 	const auto shift = (std::abs(months - left) < std::abs(months - right))
 		? -1
 		: 0;
-	const auto index = int(std::distance(begin(_localMonths), it - shift));
-	return (index >= _documents.size()) ? fallback : _documents[index];
+	const auto index = int(
+		std::distance(begin(_localMonths), itMonths - shift));
+	return (index >= documents.size()) ? fallback : documents[index];
 }
 
-Data::FileOrigin GiftBoxPack::origin() const {
-	return Data::FileOriginStickerSet(_setId, _accessHash);
+Data::FileOrigin GiftBoxPack::origin(Type type) const {
+	const auto it = _setsData.find(type);
+	if (it == _setsData.end()) {
+		return Data::FileOrigin();
+	}
+	return Data::FileOriginStickerSet(
+		it->second.setId,
+		it->second.accessHash);
 }
 
-void GiftBoxPack::load() {
-	if (_requestId || !_documents.empty()) {
+void GiftBoxPack::load(Type type) {
+	if (_requestId) {
 		return;
 	}
+
+	const auto it = _setsData.find(type);
+	if (it != _setsData.end() && !it->second.documents.empty()) {
+		return;
+	}
+
 	_requestId = _session->api().request(MTPmessages_GetStickerSet(
-		MTP_inputStickerSetPremiumGifts(),
+		type == Type::Currency
+			? MTP_inputStickerSetTonGifts()
+			: MTP_inputStickerSetPremiumGifts(),
 		MTP_int(0) // Hash.
 	)).done([=](const MTPmessages_StickerSet &result) {
 		_requestId = 0;
 		result.match([&](const MTPDmessages_stickerSet &data) {
-			applySet(data);
+			applySet(data, type);
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
@@ -76,21 +99,24 @@ void GiftBoxPack::load() {
 	}).send();
 }
 
-void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
-	_setId = data.vset().data().vid().v;
-	_accessHash = data.vset().data().vaccess_hash().v;
+void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data, Type type) {
+	auto setData = SetData();
+	setData.setId = data.vset().data().vid().v;
+	setData.accessHash = data.vset().data().vaccess_hash().v;
+
 	auto documents = base::flat_map<DocumentId, not_null<DocumentData*>>();
 	for (const auto &sticker : data.vdocuments().v) {
 		const auto document = _session->data().processDocument(sticker);
 		if (document->sticker()) {
 			documents.emplace(document->id, document);
-			if (_documents.empty()) {
+			if (setData.documents.empty()) {
 				// Fallback.
-				_documents.resize(1);
-				_documents[0] = document;
+				setData.documents.resize(1);
+				setData.documents[0] = document;
 			}
 		}
 	}
+
 	for (const auto &pack : data.vpacks().v) {
 		pack.match([&](const MTPDstickerPack &data) {
 			const auto emoji = qs(data.vemoticon());
@@ -106,16 +132,18 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 							if (index < 0 || index >= _localMonths.size()) {
 								return;
 							}
-							if ((index + 1) > _documents.size()) {
-								_documents.resize((index + 1));
+							if ((index + 1) > setData.documents.size()) {
+								setData.documents.resize((index + 1));
 							}
-							_documents[index] = (*document);
+							setData.documents[index] = (*document);
 						}
 					}
 				}
 			}
 		});
 	}
+
+	_setsData[type] = std::move(setData);
 	_updated.fire({});
 }
 

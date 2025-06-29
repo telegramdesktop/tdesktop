@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 #include "boxes/gift_credits_box.h"
 #include "boxes/gift_premium_box.h"
+#include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/click_handler_types.h"
 #include "data/components/credits.h"
 #include "data/data_file_origin.h"
@@ -120,6 +121,8 @@ Credits::Credits(
 			st::tonFieldIconSize,
 			st::windowActiveTextFg->c)
 		: Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
+	_controller->session().giftBoxStickersPacks().load(
+		Stickers::GiftBoxPack::Type::Currency);
 	setupContent();
 
 	_controller->session().premiumPossibleValue(

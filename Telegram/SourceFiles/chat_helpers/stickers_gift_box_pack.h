@@ -21,26 +21,37 @@ namespace Stickers {
 
 class GiftBoxPack final {
 public:
+	enum class Type {
+		Gifts,
+		Currency,
+	};
+
 	explicit GiftBoxPack(not_null<Main::Session*> session);
 	~GiftBoxPack();
 
-	void load();
+	void load(Type type = Type::Gifts);
 	[[nodiscard]] int monthsForStars(int stars) const;
-	[[nodiscard]] DocumentData *lookup(int months) const;
-	[[nodiscard]] Data::FileOrigin origin() const;
+	[[nodiscard]] DocumentData *lookup(
+		int months,
+		Type type = Type::Gifts) const;
+	[[nodiscard]] Data::FileOrigin origin(Type type = Type::Gifts) const;
 	[[nodiscard]] rpl::producer<> updated() const;
 
 private:
 	using SetId = uint64;
-	void applySet(const MTPDmessages_stickerSet &data);
+	struct SetData {
+		SetId setId = 0;
+		uint64 accessHash = 0;
+		std::vector<DocumentData*> documents;
+	};
+
+	void applySet(const MTPDmessages_stickerSet &data, Type type);
 
 	const not_null<Main::Session*> _session;
 	const std::vector<int> _localMonths;
 
 	rpl::event_stream<> _updated;
-	std::vector<DocumentData*> _documents;
-	SetId _setId = 0;
-	uint64 _accessHash = 0;
+	base::flat_map<Type, SetData> _setsData;
 	mtpRequestId _requestId = 0;
 
 };
