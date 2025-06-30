@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "mtproto/facade.h"
+#include "settings/settings_common.h"
 #include "storage/localstorage.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/boxes/confirm_box.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -65,6 +67,19 @@ using ProxyData = MTP::ProxyData;
 	}
 
 	return urls;
+}
+
+[[nodiscard]] QString ProxyDataToString(const ProxyData &proxy) {
+	using Type = ProxyData::Type;
+	return u"https://t.me/"_q
+		+ (proxy.type == Type::Socks5 ? "socks" : "proxy")
+		+ "?server=" + proxy.host + "&port=" + QString::number(proxy.port)
+		+ ((proxy.type == Type::Socks5 && !proxy.user.isEmpty())
+			? "&user=" + qthelp::url_encode(proxy.user) : "")
+		+ ((proxy.type == Type::Socks5 && !proxy.password.isEmpty())
+			? "&pass=" + qthelp::url_encode(proxy.password) : "")
+		+ ((proxy.type == Type::Mtproto && !proxy.password.isEmpty())
+			? "&secret=" + proxy.password : "");
 }
 
 [[nodiscard]] ProxyData ProxyDataFromFields(
@@ -825,6 +840,23 @@ void ProxiesBox::setupContent() {
 	refreshProxyForCalls();
 	_proxyForCalls->finishAnimating();
 
+	{
+		const auto wrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto shareList = Settings::AddButtonWithIcon(
+			wrap->entity(),
+			tr::lng_proxy_edit_share_list_button(),
+			st::settingsButton,
+			{ &st::menuIconCopy });
+		shareList->setClickedCallback([=] {
+			_controller->shareItems();
+		});
+		wrap->toggleOn(_controller->listShareableChanges());
+		wrap->finishAnimating();
+	}
+
 	inner->resizeToWidth(st::boxWideWidth);
 
 	inner->heightValue(
@@ -1451,6 +1483,20 @@ void ProxiesBoxController::shareItem(int id, bool qr) {
 	share(findById(id)->data, qr);
 }
 
+void ProxiesBoxController::shareItems() {
+	auto result = QString();
+	for (const auto &item : _list) {
+		if (!item.deleted) {
+			result += ProxyDataToString(item.data) + '\n' + '\n';
+		}
+	}
+	if (result.isEmpty()) {
+		return;
+	}
+	QGuiApplication::clipboard()->setText(result);
+	_show->showToast(tr::lng_proxy_edit_share_list_toast(tr::now));
+}
+
 void ProxiesBoxController::applyItem(int id) {
 	auto item = findById(id);
 	if (_settings.isEnabled() && (_settings.selected() == item->data)) {
@@ -1657,6 +1703,17 @@ auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
 	return _views.events();
 }
 
+rpl::producer<bool> ProxiesBoxController::listShareableChanges() const {
+	return _views.events_starting_with(ItemView()) | rpl::map([=] {
+		for (const auto &item : _list) {
+			if (!item.deleted) {
+				return true;
+			}
+		}
+		return false;
+	});
+}
+
 void ProxiesBoxController::updateView(const Item &item) {
 	const auto selected = (_settings.selected() == item.data);
 	const auto deleted = item.deleted;
@@ -1697,15 +1754,7 @@ void ProxiesBoxController::share(const ProxyData &proxy, bool qr) {
 	if (proxy.type == Type::Http) {
 		return;
 	}
-	const auto link = u"https://t.me/"_q
-		+ (proxy.type == Type::Socks5 ? "socks" : "proxy")
-		+ "?server=" + proxy.host + "&port=" + QString::number(proxy.port)
-		+ ((proxy.type == Type::Socks5 && !proxy.user.isEmpty())
-			? "&user=" + qthelp::url_encode(proxy.user) : "")
-		+ ((proxy.type == Type::Socks5 && !proxy.password.isEmpty())
-			? "&pass=" + qthelp::url_encode(proxy.password) : "")
-		+ ((proxy.type == Type::Mtproto && !proxy.password.isEmpty())
-			? "&secret=" + proxy.password : "");
+	const auto link = ProxyDataToString(proxy);
 	if (qr) {
 		_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 			Ui::FillPeerQrBox(box, nullptr, link, rpl::single(QString()));

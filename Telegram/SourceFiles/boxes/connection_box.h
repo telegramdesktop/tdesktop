@@ -74,6 +74,7 @@ public:
 	void deleteItem(int id);
 	void restoreItem(int id);
 	void shareItem(int id, bool qr);
+	void shareItems();
 	void applyItem(int id);
 	object_ptr<Ui::BoxContent> editItemBox(int id);
 	object_ptr<Ui::BoxContent> addNewItemBox();
@@ -86,6 +87,8 @@ public:
 	void addNewItem(const ProxyData &proxy);
 
 	rpl::producer<ItemView> views() const;
+
+	rpl::producer<bool> listShareableChanges() const;
 
 	~ProxiesBoxController();
 

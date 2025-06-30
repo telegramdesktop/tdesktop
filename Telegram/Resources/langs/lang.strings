@@ -1163,6 +1163,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_menu_restore" = "Restore";
 "lng_proxy_edit_share" = "Share";
 "lng_proxy_edit_share_qr_box_title" = "Share proxy with QR code";
+"lng_proxy_edit_share_list_button" = "Share Proxy List";
+"lng_proxy_edit_share_list_toast" = "Proxy List copied to clipboard.";
 "lng_proxy_address_label" = "Socket address";
 "lng_proxy_credentials_optional" = "Credentials (optional)";
 "lng_proxy_credentials" = "Credentials";
