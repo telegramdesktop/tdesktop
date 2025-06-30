@@ -237,7 +237,7 @@ void AddDownloadFilesAction(
 void AddDownloadFilesAction(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<Window::SessionController*> window,
-		const std::map<HistoryItem*, TextSelection, std::less<>> &items,
+		const base::flat_map<HistoryItem*, TextSelection, std::less<>> &items,
 		not_null<HistoryInner*> list) {
 	if (items.empty()) {
 		return;

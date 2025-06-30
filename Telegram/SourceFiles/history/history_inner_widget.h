@@ -256,7 +256,8 @@ private:
 
 	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	using VideoUserpic = Dialogs::Ui::VideoUserpic;
-	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
+	using SelectedItems
+		= base::flat_map<HistoryItem*, TextSelection, std::less<>>;
 	enum class MouseAction {
 		None,
 		PrepareDrag,
