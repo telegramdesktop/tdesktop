@@ -55,6 +55,18 @@ constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
 
 using ProxyData = MTP::ProxyData;
 
+[[nodiscard]] std::vector<QString> ExtractUrlsSimple(const QString &input) {
+	auto urls = std::vector<QString>();
+	static auto urlRegex = QRegularExpression(R"((https?:\/\/[^\s]+))");
+
+	auto it = urlRegex.globalMatch(input);
+	while (it.hasNext()) {
+		urls.push_back(it.next().captured(1));
+	}
+
+	return urls;
+}
+
 [[nodiscard]] ProxyData ProxyDataFromFields(
 		ProxyData::Type type,
 		const QMap<QString, QString> &fields) {
@@ -641,13 +653,12 @@ void ProxiesBox::setupTopButton() {
 	const auto top = addTopButton(st::infoTopBarMenu);
 	const auto menu
 		= top->lifetime().make_state<base::unique_qptr<Ui::PopupMenu>>();
-	const auto callback = [=] {
-		const auto maybeUrl = QGuiApplication::clipboard()->text();
-		const auto local = Core::TryConvertUrlToLocal(maybeUrl);
 
-		const auto proxyString = u"proxy"_q;
-		const auto socksString = u"socks"_q;
-		const auto protocol = u"tg://"_q;
+	const auto proxyString = u"proxy"_q;
+	const auto socksString = u"socks"_q;
+	const auto protocol = u"tg://"_q;
+
+	const auto proceedUrl = [=](const auto &local) {
 		const auto command = base::StringViewMid(
 			local,
 			protocol.size(),
@@ -692,7 +703,20 @@ void ProxiesBox::setupTopButton() {
 				}
 				break;
 			}
-		} else {
+			return true;
+		}
+		return false;
+	};
+
+	const auto callback = [=] {
+		const auto maybeUrls = ExtractUrlsSimple(
+			QGuiApplication::clipboard()->text());
+		auto success = false;
+		for (const auto &maybeUrl : maybeUrls) {
+			success |= proceedUrl(Core::TryConvertUrlToLocal(maybeUrl));
+		}
+
+		if (!success) {
 			uiShow()->showToast(
 				tr::lng_proxy_add_from_clipboard_failed_toast(tr::now));
 		}
