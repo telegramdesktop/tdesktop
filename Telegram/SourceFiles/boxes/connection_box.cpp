@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/peer_qr_box.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/painter.h"
@@ -177,6 +178,7 @@ public:
 	rpl::producer<> restoreClicks() const;
 	rpl::producer<> editClicks() const;
 	rpl::producer<> shareClicks() const;
+	rpl::producer<> showQrClicks() const;
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -198,6 +200,7 @@ private:
 	rpl::event_stream<> _restoreClicks;
 	rpl::event_stream<> _editClicks;
 	rpl::event_stream<> _shareClicks;
+	rpl::event_stream<> _showQrClicks;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
 
 	bool _set = false;
@@ -317,6 +320,10 @@ rpl::producer<> ProxyRow::editClicks() const {
 
 rpl::producer<> ProxyRow::shareClicks() const {
 	return _shareClicks.events();
+}
+
+rpl::producer<> ProxyRow::showQrClicks() const {
+	return _showQrClicks.events();
 }
 
 void ProxyRow::setupControls(View &&view) {
@@ -563,6 +570,9 @@ void ProxyRow::showMenu() {
 		addAction(tr::lng_proxy_edit_share(tr::now), [=] {
 			_shareClicks.fire({});
 		}, &st::menuIconShare);
+		addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
+			_showQrClicks.fire({});
+		}, &st::menuIconQrCode);
 	}
 	if (_view.deleted) {
 		addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
@@ -898,9 +908,11 @@ void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
 		getDelegate()->show(_controller->editItemBox(id));
 	}, button->lifetime());
 
-	button->shareClicks(
-	) | rpl::start_with_next([=] {
-		_controller->shareItem(id);
+	rpl::merge(
+		button->shareClicks() | rpl::map_to(false),
+		button->showQrClicks() | rpl::map_to(true)
+	) | rpl::start_with_next([=](bool qr) {
+		_controller->shareItem(id, qr);
 	}, button->lifetime());
 
 	button->clicks(
@@ -1411,8 +1423,8 @@ void ProxiesBoxController::restoreItem(int id) {
 	setDeleted(id, false);
 }
 
-void ProxiesBoxController::shareItem(int id) {
-	share(findById(id)->data);
+void ProxiesBoxController::shareItem(int id, bool qr) {
+	share(findById(id)->data, qr);
 }
 
 void ProxiesBoxController::applyItem(int id) {
@@ -1653,10 +1665,11 @@ void ProxiesBoxController::updateView(const Item &item) {
 		deleted,
 		!deleted && supportsShare,
 		supportsCalls,
-		state });
+		state,
+	});
 }
 
-void ProxiesBoxController::share(const ProxyData &proxy) {
+void ProxiesBoxController::share(const ProxyData &proxy, bool qr) {
 	if (proxy.type == Type::Http) {
 		return;
 	}
@@ -1669,6 +1682,13 @@ void ProxiesBoxController::share(const ProxyData &proxy) {
 			? "&pass=" + qthelp::url_encode(proxy.password) : "")
 		+ ((proxy.type == Type::Mtproto && !proxy.password.isEmpty())
 			? "&secret=" + proxy.password : "");
+	if (qr) {
+		_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+			Ui::FillPeerQrBox(box, nullptr, link, rpl::single(QString()));
+			box->setTitle(tr::lng_proxy_edit_share_qr_box_title());
+		}));
+		return;
+	}
 	QGuiApplication::clipboard()->setText(link);
 	_show->showToast(tr::lng_username_copied(tr::now));
 }
