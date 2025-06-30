@@ -1318,10 +1318,15 @@ void GenericCreditsEntryBox(
 					? e.premiumMonthsForStars
 					: packs.monthsForStars(e.credits.whole()));
 		if (document && document->sticker()) {
+			const auto origin = starGiftSticker
+				? starGiftSticker->stickerOrGifOrigin()
+				: e.credits.ton()
+				? packs.tonOrigin()
+				: packs.origin();
 			state->sticker = document;
 			state->media = document->createMediaView();
-			state->media->thumbnailWanted(packs.origin());
-			state->media->automaticLoad(packs.origin(), nullptr);
+			state->media->thumbnailWanted(origin);
+			state->media->automaticLoad(origin, nullptr);
 			rpl::single() | rpl::then(
 				session->downloaderTaskFinished()
 			) | rpl::filter([=] {
