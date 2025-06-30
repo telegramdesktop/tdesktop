@@ -1164,10 +1164,17 @@ void Session::applyMonoforumLinkedId(
 		channel->setMonoforumLink(nullptr);
 	} else if (_postponedMonoforumLinkedIds) {
 		_postponedMonoforumLinkedIds->emplace(channel, linkedId);
-	} else if (const auto linked = channelLoaded(linkedId)) {
-		channel->setMonoforumLink(linked);
 	} else {
-		channel->updateFull();
+		const auto loaded = channel->isLoaded();
+		const auto linked = this->channel(linkedId);
+		const auto good = loaded
+			? linked->isLoaded()
+			: linked->isMinimalLoaded();
+		if (good) {
+			channel->setMonoforumLink(linked);
+		} else {
+			channel->updateFull();
+		}
 	}
 }
 
