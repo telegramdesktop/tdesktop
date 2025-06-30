@@ -119,7 +119,7 @@ Credits::Credits(
 , _balanceStar((_creditsType == CreditsType::Ton)
 		? Ui::Earn::IconCurrencyColored(
 			st::tonFieldIconSize,
-			st::windowActiveTextFg->c)
+			st::currencyFg->c)
 		: Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
 	_controller->session().giftBoxStickersPacks().load(
 		Stickers::GiftBoxPack::Type::Currency);
@@ -494,7 +494,7 @@ void Credits::setupContent() {
 					? std::make_unique<Ui::Text::StaticCustomEmoji>(
 						Ui::Earn::IconCurrencyColored(
 							st::tonFieldIconSize,
-							st::windowActiveTextFg->c),
+							st::currencyFg->c),
 						u"currency_icon:%1"_q.arg(height))
 					: Ui::MakeCreditsIconEmoji(height, 1),
 				isCurrency

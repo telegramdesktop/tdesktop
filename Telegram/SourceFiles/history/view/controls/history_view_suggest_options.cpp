@@ -334,7 +334,7 @@ void ChooseSuggestPriceBox(
 		manager->registerInternalEmoji(
 			Ui::Earn::IconCurrencyColored(
 				st::tonFieldIconSize,
-				st::windowActiveTextFg->c),
+				st::currencyFg->c),
 			st::channelEarnCurrencyCommonMargins,
 			false)));
 
@@ -506,7 +506,7 @@ void ChooseSuggestPriceBox(
 		manager->registerInternalEmoji(
 			Ui::Earn::IconCurrencyColored(
 				st::tonFieldIconSize,
-				st::windowActiveTextFg->c),
+				st::currencyFg->c),
 			st::suggestPriceTonIconMargins));
 	button->setContext(Core::TextContext({ .session = &peer->session() }));
 	button->setText(state->price.value(
@@ -732,7 +732,7 @@ TextWithEntities SuggestOptions::composeText() const {
 			manager->registerInternalEmoji(
 				Ui::Earn::IconCurrencyColored(
 					st::suggestBarTonIconSize,
-					st::windowActiveTextFg->c),
+					st::currencyFg->c),
 				st::suggestBarTonIconMargins,
 				false)).append(
 					Lang::FormatCreditsAmountDecimal(_values.price()))

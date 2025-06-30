@@ -724,7 +724,7 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 				manager->registerInternalEmoji(
 					Ui::Earn::IconCurrencyColored(
 						st::tonFieldIconSize,
-						st::windowActiveTextFg->c),
+						st::currencyFg->c),
 					st::channelEarnCurrencyLearnMargins,
 					false))
 			).append(' ').append(Lang::FormatCreditsAmountDecimal(value));

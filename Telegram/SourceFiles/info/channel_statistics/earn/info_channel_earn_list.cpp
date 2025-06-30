@@ -423,7 +423,7 @@ void InnerWidget::fill() {
 				Ui::Earn::IconCurrencyColored(
 					st.style.font,
 					!isIn
-						? st::activeButtonBg->c
+						? st::currencyFg->c
 						: (*isIn)
 						? st::boxTextFgGood->c
 						: st::menuIconAttentionColor->c),
@@ -447,7 +447,7 @@ void InnerWidget::fill() {
 		session->data().customEmojiManager().registerInternalEmoji(
 			Ui::Earn::IconCurrencyColored(
 				st::boxTitle.style.font,
-				st::activeButtonBg->c),
+				st::currencyFg->c),
 			st::channelEarnCurrencyLearnMargins,
 			false));
 
