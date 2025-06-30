@@ -405,8 +405,7 @@ void InnerWidget::fill() {
 	const auto multiplier = data.usdRate;
 
 	const auto creditsToUsdMap = [=](CreditsAmount c) {
-		const auto creditsMultiplier = _state.creditsEarn.usdRate
-			* Data::kEarnMultiplier;
+		const auto creditsMultiplier = _state.creditsEarn.usdRate;
 		return c ? ToUsd(c, creditsMultiplier, 0) : QString();
 	};
 
@@ -1101,7 +1100,7 @@ void InnerWidget::fill() {
 
 			const auto historyList = tabCurrencyList->entity();
 			const auto addHistoryEntry = [=](
-					const Data::EarnHistoryEntry &entry,
+					const Data::CreditsHistoryEntry &entry,
 					const tr::phrase<> &text) {
 				const auto wrap = historyList->add(
 					object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
@@ -1115,9 +1114,7 @@ void InnerWidget::fill() {
 					text(),
 					st::channelEarnSemiboldLabel));
 
-				const auto isIn
-					= (entry.type == Data::EarnHistoryEntry::Type::Return
-						|| entry.type == Data::EarnHistoryEntry::Type::In);
+				const auto isIn = entry.in;
 				const auto recipient = Ui::Text::Wrapped(
 					{ entry.provider },
 					EntityType::Code);
@@ -1134,18 +1131,17 @@ void InnerWidget::fill() {
 					Ui::AddSkip(inner, st::channelEarnHistoryTwoSkip);
 				}
 
-				const auto isFailed = entry.status
-					== Data::EarnHistoryEntry::Status::Failed;
-				const auto isPending = entry.status
-					== Data::EarnHistoryEntry::Status::Pending;
-				const auto dateText = (!entry.dateTo.isNull() || isFailed)
+				const auto isFailed = entry.failed;
+				const auto isPending = entry.pending;
+				const auto dateText = (!entry.adsProceedsToDate.isNull()
+						|| isFailed)
 					? (FormatDate(entry.date)
 						+ ' '
 						+ QChar(8212)
 						+ ' '
 						+ (isFailed
 							? tr::lng_channel_earn_history_out_failed(tr::now)
-							: FormatDate(entry.dateTo)))
+							: FormatDate(entry.adsProceedsToDate)))
 					: isPending
 					? tr::lng_channel_earn_history_pending(tr::now)
 					: FormatDate(entry.date);
@@ -1166,12 +1162,12 @@ void InnerWidget::fill() {
 					st::channelEarnHistoryMajorLabel);
 				addEmojiToMajor(
 					majorLabel,
-					rpl::single(entry.amount),
+					rpl::single(entry.credits),
 					isIn,
 					{});
 				majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 				majorLabel->setTextColorOverride(color);
-				const auto minorText = MinorPart(entry.amount);
+				const auto minorText = MinorPart(entry.credits);
 				const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 					wrap,
 					rpl::single(minorText),
@@ -1200,7 +1196,7 @@ void InnerWidget::fill() {
 						st::channelEarnOverviewMajorLabel);
 					addEmojiToMajor(
 						majorLabel,
-						rpl::single(entry.amount),
+						rpl::single(entry.credits),
 						isIn,
 						{});
 					majorLabel->setAttribute(
@@ -1317,15 +1313,14 @@ void InnerWidget::fill() {
 				}, wrap->lifetime());
 			};
 			const auto handleSlice = [=](const Data::EarnHistorySlice &s) {
-				using Type = Data::EarnHistoryEntry::Type;
 				for (const auto &entry : s.list) {
 					addHistoryEntry(
 						entry,
-						(entry.type == Type::In)
-							? tr::lng_channel_earn_history_in
-							: (entry.type == Type::Return)
+						(entry.refunded
 							? tr::lng_channel_earn_history_return
-							: tr::lng_channel_earn_history_out);
+							: entry.in
+							? tr::lng_channel_earn_history_in
+							: tr::lng_channel_earn_history_out));
 				}
 				historyList->resizeToWidth(listsContainer->width());
 			};

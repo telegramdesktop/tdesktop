@@ -127,6 +127,8 @@ PRIVATE
     api/api_confirm_phone.h
     api/api_credits.cpp
     api/api_credits.h
+    api/api_credits_history_entry.cpp
+    api/api_credits_history_entry.h
     api/api_earn.cpp
     api/api_earn.h
     api/api_editing.cpp

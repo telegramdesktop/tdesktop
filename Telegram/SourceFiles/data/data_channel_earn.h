@@ -7,46 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_statistics_chart.h"
-
 #include <QtCore/QDateTime>
+
+#include "data/data_credits.h"
+#include "data/data_statistics_chart.h"
 
 namespace Data {
 
 using EarnInt = uint64;
 
-constexpr auto kEarnMultiplier = EarnInt(1);
-
-struct EarnHistoryEntry final {
-	enum class Type {
-		In,
-		Out,
-		Return,
-	};
-
-	enum class Status {
-		Success,
-		Failed,
-		Pending,
-	};
-
-	Type type;
-	Status status;
-
-	CreditsAmount amount;
-	QDateTime date;
-	QDateTime dateTo;
-
-	QString provider;
-
-	QDateTime successDate;
-	QString successLink;
-
-};
-
 struct EarnHistorySlice final {
 	using OffsetToken = QString;
-	std::vector<EarnHistoryEntry> list;
+	std::vector<CreditsHistoryEntry> list;
 	int total = 0;
 	bool allLoaded = false;
 	OffsetToken token;

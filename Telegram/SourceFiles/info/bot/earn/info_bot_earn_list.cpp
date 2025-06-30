@@ -118,7 +118,7 @@ void InnerWidget::fill() {
 	using namespace Info::ChannelEarn;
 	const auto container = this;
 	const auto &data = _state;
-	const auto multiplier = data.usdRate * Data::kEarnMultiplier;
+	const auto multiplier = data.usdRate;
 	constexpr auto kMinorLength = 3;
 
 	auto availableBalanceValue = rpl::single(

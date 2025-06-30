@@ -77,6 +77,11 @@ struct CreditsHistoryEntry final {
 	uint64 starrefRecipientId = 0;
 	PeerType peerType;
 	QDateTime subscriptionUntil;
+
+	// Currency properties.
+	QDateTime adsProceedsToDate;
+	QString provider; // Unused.
+
 	QDateTime successDate;
 	QString successLink;
 	int paidMessagesCount = 0;

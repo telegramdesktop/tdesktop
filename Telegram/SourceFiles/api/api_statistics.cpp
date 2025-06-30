@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_statistics.h"
 
+#include "api/api_credits_history_entry.h"
 #include "api/api_statistics_data_deserialize.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
@@ -766,53 +767,15 @@ void EarnStatistics::requestHistory(
 
 		const auto nextToken = result.data().vnext_offset().value_or_empty();
 
-		const auto &tlTransactions
+		const auto tlTransactions
 			= result.data().vhistory().value_or_empty();
 
-		auto list = std::vector<Data::EarnHistoryEntry>();
-		list.reserve(tlTransactions.size());
-		for (const auto &tlTransaction : tlTransactions) {
-			const auto &d = tlTransaction.data();
-			const auto isProceed = d.vads_proceeds_from_date()
-				|| d.vads_proceeds_to_date();
-			const auto isRefund = d.is_refund();
-			const auto amount = CreditsAmountFromTL(d.vamount());
-			if (isProceed) {
-				list.push_back(Data::EarnHistoryEntry{
-					.type = Data::EarnHistoryEntry::Type::In,
-					.amount = amount,
-					.date = base::unixtime::parse(
-						d.vads_proceeds_from_date()->v),
-					.dateTo = base::unixtime::parse(
-						d.vads_proceeds_to_date()->v),
-				});
-			} else if (isRefund) {
-				list.push_back(Data::EarnHistoryEntry{
-					.type = Data::EarnHistoryEntry::Type::Return,
-					.amount = amount,
-					.date = base::unixtime::parse(d.vdate().v),
-					// .provider = qs(d.vprovider()),
-				});
-			} else {
-				list.push_back(Data::EarnHistoryEntry{
-					.type = Data::EarnHistoryEntry::Type::Out,
-					.status = d.is_pending()
-						? Data::EarnHistoryEntry::Status::Pending
-						: d.is_failed()
-						? Data::EarnHistoryEntry::Status::Failed
-						: Data::EarnHistoryEntry::Status::Success,
-					.amount = amount,
-					.date = base::unixtime::parse(d.vdate().v),
-					// .provider = qs(d.vprovider()),
-					.successDate = d.vtransaction_date()
-						? base::unixtime::parse(d.vtransaction_date()->v)
-						: QDateTime(),
-					.successLink = d.vtransaction_url()
-						? qs(*d.vtransaction_url())
-						: QString(),
-				});
-			}
-		}
+		const auto peer = _isUser ? (PeerData*)user() : (PeerData*)channel();
+		auto list = ranges::views::all(
+			tlTransactions
+		) | ranges::views::transform([=](const auto &d) {
+			return CreditsHistoryEntryFromTL(d, peer);
+		}) | ranges::to_vector;
 		done(Data::EarnHistorySlice{
 			.list = std::move(list),
 			.total = int(tlTransactions.size()),
