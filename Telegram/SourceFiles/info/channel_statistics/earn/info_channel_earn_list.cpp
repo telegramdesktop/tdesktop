@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
 #include "base/unixtime.h"
+#include "boxes/gift_premium_box.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
@@ -1232,6 +1233,11 @@ void InnerWidget::fill() {
 							dateText,
 							st::channelEarnHistorySubLabel)));
 					Ui::AddSkip(box->verticalLayout());
+					Ui::AddSkip(box->verticalLayout());
+					AddChannelEarnTable(
+						box->uiShow(),
+						box->verticalLayout(),
+						entry);
 					Ui::AddSkip(box->verticalLayout());
 					Ui::AddSkip(box->verticalLayout());
 					box->addRow(object_ptr<Ui::CenterWrap<>>(

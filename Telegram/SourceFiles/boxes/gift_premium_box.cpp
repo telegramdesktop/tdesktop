@@ -96,6 +96,10 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 	return QString();
 };
 
+[[nodiscard]] QString FixupTransactionId(QString origin) {
+	return origin.replace(kHorizontalBar, QChar('-'));
+}
+
 [[nodiscard]] Data::GiftCodeLink MakeGiftCodeLink(
 		not_null<Main::Session*> session,
 		const QString &slug) {
@@ -1383,9 +1387,7 @@ void AddStarGiftTable(
 			auto label = MakeMaybeMultilineTokenValue(table, address, st);
 			label->setClickHandlerFilter([=](const auto &...) {
 				TextUtilities::SetClipboardText(
-					TextForMimeData::Simple(
-						base::duplicate(address)
-							.replace(kHorizontalBar, QChar('-'))));
+					TextForMimeData::Simple(FixupTransactionId(address)));
 				show->showToast(
 					tr::lng_gift_unique_address_copied(tr::now));
 				return false;
@@ -1810,9 +1812,7 @@ void AddCreditsHistoryEntryTable(
 		auto label = MakeMaybeMultilineTokenValue(table, entry.id, st);
 		label->setClickHandlerFilter([=](const auto &...) {
 			TextUtilities::SetClipboardText(
-				TextForMimeData::Simple(
-					base::duplicate(entry.id)
-						.replace(kHorizontalBar, QChar('-'))));
+				TextForMimeData::Simple(FixupTransactionId(entry.id)));
 			show->showToast(
 				tr::lng_credits_box_history_entry_id_copied(tr::now));
 			return false;
@@ -1985,5 +1985,31 @@ void AddCreditsBoostTable(
 			table,
 			tr::lng_gift_until(),
 			rpl::single(Ui::Text::WithEntities(langDateTime(b.expiresAt))));
+	}
+}
+
+void AddChannelEarnTable(
+		std::shared_ptr<Ui::Show> show,
+		not_null<Ui::VerticalLayout*> container,
+		const Data::CreditsHistoryEntry &entry) {
+	const auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	if (!entry.id.isEmpty()) {
+		auto label = MakeMaybeMultilineTokenValue(table, entry.id, {});
+		label->setClickHandlerFilter([=](const auto &...) {
+			TextUtilities::SetClipboardText(
+				TextForMimeData::Simple(FixupTransactionId(entry.id)));
+			show->showToast(
+				tr::lng_credits_box_history_entry_id_copied(tr::now));
+			return false;
+		});
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_id(),
+			std::move(label),
+			st::giveawayGiftCodeValueMargin);
 	}
 }
