@@ -109,10 +109,6 @@ void ChooseSuggestPriceBox(
 		}
 	};
 
-	const auto appConfig = &args.peer->session().appConfig();
-	const auto starsMul = appConfig->suggestedPostCommissionStars();
-	const auto tonMul = appConfig->suggestedPostCommissionTon();
-
 	const auto starsPrice = [=] {
 		return rpl::single(
 			CreditsAmount()
@@ -128,17 +124,6 @@ void ChooseSuggestPriceBox(
 		) | rpl::filter([=](CreditsAmount amount) {
 			return amount.ton();
 		}));
-	};
-	const auto formatPrice = [=](int mul) {
-		return [=](CreditsAmount amount) {
-			const auto value = (amount.value() * mul / 1000.);
-			const auto whole = int(std::floor(value));
-			//const auto nano = int(base::SafeRound(
-			//	(value - whole) * Ui::kNanosInOne));
-			const auto nano = 0;
-			return Lang::FormatCreditsAmountWithCurrency(
-				CreditsAmount(whole, nano, amount.type()));
-		};
 	};
 
 	const auto peer = args.peer;
@@ -331,20 +316,26 @@ void ChooseSuggestPriceBox(
 		starsFieldWrap->resize(width, starsField->height());
 	}, starsFieldWrap->lifetime());
 
-	const auto starsCommission = QString::number(starsMul / 10.) + '%';
-	const auto tonCommission = QString::number(tonMul / 10.) + '%';
-
 	Ui::AddSkip(starsInner);
 	Ui::AddSkip(starsInner);
-	Ui::AddDividerText(
-		starsInner,
-		(admin
-			? tr::lng_suggest_options_you_get(
+	const auto formatPrice = [peer = args.peer](CreditsAmount amount) {
+		return FormatPriceAfterCommission(&peer->session(), amount);
+	};
+	const auto formatCommission = [peer = args.peer](CreditsAmount amount) {
+		return FormatAfterCommissionPercent(&peer->session(), amount);
+	};
+	Ui::AddDividerText(starsInner, admin
+		? rpl::combine(
+			tr::lng_suggest_options_you_get(
 				lt_amount,
-				starsPrice() | rpl::map(formatPrice(starsMul)),
+				starsPrice() | rpl::map(formatPrice),
 				lt_percent,
-				rpl::single(starsCommission))
-			: tr::lng_suggest_options_stars_price_about()));
+				starsPrice() | rpl::map(formatCommission)),
+			tr::lng_suggest_options_stars_warning(Ui::Text::RichLangValue)
+		) | rpl::map([=](const QString &t1, const TextWithEntities &t2) {
+			return TextWithEntities{ t1 }.append("\n\n").append(t2);
+		})
+		: tr::lng_suggest_options_stars_price_about(Ui::Text::WithEntities));
 
 	const auto tonWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -396,9 +387,9 @@ void ChooseSuggestPriceBox(
 		(admin
 			? tr::lng_suggest_options_you_get(
 				lt_amount,
-				tonPrice() | rpl::map(formatPrice(tonMul)),
+				tonPrice() | rpl::map(formatPrice),
 				lt_percent,
-				rpl::single(tonCommission))
+				tonPrice() | rpl::map(formatCommission))
 			: tr::lng_suggest_options_ton_price_about()));
 
 	tonWrap->toggleOn(state->ton.value(), anim::type::instant);
@@ -642,6 +633,33 @@ bool CanAddOfferToMessage(not_null<HistoryItem*> item) {
 			history->owner().history(broadcast)).has_value();
 }
 
+QString FormatPriceAfterCommission(
+		not_null<Main::Session*> session,
+		CreditsAmount price) {
+	const auto appConfig = &session->appConfig();
+	const auto mul = price.stars()
+		? appConfig->suggestedPostCommissionStars()
+		: appConfig->suggestedPostCommissionTon();
+
+	const auto value = (price.value() * mul / 1000.);
+	const auto whole = int(std::floor(value));
+	//const auto nano = int(base::SafeRound(
+	//	(value - whole) * Ui::kNanosInOne));
+	const auto nano = 0;
+	return Lang::FormatCreditsAmountWithCurrency(
+		CreditsAmount(whole, nano, price.type()));
+}
+
+QString FormatAfterCommissionPercent(
+		not_null<Main::Session*> session,
+		CreditsAmount price) {
+	const auto appConfig = &session->appConfig();
+	const auto mul = price.stars()
+		? appConfig->suggestedPostCommissionStars()
+		: appConfig->suggestedPostCommissionTon();
+	return QString::number(mul / 10.) + '%';
+}
+
 void InsufficientTonBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
@@ -755,6 +773,7 @@ void SuggestOptions::edit() {
 		.peer = _peer,
 		.done = apply,
 		.value = _values,
+		.mode = _mode,
 	}));
 }
 

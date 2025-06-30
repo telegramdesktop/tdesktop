@@ -58,6 +58,13 @@ void ChooseSuggestPriceBox(
 
 [[nodiscard]] bool CanAddOfferToMessage(not_null<HistoryItem*> item);
 
+[[nodiscard]] QString FormatPriceAfterCommission(
+	not_null<Main::Session*> session,
+	CreditsAmount price);
+[[nodiscard]] QString FormatAfterCommissionPercent(
+	not_null<Main::Session*> session,
+	CreditsAmount price);
+
 void InsufficientTonBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer,

@@ -137,9 +137,15 @@ void ConfirmApproval(
 		}
 	}
 	const auto peer = item->history()->peer;
+	const auto session = &peer->session();
 	const auto broadcast = peer->monoforumBroadcast();
 	const auto channelName = (broadcast ? broadcast : peer)->name();
-	const auto amount = Lang::FormatCreditsAmountWithCurrency(price);
+	const auto amount = admin
+		? HistoryView::FormatPriceAfterCommission(session, price)
+		: Lang::FormatCreditsAmountWithCurrency(price);
+	const auto commission = HistoryView::FormatAfterCommissionPercent(
+		session,
+		price);
 	const auto date = langDateTime(base::unixtime::parse(scheduleDate));
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto callback = std::make_shared<Fn<void()>>();
@@ -163,16 +169,20 @@ void ConfirmApproval(
 						Ui::Text::Bold(channelName),
 						lt_amount,
 						Ui::Text::Bold(amount),
+						lt_percent,
+						TextWithEntities{ commission },
 						lt_date,
 						Ui::Text::Bold(date),
-						Ui::Text::WithEntities)
+						Ui::Text::RichLangValue)
 					: tr::lng_suggest_accept_receive_now(
 						tr::now,
 						lt_channel,
 						Ui::Text::Bold(channelName),
 						lt_amount,
 						Ui::Text::Bold(amount),
-						Ui::Text::WithEntities))
+						lt_percent,
+						TextWithEntities{ commission },
+						Ui::Text::RichLangValue))
 				: (scheduleDate
 					? tr::lng_suggest_accept_pay(
 						tr::now,
@@ -180,12 +190,24 @@ void ConfirmApproval(
 						Ui::Text::Bold(amount),
 						lt_date,
 						Ui::Text::Bold(date),
-						Ui::Text::WithEntities)
+						Ui::Text::RichLangValue)
 					: tr::lng_suggest_accept_pay_now(
 						tr::now,
 						lt_amount,
 						Ui::Text::Bold(amount),
-						Ui::Text::WithEntities)));
+						Ui::Text::RichLangValue)));
+			if (admin) {
+				text.append(' ').append(
+					tr::lng_suggest_accept_receive_if(
+						tr::now,
+						Ui::Text::RichLangValue));
+				if (price.stars()) {
+					text.append("\n\n").append(
+						tr::lng_suggest_options_stars_warning(
+							tr::now,
+							Ui::Text::RichLangValue));
+				}
+			}
 		}
 		Ui::ConfirmBox(box, {
 			.text = text,
