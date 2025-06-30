@@ -1118,7 +1118,8 @@ void InnerWidget::fill() {
 					st::channelEarnSemiboldLabel));
 
 				const auto isIn
-					= (entry.type == Data::EarnHistoryEntry::Type::In);
+					= (entry.type == Data::EarnHistoryEntry::Type::Return
+						|| entry.type == Data::EarnHistoryEntry::Type::In);
 				const auto recipient = Ui::Text::Wrapped(
 					{ entry.provider },
 					EntityType::Code);
