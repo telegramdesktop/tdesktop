@@ -249,10 +249,23 @@ bool PremiumGift::buttonMinistars() {
 
 ClickHandlerPtr PremiumGift::createViewLink() {
 	if (tonGift()) {
+		const auto lifetime = std::make_shared<rpl::lifetime>();
 		return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 			const auto my = context.other.value<ClickHandlerContext>();
-			if (const auto window = my.sessionWindow.get()) {
-				window->showSettings(Settings::CreditsId());
+			const auto weak = my.sessionWindow;
+			if (const auto window = weak.get()) {
+				window->session().credits().tonLoad();
+				*lifetime = window->session().credits().tonLoadedValue(
+				) | rpl::filter([=] {
+					if (const auto window = weak.get()) {
+						return window->session().credits().tonLoaded();
+					}
+					return false;
+				}) | rpl::take(1) | rpl::start_with_next([=] {
+					if (const auto window = weak.get()) {
+						window->showSettings(Settings::CurrencyId());
+					}
+				});
 			}
 		});
 	}
