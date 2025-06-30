@@ -4452,6 +4452,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_options_date_publish" = "Publish";
 "lng_suggest_options_date_now" = "Publish Now";
 "lng_suggest_options_date_about" = "Select the date and time you want the message to be published.";
+"lng_suggest_options_you_get" = "You will receive {amount} ({percent}) for publishing this post.";
 "lng_suggest_options_offer" = "Offer {amount}";
 "lng_suggest_options_offer_free" = "Offer for Free";
 "lng_suggest_options_update" = "Update Terms";

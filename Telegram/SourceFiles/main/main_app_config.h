@@ -92,11 +92,15 @@ public:
 	[[nodiscard]] int todoListTitleLimit() const;
 	[[nodiscard]] int todoListItemTextLimit() const;
 
+	[[nodiscard]] int suggestedPostCommissionStars() const;
+	[[nodiscard]] int suggestedPostCommissionTon() const;
+	[[nodiscard]] int suggestedPostStarsMin() const;
 	[[nodiscard]] int suggestedPostStarsMax() const;
 	[[nodiscard]] int64 suggestedPostNanoTonMin() const;
 	[[nodiscard]] int64 suggestedPostNanoTonMax() const;
 	[[nodiscard]] int suggestedPostDelayMin() const;
 	[[nodiscard]] int suggestedPostDelayMax() const;
+	[[nodiscard]] TimeId suggestedPostAgeMin() const;
 
 	void refresh(bool force = false);
 

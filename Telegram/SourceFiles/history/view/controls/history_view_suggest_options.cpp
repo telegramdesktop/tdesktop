@@ -109,6 +109,38 @@ void ChooseSuggestPriceBox(
 		}
 	};
 
+	const auto appConfig = &args.peer->session().appConfig();
+	const auto starsMul = appConfig->suggestedPostCommissionStars();
+	const auto tonMul = appConfig->suggestedPostCommissionTon();
+
+	const auto starsPrice = [=] {
+		return rpl::single(
+			CreditsAmount()
+		) | rpl::then(state->price.value(
+		) | rpl::filter([=](CreditsAmount amount) {
+			return amount.stars();
+		}));
+	};
+	const auto tonPrice = [=] {
+		return rpl::single(
+			CreditsAmount(0, 0, CreditsType::Ton)
+		) | rpl::then(state->price.value(
+		) | rpl::filter([=](CreditsAmount amount) {
+			return amount.ton();
+		}));
+	};
+	const auto formatPrice = [=](int mul) {
+		return [=](CreditsAmount amount) {
+			const auto value = (amount.value() * mul / 1000.);
+			const auto whole = int(std::floor(value));
+			//const auto nano = int(base::SafeRound(
+			//	(value - whole) * Ui::kNanosInOne));
+			const auto nano = 0;
+			return Lang::FormatCreditsAmountWithCurrency(
+				CreditsAmount(whole, nano, amount.type()));
+		};
+	};
+
 	const auto peer = args.peer;
 	const auto admin = peer->amMonoforumAdmin();
 	const auto broadcast = peer->monoforumBroadcast();
@@ -118,7 +150,7 @@ void ChooseSuggestPriceBox(
 		session->credits().load();
 		session->credits().tonLoad();
 	}
-	const auto starsMin = 0;
+	const auto starsMin = session->appConfig().suggestedPostStarsMin();
 	const auto starsMax = session->appConfig().suggestedPostStarsMax();
 	const auto nanoTonMin = session->appConfig().suggestedPostNanoTonMin();
 	const auto nanoTonMax = session->appConfig().suggestedPostNanoTonMax();
@@ -299,11 +331,20 @@ void ChooseSuggestPriceBox(
 		starsFieldWrap->resize(width, starsField->height());
 	}, starsFieldWrap->lifetime());
 
+	const auto starsCommission = QString::number(starsMul / 10.) + '%';
+	const auto tonCommission = QString::number(tonMul / 10.) + '%';
+
 	Ui::AddSkip(starsInner);
 	Ui::AddSkip(starsInner);
 	Ui::AddDividerText(
 		starsInner,
-		tr::lng_suggest_options_stars_price_about());
+		(admin
+			? tr::lng_suggest_options_you_get(
+				lt_amount,
+				starsPrice() | rpl::map(formatPrice(starsMul)),
+				lt_percent,
+				rpl::single(starsCommission))
+			: tr::lng_suggest_options_stars_price_about()));
 
 	const auto tonWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -352,7 +393,13 @@ void ChooseSuggestPriceBox(
 	Ui::AddSkip(tonInner);
 	Ui::AddDividerText(
 		tonInner,
-		tr::lng_suggest_options_ton_price_about());
+		(admin
+			? tr::lng_suggest_options_you_get(
+				lt_amount,
+				tonPrice() | rpl::map(formatPrice(tonMul)),
+				lt_percent,
+				rpl::single(tonCommission))
+			: tr::lng_suggest_options_ton_price_about()));
 
 	tonWrap->toggleOn(state->ton.value(), anim::type::instant);
 	starsWrap->toggleOn(
@@ -374,7 +421,7 @@ void ChooseSuggestPriceBox(
 			nanos = now.value_or(0);
 		} else {
 			const auto now = starsField->getLastText().toLongLong();
-			if (now < starsMin || now > starsMax) {
+			if (now && (now < starsMin || now > starsMax)) {
 				starsField->showError();
 				return {};
 			}

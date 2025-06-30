@@ -170,6 +170,18 @@ int AppConfig::todoListItemTextLimit() const {
 	return get<int>(u"todo_item_length_max"_q, 64);
 }
 
+int AppConfig::suggestedPostCommissionStars() const {
+	return get<int>(u"stars_suggested_post_commission_permille"_q, 850);
+}
+
+int AppConfig::suggestedPostCommissionTon() const {
+	return get<int>(u"ton_suggested_post_commission_permille"_q, 850);
+}
+
+int AppConfig::suggestedPostStarsMin() const {
+	return get<int>(u"stars_suggested_post_amount_min"_q, 5);
+}
+
 int AppConfig::suggestedPostStarsMax() const {
 	return get<int>(u"stars_suggested_post_amount_max"_q, 100'000);
 }
@@ -190,6 +202,10 @@ int AppConfig::suggestedPostDelayMin() const {
 
 int AppConfig::suggestedPostDelayMax() const {
 	return get<int>(u"appConfig.stars_suggested_post_future_max"_q, 2678400);
+}
+
+TimeId AppConfig::suggestedPostAgeMin() const {
+	return get<int>(u"stars_suggested_post_age_min"_q, 86400);
 }
 
 void AppConfig::refresh(bool force) {

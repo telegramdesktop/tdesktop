@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl_validator.h"
 #include "ui/boxes/confirm_box.h"
@@ -32,12 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-
-namespace {
-
-constexpr auto kPaidShowLive = 86400;
-
-} // namespace
 
 DeleteMessagesBox::DeleteMessagesBox(
 	QWidget*,
@@ -507,7 +502,9 @@ PaidPostType DeleteMessagesBox::paidPostType() const {
 			const auto type = item->paidType();
 			if (type != PaidPostType::None) {
 				const auto date = item->date();
-				if (now < date || now - date <= kPaidShowLive) {
+				const auto config = &item->history()->session().appConfig();
+				const auto limit = config->suggestedPostAgeMin();
+				if (now < date || now - date <= limit) {
 					if (type == PaidPostType::Ton) {
 						return type;
 					} else if (type == PaidPostType::Stars) {
