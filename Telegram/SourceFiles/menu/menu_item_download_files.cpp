@@ -242,10 +242,14 @@ void AddDownloadFilesAction(
 	if (items.empty()) {
 		return;
 	}
+	auto sortedItems = ranges::views::all(items)
+		| ranges::views::keys
+		| ranges::to<std::vector>();
+	ranges::sort(sortedItems, {}, &HistoryItem::fullId);
 	auto docs = Documents();
 	auto photos = Photos();
-	for (const auto &pair : items) {
-		if (!Added(pair.first, docs, photos)) {
+	for (const auto &item : sortedItems) {
+		if (!Added(item, docs, photos)) {
 			return;
 		}
 	}
