@@ -100,6 +100,80 @@ using ProxyData = MTP::ProxyData;
 	return proxy;
 };
 
+void AddProxyFromClipboard(
+		not_null<ProxiesBoxController*> controller,
+		std::shared_ptr<Ui::Show> show) {
+	const auto proxyString = u"proxy"_q;
+	const auto socksString = u"socks"_q;
+	const auto protocol = u"tg://"_q;
+
+	const auto maybeUrls = ExtractUrlsSimple(
+		QGuiApplication::clipboard()->text());
+	const auto isSingle = maybeUrls.size() == 1;
+
+	const auto proceedUrl = [=](const auto &local) {
+		const auto command = base::StringViewMid(
+			local,
+			protocol.size(),
+			8192);
+
+		if (local.startsWith(protocol + proxyString)
+			|| local.startsWith(protocol + socksString)) {
+
+			using namespace qthelp;
+			const auto options = RegExOption::CaseInsensitive;
+			for (const auto &[expression, _] : Core::LocalUrlHandlers()) {
+				const auto midExpression = base::StringViewMid(
+					expression,
+					1);
+				const auto isSocks = midExpression.startsWith(
+					socksString);
+				if (!midExpression.startsWith(proxyString)
+					&& !isSocks) {
+					continue;
+				}
+				const auto match = regex_match(
+					expression,
+					command,
+					options);
+				if (!match) {
+					continue;
+				}
+				const auto type = isSocks
+					? ProxyData::Type::Socks5
+					: ProxyData::Type::Mtproto;
+				const auto fields = url_parse_params(
+					match->captured(1),
+					qthelp::UrlParamNameTransform::ToLower);
+				const auto proxy = ProxyDataFromFields(type, fields);
+				const auto contains = controller->contains(proxy);
+				const auto toast = (contains
+					? tr::lng_proxy_add_from_clipboard_existing_toast
+					: tr::lng_proxy_add_from_clipboard_good_toast)(tr::now);
+				if (isSingle) {
+					show->showToast(toast);
+				}
+				if (!contains) {
+					controller->addNewItem(proxy);
+				}
+				break;
+			}
+			return true;
+		}
+		return false;
+	};
+
+	auto success = false;
+	for (const auto &maybeUrl : maybeUrls) {
+		success |= proceedUrl(Core::TryConvertUrlToLocal(maybeUrl));
+	}
+
+	if (!success) {
+		show->showToast(
+			tr::lng_proxy_add_from_clipboard_failed_toast(tr::now));
+	}
+}
+
 class HostInput : public Ui::MaskedInputField {
 public:
 	HostInput(
@@ -254,6 +328,7 @@ public:
 
 protected:
 	void prepare() override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	void setupContent();
@@ -656,6 +731,18 @@ ProxiesBox::ProxiesBox(
 	}, lifetime());
 }
 
+void ProxiesBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Copy
+		|| (e->key() == Qt::Key_C && e->modifiers() == Qt::ControlModifier)) {
+		_controller->shareItems();
+	} else if (e->key() == Qt::Key_Paste
+		|| (e->key() == Qt::Key_V && e->modifiers() == Qt::ControlModifier)) {
+		AddProxyFromClipboard(_controller, uiShow());
+	} else {
+		BoxContent::keyPressEvent(e);
+	}
+}
+
 void ProxiesBox::prepare() {
 	setTitle(tr::lng_proxy_settings());
 
@@ -671,73 +758,6 @@ void ProxiesBox::setupTopButton() {
 	const auto menu
 		= top->lifetime().make_state<base::unique_qptr<Ui::PopupMenu>>();
 
-	const auto proxyString = u"proxy"_q;
-	const auto socksString = u"socks"_q;
-	const auto protocol = u"tg://"_q;
-
-	const auto proceedUrl = [=](const auto &local) {
-		const auto command = base::StringViewMid(
-			local,
-			protocol.size(),
-			8192);
-
-		if (local.startsWith(protocol + proxyString)
-			|| local.startsWith(protocol + socksString)) {
-
-			using namespace qthelp;
-			const auto options = RegExOption::CaseInsensitive;
-			for (const auto &[expression, _] : Core::LocalUrlHandlers()) {
-				const auto midExpression = base::StringViewMid(
-					expression,
-					1);
-				const auto isSocks = midExpression.startsWith(
-					socksString);
-				if (!midExpression.startsWith(proxyString)
-					&& !isSocks) {
-					continue;
-				}
-				const auto match = regex_match(
-					expression,
-					command,
-					options);
-				if (!match) {
-					continue;
-				}
-				const auto type = isSocks
-					? ProxyData::Type::Socks5
-					: ProxyData::Type::Mtproto;
-				const auto fields = url_parse_params(
-					match->captured(1),
-					qthelp::UrlParamNameTransform::ToLower);
-				const auto proxy = ProxyDataFromFields(type, fields);
-				const auto contains = _controller->contains(proxy);
-				const auto toast = (contains
-					? tr::lng_proxy_add_from_clipboard_existing_toast
-					: tr::lng_proxy_add_from_clipboard_good_toast)(tr::now);
-				uiShow()->showToast(toast);
-				if (!contains) {
-					_controller->addNewItem(proxy);
-				}
-				break;
-			}
-			return true;
-		}
-		return false;
-	};
-
-	const auto callback = [=] {
-		const auto maybeUrls = ExtractUrlsSimple(
-			QGuiApplication::clipboard()->text());
-		auto success = false;
-		for (const auto &maybeUrl : maybeUrls) {
-			success |= proceedUrl(Core::TryConvertUrlToLocal(maybeUrl));
-		}
-
-		if (!success) {
-			uiShow()->showToast(
-				tr::lng_proxy_add_from_clipboard_failed_toast(tr::now));
-		}
-	};
 	top->setClickedCallback([=] {
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			top,
@@ -745,7 +765,7 @@ void ProxiesBox::setupTopButton() {
 		const auto addAction = Ui::Menu::CreateAddActionCallback(*menu);
 		addAction({
 			.text = tr::lng_proxy_add_from_clipboard(tr::now),
-			.handler = callback,
+			.handler = [=] { AddProxyFromClipboard(_controller, uiShow()); },
 			.icon = &st::menuIconImportTheme,
 		});
 		addAction({
