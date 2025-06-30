@@ -16,14 +16,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Stickers {
 
 GiftBoxPack::GiftBoxPack(not_null<Main::Session*> session)
-: _session(session)
-, _localMonths({ 1, 3, 6, 12, 24 }) {
+: _session(session) {
+	_premium.dividers = { 1, 3, 6, 12, 24 };
+	_ton.dividers = { 0, 10, 50 };
 }
 
 GiftBoxPack::~GiftBoxPack() = default;
 
 rpl::producer<> GiftBoxPack::updated() const {
-	return _updated.events();
+	return _premium.updated.events();
+}
+
+rpl::producer<> GiftBoxPack::tonUpdated() const {
+	return _ton.updated.events();
 }
 
 int GiftBoxPack::monthsForStars(int stars) const {
@@ -36,115 +41,113 @@ int GiftBoxPack::monthsForStars(int stars) const {
 	}
 }
 
-DocumentData *GiftBoxPack::lookup(int months, Type type) const {
-	const auto it = _setsData.find(type);
-	if (it == _setsData.end() || it->second.documents.empty()) {
-		return nullptr;
-	}
+DocumentData *GiftBoxPack::lookup(int months) const {
+	return lookup(_premium, months, false);
+}
 
-	const auto& documents = it->second.documents;
-	const auto itMonths = ranges::lower_bound(_localMonths, months);
-	const auto fallback = documents[0];
+DocumentData *GiftBoxPack::tonLookup(int amount) const {
+	return lookup(_ton, amount, true);
+}
 
-	if (itMonths == begin(_localMonths)) {
+DocumentData *GiftBoxPack::lookup(
+		const Pack &pack,
+		int divider,
+		bool exact) const {
+	const auto it = ranges::lower_bound(pack.dividers, divider);
+	const auto fallback = pack.documents.empty()
+		? nullptr
+		: pack.documents.front();
+	if (it == begin(pack.dividers)) {
 		return fallback;
-	} else if (itMonths == end(_localMonths)) {
-		return documents.back();
+	} else if (it == end(pack.dividers)) {
+		return pack.documents.back();
 	}
-
-	const auto left = *(itMonths - 1);
-	const auto right = *itMonths;
-	const auto shift = (std::abs(months - left) < std::abs(months - right))
+	const auto shift = exact
+		? ((*it > divider) ? 1 : 0)
+		: (std::abs(divider - (*(it - 1))) < std::abs(divider - (*it)))
 		? -1
 		: 0;
-	const auto index = int(
-		std::distance(begin(_localMonths), itMonths - shift));
-	return (index >= documents.size()) ? fallback : documents[index];
+	const auto index = int(std::distance(begin(pack.dividers), it - shift));
+	return (index >= pack.documents.size())
+		? fallback
+		: pack.documents[index];
 }
 
-Data::FileOrigin GiftBoxPack::origin(Type type) const {
-	const auto it = _setsData.find(type);
-	if (it == _setsData.end()) {
-		return Data::FileOrigin();
-	}
-	return Data::FileOriginStickerSet(
-		it->second.setId,
-		it->second.accessHash);
+Data::FileOrigin GiftBoxPack::origin() const {
+	return Data::FileOriginStickerSet(_premium.id, _premium.accessHash);
 }
 
-void GiftBoxPack::load(Type type) {
-	if (_requestId) {
+Data::FileOrigin GiftBoxPack::tonOrigin() const {
+	return Data::FileOriginStickerSet(_ton.id, _ton.accessHash);
+}
+
+void GiftBoxPack::load() {
+	load(_premium, MTP_inputStickerSetPremiumGifts());
+}
+
+void GiftBoxPack::tonLoad() {
+	load(_ton, MTP_inputStickerSetTonGifts());
+}
+
+void GiftBoxPack::load(Pack &pack, const MTPInputStickerSet &set) {
+	if (pack.requestId || !pack.documents.empty()) {
 		return;
 	}
-
-	const auto it = _setsData.find(type);
-	if (it != _setsData.end() && !it->second.documents.empty()) {
-		return;
-	}
-
-	_requestId = _session->api().request(MTPmessages_GetStickerSet(
-		type == Type::Currency
-			? MTP_inputStickerSetTonGifts()
-			: MTP_inputStickerSetPremiumGifts(),
+	pack.requestId = _session->api().request(MTPmessages_GetStickerSet(
+		set,
 		MTP_int(0) // Hash.
-	)).done([=](const MTPmessages_StickerSet &result) {
-		_requestId = 0;
+	)).done([=, &pack](const MTPmessages_StickerSet &result) {
+		pack.requestId = 0;
 		result.match([&](const MTPDmessages_stickerSet &data) {
-			applySet(data, type);
+			applySet(pack, data);
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
-	}).fail([=] {
-		_requestId = 0;
+	}).fail([=, &pack] {
+		pack.requestId = 0;
 	}).send();
 }
 
-void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data, Type type) {
-	auto setData = SetData();
-	setData.setId = data.vset().data().vid().v;
-	setData.accessHash = data.vset().data().vaccess_hash().v;
-
+void GiftBoxPack::applySet(Pack &pack, const MTPDmessages_stickerSet &data) {
+	pack.id = data.vset().data().vid().v;
+	pack.accessHash = data.vset().data().vaccess_hash().v;
 	auto documents = base::flat_map<DocumentId, not_null<DocumentData*>>();
 	for (const auto &sticker : data.vdocuments().v) {
 		const auto document = _session->data().processDocument(sticker);
 		if (document->sticker()) {
 			documents.emplace(document->id, document);
-			if (setData.documents.empty()) {
+			if (pack.documents.empty()) {
 				// Fallback.
-				setData.documents.resize(1);
-				setData.documents[0] = document;
+				pack.documents.resize(1);
+				pack.documents[0] = document;
 			}
 		}
 	}
-
-	for (const auto &pack : data.vpacks().v) {
-		pack.match([&](const MTPDstickerPack &data) {
-			const auto emoji = qs(data.vemoticon());
-			if (emoji.isEmpty()) {
-				return;
-			}
-			for (const auto &id : data.vdocuments().v) {
-				if (const auto document = documents.take(id.v)) {
-					if (const auto sticker = (*document)->sticker()) {
-						if (!sticker->alt.isEmpty()) {
-							const auto ch = int(sticker->alt[0].unicode());
-							const auto index = (ch - '1'); // [0, 4];
-							if (index < 0 || index >= _localMonths.size()) {
-								return;
-							}
-							if ((index + 1) > setData.documents.size()) {
-								setData.documents.resize((index + 1));
-							}
-							setData.documents[index] = (*document);
+	for (const auto &info : data.vpacks().v) {
+		const auto &data = info.data();
+		const auto emoji = qs(data.vemoticon());
+		if (emoji.isEmpty()) {
+			return;
+		}
+		for (const auto &id : data.vdocuments().v) {
+			if (const auto document = documents.take(id.v)) {
+				if (const auto sticker = (*document)->sticker()) {
+					if (!sticker->alt.isEmpty()) {
+						const auto ch = int(sticker->alt[0].unicode());
+						const auto index = (ch - '1'); // [0, 4];
+						if (index < 0 || index >= pack.dividers.size()) {
+							return;
 						}
+						if ((index + 1) > pack.documents.size()) {
+							pack.documents.resize((index + 1));
+						}
+						pack.documents[index] = (*document);
 					}
 				}
 			}
-		});
+		}
 	}
-
-	_setsData[type] = std::move(setData);
-	_updated.fire({});
+	pack.updated.fire({});
 }
 
 } // namespace Stickers

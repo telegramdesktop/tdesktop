@@ -458,7 +458,7 @@ auto GenerateGiftMedia(
 				.sticker = sticker,
 				.size = st::chatIntroStickerSize,
 				.cacheTag = Tag::ChatIntroHelloSticker,
-				.singleTimePlayback = v::is<GiftTypePremium>(descriptor),
+				.stopOnLastFrame = v::is<GiftTypePremium>(descriptor),
 			};
 		};
 		push(std::make_unique<StickerInBubblePart>(

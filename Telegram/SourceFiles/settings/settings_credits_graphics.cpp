@@ -1311,13 +1311,12 @@ void GenericCreditsEntryBox(
 		auto &packs = session->giftBoxStickersPacks();
 		const auto document = starGiftSticker
 			? starGiftSticker
+			: e.credits.ton()
+			? packs.tonLookup(e.credits.whole())
 			: packs.lookup(
 				e.premiumMonthsForStars
 					? e.premiumMonthsForStars
-					: packs.monthsForStars(e.credits.whole()),
-				e.credits.stars()
-					? Stickers::GiftBoxPack::Type::Gifts
-					: Stickers::GiftBoxPack::Type::Currency);
+					: packs.monthsForStars(e.credits.whole()));
 		if (document && document->sticker()) {
 			state->sticker = document;
 			state->media = document->createMediaView();

@@ -67,7 +67,6 @@ QString ToUsd(
 		int afterFloat) {
 	constexpr auto kApproximately = QChar(0x2248);
 
-	const auto result = int64(base::SafeRound(value.value() * rate));
 	return QString(kApproximately)
 		+ QChar('$')
 		+ QString::number(

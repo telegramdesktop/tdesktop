@@ -5768,6 +5768,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		auto result = PreparedServiceText();
 		const auto isSelf = (_from->id == _from->session().userPeerId());
 		const auto peer = isSelf ? _history->peer : _from;
+		_history->session().giftBoxStickersPacks().tonLoad();
 		const auto amount = action.vamount().v;
 		const auto currency = qs(action.vcurrency());
 		const auto cost = AmountAndStarCurrency(

@@ -21,38 +21,45 @@ namespace Stickers {
 
 class GiftBoxPack final {
 public:
-	enum class Type {
-		Gifts,
-		Currency,
-	};
-
 	explicit GiftBoxPack(not_null<Main::Session*> session);
 	~GiftBoxPack();
 
-	void load(Type type = Type::Gifts);
+	void load();
 	[[nodiscard]] int monthsForStars(int stars) const;
-	[[nodiscard]] DocumentData *lookup(
-		int months,
-		Type type = Type::Gifts) const;
-	[[nodiscard]] Data::FileOrigin origin(Type type = Type::Gifts) const;
+	[[nodiscard]] DocumentData *lookup(int months) const;
+	[[nodiscard]] Data::FileOrigin origin() const;
 	[[nodiscard]] rpl::producer<> updated() const;
+
+	void tonLoad();
+	[[nodiscard]] DocumentData *tonLookup(int amount) const;
+	[[nodiscard]] Data::FileOrigin tonOrigin() const;
+	[[nodiscard]] rpl::producer<> tonUpdated() const;
 
 private:
 	using SetId = uint64;
-	struct SetData {
-		SetId setId = 0;
+
+	struct Pack {
+		SetId id = 0;
 		uint64 accessHash = 0;
 		std::vector<DocumentData*> documents;
+		mtpRequestId requestId = 0;
+		std::vector<int> dividers;
+		rpl::event_stream<> updated;
 	};
 
-	void applySet(const MTPDmessages_stickerSet &data, Type type);
+	void load(Pack &pack, const MTPInputStickerSet &set);
+	void applySet(Pack &pack, const MTPDmessages_stickerSet &data);
+	[[nodiscard]] DocumentData *lookup(
+		const Pack &pack,
+		int divider,
+		bool exact) const;
 
 	const not_null<Main::Session*> _session;
 	const std::vector<int> _localMonths;
+	const std::vector<int> _localTonAmounts;
 
-	rpl::event_stream<> _updated;
-	base::flat_map<Type, SetData> _setsData;
-	mtpRequestId _requestId = 0;
+	Pack _premium;
+	Pack _ton;
 
 };
 

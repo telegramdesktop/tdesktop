@@ -121,8 +121,7 @@ Credits::Credits(
 			st::tonFieldIconSize,
 			st::currencyFg->c)
 		: Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
-	_controller->session().giftBoxStickersPacks().load(
-		Stickers::GiftBoxPack::Type::Currency);
+	_controller->session().giftBoxStickersPacks().tonLoad();
 	setupContent();
 
 	_controller->session().premiumPossibleValue(
@@ -418,7 +417,6 @@ void Credits::setupContent() {
 	};
 	const auto state = content->lifetime().make_state<State>();
 
-	const auto paddings = rect::m::sum::h(st::boxRowPadding);
 	{
 		const auto button = content->add(
 			object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
@@ -623,13 +621,13 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 			st::creditsPremiumCover,
 			Ui::Premium::TopBarDescriptor{
 				.clickContextOther = clickContextOther,
+				.logo = isCurrency ? u"diamond"_q : QString(),
 				.title = title(),
 				.about = (isCurrency
 					? tr::lng_credits_currency_summary_about
 					: tr::lng_credits_summary_about)(
 						TextWithEntities::Simple),
 				.light = true,
-				.logo = isCurrency ? u"diamond"_q : QString(),
 				.gradientStops = Ui::Premium::CreditsIconGradientStops(),
 			});
 	}();

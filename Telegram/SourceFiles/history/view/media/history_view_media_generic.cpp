@@ -474,8 +474,8 @@ void StickerInBubblePart::ensureCreated(Element *replacing) const {
 			_link = data.link;
 			_skipTop = data.skipTop;
 			_sticker.emplace(_parent, sticker, skipPremiumEffect, replacing);
-			if (data.singleTimePlayback) {
-				_sticker->setPlayingOnce(true);
+			if (data.stopOnLastFrame) {
+				_sticker->setStopOnLastFrame(true);
 			}
 			_sticker->initSize(data.size);
 			_sticker->setCustomCachingTag(data.cacheTag);

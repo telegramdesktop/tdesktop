@@ -197,7 +197,7 @@ public:
 		int skipTop = 0;
 		int size = 0;
 		ChatHelpers::StickerLottieSize cacheTag = {};
-		bool singleTimePlayback = false;
+		bool stopOnLastFrame = false;
 		ClickHandlerPtr link;
 
 		explicit operator bool() const {

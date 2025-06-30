@@ -67,6 +67,7 @@ public:
 
 	void setDiceIndex(const QString &emoji, int index);
 	void setPlayingOnce(bool once);
+	void setStopOnLastFrame(bool stop);
 	void setCustomCachingTag(ChatHelpers::StickerLottieSize tag);
 	void setCustomEmojiPart();
 	void setEmojiSticker();
@@ -128,7 +129,7 @@ private:
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	ClickHandlerPtr _link;
 	QSize _size;
-	QImage _lastDiceFrame;
+	QImage _lastFrameCached;
 	QString _diceEmoji;
 	int _diceIndex = -1;
 	mutable int _frameIndex = -1;
@@ -137,12 +138,13 @@ private:
 	mutable bool _oncePlayed : 1 = false;
 	mutable bool _premiumEffectPlayed : 1 = false;
 	mutable bool _premiumEffectSkipped : 1 = false;
-	mutable bool _nextLastDiceFrame : 1 = false;
+	mutable bool _nextLastFrame : 1 = false;
 	bool _skipPremiumEffect : 1 = false;
 	bool _customEmojiPart : 1 = false;
 	bool _emojiSticker : 1 = false;
 	bool _webpagePart : 1 = false;
 	bool _playingOnce : 1 = false;
+	bool _stopOnLastFrame : 1 = false;
 
 };
 

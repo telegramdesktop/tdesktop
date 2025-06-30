@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
 #include "chat_helpers/stickers_gift_box_pack.h"
-#include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
@@ -30,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h" // GiftedCreditsBox
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
 #include "ui/chat/chat_style.h"
+#include "ui/controls/ton_common.h" // kNanosInOne
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
@@ -416,15 +416,17 @@ void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
 	} else if (tonGift()) {
-		const auto document = ChatHelpers::GenerateLocalTgsSticker(
-			&_parent->history()->session(),
-			"diamond");
-		const auto sticker = document->sticker();
-		Assert(sticker != nullptr);
-		_sticker.emplace(_parent, document, false, _parent);
-		_sticker->setPlayingOnce(true);
-		_sticker->initSize(st::msgServiceStarGiftStickerSize);
-		_parent->repaint();
+		const auto &session = _parent->history()->session();
+		auto &packs = session.giftBoxStickersPacks();
+		const auto count = _data.count / Ui::kNanosInOne;
+		if (const auto document = packs.tonLookup(count)) {
+			if (document->sticker()) {
+				const auto skipPremiumEffect = false;
+				_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
+				_sticker->setStopOnLastFrame(true);
+				_sticker->initSize(st::msgServiceGiftBoxStickerSize);
+			}
+		}
 		return;
 	} else if (const auto document = _data.document) {
 		const auto sticker = document->sticker();
@@ -443,7 +445,7 @@ void PremiumGift::ensureStickerCreated() const {
 		if (document->sticker()) {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
-			_sticker->setPlayingOnce(true);
+			_sticker->setStopOnLastFrame(true);
 			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
 		}
 	}
