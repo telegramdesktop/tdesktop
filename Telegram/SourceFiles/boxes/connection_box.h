@@ -72,6 +72,7 @@ public:
 	};
 
 	void deleteItem(int id);
+	void deleteItems();
 	void restoreItem(int id);
 	void shareItem(int id, bool qr);
 	void shareItems();

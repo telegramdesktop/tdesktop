@@ -34,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -737,10 +739,21 @@ void ProxiesBox::setupTopButton() {
 		}
 	};
 	top->setClickedCallback([=] {
-		*menu = base::make_unique_q<Ui::PopupMenu>(top, st::defaultPopupMenu);
-		(*menu)->addAction(
-			tr::lng_proxy_add_from_clipboard(tr::now),
-			callback);
+		*menu = base::make_unique_q<Ui::PopupMenu>(
+			top,
+			st::popupMenuWithIcons);
+		const auto addAction = Ui::Menu::CreateAddActionCallback(*menu);
+		addAction({
+			.text = tr::lng_proxy_add_from_clipboard(tr::now),
+			.handler = callback,
+			.icon = &st::menuIconImportTheme,
+		});
+		addAction({
+			.text = tr::lng_group_invite_context_delete_all(tr::now),
+			.handler = [=] { _controller->deleteItems(); },
+			.icon = &st::menuIconDeleteAttention,
+			.isAttention = true,
+		});
 		(*menu)->popup(QCursor::pos());
 		return true;
 	});
@@ -1473,6 +1486,12 @@ auto ProxiesBoxController::findByProxy(const ProxyData &proxy)
 
 void ProxiesBoxController::deleteItem(int id) {
 	setDeleted(id, true);
+}
+
+void ProxiesBoxController::deleteItems() {
+	for (const auto &item : _list) {
+		setDeleted(item.id, true);
+	}
 }
 
 void ProxiesBoxController::restoreItem(int id) {
