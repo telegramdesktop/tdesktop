@@ -1943,8 +1943,67 @@ if (MSVC)
     )
     target_link_options(Telegram
     PRIVATE
+        /DELAYLOAD:secur32.dll
+        /DELAYLOAD:winmm.dll
+        /DELAYLOAD:ws2_32.dll
+        /DELAYLOAD:user32.dll
+        /DELAYLOAD:gdi32.dll
         /DELAYLOAD:advapi32.dll
+        /DELAYLOAD:avrt.dll
+        /DELAYLOAD:shell32.dll
+        /DELAYLOAD:ole32.dll
+        /DELAYLOAD:oleaut32.dll
+        /DELAYLOAD:shlwapi.dll
+        /DELAYLOAD:iphlpapi.dll
+        /DELAYLOAD:gdiplus.dll
+        /DELAYLOAD:version.dll
+        /DELAYLOAD:dwmapi.dll
+        /DELAYLOAD:uxtheme.dll
+        /DELAYLOAD:crypt32.dll
+        /DELAYLOAD:bcrypt.dll
+        /DELAYLOAD:netapi32.dll
+        /DELAYLOAD:imm32.dll
+        /DELAYLOAD:userenv.dll
+        /DELAYLOAD:wtsapi32.dll
+        /DELAYLOAD:propsys.dll
     )
+    if (QT_VERSION GREATER 6)
+        if (NOT build_winarm)
+            target_link_options(Telegram PRIVATE
+                /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
+            )
+        endif()
+
+        target_link_options(Telegram
+        PRIVATE
+            /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-File-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-LibraryLoader-l1-2-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Localization-l1-2-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-ProcessThreads-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Synch-l1-2-0.dll # Synchronization.lib
+            /DELAYLOAD:API-MS-Win-Core-SysInfo-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Timezone-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Security-CryptoAPI-l1-1-0.dll
+            # /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll # We shadowed GetDpiForMonitor
+            /DELAYLOAD:authz.dll # Authz.lib
+            /DELAYLOAD:comdlg32.dll
+            /DELAYLOAD:dwrite.dll # DWrite.lib
+            /DELAYLOAD:dxgi.dll # DXGI.lib
+            /DELAYLOAD:d3d9.dll # D3D9.lib
+            /DELAYLOAD:d3d11.dll # D3D11.lib
+            /DELAYLOAD:d3d12.dll # D3D12.lib
+            /DELAYLOAD:setupapi.dll # SetupAPI.lib
+            /DELAYLOAD:winhttp.dll
+        )
+    endif()
 endif()
 
 target_prepare_qrc(Telegram)
@@ -1975,6 +2034,22 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
             base/platform/win/base_windows_safe_library.h
         )
         target_include_directories(Updater PRIVATE ${lib_base_loc})
+        if (MSVC)
+            target_link_libraries(Updater
+            PRIVATE
+                delayimp
+            )
+            target_link_options(Updater
+            PRIVATE
+                /DELAYLOAD:user32.dll
+                /DELAYLOAD:advapi32.dll
+                /DELAYLOAD:shell32.dll
+                /DELAYLOAD:ole32.dll
+                /DELAYLOAD:shlwapi.dll
+            )
+        else()
+            target_link_options(Updater PRIVATE -municode)
+        endif()
     elseif (APPLE)
         add_custom_command(TARGET Updater
         PRE_LINK
