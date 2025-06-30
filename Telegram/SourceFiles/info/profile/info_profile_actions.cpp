@@ -897,7 +897,9 @@ rpl::producer<CreditsAmount> AddCurrencyAction(
 			}
 		};
 		currencyLoad->request() | rpl::start_with_error_done(
-			[=](const QString &error) { done({}); },
+			[=](const QString &error) {
+				done(CreditsAmount(0, CreditsType::Ton));
+			},
 			[=] { done(currencyLoad->data().currentBalance); },
 			*currencyLoadLifetime);
 	}

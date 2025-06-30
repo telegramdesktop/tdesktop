@@ -1475,7 +1475,9 @@ void ApplyChannelUpdate(
 			currencyLoadLifetime->destroy();
 		};
 		currencyLoad->request() | rpl::start_with_error_done(
-			[=](const QString &error) { apply({}); },
+			[=](const QString &error) {
+				apply(CreditsAmount(0, CreditsType::Ton));
+			},
 			[=] { apply(currencyLoad->data().currentBalance); },
 			*currencyLoadLifetime);
 		base::timer_once(kTimeout) | rpl::start_with_next([=] {

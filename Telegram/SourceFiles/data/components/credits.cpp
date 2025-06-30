@@ -93,7 +93,7 @@ CreditsAmount Credits::balanceCurrency(PeerId peerId) const {
 	const auto it = _cachedPeerCurrencyBalances.find(peerId);
 	return (it != _cachedPeerCurrencyBalances.end())
 		? it->second
-		: CreditsAmount();
+		: CreditsAmount(0, 0, CreditsType::Ton);
 }
 
 rpl::producer<CreditsAmount> Credits::balanceValue() const {

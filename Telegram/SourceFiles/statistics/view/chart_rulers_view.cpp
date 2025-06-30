@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/chart_rulers_view.h"
 
-#include "data/data_channel_earn.h" // Data::kEarnMultiplier.
 #include "info/channel_statistics/earn/earn_format.h"
 #include "lang/lang_keys.h"
 #include "statistics/chart_lines_filter_controller.h"
@@ -42,9 +41,15 @@ void ChartRulersView::setChartData(
 		|| chartData.currencyRate;
 	if (chartData.currencyRate) {
 		_currencyIcon = ChartCurrencyIcon(chartData, {});
-		_leftCustomCaption = [=](float64 value) {
-			return FormatF(value / float64(Data::kEarnMultiplier));
-		};
+		if (chartData.currency == Data::StatisticalCurrency::Ton) {
+			_leftCustomCaption = [=](float64 value) {
+				return FormatF(value / float64(kOneStarInNano));
+			};
+		} else {
+			_leftCustomCaption = [=](float64 value) {
+				return FormatF(value);
+			};
+		}
 		_rightCustomCaption = [=, rate = chartData.currencyRate](float64 v) {
 			return Info::ChannelEarn::ToUsd(v, rate, 0);
 		};

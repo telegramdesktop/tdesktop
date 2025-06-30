@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/widgets/point_details_widget.h"
 
-#include "data/data_channel_earn.h" // Data::kEarnMultiplier.
 #include "info/channel_statistics/earn/earn_format.h"
 #include "lang/lang_keys.h"
 #include "statistics/statistics_common.h"
@@ -179,7 +178,7 @@ PointDetailsWidget::PointDetailsWidget(
 	const auto maxValueTextWidth = [&] {
 		if (hasUsdLine) {
 			auto maxValueWidth = 0;
-			const auto multiplier = float64(Data::kEarnMultiplier);
+			const auto multiplier = float64(kOneStarInNano);
 			for (const auto &value : _chartData.lines.front().y) {
 				const auto valueText = Ui::Text::String(
 					_textStyle,
@@ -325,7 +324,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 			nullptr,
 			{ float64(xIndex), float64(xIndex) }).parts
 		: std::vector<PiePartData::Part>();
-	const auto multiplier = float64(Data::kEarnMultiplier);
+	const auto multiplier = float64(kOneStarInNano);
 	const auto isCredits
 		= _chartData.currency == Data::StatisticalCurrency::Credits;
 	for (auto i = 0; i < _chartData.lines.size(); i++) {

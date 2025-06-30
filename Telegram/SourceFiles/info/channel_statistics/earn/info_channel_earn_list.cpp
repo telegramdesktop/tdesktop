@@ -436,9 +436,7 @@ void InnerWidget::fill() {
 			value
 		) | rpl::start_with_next([=](CreditsAmount v) {
 			label->setMarkedText(
-				base::duplicate(prepended)
-					.append(icon)
-					.append(QString::number(v.whole())),
+				base::duplicate(prepended).append(icon).append(MajorPart(v)),
 				Core::TextContext({ .session = session }));
 		}, label->lifetime());
 	};

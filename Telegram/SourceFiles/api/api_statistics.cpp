@@ -765,7 +765,6 @@ void EarnStatistics::requestHistory(
 		_requestId = 0;
 
 		const auto nextToken = result.data().vnext_offset().value_or_empty();
-		qDebug() << "next" << nextToken;
 
 		const auto &tlTransactions
 			= result.data().vhistory().value_or_empty();
