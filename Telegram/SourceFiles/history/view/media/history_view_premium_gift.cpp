@@ -70,8 +70,11 @@ QSize PremiumGift::size() {
 TextWithEntities PremiumGift::title() {
 	using namespace Ui::Text;
 	if (tonGift()) {
-		return { Lang::FormatCreditsAmountWithCurrency(
-			CreditsAmount(0, _data.count, CreditsType::Ton)) };
+		return tr::lng_gift_ton_amount(
+			tr::now,
+			lt_count_decimal,
+			CreditsAmount(0, _data.count, CreditsType::Ton).value(),
+			Ui::Text::WithEntities);
 	} else if (starGift()) {
 		const auto peer = _parent->history()->peer;
 		return peer->isSelf()

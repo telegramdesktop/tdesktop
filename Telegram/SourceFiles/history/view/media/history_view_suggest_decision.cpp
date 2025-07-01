@@ -214,24 +214,26 @@ auto GenerateSuggestDecisionMedia(
 					? st::chatSuggestInfoMiddleMargin
 					: st::chatSuggestInfoLastMargin));
 			if (price) {
-				const auto amount = Ui::Text::Bold(
-					Lang::FormatCreditsAmountWithCurrency(price));
 				pushText(
 					TextWithEntities(
 					).append(Emoji(kMoney)).append(' ').append(
 						(sublistPeer->isSelf()
-							? tr::lng_suggest_action_your_charged(
-								tr::now,
-								lt_amount,
-								amount,
-								Ui::Text::WithEntities)
-							: tr::lng_suggest_action_his_charged(
-								tr::now,
-								lt_from,
-								Ui::Text::Bold(sublistPeer->shortName()),
-								lt_amount,
-								amount,
-								Ui::Text::WithEntities))),
+							? (price.stars()
+								? tr::lng_suggest_action_your_charged_stars
+								: tr::lng_suggest_action_your_charged_ton)(
+									tr::now,
+									lt_count_decimal,
+									price.value(),
+									Ui::Text::RichLangValue)
+							: (price.stars()
+								? tr::lng_suggest_action_his_charged_stars
+								: tr::lng_suggest_action_his_charged_ton)(
+									tr::now,
+									lt_count_decimal,
+									price.value(),
+									lt_from,
+									Ui::Text::Bold(sublistPeer->shortName()),
+									Ui::Text::RichLangValue))),
 					st::chatSuggestInfoMiddleMargin);
 
 				pushText(
@@ -330,7 +332,15 @@ auto GenerateSuggestRequestMedia(
 				: tr::lng_suggest_action_price_label)(tr::now),
 			Ui::Text::Bold(!suggest->price
 				? tr::lng_suggest_action_price_free(tr::now)
-				: Lang::FormatCreditsAmountWithCurrency(suggest->price)),
+				: suggest->price.stars()
+				? tr::lng_suggest_stars_amount(
+					tr::now,
+					lt_count_decimal,
+					suggest->price.value())
+				: tr::lng_suggest_ton_amount(
+					tr::now,
+					lt_count_decimal,
+					suggest->price.value())),
 		});
 		entries.push_back({
 			((changes && changes->date)

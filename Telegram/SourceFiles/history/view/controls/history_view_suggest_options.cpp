@@ -352,19 +352,24 @@ void ChooseSuggestPriceBox(
 
 	Ui::AddSkip(starsInner);
 	Ui::AddSkip(starsInner);
-	const auto formatPrice = [peer = args.peer](CreditsAmount amount) {
-		return FormatPriceAfterCommission(&peer->session(), amount);
+	const auto computePrice = [peer = args.peer](CreditsAmount amount) {
+		return PriceAfterCommission(&peer->session(), amount).value();
 	};
 	const auto formatCommission = [peer = args.peer](CreditsAmount amount) {
 		return FormatAfterCommissionPercent(&peer->session(), amount);
 	};
+	const auto youGet = [=](rpl::producer<CreditsAmount> price, bool stars) {
+		return (stars
+			? tr::lng_suggest_options_you_get_stars
+			: tr::lng_suggest_options_you_get_ton)(
+				lt_count_decimal,
+				rpl::duplicate(price) | rpl::map(computePrice),
+				lt_percent,
+				rpl::duplicate(price) | rpl::map(formatCommission));
+	};
 	Ui::AddDividerText(starsInner, admin
 		? rpl::combine(
-			tr::lng_suggest_options_you_get(
-				lt_amount,
-				starsPrice() | rpl::map(formatPrice),
-				lt_percent,
-				starsPrice() | rpl::map(formatCommission)),
+			youGet(starsPrice(), true),
 			tr::lng_suggest_options_stars_warning(Ui::Text::RichLangValue)
 		) | rpl::map([=](const QString &t1, const TextWithEntities &t2) {
 			return TextWithEntities{ t1 }.append("\n\n").append(t2);
@@ -421,11 +426,7 @@ void ChooseSuggestPriceBox(
 	Ui::AddDividerText(
 		tonInner,
 		(admin
-			? tr::lng_suggest_options_you_get(
-				lt_amount,
-				tonPrice() | rpl::map(formatPrice),
-				lt_percent,
-				tonPrice() | rpl::map(formatCommission))
+			? youGet(tonPrice(), false)
 			: tr::lng_suggest_options_ton_price_about()));
 
 	tonWrap->toggleOn(state->ton.value(), anim::type::instant);
@@ -669,7 +670,7 @@ bool CanAddOfferToMessage(not_null<HistoryItem*> item) {
 			history->owner().history(broadcast)).has_value();
 }
 
-QString FormatPriceAfterCommission(
+CreditsAmount PriceAfterCommission(
 		not_null<Main::Session*> session,
 		CreditsAmount price) {
 	const auto appConfig = &session->appConfig();
@@ -679,11 +680,10 @@ QString FormatPriceAfterCommission(
 
 	const auto value = (price.value() * mul / 1000.);
 	const auto whole = int(std::floor(value));
-	//const auto nano = int(base::SafeRound(
-	//	(value - whole) * Ui::kNanosInOne));
-	const auto nano = 0;
-	return Lang::FormatCreditsAmountWithCurrency(
-		CreditsAmount(whole, nano, price.type()));
+	const auto nano = price.stars()
+		? 0
+		: int(base::SafeRound((value - whole) * Ui::kNanosInOne));
+	return CreditsAmount(whole, nano, price.type());
 }
 
 QString FormatAfterCommissionPercent(

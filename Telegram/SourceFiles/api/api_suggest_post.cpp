@@ -141,8 +141,8 @@ void ConfirmApproval(
 	const auto broadcast = peer->monoforumBroadcast();
 	const auto channelName = (broadcast ? broadcast : peer)->name();
 	const auto amount = admin
-		? HistoryView::FormatPriceAfterCommission(session, price)
-		: Lang::FormatCreditsAmountWithCurrency(price);
+		? HistoryView::PriceAfterCommission(session, price)
+		: price;
 	const auto commission = HistoryView::FormatAfterCommissionPercent(
 		session,
 		price);
@@ -163,39 +163,47 @@ void ConfirmApproval(
 		if (price) {
 			text.append("\n\n").append(admin
 				? (scheduleDate
-					? tr::lng_suggest_accept_receive(
-						tr::now,
-						lt_channel,
-						Ui::Text::Bold(channelName),
-						lt_amount,
-						Ui::Text::Bold(amount),
-						lt_percent,
-						TextWithEntities{ commission },
-						lt_date,
-						Ui::Text::Bold(date),
-						Ui::Text::RichLangValue)
-					: tr::lng_suggest_accept_receive_now(
-						tr::now,
-						lt_channel,
-						Ui::Text::Bold(channelName),
-						lt_amount,
-						Ui::Text::Bold(amount),
-						lt_percent,
-						TextWithEntities{ commission },
-						Ui::Text::RichLangValue))
+					? (amount.stars()
+						? tr::lng_suggest_accept_receive_stars
+						: tr::lng_suggest_accept_receive_ton)(
+							tr::now,
+							lt_count_decimal,
+							amount.value(),
+							lt_channel,
+							Ui::Text::Bold(channelName),
+							lt_percent,
+							TextWithEntities{ commission },
+							lt_date,
+							Ui::Text::Bold(date),
+							Ui::Text::RichLangValue)
+					: (amount.stars()
+						? tr::lng_suggest_accept_receive_now_stars
+						: tr::lng_suggest_accept_receive_now_ton)(
+							tr::now,
+							lt_count_decimal,
+							amount.value(),
+							lt_channel,
+							Ui::Text::Bold(channelName),
+							lt_percent,
+							TextWithEntities{ commission },
+							Ui::Text::RichLangValue))
 				: (scheduleDate
-					? tr::lng_suggest_accept_pay(
-						tr::now,
-						lt_amount,
-						Ui::Text::Bold(amount),
-						lt_date,
-						Ui::Text::Bold(date),
-						Ui::Text::RichLangValue)
-					: tr::lng_suggest_accept_pay_now(
-						tr::now,
-						lt_amount,
-						Ui::Text::Bold(amount),
-						Ui::Text::RichLangValue)));
+					? (amount.stars()
+						? tr::lng_suggest_accept_pay_stars
+						: tr::lng_suggest_accept_pay_ton)(
+							tr::now,
+							lt_count_decimal,
+							amount.value(),
+							lt_date,
+							Ui::Text::Bold(date),
+							Ui::Text::RichLangValue)
+					: (amount.stars()
+						? tr::lng_suggest_accept_pay_now_stars
+						: tr::lng_suggest_accept_pay_now_ton)(
+							tr::now,
+							lt_count_decimal,
+							amount.value(),
+							Ui::Text::RichLangValue)));
 			if (admin) {
 				text.append(' ').append(
 					tr::lng_suggest_accept_receive_if(

@@ -58,7 +58,7 @@ void ChooseSuggestPriceBox(
 
 [[nodiscard]] bool CanAddOfferToMessage(not_null<HistoryItem*> item);
 
-[[nodiscard]] QString FormatPriceAfterCommission(
+[[nodiscard]] CreditsAmount PriceAfterCommission(
 	not_null<Main::Session*> session,
 	CreditsAmount price);
 [[nodiscard]] QString FormatAfterCommissionPercent(

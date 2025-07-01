@@ -34,8 +34,6 @@ struct ShortenedCount {
 [[nodiscard]] QString FormatCreditsAmountDecimal(CreditsAmount amount);
 [[nodiscard]] QString FormatCreditsAmountRounded(CreditsAmount amount);
 
-[[nodiscard]] QString FormatCreditsAmountWithCurrency(CreditsAmount amount);
-
 struct PluralResult {
 	int keyShift = 0;
 	QString replacement;

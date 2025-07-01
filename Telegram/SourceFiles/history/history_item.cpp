@@ -6092,16 +6092,17 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareSuggestedPostSuccess = [&](const MTPDmessageActionSuggestedPostSuccess &data) {
 		const auto price = CreditsAmountFromTL(&data.vprice());
-		const auto amount = Lang::FormatCreditsAmountWithCurrency(price);
 		auto result = PreparedServiceText();
 		result.links.push_back(_from->createOpenLink());
-		result.text = tr::lng_action_suggest_success(
-			tr::now,
-			lt_from,
-			Ui::Text::Link(_from->shortName(), 1),
-			lt_amount,
-			TextWithEntities{ amount },
-			Ui::Text::WithEntities);
+		result.text = (price.stars()
+			? tr::lng_action_suggest_success_stars
+			: tr::lng_action_suggest_success_ton)(
+				tr::now,
+				lt_count_decimal,
+				price.value(),
+				lt_from,
+				Ui::Text::Link(_from->shortName(), 1),
+				Ui::Text::WithEntities);
 		return result;
 	};
 
