@@ -4899,21 +4899,26 @@ QString HistoryInner::tooltipText() const {
 		if (const auto view = Element::Hovered()) {
 			return HistoryView::DateTooltipText(view);
 		}
-	} else if (_mouseCursorState == CursorState::Forwarded
+	}
+	if (_mouseCursorState == CursorState::Forwarded
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = Element::Moused()) {
 			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
 				return forwarded->text.toString();
 			}
 		}
-	} else if (const auto lnk = ClickHandler::getActive()) {
+	}
+	if (const auto lnk = ClickHandler::getActive()) {
 		using namespace HistoryView::Reactions;
 		const auto count = ReactionCountOfLink(_dragStateItem, lnk);
 		if (count.count && count.shortened) {
 			return Lang::FormatCountDecimal(count.count);
 		}
-		return lnk->tooltip();
-	} else if (const auto view = Element::Moused()) {
+		if (const auto text = lnk->tooltip(); !text.isEmpty()) {
+			return text;
+		}
+	}
+	if (const auto view = Element::Moused()) {
 		StateRequest request;
 		const auto local = mapFromGlobal(_mousePosition);
 		const auto point = _widget->clampMousePosition(local);
