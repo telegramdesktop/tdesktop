@@ -310,6 +310,7 @@ private:
 // displaying some text in layout of a service message above the message.
 struct ServicePreMessage : RuntimeComponent<ServicePreMessage, Element> {
 	void init(
+		not_null<Element*> view,
 		PreparedServiceText string,
 		ClickHandlerPtr fullClickHandler,
 		std::unique_ptr<Media> media = nullptr);

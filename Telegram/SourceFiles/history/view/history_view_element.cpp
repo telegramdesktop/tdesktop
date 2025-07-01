@@ -601,6 +601,7 @@ void MonoforumSenderBar::Paint(
 }
 
 void ServicePreMessage::init(
+		not_null<Element*> view,
 		PreparedServiceText string,
 		ClickHandlerPtr fullClickHandler,
 		std::unique_ptr<Media> media) {
@@ -608,7 +609,11 @@ void ServicePreMessage::init(
 		st::serviceTextStyle,
 		string.text,
 		kMarkupTextOptions,
-		st::msgMinWidth);
+		st::msgMinWidth,
+		Core::TextContext({
+			.session = &view->history()->session(),
+			.repaint = [=] { view->customEmojiRepaint(); },
+		}));
 	handler = std::move(fullClickHandler);
 	for (auto i = 0; i != int(string.links.size()); ++i) {
 		text.setLink(i + 1, string.links[i]);
@@ -1675,6 +1680,7 @@ void Element::setServicePreMessage(
 		AddComponents(ServicePreMessage::Bit());
 		const auto service = Get<ServicePreMessage>();
 		service->init(
+			this,
 			std::move(text),
 			std::move(fullClickHandler),
 			std::move(media));

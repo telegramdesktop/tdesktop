@@ -254,11 +254,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 	case EntityType::Pre:
 		return std::make_shared<MonospaceClickHandler>(data.text, data.type);
 	case EntityType::Phone:
-		return my->session
+		return (my && my->session)
 			? std::make_shared<PhoneClickHandler>(my->session, data.text)
 			: nullptr;
 	case EntityType::BankCard:
-		return my->session
+		return (my && my->session)
 			? std::make_shared<BankCardClickHandler>(my->session, data.text)
 			: nullptr;
 	}
