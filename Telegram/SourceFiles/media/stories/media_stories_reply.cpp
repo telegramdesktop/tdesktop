@@ -81,11 +81,9 @@ namespace {
 			rpl::single(0)
 		) | rpl::map([=](TimeId left) {
 			return starsPerMessage
-				? tr::lng_message_paid_ph(
-					lt_amount,
-					tr::lng_prize_credits_amount(
-						lt_count,
-						rpl::single(starsPerMessage * 1.)))
+				? tr::lng_message_stars_ph(
+					lt_count,
+					rpl::single(starsPerMessage * 1.))
 				: left
 				? tr::lng_stealth_mode_countdown(
 					lt_left,

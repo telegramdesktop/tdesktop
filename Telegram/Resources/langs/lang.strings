@@ -3912,7 +3912,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_anonymous_ph" = "Send anonymously...";
 "lng_story_reply_ph" = "Reply privately...";
 "lng_story_comment_ph" = "Comment story...";
-"lng_message_paid_ph" = "Message for {amount}";
+"lng_message_stars_ph#one" = "Message for {count} Star";
+"lng_message_stars_ph#other" = "Message for {count} Stars";
 "lng_send_text_no" = "Text not allowed.";
 "lng_send_text_no_about" = "The admins of this group only allow sending {types}.";
 "lng_send_text_type_and_last" = "{types} and {last}";

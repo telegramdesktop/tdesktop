@@ -1815,11 +1815,9 @@ void ComposeControls::updateFieldPlaceholder() {
 		} else if (!peer) {
 			return tr::lng_message_ph();
 		} else if (const auto stars = peer->starsPerMessageChecked()) {
-			return tr::lng_message_paid_ph(
-				lt_amount,
-				tr::lng_prize_credits_amount(
-					lt_count,
-					rpl::single(stars * 1.)));
+			return tr::lng_message_stars_ph(
+				lt_count,
+				rpl::single(stars * 1.));
 		} else if (const auto channel = peer->asChannel()) {
 			if (channel->isBroadcast()) {
 				return session().data().notifySettings().silentPosts(channel)
