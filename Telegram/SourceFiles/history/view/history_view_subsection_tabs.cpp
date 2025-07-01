@@ -234,6 +234,28 @@ void SubsectionTabs::setupSlider(
 		}
 	}, slider->lifetime());
 
+	slider->requestShown(
+	) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+		const auto full = vertical ? scroll->height() : scroll->width();
+		const auto scrollValue = vertical
+			? scroll->scrollTop()
+			: scroll->scrollLeft();
+		if (request.ymin < scrollValue) {
+			if (vertical) {
+				scroll->scrollToY(request.ymin);
+			} else {
+				scroll->scrollToX(request.ymin);
+			}
+		} else if (request.ymax > scrollValue + full) {
+			const auto value = std::min(request.ymin, request.ymax - full);
+			if (vertical) {
+				scroll->scrollToY(value);
+			} else {
+				scroll->scrollToX(value);
+			}
+		}
+	}, slider->lifetime());
+
 	rpl::merge(
 		scroll->scrolls(),
 		_scrollCheckRequests.events(),

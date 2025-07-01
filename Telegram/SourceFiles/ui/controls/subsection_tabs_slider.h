@@ -22,6 +22,7 @@ namespace Ui {
 class DynamicImage;
 class RippleAnimation;
 class SubsectionButton;
+struct ScrollToRequest;
 
 struct SubsectionTab {
 	TextWithEntities text;
@@ -95,6 +96,8 @@ public:
 	Text::MarkedContext buttonContext() override;
 	[[nodiscard]] not_null<SubsectionButton*> buttonAt(int index);
 
+	[[nodiscard]] rpl::producer<ScrollToRequest> requestShown() const;
+
 protected:
 	struct Range {
 		int from = 0;
@@ -136,6 +139,8 @@ protected:
 	rpl::event_stream<int> _sectionActivated;
 	rpl::event_stream<int> _sectionContextMenu;
 	Fn<bool()> _paused;
+
+	rpl::event_stream<ScrollToRequest> _requestShown;
 
 };
 

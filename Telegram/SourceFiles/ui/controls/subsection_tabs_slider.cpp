@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_three_state_icon.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/dynamic_image.h"
 #include "ui/unread_badge_paint.h"
 #include "styles/style_chat.h"
@@ -383,22 +384,32 @@ void SubsectionSlider::activate(int index) {
 			}
 		}
 	};
-	const auto weak = Ui::MakeWeak(_bar);
+	const auto weak = MakeWeak(_bar);
 	_sectionActivated.fire_copy(index);
 	if (weak) {
 		const auto duration = st::chatTabsSlider.duration;
 		_activeFrom.start(callback, was.from, now.from, duration);
 		_activeSize.start(callback, was.size, now.size, duration);
+		_requestShown.fire_copy({ now.from, now.from + now.size });
 	}
 }
 
 void SubsectionSlider::setActiveSectionFast(int active) {
 	Expects(active < int(_tabs.size()));
 
+	if (_active == active) {
+		return;
+	}
 	_active = active;
 	_activeFrom.stop();
 	_activeSize.stop();
+	const auto now = getFinalActiveRange();
+	_requestShown.fire({ now.from, now.from + now.size });
 	_bar->update();
+}
+
+rpl::producer<ScrollToRequest> SubsectionSlider::requestShown() const {
+	return _requestShown.events();
 }
 
 int SubsectionSlider::sectionsCount() const {
