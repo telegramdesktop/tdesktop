@@ -341,7 +341,14 @@ void TodoList::startToggleAnimation(Task &task) {
 }
 
 void TodoList::toggleCompletion(int id) {
-	if (!canComplete()) {
+	if (_parent->data()->isBusinessShortcut()) {
+		return;
+	} else if (_parent->data()->Has<HistoryMessageForwarded>()) {
+		_parent->delegate()->elementShowTooltip(
+			tr::lng_todo_mark_forwarded(tr::now, Ui::Text::RichLangValue),
+			[] {});
+		return;
+	} else if (!canComplete()) {
 		_parent->delegate()->elementShowTooltip(
 			tr::lng_todo_mark_restricted(
 				tr::now,

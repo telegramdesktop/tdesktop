@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
 #include "history/history_item.h" // CreateMedia.
+#include "history/history_item_components.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"

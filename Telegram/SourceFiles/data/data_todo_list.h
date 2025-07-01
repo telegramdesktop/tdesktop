@@ -63,8 +63,6 @@ struct TodoListData {
 	static constexpr auto kMaxOptions = 32;
 
 private:
-	bool applyCompletionToItems(const MTPTodoCompletion *result);
-
 	const not_null<Data::Session*> _owner;
 	Flags _flags = Flags();
 

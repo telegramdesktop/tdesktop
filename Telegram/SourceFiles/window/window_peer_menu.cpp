@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
+#include "history/history_item_components.h"
 #include "history/view/history_view_context_menu.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
@@ -2077,6 +2078,7 @@ bool PeerMenuShowAddTodoListTasks(not_null<HistoryItem*> item) {
 	const auto todolist = media ? media->todolist() : nullptr;
 	const auto appConfig = &item->history()->session().appConfig();
 	return item->isRegular()
+		&& !item->Has<HistoryMessageForwarded>()
 		&& todolist
 		&& (todolist->items.size() < appConfig->todoListItemsLimit())
 		&& (item->out() || todolist->othersCanAppend());

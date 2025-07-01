@@ -4178,10 +4178,7 @@ not_null<TodoListData*> Session::duplicateTodoList(
 	const auto result = todoList(id);
 	result->title = existing->title;
 	result->items = existing->items;
-	for (auto &item : result->items) {
-		item.completedBy = nullptr;
-		item.completionDate = TimeId();
-	}
+	++result->version;
 	return result;
 }
 

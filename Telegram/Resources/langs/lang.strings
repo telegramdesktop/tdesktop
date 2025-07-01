@@ -5988,6 +5988,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_todo_mark_premium" = "Only subscribers of {link} can mark tasks as done.";
 "lng_todo_premium_link" = "Telegram Premium";
 "lng_todo_mark_restricted" = "{user} has restricted others from marking tasks as done.";
+"lng_todo_mark_forwarded" = "You can't change forwarded checklists.";
 
 "lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
 "lng_outdated_title_bits" = "PLEASE SWITCH TO A 64-BIT OPERATING SYSTEM.";
