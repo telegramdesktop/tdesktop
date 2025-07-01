@@ -667,11 +667,24 @@ TextState TodoList::textState(QPoint point, StateRequest request) const {
 			request.forText()));
 		return result;
 	}
+	const auto aleft = padding.left()
+		+ st::historyPollAnswerPadding.left();
+	const auto awidth = paintw
+		- st::historyPollAnswerPadding.left()
+		- st::historyPollAnswerPadding.right();
 	tshift += questionH + st::historyPollSubtitleSkip;
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 	for (const auto &task : _tasks) {
 		const auto height = countTaskHeight(task, paintw);
 		if (point.y() >= tshift && point.y() < tshift + height) {
+			const auto atop = tshift + st::historyPollAnswerPadding.top();
+			auto taskTextResult = task.text.getState(
+				point - QPoint(aleft, atop),
+				awidth,
+				request.forText());
+			if (taskTextResult.link) {
+				return TextState(_parent, taskTextResult);
+			}
 			_lastLinkPoint = point;
 			result.link = task.handler;
 			if (task.completionDate) {
