@@ -813,7 +813,7 @@ void Histories::deleteAllMessages(
 				channel->inputChannel,
 				MTP_int(deleteTillId)
 			)).done(finish).fail(finish).send();
-		} else if (revoke && chat && chat->amCreator()) {
+		} else if (!justClear && revoke && chat && chat->amCreator()) {
 			return session().api().request(MTPmessages_DeleteChat(
 				chat->inputChat
 			)).done(finish).fail([=](const MTP::Error &error) {
