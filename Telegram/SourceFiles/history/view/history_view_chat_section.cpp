@@ -679,6 +679,7 @@ void ChatWidget::setTopic(Data::ForumTopic *topic) {
 	_topic = topic;
 	refreshReplies();
 	refreshTopBarActiveChat();
+	validateSubsectionTabs();
 	if (_topic) {
 		if (_repliesRootView) {
 			_shownPinnedItem = nullptr;
@@ -1555,7 +1556,8 @@ void ChatWidget::validateSubsectionTabs() {
 			validateSubsectionTabs();
 		});
 	}
-	if (!HistoryView::SubsectionTabs::UsedFor(_history)) {
+	const auto thread = _topic ? (Data::Thread*)_topic : _sublist;
+	if (!thread || !HistoryView::SubsectionTabs::UsedFor(_history)) {
 		if (_subsectionTabs) {
 			_subsectionTabsLifetime.destroy();
 			_subsectionTabs = nullptr;
@@ -1572,7 +1574,6 @@ void ChatWidget::validateSubsectionTabs() {
 	} else if (_subsectionTabs) {
 		return;
 	}
-	const auto thread = _topic ? (Data::Thread*)_topic : _sublist;
 	_subsectionTabs = controller()->restoreSubsectionTabsFor(this, thread);
 	if (!_subsectionTabs) {
 		_subsectionTabs = std::make_unique<HistoryView::SubsectionTabs>(
