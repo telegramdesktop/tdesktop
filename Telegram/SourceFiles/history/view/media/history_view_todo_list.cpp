@@ -62,8 +62,10 @@ struct TodoList::Task {
 		not_null<TodoListData*> todolist,
 		const TodoListItem &original,
 		Ui::Text::MarkedContext context);
+	void setCompletedBy(PeerData *by);
 
 	Ui::Text::String text;
+	Ui::Text::String name;
 	PeerData *completedBy = nullptr;
 	mutable Ui::PeerUserpicView userpic;
 	TimeId completionDate = 0;
@@ -73,7 +75,9 @@ struct TodoList::Task {
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
 
-TodoList::Task::Task() : text(st::msgMinWidth / 2) {
+TodoList::Task::Task()
+: text(st::msgMinWidth / 2)
+, name(st::msgMinWidth / 2) {
 }
 
 void TodoList::Task::fillData(
@@ -81,9 +85,7 @@ void TodoList::Task::fillData(
 		const TodoListItem &original,
 		Ui::Text::MarkedContext context) {
 	id = original.id;
-	if (original.completedBy) {
-		completedBy = original.completedBy;
-	}
+	setCompletedBy(original.completedBy);
 	completionDate = original.completionDate;
 	if (!text.isEmpty() && text.toTextWithEntities() == original.text) {
 		return;
@@ -93,6 +95,14 @@ void TodoList::Task::fillData(
 		original.text,
 		Ui::WebpageTextTitleOptions(),
 		context);
+}
+
+void TodoList::Task::setCompletedBy(PeerData *by) {
+	if (!by || completedBy == by) {
+		return;
+	}
+	completedBy = by;
+	name.setText(st::historyPollAnswerStyle, completedBy->name());
 }
 
 TodoList::TodoList(
@@ -118,7 +128,7 @@ void TodoList::setupPreviousState(const std::vector<TodoTaskInfo> &info) {
 	for (auto &task : _tasks) {
 		const auto i = ranges::find(info, task.id, &TodoTaskInfo::id);
 		if (i != end(info)) {
-			task.completedBy = i->completedBy;
+			task.setCompletedBy(i->completedBy);
 			task.completionDate = i->completionDate;
 		}
 	}
@@ -135,17 +145,17 @@ QSize TodoList::countOptimalSize() {
 		accumulate_max(
 			maxWidth,
 			paddings
-			+ st::historyPollAnswerPadding.left()
+			+ st::historyChecklistTaskPadding.left()
 			+ task.text.maxWidth()
-			+ st::historyPollAnswerPadding.right());
+			+ st::historyChecklistTaskPadding.right());
 	}
 
 	const auto tasksHeight = ranges::accumulate(ranges::views::all(
 		_tasks
 	) | ranges::views::transform([](const Task &task) {
-		return st::historyPollAnswerPadding.top()
+		return st::historyChecklistTaskPadding.top()
 			+ task.text.minHeight()
-			+ st::historyPollAnswerPadding.bottom();
+			+ st::historyChecklistTaskPadding.bottom();
 	}), 0);
 
 	const auto bottomButtonHeight = st::historyPollBottomButtonSkip;
@@ -167,7 +177,8 @@ QSize TodoList::countOptimalSize() {
 
 bool TodoList::canComplete() const {
 	return (_parent->data()->out() || _todolist->othersCanComplete())
-		&& _parent->data()->isRegular();
+		&& _parent->data()->isRegular()
+		&& !_parent->data()->Has<HistoryMessageForwarded>();
 }
 
 int TodoList::countTaskTop(
@@ -199,11 +210,11 @@ int TodoList::countTaskHeight(
 		const Task &task,
 		int innerWidth) const {
 	const auto answerWidth = innerWidth
-		- st::historyPollAnswerPadding.left()
-		- st::historyPollAnswerPadding.right();
-	return st::historyPollAnswerPadding.top()
+		- st::historyChecklistTaskPadding.left()
+		- st::historyChecklistTaskPadding.right();
+	return st::historyChecklistTaskPadding.top()
 		+ task.text.countHeight(answerWidth)
-		+ st::historyPollAnswerPadding.bottom();
+		+ st::historyChecklistTaskPadding.bottom();
 }
 
 QSize TodoList::countCurrentSize(int newWidth) {
@@ -289,6 +300,7 @@ void TodoList::updateTasks(bool skipAnimations) {
 				animated = true;
 			}
 		}
+		updateCompletionStatus();
 		if (animated) {
 			maybeStartFireworks();
 		}
@@ -306,6 +318,8 @@ void TodoList::updateTasks(bool skipAnimations) {
 	for (auto &task : _tasks) {
 		task.handler = createTaskClickHandler(task);
 	}
+
+	updateCompletionStatus();
 }
 
 ClickHandlerPtr TodoList::createTaskClickHandler(
@@ -348,7 +362,7 @@ void TodoList::toggleCompletion(int id) {
 	const auto selected = (i->completionDate != 0);
 	i->completionDate = selected ? TimeId() : base::unixtime::now();
 	if (!selected) {
-		i->completedBy = _parent->history()->session().user();
+		i->setCompletedBy(_parent->history()->session().user());
 	}
 	startToggleAnimation(*i);
 	repaint();
@@ -472,10 +486,10 @@ int TodoList::paintTask(
 		const PaintContext &context) const {
 	const auto height = countTaskHeight(task, width);
 	const auto stm = context.messageStyle();
-	const auto aleft = left + st::historyPollAnswerPadding.left();
+	const auto aleft = left + st::historyChecklistTaskPadding.left();
 	const auto awidth = width
-		- st::historyPollAnswerPadding.left()
-		- st::historyPollAnswerPadding.right();
+		- st::historyChecklistTaskPadding.left()
+		- st::historyChecklistTaskPadding.right();
 
 	if (task.ripple) {
 		p.setOpacity(st::historyPollRippleOpacity);
@@ -497,10 +511,20 @@ int TodoList::paintTask(
 		paintStatus(p, task, left, top, context);
 	}
 
-	top += st::historyPollAnswerPadding.top();
+	top += task.completionDate
+		? st::historyChecklistCheckedTop
+		: st::historyChecklistTaskPadding.top();
 	p.setPen(stm->historyTextFg);
 	task.text.drawLeft(p, aleft, top, awidth, outerWidth);
-
+	if (task.completionDate) {
+		const auto nameTop = top
+			+ height
+			- st::historyChecklistTaskPadding.bottom()
+			+ st::historyChecklistCheckedTop
+			- st::normalFont->height;
+		p.setPen(stm->msgDateFg);
+		task.name.drawLeft(p, aleft, nameTop, awidth, outerWidth);
+	}
 	return height;
 }
 
@@ -510,7 +534,7 @@ void TodoList::paintRadio(
 		int left,
 		int top,
 		const PaintContext &context) const {
-	top += st::historyPollAnswerPadding.top();
+	top += st::historyChecklistTaskPadding.top();
 
 	const auto stm = context.messageStyle();
 
@@ -608,7 +632,7 @@ void TodoList::paintStatus(
 		int left,
 		int top,
 		const PaintContext &context) const {
-	top += st::historyPollAnswerPadding.top();
+	top += st::historyChecklistTaskPadding.top();
 
 	const auto stm = context.messageStyle();
 
@@ -668,25 +692,29 @@ TextState TodoList::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	const auto aleft = padding.left()
-		+ st::historyPollAnswerPadding.left();
+		+ st::historyChecklistTaskPadding.left();
 	const auto awidth = paintw
-		- st::historyPollAnswerPadding.left()
-		- st::historyPollAnswerPadding.right();
+		- st::historyChecklistTaskPadding.left()
+		- st::historyChecklistTaskPadding.right();
 	tshift += questionH + st::historyPollSubtitleSkip;
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 	for (const auto &task : _tasks) {
 		const auto height = countTaskHeight(task, paintw);
 		if (point.y() >= tshift && point.y() < tshift + height) {
-			const auto atop = tshift + st::historyPollAnswerPadding.top();
+			const auto atop = tshift
+				+ (task.completionDate
+					? st::historyChecklistCheckedTop
+					: st::historyChecklistTaskPadding.top());
 			auto taskTextResult = task.text.getState(
 				point - QPoint(aleft, atop),
 				awidth,
 				request.forText());
 			if (taskTextResult.link) {
-				return TextState(_parent, taskTextResult);
+				result.link = taskTextResult.link;
+			} else {
+				_lastLinkPoint = point;
+				result.link = task.handler;
 			}
-			_lastLinkPoint = point;
-			result.link = task.handler;
 			if (task.completionDate) {
 				result.customTooltip = true;
 				using Flag = Ui::Text::StateRequest::Flag;

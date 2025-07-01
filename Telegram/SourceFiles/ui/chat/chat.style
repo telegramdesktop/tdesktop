@@ -657,6 +657,9 @@ historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgS
 historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
+historyChecklistTaskPadding: margins(32px, 12px, 0px, 12px);
+historyChecklistCheckedTop: 4px;
+
 historyViewButtonHeight: 48px;
 historyViewButtonMargins: margins(10px, 5px, 10px, 10px);
 historyViewButtonTextStyle: semiboldTextStyle;
