@@ -534,11 +534,16 @@ std::shared_ptr<ClickHandler> AcceptClickHandler(
 
 std::shared_ptr<ClickHandler> DeclineClickHandler(
 		not_null<HistoryItem*> item) {
+	const auto session = &item->history()->session();
 	const auto id = item->fullId();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto controller = my.sessionWindow.get();
-		if (!controller) {
+		if (!controller || &controller->session() != session) {
+			return;
+		}
+		const auto item = session->data().message(id);
+		if (!item) {
 			return;
 		}
 		RequestDeclineComment(controller->uiShow(), item);

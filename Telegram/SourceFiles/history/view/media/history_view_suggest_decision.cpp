@@ -288,7 +288,6 @@ auto GenerateSuggestRequestMedia(
 			: nullptr;
 		const auto changes = ResolveChanges(item, original);
 		const auto from = item->from();
-		const auto peer = item->history()->peer;
 
 		auto pushText = [&](
 				TextWithEntities text,
