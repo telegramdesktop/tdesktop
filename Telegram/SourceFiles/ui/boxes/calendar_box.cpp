@@ -27,6 +27,11 @@ constexpr auto kDaysInWeek = 7;
 constexpr auto kTooltipDelay = crl::time(1000);
 constexpr auto kJumpDelay = 2 * crl::time(1000);
 
+// QDate -> 0..6
+[[nodiscard]] int DayOfWeekIndex(const QDate &date, int firstDayOfWeek) {
+	return (kDaysInWeek + date.dayOfWeek() - firstDayOfWeek) % kDaysInWeek;
+}
+
 } // namespace
 
 class CalendarBox::Context {
@@ -77,8 +82,8 @@ public:
 	[[nodiscard]] rpl::producer<QDate> monthValue() const {
 		return _month.value();
 	}
-	[[nodiscard]] int firstDayShift() const {
-		return _firstDayShift;
+	[[nodiscard]] int firstDayOfWeek() const {
+		return _firstDayOfWeek;
 	}
 
 	[[nodiscard]] QDate dateFromIndex(int index) const;
@@ -102,14 +107,17 @@ private:
 	};
 	void applyMonth(const QDate &month, bool forced = false);
 
-	static int DaysShiftForMonth(QDate month, QDate min, int firstDayShift);
+	static int DaysShiftForMonth(
+		const QDate &month,
+		QDate min,
+		int firstDayOfWeek);
 	static int RowsCountForMonth(
-		QDate month,
+		const QDate &month,
 		QDate min,
 		QDate max,
-		int firstDayShift);
+		int firstDayOfWeek);
 
-	const int _firstDayShift = 0;
+	const int _firstDayOfWeek = 0;
 	bool _allowsSelection = false;
 
 	rpl::variable<QDate> _month;
@@ -134,8 +142,7 @@ private:
 };
 
 CalendarBox::Context::Context(QDate month, QDate highlighted)
-: _firstDayShift(static_cast<int>(QLocale().firstDayOfWeek())
-	- static_cast<int>(Qt::Monday))
+: _firstDayOfWeek(static_cast<int>(QLocale().firstDayOfWeek())) // 1..7
 , _highlighted(highlighted) {
 	showMonth(month);
 }
@@ -169,8 +176,8 @@ bool CalendarBox::Context::showsMonthOf(QDate date) const {
 void CalendarBox::Context::applyMonth(const QDate &month, bool forced) {
 	const auto was = _month.current();
 	_daysCount = month.daysInMonth();
-	_daysShift = DaysShiftForMonth(month, _min, _firstDayShift);
-	_rowsCount = RowsCountForMonth(month, _min, _max, _firstDayShift);
+	_daysShift = DaysShiftForMonth(month, _min, _firstDayOfWeek);
+	_rowsCount = RowsCountForMonth(month, _min, _max, _firstDayOfWeek);
 	_highlightedIndex = month.daysTo(_highlighted);
 	_minDayIndex = _min.isNull() ? INT_MIN : month.daysTo(_min);
 	_maxDayIndex = _max.isNull() ? INT_MAX : month.daysTo(_max);
@@ -210,36 +217,38 @@ void CalendarBox::Context::skipMonth(int skip) {
 }
 
 int CalendarBox::Context::DaysShiftForMonth(
-		QDate month,
+		const QDate &month,
 		QDate min,
-		int firstDayShift) {
+		int firstDayOfWeek) {
 	Expects(!month.isNull());
 
 	constexpr auto kMaxRows = 6;
 	const auto inMonthIndex = month.day() - 1;
-	const auto inWeekIndex = month.dayOfWeek() - 1;
+	const auto inWeekIndex = DayOfWeekIndex(month, firstDayOfWeek);
 	const auto from = ((kMaxRows * kDaysInWeek) + inWeekIndex - inMonthIndex)
 		% kDaysInWeek;
 	if (min.isNull()) {
 		min = month.addYears(-1);
 	} else if (min >= month) {
-		return from - firstDayShift;
+		return from;
 	}
 	if (min.day() != 1) {
 		min = QDate(min.year(), min.month(), 1);
 	}
-	const auto add = min.daysTo(month) - inWeekIndex + (min.dayOfWeek() - 1);
-	return from + add - firstDayShift;
+	const auto add = min.daysTo(month)
+		- inWeekIndex
+		+ DayOfWeekIndex(min, firstDayOfWeek);
+	return from + add;
 }
 
 int CalendarBox::Context::RowsCountForMonth(
-		QDate month,
+		const QDate &month,
 		QDate min,
 		QDate max,
-		int firstDayShift) {
+		int firstDayOfWeek) {
 	Expects(!month.isNull());
 
-	const auto daysShift = DaysShiftForMonth(month, min, firstDayShift);
+	const auto daysShift = DaysShiftForMonth(month, min, firstDayOfWeek);
 	const auto daysCount = month.daysInMonth();
 	const auto cellsCount = daysShift + daysCount;
 	auto result = (cellsCount / kDaysInWeek);
@@ -256,7 +265,7 @@ int CalendarBox::Context::RowsCountForMonth(
 		max = QDate(max.year(), max.month(), 1);
 	}
 	max = max.addMonths(1);
-	max = max.addDays(1 - max.dayOfWeek());
+	max = max.addDays(-DayOfWeekIndex(max, firstDayOfWeek));
 	const auto cellsFull = daysShift + (month.day() - 1) + month.daysTo(max);
 	return cellsFull / kDaysInWeek;
 }
@@ -549,8 +558,6 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 	index += fromRow * kDaysInWeek;
 	const auto innerSkipLeft = (_st.cellSize.width() - _st.cellInner) / 2;
 	const auto innerSkipTop = (_st.cellSize.height() - _st.cellInner) / 2;
-	const auto fromCol = _context->firstDayShift();
-	const auto toCol = fromCol + kDaysInWeek;
 	for (auto row = fromRow; row != tillRow; ++row, y += rowHeight) {
 		auto x = rowsLeft();
 		const auto fromIndex = index;
@@ -576,7 +583,7 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 				(_st.cellInner / 2.) + st::lineWidth);
 			p.setBrush(Qt::NoBrush);
 		}
-		for (auto col = fromCol; col != toCol; ++col, ++index, x += _st.cellSize.width()) {
+		for (auto col = 0; col != kDaysInWeek; ++col, ++index, x += _st.cellSize.width()) {
 			const auto rect = myrtlrect(x, y, _st.cellSize.width(), _st.cellSize.height());
 			const auto selected = (index >= selectedMin) && (index <= selectedMax);
 			const auto grayedOut = !selected && (index < 0 || index >= daysCount);
@@ -843,14 +850,14 @@ void CalendarBox::Title::paintDayNames(Painter &p, QRect clip) {
 	if (!myrtlrect(x, y, _st.cellSize.width() * kDaysInWeek, _st.daysHeight).intersects(clip)) {
 		return;
 	}
-	const auto from = _context->firstDayShift();
+	const auto from = _context->firstDayOfWeek();
 	const auto to = from + kDaysInWeek;
 	for (auto i = from; i != to; ++i, x += _st.cellSize.width()) {
 		auto rect = myrtlrect(x, y, _st.cellSize.width(), _st.daysHeight);
 		if (!rect.intersects(clip)) {
 			continue;
 		}
-		p.drawText(rect, langDayOfWeek((i % 7) + 1), style::al_top);
+		p.drawText(rect, langDayOfWeek(((i - 1) % 7) + 1), style::al_top);
 	}
 }
 
