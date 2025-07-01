@@ -96,6 +96,17 @@ Thread *SavedMessages::activeSubsectionThread() const {
 	return _activeSubsectionSublist;
 }
 
+Dialogs::UnreadState SavedMessages::unreadStateWithParentMuted() const {
+	auto result = _chatsList.unreadState();
+	if (_owningHistory->muted()) {
+		result.chatsMuted = result.chats;
+		result.marksMuted = result.marks;
+		result.messagesMuted = result.messages;
+		result.reactionsMuted = result.reactions;
+	}
+	return result;
+}
+
 SavedMessages::~SavedMessages() {
 	clear();
 }

@@ -2369,14 +2369,8 @@ Dialogs::UnreadState History::chatListUnreadState() const {
 	if (const auto forum = peer->forum()) {
 		return AdjustedForumUnreadState(forum->topicsList()->unreadState());
 	} else if (const auto monoforum = peer->monoforum()) {
-		auto state = monoforum->chatsList()->unreadState();
-		if (muted()) {
-			state.chatsMuted = state.chats;
-			state.marksMuted = state.marks;
-			state.messagesMuted = state.messages;
-			state.reactionsMuted = state.reactions;
-		}
-		return AdjustedForumUnreadState(state);
+		return AdjustedForumUnreadState(
+			monoforum->unreadStateWithParentMuted());
 	}
 	return computeUnreadState();
 }
@@ -2391,9 +2385,9 @@ Dialogs::BadgesState History::chatListBadgesState() const {
 	} else if (const auto monoforum = peer->monoforum()) {
 		return adjustBadgesStateByFolder(
 			Dialogs::BadgesForUnread(
-				monoforum->chatsList()->unreadState(),
+				monoforum->unreadStateWithParentMuted(),
 				Dialogs::CountInBadge::Chats,
-				Dialogs::IncludeInBadge::UnmutedOrAll));
+				Dialogs::IncludeInBadge::All));
 	}
 	return computeBadgesState();
 }
