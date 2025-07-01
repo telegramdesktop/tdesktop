@@ -271,9 +271,9 @@ void TodoList::updateTexts() {
 		_flags = _todolist->flags();
 		_subtitle.setText(
 			st::msgDateTextStyle,
-			(parent()->history()->peer->isUser()
-				? tr::lng_todo_title(tr::now)
-				: tr::lng_todo_title_group(tr::now)));
+			(_todolist->othersCanComplete()
+				? tr::lng_todo_title_group(tr::now)
+				: tr::lng_todo_title(tr::now)));
 	}
 	updateTasks(skipAnimations);
 }

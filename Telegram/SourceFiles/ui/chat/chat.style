@@ -1379,6 +1379,10 @@ suggestPriceBox: Box(defaultBox) {
 	}
 	shadowIgnoreTopSkip: true;
 }
+suggestPriceEstimate: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+suggestPriceEstimateTop: 12px;
 tonInput: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(0px, 7px, 0px, 7px);

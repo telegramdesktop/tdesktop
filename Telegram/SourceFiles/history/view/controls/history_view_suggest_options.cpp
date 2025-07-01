@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_suggest_options.h"
 
+#include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/ui_integration.h"
@@ -78,6 +79,37 @@ void ChooseSuggestTimeBox(
 		: tr::lng_suggest_options_date_any(), [=] {
 		done(TimeId());
 	});
+}
+
+void AddApproximateUsd(
+		not_null<QWidget*> field,
+		not_null<Main::Session*> session,
+		rpl::producer<CreditsAmount> price) {
+	auto value = std::move(price) | rpl::map([=](CreditsAmount amount) {
+		if (!amount) {
+			return QString();
+		}
+		const auto appConfig = &session->appConfig();
+		const auto rate = amount.ton()
+			? appConfig->currencyWithdrawRate()
+			: (appConfig->starsWithdrawRate() / 100.);
+		const auto precise = amount.value() * rate;
+		return u"~$"_q + QString::number(precise, 'f', 2);
+	});
+	const auto usd = Ui::CreateChild<Ui::FlatLabel>(
+		field,
+		std::move(value),
+		st::suggestPriceEstimate);
+	const auto move = [=] {
+		usd->moveToRight(0, st::suggestPriceEstimateTop);
+	};
+	base::install_event_filter(field, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Resize) {
+			move();
+		}
+		return base::EventFilterResult::Continue;
+	});
+	usd->widthValue() | rpl::start_with_next(move, usd->lifetime());
 }
 
 void ChooseSuggestPriceBox(
@@ -316,6 +348,8 @@ void ChooseSuggestPriceBox(
 		starsFieldWrap->resize(width, starsField->height());
 	}, starsFieldWrap->lifetime());
 
+	AddApproximateUsd(starsField, session, starsPrice());
+
 	Ui::AddSkip(starsInner);
 	Ui::AddSkip(starsInner);
 	const auto formatPrice = [peer = args.peer](CreditsAmount amount) {
@@ -379,6 +413,8 @@ void ChooseSuggestPriceBox(
 		tonField->resize(width, tonField->height());
 		tonFieldWrap->resize(width, tonField->height());
 	}, tonFieldWrap->lifetime());
+
+	AddApproximateUsd(tonField, session, tonPrice());
 
 	Ui::AddSkip(tonInner);
 	Ui::AddSkip(tonInner);
