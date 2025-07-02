@@ -182,11 +182,15 @@ void TodoLists::add(
 void TodoLists::toggleCompletion(FullMsgId itemId, int id, bool completed) {
 	auto &entry = _toggles[itemId];
 	if (completed) {
-		if (!entry.completed.emplace(id).second) {
+		const auto changed1 = entry.completed.emplace(id).second;
+		const auto changed2 = entry.incompleted.remove(id);
+		if (!changed1 && !changed2) {
 			return;
 		}
 	} else {
-		if (!entry.incompleted.emplace(id).second) {
+		const auto changed1 = entry.incompleted.emplace(id).second;
+		const auto changed2 = entry.completed.remove(id);
+		if (!changed1 && !changed2) {
 			return;
 		}
 	}
