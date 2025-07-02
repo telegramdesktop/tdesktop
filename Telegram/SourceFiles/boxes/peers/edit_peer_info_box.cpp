@@ -255,7 +255,7 @@ void SaveStarsPerMessage(
 		api->clearModifyRequest(key);
 		api->applyUpdates(result);
 		if (!broadcast) {
-			channel->setStarsPerMessage(starsPerMessage);
+			channel->owner().editStarsPerMessage(channel, starsPerMessage);
 		}
 		done(true);
 	}).fail([=](const MTP::Error &error) {
@@ -265,7 +265,9 @@ void SaveStarsPerMessage(
 			done(false);
 		} else {
 			if (!broadcast) {
-				channel->setStarsPerMessage(starsPerMessage);
+				channel->owner().editStarsPerMessage(
+					channel,
+					starsPerMessage);
 			}
 			done(true);
 		}
@@ -362,7 +364,7 @@ void ShowEditPermissions(
 
 [[nodiscard]] int CurrentPricePerMessage(ChannelData *monoforumLink) {
 	return monoforumLink
-		? monoforumLink->owner().commonStarsPerMessage(monoforumLink)
+		? monoforumLink->commonStarsPerMessage()
 		: -1;
 }
 

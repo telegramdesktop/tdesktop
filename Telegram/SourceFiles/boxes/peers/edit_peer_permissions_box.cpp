@@ -1179,7 +1179,7 @@ void ShowEditPeerPermissionsBox(
 	if (available) {
 		Ui::AddSkip(inner);
 		const auto starsPerMessage = peer->isChannel()
-			? peer->asChannel()->starsPerMessage()
+			? peer->asChannel()->commonStarsPerMessage()
 			: 0;
 		charging = inner->add(object_ptr<Ui::SettingsButton>(
 			inner,

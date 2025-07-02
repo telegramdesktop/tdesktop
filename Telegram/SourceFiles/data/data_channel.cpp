@@ -957,6 +957,10 @@ int ChannelData::starsPerMessage() const {
 	return _starsPerMessage;
 }
 
+int ChannelData::commonStarsPerMessage() const {
+	return owner().commonStarsPerMessage(this);
+}
+
 void ChannelData::setStarsPerMessage(int stars) {
 	if (_starsPerMessage != stars) {
 		_starsPerMessage = stars;

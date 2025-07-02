@@ -502,6 +502,7 @@ public:
 
 	void setStarsPerMessage(int stars);
 	[[nodiscard]] int starsPerMessage() const;
+	[[nodiscard]] int commonStarsPerMessage() const;
 
 	[[nodiscard]] int peerGiftsCount() const;
 	void setPeerGiftsCount(int count);

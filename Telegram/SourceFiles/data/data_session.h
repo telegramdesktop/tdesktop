@@ -860,8 +860,9 @@ public:
 	void sentFromScheduled(SentFromScheduled value);
 	[[nodiscard]] rpl::producer<SentFromScheduled> sentFromScheduled() const;
 
+	void editStarsPerMessage(not_null<ChannelData*> channel, int count);
 	[[nodiscard]] int commonStarsPerMessage(
-		not_null<ChannelData*> channel) const;
+		not_null<const ChannelData*> channel) const;
 
 	void clearLocalStorage();
 
@@ -1169,7 +1170,7 @@ private:
 		ChannelId>> _postponedMonoforumLinkedIds;
 
 	// This one from `channel`, not `channelFull`.
-	base::flat_map<not_null<ChannelData*>, int> _commonStarsPerMessage;
+	base::flat_map<not_null<const ChannelData*>, int> _commonStarsPerMessage;
 
 	MessageIdsList _mimeForwardIds;
 
