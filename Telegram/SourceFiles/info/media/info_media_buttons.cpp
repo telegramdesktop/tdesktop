@@ -365,7 +365,7 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 	wrap->toggleOn(rpl::duplicate(forked) | rpl::map(rpl::mappers::_1 > 0));
 	tracker.track(wrap);
 
-	navigation->session().recentSharedGifts().request(peer, [=](
+	const auto requestDone = crl::guard(wrap, [=](
 			std::vector<DocumentId> ids) {
 		state->emojiList.clear();
 		for (const auto &id : ids) {
@@ -374,6 +374,7 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 		}
 		state->textRefreshed.fire({});
 	});
+	navigation->session().recentSharedGifts().request(peer, requestDone);
 
 	state->button = wrap->entity();
 
