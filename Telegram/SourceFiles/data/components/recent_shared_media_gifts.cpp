@@ -59,6 +59,7 @@ void RecentSharedMediaGifts::request(
 		auto &entry = _recent[peer->id];
 		entry.lastRequestTime = crl::now();
 		entry.requestId = 0;
+		entry.ids = {};
 
 		auto conter = 0;
 		for (const auto &gift : data.vgifts().v) {
