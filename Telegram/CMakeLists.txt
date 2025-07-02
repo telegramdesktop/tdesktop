@@ -53,9 +53,7 @@ set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 
 target_link_libraries(Telegram
 PRIVATE
-    # tdesktop::lib_tgcalls_legacy
     tdesktop::lib_tgcalls
-    # tdesktop::lib_tgvoip
 
     # Order in this list defines the order of include paths in command line.
     # We need to place desktop-app::external_minizip this early to have its

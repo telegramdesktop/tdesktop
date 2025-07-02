@@ -89,15 +89,12 @@ parts:
       - clang
       - libtool-bin
       - python3
-      - libasound2-dev
       - libavif-dev
       - libboost-regex-dev
       - libgirepository1.0-dev
       - libglib2.0-dev
       - libheif-dev
       - libopenal-dev
-      - libopus-dev
-      - libpulse-dev
       - libssl-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
@@ -105,7 +102,6 @@ parts:
       - libxcb-screensaver0-dev
       - zlib1g-dev
     stage-packages:
-      - libasound2t64
       - libavif16
       - libboost-regex1.83.0
       - libgeoclue-2-0
@@ -113,8 +109,6 @@ parts:
       - libglib2.0-0t64
       - libheif1
       - libopenal1
-      - libopus0
-      - libpulse0
       - libssl3t64
       - libwebkit2gtk-4.1-0
       - libxcb1
