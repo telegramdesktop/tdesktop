@@ -1,3 +1,9 @@
+5.16.1 (02.07.25)
+
+- Fix inline keyboard updating in bot messages.
+- Fix possible crash in fast chat switching.
+- Different minor fixes.
+
 5.16 (01.07.25)
 
 - Create private and group checklists.
