@@ -68,7 +68,7 @@ void ChooseSuggestTimeBox(
 			? tr::lng_suggest_options_date_publish()
 			: (args.mode == SuggestMode::New)
 			? tr::lng_settings_save()
-			: tr::lng_suggest_options_update()),
+			: tr::lng_suggest_options_update_date()),
 		.done = done,
 		.min = [=] { return now + min; },
 		.time = value,

@@ -4469,6 +4469,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_suggest_options_offer" = "Offer {amount}";
 "lng_suggest_options_offer_free" = "Offer for Free";
 "lng_suggest_options_update" = "Update Terms";
+"lng_suggest_options_update_date" = "Update Time";
 
 "lng_suggest_action_decline" = "Decline";
 "lng_suggest_action_accept" = "Accept";
