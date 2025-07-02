@@ -362,8 +362,10 @@ void ShowEditPermissions(
 	navigation->parentController()->show(Box(std::move(createBox)));
 }
 
-[[nodiscard]] int CurrentPricePerMessage(ChannelData *monoforumLink) {
-	return monoforumLink
+[[nodiscard]] int CurrentPricePerDirectMessage(
+		not_null<ChannelData*> broadcast) {
+	const auto monoforumLink = broadcast->monoforumLink();
+	return (monoforumLink && !monoforumLink->monoforumDisabled())
 		? monoforumLink->commonStarsPerMessage()
 		: -1;
 }
@@ -1090,8 +1092,7 @@ void Controller::fillDirectMessagesButton() {
 		return;
 	}
 
-	const auto monoforumLink = _peer->asChannel()->monoforumLink();
-	const auto perMessage = CurrentPricePerMessage(monoforumLink);
+	const auto perMessage = CurrentPricePerDirectMessage(_peer->asChannel());
 	_starsPerDirectMessageSavedValue = rpl::variable<int>(perMessage);
 
 	auto label = _starsPerDirectMessageSavedValue->value(
@@ -2408,8 +2409,7 @@ void Controller::saveDirectMessagesPrice() {
 	if (!channel) {
 		return continueSave();
 	}
-	const auto monoforumLink = channel->monoforumLink();
-	const auto current = CurrentPricePerMessage(monoforumLink);
+	const auto current = CurrentPricePerDirectMessage(channel);
 	const auto desired = _savingData.starsPerDirectMessage
 		? *_savingData.starsPerDirectMessage
 		: current;
