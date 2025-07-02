@@ -92,7 +92,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		return;
 	}
 	auto player = base::take(_player);
-	const auto starsType = Ui::Premium::MiniStars::Type::SlowStars;
+	const auto starsType = Ui::Premium::MiniStarsType::SlowStars;
 	_mediaLifetime.destroy();
 	unsubscribe();
 

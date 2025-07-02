@@ -14,8 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace Premium {
+namespace {
 
+using Type = MiniStarsType;
 constexpr auto kDeformationMax = 0.1;
+
+} // namespace
 
 MiniStars::MiniStars(
 	Fn<void(const QRect &r)> updateCallback,

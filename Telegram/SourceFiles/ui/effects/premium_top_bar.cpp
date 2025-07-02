@@ -116,8 +116,8 @@ TopBar::TopBar(
 		this,
 		descriptor.optimizeMinistars,
 		(_logo == u"diamond"_q)
-			? MiniStars::Type::DiamondStars
-			: MiniStars::Type::BiStars) {
+			? MiniStarsType::DiamondStars
+			: MiniStarsType::BiStars) {
 	std::move(
 		descriptor.title
 	) | rpl::start_with_next([=](QString text) {

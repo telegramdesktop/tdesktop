@@ -107,7 +107,7 @@ ServiceBox::ServiceBox(
 	if (_content->buttonMinistars()) {
 		_button.stars = std::make_unique<Ui::Premium::ColoredMiniStars>(
 			[=](const QRect &) { repaint(); },
-			Ui::Premium::MiniStars::Type::SlowStars);
+			Ui::Premium::MiniStarsType::SlowStars);
 		_button.lastFg = std::make_unique<QColor>();
 	}
 }

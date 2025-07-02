@@ -443,7 +443,7 @@ void AddMiniStars(
 	const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
 		widget,
 		false,
-		Ui::Premium::MiniStars::Type::BiStars);
+		Ui::Premium::MiniStarsType::BiStars);
 	stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
 	widget->resize(boxWidth - photoSize, photoSize * heightRatio);
 	content->sizeValue(

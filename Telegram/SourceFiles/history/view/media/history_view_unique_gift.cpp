@@ -99,7 +99,7 @@ ButtonPart::ButtonPart(
 , _link(std::move(link))
 , _stars([=](const QRect &) {
 	repaint();
-}, Ui::Premium::MiniStars::Type::SlowStars)
+}, Ui::Premium::MiniStarsType::SlowStars)
 , _repaint(std::move(repaint)) {
 }
 

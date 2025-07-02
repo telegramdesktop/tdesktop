@@ -226,7 +226,7 @@ bool CollectibleEmoji::readyInDefaultState() {
 ColoredMiniStars::ColoredMiniStars(
 	not_null<Ui::RpWidget*> parent,
 	bool optimizeUpdate,
-	MiniStars::Type type)
+	MiniStarsType type)
 : _ministars(
 	optimizeUpdate
 		? Fn<void(const QRect &)>([=](const QRect &r) {
@@ -239,7 +239,7 @@ ColoredMiniStars::ColoredMiniStars(
 
 ColoredMiniStars::ColoredMiniStars(
 	Fn<void(const QRect &)> update,
-	MiniStars::Type type)
+	MiniStarsType type)
 : _ministars(update, true, type) {
 }
 
