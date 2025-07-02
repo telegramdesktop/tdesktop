@@ -2607,7 +2607,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	}
 	if (peer->canCreatePolls()) {
 		++minimal;
-		raw->addAction(tr::lng_polls_create(tr::now), [=] {
+		raw->addAction(tr::lng_polls_menu_item(tr::now), [=] {
 			const auto action = actionFactory();
 			const auto source = action.options.scheduled
 				? Api::SendType::Scheduled

@@ -5965,6 +5965,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_stop" = "Stop poll";
 "lng_polls_stop_warning" = "If you stop this poll now, nobody will be able to vote in it anymore. This action cannot be undone.";
 "lng_polls_stop_sure" = "Stop";
+"lng_polls_menu_item" = "Poll";
 "lng_polls_create" = "Create poll";
 "lng_polls_create_title" = "New poll";
 "lng_polls_create_question" = "Question";
