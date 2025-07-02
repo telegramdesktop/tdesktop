@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/algorithm.h"
 #include "base/basic_types.h"
 
 class MTPstarsAmount;
@@ -75,6 +76,17 @@ public:
 	}
 	[[nodiscard]] inline explicit operator bool() const {
 		return !empty();
+	}
+
+	[[nodiscard]] CreditsAmount multiplied(float64 rate) const {
+		const auto result = value() * rate;
+		const auto abs = std::abs(result);
+		const auto whole = std::floor(abs);
+		const auto nano = base::SafeRound((abs - whole) * kOneStarInNano);
+		return CreditsAmount(
+			(result < 0) ? -whole : whole,
+			(result < 0) ? -nano : nano,
+			type());
 	}
 
 	inline CreditsAmount &operator+=(CreditsAmount other) {

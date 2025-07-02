@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
@@ -93,8 +94,7 @@ void AddApproximateUsd(
 		const auto rate = amount.ton()
 			? appConfig->currencyWithdrawRate()
 			: (appConfig->starsWithdrawRate() / 100.);
-		const auto precise = amount.value() * rate;
-		return u"~$"_q + QString::number(precise, 'f', 2);
+		return Info::ChannelEarn::ToUsd(amount, rate, 2);
 	});
 	const auto usd = Ui::CreateChild<Ui::FlatLabel>(
 		field,
@@ -677,13 +677,10 @@ CreditsAmount PriceAfterCommission(
 	const auto mul = price.stars()
 		? appConfig->suggestedPostCommissionStars()
 		: appConfig->suggestedPostCommissionTon();
-
-	const auto value = (price.value() * mul / 1000.);
-	const auto whole = int(std::floor(value));
-	const auto nano = price.stars()
-		? 0
-		: int(base::SafeRound((value - whole) * Ui::kNanosInOne));
-	return CreditsAmount(whole, nano, price.type());
+	const auto exact = price.multiplied(mul / 1000.);
+	return price.stars()
+		? CreditsAmount(exact.whole(), 0, CreditsType::Stars)
+		: exact;
 }
 
 QString FormatAfterCommissionPercent(

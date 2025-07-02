@@ -177,7 +177,9 @@ QSize TodoList::countOptimalSize() {
 }
 
 bool TodoList::canComplete() const {
-	return (_parent->data()->out() || _todolist->othersCanComplete())
+	return (_parent->data()->out()
+		|| _parent->history()->peer->isSelf()
+		|| _todolist->othersCanComplete())
 		&& _parent->data()->isRegular()
 		&& !_parent->data()->Has<HistoryMessageForwarded>();
 }

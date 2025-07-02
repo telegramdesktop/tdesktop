@@ -45,14 +45,17 @@ void ChartRulersView::setChartData(
 			_leftCustomCaption = [=](float64 value) {
 				return FormatF(value / float64(kOneStarInNano));
 			};
+			_rightCustomCaption = [=, rate = chartData.currencyRate](float64 v) {
+				return Info::ChannelEarn::ToUsd(v / float64(kOneStarInNano), rate, 0);
+			};
 		} else {
 			_leftCustomCaption = [=](float64 value) {
 				return FormatF(value);
 			};
+			_rightCustomCaption = [=, rate = chartData.currencyRate](float64 v) {
+				return Info::ChannelEarn::ToUsd(v, rate, 0);
+			};
 		}
-		_rightCustomCaption = [=, rate = chartData.currencyRate](float64 v) {
-			return Info::ChannelEarn::ToUsd(v, rate, 0);
-		};
 		_rightPen = QPen(st::windowSubTextFg);
 	}
 	if (_isDouble && (chartData.lines.size() == 2)) {
