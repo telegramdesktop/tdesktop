@@ -999,6 +999,10 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			= data.vsend_paid_messages_stars().has_value();
 		if (!hasStarsPerMessage) {
 			channel->setStarsPerMessage(0);
+		} else if (const auto count = data.vsend_paid_messages_stars()->v) {
+			_commonStarsPerMessage[channel] = count;
+		} else {
+			_commonStarsPerMessage.remove(channel);
 		}
 		const auto storiesState = minimal
 			? std::optional<Data::Stories::PeerSourceState>()
@@ -5135,6 +5139,11 @@ void Session::sentFromScheduled(SentFromScheduled value) {
 
 rpl::producer<SentFromScheduled> Session::sentFromScheduled() const {
 	return _sentFromScheduled.events();
+}
+
+int Session::commonStarsPerMessage(not_null<ChannelData*> channel) const {
+	const auto i = _commonStarsPerMessage.find(channel);
+	return (i != end(_commonStarsPerMessage)) ? i->second : 0;
 }
 
 void Session::clearLocalStorage() {
