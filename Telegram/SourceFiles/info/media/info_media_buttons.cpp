@@ -316,10 +316,10 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 	});
 
 	struct State final {
-		std::optional<MTP::Sender> api;
 		std::vector<std::unique_ptr<Ui::Text::CustomEmoji>> emojiList;
 		rpl::event_stream<> textRefreshed;
 		QPointer<Ui::SettingsButton> button;
+		rpl::lifetime appearedLifetime;
 	};
 	const auto state = parent->lifetime().make_state<State>();
 
@@ -328,8 +328,6 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 			state->button->update();
 		}
 	};
-
-	state->api.emplace(&navigation->session().mtp());
 
 	auto customs = state->textRefreshed.events(
 	) | rpl::map([=]() -> TextWithEntities {
@@ -365,16 +363,21 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 	wrap->toggleOn(rpl::duplicate(forked) | rpl::map(rpl::mappers::_1 > 0));
 	tracker.track(wrap);
 
-	const auto requestDone = crl::guard(wrap, [=](
-			std::vector<DocumentId> ids) {
-		state->emojiList.clear();
-		for (const auto &id : ids) {
-			state->emojiList.push_back(
-				peer->owner().customEmojiManager().create(id, refresh));
-		}
-		state->textRefreshed.fire({});
-	});
-	navigation->session().recentSharedGifts().request(peer, requestDone);
+	rpl::duplicate(forked) | rpl::filter(
+		rpl::mappers::_1 > 0
+	) | rpl::start_with_next([=] {
+		state->appearedLifetime.destroy();
+		const auto requestDone = crl::guard(wrap, [=](
+				std::vector<DocumentId> ids) {
+			state->emojiList.clear();
+			for (const auto &id : ids) {
+				state->emojiList.push_back(
+					peer->owner().customEmojiManager().create(id, refresh));
+			}
+			state->textRefreshed.fire({});
+		});
+		navigation->session().recentSharedGifts().request(peer, requestDone);
+	}, state->appearedLifetime);
 
 	state->button = wrap->entity();
 
