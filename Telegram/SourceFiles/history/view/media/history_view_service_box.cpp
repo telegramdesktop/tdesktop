@@ -104,10 +104,10 @@ ServiceBox::ServiceBox(
 			}
 		}, _lifetime);
 	}
-	if (_content->buttonMinistars()) {
+	if (const auto type = _content->buttonMinistars()) {
 		_button.stars = std::make_unique<Ui::Premium::ColoredMiniStars>(
 			[=](const QRect &) { repaint(); },
-			Ui::Premium::MiniStarsType::SlowStars);
+			*type);
 		_button.lastFg = std::make_unique<QColor>();
 	}
 }

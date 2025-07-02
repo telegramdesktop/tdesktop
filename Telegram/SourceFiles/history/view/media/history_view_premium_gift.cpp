@@ -246,8 +246,10 @@ rpl::producer<QString> PremiumGift::button() {
 		: tr::lng_prize_open();
 }
 
-bool PremiumGift::buttonMinistars() {
-	return true;
+std::optional<Ui::Premium::MiniStarsType> PremiumGift::buttonMinistars() {
+	return tonGift()
+		? Ui::Premium::MiniStarsType::SlowDiamondStars
+		: Ui::Premium::MiniStarsType::SlowStars;
 }
 
 ClickHandlerPtr PremiumGift::createViewLink() {

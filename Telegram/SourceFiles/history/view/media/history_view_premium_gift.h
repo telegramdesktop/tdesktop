@@ -31,7 +31,7 @@ public:
 	TextWithEntities title() override;
 	TextWithEntities subtitle() override;
 	rpl::producer<QString> button() override;
-	bool buttonMinistars() override;
+	std::optional<Ui::Premium::MiniStarsType> buttonMinistars() override;
 	QImage cornerTag(const PaintContext &context) override;
 	int buttonSkip() override;
 	void draw(

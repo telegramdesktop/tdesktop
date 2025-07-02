@@ -15,6 +15,7 @@ class RippleAnimation;
 
 namespace Ui::Premium {
 class ColoredMiniStars;
+enum class MiniStarsType;
 } // namespace Ui::Premium
 
 namespace HistoryView {
@@ -32,8 +33,9 @@ public:
 		return top();
 	}
 	[[nodiscard]] virtual rpl::producer<QString> button() = 0;
-	[[nodiscard]] virtual bool buttonMinistars() {
-		return false;
+	[[nodiscard]] virtual auto buttonMinistars()
+	-> std::optional<Ui::Premium::MiniStarsType> {
+		return std::nullopt;
 	}
 	[[nodiscard]] virtual QImage cornerTag(const PaintContext &context) {
 		return {};

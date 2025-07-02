@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "ui/effects/premium_stars.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h"
@@ -75,7 +76,7 @@ public:
 	TextWithEntities subtitle() override;
 	int buttonSkip() override;
 	rpl::producer<QString> button() override;
-	bool buttonMinistars() override;
+	std::optional<Ui::Premium::MiniStarsType> buttonMinistars() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,
@@ -432,8 +433,9 @@ rpl::producer<QString> EmptyChatLockedBox::button() {
 		: tr::lng_send_charges_stars_go();
 }
 
-bool EmptyChatLockedBox::buttonMinistars() {
-	return true;
+auto EmptyChatLockedBox::buttonMinistars()
+-> std::optional<Ui::Premium::MiniStarsType> {
+	return Ui::Premium::MiniStarsType::SlowStars;
 }
 
 TextWithEntities EmptyChatLockedBox::subtitle() {

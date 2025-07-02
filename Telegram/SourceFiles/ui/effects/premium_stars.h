@@ -19,6 +19,7 @@ enum class MiniStarsType {
 	BiStars,
 	SlowStars,
 	DiamondStars,
+	SlowDiamondStars,
 };
 
 class MiniStars final {
