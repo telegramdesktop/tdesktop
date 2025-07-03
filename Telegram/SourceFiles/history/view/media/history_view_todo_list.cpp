@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/fireworks_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
 #include "data/data_user.h"
@@ -525,7 +526,15 @@ int TodoList::paintTask(
 		? st::historyChecklistCheckedTop
 		: st::historyChecklistTaskPadding.top();
 	p.setPen(stm->historyTextFg);
-	task.text.drawLeft(p, aleft, top, awidth, outerWidth);
+	task.text.draw(p, {
+		.position = { aleft, top },
+		.availableWidth = awidth,
+		.palette = &stm->textPalette,
+		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.now = context.now,
+		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
+	});
 	if (task.completionDate) {
 		const auto nameTop = top
 			+ height
