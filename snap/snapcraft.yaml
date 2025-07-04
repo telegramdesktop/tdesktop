@@ -414,7 +414,6 @@ parts:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
       - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
-      - -DQT_GENERATE_SBOM=OFF
       - -DINPUT_openssl=linked
     override-pull: |
       craftctl default
@@ -438,6 +437,7 @@ parts:
       - -./usr/metatypes
       - -./usr/mkspecs
       - -./usr/modules
+      - -./usr/sbom
       - -./**/objects-*
     after:
       - libjxl
