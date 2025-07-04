@@ -64,6 +64,8 @@ public:
 	void unloadHeavyPart() override;
 	bool hasHeavyPart() const override;
 
+	void hideSpoilers() override;
+
 	std::vector<TodoTaskInfo> takeTasksInfo() override;
 
 private:
