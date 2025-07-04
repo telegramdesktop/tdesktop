@@ -760,7 +760,6 @@ RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cmake -B build . \
 		-DCMAKE_INSTALL_PREFIX=/usr/local \
 		-DBUILD_SHARED_LIBS=OFF \
-		-DQT_GENERATE_SBOM=OFF \
 		-DQT_QPA_PLATFORMS="wayland;xcb" \
 		-DINPUT_libpng=qt \
 		-DINPUT_harfbuzz=qt \
