@@ -68,6 +68,7 @@ struct StarGift {
 	int64 starsToUpgrade = 0;
 	int64 starsResellMin = 0;
 	not_null<DocumentData*> document;
+	PeerData *releasedBy = nullptr;
 	QString resellTitle;
 	int resellCount = 0;
 	int limitedLeft = 0;
