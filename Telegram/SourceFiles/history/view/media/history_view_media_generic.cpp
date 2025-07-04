@@ -322,13 +322,19 @@ QSize MediaGenericTextPart::countOptimalSize() {
 
 QSize MediaGenericTextPart::countCurrentSize(int newWidth) {
 	auto skip = _margins.left() + _margins.right();
-	const auto size = CountOptimalTextSize(
-		_text,
-		st::msgMinWidth,
-		std::max(st::msgMinWidth, newWidth - skip));
+	const auto size = (_align == style::al_top)
+		? CountOptimalTextSize(
+			_text,
+			st::msgMinWidth,
+			std::max(st::msgMinWidth, newWidth - skip))
+		: QSize(newWidth - skip, _text.countHeight(newWidth - skip));
+	const auto lines = elisionLines();
+	const auto height = lines
+		? std::min(size.height(), lines * _text.style()->font->height)
+		: size.height();
 	return {
 		size.width() + skip,
-		_margins.top() + size.height() + _margins.bottom(),
+		_margins.top() + height + _margins.bottom(),
 	};
 }
 

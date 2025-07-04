@@ -2280,6 +2280,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_suggest_success_ton#other" = "{from} has received {count} TON for publishing post.";
 "lng_action_suggest_refund_user" = "User refunded the Stars so that post was deleted.";
 "lng_action_suggest_refund_admin" = "Admin deleted the post early so that the price was refunded to the user.";
+"lng_action_post_rejected" = "The post was rejected.";
+"lng_action_not_enough_funds" = "Transaction failed.";
 "lng_you_paid_stars#one" = "You paid {count} Star.";
 "lng_you_paid_stars#other" = "You paid {count} Stars.";
 
