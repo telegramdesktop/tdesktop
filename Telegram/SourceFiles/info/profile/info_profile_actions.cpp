@@ -2971,7 +2971,9 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 					? Ui::MakeCreditsIconEntity()
 						.append(QChar(' '))
 						.append(Info::ChannelEarn::MajorPart(credits))
-						.append(Info::ChannelEarn::MinorPart(credits))
+						.append(credits.nano()
+							? Info::ChannelEarn::MinorPart(credits)
+							: QString())
 					: TextWithEntities();
 				auto currencyText = (currency > CreditsAmount(0))
 					? Ui::Text::SingleCustomEmoji("_")
