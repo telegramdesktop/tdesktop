@@ -936,6 +936,7 @@ msgServiceGiftBoxTitlePadding: margins(0px, 20px, 0px, 6px);
 msgServiceGiftBoxStickerTop: -19px;
 msgServiceGiftBoxStickerSize: 140px;
 msgServiceStarGiftBoxWidth: 224px;
+msgServiceStarGiftByWidth: 272px;
 msgServiceStarGiftStickerTop: 24px;
 msgServiceStarGiftStickerSize: 100px;
 
@@ -1105,6 +1106,7 @@ chatIntroWidth: 224px;
 chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
 chatIntroMargin: margins(11px, 0px, 11px, 0px);
 chatIntroStickerPadding: margins(10px, 8px, 10px, 16px);
+chatGiftPreviewWidth: 264px;
 
 liveLocationLongInIcon: icon {{ "chat/live_location_long", msgInServiceFg }};
 liveLocationLongInIconSelected: icon {{ "chat/live_location_long", msgInServiceFgSelected }};

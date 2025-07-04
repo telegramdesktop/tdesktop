@@ -2863,6 +2863,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_gift_converted" = "Converted Gift";
 "lng_credits_box_history_entry_gift_transfer" = "Gift Transfer";
 "lng_credits_box_history_entry_gift_unavailable" = "Unavailable";
+"lng_credits_box_history_entry_gift_released" = "released by {name}";
 "lng_credits_box_history_entry_gift_sold_out" = "This gift has sold out";
 "lng_credits_box_history_entry_gift_out_about" = "With Stars, **{user}** will be able to unlock content and services on Telegram.\n{link}";
 "lng_credits_box_history_entry_gift_in_about" = "Use Stars to unlock content and services on Telegram. {link}";
@@ -3581,12 +3582,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_self_about" = "Buy yourself a gift to display on your page or reserve for later.\n\nLimited-edition gifts upgraded to collectibles can be gifted to others later.";
 "lng_gift_channel_title" = "Send a Gift";
 "lng_gift_channel_about" = "Select a gift to show appreciation for {name}.";
+"lng_gift_released_by" = "Released by {name}";
 "lng_gift_unique_owner" = "Owner";
 "lng_gift_unique_address_copied" = "Address copied to clipboard.";
 "lng_gift_unique_status" = "Status";
 "lng_gift_unique_status_non" = "Non-Unique";
 "lng_gift_unique_status_upgrade" = "upgrade";
 "lng_gift_unique_number" = "Collectible #{index}";
+"lng_gift_unique_number_by" = "Collectible #{index} by {name}";
 "lng_gift_unique_model" = "Model";
 "lng_gift_unique_backdrop" = "Backdrop";
 "lng_gift_unique_symbol" = "Symbol";

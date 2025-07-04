@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 #include "styles/style_premium.h"
 #include "styles/style_layers.h"
 
@@ -51,6 +52,11 @@ ServiceBox::ServiceBox(
 		.session = &parent->history()->session(),
 		.repaint = [parent] { parent->customEmojiRepaint(); },
 	}))
+, _author(
+	st::defaultTextStyle,
+	_content->author(),
+	kMarkupTextOptions,
+	_maxWidth)
 , _subtitle(
 	st::premiumPreviewAbout.style,
 	Ui::Text::Filtered(
@@ -78,6 +84,12 @@ ServiceBox::ServiceBox(
 		+ (_title.isEmpty()
 			? 0
 			: (_title.countHeight(_maxWidth)
+				+ st::msgServiceGiftBoxTitlePadding.bottom()))
+		+ (_author.isEmpty()
+			? 0
+			: (st::giftBoxReleasedByMargin.top()
+				+ st::defaultTextStyle.font->height
+				+ st::giftBoxReleasedByMargin.bottom()
 				+ st::msgServiceGiftBoxTitlePadding.bottom()))
 		+ _subtitle.countHeight(_maxWidth)
 		+ (!_content->button()
@@ -164,6 +176,37 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 			});
 			top += _title.countHeight(_maxWidth) + padding.bottom();
 		}
+		if (!_author.isEmpty()) {
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(context.st->msgServiceBg());
+			const auto use = std::min(_maxWidth, _author.maxWidth())
+				+ st::giftBoxReleasedByMargin.left()
+				+ st::giftBoxReleasedByMargin.right();
+			const auto left = st::msgPadding.left() + (_maxWidth - use) / 2;
+			const auto height = st::giftBoxReleasedByMargin.top()
+				+ st::defaultTextStyle.font->height
+				+ st::giftBoxReleasedByMargin.bottom();
+			const auto radius = height / 2.;
+			p.drawRoundedRect(left, top, use, height, radius, radius);
+
+			auto fg = context.st->msgServiceFg()->c;
+			fg.setAlphaF(0.65 * fg.alphaF());
+			p.setPen(fg);
+			_author.draw(p, {
+				.position = QPoint(
+					left + st::giftBoxReleasedByMargin.left(),
+					top + st::giftBoxReleasedByMargin.top()),
+				.availableWidth = (use
+					- st::giftBoxReleasedByMargin.left()
+					- st::giftBoxReleasedByMargin.right()),
+				.palette = &context.st->serviceTextPalette(),
+				.elisionLines = 1,
+			});
+			p.setPen(context.st->msgServiceFg());
+
+			top += height + st::msgServiceGiftBoxTitlePadding.bottom();
+		}
 		_parent->prepareCustomEmojiPaint(p, context, _subtitle);
 		_subtitle.draw(p, {
 			.position = QPoint(st::msgPadding.left(), top),
@@ -231,6 +274,23 @@ TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 		if (!_title.isEmpty()) {
 			top += _title.countHeight(_maxWidth) + padding.bottom();
 		}
+		if (!_author.isEmpty()) {
+			const auto use = std::min(_maxWidth, _author.maxWidth())
+				+ st::giftBoxReleasedByMargin.left()
+				+ st::giftBoxReleasedByMargin.right();
+			const auto left = st::msgPadding.left() + (_maxWidth - use) / 2;
+			const auto height = st::giftBoxReleasedByMargin.top()
+				+ st::defaultTextStyle.font->height
+				+ st::giftBoxReleasedByMargin.bottom();
+			if (point.x() >= left
+				&& point.y() >= top
+				&& point.x() < left + use
+				&& point.y() < top + height) {
+				result.link = _content->authorLink();
+			}
+			top += height + st::msgServiceGiftBoxTitlePadding.bottom();
+		}
+
 		auto subtitleRequest = request.forText();
 		subtitleRequest.align = style::al_top;
 		const auto state = _subtitle.getState(

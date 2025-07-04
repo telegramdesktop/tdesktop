@@ -1434,7 +1434,23 @@ void GenericCreditsEntryBox(
 
 		Ui::AddSkip(content);
 	}
-	if (!isStarGift || creditsHistoryStarGift || e.soldOutInfo) {
+	if (e.bareGiftReleasedById && !e.uniqueGift) {
+		const auto peer = owner->peer(PeerId(e.bareGiftReleasedById));
+		const auto released = content->add(
+			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+				box,
+				object_ptr<Ui::FlatLabel>(
+					content,
+					tr::lng_credits_box_history_entry_gift_released(
+						lt_name,
+						rpl::single(Ui::Text::Link('@' + peer->username())),
+						Ui::Text::WithEntities),
+					st::creditsReleasedByLabel)));
+		released->entity()->setClickHandlerFilter([=](const auto &...) {
+			Ui::GiftReleasedByHandler(peer);
+			return false;
+		});
+	} else if (!isStarGift || creditsHistoryStarGift || e.soldOutInfo) {
 		constexpr auto kMinus = QChar(0x2212);
 		auto &lifetime = content->lifetime();
 		const auto text = lifetime.make_state<Ui::Text::String>();
@@ -2282,6 +2298,9 @@ void StarGiftViewBox(
 		.bareGiftOwnerId = (data.unique
 			? data.unique->ownerId.value
 			: toId.value),
+		.bareGiftReleasedById = (data.stargiftReleasedBy
+			? data.stargiftReleasedBy->id.value
+			: 0),
 		.bareActorId = (toChannel ? data.channelFrom->id.value : 0),
 		.bareEntryOwnerId = (toChannel ? data.channel->id.value : 0),
 		.giftChannelSavedId = data.channelSavedId,

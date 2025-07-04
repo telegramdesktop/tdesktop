@@ -66,6 +66,9 @@ creditsBoxAboutDivider: FlatLabel(boxDividerLabel) {
 creditsBoxButtonLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
+creditsReleasedByLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
 
 starIconEmoji: IconEmoji {
 	icon: icon{{ "payments/premium_emoji", creditsBg1 }};
@@ -175,6 +178,7 @@ giftBoxButtonBottomByStars: 18px;
 giftBoxButtonPadding: margins(8px, 4px, 8px, 4px);
 giftBoxPreviewStickerPadding: margins(10px, 12px, 10px, 16px);
 giftBoxPreviewTitlePadding: margins(12px, 4px, 12px, 4px);
+giftBoxReleasedByMargin: margins(12px, 2px, 12px, 2px);
 giftBoxPreviewTextPadding: margins(12px, 4px, 12px, 4px);
 giftBoxButtonMargin: margins(12px, 8px, 12px, 12px);
 giftBoxStickerTop: 0px;

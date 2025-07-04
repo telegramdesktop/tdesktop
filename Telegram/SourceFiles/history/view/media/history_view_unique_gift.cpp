@@ -81,6 +81,95 @@ private:
 
 };
 
+class TextBubblePart final : public MediaGenericTextPart {
+public:
+	TextBubblePart(
+		TextWithEntities text,
+		QMargins margins,
+		Data::UniqueGiftBackdrop backdrop,
+		ClickHandlerPtr link);
+
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const override;
+
+private:
+	void setupPen(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context) const override;
+	int elisionLines() const override;
+
+	Data::UniqueGiftBackdrop _backdrop;
+	ClickHandlerPtr _link;
+
+};
+
+TextBubblePart::TextBubblePart(
+	TextWithEntities text,
+	QMargins margins,
+	Data::UniqueGiftBackdrop backdrop,
+	ClickHandlerPtr link)
+: MediaGenericTextPart(
+	std::move(text),
+	margins,
+	st::defaultTextStyle,
+	{},
+	{},
+	style::al_top)
+, _backdrop(backdrop)
+, _link(std::move(link)) {
+}
+
+void TextBubblePart::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	p.setPen(Qt::NoPen);
+	p.setOpacity(0.5);
+	p.setBrush(_backdrop.patternColor);
+	const auto radius = height() / 2.;
+	const auto left = (outerWidth - width()) / 2;
+	const auto r = QRect(left, 0, width(), height());
+	p.drawRoundedRect(r, radius, radius);
+	p.setOpacity(1.);
+
+	MediaGenericTextPart::draw(p, owner, context, outerWidth);
+}
+
+TextState TextBubblePart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	auto result = TextState();
+	const auto left = (outerWidth - width()) / 2;
+	if (point.x() >= left
+		&& point.y() >= 0
+		&& point.x() < left + width()
+		&& point.y() < height()) {
+		result.link = _link;
+	}
+	return result;
+}
+
+void TextBubblePart::setupPen(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context) const {
+	p.setPen(_backdrop.textColor);
+}
+
+int TextBubblePart::elisionLines() const {
+	return 1;
+}
+
 ButtonPart::ButtonPart(
 	const QString &text,
 	QMargins margins,
@@ -283,6 +372,21 @@ auto GenerateUniqueGiftMedia(
 			st::defaultTextStyle,
 			gift->backdrop.textColor,
 			st::chatUniqueTextPadding);
+
+		if (const auto by = gift->releasedBy) {
+			const auto handler = std::make_shared<LambdaClickHandler>([=] {
+				Ui::GiftReleasedByHandler(by);
+			});
+			push(std::make_unique<TextBubblePart>(
+				tr::lng_gift_released_by(
+					tr::now,
+					lt_name,
+					Ui::Text::Link('@' + by->username()),
+					Ui::Text::WithEntities),
+				st::giftBoxReleasedByMargin,
+				gift->backdrop,
+				handler));
+		}
 
 		const auto name = [](const Data::UniqueGiftAttribute &value) {
 			return Ui::Text::Bold(value.name);

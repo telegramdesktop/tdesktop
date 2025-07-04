@@ -82,6 +82,8 @@ void ShowUniqueGiftSellBox(
 	Data::SavedStarGiftId savedId,
 	Settings::GiftWearBoxStyleOverride st);
 
+void GiftReleasedByHandler(not_null<PeerData*> peer);
+
 struct PatternPoint {
 	QPointF position;
 	float64 scale = 1.;

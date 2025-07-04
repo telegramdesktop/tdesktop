@@ -144,6 +144,7 @@ struct GiftCode {
 	QString slug;
 	uint64 stargiftId = 0;
 	DocumentData *document = nullptr;
+	PeerData *stargiftReleasedBy = nullptr;
 	std::shared_ptr<UniqueGift> unique;
 	TextWithEntities message;
 	ChannelData *channel = nullptr;

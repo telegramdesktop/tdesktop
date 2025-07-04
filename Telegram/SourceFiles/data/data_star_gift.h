@@ -44,6 +44,7 @@ struct UniqueGift {
 	QString ownerAddress;
 	QString ownerName;
 	PeerId ownerId = 0;
+	PeerData *releasedBy = nullptr;
 	int number = 0;
 	int starsForTransfer = -1;
 	int starsForResale = -1;

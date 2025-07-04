@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
+#include "boxes/star_gift_box.h" // GiftReleasedByHandler
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "data/stickers/data_custom_emoji.h"
@@ -54,7 +55,9 @@ int PremiumGift::top() {
 }
 
 int PremiumGift::width() {
-	return st::msgServiceStarGiftBoxWidth;
+	return _data.stargiftReleasedBy
+		? st::msgServiceStarGiftByWidth
+		: st::msgServiceStarGiftBoxWidth;
 }
 
 QSize PremiumGift::size() {
@@ -118,6 +121,18 @@ TextWithEntities PremiumGift::title() {
 		: _data.unclaimed
 		? tr::lng_prize_unclaimed_title(tr::now, WithEntities)
 		: tr::lng_prize_title(tr::now, WithEntities);
+}
+
+TextWithEntities PremiumGift::author() {
+	using namespace Ui::Text;
+	if (!_data.stargiftReleasedBy) {
+		return {};
+	}
+	return tr::lng_gift_released_by(
+		tr::now,
+		lt_name,
+		Ui::Text::Link('@' + _data.stargiftReleasedBy->username()),
+		Ui::Text::WithEntities);
 }
 
 TextWithEntities PremiumGift::subtitle() {
@@ -317,6 +332,18 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 		showForWeakWindow(
 			context.other.value<ClickHandlerContext>().sessionWindow);
 	});
+}
+
+ClickHandlerPtr PremiumGift::authorLink() {
+	if (const auto by = _data.stargiftReleasedBy) {
+		if (!_authorLink) {
+			_authorLink = std::make_shared<LambdaClickHandler>([=] {
+				Ui::GiftReleasedByHandler(by);
+			});
+		}
+		return _authorLink;
+	}
+	return nullptr;
 }
 
 int PremiumGift::buttonSkip() {

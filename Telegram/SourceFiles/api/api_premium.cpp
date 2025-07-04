@@ -867,6 +867,7 @@ std::optional<Data::StarGift> FromTL(
 				.ownerId = (data.vowner_id()
 					? peerFromMTP(*data.vowner_id())
 					: PeerId()),
+				.releasedBy = releasedBy,
 				.number = data.vnum().v,
 				.starsForResale = int(data.vresell_stars().value_or_empty()),
 				.model = *model,
