@@ -35,7 +35,7 @@ parts:
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,-push-state,-no-as-needed,-lhwy,-pop-state -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -191,6 +191,7 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_SHARED_LIBS=OFF
       - -DBUILD_TESTING=OFF
       - -DJPEGXL_ENABLE_DEVTOOLS=OFF
       - -DJPEGXL_ENABLE_TOOLS=OFF
@@ -206,14 +207,13 @@ parts:
       - -DJPEGXL_FORCE_SYSTEM_BROTLI=ON
       - -DJPEGXL_FORCE_SYSTEM_LCMS2=ON
       - -DJPEGXL_FORCE_SYSTEM_HWY=ON
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-      - -./usr/share
+    override-build: |
+      craftctl default
+      cp lib/libjpegli-static.a "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
+      ar rcs "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o
+    stage:
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so*
+    prime: [-./*]
 
   protobuf:
     source: https://github.com/protocolbuffers/protobuf.git
@@ -226,14 +226,8 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_SHARED_LIBS=ON
       - -Dprotobuf_BUILD_TESTS=OFF
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
+    prime: [-./*]
     after:
       - pkgs
 
@@ -250,12 +244,15 @@ parts:
       - qtwayland
     plugin: cmake
     build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,-push-state,-no-as-needed,-lhwy,-pop-state -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DQT_QPA_PLATFORMS="wayland;xcb"
+      - -DFEATURE_eglfs=OFF
       - -DINPUT_openssl=linked
     override-pull: |
       craftctl default
@@ -265,22 +262,7 @@ parts:
       cd ../qtwayland
       find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
-    prime:
-      - -./usr/bin
-      - -./usr/doc
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.la
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.prl
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-      - -./usr/libexec
-      - -./usr/metatypes
-      - -./usr/mkspecs
-      - -./usr/modules
-      - -./usr/sbom
-      - -./**/objects-*
+    prime: [-./*]
     after:
       - libjxl
       - patches
@@ -296,15 +278,10 @@ parts:
     autotools-configure-parameters:
       - --prefix=/usr
       - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
-      - --disable-static
+      - --disable-shared
       - --disable-examples
       - --disable-doc
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.la
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-      - -./usr/share
+    prime: [-./*]
 
   systemd:
     plugin: nil
