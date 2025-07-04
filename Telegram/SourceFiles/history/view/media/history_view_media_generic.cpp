@@ -282,6 +282,7 @@ void MediaGenericTextPart::draw(
 		.now = context.now,
 		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
+		.elisionLines = elisionLines(),
 	});
 }
 
@@ -293,6 +294,10 @@ void MediaGenericTextPart::setupPen(
 	p.setPen(service
 		? context.st->msgServiceFg()
 		: context.messageStyle()->historyTextFg);
+}
+
+int MediaGenericTextPart::elisionLines() const {
+	return 0;
 }
 
 TextState MediaGenericTextPart::textState(
@@ -314,9 +319,13 @@ TextState MediaGenericTextPart::textState(
 }
 
 QSize MediaGenericTextPart::countOptimalSize() {
+	const auto lines = elisionLines();
+	const auto height = lines
+		? std::min(_text.minHeight(), lines * _text.style()->font->height)
+		: _text.minHeight();
 	return {
 		_margins.left() + _text.maxWidth() + _margins.right(),
-		_margins.top() + _text.minHeight() + _margins.bottom(),
+		_margins.top() + height + _margins.bottom(),
 	};
 }
 

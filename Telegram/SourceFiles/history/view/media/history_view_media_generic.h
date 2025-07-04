@@ -163,6 +163,7 @@ protected:
 		Painter &p,
 		not_null<const MediaGeneric*> owner,
 		const PaintContext &context) const;
+	virtual int elisionLines() const;
 
 private:
 	Ui::Text::String _text;
