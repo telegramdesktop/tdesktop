@@ -39,7 +39,9 @@ MiniStars::MiniStars(
 , _deathTime((type != Type::SlowStars && type != Type::SlowDiamondStars)
 	? Interval{ 1500, 2000 }
 	: Interval{ 1500 * 2, 2000 * 2 })
-, _size({ 5, 10 })
+, _size((type != Type::SlowStars)
+	? Interval{ 5, 10 }
+	: Interval{ 2, 4 })
 , _alpha({ opaque ? 100 : 40, opaque ? 100 : 60 })
 , _sinFactor({ 10, 190 })
 , _spritesCount({ 0, ((type == Type::MonoStars) ? 1 : 2) })
