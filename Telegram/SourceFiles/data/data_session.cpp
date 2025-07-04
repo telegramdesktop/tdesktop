@@ -545,6 +545,14 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 
 		const auto canShareThisContact = result->canShareThisContactFast();
 
+		const auto hasRequirePremiumToWrite
+			= data.is_contact_require_premium();
+		const auto hasStarsPerMessage
+			= data.vsend_paid_messages_stars().has_value();
+		if (!hasStarsPerMessage) {
+			result->setStarsPerMessage(0);
+		}
+
 		using Flag = UserDataFlag;
 		const auto flagsMask = Flag::Deleted
 			| Flag::Verified
@@ -556,19 +564,15 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| Flag::HasRequirePremiumToWrite
 			| Flag::HasStarsPerMessage
 			| Flag::MessageMoneyRestrictionsKnown
+			| (!hasRequirePremiumToWrite
+				? Flag::RequiresPremiumToWrite
+				: Flag())
 			| (!minimal
 				? Flag::Contact
 				| Flag::MutualContact
 				| Flag::DiscardMinPhoto
 				| Flag::StoriesHidden
 				: Flag());
-		const auto hasRequirePremiumToWrite
-			= data.is_contact_require_premium();
-		const auto hasStarsPerMessage
-			= data.vsend_paid_messages_stars().has_value();
-		if (!hasStarsPerMessage) {
-			result->setStarsPerMessage(0);
-		}
 		const auto storiesState = minimal
 			? std::optional<Data::Stories::PeerSourceState>()
 			: data.is_stories_unavailable()

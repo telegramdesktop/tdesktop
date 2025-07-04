@@ -424,7 +424,7 @@ void Premium::requestPremiumRequiredSlice() {
 				constexpr auto hasPrem = Flag::HasRequirePremiumToWrite;
 				constexpr auto hasStars = Flag::HasStarsPerMessage;
 				user->setStarsPerMessage(stars);
-				user->setFlags((user->flags() & ~(me | hasPrem | hasStars))
+				user->setFlags((user->flags() & ~me)
 					| known
 					| (requirePremium ? (me | hasPrem) : Flag())
 					| (stars ? hasStars : Flag()));
