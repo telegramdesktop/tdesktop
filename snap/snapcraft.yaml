@@ -36,21 +36,6 @@ parts:
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - clang
-      - libavif-dev
-      - libboost-regex-dev
-      - libheif-dev
-      - libopenal-dev
-      - libssl-dev
-      - libxcb-keysyms1-dev
-      - libxcb-record0-dev
-      - libxcb-screensaver0-dev
-    stage-packages:
-      - libavif16
-      - libopenal1
-      - libxcb-record0
-      - libxcb-screensaver0
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -94,6 +79,48 @@ parts:
       - rnnoise
       - tde2e
       - webrtc
+
+  pkgs:
+    plugin: nil
+    build-packages:
+      - clang
+      - gperf
+      - libavif-dev
+      - libboost-regex-dev
+      - libheif-dev
+      - libhwy-dev
+      - libopenal-dev
+      - libopenh264-dev
+      - libopus-dev
+      - libpipewire-0.3-dev
+      - libssl-dev
+      - libvpx-dev
+      - libxcb-cursor-dev
+      - libxcb-glx0-dev
+      - libxcb-icccm4-dev
+      - libxcb-image0-dev
+      - libxcb-keysyms1-dev
+      - libxcb-randr0-dev
+      - libxcb-record0-dev
+      - libxcb-render-util0-dev
+      - libxcb-screensaver0-dev
+      - libxcb-shape0-dev
+      - libxcb-sync-dev
+      - libxcb-util-dev
+      - libxcb-xfixes0-dev
+      - libxcb-xkb-dev
+      - libxkbcommon-x11-dev
+    stage-packages:
+      - libavif16
+      - libopenal1
+      - libopenh264-7
+      - libxcb-cursor0
+      - libxcb-glx0
+      - libxcb-randr0
+      - libxcb-record0
+      - libxcb-screensaver0
+      - libxcb-sync1
+      - libxcb-xfixes0
 
   patches:
     source: https://github.com/desktop-app/patches.git
@@ -163,8 +190,6 @@ parts:
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - libhwy-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -212,6 +237,8 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
+    after:
+      - pkgs
 
   qt:
     source: https://github.com/qt/qt5.git
@@ -227,27 +254,6 @@ parts:
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - libssl-dev
-      - libxcb-cursor-dev
-      - libxcb-glx0-dev
-      - libxcb-icccm4-dev
-      - libxcb-image0-dev
-      - libxcb-keysyms1-dev
-      - libxcb-randr0-dev
-      - libxcb-render-util0-dev
-      - libxcb-shape0-dev
-      - libxcb-sync-dev
-      - libxcb-util-dev
-      - libxcb-xfixes0-dev
-      - libxcb-xkb-dev
-      - libxkbcommon-x11-dev
-    stage-packages:
-      - libxcb-cursor0
-      - libxcb-glx0
-      - libxcb-randr0
-      - libxcb-sync1
-      - libxcb-xfixes0
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -281,6 +287,7 @@ parts:
     after:
       - libjxl
       - patches
+      - pkgs
 
   rnnoise:
     source: https://gitlab.xiph.org/xiph/rnnoise.git
@@ -316,9 +323,6 @@ parts:
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - gperf
-      - libssl-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -330,6 +334,8 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
+    after:
+      - pkgs
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
@@ -338,14 +344,6 @@ parts:
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - libopenh264-dev
-      - libopus-dev
-      - libpipewire-0.3-dev
-      - libssl-dev
-      - libvpx-dev
-    stage-packages:
-      - libopenh264-7
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -357,3 +355,4 @@ parts:
     after:
       - ffmpeg
       - libjxl
+      - pkgs
