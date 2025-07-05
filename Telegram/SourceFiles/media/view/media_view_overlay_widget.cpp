@@ -5241,7 +5241,7 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 			seekRelativeTime(-kSeekTimeMs);
 			return;
 		} else if (key == Qt::Key_X) {
-			activateControls();
+			// activateControls();
 			seekRelativeTime(kSeekTimeMs);
 			return;
 		} else if (_fullScreenVideo) {
