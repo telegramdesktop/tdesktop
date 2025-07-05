@@ -74,6 +74,7 @@ parts:
       - ffmpeg
       - geoclue
       - jpegli
+      - openal
       - protobuf
       - qt
       - rnnoise
@@ -92,7 +93,6 @@ parts:
       - libheif-dev
       - libhwy-dev
       - libjxl-dev
-      - libopenal-dev
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
@@ -117,7 +117,6 @@ parts:
       - libxv-dev
     stage-packages:
       - libavif16
-      - libopenal1
       - libopenh264-7
       - libxcb-cursor0
       - libxcb-glx0
@@ -348,6 +347,29 @@ parts:
       - ./usr/include/jpeglib.h
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
     prime: [-./*]
+    after:
+      - pkgs
+
+  openal:
+    source: https://github.com/kcat/openal-soft.git
+    source-depth: 1
+    source-tag: 1.24.3
+    plugin: cmake
+    build-environment:
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DLIBTYPE=STATIC
+      - -DALSOFT_DLOPEN=OFF
+      - -DALSOFT_EXAMPLES=OFF
+      - -DALSOFT_UTILS=OFF
+      - -DALSOFT_INSTALL_CONFIG=OFF
+      - -DALSOFT_BACKEND_PIPEWIRE=OFF
+    prime: [-./*]
+    after:
+      - pkgs
 
   nv-codec-headers:
     source: https://github.com/FFmpeg/nv-codec-headers.git
