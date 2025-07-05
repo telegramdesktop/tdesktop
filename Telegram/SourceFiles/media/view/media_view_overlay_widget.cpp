@@ -5236,6 +5236,14 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 		} else if (key == Qt::Key_Space) {
 			playbackPauseResume();
 			return;
+		} else if (key == Qt::Key_Z) {
+			activateControls();
+			seekRelativeTime(-kSeekTimeMs);
+			return;
+		} else if (key == Qt::Key_X) {
+			// activateControls();
+			seekRelativeTime(kSeekTimeMs);
+			return;
 		} else if (_fullScreenVideo) {
 			if (key == Qt::Key_Escape) {
 				playbackToggleFullScreen();
