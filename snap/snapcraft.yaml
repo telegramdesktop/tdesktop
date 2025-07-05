@@ -504,7 +504,6 @@ parts:
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
-      - yasm
       - libdrm-dev
       - libegl-dev
       - libgbm-dev
