@@ -73,7 +73,7 @@ parts:
       - ada
       - ffmpeg
       - geoclue
-      - libjxl
+      - jpegli
       - protobuf
       - qt
       - rnnoise
@@ -89,6 +89,7 @@ parts:
       - libboost-regex-dev
       - libheif-dev
       - libhwy-dev
+      - libjxl-dev
       - libopenal-dev
       - libopenh264-dev
       - libopus-dev
@@ -180,7 +181,7 @@ parts:
     stage:
       - ./usr/lib/x86_64-linux-gnu/libgeoclue-2.so*
 
-  libjxl:
+  jpegli:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
     source-tag: v0.11.1
@@ -212,7 +213,10 @@ parts:
       cp lib/libjpegli-static.a "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
       ar rcs "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o
     stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so*
+      - ./usr/include/jconfig.h
+      - ./usr/include/jmorecfg.h
+      - ./usr/include/jpeglib.h
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
     prime: [-./*]
 
   protobuf:
@@ -264,7 +268,7 @@ parts:
       cd ..
     prime: [-./*]
     after:
-      - libjxl
+      - jpegli
       - patches
       - pkgs
 
@@ -321,5 +325,5 @@ parts:
     prime: [-./*]
     after:
       - ffmpeg
-      - libjxl
+      - jpegli
       - pkgs
