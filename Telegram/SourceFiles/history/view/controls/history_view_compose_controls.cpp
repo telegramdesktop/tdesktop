@@ -492,10 +492,9 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 			.customEmojiLoopLimit = 1,
 		});
 		const auto replyTo = _replyTo.current();
-		const auto quote = replyTo && !replyTo.quote.empty();
 		_shownMessageName.setMarkedText(
 			st::fwdTextStyle,
-			HistoryView::Reply::ComposePreviewName(_history, item, quote),
+			HistoryView::Reply::ComposePreviewName(_history, item, replyTo),
 			Ui::NameTextOptions(),
 			context);
 	} else {

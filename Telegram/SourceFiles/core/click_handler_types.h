@@ -17,6 +17,7 @@ constexpr auto kSendReactionEmojiProperty = 0x04;
 constexpr auto kReactionsCountEmojiProperty = 0x05;
 constexpr auto kDocumentFilenameTooltipProperty = 0x06;
 constexpr auto kPhoneNumberLinkProperty = 0x07;
+constexpr auto kTodoListItemIdProperty = 0x08;
 
 namespace Ui {
 class Show;

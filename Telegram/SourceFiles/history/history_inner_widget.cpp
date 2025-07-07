@@ -2342,6 +2342,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	const auto linkUserpicPeerId = (link && _dragStateUserpic)
 		? link->property(kPeerLinkPeerIdProperty).toULongLong()
 		: 0;
+	const auto todoListTaskId = link
+		? link->property(kTodoListItemIdProperty).toInt()
+		: 0;
 	const auto session = &this->session();
 	_whoReactedMenuLifetime.destroy();
 	if (!clickedReaction.empty()
@@ -2702,6 +2705,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			const auto selected = selectedQuote(item);
 			auto text = (selected
 				? tr::lng_context_quote_and_reply
+				: todoListTaskId
+				? tr::lng_context_reply_to_task
 				: tr::lng_context_reply_msg)(
 					tr::now,
 					Ui::Text::FixAmpersandInAction);
@@ -2714,6 +2719,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					.messageId = itemId,
 					.quote = quote,
 					.quoteOffset = quoteOffset,
+					.todoItemId = todoListTaskId,
 				});
 				if (!quote.empty()) {
 					_widget->clearSelected();

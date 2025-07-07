@@ -205,8 +205,7 @@ public:
 	void replyToMessage(FullReplyTo id);
 	void replyToMessage(
 		not_null<HistoryItem*> item,
-		TextWithEntities quote = {},
-		int quoteOffset = 0);
+		FullReplyTo fields = {});
 	void editMessage(
 		not_null<HistoryItem*> item,
 		const TextSelection &selection);

@@ -639,9 +639,14 @@ bool AddReplyToMessageAction(
 		return false;
 	}
 
+	const auto todoListTaskId = request.link
+		? request.link->property(kTodoListItemIdProperty).toInt()
+		: 0;
 	const auto &quote = request.quote;
 	auto text = (quote.text.empty()
 		? tr::lng_context_reply_msg
+		: todoListTaskId
+		? tr::lng_context_reply_to_task
 		: tr::lng_context_quote_and_reply)(
 			tr::now,
 			Ui::Text::FixAmpersandInAction);
@@ -650,6 +655,7 @@ bool AddReplyToMessageAction(
 			.messageId = itemId,
 			.quote = quote.text,
 			.quoteOffset = quote.offset,
+			.todoItemId = todoListTaskId,
 		}, base::IsCtrlPressed());
 	}, &st::menuIconReply);
 	return true;

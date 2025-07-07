@@ -4213,6 +4213,7 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 			: replyTo.monoforumPeerId
 			? replyTo.monoforumPeerId
 			: PeerId();
+		config.reply.todoItemId = replyTo.todoItemId;
 		const auto replyToTop = replyTo.topicRootId
 			? replyTo.topicRootId
 			: LookupReplyToTop(_history, to);

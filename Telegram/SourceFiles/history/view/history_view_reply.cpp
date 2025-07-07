@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_story.h"
+#include "data/data_todo_list.h"
 #include "data/data_user.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/history.h"
@@ -37,6 +38,85 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kNonExpandedLinesLimit = 5;
+
+[[nodiscard]] QImage MakeTaskImage() {
+	const auto diameter = st::normalFont->ascent;
+	const auto line = st::historyPollRadio.thickness;
+	const auto size = 2 * line + diameter;
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(size, size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(ratio);
+
+	auto p = QPainter(&result);
+	PainterHighQualityEnabler hq(p);
+
+	p.setOpacity(st::historyPollRadioOpacity);
+
+	const auto rect = QRectF(line, line, diameter, diameter).marginsRemoved(
+		QMarginsF(line / 2., line / 2., line / 2., line / 2.));
+	auto pen = QPen(QColor(255, 255, 255));
+	pen.setWidth(line);
+	p.setPen(pen);
+	p.drawEllipse(rect);
+
+	p.end();
+
+	return result;
+}
+
+[[nodiscard]] QImage MakeTaskDoneImage() {
+	const auto white = QColor(255, 255, 255);
+	const auto black = QColor(0, 0, 0);
+
+	const auto diameter = st::normalFont->ascent;
+	const auto line = st::historyPollRadio.thickness;
+	const auto size = 2 * line + diameter;
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(size, size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(black);
+	result.setDevicePixelRatio(ratio);
+
+	auto p = QPainter(&result);
+	PainterHighQualityEnabler hq(p);
+
+	const auto rect = QRectF(line, line, diameter, diameter).marginsRemoved(
+		QMarginsF(line / 2., line / 2., line / 2., line / 2.));
+	auto pen = QPen(white);
+	pen.setWidth(line);
+	p.setPen(pen);
+	p.setBrush(white);
+	p.drawEllipse(rect);
+	const auto &icon = st::historyPollInChoiceRight;
+	icon.paint(
+		p,
+		line + (diameter - icon.width()) / 2,
+		line + (diameter - icon.height()) / 2,
+		size,
+		black);
+	p.end();
+
+	return style::colorizeImage(result, white);
+}
+
+[[nodiscard]] TextWithEntities TaskDoneIcon(
+		not_null<Main::Session*> session) {
+	return Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			MakeTaskDoneImage(),
+			QMargins(0, st::lineWidth, st::lineWidth, 0)));
+}
+
+[[nodiscard]] TextWithEntities TaskIcon(not_null<Main::Session*> session) {
+	return Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			MakeTaskImage(),
+			QMargins(0, st::lineWidth, st::lineWidth, 0)));
+}
 
 } // namespace
 
@@ -193,6 +273,22 @@ void Reply::update(
 	const auto item = view->data();
 	const auto &fields = data->fields();
 	const auto message = data->resolvedMessage.get();
+	const auto messageMedia = (message && fields.todoItemId)
+		? message->media()
+		: nullptr;
+	const auto messageTodoList = messageMedia
+		? messageMedia->todolist()
+		: nullptr;
+	const auto taskIndex = messageTodoList
+		? int(ranges::find(
+			messageTodoList->items,
+			fields.todoItemId,
+			&TodoListItem::id) - begin(messageTodoList->items))
+		: -1;
+	const auto task = (taskIndex >= 0
+		&& taskIndex < messageTodoList->items.size())
+		? &messageTodoList->items[taskIndex]
+		: nullptr;
 	const auto story = data->resolvedStory.get();
 	const auto externalMedia = fields.externalMedia.get();
 	if (!_externalSender) {
@@ -210,7 +306,6 @@ void Reply::update(
 	_hiddenSenderColorIndexPlusOne = (!_colorPeer && message)
 		? (message->originalHiddenSenderInfo()->colorIndex + 1)
 		: 0;
-
 	const auto hasPreview = (story && story->hasReplyPreview())
 		|| (message
 			&& message->media()
@@ -225,8 +320,13 @@ void Reply::update(
 		&& !fields.quote.empty();
 	_hasQuoteIcon = hasQuoteIcon ? 1 : 0;
 
+	const auto session = &view->history()->session();
 	const auto text = (!_displaying && data->unavailable())
 		? TextWithEntities()
+		: task
+		? Ui::Text::Colorized(task->completionDate
+			? TaskDoneIcon(session)
+			: TaskIcon(session)).append(task->text)
 		: (message && (fields.quote.empty() || !fields.manualQuote))
 		? message->inReplyText()
 		: !fields.quote.empty()
@@ -867,18 +967,28 @@ TextWithEntities Reply::ForwardEmoji(not_null<Data::Session*> owner) {
 TextWithEntities Reply::ComposePreviewName(
 		not_null<History*> history,
 		not_null<HistoryItem*> to,
-		bool quote) {
+		const FullReplyTo &replyTo) {
 	const auto sender = [&] {
 		if (const auto from = to->displayFrom()) {
 			return not_null(from);
 		}
 		return to->author();
 	}();
+	if (const auto media = replyTo.todoItemId ? to->media() : nullptr) {
+		if (const auto todolist = media->todolist()) {
+			return tr::lng_preview_reply_to_task(
+				tr::now,
+				lt_title,
+				todolist->title,
+				Ui::Text::WithEntities);
+		}
+	}
 	const auto toPeer = to->history()->peer;
 	const auto displayAsExternal = (to->history() != history);
 	const auto groupNameAdded = displayAsExternal
 		&& (toPeer != sender)
 		&& (toPeer->isChat() || toPeer->isMegagroup());
+	const auto quote = replyTo && !replyTo.quote.empty();
 	const auto shorten = groupNameAdded || quote;
 
 	auto nameFull = TextWithEntities();

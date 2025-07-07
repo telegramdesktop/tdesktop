@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
+#include "data/data_todo_list.h"
 #include "data/data_web_page.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
@@ -8548,7 +8549,7 @@ void HistoryWidget::clearFieldText(
 void HistoryWidget::replyToMessage(FullReplyTo id) {
 	if (const auto item = session().data().message(id.messageId)) {
 		if (CanSendReply(item) && !base::IsCtrlPressed()) {
-			replyToMessage(item, id.quote, id.quoteOffset);
+			replyToMessage(item, id);
 		} else if (item->allowsForward()) {
 			const auto show = controller()->uiShow();
 			HistoryView::Controls::ShowReplyToChatBox(show, id);
@@ -8561,16 +8562,12 @@ void HistoryWidget::replyToMessage(FullReplyTo id) {
 
 void HistoryWidget::replyToMessage(
 		not_null<HistoryItem*> item,
-		TextWithEntities quote,
-		int quoteOffset) {
+		FullReplyTo fields) {
 	if (isJoinChannel()) {
 		return;
 	}
-	_processingReplyTo = {
-		.messageId = item->fullId(),
-		.quote = quote,
-		.quoteOffset = quoteOffset,
-	};
+	fields.messageId = item->fullId();
+	_processingReplyTo = fields;
 	_processingReplyItem = item;
 	processReply();
 }
@@ -9231,11 +9228,24 @@ void HistoryWidget::updateReplyEditText(not_null<HistoryItem*> item) {
 		.session = &session(),
 		.repaint = [=] { updateField(); },
 	});
+	const auto text = [&] {
+		const auto media = _replyTo.todoItemId ? item->media() : nullptr;
+		if (const auto todolist = media ? media->todolist() : nullptr) {
+			const auto i = ranges::find(
+				todolist->items,
+				_replyTo.todoItemId,
+				&TodoListItem::id);
+			if (i != end(todolist->items)) {
+				return i->text;
+			}
+		}
+		return (_editMsgId || _replyTo.quote.empty())
+			? item->inReplyText()
+			: _replyTo.quote;
+	}();
 	_replyEditMsgText.setMarkedText(
 		st::defaultTextStyle,
-		((_editMsgId || _replyTo.quote.empty())
-			? item->inReplyText()
-			: _replyTo.quote),
+		text,
 		Ui::DialogTextOptions(),
 		context);
 	if (fieldOrDisabledShown() || isRecording()) {
@@ -9321,10 +9331,9 @@ void HistoryWidget::updateReplyToName() {
 		.customEmojiLoopLimit = 1,
 	});
 	const auto to = _replyEditMsg ? _replyEditMsg : _kbReplyTo;
-	const auto replyToQuote = _replyTo && !_replyTo.quote.empty();
 	_replyToName.setMarkedText(
 		st::fwdTextStyle,
-		HistoryView::Reply::ComposePreviewName(_history, to, replyToQuote),
+		HistoryView::Reply::ComposePreviewName(_history, to, _replyTo),
 		Ui::NameTextOptions(),
 		context);
 }

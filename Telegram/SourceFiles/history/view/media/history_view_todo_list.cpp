@@ -334,9 +334,11 @@ void TodoList::updateTasks(bool skipAnimations) {
 ClickHandlerPtr TodoList::createTaskClickHandler(
 		const Task &task) {
 	const auto id = task.id;
-	return std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
+	auto result = std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
 		toggleCompletion(id);
 	}));
+	result->setProperty(kTodoListItemIdProperty, id);
+	return result;
 }
 
 void TodoList::startToggleAnimation(Task &task) {
@@ -375,11 +377,24 @@ void TodoList::toggleCompletion(int id) {
 	if (i == end(_tasks)) {
 		return;
 	}
+
 	const auto selected = (i->completionDate != 0);
 	i->completionDate = selected ? TimeId() : base::unixtime::now();
 	if (!selected) {
 		i->setCompletedBy(_parent->history()->session().user());
 	}
+
+	const auto parentMedia = _parent->data()->media();
+	const auto baseList = parentMedia ? parentMedia->todolist() : nullptr;
+	if (baseList) {
+		const auto j = ranges::find(baseList->items, id, &TodoListItem::id);
+		if (j != end(baseList->items)) {
+			j->completionDate = i->completionDate;
+			j->completedBy = i->completedBy;
+		}
+		history()->owner().updateDependentMessages(_parent->data());
+	}
+
 	startToggleAnimation(*i);
 	repaint();
 
