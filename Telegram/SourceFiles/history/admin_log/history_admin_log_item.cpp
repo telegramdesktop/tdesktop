@@ -111,7 +111,8 @@ std::optional<MTPMessageReplyHeader> PrepareLogReply(
 					MTP_int(topId),
 					MTPstring(), // quote_text
 					MTPVector<MTPMessageEntity>(), // quote_entities
-					MTPint()); // quote_offset
+					MTPint(), // quote_offset
+					MTPint()); // todo_item_id
 			}
 		}
 		return {};

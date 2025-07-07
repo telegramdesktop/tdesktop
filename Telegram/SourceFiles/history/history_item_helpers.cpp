@@ -899,7 +899,8 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 						| Flag::f_quote_offset))
 				| (quoteEntities.v.empty()
 					? Flag()
-					: Flag::f_quote_entities)),
+					: Flag::f_quote_entities)
+				| (replyTo.todoItemId ? Flag::f_todo_item_id : Flag())),
 			MTP_int(replyTo.messageId.msg),
 			peerToMTP(externalPeerId),
 			MTPMessageFwdHeader(), // reply_from
@@ -907,7 +908,8 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			MTP_int(replyToTop),
 			MTP_string(replyTo.quote.text),
 			quoteEntities,
-			MTP_int(replyTo.quoteOffset));
+			MTP_int(replyTo.quoteOffset),
+			MTP_int(replyTo.todoItemId));
 	}
 	return MTPMessageReplyHeader();
 }

@@ -88,7 +88,8 @@ MTPInputReplyTo ReplyToForMTP(
 					: Flag())
 				| (quoteEntities.v.isEmpty()
 					? Flag()
-					: Flag::f_quote_entities)),
+					: Flag::f_quote_entities)
+				| (replyTo.todoItemId ? Flag::f_todo_item_id : Flag())),
 			MTP_int(replyTo.messageId ? replyTo.messageId.msg : 0),
 			MTP_int(replyTo.topicRootId),
 			(external
@@ -99,7 +100,8 @@ MTPInputReplyTo ReplyToForMTP(
 			MTP_int(replyTo.quoteOffset),
 			(replyToMonoforumPeerId
 				? history->owner().peer(replyToMonoforumPeerId)->input
-				: MTPInputPeer()));
+				: MTPInputPeer()),
+			MTP_int(replyTo.todoItemId));
 	} else if (history->peer->amMonoforumAdmin()
 		&& replyTo.monoforumPeerId) {
 		const auto replyToMonoforumPeer = replyTo.monoforumPeerId

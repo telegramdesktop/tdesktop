@@ -179,6 +179,7 @@ struct FullReplyTo {
 	MsgId topicRootId = 0;
 	PeerId monoforumPeerId = 0;
 	int quoteOffset = 0;
+	int todoItemId = 0;
 
 	[[nodiscard]] bool replying() const {
 		return messageId || (storyId && storyId.peer);

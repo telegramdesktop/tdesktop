@@ -277,6 +277,7 @@ struct ReplyFields {
 	MsgId messageId = 0;
 	MsgId topMessageId = 0;
 	StoryId storyId = 0;
+	int todoItemId = 0;
 	uint32 quoteOffset : 30 = 0;
 	uint32 manualQuote : 1 = 0;
 	uint32 topicPost : 1 = 0;

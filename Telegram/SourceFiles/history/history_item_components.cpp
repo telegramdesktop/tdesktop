@@ -386,6 +386,7 @@ ReplyFields ReplyFieldsFromMTP(
 				= data.vreply_to_top_id().value_or(result.messageId.bare);
 			result.topicPost = data.is_forum_topic() ? 1 : 0;
 		}
+		result.todoItemId = data.vtodo_item_id().value_or_empty();
 		if (const auto header = data.vreply_from()) {
 			const auto &data = header->data();
 			result.externalPostAuthor
