@@ -696,7 +696,7 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		makeRequest(MTPpayments_GetStarsRevenueStats(
+		api().request(MTPpayments_GetStarsRevenueStats(
 			MTP_flags(MTPpayments_getStarsRevenueStats::Flag::f_ton),
 			(_isUser ? user()->input : channel()->input)
 		)).done([=](const MTPpayments_StarsRevenueStats &result) {
