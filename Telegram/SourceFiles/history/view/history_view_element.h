@@ -357,12 +357,11 @@ struct TopicButton {
 
 struct SelectedQuote {
 	HistoryItem *item = nullptr;
-	TextWithEntities text;
-	int offset = 0;
+	MessageHighlightId highlight;
 	bool overflown = false;
 
 	explicit operator bool() const {
-		return item && !text.empty();
+		return item && !highlight.quote.empty();
 	}
 	friend inline bool operator==(SelectedQuote, SelectedQuote) = default;
 };

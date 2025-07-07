@@ -119,12 +119,10 @@ rpl::producer<Ui::MessageBarContent> RootViewContent(
 ChatMemento::ChatMemento(
 	ChatViewId id,
 	MsgId highlightId,
-	const TextWithEntities &highlightPart,
-	int highlightPartOffsetHint)
+	MessageHighlightId highlight)
 : _id(id)
-, _highlightPart(highlightPart)
-, _highlightPartOffsetHint(highlightPartOffsetHint)
-, _highlightId(highlightId) {
+, _highlightId(highlightId)
+, _highlight(std::move(highlight)) {
 	if (highlightId || _id.sublist) {
 		_list.setAroundPosition({
 			.fullId = FullMsgId(_id.history->peer->id, highlightId),
@@ -876,12 +874,7 @@ void ChatWidget::setupComposeControls() {
 	_composeControls->jumpToItemRequests(
 	) | rpl::start_with_next([=](FullReplyTo to) {
 		if (const auto item = session().data().message(to.messageId)) {
-			JumpToMessageClickHandler(
-				item,
-				{},
-				to.quote,
-				to.quoteOffset
-			)->onClick({});
+			JumpToMessageClickHandler(item, {}, to.highlight())->onClick({});
 		}
 	}, lifetime());
 
@@ -1039,8 +1032,9 @@ void ChatWidget::setupSwipeReplyAndBack() {
 				: still)->fullId();
 			_inner->replyToMessageRequestNotify({
 				.messageId = replyToItemId,
-				.quote = selected.text,
-				.quoteOffset = selected.offset,
+				.quote = selected.highlight.quote,
+				.quoteOffset = selected.highlight.quoteOffset,
+				.todoItemId = selected.highlight.todoItemId,
 			});
 		};
 		return result;
@@ -2639,8 +2633,7 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 		auto params = Window::SectionShow(
 			Window::SectionShow::Way::Forward,
 			anim::type::instant);
-		params.highlightPart = memento->highlightPart();
-		params.highlightPartOffsetHint = memento->highlightPartOffsetHint();
+		params.highlight = memento->highlight();
 		showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_peer->id, highlight),
 			.date = TimeId(0),
@@ -3443,8 +3436,7 @@ bool ChatWidget::searchInChatEmbedded(
 		const auto item = activation.item;
 		auto params = ::Window::SectionShow(
 			::Window::SectionShow::Way::ClearStack);
-		params.highlightPart = { activation.query };
-		params.highlightPartOffsetHint = kSearchQueryOffsetHint;
+		params.highlight = Window::SearchHighlightId(activation.query);
 		controller()->showPeerHistory(
 			item->history()->peer->id,
 			params,

@@ -783,7 +783,7 @@ void DraftOptionsBox(
 			box->setTitle(hasLink
 				? tr::lng_link_options_header()
 				: hasReply
-				? (state->quote.current().text.empty()
+				? (state->quote.current().highlight.quote.empty()
 					? tr::lng_reply_options_header()
 					: tr::lng_reply_options_quote())
 				: (forwardCount == 1)
@@ -807,10 +807,12 @@ void DraftOptionsBox(
 		auto result = draft.reply;
 		if (const auto current = state->quote.current()) {
 			result.messageId = current.item->fullId();
-			result.quote = current.text;
-			result.quoteOffset = current.offset;
+			result.quote = current.highlight.quote;
+			result.quoteOffset = current.highlight.quoteOffset;
+//			result.todoItemId = current.highlight.todoItemId;
 		} else {
 			result.quote = {};
+//			result.todoItemId = 0;
 		}
 		return result;
 	};
@@ -1112,7 +1114,7 @@ void DraftOptionsBox(
 		state->quote.value(),
 		state->shown.value()
 	) | rpl::map([=](const SelectedQuote &quote, Section shown) {
-		return (quote.text.empty() || shown != Section::Reply)
+		return (quote.highlight.quote.empty() || shown != Section::Reply)
 			? tr::lng_settings_save()
 			: tr::lng_reply_quote_selected();
 	}) | rpl::flatten_latest();

@@ -314,8 +314,7 @@ public:
 	bool isBelowPosition(Data::MessagePosition position) const;
 	void highlightMessage(
 		FullMsgId itemId,
-		const TextWithEntities &part,
-		int partOffsetHint);
+		const MessageHighlightId &highlight);
 
 	void showAtPosition(
 		Data::MessagePosition position,

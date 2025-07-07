@@ -622,10 +622,10 @@ void HistoryInner::setupSwipeReplyAndBack() {
 					: still)->fullId();
 				_widget->replyToMessage({
 					.messageId = replyToItemId,
-					.quote = selected.text,
-					.quoteOffset = selected.offset,
+					.quote = selected.highlight.quote,
+					.quoteOffset = selected.highlight.quoteOffset,
 				});
-				if (!selected.text.empty()) {
+				if (!selected.highlight.quote.empty()) {
 					_widget->clearSelected();
 				}
 			};
@@ -2712,16 +2712,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					Ui::Text::FixAmpersandInAction);
 			const auto replyToItem = selected.item ? selected.item : item;
 			const auto itemId = replyToItem->fullId();
-			const auto quote = selected.text;
-			const auto quoteOffset = selected.offset;
 			_menu->addAction(std::move(text), [=] {
 				_widget->replyToMessage({
 					.messageId = itemId,
-					.quote = quote,
-					.quoteOffset = quoteOffset,
+					.quote = selected.highlight.quote,
+					.quoteOffset = selected.highlight.quoteOffset,
 					.todoItemId = todoListTaskId,
 				});
-				if (!quote.empty()) {
+				if (!selected.highlight.quote.empty()) {
 					_widget->clearSelected();
 				}
 			}, &st::menuIconReply);

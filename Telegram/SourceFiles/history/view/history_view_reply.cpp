@@ -384,10 +384,11 @@ void Reply::setLinkFrom(
 	const auto &fields = data->fields();
 	const auto externalChannelId = peerToChannel(fields.externalPeerId);
 	const auto messageId = fields.messageId;
-	const auto quote = fields.manualQuote
-		? fields.quote
-		: TextWithEntities();
-	const auto quoteOffset = fields.quoteOffset;
+	const auto highlight = MessageHighlightId{
+		.quote = fields.manualQuote ? fields.quote : TextWithEntities(),
+		.quoteOffset = int(fields.quoteOffset),
+		.todoItemId = fields.todoItemId,
+	};
 	const auto returnToId = view->data()->fullId();
 	const auto externalLink = [=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -410,8 +411,7 @@ void Reply::setLinkFrom(
 							channel,
 							messageId,
 							returnToId,
-							quote,
-							quoteOffset
+							highlight
 						)->onClick(context);
 					} else {
 						controller->showPeerInfo(channel);
@@ -432,7 +432,7 @@ void Reply::setLinkFrom(
 	const auto message = data->resolvedMessage.get();
 	const auto story = data->resolvedStory.get();
 	_link = message
-		? JumpToMessageClickHandler(message, returnToId, quote, quoteOffset)
+		? JumpToMessageClickHandler(message, returnToId, highlight)
 		: story
 		? JumpToStoryClickHandler(story)
 		: (data->external()

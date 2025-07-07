@@ -117,6 +117,11 @@ private:
 		int top,
 		int paintw,
 		const PaintContext &context) const;
+	void appendTaskHighlight(
+		int id,
+		int top,
+		int height,
+		const PaintContext &context) const;
 
 	void radialAnimationCallback() const;
 

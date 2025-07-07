@@ -358,6 +358,14 @@ void DateClickHandler::onClick(ClickContext context) const {
 	}
 }
 
+MessageHighlightId SearchHighlightId(const QString &query) {
+	auto result = MessageHighlightId{ .quote = { query } };
+	if (!result.quote.empty()) {
+		result.quoteOffset = kSearchQueryOffsetHint;
+	}
+	return result;
+}
+
 SessionNavigation::SessionNavigation(not_null<Main::Session*> session)
 : _session(session)
 , _api(&_session->mtp()) {
@@ -1146,8 +1154,7 @@ void SessionNavigation::showRepliesForMessage(
 					.repliesRootId = rootId,
 				},
 				commentId,
-				params.highlightPart,
-				params.highlightPartOffsetHint);
+				params.highlight);
 			memento->setFromTopic(topic);
 			showSection(std::move(memento), params);
 			return;
@@ -1269,8 +1276,7 @@ void SessionNavigation::showSublist(
 			.sublist = sublist,
 		},
 		itemId,
-		params.highlightPart,
-		params.highlightPartOffsetHint);
+		params.highlight);
 	showSection(std::move(memento), params);
 }
 

@@ -482,6 +482,7 @@ void TodoList::draw(Painter &p, const PaintContext &context) const {
 			paintw,
 			width(),
 			context);
+		appendTaskHighlight(task.id, tshift, height, context);
 		if (was) {
 			heavy = true;
 		} else if (!task.userpic.null()) {
@@ -574,6 +575,33 @@ int TodoList::paintTask(
 		task.name.drawLeft(p, aleft, nameTop, awidth, outerWidth);
 	}
 	return height;
+}
+
+void TodoList::appendTaskHighlight(
+		int id,
+		int top,
+		int height,
+		const PaintContext &context) const {
+	if (context.highlight.todoItemId != id
+		|| context.highlight.collapsion <= 0.) {
+		return;
+	}
+	const auto to = context.highlightInterpolateTo;
+	const auto toProgress = (1. - context.highlight.collapsion);
+	if (toProgress >= 1.) {
+		context.highlightPathCache->addRect(to);
+	} else if (toProgress <= 0.) {
+		context.highlightPathCache->addRect(0, top, width(), height);
+	} else {
+		const auto lerp = [=](int from, int to) {
+			return from + (to - from) * toProgress;
+		};
+		context.highlightPathCache->addRect(
+			lerp(0, to.x()),
+			lerp(top, to.y()),
+			lerp(width(), to.width()),
+			lerp(height, to.height()));
+	}
 }
 
 void TodoList::paintRadio(

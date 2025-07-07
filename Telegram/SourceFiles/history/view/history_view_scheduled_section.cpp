@@ -430,12 +430,8 @@ void ScheduledWidget::setupComposeControls() {
 			if (item->isScheduled() && item->history() == _history) {
 				showAtPosition(item->position());
 			} else {
-				JumpToMessageClickHandler(
-					item,
-					{},
-					to.quote,
-					to.quoteOffset
-				)->onClick({});
+				const auto highlight = to.highlight();
+				JumpToMessageClickHandler(item, {}, highlight)->onClick({});
 			}
 		}
 	}, lifetime());

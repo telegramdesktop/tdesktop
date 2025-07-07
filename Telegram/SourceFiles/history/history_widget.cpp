@@ -5640,8 +5640,7 @@ void HistoryWidget::switchToSearch(QString query) {
 			const auto item = activation.item;
 			auto params = ::Window::SectionShow(
 				::Window::SectionShow::Way::ClearStack);
-			params.highlightPart = { activation.query };
-			params.highlightPartOffsetHint = kSearchQueryOffsetHint;
+			params.highlight = Window::SearchHighlightId(activation.query);
 			controller()->showPeerHistory(
 				item->history()->peer->id,
 				params,
@@ -6743,8 +6742,7 @@ int HistoryWidget::countInitialScrollTop() {
 
 			enqueueMessageHighlight({
 				item,
-				base::take(_showAtMsgParams.highlightPart),
-				base::take(_showAtMsgParams.highlightPartOffsetHint),
+				base::take(_showAtMsgParams.highlight),
 			});
 			const auto result = itemTopForHighlight(view);
 			createUnreadBarIfBelowVisibleArea(result);
@@ -7501,12 +7499,7 @@ void HistoryWidget::editDraftOptions() {
 
 void HistoryWidget::jumpToReply(FullReplyTo to) {
 	if (const auto item = session().data().message(to.messageId)) {
-		JumpToMessageClickHandler(
-			item,
-			{},
-			to.quote,
-			to.quoteOffset
-		)->onClick({});
+		JumpToMessageClickHandler(item, {}, to.highlight())->onClick({});
 	}
 }
 

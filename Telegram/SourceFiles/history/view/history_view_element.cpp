@@ -1341,9 +1341,18 @@ void Element::validateText() {
 
 		if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
 			if (!done->completed.empty() && !done->incompleted.empty()) {
+				const auto todoItemId = (done->incompleted.size() == 1)
+					? done->incompleted.front()
+					: 0;
 				setServicePreMessage(
 					item->composeTodoIncompleted(done),
-					done->lnk);
+					JumpToMessageClickHandler(
+						(done->peerId
+							? history()->owner().peer(done->peerId)
+							: history()->peer),
+						done->msgId,
+						item->fullId(),
+						{ .todoItemId = todoItemId }));
 			} else {
 				setServicePreMessage({});
 			}
@@ -2190,17 +2199,18 @@ TextSelection Element::FindSelectionFromQuote(
 		const SelectedQuote &quote) {
 	Expects(quote.item != nullptr);
 
-	if (quote.text.empty()) {
+	const auto &rich = quote.highlight.quote;
+	if (rich.empty()) {
 		return {};
 	}
 	const auto &original = quote.item->originalText();
-	if (quote.offset == kSearchQueryOffsetHint) {
+	if (quote.highlight.quoteOffset == kSearchQueryOffsetHint) {
 		return ApplyModificationsFrom(
-			FindSearchQueryHighlight(original.text, quote.text.text),
+			FindSearchQueryHighlight(original.text, rich.text),
 			text);
 	}
 	const auto length = int(original.text.size());
-	const auto qlength = int(quote.text.text.size());
+	const auto qlength = int(rich.text.size());
 	const auto checkAt = [&](int offset) {
 		return TextSelection{
 			uint16(offset),
@@ -2211,7 +2221,7 @@ TextSelection Element::FindSelectionFromQuote(
 		if (offset > length - qlength) {
 			return TextSelection();
 		}
-		const auto i = original.text.indexOf(quote.text.text, offset);
+		const auto i = original.text.indexOf(rich.text, offset);
 		return (i >= 0) ? checkAt(i) : TextSelection();
 	};
 	const auto findOneBefore = [&](int offset) {
@@ -2220,7 +2230,7 @@ TextSelection Element::FindSelectionFromQuote(
 		}
 		const auto end = std::min(offset + qlength - 1, length);
 		const auto from = end - length - 1;
-		const auto i = original.text.lastIndexOf(quote.text.text, from);
+		const auto i = original.text.lastIndexOf(rich.text, from);
 		return (i >= 0) ? checkAt(i) : TextSelection();
 	};
 	const auto findAfter = [&](int offset) {
@@ -2258,7 +2268,7 @@ TextSelection Element::FindSelectionFromQuote(
 			? before
 			: after;
 	};
-	auto result = findTwoWays(quote.offset);
+	auto result = findTwoWays(quote.highlight.quoteOffset);
 	if (result.empty()) {
 		return {};
 	}

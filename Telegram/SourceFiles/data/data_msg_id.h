@@ -172,6 +172,16 @@ inline QDebug operator<<(QDebug debug, const FullMsgId &fullMsgId) {
 
 Q_DECLARE_METATYPE(FullMsgId);
 
+struct MessageHighlightId {
+	TextWithEntities quote;
+	int quoteOffset = 0;
+	int todoItemId = 0;
+
+	[[nodiscard]] bool empty() const {
+		return quote.empty() && !todoItemId;
+	}
+};
+
 struct FullReplyTo {
 	FullMsgId messageId;
 	TextWithEntities quote;
@@ -181,6 +191,9 @@ struct FullReplyTo {
 	int quoteOffset = 0;
 	int todoItemId = 0;
 
+	[[nodiscard]] MessageHighlightId highlight() const {
+		return { quote, quoteOffset, todoItemId };
+	}
 	[[nodiscard]] bool replying() const {
 		return messageId || (storyId && storyId.peer);
 	}

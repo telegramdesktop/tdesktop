@@ -3303,7 +3303,7 @@ TextSelection Message::selectionFromQuote(
 		const SelectedQuote &quote) const {
 	Expects(quote.item != nullptr);
 
-	if (quote.text.empty()) {
+	if (quote.highlight.quote.empty()) {
 		return {};
 	}
 	const auto item = quote.item;

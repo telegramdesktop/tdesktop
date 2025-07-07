@@ -818,10 +818,9 @@ bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
 
 void ListWidget::highlightMessage(
 		FullMsgId itemId,
-		const TextWithEntities &part,
-		int partOffsetHint) {
+		const MessageHighlightId &highlight) {
 	if (const auto view = viewForItem(itemId)) {
-		_highlighter.highlight({ view->data(), part, partOffsetHint });
+		_highlighter.highlight({ view->data(), highlight });
 	}
 }
 
@@ -899,11 +898,8 @@ bool ListWidget::showAtPositionNow(
 	}
 	if (position != Data::MaxMessagePosition
 		&& position != Data::UnreadMessagePosition) {
-		const auto hasHighlight = !params.highlightPart.empty();
-		highlightMessage(
-			position.fullId,
-			params.highlightPart,
-			params.highlightPartOffsetHint);
+		const auto hasHighlight = !params.highlight.empty();
+		highlightMessage(position.fullId, params.highlight);
 		if (hasHighlight) {
 			// We may want to scroll to a different part of the message.
 			scrollTop = scrollTopForPosition(position);
