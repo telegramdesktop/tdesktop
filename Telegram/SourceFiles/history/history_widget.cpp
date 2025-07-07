@@ -1498,12 +1498,21 @@ int HistoryWidget::itemTopForHighlight(
 	const auto heightLeft = (visibleAreaHeight - viewHeight);
 	if (heightLeft >= 0) {
 		return std::max(itemTop - (heightLeft / 2), 0);
-	} else if (const auto sel = itemHighlight(item).range
-		; !sel.empty() && !IsSubGroupSelection(sel)) {
+	} else if (const auto highlight = itemHighlight(item)
+		; (!highlight.range.empty() || highlight.todoItemId)
+			&& !IsSubGroupSelection(highlight.range)) {
+		const auto sel = highlight.range;
 		const auto single = st::messageTextStyle.font->height;
-		const auto begin = HistoryView::FindViewY(view, sel.from) - single;
-		const auto end = HistoryView::FindViewY(view, sel.to, begin + single)
-			+ 2 * single;
+		const auto todoy = sel.empty()
+			? HistoryView::FindViewTaskY(view, highlight.todoItemId)
+			: 0;
+		const auto begin = sel.empty()
+			? (todoy - 4 * single)
+			: HistoryView::FindViewY(view, sel.from) - single;
+		const auto end = sel.empty()
+			? (todoy + 4 * single)
+			: (HistoryView::FindViewY(view, sel.to, begin + single)
+				+ 2 * single);
 		auto result = itemTop;
 		if (end > visibleAreaHeight) {
 			result = std::max(result, itemTop + end - visibleAreaHeight);

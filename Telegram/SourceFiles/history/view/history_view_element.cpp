@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "data/data_todo_list.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_message_reactions.h"
@@ -2450,6 +2451,70 @@ int FindViewY(not_null<Element*> view, uint16 symbol, int yfrom) {
 		} else {
 			ytill = middle;
 			symboltill = found;
+		}
+	}
+	return origin.y() + (yfrom + ytill) / 2;
+}
+
+int FindViewTaskY(not_null<Element*> view, int taskId, int yfrom) {
+	auto request = HistoryView::StateRequest();
+	request.flags = Ui::Text::StateRequest::Flag::LookupLink;
+	const auto single = st::messageTextStyle.font->height;
+	const auto inner = view->innerGeometry();
+	const auto origin = inner.topLeft();
+	const auto top = 0;
+	const auto bottom = view->height();
+	if (origin.y() < top
+		|| origin.y() + inner.height() > bottom
+		|| inner.height() <= 0) {
+		return yfrom;
+	}
+	const auto media = view->data()->media();
+	const auto todolist = media ? media->todolist() : nullptr;
+	if (!todolist) {
+		return yfrom;
+	}
+	const auto &items = todolist->items;
+	const auto indexOf = [&](int id) -> int {
+		return ranges::find(items, id, &TodoListItem::id) - begin(items);
+	};
+	const auto index = indexOf(taskId);
+	const auto count = int(items.size());
+	if (index == count) {
+		return yfrom;
+	}
+	yfrom = std::max(yfrom - origin.y(), 0);
+	auto ytill = inner.height() - 1;
+	const auto middle = (yfrom + ytill) / 2;
+	const auto fory = [&](int y) {
+		const auto state = view->textState(origin + QPoint(0, y), request);
+		const auto &link = state.link;
+		const auto id = link
+			? link->property(kTodoListItemIdProperty).toInt()
+			: -1;
+		const auto index = (id >= 0) ? indexOf(id) : int(items.size());
+		return (index < count) ? index : (y < middle) ? -1 : count;
+	};
+	auto indexfrom = fory(yfrom);
+	auto indextill = fory(ytill);
+	if ((yfrom >= ytill) || (indexfrom >= index)) {
+		return origin.y() + yfrom;
+	} else if (indextill <= index) {
+		return origin.y() + ytill;
+	}
+	while (ytill - yfrom >= 2 * single) {
+		const auto middle = (yfrom + ytill) / 2;
+		const auto found = fory(middle);
+		if (found == index
+			|| indexfrom > found
+			|| indextill < found) {
+			return origin.y() + middle;
+		} else if (found < index) {
+			yfrom = middle;
+			indexfrom = found;
+		} else {
+			ytill = middle;
+			indextill = found;
 		}
 	}
 	return origin.y() + (yfrom + ytill) / 2;

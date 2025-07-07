@@ -747,6 +747,11 @@ private:
 	uint16 symbol,
 	int yfrom = 0);
 
+[[nodiscard]] int FindViewTaskY(
+	not_null<Element*> view,
+	int taskId,
+	int yfrom = 0);
+
 [[nodiscard]] Window::SessionController *ExtractController(
 	const ClickContext &context);
 
