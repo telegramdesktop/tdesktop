@@ -217,7 +217,28 @@ void SavedSublist::applyItemRemoved(MsgId id) {
 	if (const auto chatListItem = _chatListMessage.value_or(nullptr)) {
 		if (chatListItem->id == id) {
 			_chatListMessage = std::nullopt;
-			requestChatListMessage();
+			crl::on_main(this, [=] {
+				// We didn't yet update _list here.
+				if (_chatListMessage.has_value()) {
+					return;
+				} else if (_skippedAfter == 0) {
+					if (!_list.empty()) {
+						applyMaybeLast(owner().message(
+							owningHistory()->peer,
+							_list.front()));
+						return;
+					} else if (_skippedBefore == 0) {
+						setLastServerMessage(nullptr);
+						updateChatListExistence();
+						return;
+					}
+				}
+				if (_parent->parentChat()) {
+					requestChatListMessage();
+				} else {
+					loadAround(0);
+				}
+			});
 		}
 	}
 }
@@ -1110,6 +1131,10 @@ void SavedSublist::loadAround(MsgId id) {
 			_list.clear();
 			if (processMessagesIsEmpty(result)) {
 				_fullCount = _skippedBefore = _skippedAfter = 0;
+				if (!_parent->parentChat() && !_chatListMessage) {
+					setLastServerMessage(nullptr);
+					updateChatListExistence();
+				}
 			} else if (id) {
 				Assert(!_list.empty());
 				if (_list.front() <= id) {
@@ -1117,6 +1142,11 @@ void SavedSublist::loadAround(MsgId id) {
 				} else if (_list.back() >= id) {
 					_skippedBefore = 0;
 				}
+			} else if (!_parent->parentChat() && !_chatListMessage) {
+				Assert(!_list.empty());
+				applyMaybeLast(owner().message(
+					owningHistory()->peer,
+					_list.front()));
 			}
 			checkReadTillEnd();
 		}).fail([=](const MTP::Error &error) {

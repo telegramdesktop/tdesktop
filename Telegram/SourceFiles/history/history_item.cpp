@@ -1784,7 +1784,10 @@ bool HistoryItem::isSponsored() const {
 }
 
 bool HistoryItem::canLookupMessageAuthor() const {
-	return isRegular() && _history->amMonoforumAdmin() && _from->isChannel();
+	return isRegular()
+		&& !isService()
+		&& _history->amMonoforumAdmin()
+		&& _from->isChannel();
 }
 
 bool HistoryItem::skipNotification() const {
