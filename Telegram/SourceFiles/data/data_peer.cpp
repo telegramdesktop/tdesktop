@@ -685,7 +685,7 @@ bool PeerData::canCreatePolls() const {
 }
 
 bool PeerData::canCreateTodoLists() const {
-	if (isMonoforum()) {
+	if (isMonoforum() || isBroadcast()) {
 		return false;
 	}
 	return session().premium()
