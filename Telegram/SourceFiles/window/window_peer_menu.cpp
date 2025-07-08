@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/options.h"
 #include "base/unixtime.h"
+#include "base/unique_qptr.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/max_invite_box.h"
@@ -83,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_widget.h"
 #include "data/components/scheduled_messages.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -98,10 +100,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "dialogs/dialogs_key.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "export/export_manager.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/premium_preview_box.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
@@ -277,6 +281,7 @@ private:
 	void fillArchiveActions();
 	void fillSavedSublistActions();
 	void fillContextMenuActions();
+	void fillMonoforumPeerActions();
 
 	void addHidePromotion();
 	void addTogglePin();
@@ -321,6 +326,7 @@ private:
 	void addVideoChat();
 	void addViewStatistics();
 	void addBoostChat();
+	void addToggleFee();
 
 	[[nodiscard]] bool skipCreateActions() const;
 
@@ -1360,6 +1366,7 @@ void Filler::fill() {
 	case Section::Scheduled: fillScheduledActions(); break;
 	case Section::ContextMenu:
 	case Section::SubsectionTabsMenu: fillContextMenuActions(); break;
+	case Section::SavedSublist: fillMonoforumPeerActions(); break;
 	default: Unexpected("_request.section in Filler::fill.");
 	}
 }
@@ -1645,6 +1652,68 @@ void Filler::fillArchiveActions() {
 void Filler::fillSavedSublistActions() {
 	addNewWindow();
 	addTogglePin();
+}
+
+void Filler::fillMonoforumPeerActions() {
+	Expects(_sublist != nullptr);
+
+	addToggleFee();
+}
+
+void Filler::addToggleFee() {
+	const auto feeRemoved = _sublist->isFeeRemoved();
+	const auto text = feeRemoved
+		? tr::lng_context_charge_fee(tr::now)
+		: tr::lng_context_remove_fee(tr::now);
+	const auto navigation = _controller;
+	const auto parent = _sublist->parentChat();
+	const auto user = _sublist->sublistPeer()->asUser();
+	if (!parent || !user) {
+		return;
+	}
+	const auto paidAmount = std::make_shared<rpl::variable<int>>();
+	_addAction(text, [=] {
+		const auto removeFee = !feeRemoved;
+		PeerMenuConfirmToggleFee(
+			navigation,
+			paidAmount,
+			parent,
+			user,
+			removeFee);
+	}, feeRemoved ? &st::menuIconEarn : &st::menuIconCancelFee);
+	_addAction({ .isSeparator = true });
+	_addAction({ .make = [=](not_null<Ui::RpWidget*> actionParent) {
+		const auto text = feeRemoved
+			? tr::lng_context_fee_free(
+				tr::now,
+				lt_name,
+				TextWithEntities{ user->shortName() },
+				Ui::Text::WithEntities)
+			: tr::lng_context_fee_now(
+				tr::now,
+				lt_name,
+				TextWithEntities{ user->shortName() },
+				lt_amount,
+				user->owner().customEmojiManager().ministarEmoji(
+					{ 0, st::giftBoxByStarsStarTop, 0, 0 }
+				).append(Lang::FormatCountDecimal(
+					user->owner().commonStarsPerMessage(parent)
+				)),
+				Ui::Text::WithEntities);
+		const auto action = new QAction(actionParent);
+		action->setDisabled(true);
+		auto result = base::make_unique_q<Ui::Menu::Action>(
+			actionParent,
+			st::windowFeeItem,
+			action,
+			nullptr,
+			nullptr);
+		result->setMarkedText(
+			text,
+			QString(),
+			Core::TextContext({ .session = &user->session() }));
+		return result;
+	} });
 }
 
 } // namespace
@@ -3724,6 +3793,83 @@ bool CanArchive(History *history, PeerData *peer) {
 		}
 	}
 	return true;
+}
+
+void PeerMenuConfirmToggleFee(
+		not_null<Window::SessionNavigation*> navigation,
+		std::shared_ptr<rpl::variable<int>> paidAmount,
+		not_null<PeerData*> peer,
+		not_null<UserData*> user,
+		bool removeFee) {
+	const auto parent = peer->isChannel() ? peer->asChannel() : nullptr;
+	const auto exception = [=](bool refund) {
+		using Flag = MTPaccount_ToggleNoPaidMessagesException::Flag;
+		const auto api = &user->session().api();
+		api->request(MTPaccount_ToggleNoPaidMessagesException(
+			MTP_flags((refund ? Flag::f_refund_charged : Flag())
+				| (removeFee ? Flag() : Flag::f_require_payment)
+				| (parent ? Flag::f_parent_peer : Flag())),
+			parent->input,
+			user->inputUser
+		)).done([=] {
+			if (!parent) {
+				user->clearPaysPerMessage();
+			} else if (const auto monoforum = peer->monoforum()) {
+				if (const auto sublist = monoforum->sublistLoaded(user)) {
+					sublist->toggleFeeRemoved(removeFee);
+				}
+			}
+		}).send();
+	};
+	if (!removeFee) {
+		exception(false);
+		return;
+	}
+	navigation->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto refund = std::make_shared<QPointer<Ui::Checkbox>>();
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_payment_refund_text(
+				tr::now,
+				lt_name,
+				Ui::Text::Bold(user->shortName()),
+				Ui::Text::WithEntities),
+			.confirmed = [=](Fn<void()> close) {
+				exception(*refund && (*refund)->checked());
+				close();
+			},
+			.confirmText = tr::lng_payment_refund_confirm(tr::now),
+			.title = tr::lng_payment_refund_title(tr::now),
+		});
+		const auto paid = box->lifetime().make_state<
+			rpl::variable<int>
+		>();
+		*paid = paidAmount->value();
+		paid->value() | rpl::start_with_next([=](int already) {
+			if (!already) {
+				delete base::take(*refund);
+			} else if (!*refund) {
+				const auto skip = st::defaultCheckbox.margin.top();
+				*refund = box->addRow(
+					object_ptr<Ui::Checkbox>(
+						box,
+						tr::lng_payment_refund_also(
+							lt_count,
+							paid->value() | tr::to_count()),
+						false,
+						st::defaultCheckbox),
+					st::boxRowPadding + QMargins(0, skip, 0, skip));
+			}
+		}, box->lifetime());
+
+		using Flag = MTPaccount_GetPaidMessagesRevenue::Flag;
+		user->session().api().request(MTPaccount_GetPaidMessagesRevenue(
+			MTP_flags(parent ? Flag::f_parent_peer : Flag()),
+			parent ? parent->input : MTPInputPeer(),
+			user->inputUser
+		)).done([=](const MTPaccount_PaidMessagesRevenue &result) {
+			*paidAmount = result.data().vstars_amount().v;
+		}).send();
+	}));
 }
 
 } // namespace Window

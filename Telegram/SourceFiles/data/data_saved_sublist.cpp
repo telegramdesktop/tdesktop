@@ -731,6 +731,24 @@ void SavedSublist::applyMonoforumDialog(
 	unreadReactions().setCount(data.vunread_reactions_count().v);
 	setUnreadMark(data.is_unread_mark());
 	applyMaybeLast(topItem);
+
+	if (data.is_nopaid_messages_exception()) {
+		_flags |= Flag::FeeRemoved;
+	} else {
+		_flags &= ~Flag::FeeRemoved;
+	}
+}
+
+bool SavedSublist::isFeeRemoved() const {
+	return (_flags & Flag::FeeRemoved);
+}
+
+void SavedSublist::toggleFeeRemoved(bool feeRemoved) {
+	if (feeRemoved) {
+		_flags |= Flag::FeeRemoved;
+	} else {
+		_flags &= ~Flag::FeeRemoved;
+	}
 }
 
 TimeId SavedSublist::adjustedChatListTimeId() const {

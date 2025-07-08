@@ -253,4 +253,11 @@ void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction);
 [[nodiscard]] bool IsArchived(not_null<History*> history);
 [[nodiscard]] bool CanArchive(History *history, PeerData *peer);
 
+void PeerMenuConfirmToggleFee(
+	not_null<Window::SessionNavigation*> navigation,
+	std::shared_ptr<rpl::variable<int>> paidAmount,
+	not_null<PeerData*> peer,
+	not_null<UserData*> user,
+	bool removeFee);
+
 } // namespace Window

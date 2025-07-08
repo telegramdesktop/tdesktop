@@ -4315,6 +4315,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_edit_shortcut" = "Edit Shortcut";
 "lng_context_delete_shortcut" = "Delete Quick Reply";
 "lng_context_gift_send" = "Send Another Gift";
+"lng_context_charge_fee" = "Charge Fee";
+"lng_context_remove_fee" = "Remove Fee";
+"lng_context_fee_now" = "{name} pays {amount} per message.";
+"lng_context_fee_free" = "{name} can send messages for free.";
 
 "lng_add_tag_about" = "Tag this message with an emoji for quick search.";
 "lng_subscribe_tag_about" = "Organize your Saved Messages with tags. {link}";
@@ -5317,6 +5321,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payment_bar_button" = "Remove Fee";
 "lng_payment_refund_title" = "Remove Fee";
 "lng_payment_refund_text" = "Are you sure you want to allow {name} to message you for free?";
+"lng_payment_refund_channel" = "Do you want to allow {name} to message the channel for free?";
 "lng_payment_refund_also#one" = "Refund already paid {count} Star";
 "lng_payment_refund_also#other" = "Refund already paid {count} Stars";
 "lng_payment_refund_confirm" = "Confirm";

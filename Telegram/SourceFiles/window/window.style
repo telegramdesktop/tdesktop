@@ -316,6 +316,14 @@ windowArchiveToast: Toast(defaultToast) {
 	maxWidth: boxWideWidth;
 }
 
+windowFeeItem: Menu(defaultMenu) {
+	itemPadding: margins(17px, 3px, 17px, 4px);
+	itemRightSkip: 0px;
+	itemStyle: whenReadStyle;
+	itemFgOver: windowFg;
+	itemFgDisabled: windowFg;
+}
+
 ivWidthMin: 380px;
 ivHeightMin: 480px;
 ivWidthDefault: 600px;

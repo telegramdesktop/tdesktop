@@ -1194,6 +1194,7 @@ PaysStatus::PaysStatus(
 	not_null<UserData*> user)
 : _controller(window)
 , _user(user)
+, _paidAlready(std::make_shared<rpl::variable<int>>())
 , _inner(Ui::CreateChild<Bar>(parent.get(), user))
 , _bar(parent, object_ptr<Bar>::fromRaw(_inner)) {
 	setupState();
@@ -1220,65 +1221,12 @@ void PaysStatus::setupState() {
 void PaysStatus::setupHandlers() {
 	_inner->removeClicks(
 	) | rpl::start_with_next([=] {
-		const auto user = _user;
-		const auto exception = [=](bool refund) {
-			using Flag = MTPaccount_ToggleNoPaidMessagesException::Flag;
-			const auto api = &user->session().api();
-			const auto require = false;
-			api->request(MTPaccount_ToggleNoPaidMessagesException(
-				MTP_flags((refund ? Flag::f_refund_charged : Flag())
-					| (require ? Flag::f_require_payment : Flag())),
-				MTPInputPeer(), // parent_peer // #TODO monoforum
-				user->inputUser
-			)).done([=] {
-				user->clearPaysPerMessage();
-			}).send();
-		};
-		_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-			const auto refund = std::make_shared<QPointer<Ui::Checkbox>>();
-			Ui::ConfirmBox(box, {
-				.text = tr::lng_payment_refund_text(
-					tr::now,
-					lt_name,
-					Ui::Text::Bold(user->shortName()),
-					Ui::Text::WithEntities),
-				.confirmed = [=](Fn<void()> close) {
-					exception(*refund && (*refund)->checked());
-					close();
-				},
-				.confirmText = tr::lng_payment_refund_confirm(tr::now),
-				.title = tr::lng_payment_refund_title(tr::now),
-			});
-			const auto paid = box->lifetime().make_state<
-				rpl::variable<int>
-			>();
-			*paid = _paidAlready.value();
-			paid->value() | rpl::start_with_next([=](int already) {
-				if (!already) {
-					delete base::take(*refund);
-				} else if (!*refund) {
-					const auto skip = st::defaultCheckbox.margin.top();
-					*refund = box->addRow(
-						object_ptr<Ui::Checkbox>(
-							box,
-							tr::lng_payment_refund_also(
-								lt_count,
-								paid->value() | tr::to_count()),
-							false,
-							st::defaultCheckbox),
-						st::boxRowPadding + QMargins(0, skip, 0, skip));
-				}
-			}, box->lifetime());
-
-			user->session().api().request(MTPaccount_GetPaidMessagesRevenue(
-				MTP_flags(0),
-				MTPInputPeer(), // parent_peer // #TODO monoforum
-				user->inputUser
-			)).done(crl::guard(_inner, [=](
-					const MTPaccount_PaidMessagesRevenue &result) {
-				_paidAlready = result.data().vstars_amount().v;
-			})).send();
-		}));
+		Window::PeerMenuConfirmToggleFee(
+			_controller,
+			_paidAlready,
+			_user->session().user(),
+			_user,
+			true);
 	}, _bar.lifetime());
 }
 

@@ -32,6 +32,8 @@ public:
 	~SavedSublist();
 
 	[[nodiscard]] bool inMonoforum() const;
+	[[nodiscard]] bool isFeeRemoved() const;
+	void toggleFeeRemoved(bool feeRemoved);
 
 	void apply(const SublistReadTillUpdate &update);
 	void apply(const MessageUpdate &update);
@@ -125,6 +127,7 @@ private:
 	enum class Flag : uchar {
 		ResolveChatListMessage = (1 << 0),
 		InMonoforum = (1 << 1),
+		FeeRemoved = (1 << 2),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;

@@ -56,6 +56,7 @@ menuIconDiscussion: icon {{ "menu/discussion", menuIconColor }};
 menuIconStats: icon {{ "menu/stats", menuIconColor }};
 menuIconBoosts: icon {{ "menu/boosts", menuIconColor }};
 menuIconEarn: icon {{ "menu/earn", menuIconColor }};
+menuIconCancelFee: icon {{ "menu/cancel_fee", menuIconColor }};
 menuIconCreatePoll: icon {{ "menu/create_poll", menuIconColor }};
 menuIconCreateTodoList: icon {{ "menu/select", menuIconColor }};
 menuIconQrCode: icon {{ "menu/qr_code", menuIconColor }};

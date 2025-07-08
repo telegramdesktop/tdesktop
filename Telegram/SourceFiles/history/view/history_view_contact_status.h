@@ -208,7 +208,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<UserData*> _user;
-	rpl::variable<int> _paidAlready;
+	std::shared_ptr<rpl::variable<int>> _paidAlready;
 	State _state;
 	QPointer<Bar> _inner;
 	SlidingBar _bar;
