@@ -3934,7 +3934,9 @@ void AddUniqueGiftCover(
 		st::uniqueGiftTitle);
 	title->setTextColorOverride(QColor(255, 255, 255));
 	auto subtitleText = subtitleOverride
-		? std::move(subtitleOverride) | Ui::Text::ToWithEntities()
+		? std::move(
+			subtitleOverride
+		) | Ui::Text::ToWithEntities() | rpl::type_erased()
 		: rpl::duplicate(data) | rpl::map([=](const Data::UniqueGift &gift) {
 			released->by = gift.releasedBy;
 			released->bg = gift.backdrop.patternColor;
