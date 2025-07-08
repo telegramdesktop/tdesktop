@@ -1987,7 +1987,7 @@ if (MSVC)
             /DELAYLOAD:API-MS-Win-Core-ProcessThreads-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Synch-l1-2-0.dll # Synchronization.lib
             /DELAYLOAD:API-MS-Win-Core-SysInfo-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Timezone-l1-1-0.dll
+            # /DELAYLOAD:API-MS-Win-Core-Timezone-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
