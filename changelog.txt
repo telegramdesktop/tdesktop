@@ -1,3 +1,9 @@
+5.16.3 (08.07.25)
+
+- Allow removing / charging fee in channel direct messages.
+- Don't offer creating checklists in channels.
+- Support author channel in gifts.
+
 5.16.2 (04.07.25)
 
 - Fix crash in some checklists.
