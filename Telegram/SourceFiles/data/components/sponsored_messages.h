@@ -92,6 +92,12 @@ struct SponsoredReportAction {
 		Fn<void(Data::SponsoredReportResult)>)> callback;
 };
 
+struct SponsoredForVideo {
+	std::vector<SponsoredMessage> list;
+	crl::time startDelay = 0;
+	crl::time betweenDelay = 0;
+};
+
 class SponsoredMessages final {
 public:
 	enum class AppendResult {
@@ -111,8 +117,12 @@ public:
 	~SponsoredMessages();
 
 	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
+	[[nodiscard]] bool canHaveFor(not_null<HistoryItem*> item) const;
 	[[nodiscard]] bool isTopBarFor(not_null<History*> history) const;
 	void request(not_null<History*> history, Fn<void()> done);
+	void request(
+		not_null<HistoryItem*> item,
+		Fn<void(SponsoredForVideo)> done);
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
 	[[nodiscard]] Details lookupDetails(
@@ -166,6 +176,12 @@ private:
 		int postsBetween = 0;
 		State state = State::None;
 	};
+	struct ListForVideo {
+		std::vector<Entry> entries;
+		crl::time received = 0;
+		crl::time startDelay = 0;
+		crl::time betweenDelay = 0;
+	};
 	struct Request {
 		mtpRequestId requestId = 0;
 		crl::time lastReceived = 0;
@@ -174,10 +190,14 @@ private:
 	void parse(
 		not_null<History*> history,
 		const MTPmessages_sponsoredMessages &list);
+	void parse(
+		FullMsgId itemId,
+		const MTPmessages_sponsoredMessages &list);
 	void append(
+		Fn<not_null<std::vector<Entry>*>()> entries,
 		not_null<History*> history,
-		List &list,
 		const MTPSponsoredMessage &message);
+	[[nodiscard]] SponsoredForVideo prepareForVideo(FullMsgId itemId);
 	void clearOldRequests();
 
 	const Entry *find(const FullMsgId &fullId) const;
@@ -188,6 +208,9 @@ private:
 	base::flat_map<not_null<History*>, List> _data;
 	base::flat_map<not_null<History*>, Request> _requests;
 	base::flat_map<RandomId, Request> _viewRequests;
+
+	base::flat_map<FullMsgId, ListForVideo> _dataForVideo;
+	base::flat_map<FullMsgId, Request> _requestsForVideo;
 
 	rpl::event_stream<FullMsgId> _itemRemoved;
 
