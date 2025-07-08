@@ -71,6 +71,8 @@ struct SponsoredMessage {
 	QString link;
 	TextWithEntities sponsorInfo;
 	TextWithEntities additionalInfo;
+	crl::time durationMin = 0;
+	crl::time durationMax = 0;
 };
 
 struct SponsoredMessageDetails {
@@ -92,10 +94,21 @@ struct SponsoredReportAction {
 		Fn<void(Data::SponsoredReportResult)>)> callback;
 };
 
+struct SponsoredForVideoState {
+	int itemIndex = 0;
+	crl::time leftTillShow = 0;
+
+	[[nodiscard]] bool initial() const {
+		return !itemIndex && !leftTillShow;
+	}
+};
+
 struct SponsoredForVideo {
 	std::vector<SponsoredMessage> list;
 	crl::time startDelay = 0;
 	crl::time betweenDelay = 0;
+
+	SponsoredForVideoState state;
 };
 
 class SponsoredMessages final {
@@ -120,9 +133,12 @@ public:
 	[[nodiscard]] bool canHaveFor(not_null<HistoryItem*> item) const;
 	[[nodiscard]] bool isTopBarFor(not_null<History*> history) const;
 	void request(not_null<History*> history, Fn<void()> done);
-	void request(
+	void requestForVideo(
 		not_null<HistoryItem*> item,
 		Fn<void(SponsoredForVideo)> done);
+	void updateForVideo(
+		FullMsgId itemId,
+		SponsoredForVideoState state);
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
 	[[nodiscard]] Details lookupDetails(
@@ -181,8 +197,14 @@ private:
 		crl::time received = 0;
 		crl::time startDelay = 0;
 		crl::time betweenDelay = 0;
+		SponsoredForVideoState state;
 	};
 	struct Request {
+		mtpRequestId requestId = 0;
+		crl::time lastReceived = 0;
+	};
+	struct RequestForVideo {
+		std::vector<Fn<void(SponsoredForVideo)>> callbacks;
 		mtpRequestId requestId = 0;
 		crl::time lastReceived = 0;
 	};
@@ -190,14 +212,15 @@ private:
 	void parse(
 		not_null<History*> history,
 		const MTPmessages_sponsoredMessages &list);
-	void parse(
-		FullMsgId itemId,
+	void parseForVideo(
+		not_null<PeerData*> peer,
 		const MTPmessages_sponsoredMessages &list);
 	void append(
 		Fn<not_null<std::vector<Entry>*>()> entries,
 		not_null<History*> history,
 		const MTPSponsoredMessage &message);
-	[[nodiscard]] SponsoredForVideo prepareForVideo(FullMsgId itemId);
+	[[nodiscard]] SponsoredForVideo prepareForVideo(
+		not_null<PeerData*> peer);
 	void clearOldRequests();
 
 	const Entry *find(const FullMsgId &fullId) const;
@@ -209,8 +232,8 @@ private:
 	base::flat_map<not_null<History*>, Request> _requests;
 	base::flat_map<RandomId, Request> _viewRequests;
 
-	base::flat_map<FullMsgId, ListForVideo> _dataForVideo;
-	base::flat_map<FullMsgId, Request> _requestsForVideo;
+	base::flat_map<not_null<PeerData*>, ListForVideo> _dataForVideo;
+	base::flat_map<not_null<PeerData*>, RequestForVideo> _requestsForVideo;
 
 	rpl::event_stream<FullMsgId> _itemRemoved;
 

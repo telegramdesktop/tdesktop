@@ -78,6 +78,7 @@ struct ContentLayout;
 
 namespace Media::View {
 
+class PlaybackSponsored;
 class GroupThumbs;
 class Pip;
 

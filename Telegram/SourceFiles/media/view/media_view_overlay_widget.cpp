@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "media/view/media_view_overlay_raster.h"
 #include "media/view/media_view_overlay_opengl.h"
+#include "media/view/media_view_playback_sponsored.h"
 #include "media/stories/media_stories_share.h"
 #include "media/stories/media_stories_view.h"
 #include "media/streaming/media_streaming_document.h"
@@ -335,6 +336,7 @@ struct OverlayWidget::Streamed {
 
 	Streaming::Instance instance;
 	std::unique_ptr<PlaybackControls> controls;
+	std::unique_ptr<PlaybackSponsored> sponsored;
 	std::unique_ptr<base::PowerSaveBlocker> powerSaveBlocker;
 
 	bool ready = false;
@@ -4069,6 +4071,9 @@ void OverlayWidget::initStreamingThumbnail() {
 
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	_streamed->ready = true;
+	if (const auto sponsored = _streamed->sponsored.get()) {
+		sponsored->start();
+	}
 	if (videoShown()) {
 		applyVideoSize();
 		_streamedQualityChangeFrame = QImage();
@@ -4090,6 +4095,7 @@ void OverlayWidget::applyVideoSize() {
 
 bool OverlayWidget::createStreamingObjects() {
 	Expects(_photo || _document);
+	Expects(!_streamed);
 
 	const auto origin = fileOrigin();
 	const auto callback = [=] { waitingAnimationCallback(); };
@@ -4122,6 +4128,15 @@ bool OverlayWidget::createStreamingObjects() {
 			_body,
 			static_cast<PlaybackControls::Delegate*>(this));
 		_streamed->controls->show();
+		_streamed->sponsored = PlaybackSponsored::Has(_message)
+			? std::make_unique<PlaybackSponsored>(_body, _message)
+			: nullptr;
+		if (const auto sponsored = _streamed->sponsored.get()) {
+			_layerBg->layerShownValue(
+			) | rpl::start_with_next([=](bool shown) {
+				sponsored->setPaused(shown);
+			}, sponsored->lifetime());
+		}
 		refreshClipControllerGeometry();
 	}
 	return true;
