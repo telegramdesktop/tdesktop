@@ -111,6 +111,13 @@ void AddProxyFromClipboard(
 		QGuiApplication::clipboard()->text());
 	const auto isSingle = maybeUrls.size() == 1;
 
+	enum class Result {
+		Success,
+		Failed,
+		Unsupported,
+		Invalid,
+	};
+
 	const auto proceedUrl = [=](const auto &local) {
 		const auto command = base::StringViewMid(
 			local,
@@ -146,6 +153,11 @@ void AddProxyFromClipboard(
 					match->captured(1),
 					qthelp::UrlParamNameTransform::ToLower);
 				const auto proxy = ProxyDataFromFields(type, fields);
+				if (!proxy) {
+					return (proxy.status() == ProxyData::Status::Unsupported)
+						? Result::Unsupported
+						: Result::Invalid;
+				}
 				const auto contains = controller->contains(proxy);
 				const auto toast = (contains
 					? tr::lng_proxy_add_from_clipboard_existing_toast
@@ -158,19 +170,29 @@ void AddProxyFromClipboard(
 				}
 				break;
 			}
-			return true;
+			return Result::Success;
 		}
-		return false;
+		return Result::Failed;
 	};
 
-	auto success = false;
+	auto success = Result::Failed;
 	for (const auto &maybeUrl : maybeUrls) {
-		success |= proceedUrl(Core::TryConvertUrlToLocal(maybeUrl));
+		const auto result = proceedUrl(Core::TryConvertUrlToLocal(maybeUrl));
+		if (success != Result::Success) {
+			success = result;
+		}
 	}
 
-	if (!success) {
-		show->showToast(
-			tr::lng_proxy_add_from_clipboard_failed_toast(tr::now));
+	if (success != Result::Success) {
+		if (success == Result::Failed) {
+			show->showToast(
+				tr::lng_proxy_add_from_clipboard_failed_toast(tr::now));
+		} else {
+			show->showBox(Ui::MakeInformBox(
+				(success == Result::Unsupported
+					? tr::lng_proxy_unsupported(tr::now)
+					: tr::lng_proxy_invalid(tr::now))));
+		}
 	}
 }
 
