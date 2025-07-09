@@ -324,9 +324,8 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 			nullptr,
 			{ float64(xIndex), float64(xIndex) }).parts
 		: std::vector<PiePartData::Part>();
-	const auto multiplier = float64(kOneStarInNano);
 	const auto isCredits
-		= _chartData.currency == Data::StatisticalCurrency::Credits;
+		= (_chartData.currency == Data::StatisticalCurrency::Credits);
 	for (auto i = 0; i < _chartData.lines.size(); i++) {
 		const auto &dataLine = _chartData.lines[i];
 		auto textLine = Line();
@@ -350,19 +349,23 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 					? tr::lng_channel_earn_chart_overriden_detail_credits
 					: tr::lng_channel_earn_chart_overriden_detail_currency)(
 						tr::now));
+			const auto provided = dataLine.y[xIndex];
+			const auto value = isCredits
+				? CreditsAmount(provided, CreditsType::Stars)
+				: CreditsAmount(
+					provided / kOneStarInNano,
+					provided % kOneStarInNano,
+					CreditsType::Ton);
 			copy.value.setText(
 				_textStyle,
-				Lang::FormatExactCountDecimal(
-					dataLine.y[xIndex] / multiplier));
+				Lang::FormatCreditsAmountDecimal(value));
 			_lines.push_back(std::move(copy));
 			textLine.name.setText(
 				_textStyle,
 				tr::lng_channel_earn_chart_overriden_detail_usd(tr::now));
 			textLine.value.setText(
 				_textStyle,
-				Info::ChannelEarn::ToUsd(
-					dataLine.y[xIndex] / multiplier,
-					_chartData.currencyRate, 0));
+				Info::ChannelEarn::ToUsd(value, _chartData.currencyRate, 0));
 		}
 		_lines.push_back(std::move(textLine));
 	}
