@@ -162,8 +162,8 @@ void EditBirthdayBox(
 			? max.day()
 			: (month == 2)
 			? ((!year || ((year % 4) && (!(year % 100) || (year % 400))))
-				? 29
-				: 28)
+				? 28
+				: 29)
 			: ((month == 4) || (month == 6) || (month == 9) || (month == 11))
 			? 30
 			: 31;
