@@ -1766,7 +1766,7 @@ if (WIN32)
     #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
     # )
 
-    if (QT_VERSION LESS 6)
+    if (QT_VERSION_MAJOR LESS 6)
         target_link_libraries(Telegram PRIVATE desktop-app::win_directx_helper)
     endif()
 elseif (APPLE)
@@ -1967,7 +1967,7 @@ if (MSVC)
         /DELAYLOAD:wtsapi32.dll
         /DELAYLOAD:propsys.dll
     )
-    if (QT_VERSION GREATER 6)
+    if (QT_VERSION_MAJOR GREATER_EQUAL 6)
         if (NOT build_winarm)
             target_link_options(Telegram PRIVATE
                 /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
