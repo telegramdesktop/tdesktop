@@ -3809,7 +3809,7 @@ void PeerMenuConfirmToggleFee(
 			MTP_flags((refund ? Flag::f_refund_charged : Flag())
 				| (removeFee ? Flag() : Flag::f_require_payment)
 				| (parent ? Flag::f_parent_peer : Flag())),
-			parent->input,
+			(parent ? parent->input : MTPInputPeer()),
 			user->inputUser
 		)).done([=] {
 			if (!parent) {
