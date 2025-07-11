@@ -602,6 +602,8 @@ private:
 	[[nodiscard]] Dialogs::BadgesState adjustBadgesStateByFolder(
 		Dialogs::BadgesState state) const;
 	[[nodiscard]] Dialogs::UnreadState computeUnreadState() const;
+	[[nodiscard]] Dialogs::UnreadState withMyMuted(
+		Dialogs::UnreadState state) const;
 	void setFolderPointer(Data::Folder *folder);
 
 	void hasUnreadMentionChanged(bool has) override;
