@@ -1,3 +1,9 @@
+5.16.4 (11.07.25)
+
+- Fix problem with negative unread counters.
+- Fix stars values display in statistics.
+- Fix crash in messages fee disabling.
+
 5.16.3 (08.07.25)
 
 - Allow removing / charging fee in channel direct messages.
