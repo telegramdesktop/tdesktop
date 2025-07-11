@@ -67,7 +67,7 @@ struct SponsoredMessage {
 	QByteArray randomId;
 	SponsoredFrom from;
 	TextWithEntities textWithEntities;
-	History *history = nullptr;
+	not_null<History*> history;
 	QString link;
 	TextWithEntities sponsorInfo;
 	TextWithEntities additionalInfo;
@@ -141,6 +141,7 @@ public:
 		SponsoredForVideoState state);
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
+	[[nodiscard]] Details lookupDetails(const SponsoredMessage &data) const;
 	[[nodiscard]] Details lookupDetails(
 		const Api::SponsoredSearchResult &data) const;
 	void clicked(const FullMsgId &fullId, bool isMedia, bool isFullscreen);

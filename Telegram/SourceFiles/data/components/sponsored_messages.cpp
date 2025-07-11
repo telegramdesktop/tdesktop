@@ -682,7 +682,11 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 	if (!entryPtr) {
 		return {};
 	}
-	const auto &data = entryPtr->sponsored;
+	return lookupDetails(entryPtr->sponsored);
+}
+
+SponsoredMessages::Details SponsoredMessages::lookupDetails(
+		const SponsoredMessage &data) const {
 	return {
 		.info = Prepare(data),
 		.link = data.link,

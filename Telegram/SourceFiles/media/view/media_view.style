@@ -1086,3 +1086,34 @@ mediaviewSponsoredButton: RoundButton(defaultActiveButton) {
 
 	ripple: universalRippleAnimation;
 }
+
+mediaSponsoredSkip: 16px;
+mediaSponsoredShift: 16px;
+mediaSponsoredPadding: margins(12px, 8px, 8px, 8px);
+mediaSponsoredThumb: 48px;
+mediaSponsoredClose: IconButton(mediaviewControlsButton) {
+	width: 64px;
+	height: 64px;
+	rippleAreaSize: 40px;
+	rippleAreaPosition: point(12px, 12px);
+
+	icon: icon {{ "box_button_close", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "box_button_close", mediaviewPlaybackIconFgOver }};
+	iconPosition: point(24px, 24px);
+}
+mediaSponsoredAbout: RoundButton(defaultActiveButton) {
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+	textBg: lightButtonBgOver;
+	textBgOver: lightButtonBgOver;
+	width: -12px;
+	height: 18px;
+	radius: 9px;
+	textTop: 0px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}

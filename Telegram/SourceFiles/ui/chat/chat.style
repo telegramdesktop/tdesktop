@@ -947,6 +947,9 @@ historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	minWidth: 136px;
 	maxHeight: 120px;
 }
+historySponsorInfoItemDark: FlatLabel(historySponsorInfoItem) {
+	textFg: mediaviewControlFg;
+}
 historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);

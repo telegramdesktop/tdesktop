@@ -2880,11 +2880,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			: nullptr;
 		if (sponsored) {
 			Menu::FillSponsored(
-				this,
 				Ui::Menu::CreateAddActionCallback(_menu),
 				controller->uiShow(),
-				sponsored->fullId(),
-				false);
+				sponsored->fullId());
 		}
 		if (isUponSelected > 0) {
 			addReplyAction(item);

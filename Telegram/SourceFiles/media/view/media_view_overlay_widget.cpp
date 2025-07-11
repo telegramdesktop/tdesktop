@@ -1610,7 +1610,11 @@ void OverlayWidget::fillContextMenuActions(
 		if (const auto window = findWindow()) {
 			const auto show = window->uiShow();
 			const auto fullId = _message->fullId();
-			Menu::FillSponsored(_body, addAction, show, fullId, true);
+			Menu::FillSponsored(
+				addAction,
+				show,
+				fullId,
+				{ .dark = true, .skipInfo = true });
 		}
 		return;
 	}
@@ -4129,7 +4133,10 @@ bool OverlayWidget::createStreamingObjects() {
 			static_cast<PlaybackControls::Delegate*>(this));
 		_streamed->controls->show();
 		_streamed->sponsored = PlaybackSponsored::Has(_message)
-			? std::make_unique<PlaybackSponsored>(_body, _message)
+			? std::make_unique<PlaybackSponsored>(
+				_streamed->controls.get(),
+				uiShow(),
+				_message)
 			: nullptr;
 		if (const auto sponsored = _streamed->sponsored.get()) {
 			_layerBg->layerShownValue(

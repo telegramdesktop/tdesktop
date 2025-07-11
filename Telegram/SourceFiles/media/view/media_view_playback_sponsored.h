@@ -11,15 +11,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/components/sponsored_messages.h"
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Ui {
+class RpWidget;
+} // namespace Ui
 
 namespace Media::View {
 
 class PlaybackSponsored final : public base::has_weak_ptr {
 public:
-	PlaybackSponsored(QWidget *parent, not_null<HistoryItem*> item);
+	PlaybackSponsored(
+		not_null<Ui::RpWidget*> controls,
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<HistoryItem*> item);
 	~PlaybackSponsored();
 
 	void start();
@@ -30,6 +41,7 @@ public:
 	[[nodiscard]] static bool Has(HistoryItem *item);
 
 private:
+	class Message;
 	struct State {
 		crl::time now = 0;
 		Data::SponsoredForVideoState data;
@@ -37,6 +49,9 @@ private:
 
 	void update();
 	void finish();
+	void updatePaused();
+	void setPausedInside(bool paused);
+	void setPausedOutside(bool paused);
 	void show(const Data::SponsoredMessage &data);
 	void hide();
 	[[nodiscard]] State computeState() const;
@@ -44,13 +59,17 @@ private:
 
 	const not_null<QWidget*> _parent;
 	const not_null<Main::Session*> _session;
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const FullMsgId _itemId;
 
-	std::unique_ptr<Ui::RpWidget> _widget;
+	rpl::variable<QRect> _controlsGeometry;
+	std::unique_ptr<Message> _widget;
 
 	crl::time _start = 0;
 	bool _started = false;
 	bool _paused = false;
+	bool _pausedInside = false;
+	bool _pausedOutside = false;
 	base::Timer _timer;
 
 	std::optional<Data::SponsoredForVideo> _data;

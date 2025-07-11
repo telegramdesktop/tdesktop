@@ -33,23 +33,25 @@ enum class SponsoredPhrases {
 	Search,
 };
 
+struct SponsoredMenuSettings {
+	bool dark = false;
+	bool skipAbout = false;
+	bool skipInfo = false;
+};
+
 void FillSponsored(
-	not_null<Ui::RpWidget*> parent,
 	const Ui::Menu::MenuCallback &addAction,
 	std::shared_ptr<ChatHelpers::Show> show,
 	SponsoredPhrases phrases,
 	const Data::SponsoredMessageDetails &details,
 	Data::SponsoredReportAction report,
-	bool mediaViewer,
-	bool skipAbout);
+	SponsoredMenuSettings settings = {});
 
 void FillSponsored(
-	not_null<Ui::RpWidget*> parent,
 	const Ui::Menu::MenuCallback &addAction,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const FullMsgId &fullId,
-	bool mediaViewer,
-	bool skipAbout = false);
+	SponsoredMenuSettings settings = {});
 
 void ShowSponsored(
 	not_null<Ui::RpWidget*> parent,
