@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
 #include "data/data_web_page.h"
+#include "dialogs/ui/chat_search_in.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -1803,10 +1804,13 @@ void SessionController::activateFirstChatsFilter() {
 	setActiveChatsFilter(session().data().chatsFilters().defaultId());
 }
 
-bool SessionController::uniqueChatsInSearchResults() const {
+bool SessionController::uniqueChatsInSearchResults(
+		const Dialogs::SearchState &state) const {
+	const auto global = (state.tab == Dialogs::ChatSearchTab::MyMessages)
+		|| (state.tab == Dialogs::ChatSearchTab::PublicPosts);
 	return session().supportMode()
 		&& !session().settings().supportAllSearchResults()
-		&& !_searchInChat.current();
+		&& (global || !state.inChat);
 }
 
 bool SessionController::openFolderInDifferentWindow(

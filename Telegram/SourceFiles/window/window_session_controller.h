@@ -30,6 +30,10 @@ class SavedMessages;
 enum class StorySourcesList : uchar;
 } // namespace Data
 
+namespace Dialogs {
+struct SearchState;
+} // namespace Dialogs
+
 namespace ChatHelpers {
 class TabbedSelector;
 class EmojiInteractions;
@@ -404,7 +408,7 @@ public:
 	void setSearchInChat(Dialogs::Key value) {
 		_searchInChat = value;
 	}
-	bool uniqueChatsInSearchResults() const;
+	bool uniqueChatsInSearchResults(const Dialogs::SearchState &state) const;
 
 	void openFolder(not_null<Data::Folder*> folder);
 	void closeFolder();

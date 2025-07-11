@@ -3069,6 +3069,11 @@ void InnerWidget::clearSelection() {
 }
 
 void InnerWidget::fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu) {
+	const auto globalSearch = (_searchState.tab == ChatSearchTab::MyMessages)
+		|| (_searchState.tab == ChatSearchTab::PublicPosts);
+	if (!globalSearch && _searchState.inChat) {
+		return;
+	}
 	const auto all = session().settings().supportAllSearchResults();
 	const auto text = all ? "Only one from chat" : "Show all messages";
 	menu->addAction(text, [=] {
@@ -3079,9 +3084,11 @@ void InnerWidget::fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu) {
 
 void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
 	const auto folder = session().data().folderLoaded(Data::Folder::kId);
+	const auto globalSearch = (_searchState.tab == ChatSearchTab::MyMessages)
+		|| (_searchState.tab == ChatSearchTab::PublicPosts);
 	if (!folder
 		|| !folder->chatsList()->fullSize().current()
-		|| _searchState.inChat) {
+		|| (!globalSearch && _searchState.inChat)) {
 		return;
 	}
 	const auto skip = session().settings().skipArchiveInSearch();
@@ -3796,7 +3803,7 @@ void InnerWidget::itemRemoved(not_null<const HistoryItem*> item) {
 }
 
 bool InnerWidget::uniqueSearchResults() const {
-	return _controller->uniqueChatsInSearchResults();
+	return _controller->uniqueChatsInSearchResults(_searchState);
 }
 
 bool InnerWidget::hasHistoryInResults(not_null<History*> history) const {
@@ -3854,7 +3861,8 @@ void InnerWidget::searchReceived(
 		? _searchState.inChat
 		: Key(_openedForum->history());
 	if (inject
-		&& (!_searchState.inChat
+		&& (globalSearch
+			|| !_searchState.inChat
 			|| inject->history() == _searchState.inChat.history())) {
 		Assert(_searchResults.empty());
 		Assert(!toPreview);

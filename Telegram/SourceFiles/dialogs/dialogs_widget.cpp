@@ -967,9 +967,9 @@ void Widget::chosenRow(const ChosenRow &row) {
 		return;
 	} else if (history) {
 		const auto peer = history->peer;
-		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
-			? ShowAtUnreadMsgId
-			: row.message.fullId.msg;
+		const auto showAtMsgId = controller()->uniqueChatsInSearchResults(
+			_searchState
+		) ? ShowAtUnreadMsgId : row.message.fullId.msg;
 		auto params = Window::SectionShow(
 			Window::SectionShow::Way::ClearStack);
 		params.highlightPart.text = _searchState.query;
