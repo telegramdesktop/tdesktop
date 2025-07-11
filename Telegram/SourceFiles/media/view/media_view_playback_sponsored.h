@@ -50,10 +50,11 @@ private:
 	void update();
 	void finish();
 	void updatePaused();
+	void showPremiumPromo();
 	void setPausedInside(bool paused);
 	void setPausedOutside(bool paused);
 	void show(const Data::SponsoredMessage &data);
-	void hide();
+	void hide(crl::time now);
 	[[nodiscard]] State computeState() const;
 	void saveState();
 
@@ -65,6 +66,7 @@ private:
 	rpl::variable<QRect> _controlsGeometry;
 	std::unique_ptr<Message> _widget;
 
+	rpl::variable<crl::time> _allowCloseAt;
 	crl::time _start = 0;
 	bool _started = false;
 	bool _paused = false;

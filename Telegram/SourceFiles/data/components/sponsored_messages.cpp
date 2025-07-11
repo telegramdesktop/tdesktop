@@ -415,8 +415,8 @@ void SponsoredMessages::parseForVideo(
 		auto &list = _dataForVideo.emplace(peer).first->second;
 		list.entries.clear();
 		list.received = crl::now();
-		list.startDelay = 2000;AssertIsDebug()// data.vstart_delay().value_or_empty() * kMs;
-		list.betweenDelay = 3000;//data.vbetween_delay().value_or_empty() * kMs;
+		list.startDelay = data.vstart_delay().value_or_empty() * kMs;
+		list.betweenDelay = data.vbetween_delay().value_or_empty() * kMs;
 		for (const auto &message : messages) {
 			append([=] {
 				return &_dataForVideo[peer].entries;
@@ -567,8 +567,8 @@ void SponsoredMessages::append(
 		.link = from.link,
 		.sponsorInfo = std::move(sponsorInfo),
 		.additionalInfo = std::move(additionalInfo),
-		.durationMin = 3000, AssertIsDebug()//data.vmin_display_duration().value_or_empty() * kMs,
-		.durationMax = 5000,//data.vmax_display_duration().value_or_empty() * kMs,
+		.durationMin = data.vmin_display_duration().value_or_empty() * kMs,
+		.durationMax = data.vmax_display_duration().value_or_empty() * kMs,
 	};
 	const auto itemId = FullMsgId(
 		history->peer->id,

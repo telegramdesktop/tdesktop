@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_playback_sponsored.h"
 
+#include "boxes/premium_preview_box.h"
 #include "data/components/sponsored_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo.h"
@@ -17,11 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_sponsored.h"
+#include "ui/effects/numbers_animation.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "styles/style_chat.h"
@@ -39,6 +43,188 @@ enum class Action {
 	Pause,
 	Unpause,
 };
+
+class Close final : public Ui::RippleButton {
+public:
+	Close(
+		not_null<QWidget*> parent,
+		const style::RippleAnimation &st,
+		rpl::producer<crl::time> allowCloseAt);
+
+	[[nodiscard]] rpl::producer<Action> actions() const;
+
+private:
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+	void paintEvent(QPaintEvent *e) override;
+
+	void updateProgress(crl::time now);
+
+	rpl::event_stream<Action> _actions;
+
+	Ui::NumbersAnimation _countdown;
+	Ui::Animations::Basic _progress;
+	base::Timer _noAnimationTimer;
+	crl::time _allowCloseAt = 0;
+	crl::time _startedAt = 0;
+	crl::time _pausedAt = 0;
+	int _secondsTill = 0;
+	int _rippleSize = 0;
+	QPoint _rippleOrigin;
+	bool _allowClose = false;
+
+};
+
+Close::Close(
+	not_null<QWidget*> parent,
+	const style::RippleAnimation &st,
+	rpl::producer<crl::time> allowCloseAt)
+: RippleButton(parent, st)
+, _countdown(st::mediaSponsoredCloseFont, [=] { update(); })
+, _progress([=](crl::time now) { updateProgress(now); })
+, _noAnimationTimer([=] { updateProgress(crl::now()); })
+, _startedAt(crl::now()) {
+	resize(st::mediaSponsoredCloseFull, st::mediaSponsoredCloseFull);
+
+	const auto size = st::mediaSponsoredCloseRipple;
+	const auto cut = int(base::SafeRound((width() - size) / 2.));
+	_rippleSize = std::min(width() - 2 * cut, height() - 2 * cut);
+	_rippleOrigin = QPoint(
+		(width() - _rippleSize) / 2,
+		(height() - _rippleSize) / 2);
+
+	std::move(
+		allowCloseAt
+	) | rpl::start_with_next([=](crl::time at) {
+		const auto now = crl::now();
+		if (!at) {
+			updateProgress(now);
+			_pausedAt = now;
+			_progress.stop();
+		} else {
+			if (_pausedAt) {
+				_startedAt += now - base::take(_pausedAt);
+			}
+			_allowCloseAt = at;
+			updateProgress(now);
+			if (!anim::Disabled()) {
+				_progress.start();
+			} else if (!_allowClose) {
+				_noAnimationTimer.callEach(crl::time(200));
+			}
+		}
+	}, lifetime());
+	updateProgress(_startedAt);
+
+	setClickedCallback([=] {
+		_actions.fire(_allowClose ? Action::Close : Action::PromotePremium);
+	});
+}
+
+rpl::producer<Action> Close::actions() const {
+	return _actions.events();
+}
+
+void Close::updateProgress(crl::time now) {
+	update();
+}
+
+QPoint Close::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _rippleOrigin;
+}
+
+QImage Close::prepareRippleMask() const {
+	return Ui::RippleAnimation::EllipseMask({ _rippleSize, _rippleSize });
+}
+
+void Close::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	paintRipple(p, _rippleOrigin);
+
+	const auto now = crl::now();
+	if (!_pausedAt) {
+		_allowClose = (now >= _allowCloseAt);
+	}
+	const auto msTill = _allowCloseAt - (_pausedAt ? _pausedAt : now);
+	const auto msFull = _allowCloseAt - _startedAt;
+	const auto secondsTill = (std::max(msTill, crl::time()) + 999) / 1000;
+	const auto secondsFull = (std::max(msFull, crl::time()) + 999) / 1000;
+	const auto allowCloseLeft = anim::Disabled()
+		? (secondsFull ? (secondsTill / float64(secondsFull)) : 0)
+		: std::max(msFull ? (msTill / float64(msFull)) : 0., 0.);
+	const auto duration = crl::time(st::fadeWrapDuration);
+	const auto allowedProgress = anim::Disabled()
+		? (secondsTill ? 0. : 1.)
+		: std::clamp(-msTill, crl::time(), duration) / float64(duration);
+
+	if (_secondsTill != secondsTill) {
+		const auto initial = !_secondsTill;
+		_secondsTill = secondsTill;
+		_countdown.setText(QString::number(_secondsTill), _secondsTill);
+		if (initial) {
+			_countdown.finishAnimating();
+		}
+	}
+
+	auto pen = st::mediaviewTextLinkFg->p;
+	if (allowedProgress < 1.) {
+		if (allowedProgress > 0.) {
+			p.setOpacity(1. - allowedProgress);
+		}
+		p.setPen(pen);
+
+		const auto inner = QRect(
+			(width() - st::mediaSponsoredCloseDiameter) / 2,
+			(height() - st::mediaSponsoredCloseDiameter) / 2,
+			st::mediaSponsoredCloseDiameter,
+			st::mediaSponsoredCloseDiameter);
+		p.setFont(st::mediaSponsoredCloseFont);
+		_countdown.paint(
+			p,
+			inner.x() + (inner.width() - _countdown.countWidth()) / 2,
+			(inner.y()
+				+ (inner.height()
+					- st::mediaSponsoredCloseFont->height) / 2),
+			width());
+
+		const auto skip = 0.23;
+		const auto len = int(base::SafeRound(
+			arc::kFullLength * (1. - skip) * allowCloseLeft));
+		if (len > 0) {
+			const auto from = arc::kFullLength / 4;
+			auto hq = PainterHighQualityEnabler(p);
+			pen.setWidthF(st::mediaSponsoredCloseStroke);
+			pen.setCapStyle(Qt::RoundCap);
+			p.setPen(pen);
+			p.drawArc(inner, from, len);
+		}
+
+		p.setOpacity(1.);
+	}
+
+	const auto sizeFinal = st::mediaSponsoredCloseSize;
+	const auto sizeSmall = st::mediaSponsoredCloseCorner;
+	const auto twiceFinal = st::mediaSponsoredCloseTwice;
+	const auto twiceSmall = st::mediaSponsoredCloseSmall;
+	const auto size = sizeSmall + allowedProgress * (sizeFinal - sizeSmall);
+	const auto twice = twiceSmall
+		+ allowedProgress * (twiceFinal - twiceSmall);
+	const auto leftFinal = (width() - size) / 2.;
+	const auto leftSmall = (width() + st::mediaSponsoredCloseDiameter) / 2.
+		- (st::mediaSponsoredCloseStroke / 2.)
+		- sizeSmall;
+	const auto topFinal = (height() - size) / 2.;
+	const auto topSmall = (height() - st::mediaSponsoredCloseDiameter) / 2.;
+	const auto left = leftSmall + allowedProgress * (leftFinal - leftSmall);
+	const auto top = topSmall + allowedProgress * (topFinal - topSmall);
+
+	auto hq = PainterHighQualityEnabler(p);
+	pen.setWidthF(twice / 2.);
+	p.setPen(pen);
+	p.drawLine(QPointF(left, top), QPointF(left + size, top + size));
+	p.drawLine(QPointF(left + size, top), QPointF(left, top + size));
+}
 
 [[nodiscard]] style::RoundButton PrepareAboutStyle() {
 	static auto textBg = style::complex_color([] {
@@ -73,7 +259,8 @@ public:
 	Message(
 		QWidget *parent,
 		std::shared_ptr<ChatHelpers::Show> show,
-		const Data::SponsoredMessage &data);
+		const Data::SponsoredMessage &data,
+		rpl::producer<crl::time> allowCloseAt);
 
 	[[nodiscard]] rpl::producer<Action> actions() const;
 
@@ -93,6 +280,7 @@ private:
 	void populate();
 	void startFadeIn();
 	void updateShown(Fn<void()> finished = nullptr);
+	void startFade(Fn<void()> finished);
 
 	const not_null<Main::Session*> _session;
 	const std::shared_ptr<ChatHelpers::Show> _show;
@@ -100,7 +288,7 @@ private:
 
 	style::RoundButton _aboutSt;
 	std::unique_ptr<Ui::RoundButton> _about;
-	std::unique_ptr<Ui::IconButton> _close;
+	std::unique_ptr<Close> _close;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<Action> _actions;
@@ -128,7 +316,8 @@ private:
 PlaybackSponsored::Message::Message(
 	QWidget *parent,
 	std::shared_ptr<ChatHelpers::Show> show,
-	const Data::SponsoredMessage &data)
+	const Data::SponsoredMessage &data,
+	rpl::producer<crl::time> allowCloseAt)
 : RpWidget(parent)
 , _session(&data.history->session())
 , _show(std::move(show))
@@ -138,7 +327,11 @@ PlaybackSponsored::Message::Message(
 	this,
 	tr::lng_search_sponsored_button(),
 	_aboutSt))
-, _close(std::make_unique<Ui::IconButton>(this, st::mediaSponsoredClose)) {
+, _close(
+	std::make_unique<Close>(
+		this,
+		_aboutSt.ripple,
+		std::move(allowCloseAt))) {
 	_about->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	setMouseTracking(true);
 	populate();
@@ -146,7 +339,7 @@ PlaybackSponsored::Message::Message(
 }
 
 rpl::producer<Action> PlaybackSponsored::Message::actions() const {
-	return _actions.events();
+	return rpl::merge(_actions.events(), _close->actions());
 }
 
 void PlaybackSponsored::Message::setFinalPosition(int x, int y) {
@@ -175,14 +368,9 @@ void PlaybackSponsored::Message::startFadeIn() {
 	if (!_shown) {
 		return;
 	}
-	_cache = Ui::GrabWidgetToImage(this);
-	_about->hide();
-	_close->hide();
-	_showAnimation.start([=] {
-		updateShown([=] {
-			_session->sponsoredMessages().view(_data.randomId);
-		});
-	}, 0., 1., st::fadeWrapDuration);
+	startFade([=] {
+		_session->sponsoredMessages().view(_data.randomId);
+	});
 	show();
 }
 
@@ -194,9 +382,18 @@ void PlaybackSponsored::Message::fadeOut(Fn<void()> hidden) {
 		return;
 	}
 	_shown = false;
+	startFade(std::move(hidden));
+}
+
+void PlaybackSponsored::Message::startFade(Fn<void()> finished) {
+	_cache = Ui::GrabWidgetToImage(this);
+	_about->hide();
+	_close->hide();
+	const auto from = _shown ? 0. : 1.;
+	const auto till = _shown ? 1. : 0.;
 	_showAnimation.start([=] {
-		updateShown(hidden);
-	}, 1., 0., st::fadeWrapDuration);
+		updateShown(finished);
+	}, from, till, st::fadeWrapDuration);
 }
 
 void PlaybackSponsored::Message::updateShown(Fn<void()> finished) {
@@ -354,9 +551,6 @@ void PlaybackSponsored::Message::populate() {
 		});
 		raw->popup(QCursor::pos());
 	});
-	_close->setClickedCallback([=] {
-
-	});
 }
 
 PlaybackSponsored::PlaybackSponsored(
@@ -408,15 +602,16 @@ void PlaybackSponsored::updatePaused() {
 	const auto paused = _pausedInside || _pausedOutside;
 	if (_paused == paused) {
 		return;
+	} else if (_started && paused) {
+		update();
 	}
 	_paused = paused;
 	if (!_started) {
 		return;
 	} else if (_paused) {
-		update();
-		const auto state = computeState();
 		_start = 0;
 		_timer.cancel();
+		_allowCloseAt = 0;
 	} else {
 		_start = crl::now();
 		update();
@@ -464,6 +659,7 @@ void PlaybackSponsored::update() {
 	if (_data->state.leftTillShow > 0 && state.leftTillShow <= 0) {
 		_data->state.leftTillShow = 0;
 		if (duration) {
+			_allowCloseAt = now + message->durationMin;
 			show(*message);
 
 			_start = now;
@@ -474,18 +670,13 @@ void PlaybackSponsored::update() {
 		}
 	} else if (_data->state.leftTillShow <= 0
 		&& state.leftTillShow <= -duration) {
-		hide();
-
-		++_data->state.itemIndex;
-		_data->state.leftTillShow = std::max(
-			_data->betweenDelay,
-			kStartDelayMin);
-		_start = now;
-		_timer.callOnce(_data->state.leftTillShow);
-		saveState();
+		hide(now);
 	} else {
-		if (state.leftTillShow <= 0 && duration && !_widget) {
-			show(*message);
+		if (state.leftTillShow <= 0 && duration) {
+			_allowCloseAt = now + state.leftTillShow + message->durationMin;
+			if (!_widget) {
+				show(*message);
+			}
 		}
 		_data->state = state;
 		_timer.callOnce((state.leftTillShow > 0)
@@ -496,7 +687,11 @@ void PlaybackSponsored::update() {
 
 
 void PlaybackSponsored::show(const Data::SponsoredMessage &data) {
-	_widget = std::make_unique<Message>(_parent, _show, data);
+	_widget = std::make_unique<Message>(
+		_parent,
+		_show,
+		data,
+		_allowCloseAt.value());
 	const auto raw = _widget.get();
 
 	_controlsGeometry.value() | rpl::start_with_next([=](QRect controls) {
@@ -508,8 +703,8 @@ void PlaybackSponsored::show(const Data::SponsoredMessage &data) {
 
 	raw->actions() | rpl::start_with_next([=](Action action) {
 		switch (action) {
-		case Action::Close: hide(); break;
-		case Action::PromotePremium: break;
+		case Action::Close: hide(crl::now()); break;
+		case Action::PromotePremium: showPremiumPromo(); break;
 		case Action::Pause: setPausedInside(true); break;
 		case Action::Unpause: setPausedInside(false); break;
 		}
@@ -518,12 +713,26 @@ void PlaybackSponsored::show(const Data::SponsoredMessage &data) {
 	raw->fadeIn();
 }
 
-void PlaybackSponsored::hide() {
+void PlaybackSponsored::showPremiumPromo() {
+	ShowPremiumPreviewBox(_show, PremiumFeature::NoAds);
+}
+
+void PlaybackSponsored::hide(crl::time now) {
+	Expects(_widget != nullptr);
+
 	_widget->fadeOut([this, raw = _widget.get()] {
 		if (_widget.get() == raw) {
 			_widget = nullptr;
 		}
 	});
+
+	++_data->state.itemIndex;
+	_data->state.leftTillShow = std::max(
+		_data->betweenDelay,
+		kStartDelayMin);
+	_start = now;
+	_timer.callOnce(_data->state.leftTillShow);
+	saveState();
 }
 
 void PlaybackSponsored::saveState() {

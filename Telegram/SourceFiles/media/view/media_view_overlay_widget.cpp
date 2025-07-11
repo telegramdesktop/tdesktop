@@ -3972,7 +3972,11 @@ bool OverlayWidget::initStreaming(const StartStreaming &startStreaming) {
 			&& !_streamed->instance.player().finished())) {
 		startStreamingPlayer(startStreaming);
 	} else {
-		_streamed->ready = _streamed->instance.player().ready();
+		if (_streamed->instance.player().ready()) {
+			markStreamedReady();
+		} else {
+			_streamed->ready = false;
+		}
 		updatePlaybackState();
 	}
 	return true;
@@ -3985,7 +3989,7 @@ void OverlayWidget::startStreamingPlayer(
 	const auto &player = _streamed->instance.player();
 	if (player.playing()) {
 		if (!_streamed->withSound) {
-			_streamed->ready = true;
+			markStreamedReady();
 			return;
 		}
 		_pip = nullptr;
@@ -4001,6 +4005,18 @@ void OverlayWidget::startStreamingPlayer(
 		? _photo->videoStartPosition()
 		: 0;
 	restartAtSeekPosition(_streamedPosition);
+}
+
+void OverlayWidget::markStreamedReady() {
+	Expects(_streamed != nullptr);
+
+	if (_streamed->ready) {
+		return;
+	}
+	_streamed->ready = true;
+	if (const auto sponsored = _streamed->sponsored.get()) {
+		sponsored->start();
+	}
 }
 
 void OverlayWidget::initStreamingThumbnail() {
@@ -4074,10 +4090,7 @@ void OverlayWidget::initStreamingThumbnail() {
 }
 
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
-	_streamed->ready = true;
-	if (const auto sponsored = _streamed->sponsored.get()) {
-		sponsored->start();
-	}
+	markStreamedReady();
 	if (videoShown()) {
 		applyVideoSize();
 		_streamedQualityChangeFrame = QImage();

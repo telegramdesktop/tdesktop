@@ -1091,16 +1091,16 @@ mediaSponsoredSkip: 16px;
 mediaSponsoredShift: 16px;
 mediaSponsoredPadding: margins(12px, 8px, 8px, 8px);
 mediaSponsoredThumb: 48px;
-mediaSponsoredClose: IconButton(mediaviewControlsButton) {
-	width: 64px;
-	height: 64px;
-	rippleAreaSize: 40px;
-	rippleAreaPosition: point(12px, 12px);
+mediaSponsoredCloseTwice: 3px;
+mediaSponsoredCloseSmall: 3px;
+mediaSponsoredCloseSize: 11px;
+mediaSponsoredCloseCorner: 6px;
+mediaSponsoredCloseFull: 64px;
+mediaSponsoredCloseStroke: 2px;
+mediaSponsoredCloseRipple: 36px;
+mediaSponsoredCloseDiameter: 24px;
+mediaSponsoredCloseFont: font(12px bold);
 
-	icon: icon {{ "box_button_close", mediaviewPlaybackIconFg }};
-	iconOver: icon {{ "box_button_close", mediaviewPlaybackIconFgOver }};
-	iconPosition: point(24px, 24px);
-}
 mediaSponsoredAbout: RoundButton(defaultActiveButton) {
 	textFg: windowActiveTextFg;
 	textFgOver: windowActiveTextFg;
