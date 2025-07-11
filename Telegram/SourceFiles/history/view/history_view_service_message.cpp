@@ -463,17 +463,16 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	const auto media = this->media();
 	const auto mediaDisplayed = media && media->isDisplayed();
 	auto contentWidth = newWidth;
+	if (delegate()->elementChatMode() == ElementChatMode::Wide) {
+		accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
+	}
+	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
+	if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
+		contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+	}
 	if (mediaDisplayed && media->hideServiceText()) {
 		newHeight += media->resizeGetHeight(newWidth) + marginBottom();
 	} else if (!text().isEmpty()) {
-		if (delegate()->elementChatMode() == ElementChatMode::Wide) {
-			accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
-		}
-		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
-		if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
-			contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
-		}
-
 		auto nwidth = qMax(contentWidth - st::msgServicePadding.left() - st::msgServicePadding.right(), 0);
 		newHeight += (contentWidth >= maxWidth())
 			? minHeight()
