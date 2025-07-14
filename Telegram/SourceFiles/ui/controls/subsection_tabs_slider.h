@@ -81,7 +81,7 @@ public:
 	void setSections(
 		SubsectionTabs sections,
 		Fn<bool()> paused);
-	void setActiveSectionFast(int active);
+	void setActiveSectionFast(int active, bool ignoreScroll = false);
 
 	[[nodiscard]] int sectionsCount() const;
 	[[nodiscard]] rpl::producer<int> sectionActivated() const;

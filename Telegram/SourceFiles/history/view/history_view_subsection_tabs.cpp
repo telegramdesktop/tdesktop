@@ -432,10 +432,14 @@ void SubsectionTabs::setupSlider(
 				.session = &session(),
 			}),
 		}, paused);
-		slider->setActiveSectionFast(activeIndex);
+
+		const auto ignoreActiveScroll = (scrollSavingIndex >= 0);
+		slider->setActiveSectionFast(activeIndex, ignoreActiveScroll);
 
 		_sectionsSlice = _slice;
-		if (scrollSavingIndex >= 0) {
+		Assert(slider->sectionsCount() == _slice.size());
+		if (ignoreActiveScroll) {
+			Assert(scrollSavingIndex < slider->sectionsCount());
 			const auto position = scrollSavingShift
 				+ slider->lookupSectionPosition(scrollSavingIndex);
 			if (vertical) {
@@ -702,6 +706,8 @@ void SubsectionTabs::refreshSlice() {
 		if (_slice != slice) {
 			_slice = std::move(slice);
 			_refreshed.fire({});
+			Assert((!_horizontal && !_vertical)
+				|| (_slice.size() == _sectionsSlice.size()));
 		}
 	});
 	const auto push = [&](not_null<Data::Thread*> thread) {
