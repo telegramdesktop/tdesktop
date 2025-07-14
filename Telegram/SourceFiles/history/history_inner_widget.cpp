@@ -2738,7 +2738,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					Window::PeerMenuAddTodoListTasks(_controller, item);
 				}
 			}),
-			&st::menuIconCreateTodoList);
+			&st::menuIconAdd);
 	};
 	const auto lnkPhoto = link
 		? reinterpret_cast<PhotoData*>(

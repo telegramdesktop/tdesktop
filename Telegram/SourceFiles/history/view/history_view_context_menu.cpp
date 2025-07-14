@@ -681,7 +681,7 @@ bool AddTodoListAction(
 		if (const auto item = controller->session().data().message(itemId)) {
 			Window::PeerMenuAddTodoListTasks(controller, item);
 		}
-	}, &st::menuIconCreateTodoList);
+	}, &st::menuIconAdd);
 	return true;
 }
 

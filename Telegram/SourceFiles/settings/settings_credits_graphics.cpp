@@ -939,7 +939,8 @@ void FillUniqueGiftMenu(
 		&& e.id.isEmpty()
 		&& (e.in || (giftChannel && giftChannel->canManageGifts()))
 		&& !e.giftTransferred
-		&& !e.giftRefunded;
+		&& !e.giftRefunded
+		&& !e.converted;
 
 	const auto unique = e.uniqueGift;
 	if (unique
@@ -1148,7 +1149,6 @@ void GenericCreditsEntryBox(
 	const auto isStarGift = e.stargift || e.soldOutInfo;
 	const auto creditsHistoryStarGift = isStarGift && !e.id.isEmpty();
 	const auto sentStarGift = creditsHistoryStarGift && !e.in;
-	const auto convertedStarGift = creditsHistoryStarGift && e.converted;
 	const auto giftToSelf = isStarGift
 		&& (e.barePeerId == selfPeerId)
 		&& (e.in || e.bareGiftOwnerId == selfPeerId);
@@ -1164,7 +1164,8 @@ void GenericCreditsEntryBox(
 	const auto starGiftCanManage = isStarGift
 		&& !creditsHistoryStarGift
 		&& (e.in || giftToChannelCanManage)
-		&& !e.fromGiftSlug;
+		&& !e.fromGiftSlug
+		&& !e.converted;
 	const auto starGiftCanTransfer = isStarGift
 		&& !creditsHistoryStarGift
 		&& (e.in || giftToChannelCanTransfer);
@@ -1424,7 +1425,7 @@ void GenericCreditsEntryBox(
 					? tr::lng_credits_box_history_entry_gift_unavailable(tr::now)
 					: sentStarGift
 					? tr::lng_credits_box_history_entry_gift_sent(tr::now)
-					: convertedStarGift
+					: e.converted
 					? tr::lng_credits_box_history_entry_gift_converted(tr::now)
 					: (isStarGift && !starGiftCanManage)
 					? tr::lng_gift_link_label_gift(tr::now)
@@ -1627,7 +1628,7 @@ void GenericCreditsEntryBox(
 	}
 
 	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
-	if (!uniqueGift && starGiftCanManage) {
+	if (!uniqueGift && (starGiftCanManage || e.converted)) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -1756,7 +1757,8 @@ void GenericCreditsEntryBox(
 
 	const auto canToggle = starGiftCanManage
 		&& !e.giftTransferred
-		&& !e.giftRefunded;
+		&& !e.giftRefunded
+		&& !e.converted;
 	const auto toggleVisibility = [=, weak = Ui::MakeWeak(box)](bool save) {
 		const auto showSection = !e.fromGiftsList;
 		const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
