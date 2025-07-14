@@ -319,14 +319,19 @@ struct Chat {
 	Utf8String title;
 	Utf8String username;
 	uint8 colorIndex = 0;
+	bool isMonoforum = false;
 	bool isBroadcast = false;
 	bool isSupergroup = false;
+	bool isMonoforumAdmin = false;
+	bool hasMonoforumAdminRights = false;
+	bool isMonoforumOfPublicBroadcast = false;
+	BareId monoforumLinkId = 0;
 
 	MTPInputPeer input = MTP_inputPeerEmpty();
+	MTPInputPeer monoforumBroadcastInput = MTP_inputPeerEmpty();
 };
 
 Chat ParseChat(const MTPChat &data);
-std::map<PeerId, Chat> ParseChatsList(const MTPVector<MTPChat> &data);
 
 struct Peer {
 	PeerId id() const;
@@ -952,12 +957,15 @@ struct DialogInfo {
 	MTPInputPeer migratedFromInput = MTP_inputPeerEmpty();
 	ChannelId migratedToChannelId = 0;
 
+	MTPInputPeer monoforumBroadcastInput = MTP_inputPeerEmpty();
+
 	// User messages splits which contained that dialog.
 	std::vector<int> splits;
 
 	// Filled after the whole dialogs list is accumulated.
 	bool onlyMyMessages = false;
 	bool isLeftChannel = false;
+	bool isMonoforum = false;
 	QString relativePath;
 
 	// Filled when requesting dialog messages.

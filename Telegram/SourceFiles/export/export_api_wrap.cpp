@@ -1370,7 +1370,7 @@ void ApiWrap::appendSinglePeerDialogs(Data::DialogsInfo &&info) {
 		if (isSupergroupType(info.type) && !migratedRequestId) {
 			migratedRequestId = requestSinglePeerMigrated(info);
 			continue;
-		} else if (isChannelType(info.type)) {
+		} else if (isChannelType(info.type) || info.isMonoforum) {
 			continue;
 		}
 		for (auto i = last; i != 0; --i) {
@@ -1642,6 +1642,9 @@ void ApiWrap::requestChatMessages(
 	const auto realPeerInput = (splitIndex >= 0)
 		? _chatProcess->info.input
 		: _chatProcess->info.migratedFromInput;
+	const auto outgoingInput = _chatProcess->info.isMonoforum
+		? _chatProcess->info.monoforumBroadcastInput
+		: MTP_inputPeerSelf();
 	const auto realSplitIndex = (splitIndex >= 0)
 		? splitIndex
 		: (splitsCount + splitIndex);
@@ -1650,7 +1653,7 @@ void ApiWrap::requestChatMessages(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
 			realPeerInput,
 			MTP_string(), // query
-			MTP_inputPeerSelf(),
+			outgoingInput,
 			MTPInputPeer(), // saved_peer_id
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
