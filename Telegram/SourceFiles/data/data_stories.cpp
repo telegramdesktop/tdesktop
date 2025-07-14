@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "core/application.h"
+#include "data/components/top_peers.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
@@ -421,10 +422,7 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 	};
 	if (result.peer->isSelf()
 		|| (result.peer->isChannel() && result.peer->asChannel()->amIn())
-		|| (result.peer->isUser()
-			&& (result.peer->asUser()->isBot()
-				|| result.peer->asUser()->isContact()))
-		|| result.peer->isServiceUser()) {
+		|| result.peer->isUser()) {
 		const auto hidden = result.peer->hasStoriesHidden();
 		using List = StorySourcesList;
 		add(hidden ? List::Hidden : List::NotHidden);
@@ -1187,7 +1185,11 @@ void Stories::toggleHidden(
 		bool hidden,
 		std::shared_ptr<Ui::Show> show) {
 	const auto peer = _owner->peer(peerId);
-	const auto justRemove = peer->isServiceUser() && hidden;
+	const auto byHints = peer->isUser()
+		&& !peer->asUser()->isBot()
+		&& !peer->asUser()->isContact()
+		&& !peer->asUser()->isServiceUser();
+	const auto justRemove = (byHints || peer->isServiceUser()) && hidden;
 	if (peer->hasStoriesHidden() != hidden) {
 		if (!justRemove) {
 			peer->setStoriesHidden(hidden);
@@ -1196,6 +1198,9 @@ void Stories::toggleHidden(
 			peer->input,
 			MTP_bool(hidden)
 		)).send();
+		if (byHints) {
+			peer->session().topPeers().remove(peer);
+		}
 	}
 
 	const auto name = peer->shortName();
