@@ -718,8 +718,7 @@ void DraftOptionsBox(
 	state->link = args.usedLink;
 	state->quote = SelectedQuote{
 		replyItem,
-		draft.reply.quote,
-		draft.reply.quoteOffset,
+		{ draft.reply.quote, draft.reply.quoteOffset },
 	};
 	state->forward = std::move(args.forward);
 	state->webpage = draft.webpage;

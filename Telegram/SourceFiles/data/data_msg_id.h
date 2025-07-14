@@ -180,6 +180,9 @@ struct MessageHighlightId {
 	[[nodiscard]] bool empty() const {
 		return quote.empty() && !todoItemId;
 	}
+	[[nodiscard]] friend inline bool operator==(
+		const MessageHighlightId &a,
+		const MessageHighlightId &b) = default;
 };
 
 struct FullReplyTo {
