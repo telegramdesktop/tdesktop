@@ -425,8 +425,6 @@ void TransferGift(
 		Data::SavedStarGiftId savedId,
 		Fn<void(Payments::CheckoutResult)> done,
 		bool skipPaymentForm = false) {
-	Expects(to->isUser());
-
 	const auto session = &window->session();
 	const auto weak = base::make_weak(window);
 	auto formDone = [=](
