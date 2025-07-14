@@ -4141,10 +4141,10 @@ void InnerWidget::refreshEmpty() {
 				.name = u"no_chats"_q,
 				.sizeOverride = Size(st::changePhoneIconSize),
 			});
-		const auto iconWidget = _emptyList->add(
+		_emptyList->add(
 			object_ptr<Ui::CenterWrap<>>(_emptyList, std::move(icon.widget)));
 		Ui::AddSkip(_emptyList);
-		const auto label = _emptyList->add(
+		_emptyList->add(
 			object_ptr<Ui::FlatLabel>(
 				_emptyList,
 				tr::lng_no_conversations(),
