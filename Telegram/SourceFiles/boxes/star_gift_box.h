@@ -21,6 +21,7 @@ class SavedStarGiftId;
 } // namespace Data
 
 namespace Main {
+class Session;
 class SessionShow;
 } // namespace Main
 
@@ -70,6 +71,8 @@ void ShowUniqueGiftWearBox(
 	not_null<PeerData*> peer,
 	const Data::UniqueGift &gift,
 	Settings::GiftWearBoxStyleOverride st);
+
+void PreloadUniqueGiftResellPrices(not_null<Main::Session*> session);
 
 void UpdateGiftSellPrice(
 	std::shared_ptr<ChatHelpers::Show> show,

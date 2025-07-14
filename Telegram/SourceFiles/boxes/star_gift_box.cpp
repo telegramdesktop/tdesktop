@@ -127,6 +127,7 @@ constexpr auto kUpgradeDoneToastDuration = 4 * crl::time(1000);
 constexpr auto kGiftsPreloadTimeout = 3 * crl::time(1000);
 constexpr auto kResaleGiftsPerPage = 50;
 constexpr auto kFiltersCount = 4;
+constexpr auto kResellPriceCacheLifetime = 60 * crl::time(1000);
 
 using namespace HistoryView;
 using namespace Info::PeerGifts;
@@ -219,6 +220,33 @@ struct GiftDetails {
 	bool upgraded = false;
 	bool byStars = false;
 };
+
+struct SessionResalePrices {
+	explicit SessionResalePrices(not_null<Main::Session*> session)
+	: api(std::make_unique<Api::PremiumGiftCodeOptions>(session->user())) {
+	}
+
+	std::unique_ptr<Api::PremiumGiftCodeOptions> api;
+	base::flat_map<QString, int> prices;
+	std::vector<Fn<void()>> waiting;
+	rpl::lifetime requestLifetime;
+	crl::time lastReceived = 0;
+};
+
+[[nodiscard]] not_null<SessionResalePrices*> ResalePrices(
+		not_null<Main::Session*> session) {
+	static auto result = base::flat_map<
+		not_null<Main::Session*>,
+		std::unique_ptr<SessionResalePrices>>();
+	if (const auto i = result.find(session); i != end(result)) {
+		return i->second.get();
+	}
+	const auto i = result.emplace(
+		session,
+		std::make_unique<SessionResalePrices>(session)).first;
+	session->lifetime().add([session] { result.remove(session); });
+	return i->second.get();
+}
 
 class PeerRow final : public PeerListRow {
 public:
@@ -4381,6 +4409,55 @@ void ShowUniqueGiftWearBox(
 	}));
 }
 
+void PreloadUniqueGiftResellPrices(not_null<Main::Session*> session) {
+	const auto entry = ResalePrices(session);
+	const auto now = crl::now();
+	const auto makeRequest = entry->prices.empty()
+		|| (now - entry->lastReceived >= kResellPriceCacheLifetime);
+	if (!makeRequest || entry->requestLifetime) {
+		return;
+	}
+	const auto finish = [=] {
+		entry->requestLifetime.destroy();
+		entry->lastReceived = crl::now();
+		for (const auto &callback : base::take(entry->waiting)) {
+			callback();
+		}
+	};
+	entry->requestLifetime = entry->api->requestStarGifts(
+	) | rpl::start_with_error_done(finish, [=] {
+		const auto &gifts = entry->api->starGifts();
+		entry->prices.reserve(gifts.size());
+		for (auto &gift : gifts) {
+			if (!gift.resellTitle.isEmpty() && gift.starsResellMin > 0) {
+				entry->prices[gift.resellTitle] = gift.starsResellMin;
+			}
+		}
+		finish();
+	});
+}
+
+void InvokeWithUniqueGiftResellPrice(
+		not_null<Main::Session*> session,
+		const QString &title,
+		Fn<void(int)> callback) {
+	PreloadUniqueGiftResellPrices(session);
+
+	const auto finish = [=] {
+		const auto entry = ResalePrices(session);
+		Assert(entry->lastReceived != 0);
+
+		const auto i = entry->prices.find(title);
+		callback((i != end(entry->prices)) ? i->second : 0);
+	};
+	const auto entry = ResalePrices(session);
+	if (entry->lastReceived) {
+		finish();
+	} else {
+		entry->waiting.push_back(finish);
+	}
+}
+
 void UpdateGiftSellPrice(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> unique,
@@ -4422,6 +4499,132 @@ void UpdateGiftSellPrice(
 	}).send();
 }
 
+void UniqueGiftSellBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Data::UniqueGift> unique,
+		Data::SavedStarGiftId savedId,
+		int price,
+		Settings::GiftWearBoxStyleOverride st) {
+	box->setTitle(tr::lng_gift_sell_title());
+	box->setStyle(st.box ? *st.box : st::upgradeGiftBox);
+	box->setWidth(st::boxWideWidth);
+
+	box->addTopButton(st.close ? *st.close : st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+	const auto priceNow = unique->starsForResale;
+	const auto name = Data::UniqueGiftName(*unique);
+	const auto slug = unique->slug;
+
+	const auto session = &show->session();
+	AddSubsectionTitle(
+		box->verticalLayout(),
+		tr::lng_gift_sell_placeholder(),
+		(st::boxRowPadding - QMargins(
+			st::defaultSubsectionTitlePadding.left(),
+			0,
+			st::defaultSubsectionTitlePadding.right(),
+			st::defaultSubsectionTitlePadding.bottom())));
+	const auto &appConfig = session->appConfig();
+	const auto limit = appConfig.giftResalePriceMax();
+	const auto minimal = appConfig.giftResalePriceMin();
+	const auto thousandths = appConfig.giftResaleReceiveThousandths();
+	const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
+		box,
+		st::editTagField.heightMin));
+	auto owned = object_ptr<Ui::NumberInput>(
+		wrap,
+		st::editTagField,
+		rpl::single(QString()),
+		QString::number(priceNow ? priceNow : price ? price : minimal),
+		limit);
+	const auto field = owned.data();
+	wrap->widthValue() | rpl::start_with_next([=](int width) {
+		field->move(0, 0);
+		field->resize(width, field->height());
+		wrap->resize(width, field->height());
+	}, wrap->lifetime());
+	field->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(field);
+		st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
+	}, field->lifetime());
+	field->selectAll();
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+
+	const auto errors = box->lifetime().make_state<
+		rpl::event_stream<>
+	>();
+	auto goods = rpl::merge(
+		rpl::single(rpl::empty) | rpl::map_to(true),
+		base::qt_signal_producer(
+			field,
+			&Ui::NumberInput::changed
+		) | rpl::map_to(true),
+		errors->events() | rpl::map_to(false)
+	) | rpl::start_spawning(box->lifetime());
+	auto text = rpl::duplicate(goods) | rpl::map([=](bool good) {
+		const auto value = field->getLastText().toInt();
+		const auto receive = (int64(value) * thousandths) / 1000;
+		return !good
+			? tr::lng_gift_sell_min_price(
+				tr::now,
+				lt_count,
+				minimal,
+				Ui::Text::RichLangValue)
+			: (value >= minimal)
+			? tr::lng_gift_sell_amount(
+				tr::now,
+				lt_count,
+				receive,
+				Ui::Text::RichLangValue)
+			: tr::lng_gift_sell_about(
+				tr::now,
+				lt_percent,
+				TextWithEntities{ u"%1%"_q.arg(thousandths / 10.) },
+				Ui::Text::RichLangValue);
+	});
+	const auto details = box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		std::move(text) | rpl::after_next([=] {
+			box->verticalLayout()->resizeToWidth(box->width());
+		}),
+		st::boxLabel));
+	Ui::AddSkip(box->verticalLayout());
+
+	rpl::duplicate(goods) | rpl::start_with_next([=](bool good) {
+		details->setTextColorOverride(
+			good ? st::windowSubTextFg->c : st::boxTextFgError->c);
+	}, details->lifetime());
+
+	QObject::connect(field, &NumberInput::submitted, [=] {
+		const auto count = field->getLastText().toInt();
+		if (count < minimal) {
+			field->showError();
+			errors->fire({});
+			return;
+		}
+		box->closeBox();
+		UpdateGiftSellPrice(show, unique, savedId, count);
+	});
+	const auto button = box->addButton(priceNow
+		? tr::lng_gift_sell_update()
+		: tr::lng_gift_sell_put(), [=] { field->submitted({}); });
+	rpl::combine(
+		box->widthValue(),
+		button->widthValue()
+	) | rpl::start_with_next([=](int outer, int inner) {
+		const auto padding = st::giftBox.buttonPadding;
+		const auto wanted = outer - padding.left() - padding.right();
+		if (inner != wanted) {
+			button->resizeToWidth(wanted);
+			button->moveToLeft(padding.left(), padding.top());
+		}
+	}, box->lifetime());
+}
+
 void ShowUniqueGiftSellBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> unique,
@@ -4430,125 +4633,11 @@ void ShowUniqueGiftSellBox(
 	if (ShowResaleGiftLater(show, unique)) {
 		return;
 	}
-	show->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(tr::lng_gift_sell_title());
-		box->setStyle(st.box ? *st.box : st::upgradeGiftBox);
-		box->setWidth(st::boxWideWidth);
-
-		box->addTopButton(st.close ? *st.close : st::boxTitleClose, [=] {
-			box->closeBox();
-		});
-		const auto priceNow = unique->starsForResale;
-		const auto name = Data::UniqueGiftName(*unique);
-		const auto slug = unique->slug;
-
-		const auto session = &show->session();
-		AddSubsectionTitle(
-			box->verticalLayout(),
-			tr::lng_gift_sell_placeholder(),
-			(st::boxRowPadding - QMargins(
-				st::defaultSubsectionTitlePadding.left(),
-				0,
-				st::defaultSubsectionTitlePadding.right(),
-				st::defaultSubsectionTitlePadding.bottom())));
-		const auto &appConfig = session->appConfig();
-		const auto limit = appConfig.giftResalePriceMax();
-		const auto minimal = appConfig.giftResalePriceMin();
-		const auto thousandths = appConfig.giftResaleReceiveThousandths();
-		const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
-			box,
-			st::editTagField.heightMin));
-		auto owned = object_ptr<Ui::NumberInput>(
-			wrap,
-			st::editTagField,
-			rpl::single(QString()),
-			QString::number(priceNow ? priceNow : minimal),
-			limit);
-		const auto field = owned.data();
-		wrap->widthValue() | rpl::start_with_next([=](int width) {
-			field->move(0, 0);
-			field->resize(width, field->height());
-			wrap->resize(width, field->height());
-		}, wrap->lifetime());
-		field->paintRequest() | rpl::start_with_next([=](QRect clip) {
-			auto p = QPainter(field);
-			st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
-		}, field->lifetime());
-		field->selectAll();
-		box->setFocusCallback([=] {
-			field->setFocusFast();
-		});
-
-		const auto errors = box->lifetime().make_state<
-			rpl::event_stream<>
-		>();
-		auto goods = rpl::merge(
-			rpl::single(rpl::empty) | rpl::map_to(true),
-			base::qt_signal_producer(
-				field,
-				&Ui::NumberInput::changed
-			) | rpl::map_to(true),
-			errors->events() | rpl::map_to(false)
-		) | rpl::start_spawning(box->lifetime());
-		auto text = rpl::duplicate(goods) | rpl::map([=](bool good) {
-			const auto value = field->getLastText().toInt();
-			const auto receive = (int64(value) * thousandths) / 1000;
-			return !good
-				? tr::lng_gift_sell_min_price(
-					tr::now,
-					lt_count,
-					minimal,
-					Ui::Text::RichLangValue)
-				: (value >= minimal)
-				? tr::lng_gift_sell_amount(
-					tr::now,
-					lt_count,
-					receive,
-					Ui::Text::RichLangValue)
-				: tr::lng_gift_sell_about(
-					tr::now,
-					lt_percent,
-					TextWithEntities{ u"%1%"_q.arg(thousandths / 10.) },
-					Ui::Text::RichLangValue);
-		});
-		const auto details = box->addRow(object_ptr<Ui::FlatLabel>(
-			box,
-			std::move(text) | rpl::after_next([=] {
-				box->verticalLayout()->resizeToWidth(box->width());
-			}),
-			st::boxLabel));
-		Ui::AddSkip(box->verticalLayout());
-
-		rpl::duplicate(goods) | rpl::start_with_next([=](bool good) {
-			details->setTextColorOverride(
-				good ? st::windowSubTextFg->c : st::boxTextFgError->c);
-		}, details->lifetime());
-
-		QObject::connect(field, &NumberInput::submitted, [=] {
-			const auto count = field->getLastText().toInt();
-			if (count < minimal) {
-				field->showError();
-				errors->fire({});
-				return;
-			}
-			box->closeBox();
-			UpdateGiftSellPrice(show, unique, savedId, count);
-		});
-		const auto button = box->addButton(priceNow
-			? tr::lng_gift_sell_update()
-			: tr::lng_gift_sell_put(), [=] { field->submitted({}); });
-		rpl::combine(
-			box->widthValue(),
-			button->widthValue()
-		) | rpl::start_with_next([=](int outer, int inner) {
-			const auto padding = st::giftBox.buttonPadding;
-			const auto wanted = outer - padding.left() - padding.right();
-			if (inner != wanted) {
-				button->resizeToWidth(wanted);
-				button->moveToLeft(padding.left(), padding.top());
-			}
-		}, box->lifetime());
-	}));
+	const auto session = &show->session();
+	const auto &title = unique->title;
+	InvokeWithUniqueGiftResellPrice(session, title, [=](int price) {
+		show->show(Box(UniqueGiftSellBox, show, unique, savedId, price, st));
+	});
 }
 
 void GiftReleasedByHandler(not_null<PeerData*> peer) {

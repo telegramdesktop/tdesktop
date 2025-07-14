@@ -1250,12 +1250,13 @@ void GenericCreditsEntryBox(
 				EntryToSavedStarGiftId(session, e),
 				style);
 		};
+		const auto canResell = CanResellGift(session, e);
 		AddUniqueGiftCover(
 			content,
 			rpl::single(*uniqueGift),
 			{},
 			std::move(price),
-			CanResellGift(session, e) ? std::move(change) : Fn<void()>());
+			canResell ? std::move(change) : Fn<void()>());
 
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 
@@ -1263,6 +1264,10 @@ void GenericCreditsEntryBox(
 			const auto type = SavedStarGiftMenuType::View;
 			FillUniqueGiftMenu(show, menu, e, type, st);
 		});
+
+		if (canResell) {
+			Ui::PreloadUniqueGiftResellPrices(session);
+		}
 	} else if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
 		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
