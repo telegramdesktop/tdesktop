@@ -447,6 +447,9 @@ void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
 	if (ranges::contains(_lastSublists, not_null(raw))) {
 		reorderLastSublists();
 	}
+	if (_activeSubsectionSublist == raw) {
+		_activeSubsectionSublist = nullptr;
+	}
 
 	_sublistDestroyed.fire(raw);
 	session().changes().sublistUpdated(
