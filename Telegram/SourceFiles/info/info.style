@@ -731,8 +731,8 @@ manageDeleteGroupButton: SettingsCountButton(manageGroupNoIconButton) {
 manageGroupReactions: IconButton(defaultIconButton) {
 	width: 24px;
 	height: 36px;
-	icon: icon{{ "info/edit/stickers_add", historyComposeIconFg }};
-	iconOver: icon{{ "info/edit/stickers_add", historyComposeIconFgOver }};
+	icon: icon{{ "menu/add", historyComposeIconFg }};
+	iconOver: icon{{ "menu/add", historyComposeIconFgOver }};
 }
 manageGroupReactionsField: InputField(defaultInputField) {
 	textMargins: margins(1px, 12px, 24px, 8px);
