@@ -485,6 +485,8 @@ void Message::initPaidInformation() {
 			refreshSuggestedInfo(item, suggest, replyData);
 		}
 		return;
+	} else if (!item->history()->peer->isUser()) {
+		return;
 	}
 	const auto media = this->media();
 	const auto mine = PaidInformation{
