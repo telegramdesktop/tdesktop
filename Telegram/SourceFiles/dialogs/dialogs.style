@@ -244,6 +244,17 @@ dialogsEmptyLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: windowSubTextFg;
 }
+dialogEmptyButton: RoundButton(defaultActiveButton) {
+}
+dialogEmptyButtonSkip: 12px;
+dialogEmptyButtonLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+	minWidth: 32px;
+	align: align(top);
+	textFg: windowFg;
+}
 
 dialogsMenuToggle: IconButton {
 	width: 40px;

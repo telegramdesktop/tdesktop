@@ -434,6 +434,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dlg_new_channel_name" = "Channel name";
 "lng_dlg_new_bot_name" = "Bot name";
 "lng_no_chats" = "Your chats will be here";
+"lng_no_conversations" = "You have no\nconversations yet.";
+"lng_no_conversations_button" = "New Message";
+"lng_no_conversations_subtitle" = "Your contacts on Telegram";
 "lng_no_chats_filter" = "No chats currently belong to this folder.";
 "lng_no_saved_sublists" = "You can save messages from other chats here.";
 "lng_contacts_loading" = "Loading...";
