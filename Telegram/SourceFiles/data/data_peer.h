@@ -109,6 +109,19 @@ struct UnavailableReason {
 		const MTPvector<MTPRestrictionReason> *list);
 };
 
+struct StarsRating {
+	int level = 0;
+	int levelStars = 0;
+	int currentStars = 0;
+	int nextLevelStars = 0;
+
+	explicit operator bool() const {
+		return level != 0 || levelStars != 0;
+	}
+
+	friend inline bool operator==(StarsRating, StarsRating) = default;
+};
+
 bool ApplyBotMenuButton(
 	not_null<BotInfo*> info,
 	const MTPBotMenuButton *button);
@@ -290,6 +303,7 @@ public:
 
 	[[nodiscard]] int starsPerMessage() const;
 	[[nodiscard]] int starsPerMessageChecked() const;
+	[[nodiscard]] Data::StarsRating starsRating() const;
 
 	[[nodiscard]] UserData *asBot();
 	[[nodiscard]] const UserData *asBot() const;

@@ -195,6 +195,9 @@ public:
 	void setStarsPerMessage(int stars);
 	[[nodiscard]] int starsPerMessage() const;
 
+	void setStarsRating(Data::StarsRating value);
+	[[nodiscard]] Data::StarsRating starsRating() const;
+
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
 
@@ -300,6 +303,7 @@ private:
 	QString _phone;
 	QString _privateForwardName;
 	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
+	Data::StarsRating _starsRating;
 
 	ChannelId _personalChannelId = 0;
 	MsgId _personalChannelMessageId = 0;
