@@ -49,6 +49,7 @@ void RecentSharedMediaGifts::request(
 		MTPpayments_GetSavedStarGifts(
 			MTP_flags(0),
 			peer->input,
+			MTP_int(0), // collection_id
 			MTP_string(QString()),
 			MTP_int(kMaxGifts)
 	)).done([=](const MTPpayments_SavedStarGifts &result) {

@@ -1114,6 +1114,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			MTPpayments_GetSavedStarGifts(
 			MTP_flags(Flag::f_exclude_limited | Flag::f_exclude_unlimited),
 			user->input,
+			MTP_int(0), // collection_id
 			MTP_string(offset),
 			MTP_int(kMyGiftsPerPage)
 		)).done([=](const MTPpayments_SavedStarGifts &result) {

@@ -348,6 +348,7 @@ void InnerWidget::loadMore() {
 	}
 	using Flag = MTPpayments_GetSavedStarGifts::Flag;
 	const auto filter = _filter.current();
+	const auto collectionId = 0;
 	_loadMoreRequestId = _api.request(MTPpayments_GetSavedStarGifts(
 		MTP_flags((filter.sortByValue ? Flag::f_sort_by_value : Flag())
 			| (filter.skipLimited ? Flag::f_exclude_limited : Flag())
@@ -356,6 +357,7 @@ void InnerWidget::loadMore() {
 			| (filter.skipSaved ? Flag::f_exclude_saved : Flag())
 			| (filter.skipUnsaved ? Flag::f_exclude_unsaved : Flag())),
 		_peer->input,
+		MTP_int(collectionId),
 		MTP_string(_reloading ? QString() : _offset),
 		MTP_int(kPerPage)
 	)).done([=](const MTPpayments_SavedStarGifts &result) {
