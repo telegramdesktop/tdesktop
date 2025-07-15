@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/notify/data_peer_notify_settings.h"
 #include "data/data_types.h"
 #include "data/data_flags.h"
-#include "data/notify/data_peer_notify_settings.h"
 #include "data/data_cloud_file.h"
+#include "data/data_peer_common.h"
 #include "ui/userpic_view.h"
 
 struct BotInfo;
@@ -107,19 +108,6 @@ struct UnavailableReason {
 
 	[[nodiscard]] static std::vector<UnavailableReason> Extract(
 		const MTPvector<MTPRestrictionReason> *list);
-};
-
-struct StarsRating {
-	int level = 0;
-	int levelStars = 0;
-	int currentStars = 0;
-	int nextLevelStars = 0;
-
-	explicit operator bool() const {
-		return level != 0 || levelStars != 0;
-	}
-
-	friend inline bool operator==(StarsRating, StarsRating) = default;
 };
 
 bool ApplyBotMenuButton(

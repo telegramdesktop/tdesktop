@@ -612,6 +612,7 @@ PRIVATE
     data/data_peer_bot_command.h
     data/data_peer_bot_commands.cpp
     data/data_peer_bot_commands.h
+    data/data_peer_common.h
     data/data_peer_id.cpp
     data/data_peer_id.h
     data/data_peer_values.cpp

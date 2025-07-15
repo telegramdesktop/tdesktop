@@ -518,6 +518,19 @@ bool ChannelHasSubscriptionUntilDate(ChannelData *channel) {
 	return channel && channel->subscriptionUntilDate() > 0;
 }
 
+rpl::producer<Data::StarsRating> StarsRatingValue(
+		not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::StarsRating
+		) | rpl::map([=] {
+			return user->starsRating();
+		});
+	}
+	return rpl::single(Data::StarsRating());
+}
+
 rpl::producer<QImage> PeerUserpicImageValue(
 		not_null<PeerData*> peer,
 		int size,

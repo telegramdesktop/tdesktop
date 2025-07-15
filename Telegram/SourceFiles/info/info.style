@@ -351,6 +351,8 @@ InfoProfileCover {
 	status: FlatLabel;
 	statusLeft: pixels;
 	statusTop: pixels;
+	starsRatingLeft: pixels;
+	starsRatingTop: pixels;
 	showLastSeen: RoundButton;
 	showLastSeenPosition: point;
 	showLastSeenVisible: bool;
@@ -384,6 +386,8 @@ infoProfileCover: InfoProfileCover {
 	status: infoProfileStatus;
 	statusLeft: 109px;
 	statusTop: 58px;
+	starsRatingLeft: 107px;
+	starsRatingTop: 57px;
 	showLastSeen: RoundButton(defaultActiveButton) {
 		textFg: windowSubTextFg;
 		textFgOver: windowSubTextFg;
@@ -1187,3 +1191,28 @@ topicsLayoutButtonIconPadding: margins(4px, 0px, 4px, 0px);
 topicsLayoutButtonIconSize: 140px;
 topicsLayoutButtonPadding: margins(4px, 0px, 4px, 12px);
 topicsLayoutButtonSkip: 0px;
+
+StarsRating {
+	margin: margins;
+	padding: margins;
+	style: TextStyle;
+	minSkip: pixels;
+	border: pixels;
+	activeBg: color;
+	inactiveBg: color;
+	activeFg: color;
+	inactiveFg: color;
+}
+infoStarsRating: StarsRating {
+	margin: margins(6px, 6px, 6px, 6px);
+	padding: margins(4px, 1px, 4px, 1px);
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px semibold);
+	}
+	minSkip: 32px;
+	border: 2px;
+	activeBg: windowBgActive;
+	inactiveBg: windowBgRipple;
+	activeFg: windowFgActive;
+	inactiveFg: windowBoldFg;
+}
