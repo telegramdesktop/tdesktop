@@ -8,11 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/stars_rating.h"
 
 #include "lang/lang_keys.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 #include "styles/style_info.h"
+#include "styles/style_media_view.h"
 
 namespace Ui {
 namespace {
@@ -24,9 +29,11 @@ constexpr auto kAutoCollapseTimeout = 4 * crl::time(1000);
 StarsRating::StarsRating(
 	QWidget *parent,
 	const style::StarsRating &st,
-	rpl::producer<Data::StarsRating> value)
+	rpl::producer<Data::StarsRating> value,
+	Fn<not_null<QWidget*>()> parentForTooltip)
 : _widget(std::make_unique<Ui::AbstractButton>(parent))
 , _st(st)
+, _parentForTooltip(std::move(parentForTooltip))
 , _value(std::move(value))
 , _collapseTimer([=] { _expanded = false; }) {
 	init();
@@ -41,7 +48,11 @@ void StarsRating::init() {
 		const auto till = expanded ? 1. : 0.;
 		_expandedAnimation.start([=] {
 			updateWidth();
+			if (!_expandedAnimation.animating()) {
+				updateStarsTooltipGeometry();
+			}
 		}, from, till, st::slideDuration);
+		toggleTooltips(expanded);
 	}, lifetime());
 
 	_widget->paintRequest() | rpl::start_with_next([=] {
@@ -116,6 +127,126 @@ void StarsRating::updateWidth() {
 		_expandedAnimation.value(_expanded.current() ? 1. : 0.));
 	_widget->resize(_st.margin.left() + widthToRight, _widget->height());
 	_widget->update();
+	updateStarsTooltipGeometry();
+}
+
+void StarsRating::toggleTooltips(bool shown) {
+	if (!shown) {
+		if (const auto strong = _about.get()) {
+			strong->hideAnimated();
+		}
+		if (const auto strong = _stars.release()) {
+			strong->toggleAnimated(false);
+		}
+		return;
+	}
+	const auto value = _value.current();
+	const auto parent = _parentForTooltip
+		? _parentForTooltip().get()
+		: _widget->window();
+	const auto text = value.nextLevelStars
+		? (Lang::FormatCountDecimal(value.currentStars)
+			+ u" / "_q
+			+ Lang::FormatCountDecimal(value.nextLevelStars))
+		: Lang::FormatCountDecimal(value.currentStars);
+	_stars = std::make_unique<Ui::ImportantTooltip>(
+		parent,
+		Ui::MakeNiceTooltipLabel(
+			_widget.get(),
+			rpl::single(TextWithEntities{ text }),
+			st::storiesInfoTooltipMaxWidth,
+			st::storiesInfoTooltipLabel),
+		st::infoStarsRatingTooltip);
+	const auto stars = _stars.get();
+	const auto weak = QPointer<QWidget>(stars);
+	const auto destroy = [=] {
+		delete weak.data();
+	};
+	stars->setAttribute(Qt::WA_TransparentForMouseEvents);
+	stars->setHiddenCallback(destroy);
+	updateStarsTooltipGeometry();
+	stars->toggleAnimated(true);
+
+	_aboutSt = std::make_unique<style::Toast>(st::defaultMultilineToast);
+	const auto learn = u"Learn More"_q;
+	_aboutSt->padding.setRight(
+		(st::infoStarsRatingLearn.style.font->width(learn)
+			- st::infoStarsRatingLearn.width));
+
+	_about = Ui::Toast::Show(parent, {
+		.text = TextWithEntities{
+			u"Profile level reflects the user's payment reliability."_q,
+		},
+		.st = _aboutSt.get(),
+		.attach = RectPart::Top,
+		.dark = true,
+		.adaptive = true,
+		.acceptinput = true,
+		.duration = kAutoCollapseTimeout,
+	});
+	const auto strong = _about.get();
+	if (!strong) {
+		return;
+	}
+	const auto widget = strong->widget();
+	const auto hideToast = [weak = _about] {
+		if (const auto strong = weak.get()) {
+			strong->hideAnimated();
+		}
+	};
+
+	const auto button = Ui::CreateChild<Ui::RoundButton>(
+		widget.get(),
+		rpl::single(learn),
+		st::infoStarsRatingLearn);
+	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	button->show();
+	rpl::combine(
+		widget->sizeValue(),
+		button->sizeValue()
+	) | rpl::start_with_next([=](QSize outer, QSize inner) {
+		button->moveToRight(
+			0,
+			(outer.height() - inner.height()) / 2,
+			outer.width());
+	}, widget->lifetime());
+	button->setClickedCallback([=] {
+		UrlClickHandler::Open(u"https://telegram.org/"_q);
+	});
+}
+
+void StarsRating::updateStarsTooltipGeometry() {
+	if (!_stars) {
+		return;
+	}
+	const auto weakParent = base::make_weak(_stars->parentWidget());
+	const auto weak = base::make_weak(_widget.get());
+	const auto point = _st.margin.left()
+		+ _st.border
+		+ (_activeWidth / (_value.current().nextLevelStars ? 1 : 2));
+	const auto countPosition = [=](QSize size) {
+		const auto strong = weak.get();
+		const auto parent = weakParent.get();
+		if (!strong || !parent) {
+			return QPoint();
+		}
+		const auto geometry = Ui::MapFrom(parent, strong, strong->rect());
+		const auto shift = size.width() / 2;
+		const auto left = geometry.x() + point - shift;
+		const auto margin = st::defaultImportantTooltip.margin;
+		return QPoint(
+			std::min(
+				std::max(left, margin.left()),
+				parent->width() - size.width() - margin.right()),
+			geometry.y() + geometry.height());
+	};
+	_stars->pointAt(
+		Ui::MapFrom(
+			_stars->parentWidget(),
+			_widget.get(),
+			QRect(point, 0, st::lineWidth, _widget->height())),
+		RectPart::Bottom,
+		countPosition);
 }
 
 void StarsRating::raise() {
@@ -149,27 +280,30 @@ void StarsRating::paint(QPainter &p) {
 
 	const auto value = _value.current();
 	const auto expandedRatio = (value.nextLevelStars > value.levelStars)
-		? ((value.nextLevelStars - value.currentStars)
+		? ((value.currentStars - value.levelStars)
 			/ float64(value.nextLevelStars - value.levelStars))
 		: 1.;
-	const auto skip = _st.style.font->spacew;
 	const auto expandedFilled = _st.padding.left()
 		+ _expandedText.maxWidth()
-		+ skip
+		+ _st.padding.right()
 		+ expandedRatio * (middle.width()
+			- _st.padding.left()
 			- _expandedText.maxWidth()
-			- _nextText.maxWidth()
 			- _st.padding.right()
-			- 2 * skip);
-	const auto collapsedFilled = middle.width();
-	const auto filled = anim::interpolate(
+			- _st.padding.left()
+			- _nextText.maxWidth()
+			- _st.padding.right());
+	const auto collapsedFilled = _collapsedWidthValue.current()
+		- _st.margin.right()
+		- 2 * _st.border;
+	_activeWidth = anim::interpolate(
 		collapsedFilled,
 		expandedFilled,
 		expanded);
 	p.drawRoundedRect(
 		middle.x(),
 		middle.y(),
-		filled,
+		_activeWidth,
 		middle.height(),
 		mradius,
 		mradius);

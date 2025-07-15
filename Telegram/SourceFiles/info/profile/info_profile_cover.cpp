@@ -649,7 +649,8 @@ Cover::Cover(
 	? std::make_unique<Ui::StarsRating>(
 		this,
 		st::infoStarsRating,
-		Data::StarsRatingValue(_peer))
+		Data::StarsRatingValue(_peer),
+		_parentForTooltip)
 	: nullptr)
 , _status(this, _st.status)
 , _showLastSeen(this, tr::lng_status_lastseen_when(), _st.showLastSeen)

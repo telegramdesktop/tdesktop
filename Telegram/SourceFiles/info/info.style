@@ -1205,7 +1205,7 @@ StarsRating {
 }
 infoStarsRating: StarsRating {
 	margin: margins(6px, 6px, 6px, 6px);
-	padding: margins(4px, 1px, 4px, 1px);
+	padding: margins(6px, 1px, 6px, 1px);
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px semibold);
 	}
@@ -1216,3 +1216,14 @@ infoStarsRating: StarsRating {
 	activeFg: windowFgActive;
 	inactiveFg: windowBoldFg;
 }
+infoStarsRatingLearn: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 44px;
+	textTop: 13px;
+	textFg: mediaviewTextLinkFg;
+	textFgOver: mediaviewTextLinkFg;
+	textBg: transparent;
+	textBgOver: transparent;
+	ripple: emptyRippleAnimation;
+}
+infoStarsRatingTooltip: defaultImportantTooltip;
