@@ -74,8 +74,11 @@ struct StarGift {
 	int resellCount = 0;
 	int limitedLeft = 0;
 	int limitedCount = 0;
+	int perUserTotal = 0;
+	int perUserRemains = 0;
 	TimeId firstSaleDate = 0;
 	TimeId lastSaleDate = 0;
+	bool requirePremium = false;
 	bool upgradable = false;
 	bool birthday = false;
 	bool soldOut = false;

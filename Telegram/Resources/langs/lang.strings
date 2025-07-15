@@ -3521,6 +3521,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_stars_sold_out" = "sold out";
 "lng_gift_stars_resale" = "resale";
 "lng_gift_stars_on_sale" = "on sale";
+"lng_gift_stars_premium" = "premium";
 "lng_gift_stars_tabs_all" = "All Gifts";
 "lng_gift_stars_tabs_my" = "My Gifts";
 "lng_gift_stars_tabs_limited" = "Limited";

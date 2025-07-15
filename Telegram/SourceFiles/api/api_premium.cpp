@@ -825,8 +825,11 @@ std::optional<Data::StarGift> FromTL(
 			.resellCount = int(data.vavailability_resale().value_or_empty()),
 			.limitedLeft = remaining.value_or_empty(),
 			.limitedCount = total.value_or_empty(),
+			.perUserTotal = data.vper_user_total().value_or_empty(),
+			.perUserRemains = data.vper_user_remains().value_or_empty(),
 			.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
 			.lastSaleDate = data.vlast_sale_date().value_or_empty(),
+			.requirePremium = data.is_require_premium(),
 			.upgradable = data.vupgrade_stars().has_value(),
 			.birthday = data.is_birthday(),
 			.soldOut = data.is_sold_out(),
@@ -877,6 +880,7 @@ std::optional<Data::StarGift> FromTL(
 			.releasedBy = releasedBy,
 			.limitedLeft = (total - data.vavailability_issued().v),
 			.limitedCount = total,
+			.requirePremium = data.is_require_premium(),
 		};
 		const auto unique = result.unique.get();
 		for (const auto &attribute : data.vattributes().v) {
