@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/stars_rating.h"
 
 #include "lang/lang_keys.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -42,7 +43,8 @@ StarsRating::StarsRating(
 StarsRating::~StarsRating() = default;
 
 void StarsRating::init() {
-	_expanded.value() | rpl::start_with_next([=](bool expanded) {
+	_widget->setPointerCursor(true);
+	_expanded.changes() | rpl::start_with_next([=](bool expanded) {
 		_widget->setPointerCursor(!expanded);
 		const auto from = expanded ? 0. : 1.;
 		const auto till = expanded ? 1. : 0.;
@@ -168,15 +170,15 @@ void StarsRating::toggleTooltips(bool shown) {
 	stars->toggleAnimated(true);
 
 	_aboutSt = std::make_unique<style::Toast>(st::defaultMultilineToast);
-	const auto learn = u"Learn More"_q;
+	const auto learn = tr::lng_stars_rating_learn_more(tr::now);
 	_aboutSt->padding.setRight(
 		(st::infoStarsRatingLearn.style.font->width(learn)
 			- st::infoStarsRatingLearn.width));
 
 	_about = Ui::Toast::Show(parent, {
-		.text = TextWithEntities{
-			u"Profile level reflects the user's payment reliability."_q,
-		},
+		.text = tr::lng_stars_rating_tooltip(
+			tr::now,
+			Ui::Text::WithEntities),
 		.st = _aboutSt.get(),
 		.attach = RectPart::Top,
 		.dark = true,
@@ -211,7 +213,7 @@ void StarsRating::toggleTooltips(bool shown) {
 			outer.width());
 	}, widget->lifetime());
 	button->setClickedCallback([=] {
-		UrlClickHandler::Open(u"https://telegram.org/"_q);
+		UrlClickHandler::Open(tr::lng_stars_rating_about_url(tr::now));
 	});
 }
 
@@ -283,16 +285,18 @@ void StarsRating::paint(QPainter &p) {
 		? ((value.currentStars - value.levelStars)
 			/ float64(value.nextLevelStars - value.levelStars))
 		: 1.;
-	const auto expandedFilled = _st.padding.left()
-		+ _expandedText.maxWidth()
-		+ _st.padding.right()
-		+ expandedRatio * (middle.width()
-			- _st.padding.left()
-			- _expandedText.maxWidth()
-			- _st.padding.right()
-			- _st.padding.left()
-			- _nextText.maxWidth()
-			- _st.padding.right());
+	const auto expandedFilled = (expandedRatio < 1.)
+		? (_st.padding.left()
+			+ _expandedText.maxWidth()
+			+ _st.padding.right()
+			+ expandedRatio * (middle.width()
+				- _st.padding.left()
+				- _expandedText.maxWidth()
+				- _st.padding.right()
+				- _st.padding.left()
+				- _nextText.maxWidth()
+				- _st.padding.right()))
+		: middle.width();
 	const auto collapsedFilled = _collapsedWidthValue.current()
 		- _st.margin.right()
 		- 2 * _st.border;

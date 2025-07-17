@@ -777,6 +777,19 @@ void ShowSentToast(
 			tr::now,
 			Text::RichLangValue);
 	}, [&](const GiftTypeStars &gift) {
+		if (gift.info.perUserTotal && gift.info.perUserRemains < 2) {
+			return tr::lng_gift_sent_finished(
+				tr::now,
+				lt_count,
+				gift.info.perUserTotal,
+				Text::RichLangValue);
+		} else if (gift.info.perUserTotal) {
+			return tr::lng_gift_sent_remains(
+				tr::now,
+				lt_count,
+				gift.info.perUserRemains - 1,
+				Text::RichLangValue);
+		}
 		const auto amount = gift.info.stars
 			+ (details.upgraded ? gift.info.starsToUpgrade : 0);
 		return tr::lng_gift_sent_about(
@@ -2749,7 +2762,12 @@ void SendGiftBox(
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
 				const auto unique = star ? star->info.unique : nullptr;
-				if (unique && star->mine && !peer->isSelf()) {
+				if (star
+					&& star->info.requirePremium
+					&& !peer->session().premium()) {
+					Settings::ShowPremiumGiftPremium(window, star->info);
+					return;
+				} else if (unique && star->mine && !peer->isSelf()) {
 					if (ShowTransferGiftLater(window->uiShow(), unique)) {
 						return;
 					}

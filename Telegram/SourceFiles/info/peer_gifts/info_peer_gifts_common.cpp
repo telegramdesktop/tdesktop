@@ -421,6 +421,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	const auto onsale = (unique && unique->starsForResale && _small);
 	const auto requirePremium = v::is<GiftTypeStars>(_descriptor)
 		&& !v::get<GiftTypeStars>(_descriptor).userpic
+		&& !v::get<GiftTypeStars>(_descriptor).info.unique
 		&& v::get<GiftTypeStars>(_descriptor).info.requirePremium;
 	const auto hidden = v::is<GiftTypeStars>(_descriptor)
 		&& v::get<GiftTypeStars>(_descriptor).hidden;
@@ -539,7 +540,9 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 					? tr::lng_gift_stars_resale(tr::now)
 					: soldOut
 					? tr::lng_gift_stars_sold_out(tr::now)
-					: (!data.userpic && data.info.requirePremium)
+					: (!data.userpic
+						&& !data.info.unique
+						&& data.info.requirePremium)
 					? tr::lng_gift_stars_premium(tr::now)
 					: (!data.userpic && !data.info.unique)
 					? tr::lng_gift_stars_limited(tr::now)
@@ -559,7 +562,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 					? st::boxTextFgGood->c
 					: soldOut
 					? st::attentionButtonFg->c
-					: data.info.requirePremium
+					: (!data.userpic && data.info.requirePremium)
 					? st::creditsFg->c
 					: st::windowActiveTextFg->c),
 				.bg2 = (onsale

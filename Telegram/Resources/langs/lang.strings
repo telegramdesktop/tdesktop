@@ -1876,6 +1876,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_revoked_title" = "Link removed";
 "lng_star_ref_revoked_text" = "It will no longer work.";
 
+"lng_stars_rating_tooltip" = "Profile level reflects the user's payment reliability.";
+"lng_stars_rating_learn_more" = "Learn More";
+"lng_stars_rating_about_url" = "https://telegram.org/";
+
 "lng_manage_discussion_group" = "Discussion";
 "lng_manage_discussion_group_add" = "Add a group";
 "lng_manage_linked_channel" = "Linked channel";
@@ -2589,6 +2593,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_unlock_emoji" = "Unlock Animated Emoji";
 "lng_premium_unlock_status" = "Unlock Emoji Status";
 
+"lng_premium_subscribe_months_24" = "2-Year";
 "lng_premium_subscribe_months_12" = "Annual";
 "lng_premium_subscribe_months_6" = "Semiannual";
 "lng_premium_subscribe_months_1" = "Monthly";
@@ -3508,6 +3513,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_ton_amount#one" = "{count} TON";
 "lng_gift_ton_amount#other" = "{count} TON";
 
+"lng_gift_premium_title" = "Premium Gift";
+"lng_gift_premium_text#one" = "Subscribe to **Telegram Premium** to send up to **{count}** of these gifts and unlock access to multiple additional features.";
+"lng_gift_premium_text#other" = "Subscribe to **Telegram Premium** to send up to **{count}** of these gifts and unlock access to multiple additional features.";
 "lng_gift_premium_or_stars" = "Gift Premium or Stars";
 "lng_gift_premium_subtitle" = "Gift Premium";
 "lng_gift_premium_about" = "Give {name} access to exclusive features with Telegram Premium. {features}";
@@ -3559,6 +3567,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sent_resale_done_self" = "{gift} is now yours.";
 "lng_gift_sent_about#one" = "You spent **{count}** Star from your balance.";
 "lng_gift_sent_about#other" = "You spent **{count}** Stars from your balance.";
+"lng_gift_sent_finished#one" = "You've already sent **{count}** of these gifts, and it's the limit.";
+"lng_gift_sent_finished#other" = "You've already sent **{count}** of these gifts, and it's the limit.";
+"lng_gift_sent_remains#one" = "You can send **{count}** more.";
+"lng_gift_sent_remains#other" = "You can send **{count}** more.";
 "lng_gift_limited_of_one" = "unique";
 "lng_gift_limited_of_count" = "1 of {amount}";
 "lng_gift_collectible_tag" = "gift";
