@@ -121,6 +121,7 @@ enum class UserDataFlag : uint32 {
 	HasStarsPerMessage = (1 << 23),
 	MessageMoneyRestrictionsKnown = (1 << 24),
 	ReadDatesPrivate = (1 << 25),
+	StoriesCorrespondent = (1 << 26),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -187,6 +188,9 @@ public:
 	[[nodiscard]] bool messageMoneyRestrictionsKnown() const;
 	[[nodiscard]] bool canSendIgnoreMoneyRestrictions() const;
 	[[nodiscard]] bool readDatesPrivate() const;
+
+	void setStoriesCorrespondent(bool is);
+	[[nodiscard]] bool storiesCorrespondent() const;
 
 	void setStarsPerMessage(int stars);
 	[[nodiscard]] int starsPerMessage() const;

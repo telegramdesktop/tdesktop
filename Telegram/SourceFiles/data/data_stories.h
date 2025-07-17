@@ -267,8 +267,12 @@ private:
 		int chat = 0;
 		int viewer = 0;
 	};
+	enum class ParseSource : uchar {
+		MyStrip,
+		DirectRequest,
+	};
 
-	void parseAndApply(const MTPPeerStories &stories);
+	void parseAndApply(const MTPPeerStories &stories, ParseSource source);
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data,

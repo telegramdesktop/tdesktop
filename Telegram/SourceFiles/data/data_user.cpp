@@ -543,6 +543,18 @@ int UserData::starsPerMessage() const {
 	return _starsPerMessage;
 }
 
+void UserData::setStoriesCorrespondent(bool is) {
+	if (is) {
+		_flags.add(UserDataFlag::StoriesCorrespondent);
+	} else {
+		_flags.remove(UserDataFlag::StoriesCorrespondent);
+	}
+}
+
+bool UserData::storiesCorrespondent() const {
+	return (_flags.current() & UserDataFlag::StoriesCorrespondent);
+}
+
 void UserData::setStarsPerMessage(int stars) {
 	if (_starsPerMessage != stars) {
 		_starsPerMessage = stars;
