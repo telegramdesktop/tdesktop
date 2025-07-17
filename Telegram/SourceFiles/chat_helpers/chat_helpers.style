@@ -1487,9 +1487,6 @@ editTagField: InputField(defaultInputField) {
 
 	heightMin: 36px;
 }
-editTagLimit: FlatLabel(defaultFlatLabel) {
-	textFg: windowSubTextFg;
-}
 
 editStickerSetNameField: InputField(defaultInputField) {
 	textMargins: margins(0px, 8px, 26px, 4px);

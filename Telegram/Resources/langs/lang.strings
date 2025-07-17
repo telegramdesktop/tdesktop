@@ -3751,6 +3751,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_resale_early" = "You will be able to resell this gift in {duration}.";
 "lng_gift_transfer_early" = "You will be able to transfer this gift in {duration}.";
 "lng_gift_resale_transfer_early_title" = "Try Later";
+"lng_gift_collection_add" = "Add Collection";
+"lng_gift_collection_new_title" = "Create a New Collection";
+"lng_gift_collection_new_button" = "New Collection";
+"lng_gift_collection_new_text" = "Choose a name for your collection and start adding your gifts there.";
+"lng_gift_collection_new_ph" = "Title";
+"lng_gift_collection_new_create" = "Create";
+"lng_gift_collection_empty_title" = "Organize Your Gifts";
+"lng_gift_collection_empty_text" = "Add some of your gifts to this collection.";
+"lng_gift_collection_empty_button" = "Add to Collection";
+"lng_gift_collection_all" = "All Gifts";
+"lng_gift_collection_add_title" = "Add Gifts";
+"lng_gift_collection_edit" = "Edit Name";
+"lng_gift_collection_limit_title" = "Limit Reached";
+"lng_gift_collection_limit_text" = "Please remove one of the existing collections to add a new one.";
+"lng_gift_collection_delete" = "Delete Collection";
+"lng_gift_collection_add_to" = "Add to Collection";
+"lng_gift_collection_reorder" = "Reorder";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

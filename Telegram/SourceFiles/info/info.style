@@ -1227,3 +1227,19 @@ infoStarsRatingLearn: RoundButton(defaultActiveButton) {
 	ripple: emptyRippleAnimation;
 }
 infoStarsRatingTooltip: defaultImportantTooltip;
+
+collectionAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+collectionNameField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 10px, 32px, 2px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+
+	heightMin: 36px;
+}

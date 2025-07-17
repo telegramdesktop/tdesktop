@@ -121,6 +121,14 @@ int AppConfig::pinnedGiftsLimit() const {
 	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
 }
 
+int AppConfig::giftCollectionsLimit() const {
+	return get<int>(u"stargifts_collections_limit"_q, 10);
+}
+
+int AppConfig::giftCollectionGiftsLimit() const {
+	return get<int>(u"stargifts_collection_gifts_limit"_q, 500);
+}
+
 bool AppConfig::callsDisabledForSession() const {
 	const auto authorizations = _account->sessionExists()
 		? &_account->session().api().authorizations()

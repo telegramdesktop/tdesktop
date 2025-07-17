@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_credits.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "info/peer_gifts/info_peer_gifts_collections.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/info_controller.h"
 #include "ui/layers/generic_box.h"
@@ -807,6 +808,8 @@ void Widget::setupNotifyCheckbox(bool enabled) {
 }
 
 void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	const auto peer = _inner->peer();
+	const auto canManage = peer->canManageGifts();
 	const auto filter = _filter.current();
 	const auto change = [=](Fn<void(Filter&)> update) {
 		auto now = _filter.current();
@@ -822,6 +825,20 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 		addAction(tr::lng_peer_gifts_filter_by_value(tr::now), [=] {
 			change([](Filter &filter) { filter.sortByValue = true; });
 		}, &st::menuIconEarn);
+	}
+
+	if (canManage) {
+		const auto weak = base::make_weak(
+			(Window::SessionNavigation*)controller());
+		addAction(tr::lng_gift_collection_add(tr::now), [=] {
+			if (const auto strong = weak.get()) {
+				strong->uiShow()->show(Box(
+					NewCollectionBox,
+					strong,
+					peer,
+					Data::SavedStarGiftId()));
+			}
+		}, &st::menuIconAddToFolder);
 	}
 
 	addAction({ .isSeparator = true });
@@ -857,7 +874,7 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 		});
 	}, filter.skipUnique ? nullptr : &st::mediaPlayerMenuCheck);
 
-	if (_inner->peer()->canManageGifts()) {
+	if (canManage) {
 		addAction({ .isSeparator = true });
 
 		addAction(tr::lng_peer_gifts_filter_saved(tr::now), [=] {
