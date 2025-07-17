@@ -315,6 +315,9 @@ parts:
       - --enable-muxer=ogg
       - --enable-muxer=opus
       - --enable-muxer=wav
+    override-pull: |
+      craftctl default
+      sed -i 's/disable ffnvcodec cuvid nvdec nvenc/:/g' configure
     prime: [-./*]
     after:
       - nv-codec-headers
