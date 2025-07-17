@@ -143,8 +143,6 @@ parts:
     source-depth: 1
     source-tag: v3.2.4
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -159,8 +157,6 @@ parts:
     source-depth: 1
     source-tag: v1.3.0
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -177,8 +173,6 @@ parts:
     source-depth: 1
     source-branch: n6.1.1
     plugin: autotools
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     autotools-configure-parameters:
       - --prefix=/usr
       - --libdir=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
@@ -336,8 +330,6 @@ parts:
     source-depth: 1
     source-tag: v0.11.1
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -376,8 +368,6 @@ parts:
     source-depth: 1
     source-tag: 1.24.3
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -407,8 +397,6 @@ parts:
     source-depth: 1
     source-tag: v30.2
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -431,7 +419,7 @@ parts:
       - qtwayland
     plugin: cmake
     build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,-push-state,-no-as-needed,-lhwy,-pop-state -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,-push-state,-no-as-needed,-lhwy,-pop-state
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -460,8 +448,6 @@ parts:
     source-depth: 1
     source-tag: v0.2
     plugin: autotools
-    build-environment:
-      - CFLAGS: -O2 -s
     autotools-configure-parameters:
       - --prefix=/usr
       - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
@@ -487,8 +473,6 @@ parts:
     source-depth: 1
     source-commit: 51743dfd01dff6179e2d8f7095729caa4e2222e9
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -504,8 +488,6 @@ parts:
     source-depth: 1
     source-commit: 62321fd7128ab2650b459d4195781af8185e46b5
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
