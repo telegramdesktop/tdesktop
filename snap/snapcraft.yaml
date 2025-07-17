@@ -88,6 +88,7 @@ parts:
       - clang
       - gperf
       - nasm
+      - wget
       - libboost-regex-dev
       - libdav1d-dev
       - libheif-dev
@@ -455,9 +456,9 @@ parts:
       - pkgs
 
   rnnoise:
-    source: https://gitlab.xiph.org/xiph/rnnoise.git
+    source: https://github.com/xiph/rnnoise.git
     source-depth: 1
-    source-commit: 7f449bf8bd3b933891d12c30112268c4090e4d59
+    source-tag: v0.2
     plugin: autotools
     build-environment:
       - CFLAGS: -O2 -s
@@ -467,7 +468,12 @@ parts:
       - --disable-shared
       - --disable-examples
       - --disable-doc
+    override-pull: |
+      craftctl default
+      sed -i 's/os_support.h/common.h/g;s/OPUS_CLEAR/RNN_CLEAR/g' src/vec{,_neon}.h
     prime: [-./*]
+    after:
+      - pkgs
 
   systemd:
     plugin: nil
