@@ -99,11 +99,13 @@ private:
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	void setupNotifyCheckbox(bool enabled);
+	void toggleAddButton(bool shown);
 
 	InnerWidget *_inner = nullptr;
 	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
 	rpl::variable<bool> _hasPinnedToBottom;
 	rpl::variable<Filter> _filter;
+	rpl::variable<int> _addingToCollectionId;
 	bool _shown = false;
 
 };

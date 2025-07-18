@@ -1243,3 +1243,11 @@ collectionNameField: InputField(defaultInputField) {
 
 	heightMin: 36px;
 }
+collectionEmptyTitle: FlatLabel(boxTitle) {
+}
+collectionEmptyText: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+collectionEmptyTitleMargin: margins(10px, 24px, 10px, 4px);
+collectionEmptyTextMargin: margins(10px, 4px, 10px, 12px);
+collectionEmptyAddMargin: margins(10px, 12px, 10px, 24px);

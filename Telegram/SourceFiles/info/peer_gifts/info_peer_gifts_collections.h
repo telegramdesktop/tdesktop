@@ -25,6 +25,7 @@ void NewCollectionBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
-	Data::SavedStarGiftId addId);
+	Data::SavedStarGiftId addId,
+	Fn<void(MTPStarGiftCollection)> added);
 
 } // namespace Info::PeerGifts

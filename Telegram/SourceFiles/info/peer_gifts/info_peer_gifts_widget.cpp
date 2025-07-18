@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 
+#include "api/api_credits.h"
 #include "api/api_hash.h"
 #include "api/api_premium.h"
 #include "apiwrap.h"
@@ -65,6 +66,21 @@ constexpr auto kPerPage = 50;
 	};
 }
 
+[[nodiscard]] Data::GiftCollection FromTL(
+		not_null<Main::Session*> session,
+		const MTPStarGiftCollection &collection) {
+	const auto &data = collection.data();
+	return {
+		.id = data.vcollection_id().v,
+		.count = data.vgifts_count().v,
+		.title = qs(data.vtitle()),
+		.icon = (data.vicon()
+			? session->data().processDocument(*data.vicon()).get()
+			: nullptr),
+		.hash = data.vhash().v,
+	};
+}
+
 [[nodiscard]] std::vector<Data::GiftCollection> FromTL(
 		not_null<Main::Session*> session,
 		const MTPDpayments_starGiftCollections &data) {
@@ -73,16 +89,7 @@ constexpr auto kPerPage = 50;
 	const auto &list = data.vcollections().v;
 	result.reserve(list.size());
 	for (const auto &collection : list) {
-		const auto &data = collection.data();
-		result.push_back({
-			.id = data.vcollection_id().v,
-			.count = data.vgifts_count().v,
-			.title = qs(data.vtitle()),
-			.icon = (data.vicon()
-				? session->data().processDocument(*data.vicon()).get()
-				: nullptr),
-			.hash = data.vhash().v,
-		});
+		result.push_back(FromTL(session, collection));
 	}
 	return result;
 }
@@ -95,7 +102,8 @@ public:
 		QWidget *parent,
 		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
-		rpl::producer<Filter> filter);
+		rpl::producer<Filter> filter,
+		rpl::producer<int> addingToCollectionId);
 
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
@@ -106,9 +114,15 @@ public:
 	[[nodiscard]] rpl::producer<> resetFilterRequests() const {
 		return _resetFilterRequests.events();
 	}
+	[[nodiscard]] rpl::producer<int> addToCollectionRequests() const {
+		return _addToCollectionRequests.events();
+	}
 	[[nodiscard]] rpl::producer<> scrollToTop() const {
 		return _scrollToTop.events();
 	}
+
+	void saveAdding();
+	void collectionAdded(MTPStarGiftCollection result);
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
@@ -120,6 +134,7 @@ private:
 	};
 	struct Entries {
 		std::vector<Entry> list;
+		Filter filter;
 		int total = 0;
 		bool allLoaded = false;
 	};
@@ -146,6 +161,8 @@ private:
 	void refreshAbout();
 	void refreshCollectionsTabs();
 
+	[[nodiscard]] int shownCollectionId() const;
+
 	void markPinned(std::vector<Entry>::iterator i);
 	void markUnpinned(std::vector<Entry>::iterator i);
 
@@ -157,10 +174,11 @@ private:
 	const not_null<Window::SessionController*> _window;
 	rpl::variable<Filter> _filter;
 	rpl::variable<int> _collectionId;
+	rpl::variable<int> _addingToCollectionId;
 	Delegate _delegate;
 	const not_null<Controller*> _controller;
 	std::unique_ptr<Ui::SubTabs> _collectionsTabs;
-	std::unique_ptr<Ui::FlatLabel> _about;
+	std::unique_ptr<Ui::RpWidget> _about;
 	const not_null<PeerData*> _peer;
 	rpl::event_stream<> _scrollToTop;
 
@@ -177,8 +195,10 @@ private:
 	QString _offset;
 	bool _reloading = false;
 	bool _aboutFiltered = false;
+	bool _aboutCollection = false;
 	bool _collectionsLoaded = false;
 
+	rpl::event_stream<int> _addToCollectionRequests;
 	rpl::event_stream<> _resetFilterRequests;
 	rpl::event_stream<bool> _notifyEnabled;
 	std::vector<View> _views;
@@ -200,10 +220,12 @@ InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
-	rpl::producer<Filter> filter)
+	rpl::producer<Filter> filter,
+	rpl::producer<int> addingToCollectionId)
 : BoxContentDivider(parent)
 , _window(controller->parentController())
 , _filter(std::move(filter))
+, _addingToCollectionId(std::move(addingToCollectionId))
 , _delegate(&_window->session(), GiftButtonMode::Minimal)
 , _controller(controller)
 , _peer(peer)
@@ -220,26 +242,47 @@ InnerWidget::InnerWidget(
 	loadCollections();
 
 	_filter.value() | rpl::start_with_next([=] {
+		_entries->allLoaded = false;
 		_reloading = true;
 		_api.request(base::take(_loadMoreRequestId)).cancel();
 		_collectionsLoadedCallback = nullptr;
-		_entries->allLoaded = false;
+		refreshButtons();
 		refreshAbout();
 		loadMore();
 	}, lifetime());
 
-	_collectionId.changes() | rpl::start_with_next([=](int now) {
+	_collectionId.changes() | rpl::start_with_next([=](int id) {
 		_reloading = true;
 		_api.request(base::take(_loadMoreRequestId)).cancel();
 		_collectionsLoadedCallback = nullptr;
-		_entries = now ? &_perCollection[now] : &_all;
+		_entries = id ? &_perCollection[id] : &_all;
 		_list = &_entries->list;
+		refreshButtons();
 		refreshAbout();
-		if (_entries->allLoaded) {
-			refreshButtons();
-		} else {
-			loadMore();
+		loadMore();
+	}, lifetime());
+
+	_addingToCollectionId.value(
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](int previousId, int id) {
+		_reloading = true;
+		_api.request(base::take(_loadMoreRequestId)).cancel();
+		_collectionsLoadedCallback = nullptr;
+		if (!id) {
+			_collectionId = previousId;
 		}
+		_entries = id ? &_all : &_perCollection[previousId];
+		_list = &_entries->list;
+
+		if (_collectionsTabs) {
+			_collectionsTabs->setVisible(!id);
+		}
+
+		refreshAbout();
+		refreshButtons();
+		crl::on_main(this, [=] {
+			loadMore();
+		});
 	}, lifetime());
 }
 
@@ -428,13 +471,74 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+int InnerWidget::shownCollectionId() const {
+	return _addingToCollectionId.current()
+		? 0
+		: _collectionId.current();
+}
+
+void InnerWidget::saveAdding() {
+	using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
+	auto add = QVector<MTPInputSavedStarGift>();
+	auto remove = QVector<MTPInputSavedStarGift>();
+	const auto id = _addingToCollectionId.current();
+	auto document = (DocumentData*)nullptr;
+	for (const auto &entry : (*_list)) {
+		if (ranges::contains(entry.gift.collectionIds, id)) {
+			if (!document) {
+				document = entry.gift.info.document;
+			}
+			add.push_back(Api::InputSavedStarGiftId(
+				entry.gift.manageId,
+				entry.gift.info.unique));
+		} else {
+			remove.push_back(Api::InputSavedStarGiftId(
+				entry.gift.manageId,
+				entry.gift.info.unique));
+		}
+	}
+	_window->session().api().request(MTPpayments_UpdateStarGiftCollection(
+		MTP_flags(Flag()
+			| (add.isEmpty() ? Flag() : Flag::f_add_stargift)
+			| (remove.isEmpty() ? Flag() : Flag::f_delete_stargift)),
+		_peer->input,
+		MTP_int(id),
+		MTPstring(),
+		MTP_vector<MTPInputSavedStarGift>(remove),
+		MTP_vector<MTPInputSavedStarGift>(add),
+		MTPVector<MTPInputSavedStarGift>()
+	)).done([=] {
+		_entries->allLoaded = false;
+		_reloading = true;
+		_api.request(base::take(_loadMoreRequestId)).cancel();
+		_collectionsLoadedCallback = nullptr;
+		refreshButtons();
+		refreshAbout();
+		loadMore();
+	}).fail([=](const MTP::Error &error) {
+		_window->showToast(error.type());
+	}).send();
+	_addToCollectionRequests.fire(0);
+
+	const auto i = ranges::find(_collections, id, &Data::GiftCollection::id);
+	if (i != end(_collections) && i->icon != document) {
+		i->icon = document;
+		refreshCollectionsTabs();
+	}
+}
+
+void InnerWidget::collectionAdded(MTPStarGiftCollection result) {
+	_collections.push_back(FromTL(&_window->session(), result));
+	refreshCollectionsTabs();
+}
+
 void InnerWidget::loadMore() {
 	if (_entries->allLoaded || _loadMoreRequestId) {
 		return;
 	}
 	using Flag = MTPpayments_GetSavedStarGifts::Flag;
 	const auto filter = _filter.current();
-	const auto collectionId = _collectionId.current();
+	const auto collectionId = shownCollectionId();
 	_loadMoreRequestId = _api.request(MTPpayments_GetSavedStarGifts(
 		MTP_flags((filter.sortByValue ? Flag::f_sort_by_value : Flag())
 			| (filter.skipLimited ? Flag::f_exclude_limited : Flag())
@@ -521,7 +625,7 @@ void InnerWidget::validateButtons() {
 		return;
 	}
 	const auto padding = st::giftBoxPadding;
-	const auto vskip = _collectionsTabs
+	const auto vskip = (_collectionsTabs && !_collectionsTabs->isHidden())
 		? (padding.top() + _collectionsTabs->height() + padding.top())
 		: padding.bottom();
 	const auto row = _single.height() + st::giftBoxGiftSkip.y();
@@ -542,7 +646,7 @@ void InnerWidget::validateButtons() {
 	const auto fullw = _perRow * (_single.width() + skipw) - skipw;
 	const auto left = padding.left() + (available - fullw) / 2;
 	const auto oneh = _single.height() + st::giftBoxGiftSkip.y();
-	const auto mode = GiftButton::Mode::Minimal;
+	const auto addingToId = _addingToCollectionId.current();
 	auto x = left;
 	auto y = vskip + fromRow * oneh;
 	auto views = std::vector<View>();
@@ -566,9 +670,11 @@ void InnerWidget::validateButtons() {
 		if (index >= _list->size()) {
 			return false;
 		}
-		const auto giftId = (*_list)[index].gift.info.id;
-		const auto manageId = (*_list)[index].gift.manageId;
-		const auto &descriptor = (*_list)[index].descriptor;
+		const auto &entry = (*_list)[index];
+		const auto &gift = entry.gift;
+		const auto giftId = gift.info.id;
+		const auto manageId = gift.manageId;
+		const auto &descriptor = entry.descriptor;
 		const auto already = ranges::find(_views, giftId, &View::giftId);
 		if (already != end(_views)) {
 			views.push_back(base::take(*already));
@@ -596,7 +702,9 @@ void InnerWidget::validateButtons() {
 		view.index = index;
 		view.manageId = manageId;
 		view.giftId = giftId;
-		view.button->setDescriptor(descriptor, mode);
+		view.button->toggleSelected(addingToId
+			&& ranges::contains(gift.collectionIds, addingToId));
+		view.button->setDescriptor(descriptor, GiftButton::Mode::Minimal);
 		view.button->setClickedCallback(callback);
 		return true;
 	};
@@ -686,6 +794,23 @@ void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 void InnerWidget::showGift(int index) {
 	Expects(index >= 0 && index < _list->size());
 
+	if (const auto id = _addingToCollectionId.current()) {
+		auto &gift = (*_list)[index].gift;
+		const auto selected = ranges::contains(gift.collectionIds, id);
+		if (selected) {
+			gift.collectionIds.erase(
+				ranges::remove(gift.collectionIds, id),
+				end(gift.collectionIds));
+		} else {
+			gift.collectionIds.push_back(id);
+		}
+		const auto view = ranges::find(_views, index, &View::index);
+		if (view != end(_views)) {
+			view->button->toggleSelected(!selected);
+		}
+		return;
+	}
+
 	_window->show(Box(
 		::Settings::SavedStarGiftBox,
 		_window,
@@ -696,11 +821,54 @@ void InnerWidget::showGift(int index) {
 
 void InnerWidget::refreshAbout() {
 	const auto filter = _filter.current();
-	const auto filteredEmpty = _entries->allLoaded
+	const auto collectionEmpty = _collectionId.current()
+		&& _entries->allLoaded
+		&& !_entries->total
+		&& _list->empty();
+	const auto filteredEmpty = !collectionEmpty
+		&& _entries->allLoaded
 		&& _list->empty()
 		&& filter.skipsSomething();
 
-	if (filteredEmpty) {
+	if (collectionEmpty) {
+		const auto id = _collectionId.current();
+		auto about = std::make_unique<Ui::VerticalLayout>(this);
+		about->add(
+			object_ptr<Ui::CenterWrap<>>(
+				about.get(),
+				object_ptr<Ui::FlatLabel>(
+					about.get(),
+					tr::lng_gift_collection_empty_title(),
+					st::collectionEmptyTitle)),
+			st::collectionEmptyTitleMargin);
+		about->add(
+			object_ptr<Ui::CenterWrap<>>(
+				about.get(),
+				object_ptr<Ui::FlatLabel>(
+					about.get(),
+					tr::lng_gift_collection_empty_text(),
+					st::collectionEmptyText)),
+			st::collectionEmptyTextMargin);
+
+		const auto button = about->add(
+			object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+				about.get(),
+				object_ptr<Ui::RoundButton>(
+					about.get(),
+					tr::lng_gift_collection_empty_button(),
+					st::defaultActiveButton)),
+			st::collectionEmptyAddMargin)->entity();
+		button->setTextTransform(
+			Ui::RoundButton::TextTransform::NoTransform);
+		button->setClickedCallback([=] {
+			_addToCollectionRequests.fire_copy(id);
+		});
+
+		about->show();
+		_about = std::move(about);
+		_aboutCollection = true;
+		resizeToWidth(width());
+	} else if (filteredEmpty) {
 		auto text = tr::lng_peer_gifts_empty_search(
 			tr::now,
 			Ui::Text::RichLangValue);
@@ -708,20 +876,22 @@ void InnerWidget::refreshAbout() {
 			text.append("\n\n").append(Ui::Text::Link(
 				tr::lng_peer_gifts_view_all(tr::now)));
 		}
-		_about = std::make_unique<Ui::FlatLabel>(
+		auto about = std::make_unique<Ui::FlatLabel>(
 			this,
 			rpl::single(text),
 			st::giftListAbout);
-		_about->setClickHandlerFilter([=](const auto &...) {
+		about->setClickHandlerFilter([=](const auto &...) {
 			_resetFilterRequests.fire({});
 			return false;
 		});
-		_about->show();
+		about->show();
+		_about = std::move(_about);
 		_aboutFiltered = true;
 		resizeToWidth(width());
-	} else if (_aboutFiltered) {
+	} else if (_aboutFiltered || _aboutCollection) {
 		_about = nullptr;
 		_aboutFiltered = false;
+		_aboutCollection = false;
 	}
 
 	if (!_peer->isSelf() && _peer->canManageGifts() && !_list->empty()) {
@@ -787,11 +957,15 @@ void InnerWidget::refreshCollectionsTabs() {
 		_collectionsTabs->activated(
 		) | rpl::start_with_next([=](const QString &id) {
 			if (id == u"add"_q) {
+				const auto added = [=](MTPStarGiftCollection result) {
+					collectionAdded(result);
+				};
 				_controller->uiShow()->show(Box(
 					NewCollectionBox,
 					_controller,
 					peer(),
-					Data::SavedStarGiftId()));
+					Data::SavedStarGiftId(),
+					added));
 			} else {
 				_collectionsTabs->setActiveTab(id);
 				_collectionId = (id == u"all"_q) ? 0 : id.toInt();
@@ -805,13 +979,6 @@ void InnerWidget::refreshCollectionsTabs() {
 
 int InnerWidget::resizeGetHeight(int width) {
 	const auto padding = st::giftBoxPadding;
-	auto top = padding.top();
-	if (_collectionsTabs) {
-		_collectionsTabs->resizeToWidth(width);
-		_collectionsTabs->move(0, top);
-		top += _collectionsTabs->height() + padding.top();
-	}
-
 	const auto count = int(_list->size());
 	const auto available = width - padding.left() - padding.right();
 	const auto skipw = st::giftBoxGiftSkip.x();
@@ -819,8 +986,16 @@ int InnerWidget::resizeGetHeight(int width) {
 		(available + skipw) / (_singleMin.width() + skipw),
 		std::max(count, 1));
 	if (!_perRow) {
-		return (top == padding.top()) ? 0 : top;
+		return 0;
 	}
+	auto result = 0;
+	if (_collectionsTabs && !_collectionsTabs->isHidden()) {
+		result += padding.top();
+		_collectionsTabs->resizeToWidth(width);
+		_collectionsTabs->move(0, result);
+		 result += _collectionsTabs->height();
+	}
+
 	const auto singlew = std::min(
 		((available + skipw) / _perRow) - skipw,
 		2 * _singleMin.width());
@@ -831,7 +1006,7 @@ int InnerWidget::resizeGetHeight(int width) {
 	const auto rows = (count + _perRow - 1) / _perRow;
 	const auto skiph = st::giftBoxGiftSkip.y();
 
-	auto result = rows
+	result += rows
 		? (padding.bottom() * 2 + rows * (singleh + skiph) - skiph)
 		: 0;
 
@@ -889,7 +1064,12 @@ Widget::Widget(
 	not_null<PeerData*> peer)
 : ContentWidget(parent, controller) {
 	_inner = setInnerWidget(
-		object_ptr<InnerWidget>(this, controller, peer, _filter.value()));
+		object_ptr<InnerWidget>(
+			this,
+			controller,
+			peer,
+			_filter.value(),
+			_addingToCollectionId.value()));
 	_inner->notifyEnabled(
 	) | rpl::take(1) | rpl::start_with_next([=](bool enabled) {
 		setupNotifyCheckbox(enabled);
@@ -898,9 +1078,82 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		_filter = Filter();
 	}, _inner->lifetime());
+	_inner->addToCollectionRequests(
+	) | rpl::start_with_next([=](int id) {
+		_addingToCollectionId = id;
+		_filter = Filter();
+	}, _inner->lifetime());
 	_inner->scrollToTop() | rpl::start_with_next([=] {
 		scrollTo({ 0, 0 });
 	}, _inner->lifetime());
+
+	_addingToCollectionId.changes() | rpl::start_with_next([=](int id) {
+		toggleAddButton(id != 0);
+	}, _inner->lifetime());
+}
+
+void Widget::toggleAddButton(bool shown) {
+	if (!shown) {
+		setScrollBottomSkip(0);
+		_hasPinnedToBottom = false;
+		delete _pinnedToBottom.data();
+	} else if (!_pinnedToBottom) {
+		_pinnedToBottom = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
+			this,
+			object_ptr<Ui::RpWidget>(this));
+		const auto wrap = _pinnedToBottom.data();
+		wrap->toggle(false, anim::type::instant);
+
+		const auto bottom = wrap->entity();
+		bottom->show();
+
+		const auto save = Ui::CreateChild<Ui::RoundButton>(
+			bottom,
+			tr::lng_settings_save(),
+			st::defaultActiveButton);
+		save->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		save->show();
+
+		save->setClickedCallback([=] {
+			_inner->saveAdding();
+		});
+
+		const auto &checkSt = st::defaultCheckbox;
+		const auto checkTop = st::boxRadius;
+		bottom->widthValue() | rpl::start_with_next([=](int width) {
+			const auto normal = width
+				- checkSt.margin.left()
+				- checkSt.margin.right();
+			save->resizeToWidth(normal);
+			const auto checkLeft = (width - normal) / 2;
+			save->moveToLeft(checkLeft, checkTop);
+		}, save->lifetime());
+
+		save->heightValue() | rpl::start_with_next([=](int height) {
+			bottom->resize(bottom->width(), st::boxRadius * 2 + height);
+		}, save->lifetime());
+
+		const auto processHeight = [=] {
+			setScrollBottomSkip(wrap->height());
+			wrap->moveToLeft(wrap->x(), height() - wrap->height());
+		};
+
+		_inner->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			wrap->resizeToWidth(s.width());
+			crl::on_main(wrap, processHeight);
+		}, wrap->lifetime());
+
+		rpl::combine(
+			wrap->heightValue(),
+			heightValue()
+		) | rpl::start_with_next(processHeight, wrap->lifetime());
+
+		if (_shown) {
+			wrap->toggle(true, anim::type::normal);
+		}
+		_hasPinnedToBottom = true;
+	}
 }
 
 void Widget::showFinished() {
@@ -1001,11 +1254,15 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 			(Window::SessionNavigation*)controller());
 		addAction(tr::lng_gift_collection_add(tr::now), [=] {
 			if (const auto strong = weak.get()) {
+				const auto added = [=](MTPStarGiftCollection result) {
+					_inner->collectionAdded(result);
+				};
 				strong->uiShow()->show(Box(
 					NewCollectionBox,
 					strong,
 					peer,
-					Data::SavedStarGiftId()));
+					Data::SavedStarGiftId(),
+					added));
 			}
 		}, &st::menuIconAddToFolder);
 	}
@@ -1066,7 +1323,11 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 }
 
 rpl::producer<QString> Widget::title() {
-	return tr::lng_peer_gifts_title();
+	return _addingToCollectionId.value() | rpl::map([](int id) {
+		return id
+			? tr::lng_gift_collection_add_title()
+			: tr::lng_peer_gifts_title();
+	}) | rpl::flatten_latest();
 }
 
 rpl::producer<bool> Widget::desiredBottomShadowVisibility() {

@@ -31,7 +31,8 @@ void NewCollectionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
-		Data::SavedStarGiftId addId) {
+		Data::SavedStarGiftId addId,
+		Fn<void(MTPStarGiftCollection)> added) {
 	box->setTitle(tr::lng_gift_collection_new_title());
 
 	box->addRow(
@@ -77,6 +78,9 @@ void NewCollectionBox(
 			MTP_vector<MTPInputSavedStarGift>(ids)
 		)).done([=](const MTPStarGiftCollection &result) {
 			*creating = false;
+			if (const auto onstack = added) {
+				onstack(result);
+			}
 			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}

@@ -917,6 +917,11 @@ std::optional<Data::SavedStarGift> FromTL(
 		.manageId = (to->isUser()
 			? Id::User(data.vmsg_id().value_or_empty())
 			: Id::Chat(to, data.vsaved_id().value_or_empty())),
+		.collectionIds = (data.vcollection_id()
+			? (data.vcollection_id()->v
+				| ranges::views::transform(&MTPint::v)
+				| ranges::to_vector)
+			: std::vector<int>()),
 		.message = (data.vmessage()
 			? TextWithEntities{
 				.text = qs(data.vmessage()->data().vtext()),

@@ -138,6 +138,7 @@ private:
 struct SavedStarGift {
 	StarGift info;
 	SavedStarGiftId manageId;
+	std::vector<int> collectionIds;
 	TextWithEntities message;
 	int64 starsConverted = 0;
 	int64 starsUpgradedBySender = 0;
