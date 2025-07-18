@@ -2058,7 +2058,7 @@ void StickersBox::Inner::checkGroupLevel(Fn<void()> done) {
 	}
 	_checkingGroupLevel = true;
 
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	CheckBoostLevel(_show, peer, [=](int level) {
 		if (!weak) {
 			return std::optional<Ui::AskBoostReason>();

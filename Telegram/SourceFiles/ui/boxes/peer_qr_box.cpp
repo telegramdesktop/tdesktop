@@ -897,7 +897,7 @@ void FillPeerQrBox(
 		const auto top = photoSize
 			? userpicMedia->image(photoSize)
 			: QImage();
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 
 		crl::async([=] {
 			const auto qrImage = TelegramQr(

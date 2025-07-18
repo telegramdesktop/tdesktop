@@ -424,7 +424,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto revoked = current.revoked;
 	const auto link = current.link;
 	const auto admin = current.admin;
-	const auto weak = Ui::MakeWeak(container);
+	const auto weak = base::make_weak(container);
 	const auto copyLink = crl::guard(weak, [=] {
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});
@@ -1290,7 +1290,7 @@ void AddPermanentLinkBlock(
 			return LinkData{ link.link, link.usage };
 		});
 	}
-	const auto weak = Ui::MakeWeak(container);
+	const auto weak = base::make_weak(container);
 	const auto copyLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
 			CopyInviteLink(show, current.link);
@@ -1471,7 +1471,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		const QString &link,
 		const QString &copied) {
 	const auto sending = std::make_shared<bool>();
-	const auto box = std::make_shared<QPointer<ShareBox>>();
+	const auto box = std::make_shared<base::weak_qptr<ShareBox>>();
 
 	const auto showToast = [=](const QString &text) {
 		if (*box) {
@@ -1551,7 +1551,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		.filterCallback = std::move(filterCallback),
 		.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
 	});
-	*box = Ui::MakeWeak(object.data());
+	*box = base::make_weak(object.data());
 	return object;
 }
 
@@ -1573,7 +1573,7 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 	constexpr auto kPeriod = 3600 * 24 * 30;
 	constexpr auto kTestModePeriod = 300;
 	const auto creating = data.link.isEmpty();
-	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
+	const auto box = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
 	using Fields = Ui::InviteLinkFields;
 	const auto done = [=](Fields result) {
 		const auto finish = [=](Api::InviteLink finished) {
@@ -1645,7 +1645,7 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 				done);
 		}
 	});
-	*box = Ui::MakeWeak(object.data());
+	*box = base::make_weak(object.data());
 	return object;
 }
 

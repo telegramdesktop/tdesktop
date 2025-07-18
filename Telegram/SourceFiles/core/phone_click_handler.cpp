@@ -340,7 +340,7 @@ void PhoneClickHandler::onClick(ClickContext context) const {
 	if (Trim(phone) != Trim(controller->session().user()->phone())) {
 		menu->addAction(
 			tr::lng_info_add_as_contact(tr::now),
-			[=, raw = Ui::MakeWeak(resolvePhoneAction.get())] {
+			[=, raw = base::make_weak(resolvePhoneAction.get())] {
 				controller->show(
 					Box<AddContactBox>(
 						&controller->session(),

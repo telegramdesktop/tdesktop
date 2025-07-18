@@ -738,7 +738,7 @@ void InnerWidget::setupEnd() {
 		tr::lng_star_ref_end(),
 		st::settingsAttentionButton));
 	end->setClickedCallback([=] {
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		const auto window = _controller->parentController();
 		const auto sent = std::make_shared<bool>();
 		window->show(ConfirmEndBox([=] {
@@ -751,7 +751,7 @@ void InnerWidget::setupEnd() {
 				*sent = false;
 				if (!success) {
 					return;
-				} else if ([[maybe_unused]] const auto strong = weak.data()) {
+				} else if ([[maybe_unused]] const auto strong = weak.get()) {
 					_controller->showBackFromStack();
 					window->showToast({
 						.title = tr::lng_star_ref_ended_title(tr::now),
@@ -1013,7 +1013,7 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 			st::boxDividerLabel),
 		QMargins(margins.left(), 0, margins.right(), 0));
 	save->setClickedCallback([=] {
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		const auto user = _state->user;
 		const auto program = _state->program;
 		const auto show = controller()->uiShow();

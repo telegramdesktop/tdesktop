@@ -530,7 +530,7 @@ void SetupExceptions(
 	state->controller->setDelegate(state->delegate.get());
 
 	add->setClickedCallback([=] {
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+		const auto box = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 		const auto done = [=](not_null<PeerData*> peer) {
 			state->controller->bringToTop(peer);
 			if (*box) {

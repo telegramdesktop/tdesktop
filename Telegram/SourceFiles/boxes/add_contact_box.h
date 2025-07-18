@@ -129,7 +129,7 @@ protected:
 private:
 	void createChannel(const QString &title, const QString &description);
 	void createGroup(
-		QPointer<Ui::BoxContent> selectUsersBox,
+		base::weak_qptr<Ui::BoxContent> selectUsersBox,
 		const QString &title,
 		const std::vector<not_null<PeerData*>> &users);
 	void submitName();

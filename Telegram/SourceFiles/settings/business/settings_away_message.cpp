@@ -119,10 +119,10 @@ void AddAwayScheduleSelector(
 			Fn<TimeId()> max,
 			Fn<void(TimeId)> done) {
 		using namespace Ui;
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+		const auto box = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 		const auto save = [=](TimeId time) {
 			done(time);
-			if (const auto strong = box->data()) {
+			if (const auto strong = box->get()) {
 				strong->closeBox();
 			}
 		};

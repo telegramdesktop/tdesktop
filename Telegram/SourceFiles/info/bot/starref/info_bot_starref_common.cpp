@@ -549,7 +549,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 
 		struct State {
 			rpl::variable<not_null<PeerData*>> recipient;
-			QPointer<Ui::GenericBox> weak;
+			base::weak_qptr<Ui::GenericBox> weak;
 			bool sent = false;
 		};
 		const auto state = std::make_shared<State>(State{
@@ -709,7 +709,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 					}
 				}
 				show->show(StarRefLinkBox(info, recipient));
-				if (const auto strong = state->weak.data()) {
+				if (const auto strong = state->weak.get()) {
 					strong->closeBox();
 				}
 			}, [=](const QString &error) {

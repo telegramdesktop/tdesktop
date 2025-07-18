@@ -89,9 +89,9 @@ void EditPeriodBox(
 	const auto take = TimePickerBox(box, values, phrases, days);
 
 	box->addButton(tr::lng_settings_save(), [=] {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		save(take());
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	});

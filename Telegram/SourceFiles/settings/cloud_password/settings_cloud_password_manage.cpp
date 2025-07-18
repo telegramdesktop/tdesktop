@@ -53,7 +53,7 @@ public:
 	[[nodiscard]] rpl::producer<QString> title() override;
 	void setupContent();
 
-	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
 
 protected:
@@ -184,7 +184,7 @@ void Manage::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-QPointer<Ui::RpWidget> Manage::createPinnedToBottom(
+base::weak_qptr<Ui::RpWidget> Manage::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 
 	const auto disable = [=](Fn<void()> close) {

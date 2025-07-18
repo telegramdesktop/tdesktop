@@ -110,7 +110,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		const QString &linkListener,
 		std::shared_ptr<Ui::Show> show) {
 	const auto sending = std::make_shared<bool>();
-	const auto box = std::make_shared<QPointer<ShareBox>>();
+	const auto box = std::make_shared<base::weak_qptr<ShareBox>>();
 
 	auto bottom = linkSpeaker.isEmpty()
 		? nullptr
@@ -220,7 +220,7 @@ void SettingsBox(
 	using namespace Settings;
 
 	const auto weakCall = base::make_weak(call);
-	const auto weakBox = Ui::MakeWeak(box);
+	const auto weakBox = base::make_weak(box);
 
 	struct State {
 		std::unique_ptr<Webrtc::DeviceResolver> deviceId;

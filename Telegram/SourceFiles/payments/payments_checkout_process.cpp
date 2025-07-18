@@ -410,7 +410,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		UnregisterPaymentStart(this);
 		_submitState = SubmitState::Validated;
 		_panel->showWarning(data.bot->name(), data.provider->name());
-		if (const auto box = _enterPasswordBox.data()) {
+		if (const auto box = _enterPasswordBox.get()) {
 			box->closeBox();
 		}
 	}, [&](const VerificationNeeded &data) {
@@ -534,7 +534,7 @@ void CheckoutProcess::handleError(const Error &error) {
 		showToast({ "SmartGlocal Error: " + id });
 	} break;
 	case Error::Type::TmpPassword:
-		if (const auto box = _enterPasswordBox.data()) {
+		if (const auto box = _enterPasswordBox.get()) {
 			if (!box->handleCustomCheckError(id)) {
 				showToast({ "Error: Could not generate tmp password." });
 			}
@@ -542,7 +542,7 @@ void CheckoutProcess::handleError(const Error &error) {
 		break;
 	case Error::Type::Send:
 		_sendFormFailed = true;
-		if (const auto box = _enterPasswordBox.data()) {
+		if (const auto box = _enterPasswordBox.get()) {
 			box->closeBox();
 		}
 		if (_submitState == SubmitState::Finishing) {
@@ -857,7 +857,7 @@ void CheckoutProcess::requestPassword() {
 		fields.customSubmitButton = tr::lng_payments_password_submit();
 		fields.customCheckCallback = [=](
 				const Core::CloudPasswordResult &result,
-				QPointer<PasscodeBox> box) {
+				base::weak_qptr<PasscodeBox> box) {
 			_enterPasswordBox = box;
 			_form->submit(result);
 		};

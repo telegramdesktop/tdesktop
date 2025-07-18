@@ -393,7 +393,7 @@ void ChooseJoinAsProcess::finish(JoinInfo info) {
 	const auto box = _request->box;
 	_request = nullptr;
 	done(std::move(info));
-	if (const auto strong = box.data()) {
+	if (const auto strong = box.get()) {
 		strong->closeBox();
 	}
 }

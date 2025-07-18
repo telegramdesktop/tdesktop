@@ -212,10 +212,10 @@ void PasscodeLockWidget::suggestSystemUnlock() {
 		) | rpl::filter(
 			rpl::mappers::_1 != SystemUnlockType::None
 		) | rpl::take(1) | rpl::start_with_next([=] {
-			const auto weak = Ui::MakeWeak(this);
+			const auto weak = base::make_weak(this);
 			const auto done = [weak](SystemUnlockResult result) {
 				crl::on_main([=] {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->systemUnlockDone(result);
 					}
 				});

@@ -1105,7 +1105,7 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 object_ptr<Ui::BoxContent> ProgramsListBox(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer) {
-	const auto weak = std::make_shared<QPointer<PeerListBox>>();
+	const auto weak = std::make_shared<base::weak_qptr<PeerListBox>>();
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		*weak = box;
 		box->addButton(tr::lng_close(), [=] {
@@ -1118,7 +1118,7 @@ object_ptr<Ui::BoxContent> ProgramsListBox(
 		peer,
 		JoinType::Existing);
 	controller->addForBotRequests() | rpl::start_with_next([=] {
-		if (const auto strong = weak->data()) {
+		if (const auto strong = weak->get()) {
 			strong->closeBox();
 		}
 	}, controller->lifetime());

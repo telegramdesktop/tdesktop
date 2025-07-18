@@ -50,8 +50,8 @@ void PinMessageBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<HistoryItem*> item) {
 	struct State {
-		QPointer<Ui::Checkbox> pinForPeer;
-		QPointer<Ui::Checkbox> notify;
+		base::weak_qptr<Ui::Checkbox> pinForPeer;
+		base::weak_qptr<Ui::Checkbox> notify;
 		mtpRequestId requestId = 0;
 	};
 
@@ -81,7 +81,7 @@ void PinMessageBox(
 				false,
 				st::urlAuthCheckbox);
 			object->setAllowTextLines();
-			state->pinForPeer = Ui::MakeWeak(object.data());
+			state->pinForPeer = base::make_weak(object.data());
 			return object;
 		} else if (!pinningOld
 			&& (peer->isChat() || peer->isMegagroup())
@@ -92,7 +92,7 @@ void PinMessageBox(
 				true,
 				st::urlAuthCheckbox);
 			object->setAllowTextLines();
-			state->notify = Ui::MakeWeak(object.data());
+			state->notify = base::make_weak(object.data());
 			return object;
 		}
 		return { nullptr };

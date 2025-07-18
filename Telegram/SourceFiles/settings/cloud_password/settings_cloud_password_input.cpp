@@ -126,7 +126,7 @@ public:
 	using TypedAbstractStep::TypedAbstractStep;
 
 	[[nodiscard]] rpl::producer<QString> title() override;
-	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToTop(
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToTop(
 		not_null<QWidget*> parent) override;
 	void setupContent();
 	void setupValidateGood();
@@ -156,7 +156,7 @@ rpl::producer<QString> Input::title() {
 	return tr::lng_settings_cloud_password_password_title();
 }
 
-QPointer<Ui::RpWidget> Input::createPinnedToTop(
+base::weak_qptr<Ui::RpWidget> Input::createPinnedToTop(
 		not_null<QWidget*> parent) {
 	_parent = parent;
 	return nullptr;

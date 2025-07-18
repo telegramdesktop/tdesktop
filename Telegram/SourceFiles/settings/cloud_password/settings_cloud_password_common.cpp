@@ -80,7 +80,7 @@ BottomButton CreateBottomDisableButton(
 	divider->show();
 
 	return {
-		.content = Ui::MakeWeak(not_null<Ui::RpWidget*>{ content }),
+		.content = base::make_weak(content),
 		.isBottomFillerShown = divider->geometryValue(
 		) | rpl::map([](const QRect &r) {
 			return r.height() > 0;

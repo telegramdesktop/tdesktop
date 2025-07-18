@@ -711,7 +711,7 @@ std::unique_ptr<PeerListRow> BoxController::createRow(
 void ClearCallsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<::Window::SessionController*> window) {
-	const auto weak = Ui::MakeWeak(box);
+	const auto weak = base::make_weak(box);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
@@ -754,7 +754,7 @@ void ClearCallsBox(
 					self(revoke, self);
 				} else {
 					api->session().data().destroyAllCallItems();
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 				}

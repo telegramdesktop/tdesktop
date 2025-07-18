@@ -1096,7 +1096,7 @@ void Controller::showMenu() {
 	}
 	_menu->setDestroyedCallback(crl::guard(_window.get(), [
 			this,
-			weakButton = Ui::MakeWeak(_menuToggle.data()),
+			weakButton = base::make_weak(_menuToggle.data()),
 			menu = _menu.get()] {
 		if (_menu == menu && weakButton) {
 			weakButton->setForceRippled(false);

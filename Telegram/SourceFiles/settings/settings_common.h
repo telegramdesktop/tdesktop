@@ -88,11 +88,11 @@ public:
 	[[nodiscard]] virtual const Ui::RoundRect *bottomSkipRounding() const {
 		return nullptr;
 	}
-	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToTop(
+	[[nodiscard]] virtual base::weak_qptr<Ui::RpWidget> createPinnedToTop(
 			not_null<QWidget*> parent) {
 		return nullptr;
 	}
-	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToBottom(
+	[[nodiscard]] virtual base::weak_qptr<Ui::RpWidget> createPinnedToBottom(
 			not_null<Ui::RpWidget*> parent) {
 		return nullptr;
 	}

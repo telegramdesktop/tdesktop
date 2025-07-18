@@ -345,7 +345,7 @@ void BackgroundBox::resetForPeer() {
 		api->applyUpdates(result);
 	}).send();
 
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	_forPeer->setWallPaper({});
 	if (weak) {
 		_controller->finishChatThemeEdit(_forPeer);
@@ -358,7 +358,7 @@ bool BackgroundBox::forChannel() const {
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 	const auto session = &_controller->session();
-	const auto remove = [=, weak = Ui::MakeWeak(this)](Fn<void()> &&close) {
+	const auto remove = [=, weak = base::make_weak(this)](Fn<void()> &&close) {
 		close();
 		if (weak) {
 			weak->_inner->removePaper(paper);

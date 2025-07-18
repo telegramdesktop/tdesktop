@@ -54,7 +54,7 @@ bool ChatPreviewManager::show(
 		return false;
 	}
 	_menu = std::move(preview.menu);
-	const auto weakMenu = Ui::MakeWeak(_menu.get());
+	const auto weakMenu = base::make_weak(_menu.get());
 	const auto weakThread = base::make_weak(row.key.entry()->asThread());
 	const auto weakController = base::make_weak(_controller);
 	std::move(
@@ -82,7 +82,7 @@ bool ChatPreviewManager::show(
 				}
 			}
 		}
-		if (const auto strong = weakMenu.data()) {
+		if (const auto strong = weakMenu.get()) {
 			strong->hideMenu();
 		}
 	}, _menu->lifetime());

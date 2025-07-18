@@ -496,7 +496,7 @@ void SessionInfoBox(
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 	if (const auto hash = data.hash) {
 		box->addLeftButton(tr::lng_sessions_terminate(), [=] {
-			const auto weak = Ui::MakeWeak(box.get());
+			const auto weak = base::make_weak(box.get());
 			terminate(hash);
 			if (weak) {
 				box->closeBox();
@@ -652,7 +652,7 @@ private:
 	Full _data;
 
 	object_ptr<Inner> _inner;
-	QPointer<Ui::BoxContent> _terminateBox;
+	base::weak_qptr<Ui::BoxContent> _terminateBox;
 
 	base::Timer _shortPollTimer;
 
@@ -843,12 +843,12 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 		.confirmText = tr::lng_settings_reset_button(),
 		.confirmStyle = &st::attentionBoxButton,
 	});
-	_terminateBox = Ui::MakeWeak(box.data());
+	_terminateBox = base::make_weak(box.data());
 	_controller->show(std::move(box));
 }
 
 void SessionsContent::terminateOne(uint64 hash) {
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	auto callback = [=] {
 		auto done = crl::guard(weak, [=](const MTPBool &result) {
 			if (mtpIsFalse(result)) {
@@ -877,7 +877,7 @@ void SessionsContent::terminateOne(uint64 hash) {
 }
 
 void SessionsContent::terminateAll() {
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	auto callback = [=] {
 		const auto reset = crl::guard(weak, [=] {
 			_authorizations->cancelCurrentRequest();

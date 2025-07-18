@@ -1346,16 +1346,16 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			: addVolumeItem
 			? st::groupCallPopupMenuWithVolume
 			: st::groupCallPopupMenu));
-	const auto weakMenu = Ui::MakeWeak(result.get());
+	const auto weakMenu = base::make_weak(result.get());
 	const auto withActiveWindow = [=](auto callback) {
 		if (const auto window = Core::App().activePrimaryWindow()) {
-			if (const auto menu = weakMenu.data()) {
+			if (const auto menu = weakMenu.get()) {
 				menu->discardParentReActivate();
 
 				// We must hide PopupMenu before we activate the MainWindow,
 				// otherwise we set focus in field inside MainWindow and then
 				// PopupMenu::hide activates back the group call panel :(
-				delete weakMenu;
+				delete weakMenu.get();
 			}
 			window->invokeForSessionController(
 				account,

@@ -604,9 +604,9 @@ void SetupFingerprintTooltip(not_null<Ui::RpWidget*> widget) {
 				st::confcallFingerprintTooltipLabel),
 			st::confcallFingerprintTooltip);
 		const auto raw = state->tooltip.get();
-		const auto weak = QPointer<QWidget>(raw);
+		const auto weak = base::make_weak(raw);
 		const auto destroy = [=] {
-			delete weak.data();
+			delete weak.get();
 		};
 		raw->setAttribute(Qt::WA_TransparentForMouseEvents);
 		raw->setHiddenCallback(destroy);

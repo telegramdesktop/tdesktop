@@ -434,11 +434,11 @@ void EditWebPageOptions(
 		});
 
 		box->addButton(tr::lng_settings_save(), [=] {
-			const auto weak = Ui::MakeWeak(box.get());
+			const auto weak = base::make_weak(box.get());
 			auto result = state->result.current();
 			result.manual = true;
 			done(result);
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		});

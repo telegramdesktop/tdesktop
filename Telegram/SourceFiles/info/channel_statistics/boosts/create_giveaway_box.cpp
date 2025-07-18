@@ -1459,11 +1459,11 @@ void CreateGiveawayBox(
 			}
 			state->confirmButtonBusy = true;
 			const auto show = box->uiShow();
-			const auto weak = Ui::MakeWeak(box.get());
+			const auto weak = base::make_weak(box.get());
 			const auto done = [=](Payments::CheckoutResult result) {
 				const auto isPaid = result == Payments::CheckoutResult::Paid;
 				if (result == Payments::CheckoutResult::Pending || isPaid) {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->window()->setFocus();
 						strong->closeBox();
 					}

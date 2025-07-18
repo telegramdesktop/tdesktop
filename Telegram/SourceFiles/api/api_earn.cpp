@@ -82,7 +82,7 @@ void HandleWithdrawalButton(
 			fields.customSubmitButton = tr::lng_passcode_submit();
 			fields.customCheckCallback = crl::guard(button, [=](
 					const Core::CloudPasswordResult &result,
-					QPointer<PasscodeBox> box) {
+					base::weak_qptr<PasscodeBox> box) {
 				const auto done = [=](const QString &result) {
 					if (!result.isEmpty()) {
 						UrlClickHandler::Open(result);

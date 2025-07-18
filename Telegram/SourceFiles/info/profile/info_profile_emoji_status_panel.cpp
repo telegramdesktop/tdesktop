@@ -269,7 +269,7 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 			_panel->hideAnimated();
 		}, _panel->lifetime());
 	} else {
-		const auto weak = Ui::MakeWeak(_panel.get());
+		const auto weak = base::make_weak(_panel.get());
 		const auto accept = [=](Chosen chosen) {
 			Expects(chosen.until != Selector::kPickCustomTimeId);
 

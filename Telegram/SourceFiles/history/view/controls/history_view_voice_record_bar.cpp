@@ -2082,7 +2082,7 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 		}
 	} else if (type == StopType::Send) {
 		if (_videoRecorder) {
-			const auto weak = Ui::MakeWeak(this);
+			const auto weak = base::make_weak(this);
 			_videoRecorder->hide([=](Ui::RoundVideoResult data) {
 				crl::on_main([=, data = std::move(data)]() mutable {
 					if (weak) {

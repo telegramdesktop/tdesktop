@@ -819,7 +819,7 @@ void PreviewPainter::layout() {
 			const auto ratio = state->preview.devicePixelRatio();
 			raw->resize(state->preview.size() / int(ratio));
 		} else {
-			const auto weak = Ui::MakeWeak(raw);
+			const auto weak = base::make_weak(raw);
 			const auto request = PrepareRequest(family);
 			crl::async([=, bg = state->bg] {
 				crl::on_main([
@@ -827,7 +827,7 @@ void PreviewPainter::layout() {
 					state,
 					preview = GeneratePreview(bg, request)
 				]() mutable {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						state->preview = std::move(preview);
 						const auto ratio = state->preview.devicePixelRatio();
 						strong->resize(

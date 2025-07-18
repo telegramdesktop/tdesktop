@@ -124,14 +124,14 @@ void LoginEmailConfirm::setupContent() {
 			newInput->setFocus();
 			newInput->showError();
 		} else {
-			const auto weak = Ui::MakeWeak(controller()->content());
+			const auto weak = base::make_weak(controller()->content());
 			const auto done = [=] {
 				_api.reset();
 				_processFinishes.fire({});
 				cloudPassword().reload();
 				setStepData(StepData());
 				showBack();
-				if (const auto strong = weak) {
+				if (const auto strong = weak.get()) {
 					Ui::StartFireworks(strong);
 				}
 			};

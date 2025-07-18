@@ -256,9 +256,9 @@ List CreateList(
 	}, list.container->lifetime());
 
 	list.container->paintRequest(
-	) | rpl::start_with_next([weak = Ui::MakeWeak(list.container.get())](
+	) | rpl::start_with_next([weak = base::make_weak(list.container.get())](
 			const QRect &r) {
-		auto p = QPainter(weak);
+		auto p = QPainter(weak.get());
 		p.fillRect(r, st::dialogsBg);
 	}, list.container->lifetime());
 
@@ -937,7 +937,7 @@ ComposeSearch::Inner::Inner(
 	_apiSearch.newFounds(
 	) | rpl::start_with_next([=] {
 		const auto &apiData = _apiSearch.messages();
-		const auto weak = Ui::MakeWeak(_bottomBar.get());
+		const auto weak = base::make_weak(_bottomBar.get());
 		_bottomBar->setTotal(apiData.total);
 		if (weak) {
 			// Activating the first search result may switch the chat.
@@ -970,7 +970,7 @@ ComposeSearch::Inner::Inner(
 		_pendingJump.data = {};
 		const auto item = _history->owner().message(messages[index]);
 		if (item) {
-			const auto weak = Ui::MakeWeak(_topBar.get());
+			const auto weak = base::make_weak(_topBar.get());
 			_activations.fire_copy({ item, _apiSearch.request().query });
 			if (weak) {
 				hideList();

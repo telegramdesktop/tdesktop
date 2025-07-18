@@ -245,7 +245,7 @@ void SendBotCallbackDataWithPassword(
 				fields.customSubmitButton = tr::lng_passcode_submit();
 				fields.customCheckCallback = [=](
 						const Core::CloudPasswordResult &result,
-						QPointer<PasscodeBox> box) {
+						base::weak_qptr<PasscodeBox> box) {
 					if (const auto button = getButton()) {
 						if (button->requestId) {
 							return;

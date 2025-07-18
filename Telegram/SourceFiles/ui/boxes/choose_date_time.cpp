@@ -147,7 +147,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	}, content->lifetime());
 
 	const auto calendar
-		= content->lifetime().make_state<QPointer<CalendarBox>>();
+		= content->lifetime().make_state<base::weak_qptr<CalendarBox>>();
 	const auto calendarStyle = args.style.calendarStyle;
 	state->day->focusedChanges(
 	) | rpl::start_with_next([=](bool focused) {

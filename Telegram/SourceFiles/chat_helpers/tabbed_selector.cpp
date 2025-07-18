@@ -1471,13 +1471,13 @@ void TabbedSelector::Inner::disableScroll(bool disabled) {
 
 void TabbedSelector::Inner::checkHideWithBox(
 		object_ptr<Ui::BoxContent> box) {
-	const auto raw = QPointer<Ui::BoxContent>(box.data());
+	const auto raw = base::make_weak(box.data());
 	_show->showBox(std::move(box));
 	if (!raw) {
 		return;
 	}
 	_preventHideWithBox = true;
-	connect(raw, &QObject::destroyed, this, [=] {
+	connect(raw.get(), &QObject::destroyed, this, [=] {
 		_preventHideWithBox = false;
 		_checkForHide.fire({});
 	});

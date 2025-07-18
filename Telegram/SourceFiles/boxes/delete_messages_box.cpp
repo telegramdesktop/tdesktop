@@ -522,10 +522,10 @@ void DeleteMessagesBox::deleteAndClear() {
 		? PaidPostType::None
 		: paidPostType();
 	if (warnPaidType != PaidPostType::None) {
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		const auto callback = [=](Fn<void()> close) {
 			close();
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->_confirmedDeletePaidSuggestedPosts = true;
 				strong->deleteAndClear();
 			}
@@ -559,11 +559,11 @@ void DeleteMessagesBox::deleteAndClear() {
 	const auto invokeCallbackAndClose = [&] {
 		// deleteMessages can initiate closing of the current section,
 		// which will cause this box to be destroyed.
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		if (const auto callback = _deleteConfirmedCallback) {
 			callback();
 		}
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	};

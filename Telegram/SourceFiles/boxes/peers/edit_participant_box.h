@@ -104,7 +104,7 @@ private:
 	bool handleTransferPasswordError(const QString &error);
 	void requestTransferPassword(not_null<ChannelData*> channel);
 	void sendTransferRequestFrom(
-		QPointer<PasscodeBox> box,
+		base::weak_qptr<PasscodeBox> box,
 		not_null<ChannelData*> channel,
 		const Core::CloudPasswordResult &result);
 	bool canSave() const {
@@ -124,7 +124,7 @@ private:
 		ChatAdminRightsInfo,
 		const QString &rank)> _saveCallback;
 
-	QPointer<Ui::BoxContent> _confirmBox;
+	base::weak_qptr<Ui::BoxContent> _confirmBox;
 	Ui::Checkbox *_addAsAdmin = nullptr;
 	Ui::SlideWrap<Ui::VerticalLayout> *_adminControlsWrap = nullptr;
 	Ui::InputField *_rank = nullptr;

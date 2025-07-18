@@ -255,12 +255,12 @@ void EditTimeBox(
 	});
 
 	box->addButton(tr::lng_settings_save(), [=] {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		save(std::clamp(
 			((*minutesStart) / 60 + minutes->current()->index()) * 60,
 			low,
 			high));
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	});
@@ -398,9 +398,9 @@ void EditDayBox(
 	AddDividerText(container, tr::lng_hours_about_day());
 
 	box->addButton(tr::lng_settings_save(), [=] {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		save(state->data.current());
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	});
@@ -457,9 +457,9 @@ void ChooseTimezoneBox(
 		});
 	}
 	group->setChangedCallback([=](int index) {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		save(list[index].id);
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	});

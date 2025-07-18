@@ -88,7 +88,7 @@ void ShowMenu(
 			addAction);
 
 		auto showRemoveBox = [=] {
-			state->removeApi.request(Ui::MakeWeak(parent), controller, id);
+			state->removeApi.request(base::make_weak(parent), controller, id);
 		};
 		addAction({
 			.text = tr::lng_filters_context_remove(tr::now),

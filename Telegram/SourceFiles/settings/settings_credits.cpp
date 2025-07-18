@@ -73,7 +73,7 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToTop(
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToTop(
 		not_null<QWidget*> parent) override;
 
 	void showFinished() override;
@@ -603,7 +603,7 @@ void Credits::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-QPointer<Ui::RpWidget> Credits::createPinnedToTop(
+base::weak_qptr<Ui::RpWidget> Credits::createPinnedToTop(
 		not_null<QWidget*> parent) {
 	_parent = parent;
 	const auto isCurrency = _creditsType == CreditsType::Ton;
@@ -722,7 +722,7 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 		}
 	}, content->lifetime());
 
-	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
+	return base::make_weak(not_null<Ui::RpWidget*>{ content });
 }
 
 void Credits::showFinished() {
@@ -799,9 +799,9 @@ Fn<void()> BuyStarsHandler::handler(
 			? _api->options()
 			: Data::CreditTopupOptions();
 		const auto amount = CreditsAmount();
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		FillCreditOptions(show, inner, self, amount, [=] {
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 			if (const auto onstack = paid) {

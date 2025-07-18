@@ -213,8 +213,8 @@ void ConferenceCallJoinConfirm(
 		)->setTryMakeSimilarLines(true);
 	}
 	const auto joinAndClose = [=] {
-		join([weak = Ui::MakeWeak(box)] {
-			if (const auto strong = weak.data()) {
+		join([weak = base::make_weak(box)] {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		});
@@ -275,7 +275,7 @@ void ShowConferenceCallLinkBox(
 				}
 				state->resetting = true;
 				using Flag = MTPphone_ToggleGroupCallSettings::Flag;
-				const auto weak = Ui::MakeWeak(box);
+				const auto weak = base::make_weak(box);
 				call->session().api().request(
 					MTPphone_ToggleGroupCallSettings(
 						MTP_flags(Flag::f_reset_invite_hash),
@@ -284,7 +284,7 @@ void ShowConferenceCallLinkBox(
 				).done([=](const MTPUpdates &result) {
 					call->session().api().applyUpdates(result);
 					ShowConferenceCallLinkBox(show, call, args);
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 					show->showToast({

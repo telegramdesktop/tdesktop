@@ -2516,7 +2516,7 @@ void SendGiftBox(
 		if (!state->messageAllowed.current()) {
 			details.text = {};
 		}
-		const auto weak = MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		const auto done = [=](Payments::CheckoutResult result) {
 			if (result == Payments::CheckoutResult::Paid) {
 				if (details.byStars
@@ -2527,7 +2527,7 @@ void SendGiftBox(
 				window->showPeerHistory(peer);
 				ShowSentToast(window, details.descriptor, details);
 			}
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		};
@@ -4337,12 +4337,12 @@ void ShowUniqueGiftWearBox(
 					return;
 				}
 				*checking = true;
-				const auto weak = Ui::MakeWeak(box);
+				const auto weak = base::make_weak(box);
 				CheckBoostLevel(show, peer, [=](int level) {
 					const auto limits = Data::LevelLimits(&peer->session());
 					const auto wanted = limits.channelEmojiStatusLevelMin();
 					if (level >= wanted) {
-						if (const auto strong = weak.data()) {
+						if (const auto strong = weak.get()) {
 							strong->closeBox();
 						}
 						emojiStatuses->set(peer, id);
@@ -4835,13 +4835,13 @@ void UpgradeBox(
 		}
 		state->sent = true;
 		const auto keepDetails = state->preserveDetails;
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		const auto done = [=](Payments::CheckoutResult result) {
 			if (result != Payments::CheckoutResult::Paid) {
 				state->sent = false;
 			} else {
 				controller->showPeerHistory(args.peer);
-				if (const auto strong = weak.data()) {
+				if (const auto strong = weak.get()) {
 					strong->closeBox();
 				}
 			}

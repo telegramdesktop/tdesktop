@@ -272,7 +272,7 @@ void ConfirmSubscriptionBox(
 		}, balance->lifetime());
 	}
 
-	const auto sendCredits = [=, weak = Ui::MakeWeak(box)] {
+	const auto sendCredits = [=, weak = base::make_weak(box)] {
 		const auto show = box->uiShow();
 		const auto buttonWidth = state->saveButton
 			? state->saveButton->width()
@@ -280,7 +280,7 @@ void ConfirmSubscriptionBox(
 		const auto finish = [=] {
 			state->api = std::nullopt;
 			state->loading.force_assign(false);
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		};
@@ -294,7 +294,7 @@ void ConfirmSubscriptionBox(
 			}, [](const MTPDpayments_paymentVerificationNeeded &data) {
 			});
 			const auto refill = session->data().activeCreditsSubsRebuilder();
-			const auto strong = weak.data();
+			const auto strong = weak.get();
 			if (!strong) {
 				return;
 			}

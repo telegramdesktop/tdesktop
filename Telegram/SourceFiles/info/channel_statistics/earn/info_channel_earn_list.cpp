@@ -1470,10 +1470,10 @@ void InnerWidget::fill() {
 					[] {});
 			}
 			if (!isLocked) {
-				const auto weak = Ui::MakeWeak(this);
+				const auto weak = base::make_weak(this);
 				const auto show = _controller->uiShow();
 				const auto failed = [=](const QString &e) {
-					if (weak.data()) {
+					if (weak.get()) {
 						toggled->fire(false);
 						show->showToast(e);
 					}

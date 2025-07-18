@@ -1530,7 +1530,7 @@ void InnerWidget::suggestRestrictParticipant(
 				UserData *by,
 				TimeId since) {
 			auto weak = QPointer<InnerWidget>(this);
-			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
+			auto weakBox = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 			auto box = Box<EditRestrictedBox>(
 				_channel,
 				user,
@@ -1560,7 +1560,7 @@ void InnerWidget::suggestRestrictParticipant(
 					tr::now,
 					lt_user,
 					participant->name());
-			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
+			auto weakBox = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 			const auto sure = crl::guard(this, [=] {
 				restrictParticipant(
 					participant,
@@ -1810,10 +1810,8 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		ActivateClickHandler(window(), activated, {
 			button,
 			QVariant::fromValue(ClickHandlerContext{
-				.elementDelegate = [weak = Ui::MakeWeak(this)] {
-					return weak
-						? (ElementDelegate*)weak
-						: nullptr;
+				.elementDelegate = [weak = base::make_weak(this)] {
+					return (ElementDelegate*)weak.get();
 				},
 				.sessionWindow = base::make_weak(_controller),
 			})

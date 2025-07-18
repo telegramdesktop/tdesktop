@@ -943,7 +943,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			: (nonMembers.size() < users.size())
 			? tr::lng_group_call_add_to_group_some(tr::now, lt_group, name)
 			: tr::lng_group_call_add_to_group_all(tr::now, lt_group, name);
-		const auto shared = std::make_shared<QPointer<Ui::GenericBox>>();
+		const auto shared = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
 		const auto finishWithConfirm = [=] {
 			if (*shared) {
 				(*shared)->closeBox();
@@ -983,7 +983,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 				return !controller->hasRowFor(user);
 			}) | ranges::to_vector;
 
-			const auto finish = [box = Ui::MakeWeak(box)]() {
+			const auto finish = [box = base::make_weak(box)]() {
 				if (box) {
 					box->closeBox();
 				}
@@ -1098,14 +1098,14 @@ object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
 		}, box->lifetime());
 
 		const auto join = [=] {
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			auto selected = raw->requests(box->collectSelectedRows());
 			Core::App().calls().startOrJoinConferenceCall({
 				.call = call,
 				.joinMessageId = inviteMsgId,
 				.invite = std::move(selected),
 			});
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		};

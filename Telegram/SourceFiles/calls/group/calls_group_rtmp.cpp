@@ -133,7 +133,7 @@ void StartRtmpProcess::start(
 void StartRtmpProcess::close() {
 	if (_request) {
 		_request->peer->session().api().request(_request->id).cancel();
-		if (const auto strong = _request->box.data()) {
+		if (const auto strong = _request->box.get()) {
 			strong->closeBox();
 		}
 		_request = nullptr;
@@ -199,7 +199,7 @@ void StartRtmpProcess::createBox() {
 	) | rpl::start_with_next([=] {
 		_request = nullptr;
 	}, _request->lifetime);
-	_request->box = Ui::MakeWeak(object.data());
+	_request->box = base::make_weak(object.data());
 	_request->show->showBox(std::move(object));
 }
 

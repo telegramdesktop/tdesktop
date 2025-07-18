@@ -725,7 +725,7 @@ void Editor::showMenu() {
 	_menu = base::make_unique_q<Ui::DropdownMenu>(
 		this,
 		st::dropdownMenuWithIcons);
-	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.get()]{
+	_menu->setHiddenCallback([weak = base::make_weak(this), menu = _menu.get()]{
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
 			weak->_menu = nullptr;

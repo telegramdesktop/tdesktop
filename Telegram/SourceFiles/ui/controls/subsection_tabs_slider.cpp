@@ -384,7 +384,7 @@ void SubsectionSlider::activate(int index) {
 			}
 		}
 	};
-	const auto weak = MakeWeak(_bar);
+	const auto weak = base::make_weak(_bar);
 	_sectionActivated.fire_copy(index);
 	if (weak) {
 		const auto duration = st::chatTabsSlider.duration;

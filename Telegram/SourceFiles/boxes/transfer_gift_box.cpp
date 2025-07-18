@@ -90,8 +90,8 @@ void ConfirmExportBox(
 			Ui::Text::WithEntities),
 		st::boxLabel));
 	box->addButton(tr::lng_gift_transfer_confirm_button(), [=] {
-		confirmed([weak = Ui::MakeWeak(box)] {
-			if (const auto strong = weak.data()) {
+		confirmed([weak = base::make_weak(box)] {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		});
@@ -143,7 +143,7 @@ void ExportOnBlockchain(
 			fields.customSubmitButton = tr::lng_passcode_submit();
 			fields.customCheckCallback = crl::guard(parent, [=](
 					const Core::CloudPasswordResult &result,
-					QPointer<PasscodeBox> box) {
+					base::weak_qptr<PasscodeBox> box) {
 				using ExportUrl = MTPpayments_StarGiftWithdrawalUrl;
 				session->api().request(
 					MTPpayments_GetStarGiftWithdrawalUrl(
@@ -180,7 +180,7 @@ void ExportOnBlockchain(
 	const auto state = std::make_shared<State>();
 	const auto activate = [=] {
 		const auto now = base::unixtime::now();
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		const auto left = (when > now) ? (when - now) : 0;
 		const auto hours = left ? std::max((left + 1800) / 3600, 1) : 0;
 		if (!hours) {
@@ -193,7 +193,7 @@ void ExportOnBlockchain(
 					state->exporting = false;
 					close();
 				}, [=] {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 					close();
@@ -572,11 +572,11 @@ void ShowTransferToBox(
 				return;
 			}
 			state->sent = true;
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			const auto done = [=](Payments::CheckoutResult result) {
 				if (result == Payments::CheckoutResult::Cancelled) {
 					closeParentBox();
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 				} else if (result != Payments::CheckoutResult::Paid) {
@@ -586,7 +586,7 @@ void ShowTransferToBox(
 						controller->showPeerHistory(peer);
 					}
 					closeParentBox();
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 				}
@@ -674,7 +674,7 @@ void ShowBuyResaleGiftBox(
 				return;
 			}
 			state->sent = true;
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			const auto done = [=](Payments::CheckoutResult result) {
 				if (result == Payments::CheckoutResult::Cancelled) {
 					closeParentBox();

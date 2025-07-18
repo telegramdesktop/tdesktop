@@ -351,18 +351,18 @@ void ChooseSourceProcess::setupPanel() {
 		if (_selectedId.isEmpty()) {
 			return;
 		}
-		const auto weak = MakeWeak(_window.get());
+		const auto weak = base::make_weak(_window.get());
 		_delegate->chooseSourceAccepted(
 			_selectedId,
 			!_withAudio->isHidden() && _withAudio->checked());
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->close();
 		}
 	});
 	_finish->setClickedCallback([=] {
-		const auto weak = MakeWeak(_window.get());
+		const auto weak = base::make_weak(_window.get());
 		_delegate->chooseSourceStop();
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->close();
 		}
 	});

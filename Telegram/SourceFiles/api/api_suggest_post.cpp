@@ -223,7 +223,7 @@ void ConfirmApproval(
 			.confirmText = tr::lng_suggest_accept_send(),
 			.title = tr::lng_suggest_accept_title(),
 		});
-		*callback = [=, weak = Ui::MakeWeak(box)] {
+		*callback = [=, weak = base::make_weak(box)] {
 			if (const auto onstack = accepted) {
 				onstack();
 			}
@@ -232,7 +232,7 @@ void ConfirmApproval(
 				return;
 			}
 			SendApproval(show, item, scheduleDate);
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		};
@@ -283,9 +283,9 @@ void RequestApprovalDate(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
 	const auto id = item->fullId();
-	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto close = [=] {
-		if (const auto strong = weak->data()) {
+		if (const auto strong = weak->get()) {
 			strong->closeBox();
 		}
 	};
@@ -339,13 +339,13 @@ void RequestDeclineComment(
 		box->setFocusCallback([=] {
 			reason->setFocusFast();
 		});
-		*callback = [=, weak = Ui::MakeWeak(box)] {
+		*callback = [=, weak = base::make_weak(box)] {
 			const auto item = show->session().data().message(id);
 			if (!item) {
 				return;
 			}
 			SendDecline(show, item, reason->getLastText().trimmed());
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		};
@@ -422,14 +422,14 @@ void SuggestApprovalDate(
 	}
 	const auto id = item->fullId();
 	const auto state = std::make_shared<SendSuggestState>();
-	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto done = [=](TimeId result) {
 		const auto item = show->session().data().message(id);
 		if (!item) {
 			return;
 		}
 		const auto close = [=] {
-			if (const auto strong = weak->data()) {
+			if (const auto strong = weak->get()) {
 				strong->closeBox();
 			}
 		};
@@ -458,14 +458,14 @@ void SuggestOfferForMessage(
 		HistoryView::SuggestMode mode) {
 	const auto id = item->fullId();
 	const auto state = std::make_shared<SendSuggestState>();
-	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto done = [=](SuggestPostOptions result) {
 		const auto item = show->session().data().message(id);
 		if (!item) {
 			return;
 		}
 		const auto close = [=] {
-			if (const auto strong = weak->data()) {
+			if (const auto strong = weak->get()) {
 				strong->closeBox();
 			}
 		};

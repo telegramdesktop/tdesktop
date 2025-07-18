@@ -96,11 +96,11 @@ Environment PrepareEnvironment(not_null<Main::Session*> session) {
 	return result;
 }
 
-QPointer<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
+base::weak_qptr<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
 	ClearSuggestStart(session);
 	return Ui::show(
 		Box<SuggestBox>(session),
-		Ui::LayerOption::KeepOther).data();
+		Ui::LayerOption::KeepOther).get();
 }
 
 void ClearSuggestStart(not_null<Main::Session*> session) {
@@ -277,7 +277,7 @@ void PanelController::showCriticalError(const QString &text) {
 
 void PanelController::showError(const QString &text) {
 	auto box = Ui::MakeInformBox(text);
-	const auto weak = Ui::MakeWeak(box.data());
+	const auto weak = base::make_weak(box.data());
 	const auto hidden = _panel->isHidden();
 	_panel->showBox(
 		std::move(box),

@@ -315,11 +315,11 @@ ShareBoxResult Shown::shareBox(ShareBoxDescriptor &&descriptor) {
 	};
 	const auto state = wrap->lifetime().make_state<State>();
 
-	const auto weak = QPointer<Ui::RpWidget>(wrap);
+	const auto weak = base::make_weak(wrap);
 	const auto lookup = crl::guard(weak, [state] { return state->stack; });
 	const auto layer = Ui::CreateChild<Ui::LayerStackWidget>(
 		wrap.get(),
-		[=] { return std::make_shared<Show>(weak.data(), lookup); });
+		[=] { return std::make_shared<Show>(weak.get(), lookup); });
 	state->stack = layer;
 	const auto show = layer->showFactory()();
 

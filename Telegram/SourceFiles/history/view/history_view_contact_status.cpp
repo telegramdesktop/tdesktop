@@ -947,8 +947,8 @@ void BusinessBotStatus::Bar::showMenu() {
 		this,
 		st::popupMenuExpandedSeparator);
 	_menu->setDestroyedCallback([
-		weak = Ui::MakeWeak(this),
-		weakButton = Ui::MakeWeak(_settings.data()),
+		weak = base::make_weak(this),
+		weakButton = base::make_weak(_settings.data()),
 		menu = _menu.get()] {
 		if (weak && weak->_menu == menu) {
 			if (weakButton) {

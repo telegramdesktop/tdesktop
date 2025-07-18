@@ -56,7 +56,7 @@ void AddDeleteAccount(
 			fields.customSubmitButton = tr::lng_theme_delete();
 			fields.customCheckCallback = [=](
 					const Core::CloudPasswordResult &result,
-					QPointer<PasscodeBox> box) {
+					base::weak_qptr<PasscodeBox> box) {
 				session->api().request(MTPaccount_DeleteAccount(
 					MTP_flags(MTPaccount_DeleteAccount::Flag::f_password),
 					MTP_string("Manual"),

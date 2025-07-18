@@ -483,7 +483,7 @@ void ChooseMediaDeviceBox(
 	state->currentId = std::move(currentId);
 
 	const auto choose = [=](const QString &id) {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		chosen(id);
 		if (weak) {
 			box->closeBox();

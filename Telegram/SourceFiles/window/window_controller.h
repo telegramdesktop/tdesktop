@@ -98,11 +98,11 @@ public:
 		typename BoxType,
 		typename = std::enable_if_t<
 			std::is_base_of_v<Ui::BoxContent, BoxType>>>
-	QPointer<BoxType> show(
+		base::weak_qptr<BoxType> show(
 			object_ptr<BoxType> content,
 			Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 			anim::type animated = anim::type()) {
-		auto result = QPointer<BoxType>(content.data());
+		auto result = base::weak_qptr<BoxType>(content.data());
 		showBox(std::move(content), options, animated);
 		return result;
 	}
@@ -168,7 +168,7 @@ private:
 	const std::unique_ptr<Adaptive> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
 	rpl::variable<SessionController*> _sessionControllerValue;
-	QPointer<Ui::BoxContent> _termsBox;
+	base::weak_qptr<Ui::BoxContent> _termsBox;
 
 	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
 

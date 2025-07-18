@@ -1736,8 +1736,8 @@ void StickersListWidget::showStickerSetBox(
 			base::timer_once(kTimeout),
 			document->owner().stickers().updated(
 				Data::StickersType::Stickers)
-		) | rpl::start_with_next([=, weak = Ui::MakeWeak(this)] {
-			if (weak.data()) {
+		) | rpl::start_with_next([=, weak = base::make_weak(this)] {
+			if (weak.get()) {
 				showStickerSetBox(document, setId);
 			}
 			lifetime->destroy();

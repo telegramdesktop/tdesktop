@@ -819,7 +819,7 @@ void DraftOptionsBox(
 			FullReplyTo result,
 			Data::WebPageDraft webpage,
 			std::optional<Data::ForwardOptions> options) {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		auto forward = Data::ForwardDraft();
 		if (options) {
 			forward.options = *options;
@@ -828,7 +828,7 @@ void DraftOptionsBox(
 			}
 		}
 		done(std::move(result), std::move(webpage), std::move(forward));
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	};
@@ -847,7 +847,7 @@ void DraftOptionsBox(
 			});
 		}
 
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		Settings::AddButtonWithIcon(
 			bottom,
 			tr::lng_reply_show_in_chat(),
@@ -855,7 +855,7 @@ void DraftOptionsBox(
 			{ &st::menuIconShowInChat }
 		)->setClickedCallback([=] {
 			highlight(resolveReply());
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		});
@@ -1402,10 +1402,10 @@ void ShowReplyToChatBox(
 	};
 	auto callback = [=, chosen = std::move(chosen)](
 			Controller::Chosen thread) mutable {
-		const auto weak = Ui::MakeWeak(state->box);
+		const auto weak = base::make_weak(state->box);
 		if (!chosen(thread)) {
 			return;
-		} else if (const auto strong = weak.data()) {
+		} else if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	};

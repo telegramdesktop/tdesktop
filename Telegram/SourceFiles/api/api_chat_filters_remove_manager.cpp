@@ -57,7 +57,7 @@ void RemoveChatFilter(
 RemoveComplexChatFilter::RemoveComplexChatFilter() = default;
 
 void RemoveComplexChatFilter::request(
-		QPointer<Ui::RpWidget> widget,
+		base::weak_qptr<Ui::RpWidget> widget,
 		base::weak_ptr<Window::SessionController> weak,
 		FilterId id) {
 	const auto session = &weak->session();

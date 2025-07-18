@@ -134,7 +134,7 @@ void UrlAuthBox::Request(
 	const auto bot = request.is_request_write_access()
 		? session->data().processUser(request.vbot()).get()
 		: nullptr;
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto box = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto finishWithUrl = [=](const QString &url) {
 		if (*box) {
 			(*box)->closeBox();
@@ -185,7 +185,7 @@ void UrlAuthBox::Request(
 	const auto bot = request.is_request_write_access()
 		? session->data().processUser(request.vbot()).get()
 		: nullptr;
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto box = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto finishWithUrl = [=](const QString &url) {
 		if (*box) {
 			(*box)->closeBox();

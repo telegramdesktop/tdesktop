@@ -72,7 +72,7 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_active) {
 		auto object = Box<Ui::CountrySelectBox>();
-		const auto box = Ui::MakeWeak(object.data());
+		const auto box = base::make_weak(object.data());
 		_show->showBox(std::move(object), Ui::LayerOption::CloseOther);
 		box->entryChosen(
 		) | rpl::start_with_next([=](

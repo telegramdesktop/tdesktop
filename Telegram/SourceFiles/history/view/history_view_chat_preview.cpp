@@ -941,9 +941,9 @@ ChatPreview MakeChatPreview(
 	result.actions = action->actions();
 	menu->addAction(std::move(action));
 	if (const auto topic = thread->asTopic()) {
-		const auto weak = Ui::MakeWeak(menu);
+		const auto weak = base::make_weak(menu);
 		topic->destroyed() | rpl::start_with_next([weak] {
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				LOG(("Preview hidden for a destroyed topic."));
 				strong->hideMenu(true);
 			}

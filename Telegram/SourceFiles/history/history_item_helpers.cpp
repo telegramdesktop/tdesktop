@@ -356,7 +356,7 @@ void ShowSendPaidConfirm(
 	const auto messages = details.messages;
 	const auto stars = details.stars;
 	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-		const auto trust = std::make_shared<QPointer<Ui::Checkbox>>();
+		const auto trust = std::make_shared<base::weak_qptr<Ui::Checkbox>>();
 		const auto proceed = [=](Fn<void()> close) {
 			if (singlePeer && (*trust)->checked()) {
 				const auto session = &singlePeer->session();

@@ -484,13 +484,13 @@ void ChooseSuggestPriceBox(
 		st::settingsButtonNoIcon);
 
 	time->setClickedCallback([=] {
-		const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-		const auto parentWeak = Ui::MakeWeak(box);
+		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
+		const auto parentWeak = base::make_weak(box);
 		const auto done = [=](TimeId result) {
 			if (parentWeak) {
 				state->date = result;
 			}
-			if (const auto strong = weak->data()) {
+			if (const auto strong = weak->get()) {
 				strong->closeBox();
 			}
 		};
@@ -793,12 +793,12 @@ void SuggestOptions::paintLines(QPainter &p, int x, int y, int outerWidth) {
 }
 
 void SuggestOptions::edit() {
-	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto apply = [=](SuggestPostOptions values) {
 		_values = values;
 		updateTexts();
 		_updates.fire({});
-		if (const auto strong = weak->data()) {
+		if (const auto strong = weak->get()) {
 			strong->closeBox();
 		}
 	};

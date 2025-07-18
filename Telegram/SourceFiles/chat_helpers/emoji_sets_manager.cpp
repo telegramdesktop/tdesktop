@@ -173,7 +173,7 @@ Loader::Loader(
 
 void Loader::unpack(const QString &path) {
 	const auto folder = internal::SetDataPath(id());
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	crl::async([=] {
 		if (UnpackSet(path, folder)) {
 			QFile(path).remove();

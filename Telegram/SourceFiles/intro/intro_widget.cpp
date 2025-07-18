@@ -403,7 +403,7 @@ void Widget::historyMove(StackAction action, Animate animate) {
 }
 
 void Widget::hideAndDestroy(object_ptr<Ui::FadeWrap<Ui::RpWidget>> widget) {
-	const auto weak = Ui::MakeWeak(widget.data());
+	const auto weak = base::make_weak(widget.data());
 	widget->hide(anim::type::normal);
 	widget->shownValue(
 	) | rpl::start_with_next([=](bool shown) {
@@ -625,7 +625,7 @@ void Widget::showTerms(Fn<void()> callback) {
 	if (getData()->termsLock.text.text.isEmpty()) {
 		return;
 	}
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	const auto box = Ui::show(callback
 		? Box<Window::TermsBox>(
 			getData()->termsLock,

@@ -53,7 +53,7 @@ void TopBar::registerUpdateControlCallback(
 		QObject *guard,
 		Callback &&callback) {
 	_updateControlCallbacks[guard] =[
-		weak = Ui::MakeWeak(guard),
+		weak = base::make_weak(guard),
 		callback = std::forward<Callback>(callback)
 	](anim::type animated) {
 		if (!weak) {
@@ -579,8 +579,8 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 			}
 		}, _storiesLifetime);
 
-		_storiesLifetime.add([weak = QPointer<QWidget>(label)] {
-			delete weak.data();
+		_storiesLifetime.add([weak = base::make_weak(label)] {
+			delete weak.get();
 		});
 	} else {
 		_storiesCount = 0;

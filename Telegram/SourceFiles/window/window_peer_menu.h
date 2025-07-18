@@ -182,45 +182,45 @@ object_ptr<Ui::BoxContent> PrepareChooseRecipientBox(
 	Fn<void(
 		std::vector<not_null<Data::Thread*>>,
 		Api::SendOptions)> sendMany = nullptr);
-QPointer<Ui::BoxContent> ShowChooseRecipientBox(
+base::weak_qptr<Ui::BoxContent> ShowChooseRecipientBox(
 	not_null<Window::SessionNavigation*> navigation,
 	FnMut<bool(not_null<Data::Thread*>)> &&chosen,
 	rpl::producer<QString> titleOverride = nullptr,
 	FnMut<void()> &&successCallback = nullptr,
 	InlineBots::PeerTypes typesRestriction = 0);
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	Data::ForwardDraft &&draft,
 	Fn<void()> &&successCallback = nullptr);
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	Data::ForwardDraft &&draft,
 	Fn<void()> &&successCallback = nullptr);
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
 	Fn<void()> &&successCallback = nullptr);
-QPointer<Ui::BoxContent> ShowShareUrlBox(
+base::weak_qptr<Ui::BoxContent> ShowShareUrlBox(
 	not_null<Window::SessionNavigation*> navigation,
 	const QString &url,
 	const QString &text,
 	FnMut<void()> &&successCallback = nullptr);
-QPointer<Ui::BoxContent> ShowShareGameBox(
+base::weak_qptr<Ui::BoxContent> ShowShareGameBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<UserData*> bot,
 	QString shortName);
-QPointer<Ui::BoxContent> ShowDropMediaBox(
+base::weak_qptr<Ui::BoxContent> ShowDropMediaBox(
 	not_null<Window::SessionNavigation*> navigation,
 	std::shared_ptr<QMimeData> data,
 	not_null<Data::Forum*> forum,
 	FnMut<void()> &&successCallback = nullptr);
-QPointer<Ui::BoxContent> ShowDropMediaBox(
+base::weak_qptr<Ui::BoxContent> ShowDropMediaBox(
 	not_null<Window::SessionNavigation*> navigation,
 	std::shared_ptr<QMimeData> data,
 	not_null<Data::SavedMessages*> monoforum,
 	FnMut<void()> &&successCallback = nullptr);
 
-QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
+base::weak_qptr<Ui::BoxContent> ShowSendNowMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<History*> history,
 	MessageIdsList &&items,

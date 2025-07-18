@@ -49,7 +49,7 @@ void SetCloudPassword(
 	session->api().cloudPassword().state(
 	) | rpl::start_with_next([=] {
 		using namespace Settings;
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		if (CheckEditCloudPassword(session)) {
 			box->getDelegate()->show(
 				EditCloudPasswordBox(session));
@@ -103,11 +103,11 @@ void StartPendingReset(
 		not_null<Main::Session*> session,
 		not_null<Ui::BoxContent*> context,
 		Fn<void()> close) {
-	const auto weak = Ui::MakeWeak(context.get());
+	const auto weak = base::make_weak(context.get());
 	auto lifetime = std::make_shared<rpl::lifetime>();
 
 	auto finish = [=](const QString &message) mutable {
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			if (!message.isEmpty()) {
 				strong->getDelegate()->show(Ui::MakeInformBox(message));
 			}
@@ -136,7 +136,7 @@ void StartPendingReset(
 			: hours
 			? tr::lng_hours(tr::now, lt_count, hours)
 			: tr::lng_minutes(tr::now, lt_count, minutes);
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->getDelegate()->show(Ui::MakeInformBox(
 				tr::lng_cloud_password_reset_later(
 					tr::now,
@@ -447,7 +447,7 @@ void PasscodeBox::recoverPasswordDone(
 		_replacedBy->closeBox();
 	}
 	_setRequest = 0;
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	_newAuthorization.fire_copy(result);
 	if (weak) {
 		_newPasswordSet.fire_copy(newPasswordBytes);
@@ -466,7 +466,7 @@ void PasscodeBox::setPasswordDone(const QByteArray &newPasswordBytes) {
 		_replacedBy->closeBox();
 	}
 	_setRequest = 0;
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	_newPasswordSet.fire_copy(newPasswordBytes);
 	if (weak) {
 		auto text = _reenterPasscode->isHidden()
@@ -567,9 +567,9 @@ void PasscodeBox::validateEmail(
 			} else if (error.type() == u"CODE_INVALID"_q) {
 				errors->fire(tr::lng_signin_wrong_code(tr::now));
 			} else if (error.type() == u"EMAIL_HASH_EXPIRED"_q) {
-				const auto weak = Ui::MakeWeak(this);
+				const auto weak = base::make_weak(this);
 				_clearUnconfirmedPassword.fire({});
-				if (const auto strong = weak.data()) {
+				if (const auto strong = weak.get()) {
 					strong->getDelegate()->show(
 						Ui::MakeInformBox(
 							Lang::Hard::EmailConfirmationExpired()),
@@ -607,7 +607,7 @@ void PasscodeBox::validateEmail(
 	box->boxClosing(
 	) | rpl::filter([=] {
 		return !*set;
-	}) | start_with_next([=, weak = Ui::MakeWeak(this)] {
+	}) | start_with_next([=, weak = base::make_weak(this)] {
 		if (weak) {
 			weak->_clearUnconfirmedPassword.fire({});
 		}
@@ -710,7 +710,7 @@ void PasscodeBox::save(bool force) {
 		}
 	} else {
 		closeReplacedBy();
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		cSetPasscodeBadTries(0);
 		_session->domain().local().setPasscode(pwd.toUtf8());
 		Core::App().localPasscodeChanged();
@@ -742,7 +742,7 @@ void PasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
 void PasscodeBox::sendOnlyCheckCloudPassword(const QString &oldPassword) {
 	checkPassword(oldPassword, [=](const Core::CloudPasswordResult &check) {
 		if (const auto onstack = _cloudFields.customCheckCallback) {
-			onstack(check, Ui::MakeWeak(this));
+			onstack(check, base::make_weak(this));
 		} else {
 			Assert(_cloudFields.turningOff);
 			sendClearCloudPassword(check);
@@ -1105,7 +1105,7 @@ void PasscodeBox::recover() {
 		return;
 	}
 
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	const auto box = getDelegate()->show(Box<RecoverBox>(
 		&_api.instance(),
 		_session,
@@ -1343,7 +1343,7 @@ void RecoverBox::proceedToChange(const QString &code) {
 
 	box->boxClosing(
 	) | rpl::start_with_next([=] {
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		if (const auto onstack = _closeParent) {
 			onstack();
 		}
@@ -1399,7 +1399,7 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 	const auto errors = std::make_shared<rpl::event_stream<QString>>();
 	const auto resent = std::make_shared<rpl::event_stream<QString>>();
 	const auto requestId = std::make_shared<mtpRequestId>(0);
-	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto reloads = std::make_shared<rpl::event_stream<>>();
 	const auto cancels = std::make_shared<rpl::event_stream<>>();
 

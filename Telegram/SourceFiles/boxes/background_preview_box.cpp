@@ -241,12 +241,12 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	}, lifetime());
 
 	const auto prepare = [=](bool dark, auto pointer) {
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		crl::async([=] {
 			auto result = std::make_unique<style::palette>();
 			Window::Theme::PreparePaletteCallback(dark, {})(*result);
 			crl::on_main([=, result = std::move(result)]() mutable {
-				if (const auto strong = weak.data()) {
+				if (const auto strong = weak.get()) {
 					strong->*pointer = std::move(result);
 					strong->paletteReady();
 				}
@@ -685,7 +685,7 @@ void BackgroundPreviewBox::checkLevelForChannel() {
 
 	const auto show = _controller->uiShow();
 	_forPeerLevelCheck = true;
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	CheckBoostLevel(show, _forPeer, [=](int level) {
 		if (!weak) {
 			return std::optional<Ui::AskBoostReason>();

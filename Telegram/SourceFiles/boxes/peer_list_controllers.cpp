@@ -831,7 +831,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	auto guard = base::make_weak(this);
 	const auto peer = row->peer();
 	if (const auto forum = peer->forum()) {
-		const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 		auto callback = [=](not_null<Data::ForumTopic*> topic) {
 			const auto exists = guard.get();
 			if (!exists) {
@@ -870,7 +870,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 		delegate()->peerListUiShow()->showBox(std::move(owned));
 		return;
 	} else if (const auto monoforum = peer->monoforum()) {
-		const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 		auto callback = [=](not_null<Data::SavedSublist*> sublist) {
 			const auto exists = guard.get();
 			if (!exists) {

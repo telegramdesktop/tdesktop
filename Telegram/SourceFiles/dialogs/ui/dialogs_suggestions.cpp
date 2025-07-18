@@ -1452,7 +1452,7 @@ void Suggestions::setupChats() {
 
 	_topPeers->showMenuRequests(
 	) | rpl::start_with_next([=](const ShowTopPeerMenuRequest &request) {
-		const auto weak = Ui::MakeWeak(this);
+		const auto weak = base::make_weak(this);
 		const auto owner = &_controller->session().data();
 		const auto peer = owner->peer(PeerId(request.id));
 		const auto removeOne = [=] {

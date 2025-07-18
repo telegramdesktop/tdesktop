@@ -246,10 +246,10 @@ object_ptr<Ui::BoxContent> CreatePeerByQueryBox(
 		not_null<UserData*> bot,
 		RequestPeerQuery query,
 		Fn<void(std::vector<not_null<PeerData*>>)> done) {
-	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	auto callback = [=](not_null<PeerData*> peer) {
 		done({ peer });
-		if (const auto strong = weak->data()) {
+		if (const auto strong = weak->get()) {
 			strong->closeBox();
 		}
 	};
@@ -506,11 +506,11 @@ void ShowChoosePeerBox(
 		});
 		return;
 	}
-	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	auto callback = [=, done = std::move(chosen)](
 			std::vector<not_null<PeerData*>> peers) {
 		done(std::move(peers));
-		if (const auto strong = weak->data()) {
+		if (const auto strong = weak->get()) {
 			strong->closeBox();
 		}
 	};

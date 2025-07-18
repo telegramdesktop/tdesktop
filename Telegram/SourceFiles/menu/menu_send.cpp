@@ -589,7 +589,7 @@ void EffectPreview::toggle(bool shown) {
 Fn<void(Action, Details)> DefaultCallback(
 		std::shared_ptr<ChatHelpers::Show> show,
 		Fn<void(Api::SendOptions)> send) {
-	const auto guard = Ui::MakeWeak(show->toastParent());
+	const auto guard = base::make_weak(show->toastParent());
 	return [=](Action action, Details details) {
 		if (action.type == ActionType::Send) {
 			send(action.options);
@@ -601,9 +601,9 @@ Fn<void(Action, Details)> DefaultCallback(
 			details,
 			send,
 			action.options);
-		const auto weak = Ui::MakeWeak(box.data());
+		const auto weak = base::make_weak(box.data());
 		show->showBox(std::move(box));
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->setCloseByOutsideClick(false);
 		}
 	};
@@ -618,7 +618,7 @@ FillMenuResult AttachSendMenuEffect(
 	Expects(show != nullptr);
 
 	using namespace HistoryView::Reactions;
-	const auto effect = std::make_shared<QPointer<EffectPreview>>();
+	const auto effect = std::make_shared<base::weak_qptr<EffectPreview>>();
 	const auto position = desiredPositionOverride.value_or(QCursor::pos());
 	const auto selector = (show && details.effectAllowed)
 		? AttachSelectorToMenu(
@@ -645,13 +645,13 @@ FillMenuResult AttachSendMenuEffect(
 		const auto &effects = reactions.list(Data::Reactions::Type::Effects);
 		const auto i = ranges::find(effects, chosen.id, &Data::Reaction::id);
 		if (i != end(effects)) {
-			if (const auto strong = effect->data()) {
+			if (const auto strong = effect->get()) {
 				strong->hideAnimated();
 			}
-			const auto weak = Ui::MakeWeak(menu);
+			const auto weak = base::make_weak(menu);
 			const auto done = [=] {
-				delete effect->data();
-				if (const auto strong = weak.data()) {
+				delete effect->get();
+				if (const auto strong = weak.get()) {
 					strong->hideMenu(true);
 				}
 			};

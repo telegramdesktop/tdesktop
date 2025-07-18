@@ -127,11 +127,11 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 				return;
 			}
 			state->sent = true;
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			const auto description = modify ? state->description : QString();
 			Setup(bot, peer, description, [=](QString error) {
 				if (error.isEmpty()) {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 					show->showToast({
@@ -204,10 +204,10 @@ void Controller::confirmRemove(not_null<PeerData*> peer) {
 				return;
 			}
 			*sent = true;
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			Remove(bot, peer, [=](QString error) {
 				if (error.isEmpty()) {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 					show->showToast(tr::lng_bot_verify_remove_done(tr::now));

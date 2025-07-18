@@ -198,7 +198,7 @@ void ChooseSendAsBox(
 
 	controller->clicked(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-		const auto weak = MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		if (done(peer) && weak) {
 			box->closeBox();
 		}

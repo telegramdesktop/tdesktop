@@ -228,12 +228,12 @@ void InitEditorLayer(
 		layer->closeLayer();
 	}, editor->lifetime());
 
-	const auto weak = Ui::MakeWeak(layer.get());
+	const auto weak = base::make_weak(layer.get());
 	editor->doneRequests(
 	) | rpl::start_with_next([=, done = std::move(doneCallback)](
 			const PhotoModifications &mods) {
 		done(mods);
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeLayer();
 		}
 	}, editor->lifetime());

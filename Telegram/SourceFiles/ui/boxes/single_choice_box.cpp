@@ -46,7 +46,7 @@ void SingleChoiceBox(
 	}
 	const auto callback = args.callback.value();
 	group->setChangedCallback([=](int value) {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		callback(value);
 		if (weak) {
 			box->closeBox();

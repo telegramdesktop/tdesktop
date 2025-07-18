@@ -389,7 +389,7 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 		addAction({
 			.text = tr::lng_filters_context_remove(tr::now),
 			.handler = crl::guard(&_outer, [=, this] {
-				_removeApi.request(Ui::MakeWeak(&_outer), _session, id);
+				_removeApi.request(base::make_weak(&_outer), _session, id);
 			}),
 			.icon = &st::menuIconDeleteAttention,
 			.isAttention = true,

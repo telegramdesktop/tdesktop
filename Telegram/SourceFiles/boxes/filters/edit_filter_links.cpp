@@ -582,7 +582,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
 	const auto link = _data.url;
-	const auto weak = Ui::MakeWeak(container);
+	const auto weak = base::make_weak(container);
 	const auto copyLink = crl::guard(weak, [=] {
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});

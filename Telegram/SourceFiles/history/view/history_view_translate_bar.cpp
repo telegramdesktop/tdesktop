@@ -409,8 +409,8 @@ base::unique_qptr<Ui::PopupMenu> TranslateBar::createMenu(
 		st::popupMenuExpandedSeparator);
 	result->setDestroyedCallback([
 		this,
-		weak = Ui::MakeWeak(&_wrap),
-		weakButton = Ui::MakeWeak(button),
+		weak = base::make_weak(&_wrap),
+		weakButton = base::make_weak(button),
 		menu = result.get()
 	] {
 		if (weak && _menu == menu) {
@@ -430,7 +430,7 @@ void TranslateBar::showMenu(base::unique_qptr<Ui::PopupMenu> menu) {
 	_menu = std::move(menu);
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 
-	const auto guard = Ui::MakeWeak(&_wrap);
+	const auto guard = base::make_weak(&_wrap);
 	const auto now = _history->translatedTo();
 	const auto to = now ? now : Ui::ChooseTranslateTo(_history);
 	const auto weak = base::make_weak(_controller);

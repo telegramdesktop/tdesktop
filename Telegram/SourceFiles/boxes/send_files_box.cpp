@@ -175,9 +175,9 @@ void EditPriceBox(
 			field->showError();
 			return;
 		}
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		apply(now);
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	};
@@ -597,7 +597,7 @@ void SendFilesBox::enqueueNextPrepare() {
 	}
 	auto file = std::move(_list.filesToProcess.front());
 	_list.filesToProcess.pop_front();
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	_preparing = true;
 	const auto sideLimit = PhotoSideLimit(); // Get on main thread.
 	crl::async([weak, sideLimit, file = std::move(file)]() mutable {
@@ -803,7 +803,7 @@ void SendFilesBox::toggleSpoilers(bool enabled) {
 }
 
 void SendFilesBox::changePrice() {
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	const auto session = &_show->session();
 	const auto now = _price.current();
 	_show->show(Box(EditPriceBox, session, now, [=](uint64 price) {

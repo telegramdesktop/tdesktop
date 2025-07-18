@@ -194,7 +194,7 @@ struct Labeled {
 	};
 	checkModified();
 
-	const auto menu = std::make_shared<QPointer<Ui::PopupMenu>>();
+	const auto menu = std::make_shared<base::weak_qptr<Ui::PopupMenu>>();
 	const auto fill = [=](Entry &entry) {
 		auto index = 0;
 		if (entry.original.empty()) {

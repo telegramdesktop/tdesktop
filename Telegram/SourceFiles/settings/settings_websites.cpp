@@ -182,7 +182,7 @@ void InfoBox(
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 	if (const auto hash = data.hash) {
 		box->addLeftButton(tr::lng_settings_disconnect(), [=] {
-			const auto weak = Ui::MakeWeak(box.get());
+			const auto weak = base::make_weak(box.get());
 			terminate(hash);
 			if (weak) {
 				box->closeBox();
@@ -334,7 +334,7 @@ private:
 	Api::Websites::List _data;
 
 	object_ptr<Inner> _inner;
-	QPointer<Ui::BoxContent> _terminateBox;
+	base::weak_qptr<Ui::BoxContent> _terminateBox;
 
 	base::Timer _shortPollTimer;
 
@@ -492,7 +492,7 @@ void Content::terminate(
 		rpl::producer<QString> title,
 		rpl::producer<QString> text,
 		QString blockText) {
-	if (const auto strong = _terminateBox.data()) {
+	if (const auto strong = _terminateBox.get()) {
 		strong->deleteLater();
 	}
 	auto box = Box([=](not_null<Ui::GenericBox*> box) {
@@ -517,12 +517,12 @@ void Content::terminate(
 			*block = box->addRow(object_ptr<Ui::Checkbox>(box, blockText));
 		}
 	});
-	_terminateBox = Ui::MakeWeak(box.data());
+	_terminateBox = base::make_weak(box.data());
 	_controller->show(std::move(box));
 }
 
 void Content::terminateOne(uint64 hash) {
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	const auto i = ranges::find(_data, hash, &EntryData::hash);
 	if (i == end(_data)) {
 		return;
@@ -552,7 +552,7 @@ void Content::terminateOne(uint64 hash) {
 }
 
 void Content::terminateAll() {
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	auto callback = [=](bool block) {
 		const auto reset = crl::guard(weak, [=] {
 			_websites->cancelCurrentRequest();

@@ -984,7 +984,7 @@ void SuggestionsController::replaceCurrent(
 	const auto position = cursor.position();
 	const auto suggestion = getEmojiQuery();
 	if (v::is<EmojiPtr>(suggestion)) {
-		const auto weak = Ui::MakeWeak(_container.get());
+		const auto weak = base::make_weak(_container.get());
 		const auto count = std::max(_emojiQueryLength, 1);
 		for (auto i = 0; i != count; ++i) {
 			const auto start = position - count + i;

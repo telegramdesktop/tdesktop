@@ -276,7 +276,7 @@ void Controller::checkLockByTerms() {
 		showTermsDecline();
 	}, box->lifetime());
 
-	QObject::connect(box, &QObject::destroyed, [=] {
+	QObject::connect(box.get(), &QObject::destroyed, [=] {
 		crl::on_main(widget(), [=] { checkLockByTerms(); });
 	});
 

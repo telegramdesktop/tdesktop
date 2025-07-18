@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
-	const auto weak = Ui::MakeWeak(box);
+	const auto weak = base::make_weak(box);
 	const auto lifetime = box->lifetime().make_state<rpl::lifetime>();
 
 	const auto withTitle = !v::is_null(args.title);

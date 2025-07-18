@@ -230,7 +230,7 @@ void PasswordCheckWidget::codeSubmitDone(
 	fields.mtp.curRequest = {};
 	fields.hasPassword = false;
 	auto box = Box<PasscodeBox>(&api().instance(), nullptr, fields);
-	const auto boxShared = std::make_shared<QPointer<PasscodeBox>>();
+	const auto boxShared = std::make_shared<base::weak_qptr<PasscodeBox>>();
 
 	box->newAuthorization(
 	) | rpl::start_with_next([=](const MTPauth_Authorization &result) {

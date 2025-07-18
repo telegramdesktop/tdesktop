@@ -282,7 +282,7 @@ auto AddButtonWithLoader(
 	) | rpl::start_with_next([=](bool toggled) {
 		const auto &state = buttonState->current();
 		if (toggled && (v::is<Available>(state) || v::is<Failed>(state))) {
-			const auto weak = Ui::MakeWeak(button);
+			const auto weak = base::make_weak(button);
 			setLocalLoader(base::make_unique_q<Loader>(
 				QCoreApplication::instance(),
 				session,

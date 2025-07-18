@@ -1015,9 +1015,9 @@ void SelectGiftToUnpin(
 			}
 			Assert(index < int(pinned.size()));
 			const auto &entry = pinned[index];
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			chosen(::Settings::EntryToSavedStarGiftId(session, entry));
-			if (const auto strong = weak.data()) {
+			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		});
