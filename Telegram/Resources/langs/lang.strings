@@ -3767,7 +3767,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_collection_limit_text" = "Please remove one of the existing collections to add a new one.";
 "lng_gift_collection_delete" = "Delete Collection";
 "lng_gift_collection_add_to" = "Add to Collection";
-"lng_gift_collection_reorder" = "Reorder";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

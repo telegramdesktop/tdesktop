@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/peer_gifts/info_peer_gifts_collections.h"
 
-#include "api/api_credits.h" //
+#include "api/api_credits.h"
 #include "apiwrap.h"
 #include "data/data_peer.h"
 #include "data/data_star_gift.h"

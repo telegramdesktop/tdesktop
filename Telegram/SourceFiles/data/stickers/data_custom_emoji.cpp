@@ -1108,7 +1108,10 @@ TextWithEntities SingleCustomEmoji(DocumentId id) {
 }
 
 TextWithEntities SingleCustomEmoji(not_null<DocumentData*> document) {
-	return SingleCustomEmoji(document->id);
+	const auto sticker = document->sticker();
+	return Ui::Text::SingleCustomEmoji(
+		SerializeCustomEmojiId(document),
+		sticker ? sticker->alt : QString());
 }
 
 bool AllowEmojiWithoutPremium(

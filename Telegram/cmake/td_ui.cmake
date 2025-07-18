@@ -392,6 +392,8 @@ PRIVATE
     ui/controls/stars_rating.h
     ui/controls/subsection_tabs_slider.cpp
     ui/controls/subsection_tabs_slider.h
+    ui/controls/sub_tabs.cpp
+    ui/controls/sub_tabs.h
     ui/controls/swipe_handler.cpp
     ui/controls/swipe_handler.h
     ui/controls/swipe_handler_data.h

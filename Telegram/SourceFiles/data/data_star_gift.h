@@ -150,4 +150,12 @@ struct SavedStarGift {
 	bool mine = false;
 };
 
+struct GiftCollection {
+	int id = 0;
+	int count = 0;
+	QString title;
+	DocumentData *icon = nullptr;
+	uint64 hash = 0;
+};
+
 } // namespace Data
