@@ -173,10 +173,19 @@ LinuxIntegration::LinuxIntegration()
 
 #ifdef __GLIBC__
 	mallopt(M_ARENA_MAX, 1);
+
+	static QElapsedTimer trimTimer;
+	trimTimer.start();
+
 	QObject::connect(
 		QCoreApplication::eventDispatcher(),
 		&QAbstractEventDispatcher::aboutToBlock,
-		[] { malloc_trim(0); });
+		[] {
+			if (trimTimer.elapsed() > 60000) {
+				malloc_trim(0);
+				trimTimer.restart();
+			}
+		});
 #endif // __GLIBC__
 }
 
