@@ -176,7 +176,18 @@ LinuxIntegration::LinuxIntegration()
 	QObject::connect(
 		QCoreApplication::eventDispatcher(),
 		&QAbstractEventDispatcher::aboutToBlock,
-		[] { malloc_trim(0); });
+		[] {
+			static auto timer = [] {
+				QElapsedTimer timer;
+				timer.start();
+				return timer;
+			}();
+
+			if (timer.hasExpired(1000)) {
+				malloc_trim(0);
+				timer.start();
+			}
+		});
 #endif // __GLIBC__
 }
 
