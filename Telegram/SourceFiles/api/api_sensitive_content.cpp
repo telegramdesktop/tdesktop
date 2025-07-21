@@ -25,7 +25,7 @@ SensitiveContent::SensitiveContent(not_null<ApiWrap*> api)
 }
 
 void SensitiveContent::preload() {
-	if (!_loaded) {
+	if (!_loaded && !_loadRequestId) {
 		reload();
 	}
 }
@@ -37,7 +37,6 @@ void SensitiveContent::reload(bool force) {
 		}
 		return;
 	}
-	_loaded = true;
 	_loadRequestId = _api.request(MTPaccount_GetContentSettings(
 	)).done([=](const MTPaccount_ContentSettings &result) {
 		_loadRequestId = 0;
@@ -50,6 +49,10 @@ void SensitiveContent::reload(bool force) {
 			_enabled = enabled;
 			_canChange = canChange;
 		}
+		if (!_loaded) {
+			_loaded = true;
+			_loadedChanged.fire({});
+		}
 		if (base::take(_appConfigReloadForce) || changed) {
 			_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
 		}
@@ -61,12 +64,29 @@ void SensitiveContent::reload(bool force) {
 	}).send();
 }
 
+bool SensitiveContent::loaded() const {
+	return _loaded;
+}
+
+rpl::producer<bool> SensitiveContent::loadedValue() const {
+	if (_loaded) {
+		return rpl::single(true);
+	}
+	return rpl::single(false) | rpl::then(
+		_loadedChanged.events() | rpl::map_to(true)
+	);
+}
+
 bool SensitiveContent::enabledCurrent() const {
 	return _enabled.current();
 }
 
 rpl::producer<bool> SensitiveContent::enabled() const {
 	return _enabled.value();
+}
+
+bool SensitiveContent::canChangeCurrent() const {
+	return _canChange.current();
 }
 
 rpl::producer<bool> SensitiveContent::canChange() const {

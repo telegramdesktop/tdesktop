@@ -38,6 +38,7 @@ struct PluralResult {
 	int keyShift = 0;
 	QString replacement;
 };
+inline constexpr auto kPluralKeyBaseForCloudValue = ushort(-1);
 PluralResult Plural(
 	ushort keyBase,
 	float64 value,

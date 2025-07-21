@@ -102,6 +102,11 @@ public:
 	[[nodiscard]] int suggestedPostDelayMax() const;
 	[[nodiscard]] TimeId suggestedPostAgeMin() const;
 
+	[[nodiscard]] bool ageVerifyNeeded() const;
+	[[nodiscard]] QString ageVerifyCountry() const;
+	[[nodiscard]] int ageVerifyMinAge() const;
+	[[nodiscard]] QString ageVerifyBotUsername() const;
+
 	void refresh(bool force = false);
 
 private:

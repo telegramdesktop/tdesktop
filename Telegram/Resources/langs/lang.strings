@@ -6756,6 +6756,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_frozen_text3" = "Appeal via {link} before {date}, or your account will be deleted.";
 "lng_frozen_appeal_button" = "Submit an Appeal";
 
+"lng_age_verify_title" = "Age Verification";
+"lng_age_verify_mobile" = "Please open this media in the official Telegram app for Android or iOS to verify your age.";
+"lng_age_verify_here" = "This is a one-time process using your phone's camera. Your selfie will not be stored by Telegram.";
+"lng_age_verify_button" = "Verify My Age";
+"lng_age_verify_sorry_title" = "Age Check Failed";
+"lng_age_verify_sorry_text" = "Sorry, you can't view 18+ content.";
+
 "lng_context_bank_card_copy" = "Copy Card Number";
 "lng_context_bank_card_copied" = "Card number copied to clipboard.";
 

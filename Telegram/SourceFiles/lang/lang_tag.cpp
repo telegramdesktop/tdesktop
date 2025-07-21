@@ -1004,14 +1004,11 @@ PluralResult Plural(
 	const auto t = f;
 
 	const auto useNonDefaultPlural = (ChoosePlural != ChoosePluralDefault)
-		&& Lang::details::IsNonDefaultPlural(keyBase);
-	const auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralDefault)(
-		(integer ? i : -1),
-		i,
-		v,
-		w,
-		f,
-		t);
+		&& (keyBase == kPluralKeyBaseForCloudValue
+			|| Lang::details::IsNonDefaultPlural(keyBase));
+	const auto shift = (useNonDefaultPlural
+		? ChoosePlural
+		: ChoosePluralDefault)((integer ? i : -1), i, v, w, f, t);
 	if (integer) {
 		const auto round = qRound(value);
 		if (type == lt_count_short) {

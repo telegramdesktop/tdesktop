@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "cloud_lng_topup_purpose_subs" = "Buy **Stars** to keep your channel subscriptions.";
 
+"cloud_lng_age_verify_about_gb#one" = "To access such content, you must confirm that you are at least **{count}** year old as required by UK law.";
+"cloud_lng_age_verify_about_gb#other" = "To access such content, you must confirm that you are at least **{count}** years old as required by UK law.";
+
 "cloud_lng_passport_in_ar" = "Arabic";
 "cloud_lng_passport_in_az" = "Azerbaijani";
 "cloud_lng_passport_in_bg" = "Bulgarian";

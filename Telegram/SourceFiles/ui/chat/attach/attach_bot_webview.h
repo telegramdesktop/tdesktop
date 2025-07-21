@@ -105,6 +105,7 @@ public:
 	virtual void botDownloadFile(DownloadFileRequest request) = 0;
 	virtual void botSendPreparedMessage(
 		SendPreparedMessageRequest request) = 0;
+	virtual void botVerifyAge(int age) = 0;
 	virtual void botOpenPrivacyPolicy() = 0;
 	virtual void botClose() = 0;
 };

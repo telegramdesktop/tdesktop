@@ -1011,6 +1011,16 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			secureStorageFailed(arguments);
 		} else if (command == "web_app_secure_storage_clear") {
 			secureStorageFailed(arguments);
+		} else if (command == "web_app_verify_age") {
+			const auto passed = arguments["passed"];
+			const auto detected = arguments["age"];
+			const auto valid = passed.isBool()
+				&& passed.toBool()
+				&& detected.isDouble();
+			const auto age = valid
+				? int(std::floor(detected.toDouble()))
+				: 0;
+			_delegate->botVerifyAge(age);
 		} else if (command == "share_score") {
 			_delegate->botHandleMenuButton(MenuButton::ShareGame);
 		}

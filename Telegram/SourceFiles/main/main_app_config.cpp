@@ -208,6 +208,22 @@ TimeId AppConfig::suggestedPostAgeMin() const {
 	return get<int>(u"stars_suggested_post_age_min"_q, 86400);
 }
 
+bool AppConfig::ageVerifyNeeded() const {
+	return get<bool>(u"need_age_video_verification"_q, false);
+}
+
+QString AppConfig::ageVerifyCountry() const {
+	return get<QString>(u"verify_age_country"_q, QString());
+}
+
+int AppConfig::ageVerifyMinAge() const {
+	return get<int>(u"verify_age_min"_q, 18);
+}
+
+QString AppConfig::ageVerifyBotUsername() const {
+	return get<QString>(u"verify_age_bot_username"_q, QString());
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

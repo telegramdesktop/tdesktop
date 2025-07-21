@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 #include "api/api_views.h"
 #include "apiwrap.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -34,18 +36,77 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_non_panel_process.h"
+#include "settings/settings_common.h"
+#include "webrtc/webrtc_environment.h"
+#include "webview/webview_interface.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 namespace HistoryView {
 namespace {
 
 constexpr auto kMediaUnlockedTooltipDuration = 5 * crl::time(1000);
+const auto kVerifyAgeAboutPrefix = "cloud_lng_age_verify_about_";
+
+rpl::producer<TextWithEntities> AgeVerifyAbout(
+		not_null<Main::Session*> session) {
+	const auto appConfig = &session->appConfig();
+	return rpl::single(
+		rpl::empty
+	) | rpl::then(
+		Lang::Updated()
+	) | rpl::map([=] {
+		const auto country = appConfig->ageVerifyCountry().toLower();
+		const auto age = appConfig->ageVerifyMinAge();
+		const auto [shift, string] = Lang::Plural(
+			Lang::kPluralKeyBaseForCloudValue,
+			age,
+			lt_count);
+		const auto postfixes = {
+			"#zero",
+			"#one",
+			"#two",
+			"#few",
+			"#many",
+			"#other"
+		};
+		Assert(shift >= 0 && shift < postfixes.size());
+		const auto postfix = *(begin(postfixes) + shift);
+		return Ui::Text::RichLangValue(u"To access such content, you must confirm that you are at least **{count}** years old as required by UK law."_q.replace(u"{count}"_q, string));
+		return Ui::Text::RichLangValue(Lang::GetNonDefaultValue(
+			kVerifyAgeAboutPrefix + country.toUtf8() + postfix AssertIsDebug(test_this)
+		).replace(u"{count}"_q, string));
+	});
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> AgeVerifyIcon(
+		not_null<QWidget*> parent) {
+	const auto padding = st::settingsAgeVerifyIconPadding;
+	const auto full = st::settingsAgeVerifyIcon.size().grownBy(padding);
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+	raw->resize(full);
+	raw->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		const auto x = (raw->width() - full.width()) / 2;
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::windowBgActive);
+		p.setPen(Qt::NoPen);
+		const auto inner = QRect(QPoint(x, 0), full);
+		p.drawEllipse(inner);
+		st::settingsAgeVerifyIcon.paintInCenter(p, inner);
+	}, raw->lifetime());
+	return result;
+}
 
 } // namespace
 
@@ -278,61 +339,246 @@ ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item) {
 	});
 }
 
+void ShowAgeVerification(
+		std::shared_ptr<Ui::Show> show,
+		not_null<UserData*> bot,
+		Fn<void()> reveal) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setNoContentMargin(true);
+		box->setStyle(st::settingsAgeVerifyBox);
+		box->setWidth(st::boxWideWidth);
+
+		box->addRow(AgeVerifyIcon(box), st::settingsAgeVerifyIconMargin);
+
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_age_verify_title(),
+				st::settingsAgeVerifyTitle),
+			st::boxRowPadding + st::settingsAgeVerifyMargin);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				AgeVerifyAbout(&bot->session()),
+				st::settingsAgeVerifyText),
+			st::boxRowPadding + st::settingsAgeVerifyMargin);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_age_verify_here(Ui::Text::RichLangValue),
+				st::settingsAgeVerifyText),
+			st::boxRowPadding + st::settingsAgeVerifyMargin);
+
+		const auto weak = QPointer<Ui::GenericBox>(box);
+		const auto done = crl::guard(&bot->session(), [=](int age) {
+			const auto min = bot->session().appConfig().ageVerifyMinAge();
+			if (age >= min) {
+				reveal();
+				bot->session().api().sensitiveContent().update(true);
+			} else {
+				show->showToast({
+					.title = tr::lng_age_verify_sorry_title(tr::now),
+					.text = tr::lng_age_verify_sorry_text(tr::now),
+					.duration = Ui::Toast::kDefaultDuration * 3,
+				});
+			}
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		});
+		const auto button = box->addButton(tr::lng_age_verify_button(), [=] {
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = { .maySkipConfirmation = true },
+				.source = InlineBots::WebViewSourceAgeVerification{
+					.done = done,
+				},
+			});
+		});
+		box->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			const auto &padding = st::settingsAgeVerifyBox.buttonPadding;
+			button->resizeToWidth(width
+				- padding.left()
+				- padding.right());
+			button->moveToLeft(padding.left(), padding.top());
+		}, button->lifetime());
+	}));
+}
+
+void ShowAgeVerificationMobile(
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_age_verify_title());
+		box->setWidth(st::boxWideWidth);
+
+		const auto size = st::settingsCloudPasswordIconSize;
+		auto icon = Settings::CreateLottieIcon(
+			box->verticalLayout(),
+			{
+				.name = u"phone"_q,
+				.sizeOverride = { size, size },
+			},
+			st::peerAppearanceIconPadding);
+
+		box->showFinishes(
+		) | rpl::start_with_next([animate = std::move(icon.animate)] {
+			animate(anim::repeat::once);
+		}, box->lifetime());
+
+		box->addRow(std::move(icon.widget));
+
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				AgeVerifyAbout(session),
+				st::settingsAgeVerifyText),
+			st::boxRowPadding + st::settingsAgeVerifyMargin);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_age_verify_mobile(Ui::Text::RichLangValue),
+				st::settingsAgeVerifyText),
+			st::boxRowPadding + st::settingsAgeVerifyMargin);
+
+		box->addButton(tr::lng_box_ok(), [=] {
+			box->closeBox();
+		});
+	}));
+}
+
+void ShowAgeVerificationRequired(
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
+		Fn<void()> reveal) {
+	struct State {
+		Fn<void()> check;
+		rpl::lifetime lifetime;
+		std::optional<PeerData*> bot;
+	};
+	const auto state = std::make_shared<State>();
+	const auto username = session->appConfig().ageVerifyBotUsername();
+	const auto bot = session->data().peerByUsername(username);
+	if (username.isEmpty() || bot) {
+		state->bot = bot;
+	} else {
+		session->api().request(MTPcontacts_ResolveUsername(
+			MTP_flags(0),
+			MTP_string(username),
+			MTPstring()
+		)).done([=](const MTPcontacts_ResolvedPeer &result) {
+			const auto &data = result.data();
+			session->data().processUsers(data.vusers());
+			session->data().processChats(data.vchats());
+			const auto botId = peerFromMTP(data.vpeer());
+			state->bot = session->data().peerLoaded(botId);
+			state->check();
+		}).fail([=] {
+			state->bot = nullptr;
+			state->check();
+		}).send();
+	}
+	state->check = [=] {
+		const auto sensitive = &session->api().sensitiveContent();
+		const auto ready = sensitive->loaded();
+		if (!ready) {
+			state->lifetime = sensitive->loadedValue(
+			) | rpl::filter(
+				rpl::mappers::_1
+			) | rpl::take(1) | rpl::start_with_next(state->check);
+			return;
+		} else if (!state->bot.has_value()) {
+			return;
+		}
+		const auto has = Core::App().mediaDevices().recordAvailability();
+		const auto available = Webview::Availability();
+		const auto bot = (*state->bot)->asUser();
+		if (available.error == Webview::Available::Error::None
+			&& has == Webrtc::RecordAvailability::VideoAndAudio
+			&& sensitive->canChangeCurrent()
+			&& bot
+			&& bot->isBot()
+			&& bot->botInfo->hasMainApp) {
+			ShowAgeVerification(show, bot, reveal);
+		} else {
+			ShowAgeVerificationMobile(show, session);
+		}
+		state->lifetime.destroy();
+		state->check = nullptr;
+	};
+	state->check();
+}
+
+void ShowSensitiveConfirm(
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
+		Fn<void()> reveal) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		struct State {
+			rpl::variable<bool> canChange;
+			Ui::Checkbox *checkbox = nullptr;
+		};
+		const auto state = box->lifetime().make_state<State>();
+		const auto sensitive = &session->api().sensitiveContent();
+		state->canChange = sensitive->canChange();
+		const auto done = [=](Fn<void()> close) {
+			if (state->canChange.current()
+				&& state->checkbox->checked()) {
+				show->showToast({
+					.text = tr::lng_sensitive_toast(
+						tr::now,
+						Ui::Text::RichLangValue),
+					.adaptive = true,
+					.duration = 5 * crl::time(1000),
+				});
+				sensitive->update(true);
+			} else {
+				reveal();
+			}
+			close();
+		};
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_sensitive_text(Ui::Text::RichLangValue),
+			.confirmed = done,
+			.confirmText = tr::lng_sensitive_view(),
+			.title = tr::lng_sensitive_title(),
+		});
+		const auto skip = st::defaultCheckbox.margin.bottom();
+		const auto wrap = box->addRow(
+			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+				box,
+				object_ptr<Ui::Checkbox>(
+					box,
+					tr::lng_sensitive_always(tr::now),
+					false)),
+			st::boxRowPadding + QMargins(0, 0, 0, skip));
+		wrap->toggleOn(state->canChange.value());
+		wrap->finishAnimating();
+		state->checkbox = wrap->entity();
+	}));
+}
+
 ClickHandlerPtr MakeSensitiveMediaLink(
 		ClickHandlerPtr reveal,
 		not_null<HistoryItem*> item) {
 	const auto session = &item->history()->session();
+	session->api().sensitiveContent().preload();
+
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto plain = [reveal, context] {
+			reveal->onClick(context);
+		};
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto controller = my.sessionWindow.get();
 		const auto show = controller ? controller->uiShow() : my.show;
 		if (!show) {
-			reveal->onClick(context);
-			return;
+			plain();
+		} else if (session->appConfig().ageVerifyNeeded()) {
+			ShowAgeVerificationRequired(show, session, plain);
+		} else {
+			ShowSensitiveConfirm(show, session, plain);
 		}
-		show->show(Box([=](not_null<Ui::GenericBox*> box) {
-			struct State {
-				rpl::variable<bool> canChange;
-				Ui::Checkbox *checkbox = nullptr;
-			};
-			const auto state = box->lifetime().make_state<State>();
-			const auto sensitive = &session->api().sensitiveContent();
-			state->canChange = sensitive->canChange();
-			const auto done = [=](Fn<void()> close) {
-				if (state->canChange.current()
-					&& state->checkbox->checked()) {
-					show->showToast({
-						.text = tr::lng_sensitive_toast(
-							tr::now,
-							Ui::Text::RichLangValue),
-						.adaptive = true,
-						.duration = 5 * crl::time(1000),
-					});
-					sensitive->update(true);
-				} else {
-					reveal->onClick(context);
-				}
-				close();
-			};
-			Ui::ConfirmBox(box, {
-				.text = tr::lng_sensitive_text(Ui::Text::RichLangValue),
-				.confirmed = done,
-				.confirmText = tr::lng_sensitive_view(),
-				.title = tr::lng_sensitive_title(),
-			});
-			const auto skip = st::defaultCheckbox.margin.bottom();
-			const auto wrap = box->addRow(
-				object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
-					box,
-					object_ptr<Ui::Checkbox>(
-						box,
-						tr::lng_sensitive_always(tr::now),
-						false)),
-				st::boxRowPadding + QMargins(0, 0, 0, skip));
-			wrap->toggleOn(state->canChange.value());
-			wrap->finishAnimating();
-			state->checkbox = wrap->entity();
-		}));
 	});
 }
 

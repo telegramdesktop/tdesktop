@@ -26,12 +26,16 @@ public:
 	void reload(bool force = false);
 	void update(bool enabled);
 
+	[[nodiscard]] bool loaded() const;
+	[[nodiscard]] rpl::producer<bool> loadedValue() const;
 	[[nodiscard]] bool enabledCurrent() const;
 	[[nodiscard]] rpl::producer<bool> enabled() const;
+	[[nodiscard]] bool canChangeCurrent() const;
 	[[nodiscard]] rpl::producer<bool> canChange() const;
 
 private:
 	const not_null<Main::Session*> _session;
+	rpl::event_stream<> _loadedChanged;
 	MTP::Sender _api;
 	mtpRequestId _loadRequestId = 0;
 	mtpRequestId _saveRequestId = 0;
