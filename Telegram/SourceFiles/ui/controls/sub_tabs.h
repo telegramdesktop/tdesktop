@@ -11,18 +11,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+struct SubTabsOptions {
+	QString selected;
+	bool centered = false;
+};
+
+struct SubTabsTab {
+	QString id;
+	TextWithEntities text;
+
+	friend inline bool operator==(
+		const SubTabsTab &,
+		const SubTabsTab &) = default;
+};
+
 class SubTabs : public RpWidget {
 public:
-	struct Options {
-		QString selected;
-		bool centered = false;
-	};
-	struct Tab {
-		QString id;
-		TextWithEntities text;
-
-		friend inline bool operator==(const Tab &, const Tab &) = default;
-	};
+	using Options = SubTabsOptions;
+	using Tab = SubTabsTab;
 
 	explicit SubTabs(
 		QWidget *parent,

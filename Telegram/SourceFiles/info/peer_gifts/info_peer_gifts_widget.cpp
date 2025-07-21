@@ -885,7 +885,7 @@ void InnerWidget::refreshAbout() {
 			return false;
 		});
 		about->show();
-		_about = std::move(_about);
+		_about = std::move(about);
 		_aboutFiltered = true;
 		resizeToWidth(width());
 	} else if (_aboutFiltered || _aboutCollection) {
