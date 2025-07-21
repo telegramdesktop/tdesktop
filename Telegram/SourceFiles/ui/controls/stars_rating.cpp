@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
@@ -213,7 +212,7 @@ void StarsRating::toggleTooltips(bool shown) {
 			outer.width());
 	}, widget->lifetime());
 	button->setClickedCallback([=] {
-		UrlClickHandler::Open(tr::lng_stars_rating_about_url(tr::now));
+		_learnMoreRequests.fire({});
 	});
 }
 
@@ -344,6 +343,10 @@ void StarsRating::setMinimalAddedWidth(int addedWidth) {
 
 rpl::producer<int> StarsRating::collapsedWidthValue() const {
 	return _collapsedWidthValue.value();
+}
+
+rpl::producer<> StarsRating::learnMoreRequests() const {
+	return _learnMoreRequests.events();
 }
 
 rpl::lifetime &StarsRating::lifetime() {

@@ -40,6 +40,7 @@ public:
 	void setMinimalAddedWidth(int addedWidth);
 
 	[[nodiscard]] rpl::producer<int> collapsedWidthValue() const;
+	[[nodiscard]] rpl::producer<> learnMoreRequests() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -72,6 +73,8 @@ private:
 	rpl::variable<bool> _expanded = false;
 	Ui::Animations::Simple _expandedAnimation;
 	mutable int _activeWidth = 0;
+
+	rpl::event_stream<> _learnMoreRequests;
 
 	base::Timer _collapseTimer;
 

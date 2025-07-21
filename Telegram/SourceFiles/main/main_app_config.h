@@ -109,6 +109,8 @@ public:
 	[[nodiscard]] int ageVerifyMinAge() const;
 	[[nodiscard]] QString ageVerifyBotUsername() const;
 
+	[[nodiscard]] QString starsRatingLearnMoreUrl() const;
+
 	void refresh(bool force = false);
 
 private:

@@ -1878,7 +1878,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stars_rating_tooltip" = "Profile level reflects the user's payment reliability.";
 "lng_stars_rating_learn_more" = "Learn More";
-"lng_stars_rating_about_url" = "https://telegram.org/";
 
 "lng_manage_discussion_group" = "Discussion";
 "lng_manage_discussion_group_add" = "Add a group";

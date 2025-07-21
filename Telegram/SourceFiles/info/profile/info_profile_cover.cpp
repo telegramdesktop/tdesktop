@@ -36,12 +36,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/text_utilities.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -668,6 +670,11 @@ Cover::Cover(
 		if (const auto rating = _starsRating.get()) {
 			_status->widthValue() | rpl::start_with_next([=](int width) {
 				rating->setMinimalAddedWidth(width);
+			}, rating->lifetime());
+			const auto session = &_peer->session();
+			rating->learnMoreRequests() | rpl::start_with_next([=] {
+				const auto &appConfig = session->appConfig();
+				UrlClickHandler::Open(appConfig.starsRatingLearnMoreUrl());
 			}, rating->lifetime());
 			_statusShift = rating->collapsedWidthValue();
 			_statusShift.changes() | rpl::start_with_next([=] {

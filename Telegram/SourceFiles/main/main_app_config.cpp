@@ -232,6 +232,12 @@ QString AppConfig::ageVerifyBotUsername() const {
 	return get<QString>(u"verify_age_bot_username"_q, QString());
 }
 
+QString AppConfig::starsRatingLearnMoreUrl() const {
+	return get<QString>(
+		u"stars_rating_learnmore_url"_q,
+		u"https://telegram.org/blog"_q);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {
