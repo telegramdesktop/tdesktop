@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/self_destruction_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "history/view/media/history_view_media_common.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
@@ -971,7 +972,9 @@ void SetupSensitiveContent(
 	Ui::AddSkip(inner);
 	Ui::AddSubsectionTitle(inner, tr::lng_settings_sensitive_title());
 
+	const auto show = controller->uiShow();
 	const auto session = &controller->session();
+	const auto disable = inner->lifetime().make_state<rpl::event_stream<>>();
 
 	std::move(
 		updateTrigger
@@ -982,13 +985,23 @@ void SetupSensitiveContent(
 		inner,
 		tr::lng_settings_sensitive_disable_filtering(),
 		st::settingsButtonNoIcon
-	))->toggleOn(
-		session->api().sensitiveContent().enabled()
-	)->toggledChanges(
+	))->toggleOn(rpl::merge(
+		session->api().sensitiveContent().enabled(),
+		disable->events() | rpl::map_to(false)
+	))->toggledChanges(
 	) | rpl::filter([=](bool toggled) {
 		return toggled != session->api().sensitiveContent().enabledCurrent();
 	}) | rpl::start_with_next([=](bool toggled) {
-		session->api().sensitiveContent().update(toggled);
+		if (toggled && session->appConfig().ageVerifyNeeded()) {
+			disable->fire({});
+
+			HistoryView::ShowAgeVerificationRequired(
+				show,
+				session,
+				[] {});
+		} else {
+			session->api().sensitiveContent().update(toggled);
+		}
 	}, container->lifetime());
 
 	Ui::AddSkip(inner);

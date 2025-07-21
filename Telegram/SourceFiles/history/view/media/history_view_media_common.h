@@ -19,9 +19,17 @@ namespace Data {
 class Media;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Media::Streaming {
 struct ExpandDecision;
 } // namespace Media::Streaming
+
+namespace Ui {
+class Show;
+} // namespace Ui
 
 namespace HistoryView {
 
@@ -74,6 +82,11 @@ void PaintInterpolatedIcon(
 	QSize desired,
 	int newWidth,
 	int maxWidth);
+
+void ShowAgeVerificationRequired(
+	std::shared_ptr<Ui::Show> show,
+	not_null<Main::Session*> session,
+	Fn<void()> reveal);
 
 [[nodiscard]] ClickHandlerPtr MakePaidMediaLink(
 	not_null<HistoryItem*> item);

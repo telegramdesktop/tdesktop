@@ -403,6 +403,18 @@ void ShowAgeVerification(
 				- padding.right());
 			button->moveToLeft(padding.left(), padding.top());
 		}, button->lifetime());
+
+		const auto close = Ui::CreateChild<Ui::IconButton>(
+			box.get(),
+			st::boxTitleClose);
+		close->setClickedCallback([=] {
+			box->closeBox();
+		});
+		box->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			close->moveToRight(0, 0);
+		}, box->lifetime());
+		crl::on_main(close, [=] { close->raise(); });
 	}));
 }
 
