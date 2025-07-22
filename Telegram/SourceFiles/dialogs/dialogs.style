@@ -731,7 +731,7 @@ dialogsTabsScroll: ScrollArea(defaultScrollArea) {
 	barHidden: true;
 }
 dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
-	padding: 8px;
+	padding: 9px;
 	height: 33px;
 	barTop: 30px;
 	barSkip: 0px;
