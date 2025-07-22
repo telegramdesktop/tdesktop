@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_sticker_player.h"
+#include "lang/lang_keys.h"
 #include "ui/image/image.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -33,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 namespace {
@@ -86,7 +89,8 @@ Sticker::Sticker(
 , _data(data)
 , _replacements(replacements)
 , _cachingTag(ChatHelpers::StickerLottieSize::MessageHistory)
-, _skipPremiumEffect(skipPremiumEffect) {
+, _skipPremiumEffect(skipPremiumEffect)
+, _sensitiveBlurred(parent->data()->isMediaSensitive()) {
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
 	} else {
@@ -172,7 +176,7 @@ bool Sticker::readyToDrawAnimationFrame() {
 		return true;
 	}
 	const auto sticker = _data->sticker();
-	if (!sticker) {
+	if (!sticker || _sensitiveBlurred) {
 		return false;
 	}
 
@@ -234,6 +238,43 @@ void Sticker::draw(
 		|| !paintPixmap(p, context, r)) {
 		paintPath(p, context, r);
 	}
+	if (_sensitiveBlurred) {
+		paintSensitiveTag(p, context, r);
+	}
+}
+
+void Sticker::paintSensitiveTag(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r) {
+	auto text = Ui::Text::String();
+	auto iconSkip = 0;
+	text.setText(
+		st::semiboldTextStyle,
+		tr::lng_sensitive_tag(tr::now));
+	iconSkip = st::mediaMenuIconStealth.width() * 1.4;
+	const auto width = iconSkip + text.maxWidth();
+	const auto inner = QRect(0, 0, width, text.minHeight());
+	const auto outer = style::centerrect(
+		r,
+		inner.marginsAdded(st::paidTagPadding));
+	const auto size = outer.size();
+	const auto real = outer.marginsRemoved(st::paidTagPadding);
+	const auto radius = std::min(size.width(), size.height()) / 2;
+	p.setPen(Qt::NoPen);
+	p.setBrush(context.st->msgServiceBg());
+	p.drawRoundedRect(outer, radius, radius);
+	p.setPen(context.st->msgServiceFg());
+	if (iconSkip) {
+		st::mediaMenuIconStealth.paint(
+			p,
+			real.x(),
+			(outer.y()
+				+ (size.height() - st::mediaMenuIconStealth.height()) / 2),
+			outer.width(),
+			context.st->msgServiceFg()->c);
+	}
+	text.draw(p, real.x() + iconSkip, real.y(), width);
 }
 
 ClickHandlerPtr Sticker::link() {
@@ -403,8 +444,13 @@ QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
 		: context.selected()
 		? &context.st->msgStickerOverlay()
 		: nullptr;
-	const auto good = _dataMedia->goodThumbnail();
-	if (const auto image = _dataMedia->getStickerLarge()) {
+	const auto good = _sensitiveBlurred
+		? nullptr
+		: _dataMedia->goodThumbnail();
+	const auto image = _sensitiveBlurred
+		? nullptr
+		: _dataMedia->getStickerLarge();
+	if (image) {
 		return image->pix(useSize, { .colored = colored });
 	//
 	// Inline thumbnails can't have alpha channel.
@@ -445,7 +491,9 @@ void Sticker::refreshLink() {
 		return;
 	}
 	const auto sticker = _data->sticker();
-	if (emojiSticker()) {
+	if (_sensitiveBlurred) {
+		_link = MakeSensitiveMediaLink(nullptr, _parent->data());
+	} else if (emojiSticker()) {
 		const auto weak = base::make_weak(this);
 		_link = std::make_shared<LambdaClickHandler>([weak] {
 			if (const auto that = weak.get()) {

@@ -580,7 +580,9 @@ ClickHandlerPtr MakeSensitiveMediaLink(
 
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto plain = [reveal, context] {
-			reveal->onClick(context);
+			if (const auto raw = reveal.get()) {
+				raw->onClick(context);
+			}
 		};
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto controller = my.sessionWindow.get();
