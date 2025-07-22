@@ -1175,6 +1175,7 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		const auto isVideo = real->recordVideo();
 		if (recorded) {
 			*startedAsVideo = isVideo;
+			_call->playSoundRecordingStarted();
 		}
 		validateRecordingMark(recorded);
 		uiShow()->showToast((recorded

@@ -164,6 +164,8 @@ void Instance::Delegate::groupCallPlaySound(GroupCallSound sound) {
 		case GroupCallSound::Ended: return "group_call_end";
 		case GroupCallSound::AllowedToSpeak: return "group_call_allowed";
 		case GroupCallSound::Connecting: return "group_call_connect";
+		case GroupCallSound::RecordingStarted:
+			return "group_call_recording_start";
 		}
 		Unexpected("GroupCallSound in Instance::groupCallPlaySound.");
 	}());

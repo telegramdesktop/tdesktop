@@ -2685,6 +2685,10 @@ void GroupCall::emitShareScreenError(Error error) {
 	_errors.fire_copy(error);
 }
 
+void GroupCall::playSoundRecordingStarted() const {
+	_delegate->groupCallPlaySound(Delegate::GroupCallSound::RecordingStarted);
+}
+
 void GroupCall::setupOutgoingVideo() {
 	using Webrtc::VideoState;
 
