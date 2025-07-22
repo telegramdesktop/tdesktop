@@ -825,6 +825,7 @@ dialogsSponsoredButton: DialogRightButton(dialogRowOpenBot) {
 	margin: margins(0px, 9px, 10px, 0px);
 }
 
+dialogsTopBarLeftPadding: 18px;
 dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
 	font: font(semibold 12px);
 }

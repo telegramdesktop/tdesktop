@@ -39,7 +39,7 @@ public:
 
 	void setHideCallback(Fn<void()>);
 	void setRightIcon(RightIcon);
-	void setLeftPadding(int);
+	void setLeftPadding(rpl::producer<int>);
 
 	[[nodiscard]] const style::TextStyle &contentTitleSt() const;
 

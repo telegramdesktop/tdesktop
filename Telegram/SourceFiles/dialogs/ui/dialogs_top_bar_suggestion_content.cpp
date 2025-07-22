@@ -66,9 +66,14 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 
 	const auto r = Ui::RpWidget::rect();
 	p.fillRect(r, st::historyPinnedBg);
+	p.fillRect(
+		r.x(),
+		r.y() + r.height() - st::lineWidth,
+		r.width(),
+		st::lineWidth,
+		st::shadowFg);
 	Ui::RippleButton::paintRipple(p, 0, 0);
-	const auto leftPadding = st::defaultDialogRow.padding.left()
-		+ _leftPadding;
+	const auto leftPadding = _leftPadding;
 	const auto rightPadding = 0;
 	const auto topPadding = st::msgReplyPadding.top();
 	const auto availableWidthNoPhoto = r.width()
@@ -189,9 +194,11 @@ void TopBarSuggestionContent::setHideCallback(Fn<void()> hideCallback) {
 	_rightHide->setClickedCallback(std::move(hideCallback));
 }
 
-void TopBarSuggestionContent::setLeftPadding(int value) {
-	_leftPadding = value;
-	update();
+void TopBarSuggestionContent::setLeftPadding(rpl::producer<int> value) {
+	std::move(value) | rpl::start_with_next([=](int padding) {
+		_leftPadding = padding;
+		update();
+	}, lifetime());
 }
 
 const style::TextStyle & TopBarSuggestionContent::contentTitleSt() const {
