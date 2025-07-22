@@ -164,7 +164,11 @@ void SubTabs::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void SubTabs::wheelEvent(QWheelEvent *e) {
-	_scroll = std::clamp(_scroll - ScrollDeltaF(e).x(), 0., _scrollMax * 1.);
+	const auto delta = ScrollDeltaF(e);
+	if (std::abs(delta.x()) > std::abs(delta.y())) {
+		e->accept();
+	}
+	_scroll = std::clamp(_scroll - delta.x(), 0., _scrollMax * 1.);
 	update();
 }
 
