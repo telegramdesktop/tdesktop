@@ -1245,7 +1245,8 @@ void PaintCollapsedRow(
 			+ st::dialogsUnreadFont->ascent;
 		const auto left = context.narrow
 			? ((context.width - st::semiboldFont->width(text)) / 2)
-			: context.st->padding.left();
+			: st::dialogsTopBarLeftPadding;
+			// : context.st->padding.left();
 		p.drawText(left, textBaseline, text);
 	} else {
 		folder->paintUserpic(
