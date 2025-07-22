@@ -389,6 +389,7 @@ void ShowAgeVerification(
 		const auto button = box->addButton(tr::lng_age_verify_button(), [=] {
 			bot->session().attachWebView().open({
 				.bot = bot,
+				.parentShow = box->uiShow(),
 				.context = { .maySkipConfirmation = true },
 				.source = InlineBots::WebViewSourceAgeVerification{
 					.done = done,
