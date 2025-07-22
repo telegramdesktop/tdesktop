@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
 #include "layout/layout_selection.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
@@ -57,6 +58,16 @@ Provider::Provider(not_null<AbstractController*> controller)
 	) | rpl::start_with_next([=] {
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
+		}
+	}, _lifetime);
+
+	_controller->session().appConfig().ignoredRestrictionReasonsChanges(
+	) | rpl::start_with_next([=](std::vector<QString> &&changed) {
+		const auto sensitive = Data::UnavailableReason::Sensitive();
+		if (ranges::contains(changed, sensitive.reason)) {
+			for (auto &[id, layout] : _layouts) {
+				layout.item->maybeClearSensitiveSpoiler();
+			}
 		}
 	}, _lifetime);
 }

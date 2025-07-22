@@ -76,6 +76,9 @@ public:
 	virtual void clearHeavyPart() {
 	}
 
+	virtual void maybeClearSensitiveSpoiler() {
+	}
+
 protected:
 	[[nodiscard]] not_null<HistoryItem*> parent() const {
 		return _parent;
@@ -210,20 +213,25 @@ public:
 	void itemDataChanged() override;
 	void clearHeavyPart() override;
 
+	void maybeClearSensitiveSpoiler() override;
+
 private:
 	void ensureDataMediaCreated() const;
 	void setPixFrom(not_null<Image*> image);
+	[[nodiscard]] ClickHandlerPtr makeOpenPhotoHandler();
 	void clearSpoiler();
 
 	const not_null<PhotoData*> _data;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
-	ClickHandlerPtr _link;
 	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
 	QPixmap _pix;
 	bool _goodLoaded = false;
+	bool _sensitiveSpoiler = false;
 	bool _pinned = false;
 	bool _story = false;
+
+	ClickHandlerPtr _link;
 
 };
 
@@ -248,6 +256,9 @@ public:
 
 	void clearHeavyPart() override;
 	void setPosition(int32 position) override;
+
+	void clearSpoiler() override;
+	void maybeClearSensitiveSpoiler() override;
 
 protected:
 	float64 dataProgress() const override;
@@ -279,9 +290,11 @@ private:
 	const not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	StatusText _status;
+	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
 	QImage _thumb;
 	bool _thumbGood = false;
+	bool _sensitiveSpoiler = false;
 
 };
 
@@ -305,6 +318,8 @@ public:
 	void clearHeavyPart() override;
 	void clearSpoiler() override;
 
+	void maybeClearSensitiveSpoiler() override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -326,6 +341,7 @@ private:
 
 	QPixmap _pix;
 	bool _pixBlurred = true;
+	bool _sensitiveSpoiler = false;
 	bool _pinned = false;
 	bool _story = false;
 
