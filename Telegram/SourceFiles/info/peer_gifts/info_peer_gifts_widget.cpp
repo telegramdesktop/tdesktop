@@ -993,7 +993,9 @@ int InnerWidget::resizeGetHeight(int width) {
 		result += padding.top();
 		_collectionsTabs->resizeToWidth(width);
 		_collectionsTabs->move(0, result);
-		 result += _collectionsTabs->height();
+		result += _collectionsTabs->height();
+	} else {
+		result += padding.bottom();
 	}
 
 	const auto singlew = std::min(
@@ -1007,7 +1009,7 @@ int InnerWidget::resizeGetHeight(int width) {
 	const auto skiph = st::giftBoxGiftSkip.y();
 
 	result += rows
-		? (padding.bottom() * 2 + rows * (singleh + skiph) - skiph)
+		? (padding.bottom() + rows * (singleh + skiph) - skiph)
 		: 0;
 
 	if (const auto about = _about.get()) {
