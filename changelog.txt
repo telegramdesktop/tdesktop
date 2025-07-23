@@ -1,3 +1,7 @@
+5.16.5 (23.07.25)
+
+- Age verification support.
+
 5.16.4 (11.07.25)
 
 - Fix problem with negative unread counters.
