@@ -81,9 +81,8 @@ rpl::producer<TextWithEntities> AgeVerifyAbout(
 		};
 		Assert(shift >= 0 && shift < postfixes.size());
 		const auto postfix = *(begin(postfixes) + shift);
-		return Ui::Text::RichLangValue(u"To access such content, you must confirm that you are at least **{count}** years old as required by UK law."_q.replace(u"{count}"_q, string));
 		return Ui::Text::RichLangValue(Lang::GetNonDefaultValue(
-			kVerifyAgeAboutPrefix + country.toUtf8() + postfix AssertIsDebug(test_this)
+			kVerifyAgeAboutPrefix + country.toUtf8() + postfix
 		).replace(u"{count}"_q, string));
 	});
 }
@@ -378,7 +377,7 @@ void ShowAgeVerification(
 			} else {
 				show->showToast({
 					.title = tr::lng_age_verify_sorry_title(tr::now),
-					.text = tr::lng_age_verify_sorry_text(tr::now),
+					.text = { tr::lng_age_verify_sorry_text(tr::now) },
 					.duration = Ui::Toast::kDefaultDuration * 3,
 				});
 			}
