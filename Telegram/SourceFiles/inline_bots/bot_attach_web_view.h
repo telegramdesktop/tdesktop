@@ -231,6 +231,7 @@ public:
 
 private:
 	void resolve();
+	void requestFullBot();
 
 	bool openAppFromBotMenuLink();
 
@@ -312,6 +313,8 @@ private:
 	const WebViewContext _context;
 	const WebViewButton _button;
 	const WebViewSource _source;
+
+	std::optional<ShowArgs> _botFullWaitingArgs;
 
 	BotAppData *_app = nullptr;
 	QString _appStartParam;
