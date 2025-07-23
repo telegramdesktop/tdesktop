@@ -118,6 +118,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/optional.h"
 #include "base/variant.h"
 #include "base/weak_ptr.h"
+#include "base/weak_qptr.h"
 
 #include "scheme.h"
 #include "mtproto/type_utils.h"
