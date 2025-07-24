@@ -125,6 +125,8 @@ public:
 
 	void reloadCollection(int id);
 	void editCollectionGifts(int id);
+	void editCollectionName(int id);
+	void confirmDeleteCollection(int id);
 	void collectionAdded(MTPStarGiftCollection result);
 	void fillMenu(const Ui::Menu::MenuCallback &addAction);
 
@@ -175,8 +177,6 @@ private:
 	void showGift(int index);
 	void showMenuFor(not_null<GiftButton*> button, QPoint point);
 	void showMenuForCollection(int id);
-	void editCollectionName(int id);
-	void confirmDeleteCollection(int id);
 	void refreshAbout();
 	void refreshCollectionsTabs();
 
@@ -1304,7 +1304,8 @@ void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
 		_descriptorChanges.fire(std::move(now));
 	};
 
-	if (!descriptor.collectionId) {
+	const auto collectionId = descriptor.collectionId;
+	if (!collectionId) {
 		if (filter.sortByValue) {
 			addAction(tr::lng_peer_gifts_filter_by_date(tr::now), [=] {
 				change([](Filter &filter) { filter.sortByValue = false; });
@@ -1314,27 +1315,37 @@ void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
 				change([](Filter &filter) { filter.sortByValue = true; });
 			}, &st::menuIconEarn);
 		}
+		if (canManage && !_addingToCollectionId) {
+			const auto peer = _peer;
+			const auto weak = base::make_weak(_window);
+			addAction(tr::lng_gift_collection_add(tr::now), [=] {
+				if (const auto strong = weak.get()) {
+					const auto added = [=](MTPStarGiftCollection result) {
+						collectionAdded(result);
+					};
+					strong->uiShow()->show(Box(
+						NewCollectionBox,
+						strong,
+						peer,
+						Data::SavedStarGiftId(),
+						crl::guard(this, added)));
+				}
+			}, &st::menuIconAddToFolder);
+		}
+	} else if (canManage) {
+		addAction(tr::lng_gift_collection_add_title(tr::now), [=] {
+			editCollectionGifts(collectionId);
+		}, &st::menuIconGiftPremium);
+
+		addAction({
+			.text = tr::lng_gift_collection_delete(tr::now),
+			.handler = [=] { confirmDeleteCollection(collectionId); },
+			.icon = &st::menuIconDeleteAttention,
+			.isAttention = true,
+		});
 	}
 
-	if (canManage && !_addingToCollectionId) {
-		const auto peer = _peer;
-		const auto weak = base::make_weak(_window);
-		addAction(tr::lng_gift_collection_add(tr::now), [=] {
-			if (const auto strong = weak.get()) {
-				const auto added = [=](MTPStarGiftCollection result) {
-					collectionAdded(result);
-				};
-				strong->uiShow()->show(Box(
-					NewCollectionBox,
-					strong,
-					peer,
-					Data::SavedStarGiftId(),
-					crl::guard(this, added)));
-			}
-		}, &st::menuIconAddToFolder);
-	}
-
-	if (canManage || !descriptor.collectionId) {
+	if (canManage || !collectionId) {
 		addAction({ .isSeparator = true });
 	}
 
