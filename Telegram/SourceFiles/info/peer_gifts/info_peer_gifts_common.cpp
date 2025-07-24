@@ -529,6 +529,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		const auto pinned = data.pinned || data.pinnedSelection;
 		if (count || pinned) {
 			const auto soldOut = !pinned
+				&& !unique
 				&& !data.userpic
 				&& !data.info.limitedLeft;
 			return GiftBadge{
