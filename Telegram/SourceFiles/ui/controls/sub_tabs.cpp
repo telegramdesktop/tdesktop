@@ -95,6 +95,10 @@ rpl::producer<QString> SubTabs::activated() const {
 	return _activated.events();
 }
 
+rpl::producer<QString> SubTabs::contextMenuRequests() const {
+	return _contextMenuRequests.events();
+}
+
 void SubTabs::setSelected(int index) {
 	const auto was = (_selected >= 0);
 	const auto now = (index >= 0);
@@ -192,6 +196,12 @@ void SubTabs::mouseReleaseEvent(QMouseEvent *e) {
 		&& _selected == pressed
 		&& pressed < _buttons.size()) {
 		_activated.fire_copy(_buttons[pressed].tab.id);
+	}
+}
+
+void SubTabs::contextMenuEvent(QContextMenuEvent *e) {
+	if (_selected >= 0 && _selected < _buttons.size()) {
+		_contextMenuRequests.fire_copy(_buttons[_selected].tab.id);
 	}
 }
 

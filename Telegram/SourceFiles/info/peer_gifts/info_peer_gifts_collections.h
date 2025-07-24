@@ -28,4 +28,12 @@ void NewCollectionBox(
 	Data::SavedStarGiftId addId,
 	Fn<void(MTPStarGiftCollection)> added);
 
+void EditCollectionNameBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	int id,
+	QString current,
+	Fn<void(QString)> done);
+
 } // namespace Info::PeerGifts

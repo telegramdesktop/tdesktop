@@ -43,6 +43,7 @@ public:
 	void setActiveTab(const QString &id);
 
 	[[nodiscard]] rpl::producer<QString> activated() const;
+	[[nodiscard]] rpl::producer<QString> contextMenuRequests() const;
 
 private:
 	struct Button {
@@ -57,6 +58,7 @@ private:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	bool eventHook(QEvent *e) override;
 
@@ -66,6 +68,7 @@ private:
 
 	std::vector<Button> _buttons;
 	rpl::event_stream<QString> _activated;
+	rpl::event_stream<QString> _contextMenuRequests;
 	int _dragx = 0;
 	int _pressx = 0;
 	float64 _dragscroll = 0.;

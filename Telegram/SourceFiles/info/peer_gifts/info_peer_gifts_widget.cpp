@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_collections.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/info_controller.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/sub_tabs.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -173,8 +174,14 @@ private:
 	void validateButtons();
 	void showGift(int index);
 	void showMenuFor(not_null<GiftButton*> button, QPoint point);
+	void showMenuForCollection(int id);
+	void editCollectionName(int id);
+	void confirmDeleteCollection(int id);
 	void refreshAbout();
 	void refreshCollectionsTabs();
+
+	void collectionRenamed(int id, QString name);
+	void collectionRemoved(int id);
 
 	void markPinned(std::vector<Entry>::iterator i);
 	void markUnpinned(std::vector<Entry>::iterator i);
@@ -776,6 +783,60 @@ auto InnerWidget::pinnedSavedGifts()
 	};
 }
 
+void InnerWidget::showMenuForCollection(int id) {
+	if (_menu || _addingToCollectionId) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+	addAction(tr::lng_gift_collection_add_title(tr::now), [=] {
+		editCollectionGifts(id);
+	}, &st::menuIconGiftPremium);
+	addAction(tr::lng_gift_collection_edit(tr::now), [=] {
+		editCollectionName(id);
+	}, &st::menuIconEdit);
+	addAction({
+		.text = tr::lng_gift_collection_delete(tr::now),
+		.handler = [=] { confirmDeleteCollection(id); },
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
+	_menu->popup(QCursor::pos());
+}
+
+void InnerWidget::editCollectionName(int id) {
+	const auto done = [=](QString name) {
+		collectionRenamed(id, name);
+	};
+	const auto i = ranges::find(_collections, id, &Data::GiftCollection::id);
+	if (i == end(_collections)) {
+		return;
+	}
+	_window->uiShow()->show(Box(
+		EditCollectionNameBox,
+		_window,
+		peer(),
+		id,
+		i->title,
+		done));
+}
+
+void InnerWidget::confirmDeleteCollection(int id) {
+	const auto done = [=](Fn<void()> close) {
+		_window->session().api().request(
+			MTPpayments_DeleteStarGiftCollection(_peer->input, MTP_int(id))
+		).send();
+		collectionRemoved(id);
+		close();
+	};
+	_window->uiShow()->show(Ui::MakeConfirmBox({
+		.text = tr::lng_gift_collection_delete_sure(),
+		.confirmed = crl::guard(this, done),
+		.confirmText = tr::lng_gift_collection_delete_button(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
+}
+
 void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 	if (_menu || _addingToCollectionId) {
 		return;
@@ -1126,10 +1187,55 @@ void InnerWidget::refreshCollectionsTabs() {
 				_descriptorChanges.fire(std::move(now));
 			}
 		}, _collectionsTabs->lifetime());
+
+		_collectionsTabs->contextMenuRequests(
+		) | rpl::start_with_next([=](const QString &id) {
+			if (id == u"add"_q
+				|| id == u"all"_q
+				|| !_peer->canManageGifts()) {
+				return;
+			}
+			showMenuForCollection(id.toInt());
+		}, _collectionsTabs->lifetime());
 	} else {
 		_collectionsTabs->setTabs(std::move(tabs), context);
 	}
 	resizeToWidth(width());
+}
+
+void InnerWidget::collectionRenamed(int id, QString name) {
+	const auto i = ranges::find(_collections, id, &Data::GiftCollection::id);
+	if (i != end(_collections)) {
+		i->title = name;
+		refreshCollectionsTabs();
+	}
+}
+
+void InnerWidget::collectionRemoved(int id) {
+	auto now = _descriptor.current();
+	if (now.collectionId == id) {
+		now.collectionId = 0;
+		_descriptorChanges.fire(std::move(now));
+	}
+	Assert(_entries != &_perCollection[id]);
+	_perCollection.remove(id);
+	const auto removeFrom = [&](Entries &entries) {
+		for (auto &entry : entries.list) {
+			entry.gift.collectionIds.erase(
+				ranges::remove(entry.gift.collectionIds, id),
+				end(entry.gift.collectionIds));
+		}
+	};
+	removeFrom(_all);
+	for (auto &[_, entries] : _perCollection) {
+		removeFrom(entries);
+	}
+
+	const auto i = ranges::find(_collections, id, &Data::GiftCollection::id);
+	if (i != end(_collections)) {
+		_collections.erase(i);
+		refreshCollectionsTabs();
+	}
 }
 
 int InnerWidget::resizeGetHeight(int width) {
