@@ -858,7 +858,9 @@ void InnerWidget::refreshAbout() {
 	const auto maybeEmpty = _list->empty();
 	const auto knownEmpty = maybeEmpty && _entries->allLoaded;
 	const auto filteredEmpty = knownEmpty && filter.skipsSomething();
-	const auto collectionCanAdd = knownEmpty && descriptor.collectionId != 0;
+	const auto collectionCanAdd = knownEmpty
+		&& descriptor.collectionId != 0
+		&& _peer->canManageGifts();
 	if (filteredEmpty) {
 		auto text = tr::lng_peer_gifts_empty_search(
 			tr::now,
@@ -1087,10 +1089,12 @@ void InnerWidget::refreshCollectionsTabs() {
 			.text = std::move(title),
 		});
 	}
-	tabs.push_back({
-		.id = u"add"_q,
-		.text = { '+' + tr::lng_gift_collection_add(tr::now) },
-	});
+	if (_peer->canManageGifts()) {
+		tabs.push_back({
+			.id = u"add"_q,
+			.text = { '+' + tr::lng_gift_collection_add(tr::now) },
+		});
+	}
 	const auto context = Core::TextContext({
 		.session = &_window->session(),
 	});
@@ -1224,7 +1228,9 @@ void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
 		}, &st::menuIconAddToFolder);
 	}
 
-	addAction({ .isSeparator = true });
+	if (canManage || !descriptor.collectionId) {
+		addAction({ .isSeparator = true });
+	}
 
 	addAction(tr::lng_peer_gifts_filter_unlimited(tr::now), [=] {
 		change([](Filter &filter) {
@@ -1339,12 +1345,13 @@ void Widget::refreshBottom() {
 	const auto notify = _notifyEnabled.has_value();
 	const auto descriptor = _descriptor.current();
 	const auto shownId = descriptor.collectionId;
+	const auto withButton = shownId && peer()->canManageGifts();
 	const auto wasBottom = _pinnedToBottom ? _pinnedToBottom->height() : 0;
 	delete _pinnedToBottom.data();
-	if (!notify && !shownId) {
+	if (!notify && !withButton) {
 		setScrollBottomSkip(0);
 		_hasPinnedToBottom = false;
-	} else if (shownId) {
+	} else if (withButton) {
 		setupBottomButton(wasBottom);
 	} else {
 		setupNotifyCheckbox(wasBottom, *_notifyEnabled);
