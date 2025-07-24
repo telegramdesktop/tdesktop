@@ -45,6 +45,15 @@ struct Filter {
 	friend inline bool operator==(Filter, Filter) = default;
 };
 
+struct Descriptor {
+	Filter filter;
+	int collectionId = 0;
+
+	friend inline bool operator==(
+		const Descriptor &,
+		const Descriptor &) = default;
+};
+
 class InnerWidget;
 
 class Memento final : public ContentMemento {
@@ -98,14 +107,15 @@ private:
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
-	void setupNotifyCheckbox(bool enabled);
-	void toggleAddButton(bool shown);
+	void setupNotifyCheckbox(int wasBottomHeight, bool enabled);
+	void setupBottomButton(int wasBottomHeight);
+	void refreshBottom();
 
 	InnerWidget *_inner = nullptr;
 	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
 	rpl::variable<bool> _hasPinnedToBottom;
-	rpl::variable<Filter> _filter;
-	rpl::variable<int> _addingToCollectionId;
+	rpl::variable<Descriptor> _descriptor;
+	std::optional<bool> _notifyEnabled;
 	bool _shown = false;
 
 };

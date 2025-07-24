@@ -2517,9 +2517,6 @@ void SendGiftBox(
 					rpl::single(peer->shortName()))));
 	});
 
-	const auto buttonWidth = st::boxWideWidth
-		- st::giftBox.buttonPadding.left()
-		- st::giftBox.buttonPadding.right();
 	const auto button = box->addButton(rpl::single(QString()), [=] {
 		if (state->submitting) {
 			return;
@@ -2560,12 +2557,6 @@ void SendGiftBox(
 		session,
 		st::creditsBoxButtonLabel,
 		&st::giftBox.button.textFg);
-	button->resizeToWidth(buttonWidth);
-	button->widthValue() | rpl::start_with_next([=](int width) {
-		if (width != buttonWidth) {
-			button->resizeToWidth(buttonWidth);
-		}
-	}, button->lifetime());
 }
 
 [[nodiscard]] rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(

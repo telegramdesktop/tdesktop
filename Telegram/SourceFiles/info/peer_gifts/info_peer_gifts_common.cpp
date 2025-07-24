@@ -279,12 +279,19 @@ QMargins GiftButton::currentExtend() const {
 	return _extend + QMargins(added, added, added, added);
 }
 
-void GiftButton::toggleSelected(bool selected) {
+void GiftButton::toggleSelected(bool selected, anim::type animated) {
 	if (_selected == selected) {
+		if (animated == anim::type::instant) {
+			_selectedAnimation.stop();
+		}
 		return;
 	}
 	const auto duration = st::defaultRoundCheckbox.duration;
 	_selected = selected;
+	if (animated == anim::type::instant) {
+		_selectedAnimation.stop();
+		return;
+	}
 	_selectedAnimation.start([=] {
 		update();
 	}, selected ? 0. : 1., selected ? 1. : 0., duration, anim::easeOutCirc);

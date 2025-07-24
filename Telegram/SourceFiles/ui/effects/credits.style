@@ -99,6 +99,7 @@ creditsGiftBox: Box(defaultBox) {
 giftBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 11px, 22px, 12px);
 	buttonHeight: 42px;
+	buttonWide: true;
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;

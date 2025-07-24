@@ -1251,3 +1251,29 @@ collectionEmptyText: FlatLabel(defaultFlatLabel) {
 collectionEmptyTitleMargin: margins(10px, 24px, 10px, 4px);
 collectionEmptyTextMargin: margins(10px, 4px, 10px, 12px);
 collectionEmptyAddMargin: margins(10px, 12px, 10px, 24px);
+collectionAddIcon: IconEmoji {
+	icon: icon {{ "settings/plus", windowFgActive }};
+	padding: margins(1px, -2px, 1px, 0px);
+}
+collectionEditBox: Box(defaultBox) {
+	buttonPadding: margins(16px, 12px, 16px, 12px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
+collectionEditMenuToggle: IconButton(infoTopBarMenu) {
+	width: boxTitleHeight;
+	height: boxTitleHeight;
+
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 40px;
+	ripple: defaultRippleAnimationBgOver;
+}

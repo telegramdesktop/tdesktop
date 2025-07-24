@@ -139,7 +139,9 @@ public:
 	void setDescriptor(const GiftDescriptor &descriptor, Mode mode);
 	void setGeometry(QRect inner, QMargins extend);
 
-	void toggleSelected(bool selected);
+	void toggleSelected(
+		bool selected,
+		anim::type animated = anim::type::normal);
 
 	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const {
 		return _contextMenuRequests.events();

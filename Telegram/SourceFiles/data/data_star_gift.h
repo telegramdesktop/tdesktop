@@ -126,8 +126,11 @@ public:
 	}
 
 	friend inline bool operator==(
-		const SavedStarGiftId &a,
-		const SavedStarGiftId &b) = default;
+		const SavedStarGiftId &,
+		const SavedStarGiftId &) = default;
+	friend inline auto operator<=>(
+		const SavedStarGiftId &,
+		const SavedStarGiftId &) = default;
 
 private:
 	PeerData *peer = nullptr;
