@@ -1485,7 +1485,6 @@ void Widget::setupBottomButton(int wasBottomHeight) {
 	const auto bottom = wrap->entity();
 	bottom->show();
 
-	const auto descriptor = _descriptor.current();
 	const auto button = Ui::CreateChild<Ui::RoundButton>(
 		bottom,
 		rpl::single(QString()),
