@@ -1248,6 +1248,9 @@ collectionEmptyTitle: FlatLabel(boxTitle) {
 collectionEmptyText: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
+collectionEmptyButton: RoundButton(defaultActiveButton) {
+	width: -96px;
+}
 collectionEmptyTitleMargin: margins(10px, 24px, 10px, 4px);
 collectionEmptyTextMargin: margins(10px, 4px, 10px, 12px);
 collectionEmptyAddMargin: margins(10px, 12px, 10px, 24px);

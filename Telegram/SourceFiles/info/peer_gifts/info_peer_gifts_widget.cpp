@@ -123,6 +123,10 @@ public:
 		return _collectionChanges.value();
 	}
 
+	[[nodiscard]] rpl::producer<bool> collectionEmptyValue() const {
+		return _collectionEmpty.value();
+	}
+
 	void reloadCollection(int id);
 	void editCollectionGifts(int id);
 	void editCollectionName(int id);
@@ -200,6 +204,7 @@ private:
 	std::unique_ptr<Ui::SubTabs> _collectionsTabs;
 	std::unique_ptr<Ui::RpWidget> _about;
 	rpl::event_stream<> _scrollToTop;
+	rpl::variable<bool> _collectionEmpty;
 
 	std::vector<Data::GiftCollection> _collections;
 
@@ -388,8 +393,8 @@ void InnerWidget::applyUpdateTo(
 		|| update.action == Action::Transfer
 		|| update.action == Action::Delete) {
 		_list->erase(i);
-		if (_entries->total > 0) {
-			--_entries->total;
+		if (entries.total > 0) {
+			--entries.total;
 		}
 		for (auto &view : _views) {
 			if (view.index >= index) {
@@ -626,6 +631,9 @@ void InnerWidget::loaded(const MTPpayments_SavedStarGifts &result) {
 			});
 			hasUnique = (parsed->info.unique != nullptr);
 		}
+	}
+	if (_entries->allLoaded) {
+		_entries->total = _entries->list.size();
 	}
 	refreshButtons();
 	refreshAbout();
@@ -928,11 +936,13 @@ void InnerWidget::refreshAbout() {
 	const auto filter = descriptor.filter;
 	const auto collectionId = descriptor.collectionId;
 	const auto maybeEmpty = _list->empty();
-	const auto knownEmpty = maybeEmpty && _entries->allLoaded;
+	const auto knownEmpty = maybeEmpty
+		&& (_entries->allLoaded || !_entries->total);
 	const auto filteredEmpty = knownEmpty && filter.skipsSomething();
 	const auto collectionCanAdd = knownEmpty
 		&& descriptor.collectionId != 0
 		&& _peer->canManageGifts();
+	_collectionEmpty = !filteredEmpty && collectionCanAdd;
 	if (filteredEmpty) {
 		auto text = tr::lng_peer_gifts_empty_search(
 			tr::now,
@@ -979,8 +989,12 @@ void InnerWidget::refreshAbout() {
 				object_ptr<Ui::RoundButton>(
 					about.get(),
 					tr::lng_gift_collection_empty_button(),
-					st::defaultActiveButton)),
+					st::collectionEmptyButton)),
 			st::collectionEmptyAddMargin)->entity();
+		button->setText(tr::lng_gift_collection_add_title(
+		) | rpl::map([](const QString &text) {
+			return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
+		}));
 		button->setTextTransform(
 			Ui::RoundButton::TextTransform::NoTransform);
 		button->setClickedCallback([=] {
@@ -1144,12 +1158,18 @@ void InnerWidget::refreshCollectionsTabs() {
 		}
 		return;
 	}
+
 	auto tabs = std::vector<Ui::SubTabs::Tab>();
 	tabs.push_back({
 		.id = u"all"_q,
 		.text = tr::lng_gift_collection_all(tr::now, Ui::Text::WithEntities),
 	});
 	for (const auto &collection : _collections) {
+		auto &per = _perCollection[collection.id];
+		if (!per.allLoaded) {
+			per.total = collection.count;
+		}
+
 		auto title = TextWithEntities();
 		if (collection.icon) {
 			title.append(
@@ -1279,8 +1299,15 @@ int InnerWidget::resizeGetHeight(int width) {
 
 	_single = QSize(singlew, singleh);
 	const auto rows = (count + _perRow - 1) / _perRow;
+	const auto rowsPerCount = rows
+		? rows
+		: ((std::min(_entries->total, kPerPage) + _perRow - 1) / _perRow);
 	const auto skiph = st::giftBoxGiftSkip.y();
 
+	const auto resultPerCount = result
+		+ (rowsPerCount
+			? (padding.bottom() + rowsPerCount * (singleh + skiph) - skiph)
+			: 0);
 	result += rows
 		? (padding.bottom() + rows * (singleh + skiph) - skiph)
 		: 0;
@@ -1292,7 +1319,7 @@ int InnerWidget::resizeGetHeight(int width) {
 		result += margin.top() + about->height() + margin.bottom();
 	}
 
-	return result;
+	return std::max(result, resultPerCount);
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
@@ -1481,13 +1508,15 @@ void Widget::refreshBottom() {
 		setScrollBottomSkip(0);
 		_hasPinnedToBottom = false;
 	} else if (withButton) {
-		setupBottomButton(wasBottom);
+		setupBottomButton(wasBottom, _inner->collectionEmptyValue());
 	} else {
 		setupNotifyCheckbox(wasBottom, *_notifyEnabled);
 	}
 }
 
-void Widget::setupBottomButton(int wasBottomHeight) {
+void Widget::setupBottomButton(
+		int wasBottomHeight,
+		rpl::producer<bool> hidden) {
 	_pinnedToBottom = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		this,
 		object_ptr<Ui::RpWidget>(this));
@@ -1506,7 +1535,10 @@ void Widget::setupBottomButton(int wasBottomHeight) {
 	) | rpl::map([](const QString &text) {
 		return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
 	}));
-	button->show();
+	std::move(hidden) | rpl::start_with_next([=](bool hidden) {
+		button->setVisible(!hidden);
+		_hasPinnedToBottom = !hidden;
+	}, button->lifetime());
 
 	button->setClickedCallback([=] {
 		if (const auto id = _descriptor.current().collectionId) {
@@ -1549,7 +1581,6 @@ void Widget::setupBottomButton(int wasBottomHeight) {
 			true,
 			wasBottomHeight ? anim::type::instant : anim::type::normal);
 	}
-	_hasPinnedToBottom = true;
 }
 
 void Widget::showFinished() {

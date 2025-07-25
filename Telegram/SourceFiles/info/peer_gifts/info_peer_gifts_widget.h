@@ -108,7 +108,7 @@ private:
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	void setupNotifyCheckbox(int wasBottomHeight, bool enabled);
-	void setupBottomButton(int wasBottomHeight);
+	void setupBottomButton(int wasBottomHeight, rpl::producer<bool> hidden);
 	void refreshBottom();
 
 	InnerWidget *_inner = nullptr;
