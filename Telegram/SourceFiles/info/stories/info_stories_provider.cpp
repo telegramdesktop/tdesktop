@@ -465,7 +465,7 @@ void Provider::saveState(
 		not_null<Media::Memento*> memento,
 		ListScrollTopState scrollState) {
 	if (_aroundId != kDefaultAroundId && scrollState.item) {
-		memento->setAroundId({ _peer->id, _aroundId });
+		memento->setAroundId({ _peer->id, StoryIdToMsgId(_aroundId) });
 		memento->setIdsLimit(_idsLimit);
 		memento->setScrollTopItem(scrollState.item->globalId());
 		memento->setScrollTopItemPosition(scrollState.position);
