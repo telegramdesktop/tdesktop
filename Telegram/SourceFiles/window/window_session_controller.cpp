@@ -781,12 +781,26 @@ void SessionNavigation::showPeerByLinkResolved(
 			});
 		} else {
 			const auto draft = info.text;
+			const auto historyInNewWindow = info.historyInNewWindow;
 			params.videoTimestamp = info.videoTimestamp;
 			crl::on_main(this, [=] {
 				if (peer->isUser() && !draft.isEmpty()) {
 					Data::SetChatLinkDraft(peer, { draft });
 				}
-				showPeerHistory(peer, params, msgId);
+				if (historyInNewWindow) {
+					const auto window
+						= Core::App().ensureSeparateWindowFor(peer);
+					const auto controller = window
+						? window->sessionController()
+						: nullptr;
+					if (controller) {
+						controller->showPeerHistory(peer, params, msgId);
+					} else {
+						showPeerHistory(peer, params, msgId);
+					}
+				} else {
+					showPeerHistory(peer, params, msgId);
+				}
 			});
 		}
 	}

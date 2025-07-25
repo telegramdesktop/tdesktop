@@ -708,6 +708,8 @@ bool ResolveUsernameOrPhone(
 			: std::nullopt),
 		.clickFromMessageId = myContext.itemId,
 		.clickFromBotWebviewContext = myContext.botWebviewContext,
+		.historyInNewWindow =
+			(params.value(u"tdesktop_target"_q) == u"blank"_q),
 	});
 	return true;
 }
