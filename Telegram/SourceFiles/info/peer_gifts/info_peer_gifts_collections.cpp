@@ -69,7 +69,7 @@ void EditCollectionBox(
 			return;
 		}
 		const auto text = title->getLastText().trimmed();
-		if (text.isEmpty()) {
+		if (text.isEmpty() || text.size() > kCollectionNameLimit) {
 			title->showError();
 			return;
 		}
