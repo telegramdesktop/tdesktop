@@ -118,6 +118,28 @@ void SubTabs::setActive(int index) {
 	}
 	_active = index;
 	_buttons[index].active = true;
+	const auto geometry = _buttons[index].geometry;
+	if (width() > 0
+		&& _fullWidth > width()
+		&& _scrollMax > 0
+		&& !geometry.isEmpty()) {
+		const auto added = std::max(
+			std::min(width() / 8, (width() - geometry.width()) / 2),
+			0);
+		const auto visibleFrom = int(base::SafeRound(_scroll));
+		const auto visibleTill = visibleFrom + width();
+		if ((visibleTill < geometry.x() + geometry.width() + added)
+			|| (visibleFrom + added > geometry.x())) {
+			_scrollTo = std::clamp(
+				geometry.x() + (geometry.width() / 2) - (width() / 2),
+				0,
+				_scrollMax);
+			_scrollAnimation.start([=] {
+				_scroll = _scrollAnimation.value(_scrollTo);
+				update();
+			}, _scroll, _scrollTo, crl::time(150), anim::easeOutCirc);
+		}
+	}
 	update();
 }
 
@@ -146,6 +168,7 @@ void SubTabs::mouseMoveEvent(QMouseEvent *e) {
 	const auto mousex = e->pos().x();
 	const auto drag = QApplication::startDragDistance();
 	if (_dragx > 0) {
+		_scrollAnimation.stop();
 		_scroll = std::clamp(
 			_dragscroll + _dragx - mousex,
 			0.,
@@ -172,6 +195,7 @@ void SubTabs::wheelEvent(QWheelEvent *e) {
 	if (std::abs(delta.x()) > std::abs(delta.y())) {
 		e->accept();
 	}
+	_scrollAnimation.stop();
 	_scroll = std::clamp(_scroll - delta.x(), 0., _scrollMax * 1.);
 	update();
 }

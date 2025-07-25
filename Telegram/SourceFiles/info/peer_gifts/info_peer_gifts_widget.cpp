@@ -530,6 +530,8 @@ void InnerWidget::collectionAdded(MTPStarGiftCollection result) {
 	const auto id = _collections.back().id;
 	refreshCollectionsTabs();
 
+	_collectionsTabs->setActiveTab(QString::number(id));
+
 	auto now = _descriptor.current();
 	now.collectionId = id;
 	_descriptorChanges.fire(std::move(now));

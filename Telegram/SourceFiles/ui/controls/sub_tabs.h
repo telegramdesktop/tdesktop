@@ -73,6 +73,8 @@ private:
 	int _pressx = 0;
 	float64 _dragscroll = 0.;
 	float64 _scroll = 0.;
+	float64 _scrollTo = 0.;
+	Ui::Animations::Simple _scrollAnimation;
 	int _scrollMax = 0;
 	int _fullShift = 0;
 	int _fullWidth = 0;
