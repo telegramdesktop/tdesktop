@@ -700,9 +700,15 @@ TopBarWithSticker::	TopBarWithSticker(
 	}, lifetime());
 
 	rpl::combine(
-		std::move(args.stickerValue),
-		std::move(args.nameValue),
-		std::move(args.aboutValue)
+		(args.stickerValue
+			? std::move(args.stickerValue)
+			: rpl::single((DocumentData*)nullptr)),
+		(args.nameValue
+			? std::move(args.nameValue)
+			: rpl::single(QString())),
+		(args.aboutValue
+			? std::move(args.aboutValue)
+			: rpl::single(TextWithEntities()))
 	) | rpl::start_with_next([=](
 			DocumentData *document,
 			const QString &name,
