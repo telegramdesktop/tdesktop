@@ -2526,6 +2526,7 @@ void SendGiftBox(
 		if (!state->messageAllowed.current()) {
 			details.text = {};
 		}
+		const auto copy = state->media; // Let media outlive the box.
 		const auto weak = base::make_weak(box);
 		const auto done = [=](Payments::CheckoutResult result) {
 			if (result == Payments::CheckoutResult::Paid) {
@@ -2533,7 +2534,7 @@ void SendGiftBox(
 					|| v::is<GiftTypeStars>(details.descriptor)) {
 					window->session().credits().load(true);
 				}
-				const auto copy = state->media;
+				const auto another = copy; // Let media outlive the box.
 				window->showPeerHistory(peer);
 				ShowSentToast(window, details.descriptor, details);
 			}
