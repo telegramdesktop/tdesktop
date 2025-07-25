@@ -1135,7 +1135,7 @@ void InnerWidget::refreshCollectionsTabs() {
 	auto tabs = std::vector<Ui::SubTabs::Tab>();
 	tabs.push_back({
 		.id = u"all"_q,
-		.text = tr::lng_gift_stars_tabs_all(tr::now, Ui::Text::WithEntities),
+		.text = tr::lng_gift_collection_all(tr::now, Ui::Text::WithEntities),
 	});
 	for (const auto &collection : _collections) {
 		auto title = TextWithEntities();
