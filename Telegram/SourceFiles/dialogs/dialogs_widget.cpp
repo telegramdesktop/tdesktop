@@ -1748,7 +1748,7 @@ void Widget::updateSuggestions(anim::type animated) {
 			_suggestions = nullptr;
 			_hidingSuggestions.clear();
 			storiesExplicitCollapse();
-			updateStoriesVisibility();
+			updateControlsVisibility();
 			_scroll->show();
 		}
 	} else if (suggest && !_suggestions) {
