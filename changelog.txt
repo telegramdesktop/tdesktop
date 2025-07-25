@@ -1,3 +1,8 @@
+5.16.6 (25.07.25)
+
+- Fix bad layout in box buttons.
+- Fix several problems in gift collections.
+
 5.16.5 (23.07.25)
 
 - Age verification support.
