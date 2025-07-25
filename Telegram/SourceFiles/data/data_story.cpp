@@ -414,11 +414,7 @@ bool Story::canShare() const {
 }
 
 bool Story::canDelete() const {
-	if (const auto channel = _peer->asChannel()) {
-		return channel->canDeleteStories()
-			|| (out() && channel->canPostStories());
-	}
-	return _peer->isSelf();
+	return _peer->canDeleteStories() || (out() && _peer->canPostStories());
 }
 
 bool Story::canReport() const {
@@ -901,6 +897,10 @@ QString Story::repostSourceName() const {
 
 StoryId Story::repostSourceId() const {
 	return _repostSourceId;
+}
+
+const std::vector<int> &Story::albumIds() const {
+	return _albumIds;
 }
 
 PeerData *Story::fromPeer() const {

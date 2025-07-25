@@ -23,11 +23,15 @@ class Show;
 
 namespace Data {
 
+inline constexpr auto kStoriesAlbumIdSaved = 0;
+inline constexpr auto kStoriesAlbumIdArchive = -1;
+
 class Folder;
 class Session;
 struct StoryView;
 struct StoryIdDates;
 class Story;
+struct StoryAlbum;
 class StoryPreload;
 
 struct StoriesIds {
@@ -90,26 +94,20 @@ struct StoriesContextPeer {
 	friend inline bool operator==(StoriesContextPeer, StoriesContextPeer) = default;
 };
 
-struct StoriesContextSaved {
-	friend inline auto operator<=>(
-		StoriesContextSaved,
-		StoriesContextSaved) = default;
-	friend inline bool operator==(StoriesContextSaved, StoriesContextSaved) = default;
-};
+struct StoriesContextAlbum {
+	int id = 0;
 
-struct StoriesContextArchive {
 	friend inline auto operator<=>(
-		StoriesContextArchive,
-		StoriesContextArchive) = default;
-	friend inline bool operator==(StoriesContextArchive, StoriesContextArchive) = default;
+		StoriesContextAlbum,
+		StoriesContextAlbum) = default;
+	friend inline bool operator==(StoriesContextAlbum, StoriesContextAlbum) = default;
 };
 
 struct StoriesContext {
 	std::variant<
 		StoriesContextSingle,
 		StoriesContextPeer,
-		StoriesContextSaved,
-		StoriesContextArchive,
+		StoriesContextAlbum,
 		StorySourcesList> data;
 
 	friend inline auto operator<=>(
@@ -124,6 +122,13 @@ struct StealthMode {
 
 	friend inline auto operator<=>(StealthMode, StealthMode) = default;
 	friend inline bool operator==(StealthMode, StealthMode) = default;
+};
+
+struct StoryAlbumUpdate {
+	not_null<PeerData*> peer;
+	int albumId = 0;
+	std::vector<StoryId> added;
+	std::vector<StoryId> removed;
 };
 
 inline constexpr auto kStorySourcesListCount = 2;
@@ -206,6 +211,23 @@ public:
 	[[nodiscard]] bool savedLoaded(PeerId peerId) const;
 	void savedLoadMore(PeerId peerId);
 
+	[[nodiscard]] auto albumsListValue(PeerId peerId)
+		-> rpl::producer<std::vector<Data::StoryAlbum>>;
+	void albumCreate(
+		not_null<PeerData*> peer,
+		const QString &title,
+		StoryId addId,
+		Fn<void(StoryAlbum)> done,
+		Fn<void(QString)> fail);
+	void albumRename(
+		not_null<PeerData*> peer,
+		int id,
+		const QString &title,
+		Fn<void(StoryAlbum)> done,
+		Fn<void(QString)> fail);
+	void notifyAlbumUpdate(StoryAlbumUpdate &&update);
+	[[nodiscard]] rpl::producer<StoryAlbumUpdate> albumUpdates() const;
+
 	void deleteList(const std::vector<FullStoryId> &ids);
 	void toggleInProfileList(
 		const std::vector<FullStoryId> &ids,
@@ -260,6 +282,12 @@ private:
 		int total = -1;
 		StoryId lastId = 0;
 		bool loaded = false;
+		mtpRequestId requestId = 0;
+	};
+	struct Albums {
+		rpl::variable<std::vector<Data::StoryAlbum>> list;
+		base::flat_map<int, Set> sets;
+		uint64 hash = 0;
 		mtpRequestId requestId = 0;
 	};
 
@@ -335,6 +363,8 @@ private:
 	void sendViewsSliceRequest();
 	void sendViewsCountsRequest();
 
+	void loadAlbums(not_null<PeerData*> peer, Albums &albums);
+
 	const not_null<Session*> _owner;
 	std::unordered_map<
 		PeerId,
@@ -377,6 +407,9 @@ private:
 
 	std::unordered_map<PeerId, Set> _saved;
 	rpl::event_stream<PeerId> _savedChanged;
+
+	std::unordered_map<PeerId, Albums> _albums;
+	rpl::event_stream<StoryAlbumUpdate> _albumUpdates;
 
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;

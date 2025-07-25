@@ -9,16 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_content_widget.h"
 #include "info/media/info_media_widget.h"
+#include "info/stories/info_stories_common.h"
 
 namespace Info::Stories {
 
 class InnerWidget;
-enum class Tab;
 
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
-	Memento(not_null<PeerData*> peer, Tab tab);
+	Memento(not_null<PeerData*> peer, int albumId);
 	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
@@ -70,6 +70,6 @@ private:
 
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(
 	not_null<PeerData*> peer,
-	Tab tab = {});
+	int albumId = 0);
 
 } // namespace Info::Stories

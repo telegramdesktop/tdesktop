@@ -6455,6 +6455,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_save_promo" = "Subscribe to {link} to save other people's stories that are not protected.";
 "lng_stories_reaction_as_message" = "Send reaction as a private message";
 
+"lng_stories_album_add" = "Add Album";
+"lng_stories_album_new_title" = "Create a New Album";
+"lng_stories_album_new_button" = "New Album";
+"lng_stories_album_new_text" = "Choose a name for your album and start adding your stories there.";
+"lng_stories_album_new_ph" = "Title";
+"lng_stories_album_new_create" = "Create";
+"lng_stories_album_empty_title" = "Organize Your Stories";
+"lng_stories_album_empty_text" = "Add some of your stories to this album.";
+"lng_stories_album_empty_button" = "Add to Album";
+"lng_stories_album_all" = "All Stories";
+"lng_stories_album_add_title" = "Add Stories";
+"lng_stories_album_edit" = "Edit Name";
+"lng_stories_album_limit_title" = "Limit Reached";
+"lng_stories_album_limit_text" = "Please remove one of the existing albums to add a new one.";
+"lng_stories_album_delete" = "Delete Album";
+"lng_stories_album_delete_sure" = "Are you sure you want to delete this album?";
+"lng_stories_album_delete_button" = "Delete";
+"lng_stories_album_add_to" = "Add to Album";
+
 "lng_stealth_mode_menu_item" = "Hide My View";
 "lng_stealth_mode_title" = "Stealth Mode";
 "lng_stealth_mode_unlock_about" = "Subscribe to Telegram Premium to watch stories without appearing in the list of viewers.";

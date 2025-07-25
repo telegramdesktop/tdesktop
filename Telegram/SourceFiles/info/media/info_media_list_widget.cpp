@@ -507,10 +507,10 @@ bool ListWidget::tooltipWindowActive() const {
 void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
 	using namespace Data;
 
-	const auto tab = _controller->storiesTab();
-	const auto context = (tab == Stories::Tab::Archive)
-		? Data::StoriesContext{ Data::StoriesContextArchive() }
-		: Data::StoriesContext{ Data::StoriesContextSaved() };
+	const auto albumId = _controller->storiesAlbumId();
+	const auto context = Data::StoriesContext{
+		Data::StoriesContextAlbum{ albumId }
+	};
 	_controller->parentController()->openPhoto(
 		photo,
 		{ id, topicRootId(), monoforumPeerId() },
@@ -521,10 +521,10 @@ void ListWidget::openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId id,
 		bool showInMediaView) {
-	const auto tab = _controller->storiesTab();
-	const auto context = (tab == Stories::Tab::Archive)
-		? Data::StoriesContext{ Data::StoriesContextArchive() }
-		: Data::StoriesContext{ Data::StoriesContextSaved() };
+	const auto albumId = _controller->storiesAlbumId();
+	const auto context = Data::StoriesContext{
+		Data::StoriesContextAlbum{ albumId }
+	};
 	_controller->parentController()->openDocument(
 		document,
 		showInMediaView,
@@ -1050,8 +1050,8 @@ void ListWidget::showContextMenu(
 	}
 	if (overSelected == SelectionState::OverSelectedItems) {
 		if (canToggleStoryPinAll()) {
-			const auto tab = _controller->key().storiesTab();
-			const auto toProfile = (tab == Stories::Tab::Archive);
+			const auto albumId = _controller->storiesAlbumId();
+			const auto toProfile = (albumId == Stories::ArchiveId());
 			_contextMenu->addAction(
 				(toProfile
 					? tr::lng_mediaview_save_to_profile
@@ -1102,8 +1102,8 @@ void ListWidget::showContextMenu(
 				item,
 				FullSelection);
 			if (selectionData.canToggleStoryPin) {
-				const auto tab = _controller->key().storiesTab();
-				const auto toProfile = (tab == Stories::Tab::Archive);
+				const auto albumId = _controller->storiesAlbumId();
+				const auto toProfile = (albumId == Stories::ArchiveId());
 				_contextMenu->addAction(
 					(toProfile
 						? tr::lng_mediaview_save_to_profile
@@ -1272,7 +1272,8 @@ void ListWidget::toggleStoryInProfile(
 	}
 	const auto channel = peerIsChannel(list.front().peer);
 	const auto count = int(list.size());
-	const auto toProfile = (_controller->storiesTab() == Stories::Tab::Archive);
+	const auto albumId = _controller->storiesAlbumId();
+	const auto toProfile = (albumId == Stories::ArchiveId());
 	const auto controller = _controller;
 	const auto sure = [=](Fn<void()> close) {
 		using namespace ::Media::Stories;

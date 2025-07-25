@@ -1059,6 +1059,9 @@ PRIVATE
     info/statistics/info_statistics_tag.h
     info/statistics/info_statistics_widget.cpp
     info/statistics/info_statistics_widget.h
+    info/stories/info_stories_albums.cpp
+    info/stories/info_stories_albums.h
+    info/stories/info_stories_common.h
     info/stories/info_stories_inner_widget.cpp
     info/stories/info_stories_inner_widget.h
     info/stories/info_stories_provider.cpp

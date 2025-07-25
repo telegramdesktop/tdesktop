@@ -49,7 +49,7 @@ Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
 , _peer(controller->key().storiesPeer())
 , _history(_peer->owner().history(_peer))
-, _tab(controller->key().storiesTab()) {
+, _albumId(controller->key().storiesAlbumId()) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		for (auto &layout : _layouts) {
@@ -180,9 +180,9 @@ void Provider::setSearchQuery(QString query) {
 void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
 	const auto idForViewer = _aroundId;
-	auto ids = (_tab == Tab::Saved)
-		? Data::SavedStoriesIds(_peer, idForViewer, _idsLimit)
-		: Data::ArchiveStoriesIds(_peer, idForViewer, _idsLimit);
+	auto ids = (_albumId == Data::kStoriesAlbumIdArchive)
+		? Data::ArchiveStoriesIds(_peer, idForViewer, _idsLimit)
+		: Data::SavedStoriesIds(_peer, idForViewer, _idsLimit); // #TODO stories
 	std::move(
 		ids
 	) | rpl::start_with_next([=](Data::StoriesIdsSlice &&slice) {

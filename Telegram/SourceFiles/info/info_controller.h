@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reaction_id.h"
 #include "data/data_search_controller.h"
 #include "info/statistics/info_statistics_tag.h"
+#include "info/stories/info_stories_common.h"
 #include "window/window_session_controller.h"
 
 namespace Api {
@@ -54,25 +55,6 @@ struct Tag {
 
 } // namespace Info::GlobalMedia
 
-namespace Info::Stories {
-
-enum class Tab {
-	Saved,
-	Archive,
-};
-
-struct Tag {
-	explicit Tag(not_null<PeerData*> peer, Tab tab = {})
-	: peer(peer)
-	, tab(tab) {
-	}
-
-	not_null<PeerData*> peer;
-	Tab tab = {};
-};
-
-} // namespace Info::Stories
-
 namespace Info::BotStarRef {
 
 enum class Type : uchar {
@@ -115,7 +97,7 @@ public:
 	bool isDownloads() const;
 	bool isGlobalMedia() const;
 	PeerData *storiesPeer() const;
-	Stories::Tab storiesTab() const;
+	int storiesAlbumId() const;
 	Statistics::Tag statisticsTag() const;
 	PeerData *starrefPeer() const;
 	BotStarRef::Type starrefType() const;
@@ -244,8 +226,8 @@ public:
 	[[nodiscard]] PeerData *storiesPeer() const {
 		return key().storiesPeer();
 	}
-	[[nodiscard]] Stories::Tab storiesTab() const {
-		return key().storiesTab();
+	[[nodiscard]] int storiesAlbumId() const {
+		return key().storiesAlbumId();
 	}
 	[[nodiscard]] Statistics::Tag statisticsTag() const {
 		return key().statisticsTag();

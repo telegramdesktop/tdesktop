@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 
 #include "ui/search_field_controller.h"
-#include "data/data_shared_media.h"
 #include "history/history.h"
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
@@ -23,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "data/data_shared_media.h"
 #include "data/data_media_types.h"
 #include "data/data_download_manager.h"
 #include "history/history_item.h"
@@ -118,11 +118,11 @@ PeerData *Key::storiesPeer() const {
 	return nullptr;
 }
 
-Stories::Tab Key::storiesTab() const {
+int Key::storiesAlbumId() const {
 	if (const auto tag = std::get_if<Stories::Tag>(&_value)) {
-		return tag->tab;
+		return tag->albumId;
 	}
-	return Stories::Tab();
+	return 0;
 }
 
 Statistics::Tag Key::statisticsTag() const {

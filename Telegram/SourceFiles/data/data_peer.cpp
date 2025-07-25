@@ -709,6 +709,27 @@ bool PeerData::canManageTopics() const {
 	return false;
 }
 
+bool PeerData::canPostStories() const {
+	if (const auto channel = asChannel()) {
+		return channel->canPostStories();
+	}
+	return isSelf();
+}
+
+bool PeerData::canEditStories() const {
+	if (const auto channel = asChannel()) {
+		return channel->canEditStories();
+	}
+	return isSelf();
+}
+
+bool PeerData::canDeleteStories() const {
+	if (const auto channel = asChannel()) {
+		return channel->canDeleteStories();
+	}
+	return isSelf();
+}
+
 bool PeerData::canManageGifts() const {
 	if (const auto channel = asChannel()) {
 		return channel->canPostMessages();

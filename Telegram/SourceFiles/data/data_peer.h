@@ -434,6 +434,9 @@ public:
 	[[nodiscard]] bool canCreateTodoLists() const;
 	[[nodiscard]] bool canCreateTopics() const;
 	[[nodiscard]] bool canManageTopics() const;
+	[[nodiscard]] bool canPostStories() const;
+	[[nodiscard]] bool canEditStories() const;
+	[[nodiscard]] bool canDeleteStories() const;
 	[[nodiscard]] bool canManageGifts() const;
 	[[nodiscard]] bool canTransferGifts() const;
 	[[nodiscard]] bool canExportChatHistory() const;

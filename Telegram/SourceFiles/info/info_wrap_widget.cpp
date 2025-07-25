@@ -286,11 +286,11 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 			peer->owner().history(peer),
 			FullMsgId());
 	} else if (const auto storiesPeer = key().storiesPeer()) {
-		return (key().storiesTab() == Stories::Tab::Saved)
-			? Dialogs::RowDescriptor(
+		return (key().storiesAlbumId() == Stories::ArchiveId())
+			? Dialogs::RowDescriptor()
+			: Dialogs::RowDescriptor(
 				storiesPeer->owner().history(storiesPeer),
-				FullMsgId())
-			: Dialogs::RowDescriptor();
+				FullMsgId());
 	} else if (key().settingsSelf()
 			|| key().isDownloads()
 			|| key().reactionsContextId()
@@ -412,7 +412,7 @@ void WrapWidget::setupTopBarMenuToggle() {
 		}
 	} else if (key.storiesPeer()
 		&& key.storiesPeer()->isSelf()
-		&& key.storiesTab() == Stories::Tab::Saved) {
+		&& key.storiesAlbumId() != Stories::ArchiveId()) {
 		const auto &st = (wrap() == Wrap::Layer)
 			? st::infoLayerTopBarEdit
 			: st::infoTopBarEdit;
@@ -656,7 +656,7 @@ void WrapWidget::finishShowContent() {
 		});
 		_topBar->setStories(_content->titleStories());
 		_topBar->setStoriesArchive(
-			_controller->key().storiesTab() == Stories::Tab::Archive);
+			_controller->key().storiesAlbumId() == Stories::ArchiveId());
 	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());

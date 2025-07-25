@@ -616,7 +616,7 @@ void Filler::addStoryArchive() {
 		if ([[maybe_unused]] const auto strong = weak.get()) {
 			controller->showSection(Info::Stories::Make(
 				channel,
-				Info::Stories::Tab::Archive));
+				Info::Stories::ArchiveId()));
 		}
 	}, &st::menuIconStoriesArchiveSection);
 }

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/data_stories_ids.h"
 #include "info/media/info_media_common.h"
+#include "info/stories/info_stories_common.h"
 
 class DocumentData;
 class HistoryItem;
@@ -25,8 +26,6 @@ class AbstractController;
 } // namespace Info
 
 namespace Info::Stories {
-
-enum class Tab;
 
 class Provider final
 	: public Media::ListProvider
@@ -117,7 +116,7 @@ private:
 	const not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;
-	const Tab _tab;
+	const int _albumId = 0;
 
 	StoryId _aroundId = kDefaultAroundId;
 	int _idsLimit = kMinimalIdsLimit;

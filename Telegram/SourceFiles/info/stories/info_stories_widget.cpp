@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_widget.h"
 
 #include "data/data_peer.h"
+#include "data/data_stories.h"
 #include "info/stories/info_stories_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -17,13 +18,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::Stories {
 
+int ArchiveId() {
+	return Data::kStoriesAlbumIdArchive;
+}
+
 Memento::Memento(not_null<Controller*> controller)
-: ContentMemento(Tag{ controller->storiesPeer(), controller->storiesTab() })
+: ContentMemento(Tag{
+	controller->storiesPeer(),
+	controller->storiesAlbumId() })
 , _media(controller) {
 }
 
-Memento::Memento(not_null<PeerData*> peer, Tab tab)
-: ContentMemento(Tag{ peer, tab })
+Memento::Memento(not_null<PeerData*> peer, int albumId)
+: ContentMemento(Tag{ peer, albumId })
 , _media(peer, 0, Media::Type::PhotoVideo) {
 }
 
@@ -66,8 +73,8 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto storiesMemento = dynamic_cast<Memento*>(memento.get())) {
-		const auto tab = controller()->key().storiesTab();
-		if (storiesMemento->storiesTab() == tab) {
+		const auto albumId = controller()->key().storiesAlbumId();
+		if (storiesMemento->storiesAlbumId() == albumId) {
 			restoreState(storiesMemento);
 			return true;
 		}
@@ -109,18 +116,18 @@ void Widget::selectionAction(SelectionAction action) {
 
 rpl::producer<QString> Widget::title() {
 	const auto peer = controller()->key().storiesPeer();
-	return (controller()->key().storiesTab() == Tab::Archive)
+	return (controller()->key().storiesAlbumId() == ArchiveId())
 		? tr::lng_stories_archive_title()
 		: (peer && peer->isSelf())
 		? tr::lng_menu_my_profile()
 		: tr::lng_stories_my_title();
 }
 
-std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer, Tab tab) {
+std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer, int albumId) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
-			std::make_shared<Memento>(peer, tab)));
+			std::make_shared<Memento>(peer, albumId)));
 }
 
 } // namespace Info::Stories

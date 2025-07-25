@@ -477,7 +477,7 @@ Key ContentMemento::key() const {
 	} else if (const auto self = settingsSelf()) {
 		return Settings::Tag{ self };
 	} else if (const auto stories = storiesPeer()) {
-		return Stories::Tag{ stories, storiesTab() };
+		return Stories::Tag{ stories, storiesAlbumId() };
 	} else if (statisticsTag().peer) {
 		return statisticsTag();
 	} else if (const auto starref = starrefPeer()) {
@@ -521,7 +521,7 @@ ContentMemento::ContentMemento(Downloads::Tag downloads) {
 
 ContentMemento::ContentMemento(Stories::Tag stories)
 : _storiesPeer(stories.peer)
-, _storiesTab(stories.tab) {
+, _storiesAlbumId(stories.albumId) {
 }
 
 ContentMemento::ContentMemento(Statistics::Tag statistics)

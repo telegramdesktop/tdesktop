@@ -7,11 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
+#include "data/data_stories.h"
+#include "info/stories/info_stories_common.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/scroll_area.h"
-#include "base/unique_qptr.h"
+
+namespace Data {
+struct StoryAlbum;
+} // namespace Data
 
 namespace Ui {
+class SubTabs;
+class PopupMenu;
 class VerticalLayout;
 class MultiSlideTracker;
 } // namespace Ui
@@ -26,6 +34,10 @@ namespace Info::Media {
 class ListWidget;
 } // namespace Info::Media
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 namespace Info::Stories {
 
 class Memento;
@@ -33,9 +45,8 @@ class EmptyWidget;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
-	InnerWidget(
-		QWidget *parent,
-		not_null<Controller*> controller);
+	InnerWidget(QWidget *parent, not_null<Controller*> controller);
+	~InnerWidget();
 
 	bool showInternal(not_null<Memento*> memento);
 	void setIsStackBottom(bool isStackBottom) {
@@ -52,7 +63,13 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void selectionAction(SelectionAction action);
 
-	~InnerWidget();
+	void reloadAlbum(int id);
+	void editAlbumStories(int id);
+	void editAlbumName(int id);
+	void confirmDeleteAlbum(int id);
+	void albumAdded(Data::StoryAlbum result);
+
+	[[nodiscard]] rpl::producer<Data::StoryAlbumUpdate> changes() const;
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -65,6 +82,7 @@ private:
 	void refreshHeight();
 
 	void setupTop();
+	void setupAlbums();
 	void createButtons();
 	void createProfileTop();
 	void createAboutArchive();
@@ -75,9 +93,25 @@ private:
 	void addGiftsButton(Ui::MultiSlideTracker &tracker);
 	void finalizeTop();
 
-	object_ptr<Media::ListWidget> setupList();
+	[[nodiscard]] object_ptr<Media::ListWidget> setupList();
+
+	void refreshAlbumsTabs();
+	void showMenuForAlbum(int id);
+
+	void albumRenamed(int id, QString name);
+	void albumRemoved(int id);
 
 	const not_null<Controller*> _controller;
+	const not_null<PeerData*> _peer;
+	const int _addingToAlbumId = 0;
+
+	std::vector<Data::StoryAlbum> _albums;
+	rpl::variable<int> _albumId;
+	Ui::RpWidget *_albumsWrap = nullptr;
+	std::unique_ptr<Ui::SubTabs> _albumsTabs;
+	rpl::variable<Data::StoryAlbumUpdate> _albumChanges;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	object_ptr<Ui::VerticalLayout> _top = { nullptr };
 	object_ptr<Media::ListWidget> _list = { nullptr };

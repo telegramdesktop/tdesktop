@@ -78,6 +78,22 @@ using UpdateFlag = StoryUpdate::Flag;
 	}, [](const auto &) { return std::optional<StoryMedia>(); });
 }
 
+[[nodiscard]] StoryAlbum FromTL(
+		not_null<Session*> owner,
+		const MTPStoryAlbum &album) {
+	const auto &data = album.data();
+	return {
+		.id = data.valbum_id().v,
+		.title = qs(data.vtitle()),
+		.iconPhoto = (data.vicon_photo()
+			? owner->processPhoto(*data.vicon_photo()).get()
+			: nullptr),
+		.iconVideo = (data.vicon_video()
+			? owner->processDocument(*data.vicon_video()).get()
+			: nullptr),
+	};
+}
+
 } // namespace
 
 std::vector<StoryId> RespectingPinned(const StoriesIds &ids) {
@@ -1084,10 +1100,8 @@ void Stories::resolve(FullStoryId id, Fn<void()> done, bool force) {
 }
 
 void Stories::loadAround(FullStoryId id, StoriesContext context) {
-	if (v::is<StoriesContextSingle>(context.data)) {
-		return;
-	} else if (v::is<StoriesContextSaved>(context.data)
-		|| v::is<StoriesContextArchive>(context.data)) {
+	if (v::is<StoriesContextSingle>(context.data)
+		|| v::is<StoriesContextAlbum>(context.data)) {
 		return;
 	}
 	const auto i = _all.find(id.peer);
@@ -1746,6 +1760,113 @@ void Stories::savedLoadMore(PeerId peerId) {
 		saved.total = int(saved.ids.list.size());
 		_savedChanged.fire_copy(peerId);
 	}).send();
+}
+
+auto Stories::albumsListValue(PeerId peerId)
+-> rpl::producer<std::vector<Data::StoryAlbum>> {
+	auto &albums = _albums[peerId];
+	if (!albums.requestId) {
+		loadAlbums(_owner->peer(peerId), albums);
+	}
+	return albums.list.value();
+}
+
+void Stories::loadAlbums(not_null<PeerData*> peer, Albums &albums) {
+	const auto api = &_owner->session().api();
+	api->request(base::take(albums.requestId)).cancel();
+	albums.requestId = api->request(MTPstories_GetAlbums(
+		peer->input,
+		MTP_long(albums.hash)
+	)).done([=](const MTPstories_Albums &result) {
+		result.match([&](const MTPDstories_albums &data) {
+			auto &albums = _albums[peer->id];
+			albums.requestId = 0;
+			albums.hash = data.vhash().v;
+			auto parsed = std::vector<Data::StoryAlbum>();
+			const auto &list = data.valbums().v;
+			parsed.reserve(list.size());
+			for (const auto &album : list) {
+				parsed.push_back(FromTL(_owner, album));
+			}
+			albums.list = std::move(parsed);
+		}, [](const MTPDstories_albumsNotModified &) {
+		});
+	}).fail([=] {
+		auto &albums = _albums[peer->id];
+		albums.requestId = 0;
+		albums.hash = 0;
+	}).send();
+}
+
+void Stories::albumCreate(
+		not_null<PeerData*> peer,
+		const QString &title,
+		StoryId addId,
+		Fn<void(StoryAlbum)> done,
+		Fn<void(QString)> fail) {
+	auto ids = QVector<MTPint>();
+	if (addId) {
+		ids.push_back(MTP_int(addId));
+	}
+	_owner->session().api().request(MTPstories_CreateAlbum(
+		peer->input,
+		MTP_string(title),
+		MTP_vector<MTPint>(ids)
+	)).done([=](const MTPStoryAlbum &result) {
+		auto &albums = _albums[peer->id];
+		auto current = albums.list.current();
+		auto parsed = FromTL(_owner, result);
+		current.push_back(parsed);
+		albums.list = std::move(current);
+		loadAlbums(peer, albums);
+		if (const auto onstack = done) {
+			onstack(std::move(parsed));
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (const auto onstack = fail) {
+			onstack(error.type());
+		}
+	}).send();
+}
+
+void Stories::albumRename(
+		not_null<PeerData*> peer,
+		int id,
+		const QString &title,
+		Fn<void(StoryAlbum)> done,
+		Fn<void(QString)> fail) {
+	using Flag = MTPstories_UpdateAlbum::Flag;
+	_owner->session().api().request(MTPstories_UpdateAlbum(
+		MTP_flags(Flag::f_title),
+		peer->input,
+		MTP_int(id),
+		MTP_string(title),
+		MTPVector<MTPint>(),
+		MTPVector<MTPint>(),
+		MTPVector<MTPint>()
+	)).done([=](const MTPStoryAlbum &result) {
+		auto &albums = _albums[peer->id];
+		auto current = albums.list.current();
+		auto parsed = FromTL(_owner, result);
+		current.push_back(parsed);
+		albums.list = std::move(current);
+		loadAlbums(peer, albums);
+		if (const auto onstack = done) {
+			onstack(std::move(parsed));
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (const auto onstack = fail) {
+			onstack(error.type());
+		}
+	}).send();
+}
+
+void Stories::notifyAlbumUpdate(StoryAlbumUpdate &&update) {
+	_albumUpdates.fire(std::move(update));
+}
+
+rpl::producer<StoryAlbumUpdate> Stories::albumUpdates() const {
+	return _albumUpdates.events();
 }
 
 void Stories::setPinnedToTop(

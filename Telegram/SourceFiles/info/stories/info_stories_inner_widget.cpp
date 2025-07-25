@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/stories/info_stories_inner_widget.h"
 
+#include "apiwrap.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -19,19 +20,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
+#include "info/stories/info_stories_albums.h"
 #include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/controls/sub_tabs.h"
+#include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
+#include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 namespace Info::Stories {
@@ -96,6 +108,13 @@ InnerWidget::InnerWidget(
 	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _peer(controller->key().storiesPeer())
+, _addingToAlbumId(0)
+, _albumId(controller->key().storiesAlbumId())
+, _albumChanges(Data::StoryAlbumUpdate{
+	.peer = _peer,
+	.albumId = _addingToAlbumId,
+})
 , _empty(this) {
 	_empty->heightValue(
 	) | rpl::start_with_next(
@@ -104,23 +123,36 @@ InnerWidget::InnerWidget(
 	_list = setupList();
 }
 
+void InnerWidget::setupAlbums() {
+	Ui::AddSkip(_top);
+	_albumsWrap = _top->add(object_ptr<Ui::BoxContentDivider>(_top));
+
+	_peer->owner().stories().albumsListValue(
+		_peer->id
+	) | rpl::start_with_next([=](std::vector<Data::StoryAlbum> &&albums) {
+		_albums = std::move(albums);
+		refreshAlbumsTabs();
+	}, lifetime());
+}
+
+InnerWidget::~InnerWidget() = default;
+
 void InnerWidget::setupTop() {
-	const auto key = _controller->key();
-	const auto peer = key.storiesPeer();
-	if (peer && key.storiesTab() == Stories::Tab::Saved && _isStackBottom) {
-		if (peer->isSelf()) {
+	const auto albumId = _albumId.current();
+	if (albumId == Data::kStoriesAlbumIdArchive) {
+		createAboutArchive();
+	} else if (_isStackBottom) {
+		if (_peer->isSelf()) {
 			createProfileTop();
-		} else if (peer->owner().stories().hasArchive(peer)) {
+		} else if (_peer->owner().stories().hasArchive(_peer)) {
 			createButtons();
 		} else {
-			_top.destroy();
-			refreshHeight();
+			startTop();
+			finalizeTop();
 		}
-	} else if (peer && key.storiesTab() == Stories::Tab::Archive) {
-		createAboutArchive();
 	} else {
-		_top.destroy();
-		refreshHeight();
+		startTop();
+		finalizeTop();
 	}
 }
 
@@ -131,14 +163,11 @@ void InnerWidget::startTop() {
 }
 
 void InnerWidget::createProfileTop() {
-	const auto key = _controller->key();
-	const auto peer = key.storiesPeer();
-
 	startTop();
 
 	using namespace Profile;
-	AddCover(_top, _controller, peer, nullptr, nullptr);
-	AddDetails(_top, _controller, peer, nullptr, nullptr, { v::null });
+	AddCover(_top, _controller, _peer, nullptr, nullptr);
+	AddDetails(_top, _controller, _peer, nullptr, nullptr, { v::null });
 
 	auto tracker = Ui::MultiSlideTracker();
 	const auto dividerWrap = _top->add(
@@ -169,12 +198,10 @@ void InnerWidget::createButtons() {
 void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 	Expects(_top != nullptr);
 
-	const auto key = _controller->key();
-	const auto peer = key.storiesPeer();
-	const auto stories = &peer->owner().stories();
+	const auto stories = &_peer->owner().stories();
 
-	if (!stories->archiveCountKnown(peer->id)) {
-		stories->archiveLoadMore(peer->id);
+	if (!stories->archiveCountKnown(_peer->id)) {
+		stories->archiveLoadMore(_peer->id);
 	}
 
 	auto count = rpl::single(
@@ -182,10 +209,10 @@ void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 	) | rpl::then(
 		stories->archiveChanged(
 		) | rpl::filter(
-			rpl::mappers::_1 == peer->id
+			rpl::mappers::_1 == _peer->id
 		) | rpl::to_empty
 	) | rpl::map([=] {
-		return stories->archiveCount(peer->id);
+		return stories->archiveCount(_peer->id);
 	}) | rpl::start_spawning(_top->lifetime());
 
 	const auto archiveWrap = _top->add(
@@ -201,9 +228,8 @@ void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 
 	const auto archive = archiveWrap->entity();
 	archive->addClickHandler([=] {
-		_controller->showSection(Info::Stories::Make(
-			_controller->key().storiesPeer(),
-			Stories::Tab::Archive));
+		_controller->showSection(
+			Make(_peer, Data::kStoriesAlbumIdArchive));
 	});
 	auto label = rpl::duplicate(
 		count
@@ -227,8 +253,6 @@ void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 void InnerWidget::addRecentButton(Ui::MultiSlideTracker &tracker) {
 	Expects(_top != nullptr);
 
-	const auto key = _controller->key();
-	const auto peer = key.storiesPeer();
 	const auto recentWrap = _top->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			_top,
@@ -239,7 +263,7 @@ void InnerWidget::addRecentButton(Ui::MultiSlideTracker &tracker) {
 
 	using namespace Dialogs::Stories;
 	auto last = LastForPeer(
-		peer
+		_peer
 	) | rpl::map([=](Content &&content) {
 		for (auto &element : content.elements) {
 			element.unreadCount = 0;
@@ -272,7 +296,7 @@ void InnerWidget::addRecentButton(Ui::MultiSlideTracker &tracker) {
 	}, thumbs->lifetime());
 	thumbs->setAttribute(Qt::WA_TransparentForMouseEvents);
 	recent->addClickHandler([=] {
-		_controller->parentController()->openPeerStories(peer->id);
+		_controller->parentController()->openPeerStories(_peer->id);
 	});
 	object_ptr<Profile::FloatingIcon>(
 		recent,
@@ -289,9 +313,7 @@ void InnerWidget::addRecentButton(Ui::MultiSlideTracker &tracker) {
 void InnerWidget::addGiftsButton(Ui::MultiSlideTracker &tracker) {
 	Expects(_top != nullptr);
 
-	const auto key = _controller->key();
-	const auto peer = key.storiesPeer();
-	const auto user = peer->asUser();
+	const auto user = _peer->asUser();
 	Assert(user != nullptr);
 
 	auto count = Profile::PeerGiftsCountValue(
@@ -336,9 +358,11 @@ void InnerWidget::addGiftsButton(Ui::MultiSlideTracker &tracker) {
 }
 
 void InnerWidget::finalizeTop() {
-	Ui::AddSkip(_top, st::infoProfileSkip);
-	Ui::AddDivider(_top);
-
+	const auto addPossibleAlbums = !_addingToAlbumId
+		&& (_albumId.current() != Data::kStoriesAlbumIdArchive);
+	if (addPossibleAlbums) {
+		setupAlbums();
+	}
 	_top->resizeToWidth(width());
 
 	_top->heightValue(
@@ -350,12 +374,11 @@ void InnerWidget::finalizeTop() {
 void InnerWidget::createAboutArchive() {
 	startTop();
 
-	const auto peer = _controller->key().storiesPeer();
 	_top->add(object_ptr<Ui::DividerLabel>(
 		_top,
 		object_ptr<Ui::FlatLabel>(
 			_top,
-			(peer->isChannel()
+			(_peer->isChannel()
 				? tr::lng_stories_channel_archive_about
 				: tr::lng_stories_archive_about)(),
 			st::infoStoriesAboutArchive),
@@ -401,6 +424,291 @@ object_ptr<Media::ListWidget> InnerWidget::setupList() {
 	return result;
 }
 
+void InnerWidget::refreshAlbumsTabs() {
+	Expects(!_addingToAlbumId);
+	Expects(_albumsWrap != nullptr);
+
+	if (_albums.empty() && !_peer->canEditStories()) {
+		if (base::take(_albumsTabs)) {
+			resizeToWidth(width());
+		}
+		return;
+	}
+	auto tabs = std::vector<Ui::SubTabs::Tab>();
+	if (!_albums.empty()) {
+		tabs.push_back({
+			.id = u"all"_q,
+			.text = tr::lng_stories_album_all(
+				tr::now,
+				Ui::Text::WithEntities),
+		});
+		for (const auto &album : _albums) {
+			auto title = TextWithEntities();
+			title.append(album.title);
+			tabs.push_back({
+				.id = QString::number(album.id),
+				.text = std::move(title),
+			});
+		}
+	}
+	if (_peer->canEditStories()) {
+		tabs.push_back({
+			.id = u"add"_q,
+			.text = { '+' + tr::lng_stories_album_add(tr::now) },
+		});
+	}
+	if (!_albumsTabs) {
+		_albumsTabs = std::make_unique<Ui::SubTabs>(
+			_albumsWrap,
+			Ui::SubTabs::Options{
+				.selected = _albums.empty() ? QString() : u"all"_q,
+				.centered = true,
+			},
+			std::move(tabs));
+		_albumsTabs->show();
+
+		const auto padding = st::giftBoxPadding;
+		_albumsWrap->resize(
+			_albumsWrap->width(),
+			padding.top() + _albumsTabs->height() + padding.top());
+		_albumsWrap->widthValue() | rpl::start_with_next([=](int width) {
+			_albumsTabs->resizeToWidth(width);
+		}, _albumsTabs->lifetime());
+		_albumsTabs->move(0, padding.top());
+
+		_albumsTabs->activated(
+		) | rpl::start_with_next([=](const QString &id) {
+			if (id == u"add"_q) {
+				const auto added = [=](Data::StoryAlbum album) {
+					albumAdded(album);
+				};
+				_controller->uiShow()->show(Box(
+					NewAlbumBox,
+					_controller,
+					_peer,
+					StoryId(),
+					added));
+			} else {
+				_albumsTabs->setActiveTab(id);
+
+				//auto now = _descriptor.current();
+				//now.collectionId = (id == u"all"_q) ? 0 : id.toInt();
+				//_descriptorChanges.fire(std::move(now));
+			}
+		}, _albumsTabs->lifetime());
+
+		_albumsTabs->contextMenuRequests(
+		) | rpl::start_with_next([=](const QString &id) {
+			if (id == u"add"_q
+				|| id == u"all"_q
+				|| !_peer->canEditStories()) {
+				return;
+			}
+			showMenuForAlbum(id.toInt());
+		}, _albumsTabs->lifetime());
+	} else {
+		_albumsTabs->setTabs(std::move(tabs));
+	}
+	resizeToWidth(width());
+}
+
+void InnerWidget::showMenuForAlbum(int id) {
+	if (_menu || _addingToAlbumId) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+	addAction(tr::lng_stories_album_add_title(tr::now), [=] {
+		editAlbumStories(id);
+	}, &st::menuIconStoriesSave);
+	addAction(tr::lng_stories_album_edit(tr::now), [=] {
+		editAlbumName(id);
+	}, &st::menuIconEdit);
+	addAction({
+		.text = tr::lng_stories_album_delete(tr::now),
+		.handler = [=] { confirmDeleteAlbum(id); },
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
+	_menu->popup(QCursor::pos());
+}
+
+rpl::producer<Data::StoryAlbumUpdate> InnerWidget::changes() const {
+	return _albumChanges.value();
+}
+
+void InnerWidget::reloadAlbum(int id) {
+	// #TODO stories
+}
+
+void InnerWidget::editAlbumStories(int id) {
+	const auto weak = base::make_weak(this);
+	_controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_stories_album_add_title());
+		box->setWidth(st::boxWideWidth);
+		box->setStyle(st::collectionEditBox);
+
+		struct State {
+			rpl::variable<Data::StoryAlbumUpdate> changes;
+			base::unique_qptr<Ui::PopupMenu> menu;
+			bool saving = false;
+		};
+		const auto state = box->lifetime().make_state<State>(State{
+			.changes = Data::StoryAlbumUpdate{
+				.peer = _peer,
+				.albumId = id,
+			}
+		});
+		const auto content = box->addRow(
+			object_ptr<InnerWidget>(
+				box,
+				_controller/*,
+				_peer,
+				state->descriptor.value(),
+				id,
+				(_all.filter == Filter()) ? _all : Entries()*/),
+			{});
+		state->changes = content->changes();
+
+		content->scrollToRequests(
+		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+			box->scrollTo(request);
+		}, content->lifetime());
+
+		box->addTopButton(st::boxTitleClose, [=] {
+			box->closeBox();
+		});
+		const auto weakBox = base::make_weak(box);
+		auto text = state->changes.value(
+		) | rpl::map([=](const Data::StoryAlbumUpdate &update) {
+			return (!update.added.empty() && update.removed.empty())
+				? tr::lng_stories_album_add_title()
+				: tr::lng_settings_save();
+		}) | rpl::flatten_latest();
+		box->addButton(std::move(text), [=] {
+			if (state->saving) {
+				return;
+			}
+			auto add = QVector<MTPint>();
+			auto remove = QVector<MTPint>();
+			const auto &changes = state->changes.current();
+			for (const auto &id : changes.added) {
+				add.push_back(MTP_int(id));
+			}
+			for (const auto &id : changes.removed) {
+				remove.push_back(MTP_int(id));
+			}
+			if (add.empty() && remove.empty()) {
+				box->closeBox();
+				return;
+			}
+			state->saving = true;
+			const auto session = &_controller->session();
+			using Flag = MTPstories_UpdateAlbum::Flag;
+			session->api().request(
+				MTPstories_UpdateAlbum(
+					MTP_flags(Flag()
+						| (add.isEmpty() ? Flag() : Flag::f_add_stories)
+						| (remove.isEmpty()
+							? Flag()
+							: Flag::f_delete_stories)),
+					_peer->input,
+					MTP_int(id),
+					MTPstring(),
+					MTP_vector<MTPint>(remove),
+					MTP_vector<MTPint>(add),
+					MTPVector<MTPint>())
+			).done([=] {
+				if (const auto strong = weakBox.get()) {
+					state->saving = false;
+					strong->closeBox();
+				}
+				session->data().stories().notifyAlbumUpdate(
+					base::duplicate(changes));
+				if (const auto strong = weak.get()) {
+					strong->reloadAlbum(id);
+				}
+			}).fail([=](const MTP::Error &error) {
+				if (const auto strong = weakBox.get()) {
+					state->saving = false;
+					strong->uiShow()->showToast(error.type());
+				}
+			}).send();
+		});
+	}));
+}
+
+void InnerWidget::editAlbumName(int id) {
+	const auto done = [=](QString name) {
+		albumRenamed(id, name);
+	};
+	const auto i = ranges::find(_albums, id, &Data::StoryAlbum::id);
+	if (i == end(_albums)) {
+		return;
+	}
+	_controller->uiShow()->show(Box(
+		EditAlbumNameBox,
+		_controller->parentController(),
+		_peer,
+		id,
+		i->title,
+		done));
+}
+
+void InnerWidget::confirmDeleteAlbum(int id) {
+	const auto done = [=](Fn<void()> close) {
+		_controller->session().api().request(
+			MTPstories_DeleteAlbum(_peer->input, MTP_int(id))
+		).send();
+		albumRemoved(id);
+		close();
+	};
+	_controller->uiShow()->show(Ui::MakeConfirmBox({
+		.text = tr::lng_stories_album_delete_sure(),
+		.confirmed = crl::guard(this, done),
+		.confirmText = tr::lng_stories_album_delete_button(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
+}
+
+void InnerWidget::albumAdded(Data::StoryAlbum result) {
+	Expects(ranges::contains(_albums, result.id, &Data::StoryAlbum::id));
+
+	_albumId = result.id;
+}
+
+void InnerWidget::albumRenamed(int id, QString name) {
+	const auto i = ranges::find(_albums, id, &Data::StoryAlbum::id);
+	if (i != end(_albums)) {
+		i->title = name;
+		refreshAlbumsTabs();
+	}
+}
+
+void InnerWidget::albumRemoved(int id) {
+	auto now = _albumId.current();
+	if (now == id) {
+		_albumId = 0;
+	}
+	//const auto removeFrom = [&](Entries &entries) {
+	//	for (auto &entry : entries.list) {
+	//		entry.gift.collectionIds.erase(
+	//			ranges::remove(entry.gift.collectionIds, id),
+	//			end(entry.gift.collectionIds));
+	//	}
+	//};
+	//removeFrom(_all);
+	//for (auto &[_, entries] : _perCollection) {
+	//	removeFrom(entries);
+	//}
+
+	const auto i = ranges::find(_albums, id, &Data::StoryAlbum::id);
+	if (i != end(_albums)) {
+		_albums.erase(i);
+		refreshAlbumsTabs();
+	}
+}
+
 void InnerWidget::saveState(not_null<Memento*> memento) {
 	_list->saveState(&memento->media());
 }
@@ -418,8 +726,6 @@ rpl::producer<SelectedItems> InnerWidget::selectedListValue() const {
 void InnerWidget::selectionAction(SelectionAction action) {
 	_list->selectionAction(action);
 }
-
-InnerWidget::~InnerWidget() = default;
 
 int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
