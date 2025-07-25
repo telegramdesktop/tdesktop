@@ -104,9 +104,10 @@ struct GiftUpdate {
 	Action action = {};
 };
 struct GiftsUpdate {
+	not_null<PeerData*> peer;
+	int collectionId = 0;
 	std::vector<Data::SavedStarGiftId> added;
 	std::vector<Data::SavedStarGiftId> removed;
-	int collectionId = 0;
 };
 
 struct SentToScheduled {

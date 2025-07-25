@@ -265,6 +265,7 @@ InnerWidget::InnerWidget(
 , _entries(&_all)
 , _list(&_entries->list)
 , _collectionChanges(Data::GiftsUpdate{
+	.peer = _peer,
 	.collectionId = addingToCollectionId,
 })
 , _api(&_peer->session().mtp()) {
@@ -282,6 +283,9 @@ InnerWidget::InnerWidget(
 
 	_window->session().data().giftsUpdates(
 	) | rpl::start_with_next([=](const Data::GiftsUpdate &update) {
+		if (update.peer != _peer) {
+			return;
+		}
 		const auto added = base::flat_set<Data::SavedStarGiftId>{
 			begin(update.added),
 			end(update.added)
@@ -523,7 +527,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 void InnerWidget::collectionAdded(MTPStarGiftCollection result) {
 	_collections.push_back(FromTL(&_window->session(), result));
+	const auto id = _collections.back().id;
 	refreshCollectionsTabs();
+
+	auto now = _descriptor.current();
+	now.collectionId = id;
+	_descriptorChanges.fire(std::move(now));
 }
 
 void InnerWidget::loadMore() {
@@ -1018,10 +1027,6 @@ void InnerWidget::reloadCollection(int id) {
 }
 
 void InnerWidget::editCollectionGifts(int id) {
-	auto now = _descriptor.current();
-	now.filter = Filter();
-	now.collectionId = 0;
-
 	const auto weak = base::make_weak(this);
 	_window->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(tr::lng_gift_collection_add_title());
@@ -1034,7 +1039,12 @@ void InnerWidget::editCollectionGifts(int id) {
 			base::unique_qptr<Ui::PopupMenu> menu;
 			bool saving = false;
 		};
-		const auto state = box->lifetime().make_state<State>();
+		const auto state = box->lifetime().make_state<State>(State{
+			.changes = Data::GiftsUpdate{
+				.peer = _peer,
+				.collectionId = id,
+			},
+		});
 		const auto content = box->addRow(
 			object_ptr<InnerWidget>(
 				box,
@@ -1077,7 +1087,6 @@ void InnerWidget::editCollectionGifts(int id) {
 			if (state->saving) {
 				return;
 			}
-			using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
 			auto add = QVector<MTPInputSavedStarGift>();
 			auto remove = QVector<MTPInputSavedStarGift>();
 			const auto &changes = state->changes.current();
@@ -1093,6 +1102,7 @@ void InnerWidget::editCollectionGifts(int id) {
 			}
 			state->saving = true;
 			const auto session = &_window->session();
+			using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
 			session->api().request(
 				MTPpayments_UpdateStarGiftCollection(
 					MTP_flags(Flag()
