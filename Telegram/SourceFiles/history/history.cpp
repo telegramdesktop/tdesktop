@@ -1983,13 +1983,17 @@ bool History::unreadCountKnown() const {
 	return _unreadCount.has_value();
 }
 
+bool History::useMyUnreadInParent() const {
+	return !isForum() && !amMonoforumAdmin();
+}
+
 void History::setUnreadCount(int newUnreadCount) {
 	Expects(folderKnown());
 
 	if (_unreadCount == newUnreadCount) {
 		return;
 	}
-	const auto notifier = unreadStateChangeNotifier(!isForum());
+	const auto notifier = unreadStateChangeNotifier(useMyUnreadInParent());
 	_unreadCount = newUnreadCount;
 
 	const auto lastOutgoing = [&] {
@@ -2028,7 +2032,7 @@ void History::setUnreadMark(bool unread) {
 		return;
 	}
 	const auto notifier = unreadStateChangeNotifier(
-		!unreadCount() && !isForum());
+		useMyUnreadInParent() && !unreadCount());
 	Thread::setUnreadMarkFlag(unread);
 }
 
@@ -2060,9 +2064,9 @@ void History::setMuted(bool muted) {
 	if (this->muted() == muted) {
 		return;
 	} else {
-		const auto state = isForum()
-			? Dialogs::BadgesState()
-			: computeBadgesState();
+		const auto state = useMyUnreadInParent()
+			? computeBadgesState()
+			: Dialogs::BadgesState();
 		const auto notify = (state.unread || state.reaction);
 		const auto notifier = unreadStateChangeNotifier(notify);
 		Thread::setMuted(muted);

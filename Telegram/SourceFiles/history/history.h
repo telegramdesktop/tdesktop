@@ -608,6 +608,7 @@ private:
 
 	void hasUnreadMentionChanged(bool has) override;
 	void hasUnreadReactionChanged(bool has) override;
+	[[nodiscard]] bool useMyUnreadInParent() const;
 
 	const std::unique_ptr<HistoryMainElementDelegateMixin> _delegateMixin;
 
