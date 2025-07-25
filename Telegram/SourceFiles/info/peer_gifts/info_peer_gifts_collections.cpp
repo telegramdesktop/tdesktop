@@ -33,15 +33,17 @@ void EditCollectionBox(
 		Data::SavedStarGiftId addId,
 		QString currentName,
 		Fn<void(MTPStarGiftCollection)> finished) {
-	box->setTitle(tr::lng_gift_collection_new_title());
+	box->setTitle(id
+		? tr::lng_gift_collection_edit()
+		: tr::lng_gift_collection_new_title());
 
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			(id
-				? tr::lng_gift_collection_edit()
-				: tr::lng_gift_collection_new_text()),
-			st::collectionAbout));
+	if (!id) {
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_gift_collection_new_text(),
+				st::collectionAbout));
+	}
 	const auto title = box->addRow(
 		object_ptr<Ui::InputField>(
 			box,
