@@ -2182,6 +2182,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_channel_about_unique" = "You can display this gift in channel's Gifts or turn it into unique collectible.";
 "lng_action_gift_for_stars#one" = "{count} Star";
 "lng_action_gift_for_stars#other" = "{count} Stars";
+"lng_action_gift_for_ton#one" = "{count} TON";
+"lng_action_gift_for_ton#other" = "{count} TON";
 "lng_action_gift_got_subtitle" = "Gift from {user}";
 "lng_action_gift_got_stars_text#one" = "Display this gift on your page or convert it to **{count}** Star.";
 "lng_action_gift_got_stars_text#other" = "Display this gift on your page or convert it to **{count}** Stars.";

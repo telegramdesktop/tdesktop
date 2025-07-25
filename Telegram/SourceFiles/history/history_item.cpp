@@ -5931,11 +5931,18 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			const MTPDmessageActionStarGiftUnique &action) {
 		auto result = PreparedServiceText();
 		const auto isSelf = _from->isSelf();
-		const auto resaleStars = action.vresale_stars().value_or_empty();
-		const auto resaleCost = TextWithEntities{ resaleStars
-			? tr::lng_action_gift_for_stars(tr::now, lt_count, resaleStars)
-			: QString()
-		};
+		const auto resale = CreditsAmountFromTL(action.vresale_amount());
+		const auto resaleCost = !resale
+			? TextWithEntities()
+			: resale.stars()
+			? TextWithEntities{ tr::lng_action_gift_for_stars(
+				tr::now,
+				lt_count,
+				resale.value()) }
+			: TextWithEntities{ tr::lng_action_gift_for_ton(
+				tr::now,
+				lt_count,
+				resale.value()) };
 		const auto giftPeer = action.vpeer()
 			? peerFromMTP(*action.vpeer())
 			: PeerId();
@@ -5951,10 +5958,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 				peerToChannel(giftPeer));
 			if (!from->isServiceUser() && !from->isSelf()) {
 				result.links.push_back(from->createOpenLink());
-				if (resaleStars) {
+				if (resale) {
 					result.links.push_back(channel->createOpenLink());
 				}
-				result.text = resaleStars
+				result.text = resale
 					? tr::lng_action_gift_sent_channel(
 						tr::now,
 						lt_user,
@@ -5974,7 +5981,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 							Ui::Text::Link(channel->name(), 2),
 							Ui::Text::WithEntities);
 			} else {
-				result.text = resaleStars
+				result.text = resale
 					? tr::lng_action_gift_sent_self_channel(
 						tr::now,
 						lt_name,
@@ -5995,10 +6002,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			result.links.push_back(channel->createOpenLink());
 		} else {
 			if (!from->isServiceUser() && !_history->peer->isSelf()) {
-				if (!resaleStars || !isSelf) {
+				if (!resale || !isSelf) {
 					result.links.push_back(from->createOpenLink());
 				}
-				result.text = resaleStars
+				result.text = resale
 					? (isSelf
 						? tr::lng_action_gift_sent(
 							tr::now,
@@ -6024,7 +6031,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 								Ui::Text::Link(from->shortName(), 1),
 								Ui::Text::WithEntities);
 			} else {
-				result.text = resaleStars
+				result.text = resale
 					? tr::lng_action_gift_self_bought(
 						tr::now,
 						lt_cost,

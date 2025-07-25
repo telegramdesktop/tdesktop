@@ -48,6 +48,7 @@ struct UniqueGift {
 	int number = 0;
 	int starsForTransfer = -1;
 	int starsForResale = -1;
+	int64 tonForResale = -1;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;
@@ -78,10 +79,11 @@ struct StarGift {
 	int perUserRemains = 0;
 	TimeId firstSaleDate = 0;
 	TimeId lastSaleDate = 0;
-	bool requirePremium = false;
-	bool upgradable = false;
-	bool birthday = false;
-	bool soldOut = false;
+	bool resellTonOnly : 1 = false;
+	bool requirePremium : 1 = false;
+	bool upgradable : 1 = false;
+	bool birthday : 1 = false;
+	bool soldOut : 1 = false;
 
 	friend inline bool operator==(
 		const StarGift &,

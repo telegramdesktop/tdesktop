@@ -4478,7 +4478,7 @@ void UpdateGiftSellPrice(
 	const auto session = &show->session();
 	session->api().request(MTPpayments_UpdateStarGiftPrice(
 		Api::InputSavedStarGiftId(savedId, unique),
-		MTP_long(price)
+		MTP_starsAmount(MTP_long(price), MTP_int(0))
 	)).done([=](const MTPUpdates &result) {
 		session->api().applyUpdates(result);
 		show->showToast((!price

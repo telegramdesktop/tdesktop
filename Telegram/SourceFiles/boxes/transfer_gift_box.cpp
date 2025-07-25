@@ -501,7 +501,9 @@ void BuyResaleGift(
 		}
 	};
 
+	using Flag = MTPDinputInvoiceStarGiftResale::Flag;
 	const auto invoice = MTP_inputInvoiceStarGiftResale(
+		MTP_flags(Flag()),
 		MTP_string(gift->slug),
 		to->input);
 
