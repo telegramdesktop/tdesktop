@@ -125,6 +125,13 @@ int Key::storiesAlbumId() const {
 	return 0;
 }
 
+int Key::storiesAddToAlbumId() const {
+	if (const auto tag = std::get_if<Stories::Tag>(&_value)) {
+		return tag->addingToAlbumId;
+	}
+	return 0;
+}
+
 Statistics::Tag Key::statisticsTag() const {
 	if (const auto tag = std::get_if<Statistics::Tag>(&_value)) {
 		return *tag;

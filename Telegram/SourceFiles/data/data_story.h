@@ -237,7 +237,8 @@ public:
 	[[nodiscard]] QString repostSourceName() const;
 	[[nodiscard]] StoryId repostSourceId() const;
 
-	[[nodiscard]] const std::vector<int> &albumIds() const;
+	[[nodiscard]] const base::flat_set<int> &albumIds() const;
+	void setAlbumIds(base::flat_set<int> ids);
 
 	[[nodiscard]] PeerData *fromPeer() const;
 
@@ -267,7 +268,7 @@ private:
 	PeerData * const _repostSourcePeer = nullptr;
 	const QString _repostSourceName;
 	const StoryId _repostSourceId = 0;
-	std::vector<int> _albumIds;
+	base::flat_set<int> _albumIds;
 	PeerData * const _fromPeer = nullptr;
 	Data::ReactionId _sentReactionId;
 	StoryMedia _media;

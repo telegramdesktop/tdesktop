@@ -90,7 +90,8 @@ using UniversalMsgId = MsgId;
 bool ChangeItemSelection(
 	ListSelectedMap &selected,
 	not_null<const HistoryItem*> item,
-	ListItemSelectionData selectionData);
+	ListItemSelectionData selectionData,
+	int limit = 0);
 
 class ListSectionDelegate {
 public:

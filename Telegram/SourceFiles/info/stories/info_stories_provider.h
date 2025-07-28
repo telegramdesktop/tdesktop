@@ -117,6 +117,7 @@ private:
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;
 	const int _albumId = 0;
+	const int _addingToAlbumId = 0;
 
 	StoryId _aroundId = kDefaultAroundId;
 	int _idsLimit = kMinimalIdsLimit;

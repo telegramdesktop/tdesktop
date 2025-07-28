@@ -477,6 +477,19 @@ Story *Stories::parseAndApply(
 		return nullptr;
 	}
 	const auto id = data.vid().v;
+	auto albumInfo = (Albums*)nullptr;
+	auto list = std::optional<base::flat_set<int>>();
+	if (const auto albums = data.valbums()) {
+		list.emplace();
+		if (!albums->v.empty()) {
+			albumInfo = &_albums[peer->id];
+			list->reserve(albums->v.size());
+			for (const auto &albumId : albums->v) {
+				albumInfo->sets[albumId.v].albumKnownInArchive.emplace(id);
+				list->emplace(albumId.v);
+			}
+		}
+	}
 	const auto fullId = FullStoryId{ peer->id, id };
 	auto &stories = _stories[peer->id];
 	const auto i = stories.find(id);
@@ -484,6 +497,21 @@ Story *Stories::parseAndApply(
 		const auto result = i->second.get();
 		const auto mediaChanged = (result->media() != *media);
 		result->applyChanges(*media, data, now);
+		if (list) {
+			const auto &was = result->albumIds();
+			if (*list != was) {
+				if (!albumInfo && !was.empty()) {
+					albumInfo = &_albums[peer->id];
+				}
+				for (const auto wasId : result->albumIds()) {
+					if (!list->contains(wasId)) {
+						albumInfo->sets[wasId].albumKnownInArchive.remove(id);
+					}
+				}
+				result->setAlbumIds(*base::take(list));
+			}
+		}
+
 		const auto j = _pollingSettings.find(result);
 		if (j != end(_pollingSettings)) {
 			maybeSchedulePolling(result, j->second, now);
@@ -508,6 +536,9 @@ Story *Stories::parseAndApply(
 		data,
 		now
 	)).first->second.get();
+	if (list) {
+		result->setAlbumIds(*base::take(list));
+	}
 
 	if (const auto archive = lookupArchive(peer)) {
 		const auto added = archive->ids.list.emplace(id).second;
@@ -827,6 +858,7 @@ void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
 			removeDependencyStory(story.get());
 			const auto removeFromAlbum = [&](int albumId) {
 				if (const auto set = albumIdsSet(peerId, albumId, true)) {
+					set->albumKnownInArchive.remove(id);
 					if (set->ids.list.remove(id)) {
 						if (set->total > 0) {
 							--set->total;
@@ -1669,9 +1701,18 @@ bool Stories::albumIdsLoaded(PeerId peerId, int albumId) const {
 }
 
 void Stories::albumIdsLoadMore(PeerId peerId, int albumId) {
+	albumIdsLoadMore(peerId, albumId, false);
+}
+
+void Stories::albumIdsLoadMore(PeerId peerId, int albumId, bool reload) {
+	Expects(!reload || albumId > 0);
+
 	const auto peer = _owner->peer(peerId);
 	const auto set = albumIdsSet(peerId, albumId);
-	if (!set || set->requestId || set->loaded) {
+	if (set && reload) {
+		_owner->session().api().request(base::take(set->requestId)).cancel();
+	}
+	if (!set || set->requestId || (!reload && set->loaded)) {
 		return;
 	}
 	const auto api = &_owner->session().api();
@@ -1681,6 +1722,11 @@ void Stories::albumIdsLoadMore(PeerId peerId, int albumId) {
 			return;
 		}
 		set->requestId = 0;
+		if (reload) {
+			set->ids.list.clear();
+			set->ids.pinnedToTop.clear();
+			set->lastId = StoryId();
+		}
 		const auto &data = result.data();
 		const auto now = base::unixtime::now();
 		auto pinnedToTopIds = data.vpinned_to_top().value_or_empty();
@@ -1734,9 +1780,26 @@ void Stories::albumIdsLoadMore(PeerId peerId, int albumId) {
 		: api->request(MTPstories_GetAlbumStories(
 			peer->input,
 			MTP_int(albumId),
-			MTP_int(set->lastId),
-			MTP_int(set->lastId ? kSavedPerPage : kSavedFirstPerPage)
+			MTP_int(reload ? 0 : set->ids.list.size()),
+			MTP_int((reload || set->ids.list.empty())
+				? kSavedFirstPerPage
+				: kSavedPerPage)
 		)).done(done).fail(fail).send();
+}
+
+const base::flat_set<StoryId> &Stories::albumKnownInArchive(
+		PeerId peerId,
+		int albumId) const {
+	static const auto empty = base::flat_set<StoryId>();
+
+	const auto i = _albums.find(peerId);
+	if (i == end(_albums)) {
+		return empty;
+	}
+	const auto j = i->second.sets.find(albumId);
+	return (j != end(i->second.sets))
+		? j->second.albumKnownInArchive
+		: empty;
 }
 
 auto Stories::albumsListValue(PeerId peerId)
@@ -1839,6 +1902,33 @@ void Stories::albumRename(
 }
 
 void Stories::notifyAlbumUpdate(StoryAlbumUpdate &&update) {
+	const auto peerId = update.peer->id;
+	const auto i = _albums.find(peerId);
+	if (i != end(_albums)) {
+		const auto albumId = update.albumId;
+		const auto j = i->second.sets.find(albumId);
+		if (j != end(i->second.sets)) {
+			for (const auto &id : update.added) {
+				j->second.albumKnownInArchive.emplace(id);
+				if (const auto story = lookup({ peerId, id })) {
+					auto now = (*story)->albumIds();
+					if (now.emplace(albumId).second) {
+						(*story)->setAlbumIds(std::move(now));
+					}
+				}
+			}
+			for (const auto &id : update.removed) {
+				j->second.albumKnownInArchive.remove(id);
+				if (const auto story = lookup({ peerId, id })) {
+					auto now = (*story)->albumIds();
+					if (now.remove(albumId)) {
+						(*story)->setAlbumIds(std::move(now));
+					}
+				}
+			}
+			albumIdsLoadMore(peerId, albumId, true);
+		}
+	}
 	_albumUpdates.fire(std::move(update));
 }
 

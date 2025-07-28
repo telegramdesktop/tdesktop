@@ -12,13 +12,18 @@ namespace Info::Stories {
 [[nodiscard]] int ArchiveId();
 
 struct Tag {
-	explicit Tag(not_null<PeerData*> peer, int albumId = 0)
+	explicit Tag(
+		not_null<PeerData*> peer,
+		int albumId = 0,
+		int addingToAlbumId = 0)
 	: peer(peer)
-	, albumId(albumId) {
+	, albumId(albumId)
+	, addingToAlbumId(addingToAlbumId) {
 	}
 
 	not_null<PeerData*> peer;
 	int albumId = 0;
+	int addingToAlbumId = 0;
 };
 
 } // namespace Info::Stories

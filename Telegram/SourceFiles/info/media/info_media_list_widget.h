@@ -171,6 +171,7 @@ private:
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
 	void refreshRows();
+	void markStoryMsgsSelected();
 	void trackSession(not_null<Main::Session*> session);
 
 	[[nodiscard]] SelectedItems collectSelectedItems() const;
@@ -274,6 +275,8 @@ private:
 
 	void setActionBoxWeak(base::weak_qptr<Ui::BoxContent> box);
 
+	void setupStoriesTrackIds();
+
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
 
@@ -304,6 +307,10 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
 	const std::unique_ptr<DateBadge> _dateBadge;
+
+	int _storiesAddToAlbumId = 0;
+	base::flat_set<StoryId> _storiesInAlbum;
+	base::flat_set<MsgId> _storyMsgsToMarkSelected;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;

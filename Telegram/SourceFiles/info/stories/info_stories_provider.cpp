@@ -49,7 +49,8 @@ Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
 , _peer(controller->key().storiesPeer())
 , _history(_peer->owner().history(_peer))
-, _albumId(controller->key().storiesAlbumId()) {
+, _albumId(controller->key().storiesAlbumId())
+, _addingToAlbumId(controller->key().storiesAddToAlbumId()) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		for (auto &layout : _layouts) {
@@ -366,7 +367,7 @@ ListItemSelectionData Provider::computeSelectionData(
 		TextSelection selection) {
 	auto result = ListItemSelectionData(selection);
 	const auto id = item->id;
-	if (!IsStoryMsgId(id)) {
+	if (_addingToAlbumId || !IsStoryMsgId(id)) {
 		return result;
 	}
 	const auto peer = item->history()->peer;

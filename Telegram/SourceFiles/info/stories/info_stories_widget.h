@@ -18,7 +18,7 @@ class InnerWidget;
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
-	Memento(not_null<PeerData*> peer, int albumId);
+	Memento(not_null<PeerData*> peer, int albumId, int addingToAlbumId);
 	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
@@ -37,6 +37,7 @@ public:
 
 private:
 	Media::Memento _media;
+	int _addingToAlbumId = 0;
 
 };
 

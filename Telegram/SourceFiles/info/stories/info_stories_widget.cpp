@@ -29,8 +29,8 @@ Memento::Memento(not_null<Controller*> controller)
 , _media(controller) {
 }
 
-Memento::Memento(not_null<PeerData*> peer, int albumId)
-: ContentMemento(Tag{ peer, albumId })
+Memento::Memento(not_null<PeerData*> peer, int albumId, int addingToAlbumId)
+: ContentMemento(Tag{ peer, albumId, addingToAlbumId })
 , _media(peer, 0, Media::Type::PhotoVideo) {
 }
 
@@ -57,7 +57,8 @@ Widget::Widget(
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
-		_albumId.value()));
+		_albumId.value(),
+		controller->key().storiesAddToAlbumId()));
 	_inner->albumIdChanges() | rpl::start_with_next([=](int id) {
 		controller->showSection(
 			Make(controller->storiesPeer(), id),
@@ -139,7 +140,7 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer, int albumId) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
-			std::make_shared<Memento>(peer, albumId)));
+			std::make_shared<Memento>(peer, albumId, 0)));
 }
 
 } // namespace Info::Stories

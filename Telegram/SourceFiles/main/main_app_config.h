@@ -111,6 +111,9 @@ public:
 
 	[[nodiscard]] QString starsRatingLearnMoreUrl() const;
 
+	[[nodiscard]] int storiesAlbumsLimit() const;
+	[[nodiscard]] int storiesAlbumLimit() const;
+
 	void refresh(bool force = false);
 
 private:

@@ -250,6 +250,9 @@ public:
 	[[nodiscard]] int storiesAlbumId() const {
 		return _storiesAlbumId;
 	}
+	[[nodiscard]] int storiesAddToAlbumId() const {
+		return _storiesAddToAlbumId;
+	}
 	[[nodiscard]] Statistics::Tag statisticsTag() const {
 		return _statisticsTag;
 	}
@@ -315,6 +318,7 @@ private:
 	UserData * const _settingsSelf = nullptr;
 	PeerData * const _storiesPeer = nullptr;
 	int _storiesAlbumId = 0;
+	int _storiesAddToAlbumId = 0;
 	Statistics::Tag _statisticsTag;
 	PeerData * const _starrefPeer = nullptr;
 	BotStarRef::Type _starrefType = {};

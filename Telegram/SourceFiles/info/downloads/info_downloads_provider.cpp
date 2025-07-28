@@ -16,8 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
-#include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/history.h"
@@ -34,7 +35,8 @@ using namespace Media;
 } // namespace
 
 Provider::Provider(not_null<AbstractController*> controller)
-: _controller(controller) {
+: _controller(controller)
+, _storiesAddToAlbumId(_controller->storiesAddToAlbumId()) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		for (auto &layout : _layouts) {
@@ -485,6 +487,9 @@ void Provider::applyDragSelection(
 		return;
 	}
 	const auto search = !_queryWords.isEmpty();
+	const auto selectLimit = _storiesAddToAlbumId
+		? _controller->session().appConfig().storiesAlbumLimit()
+		: MaxSelectedItems;
 	auto chosen = base::flat_set<not_null<const HistoryItem*>>();
 	chosen.reserve(till - from);
 	for (auto i = from; i != till; ++i) {
@@ -496,7 +501,8 @@ void Provider::applyDragSelection(
 		ChangeItemSelection(
 			selected,
 			item,
-			computeSelectionData(item, FullSelection));
+			computeSelectionData(item, FullSelection),
+			selectLimit);
 	}
 	if (selected.size() != chosen.size()) {
 		for (auto i = begin(selected); i != end(selected);) {

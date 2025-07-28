@@ -238,6 +238,14 @@ QString AppConfig::starsRatingLearnMoreUrl() const {
 		u"https://telegram.org/blog"_q);
 }
 
+int AppConfig::storiesAlbumsLimit() const {
+	return get<int>(u"stories_albums_limit"_q, 100);
+}
+
+int AppConfig::storiesAlbumLimit() const {
+	return get<int>(u"stories_album_stories_limit"_q, 1000);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

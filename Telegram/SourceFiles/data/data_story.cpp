@@ -899,8 +899,12 @@ StoryId Story::repostSourceId() const {
 	return _repostSourceId;
 }
 
-const std::vector<int> &Story::albumIds() const {
+const base::flat_set<int> &Story::albumIds() const {
 	return _albumIds;
+}
+
+void Story::setAlbumIds(base::flat_set<int> ids) {
+	_albumIds = std::move(ids);
 }
 
 PeerData *Story::fromPeer() const {

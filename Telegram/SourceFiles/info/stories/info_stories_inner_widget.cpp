@@ -47,6 +47,150 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Info::Stories {
+namespace {
+
+class EditAlbumBox final : public Ui::BoxContent {
+public:
+	EditAlbumBox(
+		QWidget*,
+		not_null<Controller*> controller,
+		not_null<PeerData*> peer,
+		Fn<void()> reload,
+		int albumId);
+
+private:
+	void prepare() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+
+	const not_null<Window::SessionController*> _window;
+	const not_null<WrapWidget*> _content;
+	rpl::variable<Data::StoryAlbumUpdate> _changes;
+	Fn<void()> _reload;
+	bool _saving = false;
+
+};
+
+EditAlbumBox::EditAlbumBox(
+	QWidget*,
+	not_null<Controller*> controller,
+	not_null<PeerData*> peer,
+	Fn<void()> reload,
+	int albumId)
+: _window(controller->parentController())
+, _content(Ui::CreateChild<WrapWidget>(
+	this,
+	_window,
+	Wrap::StoryAlbumEdit,
+	std::make_shared<Info::Memento>(
+		std::vector<std::shared_ptr<ContentMemento>>(
+			1,
+			std::make_shared<Memento>(
+				peer,
+				Data::kStoriesAlbumIdArchive,
+				albumId))).get()))
+, _changes(Data::StoryAlbumUpdate{ .peer = peer, .albumId = albumId })
+, _reload(std::move(reload)) {
+	_content->selectedListValue(
+	) | rpl::start_with_next([=](const SelectedItems &selection) {
+		const auto stories = &_window->session().data().stories();
+		auto ids = stories->albumKnownInArchive(peer->id, albumId);
+		auto now = _changes.current();
+		now.added.clear();
+		now.added.reserve(selection.list.size());
+		now.removed.clear();
+		now.removed.reserve(ids.size());
+		for (const auto &entry : selection.list) {
+			const auto id = StoryIdFromMsgId(entry.globalId.itemId.msg);
+			if (!ids.remove(id)) {
+				now.added.push_back(id);
+			}
+		}
+		for (const auto id : ids) {
+			now.removed.push_back(id);
+		}
+		_changes = std::move(now);
+	}, lifetime());
+}
+
+void EditAlbumBox::prepare() {
+	setTitle(tr::lng_stories_album_add_title());
+	setStyle(st::collectionEditBox);
+
+	_content->desiredHeightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(st::boxWideWidth, height);
+	}, _content->lifetime());
+
+	addTopButton(st::boxTitleClose, [=] {
+		closeBox();
+	});
+
+	const auto weakBox = base::make_weak(this);
+	auto text = _changes.value(
+	) | rpl::map([=](const Data::StoryAlbumUpdate &update) {
+		return (!update.added.empty() && update.removed.empty())
+			? tr::lng_stories_album_add_title()
+			: tr::lng_settings_save();
+	}) | rpl::flatten_latest();
+	addButton(std::move(text), [=] {
+		if (_saving) {
+			return;
+		}
+		auto add = QVector<MTPint>();
+		auto remove = QVector<MTPint>();
+		const auto &changes = _changes.current();
+		for (const auto &id : changes.added) {
+			add.push_back(MTP_int(id));
+		}
+		for (const auto &id : changes.removed) {
+			remove.push_back(MTP_int(id));
+		}
+		if (add.empty() && remove.empty()) {
+			closeBox();
+			return;
+		}
+		_saving = true;
+		const auto session = &_window->session();
+		const auto reload = _reload;
+		using Flag = MTPstories_UpdateAlbum::Flag;
+		session->api().request(
+			MTPstories_UpdateAlbum(
+				MTP_flags(Flag()
+					| (add.isEmpty() ? Flag() : Flag::f_add_stories)
+					| (remove.isEmpty()
+						? Flag()
+						: Flag::f_delete_stories)),
+				changes.peer->input,
+				MTP_int(changes.albumId),
+				MTPstring(),
+				MTP_vector<MTPint>(remove),
+				MTP_vector<MTPint>(add),
+				MTPVector<MTPint>())
+		).done([=] {
+			if (const auto strong = weakBox.get()) {
+				strong->_saving = false;
+				strong->closeBox();
+			}
+			session->data().stories().notifyAlbumUpdate(
+				base::duplicate(changes));
+			if (const auto onstack = reload) {
+				onstack();
+			}
+		}).fail([=](const MTP::Error &error) {
+			if (const auto strong = weakBox.get()) {
+				strong->_saving = false;
+				strong->uiShow()->showToast(error.type());
+			}
+		}).send();
+	});
+}
+
+void EditAlbumBox::resizeEvent(QResizeEvent *e) {
+	_content->setGeometry(rect());
+}
+
+} // namespace
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
@@ -66,11 +210,8 @@ InnerWidget::InnerWidget(
 
 	_albumId.value(
 	) | rpl::start_with_next([=](int albumId) {
-		_list.destroy();
-		_controller->replaceKey(Key(Tag(_peer, albumId)));
-		setupList();
-		setupEmpty();
-		resizeToWidth(width());
+		_controller->replaceKey(Key(Tag(_peer, albumId, _addingToAlbumId)));
+		reload();
 	}, lifetime());
 }
 
@@ -108,7 +249,9 @@ InnerWidget::~InnerWidget() = default;
 
 void InnerWidget::setupTop() {
 	const auto albumId = _albumId.current();
-	if (albumId == Data::kStoriesAlbumIdArchive) {
+	if (_addingToAlbumId) {
+		return;
+	} else if (albumId == Data::kStoriesAlbumIdArchive) {
 		createAboutArchive();
 	} else if (_isStackBottom) {
 		if (_peer->isSelf()) {
@@ -608,107 +751,24 @@ rpl::producer<Data::StoryAlbumUpdate> InnerWidget::changes() const {
 	return _albumChanges.value();
 }
 
-void InnerWidget::reloadAlbum(int id) {
-	// #TODO stories
+void InnerWidget::reload() {
+	auto old = std::exchange(_list, object_ptr<Media::ListWidget>(nullptr));
+	setupList();
+	setupEmpty();
+	old.destroy();
+
+	resizeToWidth(width());
 }
 
 void InnerWidget::editAlbumStories(int id) {
 	const auto weak = base::make_weak(this);
-	_controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(tr::lng_stories_album_add_title());
-		box->setWidth(st::boxWideWidth);
-		box->setStyle(st::collectionEditBox);
+	auto box = Box<EditAlbumBox>(_controller, _peer, crl::guard(this, [=] {
+		if (_albumId.current() == id) {
+			reload();
+		}
+	}), id);
 
-		struct State {
-			rpl::variable<Data::StoryAlbumUpdate> changes;
-			base::unique_qptr<Ui::PopupMenu> menu;
-			bool saving = false;
-		};
-		const auto state = box->lifetime().make_state<State>(State{
-			.changes = Data::StoryAlbumUpdate{
-				.peer = _peer,
-				.albumId = id,
-			}
-		});
-		const auto content = box->addRow(
-			object_ptr<InnerWidget>(
-				box,
-				_controller,
-				rpl::single(Data::kStoriesAlbumIdArchive),
-				id/*,
-				_peer,
-				state->descriptor.value(),
-				id,
-				(_all.filter == Filter()) ? _all : Entries()*/),
-			{});
-		state->changes = content->changes();
-
-		content->scrollToRequests(
-		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
-			box->scrollTo(request);
-		}, content->lifetime());
-
-		box->addTopButton(st::boxTitleClose, [=] {
-			box->closeBox();
-		});
-		const auto weakBox = base::make_weak(box);
-		auto text = state->changes.value(
-		) | rpl::map([=](const Data::StoryAlbumUpdate &update) {
-			return (!update.added.empty() && update.removed.empty())
-				? tr::lng_stories_album_add_title()
-				: tr::lng_settings_save();
-		}) | rpl::flatten_latest();
-		box->addButton(std::move(text), [=] {
-			if (state->saving) {
-				return;
-			}
-			auto add = QVector<MTPint>();
-			auto remove = QVector<MTPint>();
-			const auto &changes = state->changes.current();
-			for (const auto &id : changes.added) {
-				add.push_back(MTP_int(id));
-			}
-			for (const auto &id : changes.removed) {
-				remove.push_back(MTP_int(id));
-			}
-			if (add.empty() && remove.empty()) {
-				box->closeBox();
-				return;
-			}
-			state->saving = true;
-			const auto session = &_controller->session();
-			using Flag = MTPstories_UpdateAlbum::Flag;
-			session->api().request(
-				MTPstories_UpdateAlbum(
-					MTP_flags(Flag()
-						| (add.isEmpty() ? Flag() : Flag::f_add_stories)
-						| (remove.isEmpty()
-							? Flag()
-							: Flag::f_delete_stories)),
-					_peer->input,
-					MTP_int(id),
-					MTPstring(),
-					MTP_vector<MTPint>(remove),
-					MTP_vector<MTPint>(add),
-					MTPVector<MTPint>())
-			).done([=] {
-				if (const auto strong = weakBox.get()) {
-					state->saving = false;
-					strong->closeBox();
-				}
-				session->data().stories().notifyAlbumUpdate(
-					base::duplicate(changes));
-				if (const auto strong = weak.get()) {
-					strong->reloadAlbum(id);
-				}
-			}).fail([=](const MTP::Error &error) {
-				if (const auto strong = weakBox.get()) {
-					state->saving = false;
-					strong->uiShow()->showToast(error.type());
-				}
-			}).send();
-		});
-	}));
+	_controller->uiShow()->show(std::move(box));
 }
 
 void InnerWidget::editAlbumName(int id) {

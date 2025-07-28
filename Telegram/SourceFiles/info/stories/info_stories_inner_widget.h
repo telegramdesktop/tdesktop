@@ -67,7 +67,7 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void selectionAction(SelectionAction action);
 
-	void reloadAlbum(int id);
+	void reload();
 	void editAlbumStories(int id);
 	void editAlbumName(int id);
 	void confirmDeleteAlbum(int id);

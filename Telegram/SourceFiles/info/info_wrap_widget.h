@@ -53,6 +53,7 @@ enum class Wrap {
 	Narrow,
 	Side,
 	Search,
+	StoryAlbumEdit,
 };
 
 struct SelectedItem {
@@ -143,6 +144,8 @@ public:
 		return _removeRequests.events();
 	}
 
+	[[nodiscard]] rpl::producer<SelectedItems> selectedListValue() const;
+
 	void replaceSwipeHandler(Ui::Controls::SwipeHandlerArgs *incompleteArgs);
 
 	~WrapWidget();
@@ -206,7 +209,6 @@ private:
 		not_null<Window::SessionController*> window,
 		not_null<ContentMemento*> memento);
 
-	rpl::producer<SelectedItems> selectedListValue() const;
 	bool requireTopBarSearch() const;
 
 	void addTopBarMenuButton();

@@ -213,10 +213,13 @@ public:
 		PeerId peerId,
 		int albumId) const;
 	[[nodiscard]] rpl::producer<StoryAlbumIdsKey> albumIdsChanged() const;
-	[[nodiscard]] int albumIdsCount(PeerId peerIdl, int albumId) const;
+	[[nodiscard]] int albumIdsCount(PeerId peerId, int albumId) const;
 	[[nodiscard]] bool albumIdsCountKnown(PeerId peerId, int albumId) const;
 	[[nodiscard]] bool albumIdsLoaded(PeerId peerId, int albumId) const;
 	void albumIdsLoadMore(PeerId peerId, int albumId);
+	[[nodiscard]] const base::flat_set<StoryId> &albumKnownInArchive(
+		PeerId peerId,
+		int albumId) const;
 
 	[[nodiscard]] auto albumsListValue(PeerId peerId)
 		-> rpl::producer<std::vector<Data::StoryAlbum>>;
@@ -286,6 +289,7 @@ public:
 private:
 	struct Set {
 		StoriesIds ids;
+		base::flat_set<StoryId> albumKnownInArchive;
 		int total = -1;
 		StoryId lastId = 0;
 		bool loaded = false;
@@ -307,6 +311,7 @@ private:
 		DirectRequest,
 	};
 
+	void albumIdsLoadMore(PeerId peerId, int albumId, bool reload);
 	void parseAndApply(const MTPPeerStories &stories, ParseSource source);
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,

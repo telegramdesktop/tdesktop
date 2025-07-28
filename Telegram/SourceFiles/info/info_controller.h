@@ -90,22 +90,24 @@ public:
 		Data::ReactionId selected,
 		FullMsgId contextId);
 
-	PeerData *peer() const;
-	Data::ForumTopic *topic() const;
-	Data::SavedSublist *sublist() const;
-	UserData *settingsSelf() const;
-	bool isDownloads() const;
-	bool isGlobalMedia() const;
-	PeerData *storiesPeer() const;
-	int storiesAlbumId() const;
-	Statistics::Tag statisticsTag() const;
-	PeerData *starrefPeer() const;
-	BotStarRef::Type starrefType() const;
-	PollData *poll() const;
-	FullMsgId pollContextId() const;
-	std::shared_ptr<Api::WhoReadList> reactionsWhoReadIds() const;
-	Data::ReactionId reactionsSelected() const;
-	FullMsgId reactionsContextId() const;
+	[[nodiscard]] PeerData *peer() const;
+	[[nodiscard]] Data::ForumTopic *topic() const;
+	[[nodiscard]] Data::SavedSublist *sublist() const;
+	[[nodiscard]] UserData *settingsSelf() const;
+	[[nodiscard]] bool isDownloads() const;
+	[[nodiscard]] bool isGlobalMedia() const;
+	[[nodiscard]] PeerData *storiesPeer() const;
+	[[nodiscard]] int storiesAlbumId() const;
+	[[nodiscard]] int storiesAddToAlbumId() const;
+	[[nodiscard]] Statistics::Tag statisticsTag() const;
+	[[nodiscard]] PeerData *starrefPeer() const;
+	[[nodiscard]] BotStarRef::Type starrefType() const;
+	[[nodiscard]] PollData *poll() const;
+	[[nodiscard]] FullMsgId pollContextId() const;
+	[[nodiscard]] auto reactionsWhoReadIds() const
+		-> std::shared_ptr<Api::WhoReadList>;
+	[[nodiscard]] Data::ReactionId reactionsSelected() const;
+	[[nodiscard]] FullMsgId reactionsContextId() const;
 
 private:
 	struct PollKey {
@@ -228,6 +230,9 @@ public:
 	}
 	[[nodiscard]] int storiesAlbumId() const {
 		return key().storiesAlbumId();
+	}
+	[[nodiscard]] int storiesAddToAlbumId() const {
+		return key().storiesAddToAlbumId();
 	}
 	[[nodiscard]] Statistics::Tag statisticsTag() const {
 		return key().statisticsTag();
