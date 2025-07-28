@@ -85,9 +85,12 @@ protected:
 private:
 	int recountHeight();
 	void refreshHeight();
+	void refreshEmpty();
+	void preloadArchiveCount();
 
 	void setupTop();
 	void setupList();
+	void setupEmpty();
 	void setupAlbums();
 	void createButtons();
 	void createProfileTop();
@@ -120,7 +123,7 @@ private:
 
 	object_ptr<Ui::VerticalLayout> _top = { nullptr };
 	object_ptr<Media::ListWidget> _list = { nullptr };
-	object_ptr<EmptyWidget> _empty;
+	object_ptr<Ui::RpWidget> _empty = { nullptr };
 
 	bool _inResize = false;
 	bool _isStackBottom = false;

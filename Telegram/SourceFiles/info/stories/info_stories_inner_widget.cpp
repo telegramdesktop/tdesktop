@@ -48,61 +48,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::Stories {
 
-class EmptyWidget : public Ui::RpWidget {
-public:
-	EmptyWidget(QWidget *parent);
-
-	void setFullHeight(rpl::producer<int> fullHeightValue);
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	object_ptr<Ui::FlatLabel> _text;
-	int _height = 0;
-
-};
-
-EmptyWidget::EmptyWidget(QWidget *parent)
-: RpWidget(parent)
-, _text(this, st::infoEmptyLabel) {
-}
-
-void EmptyWidget::setFullHeight(rpl::producer<int> fullHeightValue) {
-	std::move(
-		fullHeightValue
-	) | rpl::start_with_next([this](int fullHeight) {
-		// Make icon center be on 1/3 height.
-		auto iconCenter = fullHeight / 3;
-		auto iconHeight = st::infoEmptyStories.height();
-		auto iconTop = iconCenter - iconHeight / 2;
-		_height = iconTop + st::infoEmptyIconTop;
-		resizeToWidth(width());
-	}, lifetime());
-}
-
-int EmptyWidget::resizeGetHeight(int newWidth) {
-	auto labelTop = _height - st::infoEmptyLabelTop;
-	auto labelWidth = newWidth - 2 * st::infoEmptyLabelSkip;
-	_text->resizeToNaturalWidth(labelWidth);
-
-	auto labelLeft = (newWidth - _text->width()) / 2;
-	_text->moveToLeft(labelLeft, labelTop, newWidth);
-
-	update();
-	return _height;
-}
-
-void EmptyWidget::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-
-	const auto iconLeft = (width() - st::infoEmptyStories.width()) / 2;
-	const auto iconTop = height() - st::infoEmptyIconTop;
-	st::infoEmptyStories.paint(p, iconLeft, iconTop, width());
-}
-
 InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
@@ -116,20 +61,34 @@ InnerWidget::InnerWidget(
 , _albumChanges(Data::StoryAlbumUpdate{
 	.peer = _peer,
 	.albumId = _addingToAlbumId,
-})
-, _empty(this) {
-	_empty->heightValue(
-	) | rpl::start_with_next([=] {
-		refreshHeight();
-	}, _empty->lifetime());
-	setupList();
+}) {
+	preloadArchiveCount();
 
-	_albumId.changes(
+	_albumId.value(
 	) | rpl::start_with_next([=](int albumId) {
 		_list.destroy();
 		_controller->replaceKey(Key(Tag(_peer, albumId)));
 		setupList();
+		setupEmpty();
 		resizeToWidth(width());
+	}, lifetime());
+}
+
+void InnerWidget::preloadArchiveCount() {
+	constexpr auto kArchive = Data::kStoriesAlbumIdArchive;
+	const auto stories = &_peer->owner().stories();
+	if (!_peer->canEditStories()
+		|| stories->albumIdsCountKnown(_peer->id, kArchive)) {
+		return;
+	}
+	const auto key = Data::StoryAlbumIdsKey{ _peer->id, kArchive };
+	stories->albumIdsLoadMore(_peer->id, kArchive);
+	stories->albumIdsChanged() | rpl::filter(
+		rpl::mappers::_1 == key
+	) | rpl::take_while([=] {
+		return !stories->albumIdsCountKnown(_peer->id, kArchive);
+	}) | rpl::start_with_next([=] {
+		refreshAlbumsTabs();
 	}, lifetime());
 }
 
@@ -437,11 +396,99 @@ void InnerWidget::setupList() {
 	raw->show();
 }
 
+void InnerWidget::setupEmpty() {
+	const auto stories = &_controller->session().data().stories();
+	const auto key = Data::StoryAlbumIdsKey{ _peer->id, _albumId.current() };
+	rpl::combine(
+		rpl::single(
+			rpl::empty
+		) | rpl::then(
+			stories->albumIdsChanged() | rpl::filter(
+				rpl::mappers::_1 == key
+			) | rpl::to_empty
+		),
+		_list->heightValue()
+	) | rpl::start_with_next([=](auto, int listHeight) {
+		if (listHeight) {
+			_empty.destroy();
+			return;
+		}
+		refreshEmpty();
+	}, _list->lifetime());
+}
+
+void InnerWidget::refreshEmpty() {
+	_empty.destroy();
+
+	const auto albumId = _albumId.current();
+	const auto stories = &_controller->session().data().stories();
+	const auto knownEmpty = stories->albumIdsCountKnown(_peer->id, albumId);
+	const auto albumCanAdd = knownEmpty
+		&& albumId
+		&& (albumId != Data::kStoriesAlbumIdArchive)
+		&& _peer->canEditStories();
+	if (albumCanAdd) {
+		auto empty = object_ptr<Ui::VerticalLayout>(this);
+		empty->add(
+			object_ptr<Ui::CenterWrap<>>(
+				empty.get(),
+				object_ptr<Ui::FlatLabel>(
+					empty.get(),
+					tr::lng_stories_album_empty_title(),
+					st::collectionEmptyTitle)),
+			st::collectionEmptyTitleMargin);
+		empty->add(
+			object_ptr<Ui::CenterWrap<>>(
+				empty.get(),
+				object_ptr<Ui::FlatLabel>(
+					empty.get(),
+					tr::lng_stories_album_empty_text(),
+					st::collectionEmptyText)),
+			st::collectionEmptyTextMargin);
+
+		const auto button = empty->add(
+			object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+				empty.get(),
+				object_ptr<Ui::RoundButton>(
+					empty.get(),
+					rpl::single(QString()),
+					st::collectionEmptyButton)),
+			st::collectionEmptyAddMargin)->entity();
+		button->setText(tr::lng_stories_album_add_title(
+		) | rpl::map([](const QString &text) {
+			return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
+		}));
+		button->setTextTransform(
+			Ui::RoundButton::TextTransform::NoTransform);
+		button->setClickedCallback([=] {
+			editAlbumStories(albumId);
+		});
+
+		empty->show();
+		_empty = std::move(empty);
+	} else {
+		_empty = object_ptr<Ui::FlatLabel>(
+			this,
+			(!knownEmpty
+				? tr::lng_contacts_loading(Ui::Text::WithEntities)
+				: _peer->isSelf()
+				? tr::lng_stories_empty(Ui::Text::RichLangValue)
+				: tr::lng_stories_empty_channel(Ui::Text::RichLangValue)),
+			st::giftListAbout);
+		_empty->show();
+	}
+	resizeToWidth(width());
+}
+
 void InnerWidget::refreshAlbumsTabs() {
 	Expects(!_addingToAlbumId);
 	Expects(_albumsWrap != nullptr);
 
-	if (_albums.empty() && !_peer->canEditStories()) {
+	const auto has = _peer->canEditStories()
+		&& _peer->owner().stories().albumIdsCount(
+			_peer->id,
+			Data::kStoriesAlbumIdArchive);
+	if (_albums.empty() && !has) {
 		if (base::take(_albumsTabs)) {
 			resizeToWidth(width());
 		}
@@ -471,7 +518,7 @@ void InnerWidget::refreshAlbumsTabs() {
 			selected = tabs.front().id;
 		}
 	}
-	if (_peer->canEditStories()) {
+	if (has) {
 		tabs.push_back({
 			.id = u"add"_q,
 			.text = { '+' + tr::lng_stories_album_add(tr::now) },
@@ -754,14 +801,22 @@ void InnerWidget::selectionAction(SelectionAction action) {
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {
+	if (!newWidth) {
+		return 0;
+	}
 	_inResize = true;
 	auto guard = gsl::finally([this] { _inResize = false; });
 
 	if (_top) {
 		_top->resizeToWidth(newWidth);
 	}
-	_list->resizeToWidth(newWidth);
-	_empty->resizeToWidth(newWidth);
+	if (_list) {
+		_list->resizeToWidth(newWidth);
+	}
+	if (const auto empty = _empty.get()) {
+		const auto margin = st::giftListAboutMargin;
+		empty->resizeToWidth(newWidth - margin.left() - margin.right());
+	}
 	return recountHeight();
 }
 
@@ -784,25 +839,23 @@ int InnerWidget::recountHeight() {
 		listHeight = _list->heightNoMargins();
 		top += listHeight;
 	}
-	if (listHeight > 0) {
-		_empty->hide();
-	} else {
-		_empty->show();
-		_empty->moveToLeft(0, top);
-		top += _empty->heightNoMargins();
+	if (const auto empty = _empty.get()) {
+		const auto margin = st::giftListAboutMargin;
+		empty->moveToLeft(margin.left(), top + margin.top());
+		top += margin.top() + empty->height() + margin.bottom();
 	}
 	return top;
 }
 
 void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
-	using namespace rpl::mappers;
-	_empty->setFullHeight(rpl::combine(
-		std::move(value),
-		_listTops.events_starting_with(
-			_list->topValue()
-		) | rpl::flatten_latest(),
-		_topHeight.value(),
-		_1 - _2 + _3));
+	//using namespace rpl::mappers;
+	//_empty->setFullHeight(rpl::combine(
+	//	std::move(value),
+	//	_listTops.events_starting_with(
+	//		_list->topValue()
+	//	) | rpl::flatten_latest(),
+	//	_topHeight.value(),
+	//	_1 - _2 + _3));
 }
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {

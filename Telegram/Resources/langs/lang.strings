@@ -3760,7 +3760,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_collection_new_create" = "Create";
 "lng_gift_collection_empty_title" = "Organize Your Gifts";
 "lng_gift_collection_empty_text" = "Add some of your gifts to this collection.";
-"lng_gift_collection_empty_button" = "Add to Collection";
 "lng_gift_collection_all" = "All Gifts";
 "lng_gift_collection_add_title" = "Add Gifts";
 "lng_gift_collection_edit" = "Edit Name";
@@ -6420,6 +6419,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_archive_title" = "Story Archive";
 "lng_stories_archive_about" = "Only you can see archived stories unless you choose to post them to your profile.";
 "lng_stories_channel_archive_about" = "Only admins of the channel can see archived stories unless they are posted to the channel page.";
+"lng_stories_empty" = "Your stories will be here.";
+"lng_stories_empty_channel" = "Channel posts will be here.";
 "lng_stories_reply_sent" = "Message sent.";
 "lng_stories_hidden_to_contacts" = "Stories from {user} were moved to the **Archive**.";
 "lng_stories_shown_in_chats" = "Stories from {user} were returned from the **Archive**.";
@@ -6463,7 +6464,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_album_new_create" = "Create";
 "lng_stories_album_empty_title" = "Organize Your Stories";
 "lng_stories_album_empty_text" = "Add some of your stories to this album.";
-"lng_stories_album_empty_button" = "Add to Album";
 "lng_stories_album_all" = "All Stories";
 "lng_stories_album_add_title" = "Add Stories";
 "lng_stories_album_edit" = "Edit Name";

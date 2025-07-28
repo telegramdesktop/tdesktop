@@ -988,7 +988,7 @@ void InnerWidget::refreshAbout() {
 				about.get(),
 				object_ptr<Ui::RoundButton>(
 					about.get(),
-					tr::lng_gift_collection_empty_button(),
+					rpl::single(QString()),
 					st::collectionEmptyButton)),
 			st::collectionEmptyAddMargin)->entity();
 		button->setText(tr::lng_gift_collection_add_title(
