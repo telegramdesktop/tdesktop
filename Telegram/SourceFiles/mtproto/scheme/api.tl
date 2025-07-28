@@ -269,7 +269,7 @@ messages.dialogsSlice#71e094f3 count:int dialogs:Vector<Dialog> messages:Vector<
 messages.dialogsNotModified#f0e3e596 count:int = messages.Dialogs;
 
 messages.messages#8c718e87 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
-messages.messagesSlice#3a54685e flags:# inexact:flags.1?true count:int next_rate:flags.0?int offset_id_offset:flags.2?int messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
+messages.messagesSlice#762b263d flags:# inexact:flags.1?true count:int next_rate:flags.0?int offset_id_offset:flags.2?int search_flood:flags.3?SearchPostsFlood messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 messages.channelMessages#c776ba4e flags:# inexact:flags.1?true pts:int count:int offset_id_offset:flags.2?int messages:Vector<Message> topics:Vector<ForumTopic> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 messages.messagesNotModified#74535f21 count:int = messages.Messages;
 
@@ -2001,6 +2001,8 @@ storyAlbum#9325705a flags:# album_id:int title:string icon_photo:flags.0?Photo i
 stories.albumsNotModified#564edaeb = stories.Albums;
 stories.albums#c3987a3a hash:long albums:Vector<StoryAlbum> = stories.Albums;
 
+searchPostsFlood#940e707c flags:# remains:int wait_till:flags.0?int stars_amount:long = SearchPostsFlood;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -2528,6 +2530,7 @@ channels.searchPosts#f2c4f24d flags:# hashtag:flags.0?string query:flags.1?strin
 channels.updatePaidMessagesPrice#4b12327b flags:# broadcast_messages_allowed:flags.0?true channel:InputChannel send_paid_messages_stars:long = Updates;
 channels.toggleAutotranslation#167fc0a1 channel:InputChannel enabled:Bool = Updates;
 channels.getMessageAuthor#ece2a0e6 channel:InputChannel id:int = User;
+channels.checkSearchPostsFlood#bba9f121 = SearchPostsFlood;
 
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;
