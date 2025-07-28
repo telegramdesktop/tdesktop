@@ -94,11 +94,38 @@ using UpdateFlag = StoryUpdate::Flag;
 	};
 }
 
+bool InsertSorted(std::vector<StoryId> &list, StoryId id) {
+	const auto i = ranges::lower_bound(list, id, std::greater<>());
+	if (i != end(list) && *i == id) {
+		return false;
+	}
+	list.insert(i, id);
+	return true;
+}
+
+bool RemoveSorted(std::vector<StoryId> &list, StoryId id) {
+	const auto i = ranges::lower_bound(list, id, std::greater<>());
+	if (i != end(list) && *i == id) {
+		list.erase(i);
+		return true;
+	}
+	return false;
+}
+
+bool RemoveUnsorted(std::vector<StoryId> &list, StoryId id) {
+	const auto i = ranges::find(list, id);
+	if (i != end(list)) {
+		list.erase(i);
+		return true;
+	}
+	return false;
+}
+
 } // namespace
 
 std::vector<StoryId> RespectingPinned(const StoriesIds &ids) {
 	if (ids.pinnedToTop.empty()) {
-		return ids.list | ranges::to_vector;
+		return ids.list;
 	}
 	auto result = std::vector<StoryId>();
 	result.reserve(ids.list.size());
@@ -541,7 +568,7 @@ Story *Stories::parseAndApply(
 	}
 
 	if (const auto archive = lookupArchive(peer)) {
-		const auto added = archive->ids.list.emplace(id).second;
+		const auto added = InsertSorted(archive->ids.list, id);
 		if (added) {
 			if (archive->total >= 0 && id > archive->lastId) {
 				++archive->total;
@@ -633,7 +660,7 @@ void Stories::savedStateChanged(not_null<Story*> story) {
 	const auto inProfile = story->inProfile();
 	if (inProfile) {
 		auto &saved = _saved[peer];
-		const auto added = saved.ids.list.emplace(id).second;
+		const auto added = InsertSorted(saved.ids.list, id);
 		if (added) {
 			if (saved.total >= 0 && id > saved.lastId) {
 				++saved.total;
@@ -642,7 +669,7 @@ void Stories::savedStateChanged(not_null<Story*> story) {
 		}
 	} else if (const auto i = _saved.find(peer); i != end(_saved)) {
 		auto &saved = i->second;
-		if (saved.ids.list.remove(id)) {
+		if (RemoveSorted(saved.ids.list, id)) {
 			if (saved.total > 0) {
 				--saved.total;
 			}
@@ -859,7 +886,14 @@ void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
 			const auto removeFromAlbum = [&](int albumId) {
 				if (const auto set = albumIdsSet(peerId, albumId, true)) {
 					set->albumKnownInArchive.remove(id);
-					if (set->ids.list.remove(id)) {
+					RemoveUnsorted(set->ids.pinnedToTop, id);
+
+					const auto sorted = (albumId == kStoriesAlbumIdSaved)
+						|| (albumId == kStoriesAlbumIdArchive);
+					const auto removed = sorted
+						? RemoveSorted(set->ids.list, id)
+						: RemoveUnsorted(set->ids.list, id);
+					if (removed) {
 						if (set->total > 0) {
 							--set->total;
 						}
@@ -1733,15 +1767,25 @@ void Stories::albumIdsLoadMore(PeerId peerId, int albumId, bool reload) {
 		auto pinnedToTop = pinnedToTopIds
 			| ranges::views::transform(&MTPint::v)
 			| ranges::to_vector;
+		const auto ordered = (albumId == kStoriesAlbumIdSaved)
+			|| (albumId == kStoriesAlbumIdArchive);
 		set->total = data.vcount().v;
 		for (const auto &story : data.vstories().v) {
 			const auto id = story.match([&](const auto &id) {
 				return id.vid().v;
 			});
-			set->ids.list.emplace(id);
+			if (ordered) {
+				InsertSorted(set->ids.list, id);
+			} else {
+				set->ids.list.push_back(id);
+			}
 			set->lastId = id;
 			if (!parseAndApply(peer, story, now)) {
-				set->ids.list.remove(id);
+				if (ordered) {
+					RemoveSorted(set->ids.list, id);
+				} else {
+					set->ids.list.pop_back();
+				}
 				if (set->total > 0) {
 					--set->total;
 				}
@@ -2026,12 +2070,12 @@ void Stories::toggleInProfileList(
 					const auto add = loaded || (id.v >= lastId);
 					if (!add) {
 						dirty = true;
-					} else if (saved.ids.list.emplace(id.v).second) {
+					} else if (InsertSorted(saved.ids.list, id.v)) {
 						if (saved.total >= 0) {
 							++saved.total;
 						}
 					}
-				} else if (saved.ids.list.remove(id.v)) {
+				} else if (RemoveSorted(saved.ids.list, id.v)) {
 					if (saved.total > 0) {
 						--saved.total;
 					}

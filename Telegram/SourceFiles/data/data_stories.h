@@ -35,7 +35,7 @@ struct StoryAlbum;
 class StoryPreload;
 
 struct StoriesIds {
-	base::flat_set<StoryId, std::greater<>> list;
+	std::vector<StoryId> list; // flat_set<int, greater> for saved/archive.
 	std::vector<StoryId> pinnedToTop;
 
 	friend inline bool operator==(

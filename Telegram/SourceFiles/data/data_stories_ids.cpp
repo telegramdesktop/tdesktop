@@ -44,8 +44,7 @@ rpl::producer<StoriesIdsSlice> AlbumStoriesIds(
 			const auto count = stories->albumIdsCount(peerId, albumId);
 			auto i = ranges::find(sorted, aroundId);
 			if (i == end(sorted)) {
-				const auto j = loaded.list.lower_bound(aroundId);
-				i = begin(sorted) + int(j - begin(loaded.list));
+				i = begin(sorted);
 			}
 			const auto hasBefore = int(i - begin(sorted));
 			const auto hasAfter = int(end(sorted) - i);
