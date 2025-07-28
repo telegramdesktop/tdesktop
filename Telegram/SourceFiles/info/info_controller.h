@@ -293,6 +293,7 @@ public:
 		return _section;
 	}
 
+	void replaceKey(Key key);
 	[[nodiscard]] bool validateMementoPeer(
 		not_null<ContentMemento*> memento) const;
 

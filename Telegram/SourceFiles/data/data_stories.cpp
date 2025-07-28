@@ -353,15 +353,7 @@ void Stories::processExpired() {
 }
 
 Stories::Set *Stories::lookupArchive(not_null<PeerData*> peer) {
-	const auto peerId = peer->id;
-	if (hasArchive(peer)) {
-		const auto i = _archive.find(peerId);
-		return (i != end(_archive))
-			? &i->second
-			: &_archive.emplace(peerId, Set()).first->second;
-	}
-	clearArchive(peer);
-	return nullptr;
+	return albumIdsSet(peer->id, kStoriesAlbumIdArchive);
 }
 
 void Stories::clearArchive(not_null<PeerData*> peer) {
@@ -379,7 +371,7 @@ void Stories::clearArchive(not_null<PeerData*> peer) {
 			}
 		}
 	}
-	_archiveChanged.fire_copy(peerId);
+	_albumIdsChanged.fire({ peerId, kStoriesAlbumIdArchive });
 }
 
 void Stories::parseAndApply(
@@ -523,7 +515,7 @@ Story *Stories::parseAndApply(
 			if (archive->total >= 0 && id > archive->lastId) {
 				++archive->total;
 			}
-			_archiveChanged.fire_copy(peer->id);
+			_albumIdsChanged.fire({ peer->id, kStoriesAlbumIdArchive });
 		}
 	}
 
@@ -615,7 +607,7 @@ void Stories::savedStateChanged(not_null<Story*> story) {
 			if (saved.total >= 0 && id > saved.lastId) {
 				++saved.total;
 			}
-			_savedChanged.fire_copy(peer);
+			_albumIdsChanged.fire({ peer, kStoriesAlbumIdSaved });
 		}
 	} else if (const auto i = _saved.find(peer); i != end(_saved)) {
 		auto &saved = i->second;
@@ -623,7 +615,7 @@ void Stories::savedStateChanged(not_null<Story*> story) {
 			if (saved.total > 0) {
 				--saved.total;
 			}
-			_savedChanged.fire_copy(peer);
+			_albumIdsChanged.fire({ peer, kStoriesAlbumIdSaved });
 		}
 	}
 }
@@ -678,6 +670,8 @@ void Stories::preloadListsMore() {
 		const auto index = static_cast<int>(list);
 		return _sourcesLoaded[index] || !_sourcesStates[index].isEmpty();
 	};
+	const auto selfId = _owner->session().userPeerId();
+	constexpr auto archive = kStoriesAlbumIdArchive;
 	if (loading(StorySourcesList::NotHidden)
 		|| loading(StorySourcesList::Hidden)) {
 		return;
@@ -685,8 +679,8 @@ void Stories::preloadListsMore() {
 		loadMore(StorySourcesList::NotHidden);
 	} else if (!countLoaded(StorySourcesList::Hidden)) {
 		loadMore(StorySourcesList::Hidden);
-	} else if (!archiveCountKnown(_owner->session().userPeerId())) {
-		archiveLoadMore(_owner->session().userPeerId());
+	} else if (!albumIdsCountKnown(selfId, archive)) {
+		albumIdsLoadMore(selfId, archive);
 	}
 }
 
@@ -831,28 +825,24 @@ void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
 				story.get(),
 				UpdateFlag::Destroyed);
 			removeDependencyStory(story.get());
-			if (hasArchive(story->peer())) {
-				if (const auto k = _archive.find(peerId)
-					; k != end(_archive)) {
-					const auto archive = &k->second;
-					if (archive->ids.list.remove(id)) {
-						if (archive->total > 0) {
-							--archive->total;
+			const auto removeFromAlbum = [&](int albumId) {
+				if (const auto set = albumIdsSet(peerId, albumId, true)) {
+					if (set->ids.list.remove(id)) {
+						if (set->total > 0) {
+							--set->total;
 						}
-						_archiveChanged.fire_copy(peerId);
+						_albumIdsChanged.fire({ peerId, albumId });
 					}
 				}
+			};
+			if (hasArchive(story->peer())) {
+				removeFromAlbum(kStoriesAlbumIdArchive);
 			}
 			if (story->inProfile()) {
-				if (const auto k = _saved.find(peerId); k != end(_saved)) {
-					const auto saved = &k->second;
-					if (saved->ids.list.remove(id)) {
-						if (saved->total > 0) {
-							--saved->total;
-						}
-						_savedChanged.fire_copy(peerId);
-					}
-				}
+				removeFromAlbum(kStoriesAlbumIdSaved);
+			}
+			for (const auto id : story->albumIds()) {
+				removeFromAlbum(id);
 			}
 			if (_preloading && _preloading->id() == fullId) {
 				_preloading = nullptr;
@@ -1465,7 +1455,7 @@ void Stories::loadReactionsSlice(
 					slice.list.push_back({
 						.peer = story->peer(),
 						.repostId = story->id(),
-						});
+					});
 				}
 			}, [&](const MTPDstoryReactionPublicForward &data) {
 				const auto item = _owner->addNewMessage(
@@ -1613,153 +1603,140 @@ bool Stories::hasArchive(not_null<PeerData*> peer) const {
 	return false;
 }
 
-const StoriesIds &Stories::archive(PeerId peerId) const {
+const Stories::Set *Stories::albumIdsSet(PeerId peerId, int albumId) const {
+	return const_cast<Stories*>(this)->albumIdsSet(peerId, albumId, true);
+}
+
+Stories::Set *Stories::albumIdsSet(PeerId peerId, int albumId, bool lazy) {
+	if (albumId == kStoriesAlbumIdArchive) {
+		const auto peer = _owner->peer(peerId);
+		if (!hasArchive(peer)) {
+			clearArchive(peer);
+			return nullptr;
+		}
+		const auto i = _archive.find(peerId);
+		return (i != end(_archive))
+			? &i->second
+			: lazy
+			? nullptr
+			: &_archive.emplace(peerId, Set()).first->second;
+	} else if (albumId == kStoriesAlbumIdSaved) {
+		const auto i = _saved.find(peerId);
+		return (i != end(_saved))
+			? &i->second
+			: lazy
+			? nullptr
+			: &_saved.emplace(peerId, Set()).first->second;
+	}
+	auto i = _albums.find(peerId);
+	if (i == end(_albums)) {
+		if (lazy) {
+			return nullptr;
+		}
+		i = _albums.emplace(peerId, Albums()).first;
+	}
+	const auto j = i->second.sets.find(albumId);
+	return (j != end(i->second.sets))
+		? &j->second
+		: lazy
+		? nullptr
+		: &i->second.sets.emplace(albumId).first->second;
+}
+
+const StoriesIds &Stories::albumIds(PeerId peerId, int albumId) const {
 	static const auto empty = StoriesIds();
-	const auto i = _archive.find(peerId);
-	return (i != end(_archive)) ? i->second.ids : empty;
+	const auto set = albumIdsSet(peerId, albumId);
+	return set ? set->ids : empty;
 }
 
-rpl::producer<PeerId> Stories::archiveChanged() const {
-	return _archiveChanged.events();
+rpl::producer<StoryAlbumIdsKey> Stories::albumIdsChanged() const {
+	return _albumIdsChanged.events();
 }
 
-int Stories::archiveCount(PeerId peerId) const {
-	const auto i = _archive.find(peerId);
-	return (i != end(_archive)) ? i->second.total : 0;
+int Stories::albumIdsCount(PeerId peerId, int albumId) const {
+	const auto set = albumIdsSet(peerId, albumId);
+	return set ? set->total : 0;
 }
 
-bool Stories::archiveCountKnown(PeerId peerId) const {
-	const auto i = _archive.find(peerId);
-	return (i != end(_archive)) && (i->second.total >= 0);
+bool Stories::albumIdsCountKnown(PeerId peerId, int albumId) const {
+	const auto set = albumIdsSet(peerId, albumId);
+	return set && (set->total >= 0);
 }
 
-bool Stories::archiveLoaded(PeerId peerId) const {
-	const auto i = _archive.find(peerId);
-	return (i != end(_archive)) && i->second.loaded;
+bool Stories::albumIdsLoaded(PeerId peerId, int albumId) const {
+	const auto set = albumIdsSet(peerId, albumId);
+	return set && set->loaded;
 }
 
-const StoriesIds &Stories::saved(PeerId peerId) const {
-	static const auto empty = StoriesIds();
-	const auto i = _saved.find(peerId);
-	return (i != end(_saved)) ? i->second.ids : empty;
-}
-
-rpl::producer<PeerId> Stories::savedChanged() const {
-	return _savedChanged.events();
-}
-
-int Stories::savedCount(PeerId peerId) const {
-	const auto i = _saved.find(peerId);
-	return (i != end(_saved)) ? i->second.total : 0;
-}
-
-bool Stories::savedCountKnown(PeerId peerId) const {
-	const auto i = _saved.find(peerId);
-	return (i != end(_saved)) && (i->second.total >= 0);
-}
-
-bool Stories::savedLoaded(PeerId peerId) const {
-	const auto i = _saved.find(peerId);
-	return (i != end(_saved)) && i->second.loaded;
-}
-
-void Stories::archiveLoadMore(PeerId peerId) {
+void Stories::albumIdsLoadMore(PeerId peerId, int albumId) {
 	const auto peer = _owner->peer(peerId);
-	const auto archive = lookupArchive(peer);
-	if (!archive || archive->requestId || archive->loaded) {
+	const auto set = albumIdsSet(peerId, albumId);
+	if (!set || set->requestId || set->loaded) {
 		return;
 	}
 	const auto api = &_owner->session().api();
-	archive->requestId = api->request(MTPstories_GetStoriesArchive(
-		peer->input,
-		MTP_int(archive->lastId),
-		MTP_int(archive->lastId ? kArchivePerPage : kArchiveFirstPerPage)
-	)).done([=](const MTPstories_Stories &result) {
-		const auto archive = lookupArchive(peer);
-		if (!archive) {
+	const auto done = [=](const MTPstories_Stories &result) {
+		const auto set = albumIdsSet(peerId, albumId);
+		if (!set) {
 			return;
 		}
-		archive->requestId = 0;
-
-		const auto &data = result.data();
-		const auto now = base::unixtime::now();
-		archive->total = data.vcount().v;
-		for (const auto &story : data.vstories().v) {
-			const auto id = story.match([&](const auto &id) {
-				return id.vid().v;
-			});
-			archive->ids.list.emplace(id);
-			archive->lastId = id;
-			if (!parseAndApply(peer, story, now)) {
-				archive->ids.list.remove(id);
-				if (archive->total > 0) {
-					--archive->total;
-				}
-			}
-		}
-		const auto ids = int(archive->ids.list.size());
-		archive->loaded = data.vstories().v.empty();
-		archive->total = archive->loaded ? ids : std::max(archive->total, ids);
-		_archiveChanged.fire_copy(peerId);
-	}).fail([=] {
-		const auto archive = lookupArchive(peer);
-		if (!archive) {
-			return;
-		}
-		archive->requestId = 0;
-		archive->loaded = true;
-		archive->total = int(archive->ids.list.size());
-		_archiveChanged.fire_copy(peerId);
-	}).send();
-}
-
-void Stories::savedLoadMore(PeerId peerId) {
-	auto &saved = _saved[peerId];
-	if (saved.requestId || saved.loaded) {
-		return;
-	}
-	const auto api = &_owner->session().api();
-	const auto peer = _owner->peer(peerId);
-	saved.requestId = api->request(MTPstories_GetPinnedStories(
-		peer->input,
-		MTP_int(saved.lastId),
-		MTP_int(saved.lastId ? kSavedPerPage : kSavedFirstPerPage)
-	)).done([=](const MTPstories_Stories &result) {
-		auto &saved = _saved[peerId];
-		saved.requestId = 0;
-
+		set->requestId = 0;
 		const auto &data = result.data();
 		const auto now = base::unixtime::now();
 		auto pinnedToTopIds = data.vpinned_to_top().value_or_empty();
 		auto pinnedToTop = pinnedToTopIds
 			| ranges::views::transform(&MTPint::v)
 			| ranges::to_vector;
-		saved.total = data.vcount().v;
+		set->total = data.vcount().v;
 		for (const auto &story : data.vstories().v) {
 			const auto id = story.match([&](const auto &id) {
 				return id.vid().v;
 			});
-			saved.ids.list.emplace(id);
-			saved.lastId = id;
+			set->ids.list.emplace(id);
+			set->lastId = id;
 			if (!parseAndApply(peer, story, now)) {
-				saved.ids.list.remove(id);
-				if (saved.total > 0) {
-					--saved.total;
+				set->ids.list.remove(id);
+				if (set->total > 0) {
+					--set->total;
 				}
 			}
 		}
-		const auto ids = int(saved.ids.list.size());
-		saved.loaded = data.vstories().v.empty();
-		saved.total = saved.loaded ? ids : std::max(saved.total, ids);
-		setPinnedToTop(peerId, std::move(pinnedToTop));
-		_savedChanged.fire_copy(peerId);
-	}).fail([=] {
-		auto &saved = _saved[peerId];
-		saved.requestId = 0;
-		saved.loaded = true;
-		saved.total = int(saved.ids.list.size());
-		_savedChanged.fire_copy(peerId);
-	}).send();
+		const auto count = int(set->ids.list.size());
+		set->loaded = data.vstories().v.empty();
+		set->total = set->loaded ? count : std::max(set->total, count);
+		if (albumId == kStoriesAlbumIdSaved) {
+			setPinnedToTop(peerId, std::move(pinnedToTop));
+		}
+		_albumIdsChanged.fire({ peerId, albumId });
+	};
+	const auto fail = [=] {
+		const auto set = albumIdsSet(peerId, albumId);
+		if (!set) {
+			return;
+		}
+		set->requestId = 0;
+		set->loaded = true;
+		set->total = int(set->ids.list.size());
+		_albumIdsChanged.fire({ peerId, albumId });
+	};
+	set->requestId = (albumId == kStoriesAlbumIdArchive)
+		? api->request(MTPstories_GetStoriesArchive(
+			peer->input,
+			MTP_int(set->lastId),
+			MTP_int(set->lastId ? kArchivePerPage : kArchiveFirstPerPage)
+		)).done(done).fail(fail).send()
+		: (albumId == kStoriesAlbumIdSaved)
+		? api->request(MTPstories_GetPinnedStories(
+			peer->input,
+			MTP_int(set->lastId),
+			MTP_int(set->lastId ? kSavedPerPage : kSavedFirstPerPage)
+		)).done(done).fail(fail).send()
+		: api->request(MTPstories_GetAlbumStories(
+			peer->input,
+			MTP_int(albumId),
+			MTP_int(set->lastId),
+			MTP_int(set->lastId ? kSavedPerPage : kSavedFirstPerPage)
+		)).done(done).fail(fail).send();
 }
 
 auto Stories::albumsListValue(PeerId peerId)
@@ -1976,9 +1953,9 @@ void Stories::toggleInProfileList(
 			}
 		}
 		if (dirty) {
-			savedLoadMore(peerId);
+			albumIdsLoadMore(peerId, kStoriesAlbumIdSaved);
 		} else {
-			_savedChanged.fire_copy(peerId);
+			_albumIdsChanged.fire({ peerId, kStoriesAlbumIdSaved });
 		}
 	}).send();
 }
@@ -2047,7 +2024,7 @@ void Stories::togglePinnedList(
 		setPinnedToTop(peerId, list
 			| ranges::views::transform(&MTPint::v)
 			| ranges::to_vector);
-		_savedChanged.fire_copy(peerId);
+		_albumIdsChanged.fire({ peerId, kStoriesAlbumIdSaved });
 	}).send();
 
 }

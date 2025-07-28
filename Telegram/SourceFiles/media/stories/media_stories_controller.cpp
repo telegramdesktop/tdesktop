@@ -705,22 +705,15 @@ void Controller::rebuildFromContext(
 		source = stories.source(peerId);
 		hideSiblings();
 	}, [&](StoriesContextAlbum album) {
-		const auto archive = (album.id == Data::kStoriesAlbumIdArchive);
-		const auto known = archive
-			? stories.archiveCountKnown(peerId)
-			: stories.savedCountKnown(peerId);
+		const auto known = stories.albumIdsCountKnown(peerId, album.id);
 		if (known) {
-			const auto &ids = archive
-				? stories.archive(peerId)
-				: stories.saved(peerId);
+			const auto &ids = stories.albumIds(peerId, album.id);
 			auto sorted = RespectingPinned(ids);
 			const auto i = ranges::find(sorted, id);
 			const auto tillEnd = int(end(sorted) - i);
 			if (tillEnd > 0) {
 				_index = int(i - begin(sorted));
-				const auto total = archive
-					? stories.archiveCount(peerId)
-					: stories.savedCount(peerId);
+				const auto total = stories.albumIdsCount(peerId, album.id);
 				list = StoriesList{
 					.peer = peer,
 					.ids = ids,
@@ -729,11 +722,7 @@ void Controller::rebuildFromContext(
 				};
 				if (ids.list.size() < list->total
 					&& tillEnd < kPreloadStoriesCount) {
-					if (archive) {
-						stories.archiveLoadMore(peerId);
-					} else {
-						stories.savedLoadMore(peerId);
-					}
+					stories.albumIdsLoadMore(peerId, album.id);
 				}
 			}
 		}
@@ -854,20 +843,13 @@ void Controller::show(
 	}, [&](Data::StoriesContextPeer) {
 		subscribeToSource();
 	}, [&](Data::StoriesContextAlbum album) {
-		if (album.id == Data::kStoriesAlbumIdArchive) {
-			stories.archiveChanged(
-			) | rpl::start_with_next([=] {
-				rebuildFromContext(peer, storyId);
-				checkMoveByDelta();
-			}, _contextLifetime);
-		} else {
-			stories.savedChanged() | rpl::filter(
-				rpl::mappers::_1 == storyId.peer
-			) | rpl::start_with_next([=] {
-				rebuildFromContext(peer, storyId);
-				checkMoveByDelta();
-			}, _contextLifetime);
-		}
+		const auto key = Data::StoryAlbumIdsKey{ storyId.peer, album.id };
+		stories.albumIdsChanged() | rpl::filter(
+			rpl::mappers::_1 == key
+		) | rpl::start_with_next([=] {
+			rebuildFromContext(peer, storyId);
+			checkMoveByDelta();
+		}, _contextLifetime);
 	}, [&](Data::StorySourcesList) {
 		subscribeToSource();
 	});
@@ -1597,11 +1579,7 @@ void Controller::loadMoreToList() {
 	const auto peerId = _shown.peer;
 	auto &stories = peer->owner().stories();
 	v::match(_context.data, [&](StoriesContextAlbum album) {
-		if (album.id == Data::kStoriesAlbumIdArchive) {
-			stories.archiveLoadMore(peerId);
-		} else {
-			stories.savedLoadMore(peerId); // #TODO stories
-		}
+		stories.albumIdsLoadMore(peerId, album.id);
 	}, [](const auto &) {
 	});
 }

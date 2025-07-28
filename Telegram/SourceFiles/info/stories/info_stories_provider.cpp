@@ -179,10 +179,8 @@ void Provider::setSearchQuery(QString query) {
 
 void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
-	const auto idForViewer = _aroundId;
-	auto ids = (_albumId == Data::kStoriesAlbumIdArchive)
-		? Data::ArchiveStoriesIds(_peer, idForViewer, _idsLimit)
-		: Data::SavedStoriesIds(_peer, idForViewer, _idsLimit); // #TODO stories
+	const auto aroundId = _aroundId;
+	auto ids = Data::AlbumStoriesIds(_peer, _albumId, aroundId, _idsLimit);
 	std::move(
 		ids
 	) | rpl::start_with_next([=](Data::StoriesIdsSlice &&slice) {
@@ -195,8 +193,8 @@ void Provider::refreshViewer() {
 		auto nearestId = std::optional<StoryId>();
 		for (auto i = 0; i != _slice.size(); ++i) {
 			if (!nearestId
-				|| std::abs(*nearestId - idForViewer)
-					> std::abs(_slice[i] - idForViewer)) {
+				|| std::abs(*nearestId - aroundId)
+					> std::abs(_slice[i] - aroundId)) {
 				nearestId = _slice[i];
 			}
 		}

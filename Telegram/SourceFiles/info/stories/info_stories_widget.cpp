@@ -52,10 +52,17 @@ object_ptr<ContentWidget> Memento::createWidget(
 Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller)
-: ContentWidget(parent, controller) {
+: ContentWidget(parent, controller)
+, _albumId(controller->key().storiesAlbumId()) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
-		controller));
+		controller,
+		_albumId.value()));
+	_inner->albumIdChanges() | rpl::start_with_next([=](int id) {
+		controller->showSection(
+			Make(controller->storiesPeer(), id),
+			Window::SectionShow::Way::Backward);
+	}, _inner->lifetime());
 	_inner->setScrollHeightValue(scrollHeightValue());
 	_inner->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
@@ -73,9 +80,14 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto storiesMemento = dynamic_cast<Memento*>(memento.get())) {
-		const auto albumId = controller()->key().storiesAlbumId();
-		if (storiesMemento->storiesAlbumId() == albumId) {
+		const auto myId = controller()->key().storiesAlbumId();
+		const auto hisId = storiesMemento->storiesAlbumId();
+		constexpr auto kArchive = Data::kStoriesAlbumIdArchive;
+		if (myId == hisId) {
 			restoreState(storiesMemento);
+			return true;
+		} else if (myId != kArchive && hisId != kArchive) {
+			_albumId = hisId;
 			return true;
 		}
 	}

@@ -105,22 +105,32 @@ void EmptyWidget::paintEvent(QPaintEvent *e) {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<Controller*> controller,
+	rpl::producer<int> albumId,
+	int addingToAlbumId)
 : RpWidget(parent)
 , _controller(controller)
 , _peer(controller->key().storiesPeer())
-, _addingToAlbumId(0)
-, _albumId(controller->key().storiesAlbumId())
+, _addingToAlbumId(addingToAlbumId)
+, _albumId(std::move(albumId))
 , _albumChanges(Data::StoryAlbumUpdate{
 	.peer = _peer,
 	.albumId = _addingToAlbumId,
 })
 , _empty(this) {
 	_empty->heightValue(
-	) | rpl::start_with_next(
-		[this] { refreshHeight(); },
-		_empty->lifetime());
-	_list = setupList();
+	) | rpl::start_with_next([=] {
+		refreshHeight();
+	}, _empty->lifetime());
+	setupList();
+
+	_albumId.changes(
+	) | rpl::start_with_next([=](int albumId) {
+		_list.destroy();
+		_controller->replaceKey(Key(Tag(_peer, albumId)));
+		setupList();
+		resizeToWidth(width());
+	}, lifetime());
 }
 
 void InnerWidget::setupAlbums() {
@@ -200,19 +210,20 @@ void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 
 	const auto stories = &_peer->owner().stories();
 
-	if (!stories->archiveCountKnown(_peer->id)) {
-		stories->archiveLoadMore(_peer->id);
+	constexpr auto kArchive = Data::kStoriesAlbumIdArchive;
+	if (!stories->albumIdsCountKnown(_peer->id, kArchive)) {
+		stories->albumIdsLoadMore(_peer->id, kArchive);
 	}
 
 	auto count = rpl::single(
 		rpl::empty
 	) | rpl::then(
-		stories->archiveChanged(
+		stories->albumIdsChanged(
 		) | rpl::filter(
-			rpl::mappers::_1 == _peer->id
+			rpl::mappers::_1 == Data::StoryAlbumIdsKey{ _peer->id, kArchive }
 		) | rpl::to_empty
 	) | rpl::map([=] {
-		return stories->archiveCount(_peer->id);
+		return stories->albumIdsCount(_peer->id, kArchive);
 	}) | rpl::start_spawning(_top->lifetime());
 
 	const auto archiveWrap = _top->add(
@@ -228,8 +239,7 @@ void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 
 	const auto archive = archiveWrap->entity();
 	archive->addClickHandler([=] {
-		_controller->showSection(
-			Make(_peer, Data::kStoriesAlbumIdArchive));
+		_controller->showSection(Make(_peer, kArchive));
 	});
 	auto label = rpl::duplicate(
 		count
@@ -401,27 +411,30 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 	return false;
 }
 
-object_ptr<Media::ListWidget> InnerWidget::setupList() {
-	auto result = object_ptr<Media::ListWidget>(
+void InnerWidget::setupList() {
+	Expects(!_list);
+
+	_list = object_ptr<Media::ListWidget>(
 		this,
 		_controller);
-	result->heightValue(
-	) | rpl::start_with_next(
-		[this] { refreshHeight(); },
-		result->lifetime());
+	const auto raw = _list.data();
+
+	raw->heightValue(
+	) | rpl::start_with_next([=] {
+		refreshHeight();
+	}, raw->lifetime());
 	using namespace rpl::mappers;
-	result->scrollToRequests(
-	) | rpl::map([widget = result.data()](int to) {
+	raw->scrollToRequests(
+	) | rpl::map([=](int to) {
 		return Ui::ScrollToRequest {
-			widget->y() + to,
+			raw->y() + to,
 			-1
 		};
-	}) | rpl::start_to_stream(
-		_scrollToRequests,
-		result->lifetime());
-	_selectedLists.fire(result->selectedListValue());
-	_listTops.fire(result->topValue());
-	return result;
+	}) | rpl::start_to_stream(_scrollToRequests, raw->lifetime());
+	_selectedLists.fire(raw->selectedListValue());
+	_listTops.fire(raw->topValue());
+
+	raw->show();
 }
 
 void InnerWidget::refreshAlbumsTabs() {
@@ -435,6 +448,7 @@ void InnerWidget::refreshAlbumsTabs() {
 		return;
 	}
 	auto tabs = std::vector<Ui::SubTabs::Tab>();
+	auto selected = QString();
 	if (!_albums.empty()) {
 		tabs.push_back({
 			.id = u"all"_q,
@@ -449,6 +463,12 @@ void InnerWidget::refreshAlbumsTabs() {
 				.id = QString::number(album.id),
 				.text = std::move(title),
 			});
+			if (_albumId.current() == album.id) {
+				selected = tabs.back().id;
+			}
+		}
+		if (selected.isEmpty()) {
+			selected = tabs.front().id;
 		}
 	}
 	if (_peer->canEditStories()) {
@@ -461,7 +481,7 @@ void InnerWidget::refreshAlbumsTabs() {
 		_albumsTabs = std::make_unique<Ui::SubTabs>(
 			_albumsWrap,
 			Ui::SubTabs::Options{
-				.selected = _albums.empty() ? QString() : u"all"_q,
+				.selected = selected,
 				.centered = true,
 			},
 			std::move(tabs));
@@ -490,10 +510,7 @@ void InnerWidget::refreshAlbumsTabs() {
 					added));
 			} else {
 				_albumsTabs->setActiveTab(id);
-
-				//auto now = _descriptor.current();
-				//now.collectionId = (id == u"all"_q) ? 0 : id.toInt();
-				//_descriptorChanges.fire(std::move(now));
+				_albumIdChanges.fire((id == u"all"_q) ? 0 : id.toInt());
 			}
 		}, _albumsTabs->lifetime());
 
@@ -508,6 +525,9 @@ void InnerWidget::refreshAlbumsTabs() {
 		}, _albumsTabs->lifetime());
 	} else {
 		_albumsTabs->setTabs(std::move(tabs));
+		if (!selected.isEmpty()) {
+			_albumsTabs->setActiveTab(selected);
+		}
 	}
 	resizeToWidth(width());
 }
@@ -531,6 +551,10 @@ void InnerWidget::showMenuForAlbum(int id) {
 		.isAttention = true,
 	});
 	_menu->popup(QCursor::pos());
+}
+
+rpl::producer<int> InnerWidget::albumIdChanges() const {
+	return _albumIdChanges.events();
 }
 
 rpl::producer<Data::StoryAlbumUpdate> InnerWidget::changes() const {
@@ -562,7 +586,9 @@ void InnerWidget::editAlbumStories(int id) {
 		const auto content = box->addRow(
 			object_ptr<InnerWidget>(
 				box,
-				_controller/*,
+				_controller,
+				rpl::single(Data::kStoriesAlbumIdArchive),
+				id/*,
 				_peer,
 				state->descriptor.value(),
 				id,

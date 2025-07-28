@@ -133,6 +133,18 @@ struct StoryAlbumUpdate {
 
 inline constexpr auto kStorySourcesListCount = 2;
 
+struct StoryAlbumIdsKey {
+	PeerId peerId;
+	int albumId = 0;
+
+	friend inline auto operator<=>(
+		StoryAlbumIdsKey,
+		StoryAlbumIdsKey) = default;
+	friend inline bool operator==(
+		StoryAlbumIdsKey,
+		StoryAlbumIdsKey) = default;
+};
+
 class Stories final : public base::has_weak_ptr {
 public:
 	explicit Stories(not_null<Session*> owner);
@@ -197,19 +209,14 @@ public:
 
 	[[nodiscard]] bool hasArchive(not_null<PeerData*> peer) const;
 
-	[[nodiscard]] const StoriesIds &archive(PeerId peerId) const;
-	[[nodiscard]] rpl::producer<PeerId> archiveChanged() const;
-	[[nodiscard]] int archiveCount(PeerId peerId) const;
-	[[nodiscard]] bool archiveCountKnown(PeerId peerId) const;
-	[[nodiscard]] bool archiveLoaded(PeerId peerId) const;
-	void archiveLoadMore(PeerId peerId);
-
-	[[nodiscard]] const StoriesIds &saved(PeerId peerId) const;
-	[[nodiscard]] rpl::producer<PeerId> savedChanged() const;
-	[[nodiscard]] int savedCount(PeerId peerId) const;
-	[[nodiscard]] bool savedCountKnown(PeerId peerId) const;
-	[[nodiscard]] bool savedLoaded(PeerId peerId) const;
-	void savedLoadMore(PeerId peerId);
+	[[nodiscard]] const StoriesIds &albumIds(
+		PeerId peerId,
+		int albumId) const;
+	[[nodiscard]] rpl::producer<StoryAlbumIdsKey> albumIdsChanged() const;
+	[[nodiscard]] int albumIdsCount(PeerId peerIdl, int albumId) const;
+	[[nodiscard]] bool albumIdsCountKnown(PeerId peerId, int albumId) const;
+	[[nodiscard]] bool albumIdsLoaded(PeerId peerId, int albumId) const;
+	void albumIdsLoadMore(PeerId peerId, int albumId);
 
 	[[nodiscard]] auto albumsListValue(PeerId peerId)
 		-> rpl::producer<std::vector<Data::StoryAlbum>>;
@@ -319,6 +326,9 @@ private:
 	[[nodiscard]] Set *lookupArchive(not_null<PeerData*> peer);
 	void clearArchive(not_null<PeerData*> peer);
 
+	const Set *albumIdsSet(PeerId peerId, int albumId) const;
+	Set *albumIdsSet(PeerId peerId, int albumId, bool lazy = false);
+
 	void applyDeleted(not_null<PeerData*> peer, StoryId id);
 	void applyExpired(FullStoryId id);
 	void applyRemovedFromActive(FullStoryId id);
@@ -403,13 +413,10 @@ private:
 	rpl::event_stream<PeerId> _itemsChanged;
 
 	std::unordered_map<PeerId, Set> _archive;
-	rpl::event_stream<PeerId> _archiveChanged;
-
 	std::unordered_map<PeerId, Set> _saved;
-	rpl::event_stream<PeerId> _savedChanged;
-
 	std::unordered_map<PeerId, Albums> _albums;
 	rpl::event_stream<StoryAlbumUpdate> _albumUpdates;
+	rpl::event_stream<StoryAlbumIdsKey> _albumIdsChanged;
 
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;

@@ -299,6 +299,10 @@ Controller::Controller(
 	setupTopicViewer();
 }
 
+void Controller::replaceKey(Key key) {
+	_key = key;
+}
+
 void Controller::setupMigrationViewer() {
 	const auto peer = _key.peer();
 	if (_key.topic()

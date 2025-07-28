@@ -64,6 +64,7 @@ private:
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
+	rpl::variable<int> _albumId;
 	InnerWidget *_inner = nullptr;
 
 };

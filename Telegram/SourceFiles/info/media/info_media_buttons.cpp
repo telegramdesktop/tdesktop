@@ -246,8 +246,9 @@ not_null<Ui::SettingsButton*> AddStoriesButton(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Ui::MultiSlideTracker &tracker) {
-	auto count = rpl::single(0) | rpl::then(Data::SavedStoriesIds(
+	auto count = rpl::single(0) | rpl::then(Data::AlbumStoriesIds(
 		peer,
+		0, // = Data::kStoriesAlbumIdSaved
 		ServerMaxStoryId - 1,
 		0
 	) | rpl::map([](const Data::StoriesIdsSlice &slice) {

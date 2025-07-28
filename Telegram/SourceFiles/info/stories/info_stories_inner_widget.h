@@ -45,7 +45,11 @@ class EmptyWidget;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
-	InnerWidget(QWidget *parent, not_null<Controller*> controller);
+	InnerWidget(
+		QWidget *parent,
+		not_null<Controller*> controller,
+		rpl::producer<int> albumId,
+		int addingToAlbumId = 0);
 	~InnerWidget();
 
 	bool showInternal(not_null<Memento*> memento);
@@ -69,6 +73,7 @@ public:
 	void confirmDeleteAlbum(int id);
 	void albumAdded(Data::StoryAlbum result);
 
+	[[nodiscard]] rpl::producer<int> albumIdChanges() const;
 	[[nodiscard]] rpl::producer<Data::StoryAlbumUpdate> changes() const;
 
 protected:
@@ -82,6 +87,7 @@ private:
 	void refreshHeight();
 
 	void setupTop();
+	void setupList();
 	void setupAlbums();
 	void createButtons();
 	void createProfileTop();
@@ -92,8 +98,6 @@ private:
 	void addRecentButton(Ui::MultiSlideTracker &tracker);
 	void addGiftsButton(Ui::MultiSlideTracker &tracker);
 	void finalizeTop();
-
-	[[nodiscard]] object_ptr<Media::ListWidget> setupList();
 
 	void refreshAlbumsTabs();
 	void showMenuForAlbum(int id);
@@ -107,6 +111,7 @@ private:
 
 	std::vector<Data::StoryAlbum> _albums;
 	rpl::variable<int> _albumId;
+	rpl::event_stream<int> _albumIdChanges;
 	Ui::RpWidget *_albumsWrap = nullptr;
 	std::unique_ptr<Ui::SubTabs> _albumsTabs;
 	rpl::variable<Data::StoryAlbumUpdate> _albumChanges;
