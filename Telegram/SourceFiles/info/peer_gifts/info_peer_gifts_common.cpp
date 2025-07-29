@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "main/main_session.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/layers/generic_box.h"
@@ -614,7 +615,8 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 
 	v::match(_descriptor, [](const GiftTypePremium &) {
 	}, [&](const GiftTypeStars &data) {
-		if (unique && data.pinned) {
+		if (!unique) {
+		} else if (data.pinned) {
 			auto hq = PainterHighQualityEnabler(p);
 			const auto &icon = st::giftBoxPinIcon;
 			const auto skip = st::giftBoxUserpicSkip;
@@ -626,6 +628,25 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				QSize(icon.width() + 2 * add, icon.height() + 2 * add));
 			p.drawEllipse(rect);
 			icon.paintInCenter(p, rect);
+		} else if (unique->nanoTonForResale && unique->onlyAcceptTon) {
+			if (_tonIcon.isNull()) {
+				_tonIcon = Ui::Earn::IconCurrencyColored(
+					st::tonIconEmojiSize,
+					QColor(255, 255, 255));
+			}
+			const auto size = _tonIcon.size() / _tonIcon.devicePixelRatio();
+			const auto skip = st::giftBoxUserpicSkip;
+			const auto add = (st::giftBoxUserpicSize - size.width()) / 2;
+			p.setPen(Qt::NoPen);
+			p.setBrush(unique->backdrop.patternColor);
+			const auto rect = QRect(
+				QPoint(extend.left() + skip, extend.top() + skip),
+				QSize(size.width() + 2 * add, size.height() + 2 * add));
+			p.drawEllipse(rect);
+			p.drawImage(
+				extend.left() + skip + add,
+				extend.top() + skip + add,
+				_tonIcon);
 		}
 	});
 
@@ -718,6 +739,10 @@ TextWithEntities Delegate::star() {
 
 TextWithEntities Delegate::monostar() {
 	return Ui::Text::IconEmoji(&st::starIconEmoji);
+}
+
+TextWithEntities Delegate::monoton() {
+	return _session->data().customEmojiManager().monoTonEmoji();
 }
 
 TextWithEntities Delegate::ministar() {

@@ -908,6 +908,7 @@ rpl::producer<CreditsAmount> AddCurrencyAction(
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(button, st.rightLabel);
 	const auto icon = Ui::Text::SingleCustomEmoji(
 		user->owner().customEmojiManager().registerInternalEmoji(
+			u"profile_ton_section_icon"_q,
 			Ui::Earn::IconCurrencyColored(
 				st.rightLabel.style.font,
 				st.rightLabel.textFg->c),

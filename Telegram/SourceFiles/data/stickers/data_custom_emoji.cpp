@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_generator.h"
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "storage/file_download.h" // kMaxFileInMemory
 #include "ui/chat/chats_filter_tag.h"
 #include "ui/effects/premium_stars_colored.h"
@@ -1020,30 +1021,61 @@ uint64 CustomEmojiManager::coloredSetId() const {
 	return _coloredSetId;
 }
 
+TextWithEntities CustomEmojiManager::tonEmoji(QMargins padding) {
+	return Ui::Text::SingleCustomEmoji(registerInternalEmoji(
+		u"builtin:ton_emoji"_q,
+		Ui::Earn::IconCurrencyColored(
+			st::tonIconEmojiSize,
+			st::currencyFg->c),
+		st::tonIconEmojiPadding + padding,
+		false));
+}
+
+TextWithEntities CustomEmojiManager::monoTonEmoji(QMargins padding) {
+	return Ui::Text::SingleCustomEmoji(registerInternalEmoji(
+		u"builtin:monoton_emoji"_q,
+		Ui::Earn::IconCurrencyColored(
+			st::tonIconEmojiSize,
+			st::currencyFg->c),
+		st::tonIconEmojiPadding + padding,
+		true));
+}
+
 TextWithEntities CustomEmojiManager::creditsEmoji(QMargins padding) {
-	return Ui::Text::SingleCustomEmoji(
-		registerInternalEmoji(
-			Ui::GenerateStars(st::normalFont->height, 1),
-			padding,
-			false));
+	return Ui::Text::SingleCustomEmoji(registerInternalEmoji(
+		u"builtin:credits_emoji"_q,
+		Ui::GenerateStars(st::normalFont->height, 1),
+		padding,
+		false));
 }
 
 TextWithEntities CustomEmojiManager::ministarEmoji(QMargins padding) {
-	return Ui::Text::SingleCustomEmoji(
-		registerInternalEmoji(
-			Ui::GenerateStars(st::giftBoxByStarsStyle.font->height, 1),
-			padding,
-			false));
+	return Ui::Text::SingleCustomEmoji(registerInternalEmoji(
+		u"builtin:ministar_emoji"_q,
+		Ui::GenerateStars(st::giftBoxByStarsStyle.font->height, 1),
+		padding,
+		false));
 }
 
 QString CustomEmojiManager::registerInternalEmoji(
+		const QString &key,
 		QImage emoji,
 		QMargins padding,
 		bool textColor) {
+	auto i = _imageEmoji.find(key);
+	if (i == end(_imageEmoji)) {
+		i = _imageEmoji.emplace(
+			key,
+			registerImageEmoji(std::move(emoji), textColor)).first;
+	}
+	return i->second + InternalPadding(padding);
+}
+
+QString CustomEmojiManager::registerImageEmoji(
+		QImage emoji,
+		bool textColor) {
 	_internalEmoji.push_back({ std::move(emoji), textColor });
-	return InternalPrefix()
-		+ QString::number(_internalEmoji.size() - 1)
-		+ InternalPadding(padding);
+	return InternalPrefix() + QString::number(_internalEmoji.size() - 1);
 }
 
 QString CustomEmojiManager::registerInternalEmoji(
@@ -1063,10 +1095,7 @@ QString CustomEmojiManager::registerInternalEmoji(
 	icon.paint(p, 0, 0, icon.width());
 	p.end();
 
-	const auto result = registerInternalEmoji(
-		std::move(image),
-		QMargins{},
-		textColor);
+	const auto result = registerImageEmoji(std::move(image), textColor);
 	_iconEmoji.emplace(&icon, result);
 	return result + InternalPadding(padding);
 }

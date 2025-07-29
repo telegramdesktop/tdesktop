@@ -81,6 +81,8 @@ starIconEmojiSmall: IconEmoji {
 	icon: icon{{ "chat/mini_stars", creditsBg1 }};
 	padding: margins(0px, 4px, 0px, 0px);
 }
+tonIconEmojiSize: 18px;
+tonIconEmojiPadding: margins(0px, 2px, 0px, 0px);
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
 

@@ -722,6 +722,7 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 		if (value.ton()) {
 			text.append(Ui::Text::SingleCustomEmoji(
 				manager->registerInternalEmoji(
+					u"balance_amount_ton_icon"_q,
 					Ui::Earn::IconCurrencyColored(
 						st::tonFieldIconSize,
 						st::currencyFg->c),
@@ -1529,6 +1530,9 @@ void GenericCreditsEntryBox(
 				.append(
 					Ui::Text::SingleCustomEmoji(
 						owner->customEmojiManager().registerInternalEmoji(
+							(e.in
+								? u"stats_transaction_ton_in"_q
+								: u"stats_transaction_ton_out"_q),
 							Ui::Earn::IconCurrencyColored(
 								st::tonFieldIconSize,
 								(e.in

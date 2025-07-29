@@ -182,6 +182,7 @@ private:
 	return {
 		.tonEmoji = Ui::Text::SingleCustomEmoji(
 			session->data().customEmojiManager().registerInternalEmoji(
+				u"collectible_ton_icon"_q,
 				Ui::Earn::IconCurrencyColored(
 					st::collectibleInfo.style.font,
 					st::collectibleInfo.textFg->c),

@@ -420,6 +420,11 @@ void InnerWidget::fill() {
 		const auto &st = label->st();
 		auto icon = Ui::Text::SingleCustomEmoji(
 			session->data().customEmojiManager().registerInternalEmoji(
+				(!isIn
+					? u"stats_row_ton_some"_q
+					: (*isIn)
+					? u"stats_row_ton_in"_q
+					: u"stats_row_ton_out"_q),
 				Ui::Earn::IconCurrencyColored(
 					st.style.font,
 					!isIn
@@ -443,6 +448,7 @@ void InnerWidget::fill() {
 
 	const auto bigCurrencyIcon = Ui::Text::SingleCustomEmoji(
 		session->data().customEmojiManager().registerInternalEmoji(
+			u"stats_row_ton_big"_q,
 			Ui::Earn::IconCurrencyColored(
 				st::boxTitle.style.font,
 				st::currencyFg->c),

@@ -243,6 +243,7 @@ StarsTonPriceInput AddStarsTonPriceInput(
 	const auto tonField = ownedTonField.data();
 	const auto tonIcon = makeIcon(tonField, Ui::Text::SingleCustomEmoji(
 		manager->registerInternalEmoji(
+			u"ton_price_field_emoji"_q,
 			Ui::Earn::IconCurrencyColored(
 				st::tonFieldIconSize,
 				st::currencyFg->c),
@@ -654,6 +655,7 @@ void ChooseSuggestPriceBox(
 	const auto button = box->addButton(rpl::single(QString()), state->save);
 	const auto coloredTonIcon = Ui::Text::SingleCustomEmoji(
 		session->data().customEmojiManager().registerInternalEmoji(
+			u"ton_price_suggest_save"_q,
 			Ui::Earn::IconCurrencyColored(
 				st::tonFieldIconSize,
 				st::currencyFg->c),
@@ -904,6 +906,7 @@ TextWithEntities SuggestOptions::composeText() const {
 	const auto amount = _values.price().ton()
 		? Ui::Text::SingleCustomEmoji(
 			manager->registerInternalEmoji(
+				u"ton_price_preview_emoji"_q,
 				Ui::Earn::IconCurrencyColored(
 					st::suggestBarTonIconSize,
 					st::currencyFg->c),
