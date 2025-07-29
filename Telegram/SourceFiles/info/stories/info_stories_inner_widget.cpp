@@ -552,17 +552,18 @@ void InnerWidget::setupEmpty() {
 		),
 		_list->heightValue()
 	) | rpl::start_with_next([=](auto, int listHeight) {
-		if (listHeight) {
-			_empty.destroy();
-			return;
+		const auto padding = st::infoMediaMargin;
+		if (const auto raw = _empty.release()) {
+			raw->hide();
+			raw->deleteLater();
 		}
-		refreshEmpty();
+		if (listHeight <= padding.bottom() + padding.top()) {
+			refreshEmpty();
+		}
 	}, _list->lifetime());
 }
 
 void InnerWidget::refreshEmpty() {
-	_empty.destroy();
-
 	const auto albumId = _albumId.current();
 	const auto stories = &_controller->session().data().stories();
 	const auto knownEmpty = stories->albumIdsCountKnown(_peer->id, albumId);
@@ -606,7 +607,6 @@ void InnerWidget::refreshEmpty() {
 		button->setClickedCallback([=] {
 			editAlbumStories(albumId);
 		});
-
 		empty->show();
 		_empty = std::move(empty);
 	} else {
@@ -790,10 +790,11 @@ void InnerWidget::editAlbumName(int id) {
 
 void InnerWidget::confirmDeleteAlbum(int id) {
 	const auto done = [=](Fn<void()> close) {
-		_controller->session().api().request(
-			MTPstories_DeleteAlbum(_peer->input, MTP_int(id))
-		).send();
 		albumRemoved(id);
+
+		const auto stories = &_controller->session().data().stories();
+		stories->albumDelete(_peer, id);
+
 		close();
 	};
 	_controller->uiShow()->show(Ui::MakeConfirmBox({
@@ -807,7 +808,7 @@ void InnerWidget::confirmDeleteAlbum(int id) {
 void InnerWidget::albumAdded(Data::StoryAlbum result) {
 	Expects(ranges::contains(_albums, result.id, &Data::StoryAlbum::id));
 
-	_albumId = result.id;
+	_albumIdChanges.fire_copy(result.id);
 }
 
 void InnerWidget::albumRenamed(int id, QString name) {
@@ -821,20 +822,8 @@ void InnerWidget::albumRenamed(int id, QString name) {
 void InnerWidget::albumRemoved(int id) {
 	auto now = _albumId.current();
 	if (now == id) {
-		_albumId = 0;
+		_albumIdChanges.fire_copy(0);
 	}
-	//const auto removeFrom = [&](Entries &entries) {
-	//	for (auto &entry : entries.list) {
-	//		entry.gift.collectionIds.erase(
-	//			ranges::remove(entry.gift.collectionIds, id),
-	//			end(entry.gift.collectionIds));
-	//	}
-	//};
-	//removeFrom(_all);
-	//for (auto &[_, entries] : _perCollection) {
-	//	removeFrom(entries);
-	//}
-
 	const auto i = ranges::find(_albums, id, &Data::StoryAlbum::id);
 	if (i != end(_albums)) {
 		_albums.erase(i);
@@ -908,14 +897,6 @@ int InnerWidget::recountHeight() {
 }
 
 void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
-	//using namespace rpl::mappers;
-	//_empty->setFullHeight(rpl::combine(
-	//	std::move(value),
-	//	_listTops.events_starting_with(
-	//		_list->topValue()
-	//	) | rpl::flatten_latest(),
-	//	_topHeight.value(),
-	//	_1 - _2 + _3));
 }
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {

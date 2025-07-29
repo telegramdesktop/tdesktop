@@ -235,6 +235,9 @@ public:
 	[[nodiscard]] bool invertMedia() const {
 		return _flags & MessageFlag::InvertMedia;
 	}
+	[[nodiscard]] bool storyInProfile() const {
+		return _flags & MessageFlag::StoryInProfile;
+	}
 	[[nodiscard]] bool unread(not_null<Data::Thread*> thread) const;
 	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();
@@ -250,6 +253,7 @@ public:
 	void markMediaAndMentionRead();
 	bool markContentsRead(bool fromThisClient = false);
 	void setIsPinned(bool isPinned);
+	void setStoryInProfile(bool inProfile);
 
 	// For edit media in history_message.
 	void returnSavedMedia();

@@ -367,7 +367,12 @@ bool Story::pinnedToTop() const {
 }
 
 void Story::setInProfile(bool value) {
-	_inProfile = value;
+	if (_inProfile != value) {
+		_inProfile = value;
+		if (const auto item = _peer->owner().stories().lookupItem(this)) {
+			item->setStoryInProfile(value);
+		}
+	}
 }
 
 bool Story::inProfile() const {

@@ -1945,6 +1945,35 @@ void Stories::albumRename(
 	}).send();
 }
 
+void Stories::albumDelete(not_null<PeerData*> peer, int id) {
+	_owner->session().api().request(MTPstories_DeleteAlbum(
+		peer->input,
+		MTP_int(id)
+	)).send();
+
+	auto &albums = _albums[peer->id];
+	auto current = albums.list.current();
+	current.erase(
+		ranges::remove(current, id, &StoryAlbum::id),
+		end(current));
+	albums.list = std::move(current);
+
+	const auto i = albums.sets.find(id);
+	if (i != end(albums.sets)) {
+		_owner->session().api().request(
+			base::take(i->second.requestId)).cancel();
+		for (const auto storyId : i->second.albumKnownInArchive) {
+			if (const auto story = lookup({ peer->id, storyId })) {
+				auto now = (*story)->albumIds();
+				if (now.remove(id)) {
+					(*story)->setAlbumIds(std::move(now));
+				}
+			}
+		}
+		albums.sets.erase(i);
+	}
+}
+
 void Stories::notifyAlbumUpdate(StoryAlbumUpdate &&update) {
 	const auto peerId = update.peer->id;
 	const auto i = _albums.find(peerId);

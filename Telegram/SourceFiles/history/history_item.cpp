@@ -1634,6 +1634,17 @@ void HistoryItem::setIsPinned(bool pinned) {
 	}
 }
 
+void HistoryItem::setStoryInProfile(bool inProfile) {
+	if (storyInProfile() == inProfile) {
+		return;
+	} else if (inProfile) {
+		_flags |= MessageFlag::StoryInProfile;
+	} else {
+		_flags &= ~MessageFlag::StoryInProfile;
+	}
+	_history->owner().notifyItemDataChange(this);
+}
+
 void HistoryItem::returnSavedMedia() {
 	if (!isEditingMedia()) {
 		return;
@@ -2013,6 +2024,11 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 		_flags |= MessageFlag::Pinned;
 	} else {
 		_flags &= ~MessageFlag::Pinned;
+	}
+	if (story->inProfile()) {
+		_flags |= MessageFlag::StoryInProfile;
+	} else {
+		_flags &= ~MessageFlag::StoryInProfile;
 	}
 }
 

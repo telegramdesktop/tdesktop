@@ -657,8 +657,6 @@ void WrapWidget::finishShowContent() {
 			.subtitle = _content->subtitle(),
 		});
 		_topBar->setStories(_content->titleStories());
-		_topBar->setStoriesArchive(
-			_controller->key().storiesAlbumId() == Stories::ArchiveId());
 	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
@@ -787,7 +785,6 @@ bool WrapWidget::showInternal(
 			&& (params.way == Window::SectionShow::Way::ClearStack);
 		if (_controller->validateMementoPeer(content)) {
 			if (!skipInternal && _content->showInternal(content)) {
-				highlightTopBar();
 				return true;
 			}
 		}

@@ -235,6 +235,7 @@ public:
 		const QString &title,
 		Fn<void(StoryAlbum)> done,
 		Fn<void(QString)> fail);
+	void albumDelete(not_null<PeerData*> peer, int id);
 	void notifyAlbumUpdate(StoryAlbumUpdate &&update);
 	[[nodiscard]] rpl::producer<StoryAlbumUpdate> albumUpdates() const;
 

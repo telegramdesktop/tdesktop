@@ -947,10 +947,8 @@ void InnerWidget::refreshAbout() {
 		auto text = tr::lng_peer_gifts_empty_search(
 			tr::now,
 			Ui::Text::RichLangValue);
-		if (_entries->total > 0) {
-			text.append("\n\n").append(Ui::Text::Link(
-				tr::lng_peer_gifts_view_all(tr::now)));
-		}
+		text.append("\n\n").append(Ui::Text::Link(
+			tr::lng_peer_gifts_view_all(tr::now)));
 		auto about = std::make_unique<Ui::FlatLabel>(
 			this,
 			rpl::single(text),

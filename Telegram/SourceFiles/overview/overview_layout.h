@@ -190,8 +190,11 @@ struct Info : RuntimeComponent<Info, LayoutItemBase> {
 
 struct MediaOptions {
 	bool spoiler = false;
-	bool pinned = false;
 	bool story = false;
+	bool storyPinned = false;
+	bool storyShowPinned = false;
+	bool storyHidden = false;
+	bool storyShowHidden = false;
 };
 
 class Photo final : public ItemBase {
@@ -225,11 +228,15 @@ private:
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
-	QPixmap _pix;
-	bool _goodLoaded = false;
-	bool _sensitiveSpoiler = false;
-	bool _pinned = false;
-	bool _story = false;
+	QImage _pix;
+	QImage _hiddenBgCache;
+	bool _goodLoaded : 1 = false;
+	bool _sensitiveSpoiler : 1 = false;
+	bool _story : 1 = false;
+	bool _storyPinned : 1 = false;
+	bool _storyShowPinned : 1 = false;
+	bool _storyHidden : 1 = false;
+	bool _storyShowHidden : 1 = false;
 
 	ClickHandlerPtr _link;
 
@@ -339,11 +346,15 @@ private:
 	QString _duration;
 	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
-	QPixmap _pix;
-	bool _pixBlurred = true;
-	bool _sensitiveSpoiler = false;
-	bool _pinned = false;
-	bool _story = false;
+	QImage _pix;
+	QImage _hiddenBgCache;
+	bool _pixBlurred : 1 = true;
+	bool _sensitiveSpoiler : 1 = false;
+	bool _story : 1 = false;
+	bool _storyPinned : 1 = false;
+	bool _storyShowPinned : 1 = false;
+	bool _storyHidden : 1 = false;
+	bool _storyShowHidden : 1 = false;
 
 };
 

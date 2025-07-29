@@ -84,6 +84,7 @@ public:
 	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
 	void repaintItem(not_null<const BaseLayout*> item) override;
 	bool itemVisible(not_null<const BaseLayout*> item) override;
+	not_null<StickerPremiumMark*> hiddenMark() override;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -192,11 +193,12 @@ private:
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
 	void toggleStoryPinSelected();
-	void toggleStoryInProfileSelected();
+	void toggleStoryInProfileSelected(bool toProfile);
 	void deleteItem(GlobalMsgId globalId);
 	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
 	void toggleStoryInProfile(
 		MessageIdsList &&items,
+		bool toProfile,
 		Fn<void()> confirmed = nullptr);
 	void toggleStoryPin(
 		MessageIdsList &&items,
@@ -311,6 +313,7 @@ private:
 	int _storiesAddToAlbumId = 0;
 	base::flat_set<StoryId> _storiesInAlbum;
 	base::flat_set<MsgId> _storyMsgsToMarkSelected;
+	std::unique_ptr<StickerPremiumMark> _hiddenMark;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;

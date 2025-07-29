@@ -343,10 +343,20 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		}
 		return nullptr;
 	};
+
+	const auto peer = item->history()->peer;
+	const auto channel = peer->asChannel();
+	const auto showPinned = (_albumId == Data::kStoriesAlbumIdSaved);
+	const auto showHidden = peer->isSelf()
+		|| (channel && channel->canEditStories());
+
 	using namespace Overview::Layout;
 	const auto options = MediaOptions{
-		.pinned = item->isPinned(),
 		.story = true,
+		.storyPinned = showPinned && item->isPinned(),
+		.storyShowPinned = showPinned,
+		.storyHidden = showHidden && !item->storyInProfile(),
+		.storyShowHidden = showHidden,
 	};
 	if (const auto photo = getPhoto()) {
 		return std::make_unique<Photo>(delegate, item, photo, options);
@@ -379,6 +389,7 @@ ListItemSelectionData Provider::computeSelectionData(
 		result.canForward = peer->isSelf() && story->canShare();
 		result.canDelete = story->canDelete();
 		result.canUnpinStory = story->pinnedToTop();
+		result.storyInProfile = story->inProfile();
 	}
 	result.canToggleStoryPin = peer->isSelf()
 		|| (channel && channel->canEditStories());

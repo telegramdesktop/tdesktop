@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/sticker_set_box.h" // StickerPremiumMark
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "ui/toast/toast.h"
@@ -66,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h" // giftBoxHiddenMark
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -152,7 +154,11 @@ ListWidget::ListWidget(
 	_provider->type(),
 	[=] { scrollDateCheck(); },
 	[=] { scrollDateHide(); }))
-, _storiesAddToAlbumId(controller->storiesAddToAlbumId()) {
+, _storiesAddToAlbumId(controller->storiesAddToAlbumId())
+, _hiddenMark(std::make_unique<StickerPremiumMark>(
+		&_controller->session(),
+		st::giftBoxHiddenMark,
+		RectPart::Center)) {
 	start();
 }
 
@@ -312,8 +318,11 @@ void ListWidget::selectionAction(SelectionAction action) {
 	case SelectionAction::Clear: clearSelected(); return;
 	case SelectionAction::Forward: forwardSelected(); return;
 	case SelectionAction::Delete: deleteSelected(); return;
-	case SelectionAction::ToggleStoryInProfile:
-		toggleStoryInProfileSelected();
+	case SelectionAction::ToggleStoryToProfile:
+		toggleStoryInProfileSelected(true);
+		return;
+	case SelectionAction::ToggleStoryToArchive:
+		toggleStoryInProfileSelected(false);
 		return;
 	case SelectionAction::ToggleStoryPin: toggleStoryPinSelected(); return;
 	}
@@ -395,6 +404,7 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 		result.canForward = selection.canForward;
 		result.canToggleStoryPin = selection.canToggleStoryPin;
 		result.canUnpinStory = selection.canUnpinStory;
+		result.storyInProfile = selection.storyInProfile;
 		return result;
 	};
 	auto transformation = [&](const auto &item) {
@@ -525,6 +535,10 @@ bool ListWidget::itemVisible(not_null<const BaseLayout*> item) {
 			&& (geometry.top() + geometry.height() > _visibleTop);
 	}
 	return true;
+}
+
+not_null<StickerPremiumMark*> ListWidget::hiddenMark() {
+	return _hiddenMark.get();
 }
 
 QString ListWidget::tooltipText() const {
@@ -1020,6 +1034,11 @@ void ListWidget::showContextMenu(
 			return !item.second.canToggleStoryPin;
 		});
 	};
+	const auto allInProfile = [&] {
+		return ranges::all_of(_selected, [](auto &&item) {
+			return item.second.storyInProfile;
+		});
+	};
 	const auto canUnpinStoryAll = [&] {
 		return ranges::any_of(_selected, [](auto &&item) {
 			return item.second.canUnpinStory;
@@ -1125,13 +1144,14 @@ void ListWidget::showContextMenu(
 	}
 	if (overSelected == SelectionState::OverSelectedItems) {
 		if (canToggleStoryPinAll()) {
-			const auto albumId = _controller->storiesAlbumId();
-			const auto toProfile = (albumId == Stories::ArchiveId());
+			const auto toProfile = !allInProfile();
 			_contextMenu->addAction(
 				(toProfile
 					? tr::lng_mediaview_save_to_profile
 					: tr::lng_archived_add)(tr::now),
-				crl::guard(this, [this] { toggleStoryInProfileSelected(); }),
+				crl::guard(this, [=] {
+					toggleStoryInProfileSelected(toProfile);
+				}),
 				(toProfile
 					? &st::menuIconStoriesSave
 					: &st::menuIconStoriesArchive));
@@ -1177,14 +1197,15 @@ void ListWidget::showContextMenu(
 				item,
 				FullSelection);
 			if (selectionData.canToggleStoryPin) {
-				const auto albumId = _controller->storiesAlbumId();
-				const auto toProfile = (albumId == Stories::ArchiveId());
+				const auto toProfile = !selectionData.storyInProfile;
 				_contextMenu->addAction(
 					(toProfile
 						? tr::lng_mediaview_save_to_profile
 						: tr::lng_mediaview_archive_story)(tr::now),
 					crl::guard(this, [=] {
-						toggleStoryInProfile({ 1, globalId.itemId });
+						toggleStoryInProfile(
+							{ 1, globalId.itemId },
+							toProfile);
 					}),
 					(toProfile
 						? &st::menuIconStoriesSave
@@ -1317,10 +1338,11 @@ void ListWidget::deleteSelected() {
 	}));
 }
 
-void ListWidget::toggleStoryInProfileSelected() {
-	toggleStoryInProfile(collectSelectedIds(), crl::guard(this, [=] {
-		clearSelected();
-	}));
+void ListWidget::toggleStoryInProfileSelected(bool toProfile) {
+	toggleStoryInProfile(
+		collectSelectedIds(),
+		toProfile,
+		crl::guard(this, [=] { clearSelected(); }));
 }
 
 void ListWidget::toggleStoryPinSelected() {
@@ -1335,6 +1357,7 @@ void ListWidget::toggleStoryPinSelected() {
 
 void ListWidget::toggleStoryInProfile(
 		MessageIdsList &&items,
+		bool toProfile,
 		Fn<void()> confirmed) {
 	auto list = std::vector<FullStoryId>();
 	for (const auto &id : items) {
@@ -1347,8 +1370,6 @@ void ListWidget::toggleStoryInProfile(
 	}
 	const auto channel = peerIsChannel(list.front().peer);
 	const auto count = int(list.size());
-	const auto albumId = _controller->storiesAlbumId();
-	const auto toProfile = (albumId == Stories::ArchiveId());
 	const auto controller = _controller;
 	const auto sure = [=](Fn<void()> close) {
 		using namespace ::Media::Stories;
