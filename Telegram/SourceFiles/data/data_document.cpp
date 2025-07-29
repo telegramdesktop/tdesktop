@@ -1429,6 +1429,17 @@ Image *DocumentData::getReplyPreview(
 		Data::FileOrigin origin,
 		not_null<PeerData*> context,
 		bool spoiler) {
+	if (v::is<Data::FileOriginMessage>(origin.data)) {
+		if (const auto item = _owner->message(
+				v::get<FullMsgId>(origin.data))) {
+			if (const auto cover = LookupVideoCover(this, item)) {
+				return cover->getReplyPreview(
+					std::move(origin),
+					context,
+					spoiler);
+			}
+		}
+	}
 	if (!hasThumbnail()) {
 		return nullptr;
 	} else if (!_replyPreview) {
