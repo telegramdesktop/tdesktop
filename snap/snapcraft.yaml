@@ -34,7 +34,6 @@ parts:
     source-type: git
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
-      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,-push-state,-no-as-needed,-ldav1d,-lhwy,-pop-state -s
     cmake-generator: Ninja
     cmake-parameters:
