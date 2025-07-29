@@ -1085,7 +1085,7 @@ void Cover::refreshStatusGeometry(int newWidth) {
 	auto statusWidth = newWidth - statusLeft - _st.rightSkip;
 	_status->resizeToNaturalWidth(statusWidth);
 	_status->moveToLeft(statusLeft, _st.statusTop, newWidth);
-	const auto left = _st.statusLeft + _status->textMaxWidth();
+	const auto left = statusLeft + _status->textMaxWidth();
 	_showLastSeen->moveToLeft(
 		left + _st.showLastSeenPosition.x(),
 		_st.showLastSeenPosition.y(),
