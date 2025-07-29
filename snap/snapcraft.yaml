@@ -61,7 +61,7 @@ parts:
       mv "$CRAFT_PART_INSTALL"/usr/bin/{Telegram,telegram-desktop}
 
       APP_ID=org.telegram.desktop
-      sed -i "s/^Icon=$APP_ID$/Icon=snap.telegram-desktop./g" "$CRAFT_PART_INSTALL/usr/share/applications/$APP_ID.desktop"
+      sed -i "s/^Icon=$APP_ID$/Icon=snap.$CRAFT_PROJECT_NAME./g" "$CRAFT_PART_INSTALL/usr/share/applications/$APP_ID.desktop"
       for i in $(find "$CRAFT_PART_INSTALL/usr/share/icons" -name "$APP_ID*.svg" -o -name "$APP_ID*.png"); do
         PREFIXED="$(dirname "$i")/snap.$CRAFT_PROJECT_NAME.$(basename "$i" | sed "s/$APP_ID//")"
         mv "$i" "$PREFIXED"
