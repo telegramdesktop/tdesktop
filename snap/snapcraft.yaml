@@ -72,7 +72,6 @@ parts:
       - ada
       - avif
       - ffmpeg
-      - geoclue
       - jpegli
       - openal
       - protobuf
@@ -116,14 +115,19 @@ parts:
       - libxkbcommon-x11-dev
       - libxv-dev
     stage-packages:
+      - systemd
+      - libgeoclue-2-0
       - libopenh264-7
       - libxcb-cursor0
-      - libxcb-glx0
-      - libxcb-randr0
       - libxcb-record0
       - libxcb-screensaver0
-      - libxcb-sync1
-      - libxcb-xfixes0
+    stage:
+      - ./usr/bin/systemd-detect-virt
+      - ./usr/lib/x86_64-linux-gnu/libgeoclue-2.so*
+      - ./usr/lib/x86_64-linux-gnu/libopenh264.so*
+      - ./usr/lib/x86_64-linux-gnu/libxcb-cursor.so*
+      - ./usr/lib/x86_64-linux-gnu/libxcb-record.so*
+      - ./usr/lib/x86_64-linux-gnu/libxcb-screensaver.so*
 
   patches:
     source: https://github.com/desktop-app/patches.git
@@ -317,13 +321,6 @@ parts:
       - nv-codec-headers
       - pkgs
 
-  geoclue:
-    plugin: nil
-    stage-packages:
-      - libgeoclue-2-0
-    stage:
-      - ./usr/lib/x86_64-linux-gnu/libgeoclue-2.so*
-
   jpegli:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
@@ -459,13 +456,6 @@ parts:
     prime: [-./*]
     after:
       - pkgs
-
-  systemd:
-    plugin: nil
-    stage-packages:
-      - systemd
-    stage:
-      - ./usr/bin/systemd-detect-virt
 
   tde2e:
     source: https://github.com/tdlib/td.git
