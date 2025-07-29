@@ -225,8 +225,8 @@ template <typename MediaType>
 	Expects(media->owner()->hasThumbnail());
 
 	const auto document = media->owner();
-	const auto readyCacheKey = CountCacheKey(document, radius, spoiler);
 	if (const auto thumbnail = media->thumbnail()) {
+		const auto readyCacheKey = CountCacheKey(document, radius, spoiler);
 		return {
 			PreparePreviewImage(thumbnail, radius, spoiler),
 			readyCacheKey,
@@ -259,7 +259,8 @@ template <typename MediaType>
 		bool spoiler) {
 	auto result = PreparePhotoPreviewImage(item, media, radius, spoiler);
 	if (!result.data.isNull()
-		&& media->owner()->extendedMediaVideoDuration().has_value()) {
+		&& (media->owner()->extendedMediaVideoDuration().has_value()
+			|| (item->media() && item->media()->videoCover()))) {
 		result.data = PutPlayIcon(std::move(result.data));
 	}
 	return result;
@@ -1157,7 +1158,28 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	const auto radius = _document->isVideoMessage()
 		? ImageRoundRadius::Ellipse
 		: ImageRoundRadius::Small;
-	if (auto found = FindCachedPreview(
+	if (_videoCover) {
+		if (auto found = FindCachedPreview(
+				existing,
+				not_null{ _videoCover },
+				radius,
+				spoilered)) {
+			images.push_back(std::move(found));
+		} else {
+			const auto media = _videoCover->createMediaView();
+			if (auto prepared = PreparePhotoPreview(
+					parent(),
+					media,
+					radius,
+					_spoiler)
+				; prepared || !prepared.cacheKey) {
+				images.push_back(std::move(prepared));
+				if (!prepared.cacheKey) {
+					context = media;
+				}
+			}
+		}
+	} else if (auto found = FindCachedPreview(
 			existing,
 			_document,
 			radius,
