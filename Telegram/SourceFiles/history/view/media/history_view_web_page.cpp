@@ -232,6 +232,8 @@ constexpr auto kSponsoredUserpicLines = 2;
 		? tr::lng_view_button_emojipack(tr::now)
 		: (type == WebPageType::StickerSet)
 		? tr::lng_view_button_stickerset(tr::now)
+		: (type == WebPageType::StoryAlbum)
+		? tr::lng_view_button_storyalbum(tr::now)
 		: QString());
 	if (page->iv) {
 		const auto manager = &page->owner().customEmojiManager();

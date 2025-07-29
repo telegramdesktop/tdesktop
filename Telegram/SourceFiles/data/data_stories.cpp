@@ -1862,9 +1862,9 @@ void Stories::loadAlbums(not_null<PeerData*> peer, Albums &albums) {
 		peer->input,
 		MTP_long(albums.hash)
 	)).done([=](const MTPstories_Albums &result) {
+		auto &albums = _albums[peer->id];
+		albums.requestId = 0;
 		result.match([&](const MTPDstories_albums &data) {
-			auto &albums = _albums[peer->id];
-			albums.requestId = 0;
 			albums.hash = data.vhash().v;
 			auto parsed = std::vector<Data::StoryAlbum>();
 			const auto &list = data.valbums().v;

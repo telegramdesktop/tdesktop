@@ -633,6 +633,8 @@ bool ResolveUsernameOrPhone(
 	}
 	const auto storyParam = params.value(u"story"_q);
 	const auto storyId = storyParam.toInt();
+	const auto storyAlbumParam = params.value(u"album"_q);
+	const auto storyAlbumId = storyAlbumParam.toInt();
 	const auto appname = webChannelPreviewLink ? QString() : appnameParam;
 	const auto commentParam = params.value(u"comment"_q);
 	const auto commentId = commentParam.toInt();
@@ -659,6 +661,7 @@ bool ResolveUsernameOrPhone(
 		.phone = phone,
 		.messageId = post,
 		.storyId = storyId,
+		.storyAlbumId = storyAlbumId,
 		.videoTimestamp = (!videot.isEmpty()
 			? ParseVideoTimestamp(videot)
 			: std::optional<TimeId>()),
@@ -1827,6 +1830,7 @@ QString TryConvertUrlToLocal(QString url) {
 				"/[a-zA-Z0-9\\.\\_\\-]+/?(\\?|$)|"
 				"/\\d+/?(\\?|$)|"
 				"/s/\\d+/?(\\?|$)|"
+				"/a/\\d+/?(\\?|$)|"
 				"/\\d+/\\d+/?(\\?|$)"
 			")"_q, query, matchOptions)) {
 			const auto domain = usernameMatch->captured(1);
@@ -1849,6 +1853,8 @@ QString TryConvertUrlToLocal(QString url) {
 				added = u"&post="_q + postMatch->captured(1);
 			} else if (const auto storyMatch = regex_match(u"^/s/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
 				added = u"&story="_q + storyMatch->captured(1);
+			} else if (const auto storyMatch = regex_match(u"^/a/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
+				added = u"&album="_q + storyMatch->captured(1);
 			} else if (const auto appNameMatch = regex_match(u"^/([a-zA-Z0-9\\.\\_\\-]+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
 				added = u"&appname="_q + appNameMatch->captured(1);
 			}

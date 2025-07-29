@@ -69,6 +69,7 @@ public:
 
 	void reload();
 	void editAlbumStories(int id);
+	void shareAlbumLink(const QString &username, int id);
 	void editAlbumName(int id);
 	void confirmDeleteAlbum(int id);
 	void albumAdded(Data::StoryAlbum result);

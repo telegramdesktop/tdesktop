@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_inner_widget.h"
 
 #include "apiwrap.h"
+#include "boxes/share_box.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -210,6 +211,16 @@ InnerWidget::InnerWidget(
 
 	_albumId.value(
 	) | rpl::start_with_next([=](int albumId) {
+		if (_albumsTabs
+			&& (albumId == Data::kStoriesAlbumIdSaved
+				|| ranges::contains(
+					_albums,
+					albumId,
+					&Data::StoryAlbum::id))) {
+			_albumsTabs->setActiveTab((albumId == Data::kStoriesAlbumIdSaved)
+				? u"all"_q
+				: QString::number(albumId));
+		}
 		_controller->replaceKey(Key(Tag(_peer, albumId, _addingToAlbumId)));
 		reload();
 	}, lifetime());
@@ -699,16 +710,13 @@ void InnerWidget::refreshAlbumsTabs() {
 					StoryId(),
 					added));
 			} else {
-				_albumsTabs->setActiveTab(id);
 				_albumIdChanges.fire((id == u"all"_q) ? 0 : id.toInt());
 			}
 		}, _albumsTabs->lifetime());
 
 		_albumsTabs->contextMenuRequests(
 		) | rpl::start_with_next([=](const QString &id) {
-			if (id == u"add"_q
-				|| id == u"all"_q
-				|| !_peer->canEditStories()) {
+			if (id == u"add"_q || id == u"all"_q) {
 				return;
 			}
 			showMenuForAlbum(id.toInt());
@@ -723,24 +731,39 @@ void InnerWidget::refreshAlbumsTabs() {
 }
 
 void InnerWidget::showMenuForAlbum(int id) {
+	Expects(id > 0);
+
 	if (_menu || _addingToAlbumId) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
-	addAction(tr::lng_stories_album_add_title(tr::now), [=] {
-		editAlbumStories(id);
-	}, &st::menuIconStoriesSave);
-	addAction(tr::lng_stories_album_edit(tr::now), [=] {
-		editAlbumName(id);
-	}, &st::menuIconEdit);
-	addAction({
-		.text = tr::lng_stories_album_delete(tr::now),
-		.handler = [=] { confirmDeleteAlbum(id); },
-		.icon = &st::menuIconDeleteAttention,
-		.isAttention = true,
-	});
-	_menu->popup(QCursor::pos());
+	if (_peer->canEditStories()) {
+		addAction(tr::lng_stories_album_add_title(tr::now), [=] {
+			editAlbumStories(id);
+		}, &st::menuIconStoriesSave);
+	}
+	if (const auto username = _peer->username(); !username.isEmpty()) {
+		addAction(tr::lng_stories_album_share(tr::now), [=] {
+			shareAlbumLink(username, id);
+		}, &st::menuIconShare);
+	}
+	if (_peer->canEditStories()) {
+		addAction(tr::lng_stories_album_edit(tr::now), [=] {
+			editAlbumName(id);
+		}, &st::menuIconEdit);
+		addAction({
+			.text = tr::lng_stories_album_delete(tr::now),
+			.handler = [=] { confirmDeleteAlbum(id); },
+			.icon = &st::menuIconDeleteAttention,
+			.isAttention = true,
+		});
+	}
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(QCursor::pos());
+	}
 }
 
 rpl::producer<int> InnerWidget::albumIdChanges() const {
@@ -769,6 +792,12 @@ void InnerWidget::editAlbumStories(int id) {
 	}), id);
 
 	_controller->uiShow()->show(std::move(box));
+}
+
+void InnerWidget::shareAlbumLink(const QString &username, int id) {
+	const auto url = _controller->session().createInternalLinkFull(
+		username + u"/a/"_q + QString::number(id));
+	FastShareLink(_controller->parentController(), url);
 }
 
 void InnerWidget::editAlbumName(int id) {

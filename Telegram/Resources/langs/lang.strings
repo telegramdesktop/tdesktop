@@ -6255,6 +6255,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_emojipack" = "View emoji";
 "lng_view_button_collectible" = "View collectible";
 "lng_view_button_call" = "Join call";
+"lng_view_button_storyalbum" = "View Album";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";
@@ -6466,6 +6467,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_album_empty_text" = "Add some of your stories to this album.";
 "lng_stories_album_all" = "All Stories";
 "lng_stories_album_add_title" = "Add Stories";
+"lng_stories_album_share" = "Share Album";
 "lng_stories_album_edit" = "Edit Name";
 "lng_stories_album_limit_title" = "Limit Reached";
 "lng_stories_album_limit_text" = "Please remove one of the existing albums to add a new one.";
