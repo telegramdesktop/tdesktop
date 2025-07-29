@@ -100,8 +100,6 @@ public:
 
 	[[nodiscard]] uint64 coloredSetId() const;
 
-	[[nodiscard]] TextWithEntities tonEmoji(QMargins padding = {});
-	[[nodiscard]] TextWithEntities monoTonEmoji(QMargins padding = {});
 	[[nodiscard]] TextWithEntities creditsEmoji(QMargins padding = {});
 	[[nodiscard]] TextWithEntities ministarEmoji(QMargins padding = {});
 

@@ -52,6 +52,14 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 	const style::FlatLabel &st,
 	const style::color *textFg = nullptr);
 
+void SetButtonTwoLabels(
+	not_null<Ui::RpWidget*> button,
+	rpl::producer<TextWithEntities> title,
+	rpl::producer<TextWithEntities> subtitle,
+	const style::FlatLabel &st,
+	const style::FlatLabel &subst,
+	const style::color *textFg = nullptr);
+
 void SendStarsForm(
 	not_null<Main::Session*> session,
 	std::shared_ptr<Payments::CreditsFormData> data,

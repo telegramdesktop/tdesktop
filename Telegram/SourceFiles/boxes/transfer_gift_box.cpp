@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -503,7 +504,7 @@ void BuyResaleGift(
 
 	using Flag = MTPDinputInvoiceStarGiftResale::Flag;
 	const auto invoice = MTP_inputInvoiceStarGiftResale(
-		MTP_flags(Flag()),
+		MTP_flags(gift->onlyAcceptTon ? Flag::f_ton : Flag()),
 		MTP_string(gift->slug),
 		to->input);
 
@@ -662,8 +663,15 @@ void ShowBuyResaleGiftBox(
 
 		auto transfer = tr::lng_gift_buy_resale_button(
 			lt_cost,
-			rpl::single(
-				Ui::Text::IconEmoji(&st::starIconEmoji).append(
+			rpl::single(gift->onlyAcceptTon
+				? Ui::Text::IconEmoji(
+					&st::tonIconEmoji
+				).append(
+					Lang::FormatCreditsAmountDecimal(CreditsAmount(
+						gift->nanoTonForResale / Ui::kNanosInOne,
+						gift->nanoTonForResale % Ui::kNanosInOne,
+						CreditsType::Ton)))
+				: Ui::Text::IconEmoji(&st::starIconEmoji).append(
 					Lang::FormatCountDecimal(gift->starsForResale))),
 			Ui::Text::WithEntities);
 
@@ -698,19 +706,29 @@ void ShowBuyResaleGiftBox(
 					lt_name,
 					rpl::single(Ui::Text::Bold(UniqueGiftName(*gift))),
 					lt_price,
-					tr::lng_action_gift_for_stars(
-						lt_count,
-						rpl::single(gift->starsForResale * 1.),
-						Ui::Text::Bold),
+					(gift->onlyAcceptTon
+						? tr::lng_action_gift_for_ton(
+							lt_count,
+							rpl::single(gift->nanoTonForResale / 1'000'000'000.),
+							Ui::Text::Bold)
+						: tr::lng_action_gift_for_stars(
+							lt_count_decimal,
+							rpl::single(gift->starsForResale * 1.),
+							Ui::Text::Bold)),
 					Ui::Text::WithEntities)
 				: tr::lng_gift_buy_resale_confirm(
 					lt_name,
 					rpl::single(Ui::Text::Bold(UniqueGiftName(*gift))),
 					lt_price,
-					tr::lng_action_gift_for_stars(
-						lt_count,
-						rpl::single(gift->starsForResale * 1.),
-						Ui::Text::Bold),
+					(gift->onlyAcceptTon
+						? tr::lng_action_gift_for_ton(
+							lt_count,
+							rpl::single(gift->nanoTonForResale / 1'000'000'000.),
+							Ui::Text::Bold)
+						: tr::lng_action_gift_for_stars(
+							lt_count_decimal,
+							rpl::single(gift->starsForResale * 1.),
+							Ui::Text::Bold)),
 					lt_user,
 					rpl::single(Ui::Text::Bold(to->shortName())),
 					Ui::Text::WithEntities),

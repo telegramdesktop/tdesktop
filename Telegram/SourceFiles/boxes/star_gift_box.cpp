@@ -3907,7 +3907,7 @@ void ShowStarGiftBox(
 void SetupResalePriceButton(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<QColor> background,
-		rpl::producer<int> price,
+		rpl::producer<CreditsAmount> price,
 		Fn<void()> click) {
 	const auto resale = Ui::CreateChild<
 		Ui::FadeWrapScaled<Ui::AbstractButton>
@@ -3928,11 +3928,13 @@ void SetupResalePriceButton(
 	}, button->lifetime());
 	text->setTextColorOverride(QColor(255, 255, 255, 255));
 
-	std::move(price) | rpl::start_with_next([=](int value) {
-		if (value > 0) {
-			text->setMarkedText(
-				Ui::Text::IconEmoji(&st::starIconEmoji).append(
-					Lang::FormatCountDecimal(value)));
+	std::move(price) | rpl::start_with_next([=](CreditsAmount value) {
+		if (value) {
+			text->setMarkedText(value.ton()
+				? Ui::Text::IconEmoji(&st::tonIconEmoji).append(
+					Lang::FormatCreditsAmountDecimal(value))
+				: Ui::Text::IconEmoji(&st::starIconEmoji).append(
+					Lang::FormatCountDecimal(value.whole())));
 			resale->toggle(true, anim::type::normal);
 		} else {
 			resale->toggle(false, anim::type::normal);
@@ -3968,7 +3970,7 @@ void AddUniqueGiftCover(
 		not_null<VerticalLayout*> container,
 		rpl::producer<Data::UniqueGift> data,
 		rpl::producer<QString> subtitleOverride,
-		rpl::producer<int> resalePrice,
+		rpl::producer<CreditsAmount> resalePrice,
 		Fn<void()> resaleClick) {
 	const auto cover = container->add(object_ptr<RpWidget>(container));
 
@@ -4494,7 +4496,7 @@ void UpdateGiftSellPrice(
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		CreditsAmount price) {
-	const auto was = unique->starsForResale;
+	const auto wasOnResale = (unique->starsForResale > 0);
 	const auto session = &show->session();
 	session->api().request(MTPpayments_UpdateStarGiftPrice(
 		Api::InputSavedStarGiftId(savedId, unique),
@@ -4505,7 +4507,7 @@ void UpdateGiftSellPrice(
 		session->api().applyUpdates(result);
 		show->showToast((!price
 			? tr::lng_gift_sell_removed
-			: (was > 0)
+			: wasOnResale
 			? tr::lng_gift_sell_updated
 			: tr::lng_gift_sell_toast)(
 				tr::now,

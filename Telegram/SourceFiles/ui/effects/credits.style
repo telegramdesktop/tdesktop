@@ -81,8 +81,11 @@ starIconEmojiSmall: IconEmoji {
 	icon: icon{{ "chat/mini_stars", creditsBg1 }};
 	padding: margins(0px, 4px, 0px, 0px);
 }
+tonIconEmoji: IconEmoji {
+	icon: icon{{ "payments/ton_emoji-18x18", currencyFg }};
+	padding: margins(0px, 1px, 0px, 0px);
+}
 tonIconEmojiSize: 18px;
-tonIconEmojiPadding: margins(0px, 2px, 0px, 0px);
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
 
@@ -319,4 +322,14 @@ creditsHistoryRowRightTop: 16px;
 creditsHistoryRowRightMinorTop: 18px;
 creditsHistoryRowRightStyle: TextStyle(defaultTextStyle) {
 	font: font(fsize);
+}
+giftResaleButtonTitle: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: activeButtonFg;
+}
+giftResaleButtonSubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+	textFg: activeButtonFg;
 }

@@ -59,7 +59,7 @@ void AddUniqueGiftCover(
 	not_null<VerticalLayout*> container,
 	rpl::producer<Data::UniqueGift> data,
 	rpl::producer<QString> subtitleOverride = nullptr,
-	rpl::producer<int> resalePrice = nullptr,
+	rpl::producer<CreditsAmount> resalePrice = nullptr,
 	Fn<void()> resaleClick = nullptr);
 void AddWearGiftCover(
 	not_null<VerticalLayout*> container,

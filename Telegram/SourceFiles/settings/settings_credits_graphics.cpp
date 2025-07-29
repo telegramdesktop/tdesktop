@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/share_box.h"
+#include "boxes/send_credits_box.h" // SetButtonTwoLabels
 #include "boxes/star_gift_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -62,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/ton_common.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
@@ -1067,8 +1069,8 @@ void FillUniqueGiftMenu(
 		}
 	}
 	if (CanResellGift(&show->session(), e)) {
-		const auto resalePrice = unique->starsForResale;
-		const auto editPrice = (resalePrice > 0
+		const auto inResale = (unique->starsForResale > 0);
+		const auto editPrice = (inResale
 			? tr::lng_gift_transfer_update
 			: tr::lng_gift_transfer_sell)(tr::now);
 		menu->addAction(editPrice, [=] {
@@ -1077,7 +1079,7 @@ void FillUniqueGiftMenu(
 				: GiftWearBoxStyleOverride();
 			ShowUniqueGiftSellBox(show, unique, savedId, style);
 		}, st.resell ? st.resell : &st::menuIconTagSell);
-		if (resalePrice > 0) {
+		if (inResale) {
 			menu->addAction(tr::lng_gift_transfer_unlist(tr::now), [=] {
 				const auto name = UniqueGiftName(*unique);
 				const auto confirm = [=](Fn<void()> close) {
@@ -1240,7 +1242,12 @@ void GenericCreditsEntryBox(
 			return (update.action == Data::GiftUpdate::Action::ResaleChange)
 				&& (update.slug == slug);
 		}) | rpl::to_empty) | rpl::map([unique = e.uniqueGift] {
-			return unique->starsForResale;
+			return unique->onlyAcceptTon
+				? CreditsAmount(
+					unique->nanoTonForResale / Ui::kNanosInOne,
+					unique->nanoTonForResale % Ui::kNanosInOne,
+					CreditsType::Ton)
+				: CreditsAmount(unique->starsForResale);
 		});
 		auto change = [=] {
 			const auto style = st.giftWearBox
@@ -2100,12 +2107,36 @@ void GenericCreditsEntryBox(
 		}
 	});
 	if (canBuyResold) {
-		button->setText(tr::lng_gift_buy_resale_button(
-			lt_cost,
-			rpl::single(
-				Ui::Text::IconEmoji(&st::starIconEmoji).append(
+		if (uniqueGift->onlyAcceptTon) {
+			button->setText(rpl::single(QString()));
+			Ui::SetButtonTwoLabels(
+				button,
+				tr::lng_gift_buy_resale_button(
+					lt_cost,
+					rpl::single(Ui::Text::IconEmoji(
+						&st::tonIconEmoji
+					).append(
+						Lang::FormatCreditsAmountDecimal(CreditsAmount(
+							uniqueGift->nanoTonForResale / Ui::kNanosInOne,
+							uniqueGift->nanoTonForResale % Ui::kNanosInOne,
+							CreditsType::Ton)))),
+					Ui::Text::WithEntities),
+				tr::lng_gift_buy_resale_equals(
+					lt_cost,
+					rpl::single(Ui::Text::IconEmoji(
+						&st::starIconEmojiSmall
+					).append(Lang::FormatCountDecimal(
+						uniqueGift->starsForResale))),
+					Ui::Text::WithEntities),
+				st::giftResaleButtonTitle,
+				st::giftResaleButtonSubtitle);
+		} else {
+			button->setText(tr::lng_gift_buy_resale_button(
+				lt_cost,
+				rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji).append(
 					Lang::FormatCountDecimal(uniqueGift->starsForResale))),
-			Ui::Text::WithEntities));
+				Ui::Text::WithEntities));
+		}
 	}
 	{
 		using namespace Info::Statistics;

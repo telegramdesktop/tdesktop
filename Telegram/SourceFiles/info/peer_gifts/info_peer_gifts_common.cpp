@@ -742,7 +742,7 @@ TextWithEntities Delegate::monostar() {
 }
 
 TextWithEntities Delegate::monoton() {
-	return _session->data().customEmojiManager().monoTonEmoji();
+	return Ui::Text::IconEmoji(&st::tonIconEmoji);
 }
 
 TextWithEntities Delegate::ministar() {

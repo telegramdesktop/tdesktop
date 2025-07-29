@@ -1021,26 +1021,6 @@ uint64 CustomEmojiManager::coloredSetId() const {
 	return _coloredSetId;
 }
 
-TextWithEntities CustomEmojiManager::tonEmoji(QMargins padding) {
-	return Ui::Text::SingleCustomEmoji(registerInternalEmoji(
-		u"builtin:ton_emoji"_q,
-		Ui::Earn::IconCurrencyColored(
-			st::tonIconEmojiSize,
-			st::currencyFg->c),
-		st::tonIconEmojiPadding + padding,
-		false));
-}
-
-TextWithEntities CustomEmojiManager::monoTonEmoji(QMargins padding) {
-	return Ui::Text::SingleCustomEmoji(registerInternalEmoji(
-		u"builtin:monoton_emoji"_q,
-		Ui::Earn::IconCurrencyColored(
-			st::tonIconEmojiSize,
-			st::currencyFg->c),
-		st::tonIconEmojiPadding + padding,
-		true));
-}
-
 TextWithEntities CustomEmojiManager::creditsEmoji(QMargins padding) {
 	return Ui::Text::SingleCustomEmoji(registerInternalEmoji(
 		u"builtin:credits_emoji"_q,
