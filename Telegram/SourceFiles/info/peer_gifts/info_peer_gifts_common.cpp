@@ -96,6 +96,13 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	_mediaLifetime.destroy();
 	unsubscribe();
 
+	const auto format = [=](int64 number) {
+		const auto onlyK = (number < 100'000'000);
+		return (number >= 1'000'000)
+			? Lang::FormatCountToShort(number, onlyK).string
+			: Lang::FormatCountDecimal(number);
+	};
+
 	_descriptor = descriptor;
 	_resalePrice = resalePrice;
 	const auto resale = (_resalePrice > 0);
@@ -156,19 +163,18 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 				? (unique
 					? _delegate->monostar()
 					: _delegate->star()).append(' ').append(
-						Lang::FormatCountDecimal(unique
+						format(unique
 							? unique->starsForResale
 							: data.info.starsResellMin)
 					).append(data.info.resellCount > 1 ? "+" : "")
 				: (_small && unique && unique->starsForResale)
 				? _delegate->monostar().append(' ').append(
-					Lang::FormatCountDecimal(unique->starsForResale))
+					format(unique->starsForResale))
 				: unique
 				? tr::lng_gift_transfer_button(
 					tr::now,
 					Ui::Text::WithEntities)
-				: _delegate->star().append(
-					' ' + Lang::FormatCountDecimal(data.info.stars))),
+				: _delegate->star().append(' ' + format(data.info.stars))),
 			kMarkupTextOptions,
 			_delegate->textContext());
 		if (!_stars) {

@@ -15,6 +15,7 @@ class Show;
 
 namespace Ui {
 class GenericBox;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Main {
@@ -42,6 +43,30 @@ struct SuggestTimeBoxArgs {
 void ChooseSuggestTimeBox(
 	not_null<Ui::GenericBox*> box,
 	SuggestTimeBoxArgs &&args);
+
+struct StarsTonPriceInput {
+	Fn<void()> focusCallback;
+	Fn<std::optional<CreditsAmount>()> computeResult;
+	rpl::producer<> submits;
+	rpl::producer<> updates;
+	rpl::producer<CreditsAmount> result;
+};
+
+struct StarsTonPriceArgs {
+	not_null<Main::Session*> session;
+	rpl::producer<bool> showTon;
+	CreditsAmount price;
+	int starsMin = 0;
+	int starsMax = 0;
+	int64 nanoTonMin = 0;
+	int64 nanoTonMax = 0;
+	rpl::producer<TextWithEntities> starsAbout;
+	rpl::producer<TextWithEntities> tonAbout;
+};
+
+[[nodiscard]] StarsTonPriceInput AddStarsTonPriceInput(
+	not_null<Ui::VerticalLayout*> container,
+	StarsTonPriceArgs &&args);
 
 struct SuggestPriceBoxArgs {
 	not_null<PeerData*> peer;

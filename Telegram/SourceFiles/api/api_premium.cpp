@@ -895,9 +895,10 @@ std::optional<Data::StarGift> FromTL(
 					? peerFromMTP(*data.vowner_id())
 					: PeerId()),
 				.releasedBy = releasedBy,
-				.number = data.vnum().v,
+				.nanoTonForResale = FindTonForResale(data.vresell_amount()),
 				.starsForResale = FindStarsForResale(data.vresell_amount()),
-				.tonForResale = FindTonForResale(data.vresell_amount()),
+				.number = data.vnum().v,
+				.onlyAcceptTon = data.is_resale_ton_only(),
 				.model = *model,
 				.pattern = *pattern,
 			}),

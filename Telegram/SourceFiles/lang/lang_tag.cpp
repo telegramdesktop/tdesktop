@@ -917,7 +917,7 @@ int NonZeroPartToInt(QString value) {
 		: (value.isEmpty() ? 0 : value.toInt());
 }
 
-ShortenedCount FormatCountToShort(int64 number) {
+ShortenedCount FormatCountToShort(int64 number, bool onlyK) {
 	auto result = ShortenedCount{ number };
 	const auto abs = std::abs(number);
 	const auto shorten = [&](int64 divider, char multiplier) {
@@ -934,7 +934,7 @@ ShortenedCount FormatCountToShort(int64 number) {
 		result.number = rounded * divider;
 		result.shortened = true;
 	};
-	if (abs >= 1'000'000) {
+	if (!onlyK && abs >= 1'000'000) {
 		shorten(1'000'000, 'M');
 	} else if (abs >= 10'000) {
 		shorten(1'000, 'K');

@@ -85,9 +85,12 @@ public:
 	[[nodiscard]] int confcallSizeLimit() const;
 	[[nodiscard]] bool confcallPrioritizeVP8() const;
 
-	[[nodiscard]] int giftResalePriceMax() const;
-	[[nodiscard]] int giftResalePriceMin() const;
-	[[nodiscard]] int giftResaleReceiveThousandths() const;
+	[[nodiscard]] int giftResaleStarsMin() const;
+	[[nodiscard]] int giftResaleStarsMax() const;
+	[[nodiscard]] int giftResaleStarsThousandths() const;
+	[[nodiscard]] int64 giftResaleNanoTonMin() const;
+	[[nodiscard]] int64 giftResaleNanoTonMax() const;
+	[[nodiscard]] int giftResaleNanoTonThousandths() const;
 
 	[[nodiscard]] int pollOptionsLimit() const;
 	[[nodiscard]] int todoListItemsLimit() const;

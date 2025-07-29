@@ -1533,6 +1533,18 @@ bool ResolveStarsSettings(
 	return true;
 }
 
+bool ResolveTonSettings(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	controller->showSettings(::Settings::CurrencyId());
+	controller->window().activate();
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -1636,6 +1648,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^stars/?(^\\?.*)?(#|$)"_q,
 			ResolveStarsSettings
+		},
+		{
+			u"^ton/?(^\\?.*)?(#|$)"_q,
+			ResolveTonSettings
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,

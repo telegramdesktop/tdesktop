@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/admin_log/history_admin_log_item.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_unique_gift.h"
 #include "history/view/history_view_element.h"
@@ -71,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/emoji_button.h"
+#include "ui/controls/ton_common.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
@@ -232,6 +234,37 @@ struct SessionResalePrices {
 	rpl::lifetime requestLifetime;
 	crl::time lastReceived = 0;
 };
+
+[[nodiscard]] CreditsAmount StarsFromTon(
+		not_null<Main::Session*> session,
+		CreditsAmount ton) {
+	const auto appConfig = &session->appConfig();
+	const auto starsRate = appConfig->starsWithdrawRate() / 100.;
+	const auto tonRate = appConfig->currencyWithdrawRate();
+	if (!starsRate) {
+		return {};
+	}
+	const auto count = (ton.value() * tonRate) / starsRate;
+	return CreditsAmount(int(base::SafeRound(count)));
+}
+
+[[nodiscard]] CreditsAmount TonFromStars(
+		not_null<Main::Session*> session,
+		CreditsAmount stars) {
+	const auto appConfig = &session->appConfig();
+	const auto starsRate = appConfig->starsWithdrawRate() / 100.;
+	const auto tonRate = appConfig->currencyWithdrawRate();
+	if (!tonRate) {
+		return {};
+	}
+	const auto count = (stars.value() * starsRate) / tonRate;
+	const auto whole = int(std::floor(count));
+	const auto cents = int(base::SafeRound((count - whole) * 100));
+	return CreditsAmount(
+		whole,
+		cents * (Ui::kNanosInOne / 100),
+		CreditsType::Ton);
+}
 
 [[nodiscard]] not_null<SessionResalePrices*> ResalePrices(
 		not_null<Main::Session*> session) {
@@ -4403,19 +4436,6 @@ void ShowUniqueGiftWearBox(
 			session,
 			st::creditsBoxButtonLabel,
 			&st::giftBox.button.textFg);
-
-		rpl::combine(
-			box->widthValue(),
-			button->widthValue()
-		) | rpl::start_with_next([=](int outer, int inner) {
-			const auto padding = st::giftBox.buttonPadding;
-			const auto wanted = outer - padding.left() - padding.right();
-			if (inner != wanted) {
-				button->resizeToWidth(wanted);
-				button->moveToLeft(padding.left(), padding.top());
-			}
-		}, box->lifetime());
-
 		AddUniqueCloseButton(box, {});
 	}));
 }
@@ -4473,12 +4493,14 @@ void UpdateGiftSellPrice(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
-		int price) {
+		CreditsAmount price) {
 	const auto was = unique->starsForResale;
 	const auto session = &show->session();
 	session->api().request(MTPpayments_UpdateStarGiftPrice(
 		Api::InputSavedStarGiftId(savedId, unique),
-		MTP_starsAmount(MTP_long(price), MTP_int(0))
+		(price
+			? StarsAmountToTL(price)
+			: MTP_starsAmount(MTP_long(0), MTP_int(0)))
 	)).done([=](const MTPUpdates &result) {
 		session->api().applyUpdates(result);
 		show->showToast((!price
@@ -4489,8 +4511,26 @@ void UpdateGiftSellPrice(
 				tr::now,
 				lt_name,
 				Data::UniqueGiftName(*unique)));
-
-		unique->starsForResale = price;
+		const auto setStars = [&](CreditsAmount amount) {
+			unique->starsForResale = amount.whole();
+		};
+		const auto setTon = [&](CreditsAmount amount) {
+			unique->nanoTonForResale = amount.whole() * Ui::kNanosInOne
+				+ amount.nano();
+		};
+		if (!price) {
+			setStars({});
+			setTon({});
+			unique->onlyAcceptTon = false;
+		} else if (price.ton()) {
+			setStars(StarsFromTon(session, price));
+			setTon(price);
+			unique->onlyAcceptTon = true;
+		} else {
+			setStars(price);
+			setTon(TonFromStars(session, price));
+			unique->onlyAcceptTon = false;
+		}
 		session->data().notifyGiftUpdate({
 			.id = savedId,
 			.slug = unique->slug,
@@ -4517,80 +4557,103 @@ void UniqueGiftSellBox(
 		Data::SavedStarGiftId savedId,
 		int price,
 		Settings::GiftWearBoxStyleOverride st) {
-	box->setTitle(tr::lng_gift_sell_title());
+	const auto session = &show->session();
+	const auto &appConfig = session->appConfig();
+	const auto starsMin = appConfig.giftResaleStarsMin();
+	const auto nanoTonMin = appConfig.giftResaleNanoTonMin();
+	const auto starsThousandths = appConfig.giftResaleStarsThousandths();
+	const auto nanoTonThousandths = appConfig.giftResaleNanoTonThousandths();
+
+	struct State {
+		rpl::variable<bool> onlyTon;
+		rpl::variable<CreditsAmount> price;
+		Fn<std::optional<CreditsAmount>()> computePrice;
+		rpl::event_stream<> errors;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->onlyTon = unique->onlyAcceptTon;
+	const auto priceNow = unique->onlyAcceptTon
+		? CreditsAmount(
+			unique->nanoTonForResale / Ui::kNanosInOne,
+			unique->nanoTonForResale % Ui::kNanosInOne,
+			CreditsType::Ton)
+		: CreditsAmount(unique->starsForResale);
+	state->price = priceNow
+		? priceNow
+		: price
+		? CreditsAmount(price)
+		: CreditsAmount(starsMin);
+
+	box->setTitle(rpl::conditional(
+		state->onlyTon.value(),
+		tr::lng_gift_sell_title_ton(),
+		tr::lng_gift_sell_title()));
 	box->setStyle(st.box ? *st.box : st::upgradeGiftBox);
 	box->setWidth(st::boxWideWidth);
 
 	box->addTopButton(st.close ? *st.close : st::boxTitleClose, [=] {
 		box->closeBox();
 	});
-	const auto priceNow = unique->starsForResale;
 	const auto name = Data::UniqueGiftName(*unique);
 	const auto slug = unique->slug;
 
-	const auto session = &show->session();
-	AddSubsectionTitle(
-		box->verticalLayout(),
-		tr::lng_gift_sell_placeholder(),
-		(st::boxRowPadding - QMargins(
-			st::defaultSubsectionTitlePadding.left(),
-			0,
-			st::defaultSubsectionTitlePadding.right(),
-			st::defaultSubsectionTitlePadding.bottom())));
-	const auto &appConfig = session->appConfig();
-	const auto limit = appConfig.giftResalePriceMax();
-	const auto minimal = appConfig.giftResalePriceMin();
-	const auto thousandths = appConfig.giftResaleReceiveThousandths();
-	const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
-		box,
-		st::editTagField.heightMin));
-	auto owned = object_ptr<Ui::NumberInput>(
-		wrap,
-		st::editTagField,
-		rpl::single(QString()),
-		QString::number(priceNow ? priceNow : price ? price : minimal),
-		limit);
-	const auto field = owned.data();
-	wrap->widthValue() | rpl::start_with_next([=](int width) {
-		field->move(0, 0);
-		field->resize(width, field->height());
-		wrap->resize(width, field->height());
-	}, wrap->lifetime());
-	field->paintRequest() | rpl::start_with_next([=](QRect clip) {
-		auto p = QPainter(field);
-		st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
-	}, field->lifetime());
-	field->selectAll();
-	box->setFocusCallback([=] {
-		field->setFocusFast();
+	const auto container = box->verticalLayout();
+	auto priceInput = HistoryView::AddStarsTonPriceInput(container, {
+		.session = session,
+		.showTon = state->onlyTon.value(),
+		.price = state->price.current(),
+		.starsMin = starsMin,
+		.starsMax = appConfig.giftResaleStarsMax(),
+		.nanoTonMin = nanoTonMin,
+		.nanoTonMax = appConfig.giftResaleNanoTonMax(),
 	});
+	state->price = std::move(priceInput.result);
+	state->computePrice = std::move(priceInput.computeResult);
+	box->setFocusCallback(std::move(priceInput.focusCallback));
 
-	const auto errors = box->lifetime().make_state<
-		rpl::event_stream<>
-	>();
 	auto goods = rpl::merge(
 		rpl::single(rpl::empty) | rpl::map_to(true),
-		base::qt_signal_producer(
-			field,
-			&Ui::NumberInput::changed
-		) | rpl::map_to(true),
-		errors->events() | rpl::map_to(false)
+		std::move(priceInput.updates) | rpl::map_to(true),
+		state->errors.events() | rpl::map_to(false)
 	) | rpl::start_spawning(box->lifetime());
 	auto text = rpl::duplicate(goods) | rpl::map([=](bool good) {
-		const auto value = field->getLastText().toInt();
-		const auto receive = (int64(value) * thousandths) / 1000;
-		return !good
-			? tr::lng_gift_sell_min_price(
-				tr::now,
-				lt_count,
-				minimal,
-				Ui::Text::RichLangValue)
-			: (value >= minimal)
-			? tr::lng_gift_sell_amount(
-				tr::now,
-				lt_count,
-				receive,
-				Ui::Text::RichLangValue)
+		const auto value = state->computePrice();
+		const auto amount = value ? value->value() : 0.;
+		const auto tonMin = nanoTonMin / float64(Ui::kNanosInOne);
+		const auto enough = value
+			&& (amount >= (value->ton() ? tonMin : starsMin));
+		const auto receive = !value
+			? 0
+			: value->ton()
+			? ((amount * nanoTonThousandths) / 1000.)
+			: ((int64(amount) * starsThousandths) / 1000);
+		const auto thousandths = state->onlyTon.current()
+			? nanoTonThousandths
+			: starsThousandths;
+		return (!good || !value)
+			? (state->onlyTon.current()
+				? tr::lng_gift_sell_min_price_ton(
+					tr::now,
+					lt_count,
+					nanoTonMin / float64(Ui::kNanosInOne),
+					Ui::Text::RichLangValue)
+				: tr::lng_gift_sell_min_price(
+					tr::now,
+					lt_count,
+					starsMin,
+					Ui::Text::RichLangValue))
+			: enough
+			? (value->ton()
+				? tr::lng_gift_sell_amount_ton(
+					tr::now,
+					lt_count,
+					receive,
+					Ui::Text::RichLangValue)
+				: tr::lng_gift_sell_amount(
+					tr::now,
+					lt_count,
+					receive,
+					Ui::Text::RichLangValue))
 			: tr::lng_gift_sell_about(
 				tr::now,
 				lt_percent,
@@ -4603,37 +4666,50 @@ void UniqueGiftSellBox(
 			box->verticalLayout()->resizeToWidth(box->width());
 		}),
 		st::boxLabel));
-	Ui::AddSkip(box->verticalLayout());
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+	box->addRow(object_ptr<Ui::PlainShadow>(box));
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	const auto onlyTon = box->addRow(
+		object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_gift_sell_only_ton(tr::now),
+			state->onlyTon.current(),
+			st::defaultCheckbox));
+	state->onlyTon = onlyTon->checkedValue();
+
+	Ui::AddSkip(container);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_gift_sell_only_ton_about(Ui::Text::RichLangValue),
+			st::boxDividerLabel));
+	Ui::AddSkip(container);
 
 	rpl::duplicate(goods) | rpl::start_with_next([=](bool good) {
 		details->setTextColorOverride(
 			good ? st::windowSubTextFg->c : st::boxTextFgError->c);
 	}, details->lifetime());
 
-	QObject::connect(field, &NumberInput::submitted, [=] {
-		const auto count = field->getLastText().toInt();
-		if (count < minimal) {
-			field->showError();
-			errors->fire({});
+	const auto submit = [=] {
+		const auto value = state->computePrice();
+		if (!value) {
+			state->errors.fire({});
 			return;
 		}
 		box->closeBox();
-		UpdateGiftSellPrice(show, unique, savedId, count);
-	});
-	const auto button = box->addButton(priceNow
+		UpdateGiftSellPrice(show, unique, savedId, *value);
+	};
+	std::move(
+		priceInput.submits
+	) | rpl::start_with_next(submit, details->lifetime());
+	auto submitText = priceNow
 		? tr::lng_gift_sell_update()
-		: tr::lng_gift_sell_put(), [=] { field->submitted({}); });
-	rpl::combine(
-		box->widthValue(),
-		button->widthValue()
-	) | rpl::start_with_next([=](int outer, int inner) {
-		const auto padding = st::giftBox.buttonPadding;
-		const auto wanted = outer - padding.left() - padding.right();
-		if (inner != wanted) {
-			button->resizeToWidth(wanted);
-			button->moveToLeft(padding.left(), padding.top());
-		}
-	}, box->lifetime());
+		: tr::lng_gift_sell_put();
+	box->addButton(std::move(submitText), submit);
 }
 
 void ShowUniqueGiftSellBox(
@@ -4874,17 +4950,6 @@ void UpgradeBox(
 			st::creditsBoxButtonLabel,
 			&st::giftBox.button.textFg);
 	}
-	rpl::combine(
-		box->widthValue(),
-		button->widthValue()
-	) | rpl::start_with_next([=](int outer, int inner) {
-		const auto padding = st::giftBox.buttonPadding;
-		const auto wanted = outer - padding.left() - padding.right();
-		if (inner != wanted) {
-			button->resizeToWidth(wanted);
-			button->moveToLeft(padding.left(), padding.top());
-		}
-	}, box->lifetime());
 
 	AddUniqueCloseButton(box, {});
 }

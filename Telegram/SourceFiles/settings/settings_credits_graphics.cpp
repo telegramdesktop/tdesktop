@@ -1081,7 +1081,7 @@ void FillUniqueGiftMenu(
 				const auto name = UniqueGiftName(*unique);
 				const auto confirm = [=](Fn<void()> close) {
 					close();
-					Ui::UpdateGiftSellPrice(show, unique, savedId, 0);
+					Ui::UpdateGiftSellPrice(show, unique, savedId, {});
 				};
 				show->show(Ui::MakeConfirmBox({
 					.text = tr::lng_gift_sell_unlist_sure(),

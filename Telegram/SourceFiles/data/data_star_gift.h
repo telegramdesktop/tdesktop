@@ -45,10 +45,11 @@ struct UniqueGift {
 	QString ownerName;
 	PeerId ownerId = 0;
 	PeerData *releasedBy = nullptr;
-	int number = 0;
-	int starsForTransfer = -1;
+	int64 nanoTonForResale = -1;
 	int starsForResale = -1;
-	int64 tonForResale = -1;
+	int starsForTransfer = -1;
+	int number = 0;
+	bool onlyAcceptTon = false;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;

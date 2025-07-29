@@ -26,7 +26,9 @@ struct ShortenedCount {
 	QString string;
 	bool shortened = false;
 };
-[[nodiscard]] ShortenedCount FormatCountToShort(int64 number);
+[[nodiscard]] ShortenedCount FormatCountToShort(
+	int64 number,
+	bool onlyK = false);
 [[nodiscard]] QString FormatCountDecimal(int64 number);
 [[nodiscard]] QString FormatExactCountDecimal(float64 number);
 [[nodiscard]] ShortenedCount FormatCreditsAmountToShort(

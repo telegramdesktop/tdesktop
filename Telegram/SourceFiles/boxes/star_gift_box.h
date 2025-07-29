@@ -78,7 +78,7 @@ void UpdateGiftSellPrice(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> unique,
 	Data::SavedStarGiftId savedId,
-	int price);
+	CreditsAmount price);
 void ShowUniqueGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> unique,
