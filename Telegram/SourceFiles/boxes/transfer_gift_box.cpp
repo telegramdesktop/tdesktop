@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/sub_tabs.h"
 #include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -678,19 +679,59 @@ void ShowBuyResaleGiftBox(
 		not_null<PeerData*> to,
 		Fn<void()> closeParentBox) {
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(tr::lng_gift_buy_resale_title(
-			lt_name,
-			rpl::single(UniqueGiftName(*gift))));
-
-		auto transfer = tr::lng_gift_buy_resale_button(
-			lt_cost,
-			rpl::single(Data::FormatGiftResaleAsked(*gift)),
-			Ui::Text::WithEntities);
-
 		struct State {
+			rpl::variable<bool> ton;
 			bool sent = false;
 		};
 		const auto state = std::make_shared<State>();
+		state->ton = gift->onlyAcceptTon;
+
+		if (gift->onlyAcceptTon) {
+			box->addRow(
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_gift_buy_resale_only_ton(
+						Ui::Text::RichLangValue),
+					st::resaleConfirmTonOnly),
+				st::boxRowPadding + st::resaleConfirmTonOnlyMargin);
+		} else {
+			const auto tabs = box->addRow(
+				object_ptr<Ui::SubTabs>(
+					box,
+					Ui::SubTabsOptions{
+						.selected = u"stars"_q,
+						.centered = true,
+					},
+					std::vector<Ui::SubTabsTab>{
+						{
+							u"stars"_q,
+							tr::lng_gift_buy_resale_pay_stars(
+								tr::now,
+								Ui::Text::WithEntities),
+						},
+						{
+							u"ton"_q,
+							tr::lng_gift_buy_resale_pay_ton(
+								tr::now,
+								Ui::Text::WithEntities),
+						},
+					}),
+				st::boxRowPadding + st::resaleConfirmTonOnlyMargin);
+			tabs->activated() | rpl::start_with_next([=](QString id) {
+				tabs->setActiveTab(id);
+				state->ton = (id == u"ton"_q);
+			}, tabs->lifetime());
+		}
+
+		auto transfer = state->ton.value() | rpl::map([=](bool ton) {
+			return tr::lng_gift_buy_resale_button(
+				lt_cost,
+				rpl::single(ton
+					? Data::FormatGiftResaleTon(*gift)
+					: Data::FormatGiftResaleStars(*gift)),
+				Ui::Text::WithEntities);
+		}) | rpl::flatten_latest();
+
 		auto callback = [=](Fn<void()> close) {
 			if (state->sent) {
 				return;
@@ -704,48 +745,41 @@ void ShowBuyResaleGiftBox(
 				} else if (result != Payments::CheckoutResult::Paid) {
 					state->sent = false;
 				} else {
-					show->showToast(u"done!"_q);
 					closeParentBox();
 					close();
 				}
 			};
-			const auto type = gift->onlyAcceptTon
+			const auto type = state->ton.current()
 				? CreditsType::Ton
 				: CreditsType::Stars;
 			BuyResaleGift(show, to, gift, type, done);
 		};
 
+		auto price = state->ton.value() | rpl::map([=](bool ton) {
+			return ton
+				? tr::lng_action_gift_for_ton(
+					lt_count_decimal,
+					rpl::single(gift->nanoTonForResale
+						/ float64(Ui::kNanosInOne)),
+					Ui::Text::Bold)
+				: tr::lng_action_gift_for_stars(
+					lt_count_decimal,
+					rpl::single(gift->starsForResale * 1.),
+					Ui::Text::Bold);
+		}) | rpl::flatten_latest();
 		Ui::ConfirmBox(box, {
 			.text = to->isSelf()
 				? tr::lng_gift_buy_resale_confirm_self(
 					lt_name,
 					rpl::single(Ui::Text::Bold(UniqueGiftName(*gift))),
 					lt_price,
-					(gift->onlyAcceptTon
-						? tr::lng_action_gift_for_ton(
-							lt_count,
-							rpl::single(gift->nanoTonForResale
-								/ float64(Ui::kNanosInOne)),
-							Ui::Text::Bold)
-						: tr::lng_action_gift_for_stars(
-							lt_count_decimal,
-							rpl::single(gift->starsForResale * 1.),
-							Ui::Text::Bold)),
+					std::move(price),
 					Ui::Text::WithEntities)
 				: tr::lng_gift_buy_resale_confirm(
 					lt_name,
 					rpl::single(Ui::Text::Bold(UniqueGiftName(*gift))),
 					lt_price,
-					(gift->onlyAcceptTon
-						? tr::lng_action_gift_for_ton(
-							lt_count,
-							rpl::single(gift->nanoTonForResale
-								/ float64(Ui::kNanosInOne)),
-							Ui::Text::Bold)
-						: tr::lng_action_gift_for_stars(
-							lt_count_decimal,
-							rpl::single(gift->starsForResale * 1.),
-							Ui::Text::Bold)),
+					std::move(price),
 					lt_user,
 					rpl::single(Ui::Text::Bold(to->shortName())),
 					Ui::Text::WithEntities),

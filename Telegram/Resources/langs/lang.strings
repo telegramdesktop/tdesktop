@@ -3560,7 +3560,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_buy_resale_title" = "Buy {name}";
 "lng_gift_buy_resale_button" = "Buy for {cost}";
 "lng_gift_buy_resale_equals" = "Equals to {cost}";
-"lng_gift_buy_resale_only_ton" = "The seller only accepts TON as payment";
+"lng_gift_buy_resale_only_ton" = "The seller only accepts TON as payment.";
 "lng_gift_buy_resale_pay_stars" = "Pay in Stars";
 "lng_gift_buy_resale_pay_ton" = "Pay in TON";
 "lng_gift_buy_resale_confirm" = "Do you want to buy {name} for {price} and gift it to {user}?";

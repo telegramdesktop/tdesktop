@@ -2114,8 +2114,8 @@ void GenericCreditsEntryBox(
 					lt_cost,
 					rpl::single(Data::FormatGiftResaleStars(*uniqueGift)),
 					Ui::Text::WithEntities),
-				st::giftResaleButtonTitle,
-				st::giftResaleButtonSubtitle);
+				st::resaleButtonTitle,
+				st::resaleButtonSubtitle);
 		} else {
 			button->setText(tr::lng_gift_buy_resale_button(
 				lt_cost,

@@ -323,13 +323,18 @@ creditsHistoryRowRightMinorTop: 18px;
 creditsHistoryRowRightStyle: TextStyle(defaultTextStyle) {
 	font: font(fsize);
 }
-giftResaleButtonTitle: FlatLabel(defaultFlatLabel) {
+resaleButtonTitle: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	textFg: activeButtonFg;
 }
-giftResaleButtonSubtitle: FlatLabel(defaultFlatLabel) {
+resaleButtonSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px semibold);
 	}
 	textFg: activeButtonFg;
 }
+
+resaleConfirmTonOnly: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+}
+resaleConfirmTonOnlyMargin: margins(0px, 12px, 0px, 12px);
