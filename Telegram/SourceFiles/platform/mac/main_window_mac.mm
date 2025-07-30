@@ -349,9 +349,12 @@ void MainWindow::unreadCounterChangedHook() {
 
 void MainWindow::updateDockCounter() {
 	const auto counter = Core::App().unreadBadge();
+	const auto muted = Core::App().unreadBadgeMuted();
 
 	const auto string = !counter
 		? QString()
+		: muted
+		? QString("%1").arg("•")
 		: (counter < 1000)
 		? QString("%1").arg(counter)
 		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
