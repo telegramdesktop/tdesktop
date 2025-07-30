@@ -1289,6 +1289,7 @@ webPageAttributeTheme#54b56617 flags:# documents:flags.0?Vector<Document> settin
 webPageAttributeStory#2e94c3e7 flags:# peer:Peer id:int story:flags.0?StoryItem = WebPageAttribute;
 webPageAttributeStickerSet#50cc03d3 flags:# emojis:flags.0?true text_color:flags.1?true stickers:Vector<Document> = WebPageAttribute;
 webPageAttributeUniqueStarGift#cf6f6db8 gift:StarGift = WebPageAttribute;
+webPageAttributeStarGiftCollection#31cad303 icons:Vector<Document> = WebPageAttribute;
 
 messages.votesList#4899484e flags:# count:int votes:Vector<MessagePeerVote> chats:Vector<Chat> users:Vector<User> next_offset:flags.0?string = messages.VotesList;
 

@@ -446,7 +446,7 @@ void WrapWidget::setupTopBarMenuToggle() {
 				addTopBarMenuButton();
 			}
 		}, _topBar->lifetime());
-	} else if (section.type() == Section::Type::PeerGifts && key.peer()) {
+	} else if (key.giftsPeer()) {
 		addTopBarMenuButton();
 	}
 }

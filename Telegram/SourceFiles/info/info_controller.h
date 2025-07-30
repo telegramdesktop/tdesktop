@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_message_reaction_id.h"
 #include "data/data_search_controller.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/statistics/info_statistics_tag.h"
 #include "info/stories/info_stories_common.h"
 #include "window/window_session_controller.h"
@@ -82,6 +83,7 @@ public:
 	Key(Downloads::Tag downloads);
 	Key(Stories::Tag stories);
 	Key(Statistics::Tag statistics);
+	Key(PeerGifts::Tag gifts);
 	Key(BotStarRef::Tag starref);
 	Key(GlobalMedia::Tag global);
 	Key(not_null<PollData*> poll, FullMsgId contextId);
@@ -99,6 +101,8 @@ public:
 	[[nodiscard]] PeerData *storiesPeer() const;
 	[[nodiscard]] int storiesAlbumId() const;
 	[[nodiscard]] int storiesAddToAlbumId() const;
+	[[nodiscard]] PeerData *giftsPeer() const;
+	[[nodiscard]] int giftsCollectionId() const;
 	[[nodiscard]] Statistics::Tag statisticsTag() const;
 	[[nodiscard]] PeerData *starrefPeer() const;
 	[[nodiscard]] BotStarRef::Type starrefType() const;
@@ -127,6 +131,7 @@ private:
 		Downloads::Tag,
 		Stories::Tag,
 		Statistics::Tag,
+		PeerGifts::Tag,
 		BotStarRef::Tag,
 		GlobalMedia::Tag,
 		PollKey,
@@ -233,6 +238,12 @@ public:
 	}
 	[[nodiscard]] int storiesAddToAlbumId() const {
 		return key().storiesAddToAlbumId();
+	}
+	[[nodiscard]] PeerData *giftsPeer() const {
+		return key().giftsPeer();
+	}
+	[[nodiscard]] int giftsCollectionId() const {
+		return key().giftsCollectionId();
 	}
 	[[nodiscard]] Statistics::Tag statisticsTag() const {
 		return key().statisticsTag();

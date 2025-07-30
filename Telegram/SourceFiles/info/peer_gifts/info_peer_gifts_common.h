@@ -47,6 +47,16 @@ class SessionController;
 
 namespace Info::PeerGifts {
 
+struct Tag {
+	explicit Tag(not_null<PeerData*> peer, int collectionId = 0)
+	: peer(peer)
+	, collectionId(collectionId) {
+	}
+
+	not_null<PeerData*> peer;
+	int collectionId = 0;
+};
+
 struct GiftTypePremium {
 	int64 cost = 0;
 	QString currency;

@@ -175,6 +175,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::StickerSet;
 	} else if (type == u"telegram_story_album"_q) {
 		return WebPageType::StoryAlbum;
+	} else if (type == u"telegram_collection"_q) {
+		return WebPageType::GiftCollection;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {

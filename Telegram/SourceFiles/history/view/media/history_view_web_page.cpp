@@ -234,6 +234,8 @@ constexpr auto kSponsoredUserpicLines = 2;
 		? tr::lng_view_button_stickerset(tr::now)
 		: (type == WebPageType::StoryAlbum)
 		? tr::lng_view_button_storyalbum(tr::now)
+		: (type == WebPageType::GiftCollection)
+		? tr::lng_view_button_collection(tr::now)
 		: QString());
 	if (page->iv) {
 		const auto manager = &page->owner().customEmojiManager();
@@ -272,7 +274,9 @@ constexpr auto kSponsoredUserpicLines = 2;
 		|| ((type == WebPageType::WallPaper)
 			&& webpage->document
 			&& webpage->document->isWallPaper())
-		|| (type == WebPageType::StickerSet);
+		|| (type == WebPageType::StickerSet)
+		|| (type == WebPageType::StoryAlbum)
+		|| (type == WebPageType::GiftCollection);
 }
 
 } // namespace

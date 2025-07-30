@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "info/media/info_media_buttons.h"
 #include "info/media/info_media_list_widget.h"
+#include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_actions.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
@@ -456,10 +457,7 @@ void InnerWidget::addGiftsButton(Ui::MultiSlideTracker &tracker) {
 
 	const auto gifts = giftsWrap->entity();
 	gifts->addClickHandler([=] {
-		_controller->showSection(
-			std::make_shared<Info::Memento>(
-				user,
-				Section::Type::PeerGifts));
+		_controller->showSection(PeerGifts::Make(_peer));
 	});
 	auto label = rpl::duplicate(
 		count

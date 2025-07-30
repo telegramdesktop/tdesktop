@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_hash.h"
 #include "api/api_premium.h"
 #include "apiwrap.h"
+#include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
 #include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_collections.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/sub_tabs.h"
 #include "ui/layers/generic_box.h"
@@ -129,6 +131,7 @@ public:
 
 	void reloadCollection(int id);
 	void editCollectionGifts(int id);
+	void shareCollectionLink(const QString &username, int id);
 	void editCollectionName(int id);
 	void confirmDeleteCollection(int id);
 	void collectionAdded(MTPStarGiftCollection result);
@@ -209,7 +212,7 @@ private:
 	std::vector<Data::GiftCollection> _collections;
 
 	Entries _all;
-	base::flat_map<int, Entries> _perCollection;
+	std::map<int, Entries> _perCollection;
 	not_null<Entries*> _entries;
 	not_null<std::vector<Entry>*> _list;
 	rpl::variable<Data::GiftsUpdate> _collectionChanges;
@@ -811,6 +814,11 @@ void InnerWidget::showMenuForCollection(int id) {
 	addAction(tr::lng_gift_collection_add_title(tr::now), [=] {
 		editCollectionGifts(id);
 	}, &st::menuIconGiftPremium);
+	if (const auto username = _peer->username(); !username.isEmpty()) {
+		addAction(tr::lng_stories_album_share(tr::now), [=] {
+			shareCollectionLink(username, id);
+		}, &st::menuIconShare);
+	}
 	addAction(tr::lng_gift_collection_edit(tr::now), [=] {
 		editCollectionName(id);
 	}, &st::menuIconEdit);
@@ -821,6 +829,12 @@ void InnerWidget::showMenuForCollection(int id) {
 		.isAttention = true,
 	});
 	_menu->popup(QCursor::pos());
+}
+
+void InnerWidget::shareCollectionLink(const QString &username, int id) {
+	const auto url = _window->session().createInternalLinkFull(
+		username + u"/c/"_q + QString::number(id));
+	FastShareLink(_window, url);
 }
 
 void InnerWidget::editCollectionName(int id) {
@@ -1190,9 +1204,17 @@ void InnerWidget::refreshCollectionsTabs() {
 		.session = &_window->session(),
 	});
 	if (!_collectionsTabs) {
+		const auto selectedId = _descriptor.current().collectionId;
+		const auto selected = (selectedId > 0
+			&& ranges::contains(
+				_collections,
+				selectedId,
+				&Data::GiftCollection::id))
+			? QString::number(selectedId)
+			: u"all"_q;
 		_collectionsTabs = std::make_unique<Ui::SubTabs>(
 			this,
-			Ui::SubTabs::Options{ .selected = u"all"_q, .centered = true},
+			Ui::SubTabs::Options{ .selected = selected, .centered = true },
 			std::move(tabs),
 			context);
 		_collectionsTabs->show();
@@ -1248,7 +1270,7 @@ void InnerWidget::collectionRemoved(int id) {
 		_descriptorChanges.fire(std::move(now));
 	}
 	Assert(_entries != &_perCollection[id]);
-	_perCollection.remove(id);
+	_perCollection.erase(id);
 	const auto removeFrom = [&](Entries &entries) {
 		for (auto &entry : entries.list) {
 			entry.gift.collectionIds.erase(
@@ -1439,8 +1461,14 @@ void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
 	}
 }
 
-Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(peer, nullptr, nullptr, PeerId()) {
+Memento::Memento(not_null<Controller*> controller)
+: ContentMemento(Tag{
+	controller->giftsPeer(),
+	controller->giftsCollectionId() }) {
+}
+
+Memento::Memento(not_null<PeerData*> peer, int collectionId)
+: ContentMemento(Tag{ peer, collectionId }) {
 }
 
 Section Memento::section() const {
@@ -1451,7 +1479,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller, peer());
+	auto result = object_ptr<Widget>(parent, controller);
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -1466,16 +1494,16 @@ std::unique_ptr<ListState> Memento::listState() {
 
 Memento::~Memento() = default;
 
-Widget::Widget(
-	QWidget *parent,
-	not_null<Controller*> controller,
-	not_null<PeerData*> peer)
-: ContentWidget(parent, controller) {
+Widget::Widget(QWidget *parent, not_null<Controller*> controller)
+: ContentWidget(parent, controller)
+, _descriptor(Descriptor{
+	.collectionId = controller->giftsCollectionId(),
+}) {
 	_inner = setInnerWidget(
 		object_ptr<InnerWidget>(
 			this,
 			controller->parentController(),
-			peer,
+			controller->giftsPeer(),
 			_descriptor.value()));
 	_inner->notifyEnabled(
 	) | rpl::take(1) | rpl::start_with_next([=](bool enabled) {
@@ -1694,7 +1722,7 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(peer());
+	auto result = std::make_shared<Memento>(controller());
 	saveState(result.get());
 	return result;
 }
@@ -1707,6 +1735,13 @@ void Widget::saveState(not_null<Memento*> memento) {
 void Widget::restoreState(not_null<Memento*> memento) {
 	_inner->restoreState(memento);
 	scrollTopRestore(memento->scrollTop());
+}
+
+std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer, int albumId) {
+	return std::make_shared<Info::Memento>(
+		std::vector<std::shared_ptr<ContentMemento>>(
+			1,
+			std::make_shared<Memento>(peer, albumId)));
 }
 
 } // namespace Info::PeerGifts

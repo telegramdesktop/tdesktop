@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_chat_section.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/stories/info_stories_widget.h"
 #include "main/main_session.h"
@@ -386,10 +387,7 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 		if (navigation->showFrozenError()) {
 			return;
 		}
-		navigation->showSection(
-			std::make_shared<Info::Memento>(
-				peer,
-				Section::Type::PeerGifts));
+		navigation->showSection(Info::PeerGifts::Make(peer));
 	});
 	return wrap->entity();
 }

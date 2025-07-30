@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/info_wrap_widget.h"
-#include "info/stories/info_stories_common.h"
 #include "info/statistics/info_statistics_tag.h"
 #include "ui/controls/swipe_handler_data.h"
 
@@ -60,6 +59,14 @@ struct Tag;
 namespace Info::GlobalMedia {
 struct Tag;
 } // namespace Info::GlobalMedia
+
+namespace Info::PeerGifts {
+struct Tag;
+} // namespace Info::PeerGifts
+
+namespace Info::Stories {
+struct Tag;
+} // namespace Info::Stories
 
 namespace Info {
 
@@ -208,6 +215,7 @@ public:
 		Data::ForumTopic *topic,
 		Data::SavedSublist *sublist,
 		PeerId migratedPeerId);
+	explicit ContentMemento(PeerGifts::Tag gifts);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
 	explicit ContentMemento(Stories::Tag stories);
@@ -252,6 +260,12 @@ public:
 	}
 	[[nodiscard]] int storiesAddToAlbumId() const {
 		return _storiesAddToAlbumId;
+	}
+	[[nodiscard]] PeerData *giftsPeer() const {
+		return _giftsPeer;
+	}
+	[[nodiscard]] int giftsCollectionId() const {
+		return _giftsCollectionId;
 	}
 	[[nodiscard]] Statistics::Tag statisticsTag() const {
 		return _statisticsTag;
@@ -319,6 +333,8 @@ private:
 	PeerData * const _storiesPeer = nullptr;
 	int _storiesAlbumId = 0;
 	int _storiesAddToAlbumId = 0;
+	PeerData * const _giftsPeer = nullptr;
+	int _giftsCollectionId = 0;
 	Statistics::Tag _statisticsTag;
 	PeerData * const _starrefPeer = nullptr;
 	BotStarRef::Type _starrefType = {};

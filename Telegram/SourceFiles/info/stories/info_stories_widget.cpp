@@ -25,7 +25,8 @@ int ArchiveId() {
 Memento::Memento(not_null<Controller*> controller)
 : ContentMemento(Tag{
 	controller->storiesPeer(),
-	controller->storiesAlbumId() })
+	controller->storiesAlbumId(),
+	controller->storiesAddToAlbumId() })
 , _media(controller) {
 }
 

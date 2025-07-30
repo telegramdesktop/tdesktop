@@ -3798,6 +3798,8 @@ void Session::webpageApplyFields(
 					return (DocumentData*)nullptr;
 				}, [](const MTPDwebPageAttributeUniqueStarGift &) {
 					return (DocumentData*)nullptr;
+				}, [](const MTPDwebPageAttributeStarGiftCollection &) {
+					return (DocumentData*)nullptr;
 				});
 				if (result) {
 					return result;
@@ -3817,6 +3819,14 @@ void Session::webpageApplyFields(
 					result->isEmoji = data.is_emojis();
 					result->isTextColor = data.is_text_color();
 					for (const auto &tl : data.vstickers().v) {
+						result->items.push_back(processDocument(tl));
+					}
+					return result;
+				}, [&](const MTPDwebPageAttributeStarGiftCollection &data) {
+					auto result = std::make_unique<WebPageStickerSet>();
+					result->isEmoji = false;
+					result->isTextColor = false;
+					for (const auto &tl : data.vicons().v) {
 						result->items.push_back(processDocument(tl));
 					}
 					return result;

@@ -41,6 +41,7 @@ struct PeerByLinkInfo {
 	MsgId messageId = ShowAtUnreadMsgId;
 	StoryId storyId = 0;
 	int storyAlbumId = 0;
+	int giftCollectionId = 0;
 	std::optional<TimeId> videoTimestamp;
 	QString text;
 	RepliesByLinkInfo repliesInfo;

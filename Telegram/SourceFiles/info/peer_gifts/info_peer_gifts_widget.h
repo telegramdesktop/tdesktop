@@ -58,7 +58,9 @@ class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	explicit Memento(not_null<PeerData*> peer);
+	Memento(not_null<Controller*> controller);
+	Memento(not_null<PeerData*> peer, int collectionId);
+	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -70,8 +72,6 @@ public:
 	void setListState(std::unique_ptr<ListState> state);
 	std::unique_ptr<ListState> listState();
 
-	~Memento();
-
 private:
 	std::unique_ptr<ListState> _listState;
 
@@ -79,10 +79,7 @@ private:
 
 class Widget final : public ContentWidget {
 public:
-	Widget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		not_null<PeerData*> peer);
+	Widget(QWidget *parent, not_null<Controller*> controller);
 
 	[[nodiscard]] not_null<PeerData*> peer() const;
 
@@ -119,5 +116,9 @@ private:
 	bool _shown = false;
 
 };
+
+[[nodiscard]] std::shared_ptr<Info::Memento> Make(
+	not_null<PeerData*> peer,
+	int collectionId = 0);
 
 } // namespace Info::PeerGifts

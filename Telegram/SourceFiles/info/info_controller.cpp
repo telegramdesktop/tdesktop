@@ -52,6 +52,9 @@ Key::Key(Stories::Tag stories) : _value(stories) {
 Key::Key(Statistics::Tag statistics) : _value(statistics) {
 }
 
+Key::Key(PeerGifts::Tag gifts) : _value(gifts) {
+}
+
 Key::Key(BotStarRef::Tag starref) : _value(starref) {
 }
 
@@ -128,6 +131,20 @@ int Key::storiesAlbumId() const {
 int Key::storiesAddToAlbumId() const {
 	if (const auto tag = std::get_if<Stories::Tag>(&_value)) {
 		return tag->addingToAlbumId;
+	}
+	return 0;
+}
+
+PeerData *Key::giftsPeer() const {
+	if (const auto tag = std::get_if<PeerGifts::Tag>(&_value)) {
+		return tag->peer;
+	}
+	return nullptr;
+}
+
+int Key::giftsCollectionId() const {
+	if (const auto tag = std::get_if<PeerGifts::Tag>(&_value)) {
+		return tag->collectionId;
 	}
 	return 0;
 }

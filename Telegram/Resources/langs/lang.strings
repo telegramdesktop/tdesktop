@@ -3773,6 +3773,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_collection_empty_text" = "Add some of your gifts to this collection.";
 "lng_gift_collection_all" = "All Gifts";
 "lng_gift_collection_add_title" = "Add Gifts";
+"lng_gift_collection_share" = "Share Collection";
 "lng_gift_collection_edit" = "Edit Name";
 "lng_gift_collection_limit_title" = "Limit Reached";
 "lng_gift_collection_limit_text" = "Please remove one of the existing collections to add a new one.";
@@ -6267,6 +6268,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_collectible" = "View collectible";
 "lng_view_button_call" = "Join call";
 "lng_view_button_storyalbum" = "View Album";
+"lng_view_button_collection" = "View Collection";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";

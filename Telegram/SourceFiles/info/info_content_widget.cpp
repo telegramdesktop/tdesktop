@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
+#include "info/stories/info_stories_common.h"
 #include "info/info_layer_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_controller.h"
@@ -476,6 +478,11 @@ Key ContentMemento::key() const {
 		return Key(poll, pollContextId());
 	} else if (const auto self = settingsSelf()) {
 		return Settings::Tag{ self };
+	} else if (const auto gifts = giftsPeer()) {
+		return PeerGifts::Tag{
+			gifts,
+			giftsCollectionId(),
+		};
 	} else if (const auto stories = storiesPeer()) {
 		return Stories::Tag{
 			stories,
@@ -527,6 +534,11 @@ ContentMemento::ContentMemento(Stories::Tag stories)
 : _storiesPeer(stories.peer)
 , _storiesAlbumId(stories.albumId)
 , _storiesAddToAlbumId(stories.addingToAlbumId) {
+}
+
+ContentMemento::ContentMemento(PeerGifts::Tag gifts)
+: _giftsPeer(gifts.peer)
+, _giftsCollectionId(gifts.collectionId) {
 }
 
 ContentMemento::ContentMemento(Statistics::Tag statistics)

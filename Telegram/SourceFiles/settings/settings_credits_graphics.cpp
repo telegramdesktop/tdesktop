@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
+#include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "info/info_controller.h"
@@ -1775,9 +1776,7 @@ void GenericCreditsEntryBox(
 			if (ok && showSection) {
 				if (const auto window = show->resolveWindow()) {
 					window->showSection(
-						std::make_shared<Info::Memento>(
-							window->session().user(),
-							Info::Section::Type::PeerGifts));
+						Info::PeerGifts::Make(window->session().user()));
 				}
 			}
 			if (const auto strong = weak.get()) {
