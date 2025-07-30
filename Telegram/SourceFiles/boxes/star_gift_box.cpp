@@ -2842,7 +2842,10 @@ void SendGiftBox(
 						Settings::GlobalStarGiftBox,
 						window->uiShow(),
 						star->info,
-						peer->id,
+						Settings::StarGiftResaleInfo{
+							.recipientId = peer->id,
+							.forceTon = star->forceTon,
+						},
 						Settings::CreditsEntryBoxStyleOverrides()));
 				} else if (star && star->resale) {
 					const auto id = star->info.id;
@@ -3232,7 +3235,6 @@ void GiftResaleBox(
 		not_null<PeerData*> peer,
 		ResaleGiftsDescriptor descriptor) {
 	box->setWidth(st::boxWideWidth);
-	box->addButton(tr::lng_create_group_back(), [=] { box->closeBox(); });
 
 	// Create a proper vertical layout for the title
 	const auto titleWrap = box->setPinnedToTopContent(
@@ -3273,11 +3275,28 @@ void GiftResaleBox(
 		rpl::event_stream<> updated;
 		ResaleGiftsDescriptor data;
 		rpl::variable<ResaleFilter> filter;
+		rpl::variable<bool> ton;
 		rpl::lifetime loading;
 		int lastMinHeight = 0;
 	};
 	const auto state = content->lifetime().make_state<State>();
 	state->data = std::move(descriptor);
+
+	box->addButton(tr::lng_create_group_back(), [=] { box->closeBox(); });
+
+#ifndef OS_MAC_STORE
+	const auto currency = box->addLeftButton(rpl::single(QString()), [=] {
+		state->ton = !state->ton.current();
+		state->updated.fire({});
+	});
+	currency->setText(tr::lng_gift_resale_switch_to(
+		lt_currency,
+		rpl::conditional(
+			state->ton.value(),
+			rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji)),
+			rpl::single(Ui::Text::IconEmoji(&st::tonIconEmoji))),
+		Ui::Text::WithEntities));
+#endif
 
 	box->heightValue() | rpl::start_with_next([=](int height) {
 		if (height > state->lastMinHeight) {
@@ -3340,9 +3359,11 @@ void GiftResaleBox(
 	) | rpl::map([=] {
 		auto result = GiftsDescriptor();
 		const auto selfId = window->session().userPeerId();
+		const auto forceTon = state->ton.current();
 		for (const auto &gift : state->data.list) {
 			result.list.push_back(GiftTypeStars{
 				.info = gift,
+				.forceTon = forceTon,
 				.resale = true,
 				.mine = (gift.unique->ownerId == selfId),
 			});

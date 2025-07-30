@@ -85,7 +85,6 @@ tonIconEmoji: IconEmoji {
 	icon: icon{{ "payments/ton_emoji-18x18", currencyFg }};
 	padding: margins(0px, 1px, 0px, 0px);
 }
-tonIconEmojiSize: 18px;
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
 

@@ -92,10 +92,9 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	if (_descriptor == descriptor && _resalePrice == resalePrice) {
 		return;
 	}
-	auto player = base::take(_player);
 	const auto starsType = Ui::Premium::MiniStarsType::SlowStars;
-	_mediaLifetime.destroy();
 	unsubscribe();
+	update();
 
 	const auto format = [=](int64 number) {
 		const auto onlyK = (number < 100'000'000);
@@ -161,13 +160,15 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		_price.setMarkedText(
 			st::semiboldTextStyle,
 			(data.resale
-				? (unique
+				? ((unique && data.forceTon)
+					? Data::FormatGiftResaleTon(*unique)
+					: (unique
 					? _delegate->monostar()
-					: _delegate->star()).append(' ').append(
-						format(unique
-							? unique->starsForResale
-							: data.info.starsResellMin)
-					).append(data.info.resellCount > 1 ? "+" : "")
+						: _delegate->star()).append(' ').append(
+							format(unique
+								? unique->starsForResale
+								: data.info.starsResellMin)
+						).append(data.info.resellCount > 1 ? "+" : ""))
 				: (_small && unique && unique->starsForResale)
 				? Data::FormatGiftResaleAsked(*unique)
 				: unique
@@ -196,11 +197,18 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 				Ui::Premium::CreditsIconGradientStops());
 		}
 	});
-	_delegate->sticker(
+
+	_resolvedDocument = nullptr;
+	_documentLifetime = _delegate->sticker(
 		descriptor
 	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		_documentLifetime.destroy();
 		setDocument(document);
-	}, lifetime());
+	});
+	if (_resolvedDocument) {
+		_documentLifetime.destroy();
+	}
+
 	_patterned = false;
 	_uniqueBackgroundCache = QImage();
 	_uniquePatternEmoji = nullptr;
@@ -232,16 +240,19 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	}
 }
 
-bool GiftButton::documentResolved() const {
-	return _player || _mediaLifetime;
-}
-
 void GiftButton::setDocument(not_null<DocumentData*> document) {
+	_resolvedDocument = document;
+	if (_playerDocument == document) {
+		return;
+	}
+
 	const auto media = document->createMediaView();
 	media->checkStickerLarge();
 	media->goodThumbnailWanted();
 
-	rpl::single() | rpl::then(
+	const auto destroyed = base::take(_player);
+	_playerDocument = nullptr;
+	_mediaLifetime = rpl::single() | rpl::then(
 		document->owner().session().downloaderTaskFinished()
 	) | rpl::filter([=] {
 		return media->loaded();
@@ -269,9 +280,13 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 				st::giftBoxStickerSize);
 		}
 		result->setRepaintCallback([=] { update(); });
+		_playerDocument = media->owner();
 		_player = std::move(result);
 		update();
-	}, _mediaLifetime);
+	});
+	if (_playerDocument) {
+		_mediaLifetime.destroy();
+	}
 }
 
 void GiftButton::setGeometry(QRect inner, QMargins extend) {
@@ -627,10 +642,11 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				QSize(icon.width() + 2 * add, icon.height() + 2 * add));
 			p.drawEllipse(rect);
 			icon.paintInCenter(p, rect);
-		} else if (unique->nanoTonForResale && unique->onlyAcceptTon) {
+		} else if (!data.forceTon
+			&& unique->nanoTonForResale
+			&& unique->onlyAcceptTon) {
 			if (_tonIcon.isNull()) {
-				_tonIcon = Ui::Earn::IconCurrencyColored(
-					st::tonIconEmojiSize,
+				_tonIcon = st::tonIconEmoji.icon.instance(
 					QColor(255, 255, 255));
 			}
 			const auto size = _tonIcon.size() / _tonIcon.devicePixelRatio();

@@ -65,6 +65,7 @@ struct GiftTypeStars {
 	PeerData *from = nullptr;
 	TimeId date = 0;
 	bool pinnedSelection : 1 = false;
+	bool forceTon : 1 = false;
 	bool userpic : 1 = false;
 	bool pinned : 1 = false;
 	bool hidden : 1 = false;
@@ -160,7 +161,6 @@ private:
 		int height);
 
 	void setDocument(not_null<DocumentData*> document);
-	[[nodiscard]] bool documentResolved() const;
 	[[nodiscard]] QMargins currentExtend() const;
 
 	void unsubscribe();
@@ -188,8 +188,12 @@ private:
 	QRect _button;
 	QMargins _extend;
 
+	DocumentData *_resolvedDocument = nullptr;
+
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
+	DocumentData *_playerDocument = nullptr;
 	rpl::lifetime _mediaLifetime;
+	rpl::lifetime _documentLifetime;
 
 };
 

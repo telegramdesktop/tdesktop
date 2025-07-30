@@ -1235,14 +1235,17 @@ void GenericCreditsEntryBox(
 		box->setNoContentMargin(true);
 
 		const auto slug = uniqueGift->slug;
+		const auto forceTon = e.giftResaleForceTon;
 		auto price = rpl::single(
 			rpl::empty
 		) | rpl::then(session->data().giftUpdates(
 		) | rpl::filter([=](const Data::GiftUpdate &update) {
 			return (update.action == Data::GiftUpdate::Action::ResaleChange)
 				&& (update.slug == slug);
-		}) | rpl::to_empty) | rpl::map([unique = e.uniqueGift] {
-			return Data::UniqueGiftResaleAsked(*unique);
+		}) | rpl::to_empty) | rpl::map([forceTon, unique = e.uniqueGift] {
+			return forceTon
+				? Data::UniqueGiftResaleTon(*unique)
+				: Data::UniqueGiftResaleAsked(*unique);
 		});
 		auto change = [=] {
 			const auto style = st.giftWearBox
@@ -2091,6 +2094,7 @@ void GenericCreditsEntryBox(
 			ShowBuyResaleGiftBox(
 				show,
 				e.uniqueGift,
+				e.giftResaleForceTon,
 				to,
 				crl::guard(box, [=] { box->closeBox(); }));
 		} else if (canUpgradeFree) {
@@ -2102,7 +2106,7 @@ void GenericCreditsEntryBox(
 		}
 	});
 	if (canBuyResold) {
-		if (uniqueGift->onlyAcceptTon) {
+		if (uniqueGift->onlyAcceptTon || e.giftResaleForceTon) {
 			button->setText(rpl::single(QString()));
 			Ui::SetButtonTwoLabels(
 				button,
@@ -2205,7 +2209,7 @@ void GlobalStarGiftBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::StarGift &data,
-		PeerId resaleRecipientId,
+		StarGiftResaleInfo resale,
 		CreditsEntryBoxStyleOverrides st) {
 	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
@@ -2216,8 +2220,8 @@ void GlobalStarGiftBox(
 			.credits = CreditsAmount(data.stars),
 			.bareGiftStickerId = data.document->id,
 			.bareGiftOwnerId = ownerId,
-			.bareGiftResaleRecipientId = ((resaleRecipientId != selfId)
-				? resaleRecipientId.value
+			.bareGiftResaleRecipientId = ((resale.recipientId != selfId)
+				? resale.recipientId.value
 				: 0),
 			.stargiftId = data.id,
 			.uniqueGift = data.unique,
@@ -2225,6 +2229,7 @@ void GlobalStarGiftBox(
 			.limitedCount = data.limitedCount,
 			.limitedLeft = data.limitedLeft,
 			.stargift = true,
+			.giftResaleForceTon = resale.forceTon,
 			.fromGiftSlug = true,
 			.in = (ownerId == show->session().userPeerId().value),
 			.gift = true,

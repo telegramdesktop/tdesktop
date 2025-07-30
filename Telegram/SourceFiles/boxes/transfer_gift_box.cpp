@@ -676,6 +676,7 @@ void ShowTransferGiftBox(
 void ShowBuyResaleGiftBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
+		bool forceTon,
 		not_null<PeerData*> to,
 		Fn<void()> closeParentBox) {
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
@@ -684,7 +685,7 @@ void ShowBuyResaleGiftBox(
 			bool sent = false;
 		};
 		const auto state = std::make_shared<State>();
-		state->ton = gift->onlyAcceptTon;
+		state->ton = gift->onlyAcceptTon || forceTon;
 
 		if (gift->onlyAcceptTon) {
 			box->addRow(
@@ -699,7 +700,9 @@ void ShowBuyResaleGiftBox(
 				object_ptr<Ui::SubTabs>(
 					box,
 					Ui::SubTabsOptions{
-						.selected = u"stars"_q,
+						.selected = (state->ton.current()
+							? u"ton"_q
+							: u"stars"_q),
 						.centered = true,
 					},
 					std::vector<Ui::SubTabsTab>{
