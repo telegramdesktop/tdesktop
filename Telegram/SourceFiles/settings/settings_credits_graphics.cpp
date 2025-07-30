@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/share_box.h"
-#include "boxes/send_credits_box.h" // SetButtonTwoLabels
 #include "boxes/star_gift_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -64,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/button_two_labels.h"
 #include "ui/controls/ton_common.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/dynamic_image.h"

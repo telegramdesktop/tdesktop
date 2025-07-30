@@ -832,3 +832,34 @@ dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
 dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
+
+postsSearchIntroTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	minWidth: 64px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(semibold 16px);
+	}
+	align: align(top);
+}
+postsSearchIntroTitleMargin: margins(20px, 0px, 20px, 12px);
+postsSearchIntroSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 64px;
+	align: align(top);
+}
+postsSearchIntroSubtitleMargin: margins(20px, 4px, 20px, 12px);
+postsSearchIntroButton: RoundButton(defaultActiveButton) {
+	width: 200px;
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+postsSearchIntroFooter: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 64px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+postsSearchIntroFooterMargin: margins(20px, 12px, 20px, 0px);

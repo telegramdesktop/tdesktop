@@ -6745,6 +6745,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_recent_chats" = "Chats";
 "lng_recent_channels" = "Channels";
 "lng_recent_apps" = "Apps";
+"lng_recent_posts" = "Posts";
 "lng_all_photos" = "Photos";
 "lng_all_videos" = "Videos";
 "lng_all_downloads" = "Downloads";
@@ -6762,6 +6763,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_apps_popular" = "Grossing apps";
 "lng_bot_apps_which" = "Which apps are included here? {link}";
 "lng_bot_apps_which_link" = "Learn >";
+"lng_posts_title" = "Global Search";
+"lng_posts_start" = "Type a keyword to search all posts from public channels.";
+"lng_posts_subscribe" = "Subscribe to Premium";
+"lng_posts_need_subscribe" = "Global search is a Premium feature.";
+"lng_posts_search_button" = "Search {query}";
+"lng_posts_remaining#one" = "{count} free search remaining today";
+"lng_posts_remaining#other" = "{count} free searches remaining today";
+"lng_posts_subtitle_empty" = "Telegram News";
+"lng_posts_subtitle" = "Public posts";
+"lng_posts_limit_reached" = "Limit Reached";
+"lng_posts_limit_about#one" = "You can make up to {count} search query per day.";
+"lng_posts_limit_about#other" = "You can make up to {count} search queries per day.";
+"lng_posts_limit_search_paid" = "Search for {cost}";
+"lng_posts_limit_unlocks" = "free search unlocks in {duration}";
+"lng_posts_paid_spent#one" = "**{count} Star** spent on extra search.";
+"lng_posts_paid_spent#other" = "**{count} Stars** spent on extra search.";
 
 "lng_popular_apps_info_title" = "Top Mini Apps";
 "lng_popular_apps_info_text" = "This catalogue ranks mini apps based on their daily revenue, measured in Stars. To be listed, developers must set their main mini apps in {bot} (as described {link}), have over **1,000** daily users, and earn a daily revenue above **1,000** Stars, based on the weekly average.";
