@@ -1242,12 +1242,7 @@ void GenericCreditsEntryBox(
 			return (update.action == Data::GiftUpdate::Action::ResaleChange)
 				&& (update.slug == slug);
 		}) | rpl::to_empty) | rpl::map([unique = e.uniqueGift] {
-			return unique->onlyAcceptTon
-				? CreditsAmount(
-					unique->nanoTonForResale / Ui::kNanosInOne,
-					unique->nanoTonForResale % Ui::kNanosInOne,
-					CreditsType::Ton)
-				: CreditsAmount(unique->starsForResale);
+			return Data::UniqueGiftResaleAsked(*unique);
 		});
 		auto change = [=] {
 			const auto style = st.giftWearBox
@@ -2113,20 +2108,11 @@ void GenericCreditsEntryBox(
 				button,
 				tr::lng_gift_buy_resale_button(
 					lt_cost,
-					rpl::single(Ui::Text::IconEmoji(
-						&st::tonIconEmoji
-					).append(
-						Lang::FormatCreditsAmountDecimal(CreditsAmount(
-							uniqueGift->nanoTonForResale / Ui::kNanosInOne,
-							uniqueGift->nanoTonForResale % Ui::kNanosInOne,
-							CreditsType::Ton)))),
+					rpl::single(Data::FormatGiftResaleTon(*uniqueGift)),
 					Ui::Text::WithEntities),
 				tr::lng_gift_buy_resale_equals(
 					lt_cost,
-					rpl::single(Ui::Text::IconEmoji(
-						&st::starIconEmojiSmall
-					).append(Lang::FormatCountDecimal(
-						uniqueGift->starsForResale))),
+					rpl::single(Data::FormatGiftResaleStars(*uniqueGift)),
 					Ui::Text::WithEntities),
 				st::giftResaleButtonTitle,
 				st::giftResaleButtonSubtitle);

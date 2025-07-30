@@ -59,9 +59,15 @@ struct UniqueGift {
 	UniqueGiftOriginalDetails originalDetails;
 };
 
-[[nodiscard]] inline QString UniqueGiftName(const UniqueGift &gift) {
-	return gift.title + u" #"_q + QString::number(gift.number);
-}
+[[nodiscard]] QString UniqueGiftName(const UniqueGift &gift);
+
+[[nodiscard]] CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift);
+[[nodiscard]] CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift);
+[[nodiscard]] CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift);
+
+[[nodiscard]] TextWithEntities FormatGiftResaleStars(const UniqueGift &gift);
+[[nodiscard]] TextWithEntities FormatGiftResaleTon(const UniqueGift &gift);
+[[nodiscard]] TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift);
 
 struct StarGift {
 	uint64 id = 0;

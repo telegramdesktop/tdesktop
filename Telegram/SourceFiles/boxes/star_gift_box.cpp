@@ -2094,6 +2094,8 @@ void SendStarsFormRequest(
 		)).done([=](const MTPpayments_PaymentResult &result) {
 			result.match([&](const MTPDpayments_paymentResult &data) {
 				session->api().applyUpdates(data.vupdates());
+				session->credits().tonLoad(true);
+				session->credits().load(true);
 				done(Payments::CheckoutResult::Paid, &data.vupdates());
 			}, [&](const MTPDpayments_paymentVerificationNeeded &data) {
 				done(Payments::CheckoutResult::Failed, nullptr);
@@ -2808,11 +2810,17 @@ void SendGiftBox(
 					using Payments::CheckoutResult;
 					const auto formReady = [=](
 							uint64 formId,
-							uint64 price,
+							CreditsAmount price,
 							std::optional<CheckoutResult> failure) {
 						state->transferRequested = nullptr;
-						if (!failure || *failure == CheckoutResult::Free) {
-							unique->starsForTransfer = price;
+						if (!failure && !price.stars()) {
+							LOG(("API Error: "
+								"Bad transfer invoice currenct."));
+						} else if (!failure
+							|| *failure == CheckoutResult::Free) {
+							unique->starsForTransfer = failure
+								? 0
+								: price.whole();
 							ShowTransferToBox(
 								window,
 								peer,
@@ -2823,7 +2831,7 @@ void SendGiftBox(
 							done();
 						}
 					};
-					RequestStarsForm(
+					RequestOurForm(
 						window->uiShow(),
 						MTP_inputInvoiceStarGiftTransfer(
 							Api::InputSavedStarGiftId(savedId, unique),
@@ -4574,12 +4582,7 @@ void UniqueGiftSellBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 	state->onlyTon = unique->onlyAcceptTon;
-	const auto priceNow = unique->onlyAcceptTon
-		? CreditsAmount(
-			unique->nanoTonForResale / Ui::kNanosInOne,
-			unique->nanoTonForResale % Ui::kNanosInOne,
-			CreditsType::Ton)
-		: CreditsAmount(unique->starsForResale);
+	const auto priceNow = Data::UniqueGiftResaleAsked(*unique);
 	state->price = priceNow
 		? priceNow
 		: price
@@ -5171,15 +5174,49 @@ void SubmitStarsForm(
 		ready);
 }
 
-void RequestStarsForm(
+void SubmitTonForm(
+		std::shared_ptr<Main::SessionShow> show,
+		MTPInputInvoice invoice,
+		uint64 formId,
+		CreditsAmount ton,
+		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
+	const auto ready = [=] {
+		SendStarsFormRequest(
+			show,
+			Settings::SmallBalanceResult::Already,
+			formId,
+			invoice,
+			done);
+	};
+	struct State {
+		rpl::lifetime lifetime;
+		bool success = false;
+	};
+	const auto state = std::make_shared<State>();
+
+	const auto session = &show->session();
+	session->credits().tonLoad();
+	session->credits().tonLoadedValue(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+		state->lifetime.destroy();
+
+		if (session->credits().tonBalance() < ton) {
+			show->show(Box(InsufficientTonBox, session->user(), ton));
+		} else {
+			ready();
+		}
+	}, state->lifetime);
+}
+
+void RequestOurForm(
 	std::shared_ptr<Main::SessionShow> show,
 	MTPInputInvoice invoice,
 	Fn<void(
 		uint64 formId,
-		uint64 price,
+		CreditsAmount price,
 		std::optional<Payments::CheckoutResult> failure)> done) {
 	const auto fail = [=](Payments::CheckoutResult failure) {
-		done(0, 0, failure);
+		done(0, {}, failure);
 	};
 	show->session().api().request(MTPpayments_GetPaymentForm(
 		MTP_flags(0),
@@ -5187,10 +5224,24 @@ void RequestStarsForm(
 		MTPDataJSON() // theme_params
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		result.match([&](const MTPDpayments_paymentFormStarGift &data) {
-			const auto prices = data.vinvoice().data().vprices().v;
+			const auto &invoice = data.vinvoice().data();
+			const auto prices = invoice.vprices().v;
 			if (show->valid() && !prices.isEmpty()) {
 				const auto price = prices.front().data().vamount().v;
-				done(data.vform_id().v, price, std::nullopt);
+				const auto currency = qs(invoice.vcurrency());
+				const auto amount = (currency == Ui::kCreditsCurrency)
+					? CreditsAmount(price)
+					: (currency == u"TON"_q)
+					? CreditsAmount(
+						price / Ui::kNanosInOne,
+						price % Ui::kNanosInOne,
+						CreditsType::Ton)
+					: std::optional<CreditsAmount>();
+				if (amount) {
+					done(data.vform_id().v, *amount, std::nullopt);
+				} else {
+					fail(Payments::CheckoutResult::Failed);
+				}
 			} else {
 				fail(Payments::CheckoutResult::Failed);
 			}
@@ -5214,14 +5265,16 @@ void RequestStarsFormAndSubmit(
 		std::shared_ptr<Main::SessionShow> show,
 		MTPInputInvoice invoice,
 		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
-	RequestStarsForm(show, invoice, [=](
+	RequestOurForm(show, invoice, [=](
 			uint64 formId,
-			uint64 price,
+			CreditsAmount price,
 			std::optional<Payments::CheckoutResult> failure) {
-		if (!failure) {
-			SubmitStarsForm(show, invoice, formId, price, done);
-		} else {
+		if (failure) {
 			done(*failure, nullptr);
+		} else if (!price.stars()) {
+			done(Payments::CheckoutResult::Failed, nullptr);
+		} else {
+			SubmitStarsForm(show, invoice, formId, price.whole(), done);
 		}
 	});
 }

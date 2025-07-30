@@ -487,6 +487,7 @@ void BuyResaleGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> to,
 		std::shared_ptr<Data::UniqueGift> gift,
+		CreditsType type,
 		Fn<void(Payments::CheckoutResult)> done) {
 	auto paymentDone = [=](
 			Payments::CheckoutResult result,
@@ -504,22 +505,42 @@ void BuyResaleGift(
 
 	using Flag = MTPDinputInvoiceStarGiftResale::Flag;
 	const auto invoice = MTP_inputInvoiceStarGiftResale(
-		MTP_flags(gift->onlyAcceptTon ? Flag::f_ton : Flag()),
+		MTP_flags((type == CreditsType::Ton) ? Flag::f_ton : Flag()),
 		MTP_string(gift->slug),
 		to->input);
 
-	Ui::RequestStarsForm(show, invoice, [=](
+	Ui::RequestOurForm(show, invoice, [=](
 			uint64 formId,
-			uint64 price,
+			CreditsAmount price,
 			std::optional<Payments::CheckoutResult> failure) {
+		if ((type == CreditsType::Ton && price.stars())
+			|| (type == CreditsType::Stars && price.ton())) {
+			paymentDone(Payments::CheckoutResult::Failed, nullptr);
+			return;
+		}
 		const auto submit = [=] {
-			SubmitStarsForm(show, invoice, formId, price, paymentDone);
+			if (price.stars()) {
+				SubmitStarsForm(
+					show,
+					invoice,
+					formId,
+					price.whole(),
+					paymentDone);
+			} else {
+				SubmitTonForm(show, invoice, formId, price, paymentDone);
+			}
 		};
+		const auto was = (type == CreditsType::Ton)
+			? Data::UniqueGiftResaleTon(*gift)
+			: Data::UniqueGiftResaleStars(*gift);
 		if (failure) {
 			paymentDone(*failure, nullptr);
-		} else if (price != gift->starsForResale) {
-			const auto cost = Ui::Text::IconEmoji(&st::starIconEmoji).append(
-				Lang::FormatCountDecimal(price));
+		} else if (price != was) {
+			const auto cost = price.ton()
+				? Ui::Text::IconEmoji(&st::tonIconEmoji).append(
+					Lang::FormatCreditsAmountDecimal(price))
+				: Ui::Text::IconEmoji(&st::starIconEmoji).append(
+					Lang::FormatCountDecimal(price.whole()));
 			const auto cancelled = [=](Fn<void()> close) {
 				paymentDone(Payments::CheckoutResult::Cancelled, nullptr);
 				close();
@@ -663,16 +684,7 @@ void ShowBuyResaleGiftBox(
 
 		auto transfer = tr::lng_gift_buy_resale_button(
 			lt_cost,
-			rpl::single(gift->onlyAcceptTon
-				? Ui::Text::IconEmoji(
-					&st::tonIconEmoji
-				).append(
-					Lang::FormatCreditsAmountDecimal(CreditsAmount(
-						gift->nanoTonForResale / Ui::kNanosInOne,
-						gift->nanoTonForResale % Ui::kNanosInOne,
-						CreditsType::Ton)))
-				: Ui::Text::IconEmoji(&st::starIconEmoji).append(
-					Lang::FormatCountDecimal(gift->starsForResale))),
+			rpl::single(Data::FormatGiftResaleAsked(*gift)),
 			Ui::Text::WithEntities);
 
 		struct State {
@@ -697,7 +709,10 @@ void ShowBuyResaleGiftBox(
 					close();
 				}
 			};
-			BuyResaleGift(show, to, gift, done);
+			const auto type = gift->onlyAcceptTon
+				? CreditsType::Ton
+				: CreditsType::Stars;
+			BuyResaleGift(show, to, gift, type, done);
 		};
 
 		Ui::ConfirmBox(box, {
@@ -709,7 +724,8 @@ void ShowBuyResaleGiftBox(
 					(gift->onlyAcceptTon
 						? tr::lng_action_gift_for_ton(
 							lt_count,
-							rpl::single(gift->nanoTonForResale / 1'000'000'000.),
+							rpl::single(gift->nanoTonForResale
+								/ float64(Ui::kNanosInOne)),
 							Ui::Text::Bold)
 						: tr::lng_action_gift_for_stars(
 							lt_count_decimal,
@@ -723,7 +739,8 @@ void ShowBuyResaleGiftBox(
 					(gift->onlyAcceptTon
 						? tr::lng_action_gift_for_ton(
 							lt_count,
-							rpl::single(gift->nanoTonForResale / 1'000'000'000.),
+							rpl::single(gift->nanoTonForResale
+								/ float64(Ui::kNanosInOne)),
 							Ui::Text::Bold)
 						: tr::lng_action_gift_for_stars(
 							lt_count_decimal,

@@ -646,6 +646,7 @@ PRIVATE
     data/data_shared_media.h
     data/data_sparse_ids.cpp
     data/data_sparse_ids.h
+    data/data_star_gift.cpp
     data/data_star_gift.h
     data/data_statistics.h
     data/data_stories.cpp
