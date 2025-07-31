@@ -60,9 +60,10 @@ void PostsSearch::requestMore() {
 void PostsSearch::setQuery(const QString &query) {
 	const auto words = TextUtilities::PrepareSearchWords(query);
 	const auto prepared = words.isEmpty() ? QString() : words.join(' ');
-	if (_query == prepared) {
+	if (_queryExact == query) {
 		return;
 	}
+	_queryExact = query;
 	_query = prepared;
 	const auto i = _entries.find(prepared);
 	if (i != end(_entries)) {
@@ -125,7 +126,7 @@ void PostsSearch::pushStateUpdate(const Entry &entry) {
 	} else {
 		Assert(_floodState.has_value());
 		auto copy = _floodState;
-		copy->query = *_query;
+		copy->query = *_queryExact;
 		copy->needsPremium = !_session->premium();
 		_stateUpdates.fire(PostsSearchState{
 			.intro = std::move(copy),

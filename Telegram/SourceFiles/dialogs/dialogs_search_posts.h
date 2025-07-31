@@ -64,6 +64,7 @@ private:
 	base::Timer _timer;
 	base::Timer _recheckTimer;
 	base::flat_map<QString, Entry> _entries;
+	std::optional<QString> _queryExact;
 	std::optional<QString> _query;
 	QString _queryPushed;
 

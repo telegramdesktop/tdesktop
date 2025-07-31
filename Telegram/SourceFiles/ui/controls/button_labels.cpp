@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "ui/controls/button_two_labels.h"
+#include "ui/controls/button_labels.h"
 
 #include "ui/widgets/labels.h"
 

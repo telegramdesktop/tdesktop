@@ -63,7 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/controls/button_two_labels.h"
+#include "ui/controls/button_labels.h"
 #include "ui/controls/ton_common.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/dynamic_image.h"

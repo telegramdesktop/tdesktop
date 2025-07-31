@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
-#include "ui/controls/button_two_labels.h"
+#include "ui/controls/button_labels.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -40,6 +40,72 @@ namespace {
 				.arg(minutes)
 				.arg(seconds, 2, 10, kZero);
 	});
+}
+
+void SetSearchButtonLabel(
+		not_null<Ui::RpWidget*> button,
+		rpl::producer<TextWithEntities> text) {
+	const auto left = &st::postsSearchIcon;
+	const auto leftPadding = st::postsSearchIconPadding;
+	const auto right = &st::postsSearchArrow;
+	const auto rightPadding = st::postsSearchArrowPadding;
+	const auto leftSkip = left->size().grownBy(leftPadding).width();
+	const auto rightSkip = right->size().grownBy(rightPadding).width();
+
+	struct State {
+		State() : linkFg([] {
+			auto copy = st::windowFgActive->c;
+			copy.setAlphaF(0.6);
+			return copy;
+		}), st(st::resaleButtonTitle) {
+		}
+
+		style::complex_color linkFg;
+		style::FlatLabel st;
+	};
+	auto lifetime = rpl::lifetime();
+	const auto state = lifetime.make_state<State>();
+	state->st.palette.linkFg = state->linkFg.color();
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		rpl::duplicate(text),
+		state->st);
+	label->lifetime().add(std::move(lifetime));
+	label->show();
+
+	const auto icons = Ui::CreateChild<Ui::RpWidget>(button);
+	icons->show();
+	rpl::combine(
+		button->sizeValue(),
+		std::move(text)
+	) | rpl::start_with_next([=](QSize size, const auto &) {
+		icons->setGeometry(QRect(QPoint(), size));
+		const auto available = size.width() - leftSkip - rightSkip;
+		if (available <= 0) {
+			return;
+		}
+		const auto width = std::min(available, label->textMaxWidth());
+		label->resizeToWidth(width);
+		const auto full = leftSkip + width + rightSkip;
+		const auto x = (size.width() - full) / 2;
+		const auto y = (size.height() - label->height()) / 2;
+		label->moveToLeft(x + leftSkip, y, size.width());
+	}, icons->lifetime());
+
+	icons->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(icons);
+		left->paint(
+			p,
+			label->x() - leftSkip + leftPadding.left(),
+			label->y() + leftPadding.top(),
+			icons->width());
+		right->paint(
+			p,
+			label->x() + label->width() + rightPadding.left(),
+			label->y() + rightPadding.top(),
+			icons->width());
+	}, icons->lifetime());
 }
 
 } // namespace
@@ -138,9 +204,12 @@ void PostsSearchIntro::setup() {
 		if (state.needsPremium) {
 			_button->setText(tr::lng_posts_subscribe());
 		} else if (state.freeSearchesLeft > 0) {
-			_button->setText(tr::lng_posts_search_button(
+			_button->setText(rpl::single(QString()));
+
+			SetSearchButtonLabel(_button, tr::lng_posts_search_button(
 				lt_query,
-				rpl::single(state.query)));
+				rpl::single(Ui::Text::Colorized(state.query.trimmed())),
+				Ui::Text::WithEntities));
 		} else {
 			_button->setText(rpl::single(QString()));
 

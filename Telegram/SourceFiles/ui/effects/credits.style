@@ -325,12 +325,14 @@ creditsHistoryRowRightStyle: TextStyle(defaultTextStyle) {
 resaleButtonTitle: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	textFg: activeButtonFg;
+	maxHeight: 20px;
 }
 resaleButtonSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px semibold);
 	}
 	textFg: activeButtonFg;
+	maxHeight: 20px;
 }
 
 resaleConfirmTonOnly: FlatLabel(boxLabel) {
