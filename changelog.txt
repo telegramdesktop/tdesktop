@@ -1,3 +1,10 @@
+6.0 (31.07.25)
+
+- Public Post Search.
+- Story Albums.
+- Gift Collections.
+- Profile Rating.
+
 5.16.6 (25.07.25)
 
 - Fix bad layout in box buttons.
