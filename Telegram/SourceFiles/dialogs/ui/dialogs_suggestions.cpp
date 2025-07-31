@@ -38,11 +38,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
 #include "storage/storage_shared_media.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
@@ -1821,8 +1823,9 @@ bool Suggestions::consumeSearchQuery(const QString &query) {
 	const auto tab = key.tab;
 	const auto type = (key.tab == Tab::Media) ? key.mediaType : Type::kCount;
 	if (tab == Tab::Posts) {
+		const auto changed = (_searchQuery != query);
 		setPostsSearchQuery(query);
-		return !query.isEmpty();
+		return changed || !query.isEmpty();
 	} else if (tab != Tab::Downloads
 		&& type != Type::File
 		&& type != Type::Link
@@ -1881,6 +1884,7 @@ void Suggestions::setPostsSearchQuery(const QString &query) {
 	if (!_postsSearch) {
 		setupPostsSearch();
 	}
+	_searchQuery = query;
 	_searchQueryTimer.cancel();
 	_postsSearch->setQuery(query);
 }
@@ -1938,8 +1942,32 @@ void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
 			Settings::ShowPremium(
 				_controller,
 				u"posts_search"_q);
+		} else if (!stars) {
+			_postsSearch->setAllowedStars(0);
 		} else {
-			_postsSearch->setAllowedStars(stars);
+			using namespace Settings;
+			const auto done = [=](Settings::SmallBalanceResult result) {
+				if (result == Settings::SmallBalanceResult::Success
+					|| result == Settings::SmallBalanceResult::Already) {
+					const auto spent = _postsSearch->setAllowedStars(stars);
+					if (spent > 0) {
+						_controller->showToast({
+							.text = tr::lng_posts_paid_spent(
+								tr::now,
+								lt_count,
+								spent,
+								Ui::Text::RichLangValue),
+							.attach = RectPart::Top,
+							.duration = Ui::Toast::kDefaultDuration * 2,
+						});
+					}
+				}
+			};
+			MaybeRequestBalanceIncrease(
+				_controller->uiShow(),
+				stars,
+				SmallBalanceForSearch{},
+				done);
 		}
 	}, _postsSearchIntro->lifetime());
 

@@ -22,10 +22,12 @@ void SetButtonTwoLabels(
 		button,
 		std::move(title),
 		st);
+	buttonTitle->show();
 	const auto buttonSubtitle = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		std::move(subtitle),
 		subst);
+	buttonSubtitle->show();
 	buttonSubtitle->setOpacity(0.6);
 	if (textFg) {
 		buttonTitle->setTextColorOverride((*textFg)->c);

@@ -43,25 +43,38 @@ void PostsSearch::requestMore() {
 }
 
 void PostsSearch::setQuery(const QString &query) {
-	if (_query == query) {
+	const auto words = TextUtilities::PrepareSearchWords(query);
+	const auto prepared = words.isEmpty() ? QString() : words.join(' ');
+	if (_query == prepared) {
 		return;
 	}
-	_query = query;
-	const auto i = _entries.find(query);
+	_query = prepared;
+	const auto i = _entries.find(prepared);
 	if (i != end(_entries)) {
 		pushStateUpdate(i->second);
-	} else if (query.isEmpty()) {
+	} else if (prepared.isEmpty()) {
 		applyQuery();
 	} else {
 		_timer.callOnce(kQueryDelay);
 	}
 }
 
-void PostsSearch::setAllowedStars(int stars) {
-	if (_query) {
-		_entries[*_query].allowedStars = stars;
-		requestSearch(*_query);
+int PostsSearch::setAllowedStars(int stars) {
+	if (!_query) {
+		return 0;
+	} else if (_floodState) {
+		if (_floodState->freeSearchesLeft > 0) {
+			stars = 0;
+		} else if (_floodState->nextFreeSearchTime > 0
+			&& _floodState->nextFreeSearchTime <= base::unixtime::now()) {
+			stars = 0;
+		} else {
+			stars = std::min(int(_floodState->starsPerPaidSearch), stars);
+		}
 	}
+	_entries[*_query].allowedStars = stars;
+	requestSearch(*_query);
+	return stars;
 }
 
 void PostsSearch::pushStateUpdate(const Entry &entry) {
@@ -118,17 +131,20 @@ void PostsSearch::requestSearch(const QString &query) {
 		return;
 	}
 
+	const auto useStars = entry.allowedStars;
+	entry.allowedStars = 0;
+
 	using Flag = MTPchannels_SearchPosts::Flag;
 	entry.searchId = _api.request(MTPchannels_SearchPosts(
 		MTP_flags(Flag::f_query
-			| (entry.allowedStars ? Flag::f_allow_paid_stars : Flag())),
+			| (useStars ? Flag::f_allow_paid_stars : Flag())),
 		MTP_string(), // hashtag
 		MTP_string(query),
 		MTP_int(entry.offsetRate),
 		(entry.offsetPeer ? entry.offsetPeer->input : MTP_inputPeerEmpty()),
 		MTP_int(entry.offsetId),
 		MTP_int(kPerPage),
-		MTP_long(entry.allowedStars)
+		MTP_long(useStars)
 	)).done([=](const MTPmessages_Messages &result) {
 		auto &entry = _entries[query];
 		entry.searchId = 0;
@@ -207,7 +223,11 @@ void PostsSearch::requestSearch(const QString &query) {
 			entry.pages.clear();
 		}
 		entry.pages.push_back(std::move(messages));
-		const auto count = int(entry.pages.size());
+		const auto count = int(ranges::accumulate(
+			entry.pages,
+			size_type(),
+			ranges::plus(),
+			&std::vector<not_null<HistoryItem*>>::size));
 		const auto full = entry.loaded ? count : std::max(count, totalCount);
 		entry.totalCount = full;
 		if (initial && _query == query) {
@@ -229,7 +249,7 @@ void PostsSearch::requestSearch(const QString &query) {
 
 void PostsSearch::setFloodStateFrom(const MTPDsearchPostsFlood &data) {
 	_recheckTimer.cancel();
-	const auto left = data.vremains().v;
+	const auto left = std::max(data.vremains().v, 0);
 	const auto next = data.vwait_till().value_or_empty();
 	if (!left && next > 0) {
 		const auto now = base::unixtime::now();

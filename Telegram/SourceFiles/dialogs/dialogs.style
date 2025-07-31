@@ -841,13 +841,13 @@ postsSearchIntroTitle: FlatLabel(defaultFlatLabel) {
 	}
 	align: align(top);
 }
-postsSearchIntroTitleMargin: margins(20px, 0px, 20px, 12px);
+postsSearchIntroTitleMargin: margins(20px, 0px, 20px, 4px);
 postsSearchIntroSubtitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	minWidth: 64px;
 	align: align(top);
 }
-postsSearchIntroSubtitleMargin: margins(20px, 4px, 20px, 12px);
+postsSearchIntroSubtitleMargin: margins(20px, 4px, 20px, 16px);
 postsSearchIntroButton: RoundButton(defaultActiveButton) {
 	width: 200px;
 	height: 42px;

@@ -2945,6 +2945,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_small_balance_for_message" = "Buy **Stars** to send messages to {user}.";
 "lng_credits_small_balance_for_messages" = "Buy **Stars** to send messages.";
 "lng_credits_small_balance_for_suggest" = "Buy **Stars** to suggest post to {channel}.";
+"lng_credits_small_balance_for_search" = "Buy **Stars** to search through public posts.";
 "lng_credits_small_balance_fallback" = "Buy **Stars** to unlock content and services on Telegram.";
 "lng_credits_purchase_blocked" = "Sorry, you can't purchase this item with Telegram Stars.";
 "lng_credits_enough" = "You have enough stars at the moment. {link}";

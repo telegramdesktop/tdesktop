@@ -2493,7 +2493,7 @@ void SmallBalanceBox(
 		return owner->peer(peerFromChannel(value.channelId))->name();
 	}, [](SmallBalanceSubscription value) {
 		return value.name;
-	}, [](SmallBalanceDeepLink value) {
+	}, [](SmallBalanceDeepLink) {
 		return QString();
 	}, [&](SmallBalanceStarGift value) {
 		return owner->peer(value.recipientId)->shortName();
@@ -2505,6 +2505,8 @@ void SmallBalanceBox(
 		return value.recipientId
 			? owner->peer(value.recipientId)->shortName()
 			: QString();
+	}, [](SmallBalanceForSearch) {
+		return QString();
 	});
 
 	auto needed = show->session().credits().balanceValue(
@@ -2555,6 +2557,9 @@ void SmallBalanceBox(
 					? tr::lng_credits_small_balance_for_suggest(
 						lt_channel,
 						rpl::single(Ui::Text::Bold(name)),
+						Ui::Text::RichLangValue)
+					: v::is<SmallBalanceForSearch>(source)
+					? tr::lng_credits_small_balance_for_search(
 						Ui::Text::RichLangValue)
 					: name.isEmpty()
 					? tr::lng_credits_small_balance_fallback(

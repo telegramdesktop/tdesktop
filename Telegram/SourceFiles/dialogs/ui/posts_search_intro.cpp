@@ -162,6 +162,7 @@ void PostsSearchIntro::setup() {
 				st::resaleButtonTitle,
 				st::resaleButtonSubtitle);
 		}
+		_content->resizeToWidth(width());
 	}, _button->lifetime());
 }
 

@@ -31,7 +31,7 @@ public:
 	[[nodiscard]] rpl::producer<PostsSearchState> stateUpdates() const;
 
 	void setQuery(const QString &query);
-	void setAllowedStars(int stars);
+	int setAllowedStars(int stars);
 	void requestMore();
 
 private:
