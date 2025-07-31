@@ -649,7 +649,7 @@ void SessionNavigation::showPeerByLinkResolved(
 				parentController()->openPeerStory(
 					peer,
 					storyId.story,
-					Data::StoriesContext{ Data::StoriesContextSingle() });
+					context);
 			} else {
 				showToast(tr::lng_stories_link_invalid(tr::now));
 			}

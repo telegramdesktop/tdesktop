@@ -251,50 +251,6 @@ void FillRatingLimit(
 		limitLinePadding);
 }
 
-object_ptr<Ui::FlatLabel> MakeBoostFeaturesBadge(
-		not_null<QWidget*> parent,
-		rpl::producer<QString> text,
-		Fn<QBrush(QRect)> bg) {
-	auto result = object_ptr<Ui::FlatLabel>(
-		parent,
-		std::move(text),
-		st::boostLevelBadge);
-	const auto label = result.data();
-
-	label->show();
-	label->paintRequest() | rpl::start_with_next([=] {
-		const auto size = label->textMaxWidth();
-		const auto rect = QRect(
-			(label->width() - size) / 2,
-			st::boostLevelBadge.margin.top(),
-			size,
-			st::boostLevelBadge.style.font->height
-		).marginsAdded(st::boostLevelBadge.margin);
-		auto p = QPainter(label);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setBrush(bg(rect));
-		p.setPen(Qt::NoPen);
-		p.drawRoundedRect(rect, rect.height() / 2., rect.height() / 2.);
-
-		const auto &lineFg = st::windowBgRipple;
-		const auto line = st::boostLevelBadgeLine;
-		const auto top = st::boostLevelBadge.margin.top()
-			+ ((st::boostLevelBadge.style.font->height - line) / 2);
-		const auto left = 0;
-		const auto skip = st::boostLevelBadgeSkip;
-		if (const auto right = rect.x() - skip; right > left) {
-			p.fillRect(left, top, right - left, line, lineFg);
-		}
-		const auto right = label->width();
-		if (const auto left = rect.x() + rect.width() + skip
-			; left < right) {
-			p.fillRect(left, top, right - left, line, lineFg);
-		}
-	}, label->lifetime());
-
-	return result;
-}
-
 void AboutRatingBox(
 		not_null<GenericBox*> box,
 		const QString &name,
@@ -487,7 +443,6 @@ void StarsRating::paint(QPainter &p) {
 	p.setPen(Qt::NoPen);
 	p.setBrush(_st.activeBg);
 
-	const auto value = _value.current();
 	const auto radius = outer.height() / 2.;
 	p.drawRoundedRect(outer, radius, radius);
 	p.setPen(_st.activeFg);
