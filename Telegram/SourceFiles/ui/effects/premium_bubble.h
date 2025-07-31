@@ -88,6 +88,7 @@ struct BubbleRowState {
 };
 
 enum class BubbleType : uchar {
+	StarRating,
 	NoPremium,
 	Premium,
 	Credits,

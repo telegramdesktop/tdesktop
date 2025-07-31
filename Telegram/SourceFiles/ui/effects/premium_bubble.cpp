@@ -422,7 +422,8 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 
 	_bubble.paintBubble(p, bubbleRect, [&] {
 		switch (_type) {
-		case BubbleType::NoPremium: return st::windowBgActive->b;
+		case BubbleType::NoPremium:
+		case BubbleType::StarRating: return st::windowBgActive->b;
 		case BubbleType::Premium: return QBrush(_cachedGradient);
 		case BubbleType::Credits: return st::creditsBg3->b;
 		}

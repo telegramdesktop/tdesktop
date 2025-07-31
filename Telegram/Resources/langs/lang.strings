@@ -1876,8 +1876,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_star_ref_revoked_title" = "Link removed";
 "lng_star_ref_revoked_text" = "It will no longer work.";
 
-"lng_stars_rating_tooltip" = "Profile level reflects the user's payment reliability.";
-"lng_stars_rating_learn_more" = "Learn More";
+"lng_stars_rating_title" = "Rating";
+"lng_stars_rating_future" = "Future Rating";
+"lng_stars_rating_subtitle" = "The rating update updates in 21 days after purchases.";
+"lng_stars_rating_pending#one" = "{count} point is pending. {link}";
+"lng_stars_rating_pending#other" = "{count} points are pending. {link}";
+"lng_stars_rating_pending_preview" = "Preview {arrow}";
+"lng_stars_rating_pending_back" = "Back {arrow}";
+"lng_stars_rating_about" = "This rating reflects **{name}'s** activity on Telegram. What affects it:";
+"lng_stars_rating_about_your" = "This rating reflects your activity on Telegram. What affects it:";
+"lng_stars_title_gifts_telegram" = "Gifts from Telegram";
+"lng_stars_about_gifts_telegram" = "{emoji} 100% of the Stars spent on gifts purchased from Telegram.";
+"lng_stars_title_gifts_users" = "Gifts and Posts from Users";
+"lng_stars_about_gifts_users" = "{emoji} 20% of the Stars spent on resold gifts, paid messages and channel posts.";
+"lng_stars_title_refunds" = "Refunds and Conversions";
+"lng_stars_about_refunds" = "{emoji} 10x of refunded Stars and 85% of bought gifts converted to Stars.";
+"lng_stars_rating_added" = "Added";
+"lng_stars_rating_deducted" = "Deducted";
+"lng_stars_rating_understood" = "Understood";
 
 "lng_manage_discussion_group" = "Discussion";
 "lng_manage_discussion_group_add" = "Add a group";

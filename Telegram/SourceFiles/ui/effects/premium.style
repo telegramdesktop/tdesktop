@@ -294,6 +294,7 @@ boostBottomSkip: 6px;
 boostBox: Box(premiumPreviewDoubledLimitsBox) {
 	buttonPadding: margins(16px, 12px, 16px, 12px);
 	buttonHeight: 42px;
+	buttonWide: true;
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;

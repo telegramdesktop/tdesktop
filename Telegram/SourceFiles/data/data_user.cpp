@@ -72,8 +72,8 @@ bool ApplyBotVerifierSettings(
 	const auto &data = rating->data();
 	return {
 		.level = data.vlevel().v,
-		.levelStars = int(data.vcurrent_level_stars().v),
-		.currentStars = int(data.vstars().v),
+		.stars = int(data.vstars().v),
+		.thisLevelStars = int(data.vcurrent_level_stars().v),
 		.nextLevelStars = int(data.vnext_level_stars().value_or_empty()),
 	};
 }

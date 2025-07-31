@@ -504,9 +504,17 @@ void AddLimitRow(
 		LimitRowLabels labels,
 		rpl::producer<LimitRowState> state,
 		const style::margins &padding) {
-	parent->add(
+	const auto color = std::move(labels.activeLineBg);
+	const auto line = parent->add(
 		object_ptr<Line>(parent, st, std::move(labels), std::move(state)),
 		padding);
+	if (color) {
+		line->setColorOverride(color());
+
+		style::PaletteChanged() | rpl::start_with_next([=] {
+			line->setColorOverride(color());
+		}, line->lifetime());
+	}
 }
 
 void AddAccountsRow(

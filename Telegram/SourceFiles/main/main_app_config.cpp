@@ -246,12 +246,6 @@ QString AppConfig::ageVerifyBotUsername() const {
 	return get<QString>(u"verify_age_bot_username"_q, QString());
 }
 
-QString AppConfig::starsRatingLearnMoreUrl() const {
-	return get<QString>(
-		u"stars_rating_learnmore_url"_q,
-		u"https://telegram.org/blog"_q);
-}
-
 int AppConfig::storiesAlbumsLimit() const {
 	return get<int>(u"stories_albums_limit"_q, 100);
 }

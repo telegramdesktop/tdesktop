@@ -7,7 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/stars_rating.h"
 
+#include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
+#include "ui/effects/premium_bubble.h"
+#include "ui/effects/premium_graphics.h"
+#include "ui/layers/generic_box.h"
+#include "ui/layers/show.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
@@ -17,25 +23,395 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
+#include "styles/style_premium.h"
+#include "styles/style_settings.h"
 #include "styles/style_media_view.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kAutoCollapseTimeout = 4 * crl::time(1000);
 
+using Counters = Data::StarsRating;
+
+struct Feature {
+	const style::icon &icon;
+	QString title;
+	TextWithEntities about;
+};
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeFeature(
+		QWidget *parent,
+		Feature feature,
+		const Text::MarkedContext &context) {
+	auto result = object_ptr<Ui::PaddingWrap<>>(
+		parent,
+		object_ptr<Ui::RpWidget>(parent),
+		st::infoStarsFeatureMargin);
+	const auto widget = result->entity();
+	const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
+		widget,
+		feature.icon,
+		st::infoStarsFeatureIconPosition);
+	const auto title = Ui::CreateChild<Ui::FlatLabel>(
+		widget,
+		feature.title,
+		st::infoStarsFeatureTitle);
+	const auto about = Ui::CreateChild<Ui::FlatLabel>(
+		widget,
+		rpl::single(feature.about),
+		st::infoStarsFeatureAbout,
+		st::defaultPopupMenu,
+		context);
+	icon->show();
+	title->show();
+	about->show();
+	widget->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto left = st::infoStarsFeatureLabelLeft;
+		const auto available = width - left;
+		title->resizeToWidth(available);
+		about->resizeToWidth(available);
+		auto top = 0;
+		title->move(left, top);
+		top += title->height() + st::infoStarsFeatureSkip;
+		about->move(left, top);
+		top += about->height();
+		widget->resize(width, top);
+	}, widget->lifetime());
+	return result;
+}
+
+[[nodiscard]] Fn<QImage()> CustomEmojiBadgeFactory(
+		const QString &text,
+		const style::color &bg,
+		const style::color &fg) {
+	return [=] {
+		auto string = Ui::Text::String(
+			st::settingsPremiumNewBadge.style,
+			text.toUpper());
+		const auto size = QSize(string.maxWidth(), string.minHeight());
+		const auto padding = st::settingsPremiumNewBadgePadding;
+		const auto full = size.grownBy(padding);
+		const auto ratio = style::DevicePixelRatio();
+
+		auto result = QImage(
+			full * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(ratio);
+		result.fill(Qt::transparent);
+
+		auto p = QPainter(&result);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(bg);
+
+		const auto r = padding.left();
+		p.drawRoundedRect(0, 0, full.width(), full.height(), r, r);
+
+		p.setPen(fg);
+		string.draw(p, { .position = { padding.left(), padding.top() } });
+
+		p.end();
+		return result;
+	};
+}
+
+[[nodiscard]] Counters AdjustByReached(Counters data) {
+	const auto reached = !data.nextLevelStars;
+	if (reached) {
+		--data.level;
+		data.stars = data.nextLevelStars = std::max({
+			data.stars,
+			data.thisLevelStars,
+			1
+		});
+		data.thisLevelStars = 0;
+	} else {
+		data.stars = std::max(data.thisLevelStars, data.stars);
+		data.nextLevelStars = std::max(
+			data.nextLevelStars,
+			data.stars + 1);
+	}
+	return data;
+}
+
+[[nodiscard]] Fn<QString(int)> BubbleTextFactory(int countForScale) {
+	return [=](int count) {
+		return (countForScale < 10'000)
+			? QString::number(count)
+			: (countForScale < 10'000'000)
+			? (QString::number((count / 100) / 10.) + 'K')
+			: (QString::number((count / 100'000) / 10.) + 'M');
+	};
+}
+
+void FillRatingLimit(
+		rpl::producer<> showFinished,
+		not_null<VerticalLayout*> container,
+		rpl::producer<Counters> data,
+		style::margins limitLinePadding,
+		int starsForScale) {
+	const auto addSkip = [&](int skip) {
+		container->add(object_ptr<Ui::FixedHeightWidget>(container, skip));
+	};
+
+	const auto ratio = [=](Counters rating) {
+		const auto min = rating.thisLevelStars;
+		const auto max = rating.nextLevelStars;
+
+		Assert(rating.stars >= min && rating.stars <= max);
+		const auto count = (max - min);
+		const auto index = (rating.stars - min);
+		if (!index) {
+			return 0.;
+		} else if (index == count) {
+			return 1.;
+		} else if (count == 2) {
+			return 0.5;
+		}
+		const auto available = st::boxWideWidth
+			- st::boxPadding.left()
+			- st::boxPadding.right();
+		const auto average = available / float64(count);
+		const auto levelWidth = [&](int add) {
+			return st::normalFont->width(
+				tr::lng_boost_level(
+					tr::now,
+					lt_count,
+					rating.level + add));
+		};
+		const auto paddings = 2 * st::premiumLineTextSkip;
+		const auto labelLeftWidth = paddings + levelWidth(0);
+		const auto labelRightWidth = paddings + levelWidth(1);
+		const auto first = std::max(average, labelLeftWidth * 1.);
+		const auto last = std::max(average, labelRightWidth * 1.);
+		const auto other = (available - first - last) / (count - 2);
+		return (first + (index - 1) * other) / available;
+	};
+
+	auto adjustedData = rpl::duplicate(data) | rpl::map(AdjustByReached);
+
+	auto bubbleRowState = rpl::duplicate(
+		adjustedData
+	) | rpl::combine_previous(
+		Counters()
+	) | rpl::map([=](Counters previous, Counters counters) {
+		return Premium::BubbleRowState{
+			.counter = counters.stars,
+			.ratio = ratio(counters),
+			.animateFromZero = (counters.level != previous.level),
+			.dynamic = true,
+		};
+	});
+	Premium::AddBubbleRow(
+		container,
+		st::boostBubble,
+		std::move(showFinished),
+		rpl::duplicate(bubbleRowState),
+		Premium::BubbleType::StarRating,
+		BubbleTextFactory(starsForScale),
+		&st::infoStarsCrown,
+		limitLinePadding);
+	addSkip(st::premiumLineTextSkip);
+
+	const auto level = [](int level) {
+		return tr::lng_boost_level(tr::now, lt_count, level);
+	};
+	auto limitState = std::move(
+		bubbleRowState
+	) | rpl::map([](const Premium::BubbleRowState &state) {
+		return Premium::LimitRowState{
+			.ratio = state.ratio,
+			.animateFromZero = state.animateFromZero,
+			.dynamic = state.dynamic
+		};
+	});
+	auto left = rpl::duplicate(
+		adjustedData
+	) | rpl::map([=](Counters counters) {
+		return level(counters.level);
+	});
+	auto right = rpl::duplicate(
+		adjustedData
+	) | rpl::map([=](Counters counters) {
+		return level(counters.level + 1);
+	});
+	Premium::AddLimitRow(
+		container,
+		st::boostLimits,
+		Premium::LimitRowLabels{
+			.leftLabel = std::move(left),
+			.rightLabel = std::move(right),
+			.activeLineBg = [=] { return st::windowBgActive->b; },
+		},
+		std::move(limitState),
+		limitLinePadding);
+}
+
+object_ptr<Ui::FlatLabel> MakeBoostFeaturesBadge(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> text,
+		Fn<QBrush(QRect)> bg) {
+	auto result = object_ptr<Ui::FlatLabel>(
+		parent,
+		std::move(text),
+		st::boostLevelBadge);
+	const auto label = result.data();
+
+	label->show();
+	label->paintRequest() | rpl::start_with_next([=] {
+		const auto size = label->textMaxWidth();
+		const auto rect = QRect(
+			(label->width() - size) / 2,
+			st::boostLevelBadge.margin.top(),
+			size,
+			st::boostLevelBadge.style.font->height
+		).marginsAdded(st::boostLevelBadge.margin);
+		auto p = QPainter(label);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(bg(rect));
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(rect, rect.height() / 2., rect.height() / 2.);
+
+		const auto &lineFg = st::windowBgRipple;
+		const auto line = st::boostLevelBadgeLine;
+		const auto top = st::boostLevelBadge.margin.top()
+			+ ((st::boostLevelBadge.style.font->height - line) / 2);
+		const auto left = 0;
+		const auto skip = st::boostLevelBadgeSkip;
+		if (const auto right = rect.x() - skip; right > left) {
+			p.fillRect(left, top, right - left, line, lineFg);
+		}
+		const auto right = label->width();
+		if (const auto left = rect.x() + rect.width() + skip
+			; left < right) {
+			p.fillRect(left, top, right - left, line, lineFg);
+		}
+	}, label->lifetime());
+
+	return result;
+}
+
+void AboutRatingBox(
+		not_null<GenericBox*> box,
+		const QString &name,
+		Counters data) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::boostBox);
+
+	struct State {
+		rpl::variable<Counters> data;
+		rpl::variable<bool> full;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->data = std::move(data);
+
+	FillRatingLimit(
+		BoxShowFinishes(box),
+		box->verticalLayout(),
+		state->data.value(),
+		st::boxRowPadding,
+		data.stars);
+
+	box->setMaxHeight(st::boostBoxMaxHeight);
+	const auto close = box->addTopButton(
+		st::boxTitleClose,
+		[=] { box->closeBox(); });
+
+	auto title = tr::lng_stars_rating_title();;
+
+	auto text = !name.isEmpty()
+		? tr::lng_stars_rating_about(
+			lt_name,
+			rpl::single(TextWithEntities{ name }),
+			Ui::Text::RichLangValue) | rpl::type_erased()
+		: tr::lng_stars_rating_about_your(
+			Ui::Text::RichLangValue) | rpl::type_erased();
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(box, std::move(title), st::infoStarsTitle),
+		st::boxRowPadding + QMargins(0, st::boostTitleSkip / 2, 0, 0));
+
+	const auto aboutLabel = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(text),
+			st::boostText),
+		(st::boxRowPadding
+			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
+	aboutLabel->setTryMakeSimilarLines(true);
+
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto makeBadge = [&](
+			const QString &text,
+			const style::color &bg,
+			const style::color &fg) {
+		return helper.paletteDependent(
+			CustomEmojiBadgeFactory(text, bg, fg),
+			st::badgeEmojiMargin);
+	};
+	const auto makeActive = [&](const QString &text) {
+		return makeBadge(text, st::windowBgActive, st::windowFgActive);
+	};
+	const auto makeInactive = [&](const QString &text) {
+		return makeBadge(text, st::windowSubTextFg, st::windowFgActive);
+	};
+	const auto features = std::vector<Feature>{
+		{
+			st::menuIconRatingGifts,
+			tr::lng_stars_title_gifts_telegram(tr::now),
+			tr::lng_stars_about_gifts_telegram(
+				tr::now,
+				lt_emoji,
+				makeActive(tr::lng_stars_rating_added(tr::now)),
+				Ui::Text::RichLangValue),
+		},
+		{
+			st::menuIconRatingUsers,
+			tr::lng_stars_title_gifts_users(tr::now),
+			tr::lng_stars_about_gifts_users(
+				tr::now,
+				lt_emoji,
+				makeActive(tr::lng_stars_rating_added(tr::now)),
+				Ui::Text::RichLangValue),
+		},
+		{
+			st::menuIconRatingRefund,
+			tr::lng_stars_title_refunds(tr::now),
+			tr::lng_stars_about_refunds(
+				tr::now,
+				lt_emoji,
+				makeInactive(tr::lng_stars_rating_deducted(tr::now)),
+				Ui::Text::RichLangValue),
+		},
+	};
+	const auto context = helper.context();
+	for (const auto &feature : features) {
+		box->addRow(MakeFeature(box, feature, context));
+	}
+	box->addButton(rpl::single(QString()), [=] {
+		box->closeBox();
+	})->setText(rpl::single(Ui::Text::IconEmoji(
+		&st::infoStarsUnderstood
+	).append(' ').append(tr::lng_stars_rating_understood(tr::now))));
+}
+
 } // namespace
 
 StarsRating::StarsRating(
 	QWidget *parent,
 	const style::StarsRating &st,
-	rpl::producer<Data::StarsRating> value,
-	Fn<not_null<QWidget*>()> parentForTooltip)
+	std::shared_ptr<Ui::Show> show,
+	const QString &name,
+	rpl::producer<Counters> value)
 : _widget(std::make_unique<Ui::AbstractButton>(parent))
 , _st(st)
-, _parentForTooltip(std::move(parentForTooltip))
-, _value(std::move(value))
-, _collapseTimer([=] { _expanded = false; }) {
+, _show(std::move(show))
+, _name(name)
+, _value(std::move(value)) {
 	init();
 }
 
@@ -43,18 +419,6 @@ StarsRating::~StarsRating() = default;
 
 void StarsRating::init() {
 	_widget->setPointerCursor(true);
-	_expanded.changes() | rpl::start_with_next([=](bool expanded) {
-		_widget->setPointerCursor(!expanded);
-		const auto from = expanded ? 0. : 1.;
-		const auto till = expanded ? 1. : 0.;
-		_expandedAnimation.start([=] {
-			updateWidth();
-			if (!_expandedAnimation.animating()) {
-				updateStarsTooltipGeometry();
-			}
-		}, from, till, st::slideDuration);
-		toggleTooltips(expanded);
-	}, lifetime());
 
 	_widget->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(_widget.get());
@@ -65,189 +429,43 @@ void StarsRating::init() {
 		if (!_value.current()) {
 			return;
 		}
-		_expanded = true;
-		_collapseTimer.callOnce(kAutoCollapseTimeout);
+		_show->show(Box(AboutRatingBox, _name, _value.current()));
 	});
 
 	const auto added = _st.margin + _st.padding;
-	const auto border = 2 * _st.border;
 	const auto fontHeight = _st.style.font->height;
-	const auto height = added.top() + fontHeight + added.bottom() + border;
+	const auto height = added.top() + fontHeight + added.bottom();
 	_widget->resize(_widget->width(), height);
 
-	_value.value() | rpl::start_with_next([=](Data::StarsRating rating) {
+	_value.value() | rpl::start_with_next([=](Counters rating) {
 		if (!rating) {
 			_widget->resize(0, _widget->height());
 			_collapsedWidthValue = 0;
-			_expanded = false;
-			updateExpandedWidth();
-			_expandedAnimation.stop();
 			return;
 		}
 		updateTexts(rating);
 	}, lifetime());
 }
 
-void StarsRating::updateTexts(Data::StarsRating rating) {
+void StarsRating::updateTexts(Counters rating) {
 	_collapsedText.setText(
 		_st.style,
 		Lang::FormatCountDecimal(rating.level));
-	_expandedText.setText(
-		_st.style,
-		tr::lng_boost_level(tr::now, lt_count_decimal, rating.level));
-	_nextText.setText(
-		_st.style,
-		(rating.nextLevelStars
-			? Lang::FormatCountDecimal(rating.level + 1)
-			: QString()));
 
 	const auto added = _st.padding;
-	const auto border = 2 * _st.border;
-	const auto add = added.left() + added.right() + border;
-	const auto min = _expandedText.maxWidth() + _nextText.maxWidth();
+	const auto add = added.left() + added.right();
 	const auto height = _widget->height();
-	_minimalContentWidth = add + min + _st.minSkip;
 	_collapsedWidthValue = _st.margin.right()
 		+ std::max(
 			add + _collapsedText.maxWidth(),
 			height - _st.margin.top() - _st.margin.bottom());
-	updateExpandedWidth();
 	updateWidth();
 }
 
-void StarsRating::updateExpandedWidth() {
-	_expandedWidthValue = _st.margin.right() + std::max(
-		_collapsedWidthValue.current() + _minimalAddedWidth.current(),
-		_minimalContentWidth.current());
-}
-
 void StarsRating::updateWidth() {
-	const auto widthToRight = anim::interpolate(
-		_collapsedWidthValue.current(),
-		_expandedWidthValue.current(),
-		_expandedAnimation.value(_expanded.current() ? 1. : 0.));
+	const auto widthToRight = _collapsedWidthValue.current();
 	_widget->resize(_st.margin.left() + widthToRight, _widget->height());
 	_widget->update();
-	updateStarsTooltipGeometry();
-}
-
-void StarsRating::toggleTooltips(bool shown) {
-	if (!shown) {
-		if (const auto strong = _about.get()) {
-			strong->hideAnimated();
-		}
-		if (const auto strong = _stars.release()) {
-			strong->toggleAnimated(false);
-		}
-		return;
-	}
-	const auto value = _value.current();
-	const auto parent = _parentForTooltip
-		? _parentForTooltip().get()
-		: _widget->window();
-	const auto text = value.nextLevelStars
-		? (Lang::FormatCountDecimal(value.currentStars)
-			+ u" / "_q
-			+ Lang::FormatCountDecimal(value.nextLevelStars))
-		: Lang::FormatCountDecimal(value.currentStars);
-	_stars = std::make_unique<Ui::ImportantTooltip>(
-		parent,
-		Ui::MakeNiceTooltipLabel(
-			_widget.get(),
-			rpl::single(TextWithEntities{ text }),
-			st::storiesInfoTooltipMaxWidth,
-			st::storiesInfoTooltipLabel),
-		st::infoStarsRatingTooltip);
-	const auto stars = _stars.get();
-	const auto weak = QPointer<QWidget>(stars);
-	const auto destroy = [=] {
-		delete weak.data();
-	};
-	stars->setAttribute(Qt::WA_TransparentForMouseEvents);
-	stars->setHiddenCallback(destroy);
-	updateStarsTooltipGeometry();
-	stars->toggleAnimated(true);
-
-	_aboutSt = std::make_unique<style::Toast>(st::defaultMultilineToast);
-	const auto learn = tr::lng_stars_rating_learn_more(tr::now);
-	_aboutSt->padding.setRight(
-		(st::infoStarsRatingLearn.style.font->width(learn)
-			- st::infoStarsRatingLearn.width));
-
-	_about = Ui::Toast::Show(parent, {
-		.text = tr::lng_stars_rating_tooltip(
-			tr::now,
-			Ui::Text::WithEntities),
-		.st = _aboutSt.get(),
-		.attach = RectPart::Top,
-		.dark = true,
-		.adaptive = true,
-		.acceptinput = true,
-		.duration = kAutoCollapseTimeout,
-	});
-	const auto strong = _about.get();
-	if (!strong) {
-		return;
-	}
-	const auto widget = strong->widget();
-	const auto hideToast = [weak = _about] {
-		if (const auto strong = weak.get()) {
-			strong->hideAnimated();
-		}
-	};
-
-	const auto button = Ui::CreateChild<Ui::RoundButton>(
-		widget.get(),
-		rpl::single(learn),
-		st::infoStarsRatingLearn);
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	button->show();
-	rpl::combine(
-		widget->sizeValue(),
-		button->sizeValue()
-	) | rpl::start_with_next([=](QSize outer, QSize inner) {
-		button->moveToRight(
-			0,
-			(outer.height() - inner.height()) / 2,
-			outer.width());
-	}, widget->lifetime());
-	button->setClickedCallback([=] {
-		_learnMoreRequests.fire({});
-	});
-}
-
-void StarsRating::updateStarsTooltipGeometry() {
-	if (!_stars) {
-		return;
-	}
-	const auto weakParent = base::make_weak(_stars->parentWidget());
-	const auto weak = base::make_weak(_widget.get());
-	const auto point = _st.margin.left()
-		+ _st.border
-		+ (_activeWidth / (_value.current().nextLevelStars ? 1 : 2));
-	const auto countPosition = [=](QSize size) {
-		const auto strong = weak.get();
-		const auto parent = weakParent.get();
-		if (!strong || !parent) {
-			return QPoint();
-		}
-		const auto geometry = Ui::MapFrom(parent, strong, strong->rect());
-		const auto shift = size.width() / 2;
-		const auto left = geometry.x() + point - shift;
-		const auto margin = st::defaultImportantTooltip.margin;
-		return QPoint(
-			std::min(
-				std::max(left, margin.left()),
-				parent->width() - size.width() - margin.right()),
-			geometry.y() + geometry.height());
-	};
-	_stars->pointAt(
-		Ui::MapFrom(
-			_stars->parentWidget(),
-			_widget.get(),
-			QRect(point, 0, st::lineWidth, _widget->height())),
-		RectPart::Bottom,
-		countPosition);
 }
 
 void StarsRating::raise() {
@@ -263,90 +481,25 @@ void StarsRating::paint(QPainter &p) {
 	if (outer.isEmpty()) {
 		return;
 	}
-	const auto border = _st.border;
-	const auto middle = outer.marginsRemoved(
-		{ border, border, border, border });
-	const auto mradius = middle.height() / 2.;
-	const auto inner = middle.marginsRemoved(_st.padding);
-
-	const auto expanded = _expandedAnimation.value(
-		_expanded.current() ? 1. : 0.);
+	const auto inner = outer.marginsRemoved(_st.padding);
 
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
-	p.setBrush(_st.inactiveBg);
-	const auto oradius = outer.height() / 2.;
-	p.drawRoundedRect(outer, oradius, oradius);
 	p.setBrush(_st.activeBg);
 
 	const auto value = _value.current();
-	const auto expandedRatio = (value.nextLevelStars > value.levelStars)
-		? ((value.currentStars - value.levelStars)
-			/ float64(value.nextLevelStars - value.levelStars))
-		: 1.;
-	const auto expandedFilled = (expandedRatio < 1.)
-		? (_st.padding.left()
-			+ _expandedText.maxWidth()
-			+ _st.padding.right()
-			+ expandedRatio * (middle.width()
-				- _st.padding.left()
-				- _expandedText.maxWidth()
-				- _st.padding.right()
-				- _st.padding.left()
-				- _nextText.maxWidth()
-				- _st.padding.right()))
-		: middle.width();
-	const auto collapsedFilled = _collapsedWidthValue.current()
-		- _st.margin.right()
-		- 2 * _st.border;
-	_activeWidth = anim::interpolate(
-		collapsedFilled,
-		expandedFilled,
-		expanded);
-	p.drawRoundedRect(
-		middle.x(),
-		middle.y(),
-		_activeWidth,
-		middle.height(),
-		mradius,
-		mradius);
+	const auto radius = outer.height() / 2.;
+	p.drawRoundedRect(outer, radius, radius);
 	p.setPen(_st.activeFg);
-	if (expanded < 1.) {
-		p.setOpacity(1. - expanded);
-		const auto skip = (inner.width() - _collapsedText.maxWidth()) / 2;
-		_collapsedText.draw(p, {
-			.position = inner.topLeft() + QPoint(skip, 0),
-			.availableWidth = _collapsedText.maxWidth(),
-		});
-	}
-	if (expanded > 0.) {
-		p.setOpacity(expanded);
-		_expandedText.draw(p, {
-			.position = inner.topLeft(),
-			.availableWidth = _expandedText.maxWidth(),
-		});
-
-		p.setPen(_st.inactiveFg);
-		_nextText.draw(p, {
-			.position = (inner.topLeft()
-				+ QPoint(inner.width() - _nextText.maxWidth(), 0)),
-			.availableWidth = _nextText.maxWidth(),
-		});
-	}
-}
-
-void StarsRating::setMinimalAddedWidth(int addedWidth) {
-	_minimalAddedWidth = addedWidth + (_st.style.font->spacew * 2);
-	updateExpandedWidth();
-	updateWidth();
+	const auto skip = (inner.width() - _collapsedText.maxWidth()) / 2;
+	_collapsedText.draw(p, {
+		.position = inner.topLeft() + QPoint(skip, 0),
+		.availableWidth = _collapsedText.maxWidth(),
+	});
 }
 
 rpl::producer<int> StarsRating::collapsedWidthValue() const {
 	return _collapsedWidthValue.value();
-}
-
-rpl::producer<> StarsRating::learnMoreRequests() const {
-	return _learnMoreRequests.events();
 }
 
 rpl::lifetime &StarsRating::lifetime() {

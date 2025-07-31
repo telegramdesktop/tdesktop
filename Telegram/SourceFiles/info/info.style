@@ -1195,12 +1195,8 @@ StarsRating {
 	margin: margins;
 	padding: margins;
 	style: TextStyle;
-	minSkip: pixels;
-	border: pixels;
 	activeBg: color;
-	inactiveBg: color;
 	activeFg: color;
-	inactiveFg: color;
 }
 infoStarsRating: StarsRating {
 	margin: margins(6px, 6px, 6px, 6px);
@@ -1208,24 +1204,37 @@ infoStarsRating: StarsRating {
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px semibold);
 	}
-	minSkip: 32px;
-	border: 2px;
 	activeBg: windowBgActive;
-	inactiveBg: windowBgRipple;
 	activeFg: windowFgActive;
-	inactiveFg: windowBoldFg;
 }
-infoStarsRatingLearn: RoundButton(defaultActiveButton) {
-	width: -24px;
-	height: 44px;
-	textTop: 13px;
-	textFg: mediaviewTextLinkFg;
-	textFgOver: mediaviewTextLinkFg;
-	textBg: transparent;
-	textBgOver: transparent;
-	ripple: emptyRippleAnimation;
+infoStarsTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	textFg: windowBoldFg;
+	maxHeight: 24px;
+	style: TextStyle(boxTextStyle) {
+		font: font(17px semibold);
+	}
+	align: align(top);
 }
-infoStarsRatingTooltip: defaultImportantTooltip;
+infoStarsFeatureTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: semiboldTextStyle;
+	minWidth: 10px;
+	maxHeight: 20px;
+}
+infoStarsFeatureAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 20px;
+}
+infoStarsFeatureIconPosition: point(3px, 7px);
+infoStarsFeatureMargin: margins(0px, 8px, 0px, 6px);
+infoStarsFeatureLabelLeft: 46px;
+infoStarsFeatureSkip: 2px;
+infoStarsCrown: icon {{ "limits/filled_rating_crown-24x24", windowFgActive }};
+infoStarsUnderstood: IconEmoji{
+	icon: icon {{ "limits/filled_understood-20x20", windowFgActive }};
+	padding: margins(0px, -1px, 0px, 0px);
+}
 
 collectionAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 256px;
