@@ -141,6 +141,7 @@ settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 }
 settingsPremiumNewBadgePosition: point(4px, 1px);
 settingsPremiumNewBadgePadding: margins(4px, 1px, 4px, 1px);
+badgeEmojiMargin: margins(0px, 2px, 0px, 0px);
 
 settingsTTLChatsOff: icon {{ "settings/ttl/autodelete_off", windowSubTextFg }};
 settingsTTLChatsOn: icon {{ "settings/ttl/autodelete_on", windowActiveTextFg }};

@@ -13,8 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "boxes/peer_list_box.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -68,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 #include "styles/style_window.h"
 
 namespace Dialogs {
@@ -149,6 +152,34 @@ struct EntryMenuDescriptor {
 			.confirmed = [=](Fn<void()> close) { removeAll(); close(); }
 		}));
 	};
+}
+
+[[nodiscard]] QImage MakeNewBadgeImage() {
+	auto text = Ui::Text::String(
+		st::settingsPremiumNewBadge.style,
+		tr::lng_premium_summary_new_badge(tr::now));
+	const auto size = QSize(text.maxWidth(), text.minHeight());
+	const auto padding = st::settingsPremiumNewBadgePadding;
+	const auto full = size.grownBy(padding);
+	const auto ratio = style::DevicePixelRatio();
+
+	auto result = QImage(full * ratio, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+
+	auto p = QPainter(&result);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBgActive);
+
+	const auto r = padding.left();
+	p.drawRoundedRect(0, 0, full.width(), full.height(), r, r);
+
+	p.setPen(st::windowFgActive);
+	text.draw(p, { .position = { padding.left(), padding.top() } });
+
+	p.end();
+	return result;
 }
 
 void FillEntryMenu(
@@ -1421,13 +1452,26 @@ void Suggestions::setupTabs() {
 			tr::lng_all_voice(tr::now),
 		},
 	};
-	auto sections = std::vector<QString>();
+
+	const auto manager = &_controller->session().data().customEmojiManager();
+	const auto badgeData = manager->registerInternalEmoji(
+		u"posts_search_new_badge"_q,
+		MakeNewBadgeImage(),
+		st::badgeEmojiMargin,
+		false);
+	auto sections = std::vector<TextWithEntities>();
 	for (const auto key : _tabKeys) {
 		const auto i = labels.find(key);
 		Assert(i != end(labels));
-		sections.push_back(i->second);
+		auto text = TextWithEntities{ i->second };
+		if (key.tab == Tab::Posts) {
+			text.append(' ').append(Ui::Text::SingleCustomEmoji(badgeData));
+		}
+		sections.push_back(std::move(text));
 	}
-	_tabs->setSections(sections);
+	_tabs->setSections(sections, Core::TextContext({
+		.session = &_controller->session(),
+	}));
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int section) {
 		Assert(section >= 0 && section < _tabKeys.size());
