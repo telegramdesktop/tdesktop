@@ -152,7 +152,8 @@ void PostsSearchIntro::setup() {
 	}) | rpl::flatten_latest();
 
 	auto footer = _state.value(
-	) | rpl::map([](const PostsSearchIntroState &state) {
+	) | rpl::map([](const PostsSearchIntroState &state)
+	-> rpl::producer<QString> {
 		if (state.needsPremium) {
 			return tr::lng_posts_need_subscribe();
 		} else if (state.freeSearchesLeft > 0) {
