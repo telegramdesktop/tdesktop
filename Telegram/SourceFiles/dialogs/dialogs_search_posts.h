@@ -19,7 +19,7 @@ namespace Dialogs {
 
 struct PostsSearchState {
 	std::optional<PostsSearchIntroState> intro;
-	std::vector<not_null<HistoryItem*>> first;
+	std::vector<not_null<HistoryItem*>> page;
 	int totalCount = 0;
 	bool loading = false;
 };
@@ -29,6 +29,7 @@ public:
 	explicit PostsSearch(not_null<Main::Session*> session);
 
 	[[nodiscard]] rpl::producer<PostsSearchState> stateUpdates() const;
+	[[nodiscard]] rpl::producer<PostsSearchState> pagesUpdates() const;
 
 	void setQuery(const QString &query);
 	int setAllowedStars(int stars);
@@ -44,6 +45,7 @@ private:
 		MsgId offsetId = 0;
 		int offsetRate = 0;
 		int allowedStars = 0;
+		mutable int pagesPushed = 0;
 		bool loaded = false;
 	};
 
@@ -63,10 +65,12 @@ private:
 	base::Timer _recheckTimer;
 	base::flat_map<QString, Entry> _entries;
 	std::optional<QString> _query;
+	QString _queryPushed;
 
 	std::optional<PostsSearchIntroState> _floodState;
 
 	rpl::event_stream<PostsSearchState> _stateUpdates;
+	rpl::event_stream<PostsSearchState> _pagesUpdates;
 
 	rpl::lifetime _lifetime;
 

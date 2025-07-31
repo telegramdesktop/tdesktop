@@ -1913,14 +1913,27 @@ void Suggestions::setupPostsSearch() {
 			_postsContent->searchRequested(true);
 		} else {
 			_postsContent->searchReceived(
-				state.first,
+				state.page,
 				nullptr,
 				{ .posts = true, .start = true },
 				state.totalCount);
+			updatePostsSearchVisibleRange();
 		}
-		const auto top = _postsScroll->scrollTop();
-		const auto height = _postsScroll->height();
-		_postsContent->setVisibleTopBottom(top, top + height);
+	}, _postsWrap->lifetime());
+
+	_postsSearch->pagesUpdates(
+	) | rpl::start_with_next([=](const PostsSearchState &state) {
+		Expects(!state.intro && !state.loading);
+
+		if (!_postsContent) {
+			return;
+		}
+		_postsContent->searchReceived(
+			state.page,
+			nullptr,
+			{ .posts = true },
+			state.totalCount);
+		updatePostsSearchVisibleRange();
 	}, _postsWrap->lifetime());
 }
 
@@ -1969,9 +1982,29 @@ void Suggestions::setupPostsResults() {
 	_postsContent->heightValue() | rpl::start_with_next([=](int height) {
 		_postsWrap->resize(_postsWrap->width(), height);
 	}, _postsContent->lifetime());
+
+	rpl::combine(
+		rpl::single(rpl::empty) | rpl::then(_postsScroll->scrolls()),
+		_postsScroll->heightValue()
+	) | rpl::start_with_next([=] {
+		updatePostsSearchVisibleRange();
+	}, _postsContent->lifetime());
+
+	_postsContent->setLoadMoreCallback([=] {
+		_postsSearch->requestMore();
+	});
+
 	_postsContent->setNarrowRatio(0.);
 	_postsContent->show();
 	updateControlsGeometry();
+}
+
+void Suggestions::updatePostsSearchVisibleRange() {
+	Expects(_postsContent != nullptr);
+
+	const auto top = _postsScroll->scrollTop();
+	const auto height = _postsScroll->height();
+	_postsContent->setVisibleTopBottom(top, top + height);
 }
 
 void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {

@@ -219,6 +219,7 @@ private:
 	void setPostsSearchQuery(const QString &query);
 	void setupPostsResults();
 	void setupPostsIntro(const PostsSearchIntroState &intro);
+	void updatePostsSearchVisibleRange();
 
 	const not_null<Window::SessionController*> _controller;
 

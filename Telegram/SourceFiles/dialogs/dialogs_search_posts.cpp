@@ -36,8 +36,23 @@ rpl::producer<PostsSearchState> PostsSearch::stateUpdates() const {
 	return _stateUpdates.events();
 }
 
+rpl::producer<PostsSearchState> PostsSearch::pagesUpdates() const {
+	return _pagesUpdates.events();
+}
+
 void PostsSearch::requestMore() {
-	if (_query) {
+	if (!_query) {
+		return;
+	}
+	auto &entry = _entries[*_query];
+	if (_queryPushed != *_query || !entry.pagesPushed) {
+		return;
+	} else if (entry.pagesPushed < entry.pages.size()) {
+		_pagesUpdates.fire(PostsSearchState{
+			.page = entry.pages[entry.pagesPushed++],
+			.totalCount = entry.totalCount,
+		});
+	} else {
 		requestSearch(*_query);
 	}
 }
@@ -78,9 +93,27 @@ int PostsSearch::setAllowedStars(int stars) {
 }
 
 void PostsSearch::pushStateUpdate(const Entry &entry) {
+	Expects(_query.has_value());
+
+	const auto initial = (_queryPushed != *_query);
+	if (initial) {
+		_queryPushed = *_query;
+		entry.pagesPushed = 0;
+	} else if (entry.pagesPushed > 0) {
+		if (entry.pagesPushed < entry.pages.size()) {
+			_pagesUpdates.fire(PostsSearchState{
+				.page = entry.pages[entry.pagesPushed++],
+				.totalCount = entry.totalCount,
+			});
+		}
+		return;
+	}
 	if (!entry.pages.empty() || entry.loaded) {
+		if (!entry.pages.empty()) {
+			++entry.pagesPushed;
+		}
 		_stateUpdates.fire(PostsSearchState{
-			.first = (entry.pages.empty()
+			.page = (entry.pages.empty()
 				? std::vector<not_null<HistoryItem*>>()
 				: entry.pages.front()),
 			.totalCount = entry.totalCount,
@@ -230,7 +263,7 @@ void PostsSearch::requestSearch(const QString &query) {
 			&std::vector<not_null<HistoryItem*>>::size));
 		const auto full = entry.loaded ? count : std::max(count, totalCount);
 		entry.totalCount = full;
-		if (initial && _query == query) {
+		if (_query == query) {
 			pushStateUpdate(entry);
 		}
 	}).fail([=](const MTP::Error &error) {
