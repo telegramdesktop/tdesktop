@@ -69,6 +69,7 @@ private:
 	std::vector<Button> _buttons;
 	rpl::event_stream<QString> _activated;
 	rpl::event_stream<QString> _contextMenuRequests;
+	std::optional<Qt::Orientation> _locked;
 	int _dragx = 0;
 	int _pressx = 0;
 	float64 _dragscroll = 0.;
