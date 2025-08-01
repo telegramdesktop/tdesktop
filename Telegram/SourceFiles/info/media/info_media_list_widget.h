@@ -310,7 +310,9 @@ private:
 
 	const std::unique_ptr<DateBadge> _dateBadge;
 
+	int _selectedLimit = 0;
 	int _storiesAddToAlbumId = 0;
+	int _storiesAddToAlbumTotal = 0;
 	base::flat_set<StoryId> _storiesInAlbum;
 	base::flat_set<MsgId> _storyMsgsToMarkSelected;
 	std::unique_ptr<StickerPremiumMark> _hiddenMark;

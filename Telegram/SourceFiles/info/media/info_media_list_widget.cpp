@@ -154,6 +154,7 @@ ListWidget::ListWidget(
 	_provider->type(),
 	[=] { scrollDateCheck(); },
 	[=] { scrollDateHide(); }))
+, _selectedLimit(MaxSelectedItems)
 , _storiesAddToAlbumId(controller->storiesAddToAlbumId())
 , _hiddenMark(std::make_unique<StickerPremiumMark>(
 		&_controller->session(),
@@ -275,6 +276,7 @@ void ListWidget::setupStoriesTrackIds() {
 	}
 	const auto peerId = _controller->storiesPeer()->id;
 	const auto stories = &session().data().stories();
+
 	constexpr auto kArchive = Data::kStoriesAlbumIdArchive;
 	const auto key = Data::StoryAlbumIdsKey{ peerId, kArchive };
 	rpl::single(rpl::empty) | rpl::then(
@@ -301,6 +303,32 @@ void ListWidget::setupStoriesTrackIds() {
 				}
 			}
 		}
+	}, lifetime());
+
+	if (!stories->albumIdsCountKnown(peerId, _storiesAddToAlbumId)) {
+		stories->albumIdsLoadMore(peerId, _storiesAddToAlbumId);
+	}
+
+	const auto akey = Data::StoryAlbumIdsKey{ peerId, _storiesAddToAlbumId };
+	rpl::single(rpl::empty) | rpl::then(
+		stories->albumIdsChanged() | rpl::filter(
+			rpl::mappers::_1 == akey
+		) | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		_storiesAddToAlbumTotal = stories->albumIdsCount(
+			peerId,
+			_storiesAddToAlbumId);
+
+		const auto albumId = _storiesAddToAlbumId;
+		const auto &ids = stories->albumKnownInArchive(peerId, albumId);
+		const auto loadedCount = int(ids.size());
+		const auto total = std::max(_storiesAddToAlbumTotal, loadedCount);
+		const auto nonLoadedInAlbum = total - loadedCount;
+
+		const auto appConfig = &_controller->session().appConfig();
+		const auto totalLimit = appConfig->storiesAlbumLimit();
+
+		_selectedLimit = std::max(totalLimit - nonLoadedInAlbum, 0);
 	}, lifetime());
 }
 
@@ -603,8 +631,6 @@ void ListWidget::markStoryMsgsSelected() {
 			pushSelectedItems();
 		}
 	});
-	const auto &appConfig = _controller->session().appConfig();
-	const auto selectLimit = appConfig.storiesAlbumLimit();
 	const auto selection = FullSelection;
 	for (const auto &section : _sections) {
 		for (const auto &entry : section.items()) {
@@ -616,7 +642,7 @@ void ListWidget::markStoryMsgsSelected() {
 					_selected,
 					item,
 					_provider->computeSelectionData(item, selection),
-					selectLimit);
+					_selectedLimit);
 				repaintItem(item);
 				_storyMsgsToMarkSelected.erase(i);
 				if (_storyMsgsToMarkSelected.empty()) {
@@ -1263,7 +1289,7 @@ void ListWidget::showContextMenu(
 				crl::guard(this, [=] {
 					if (hasSelectedText()) {
 						clearSelected();
-					} else if (_selected.size() == MaxSelectedItems) {
+					} else if (_selected.size() == _selectedLimit) {
 						return;
 					} else if (_selected.empty()) {
 						update();
@@ -1583,15 +1609,12 @@ void ListWidget::switchToWordSelection() {
 void ListWidget::applyItemSelection(
 		HistoryItem *item,
 		TextSelection selection) {
-	const auto selectLimit = _storiesAddToAlbumId
-		? _controller->session().appConfig().storiesAlbumLimit()
-		: MaxSelectedItems;
 	if (item
 		&& ChangeItemSelection(
 			_selected,
 			item,
 			_provider->computeSelectionData(item, selection),
-			selectLimit)) {
+			_selectedLimit)) {
 		repaintItem(item);
 		pushSelectedItems();
 	}
@@ -2133,15 +2156,12 @@ void ListWidget::applyDragSelection() {
 
 void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 	if (_dragSelectAction == DragSelectAction::Selecting) {
-		const auto selectLimit = _storiesAddToAlbumId
-			? _controller->session().appConfig().storiesAlbumLimit()
-			: MaxSelectedItems;
 		for (auto &[item, data] : _dragSelected) {
 			ChangeItemSelection(
 				applyTo,
 				item,
 				_provider->computeSelectionData(item, FullSelection),
-				selectLimit);
+				_selectedLimit);
 		}
 	} else if (_dragSelectAction == DragSelectAction::Deselecting) {
 		for (auto &[item, data] : _dragSelected) {

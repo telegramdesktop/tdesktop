@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/stars_rating.h"
 
+#include "base/unixtime.h"
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/premium_bubble.h"
@@ -335,23 +336,19 @@ void AboutRatingBox(
 		object_ptr<Ui::FlatLabel>(box, std::move(title), st::infoStarsTitle),
 		st::boxRowPadding + QMargins(0, st::boostTitleSkip / 2, 0, 0));
 
-	AssertIsDebug();
-	pending = {
-		.value = {
-			.level = 10,
-			.stars = 100,
-			.thisLevelStars = 90,
-			.nextLevelStars = 110,
-		},
-		.date = 86400,
-	};
 	if (pending) {
+		const auto now = base::unixtime::now();
+		const auto days = std::max((pending.date - now + 43200) / 86400, 1);
 		auto text = state->pending.value(
 		) | rpl::map([=](bool value) {
 			return tr::lng_stars_rating_pending(
 				tr::now,
 				lt_count_decimal,
 				pending.value.stars - data.stars,
+				lt_when,
+				TextWithEntities{
+					tr::lng_stars_rating_updates(tr::now, lt_count, days),
+				},
 				lt_link,
 				Ui::Text::Link((value
 					? tr::lng_stars_rating_pending_back
