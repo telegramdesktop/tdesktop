@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
+#include "styles/style_chat.h" // textMoreIconEmoji
 #include "styles/style_info.h"
 #include "styles/style_info_levels.h"
 #include "styles/style_layers.h"
@@ -258,16 +259,18 @@ void FillRatingLimit(
 void AboutRatingBox(
 		not_null<GenericBox*> box,
 		const QString &name,
-		Counters data) {
+		Counters data,
+		Data::StarsRatingPending pending) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::boostBox);
 
 	struct State {
 		rpl::variable<Counters> data;
+		rpl::variable<bool> pending;
 		rpl::variable<bool> full;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->data = std::move(data);
+	state->data = data;
 
 	FillRatingLimit(
 		BoxShowFinishes(box),
@@ -278,7 +281,10 @@ void AboutRatingBox(
 
 	box->setMaxHeight(st::boostBoxMaxHeight);
 
-	auto title = tr::lng_stars_rating_title();;
+	auto title = rpl::conditional(
+		state->pending.value(),
+		tr::lng_stars_rating_future(),
+		tr::lng_stars_rating_title());
 
 	auto text = !name.isEmpty()
 		? tr::lng_stars_rating_about(
@@ -291,6 +297,41 @@ void AboutRatingBox(
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(box, std::move(title), st::infoStarsTitle),
 		st::boxRowPadding + QMargins(0, st::boostTitleSkip / 2, 0, 0));
+
+	if (pending) {
+		auto text = state->pending.value(
+		) | rpl::map([=](bool value) {
+			return tr::lng_stars_rating_pending(
+				tr::now,
+				lt_count_decimal,
+				pending.value.stars - data.stars,
+				lt_link,
+				Ui::Text::Link((value
+					? tr::lng_stars_rating_pending_back
+					: tr::lng_stars_rating_pending_preview)(
+						tr::now,
+						lt_arrow,
+						Ui::Text::IconEmoji(&st::textMoreIconEmoji),
+						Ui::Text::WithEntities)),
+				Ui::Text::RichLangValue);
+		});
+		const auto aboutPending = box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				std::move(text),
+				st::boostTextPending),
+			(st::boxRowPadding
+				+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
+		aboutPending->setTryMakeSimilarLines(true);
+		aboutPending->setClickHandlerFilter([=](const auto &...) {
+			state->pending = !state->pending.current();
+			state->data = state->pending.current()
+				? pending.value
+				: data;
+			box->verticalLayout()->resizeToWidth(box->width());
+			return false;
+		});
+	}
 
 	const auto aboutLabel = box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -395,11 +436,13 @@ StarsRating::StarsRating(
 	QWidget *parent,
 	std::shared_ptr<Ui::Show> show,
 	const QString &name,
-	rpl::producer<Counters> value)
+	rpl::producer<Counters> value,
+	Fn<Data::StarsRatingPending()> pending)
 : _widget(std::make_unique<Ui::AbstractButton>(parent))
 , _show(std::move(show))
 , _name(name)
-, _value(std::move(value)) {
+, _value(std::move(value))
+, _pending(std::move(pending)) {
 	init();
 }
 
@@ -417,7 +460,9 @@ void StarsRating::init() {
 		if (!_value.current()) {
 			return;
 		}
-		_show->show(Box(AboutRatingBox, _name, _value.current()));
+		_show->show(Box(AboutRatingBox, _name, _value.current(), _pending
+			? _pending()
+			: Data::StarsRatingPending()));
 	});
 
 	_widget->resize(_widget->width(), st::level1.icon.height());

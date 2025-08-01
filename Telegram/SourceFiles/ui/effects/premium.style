@@ -286,6 +286,9 @@ boostText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	align: align(top);
 }
+boostTextPending: FlatLabel(boostText) {
+	textFg: windowSubTextFg;
+}
 boostReassignText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	align: align(top);

@@ -5185,6 +5185,16 @@ int Session::commonStarsPerMessage(
 	return (i != end(_commonStarsPerMessage)) ? i->second : 0;
 }
 
+void Session::setPendingStarsRating(StarsRatingPending value) {
+	_pendingStarsRating = value
+		? std::make_unique<StarsRatingPending>(value)
+		: nullptr;
+}
+
+StarsRatingPending Session::pendingStarsRating() const {
+	return _pendingStarsRating ? *_pendingStarsRating : StarsRatingPending();
+}
+
 void Session::clearLocalStorage() {
 	_cache->close();
 	_cache->clear();

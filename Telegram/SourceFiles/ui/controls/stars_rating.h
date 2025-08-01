@@ -32,7 +32,8 @@ public:
 		QWidget *parent,
 		std::shared_ptr<Ui::Show> show,
 		const QString &name,
-		rpl::producer<Data::StarsRating> value);
+		rpl::producer<Data::StarsRating> value,
+		Fn<Data::StarsRatingPending()> pending);
 	~StarsRating();
 
 	void raise();
@@ -55,6 +56,7 @@ private:
 	Ui::Text::String _collapsedText;
 
 	rpl::variable<Data::StarsRating> _value;
+	Fn<Data::StarsRatingPending()> _pending;
 	rpl::variable<int> _widthValue;
 	const style::LevelShape *_shape = nullptr;
 

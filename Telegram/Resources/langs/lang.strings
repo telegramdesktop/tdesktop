@@ -1878,9 +1878,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stars_rating_title" = "Rating";
 "lng_stars_rating_future" = "Future Rating";
-"lng_stars_rating_subtitle" = "The rating update updates in 21 days after purchases.";
-"lng_stars_rating_pending#one" = "{count} point is pending. {link}";
-"lng_stars_rating_pending#other" = "{count} points are pending. {link}";
+"lng_stars_rating_pending#one" = "The rating updates in 21 days after purchases.\n{count} point is pending. {link}";
+"lng_stars_rating_pending#other" = "The rating updates in 21 days after purchases.\n{count} points are pending. {link}";
 "lng_stars_rating_pending_preview" = "Preview {arrow}";
 "lng_stars_rating_pending_back" = "Back {arrow}";
 "lng_stars_rating_about" = "This rating reflects **{name}'s** activity on Telegram. What affects it:";
