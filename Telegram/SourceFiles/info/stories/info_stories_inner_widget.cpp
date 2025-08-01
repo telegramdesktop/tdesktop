@@ -567,6 +567,8 @@ void InnerWidget::setupEmpty() {
 		_emptyLoading = false;
 		if (listHeight <= padding.bottom() + padding.top()) {
 			refreshEmpty();
+		} else {
+			_albumEmpty = false;
 		}
 		refreshHeight();
 	}, _list->lifetime());
@@ -580,6 +582,7 @@ void InnerWidget::refreshEmpty() {
 		&& albumId
 		&& (albumId != Data::kStoriesAlbumIdArchive)
 		&& _peer->canEditStories();
+	_albumEmpty = albumCanAdd;
 	if (albumCanAdd) {
 		auto empty = object_ptr<Ui::VerticalLayout>(this);
 		empty->add(

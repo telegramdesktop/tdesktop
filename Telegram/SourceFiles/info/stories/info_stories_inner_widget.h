@@ -74,6 +74,10 @@ public:
 	void confirmDeleteAlbum(int id);
 	void albumAdded(Data::StoryAlbum result);
 
+	[[nodiscard]] rpl::producer<bool> albumEmptyValue() const {
+		return _albumEmpty.value();
+	}
+
 	[[nodiscard]] rpl::producer<int> albumIdChanges() const;
 	[[nodiscard]] rpl::producer<Data::StoryAlbumUpdate> changes() const;
 
@@ -135,6 +139,7 @@ private:
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _listTops;
 	rpl::variable<int> _topHeight;
+	rpl::variable<bool> _albumEmpty;
 
 };
 

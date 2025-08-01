@@ -12,9 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/wrap/slide_wrap.h"
 #include "lang/lang_keys.h"
 #include "ui/ui_utility.h"
+#include "styles/style_info.h"
+#include "styles/style_layers.h"
 
 namespace Info::Stories {
 
@@ -70,6 +75,10 @@ Widget::Widget(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		scrollTo(request);
 	}, _inner->lifetime());
+
+	_albumId.value() | rpl::start_with_next([=] {
+		refreshBottom();
+	}, _inner->lifetime());
 }
 
 void Widget::setIsStackBottom(bool isStackBottom) {
@@ -120,6 +129,97 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
+void Widget::refreshBottom() {
+	const auto albumId = _albumId.current();
+	const auto withButton = albumId
+		&& controller()->storiesPeer()->canEditStories();
+	const auto wasBottom = _pinnedToBottom ? _pinnedToBottom->height() : 0;
+	delete _pinnedToBottom.data();
+	if (!withButton) {
+		setScrollBottomSkip(0);
+		_hasPinnedToBottom = false;
+	} else {
+		setupBottomButton(wasBottom, _inner->albumEmptyValue());
+	}
+}
+
+void Widget::setupBottomButton(
+		int wasBottomHeight,
+		rpl::producer<bool> hidden) {
+	_pinnedToBottom = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
+		this,
+		object_ptr<Ui::RpWidget>(this));
+	const auto wrap = _pinnedToBottom.data();
+	wrap->toggle(false, anim::type::instant);
+
+	const auto bottom = wrap->entity();
+	bottom->show();
+
+	const auto button = Ui::CreateChild<Ui::RoundButton>(
+		bottom,
+		rpl::single(QString()),
+		st::collectionEditBox.button);
+	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	button->setText(tr::lng_stories_album_add_button(
+	) | rpl::map([](const QString &text) {
+		return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
+	}));
+	button->show();
+	std::move(hidden) | rpl::start_with_next([=](bool hidden) {
+		button->setVisible(!hidden);
+		_hasPinnedToBottom = !hidden;
+	}, button->lifetime());
+
+	button->setClickedCallback([=] {
+		if (const auto id = _albumId.current()) {
+			_inner->editAlbumStories(id);
+		} else {
+			refreshBottom();
+		}
+	});
+
+	const auto buttonTop = st::boxRadius;
+	bottom->widthValue() | rpl::start_with_next([=](int width) {
+		const auto normal = width - 2 * buttonTop;
+		button->resizeToWidth(normal);
+		const auto buttonLeft = (width - normal) / 2;
+		button->moveToLeft(buttonLeft, buttonTop);
+	}, button->lifetime());
+
+	button->heightValue() | rpl::start_with_next([=](int height) {
+		bottom->resize(bottom->width(), st::boxRadius + height);
+	}, button->lifetime());
+
+	const auto processHeight = [=] {
+		setScrollBottomSkip(wrap->height());
+		wrap->moveToLeft(wrap->x(), height() - wrap->height());
+	};
+
+	_inner->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		wrap->resizeToWidth(s.width());
+		crl::on_main(wrap, processHeight);
+	}, wrap->lifetime());
+
+	rpl::combine(
+		wrap->heightValue(),
+		heightValue()
+	) | rpl::start_with_next(processHeight, wrap->lifetime());
+
+	if (_shown) {
+		wrap->toggle(
+			true,
+			wasBottomHeight ? anim::type::instant : anim::type::normal);
+	}
+}
+
+void Widget::showFinished() {
+	_shown = true;
+	if (const auto bottom = _pinnedToBottom.data()) {
+		bottom->toggle(true, anim::type::normal);
+	}
+}
+
 rpl::producer<SelectedItems> Widget::selectedListValue() const {
 	return _inner->selectedListValue();
 }
@@ -135,6 +235,10 @@ rpl::producer<QString> Widget::title() {
 		: (peer && peer->isSelf())
 		? tr::lng_menu_my_profile()
 		: tr::lng_stories_my_title();
+}
+
+rpl::producer<bool> Widget::desiredBottomShadowVisibility() {
+	return _hasPinnedToBottom.value();
 }
 
 std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer, int albumId) {

@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "info/stories/info_stories_common.h"
 
+namespace Ui {
+template <typename Widget>
+class SlideWrap;
+} // namespace Ui
+
 namespace Info::Stories {
 
 class InnerWidget;
@@ -59,14 +64,24 @@ public:
 
 	rpl::producer<QString> title() override;
 
+	rpl::producer<bool> desiredBottomShadowVisibility() override;
+
+	void showFinished() override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+
+	void setupBottomButton(int wasBottomHeight, rpl::producer<bool> hidden);
+	void refreshBottom();
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	rpl::variable<int> _albumId;
 	InnerWidget *_inner = nullptr;
+	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
+	rpl::variable<bool> _hasPinnedToBottom;
+	bool _shown = false;
 
 };
 
