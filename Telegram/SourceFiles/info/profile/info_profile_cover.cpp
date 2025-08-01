@@ -593,7 +593,7 @@ Cover::Cover(
 , _botVerify(
 	std::make_unique<Badge>(
 		this,
-		st::infoPeerBadge,
+		st::infoBotVerifyBadge,
 		&peer->session(),
 		BotVerifyBadgeForPeer(peer),
 		nullptr,

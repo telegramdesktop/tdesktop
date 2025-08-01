@@ -446,6 +446,9 @@ infoPeerBadge: InfoPeerBadge {
 	position: infoVerifiedCheckPosition;
 	sizeTag: 0; // Normal
 }
+infoBotVerifyBadge: InfoPeerBadge(infoPeerBadge) {
+	position: point(-2px, 2px);
+}
 
 infoIconFg: windowBoldFg;
 
