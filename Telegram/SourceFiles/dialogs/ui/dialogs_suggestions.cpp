@@ -1941,6 +1941,9 @@ void Suggestions::setPostsSearchQuery(const QString &query) {
 	if (!_postsSearch) {
 		setupPostsSearch();
 	}
+	if (!query.isEmpty()) {
+		_persist = true;
+	}
 	_searchQuery = query;
 	_searchQueryTimer.cancel();
 	_postsSearch->setQuery(query);
