@@ -125,6 +125,8 @@ private:
 	object_ptr<Ui::VerticalLayout> _top = { nullptr };
 	object_ptr<Media::ListWidget> _list = { nullptr };
 	object_ptr<Ui::RpWidget> _empty = { nullptr };
+	int _lastNonLoadingHeight = 0;
+	bool _emptyLoading = false;
 
 	bool _inResize = false;
 	bool _isStackBottom = false;

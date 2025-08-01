@@ -530,10 +530,6 @@ void InnerWidget::setupList() {
 		_controller);
 	const auto raw = _list.data();
 
-	raw->heightValue(
-	) | rpl::start_with_next([=] {
-		refreshHeight();
-	}, raw->lifetime());
 	using namespace rpl::mappers;
 	raw->scrollToRequests(
 	) | rpl::map([=](int to) {
@@ -549,6 +545,8 @@ void InnerWidget::setupList() {
 }
 
 void InnerWidget::setupEmpty() {
+	_list->resizeToWidth(width());
+
 	const auto stories = &_controller->session().data().stories();
 	const auto key = Data::StoryAlbumIdsKey{ _peer->id, _albumId.current() };
 	rpl::combine(
@@ -566,9 +564,11 @@ void InnerWidget::setupEmpty() {
 			raw->hide();
 			raw->deleteLater();
 		}
+		_emptyLoading = false;
 		if (listHeight <= padding.bottom() + padding.top()) {
 			refreshEmpty();
 		}
+		refreshHeight();
 	}, _list->lifetime());
 }
 
@@ -629,6 +629,7 @@ void InnerWidget::refreshEmpty() {
 			st::giftListAbout);
 		_empty->show();
 	}
+	_emptyLoading = !albumCanAdd && !knownEmpty;
 	resizeToWidth(width());
 }
 
@@ -893,6 +894,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 		const auto margin = st::giftListAboutMargin;
 		empty->resizeToWidth(newWidth - margin.left() - margin.right());
 	}
+
 	return recountHeight();
 }
 
@@ -919,6 +921,11 @@ int InnerWidget::recountHeight() {
 		const auto margin = st::giftListAboutMargin;
 		empty->moveToLeft(margin.left(), top + margin.top());
 		top += margin.top() + empty->height() + margin.bottom();
+	}
+	if (_emptyLoading) {
+		top = std::max(top, _lastNonLoadingHeight);
+	} else {
+		_lastNonLoadingHeight = top;
 	}
 	return top;
 }
