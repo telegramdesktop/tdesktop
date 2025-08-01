@@ -1,3 +1,7 @@
+6.0.2 (01.08.25)
+
+- Improve design of profile stars rating.
+
 6.0.1 (01.08.25)
 
 - Fix crashing on Windows 7.
