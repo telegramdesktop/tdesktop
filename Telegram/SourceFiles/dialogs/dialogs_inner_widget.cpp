@@ -164,8 +164,7 @@ constexpr auto kPreviewPostsLimit = 3;
 		: state.fromPeer;
 	const auto waiting = trimmed.isEmpty()
 		&& state.tags.empty()
-		&& !fromPeer
-		&& state.tab != ChatSearchTab::PublicPosts;
+		&& !fromPeer;
 	const auto suggestAllChats = !waiting
 		&& state.tab == ChatSearchTab::MyMessages
 		&& state.filter != ChatTypeFilter::All;
