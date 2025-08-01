@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "styles/style_info.h"
+#include "styles/style_info_levels.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -355,16 +356,47 @@ void AboutRatingBox(
 	).append(' ').append(tr::lng_stars_rating_understood(tr::now))));
 }
 
+[[nodiscard]] not_null<const style::LevelShape*> SelectShape(int level) {
+	struct Shape {
+		int level = 0;
+		not_null<const style::LevelShape*> shape;
+	};
+	const auto list = std::vector<Shape>{
+		{ 1, &st::level1 },
+		{ 2, &st::level2 },
+		{ 3, &st::level3 },
+		{ 4, &st::level4 },
+		{ 5, &st::level5 },
+		{ 6, &st::level6 },
+		{ 7, &st::level7 },
+		{ 8, &st::level8 },
+		{ 9, &st::level9 },
+		{ 10, &st::level10 },
+		{ 20, &st::level20 },
+		{ 30, &st::level30 },
+		{ 40, &st::level40 },
+		{ 50, &st::level50 },
+		{ 60, &st::level60 },
+		{ 70, &st::level70 },
+		{ 80, &st::level80 },
+		{ 90, &st::level90 },
+	};
+	const auto i = ranges::lower_bound(
+		list,
+		level + 1,
+		ranges::less(),
+		&Shape::level);
+	return (i != begin(list)) ? (i - 1)->shape : list.front().shape;
+}
+
 } // namespace
 
 StarsRating::StarsRating(
 	QWidget *parent,
-	const style::StarsRating &st,
 	std::shared_ptr<Ui::Show> show,
 	const QString &name,
 	rpl::producer<Counters> value)
 : _widget(std::make_unique<Ui::AbstractButton>(parent))
-, _st(st)
 , _show(std::move(show))
 , _name(name)
 , _value(std::move(value)) {
@@ -388,40 +420,35 @@ void StarsRating::init() {
 		_show->show(Box(AboutRatingBox, _name, _value.current()));
 	});
 
-	const auto added = _st.margin + _st.padding;
-	const auto fontHeight = _st.style.font->height;
-	const auto height = added.top() + fontHeight + added.bottom();
-	_widget->resize(_widget->width(), height);
+	_widget->resize(_widget->width(), st::level1.icon.height());
 
 	_value.value() | rpl::start_with_next([=](Counters rating) {
-		if (!rating) {
-			_widget->resize(0, _widget->height());
-			_collapsedWidthValue = 0;
-			return;
-		}
-		updateTexts(rating);
+		updateData(rating);
 	}, lifetime());
 }
 
-void StarsRating::updateTexts(Counters rating) {
-	_collapsedText.setText(
-		_st.style,
-		Lang::FormatCountDecimal(rating.level));
-
-	const auto added = _st.padding;
-	const auto add = added.left() + added.right();
-	const auto height = _widget->height();
-	_collapsedWidthValue = _st.margin.right()
-		+ std::max(
-			add + _collapsedText.maxWidth(),
-			height - _st.margin.top() - _st.margin.bottom());
+void StarsRating::updateData(Data::StarsRating rating) {
+	if (!rating) {
+		_shape = nullptr;
+		_widthValue = 0;
+	} else {
+		_shape = SelectShape(rating.level);
+		_collapsedText.setText(
+			st::levelStyle,
+			Lang::FormatCountDecimal(rating.level));
+		_widthValue = _shape->icon.width() - st::levelMargin.left();
+	}
 	updateWidth();
 }
 
 void StarsRating::updateWidth() {
-	const auto widthToRight = _collapsedWidthValue.current();
-	_widget->resize(_st.margin.left() + widthToRight, _widget->height());
-	_widget->update();
+	if (const auto widthToRight = _widthValue.current()) {
+		const auto &margin = st::levelMargin;
+		_widget->resize(margin.left() + widthToRight, _widget->height());
+		_widget->update();
+	} else {
+		_widget->resize(0, _widget->height());
+	}
 }
 
 void StarsRating::raise() {
@@ -429,32 +456,25 @@ void StarsRating::raise() {
 }
 
 void StarsRating::moveTo(int x, int y) {
-	_widget->move(x - _st.margin.left(), y - _st.margin.top());
+	_widget->move(x - st::levelMargin.left(), y - st::levelMargin.top());
 }
 
 void StarsRating::paint(QPainter &p) {
-	const auto outer = _widget->rect().marginsRemoved(_st.margin);
-	if (outer.isEmpty()) {
+	if (!_shape) {
 		return;
 	}
-	const auto inner = outer.marginsRemoved(_st.padding);
+	_shape->icon.paint(p, 0, 0, _widget->width());
 
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(_st.activeBg);
-
-	const auto radius = outer.height() / 2.;
-	p.drawRoundedRect(outer, radius, radius);
-	p.setPen(_st.activeFg);
-	const auto skip = (inner.width() - _collapsedText.maxWidth()) / 2;
+	const auto x = (_widget->width() - _collapsedText.maxWidth()) / 2;
+	p.setPen(st::levelTextFg);
 	_collapsedText.draw(p, {
-		.position = inner.topLeft() + QPoint(skip, 0),
+		.position = QPoint(x, 0) + _shape->position,
 		.availableWidth = _collapsedText.maxWidth(),
 	});
 }
 
-rpl::producer<int> StarsRating::collapsedWidthValue() const {
-	return _collapsedWidthValue.value();
+rpl::producer<int> StarsRating::widthValue() const {
+	return _widthValue.value();
 }
 
 rpl::lifetime &StarsRating::lifetime() {

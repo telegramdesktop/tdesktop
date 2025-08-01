@@ -27,6 +27,7 @@ set(style_files
     info/info.style
     info/channel_statistics/boosts/giveaway/giveaway.style
     info/channel_statistics/earn/channel_earn.style
+    info/profile/info_levels.style
     info/userpic/info_userpic_builder.style
     intro/intro.style
     iv/iv.style

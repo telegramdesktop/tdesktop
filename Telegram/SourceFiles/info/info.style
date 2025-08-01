@@ -1191,22 +1191,6 @@ topicsLayoutButtonIconSize: 140px;
 topicsLayoutButtonPadding: margins(4px, 0px, 4px, 12px);
 topicsLayoutButtonSkip: 0px;
 
-StarsRating {
-	margin: margins;
-	padding: margins;
-	style: TextStyle;
-	activeBg: color;
-	activeFg: color;
-}
-infoStarsRating: StarsRating {
-	margin: margins(6px, 6px, 6px, 6px);
-	padding: margins(6px, 1px, 6px, 1px);
-	style: TextStyle(defaultTextStyle) {
-		font: font(11px semibold);
-	}
-	activeBg: windowBgActive;
-	activeFg: windowFgActive;
-}
 infoStarsTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	textFg: windowBoldFg;
