@@ -61,10 +61,7 @@ void EditCollectionBox(
 	const auto session = &peer->session();
 
 	const auto creating = std::make_shared<bool>(false);
-	auto text = id
-		? tr::lng_settings_save()
-		: tr::lng_gift_collection_new_create();
-	box->addButton(std::move(text), [=] {
+	const auto submit = [=] {
 		if (*creating) {
 			return;
 		}
@@ -123,7 +120,12 @@ void EditCollectionBox(
 				MTP_vector<MTPInputSavedStarGift>(ids)
 			)).done(done).fail(fail).send();
 		}
-	});
+	};
+	title->submits() | rpl::start_with_next(submit, title->lifetime());
+	auto text = id
+		? tr::lng_settings_save()
+		: tr::lng_gift_collection_new_create();
+	box->addButton(std::move(text), submit);
 
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
