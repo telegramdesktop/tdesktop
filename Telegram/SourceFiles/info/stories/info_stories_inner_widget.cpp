@@ -132,7 +132,7 @@ void EditAlbumBox::prepare() {
 	auto text = _changes.value(
 	) | rpl::map([=](const Data::StoryAlbumUpdate &update) {
 		return (!update.added.empty() && update.removed.empty())
-			? tr::lng_stories_album_add_title()
+			? tr::lng_stories_album_add_button()
 			: tr::lng_settings_save();
 	}) | rpl::flatten_latest();
 	addButton(std::move(text), [=] {
@@ -607,7 +607,7 @@ void InnerWidget::refreshEmpty() {
 					rpl::single(QString()),
 					st::collectionEmptyButton)),
 			st::collectionEmptyAddMargin)->entity();
-		button->setText(tr::lng_stories_album_add_title(
+		button->setText(tr::lng_stories_album_add_button(
 		) | rpl::map([](const QString &text) {
 			return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
 		}));
@@ -738,7 +738,7 @@ void InnerWidget::showMenuForAlbum(int id) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 	if (_peer->canEditStories()) {
-		addAction(tr::lng_stories_album_add_title(tr::now), [=] {
+		addAction(tr::lng_stories_album_add_button(tr::now), [=] {
 			editAlbumStories(id);
 		}, &st::menuIconStoriesSave);
 	}

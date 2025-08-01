@@ -811,7 +811,7 @@ void InnerWidget::showMenuForCollection(int id) {
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
-	addAction(tr::lng_gift_collection_add_title(tr::now), [=] {
+	addAction(tr::lng_gift_collection_add_button(tr::now), [=] {
 		editCollectionGifts(id);
 	}, &st::menuIconGiftPremium);
 	if (const auto username = _peer->username(); !username.isEmpty()) {
@@ -1003,7 +1003,7 @@ void InnerWidget::refreshAbout() {
 					rpl::single(QString()),
 					st::collectionEmptyButton)),
 			st::collectionEmptyAddMargin)->entity();
-		button->setText(tr::lng_gift_collection_add_title(
+		button->setText(tr::lng_gift_collection_add_button(
 		) | rpl::map([](const QString &text) {
 			return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
 		}));
@@ -1108,7 +1108,7 @@ void InnerWidget::editCollectionGifts(int id) {
 		auto text = state->changes.value(
 		) | rpl::map([=](const Data::GiftsUpdate &update) {
 			return (!update.added.empty() && update.removed.empty())
-				? tr::lng_gift_collection_add_title()
+				? tr::lng_gift_collection_add_button()
 				: tr::lng_settings_save();
 		}) | rpl::flatten_latest();
 		box->addButton(std::move(text), [=] {
@@ -1392,7 +1392,7 @@ void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
 			}, &st::menuIconAddToFolder);
 		}
 	} else if (canManage) {
-		addAction(tr::lng_gift_collection_add_title(tr::now), [=] {
+		addAction(tr::lng_gift_collection_add_button(tr::now), [=] {
 			editCollectionGifts(collectionId);
 		}, &st::menuIconGiftPremium);
 
@@ -1557,7 +1557,7 @@ void Widget::setupBottomButton(
 		rpl::single(QString()),
 		st::collectionEditBox.button);
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	button->setText(tr::lng_gift_collection_add_title(
+	button->setText(tr::lng_gift_collection_add_button(
 	) | rpl::map([](const QString &text) {
 		return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
 	}));

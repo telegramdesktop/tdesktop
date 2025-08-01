@@ -3789,6 +3789,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_collection_empty_text" = "Add some of your gifts to this collection.";
 "lng_gift_collection_all" = "All Gifts";
 "lng_gift_collection_add_title" = "Add Gifts";
+"lng_gift_collection_add_button" = "Add Gifts";
 "lng_gift_collection_share" = "Share Collection";
 "lng_gift_collection_edit" = "Edit Name";
 "lng_gift_collection_limit_title" = "Limit Reached";
@@ -6496,6 +6497,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_album_empty_text" = "Add some of your stories to this album.";
 "lng_stories_album_all" = "All Stories";
 "lng_stories_album_add_title" = "Add Stories";
+"lng_stories_album_add_button" = "Add Stories";
 "lng_stories_album_share" = "Share Album";
 "lng_stories_album_edit" = "Edit Name";
 "lng_stories_album_limit_title" = "Limit Reached";
