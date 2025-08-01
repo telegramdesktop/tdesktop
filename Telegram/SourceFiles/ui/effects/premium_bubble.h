@@ -45,7 +45,7 @@ public:
 
 	[[nodiscard]] static crl::time SlideNoDeflectionDuration();
 
-	[[nodiscard]] int counter() const;
+	[[nodiscard]] std::optional<int> counter() const;
 	[[nodiscard]] int height() const;
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int bubbleRadius() const;
@@ -72,7 +72,7 @@ private:
 	const int _textTop;
 	const bool _hasTail;
 
-	int _counter = -1;
+	std::optional<int> _counter;
 	EdgeProgress _tailEdge = 0.;
 	bool _flipHorizontal = false;
 

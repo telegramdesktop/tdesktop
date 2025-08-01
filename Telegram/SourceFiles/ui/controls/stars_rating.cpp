@@ -121,6 +121,9 @@ struct Feature {
 }
 
 [[nodiscard]] Counters AdjustByReached(Counters data) {
+	if (data.stars < 0) {
+		return data;
+	}
 	const auto reached = !data.nextLevelStars;
 	if (reached) {
 		--data.level;
@@ -274,9 +277,6 @@ void AboutRatingBox(
 		data.stars);
 
 	box->setMaxHeight(st::boostBoxMaxHeight);
-	const auto close = box->addTopButton(
-		st::boxTitleClose,
-		[=] { box->closeBox(); });
 
 	auto title = tr::lng_stars_rating_title();;
 

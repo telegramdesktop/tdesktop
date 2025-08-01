@@ -64,7 +64,7 @@ crl::time Bubble::SlideNoDeflectionDuration() {
 	return kSlideDuration * kStepBeforeDeflection;
 }
 
-int Bubble::counter() const {
+std::optional<int> Bubble::counter() const {
 	return _counter;
 }
 
@@ -100,7 +100,7 @@ int Bubble::countMaxWidth(int maxPossibleCounter) const {
 void Bubble::setCounter(int value) {
 	if (_counter != value) {
 		_counter = value;
-		_numberAnimation.setText(_textFactory(_counter), _counter);
+		_numberAnimation.setText(_textFactory(value), value);
 	}
 }
 
@@ -113,7 +113,7 @@ void Bubble::setFlipHorizontal(bool value) {
 }
 
 void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
-	if (_counter < 0) {
+	if (!_counter.has_value()) {
 		return;
 	}
 
@@ -364,7 +364,7 @@ void BubbleWidget::animateTo(BubbleRowState state) {
 }
 
 void BubbleWidget::paintEvent(QPaintEvent *e) {
-	if (_bubble.counter() < 0) {
+	if (!_bubble.counter().has_value()) {
 		return;
 	}
 
