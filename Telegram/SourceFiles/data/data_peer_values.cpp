@@ -525,7 +525,11 @@ rpl::producer<Data::StarsRating> StarsRatingValue(
 			user,
 			Data::PeerUpdate::Flag::StarsRating
 		) | rpl::map([=] {
-			return user->starsRating();
+			auto result = user->starsRating();
+			if (!user->isSelf() && result.level < 0) {
+				result.stars = 0;
+			}
+			return result;
 		});
 	}
 	return rpl::single(Data::StarsRating());

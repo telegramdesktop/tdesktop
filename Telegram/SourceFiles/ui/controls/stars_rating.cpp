@@ -157,13 +157,19 @@ void FillRatingLimit(
 		rpl::producer<> showFinished,
 		not_null<VerticalLayout*> container,
 		rpl::producer<Counters> data,
+		Premium::BubbleType type,
 		style::margins limitLinePadding,
-		int starsForScale) {
+		int starsForScale,
+		bool hideCount) {
 	const auto addSkip = [&](int skip) {
 		container->add(object_ptr<Ui::FixedHeightWidget>(container, skip));
 	};
 
+	const auto negative = (type == Premium::BubbleType::NegativeRating);
 	const auto ratio = [=](Counters rating) {
+		if (negative) {
+			return 0.5;
+		}
 		const auto min = rating.thisLevelStars;
 		const auto max = rating.nextLevelStars;
 
@@ -213,12 +219,14 @@ void FillRatingLimit(
 	});
 	Premium::AddBubbleRow(
 		container,
-		st::boostBubble,
+		(hideCount ? st::iconOnlyPremiumBubble : st::boostBubble),
 		std::move(showFinished),
 		rpl::duplicate(bubbleRowState),
-		Premium::BubbleType::StarRating,
-		BubbleTextFactory(starsForScale),
-		&st::infoStarsCrown,
+		type,
+		(hideCount
+			? [](int) { return QString(); }
+			: BubbleTextFactory(starsForScale)),
+		negative ? &st::levelNegativeBubble : &st::infoStarsCrown,
 		limitLinePadding);
 	addSkip(st::premiumLineTextSkip);
 
@@ -227,30 +235,35 @@ void FillRatingLimit(
 	};
 	auto limitState = std::move(
 		bubbleRowState
-	) | rpl::map([](const Premium::BubbleRowState &state) {
+	) | rpl::map([negative](const Premium::BubbleRowState &state) {
 		return Premium::LimitRowState{
-			.ratio = state.ratio,
-			.animateFromZero = state.animateFromZero,
+			.ratio = negative ? 0.5 : state.ratio,
+			.animateFromZero = !negative && state.animateFromZero,
 			.dynamic = state.dynamic
 		};
 	});
 	auto left = rpl::duplicate(
 		adjustedData
 	) | rpl::map([=](Counters counters) {
-		return level(counters.level);
+		return (counters.level < 0) ? QString() : level(counters.level);
 	});
 	auto right = rpl::duplicate(
 		adjustedData
 	) | rpl::map([=](Counters counters) {
-		return level(counters.level + 1);
+		return (counters.level < 0)
+			? tr::lng_stars_rating_negative_label(tr::now)
+			: level(counters.level + 1);
 	});
 	Premium::AddLimitRow(
 		container,
-		st::boostLimits,
+		(negative ? st::negativeStarsLimits : st::boostLimits),
 		Premium::LimitRowLabels{
 			.leftLabel = std::move(left),
 			.rightLabel = std::move(right),
-			.activeLineBg = [=] { return st::windowBgActive->b; },
+			.activeLineBg = [=] { return negative
+				? st::attentionButtonFg->b
+				: st::windowBgActive->b;
+			},
 		},
 		std::move(limitState),
 		limitLinePadding);
@@ -276,8 +289,12 @@ void AboutRatingBox(
 		BoxShowFinishes(box),
 		box->verticalLayout(),
 		state->data.value(),
+		(data.level < 0
+			? Premium::BubbleType::NegativeRating
+			: Premium::BubbleType::StarRating),
 		st::boxRowPadding,
-		data.stars);
+		data.stars,
+		(data.level < 0 && !data.stars));
 
 	box->setMaxHeight(st::boostBoxMaxHeight);
 
@@ -294,10 +311,40 @@ void AboutRatingBox(
 		: tr::lng_stars_rating_about_your(
 			Ui::Text::RichLangValue) | rpl::type_erased();
 
+	if (data.level < 0) {
+		auto text = (data.stars < 0)
+			? tr::lng_stars_rating_negative_your(
+				lt_count_decimal,
+				rpl::single(-data.stars * 1.),
+				Ui::Text::RichLangValue)
+			: tr::lng_stars_rating_negative(
+				lt_name,
+				rpl::single(TextWithEntities{ name }),
+				Ui::Text::RichLangValue);
+		const auto aboutNegative = box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				std::move(text),
+				st::boostTextNegative),
+			(st::boxRowPadding
+				+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
+		aboutNegative->setTryMakeSimilarLines(true);
+	}
+
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(box, std::move(title), st::infoStarsTitle),
 		st::boxRowPadding + QMargins(0, st::boostTitleSkip / 2, 0, 0));
 
+	AssertIsDebug();
+	pending = {
+		.value = {
+			.level = 10,
+			.stars = 100,
+			.thisLevelStars = 90,
+			.nextLevelStars = 110,
+		},
+		.date = 86400,
+	};
 	if (pending) {
 		auto text = state->pending.value(
 		) | rpl::map([=](bool value) {
@@ -398,6 +445,9 @@ void AboutRatingBox(
 }
 
 [[nodiscard]] not_null<const style::LevelShape*> SelectShape(int level) {
+	if (level < 0) {
+		return &st::levelNegative;
+	}
 	struct Shape {
 		int level = 0;
 		not_null<const style::LevelShape*> shape;
@@ -480,7 +530,9 @@ void StarsRating::updateData(Data::StarsRating rating) {
 		_shape = SelectShape(rating.level);
 		_collapsedText.setText(
 			st::levelStyle,
-			Lang::FormatCountDecimal(rating.level));
+			(rating.level < 0
+				? QString()
+				: Lang::FormatCountDecimal(rating.level)));
 		_widthValue = _shape->icon.width() - st::levelMargin.left();
 	}
 	updateWidth();

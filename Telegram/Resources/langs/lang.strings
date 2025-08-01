@@ -1882,6 +1882,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stars_rating_pending#other" = "The rating updates in 21 days after purchases.\n{count} points are pending. {link}";
 "lng_stars_rating_pending_preview" = "Preview {arrow}";
 "lng_stars_rating_pending_back" = "Back {arrow}";
+"lng_stars_rating_negative_label" = "Negative Rating";
+"lng_stars_rating_negative" = "A negative rating indicates that **{name}'s** payments are unreliable.";
+"lng_stars_rating_negative_your#one" = "A negative rating indicates that your payments are unreliable. Spend **{count} Star** to fix this issue.";
+"lng_stars_rating_negative_your#other" = "A negative rating indicates that your payments are unreliable. Spend **{count} Stars** to fix this issue.";
 "lng_stars_rating_about" = "This rating reflects **{name}'s** activity on Telegram. What affects it:";
 "lng_stars_rating_about_your" = "This rating reflects your activity on Telegram. What affects it:";
 "lng_stars_title_gifts_telegram" = "Gifts from Telegram";

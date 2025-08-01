@@ -372,7 +372,6 @@ void Line::recache(const QSize &s) {
 		}
 	};
 	const auto textPadding = st::premiumLineTextSkip;
-	const auto textTop = (s.height() - _leftLabel.minHeight()) / 2;
 	const auto rwidth = _rightLabel.maxWidth();
 	const auto pen = [&](bool gradient) {
 		return gradient ? st::activeButtonFg : _st.nonPremiumFg;
@@ -385,8 +384,10 @@ void Line::recache(const QSize &s) {
 		if (_dynamic) {
 			p.setFont(st::normalFont);
 			p.setPen(pen(_st.gradientFromLeft));
-			_leftLabel.drawLeft(p, textPadding, textTop, width, width);
-			_rightLabel.drawRight(p, textPadding, textTop, rwidth, width);
+			const auto leftTop = (s.height() - _leftLabel.minHeight()) / 2;
+			_leftLabel.drawLeft(p, textPadding, leftTop, width, width);
+			const auto rightTop = (s.height() - _rightLabel.minHeight()) / 2;
+			_rightLabel.drawRight(p, textPadding, rightTop, rwidth, width);
 		}
 		_leftPixmap = std::move(leftPixmap);
 	}
@@ -398,8 +399,10 @@ void Line::recache(const QSize &s) {
 		if (_dynamic) {
 			p.setFont(st::normalFont);
 			p.setPen(pen(!_st.gradientFromLeft));
-			_leftLabel.drawLeft(p, textPadding, textTop, width, width);
-			_rightLabel.drawRight(p, textPadding, textTop, rwidth, width);
+			const auto leftTop = (s.height() - _leftLabel.minHeight()) / 2;
+			_leftLabel.drawLeft(p, textPadding, leftTop, width, width);
+			const auto rightTop = (s.height() - _rightLabel.minHeight()) / 2;
+			_rightLabel.drawRight(p, textPadding, rightTop, rwidth, width);
 		}
 		_rightPixmap = std::move(rightPixmap);
 	}
