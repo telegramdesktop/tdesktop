@@ -1086,6 +1086,8 @@ void SetupNotificationsContent(
 		container,
 		tr::lng_settings_notifications_calls_title());
 	const auto authorizations = &session->api().authorizations();
+	// Request valid value of calls disabled flag.
+	authorizations->reload();
 	const auto acceptCalls = addCheckbox(
 		tr::lng_settings_call_accept_calls(),
 		{ &st::menuIconCallsReceive },

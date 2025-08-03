@@ -217,11 +217,7 @@ void Authorizations::toggleCallsDisabled(uint64 hash, bool disabled) {
 		MTP_bool(disabled)
 	)).done([=] {
 		_toggleCallsDisabledRequests.remove(hash);
-	}).fail([=](const MTP::Error &error) {
-		LOG(("API Error: toggle calls %1. Hash: %2. %3.")
-			.arg(disabled ? u"disabled"_q : u"enabled"_q)
-			.arg(hash)
-			.arg(error.type()));
+	}).fail([=] {
 		_toggleCallsDisabledRequests.remove(hash);
 	}).send();
 	_toggleCallsDisabledRequests.emplace(hash, id);
