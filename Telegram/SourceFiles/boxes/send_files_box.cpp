@@ -843,9 +843,8 @@ void SendFilesBox::refreshPriceTag() {
 			QPainter(raw).drawImage(0, 0, _priceTagBg);
 		}, raw->lifetime());
 
-		const auto session = &_show->session();
 		auto price = _price.value() | rpl::map([=](uint64 amount) {
-			auto result = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+			auto result = Ui::Text::Colorized(Ui::CreditsEmoji());
 			result.append(Lang::FormatCountDecimal(amount));
 			return result;
 		});
@@ -857,10 +856,10 @@ void SendFilesBox::refreshPriceTag() {
 			raw,
 			QString(),
 			st::paidTagLabel);
-		std::move(text) | rpl::start_with_next([=](TextWithEntities &&text) {
-			label->setMarkedText(text, Core::TextContext({
-				.session = session,
-			}));
+		std::move(
+			text
+		) | rpl::start_with_next([=](const TextWithEntities &text) {
+			label->setMarkedText(text);
 		}, label->lifetime());
 		label->show();
 		label->sizeValue() | rpl::start_with_next([=](QSize size) {

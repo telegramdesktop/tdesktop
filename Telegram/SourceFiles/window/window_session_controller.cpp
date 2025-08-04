@@ -178,21 +178,6 @@ private:
 	return false;
 }
 
-[[nodiscard]] Ui::CollectibleDetails PrepareCollectibleDetails(
-		not_null<Main::Session*> session) {
-	return {
-		.tonEmoji = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				u"collectible_ton_icon"_q,
-				Ui::Earn::IconCurrencyColored(
-					st::collectibleInfo.style.font,
-					st::collectibleInfo.textFg->c),
-				st::collectibleInfoTonMargins,
-				true)),
-		.tonEmojiContext = Core::TextContext({ .session = session }),
-	};
-}
-
 [[nodiscard]] Ui::CollectibleInfo Parse(
 		const QString &entity,
 		not_null<PeerData*> owner,
@@ -868,8 +853,7 @@ void SessionNavigation::resolveCollectible(
 		_collectibleRequestId = 0;
 		uiShow()->show(Box(
 			Ui::CollectibleInfoBox,
-			Parse(entity, _session->data().peer(ownerId), result),
-			PrepareCollectibleDetails(_session)));
+			Parse(entity, _session->data().peer(ownerId), result)));
 	}).fail([=](const MTP::Error &error) {
 		_collectibleEntity = QString();
 		_collectibleRequestId = 0;

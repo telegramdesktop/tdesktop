@@ -2232,8 +2232,7 @@ ItemPreview MediaInvoice::toPreview(ToPreviewOptions options) const {
 			? parent()->translatedText()
 			: parent()->originalText());
 	const auto hasMiniImages = !images.empty();
-	auto nice = Ui::Text::Colorized(
-		Ui::CreditsEmojiSmall(&parent()->history()->session()));
+	auto nice = Ui::Text::Colorized(Ui::CreditsEmojiSmall());
 	nice.append(WithCaptionNotificationText(type, caption, hasMiniImages));
 	return {
 		.text = std::move(nice),

@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 #include "styles/style_dialogs.h" // dialogsMiniReplyStory.
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
@@ -747,11 +748,6 @@ ReplyKeyboard::ReplyKeyboard(
 		const auto context = _item->fullId();
 		const auto rowCount = int(markup->data.rows.size());
 		_rows.reserve(rowCount);
-		const auto buttonEmoji = Ui::Text::SingleCustomEmoji(
-			owner->customEmojiManager().registerInternalEmoji(
-				st::settingsPremiumIconStar,
-				QMargins(0, -st::moderateBoxExpandInnerSkip, 0, 0),
-				true));
 		for (auto i = 0; i != rowCount; ++i) {
 			const auto &row = markup->data.rows[i];
 			const auto rowSize = int(row.size());
@@ -786,7 +782,8 @@ ReplyKeyboard::ReplyKeyboard(
 					auto firstPart = true;
 					for (const auto &part : text.split(QChar(0x2B50))) {
 						if (!firstPart) {
-							result.append(buttonEmoji);
+							result.append(Ui::Text::IconEmoji(
+								&st::starIconEmojiLarge));
 						}
 						result.append(part);
 						firstPart = false;
@@ -805,11 +802,7 @@ ReplyKeyboard::ReplyKeyboard(
 					button.text.setMarkedText(
 						_st->textStyle(),
 						TextUtilities::SingleLine(textWithEntities),
-						kMarkupTextOptions,
-						Core::TextContext({
-							.session = &item->history()->owner().session(),
-							.repaint = [=] { _st->repaint(item); },
-						}));
+						kMarkupTextOptions);
 				} else {
 					button.text.setText(
 						_st->textStyle(),

@@ -545,10 +545,8 @@ void PaidReactionsBox(
 			st::creditsBoxButtonLabel);
 		args.submit(
 			state->chosen.value()
-		) | rpl::start_with_next([=](const TextWithContext &text) {
-			buttonLabel->setMarkedText(
-				text.text,
-				text.context);
+		) | rpl::start_with_next([=](const TextWithEntities &text) {
+			buttonLabel->setMarkedText(text);
 		}, buttonLabel->lifetime());
 		buttonLabel->setTextColorOverride(
 			box->getDelegate()->style().button.textFg->c);

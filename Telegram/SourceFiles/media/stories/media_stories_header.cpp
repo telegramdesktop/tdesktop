@@ -276,10 +276,7 @@ struct MadePrivacyBadge {
 		not_null<Data::Session*> owner,
 		PeerData *peer,
 		QString name) {
-	auto result = Ui::Text::SingleCustomEmoji(
-		owner->customEmojiManager().registerInternalEmoji(
-			st::storiesRepostIcon,
-			st::storiesRepostIconPadding));
+	auto result = Ui::Text::IconEmoji(&st::storiesRepostIcon);
 	if (peer) {
 		result.append(Ui::Text::SingleCustomEmoji(
 			owner->customEmojiManager().peerUserpicEmojiData(

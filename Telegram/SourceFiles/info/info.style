@@ -430,6 +430,10 @@ infoEditContactCover: InfoProfileCover(infoProfileCover) {
 }
 infoEditContactPersonalLeft: 6px;
 
+infoRatingDeductedBadge: RoundButton(customEmojiTextBadge) {
+	textBg: windowSubTextFg;
+}
+
 infoProfileInaccessibleUserpic: icon {{ "info/inaccessible_userpic", historyPeerUserpicFg }};
 
 infoVerifiedCheckPosition: point(4px, 2px);
@@ -1275,3 +1279,6 @@ collectionEditMenuToggle: IconButton(infoTopBarMenu) {
 	rippleAreaSize: 40px;
 	ripple: defaultRippleAnimationBgOver;
 }
+
+earnTonIconSize: 16px;
+earnTonIconMargin: margins(0px, 2px, 0px, 0px);

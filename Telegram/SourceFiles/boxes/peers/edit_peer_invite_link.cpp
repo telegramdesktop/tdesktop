@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "qr/qr_generate.h"
@@ -42,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -247,6 +249,9 @@ private:
 	const Role _role = Role::Joined;
 	rpl::variable<LinkData> _data;
 
+	Ui::Text::CustomEmojiHelper _emojiHelper;
+	TextWithEntities _creditsEmoji;
+
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<Processed> _processed;
 
@@ -408,6 +413,8 @@ Controller::Controller(
 	const auto current = _data.current();
 	_link = current.link;
 	_revoked = current.revoked;
+	_creditsEmoji = _emojiHelper.paletteDependent(
+		Ui::Earn::IconCreditsEmoji());
 }
 
 rpl::producer<LinkData> Controller::dataValue() const {
@@ -725,7 +732,7 @@ void Controller::setupAboveJoinedWidget() {
 				? tr::lng_group_invite_subscription_info_title(
 					tr::now,
 					lt_emoji,
-					session().data().customEmojiManager().creditsEmoji(),
+					_creditsEmoji,
 					lt_price,
 					{ QString::number(current.subscription.credits) },
 					lt_multiplier,
@@ -736,15 +743,12 @@ void Controller::setupAboveJoinedWidget() {
 				: tr::lng_group_invite_subscription_info_title_none(
 					tr::now,
 					lt_emoji,
-					session().data().customEmojiManager().creditsEmoji(),
+					_creditsEmoji,
 					lt_price,
 					{ QString::number(current.subscription.credits) },
 					Ui::Text::WithEntities),
 			kMarkupTextOptions,
-			Core::TextContext({
-				.session = &session(),
-				.repaint = [=] { widget->update(); },
-			}));
+			_emojiHelper.context([=] { widget->update(); }));
 		auto &lifetime = widget->lifetime();
 		const auto rateValue = lifetime.make_state<rpl::variable<float64>>(
 			session().credits().rateValue(_peer));
@@ -991,11 +995,11 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 			tr::lng_credits_subscription_subtitle(
 				tr::now,
 				lt_emoji,
-				session->data().customEmojiManager().creditsEmoji(),
+				_creditsEmoji,
 				lt_cost,
 				{ QString::number(data.subscription.credits) },
 				Ui::Text::WithEntities),
-			Core::TextContext({ .session = session }));
+			_emojiHelper.context());
 		const auto subtitle2 = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 				box,

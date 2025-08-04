@@ -594,13 +594,9 @@ void PaintRow(
 						}),
 						Text::WithEntities);
 				if (draft && draft->reply) {
-					auto &data = thread->owner().customEmojiManager();
 					draftText = Ui::Text::Colorized(
-						Ui::Text::SingleCustomEmoji(
-							data.registerInternalEmoji(
-								st::dialogsMiniReplyIcon,
-								{},
-								true))).append(std::move(draftText));
+						Ui::Text::IconEmoji(&st::dialogsMiniReplyIcon)
+					).append(std::move(draftText));
 				}
 				const auto context = Core::TextContext({
 					.session = &thread->session(),

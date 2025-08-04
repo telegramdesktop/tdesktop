@@ -1215,13 +1215,13 @@ CreditsController::CreditsController(CreditsDescriptor d)
 		if (data.startsWith(u"ton"_q)) {
 			const auto in = data.split(u":"_q)[1].startsWith(u"in"_q);
 			return std::make_unique<Ui::Text::ShiftedEmoji>(
-				std::make_unique<Ui::Text::StaticCustomEmoji>(
+				std::make_unique<Ui::CustomEmoji::Internal>(
+					data.toString(),
 					Ui::Earn::IconCurrencyColored(
 						st::tonFieldIconSize,
 						in
 							? st::boxTextFgGood->c
-							: st::menuIconAttentionColor->c),
-					data.toString()),
+							: st::menuIconAttentionColor->c)),
 				QPoint(0, st::lineWidth));
 		}
 		const auto desc = DeserializeCreditsRowDescriptionData(

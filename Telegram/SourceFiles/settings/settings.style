@@ -141,7 +141,6 @@ settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 }
 settingsPremiumNewBadgePosition: point(4px, 1px);
 settingsPremiumNewBadgePadding: margins(4px, 1px, 4px, 1px);
-badgeEmojiMargin: margins(0px, 2px, 0px, 0px);
 
 settingsTTLChatsOff: icon {{ "settings/ttl/autodelete_off", windowSubTextFg }};
 settingsTTLChatsOn: icon {{ "settings/ttl/autodelete_on", windowActiveTextFg }};
@@ -598,8 +597,11 @@ settingsColorButton: SettingsButton(settingsButton) {
 settingsColorRadioMargin: 17px;
 settingsColorRadioSkip: 13px;
 settingsColorRadioStroke: 2px;
-settingsLevelBadgeLock: icon {{ "chat/mini_lock", premiumButtonFg }};
-settingsLevelBadgeLockSkip: 4px;
+settingsLevelBadgeLock: IconEmoji{
+	icon: icon {{ "chat/mini_lock", premiumButtonFg }};
+	padding: margins(0px, 4px, 0px, 0px);
+	useIconColor: true;
+}
 
 messagePrivacyTopSkip: 8px;
 messagePrivacyRadioSkip: 6px;

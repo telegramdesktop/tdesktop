@@ -418,42 +418,29 @@ void InnerWidget::fill() {
 			std::optional<bool> isIn,
 			std::optional<QMargins> margins) {
 		const auto &st = label->st();
-		auto icon = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				(!isIn
-					? u"stats_row_ton_some"_q
-					: (*isIn)
-					? u"stats_row_ton_in"_q
-					: u"stats_row_ton_out"_q),
-				Ui::Earn::IconCurrencyColored(
-					st.style.font,
-					!isIn
-						? st::currencyFg->c
-						: (*isIn)
-						? st::boxTextFgGood->c
-						: st::menuIconAttentionColor->c),
-				margins ? *margins : st::channelEarnCurrencyCommonMargins,
-				false));
 		const auto prepended = !isIn
 			? TextWithEntities()
 			: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
 		std::move(
 			value
 		) | rpl::start_with_next([=](CreditsAmount v) {
+			auto helper = Ui::Text::CustomEmojiHelper();
+			auto icon = helper.paletteDependent({ .factory = [=] {
+				return Ui::Earn::IconCurrencyColored(
+					st.style.font,
+					!isIn
+					? st::currencyFg->c
+					: (*isIn)
+					? st::boxTextFgGood->c
+					: st::menuIconAttentionColor->c);
+				}, .margin = margins
+					? *margins
+					: st::channelEarnCurrencyCommonMargins });
 			label->setMarkedText(
 				base::duplicate(prepended).append(icon).append(MajorPart(v)),
-				Core::TextContext({ .session = session }));
+				helper.context());
 		}, label->lifetime());
 	};
-
-	const auto bigCurrencyIcon = Ui::Text::SingleCustomEmoji(
-		session->data().customEmojiManager().registerInternalEmoji(
-			u"stats_row_ton_big"_q,
-			Ui::Earn::IconCurrencyColored(
-				st::boxTitle.style.font,
-				st::currencyFg->c),
-			st::channelEarnCurrencyLearnMargins,
-			false));
 
 	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
@@ -474,6 +461,14 @@ void InnerWidget::fill() {
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				box->setNoContentMargin(true);
+
+				auto emojiHelper = Ui::Text::CustomEmojiHelper();
+				const auto bigCurrencyIcon = emojiHelper.paletteDependent({
+					.factory = [=] {
+						return Ui::Earn::IconCurrencyColored(
+							st::boxTitle.style.font,
+							st::currencyFg->c);
+					}, .margin = st::channelEarnCurrencyLearnMargins });
 
 				const auto content = box->verticalLayout().get();
 
@@ -586,7 +581,7 @@ void InnerWidget::fill() {
 										Ui::Text::Link(bigCurrencyIcon, 1)),
 									Ui::Text::RichLangValue
 								),
-								Core::TextContext({ .session = session }),
+								emojiHelper.context(),
 								st::boxTitle)))->entity();
 					const auto diamonds = l->lifetime().make_state<int>(0);
 					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {

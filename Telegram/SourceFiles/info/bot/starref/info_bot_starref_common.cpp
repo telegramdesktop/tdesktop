@@ -601,8 +601,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
 		if (const auto average = program.revenuePerUser) {
 			const auto layout = box->verticalLayout();
-			const auto session = &initialRecipient->session();
-			auto text = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+			auto text = Ui::Text::Colorized(Ui::CreditsEmoji());
 			text.append(Lang::FormatCreditsAmountRounded(average));
 			layout->add(
 				object_ptr<Ui::FlatLabel>(
@@ -613,8 +612,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 							Ui::Text::Wrapped(text, EntityType::Bold)),
 						Ui::Text::WithEntities),
 					st::starrefRevenueText,
-					st::defaultPopupMenu,
-					Core::TextContext({ .session = session })),
+					st::defaultPopupMenu),
 				st::boxRowPadding);
 			Ui::AddSkip(layout, st::defaultVerticalListSkip);
 		}

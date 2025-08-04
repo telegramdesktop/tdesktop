@@ -81,6 +81,11 @@ starIconEmojiSmall: IconEmoji {
 	icon: icon{{ "chat/mini_stars", creditsBg1 }};
 	padding: margins(0px, 4px, 0px, 0px);
 }
+starIconEmojiLarge: IconEmoji {
+	icon: icon {{ "settings/premium/star", settingsIconFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
+
 tonIconEmoji: IconEmoji {
 	icon: icon{{ "chat/mini_ton_bold", currencyFg }};
 	padding: margins(1px, 3px, 1px, 0px);
@@ -88,6 +93,9 @@ tonIconEmoji: IconEmoji {
 tonIconEmojiLarge: IconEmoji {
 	icon: icon{{ "payments/ton_emoji-18x18", currencyFg }};
 	padding: margins(0px, 1px, 0px, 0px);
+}
+tonIconEmojiInSmall: IconEmoji(tonIconEmoji) {
+	padding: margins(0px, 2px, 0px, 0px);
 }
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
@@ -228,7 +236,10 @@ giftListAbout: FlatLabel(defaultFlatLabel) {
 giftListAboutMargin: margins(12px, 24px, 12px, 24px);
 giftBoxEmojiToggleTop: 7px;
 giftBoxLimitTop: 28px;
-giftBoxLockMargins: margins(-2px, 1px, 0px, 0px);
+giftBoxLock: IconEmoji {
+	icon: icon {{ "emoji/premium_lock", placeholderFgActive }};
+	padding: margins(-2px, 1px, 0px, 0px);
+}
 giftBoxPinIcon: icon {{ "dialogs/dialogs_pinned", premiumButtonFg }};
 
 creditsHistoryEntriesList: PeerList(defaultPeerList) {

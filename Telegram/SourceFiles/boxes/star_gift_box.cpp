@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
@@ -82,6 +83,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -1194,8 +1196,9 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 }
 
 [[nodiscard]] Text::String TabTextForPrice(
-		not_null<Main::Session*> session,
-		int price) {
+		int price,
+		TextWithEntities creditsIcon,
+		Ui::Text::MarkedContext context) {
 	const auto simple = [](const QString &text) {
 		return Text::String(st::semiboldTextStyle, text);
 	};
@@ -1210,13 +1213,12 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	} else if (price == kPriceTabResale) {
 		return simple(tr::lng_gift_stars_tabs_resale(tr::now));
 	}
-	auto &manager = session->data().customEmojiManager();
 	auto result = Text::String();
 	result.setMarkedText(
 		st::semiboldTextStyle,
-		manager.creditsEmoji().append(QString::number(price)),
+		creditsIcon.append(QString::number(price)),
 		kMarkupTextOptions,
-		Core::TextContext({ .session = session }));
+		context);
 	return result;
 }
 
@@ -1636,7 +1638,6 @@ struct GiftPriceTabs {
 	object_ptr<RpWidget> widget;
 };
 [[nodiscard]] GiftPriceTabs MakeGiftsPriceTabs(
-		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
 		rpl::producer<std::vector<GiftTypeStars>> gifts,
 		bool hasMyUnique) {
@@ -1745,7 +1746,6 @@ struct GiftPriceTabs {
 		state->priceTab = state->buttons[index].price;
 	};
 
-	const auto session = &peer->session();
 	state->prices.value(
 	) | rpl::start_with_next([=](const std::vector<int> &prices) {
 		auto x = st::giftBoxTabsMargin.left();
@@ -1759,12 +1759,18 @@ struct GiftPriceTabs {
 			currentPrice = kPriceTabAll;
 		}
 		state->active = -1;
+		auto helper = Ui::Text::CustomEmojiHelper();
+		const auto creditsIcon = helper.paletteDependent(
+			Ui::Earn::IconCreditsEmoji());
 		for (auto i = 0, count = int(prices.size()); i != count; ++i) {
 			const auto price = prices[i];
 			auto &button = state->buttons[i];
 			if (button.text.isEmpty() || button.price != price) {
 				button.price = price;
-				button.text = TabTextForPrice(session, price);
+				button.text = TabTextForPrice(
+					price,
+					creditsIcon,
+					helper.context());
 			}
 			button.active = (price == currentPrice);
 			if (button.active) {
@@ -2177,7 +2183,6 @@ void SoldOutBox(
 
 void AddUpgradeButton(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Main::Session*> session,
 		int cost,
 		not_null<PeerData*> peer,
 		Fn<void(bool)> toggled,
@@ -2190,7 +2195,8 @@ void AddUpgradeButton(
 	button->toggleOn(rpl::single(false))->toggledValue(
 	) | rpl::start_with_next(toggled, button->lifetime());
 
-	auto star = session->data().customEmojiManager().creditsEmoji();
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto star = helper.paletteDependent(Ui::Earn::IconCreditsEmoji());
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		tr::lng_gift_send_unique(
@@ -2201,7 +2207,7 @@ void AddUpgradeButton(
 			Text::WithEntities),
 		st::boxLabel,
 		st::defaultPopupMenu,
-		Core::TextContext({ .session = session }));
+		helper.context());
 	label->show();
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	button->widthValue() | rpl::start_with_next([=](int outer) {
@@ -2355,7 +2361,7 @@ void SendGiftBox(
 	});
 
 	auto cost = state->details.value(
-	) | rpl::map([session](const GiftDetails &details) {
+	) | rpl::map([](const GiftDetails &details) {
 		return v::match(details.descriptor, [&](const GiftTypePremium &data) {
 			const auto stars = (details.byStars && data.stars)
 				? data.stars
@@ -2363,7 +2369,7 @@ void SendGiftBox(
 				? data.cost
 				: 0;
 			if (stars) {
-				return CreditsEmojiSmall(session).append(
+				return CreditsEmojiSmall().append(
 					Lang::FormatCountDecimal(std::abs(stars)));
 			}
 			return TextWithEntities{
@@ -2372,7 +2378,7 @@ void SendGiftBox(
 		}, [&](const GiftTypeStars &data) {
 			const auto amount = std::abs(data.info.stars)
 				+ (details.upgraded ? data.info.starsToUpgrade : 0);
-			return CreditsEmojiSmall(session).append(
+			return CreditsEmojiSmall().append(
 				Lang::FormatCountDecimal(amount));
 		});
 	});
@@ -2448,8 +2454,7 @@ void SendGiftBox(
 			const auto showing = std::make_shared<bool>();
 			AddDivider(container);
 			AddSkip(container);
-			AddUpgradeButton(container, session, costToUpgrade, peer, [=](
-					bool on) {
+			AddUpgradeButton(container, costToUpgrade, peer, [=](bool on) {
 				auto now = state->details.current();
 				now.upgraded = on;
 				state->details = std::move(now);
@@ -3027,7 +3032,6 @@ void AddBlock(
 	state->gifts = GiftsStars(&window->session(), peer);
 
 	auto tabs = MakeGiftsPriceTabs(
-		window,
 		peer,
 		state->gifts.value(),
 		!state->my.list.empty() && !peer->isSelf());
@@ -4445,11 +4449,7 @@ void ShowUniqueGiftWearBox(
 					u"wear_collectibles"_q);
 			}
 		});
-		const auto lock = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::historySendDisabledIcon,
-				st::giftBoxLockMargins,
-				true));
+		const auto lock = Ui::Text::IconEmoji(&st::giftBoxLock);
 		auto label = rpl::combine(
 			tr::lng_gift_wear_start(),
 			Data::AmPremiumValue(&show->session())
@@ -4936,7 +4936,6 @@ void UpgradeBox(
 	box->setStyle(preview ? st::giftBox : st::upgradeGiftBox);
 
 	const auto cost = args.cost;
-	const auto session = &controller->session();
 	auto buttonText = preview ? tr::lng_box_ok() : rpl::single(QString());
 	const auto button = box->addButton(std::move(buttonText), [=] {
 		if (preview) {
@@ -4961,7 +4960,8 @@ void UpgradeBox(
 		UpgradeGift(controller, args.savedId, keepDetails, cost, done);
 	});
 	if (!preview) {
-		auto star = session->data().customEmojiManager().creditsEmoji();
+		auto helper = Ui::Text::CustomEmojiHelper();
+		auto star = helper.paletteDependent(Ui::Earn::IconCreditsEmoji());
 		SetButtonMarkedLabel(
 			button,
 			(cost
@@ -4972,7 +4972,7 @@ void UpgradeBox(
 							CreditsAmount{ cost }))),
 					Ui::Text::WithEntities)
 				: tr::lng_gift_upgrade_confirm(Ui::Text::WithEntities)),
-			&controller->session(),
+			helper.context(),
 			st::creditsBoxButtonLabel,
 			&st::giftBox.button.textFg);
 	}

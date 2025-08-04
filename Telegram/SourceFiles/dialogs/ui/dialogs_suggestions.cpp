@@ -47,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/swipe_handler.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/toast/toast.h"
+#include "ui/text/custom_emoji_helper.h"
+#include "ui/text/custom_emoji_text_badge.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
@@ -152,34 +154,6 @@ struct EntryMenuDescriptor {
 			.confirmed = [=](Fn<void()> close) { removeAll(); close(); }
 		}));
 	};
-}
-
-[[nodiscard]] QImage MakeNewBadgeImage() {
-	auto text = Ui::Text::String(
-		st::settingsPremiumNewBadge.style,
-		tr::lng_premium_summary_new_badge(tr::now));
-	const auto size = QSize(text.maxWidth(), text.minHeight());
-	const auto padding = st::settingsPremiumNewBadgePadding;
-	const auto full = size.grownBy(padding);
-	const auto ratio = style::DevicePixelRatio();
-
-	auto result = QImage(full * ratio, QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
-	result.fill(Qt::transparent);
-
-	auto p = QPainter(&result);
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::windowBgActive);
-
-	const auto r = padding.left();
-	p.drawRoundedRect(0, 0, full.width(), full.height(), r, r);
-
-	p.setPen(st::windowFgActive);
-	text.draw(p, { .position = { padding.left(), padding.top() } });
-
-	p.end();
-	return result;
 }
 
 void FillEntryMenu(
@@ -1453,25 +1427,20 @@ void Suggestions::setupTabs() {
 		},
 	};
 
-	const auto manager = &_controller->session().data().customEmojiManager();
-	const auto badgeData = manager->registerInternalEmoji(
-		u"posts_search_new_badge"_q,
-		MakeNewBadgeImage(),
-		st::badgeEmojiMargin,
-		false);
+	auto helper = Ui::Text::CustomEmojiHelper();
 	auto sections = std::vector<TextWithEntities>();
 	for (const auto key : _tabKeys) {
 		const auto i = labels.find(key);
 		Assert(i != end(labels));
 		auto text = TextWithEntities{ i->second };
 		if (key.tab == Tab::Posts) {
-			text.append(' ').append(Ui::Text::SingleCustomEmoji(badgeData));
+			text.append(' ').append(helper.paletteDependent(
+				Ui::Text::CustomEmojiTextBadge(
+					tr::lng_premium_summary_new_badge(tr::now))));
 		}
 		sections.push_back(std::move(text));
 	}
-	_tabs->setSections(sections, Core::TextContext({
-		.session = &_controller->session(),
-	}));
+	_tabs->setSections(sections, helper.context());
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int section) {
 		Assert(section >= 0 && section < _tabKeys.size());

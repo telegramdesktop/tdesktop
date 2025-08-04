@@ -23,11 +23,6 @@ class BoxContent;
 class GenericBox;
 class DynamicImage;
 
-struct TextWithContext {
-	TextWithEntities text;
-	Text::MarkedContext context;
-};
-
 struct PaidReactionTop {
 	QString name;
 	std::shared_ptr<DynamicImage> photo;
@@ -45,7 +40,7 @@ struct PaidReactionBoxArgs {
 
 	not_null<Main::Session*> session;
 	QString channel;
-	Fn<rpl::producer<TextWithContext>(rpl::producer<int> amount)> submit;
+	Fn<rpl::producer<TextWithEntities>(rpl::producer<int> amount)> submit;
 	rpl::producer<CreditsAmount> balanceValue;
 	Fn<void(int, uint64)> send;
 };

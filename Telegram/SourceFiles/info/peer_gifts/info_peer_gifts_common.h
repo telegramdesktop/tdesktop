@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_star_gift.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/premium_stars_colored.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text.h"
 
 class StickerPremiumMark;
@@ -237,6 +238,9 @@ private:
 	QSize _single;
 	QImage _bg;
 	GiftButtonMode _mode = GiftButtonMode::Full;
+	Ui::Text::CustomEmojiHelper	_emojiHelper;
+	TextWithEntities _ministarEmoji;
+	TextWithEntities _starEmoji;
 
 };
 

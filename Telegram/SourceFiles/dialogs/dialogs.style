@@ -556,7 +556,10 @@ dialogsMiniForward: DialogsMiniIcon {
 	skipMedia: 2px;
 }
 
-dialogsMiniReplyIcon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg, point(0px, 2px) }};
+dialogsMiniReplyIcon: IconEmoji {
+	icon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
 
 dialogsMiniReplyStory: DialogsMiniIcon {
 	icon: ThreeStateIcon {
@@ -799,8 +802,10 @@ dialogsSearchTagSkip: point(8px, 4px);
 dialogsSearchTagBottom: 10px;
 dialogsSearchTagLocked: icon{{ "dialogs/mini_tag_lock", lightButtonFgOver }};
 dialogsSearchTagPromo: defaultTextStyle;
-dialogsSearchTagArrow: icon{{ "dialogs/mini_arrow", windowSubTextFg }};
-dialogsSearchTagArrowPadding: margins(-6px, 3px, 0px, 0px);
+dialogsSearchTagArrow: IconEmoji {
+	icon: icon{{ "dialogs/mini_arrow", windowSubTextFg }};
+	padding: margins(-6px, 3px, 0px, 0px);
+}
 dialogsSearchTagPromoLeft: 6px;
 dialogsSearchTagPromoRight: 1px;
 dialogsSearchTagPromoSkip: 6px;

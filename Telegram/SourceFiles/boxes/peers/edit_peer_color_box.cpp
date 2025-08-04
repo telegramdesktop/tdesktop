@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_box.h"
 #include "boxes/stickers_box.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "core/ui_integration.h" // TextContext
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_changes.h"
@@ -164,7 +163,6 @@ private:
 	void updateText();
 
 	const uint32 _level;
-	const TextWithEntities _icon;
 	const Ui::Text::MarkedContext _context;
 	Ui::Text::String _text;
 	bool _minimal = false;
@@ -460,22 +458,12 @@ LevelBadge::LevelBadge(
 	uint32 level,
 	not_null<Main::Session*> session)
 : Ui::RpWidget(parent)
-, _level(level)
-, _icon(Ui::Text::SingleCustomEmoji(
-	session->data().customEmojiManager().registerInternalEmoji(
-		st::settingsLevelBadgeLock,
-		QMargins(0, st::settingsLevelBadgeLockSkip, 0, 0),
-		false)))
-, _context(Core::TextContext({
-	.session = session,
-	.repaint = [this] { update(); },
-})) {
+, _level(level) {
 	updateText();
 }
 
 void LevelBadge::updateText() {
-	auto text = _icon;
-	text.append(' ');
+	auto text = Ui::Text::IconEmoji(&st::settingsLevelBadgeLock).append(' ');
 	if (!_minimal) {
 		text.append(tr::lng_boost_level(
 			tr::now,
@@ -490,7 +478,7 @@ void LevelBadge::updateText() {
 		st,
 		text,
 		kMarkupTextOptions,
-		_context);
+		Ui::Text::MarkedContext{ .repaint = [=] { update(); } });
 	const auto &padding = st::settingsColorSamplePadding;
 	QWidget::resize(
 		_text.maxWidth() + rect::m::sum::h(padding),

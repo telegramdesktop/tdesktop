@@ -742,6 +742,10 @@ Delegate::Delegate(not_null<Main::Session*> session, GiftButtonMode mode)
 	st::giftBoxHiddenMark,
 	RectPart::Center))
 , _mode(mode) {
+	_ministarEmoji = _emojiHelper.paletteDependent(
+		Ui::Earn::IconCreditsEmojiSmall());
+	_starEmoji = _emojiHelper.paletteDependent(
+		Ui::Earn::IconCreditsEmoji());
 }
 
 Delegate::Delegate(Delegate &&other) = default;
@@ -749,7 +753,7 @@ Delegate::Delegate(Delegate &&other) = default;
 Delegate::~Delegate() = default;
 
 TextWithEntities Delegate::star() {
-	return _session->data().customEmojiManager().creditsEmoji();
+	return _starEmoji;
 }
 
 TextWithEntities Delegate::monostar() {
@@ -761,13 +765,11 @@ TextWithEntities Delegate::monoton() {
 }
 
 TextWithEntities Delegate::ministar() {
-	const auto owner = &_session->data();
-	const auto top = st::giftBoxByStarsStarTop;
-	return owner->customEmojiManager().ministarEmoji({ 0, top, 0, 0 });
+	return _ministarEmoji;
 }
 
 Ui::Text::MarkedContext Delegate::textContext() {
-	return Core::TextContext({ .session = _session });
+	return _emojiHelper.context();
 }
 
 QSize Delegate::buttonSize() {

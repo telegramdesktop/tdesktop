@@ -238,12 +238,7 @@ constexpr auto kSponsoredUserpicLines = 2;
 		? tr::lng_view_button_collection(tr::now)
 		: QString());
 	if (page->iv) {
-		const auto manager = &page->owner().customEmojiManager();
-		const auto &icon = st::historyIvIcon;
-		const auto padding = st::historyIvIconPadding;
-		return Ui::Text::SingleCustomEmoji(
-			manager->registerInternalEmoji(icon, padding)
-		).append(text);
+		return Ui::Text::IconEmoji(&st::historyIvIcon).append(text);
 	}
 	return { text };
 }

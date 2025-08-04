@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
 #include "ui/text/custom_emoji_helper.h"
+#include "ui/text/custom_emoji_text_badge.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
@@ -85,41 +86,6 @@ struct Feature {
 		widget->resize(width, top);
 	}, widget->lifetime());
 	return result;
-}
-
-[[nodiscard]] Fn<QImage()> CustomEmojiBadgeFactory(
-		const QString &text,
-		const style::color &bg,
-		const style::color &fg) {
-	return [=] {
-		auto string = Ui::Text::String(
-			st::settingsPremiumNewBadge.style,
-			text.toUpper());
-		const auto size = QSize(string.maxWidth(), string.minHeight());
-		const auto padding = st::settingsPremiumNewBadgePadding;
-		const auto full = size.grownBy(padding);
-		const auto ratio = style::DevicePixelRatio();
-
-		auto result = QImage(
-			full * ratio,
-			QImage::Format_ARGB32_Premultiplied);
-		result.setDevicePixelRatio(ratio);
-		result.fill(Qt::transparent);
-
-		auto p = QPainter(&result);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(bg);
-
-		const auto r = padding.left();
-		p.drawRoundedRect(0, 0, full.width(), full.height(), r, r);
-
-		p.setPen(fg);
-		string.draw(p, { .position = { padding.left(), padding.top() } });
-
-		p.end();
-		return result;
-	};
 }
 
 [[nodiscard]] Counters AdjustByReached(Counters data) {
@@ -389,17 +355,15 @@ void AboutRatingBox(
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto makeBadge = [&](
 			const QString &text,
-			const style::color &bg,
-			const style::color &fg) {
+			const style::RoundButton &st) {
 		return helper.paletteDependent(
-			CustomEmojiBadgeFactory(text, bg, fg),
-			st::badgeEmojiMargin);
+			Ui::Text::CustomEmojiTextBadge(text, st));
 	};
 	const auto makeActive = [&](const QString &text) {
-		return makeBadge(text, st::windowBgActive, st::windowFgActive);
+		return makeBadge(text, st::customEmojiTextBadge);
 	};
 	const auto makeInactive = [&](const QString &text) {
-		return makeBadge(text, st::windowSubTextFg, st::windowFgActive);
+		return makeBadge(text, st::infoRatingDeductedBadge);
 	};
 	const auto features = std::vector<Feature>{
 		{

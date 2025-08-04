@@ -77,6 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -469,15 +470,15 @@ SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
 		not_null<Main::Session*> session,
 		const style::PeerListItem &st,
 		int amount) {
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto starIcon = helper.paletteDependent(
+		Ui::Earn::IconCreditsEmoji());
 	const auto text = std::make_shared<Ui::Text::String>();
 	text->setMarkedText(
 		st::semiboldTextStyle,
-		TextWithEntities()
-			.append(session->data().customEmojiManager().creditsEmoji())
-			.append(QChar::Space)
-			.append(Lang::FormatCountDecimal(amount)),
+		starIcon.append(' ').append(Lang::FormatCountDecimal(amount)),
 		kMarkupTextOptions,
-		Core::TextContext({ .session = session }));
+		helper.context());
 	const auto &font = text->style()->font;
 	const auto &statusFont = st::contactsStatusFont;
 	const auto status = tr::lng_group_invite_joined_right(tr::now);
@@ -721,20 +722,14 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 		balanceValue
 	) | rpl::start_with_next([=](CreditsAmount value) {
 		auto text = TextWithEntities();
-		const auto manager = &session->data().customEmojiManager();
+		auto helper = Ui::Text::CustomEmojiHelper();
 		if (value.ton()) {
-			text.append(Ui::Text::SingleCustomEmoji(
-				manager->registerInternalEmoji(
-					u"balance_amount_ton_icon"_q,
-					Ui::Earn::IconCurrencyColored(
-						st::tonFieldIconSize,
-						st::currencyFg->c),
-					st::channelEarnCurrencyLearnMargins,
-					false))
+			text.append(
+				helper.paletteDependent(Ui::Earn::IconCurrencyEmoji())
 			).append(' ').append(Lang::FormatCreditsAmountDecimal(value));
 		} else {
 			text.append(
-				manager->creditsEmoji()
+				helper.paletteDependent(Ui::Earn::IconCreditsEmoji())
 			).append(' ').append(
 				Lang::FormatCreditsAmountToShort(value).string);
 		}
@@ -742,10 +737,7 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 			st::semiboldTextStyle,
 			text,
 			kMarkupTextOptions,
-			Core::TextContext({
-				.session = session,
-				.repaint = [=] { balance->update(); },
-			}));
+			helper.context([=] { balance->update(); }));
 		balance->setBalance(value);
 		resize();
 	}, balance->lifetime());
@@ -780,7 +772,6 @@ void BoostCreditsBox(
 	box->setNoContentMargin(true);
 
 	const auto content = box->verticalLayout();
-	const auto session = &controller->session();
 	Ui::AddSkip(content);
 	{
 		const auto &stUser = st::premiumGiftsUserpicButton;
@@ -820,21 +811,16 @@ void BoostCreditsBox(
 				- st::boxRowPadding.right());
 		auto textWithEntities = TextWithEntities();
 		textWithEntities.append(
-			Ui::Text::SingleCustomEmoji(
-				session->data().customEmojiManager().registerInternalEmoji(
-					st::boostsListMiniIcon,
-					{ st.font->descent * 2, st.font->descent / 2, 0, 0 },
-					true)));
-		textWithEntities.append(
+			Ui::Text::IconEmoji(&st::boostsListEntryIcon)
+		).append(
 			tr::lng_boosts_list_title(tr::now, lt_count, b.multiplier));
 		text->setMarkedText(
 			st,
 			std::move(textWithEntities),
 			kMarkupTextOptions,
-			Core::TextContext({
-				.session = session,
+			Ui::Text::MarkedContext{
 				.repaint = [=] { badge->update(); },
-			}));
+			});
 		badge->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = QPainter(badge);
@@ -1485,10 +1471,9 @@ void GenericCreditsEntryBox(
 			object_ptr<Ui::FixedHeightWidget>(
 				content,
 				st::defaultTextStyle.font->height));
-		const auto context = Core::TextContext({
-			.session = session,
-			.repaint = [=] { amount->update(); },
-		});
+		auto helper = Ui::Text::CustomEmojiHelper();
+		const auto starEmoji = helper.paletteDependent(
+			Ui::Earn::IconCreditsEmoji());
 		if (e.soldOutInfo) {
 			text->setText(
 				st::defaultTextStyle,
@@ -1499,12 +1484,12 @@ void GenericCreditsEntryBox(
 				tr::lng_credits_subscription_subtitle(
 					tr::now,
 					lt_emoji,
-					owner->customEmojiManager().creditsEmoji(),
+					starEmoji,
 					lt_cost,
 					{ QString::number(s.subscription.credits) },
 					Ui::Text::WithEntities),
 				kMarkupTextOptions,
-				context);
+				helper.context([=] { amount->update(); }));
 		} else if (e.credits.stars()) {
 			auto t = TextWithEntities()
 				.append((e.in && (creditsHistoryStarGift || !isStarGift))
@@ -1514,12 +1499,12 @@ void GenericCreditsEntryBox(
 					: kMinus)
 				.append(Lang::FormatCreditsAmountDecimal(e.credits.abs()))
 				.append(QChar(' '))
-				.append(owner->customEmojiManager().creditsEmoji());
+				.append(starEmoji);
 			text->setMarkedText(
 				st::semiboldTextStyle,
 				std::move(t),
 				kMarkupTextOptions,
-				context);
+				helper.context([=] { amount->update(); }));
 		} else if (e.credits.ton()) {
 			auto t = TextWithEntities()
 				.append((e.in ? QChar('+') : kMinus))
@@ -1528,30 +1513,18 @@ void GenericCreditsEntryBox(
 				st::channelEarnHistoryMajorLabel.style,
 				std::move(t),
 				kMarkupTextOptions,
-				context);
+				helper.context([=] { amount->update(); }));
 
 			auto minor = TextWithEntities()
 				.append(Info::ChannelEarn::MinorPart(e.credits.abs()))
 				.append(QChar(' '))
-				.append(
-					Ui::Text::SingleCustomEmoji(
-						owner->customEmojiManager().registerInternalEmoji(
-							(e.in
-								? u"stats_transaction_ton_in"_q
-								: u"stats_transaction_ton_out"_q),
-							Ui::Earn::IconCurrencyColored(
-								st::tonFieldIconSize,
-								(e.in
-									? st::boxTextFgGood->c
-									: st::menuIconAttentionColor->c)),
-							QMargins(0, st::lineWidth * 1, 0, 0),
-							false)));
+				.append(Ui::Text::IconEmoji(&st::tonIconEmojiInSmall));
 			minorText = lifetime.make_state<Ui::Text::String>();
 			minorText->setMarkedText(
 				st::channelEarnHistoryMinorLabel.style,
 				std::move(minor),
 				kMarkupTextOptions,
-				context);
+				helper.context([=] { amount->update(); }));
 		}
 		const auto font = text->style()->font;
 		const auto roundedFont = st::defaultTextStyle.font;
@@ -2746,11 +2719,6 @@ void AddWithdrawalWidget(
 		tr::lng_channel_earn_balance_button(tr::now),
 		st::channelEarnSemiboldLabel);
 	const auto processInputChange = [&] {
-		const auto buttonEmoji = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::settingsPremiumIconStar,
-				{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
-				true));
 		using Balance = rpl::variable<CreditsAmount>;
 		const auto currentBalance = input->lifetime().make_state<Balance>(
 			rpl::duplicate(availableBalanceValue));
@@ -2766,9 +2734,8 @@ void AddWithdrawalWidget(
 						lt_count,
 						amount,
 						lt_emoji,
-						buttonEmoji,
-						Ui::Text::RichLangValue),
-					Core::TextContext({ .session = session }));
+						Ui::Text::IconEmoji(&st::starIconEmojiLarge),
+						Ui::Text::RichLangValue));
 			}
 		};
 		QObject::connect(input, &Ui::MaskedInputField::changed, process);
@@ -2836,15 +2803,10 @@ void AddWithdrawalWidget(
 		constexpr auto kDateUpdateInterval = crl::time(250);
 		const auto was = base::unixtime::serialize(dt);
 
-		const auto context = Core::TextContext({
-			.session = session,
+		const auto context = Ui::Text::MarkedContext{
 			.repaint = [=] { lockedLabel->update(); },
-		});
-		const auto emoji = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::chatSimilarLockedIcon,
-				st::botEarnButtonLockMargins,
-				true));
+		};
+		const auto emoji = Ui::Text::IconEmoji(&st::botEarnButtonLock);
 
 		rpl::single(
 			rpl::empty
@@ -2933,7 +2895,7 @@ void AddWithdrawalWidget(
 						tr::lng_bot_earn_balance_about_url(tr::now));
 				}),
 			Ui::Text::RichLangValue),
-		Core::TextContext({ .session = session }),
+		{},
 		st::boxDividerLabel);
 	Ui::AddSkip(container);
 	container->add(object_ptr<Ui::DividerLabel>(

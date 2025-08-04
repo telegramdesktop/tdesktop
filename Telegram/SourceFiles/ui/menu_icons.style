@@ -189,6 +189,7 @@ menuIconAdd: icon {{ "menu/add", menuIconColor }};
 menuIconRatingGifts: icon {{ "menu/rating_gifts-24x24", menuIconColor }};
 menuIconRatingUsers: icon {{ "menu/users_stars-24x24", menuIconColor }};
 menuIconRatingRefund: icon {{ "menu/rating_refund-24x24", menuIconColor }};
+menuIconTon: icon{{ "payments/ton_emoji-18x18", menuIconColor, point(3px, 2px) }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
