@@ -646,7 +646,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			&& unique->nanoTonForResale
 			&& unique->onlyAcceptTon) {
 			if (_tonIcon.isNull()) {
-				_tonIcon = st::tonIconEmoji.icon.instance(
+				_tonIcon = st::tonIconEmojiLarge.icon.instance(
 					QColor(255, 255, 255));
 			}
 			const auto size = _tonIcon.size() / _tonIcon.devicePixelRatio();

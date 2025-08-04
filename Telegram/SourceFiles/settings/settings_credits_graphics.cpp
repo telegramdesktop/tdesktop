@@ -2115,7 +2115,10 @@ void GenericCreditsEntryBox(
 					Ui::Text::WithEntities),
 				tr::lng_gift_buy_resale_equals(
 					lt_cost,
-					rpl::single(Data::FormatGiftResaleStars(*uniqueGift)),
+					rpl::single(Ui::Text::IconEmoji(
+						&st::starIconEmojiSmall
+					).append(Lang::FormatCountDecimal(
+						uniqueGift->starsForResale))),
 					Ui::Text::WithEntities),
 				st::resaleButtonTitle,
 				st::resaleButtonSubtitle);

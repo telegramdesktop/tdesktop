@@ -82,6 +82,10 @@ starIconEmojiSmall: IconEmoji {
 	padding: margins(0px, 4px, 0px, 0px);
 }
 tonIconEmoji: IconEmoji {
+	icon: icon{{ "chat/mini_ton_bold", currencyFg }};
+	padding: margins(1px, 3px, 1px, 0px);
+}
+tonIconEmojiLarge: IconEmoji {
 	icon: icon{{ "payments/ton_emoji-18x18", currencyFg }};
 	padding: margins(0px, 1px, 0px, 0px);
 }
