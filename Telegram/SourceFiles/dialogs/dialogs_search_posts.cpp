@@ -20,6 +20,12 @@ namespace {
 constexpr auto kQueryDelay = crl::time(500);
 constexpr auto kPerPage = 50;
 
+[[nodiscard]] const QRegularExpression &SearchSplitter() {
+	static const auto result = QRegularExpression(QString::fromLatin1(""
+		"[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\!\\_\\;\\\"\\'\\x0]"));
+	return result;
+}
+
 } // namespace
 
 PostsSearch::PostsSearch(not_null<Main::Session*> session)
@@ -58,7 +64,9 @@ void PostsSearch::requestMore() {
 }
 
 void PostsSearch::setQuery(const QString &query) {
-	const auto words = TextUtilities::PrepareSearchWords(query);
+	const auto words = TextUtilities::PrepareSearchWords(
+		query,
+		&SearchSplitter());
 	const auto prepared = words.isEmpty() ? QString() : words.join(' ');
 	if (_queryExact == query) {
 		return;
