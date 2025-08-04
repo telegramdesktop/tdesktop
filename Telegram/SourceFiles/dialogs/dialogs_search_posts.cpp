@@ -22,7 +22,7 @@ constexpr auto kPerPage = 50;
 
 [[nodiscard]] const QRegularExpression &SearchSplitter() {
 	static const auto result = QRegularExpression(QString::fromLatin1(""
-		"[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\!\\_\\;\\\"\\'\\x0]"));
+		"[\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\!\\_\\;\\\"\\'\\x0]"));
 	return result;
 }
 
