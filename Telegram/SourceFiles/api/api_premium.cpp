@@ -45,15 +45,17 @@ namespace {
 	auto options = PremiumSubscriptionOptionsFromTL(tlOptions);
 	for (auto i = 0; i < options.size(); i++) {
 		const auto &tlOption = tlOptions[i].data();
+		const auto currency = qs(tlOption.vcurrency());
 		const auto perUserText = Ui::FillAmountAndCurrency(
 			tlOption.vamount().v / float64(tlOption.vusers().v),
-			qs(tlOption.vcurrency()),
+			currency,
 			false);
 		options[i].costPerMonth = perUserText
 			+ ' '
 			+ QChar(0x00D7)
 			+ ' '
 			+ QString::number(tlOption.vusers().v);
+		options[i].currency = currency;
 	}
 	return options;
 }
@@ -613,24 +615,32 @@ std::vector<GiftOptionData> PremiumGiftCodeOptions::optionsForPeer() const {
 	return result;
 }
 
-Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
-	const auto it = _subscriptionOptions.find(amount);
+Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::optionsForGiveaway(
+		int usersCount) {
+	const auto skipForStars = [&](Data::PremiumSubscriptionOptions options) {
+		const auto proj = &Data::PremiumSubscriptionOption::currency;
+		options.erase(
+			ranges::remove(options, Ui::kCreditsCurrency, proj),
+			end(options));
+		return options;
+	};
+	const auto it = _subscriptionOptions.find(usersCount);
 	if (it != end(_subscriptionOptions)) {
-		return it->second;
+		return skipForStars(it->second);
 	} else {
 		auto tlOptions = QVector<MTPPremiumGiftCodeOption>();
 		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
 			tlOptions.push_back(MTP_premiumGiftCodeOption(
 				MTP_flags(MTPDpremiumGiftCodeOption::Flags(0)),
-				MTP_int(amount),
+				MTP_int(usersCount),
 				MTP_int(_optionsForOnePerson.months[i]),
 				MTPstring(),
 				MTPint(),
 				MTP_string(_optionsForOnePerson.currencies[i]),
-				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
+				MTP_long(_optionsForOnePerson.totalCosts[i] * usersCount)));
 		}
-		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
-		return _subscriptionOptions[amount];
+		_subscriptionOptions[usersCount] = GiftCodesFromTL(tlOptions);
+		return skipForStars(_subscriptionOptions[usersCount]);
 	}
 }
 

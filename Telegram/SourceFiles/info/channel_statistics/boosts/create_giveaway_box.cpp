@@ -1066,7 +1066,7 @@ void CreateGiveawayBox(
 			Ui::Premium::AddGiftOptions(
 				listOptions,
 				durationGroup,
-				state->apiOptions.options(usersCount),
+				state->apiOptions.optionsForGiveaway(usersCount),
 				st::giveawayGiftCodeGiftOption,
 				true);
 
