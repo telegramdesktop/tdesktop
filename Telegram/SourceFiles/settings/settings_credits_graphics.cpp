@@ -1884,14 +1884,29 @@ void GenericCreditsEntryBox(
 		const auto visiblePhrase = giftToChannelCanManage
 			? tr::lng_gift_visible_hint_channel
 			: tr::lng_gift_visible_hint;
-		auto withHide = rpl::combine(
-			visiblePhrase(),
-			tr::lng_gift_visible_hide()
-		) | rpl::map([](QString &&hint, QString &&hide) {
+		auto withShow = rpl::combine(
+			hiddenPhrase(),
+			tr::lng_gift_visible_show_arrow(
+				lt_arrow,
+				rpl::single(arrow),
+				Ui::Text::WithEntities)
+		) | rpl::map([=](QString &&hint, const TextWithEntities &hide) {
 			return TextWithEntities{ std::move(hint) }.append(' ').append(
 				Ui::Text::Link(std::move(hide)));
 		});
-		auto text = !e.savedToProfile
+		auto withHide = rpl::combine(
+			visiblePhrase(),
+			tr::lng_gift_visible_hide_arrow(
+				lt_arrow,
+				rpl::single(arrow),
+				Ui::Text::WithEntities)
+		) | rpl::map([](QString &&hint, const TextWithEntities &hide) {
+			return TextWithEntities{ std::move(hint) }.append(' ').append(
+				Ui::Text::Link(std::move(hide)));
+		});
+		auto text = (!e.savedToProfile && canToggle && canUpgrade)
+			? std::move(withShow)
+			: !e.savedToProfile
 			? hiddenPhrase(Ui::Text::WithEntities)
 			: canToggle
 			? std::move(withHide)
@@ -1921,7 +1936,11 @@ void GenericCreditsEntryBox(
 				box,
 				tr::lng_gift_in_blockchain(
 					lt_link,
-					tr::lng_gift_in_blockchain_link() | Ui::Text::ToLink(),
+					tr::lng_gift_in_blockchain_link_arrow(
+						lt_arrow,
+						rpl::single(arrow),
+						Ui::Text::WithEntities
+					) | Ui::Text::ToLink(),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider));
 		label->setClickHandlerFilter([=](const auto &...) {
@@ -2005,6 +2024,8 @@ void GenericCreditsEntryBox(
 			? tr::lng_credits_subscription_off_rejoin_button()
 			: canUpgradeFree
 			? tr::lng_gift_upgrade_free()
+			: canUpgrade
+			? tr::lng_gift_unique_upgrade()
 			: (canToggle && !e.savedToProfile)
 			? (e.giftChannelSavedId
 				? tr::lng_gift_show_on_channel
@@ -2074,7 +2095,7 @@ void GenericCreditsEntryBox(
 				e.giftResaleForceTon,
 				to,
 				crl::guard(box, [=] { box->closeBox(); }));
-		} else if (canUpgradeFree) {
+		} else if (canUpgrade) {
 			upgrade();
 		} else if (canToggle && !e.savedToProfile) {
 			toggleVisibility(true);

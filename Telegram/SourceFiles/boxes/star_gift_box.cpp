@@ -4967,9 +4967,10 @@ void UpgradeBox(
 			(cost
 				? tr::lng_gift_upgrade_button(
 					lt_price,
-					rpl::single(star.append(
-						' ' + Lang::FormatCreditsAmountDecimal(
-							CreditsAmount{ cost }))),
+					rpl::single(Ui::Text::IconEmoji(
+						&st::starIconEmoji
+					).append(' ').append(Lang::FormatCreditsAmountDecimal(
+						CreditsAmount{ cost }))),
 					Ui::Text::WithEntities)
 				: tr::lng_gift_upgrade_confirm(Ui::Text::WithEntities)),
 			helper.context(),

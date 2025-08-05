@@ -466,8 +466,7 @@ void AddTableRow(
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeNonUniqueStatusTableValue(
-		not_null<Ui::TableLayout*> table,
-		Fn<void()> startUpgrade) {
+		not_null<Ui::TableLayout*> table) {
 	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
@@ -477,34 +476,10 @@ void AddTableRow(
 		table->st().defaultValue,
 		st::defaultPopupMenu);
 
-	const auto upgrade = startUpgrade
-		? Ui::CreateChild<Ui::RoundButton>(
-			raw,
-			tr::lng_gift_unique_status_upgrade(),
-			table->st().smallButton)
-		: (Ui::RoundButton*)(nullptr);
-	if (upgrade) {
-		using namespace Ui;
-		upgrade->setTextTransform(RoundButton::TextTransform::NoTransform);
-		upgrade->setClickedCallback(startUpgrade);
-	}
-
-	rpl::combine(
-		raw->widthValue(),
-		upgrade ? upgrade->widthValue() : rpl::single(0)
-	) | rpl::start_with_next([=](int width, int toggleWidth) {
-		const auto toggleSkip = toggleWidth
-			? (st::normalFont->spacew + toggleWidth)
-			: 0;
-		label->resizeToNaturalWidth(width - toggleSkip);
+	raw->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		label->resizeToNaturalWidth(width);
 		label->moveToLeft(0, 0, width);
-		if (upgrade) {
-			upgrade->moveToLeft(
-				label->width() + st::normalFont->spacew,
-				(table->st().defaultValue.style.font->ascent
-					- table->st().smallButton.style.font->ascent),
-				width);
-		}
 	}, label->lifetime());
 
 	label->heightValue() | rpl::start_with_next([=](int height) {
@@ -1525,7 +1500,7 @@ void AddStarGiftTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_status(),
-			MakeNonUniqueStatusTableValue(table, std::move(startUpgrade)),
+			MakeNonUniqueStatusTableValue(table),
 			marginWithButton);
 	}
 	if (unique) {

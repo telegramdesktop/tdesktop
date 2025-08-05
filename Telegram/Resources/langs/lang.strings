@@ -3611,8 +3611,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_hidden_hint_channel" = "This gift is hidden from visitors of your channel.";
 "lng_gift_visible_hint_channel" = "This gift is visible in your channel's Gifts.";
 "lng_gift_in_blockchain" = "This gift is in TON blockchain. {link}";
-"lng_gift_in_blockchain_link" = "View >";
-"lng_gift_visible_hide" = "Hide >";
+"lng_gift_in_blockchain_link_arrow" = "View {arrow}";
+"lng_gift_visible_hide_arrow" = "Hide {arrow}";
+"lng_gift_visible_show_arrow" = "Show {arrow}";
 "lng_gift_show_on_page" = "Display on my Page";
 "lng_gift_show_on_channel" = "Display in channel's Gifts";
 "lng_gift_availability" = "Availability";
@@ -3631,7 +3632,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_unique_address_copied" = "Address copied to clipboard.";
 "lng_gift_unique_status" = "Status";
 "lng_gift_unique_status_non" = "Non-Unique";
-"lng_gift_unique_status_upgrade" = "upgrade";
+"lng_gift_unique_upgrade" = "Upgrade";
 "lng_gift_unique_number" = "Collectible #{index}";
 "lng_gift_unique_number_by" = "Collectible #{index} by {name}";
 "lng_gift_unique_model" = "Model";
