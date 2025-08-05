@@ -3669,7 +3669,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_unique_upgrade" = "Upgrade";
 "lng_gift_unique_upgrade_next" = "Upgrade Next Gift";
 "lng_gift_unique_gift_upgrade" = "Gift an Upgrade";
-"lng_gift_unique_gift_pay_upgrade" = "Pay {amount} for Upgrade";
 "lng_gift_unique_number" = "Collectible #{index}";
 "lng_gift_unique_number_by" = "Collectible #{index} by {name}";
 "lng_gift_unique_model" = "Model";

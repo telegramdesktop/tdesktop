@@ -2095,6 +2095,9 @@ void GenericCreditsEntryBox(
 	const auto toRejoin = (s.cancelled || s.expired)
 		&& rejoinBySlug
 		&& !s.cancelledByBot;
+	//const auto suggestUpgradeNext = uniqueGift
+	//	&& canToggle
+	//	&& e.savedToProfile;
 	auto confirmText = rpl::conditional(
 		state->confirmButtonBusy.value(),
 		rpl::single(QString()),
