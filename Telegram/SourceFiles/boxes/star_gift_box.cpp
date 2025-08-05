@@ -1160,7 +1160,9 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 		const auto user = session->user();
 		const auto requestId = session->api().request(
 			MTPpayments_GetSavedStarGifts(
-			MTP_flags(Flag::f_exclude_limited | Flag::f_exclude_unlimited),
+			MTP_flags(Flag::f_exclude_upgradable
+				| Flag::f_exclude_unupgradable
+				| Flag::f_exclude_unlimited),
 			user->input,
 			MTP_int(0), // collection_id
 			MTP_string(offset),

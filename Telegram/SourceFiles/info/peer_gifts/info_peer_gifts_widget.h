@@ -30,6 +30,7 @@ struct Filter {
 	bool sortByValue : 1 = false;
 	bool skipUnlimited : 1 = false;
 	bool skipLimited : 1 = false;
+	bool skipUpgradable : 1 = false;
 	bool skipUnique : 1 = false;
 	bool skipSaved : 1 = false;
 	bool skipUnsaved : 1 = false;
@@ -39,6 +40,7 @@ struct Filter {
 			|| skipUnlimited
 			|| skipSaved
 			|| skipUnsaved
+			|| skipUpgradable
 			|| skipUnique;
 	}
 

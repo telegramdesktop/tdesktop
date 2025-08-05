@@ -561,7 +561,8 @@ void InnerWidget::loadMore() {
 	const auto collectionId = descriptor.collectionId;
 	_loadMoreRequestId = _api.request(MTPpayments_GetSavedStarGifts(
 		MTP_flags((filter.sortByValue ? Flag::f_sort_by_value : Flag())
-			| (filter.skipLimited ? Flag::f_exclude_limited : Flag())
+			| (filter.skipLimited ? Flag::f_exclude_unupgradable : Flag())
+			| (filter.skipUpgradable ? Flag::f_exclude_upgradable : Flag())
 			| (filter.skipUnlimited ? Flag::f_exclude_unlimited : Flag())
 			| (filter.skipUnique ? Flag::f_exclude_unique : Flag())
 			| (filter.skipSaved ? Flag::f_exclude_saved : Flag())
@@ -1422,17 +1423,30 @@ void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
 	addAction(tr::lng_peer_gifts_filter_limited(tr::now), [=] {
 		change([](Filter &filter) {
 			filter.skipLimited = !filter.skipLimited;
-			if (filter.skipUnlimited
+			if (filter.skipUpgradable
+				&& filter.skipUnlimited
 				&& filter.skipLimited
 				&& filter.skipUnique) {
 				filter.skipUnlimited = false;
 			}
 		});
 	}, filter.skipLimited ? nullptr : &st::mediaPlayerMenuCheck);
+	addAction(tr::lng_peer_gifts_filter_upgradable(tr::now), [=] {
+		change([](Filter &filter) {
+			filter.skipUpgradable = !filter.skipUpgradable;
+			if (filter.skipUpgradable
+				&& filter.skipUnlimited
+				&& filter.skipLimited
+				&& filter.skipUnique) {
+				filter.skipUnlimited = false;
+			}
+		});
+	}, filter.skipUpgradable ? nullptr: &st::mediaPlayerMenuCheck);
 	addAction(tr::lng_peer_gifts_filter_unique(tr::now), [=] {
 		change([](Filter &filter) {
 			filter.skipUnique = !filter.skipUnique;
-			if (filter.skipUnlimited
+			if (filter.skipUpgradable
+				&& filter.skipUnlimited
 				&& filter.skipLimited
 				&& filter.skipUnique) {
 				filter.skipUnlimited = false;

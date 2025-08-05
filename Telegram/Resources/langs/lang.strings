@@ -2361,6 +2361,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_peer_gifts_filter_by_value" = "Sort by Value";
 "lng_peer_gifts_filter_by_date" = "Sort by Date";
 "lng_peer_gifts_filter_unlimited" = "Unlimited";
+"lng_peer_gifts_filter_upgradable" = "Upgradeable";
 "lng_peer_gifts_filter_limited" = "Limited";
 "lng_peer_gifts_filter_unique" = "Unique";
 "lng_peer_gifts_filter_saved" = "Displayed";
