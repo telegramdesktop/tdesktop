@@ -99,6 +99,7 @@ tonIconEmojiInSmall: IconEmoji(tonIconEmoji) {
 }
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
+creditsHistorySearchPostsIcon: icon {{ "box_search", historyPeerUserpicFg }};
 
 creditsHistoryEntryGiftStickerSkip: -20px;
 creditsHistoryEntryGiftStickerSize: 150px;

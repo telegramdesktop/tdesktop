@@ -223,6 +223,12 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 		};
 	}
 	const auto bg = [&]() -> EmptyUserpic::BgColors {
+		if (entry.postsSearch) {
+			return {
+				st::historyPeerSavedMessagesBg,
+				st::historyPeerSavedMessagesBg2,
+			};
+		}
 		switch (entry.peerType) {
 		case Data::CreditsHistoryEntry::PeerType::API:
 			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
@@ -306,7 +312,9 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		userpic->paintCircle(p, x, y, outerWidth, size);
 		const auto rect = QRect(x, y, size, size);
-		((entry.peerType == PeerType::AppStore)
+		(entry.postsSearch
+			? st::creditsHistorySearchPostsIcon
+			: (entry.peerType == PeerType::AppStore)
 			? st::sessionIconiPhone
 			: (entry.peerType == PeerType::PlayMarket)
 			? st::sessionIconAndroid

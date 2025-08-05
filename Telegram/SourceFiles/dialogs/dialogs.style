@@ -868,7 +868,6 @@ postsSearchIntroFooter: FlatLabel(defaultFlatLabel) {
 	}
 }
 postsSearchIntroFooterMargin: margins(20px, 12px, 20px, 0px);
-
 postsSearchIcon: icon {{ "box_search", windowFgActive }};
 postsSearchIconPadding: margins(12px, 1px, 6px, 0px);
 postsSearchArrow: icon {{ "dialogs/mini_arrow", windowFgActive }};

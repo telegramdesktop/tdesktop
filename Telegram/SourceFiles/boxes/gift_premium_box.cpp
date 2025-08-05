@@ -1674,7 +1674,8 @@ void AddCreditsHistoryEntryTable(
 			show,
 			peerId);
 	}
-	if (actorId || (!entry.starrefCommission && peerId)) {
+	if (!entry.postsSearch
+		&& (actorId || (!entry.starrefCommission && peerId))) {
 		auto text = entry.starrefCommission
 			? tr::lng_credits_box_history_entry_referred()
 			: entry.in

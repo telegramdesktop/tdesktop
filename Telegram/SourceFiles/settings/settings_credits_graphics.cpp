@@ -1282,7 +1282,10 @@ void GenericCreditsEntryBox(
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
 			GenericEntryPhoto(content, callback, stUser.photoSize)));
-	} else if (peer && !e.gift && !e.premiumMonthsForStars) {
+	} else if (peer
+		&& !e.gift
+		&& !e.premiumMonthsForStars
+		&& !e.postsSearch) {
 		if (e.subscriptionUntil.isNull() && s.until.isNull()) {
 			content->add(object_ptr<Ui::CenterWrap<>>(
 				content,
@@ -1368,7 +1371,7 @@ void GenericCreditsEntryBox(
 				? st::creditsHistoryEntryStarGiftSkip
 				: st::creditsHistoryEntryGiftStickerSkip);
 		}, icon->lifetime());
-	} else {
+	} else if (!e.postsSearch) {
 		const auto widget = content->add(
 			object_ptr<Ui::CenterWrap<>>(
 				content,
@@ -1405,6 +1408,8 @@ void GenericCreditsEntryBox(
 						tr::now,
 						lt_count,
 						e.paidMessagesCount)
+					: e.postsSearch
+					? tr::lng_credits_box_history_entry_posts_search(tr::now)
 					: e.premiumMonthsForStars
 					? tr::lng_premium_summary_title(tr::now)
 					: !e.title.isEmpty()

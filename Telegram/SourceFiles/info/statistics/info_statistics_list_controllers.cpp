@@ -887,6 +887,8 @@ void CreditsRow::init() {
 			tr::now,
 			lt_count,
 			_entry.paidMessagesCount)
+		: _entry.postsSearch
+		? tr::lng_credits_box_history_entry_posts_search(tr::now)
 		: ((!_entry.subscriptionUntil.isNull() && !isSpecial)
 			|| (_entry.giftUpgraded && !isSpecial)
 			|| (_entry.giftResale && !isSpecial)
@@ -997,14 +999,9 @@ void CreditsRow::init() {
 		}
 	}
 	if (!_paintUserpicCallback) {
-		_paintUserpicCallback = /*_entry.stargift
-			? Ui::GenerateGiftStickerUserpicCallback(
-				_session,
-				_entry.bareGiftStickerId,
-				_context.repaint)
-			: */!isSpecial
-			? PeerListRow::generatePaintUserpicCallback(false)
-			: Ui::GenerateCreditsPaintUserpicCallback(_entry);
+		_paintUserpicCallback = (isSpecial || _entry.postsSearch)
+			? Ui::GenerateCreditsPaintUserpicCallback(_entry)
+			: PeerListRow::generatePaintUserpicCallback(false);
 	}
 }
 
