@@ -759,7 +759,7 @@ void GiftCodeBox(
 		close->moveToRight(0, 0);
 	}, box->lifetime());
 
-	const auto button = box->addButton(rpl::conditional(
+	box->addButton(rpl::conditional(
 		state->used.value(),
 		tr::lng_box_ok(),
 		tr::lng_gift_link_use()
@@ -788,15 +788,6 @@ void GiftCodeBox(
 			controller->session().api().premium().applyGiftCode(slug, done);
 		}
 	});
-	const auto buttonPadding = st::giveawayGiftCodeBox.buttonPadding;
-	const auto buttonWidth = st::boxWideWidth
-		- buttonPadding.left()
-		- buttonPadding.right();
-	button->widthValue() | rpl::filter([=] {
-		return (button->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
-		button->resizeToWidth(buttonWidth);
-	}, button->lifetime());
 }
 
 void GiftCodePendingBox(
@@ -897,16 +888,7 @@ void GiftCodePendingBox(
 		close->moveToRight(0, 0);
 	}, box->lifetime());
 
-	const auto button = box->addButton(tr::lng_close(), closeCallback);
-	const auto buttonPadding = st::giveawayGiftCodeBox.buttonPadding;
-	const auto buttonWidth = st::boxWideWidth
-		- buttonPadding.left()
-		- buttonPadding.right();
-	button->widthValue() | rpl::filter([=] {
-		return (button->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
-		button->resizeToWidth(buttonWidth);
-	}, button->lifetime());
+	box->addButton(tr::lng_close(), closeCallback);
 }
 
 void ResolveGiftCode(

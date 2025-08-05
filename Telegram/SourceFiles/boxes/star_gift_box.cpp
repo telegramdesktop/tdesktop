@@ -2130,9 +2130,17 @@ void UpgradeGift(
 	auto formDone = [=](
 			Payments::CheckoutResult result,
 			const MTPUpdates *updates) {
-		if (result == Payments::CheckoutResult::Paid && updates) {
+		if (result == Payments::CheckoutResult::Paid) {
 			if (const auto strong = weak.get()) {
-				ShowGiftUpgradedToast(strong, session, *updates);
+				const auto owner = savedId.isUser()
+					? strong->session().user().get()
+					: savedId.chat();
+				if (owner) {
+					owner->owner().nextForUpgradeGiftInvalidate(owner);
+				}
+				if (updates) {
+					ShowGiftUpgradedToast(strong, session, *updates);
+				}
 			}
 		}
 		done(result);

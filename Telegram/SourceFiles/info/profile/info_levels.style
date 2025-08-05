@@ -76,6 +76,6 @@ level90: LevelShape(levelBase) {
 	icon: icon {{ "levels/level90_inner-26x26", windowBgActive }};
 }
 levelNegative: LevelShape(levelBase) {
-	icon: icon {{ "levels/level_warning-18x18", attentionButtonFg, point(6px, 7px) }};
+	icon: icon {{ "levels/level_warning-18x18", attentionButtonFg, point(6px, 5px) }};
 }
 levelNegativeBubble: icon {{ "levels/level_warning-28x28", windowFgActive }};

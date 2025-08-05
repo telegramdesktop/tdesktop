@@ -941,16 +941,9 @@ void BoostCreditsBox(
 		style::al_top);
 	Ui::AddSkip(content);
 
-	const auto button = box->addButton(tr::lng_box_ok(), [=] {
+	box->addButton(tr::lng_box_ok(), [=] {
 		box->closeBox();
 	});
-	const auto buttonWidth = st::boxWidth
-		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-	button->widthValue() | rpl::filter([=] {
-		return (button->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
-		button->resizeToWidth(buttonWidth);
-	}, button->lifetime());
 }
 
 void ProcessReceivedSubscriptions(
@@ -1934,6 +1927,7 @@ void GenericCreditsEntryBox(
 
 	Ui::AddSkip(content);
 
+	const auto showNextToUpgrade = e.nextToUpgradeShow;
 	if (!isStarGift && e.credits.stars()) {
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
@@ -1975,7 +1969,9 @@ void GenericCreditsEntryBox(
 			return TextWithEntities{ std::move(hint) }.append(' ').append(
 				Ui::Text::Link(hide));
 		});
-		auto text = (!e.savedToProfile && canToggle && canUpgrade)
+		auto text = (!e.savedToProfile
+			&& canToggle
+			&& (canUpgrade || showNextToUpgrade))
 			? std::move(withShow)
 			: !e.savedToProfile
 			? hiddenPhrase(Ui::Text::WithEntities)
@@ -2087,6 +2083,9 @@ void GenericCreditsEntryBox(
 	const auto toRejoin = (s.cancelled || s.expired)
 		&& rejoinBySlug
 		&& !s.cancelledByBot;
+	//const auto suggestUpgradeNext = uniqueGift
+	//	&& canToggle
+	//	&& e.savedToProfile;
 	auto confirmText = rpl::conditional(
 		state->confirmButtonBusy.value(),
 		rpl::single(QString()),
@@ -2149,7 +2148,10 @@ void GenericCreditsEntryBox(
 	}
 
 	const auto button = box->addButton(std::move(confirmText), [=] {
-		if (state->confirmButtonBusy.current()
+		if (showNextToUpgrade) {
+			showNextToUpgrade();
+			return;
+		} else if (state->confirmButtonBusy.current()
 			|| state->convertButtonBusy.current()) {
 			return;
 		}
@@ -2174,7 +2176,9 @@ void GenericCreditsEntryBox(
 		} else {
 			box->closeBox();
 		}
-	});
+	}, showNextToUpgrade
+		? st::defaultLightButton
+		: st::giveawayGiftCodeBox.button);
 	if (canBuyResold) {
 		if (uniqueGift->onlyAcceptTon || e.giftResaleForceTon) {
 			button->setText(rpl::single(QString()));
@@ -2200,6 +2204,23 @@ void GenericCreditsEntryBox(
 					Lang::FormatCountDecimal(uniqueGift->starsForResale))),
 				Ui::Text::WithEntities));
 		}
+	} else if (showNextToUpgrade) {
+		const auto session = &show->session();
+		const auto sticker = e.nextToUpgradeStickerId
+			? session->data().document(e.nextToUpgradeStickerId).get()
+			: nullptr;
+		const auto document = (sticker && sticker->sticker())
+			? sticker
+			: nullptr;
+		button->setContext(Core::TextContext({ .session = session }));
+		button->setText(tr::lng_gift_unique_upgrade_next(
+		) | rpl::map([=](const QString &text) {
+			auto result = TextWithEntities{ text };
+			if (document) {
+				result.append(' ').append(Data::SingleCustomEmoji(document));
+			}
+			return result;
+		}));
 	}
 	{
 		using namespace Info::Statistics;
@@ -2358,19 +2379,20 @@ Data::SavedStarGiftId EntryToSavedStarGiftId(
 		: Data::SavedStarGiftId::User(MsgId(entry.bareMsgId));
 }
 
-void SavedStarGiftBox(
-		not_null<Ui::GenericBox*> box,
+void ShowSavedStarGiftBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> owner,
 		const Data::SavedStarGift &data,
 		Fn<std::vector<Data::CreditsHistoryEntry>()> pinned) {
-	auto entry = SavedStarGiftEntry(owner, data);
-	entry.pinnedSavedGifts = std::move(pinned);
-	Settings::ReceiptCreditsBox(
-		box,
-		controller,
-		std::move(entry),
-		Data::SubscriptionEntry());
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		auto entry = SavedStarGiftEntry(owner, data);
+		entry.pinnedSavedGifts = std::move(pinned);
+		Settings::ReceiptCreditsBox(
+			box,
+			controller,
+			std::move(entry),
+			Data::SubscriptionEntry());
+	}));
 }
 
 void FillSavedStarGiftMenu(
@@ -2382,17 +2404,31 @@ void FillSavedStarGiftMenu(
 	FillUniqueGiftMenu(show, menu, e, type, st);
 }
 
-void StarGiftViewBox(
-		not_null<Ui::GenericBox*> box,
+void ShowStarGiftViewBox(
 		not_null<Window::SessionController*> controller,
 		const Data::GiftCode &data,
-		not_null<HistoryItem*> item) {
+		FullMsgId itemId,
+		std::optional<Data::SavedStarGift> upgradeNext) {
+	const auto item = controller->session().data().message(itemId);
+	if (!item) {
+		return;
+	}
 	const auto peer = item->history()->peer;
 	const auto toChannel = peer->isServiceUser() && data.channel;
 	const auto incoming = !toChannel
 		&& (data.upgrade ? item->out() : !item->out());
 	const auto fromId = incoming ? peer->id : peer->session().userPeerId();
 	const auto toId = incoming ? peer->session().userPeerId() : peer->id;
+	const auto ownerId = data.unique ? data.unique->ownerId : toId;
+	const auto nextToUpgradeStickerId = upgradeNext
+		? upgradeNext->info.document->id
+		: uint64();
+	const auto nextToUpgradeShow = upgradeNext
+		? [=] { ShowSavedStarGiftBox(
+			controller,
+			controller->session().data().peer(ownerId),
+			*upgradeNext); }
+		: Fn<void()>();
 	const auto entry = Data::CreditsHistoryEntry{
 		.id = data.slug,
 		.description = data.message,
@@ -2401,9 +2437,7 @@ void StarGiftViewBox(
 		.bareMsgId = uint64(item->id.bare),
 		.barePeerId = fromId.value,
 		.bareGiftStickerId = data.document ? data.document->id : 0,
-		.bareGiftOwnerId = (data.unique
-			? data.unique->ownerId.value
-			: toId.value),
+		.bareGiftOwnerId = ownerId.value,
 		.bareGiftReleasedById = (data.stargiftReleasedBy
 			? data.stargiftReleasedBy->id.value
 			: 0),
@@ -2412,6 +2446,8 @@ void StarGiftViewBox(
 		.giftChannelSavedId = data.channelSavedId,
 		.stargiftId = data.stargiftId,
 		.uniqueGift = data.unique,
+		.nextToUpgradeStickerId = nextToUpgradeStickerId,
+		.nextToUpgradeShow = std::move(nextToUpgradeShow),
 		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 		.limitedCount = data.limitedCount,
 		.limitedLeft = data.limitedLeft,
@@ -2429,11 +2465,44 @@ void StarGiftViewBox(
 		.in = incoming,
 		.gift = true,
 	};
-	Settings::ReceiptCreditsBox(
-		box,
-		controller,
-		entry,
-		Data::SubscriptionEntry());
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		Settings::ReceiptCreditsBox(
+			box,
+			controller,
+			entry,
+			Data::SubscriptionEntry());
+	}));
+}
+
+void ShowStarGiftViewBox(
+		not_null<Window::SessionController*> controller,
+		const Data::GiftCode &data,
+		FullMsgId itemId) {
+	const auto item = controller->session().data().message(itemId);
+	if (!item) {
+		return;
+	}
+	const auto peer = item->history()->peer;
+	const auto toChannel = peer->isServiceUser() && data.channel;
+	const auto incoming = !toChannel
+		&& (data.upgrade ? item->out() : !item->out());
+	const auto fromId = incoming ? peer->id : peer->session().userPeerId();
+	const auto toId = incoming ? peer->session().userPeerId() : peer->id;
+	const auto ownerId = data.unique ? data.unique->ownerId : toId;
+	const auto owner = peer->owner().peer(ownerId);
+	if (data.unique && owner->canManageGifts()) {
+		const auto weak = base::make_weak(controller);
+		owner->owner().nextForUpgradeGiftRequest(owner, crl::guard(weak, [=](
+				std::optional<Data::SavedStarGift> nextToUpgrade) {
+			ShowStarGiftViewBox(
+				controller,
+				data,
+				itemId,
+				std::move(nextToUpgrade));
+		}));
+	} else {
+		ShowStarGiftViewBox(controller, data, itemId, std::nullopt);
+	}
 }
 
 void ShowRefundInfoBox(

@@ -941,16 +941,9 @@ Fn<void()> BuyStarsHandler::handler(
 			}
 		}, box->showFinishes(), nullptr, options);
 
-		const auto button = box->addButton(tr::lng_close(), [=] {
+		box->addButton(tr::lng_close(), [=] {
 			box->closeBox();
 		});
-		const auto buttonWidth = st::boxWideWidth
-			- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-		button->widthValue() | rpl::filter([=] {
-			return (button->widthNoMargins() != buttonWidth);
-		}) | rpl::start_with_next([=] {
-			button->resizeToWidth(buttonWidth);
-		}, button->lifetime());
 	};
 	return crl::guard(this, [=] {
 		if (_api && !_api->options().empty()) {

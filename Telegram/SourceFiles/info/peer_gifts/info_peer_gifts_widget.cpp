@@ -941,13 +941,11 @@ void InnerWidget::showGift(int index) {
 		}
 		return;
 	}
-
-	_window->show(Box(
-		::Settings::SavedStarGiftBox,
+	::Settings::ShowSavedStarGiftBox(
 		_window,
 		_peer,
 		(*_list)[index].gift,
-		pinnedSavedGifts()));
+		pinnedSavedGifts());
 }
 
 void InnerWidget::refreshAbout() {

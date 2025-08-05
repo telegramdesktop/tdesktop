@@ -464,14 +464,6 @@ void SendCreditsBox(
 		st::creditsBoxButtonLabel,
 		&box->getDelegate()->style().button.textFg);
 
-	const auto buttonWidth = st::boxWidth
-		- rect::m::sum::h(stBox.buttonPadding);
-	button->widthValue() | rpl::filter([=] {
-		return (button->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
-		button->resizeToWidth(buttonWidth);
-	}, button->lifetime());
-
 	{
 		const auto close = Ui::CreateChild<Ui::IconButton>(
 			content,

@@ -376,6 +376,11 @@ public:
 	void notifyPinnedDialogsOrderUpdated();
 	[[nodiscard]] rpl::producer<> pinnedDialogsOrderUpdated() const;
 
+	void nextForUpgradeGiftInvalidate(not_null<PeerData*> owner);
+	void nextForUpgradeGiftRequest(
+		not_null<PeerData*> owner,
+		Fn<void(std::optional<Data::SavedStarGift>)> done);
+
 	using CreditsSubsRebuilder = rpl::event_stream<CreditsStatusSlice>;
 	using CreditsSubsRebuilderPtr = std::shared_ptr<CreditsSubsRebuilder>;
 	[[nodiscard]] CreditsSubsRebuilderPtr createCreditsSubsRebuilder();
@@ -881,6 +886,13 @@ public:
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
 
+	struct NextToUpgradeGift {
+		std::optional<Data::SavedStarGift> gift;
+		Fn<void(std::optional<Data::SavedStarGift>)> done;
+		crl::time received = 0;
+		mtpRequestId requestId = 0;
+	};
+
 	void suggestStartExport();
 
 	void setupMigrationViewer();
@@ -1231,6 +1243,10 @@ private:
 	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
 
 	std::unique_ptr<StarsRatingPending> _pendingStarsRating;
+
+	base::flat_map<
+		not_null<PeerData*>,
+		NextToUpgradeGift> _nextForUpgradeGifts;
 
 	rpl::lifetime _lifetime;
 

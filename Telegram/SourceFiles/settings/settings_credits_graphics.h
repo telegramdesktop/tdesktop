@@ -174,8 +174,7 @@ void GlobalStarGiftBox(
 [[nodiscard]] Data::SavedStarGiftId EntryToSavedStarGiftId(
 	not_null<Main::Session*> session,
 	const Data::CreditsHistoryEntry &entry);
-void SavedStarGiftBox(
-	not_null<Ui::GenericBox*> box,
+void ShowSavedStarGiftBox(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> owner,
 	const Data::SavedStarGift &data,
@@ -191,11 +190,10 @@ void FillSavedStarGiftMenu(
 	SavedStarGiftMenuType type,
 	CreditsEntryBoxStyleOverrides st = {});
 
-void StarGiftViewBox(
-	not_null<Ui::GenericBox*> box,
+void ShowStarGiftViewBox(
 	not_null<Window::SessionController*> controller,
 	const Data::GiftCode &data,
-	not_null<HistoryItem*> item);
+	FullMsgId itemId);
 void ShowRefundInfoBox(
 	not_null<Window::SessionController*> controller,
 	FullMsgId refundItemId);

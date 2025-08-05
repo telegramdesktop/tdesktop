@@ -1037,16 +1037,9 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 				st::creditsBoxAboutDivider),
 			style::al_top);
 
-		const auto button = box->addButton(tr::lng_box_ok(), [=] {
+		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();
 		});
-		const auto buttonWidth = st::boxWidth
-			- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-		button->widthValue() | rpl::filter([=] {
-			return (button->widthNoMargins() != buttonWidth);
-		}) | rpl::start_with_next([=] {
-			button->resizeToWidth(buttonWidth);
-		}, button->lifetime());
 	}));
 }
 

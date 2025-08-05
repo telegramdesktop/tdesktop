@@ -3656,6 +3656,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_unique_status" = "Status";
 "lng_gift_unique_status_non" = "Non-Unique";
 "lng_gift_unique_upgrade" = "Upgrade";
+"lng_gift_unique_upgrade_next" = "Upgrade Next Gift";
 "lng_gift_unique_number" = "Collectible #{index}";
 "lng_gift_unique_number_by" = "Collectible #{index} by {name}";
 "lng_gift_unique_model" = "Model";

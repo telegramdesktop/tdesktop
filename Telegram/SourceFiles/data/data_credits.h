@@ -73,6 +73,8 @@ struct CreditsHistoryEntry final {
 	uint64 stargiftId = 0;
 	std::shared_ptr<UniqueGift> uniqueGift;
 	Fn<std::vector<CreditsHistoryEntry>()> pinnedSavedGifts;
+	uint64 nextToUpgradeStickerId = 0;
+	Fn<void()> nextToUpgradeShow;
 	CreditsAmount starrefAmount;
 	int starrefCommission = 0;
 	uint64 starrefRecipientId = 0;
