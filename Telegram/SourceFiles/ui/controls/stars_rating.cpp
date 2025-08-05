@@ -494,7 +494,8 @@ void StarsRating::updateData(Data::StarsRating rating) {
 			(rating.level < 0
 				? QString()
 				: Lang::FormatCountDecimal(rating.level)));
-		_widthValue = _shape->icon.width() - st::levelMargin.left();
+		const auto &margin = st::levelMargin;
+		_widthValue = _shape->icon.width() + margin.right() - margin.left();
 	}
 	updateWidth();
 }
