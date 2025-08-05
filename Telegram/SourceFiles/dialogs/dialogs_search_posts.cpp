@@ -117,7 +117,9 @@ void PostsSearch::pushStateUpdate(const Entry &entry) {
 		}
 		return;
 	}
-	if (!entry.pages.empty() || entry.loaded) {
+	const auto empty = entry.pages.empty()
+		|| (entry.pages.size() == 1 && entry.pages.front().empty());
+	if (!empty || (entry.loaded && !_query->isEmpty())) {
 		if (!entry.pages.empty()) {
 			++entry.pagesPushed;
 		}

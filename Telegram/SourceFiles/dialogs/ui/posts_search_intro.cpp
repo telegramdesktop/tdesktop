@@ -198,6 +198,12 @@ void PostsSearchIntro::setup() {
 
 	_state.value(
 	) | rpl::start_with_next([=](const PostsSearchIntroState &state) {
+		if (state.query.trimmed().isEmpty()) {
+			_button->resize(_button->width(), 0);
+			_content->resizeToWidth(width());
+			return;
+		}
+
 		auto copy = _button->children();
 		for (const auto child : copy) {
 			delete child;
@@ -232,6 +238,7 @@ void PostsSearchIntro::setup() {
 				st::resaleButtonTitle,
 				st::resaleButtonSubtitle);
 		}
+		_button->resize(_button->width(), st::postsSearchIntroButton.height);
 		_content->resizeToWidth(width());
 	}, _button->lifetime());
 }

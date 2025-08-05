@@ -2020,6 +2020,10 @@ void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
 		}
 	}, _postsSearchIntro->lifetime());
 
+	_postsScroll->heightValue() | rpl::start_with_next([=](int height) {
+		_postsWrap->resize(_postsWrap->width(), height);
+	}, _postsSearchIntro->lifetime());
+
 	_postsSearchIntro->show();
 	updateControlsGeometry();
 }
