@@ -199,7 +199,7 @@ void PostsSearchIntro::setup() {
 
 	_state.value(
 	) | rpl::start_with_next([=](const PostsSearchIntroState &state) {
-		if (state.query.trimmed().isEmpty()) {
+		if (state.query.trimmed().isEmpty() && !state.needsPremium) {
 			_button->resize(_button->width(), 0);
 			_content->resizeToWidth(width());
 			return;

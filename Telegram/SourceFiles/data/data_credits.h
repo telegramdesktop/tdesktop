@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 
 struct UniqueGift;
+struct UniqueGiftValue;
 
 struct CreditTopupOption final {
 	uint64 credits = 0;

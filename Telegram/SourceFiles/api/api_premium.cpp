@@ -911,6 +911,15 @@ std::optional<Data::StarGift> FromTL(
 				.onlyAcceptTon = data.is_resale_ton_only(),
 				.model = *model,
 				.pattern = *pattern,
+				.value = (data.vvalue_amount()
+					? std::make_shared<Data::UniqueGiftValue>(
+						Data::UniqueGiftValue{
+							.currency = qs(
+								data.vvalue_currency().value_or_empty()),
+							.valuePrice = int64(
+								data.vvalue_amount().value_or_empty()),
+						})
+					: nullptr),
 			}),
 			.document = model->document,
 			.releasedBy = releasedBy,

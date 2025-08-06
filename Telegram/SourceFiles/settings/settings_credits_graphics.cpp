@@ -2087,9 +2087,6 @@ void GenericCreditsEntryBox(
 	const auto toRejoin = (s.cancelled || s.expired)
 		&& rejoinBySlug
 		&& !s.cancelledByBot;
-	//const auto suggestUpgradeNext = uniqueGift
-	//	&& canToggle
-	//	&& e.savedToProfile;
 	auto confirmText = rpl::conditional(
 		state->confirmButtonBusy.value(),
 		rpl::single(QString()),
@@ -2236,14 +2233,145 @@ void GenericCreditsEntryBox(
 		AddChildToWidgetCenter(button, loadingAnimation);
 		loadingAnimation->showOn(state->confirmButtonBusy.value());
 	}
-	const auto buttonWidth = st::boxWideWidth
-		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+}
 
-	button->widthValue() | rpl::filter([=] {
-		return (button->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
-		button->resizeToWidth(buttonWidth);
-	}, button->lifetime());
+void UniqueGiftValueBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<ChatHelpers::Show> show,
+		const Data::CreditsHistoryEntry &e,
+		CreditsEntryBoxStyleOverrides st) {
+	box->setStyle(st.box ? *st.box : st::giveawayGiftCodeBox);
+	box->setWidth(st::boxWideWidth);
+	box->setNoContentMargin(true);
+
+	const auto unique = e.uniqueGift;
+	const auto value = unique ? unique->value : nullptr;
+	Assert(unique && value);
+
+	const auto showLastPrice = (value->lastSalePrice > value->averagePrice);
+
+	const auto content = box->verticalLayout();
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	struct State final {
+		DocumentData *sticker = nullptr;
+		std::shared_ptr<Data::DocumentMedia> media;
+		std::unique_ptr<Lottie::SinglePlayer> lottie;
+		rpl::lifetime downloadLifetime;
+	};
+	Ui::AddSkip(content, st::creditsHistoryEntryStarGiftSpace);
+
+	const auto icon = Ui::CreateChild<Ui::RpWidget>(content);
+	icon->resize(Size(st::creditsHistoryEntryStarGiftSize));
+	const auto state = icon->lifetime().make_state<State>();
+	const auto document = unique->model.document;
+	if (document && document->sticker()) {
+		const auto origin = document->stickerOrGifOrigin();
+		state->sticker = document;
+		state->media = document->createMediaView();
+		state->media->thumbnailWanted(origin);
+		state->media->automaticLoad(origin, nullptr);
+		rpl::single() | rpl::then(
+			document->session().downloaderTaskFinished()
+		) | rpl::filter([=] {
+			return state->media->loaded();
+		}) | rpl::start_with_next([=] {
+			state->lottie = ChatHelpers::LottiePlayerFromDocument(
+				state->media.get(),
+				ChatHelpers::StickerLottieSize::MessageHistory,
+				icon->size(),
+				Lottie::Quality::High);
+			state->lottie->updates() | rpl::start_with_next([=] {
+				icon->update();
+			}, icon->lifetime());
+			state->downloadLifetime.destroy();
+		}, state->downloadLifetime);
+	}
+	icon->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(icon);
+		const auto &lottie = state->lottie;
+		const auto factor = style::DevicePixelRatio();
+		const auto request = Lottie::FrameRequest{
+			.box = icon->size() * factor,
+		};
+		const auto frame = (lottie && lottie->ready())
+			? lottie->frameInfo(request)
+			: Lottie::Animation::FrameInfo();
+		if (!frame.image.isNull()) {
+			p.drawImage(
+				QRect(QPoint(), frame.image.size() / factor),
+				frame.image);
+			if (lottie->frameIndex() < lottie->framesCount() - 1) {
+				lottie->markFrameShown();
+			}
+		}
+	}, icon->lifetime());
+	content->sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		icon->move(
+			(size.width() - icon->width()) / 2,
+			st::creditsHistoryEntryStarGiftSkip);
+	}, icon->lifetime());
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	const auto bubble = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			rpl::single(
+				Ui::FillAmountAndCurrency(value->valuePrice, value->currency)),
+			st::uniqueGiftValuePrice),
+		style::al_top);
+	bubble->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(bubble);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::windowBgActive);
+		p.setPen(Qt::NoPen);
+		const auto rect = bubble->rect();
+		const auto radius = std::min(rect.width(), rect.height()) / 2.;
+		p.drawRoundedRect(rect, radius, radius);
+	}, bubble->lifetime());
+
+	Ui::AddSkip(content);
+
+	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
+	Ui::AddSkip(content);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			(showLastPrice
+				? tr::lng_gift_value_about_last(
+					lt_gift,
+					rpl::single(Ui::Text::Bold(
+						Data::UniqueGiftName(*unique))),
+					lt_platform,
+					(value->lastSaleFragment
+						? tr::lng_gift_value_fragment
+						: tr::lng_gift_value_telegram)(
+							Ui::Text::WithEntities),
+					Ui::Text::RichLangValue)
+				: tr::lng_gift_value_about_average(
+					lt_gift,
+					rpl::single(Ui::Text::Bold(unique->title)),
+					Ui::Text::RichLangValue)),
+			st::uniqueGiftValueAbout)
+	)->setTryMakeSimilarLines(true);
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	AddUniqueGiftValueTable(show, content, st, e);
+
+	Ui::AddSkip(content);
+
+	box->addButton(tr::lng_box_ok(), [=] {
+		box->closeBox();
+	});
 }
 
 void ReceiptCreditsBox(

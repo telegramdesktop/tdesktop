@@ -359,3 +359,15 @@ resaleConfirmTonOnly: FlatLabel(boxLabel) {
 	textFg: windowSubTextFg;
 }
 resaleConfirmTonOnlyMargin: margins(0px, 12px, 0px, 12px);
+
+uniqueGiftValuePrice: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+	}
+	margin: margins(12px, 6px, 12px, 6px);
+	textFg: windowFgActive;
+}
+uniqueGiftValueAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+	align: align(top);
+}

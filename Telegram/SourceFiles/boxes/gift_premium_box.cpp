@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -54,6 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "ui/text/custom_emoji_helper.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
@@ -107,6 +110,33 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 	return {
 		session->createInternalLink(path),
 		session->createInternalLinkFull(path),
+	};
+}
+
+[[nodiscard]] TextWithEntities FormatValuePrice(
+		int64 price,
+		QString currency,
+		bool approximately = false) {
+	auto result = TextWithEntities();
+	if (approximately) {
+		result.append('~');
+	}
+	return result.append(Ui::FillAmountAndCurrency(price, currency));
+}
+
+[[nodiscard]] TextWithEntities FormatValueDate(TimeId date) {
+	const auto parsed = base::unixtime::parse(date).date();
+	const auto day = parsed.day();
+	const auto month = parsed.month();
+	const auto year = parsed.year();
+	return { tr::lng_month_day_year(
+			tr::now,
+			lt_month,
+			Lang::MonthDay(month)(tr::now),
+			lt_day,
+			QString::number(day),
+			lt_year,
+			QString::number(year))
 	};
 }
 
@@ -465,21 +495,75 @@ void AddTableRow(
 	return result;
 }
 
-[[nodiscard]] object_ptr<Ui::RpWidget> MakeNonUniqueStatusTableValue(
-		not_null<Ui::TableLayout*> table) {
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeUniqueGiftValueValue(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<ChatHelpers::Show> show,
+		const Data::CreditsHistoryEntry &entry,
+		Settings::CreditsEntryBoxStyleOverrides st) {
 	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
+	const auto unique = entry.uniqueGift;
+	const auto value = unique ? unique->value : nullptr;
+	const auto loading = std::make_shared<bool>(false);
+
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		tr::lng_gift_unique_status_non(),
+		rpl::single(
+			FormatValuePrice(value->valuePrice, value->currency, true)),
 		table->st().defaultValue,
 		st::defaultPopupMenu);
 
-	raw->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		label->resizeToNaturalWidth(width);
+	const auto learn = Ui::CreateChild<Ui::RoundButton>(
+		raw,
+		tr::lng_gift_unique_value_learn_more(),
+		table->st().smallButton);
+	learn->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	learn->setClickedCallback([=] {
+		if (value->initialPriceStars) {
+			show->show(Box(Settings::UniqueGiftValueBox, show, entry, st));
+		} else if (*loading) {
+			return;
+		}
+		*loading = true;
+		show->session().api().request(MTPpayments_GetUniqueStarGiftValueInfo(
+			MTP_string(unique->slug)
+		)).done([=](const MTPpayments_UniqueStarGiftValueInfo &result) {
+			*loading = false;
+
+			const auto &data = result.data();
+			value->currency = qs(data.vcurrency());
+			value->valuePrice = data.vvalue().v;
+			value->initialSaleDate = data.vinitial_sale_date().v;
+			value->initialPriceStars = CreditsAmount(
+				data.vinitial_sale_stars().v);
+			value->initialSalePrice = data.vinitial_sale_price().v;
+			value->lastSaleDate = data.vlast_sale_date().value_or_empty();
+			value->lastSalePrice = data.vlast_sale_price().value_or_empty();
+			value->lastSaleFragment = data.is_last_sale_on_fragment();
+			value->minimumPrice = data.vfloor_price().value_or_empty();
+			value->averagePrice = data.vaverage_price().value_or_empty();
+			value->forSaleOnTelegram = data.vlisted_count().value_or_empty();
+			value->forSaleOnFragment = int(
+				data.vfragment_listed_count().value_or_empty());
+			value->fragmentUrl = qs(
+				data.vfragment_listed_url().value_or_empty());
+
+			show->show(Box(Settings::UniqueGiftValueBox, show, entry, st));
+		}).send();
+	});
+	rpl::combine(
+		raw->widthValue(),
+		learn->widthValue()
+	) | rpl::start_with_next([=](int width, int learnWidth) {
+		const auto learnSkip = st::normalFont->spacew + learnWidth;
+		label->resizeToNaturalWidth(width - learnSkip);
 		label->moveToLeft(0, 0, width);
+		learn->moveToLeft(
+			rect::right(label) + st::normalFont->spacew,
+			(table->st().defaultValue.style.font->ascent
+				- table->st().smallButton.style.font->ascent),
+			width);
 	}, label->lifetime());
 
 	label->heightValue() | rpl::start_with_next([=](int height) {
@@ -1484,10 +1568,16 @@ void AddStarGiftTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_status(),
-			MakeNonUniqueStatusTableValue(table),
-			marginWithButton);
+			tr::lng_gift_unique_status_non(Ui::Text::WithEntities));
 	}
 	if (unique) {
+		if (unique->value) {
+			AddTableRow(
+				table,
+				tr::lng_gift_unique_value(),
+				MakeUniqueGiftValueValue(table, show, entry, st),
+				marginWithButton);
+		}
 		const auto &original = unique->originalDetails;
 		if (original.recipientId) {
 			const auto owner = &show->session().data();
@@ -1971,5 +2061,129 @@ void AddChannelEarnTable(
 			tr::lng_credits_box_history_entry_id(),
 			std::move(label),
 			st::giveawayGiftCodeValueMargin);
+	}
+}
+
+void AddUniqueGiftValueTable(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<Ui::VerticalLayout*> container,
+		Settings::CreditsEntryBoxStyleOverrides st,
+		const Data::CreditsHistoryEntry &entry) {
+	const auto value = entry.uniqueGift ? entry.uniqueGift->value : nullptr;
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st.table ? *st.table : st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
+	const auto showTooltip = [=](
+			not_null<Ui::RpWidget*> widget,
+			rpl::producer<TextWithEntities> text) {
+		if (*raw) {
+			(*raw)->toggleAnimated(false);
+		}
+		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+			container,
+			Ui::MakeNiceTooltipLabel(
+				container,
+				std::move(text),
+				st::boxWideWidth,
+				st::defaultImportantTooltipLabel),
+			st::defaultImportantTooltip);
+		tooltip->toggleFast(false);
+
+		const auto update = [=] {
+			const auto geometry = Ui::MapFrom(
+				container,
+				widget,
+				widget->rect());
+			const auto countPosition = [=](QSize size) {
+				const auto left = geometry.x()
+					+ (geometry.width() - size.width()) / 2;
+				const auto right = container->width()
+					- st::normalFont->spacew;
+				return QPoint(
+					std::max(std::min(left, right - size.width()), 0),
+					geometry.y() - size.height() - st::normalFont->descent);
+			};
+			tooltip->pointAt(geometry, RectPart::Top, countPosition);
+		};
+		container->widthValue(
+		) | rpl::start_with_next(update, tooltip->lifetime());
+
+		update();
+		tooltip->toggleAnimated(true);
+
+		*raw = tooltip;
+		tooltip->shownValue() | rpl::filter(
+			!rpl::mappers::_1
+		) | rpl::start_with_next([=] {
+			crl::on_main(tooltip, [=] {
+				if (tooltip->isHidden()) {
+					if (*raw == tooltip) {
+						*raw = nullptr;
+					}
+					delete tooltip;
+				}
+			});
+		}, tooltip->lifetime());
+
+		base::timer_once(
+			kRarityTooltipDuration
+		) | rpl::start_with_next([=] {
+			tooltip->toggleAnimated(false);
+		}, tooltip->lifetime());
+	};
+
+	if (value->initialSaleDate) {
+		AddTableRow(
+			table,
+			tr::lng_gift_value_initial_sale(),
+			rpl::single(FormatValueDate(value->initialSaleDate)));
+	}
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto starIcon = helper.paletteDependent(
+		Ui::Earn::IconCreditsEmoji());
+	AddTableRow(
+		table,
+		tr::lng_gift_value_initial_price(),
+		tr::lng_gift_value_initial_price_value(
+			lt_stars,
+			rpl::single(starIcon.append(
+				Lang::FormatCreditsAmountDecimal(value->initialPriceStars)
+			)),
+			lt_amount,
+			rpl::single(FormatValuePrice(
+				value->initialSalePrice,
+				value->currency,
+				true)),
+			Ui::Text::WithEntities),
+		helper.context());
+	if (value->lastSaleDate) {
+		AddTableRow(
+			table,
+			tr::lng_gift_value_last_sale(),
+			rpl::single(FormatValueDate(value->lastSaleDate)));
+	}
+	if (value->lastSalePrice) {
+		AddTableRow(
+			table,
+			tr::lng_gift_value_last_price(),
+			rpl::single(
+				FormatValuePrice(value->lastSalePrice, value->currency)));
+	}
+	if (value->minimumPrice) {
+		AddTableRow(
+			table,
+			tr::lng_gift_value_minimum_price(),
+			rpl::single(
+				FormatValuePrice(value->minimumPrice, value->currency)));
+	}
+	if (value->averagePrice) {
+		AddTableRow(
+			table,
+			tr::lng_gift_vlaue_average_price(),
+			rpl::single(
+				FormatValuePrice(value->averagePrice, value->currency)));
 	}
 }

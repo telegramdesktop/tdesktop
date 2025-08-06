@@ -37,6 +37,22 @@ struct UniqueGiftOriginalDetails {
 	TextWithEntities message;
 };
 
+struct UniqueGiftValue {
+	QString currency;
+	int64 valuePrice = 0;
+	CreditsAmount initialPriceStars;
+	int64 initialSalePrice = 0;
+	TimeId initialSaleDate = 0;
+	int64 lastSalePrice = 0;
+	TimeId lastSaleDate = 0;
+	int64 averagePrice = 0;
+	int64 minimumPrice = 0;
+	int forSaleOnTelegram = 0;
+	int forSaleOnFragment = 0;
+	QString fragmentUrl;
+	bool lastSaleFragment = false;
+};
+
 struct UniqueGift {
 	CollectibleId id = 0;
 	QString slug;
@@ -57,6 +73,7 @@ struct UniqueGift {
 	UniqueGiftPattern pattern;
 	UniqueGiftBackdrop backdrop;
 	UniqueGiftOriginalDetails originalDetails;
+	std::shared_ptr<UniqueGiftValue> value;
 };
 
 [[nodiscard]] QString UniqueGiftName(const UniqueGift &gift);

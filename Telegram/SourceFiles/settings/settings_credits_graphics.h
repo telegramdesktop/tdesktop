@@ -135,6 +135,11 @@ void GenericCreditsEntryBox(
 	const Data::CreditsHistoryEntry &e,
 	const Data::SubscriptionEntry &s,
 	CreditsEntryBoxStyleOverrides st = {});
+void UniqueGiftValueBox(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<ChatHelpers::Show> show,
+	const Data::CreditsHistoryEntry &e,
+	CreditsEntryBoxStyleOverrides st = {});
 void ReceiptCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
