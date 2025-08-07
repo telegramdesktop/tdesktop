@@ -16,9 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_topics_view.h"
 #include "ui/effects/spoiler_mess.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
@@ -187,7 +189,7 @@ void MessageView::prepare(
 		: nullptr;
 	const auto hasImages = !preview.images.empty();
 	const auto history = item->history();
-	const auto context = Core::TextContext({
+	auto context = Core::TextContext({
 		.session = &history->session(),
 		.repaint = customEmojiRepaint,
 		.customEmojiLoopLimit = kEmojiLoopCount,
@@ -231,6 +233,57 @@ void MessageView::prepare(
 			}
 		}
 
+		if (minFrom == std::numeric_limits<uint16>::max()
+			&& !item->replyTo().quote.empty()) {
+			auto textQuote = TextWithEntities();
+			for (const auto &word : words) {
+				const auto selection = HistoryView::FindSearchQueryHighlight(
+					item->replyTo().quote.text,
+					word);
+				if (!selection.empty()) {
+					minFrom = 0;
+					if (textQuote.empty()) {
+						textQuote = item->replyTo().quote;
+					}
+					textQuote.entities.push_back(EntityInText{
+						EntityType::Colorized,
+						selection.from,
+						selection.to - selection.from
+					});
+				}
+			}
+			if (!textQuote.empty()) {
+				auto helper = Ui::Text::CustomEmojiHelper(context);
+				const auto factory = Ui::Text::PaletteDependentEmoji{
+					.factory = [=] {
+						const auto &icon = st::dialogsMiniQuoteIcon;
+						auto image = QImage(
+							icon.size() * style::DevicePixelRatio(),
+							QImage::Format_ARGB32_Premultiplied);
+						image.setDevicePixelRatio(style::DevicePixelRatio());
+						image.fill(Qt::transparent);
+						{
+							auto p = Painter(&image);
+							icon.paintInCenter(
+								p,
+								Rect(icon.size()),
+								st::dialogsTextFg->c);
+						}
+						return image;
+					},
+					.margin = QMargins(
+						st::lineWidth * 2,
+						0,
+						st::lineWidth * 2,
+						0),
+				};
+				textToCache = textQuote
+					.append(helper.paletteDependent(factory))
+					.append(std::move(textToCache));
+				context = helper.context(customEmojiRepaint);
+			}
+		}
+
 		if (!words.empty() && minFrom != std::numeric_limits<uint16>::max()) {
 			std::sort(
 				textToCache.entities.begin(),
@@ -255,7 +308,7 @@ void MessageView::prepare(
 		st::dialogsTextStyle,
 		std::move(textToCache),
 		DialogTextOptions(),
-		context);
+		std::move(context));
 	_textCachedFor = item;
 	_imagesCache = std::move(preview.images);
 	if (!ranges::any_of(_imagesCache, &ItemPreviewImage::hasSpoiler)) {

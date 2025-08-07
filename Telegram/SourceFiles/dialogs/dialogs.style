@@ -838,6 +838,8 @@ dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
 
+dialogsMiniQuoteIcon: icon{{ "chat/mini_quote", dialogsTextFg }};
+
 postsSearchIntroTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	minWidth: 64px;
