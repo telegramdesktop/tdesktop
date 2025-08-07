@@ -1240,6 +1240,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			auto to = ceilclamp(r.y() + r.height() - skip, _st->height, 0, _previewResults.size());
 			p.translate(0, from * _st->height);
 			if (from < _previewResults.size()) {
+				const auto searchLowerText = _searchState.query.toLower();
 				for (; from < to; ++from) {
 					const auto &result = _previewResults[from];
 					const auto active = isSearchResultActive(result.get(), activeEntry);
@@ -1257,6 +1258,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.currentBg = currentBg(),
 						.filter = _filterId,
 						.now = ms,
+						.searchLowerText = QStringView(searchLowerText),
 						.width = fullWidth,
 						.active = active,
 						.selected = selected,
@@ -1284,6 +1286,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					tr::now,
 					lt_count,
 					_searchedMigratedCount + _searchedCount);
+			const auto searchLowerText = _searchState.query.toLower();
 			p.fillRect(0, 0, fullWidth, st::searchedBarHeight, st::searchedBarBg);
 			p.setFont(st::searchedBarFont);
 			p.setPen(st::searchedBarFg);
@@ -1331,6 +1334,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.currentBg = currentBg(),
 						.filter = _filterId,
 						.now = ms,
+						.searchLowerText = QStringView(searchLowerText),
 						.width = fullWidth,
 						.active = active,
 						.selected = selected,

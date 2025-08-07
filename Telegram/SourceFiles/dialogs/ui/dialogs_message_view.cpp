@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
 #include "dialogs/dialogs_three_state_icon.h"
@@ -207,6 +208,47 @@ void MessageView::prepare(
 	}
 	TextUtilities::Trim(preview.text);
 	auto textToCache = DialogsPreviewText(std::move(preview.text));
+
+	if (!options.searchLowerText.isEmpty()) {
+		static constexpr auto kLeftShift = 15;
+		auto minFrom = std::numeric_limits<uint16>::max();
+
+		const auto words = Ui::Text::Words(options.searchLowerText);
+		textToCache.entities.reserve(textToCache.entities.size()
+			+ words.size());
+
+		for (const auto &word : words) {
+			const auto selection = HistoryView::FindSearchQueryHighlight(
+				textToCache.text,
+				word);
+			if (!selection.empty()) {
+				minFrom = std::min(minFrom, selection.from);
+				textToCache.entities.push_back(EntityInText{
+					EntityType::Colorized,
+					selection.from,
+					selection.to - selection.from
+				});
+			}
+		}
+
+		if (!words.empty() && minFrom != std::numeric_limits<uint16>::max()) {
+			std::sort(
+				textToCache.entities.begin(),
+				textToCache.entities.end(),
+				[](const auto &a, const auto &b) {
+					return a.offset() < b.offset();
+				});
+
+			const auto textSize = textToCache.text.size();
+			minFrom = (minFrom > textSize || minFrom < kLeftShift)
+				? 0
+				: minFrom - kLeftShift;
+
+			textToCache = TextWithEntities(
+					minFrom > 0 ? kQEllipsis : QString())
+				.append(Text::Mid(std::move(textToCache), minFrom));
+		}
+	}
 	_hasPlainLinkAtBegin = !textToCache.entities.empty()
 		&& (textToCache.entities.front().type() == EntityType::Colorized);
 	_textCache.setMarkedText(

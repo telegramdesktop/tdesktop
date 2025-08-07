@@ -41,6 +41,7 @@ struct ItemPreview {
 
 struct ToPreviewOptions {
 	const std::vector<ItemPreviewImage> *existing = nullptr;
+	QStringView searchLowerText;
 	bool hideSender = false;
 	bool hideCaption = false;
 	bool ignoreMessageText = false;
