@@ -101,59 +101,6 @@ Element *MousedElement/* = nullptr*/;
 	return session->tryResolveWindow();
 }
 
-[[nodiscard]] TextSelection FindSearchQueryHighlight(
-		const QString &text,
-		const QString &query) {
-	const auto lower = query.toLower();
-	const auto inside = text.toLower();
-	const auto find = [&](QStringView part) {
-		auto skip = 0;
-		if (const auto from = inside.indexOf(part, skip); from >= 0) {
-			if (!from || !inside[from - 1].isLetterOrNumber()) {
-				return int(from);
-			}
-			skip = from + 1;
-		}
-		return -1;
-	};
-	if (const auto from = find(lower); from >= 0) {
-		const auto till = from + query.size();
-		if (till >= inside.size() || !inside[till].isLetterOrNumber()) {
-			return { uint16(from), uint16(till) };
-		}
-	}
-	const auto tillEndOfWord = [&](int from) {
-		for (auto till = from + 1; till != inside.size(); ++till) {
-			if (!inside[till].isLetterOrNumber()) {
-				return TextSelection{ uint16(from), uint16(till) };
-			}
-		}
-		return TextSelection{ uint16(from), uint16(inside.size()) };
-	};
-	const auto words = QStringView(lower).split(
-		QRegularExpression(
-			u"[\\W]"_q,
-			QRegularExpression::UseUnicodePropertiesOption),
-		Qt::SkipEmptyParts);
-	for (const auto &word : words) {
-		const auto length = int(word.size());
-		const auto cut = length / 2;
-		const auto part = word.mid(0, length - cut);
-		const auto offset = find(part);
-		if (offset < 0) {
-			continue;
-		}
-		for (auto i = 0; i != cut; ++i) {
-			const auto part = word.mid(0, length - i);
-			if (const auto from = find(part); from >= 0) {
-				return tillEndOfWord(from);
-			}
-		}
-		return tillEndOfWord(offset);
-	}
-	return {};
-}
-
 [[nodiscard]] TextSelection ApplyModificationsFrom(
 		TextSelection result,
 		const Ui::Text::String &text) {
@@ -2526,6 +2473,62 @@ Window::SessionController *ExtractController(const ClickContext &context) {
 		return controller;
 	}
 	return nullptr;
+}
+
+TextSelection FindSearchQueryHighlight(
+		const QString &text,
+		const QString &query) {
+	const auto lower = query.toLower();
+	return FindSearchQueryHighlight(text, QStringView(lower));
+}
+
+TextSelection FindSearchQueryHighlight(
+		const QString &text,
+		QStringView lower) {
+	const auto inside = text.toLower();
+	const auto find = [&](QStringView part) {
+		auto skip = 0;
+		if (const auto from = inside.indexOf(part, skip); from >= 0) {
+			if (!from || !inside[from - 1].isLetterOrNumber()) {
+				return int(from);
+			}
+			skip = from + 1;
+		}
+		return -1;
+	};
+	if (const auto from = find(lower); from >= 0) {
+		const auto till = from + lower.size();
+		if (till >= inside.size()
+			|| !(inside.begin() + till)->isLetterOrNumber()) {
+			return { uint16(from), uint16(till) };
+		}
+	}
+	const auto tillEndOfWord = [&](int from) {
+		for (auto till = from + 1; till != inside.size(); ++till) {
+			if (!inside[till].isLetterOrNumber()) {
+				return TextSelection{ uint16(from), uint16(till) };
+			}
+		}
+		return TextSelection{ uint16(from), uint16(inside.size()) };
+	};
+	const auto words = Ui::Text::Words(lower);
+	for (const auto &word : words) {
+		const auto length = int(word.size());
+		const auto cut = length / 2;
+		const auto part = word.mid(0, length - cut);
+		const auto offset = find(part);
+		if (offset < 0) {
+			continue;
+		}
+		for (auto i = 0; i != cut; ++i) {
+			const auto part = word.mid(0, length - i);
+			if (const auto from = find(part); from >= 0) {
+				return tillEndOfWord(from);
+			}
+		}
+		return tillEndOfWord(offset);
+	}
+	return {};
 }
 
 } // namespace HistoryView

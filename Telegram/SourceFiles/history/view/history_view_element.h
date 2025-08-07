@@ -755,4 +755,12 @@ private:
 [[nodiscard]] Window::SessionController *ExtractController(
 	const ClickContext &context);
 
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+	const QString &text,
+	const QString &query);
+
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+	const QString &text,
+	QStringView lower);
+
 } // namespace HistoryView
