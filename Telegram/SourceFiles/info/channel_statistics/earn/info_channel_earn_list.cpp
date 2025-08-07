@@ -200,6 +200,8 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 		QLocale().toString(date.time(), QLocale::ShortFormat));
 }
 
+constexpr auto kMinus = QChar(0x2212);
+
 } // namespace
 
 InnerWidget::InnerWidget(
@@ -401,7 +403,6 @@ void InnerWidget::fill() {
 		);
 
 	constexpr auto kMinorLength = 3;
-	constexpr auto kMinus = QChar(0x2212);
 	//constexpr auto kApproximately = QChar(0x2248);
 	const auto multiplier = data.usdRate;
 
@@ -412,35 +413,6 @@ void InnerWidget::fill() {
 
 	const auto session = &_peer->session();
 	const auto withdrawalEnabled = WithdrawalEnabled(session);
-	const auto addEmojiToMajor = [=](
-			not_null<Ui::FlatLabel*> label,
-			rpl::producer<CreditsAmount> value,
-			std::optional<bool> isIn,
-			std::optional<QMargins> margins) {
-		const auto &st = label->st();
-		const auto prepended = !isIn
-			? TextWithEntities()
-			: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
-		std::move(
-			value
-		) | rpl::start_with_next([=](CreditsAmount v) {
-			auto helper = Ui::Text::CustomEmojiHelper();
-			auto icon = helper.paletteDependent({ .factory = [=] {
-				return Ui::Earn::IconCurrencyColored(
-					st.style.font,
-					!isIn
-					? st::currencyFg->c
-					: (*isIn)
-					? st::boxTextFgGood->c
-					: st::menuIconAttentionColor->c);
-				}, .margin = margins
-					? *margins
-					: st::channelEarnCurrencyCommonMargins });
-			label->setMarkedText(
-				base::duplicate(prepended).append(icon).append(MajorPart(v)),
-				helper.context());
-		}, label->lifetime());
-	};
 
 	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
@@ -727,7 +699,7 @@ void InnerWidget::fill() {
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				st::channelEarnOverviewMajorLabel);
-			addEmojiToMajor(
+			AddEmojiToMajor(
 				majorLabel,
 				rpl::duplicate(currencyValue),
 				{},
@@ -880,7 +852,7 @@ void InnerWidget::fill() {
 		{
 			const auto &m = st::channelEarnCurrencyCommonMargins;
 			const auto p = QMargins(m.left(), 0, m.right(), m.bottom());
-			addEmojiToMajor(majorLabel, rpl::single(value), {}, p);
+			AddEmojiToMajor(majorLabel, rpl::single(value), {}, p);
 		}
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
@@ -1162,7 +1134,7 @@ void InnerWidget::fill() {
 				const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 					wrap,
 					st::channelEarnHistoryMajorLabel);
-				addEmojiToMajor(
+				AddEmojiToMajor(
 					majorLabel,
 					rpl::single(entry.credits),
 					isIn,
@@ -1196,7 +1168,7 @@ void InnerWidget::fill() {
 					const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 						labels,
 						st::channelEarnOverviewMajorLabel);
-					addEmojiToMajor(
+					AddEmojiToMajor(
 						majorLabel,
 						rpl::single(entry.credits),
 						isIn,
@@ -1528,6 +1500,36 @@ void InnerWidget::setInnerFocus() {
 
 not_null<PeerData*> InnerWidget::peer() const {
 	return _peer;
+}
+
+void AddEmojiToMajor(
+		not_null<Ui::FlatLabel*> label,
+		rpl::producer<CreditsAmount> value,
+		std::optional<bool> isIn,
+		std::optional<QMargins> margins) {
+	const auto &st = label->st();
+	const auto prepended = !isIn
+		? TextWithEntities()
+		: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
+	std::move(
+		value
+	) | rpl::start_with_next([=](CreditsAmount v) {
+		auto helper = Ui::Text::CustomEmojiHelper();
+		auto icon = helper.paletteDependent({ .factory = [=] {
+			return Ui::Earn::IconCurrencyColored(
+				st.style.font,
+				!isIn
+				? st::currencyFg->c
+				: (*isIn)
+				? st::boxTextFgGood->c
+				: st::menuIconAttentionColor->c);
+			}, .margin = margins
+				? *margins
+				: st::channelEarnCurrencyCommonMargins });
+		label->setMarkedText(
+			base::duplicate(prepended).append(icon).append(MajorPart(v)),
+			helper.context());
+	}, label->lifetime());
 }
 
 } // namespace Info::ChannelEarn

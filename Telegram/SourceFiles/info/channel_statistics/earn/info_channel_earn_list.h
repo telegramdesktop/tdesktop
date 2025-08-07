@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class Show;
+class FlatLabel;
 } // namespace Ui
 
 namespace Info {
@@ -62,5 +63,11 @@ private:
 	rpl::event_stream<> _stateUpdated;
 
 };
+
+void AddEmojiToMajor(
+	not_null<Ui::FlatLabel*> label,
+	rpl::producer<CreditsAmount> value,
+	std::optional<bool> isIn,
+	std::optional<QMargins> margins);
 
 } // namespace Info::ChannelEarn
