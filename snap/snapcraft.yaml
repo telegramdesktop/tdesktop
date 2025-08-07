@@ -23,7 +23,6 @@ apps:
       - network-bind
       - network-status
       - removable-media
-      - unity7
     slots:
       - mpris
 
