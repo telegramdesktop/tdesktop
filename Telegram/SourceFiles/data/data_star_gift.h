@@ -154,6 +154,7 @@ struct SavedStarGift {
 	TextWithEntities message;
 	int64 starsConverted = 0;
 	int64 starsUpgradedBySender = 0;
+	QString giftPrepayUpgradeHash;
 	PeerId fromId = 0;
 	TimeId date = 0;
 	bool upgradable = false;

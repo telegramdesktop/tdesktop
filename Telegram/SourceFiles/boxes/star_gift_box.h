@@ -110,6 +110,7 @@ struct StarGiftUpgradeArgs {
 	Fn<void(bool)> ready;
 	not_null<PeerData*> peer;
 	Data::SavedStarGiftId savedId;
+	QString giftPrepayUpgradeHash;
 	int cost = 0;
 	bool canAddSender = false;
 	bool canAddComment = false;

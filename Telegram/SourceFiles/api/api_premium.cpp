@@ -967,6 +967,8 @@ std::optional<Data::SavedStarGift> FromTL(
 		.starsConverted = int64(data.vconvert_stars().value_or_empty()),
 		.starsUpgradedBySender = int64(
 			data.vupgrade_stars().value_or_empty()),
+		.giftPrepayUpgradeHash = qs(
+			data.vprepaid_upgrade_hash().value_or_empty()),
 		.fromId = (data.vfrom_id()
 			? peerFromMTP(*data.vfrom_id())
 			: PeerId()),

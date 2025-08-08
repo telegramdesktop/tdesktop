@@ -2086,6 +2086,23 @@ void ShowGiftUpgradedToast(
 	}
 }
 
+void ShowUpgradeGiftedToast(
+		base::weak_ptr<Window::SessionController> weak,
+		not_null<PeerData*> peer) {
+	if (const auto strong = weak.get()) {
+		strong->showToast({
+			.title = tr::lng_gift_upgrade_gifted_title(tr::now),
+			.text = (peer->isBroadcast()
+				? tr::lng_gift_upgrade_gifted_about_channel
+				: tr::lng_gift_upgrade_gifted_about)(
+					tr::now,
+					lt_name,
+					peer->shortName()),
+			.duration = kUpgradeDoneToastDuration,
+		});
+	}
+}
+
 void SendStarsFormRequest(
 		std::shared_ptr<Main::SessionShow> show,
 		Settings::SmallBalanceResult result,
@@ -2138,9 +2155,9 @@ void UpgradeGift(
 				if (owner) {
 					owner->owner().nextForUpgradeGiftInvalidate(owner);
 				}
-				if (updates) {
-					ShowGiftUpgradedToast(strong, session, *updates);
-				}
+			}
+			if (updates) {
+				ShowGiftUpgradedToast(weak, session, *updates);
 			}
 		}
 		done(result);
@@ -2167,6 +2184,30 @@ void UpgradeGift(
 		MTP_inputInvoiceStarGiftUpgrade(
 			MTP_flags(keepDetails ? Flag::f_keep_original_details : Flag()),
 			Api::InputSavedStarGiftId(savedId)),
+		std::move(formDone));
+}
+
+void GiftUpgrade(
+		not_null<Window::SessionController*> window,
+		not_null<PeerData*> peer,
+		QString giftPrepayUpgradeHash,
+		int stars,
+		Fn<void(Payments::CheckoutResult)> done) {
+	const auto weak = base::make_weak(window);
+	auto formDone = [=](
+			Payments::CheckoutResult result,
+			const MTPUpdates *updates) {
+		if (result == Payments::CheckoutResult::Paid) {
+			ShowUpgradeGiftedToast(weak, peer);
+		}
+		done(result);
+	};
+	using Flag = MTPDinputInvoiceStarGiftUpgrade::Flag;
+	RequestStarsFormAndSubmit(
+		window->uiShow(),
+		MTP_inputInvoiceStarGiftPrepaidUpgrade(
+			peer->input,
+			MTP_string(giftPrepayUpgradeHash)),
 		std::move(formDone));
 }
 
@@ -4904,15 +4945,33 @@ void UpgradeBox(
 
 	infoRow(
 		tr::lng_gift_upgrade_unique_title(),
-		tr::lng_gift_upgrade_unique_about(),
+		(args.savedId
+			? tr::lng_gift_upgrade_unique_about()
+			: (args.peer->isBroadcast()
+				? tr::lng_gift_upgrade_unique_about_channel
+				: tr::lng_gift_upgrade_unique_about_user)(
+					lt_name,
+					rpl::single(args.peer->shortName()))),
 		&st::menuIconUnique);
 	infoRow(
 		tr::lng_gift_upgrade_transferable_title(),
-		tr::lng_gift_upgrade_transferable_about(),
+		(args.savedId
+			? tr::lng_gift_upgrade_transferable_about()
+			: (args.peer->isBroadcast()
+				? tr::lng_gift_upgrade_transferable_about_channel
+				: tr::lng_gift_upgrade_transferable_about_user)(
+					lt_name,
+					rpl::single(args.peer->shortName()))),
 		&st::menuIconReplace);
 	infoRow(
 		tr::lng_gift_upgrade_tradable_title(),
-		tr::lng_gift_upgrade_tradable_about(),
+		(args.savedId
+			? tr::lng_gift_upgrade_tradable_about()
+			: (args.peer->isBroadcast()
+				? tr::lng_gift_upgrade_tradable_about_channel
+				: tr::lng_gift_upgrade_tradable_about_user)(
+					lt_name,
+					rpl::single(args.peer->shortName()))),
 		&st::menuIconTradable);
 
 	struct State {
@@ -4920,9 +4979,11 @@ void UpgradeBox(
 		bool preserveDetails = false;
 	};
 	const auto state = std::make_shared<State>();
-	const auto preview = !args.savedId;
+	const auto gifting = !args.savedId
+		&& !args.giftPrepayUpgradeHash.isEmpty();
+	const auto preview = !args.savedId && !gifting;
 
-	if (!preview) {
+	if (!preview && !gifting) {
 		const auto skip = st::defaultVerticalListSkip;
 		container->add(
 			object_ptr<PlainShadow>(container),
@@ -4946,6 +5007,9 @@ void UpgradeBox(
 	}
 
 	box->setStyle(preview ? st::giftBox : st::upgradeGiftBox);
+	if (gifting) {
+		box->setWidth(st::boxWideWidth);
+	}
 
 	const auto cost = args.cost;
 	auto buttonText = preview ? tr::lng_box_ok() : rpl::single(QString());
@@ -4969,11 +5033,18 @@ void UpgradeBox(
 				}
 			}
 		};
-		UpgradeGift(controller, args.savedId, keepDetails, cost, done);
+		if (gifting) {
+			GiftUpgrade(
+				controller,
+				args.peer,
+				args.giftPrepayUpgradeHash,
+				cost,
+				done);
+		} else {
+			UpgradeGift(controller, args.savedId, keepDetails, cost, done);
+		}
 	});
 	if (!preview) {
-		auto helper = Ui::Text::CustomEmojiHelper();
-		auto star = helper.paletteDependent(Ui::Earn::IconCreditsEmoji());
 		SetButtonMarkedLabel(
 			button,
 			(cost
@@ -4985,7 +5056,7 @@ void UpgradeBox(
 						CreditsAmount{ cost }))),
 					Ui::Text::WithEntities)
 				: tr::lng_gift_upgrade_confirm(Ui::Text::WithEntities)),
-			helper.context(),
+			{},
 			st::creditsBoxButtonLabel,
 			&st::giftBox.button.textFg);
 	}

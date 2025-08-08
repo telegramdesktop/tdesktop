@@ -1832,6 +1832,14 @@ void GenericCreditsEntryBox(
 		ToggleStarGiftSaved(show, savedId, save, done);
 	};
 
+	const auto canUpgrade = e.stargiftId
+		&& e.canUpgradeGift
+		&& (e.in || giftToSelf || giftToChannelCanManage)
+		&& !e.uniqueGift;
+	const auto canUpgradeFree = canUpgrade && (e.starsUpgradedBySender > 0);
+	const auto canGiftUpgrade = !e.uniqueGift
+		&& !e.in
+		&& !e.giftPrepayUpgradeHash.isEmpty();
 	const auto upgradeGuard = std::make_shared<bool>();
 	const auto upgrade = [=] {
 		const auto window = show->resolveWindow();
@@ -1840,7 +1848,7 @@ void GenericCreditsEntryBox(
 		}
 		*upgradeGuard = true;
 		const auto savedId = EntryToSavedStarGiftId(&window->session(), e);
-		const auto openWhenDone = giftToChannel
+		const auto openWhenDone = (giftToChannel || canGiftUpgrade)
 			? window->session().data().peer(PeerId(e.bareGiftOwnerId)).get()
 			: starGiftSender;
 		using namespace Ui;
@@ -1850,6 +1858,7 @@ void GenericCreditsEntryBox(
 			.ready = [=](bool) { *upgradeGuard = false; },
 			.peer = openWhenDone,
 			.savedId = savedId,
+			.giftPrepayUpgradeHash = e.giftPrepayUpgradeHash,
 			.cost = e.starsUpgradedBySender ? 0 : e.starsToUpgrade,
 			.canAddSender = !giftToSelf && !e.anonymous,
 			.canAddComment = (!giftToSelf
@@ -1860,11 +1869,6 @@ void GenericCreditsEntryBox(
 				|| (e.starsUpgradedBySender && !e.anonymous)),
 		});
 	};
-	const auto canUpgrade = e.stargiftId
-		&& e.canUpgradeGift
-		&& (e.in || giftToSelf || giftToChannelCanManage)
-		&& !e.uniqueGift;
-	const auto canUpgradeFree = canUpgrade && (e.starsUpgradedBySender > 0);
 
 	if (isStarGift && e.id.isEmpty()) {
 		const auto convert = [=, weak = base::make_weak(box)] {
@@ -2097,6 +2101,8 @@ void GenericCreditsEntryBox(
 			? tr::lng_gift_upgrade_free()
 			: canUpgrade
 			? tr::lng_gift_unique_upgrade()
+			: canGiftUpgrade
+			? tr::lng_gift_unique_gift_upgrade()
 			: (canToggle && !e.savedToProfile)
 			? (e.giftChannelSavedId
 				? tr::lng_gift_show_on_channel
@@ -2169,7 +2175,7 @@ void GenericCreditsEntryBox(
 				e.giftResaleForceTon,
 				to,
 				crl::guard(box, [=] { box->closeBox(); }));
-		} else if (canUpgrade) {
+		} else if (canUpgrade || canGiftUpgrade) {
 			upgrade();
 		} else if (canToggle && !e.savedToProfile) {
 			toggleVisibility(true);
@@ -2348,6 +2354,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 		.bareEntryOwnerId = chatGiftPeer ? chatGiftPeer->id.value : 0,
 		.giftChannelSavedId = data.manageId.chatSavedId(),
 		.stargiftId = data.info.id,
+		.giftPrepayUpgradeHash = data.giftPrepayUpgradeHash,
 		.uniqueGift = data.info.unique,
 		.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 		.limitedCount = data.info.limitedCount,

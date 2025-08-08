@@ -5839,12 +5839,17 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareStarGift = [&](
 			const MTPDmessageActionStarGift &action) {
 		auto result = PreparedServiceText();
+		const auto upgradeGifted = action.is_prepaid_upgrade();
 		const auto isSelf = _from->isSelf();
 		const auto peer = isSelf ? _history->peer : _from;
 		const auto stars = action.vgift().match([&](
 				const MTPDstarGift &data) {
-			return uint64(data.vstars().v)
-				+ uint64(action.vupgrade_stars().value_or_empty());
+			return upgradeGifted
+				? uint64(action.vupgrade_stars().value_or_empty())
+				: action.is_upgrade_separate()
+				? uint64(data.vstars().v)
+				: (uint64(data.vstars().v)
+					+ uint64(action.vupgrade_stars().value_or_empty()));
 		}, [](const MTPDstarGiftUnique &) {
 			return uint64();
 		});
@@ -5876,30 +5881,54 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			const auto fromId = action.vfrom_id()
 				? peerFromMTP(*action.vfrom_id())
 				: PeerId();
-			const auto from = fromId ? peer->owner().peer(fromId) : peer;
+			const auto from = fromId
+				? peer->owner().peer(fromId).get()
+				: nullptr;
 			const auto channel = peer->owner().channel(
 				peerToChannel(giftPeer));
-			if (from->isSelf()) {
+			if (!from || from->isSelf()) {
 				result.links.push_back(channel->createOpenLink());
-				result.text = tr::lng_action_gift_sent_self_channel(
-					tr::now,
-					lt_name,
-					Ui::Text::Link(channel->name(), 1),
-					lt_cost,
-					cost,
-					Ui::Text::WithEntities);
+				if (upgradeGifted) {
+					result.text = tr::lng_action_gift_sent_upgrade_self_channel(
+						tr::now,
+						lt_cost,
+						cost,
+						lt_name,
+						Ui::Text::Link(channel->name(), 1),
+						Ui::Text::WithEntities);
+				} else {
+					result.text = tr::lng_action_gift_sent_self_channel(
+						tr::now,
+						lt_name,
+						Ui::Text::Link(channel->name(), 1),
+						lt_cost,
+						cost,
+						Ui::Text::WithEntities);
+				}
 			} else {
 				result.links.push_back(from->createOpenLink());
 				result.links.push_back(channel->createOpenLink());
-				result.text = tr::lng_action_gift_sent_channel(
-					tr::now,
-					lt_user,
-					Ui::Text::Link(from->shortName(), 1),
-					lt_name,
-					Ui::Text::Link(channel->name(), 2),
-					lt_cost,
-					cost,
-					Ui::Text::WithEntities);
+				if (upgradeGifted) {
+					result.text = tr::lng_action_gift_sent_upgrade_self_other(
+						tr::now,
+						lt_cost,
+						cost,
+						lt_name,
+						Ui::Text::Link(channel->name(), 2),
+						lt_user,
+						Ui::Text::Link(from->shortName(), 1),
+						Ui::Text::WithEntities);
+				} else {
+					result.text = tr::lng_action_gift_sent_channel(
+						tr::now,
+						lt_user,
+						Ui::Text::Link(from->shortName(), 1),
+						lt_name,
+						Ui::Text::Link(channel->name(), 2),
+						lt_cost,
+						cost,
+						Ui::Text::WithEntities);
+				}
 			}
 		} else if (anonymous || _history->peer->isSelf()) {
 			result.text = (anonymous
@@ -5909,6 +5938,57 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 					lt_cost,
 					cost,
 					Ui::Text::WithEntities);
+		} else if (upgradeGifted) {
+			// Who sent the gift.
+			const auto fromId = action.vfrom_id()
+				? peerFromMTP(*action.vfrom_id())
+				: PeerId();
+			const auto from = fromId
+				? peer->owner().peer(fromId).get()
+				: nullptr;
+			if (isSelf) {
+				result.links.push_back(peer->createOpenLink());
+				if (!from || from->isSelf()) {
+					result.text = tr::lng_action_gift_sent_upgrade_self(
+						tr::now,
+						lt_cost,
+						cost,
+						Ui::Text::WithEntities);
+				} else {
+					result.links.push_back(from->createOpenLink());
+					result.text = tr::lng_action_gift_sent_upgrade_self_other(
+						tr::now,
+						lt_cost,
+						cost,
+						lt_name,
+						Ui::Text::Link(peer->shortName(), 1),
+						lt_user,
+						Ui::Text::Link(from->shortName(), 2),
+						Ui::Text::WithEntities);
+				}
+			} else {
+				result.links.push_back(peer->createOpenLink());
+				if (from && from != peer && !from->isSelf()) {
+					result.links.push_back(from->createOpenLink());
+					result.text = tr::lng_action_gift_sent_upgrade_other(
+						tr::now,
+						lt_from,
+						Ui::Text::Link(peer->shortName(), 1),
+						lt_cost,
+						cost,
+						lt_user,
+						Ui::Text::Link(from->shortName(), 2),
+						Ui::Text::WithEntities);
+				} else {
+					result.text = tr::lng_action_gift_sent_upgrade(
+						tr::now,
+						lt_from,
+						Ui::Text::Link(peer->shortName(), 1),
+						lt_cost,
+						cost,
+						Ui::Text::WithEntities);
+				}
+			}
 		} else {
 			if (!isSelf) {
 				result.links.push_back(peer->createOpenLink());
@@ -5950,6 +6030,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			: PeerId();
 		const auto service = _from->isServiceUser();
 		const auto toChannel = service && peerIsChannel(giftPeer);
+		const auto upgradeHelped = action.is_prepaid_upgrade();
 		const auto peer = isSelf ? _history->peer : _from;
 		const auto fromId = action.vfrom_id()
 			? peerFromMTP(*action.vfrom_id())
@@ -6003,7 +6084,22 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			}
 			result.links.push_back(channel->createOpenLink());
 		} else {
-			if (!from->isServiceUser() && !_history->peer->isSelf()) {
+			if (upgradeHelped) {
+				result.links.push_back(peer->createOpenLink());
+				if (isSelf) {
+					result.text = tr::lng_action_gift_upgraded_helped_self(
+						tr::now,
+						lt_user,
+						Ui::Text::Link(peer->shortName(), 1),
+						Ui::Text::WithEntities);
+				} else {
+					result.text = tr::lng_action_gift_upgraded_helped(
+						tr::now,
+						lt_user,
+						Ui::Text::Link(peer->shortName(), 1),
+						Ui::Text::WithEntities);
+				}
+			} else if (!from->isServiceUser() && !_history->peer->isSelf()) {
 				if (!resale || !isSelf) {
 					result.links.push_back(from->createOpenLink());
 				}
