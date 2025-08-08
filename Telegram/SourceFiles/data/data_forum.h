@@ -99,6 +99,11 @@ public:
 	void saveActiveSubsectionThread(not_null<Thread*> thread);
 	[[nodiscard]] Thread *activeSubsectionThread() const;
 
+	void markUnreadCountsUnknown(MsgId readTillId);
+	void updateUnreadCounts(
+		MsgId readTillId,
+		const base::flat_map<not_null<ForumTopic*>, int> &counts);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

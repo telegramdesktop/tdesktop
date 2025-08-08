@@ -713,7 +713,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 			} else {
 				Assert(!state->sentReadTill || state->sentReadTill > tillId);
 			}
-			history->validateMonoforumUnread(tillId);
+			history->validateMonoAndForumUnread(tillId);
 			sendReadRequests();
 			finish();
 		};

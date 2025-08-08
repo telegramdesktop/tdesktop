@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel_admins.h"
 #include "data/data_changes.h"
 #include "data/data_chat_filters.h"
+#include "data/data_replies_list.h"
 #include "data/data_send_action.h"
 #include "data/data_star_gift.h"
 #include "data/data_emoji_statuses.h"
@@ -3156,6 +3157,58 @@ void History::applyDialogTopMessage(MsgId topMessageId) {
 	}
 }
 
+void History::tryMarkForumIntervalRead(
+		MsgId wasInboxReadBefore,
+		MsgId nowInboxReadBefore) {
+	if (!isForum()
+		|| !peer->asChannel()->useSubsectionTabs()
+		|| (nowInboxReadBefore <= wasInboxReadBefore)) {
+		return;
+	} else if (loadedAtBottom() && nowInboxReadBefore >= minMsgId()) {
+		// Count for each sublist how many messages are still not read.
+		auto counts = base::flat_map<not_null<Data::ForumTopic*>, int>();
+		for (const auto &block : blocks) {
+			for (const auto &message : block->messages) {
+				const auto item = message->data();
+				if (!item->isRegular() || item->id < nowInboxReadBefore) {
+					continue;
+				}
+				if (const auto topic = item->topic()) {
+					++counts[topic];
+				}
+			}
+		}
+		if (const auto forum = peer->forum()) {
+			forum->updateUnreadCounts(nowInboxReadBefore - 1, counts);
+		}
+	} else if (minMsgId() <= wasInboxReadBefore
+		&& maxMsgId() >= nowInboxReadBefore) {
+		// Count for each sublist how many messages were read.
+		for (const auto &block : blocks) {
+			for (const auto &message : block->messages) {
+				const auto item = message->data();
+				if (!item->isRegular() || item->id < wasInboxReadBefore) {
+					continue;
+				} else if (item->id >= nowInboxReadBefore) {
+					break;
+				}
+				if (const auto topic = item->topic()) {
+					const auto replies = topic->replies();
+					const auto unread = replies->unreadCountCurrent();
+					if (unread > 0) {
+						replies->setInboxReadTill(item->id, unread - 1);
+					}
+				}
+			}
+		}
+	} else {
+		// We can't invalidate sublist unread counts here, because no read
+		// request was yet sent to the server (so it can't return correct
+		// values yet), we need to do that after we send read request.
+		_flags |= Flag::MonoAndForumUnreadInvalidatePending;
+	}
+}
+
 void History::tryMarkMonoforumIntervalRead(
 		MsgId wasInboxReadBefore,
 		MsgId nowInboxReadBefore) {
@@ -3201,24 +3254,29 @@ void History::tryMarkMonoforumIntervalRead(
 		// We can't invalidate sublist unread counts here, because no read
 		// request was yet sent to the server (so it can't return correct
 		// values yet), we need to do that after we send read request.
-		_flags |= Flag::MonoforumUnreadInvalidatePending;
+		_flags |= Flag::MonoAndForumUnreadInvalidatePending;
 	}
 }
 
-void History::validateMonoforumUnread(MsgId readTillId) {
-	if (!(_flags & Flag::MonoforumUnreadInvalidatePending)) {
+void History::validateMonoAndForumUnread(MsgId readTillId) {
+	if (!(_flags & Flag::MonoAndForumUnreadInvalidatePending)) {
 		return;
 	}
-	_flags &= ~Flag::MonoforumUnreadInvalidatePending;
-	if (!amMonoforumAdmin()) {
-		return;
-	} else if (const auto monoforum = peer->monoforum()) {
-		monoforum->markUnreadCountsUnknown(readTillId);
+	_flags &= ~Flag::MonoAndForumUnreadInvalidatePending;
+	if (isForum()) {
+		if (const auto forum = peer->forum()) {
+			forum->markUnreadCountsUnknown(readTillId);
+		}
+	} else if (amMonoforumAdmin()) {
+		if (const auto monoforum = peer->monoforum()) {
+			monoforum->markUnreadCountsUnknown(readTillId);
+		}
 	}
 }
 
 void History::setInboxReadTill(MsgId upTo) {
 	if (_inboxReadBefore) {
+		tryMarkForumIntervalRead(*_inboxReadBefore, upTo + 1);
 		tryMarkMonoforumIntervalRead(*_inboxReadBefore, upTo + 1);
 		accumulate_max(*_inboxReadBefore, upTo + 1);
 	} else {

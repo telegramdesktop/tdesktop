@@ -434,7 +434,10 @@ public:
 	void tryMarkMonoforumIntervalRead(
 		MsgId wasInboxReadBefore,
 		MsgId nowInboxReadBefore);
-	void validateMonoforumUnread(MsgId readTillId);
+	void tryMarkForumIntervalRead(
+		MsgId wasInboxReadBefore,
+		MsgId nowInboxReadBefore);
+	void validateMonoAndForumUnread(MsgId readTillId);
 
 	[[nodiscard]] bool isTopPromoted() const;
 
@@ -480,7 +483,7 @@ private:
 		FakeUnreadWhileOpened = (1 << 5),
 		HasPinnedMessages = (1 << 6),
 		ResolveChatListMessage = (1 << 7),
-		MonoforumUnreadInvalidatePending = (1 << 8),
+		MonoAndForumUnreadInvalidatePending = (1 << 8),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
