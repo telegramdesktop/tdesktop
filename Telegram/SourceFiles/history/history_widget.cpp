@@ -8694,7 +8694,7 @@ void HistoryWidget::editMessage(
 		controller()->showToast(tr::lng_edit_caption_voice(tr::now));
 		return;
 	} else if (const auto media = item->media()) {
-		if (const auto todolist = media->todolist()) {
+		if (media->todolist()) {
 			Window::PeerMenuEditTodoList(controller(), item);
 			return;
 		}

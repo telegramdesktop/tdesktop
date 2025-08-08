@@ -3035,7 +3035,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 		_show->showBox(Ui::MakeInformBox(tr::lng_edit_caption_voice()));
 		return;
 	} else if (const auto media = item->media()) {
-		if (const auto todolist = media->todolist()) {
+		if (media->todolist()) {
 			Assert(_regularWindow != nullptr);
 			Window::PeerMenuEditTodoList(_regularWindow, item);
 			return;
