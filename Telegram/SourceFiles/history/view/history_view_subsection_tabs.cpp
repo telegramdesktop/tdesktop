@@ -728,7 +728,7 @@ void SubsectionTabs::refreshSlice() {
 			}
 			return thread->chatListBadgesState();
 		}();
-		if (topic) {
+		if (topic && badges.unreadCounter <= 0) {
 			// Don't show the small indicators for non-visited unread topics.
 			badges.unread = false;
 		}
