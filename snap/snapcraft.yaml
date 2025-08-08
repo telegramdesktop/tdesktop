@@ -34,6 +34,15 @@ parts:
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,-push-state,-no-as-needed,-ldav1d,-lhwy,-pop-state -s
+    build-packages:
+      - clang
+      - libboost-regex-dev
+      - libheif-dev
+      - libjxl-dev
+      - libssl-dev
+      - libxcb-keysyms1-dev
+      - libxcb-record0-dev
+      - libxcb-screensaver0-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -81,38 +90,6 @@ parts:
 
   pkgs:
     plugin: nil
-    build-packages:
-      - clang
-      - gperf
-      - nasm
-      - wget
-      - libboost-regex-dev
-      - libdav1d-dev
-      - libheif-dev
-      - libhwy-dev
-      - libjxl-dev
-      - libopenh264-dev
-      - libopus-dev
-      - libpipewire-0.3-dev
-      - libssl-dev
-      - libvdpau-dev
-      - libvpx-dev
-      - libxcb-cursor-dev
-      - libxcb-glx0-dev
-      - libxcb-icccm4-dev
-      - libxcb-image0-dev
-      - libxcb-keysyms1-dev
-      - libxcb-randr0-dev
-      - libxcb-record0-dev
-      - libxcb-render-util0-dev
-      - libxcb-screensaver0-dev
-      - libxcb-shape0-dev
-      - libxcb-sync-dev
-      - libxcb-util-dev
-      - libxcb-xfixes0-dev
-      - libxcb-xkb-dev
-      - libxkbcommon-x11-dev
-      - libxv-dev
     stage-packages:
       - libgeoclue-2-0
       - libopenh264-7
@@ -157,6 +134,8 @@ parts:
     source-depth: 1
     source-tag: v1.3.0
     plugin: cmake
+    build-packages:
+      - libdav1d-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -165,14 +144,20 @@ parts:
       - -DAVIF_CODEC_DAV1D=SYSTEM
       - -DAVIF_LIBYUV=OFF
     prime: [-./*]
-    after:
-      - pkgs
 
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
     source-branch: n6.1.1
     plugin: autotools
+    build-packages:
+      - nasm
+      - libdav1d-dev
+      - libopenh264-dev
+      - libopus-dev
+      - libvdpau-dev
+      - libvpx-dev
+      - libxv-dev
     autotools-configure-parameters:
       - --prefix=/usr
       - --libdir=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
@@ -316,13 +301,14 @@ parts:
     prime: [-./*]
     after:
       - nv-codec-headers
-      - pkgs
 
   jpegli:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
     source-tag: v0.11.1
     plugin: cmake
+    build-packages:
+      - libhwy-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -353,14 +339,14 @@ parts:
       - ./usr/include/jpeglib.h
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
     prime: [-./*]
-    after:
-      - pkgs
 
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
     source-tag: 1.24.3
     plugin: cmake
+    build-packages:
+      - libpipewire-0.3-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -372,8 +358,6 @@ parts:
       - -DALSOFT_INSTALL_CONFIG=OFF
       - -DALSOFT_BACKEND_PIPEWIRE=OFF
     prime: [-./*]
-    after:
-      - pkgs
 
   nv-codec-headers:
     source: https://github.com/FFmpeg/nv-codec-headers.git
@@ -396,8 +380,6 @@ parts:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -Dprotobuf_BUILD_TESTS=OFF
     prime: [-./*]
-    after:
-      - pkgs
 
   qt:
     source: https://github.com/qt/qt5.git
@@ -413,6 +395,21 @@ parts:
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,-push-state,-no-as-needed,-lhwy,-pop-state
+    build-packages:
+      - libssl-dev
+      - libxcb-cursor-dev
+      - libxcb-glx0-dev
+      - libxcb-icccm4-dev
+      - libxcb-image0-dev
+      - libxcb-keysyms1-dev
+      - libxcb-randr0-dev
+      - libxcb-render-util0-dev
+      - libxcb-shape0-dev
+      - libxcb-sync-dev
+      - libxcb-util-dev
+      - libxcb-xfixes0-dev
+      - libxcb-xkb-dev
+      - libxkbcommon-x11-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -434,13 +431,14 @@ parts:
     after:
       - jpegli
       - patches
-      - pkgs
 
   rnnoise:
     source: https://github.com/xiph/rnnoise.git
     source-depth: 1
     source-tag: v0.2
     plugin: autotools
+    build-packages:
+      - wget
     autotools-configure-parameters:
       - --prefix=/usr
       - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
@@ -451,14 +449,15 @@ parts:
       craftctl default
       sed -i 's/os_support.h/common.h/g;s/OPUS_CLEAR/RNN_CLEAR/g' src/vec{,_neon}.h
     prime: [-./*]
-    after:
-      - pkgs
 
   tde2e:
     source: https://github.com/tdlib/td.git
     source-depth: 1
     source-commit: 51743dfd01dff6179e2d8f7095729caa4e2222e9
     plugin: cmake
+    build-packages:
+      - gperf
+      - libssl-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -466,14 +465,18 @@ parts:
       - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DTD_E2E_ONLY=ON
     prime: [-./*]
-    after:
-      - pkgs
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
     source-commit: 62321fd7128ab2650b459d4195781af8185e46b5
     plugin: cmake
+    build-packages:
+      - libopenh264-dev
+      - libopus-dev
+      - libpipewire-0.3-dev
+      - libssl-dev
+      - libvpx-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -482,4 +485,3 @@ parts:
     after:
       - ffmpeg
       - jpegli
-      - pkgs
