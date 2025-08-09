@@ -72,9 +72,11 @@ parts:
       for i in $(find "$CRAFT_PART_INSTALL/usr/share/icons" -name "$APP_ID*.svg" -o -name "$APP_ID*.png"); do
         PREFIXED="$(dirname "$i")/snap.$CRAFT_PROJECT_NAME.$(basename "$i" | sed "s/$APP_ID//")"
         mv "$i" "$PREFIXED"
-        DEST="$(dirname "$i" | sed 's@usr/share@meta/gui@')"
-        mkdir -p "$DEST"
-        cp -r "$PREFIXED" "$DEST"
+        DEST="$(echo "$PREFIXED" | sed 's@usr/share@meta/gui@')"
+        DESTDIR="$(dirname "$DEST")"
+        mkdir -p "$DESTDIR"
+        RELATIVE="$(realpath -s --relative-to="$DESTDIR" "$PREFIXED")"
+        ln -sfn "$RELATIVE" "$DEST"
       done
     after:
       - ada
