@@ -553,12 +553,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_notification_title_private_chats" = "Notifications for private chats";
 "lng_notification_about_private_chats#one" = "Please note that **{count} chat** is listed as an exception and won't be affected by this change.";
 "lng_notification_about_private_chats#other" = "Please note that **{count} chats** are listed as exceptions and won't be affected by this change.";
+"lng_notification_volume_private_chats" = "Notifications volume for private chats";
 "lng_notification_title_groups" = "Notifications for groups";
 "lng_notification_about_groups#one" = "Please note that **{count} group** is listed as an exception and won't be affected by this change.";
 "lng_notification_about_groups#other" = "Please note that **{count} groups** are listed as exceptions and won't be affected by this change.";
+"lng_notification_volume_groups" = "Notifications volume for groups";
 "lng_notification_title_channels" = "Notifications for channels";
 "lng_notification_about_channels#one" = "Please note that **{count} channel** is listed as an exception and won't be affected by this change.";
 "lng_notification_about_channels#other" = "Please note that **{count} channels** are listed as exceptions and won't be affected by this change.";
+"lng_notification_volume_channel" = "Notifications volume for channels";
 "lng_notification_exceptions_view" = "View exceptions";
 "lng_notification_enable" = "Enable notifications";
 "lng_notification_sound" = "Sound";
@@ -6335,6 +6338,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_ringtones_box_title" = "Notification Sound";
 "lng_ringtones_box_cloud_subtitle" = "Choose your tone";
+"lng_ringtones_box_volume" = "Volume";
 "lng_ringtones_box_upload_choose" = "Choose a tone";
 "lng_ringtones_box_upload_button" = "Upload Sound";
 "lng_ringtones_box_about" = "Right click on any short voice note or MP3 file in chat and select \"Save for Notifications\". It will appear here.";
