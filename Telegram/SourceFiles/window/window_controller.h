@@ -79,7 +79,7 @@ public:
 	void showToast(TextWithEntities &&text, crl::time duration = 0);
 	void showToast(const QString &text, crl::time duration = 0);
 
-	void showRightColumn(object_ptr<TWidget> widget);
+	void showRightColumn(object_ptr<Ui::RpWidget> widget);
 
 	void showBox(
 		object_ptr<Ui::BoxContent> content,

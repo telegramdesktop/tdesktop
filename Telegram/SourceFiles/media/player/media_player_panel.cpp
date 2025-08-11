@@ -99,7 +99,7 @@ void Panel::updateControlsGeometry() {
 	if (scrollHeight > 0) {
 		_scroll->setGeometryToRight(contentRight(), scrollTop, width, scrollHeight);
 	}
-	if (const auto widget = static_cast<TWidget*>(_scroll->widget())) {
+	if (const auto widget = static_cast<RpWidget*>(_scroll->widget())) {
 		widget->resizeToWidth(width);
 	}
 }

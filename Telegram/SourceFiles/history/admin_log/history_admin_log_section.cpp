@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace AdminLog {
 
-class FixedBar final : public TWidget {
+class FixedBar final : public Ui::RpWidget {
 public:
 	FixedBar(
 		QWidget *parent,
@@ -109,7 +109,8 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 FixedBar::FixedBar(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	not_null<ChannelData*> channel) : TWidget(parent)
+	not_null<ChannelData*> channel)
+: RpWidget(parent)
 , _controller(controller)
 , _channel(channel)
 , _field(this, st::defaultMultiSelectSearchField, tr::lng_dlg_filter())
@@ -276,7 +277,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		goBack();
 	} else {
-		TWidget::mousePressEvent(e);
+		RpWidget::mousePressEvent(e);
 	}
 }
 

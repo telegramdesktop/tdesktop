@@ -126,7 +126,7 @@ int Style::minButtonWidth(HistoryMessageMarkupButton::Type type) const {
 BotKeyboard::BotKeyboard(
 	not_null<Window::SessionController*> controller,
 	QWidget *parent)
-: TWidget(parent)
+: RpWidget(parent)
 , _controller(controller)
 , _st(&st::botKbButton) {
 	setGeometry(0, 0, _st->margin, st::botKbScroll.deltat);

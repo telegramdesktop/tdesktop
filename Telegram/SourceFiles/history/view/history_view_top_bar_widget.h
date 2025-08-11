@@ -233,7 +233,7 @@ private:
 	object_ptr<Ui::IconButton> _menuToggle;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
-	object_ptr<TWidget> _membersShowArea = { nullptr };
+	object_ptr<RpWidget> _membersShowArea = { nullptr };
 	rpl::event_stream<bool> _membersShowAreaActive;
 
 	float64 _narrowRatio = 0.;

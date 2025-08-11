@@ -704,12 +704,12 @@ void SuggestionsWidget::enterEventHook(QEnterEvent *e) {
 	if (!inner().contains(mapToInner(QCursor::pos()))) {
 		clearMouseSelection();
 	}
-	return TWidget::enterEventHook(e);
+	return RpWidget::enterEventHook(e);
 }
 
 void SuggestionsWidget::leaveEventHook(QEvent *e) {
 	clearMouseSelection();
-	return TWidget::leaveEventHook(e);
+	return RpWidget::leaveEventHook(e);
 }
 
 SuggestionsController::SuggestionsController(

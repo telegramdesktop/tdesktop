@@ -80,7 +80,7 @@ Widget::Widget(
 	// Inner widget has OpaquePaintEvent attribute so it doesn't repaint on scroll.
 	// But we should force it to repaint so that GIFs will continue to animate without update() calls.
 	// We do that by creating a transparent widget above our _inner.
-	auto forceRepaintOnScroll = object_ptr<TWidget>(this);
+	auto forceRepaintOnScroll = object_ptr<RpWidget>(this);
 	forceRepaintOnScroll->setGeometry(innerRect().x() + st::roundRadiusSmall, innerRect().y() + st::roundRadiusSmall, st::roundRadiusSmall, st::roundRadiusSmall);
 	forceRepaintOnScroll->setAttribute(Qt::WA_TransparentForMouseEvents);
 	forceRepaintOnScroll->show();

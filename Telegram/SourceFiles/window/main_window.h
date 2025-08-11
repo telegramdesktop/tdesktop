@@ -100,7 +100,7 @@ public:
 	}
 	void positionUpdated();
 
-	void showRightColumn(object_ptr<TWidget> widget);
+	void showRightColumn(object_ptr<Ui::RpWidget> widget);
 	int maximalExtendBy() const;
 	bool canExtendNoMove(int extendBy) const;
 
@@ -215,7 +215,7 @@ private:
 	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<Ui::RpWidget> _body;
-	object_ptr<TWidget> _rightColumn = { nullptr };
+	object_ptr<Ui::RpWidget> _rightColumn = { nullptr };
 
 	bool _isActive = false;
 

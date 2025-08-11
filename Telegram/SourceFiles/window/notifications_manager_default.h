@@ -190,7 +190,7 @@ private:
 
 };
 
-class Background : public TWidget {
+class Background : public Ui::RpWidget {
 public:
 	Background(QWidget *parent);
 

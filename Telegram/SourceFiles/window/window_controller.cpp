@@ -431,7 +431,7 @@ void Controller::showBox(
 	_widget.showOrHideBoxOrLayer(std::move(content), options, animated);
 }
 
-void Controller::showRightColumn(object_ptr<TWidget> widget) {
+void Controller::showRightColumn(object_ptr<Ui::RpWidget> widget) {
 	_widget.showRightColumn(std::move(widget));
 }
 
