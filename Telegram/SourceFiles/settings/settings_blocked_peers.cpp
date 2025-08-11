@@ -186,22 +186,20 @@ void Blocked::setupContent() {
 		}, content->lifetime());
 
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_blocked_list_empty_title(),
-					st::changePhoneTitle)),
-			st::changePhoneTitlePadding);
+				tr::lng_blocked_list_empty_title(),
+				st::changePhoneTitle),
+			st::changePhoneTitlePadding,
+			style::al_top);
 
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_blocked_list_empty_description(),
-					st::changePhoneDescription)),
-			st::changePhoneDescriptionPadding);
+				tr::lng_blocked_list_empty_description(),
+				st::changePhoneDescription),
+			st::changePhoneDescriptionPadding,
+			style::al_top);
 
 		Ui::AddSkip(content, st::settingsBlockedListIconPadding.top());
 	}

@@ -288,19 +288,21 @@ void AboutRatingBox(
 				lt_name,
 				rpl::single(TextWithEntities{ name }),
 				Ui::Text::RichLangValue);
-		const auto aboutNegative = box->addRow(
+		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				std::move(text),
 				st::boostTextNegative),
 			(st::boxRowPadding
-				+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
-		aboutNegative->setTryMakeSimilarLines(true);
+				+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)),
+			style::al_top
+		)->setTryMakeSimilarLines(true);
 	}
 
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(box, std::move(title), st::infoStarsTitle),
-		st::boxRowPadding + QMargins(0, st::boostTitleSkip / 2, 0, 0));
+		st::boxRowPadding + QMargins(0, st::boostTitleSkip / 2, 0, 0),
+		style::al_top);
 
 	if (pending) {
 		const auto now = base::unixtime::now();
@@ -331,7 +333,8 @@ void AboutRatingBox(
 				std::move(text),
 				st::boostTextPending),
 			(st::boxRowPadding
-				+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
+				+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)),
+			style::al_top);
 		aboutPending->setTryMakeSimilarLines(true);
 		aboutPending->setClickHandlerFilter([=](const auto &...) {
 			state->pending = !state->pending.current();
@@ -343,14 +346,15 @@ void AboutRatingBox(
 		});
 	}
 
-	const auto aboutLabel = box->addRow(
+	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			std::move(text),
 			st::boostText),
 		(st::boxRowPadding
-			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
-	aboutLabel->setTryMakeSimilarLines(true);
+			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)),
+		style::al_top
+	)->setTryMakeSimilarLines(true);
 
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto makeBadge = [&](

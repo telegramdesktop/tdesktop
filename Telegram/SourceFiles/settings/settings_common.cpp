@@ -227,14 +227,13 @@ void AddDividerTextWithLottie(
 
 	if (descriptor.about) {
 		verticalLayout->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				verticalLayout,
-				object_ptr<Ui::FlatLabel>(
-					verticalLayout,
-					std::move(descriptor.about),
-					st::settingsFilterDividerLabel)),
+				std::move(descriptor.about),
+				st::settingsFilterDividerLabel),
 			descriptor.aboutMargins.value_or(
-				st::settingsFilterDividerLabelPadding));
+				st::settingsFilterDividerLabelPadding),
+			style::al_top)->setTryMakeSimilarLines(true);
 	}
 
 	verticalLayout->geometryValue(

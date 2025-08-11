@@ -2981,13 +2981,15 @@ void AddBlock(
 			content,
 			std::move(args.subtitle),
 			st::giftBoxSubtitle),
-		st::giftBoxSubtitleMargin);
+		st::giftBoxSubtitleMargin,
+		style::al_top);
 	const auto about = content->add(
 		object_ptr<FlatLabel>(
 			content,
 			std::move(args.about),
 			st::giftBoxAbout),
-		st::giftBoxAboutMargin);
+		st::giftBoxAboutMargin,
+		style::al_top);
 	about->setClickHandlerFilter(std::move(args.aboutFilter));
 	content->add(std::move(args.content));
 }
@@ -4381,13 +4383,15 @@ void ShowUniqueGiftWearBox(
 					lt_name,
 					rpl::single(UniqueGiftName(gift))),
 				st.title ? *st.title : st::uniqueGiftTitle),
-			st::settingsPremiumRowTitlePadding);
+			st::settingsPremiumRowTitlePadding,
+			style::al_top);
 		content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
 				tr::lng_gift_wear_about(),
 				st.subtitle ? *st.subtitle : st::uniqueGiftSubtitle),
-			st::settingsPremiumRowAboutPadding);
+			st::settingsPremiumRowAboutPadding,
+			style::al_top);
 		infoRow(
 			tr::lng_gift_wear_badge_title(),
 			(channel

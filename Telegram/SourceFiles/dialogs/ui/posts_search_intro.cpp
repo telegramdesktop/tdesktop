@@ -170,30 +170,32 @@ void PostsSearchIntro::setup() {
 			_content.get(),
 			std::move(title),
 			st::postsSearchIntroTitle),
-		st::postsSearchIntroTitleMargin);
+		st::postsSearchIntroTitleMargin,
+		style::al_top);
 	_title->setTryMakeSimilarLines(true);
 	_subtitle = _content->add(
 		object_ptr<Ui::FlatLabel>(
 			_content.get(),
 			std::move(subtitle),
 			st::postsSearchIntroSubtitle),
-		st::postsSearchIntroSubtitleMargin);
+		st::postsSearchIntroSubtitleMargin,
+		style::al_top);
 	_subtitle->setTryMakeSimilarLines(true);
 	_button = _content->add(
-		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+		object_ptr<Ui::RoundButton>(
 			_content.get(),
-			object_ptr<Ui::RoundButton>(
-				_content.get(),
-				rpl::single(QString()),
-				st::postsSearchIntroButton))
-	)->entity();
+			rpl::single(QString()),
+			st::postsSearchIntroButton),
+		{},
+		style::al_top);
 	_button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_footer = _content->add(
 		object_ptr<Ui::FlatLabel>(
 			_content.get(),
 			std::move(footer),
 			st::postsSearchIntroFooter),
-		st::postsSearchIntroFooterMargin);
+		st::postsSearchIntroFooterMargin,
+		style::al_top);
 	_footer->setTryMakeSimilarLines(true);
 
 	_state.value(

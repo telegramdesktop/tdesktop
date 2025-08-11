@@ -481,7 +481,8 @@ void PaidReactionsBox(
 			box,
 			tr::lng_paid_react_title(),
 			st::boostCenteredTitle),
-		st::boxRowPadding + QMargins(0, st::paidReactTitleSkip, 0, 0));
+		st::boxRowPadding + QMargins(0, st::paidReactTitleSkip, 0, 0),
+		style::al_top);
 	const auto labelWrap = box->addRow(
 		object_ptr<RpWidget>(box),
 		(st::boxRowPadding

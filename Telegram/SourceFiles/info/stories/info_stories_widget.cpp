@@ -131,7 +131,8 @@ void Widget::restoreState(not_null<Memento*> memento) {
 
 void Widget::refreshBottom() {
 	const auto albumId = _albumId.current();
-	const auto withButton = albumId
+	const auto withButton = (albumId != Data::kStoriesAlbumIdSaved)
+		&& (albumId != Data::kStoriesAlbumIdArchive)
 		&& controller()->storiesPeer()->canEditStories();
 	const auto wasBottom = _pinnedToBottom ? _pinnedToBottom->height() : 0;
 	delete _pinnedToBottom.data();

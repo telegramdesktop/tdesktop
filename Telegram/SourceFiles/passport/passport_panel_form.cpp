@@ -81,22 +81,20 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 	}, _userpic->lifetime());
 
 	_about1 = inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			inner,
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				tr::lng_passport_request1(tr::now, lt_bot, bot->name()),
-				st::passportPasswordLabelBold)),
-		st::passportFormAbout1Padding)->entity();
+			tr::lng_passport_request1(tr::now, lt_bot, bot->name()),
+			st::passportPasswordLabelBold),
+		st::passportFormAbout1Padding,
+		style::al_top);
 
 	_about2 = inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			inner,
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				tr::lng_passport_request2(tr::now),
-				st::passportPasswordLabel)),
-		st::passportFormAbout2Padding)->entity();
+			tr::lng_passport_request2(tr::now),
+			st::passportPasswordLabel),
+		st::passportFormAbout2Padding,
+		style::al_top);
 
 	inner->add(object_ptr<Ui::BoxContentDivider>(
 		inner,

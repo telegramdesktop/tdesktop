@@ -215,43 +215,43 @@ void ConfirmSubscriptionBox(
 		2.);
 
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_channel_invite_subscription_title(),
-				st::inviteLinkSubscribeBoxTitle)));
+			tr::lng_channel_invite_subscription_title(),
+			st::inviteLinkSubscribeBoxTitle),
+		st::boxRowPadding,
+		style::al_top);
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_channel_invite_subscription_about(
-					lt_channel,
-					rpl::single(Ui::Text::Bold(name)),
-					lt_price,
-					tr::lng_credits_summary_options_credits(
-						lt_count,
-						rpl::single(amount) | tr::to_count(),
-						Ui::Text::Bold),
-					Ui::Text::WithEntities),
-				st::inviteLinkSubscribeBoxAbout)));
+			tr::lng_channel_invite_subscription_about(
+				lt_channel,
+				rpl::single(Ui::Text::Bold(name)),
+				lt_price,
+				tr::lng_credits_summary_options_credits(
+					lt_count,
+					rpl::single(amount) | tr::to_count(),
+					Ui::Text::Bold),
+				Ui::Text::WithEntities),
+			st::inviteLinkSubscribeBoxAbout),
+		st::boxRowPadding,
+		style::al_top);
 	Ui::AddSkip(content);
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_channel_invite_subscription_terms(
-					lt_link,
-					rpl::combine(
-						tr::lng_paid_react_agree_link(),
-						tr::lng_group_invite_subscription_about_url()
-					) | rpl::map([](const QString &text, const QString &url) {
-						return Ui::Text::Link(text, url);
-					}),
-					Ui::Text::RichLangValue),
-				st::inviteLinkSubscribeBoxTerms)));
+			tr::lng_channel_invite_subscription_terms(
+				lt_link,
+				rpl::combine(
+					tr::lng_paid_react_agree_link(),
+					tr::lng_group_invite_subscription_about_url()
+				) | rpl::map([](const QString &text, const QString &url) {
+					return Ui::Text::Link(text, url);
+				}),
+				Ui::Text::RichLangValue),
+			st::inviteLinkSubscribeBoxTerms),
+		st::boxRowPadding,
+		style::al_top);
 
 	{
 		const auto balance = Settings::AddBalanceWidget(

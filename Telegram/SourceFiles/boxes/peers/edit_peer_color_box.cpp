@@ -81,7 +81,6 @@ public:
 		bool selected);
 
 	[[nodiscard]] uint8 index() const;
-	int naturalWidth() const override;
 
 	void setSelected(bool selected);
 
@@ -181,6 +180,15 @@ ColorSample::ColorSample(
 		colorIndex
 	) | rpl::start_with_next([=](uint8 index) {
 		_index = index;
+		setNaturalWidth([&] {
+			if (_name.isEmpty() || _style->colorPatternIndex(_index)) {
+				return st::settingsColorSampleSize;
+			}
+			const auto padding = st::settingsColorSamplePadding;
+			return std::max(
+				padding.left() + _name.maxWidth() + padding.right(),
+				padding.top() + st::semiboldFont->height + padding.bottom());
+		}());
 		update();
 	}, lifetime());
 }
@@ -195,6 +203,7 @@ ColorSample::ColorSample(
 , _index(colorIndex)
 , _selected(selected)
 , _simple(true) {
+	setNaturalWidth(st::settingsColorSampleSize);
 }
 
 void ColorSample::setSelected(bool selected) {
@@ -274,16 +283,6 @@ void ColorSample::paintEvent(QPaintEvent *e) {
 
 uint8 ColorSample::index() const {
 	return _index;
-}
-
-int ColorSample::naturalWidth() const {
-	if (_name.isEmpty() || _style->colorPatternIndex(_index)) {
-		return st::settingsColorSampleSize;
-	}
-	const auto padding = st::settingsColorSamplePadding;
-	return std::max(
-		padding.left() + _name.maxWidth() + padding.right(),
-		padding.top() + st::semiboldFont->height + padding.bottom());
 }
 
 PreviewWrap::PreviewWrap(

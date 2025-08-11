@@ -389,12 +389,13 @@ void ChooseSuggestPriceBox(
 		box->setNoContentMargin(true);
 
 		Ui::AddSkip(container, st::boxTitleHeight * 1.1);
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
+		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				std::move(title),
-				st::settingsPremiumUserTitle)));
+				st::settingsPremiumUserTitle),
+			st::boxRowPadding,
+			style::al_top);
 	}
 
 	state->buttons.push_back({
@@ -667,7 +668,7 @@ void ChooseSuggestPriceBox(
 			return tr::lng_suggest_options_offer(
 				tr::now,
 				lt_amount,
-				TextWithEntities{ coloredTonIcon }.append(
+				Ui::Text::IconEmoji(&st::tonIconEmoji).append(
 					Lang::FormatCreditsAmountDecimal(price)),
 				Ui::Text::WithEntities);
 		}
@@ -786,19 +787,19 @@ void InsufficientTonBox(
 	const auto nano = add.whole() * Ui::kNanosInOne + add.nano();
 	const auto amount = Ui::FormatTonAmount(nano).full;
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_suggest_low_ton_title(tr::now, lt_amount, amount),
-				st::boxTitle)),
-		st::boxRowPadding + st::lowTonTitlePadding);
+			tr::lng_suggest_low_ton_title(tr::now, lt_amount, amount),
+			st::boxTitle),
+		st::boxRowPadding + st::lowTonTitlePadding,
+		style::al_top);
 	const auto label = box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_suggest_low_ton_text(Ui::Text::RichLangValue),
 			st::lowTonText),
-		st::boxRowPadding + st::lowTonTextPadding);
+		st::boxRowPadding + st::lowTonTextPadding,
+		style::al_top);
 	label->setTryMakeSimilarLines(true);
 	label->resizeToWidth(
 		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());

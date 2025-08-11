@@ -741,7 +741,8 @@ void GiftCodeBox(
 					std::move(shareLink),
 					Ui::Text::WithEntities)),
 			st::giveawayGiftCodeFooter),
-		st::giveawayGiftCodeFooterMargin);
+		st::giveawayGiftCodeFooterMargin,
+		style::al_top);
 	footer->setClickHandlerFilter([=](const auto &...) {
 		ShareWithFriend(controller, slug);
 		return false;
@@ -883,7 +884,8 @@ void GiftCodePendingBox(
 			box,
 			tr::lng_gift_link_pending_footer(),
 			st::giveawayGiftCodeFooter),
-		st::giveawayGiftCodeFooterMargin);
+		st::giveawayGiftCodeFooterMargin,
+		style::al_top);
 
 	const auto close = Ui::CreateChild<Ui::IconButton>(
 		box.get(),
@@ -1186,7 +1188,8 @@ void GiveawayInfoBox(
 						: tr::lng_prizes_cancelled()),
 					st::giveawayRefundedLabel),
 				st::giveawayRefundedPadding),
-			{ padding.left(), 0, padding.right(), padding.bottom() });
+			{ padding.left(), 0, padding.right(), padding.bottom() },
+			style::al_top);
 		const auto bg = wrap->lifetime().make_state<Ui::RoundRect>(
 			st::boxRadius,
 			st::attentionBoxButton.textBgOver);

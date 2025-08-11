@@ -470,7 +470,8 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 						FormatForProgramDuration(program.durationMonths),
 						Ui::Text::WithEntities),
 				st::starrefCenteredText),
-			st::boxRowPadding);
+			st::boxRowPadding,
+			style::al_top);
 
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
 
@@ -478,7 +479,9 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_star_ref_link_recipient(),
-				st::starrefCenteredText));
+				st::starrefCenteredText),
+			st::boxRowPadding,
+			style::al_top);
 		Ui::AddSkip(box->verticalLayout());
 		box->addRow(object_ptr<Ui::AbstractButton>::fromRaw(
 			MakePeerBubbleButton(box, peer).release()
@@ -596,7 +599,8 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 					FormatForProgramDuration(program.durationMonths),
 					Ui::Text::WithEntities),
 				st::starrefCenteredText),
-			st::boxRowPadding);
+			st::boxRowPadding,
+			style::al_top);
 
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
 		if (const auto average = program.revenuePerUser) {
@@ -613,7 +617,8 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 						Ui::Text::WithEntities),
 					st::starrefRevenueText,
 					st::defaultPopupMenu),
-				st::boxRowPadding);
+				st::boxRowPadding,
+				style::al_top);
 			Ui::AddSkip(layout, st::defaultVerticalListSkip);
 		}
 
@@ -635,7 +640,9 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 				object_ptr<Ui::FlatLabel>(
 					box,
 					tr::lng_star_ref_link_recipient(),
-					st::starrefCenteredText));
+					st::starrefCenteredText),
+				st::boxRowPadding,
+				style::al_top);
 			Ui::AddSkip(box->verticalLayout());
 			const auto recipientWrap = box->addRow(
 				object_ptr<Ui::VerticalLayout>(box),

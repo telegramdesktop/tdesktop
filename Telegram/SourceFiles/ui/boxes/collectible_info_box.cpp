@@ -201,7 +201,8 @@ void CollectibleInfoBox(
 			box,
 			rpl::single(header),
 			st::collectibleHeader),
-		st::collectibleHeaderPadding
+		st::collectibleHeaderPadding,
+		style::al_top
 	)->setClickHandlerFilter([copyCallback](const auto &...) {
 		copyCallback(false);
 		return false;
@@ -220,7 +221,8 @@ void CollectibleInfoBox(
 			Ui::Text::RichLangValue);
 	const auto label = box->addRow(
 		object_ptr<Ui::FlatLabel>(box, st::collectibleInfo),
-		st::collectibleInfoPadding);
+		st::collectibleInfoPadding,
+		style::al_top);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	label->setMarkedText(text);
 

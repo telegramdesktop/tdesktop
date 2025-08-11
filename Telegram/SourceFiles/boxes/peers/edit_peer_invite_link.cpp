@@ -976,21 +976,22 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
+		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_credits_box_subscription_title(),
-				st::creditsBoxAboutTitle)));
+				st::creditsBoxAboutTitle),
+			st::boxRowPadding,
+			style::al_top);
 
 		Ui::AddSkip(content);
 
 		const auto subtitle1 = box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					st::creditsTopupPrice)))->entity();
+				st::creditsTopupPrice),
+			st::boxRowPadding,
+			style::al_top);
 		subtitle1->setMarkedText(
 			tr::lng_credits_subscription_subtitle(
 				tr::now,
@@ -1027,8 +1028,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
+		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_credits_box_out_about(
@@ -1037,7 +1037,9 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 					) | Ui::Text::ToLink(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
-				st::creditsBoxAboutDivider)));
+				st::creditsBoxAboutDivider),
+			st::boxRowPadding,
+			style::al_top);
 
 		const auto button = box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();

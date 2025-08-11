@@ -78,19 +78,18 @@ void GiftCreditsBox(
 				u"internal:stars_examples"_q);
 		});
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
+			Ui::CreateLabelWithCustomEmoji(
 				content,
-				Ui::CreateLabelWithCustomEmoji(
-					content,
-					tr::lng_credits_box_history_entry_gift_out_about(
-						lt_user,
-						rpl::single(TextWithEntities{ peer->shortName() }),
-						lt_link,
-						std::move(link),
-						Ui::Text::RichLangValue),
-					Core::TextContext({ .session = &peer->session() }),
-					st::creditsBoxAbout)),
-			st::boxRowPadding);
+				tr::lng_credits_box_history_entry_gift_out_about(
+					lt_user,
+					rpl::single(TextWithEntities{ peer->shortName() }),
+					lt_link,
+					std::move(link),
+					Ui::Text::RichLangValue),
+				Core::TextContext({ .session = &peer->session() }),
+				st::creditsBoxAbout),
+			st::boxRowPadding,
+			style::al_top);
 	}
 	Ui::AddSkip(content);
 	Ui::AddSkip(box->verticalLayout());

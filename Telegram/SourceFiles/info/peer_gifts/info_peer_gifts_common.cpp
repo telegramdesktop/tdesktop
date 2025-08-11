@@ -1009,13 +1009,15 @@ void SelectGiftToUnpin(
 				box,
 				tr::lng_gift_many_pinned_title(),
 				st::giftBoxSubtitle),
-			st::giftBoxSubtitleMargin);
+			st::giftBoxSubtitleMargin,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_gift_many_pinned_choose(),
 				st::giftTooManyPinnedChoose),
-			st::giftBoxAboutMargin);
+			st::giftBoxAboutMargin,
+			style::al_top);
 
 		const auto gifts = box->addRow(
 			object_ptr<Ui::RpWidget>(box),

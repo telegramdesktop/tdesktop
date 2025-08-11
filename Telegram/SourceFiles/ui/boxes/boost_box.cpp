@@ -752,14 +752,16 @@ void AskBoostBox(
 			box,
 			std::move(title),
 			st::boostCenteredTitle),
-		st::boxRowPadding + QMargins(0, st::boostTitleSkip, 0, 0));
+		st::boxRowPadding + QMargins(0, st::boostTitleSkip, 0, 0),
+		style::al_top);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			std::move(text),
 			st::boostText),
 		(st::boxRowPadding
-			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
+			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)),
+		style::al_top);
 
 	auto stats = object_ptr<Ui::IconButton>(box, st::boostLinkStatsButton);
 	stats->setClickedCallback(openStatistics);

@@ -136,7 +136,8 @@ void ConferenceCallJoinConfirm(
 					Ui::Text::RichLangValue)
 				: tr::lng_confcall_join_text(Ui::Text::RichLangValue)),
 			st::confcallLinkCenteredText),
-		st::boxRowPadding
+		st::boxRowPadding,
+		style::al_top
 	)->setTryMakeSimilarLines(true);
 
 	const auto &participants = call->participants();
@@ -209,7 +210,8 @@ void ConferenceCallJoinConfirm(
 				box,
 				std::move(text),
 				st::confcallLinkCenteredText),
-			st::boxRowPadding
+			st::boxRowPadding,
+			style::al_top
 		)->setTryMakeSimilarLines(true);
 	}
 	const auto joinAndClose = [=] {
@@ -335,7 +337,8 @@ void ShowConferenceCallLinkBox(
 				(st.centerLabel
 					? *st.centerLabel
 					: st::confcallLinkCenteredText)),
-			st::boxRowPadding
+			st::boxRowPadding,
+			style::al_top
 		)->setTryMakeSimilarLines(true);
 
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 2);

@@ -224,18 +224,6 @@ premiumGiftOption: PremiumOption {
 	badgeMargins: margins(5px, 1px, 5px, 0px);
 }
 
-premiumGiftUserpicPadding: margins(10px, 27px, 18px, 13px);
-premiumGiftTitlePadding: margins(18px, 0px, 18px, 0px);
-premiumGiftAboutPadding: margins(18px, 5px, 18px, 23px);
-premiumGiftTermsPadding: margins(18px, 27px, 18px, 0px);
-premiumGiftTerms: FlatLabel(defaultFlatLabel) {
-	minWidth: 256px;
-	align: align(top);
-	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(11px);
-	}
-}
 premiumGiftBox: Box(premiumPreviewBox) {
 	buttonPadding: margins(12px, 12px, 12px, 12px);
 }
@@ -245,10 +233,6 @@ premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
 	photoSize: 66px;
 	photoPosition: point(-1px, -1px);
 }
-premiumGiftsUserpicBadgeSize: size(26px, 26px);
-premiumGiftsUserpicBadgeInner: 2px;
-premiumGiftsUserpicBadgeFont: font(14px bold);
-premiumGiftsBoostIcon: icon{{ "stories/boost_mini", windowBgActive }};
 
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {

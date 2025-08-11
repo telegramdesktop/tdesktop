@@ -354,19 +354,22 @@ void ShowAgeVerification(
 				box,
 				tr::lng_age_verify_title(),
 				st::settingsAgeVerifyTitle),
-			st::boxRowPadding + st::settingsAgeVerifyMargin);
+			st::boxRowPadding + st::settingsAgeVerifyMargin,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				AgeVerifyAbout(&bot->session()),
 				st::settingsAgeVerifyText),
-			st::boxRowPadding + st::settingsAgeVerifyMargin);
+			st::boxRowPadding + st::settingsAgeVerifyMargin,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_age_verify_here(Ui::Text::RichLangValue),
 				st::settingsAgeVerifyText),
-			st::boxRowPadding + st::settingsAgeVerifyMargin);
+			st::boxRowPadding + st::settingsAgeVerifyMargin,
+			style::al_top);
 
 		const auto weak = QPointer<Ui::GenericBox>(box);
 		const auto done = crl::guard(&bot->session(), [=](int age) {
@@ -446,13 +449,15 @@ void ShowAgeVerificationMobile(
 				box,
 				AgeVerifyAbout(session),
 				st::settingsAgeVerifyText),
-			st::boxRowPadding + st::settingsAgeVerifyMargin);
+			st::boxRowPadding + st::settingsAgeVerifyMargin,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_age_verify_mobile(Ui::Text::RichLangValue),
 				st::settingsAgeVerifyText),
-			st::boxRowPadding + st::settingsAgeVerifyMargin);
+			st::boxRowPadding + st::settingsAgeVerifyMargin,
+			style::al_top);
 
 		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();

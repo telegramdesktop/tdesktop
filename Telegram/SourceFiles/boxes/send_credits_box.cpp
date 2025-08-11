@@ -364,14 +364,15 @@ void SendCreditsBox(
 	}
 
 	Ui::AddSkip(content);
-	box->addRow(object_ptr<Ui::CenterWrap<>>(
-		box,
+	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			form->invoice.subscriptionPeriod
 				? rpl::single(form->title)
 				: tr::lng_credits_box_out_title(),
-			st::settingsPremiumUserTitle)));
+			st::settingsPremiumUserTitle),
+		st::boxRowPadding,
+		style::al_top);
 	if (form->invoice.subscriptionPeriod && form->botId && form->photo) {
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
@@ -383,12 +384,13 @@ void SendCreditsBox(
 		Ui::AddSkip(content);
 	}
 	Ui::AddSkip(content);
-	box->addRow(object_ptr<Ui::CenterWrap<>>(
-		box,
+	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			SendCreditsConfirmText(session, form.get()),
-			st::creditsBoxAbout)));
+			st::creditsBoxAbout),
+		st::boxRowPadding,
+		style::al_top);
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 

@@ -1054,7 +1054,8 @@ not_null<Ui::RpWidget*> CreateReActivateHeader(not_null<QWidget*> parent) {
 			result,
 			tr::lng_confcall_inactive_about(),
 			st::confcallLinkCenteredText),
-		st::boxRowPadding + st::confcallLinkTitlePadding
+		st::boxRowPadding + st::confcallLinkTitlePadding,
+		style::al_top
 	)->setTryMakeSimilarLines(true);
 	Ui::AddDivider(result);
 
