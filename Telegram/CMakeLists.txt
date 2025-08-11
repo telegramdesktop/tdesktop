@@ -1429,8 +1429,6 @@ PRIVATE
     platform/platform_window_title.h
     profile/profile_back_button.cpp
     profile/profile_back_button.h
-    profile/profile_block_peer_list.cpp
-    profile/profile_block_peer_list.h
     profile/profile_block_widget.cpp
     profile/profile_block_widget.h
     profile/profile_cover_drop_area.cpp
