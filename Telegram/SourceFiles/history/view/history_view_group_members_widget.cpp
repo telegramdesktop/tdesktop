@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "profile/profile_block_group_members.h"
+#include "history/view/history_view_group_members_widget.h"
 
 #include "api/api_chat_participants.h"
 #include "styles/style_profile.h"
@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
 
-namespace Profile {
+namespace HistoryView {
 namespace {
 
 using UpdateFlag = Data::PeerUpdate::Flag;
@@ -481,4 +481,4 @@ GroupMembersWidget::~GroupMembersWidget() {
 	}
 }
 
-} // namespace Profile
+} // namespace HistoryView

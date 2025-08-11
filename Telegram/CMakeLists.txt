@@ -876,6 +876,8 @@ PRIVATE
     history/view/history_view_fake_items.h
     history/view/history_view_group_call_bar.cpp
     history/view/history_view_group_call_bar.h
+    history/view/history_view_group_members_widget.cpp
+    history/view/history_view_group_members_widget.h
     history/view/history_view_item_preview.h
     history/view/history_view_list_widget.cpp
     history/view/history_view_list_widget.h
@@ -1427,8 +1429,6 @@ PRIVATE
     platform/platform_window_title.h
     profile/profile_back_button.cpp
     profile/profile_back_button.h
-    profile/profile_block_group_members.cpp
-    profile/profile_block_group_members.h
     profile/profile_block_peer_list.cpp
     profile/profile_block_peer_list.h
     profile/profile_block_widget.cpp

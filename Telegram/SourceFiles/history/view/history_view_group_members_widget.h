@@ -23,9 +23,9 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-namespace Profile {
+namespace HistoryView {
 
-class GroupMembersWidget : public PeerListWidget {
+class GroupMembersWidget : public Profile::PeerListWidget {
 
 public:
 	GroupMembersWidget(
@@ -91,4 +91,4 @@ private:
 
 };
 
-} // namespace Profile
+} // namespace HistoryView
