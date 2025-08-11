@@ -36,8 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "main/main_account.h"
-#include "main/main_session.h"
 #include "main/main_domain.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/text/text_utilities.h"
 
 #include <QtGui/QWindow>
@@ -695,9 +696,18 @@ void System::showNext() {
 		if (settings.soundNotify()) {
 			const auto owner = &alertThread->owner();
 			const auto id = owner->notifySettings().sound(alertThread).id;
+			auto volume
+				= owner->session().settings().ringtoneVolume(
+					alertThread->peer()->id,
+					alertThread->topicRootId(),
+					alertThread->monoforumPeerId());
+			if (!volume) {
+				volume = owner->session().settings().ringtoneVolume(
+					Data::DefaultNotifyType(alertThread->peer()));
+			}
 			_manager->maybePlaySound(crl::guard(&owner->session(), [=] {
 				const auto track = lookupSound(owner, id);
-				track->playOnce();
+				track->playOnce(volume ? volume * 0.01 : 0);
 				Media::Player::mixer()->suppressAll(track->getLengthMs());
 				Media::Player::mixer()->scheduleFaderCallback();
 			}));

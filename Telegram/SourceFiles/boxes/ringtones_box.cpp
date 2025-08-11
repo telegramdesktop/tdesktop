@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/ringtones_box.h"
 
+#include "data/notify/data_peer_notify_volume.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "api/api_ringtones.h"
 #include "apiwrap.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "base/timer_rpl.h"
@@ -21,11 +24,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
 #include "data/data_thread.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "media/audio/media_audio.h"
+#include "ui/wrap/slide_wrap.h"
 #include "platform/platform_notifications_manager.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
@@ -111,7 +117,8 @@ void RingtonesBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		Data::NotifySound selected,
-		Fn<void(Data::NotifySound)> save) {
+		Fn<void(Data::NotifySound)> save,
+		Data::VolumeController volumeController) {
 	box->setTitle(tr::lng_ringtones_box_title());
 
 	const auto container = box->verticalLayout();
@@ -320,6 +327,14 @@ void RingtonesBox(
 		}));
 	});
 
+	Ui::AddRingtonesVolumeSlider(
+		container,
+		state->group->value() | rpl::map([=](int value) {
+			return value != kNoSoundValue;
+		}),
+		tr::lng_ringtones_box_volume(),
+		volumeController);
+
 	box->addSkip(st::ringtonesBoxSkip);
 	Ui::AddDividerText(container, tr::lng_ringtones_box_about());
 
@@ -345,5 +360,5 @@ void ThreadRingtonesBox(
 	const auto now = thread->owner().notifySettings().sound(thread);
 	RingtonesBox(box, &thread->session(), now, [=](Data::NotifySound sound) {
 		thread->owner().notifySettings().update(thread, {}, {}, sound);
-	});
+	}, Data::ThreadRingtonesVolumeController(thread));
 }
