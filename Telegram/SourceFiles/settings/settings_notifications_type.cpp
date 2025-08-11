@@ -380,6 +380,15 @@ void ExceptionsController::sort() {
 	Unexpected("Type in Title.");
 }
 
+[[nodiscard]] rpl::producer<QString> VolumeSubtitle(Notify type) {
+	switch (type) {
+	case Notify::User: return tr::lng_notification_volume_private_chats();
+	case Notify::Group: return tr::lng_notification_volume_groups();
+	case Notify::Broadcast: return tr::lng_notification_volume_channel();
+	}
+	Unexpected("Type in VolumeSubtitle.");
+}
+
 void SetupChecks(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -481,7 +490,7 @@ void SetupChecks(
 		toneInner,
 		true,
 		rpl::single(true),
-		rpl::single(u"Volume"_q),
+		VolumeSubtitle(type),
 		DefaultRingtonesVolumeController(session, type));
 
 	enabled->toggledValue(
