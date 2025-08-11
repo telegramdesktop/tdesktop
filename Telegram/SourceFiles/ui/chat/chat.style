@@ -1428,3 +1428,20 @@ lowTonText: FlatLabel(defaultFlatLabel) {
 	minWidth: 100px;
 	align: align(top);
 }
+
+groupMembersWidgetList: PeerList(defaultPeerList) {
+	item: PeerListItem(defaultPeerListItem) {
+		photoPosition: point(12px, 6px);
+		namePosition: point(68px, 11px);
+		statusPosition: point(68px, 31px);
+		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			selectExtendTwice: 1px;
+			imageRadius: 21px;
+			imageSmallRadius: 19px;
+			check: RoundCheckbox(defaultPeerListCheck) {
+				size: 0px;
+			}
+		}
+		nameFgChecked: contactsNameFg;
+	}
+}

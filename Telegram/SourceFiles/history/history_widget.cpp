@@ -5806,11 +5806,7 @@ void HistoryWidget::showMembersDropdown() {
 	if (!_membersDropdown) {
 		_membersDropdown.create(this, st::membersInnerDropdown);
 		_membersDropdown->setOwnedWidget(
-			object_ptr<HistoryView::GroupMembersWidget>(
-				this,
-				controller(),
-				_peer,
-				st::membersInnerItem));
+			object_ptr<HistoryView::GroupMembersWidget>(this, controller(), _peer));
 		_membersDropdown->resizeToWidth(st::membersInnerWidth);
 
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
