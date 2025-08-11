@@ -504,8 +504,8 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 	}
 	const auto data = *gift;
 	const auto itemId = item->fullId();
-	const auto openInsteadId = data.upgradeMsgId
-		? Data::SavedStarGiftId::User(data.upgradeMsgId)
+	const auto openInsteadId = data.realGiftMsgId
+		? Data::SavedStarGiftId::User(data.realGiftMsgId)
 		: (data.channel && data.channelSavedId)
 		? Data::SavedStarGiftId::Chat(data.channel, data.channelSavedId)
 		: Data::SavedStarGiftId();

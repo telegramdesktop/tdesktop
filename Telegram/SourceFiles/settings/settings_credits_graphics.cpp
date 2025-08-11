@@ -2554,7 +2554,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 Data::SavedStarGiftId EntryToSavedStarGiftId(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &entry) {
-	return !entry.stargift
+	return (!entry.stargift || (!entry.in && !entry.giftChannelSavedId))
 		? Data::SavedStarGiftId()
 		: (entry.bareEntryOwnerId && entry.giftChannelSavedId)
 		? Data::SavedStarGiftId::Chat(
@@ -2618,7 +2618,9 @@ void ShowStarGiftViewBox(
 		.description = data.message,
 		.date = base::unixtime::parse(item->date()),
 		.credits = CreditsAmount(data.count),
-		.bareMsgId = uint64(item->id.bare),
+		.bareMsgId = uint64(data.realGiftMsgId
+			? data.realGiftMsgId.bare
+			: item->id.bare),
 		.barePeerId = fromId.value,
 		.bareGiftStickerId = data.document ? data.document->id : 0,
 		.bareGiftOwnerId = ownerId.value,
@@ -2629,6 +2631,7 @@ void ShowStarGiftViewBox(
 		.bareEntryOwnerId = (toChannel ? data.channel->id.value : 0),
 		.giftChannelSavedId = data.channelSavedId,
 		.stargiftId = data.stargiftId,
+		.giftPrepayUpgradeHash = data.giftPrepayUpgradeHash,
 		.uniqueGift = data.unique,
 		.nextToUpgradeStickerId = nextToUpgradeStickerId,
 		.nextToUpgradeShow = std::move(nextToUpgradeShow),

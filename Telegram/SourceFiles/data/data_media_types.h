@@ -150,8 +150,9 @@ struct GiftCode {
 	ChannelData *channel = nullptr;
 	PeerData *channelFrom = nullptr;
 	uint64 channelSavedId = 0;
+	QString giftPrepayUpgradeHash;
 	MsgId giveawayMsgId = 0;
-	MsgId upgradeMsgId = 0;
+	MsgId realGiftMsgId = 0;
 	int starsConverted = 0;
 	int starsToUpgrade = 0;
 	int starsUpgradedBySender = 0;

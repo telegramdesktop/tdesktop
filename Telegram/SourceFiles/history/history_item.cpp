@@ -6437,6 +6437,8 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 		const auto to = data.vpeer()
 			? peerFromMTP(*data.vpeer())
 			: PeerId();
+		const auto upgradeMsgId = data.vupgrade_msg_id().value_or_empty();
+		const auto realGiftMsgId = data.vgift_msg_id().value_or_empty();
 		using Fields = Data::GiftCode;
 		auto fields = Fields{
 			.message = (data.vmessage()
@@ -6451,7 +6453,9 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				? history()->owner().peer(from).get()
 				: nullptr),
 			.channelSavedId = data.vsaved_id().value_or_empty(),
-			.upgradeMsgId = data.vupgrade_msg_id().value_or_empty(),
+			.giftPrepayUpgradeHash = qs(
+				data.vprepaid_upgrade_hash().value_or_empty()),
+			.realGiftMsgId = (upgradeMsgId ? upgradeMsgId : realGiftMsgId),
 			.starsConverted = int(data.vconvert_stars().value_or_empty()),
 			.starsUpgradedBySender = int(
 				data.vupgrade_stars().value_or_empty()),
