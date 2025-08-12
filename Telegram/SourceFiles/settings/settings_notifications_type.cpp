@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/ringtones_box.h"
 #include "boxes/peer_list_box.h"
+#include "data/notify/data_peer_notify_volume.h"
 #include "boxes/peer_list_controllers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
@@ -476,6 +477,13 @@ void SetupChecks(
 		st::settingsButton,
 		{ &st::menuIconSoundOn });
 
+	Ui::AddRingtonesVolumeSlider(
+		toneInner,
+		true,
+		rpl::single(true),
+		rpl::single(u"Volume"_q),
+		DefaultRingtonesVolumeController(session, type));
+
 	enabled->toggledValue(
 	) | rpl::filter([=](bool value) {
 		return (value != NotificationsEnabledForType(session, type));
@@ -499,7 +507,7 @@ void SetupChecks(
 		controller->show(Box(RingtonesBox, session, toneValue(), [=](
 				Data::NotifySound sound) {
 			settings->defaultUpdate(type, {}, {}, sound);
-		}));
+		}, DefaultRingtonesVolumeController(session, type)));
 	});
 }
 
