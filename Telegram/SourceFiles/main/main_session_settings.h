@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_auto_download.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "ui/rect_part.h"
 
 namespace Support {
@@ -146,6 +147,20 @@ public:
 	void setLastNonPremiumLimitUpload(TimeId when) {
 		_lastNonPremiumLimitUpload = when;
 	}
+	void setRingtoneVolume(
+		Data::DefaultNotify defaultNotify,
+		ushort volume);
+	[[nodiscard]] ushort ringtoneVolume(
+		Data::DefaultNotify defaultNotify) const;
+	void setRingtoneVolume(
+		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
+		ushort volume);
+	[[nodiscard]] ushort ringtoneVolume(
+		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const;
 
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
@@ -171,6 +186,8 @@ private:
 	rpl::variable<bool> _skipArchiveInSearch = false;
 	base::flat_map<ThreadId, MsgId> _hiddenPinnedMessages;
 	base::flat_set<PeerId> _verticalSubsectionTabs;
+	base::flat_map<Data::DefaultNotify, ushort> _ringtoneDefaultVolumes;
+	base::flat_map<ThreadId, ushort> _ringtoneVolumes;
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
 	std::vector<TimeId> _mutePeriods;

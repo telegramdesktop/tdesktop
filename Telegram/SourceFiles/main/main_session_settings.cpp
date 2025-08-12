@@ -44,7 +44,17 @@ QByteArray SessionSettings::serialize() const {
 		+ sizeof(qint32) * 3
 		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 4)
 		+ sizeof(qint32)
-		+ _verticalSubsectionTabs.size() * sizeof(quint64);
+		+ _verticalSubsectionTabs.size() * sizeof(quint64)
+		+ sizeof(qint32) // _ringtoneDefaultVolumes size
+		+ (_ringtoneDefaultVolumes.size()
+			* (0
+				+ sizeof(uint8_t) * 1 // Data::DefaultNotify
+				+ sizeof(ushort))) // Volume
+		+ sizeof(qint32) // _ringtoneVolumes size
+		+ (_ringtoneVolumes.size()
+			* (0
+				+ sizeof(quint64) * 3 // ThreadId
+				+ sizeof(ushort))); // Volume
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -99,6 +109,18 @@ QByteArray SessionSettings::serialize() const {
 		stream << qint32(_verticalSubsectionTabs.size());
 		for (const auto &peerId : _verticalSubsectionTabs) {
 			stream << SerializePeerId(peerId);
+		}
+		stream << qint32(_ringtoneDefaultVolumes.size());
+		for (const auto &[key, value] : _ringtoneDefaultVolumes) {
+			stream << uint8_t(key) << ushort(value);
+		}
+		stream << qint32(_ringtoneVolumes.size());
+		for (const auto &[key, value] : _ringtoneVolumes) {
+			stream
+				<< SerializePeerId(key.peerId)
+				<< qint64(key.topicRootId.bare)
+				<< SerializePeerId(key.monoforumPeerId)
+				<< ushort(value);
 		}
 	}
 
@@ -167,6 +189,8 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 legacySkipPremiumStickersSet = 0;
 	qint32 lastNonPremiumLimitDownload = 0;
 	qint32 lastNonPremiumLimitUpload = 0;
+	base::flat_map<Data::DefaultNotify, ushort> ringtoneDefaultVolumes;
+	base::flat_map<ThreadId, ushort> ringtoneVolumes;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -489,6 +513,54 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto keyDefaultNotify = uint8_t();
+				auto value = ushort();
+				stream
+					>> keyDefaultNotify
+					>> value;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
+				ringtoneDefaultVolumes.emplace(
+					static_cast<Data::DefaultNotify>(keyDefaultNotify),
+					value);
+			}
+		}
+	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto keyPeerId = quint64();
+				auto keyTopicRootId = qint64();
+				auto keyMonoforumPeerId = quint64();
+				auto value = ushort();
+				stream
+					>> keyPeerId
+					>> keyTopicRootId
+					>> keyMonoforumPeerId
+					>> value;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
+				ringtoneVolumes.emplace(ThreadId{
+					DeserializePeerId(keyPeerId),
+					keyTopicRootId,
+					DeserializePeerId(keyMonoforumPeerId),
+				}, value);
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -536,6 +608,8 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_lastNonPremiumLimitDownload = lastNonPremiumLimitDownload;
 	_lastNonPremiumLimitUpload = lastNonPremiumLimitUpload;
 	_verticalSubsectionTabs = std::move(verticalSubsectionTabs);
+	_ringtoneDefaultVolumes = std::move(ringtoneDefaultVolumes);
+	_ringtoneVolumes = std::move(ringtoneVolumes);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -707,6 +781,44 @@ void SessionSettings::addMutePeriod(TimeId period) {
 		} else {
 			_mutePeriods = { period, _mutePeriods.back() };
 		}
+	}
+}
+
+ushort SessionSettings::ringtoneVolume(
+		Data::DefaultNotify defaultNotify) const {
+	const auto i = _ringtoneDefaultVolumes.find(defaultNotify);
+	return (i != end(_ringtoneDefaultVolumes)) ? i->second : 0;
+}
+
+void SessionSettings::setRingtoneVolume(
+		Data::DefaultNotify defaultNotify,
+		ushort volume) {
+	if (volume > 0 && volume <= 100) {
+		_ringtoneDefaultVolumes[defaultNotify] = volume;
+	} else {
+		_ringtoneDefaultVolumes.remove(defaultNotify);
+	}
+}
+
+ushort SessionSettings::ringtoneVolume(
+		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const {
+	const auto i = _ringtoneVolumes.find(
+		ThreadId{ peerId, topicRootId, monoforumPeerId });
+	return (i != end(_ringtoneVolumes)) ? i->second : 0;
+}
+
+void SessionSettings::setRingtoneVolume(
+		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
+		ushort volume) {
+	const auto id = ThreadId{ peerId, topicRootId, monoforumPeerId };
+	if (volume > 0 && volume <= 100) {
+		_ringtoneVolumes[id] = volume;
+	} else {
+		_ringtoneVolumes.remove(id);
 	}
 }
 
