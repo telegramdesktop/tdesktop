@@ -153,7 +153,7 @@ Data::CreditsHistoryEntry CreditsHistoryEntryFromTL(
 		.floodSkip = int(tl.data().vfloodskip_number().value_or(0)),
 		.converted = stargift && incoming,
 		.stargift = stargift.has_value(),
-		.postsSearch = tl.data().is_posts_search(),
+		// .postsSearch = tl.data().is_posts_search(),
 		.giftUpgraded = tl.data().is_stargift_upgrade(),
 		.giftResale = tl.data().is_stargift_resale(),
 		.reaction = tl.data().is_reaction(),
