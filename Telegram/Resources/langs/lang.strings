@@ -512,6 +512,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_notify_global" = "Global settings";
 "lng_settings_notify_title" = "Notifications for chats";
 "lng_settings_desktop_notify" = "Desktop notifications";
+"lng_settings_master_volume_notifications" = "Volume";
 "lng_settings_native_title" = "System integration";
 "lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_skip_in_focus" = "Respect system Focus mode";
