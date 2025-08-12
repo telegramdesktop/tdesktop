@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/ringtones_box.h"
 #include "boxes/peer_list_box.h"
+#include "core/application.h"
 #include "data/notify/data_peer_notify_volume.h"
 #include "boxes/peer_list_controllers.h"
 #include "data/notify/data_notify_settings.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
+#include "platform/platform_notifications_manager.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -486,12 +488,24 @@ void SetupChecks(
 		st::settingsButton,
 		{ &st::menuIconSoundOn });
 
-	Ui::AddRingtonesVolumeSlider(
-		toneInner,
-		true,
-		rpl::single(true),
-		VolumeSubtitle(type),
-		DefaultRingtonesVolumeController(session, type));
+	{
+		auto controller = DefaultRingtonesVolumeController(session, type);
+		Ui::AddRingtonesVolumeSlider(
+			toneInner,
+			true,
+			rpl::single(true),
+			VolumeSubtitle(type),
+			Data::VolumeController{
+				.volume = base::take(controller.volume),
+				.saveVolume = [=](ushort volume) {
+					Core::App().notifications().playSound(
+						session,
+						toneValue().id,
+						0.01 * volume);
+					controller.saveVolume(volume);
+				},
+			});
+	}
 
 	enabled->toggledValue(
 	) | rpl::filter([=](bool value) {
@@ -516,7 +530,9 @@ void SetupChecks(
 		controller->show(Box(RingtonesBox, session, toneValue(), [=](
 				Data::NotifySound sound) {
 			settings->defaultUpdate(type, {}, {}, sound);
-		}, DefaultRingtonesVolumeController(session, type)));
+		}, Data::VolumeController{
+			DefaultRingtonesVolumeController(session, type).volume,
+		}));
 	});
 }
 

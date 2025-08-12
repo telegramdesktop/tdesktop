@@ -135,11 +135,16 @@ void RingtonesBox(
 		QPointer<Ui::Radiobutton> defaultButton;
 		QPointer<Ui::Radiobutton> chosenButton;
 		std::vector<QPointer<Ui::Radiobutton>> buttons;
+		ushort presavedVolume = 0;
 	};
 	const auto state = container->lifetime().make_state<State>(State{
 		.group = std::make_shared<Ui::RadiobuttonGroup>(),
 		.chosen = selected,
 	});
+
+	const auto volumeOverride = [volume = volumeController.volume] {
+		return volume ? (0.01 * volume()) : -1;
+	};
 
 	const auto addToGroup = [=](
 			not_null<Ui::VerticalLayout*> verticalLayout,
@@ -163,7 +168,10 @@ void RingtonesBox(
 		if (value == kDefaultValue) {
 			state->defaultButton = button;
 			button->setClickedCallback([=] {
-				Core::App().notifications().playSound(session, 0);
+				Core::App().notifications().playSound(
+					session,
+					0,
+					volumeOverride());
 			});
 		}
 		if (value < 0) {
@@ -177,7 +185,8 @@ void RingtonesBox(
 			if (media->loaded()) {
 				Core::App().notifications().playSound(
 					session,
-					media->owner()->id);
+					media->owner()->id,
+					volumeOverride());
 			}
 		});
 		base::install_event_filter(button, [=](not_null<QEvent*> e) {
@@ -327,14 +336,31 @@ void RingtonesBox(
 		}));
 	});
 
-	Ui::AddRingtonesVolumeSlider(
-		container,
-		(state->group->current() != kNoSoundValue),
-		state->group->value() | rpl::map([=](int value) {
-			return value != kNoSoundValue;
-		}),
-		tr::lng_ringtones_box_volume(),
-		volumeController);
+	if (volumeController.volume && volumeController.saveVolume) {
+		auto saveAndTestVolume = [=](ushort currentVolume) {
+			state->presavedVolume = currentVolume;
+			const auto value = state->group->current();
+			if (value != kNoSoundValue) {
+				Core::App().notifications().playSound(
+					session,
+					(value == kDefaultValue)
+						? 0
+						: state->medias[value]->owner()->id,
+					0.01 * currentVolume);
+			}
+		};
+		Ui::AddRingtonesVolumeSlider(
+			container,
+			(state->group->current() != kNoSoundValue),
+			state->group->value() | rpl::map([=](int value) {
+				return value != kNoSoundValue;
+			}),
+			tr::lng_ringtones_box_volume(),
+			Data::VolumeController{
+				base::take(volumeController.volume),
+				std::move(saveAndTestVolume),
+			});
+	}
 
 	box->addSkip(st::ringtonesBoxSkip);
 	Ui::AddDividerText(container, tr::lng_ringtones_box_about());
@@ -349,6 +375,9 @@ void RingtonesBox(
 			: (value == kNoSoundValue)
 			? Data::NotifySound{ .none = true }
 			: Data::NotifySound{ .id = state->medias[value]->owner()->id };
+		if (state->presavedVolume) {
+			volumeController.saveVolume(state->presavedVolume);
+		}
 		save(sound);
 		box->closeBox();
 	});
