@@ -263,15 +263,7 @@ void Create(Window::Notifications::System *system) {
 					res,
 					nullptr);
 
-			if (!proxy) {
-				ServiceRegistered = false;
-				CurrentServerInformation = {};
-				CurrentCapabilities = {};
-				managerSetter(nullptr);
-				return;
-			}
-
-			ServiceRegistered = bool(proxy.get_name_owner());
+			ServiceRegistered = proxy ? bool(proxy.get_name_owner()) : false;
 			if (!ServiceRegistered) {
 				CurrentServerInformation = {};
 				CurrentCapabilities = {};
