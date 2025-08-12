@@ -11,6 +11,12 @@ namespace Data {
 
 class NotifyPeerSettingsValue;
 
+enum class DefaultNotify : uint8_t {
+	User,
+	Group,
+	Broadcast,
+};
+
 struct NotifySound {
 	QString	title;
 	QString data;
