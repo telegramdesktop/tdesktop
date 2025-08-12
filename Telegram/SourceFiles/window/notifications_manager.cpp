@@ -967,8 +967,11 @@ void System::notifySettingsChanged(ChangeType type) {
 	return _settingsChanged.fire(std::move(type));
 }
 
-void System::playSound(not_null<Main::Session*> session, DocumentId id) {
-	lookupSound(&session->data(), id)->playOnce();
+void System::playSound(
+		not_null<Main::Session*> session,
+		DocumentId id,
+		float64 volumeOverride) {
+	lookupSound(&session->data(), id)->playOnce(volumeOverride);
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(

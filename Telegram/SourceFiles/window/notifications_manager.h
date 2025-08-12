@@ -124,7 +124,10 @@ public:
 	[[nodiscard]] rpl::producer<ChangeType> settingsChanged() const;
 	void notifySettingsChanged(ChangeType type);
 
-	void playSound(not_null<Main::Session*> session, DocumentId id);
+	void playSound(
+		not_null<Main::Session*> session,
+		DocumentId id,
+		float64 volumeOverride = -1);
 	[[nodiscard]] QByteArray lookupSoundBytes(
 		not_null<Data::Session*> owner,
 		DocumentId id);
