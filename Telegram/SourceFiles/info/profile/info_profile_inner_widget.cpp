@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
+#include "data/data_saved_music.h"
 #include "data/data_saved_sublist.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -80,6 +81,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	_cover = AddCover(result, _controller, _peer, _topic, _sublist);
 	if (_topic && _topic->creating()) {
 		return result;
+	} else if (Data::SavedMusic::Supported(_peer->id)) {
+		object_ptr<Profile::FloatingIcon>(
+			Media::AddMusicButton(
+				result,
+				_controller,
+				_peer),
+			st::infoIconMediaAudio,
+			st::infoSharedMediaButtonIconPosition);
 	}
 
 	AddDetails(result, _controller, _peer, _topic, _sublist, origin);

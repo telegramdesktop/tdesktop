@@ -66,6 +66,7 @@ class GroupCall;
 class NotifySettings;
 class CustomEmojiManager;
 class Stories;
+class SavedMusic;
 class SavedMessages;
 class Chatbots;
 class BusinessInfo;
@@ -183,6 +184,9 @@ public:
 	}
 	[[nodiscard]] Stories &stories() const {
 		return *_stories;
+	}
+	[[nodiscard]] SavedMusic &savedMusic() const {
+		return *_savedMusic;
 	}
 	[[nodiscard]] SavedMessages &savedMessages() const {
 		return *_savedMessages;
@@ -1235,6 +1239,7 @@ private:
 	const std::unique_ptr<NotifySettings> _notifySettings;
 	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
 	const std::unique_ptr<Stories> _stories;
+	const std::unique_ptr<SavedMusic> _savedMusic;
 	const std::unique_ptr<SavedMessages> _savedMessages;
 	const std::unique_ptr<Chatbots> _chatbots;
 	const std::unique_ptr<BusinessInfo> _businessInfo;

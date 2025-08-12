@@ -1721,7 +1721,7 @@ rpl::producer<StoryAlbumIdsKey> Stories::albumIdsChanged() const {
 
 int Stories::albumIdsCount(PeerId peerId, int albumId) const {
 	const auto set = albumIdsSet(peerId, albumId);
-	return set ? set->total : 0;
+	return set ? std::max(set->total, 0) : 0;
 }
 
 bool Stories::albumIdsCountKnown(PeerId peerId, int albumId) const {

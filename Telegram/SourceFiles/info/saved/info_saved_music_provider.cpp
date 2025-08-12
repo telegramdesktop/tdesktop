@@ -5,28 +5,30 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/stories/info_stories_provider.h"
+#include "info/saved/info_saved_music_provider.h"
 
-#include "info/media/info_media_widget.h"
-#include "info/media/info_media_list_section.h"
-#include "info/info_controller.h"
+#include "base/unixtime.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
+#include "data/data_saved_music.h"
 #include "data/data_session.h"
-#include "data/data_stories.h"
-#include "data/data_stories_ids.h"
-#include "main/main_account.h"
-#include "main/main_session.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/history.h"
-#include "core/application.h"
+#include "info/media/info_media_widget.h"
+#include "info/media/info_media_list_section.h"
+#include "info/info_controller.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "layout/layout_selection.h"
+#include "storage/storage_shared_media.h"
 #include "styles/style_info.h"
+#include "styles/style_overview.h"
 
-namespace Info::Stories {
+namespace Info::Saved {
 namespace {
 
 using namespace Media;
@@ -44,89 +46,97 @@ constexpr auto kPreloadedScreensCountFull
 
 } // namespace
 
-Provider::Provider(not_null<AbstractController*> controller)
+MusicProvider::MusicProvider(not_null<AbstractController*> controller)
 : _controller(controller)
-, _peer(controller->key().storiesPeer())
-, _history(_peer->owner().history(_peer))
-, _albumId(controller->key().storiesAlbumId())
-, _addingToAlbumId(controller->key().storiesAddToAlbumId()) {
+, _peer(controller->key().musicPeer())
+, _history(_peer->owner().history(_peer)) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
 		}
 	}, _lifetime);
-
-	_peer->session().changes().storyUpdates(
-		Data::StoryUpdate::Flag::Destroyed
-	) | rpl::filter([=](const Data::StoryUpdate &update) {
-		return update.story->peer() == _peer;
-	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
-		storyRemoved(update.story);
-	}, _lifetime);
 }
 
-Provider::~Provider() {
+MusicProvider::~MusicProvider() {
 	clear();
 }
 
-Type Provider::type() {
-	return Type::PhotoVideo;
+Type MusicProvider::type() {
+	return Type::MusicFile;
 }
 
-bool Provider::hasSelectRestriction() {
+bool MusicProvider::hasSelectRestriction() {
 	if (_peer->session().frozen()) {
 		return true;
-	} else if (const auto channel = _peer->asChannel()) {
-		return !channel->canEditStories() && !channel->canDeleteStories();
 	}
 	return !_peer->isSelf();
 }
 
-rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
+rpl::producer<bool> MusicProvider::hasSelectRestrictionChanges() {
 	return rpl::never<bool>();
 }
 
-bool Provider::sectionHasFloatingHeader() {
+bool MusicProvider::sectionHasFloatingHeader() {
 	return false;
 }
 
-QString Provider::sectionTitle(not_null<const BaseLayout*> item) {
+not_null<DocumentData*> MusicProvider::musicIdFromMsgId(MsgId itemId) const {
+	const auto i = _musicIdFromMsgId.find(itemId);
+	Assert(i != end(_musicIdFromMsgId));
+
+	return i->second;
+}
+
+not_null<HistoryItem*> MusicProvider::musicIdToMsg(
+		not_null<DocumentData*> id) const {
+	const auto i = _musicIdToMsg.find(id);
+	if (i != end(_musicIdToMsg)) {
+		return i->second.get();
+	}
+	return _musicIdToMsg.emplace(id, _history->makeMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeHistoryItem | MessageFlag::HasFromId),
+		.from = _peer->id,
+		.date = base::unixtime::now(),
+	}, id, TextWithEntities())).first->second.get();
+}
+
+MsgId MusicProvider::musicIdToMsgId(not_null<DocumentData*> id) const {
+	return musicIdToMsg(id)->id;
+}
+
+QString MusicProvider::sectionTitle(not_null<const BaseLayout*> item) {
 	return QString();
 }
 
-bool Provider::sectionItemBelongsHere(
+bool MusicProvider::sectionItemBelongsHere(
 		not_null<const BaseLayout*> item,
 		not_null<const BaseLayout*> previous) {
 	return true;
 }
 
-bool Provider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
+bool MusicProvider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
 	return true;
 }
 
-std::optional<int> Provider::fullCount() {
+std::optional<int> MusicProvider::fullCount() {
 	return _slice.fullCount();
 }
 
-void Provider::clear() {
-	for (const auto &[storyId, _] : _layouts) {
-		_peer->owner().stories().unregisterPolling(
-			{ _peer->id, storyId },
-			Data::Stories::Polling::Chat);
-	}
+void MusicProvider::clear() {
 	_layouts.clear();
-	_aroundId = kDefaultAroundId;
+	_aroundId = nullptr;
 	_idsLimit = kMinimalIdsLimit;
-	_slice = Data::StoriesIdsSlice();
+	_slice = Data::SavedMusicSlice();
 }
 
-void Provider::restart() {
+void MusicProvider::restart() {
 	clear();
 	refreshViewer();
 }
 
-void Provider::checkPreload(
+void MusicProvider::checkPreload(
 		QSize viewport,
 		not_null<BaseLayout*> topLayout,
 		not_null<BaseLayout*> bottomLayout,
@@ -151,7 +161,7 @@ void Provider::checkPreload(
 		/ minItemHeight;
 	const auto preloadAroundItem = [&](not_null<BaseLayout*> layout) {
 		auto preloadRequired = false;
-		const auto id = StoryIdFromMsgId(layout->getItem()->id);
+		const auto id = musicIdFromMsgId(layout->getItem()->id);
 		if (!preloadRequired) {
 			preloadRequired = (_idsLimit < preloadIdsLimitMin);
 		}
@@ -174,60 +184,55 @@ void Provider::checkPreload(
 	}
 }
 
-void Provider::setSearchQuery(QString query) {
+void MusicProvider::setSearchQuery(QString query) {
 }
 
-void Provider::refreshViewer() {
+void MusicProvider::refreshViewer() {
 	_viewerLifetime.destroy();
 	const auto aroundId = _aroundId;
-	auto ids = Data::AlbumStoriesIds(_peer, _albumId, aroundId, _idsLimit);
+	auto ids = Data::SavedMusicList(_peer, aroundId, _idsLimit);
 	std::move(
 		ids
-	) | rpl::start_with_next([=](Data::StoriesIdsSlice &&slice) {
+	) | rpl::start_with_next([=](Data::SavedMusicSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;
 		}
 		_slice = std::move(slice);
 
-		auto nearestId = std::optional<StoryId>();
+		auto nearestId = (DocumentData*)nullptr;
 		for (auto i = 0; i != _slice.size(); ++i) {
-			if (!nearestId
-				|| std::abs(*nearestId - aroundId)
-					> std::abs(_slice[i] - aroundId)) {
-				nearestId = _slice[i];
+			if (_slice[i] == aroundId) {
+				nearestId = aroundId;
+				break;
 			}
 		}
-		if (nearestId) {
-			_aroundId = *nearestId;
+		if (!nearestId && _slice.size() > 0) {
+			_aroundId = _slice[_slice.size() / 2];
 		}
-
-		//if (const auto nearest = _slice.nearest(idForViewer)) {
-		//	_aroundId = *nearest;
-		//}
 		_refreshed.fire({});
 	}, _viewerLifetime);
 }
 
-rpl::producer<> Provider::refreshed() {
+rpl::producer<> MusicProvider::refreshed() {
 	return _refreshed.events();
 }
 
-std::vector<ListSection> Provider::fillSections(
+std::vector<ListSection> MusicProvider::fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) {
 	markLayoutsStale();
 	const auto guard = gsl::finally([&] { clearStaleLayouts(); });
 
 	auto result = std::vector<ListSection>();
-	auto section = ListSection(Type::PhotoVideo, sectionDelegate());
+	auto section = ListSection(Type::MusicFile, sectionDelegate());
 	auto count = _slice.size();
 	for (auto i = 0; i != count; ++i) {
-		const auto storyId = _slice[i];
-		if (const auto layout = getLayout(storyId, delegate)) {
+		const auto musicId = _slice[i];
+		if (const auto layout = getLayout(musicId, delegate)) {
 			if (!section.addItem(layout)) {
 				section.finishSection();
 				result.push_back(std::move(section));
-				section = ListSection(Type::PhotoVideo, sectionDelegate());
+				section = ListSection(Type::MusicFile, sectionDelegate());
 				section.addItem(layout);
 			}
 		}
@@ -239,20 +244,16 @@ std::vector<ListSection> Provider::fillSections(
 	return result;
 }
 
-void Provider::markLayoutsStale() {
+void MusicProvider::markLayoutsStale() {
 	for (auto &layout : _layouts) {
 		layout.second.stale = true;
 	}
 }
 
-void Provider::clearStaleLayouts() {
+void MusicProvider::clearStaleLayouts() {
 	for (auto i = _layouts.begin(); i != _layouts.end();) {
 		if (i->second.stale) {
-			_peer->owner().stories().unregisterPolling(
-				{ _peer->id, i->first },
-				Data::Stories::Polling::Chat);
 			_layoutRemoved.fire(i->second.item.get());
-			const auto taken = _items.take(i->first);
 			i = _layouts.erase(i);
 		} else {
 			++i;
@@ -260,49 +261,32 @@ void Provider::clearStaleLayouts() {
 	}
 }
 
-rpl::producer<not_null<BaseLayout*>> Provider::layoutRemoved() {
+rpl::producer<not_null<BaseLayout*>> MusicProvider::layoutRemoved() {
 	return _layoutRemoved.events();
 }
 
-BaseLayout *Provider::lookupLayout(const HistoryItem *item) {
+BaseLayout *MusicProvider::lookupLayout(const HistoryItem *item) {
 	return nullptr;
 }
 
-bool Provider::isMyItem(not_null<const HistoryItem*> item) {
+bool MusicProvider::isMyItem(not_null<const HistoryItem*> item) {
 	return IsStoryMsgId(item->id) && (item->history()->peer == _peer);
 }
 
-bool Provider::isAfter(
+bool MusicProvider::isAfter(
 		not_null<const HistoryItem*> a,
 		not_null<const HistoryItem*> b) {
 	return (a->id < b->id);
 }
 
-void Provider::storyRemoved(not_null<Data::Story*> story) {
-	Expects(story->peer() == _peer);
-
-	if (const auto i = _layouts.find(story->id()); i != end(_layouts)) {
-		_peer->owner().stories().unregisterPolling(
-			story,
-			Data::Stories::Polling::Chat);
-		_layoutRemoved.fire(i->second.item.get());
-		_layouts.erase(i);
-	}
-	_items.remove(story->id());
-}
-
-BaseLayout *Provider::getLayout(
-		StoryId id,
+BaseLayout *MusicProvider::getLayout(
+		not_null<DocumentData*> id,
 		not_null<Overview::Layout::Delegate*> delegate) {
 	auto it = _layouts.find(id);
 	if (it == _layouts.end()) {
 		if (auto layout = createLayout(id, delegate)) {
 			layout->initDimensions();
 			it = _layouts.emplace(id, std::move(layout)).first;
-			const auto ok = _peer->owner().stories().registerPolling(
-				{ _peer->id, id },
-				Data::Stories::Polling::Chat);
-			Assert(ok);
 		} else {
 			return nullptr;
 		}
@@ -311,22 +295,10 @@ BaseLayout *Provider::getLayout(
 	return it->second.item.get();
 }
 
-HistoryItem *Provider::ensureItem(StoryId id) {
-	const auto i = _items.find(id);
-	if (i != end(_items)) {
-		return i->second.get();
-	}
-	auto item = _peer->owner().stories().resolveItem({ _peer->id, id });
-	if (!item) {
-		return nullptr;
-	}
-	return _items.emplace(id, std::move(item)).first->second.get();
-}
-
-std::unique_ptr<BaseLayout> Provider::createLayout(
-		StoryId id,
+std::unique_ptr<BaseLayout> MusicProvider::createLayout(
+		not_null<DocumentData*> id,
 		not_null<Overview::Layout::Delegate*> delegate) {
-	const auto item = ensureItem(id);
+	const auto item = musicIdToMsg(id);
 	if (!item) {
 		return nullptr;
 	}
@@ -344,58 +316,46 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	};
 
 	const auto peer = item->history()->peer;
-	const auto channel = peer->asChannel();
-	const auto showPinned = (_albumId == Data::kStoriesAlbumIdSaved);
-	const auto showHidden = peer->isSelf()
-		|| (channel && channel->canEditStories());
 
 	using namespace Overview::Layout;
 	const auto options = MediaOptions{
-		.story = true,
-		.storyPinned = showPinned && item->isPinned(),
-		.storyShowPinned = showPinned,
-		.storyHidden = showHidden && !item->storyInProfile(),
-		.storyShowHidden = showHidden,
 	};
-	if (const auto photo = getPhoto()) {
-		return std::make_unique<Photo>(delegate, item, photo, options);
-	} else if (const auto file = getFile()) {
-		return std::make_unique<Video>(delegate, item, file, options);
-	} else {
-		return std::make_unique<Photo>(
+	if (const auto file = getFile()) {
+		return std::make_unique<Document>(
 			delegate,
 			item,
-			Data::MediaStory::LoadingStoryPhoto(&item->history()->owner()),
-			options);
+			DocumentFields{ file },
+			st::overviewFileLayout);
 	}
 	return nullptr;
 }
 
-ListItemSelectionData Provider::computeSelectionData(
+ListItemSelectionData MusicProvider::computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) {
 	auto result = ListItemSelectionData(selection);
 	const auto id = item->id;
-	if (_addingToAlbumId || !IsStoryMsgId(id)) {
+	if (!_musicIdFromMsgId.contains(id)) {
 		return result;
 	}
-	const auto peer = item->history()->peer;
-	const auto channel = peer->asChannel();
-	const auto maybeStory = peer->owner().stories().lookup(
-		{ peer->id, StoryIdFromMsgId(id) });
-	if (maybeStory) {
-		const auto story = *maybeStory;
-		result.canForward = peer->isSelf() && story->canShare();
-		result.canDelete = story->canDelete();
-		result.canUnpinStory = story->pinnedToTop();
-		result.storyInProfile = story->inProfile();
-	}
-	result.canToggleStoryPin = peer->isSelf()
-		|| (channel && channel->canEditStories());
+	AssertIsDebug();
+	//const auto peer = item->history()->peer;
+	//const auto channel = peer->asChannel();
+	//const auto maybeStory = peer->owner().stories().lookup(
+	//	{ peer->id, StoryIdFromMsgId(id) });
+	//if (maybeStory) {
+	//	const auto story = *maybeStory;
+	//	result.canForward = peer->isSelf() && story->canShare();
+	//	result.canDelete = story->canDelete();
+	//	result.canUnpinStory = story->pinnedToTop();
+	//	result.storyInProfile = story->inProfile();
+	//}
+	//result.canToggleStoryPin = peer->isSelf()
+	//	|| (channel && channel->canEditStories());
 	return result;
 }
 
-void Provider::applyDragSelection(
+void MusicProvider::applyDragSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> fromItem,
 		bool skipFrom,
@@ -412,12 +372,9 @@ void Provider::applyDragSelection(
 		}
 	}
 	for (auto &layoutItem : _layouts) {
-		const auto storyId = layoutItem.first;
-		const auto id = StoryIdToMsgId(storyId);
-		if (id <= fromId && id > tillId) {
-			const auto i = _items.find(storyId);
-			Assert(i != end(_items));
-			const auto item = i->second.get();
+		const auto musicId = layoutItem.first;
+		const auto item = musicIdToMsg(musicId);
+		if (item->id <= fromId && item->id > tillId) {
 			ChangeItemSelection(
 				selected,
 				item,
@@ -426,24 +383,24 @@ void Provider::applyDragSelection(
 	}
 }
 
-bool Provider::allowSaveFileAs(
+bool MusicProvider::allowSaveFileAs(
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) {
 	return false;
 }
 
-QString Provider::showInFolderPath(
+QString MusicProvider::showInFolderPath(
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) {
 	return QString();
 }
 
-int64 Provider::scrollTopStatePosition(not_null<HistoryItem*> item) {
+int64 MusicProvider::scrollTopStatePosition(not_null<HistoryItem*> item) {
 	return StoryIdFromMsgId(item->id);
 }
 
-HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
-	if (state.item && _slice.indexOf(StoryIdFromMsgId(state.item->id))) {
+HistoryItem *MusicProvider::scrollTopStateItem(ListScrollTopState state) {
+	if (state.item && _slice.indexOf(musicIdFromMsgId(state.item->id))) {
 		return state.item;
 	//} else if (const auto id = _slice.nearest(state.position)) {
 	//	const auto full = FullMsgId(_peer->id, StoryIdToMsgId(*id));
@@ -452,16 +409,16 @@ HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
 	//	}
 	}
 
-	auto nearestId = std::optional<StoryId>();
-	for (auto i = 0; i != _slice.size(); ++i) {
-		if (!nearestId
-			|| std::abs(*nearestId - state.position)
-				> std::abs(_slice[i] - state.position)) {
-			nearestId = _slice[i];
-		}
-	}
+	auto nearestId = (DocumentData*)nullptr; AssertIsDebug();
+	//for (auto i = 0; i != _slice.size(); ++i) {
+	//	if (!nearestId
+	//		|| std::abs(*nearestId - state.position)
+	//			> std::abs(_slice[i] - state.position)) {
+	//		nearestId = _slice[i];
+	//	}
+	//}
 	if (nearestId) {
-		const auto full = FullMsgId(_peer->id, StoryIdToMsgId(*nearestId));
+		const auto full = FullMsgId(_peer->id, musicIdToMsgId(nearestId));
 		if (const auto item = _controller->session().data().message(full)) {
 			return item;
 		}
@@ -470,26 +427,28 @@ HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
 	return state.item;
 }
 
-void Provider::saveState(
+void MusicProvider::saveState(
 		not_null<Media::Memento*> memento,
 		ListScrollTopState scrollState) {
-	if (_aroundId != kDefaultAroundId && scrollState.item) {
-		memento->setAroundId({ _peer->id, StoryIdToMsgId(_aroundId) });
-		memento->setIdsLimit(_idsLimit);
-		memento->setScrollTopItem(scrollState.item->globalId());
-		memento->setScrollTopItemPosition(scrollState.position);
-		memento->setScrollTopShift(scrollState.shift);
+	if (_aroundId != nullptr && scrollState.item) {
+		AssertIsDebug();
+		//memento->setAroundId({ _peer->id, StoryIdToMsgId(_aroundId) });
+		//memento->setIdsLimit(_idsLimit);
+		//memento->setScrollTopItem(scrollState.item->globalId());
+		//memento->setScrollTopItemPosition(scrollState.position);
+		//memento->setScrollTopShift(scrollState.shift);
 	}
 }
 
-void Provider::restoreState(
+void MusicProvider::restoreState(
 		not_null<Media::Memento*> memento,
 		Fn<void(ListScrollTopState)> restoreScrollState) {
 	if (const auto limit = memento->idsLimit()) {
 		const auto wasAroundId = memento->aroundId();
 		if (wasAroundId.peer == _peer->id) {
 			_idsLimit = limit;
-			_aroundId = StoryIdFromMsgId(wasAroundId.msg);
+			AssertIsDebug();
+			//_aroundId = StoryIdFromMsgId(wasAroundId.msg);
 			restoreScrollState({
 				.position = memento->scrollTopItemPosition(),
 				.item = MessageByGlobalId(memento->scrollTopItem()),
@@ -500,4 +459,4 @@ void Provider::restoreState(
 	}
 }
 
-} // namespace Info::Stories
+} // namespace Info::Saved

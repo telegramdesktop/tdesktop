@@ -86,6 +86,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/components/factchecks.h"
 #include "data/components/sponsored_messages.h"
+#include "data/data_saved_music.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -2549,6 +2550,20 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ? tr::lng_context_save_audio_file(tr::now) : tr::lng_context_save_file(tr::now))), base::fn_delayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				saveDocumentToFile(itemId, document);
 			}), &st::menuIconDownload);
+
+			if (document->isSong()) {
+				if (document->owner().savedMusic().has(document)) {
+					_menu->addAction(u"remove muzlo :("_q, [=] {
+						document->owner().savedMusic().remove(document);
+						_controller->showToast(u"removed from muzlo!"_q);
+					}, &st::menuIconUnfave);
+				} else {
+					_menu->addAction(u"to muzlo!"_q, [=] {
+						document->owner().savedMusic().save(document);
+						_controller->showToast(u"added to muzlo! :)"_q);
+					}, &st::menuIconFave);
+				}
+			}
 
 			HistoryView::AddCopyFilename(
 				_menu,

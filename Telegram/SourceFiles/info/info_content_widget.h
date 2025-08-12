@@ -68,6 +68,10 @@ namespace Info::Stories {
 struct Tag;
 } // namespace Info::Stories
 
+namespace Info::Saved {
+struct MusicTag;
+} // namespace Info::Saved
+
 namespace Info {
 
 class ContentMemento;
@@ -219,6 +223,7 @@ public:
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
 	explicit ContentMemento(Stories::Tag stories);
+	explicit ContentMemento(Saved::MusicTag music);
 	explicit ContentMemento(Statistics::Tag statistics);
 	explicit ContentMemento(BotStarRef::Tag starref);
 	explicit ContentMemento(GlobalMedia::Tag global);
@@ -260,6 +265,9 @@ public:
 	}
 	[[nodiscard]] int storiesAddToAlbumId() const {
 		return _storiesAddToAlbumId;
+	}
+	[[nodiscard]] PeerData *musicPeer() const {
+		return _musicPeer;
 	}
 	[[nodiscard]] PeerData *giftsPeer() const {
 		return _giftsPeer;
@@ -333,6 +341,7 @@ private:
 	PeerData * const _storiesPeer = nullptr;
 	int _storiesAlbumId = 0;
 	int _storiesAddToAlbumId = 0;
+	PeerData * const _musicPeer = nullptr;
 	PeerData * const _giftsPeer = nullptr;
 	int _giftsCollectionId = 0;
 	Statistics::Tag _statisticsTag;

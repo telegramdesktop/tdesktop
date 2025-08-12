@@ -49,6 +49,9 @@ Key::Key(Downloads::Tag downloads) : _value(downloads) {
 Key::Key(Stories::Tag stories) : _value(stories) {
 }
 
+Key::Key(Saved::MusicTag music) : _value(music) {
+}
+
 Key::Key(Statistics::Tag statistics) : _value(statistics) {
 }
 
@@ -133,6 +136,13 @@ int Key::storiesAddToAlbumId() const {
 		return tag->addingToAlbumId;
 	}
 	return 0;
+}
+
+PeerData *Key::musicPeer() const {
+	if (const auto tag = std::get_if<Saved::MusicTag>(&_value)) {
+		return tag->peer;
+	}
+	return nullptr;
 }
 
 PeerData *Key::giftsPeer() const {
@@ -392,6 +402,7 @@ bool Controller::validateMementoPeer(
 		&& memento->migratedPeerId() == migratedPeerId()
 		&& memento->settingsSelf() == settingsSelf()
 		&& memento->storiesPeer() == storiesPeer()
+		&& memento->musicPeer() == musicPeer()
 		&& memento->statisticsTag().peer == statisticsTag().peer
 		&& memento->starrefPeer() == starrefPeer()
 		&& memento->starrefType() == starrefType();

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/share_box.h"
 #include "data/data_peer.h"
+#include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -291,6 +292,15 @@ void InnerWidget::createProfileTop() {
 
 	using namespace Profile;
 	AddCover(_top, _controller, _peer, nullptr, nullptr);
+	if (Data::SavedMusic::Supported(_peer->id)) {
+		object_ptr<Profile::FloatingIcon>(
+			Media::AddMusicButton(
+				_top,
+				_controller,
+				_peer),
+			st::infoIconMediaAudio,
+			st::infoSharedMediaButtonIconPosition);
+	}
 	AddDetails(_top, _controller, _peer, nullptr, nullptr, { v::null });
 
 	auto tracker = Ui::MultiSlideTracker();

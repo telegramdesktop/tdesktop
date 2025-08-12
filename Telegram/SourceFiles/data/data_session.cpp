@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_icons.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_saved_messages.h"
+#include "data/data_saved_music.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "data/data_streaming.h"
@@ -250,6 +251,7 @@ Session::Session(not_null<Main::Session*> session)
 , _notifySettings(std::make_unique<NotifySettings>(this))
 , _customEmojiManager(std::make_unique<CustomEmojiManager>(this))
 , _stories(std::make_unique<Stories>(this))
+, _savedMusic(std::make_unique<SavedMusic>(this))
 , _savedMessages(std::make_unique<SavedMessages>(this))
 , _chatbots(std::make_unique<Chatbots>(this))
 , _businessInfo(std::make_unique<BusinessInfo>(this))

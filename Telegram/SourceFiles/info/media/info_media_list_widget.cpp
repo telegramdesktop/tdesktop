@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_provider.h"
 #include "info/media/info_media_list_section.h"
 #include "info/downloads/info_downloads_provider.h"
+#include "info/saved/info_saved_music_provider.h"
 #include "info/stories/info_stories_provider.h"
 #include "info/info_controller.h"
 #include "layout/layout_mosaic.h"
@@ -98,6 +99,8 @@ struct ListWidget::DateBadge {
 		not_null<AbstractController*> controller) {
 	if (controller->isDownloads()) {
 		return std::make_unique<Downloads::Provider>(controller);
+	} else if (controller->musicPeer()) {
+		return std::make_unique<Saved::MusicProvider>(controller);
 	} else if (controller->storiesPeer()) {
 		return std::make_unique<Stories::Provider>(controller);
 	} else if (controller->section().type() == Section::Type::GlobalMedia) {
@@ -194,6 +197,9 @@ void ListWidget::start() {
 		}, lifetime());
 	} else if (_controller->storiesPeer()) {
 		setupStoriesTrackIds();
+		trackSession(&session());
+		restart();
+	} else if (_controller->musicPeer()) {
 		trackSession(&session());
 		restart();
 	} else {
