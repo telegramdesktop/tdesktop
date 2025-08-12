@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 class Thread;
 struct NotifySound;
-enum class DefaultNotify;
+enum class DefaultNotify : uint8_t;
 } // namespace Data
 
 namespace Main {

@@ -28,7 +28,7 @@ namespace Data {
 struct UpdatedFileReferences;
 class WallPaper;
 struct ResolvedForwardDraft;
-enum class DefaultNotify;
+enum class DefaultNotify : uint8_t;
 enum class StickersType : uchar;
 class Forum;
 class ForumTopic;
