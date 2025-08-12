@@ -248,12 +248,9 @@ void TranslateBox(
 				showText(
 					Ui::Text::Italic(tr::lng_translate_box_error(tr::now)));
 			} else {
-				showText(TextWithEntities{
-					.text = qs(list.front().data().vtext()),
-					.entities = Api::EntitiesFromMTP(
-						&peer->session(),
-						list.front().data().ventities().v),
-				});
+				showText(Api::ParseTextWithEntities(
+					&peer->session(),
+					list.front()));
 			}
 		}).fail([=](const MTP::Error &error) {
 			showText(

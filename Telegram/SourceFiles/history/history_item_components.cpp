@@ -1336,11 +1336,7 @@ MessageFactcheck FromMTP(
 	}
 	const auto &data = factcheck->data();
 	if (const auto text = data.vtext()) {
-		const auto &data = text->data();
-		result.text = {
-			qs(data.vtext()),
-			Api::EntitiesFromMTP(session, data.ventities().v),
-		};
+		result.text = Api::ParseTextWithEntities(session, *text);
 	}
 	if (const auto country = data.vcountry()) {
 		result.country = qs(country->v);

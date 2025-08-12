@@ -960,12 +960,9 @@ std::optional<Data::SavedStarGift> FromTL(
 				| ranges::to_vector)
 			: std::vector<int>()),
 		.message = (data.vmessage()
-			? TextWithEntities{
-				.text = qs(data.vmessage()->data().vtext()),
-				.entities = Api::EntitiesFromMTP(
-					session,
-					data.vmessage()->data().ventities().v),
-			}
+			? Api::ParseTextWithEntities(
+				session,
+				*data.vmessage())
 			: TextWithEntities()),
 		.starsConverted = int64(data.vconvert_stars().value_or_empty()),
 		.starsUpgradedBySender = int64(
