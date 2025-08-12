@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
-#include "core/core_settings.h"
 #include "data/data_forum_topic.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_peer.h"
@@ -234,7 +233,7 @@ bool ByDefault() {
 }
 
 bool VolumeSupported() {
-	return false;
+	return UseGNotification() || !HasCapability("sound");
 }
 
 void Create(Window::Notifications::System *system) {
@@ -242,10 +241,12 @@ void Create(Window::Notifications::System *system) {
 
 	const auto managerSetter = [=](
 			XdgNotifications::NotificationsProxy proxy) {
-		system->setManager([=] {
-			auto manager = std::make_unique<Manager>(system);
-			manager->_private->init(proxy);
-			return manager;
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			system->setManager([=] {
+				auto manager = std::make_unique<Manager>(system);
+				manager->_private->init(proxy);
+				return manager;
+			});
 		});
 	};
 
@@ -923,11 +924,7 @@ bool Manager::doSkipToast() const {
 }
 
 void Manager::doMaybePlaySound(Fn<void()> playSound) {
-	if (UseGNotification()
-		|| !HasCapability("sound")
-		|| !Core::App().settings().desktopNotify()) {
-		_private->invokeIfNotInhibited(std::move(playSound));
-	}
+	_private->invokeIfNotInhibited(std::move(playSound));
 }
 
 void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
