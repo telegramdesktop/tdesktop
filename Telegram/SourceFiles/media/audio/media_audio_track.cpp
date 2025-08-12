@@ -157,7 +157,7 @@ void Track::playWithLooping(bool looping, float64 volumeOverride) {
 		AL_GAIN,
 		(volumeOverride > 0)
 			? volumeOverride
-			: _volume);
+			: float64(Core::App().settings().notificationsVolume()) / 100.);
 	alSourcePlay(_alSource);
 	_instance->trackStarted(this);
 }

@@ -240,7 +240,8 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_customFontFamily)
 		+ sizeof(qint32) * 3
 		+ Serialize::bytearraySize(_tonsiteStorageToken)
-		+ sizeof(qint32) * 8;
+		+ sizeof(qint32) * 8
+		+ sizeof(ushort);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -402,7 +403,8 @@ QByteArray Settings::serialize() const {
 			<< SerializeVideoQuality(_videoQuality)
 			<< qint32(_ivZoom.current())
 			<< qint32(_systemDarkModeEnabled.current() ? 1 : 0)
-			<< qint32(_quickDialogAction);
+			<< qint32(_quickDialogAction)
+			<< _notificationsVolume;
 	}
 
 	Ensures(result.size() == size);
@@ -532,6 +534,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	quint32 videoQuality = SerializeVideoQuality(_videoQuality);
 	quint32 chatFiltersHorizontal = _chatFiltersHorizontal.current() ? 1 : 0;
 	quint32 quickDialogAction = quint32(_quickDialogAction);
+	ushort notificationsVolume = _notificationsVolume;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -863,6 +866,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> quickDialogAction;
 	}
+	if (!stream.atEnd()) {
+		stream >> notificationsVolume;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -1085,6 +1091,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_videoQuality = DeserializeVideoQuality(videoQuality);
 	_chatFiltersHorizontal = (chatFiltersHorizontal == 1);
 	_quickDialogAction = Dialogs::Ui::QuickDialogAction(quickDialogAction);
+	_notificationsVolume = notificationsVolume;
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1477,6 +1484,7 @@ void Settings::resetOnLastLogout() {
 	_videoQuality = {};
 	_chatFiltersHorizontal = false;
 	_quickDialogAction = Dialogs::Ui::QuickDialogAction::Disabled;
+	_notificationsVolume = 100;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();
