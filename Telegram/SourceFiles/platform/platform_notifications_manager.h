@@ -20,6 +20,7 @@ void MaybeFlashBounceForCustom(Fn<void()> flashBounce);
 [[nodiscard]] bool Supported();
 [[nodiscard]] bool Enforced();
 [[nodiscard]] bool ByDefault();
+[[nodiscard]] bool VolumeSupported();
 void Create(Window::Notifications::System *system);
 
 } // namespace Notifications

@@ -233,6 +233,10 @@ bool ByDefault() {
 	}, HasCapability);
 }
 
+bool VolumeSupported() {
+	return false;
+}
+
 void Create(Window::Notifications::System *system) {
 	static const auto ServiceWatcher = CreateServiceWatcher();
 
