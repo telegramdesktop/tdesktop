@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_peer_notify_settings.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "platform/platform_notifications_manager.h"
 #include "settings/settings_common.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -66,9 +65,6 @@ void AddRingtonesVolumeSlider(
 		rpl::producer<bool> toggleOn,
 		rpl::producer<QString> subtitle,
 		Data::VolumeController volumeController) {
-	if (!Platform::Notifications::VolumeSupported()) {
-		return;
-	}
 	Expects(volumeController.volume && volumeController.saveVolume);
 
 	const auto volumeWrap = container->add(

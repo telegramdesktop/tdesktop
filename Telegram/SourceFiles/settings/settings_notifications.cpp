@@ -1019,10 +1019,23 @@ void SetupNotificationsContent(
 		{ &st::menuIconUnmute },
 		soundAllowed->events_starting_with(allowed()));
 
+	const auto volumeAllowed = container->lifetime(
+	).make_state<rpl::event_stream<bool>>();
+	const auto vallowed = [=] {
+		return allowed()
+			&& (!Core::App().settings().desktopNotify()
+			|| Core::App().notifications().manager().type()
+				!= Window::Notifications::ManagerType::Native
+			|| Platform::Notifications::VolumeSupported());
+	};
+	Core::App().notifications().managerChanged(
+	) | rpl::start_with_next([=] {
+		volumeAllowed->fire(vallowed());
+	}, container->lifetime());
 	Ui::AddRingtonesVolumeSlider(
 		container,
-		settings.soundNotify(),
-		soundAllowed->events_starting_with(allowed()),
+		vallowed(),
+		volumeAllowed->events_starting_with(vallowed()),
 		tr::lng_settings_master_volume_notifications(),
 		Data::VolumeController(
 			[]() -> ushort {
@@ -1280,6 +1293,7 @@ void SetupNotificationsContent(
 	) | rpl::start_with_next([=](Change change) {
 		if (change == Change::DesktopEnabled) {
 			desktopToggles->fire(Core::App().settings().desktopNotify());
+			volumeAllowed->fire(vallowed());
 			previewWrap->toggle(
 				Core::App().settings().desktopNotify(),
 				anim::type::normal);
@@ -1290,6 +1304,7 @@ void SetupNotificationsContent(
 			//
 		} else if (change == Change::SoundEnabled) {
 			soundAllowed->fire(allowed());
+			volumeAllowed->fire(vallowed());
 		} else if (change == Change::FlashBounceEnabled) {
 			flashbounceToggles->fire(
 				Core::App().settings().flashBounceNotify());

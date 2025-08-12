@@ -106,6 +106,8 @@ public:
 
 	void createManager();
 	void setManager(Fn<std::unique_ptr<Manager>()> create);
+	[[nodiscard]] Manager &manager() const;
+	[[nodiscard]] rpl::producer<> managerChanged() const;
 
 	void checkDelayed();
 	void schedule(Data::ItemNotification notification);
@@ -216,6 +218,7 @@ private:
 		crl::time> _sentReactionNotifications;
 
 	std::unique_ptr<Manager> _manager;
+	rpl::event_stream<> _managerChanged;
 
 	rpl::event_stream<ChangeType> _settingsChanged;
 
@@ -334,9 +337,7 @@ public:
 	[[nodiscard]] bool skipToast() const {
 		return doSkipToast();
 	}
-	void maybePlaySound(Fn<void()> playSound) {
-		doMaybePlaySound(std::move(playSound));
-	}
+	void maybePlaySound(Fn<void()> playSound);
 	void maybeFlashBounce(Fn<void()> flashBounce) {
 		doMaybeFlashBounce(std::move(flashBounce));
 	}
