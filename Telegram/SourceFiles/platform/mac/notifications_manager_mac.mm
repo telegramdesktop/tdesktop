@@ -205,6 +205,10 @@ bool ByDefault() {
 	return Supported();
 }
 
+bool VolumeSupported() {
+	return false;
+}
+
 void Create(Window::Notifications::System *system) {
 	system->setManager([=] { return std::make_unique<Manager>(system); });
 }
