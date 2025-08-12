@@ -579,10 +579,7 @@ bool Manager::doSkipToast() const {
 }
 
 void Manager::doMaybePlaySound(Fn<void()> playSound) {
-	// Play through native notification system if toasts are enabled.
-	if (!Core::App().settings().desktopNotify()) {
-		playSound();
-	}
+	playSound();
 }
 
 void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {

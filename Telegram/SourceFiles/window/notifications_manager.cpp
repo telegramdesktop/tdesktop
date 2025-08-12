@@ -189,8 +189,12 @@ void System::createManager() {
 
 void System::setManager(Fn<std::unique_ptr<Manager>()> create) {
 	Expects(_manager != nullptr);
+	const auto oldManager = _manager.get();
 	const auto guard = gsl::finally([&] {
 		Ensures(_manager != nullptr);
+		if (oldManager != _manager.get()) {
+			_managerChanged.fire({});
+		}
 	});
 
 	if ((Core::App().settings().nativeNotifications()
@@ -213,6 +217,15 @@ void System::setManager(Fn<std::unique_ptr<Manager>()> create) {
 	} else if (_manager->type() != ManagerType::Default) {
 		_manager = std::make_unique<Default::Manager>(this);
 	}
+}
+
+Manager &System::manager() const {
+	Expects(_manager != nullptr);
+	return *_manager;
+}
+
+rpl::producer<> System::managerChanged() const {
+	return _managerChanged.events();
 }
 
 Main::Session *System::findSession(uint64 sessionId) const {
@@ -977,6 +990,24 @@ void System::notifySettingsChanged(ChangeType type) {
 	return _settingsChanged.fire(std::move(type));
 }
 
+bool System::volumeSupported() const {
+	// Play through native notification system if toasts are enabled.
+	return Core::App().settings().soundNotify()
+		&& (!Core::App().settings().desktopNotify()
+			|| _manager->type() != ManagerType::Native
+			|| Platform::Notifications::VolumeSupported());
+}
+
+rpl::producer<bool> System::volumeSupportedValue() const {
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		rpl::merge(settingsChanged() | rpl::to_empty, managerChanged())
+	) | rpl::map([=] {
+		return volumeSupported();
+	}) | rpl::distinct_until_changed();
+}
+
 void System::playSound(
 		not_null<Main::Session*> session,
 		DocumentId id,
@@ -1340,6 +1371,12 @@ void Manager::notificationReplied(
 
 	if (item && item->isUnreadMention() && !item->isIncomingUnreadMedia()) {
 		history->session().api().markContentsRead(item);
+	}
+}
+
+void Manager::maybePlaySound(Fn<void()> playSound) {
+	if (_system->volumeSupported()) {
+		doMaybePlaySound(std::move(playSound));
 	}
 }
 

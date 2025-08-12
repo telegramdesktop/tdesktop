@@ -1021,7 +1021,7 @@ void SetupNotificationsContent(
 
 	Ui::AddRingtonesVolumeSlider(
 		container,
-		soundAllowed->events_starting_with(allowed()),
+		rpl::single(true),
 		tr::lng_settings_master_volume_notifications(),
 		Data::VolumeController{
 			.volume = []() -> ushort {
