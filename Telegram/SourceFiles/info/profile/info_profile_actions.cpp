@@ -1493,8 +1493,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 
 		if (!user->isBot()) {
 			tracker.track(result->add(
-				CreateBirthday(result, controller, user)));
-			tracker.track(result->add(CreateWorkingHours(result, user)));
+				CreateBirthday(result, controller, user),
+				{},
+				style::al_justify));
+			tracker.track(result->add(
+				CreateWorkingHours(result, user), {}, style::al_justify));
 
 			auto locationText = user->session().changes().peerFlagsValue(
 				user,
