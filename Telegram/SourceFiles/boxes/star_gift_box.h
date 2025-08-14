@@ -158,4 +158,11 @@ void ShowResaleGiftBoughtToast(
 	not_null<PeerData*> to,
 	const Data::UniqueGift &gift);
 
+[[nodiscard]] rpl::lifetime ShowStarGiftResale(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	uint64 giftId,
+	QString title,
+	Fn<void()> finishRequesting);
+
 } // namespace Ui

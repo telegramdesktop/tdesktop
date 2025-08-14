@@ -2261,6 +2261,7 @@ void UniqueGiftValueBox(
 		std::shared_ptr<Data::DocumentMedia> media;
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
 		rpl::lifetime downloadLifetime;
+		rpl::lifetime buyLifetime;
 	};
 	Ui::AddSkip(content, st::creditsHistoryEntryStarGiftSpace);
 
@@ -2368,6 +2369,54 @@ void UniqueGiftValueBox(
 	AddUniqueGiftValueTable(show, content, st, e);
 
 	Ui::AddSkip(content);
+
+	const auto addAvailability = [&](int count, tr::phrase<> platform) {
+		return box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_gift_value_availability(
+					lt_count_decimal,
+					rpl::single(count * 1.),
+					lt_emoji,
+					rpl::single(Data::SingleCustomEmoji(document)),
+					lt_platform,
+					platform(Ui::Text::WithEntities),
+					lt_arrow,
+					rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
+					[](const QString &text) { return Ui::Text::Link(text); }),
+				st::uniqueGiftValueAvailableLink,
+				st::defaultPopupMenu,
+				Core::TextContext({ .session = &show->session() })),
+			st::boxRowPadding + st::uniqueGiftValueAvailableMargin,
+			style::al_top);
+	};
+
+	if (const auto count = value->forSaleOnTelegram; count > 0) {
+		addAvailability(
+			count,
+			tr::lng_gift_value_telegram
+		)->setClickHandlerFilter([=](const auto &...) {
+			if (const auto window = show->resolveWindow()) {
+				state->buyLifetime = Ui::ShowStarGiftResale(
+					window,
+					window->session().user(),
+					unique->initialGiftId,
+					unique->title,
+					crl::guard(box, [=] { state->buyLifetime.destroy(); }));
+			}
+			return false;
+		});
+	}
+	if (const auto count = value->forSaleOnFragment; count > 0) {
+		const auto url = value->fragmentUrl;
+		addAvailability(
+			count,
+			tr::lng_gift_value_fragment
+		)->setClickHandlerFilter([=](const auto &...) {
+			UrlClickHandler::Open(url);
+			return false;
+		});
+	}
 
 	box->addButton(tr::lng_box_ok(), [=] {
 		box->closeBox();

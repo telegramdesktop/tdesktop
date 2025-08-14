@@ -894,9 +894,10 @@ std::optional<Data::StarGift> FromTL(
 			? session->data().peer(releasedById).get()
 			: nullptr;
 		auto result = Data::StarGift{
-			.id = uint64(data.vid().v),
+			.id = data.vid().v,
 			.unique = std::make_shared<Data::UniqueGift>(Data::UniqueGift{
 				.id = data.vid().v,
+				.initialGiftId = data.vgift_id().v,
 				.slug = qs(data.vslug()),
 				.title = qs(data.vtitle()),
 				.ownerAddress = qs(data.vowner_address().value_or_empty()),

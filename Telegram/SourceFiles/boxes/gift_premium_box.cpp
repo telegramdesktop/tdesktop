@@ -78,8 +78,73 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kRarityTooltipDuration = 3 * crl::time(1000);
+constexpr auto kTooltipDuration = 3 * crl::time(1000);
+constexpr auto kPriceTooltipDuration = 6 * crl::time(1000);
 constexpr auto kHorizontalBar = QChar(0x2015);
+
+struct InfoTooltipData {
+	not_null<Ui::RpWidget*> parent;
+	Ui::ImportantTooltip *raw = nullptr;
+};
+
+void ShowInfoTooltip(
+		std::shared_ptr<InfoTooltipData> data,
+		not_null<QWidget*> target,
+		rpl::producer<TextWithEntities> text,
+		int duration) {
+	if (data->raw) {
+		data->raw->toggleAnimated(false);
+	}
+	const auto parent = data->parent;
+	const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+		parent,
+		Ui::MakeNiceTooltipLabel(
+			parent,
+			std::move(text),
+			st::boxWideWidth,
+			st::defaultImportantTooltipLabel),
+		st::defaultImportantTooltip);
+	tooltip->toggleFast(false);
+
+	const auto update = [=] {
+		const auto geometry = Ui::MapFrom(parent, target, target->rect());
+		const auto countPosition = [=](QSize size) {
+			const auto left = geometry.x()
+				+ (geometry.width() - size.width()) / 2;
+			const auto right = parent->width()
+				- st::normalFont->spacew;
+			return QPoint(
+				std::max(std::min(left, right - size.width()), 0),
+				geometry.y() - size.height() - st::normalFont->descent);
+		};
+		tooltip->pointAt(geometry, RectPart::Top, countPosition);
+	};
+	parent->widthValue(
+	) | rpl::start_with_next(update, tooltip->lifetime());
+
+	update();
+	tooltip->toggleAnimated(true);
+
+	data->raw = tooltip;
+	tooltip->shownValue() | rpl::filter(
+		!rpl::mappers::_1
+	) | rpl::start_with_next([=] {
+		crl::on_main(tooltip, [=] {
+			if (tooltip->isHidden()) {
+				if (data->raw == tooltip) {
+					data->raw = nullptr;
+				}
+				delete tooltip;
+			}
+		});
+	}, tooltip->lifetime());
+
+	base::timer_once(
+		duration
+	) | rpl::start_with_next([=] {
+		tooltip->toggleAnimated(false);
+	}, tooltip->lifetime());
+}
 
 [[nodiscard]] QString CreateMessageLink(
 		not_null<Main::Session*> session,
@@ -190,9 +255,16 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 		not_null<Ui::TableLayout*> table,
 		not_null<Ui::RpWidget*> value,
 		rpl::producer<QString> buttonText,
-		Fn<void(not_null<Ui::RpWidget*> button)> handler,
+		Fn<void(not_null<Ui::RpWidget*> button)> handler = nullptr,
 		int topSkip = 0) {
-	auto result = object_ptr<Ui::RpWidget>(table);
+	class MarginedWidget final : public Ui::RpWidget {
+	public:
+		using RpWidget::RpWidget;
+		QMargins getMargins() const override {
+			return { 0, 0, 0, st::giveawayGiftCodePeerMargin.bottom() };
+		}
+	};
+	auto result = object_ptr<MarginedWidget>(table);
 	const auto raw = result.data();
 
 	value->setParent(raw);
@@ -203,9 +275,13 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 		std::move(buttonText),
 		table->st().smallButton);
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	button->setClickedCallback([button, handler = std::move(handler)] {
-		handler(button);
-	});
+	if (handler) {
+		button->setClickedCallback([button, handler = std::move(handler)] {
+			handler(button);
+		});
+	} else {
+		button->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
 	rpl::combine(
 		raw->widthValue(),
 		button->widthValue(),
@@ -223,7 +299,8 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 	}, value->lifetime());
 
 	value->heightValue() | rpl::start_with_next([=](int height) {
-		raw->resize(raw->width(), height);
+		const auto bottom = st::giveawayGiftCodePeerMargin.bottom();
+		raw->resize(raw->width(), height + bottom);
 	}, raw->lifetime());
 
 	return result;
@@ -385,7 +462,7 @@ void AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
 		object_ptr<Ui::RpWidget> value,
-		style::margins valueMargins) {
+		style::margins valueMargins = st::giveawayGiftCodeValueMargin) {
 	table->addRow(
 		(label
 			? object_ptr<Ui::FlatLabel>(
@@ -396,6 +473,91 @@ void AddTableRow(
 		std::move(value),
 		st::giveawayGiftCodeLabelMargin,
 		valueMargins);
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakePriceWithChangePercentValue(
+		not_null<Ui::TableLayout*> table,
+		const std::shared_ptr<Data::UniqueGiftValue> &value) {
+	auto label = object_ptr<Ui::FlatLabel>(
+		table,
+		rpl::single(FormatValuePrice(value->lastSalePrice, value->currency)),
+		table->st().defaultValue);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto initial = value->initialSalePrice;
+	if (!initial) {
+		return label;
+	}
+
+	const auto diff = (100 * (value->lastSalePrice - initial))
+		/ float64(initial);
+	const auto use = (std::abs(diff) >= 10.)
+		? base::SafeRound(diff)
+		: (int(base::SafeRound(diff * 100)) / 100.);
+	const auto prefix = (use > 0) ? u"+"_q : QString();
+	const auto percent = Lang::FormatExactCountDecimal(use) + '%';
+	auto text = rpl::single(prefix + percent);
+	return MakeValueWithSmallButton(table, label, std::move(text));
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakePriceValueWithTooltip(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<InfoTooltipData> data,
+		TextWithEntities price,
+		TextWithEntities tooltip) {
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		table,
+		rpl::single(price),
+		table->st().defaultValue);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto handler = [=](not_null<Ui::RpWidget*> button) {
+		ShowInfoTooltip(
+			data,
+			button,
+			rpl::single(tooltip),
+			kPriceTooltipDuration);
+	};
+	auto text = rpl::single(u"?"_q);
+	return MakeValueWithSmallButton(table, label, std::move(text), handler);
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeMinimumPriceValue(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<InfoTooltipData> tooltip,
+		const std::shared_ptr<Data::UniqueGift> &unique) {
+	const auto &value = unique->value;
+	const auto text = FormatValuePrice(value->minimumPrice, value->currency);
+	return MakePriceValueWithTooltip(
+		table,
+		std::move(tooltip),
+		text,
+		tr::lng_gift_value_minimum_price_tooltip(
+			tr::now,
+			lt_amount,
+			Ui::Text::Bold(text.text),
+			lt_gift,
+			Ui::Text::Bold(unique->title),
+			Ui::Text::WithEntities));
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeAveragePriceValue(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<InfoTooltipData> tooltip,
+		const std::shared_ptr<Data::UniqueGift> &unique) {
+	const auto &value = unique->value;
+	const auto text = FormatValuePrice(value->averagePrice, value->currency);
+	return MakePriceValueWithTooltip(
+		table,
+		std::move(tooltip),
+		text,
+		tr::lng_gift_value_average_price_tooltip(
+			tr::now,
+			lt_amount,
+			Ui::Text::Bold(text.text),
+			lt_gift,
+			Ui::Text::Bold(unique->title),
+			Ui::Text::WithEntities));
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeAttributeValue(
@@ -423,10 +585,8 @@ void AddTableRow(
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void()> convertToStars) {
 	auto helper = Ui::Text::CustomEmojiHelper();
-	const auto price = helper.paletteDependent(Ui::Earn::IconCreditsEmoji({
-		.size = table->st().defaultValue.style.font->height,
-		.margin = QMargins(0, st::giftBoxByStarsSkip, 0, 0),
-	})).append(' ').append(Lang::FormatCreditsAmountDecimal(entry.credits));
+	const auto price = helper.paletteDependent(Ui::Earn::IconCreditsEmoji(
+	)).append(' ').append(Lang::FormatCreditsAmountDecimal(entry.credits));
 	auto label = object_ptr<Ui::FlatLabel>(
 		table,
 		rpl::single(price),
@@ -520,11 +680,7 @@ not_null<Ui::FlatLabel*> AddTableRow(
 		st::defaultPopupMenu,
 		context);
 	const auto result = widget.data();
-	AddTableRow(
-		table,
-		std::move(label),
-		std::move(widget),
-		st::giveawayGiftCodeValueMargin);
+	AddTableRow(table, std::move(label), std::move(widget));
 	return result;
 }
 
@@ -1255,64 +1411,13 @@ void AddStarGiftTable(
 	const auto giftToChannel = entry.giftChannelSavedId
 		&& peerIsChannel(PeerId(entry.bareEntryOwnerId));
 
-	const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
+	const auto tooltip = std::make_shared<InfoTooltipData>(InfoTooltipData{
+		.parent = container,
+	});
 	const auto showTooltip = [=](
 			not_null<Ui::RpWidget*> widget,
 			rpl::producer<TextWithEntities> text) {
-		if (*raw) {
-			(*raw)->toggleAnimated(false);
-		}
-		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
-			container,
-			Ui::MakeNiceTooltipLabel(
-				container,
-				std::move(text),
-				st::boxWideWidth,
-				st::defaultImportantTooltipLabel),
-			st::defaultImportantTooltip);
-		tooltip->toggleFast(false);
-
-		const auto update = [=] {
-			const auto geometry = Ui::MapFrom(
-				container,
-				widget,
-				widget->rect());
-			const auto countPosition = [=](QSize size) {
-				const auto left = geometry.x()
-					+ (geometry.width() - size.width()) / 2;
-				const auto right = container->width()
-					- st::normalFont->spacew;
-				return QPoint(
-					std::max(std::min(left, right - size.width()), 0),
-					geometry.y() - size.height() - st::normalFont->descent);
-			};
-			tooltip->pointAt(geometry, RectPart::Top, countPosition);
-		};
-		container->widthValue(
-		) | rpl::start_with_next(update, tooltip->lifetime());
-
-		update();
-		tooltip->toggleAnimated(true);
-
-		*raw = tooltip;
-		tooltip->shownValue() | rpl::filter(
-			!rpl::mappers::_1
-		) | rpl::start_with_next([=] {
-			crl::on_main(tooltip, [=] {
-				if (tooltip->isHidden()) {
-					if (*raw == tooltip) {
-						*raw = nullptr;
-					}
-					delete tooltip;
-				}
-			});
-		}, tooltip->lifetime());
-
-		base::timer_once(
-			kRarityTooltipDuration
-		) | rpl::start_with_next([=] {
-			tooltip->toggleAnimated(false);
-		}, tooltip->lifetime());
+		ShowInfoTooltip(tooltip, widget, std::move(text), kTooltipDuration);
 	};
 
 	if (unique && entry.bareGiftResaleRecipientId) {
@@ -1369,8 +1474,7 @@ void AddStarGiftTable(
 			AddTableRow(
 				table,
 				tr::lng_gift_unique_owner(),
-				std::move(label),
-				st::giveawayGiftCodeValueMargin);
+				std::move(label));
 		}
 	} else if (giftToChannel) {
 		AddTableRow(
@@ -1444,18 +1548,15 @@ void AddStarGiftTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_model(),
-			MakeAttributeValue(table, unique->model, showRarity),
-			st::giveawayGiftCodeValueMargin);
+			MakeAttributeValue(table, unique->model, showRarity));
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_backdrop(),
-			MakeAttributeValue(table, unique->backdrop, showRarity),
-			st::giveawayGiftCodeValueMargin);
+			MakeAttributeValue(table, unique->backdrop, showRarity));
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_symbol(),
-			MakeAttributeValue(table, unique->pattern, showRarity),
-			st::giveawayGiftCodeValueMargin);
+			MakeAttributeValue(table, unique->pattern, showRarity));
 	} else {
 		AddTableRow(
 			table,
@@ -1464,8 +1565,7 @@ void AddStarGiftTable(
 				table,
 				show,
 				entry,
-				std::move(convertToStars)),
-			st::giveawayGiftCodeValueMargin);
+				std::move(convertToStars)));
 	}
 	if (entry.limitedCount > 0 && !entry.giftRefunded) {
 		auto amount = rpl::single(TextWithEntities{
@@ -1504,8 +1604,7 @@ void AddStarGiftTable(
 			AddTableRow(
 				table,
 				tr::lng_gift_unique_value(),
-				MakeUniqueGiftValueValue(table, show, entry, st),
-				st::giveawayGiftCodeValueMargin);
+				MakeUniqueGiftValueValue(table, show, entry, st));
 		}
 		const auto &original = unique->originalDetails;
 		if (original.recipientId) {
@@ -1691,8 +1790,7 @@ void AddCreditsHistoryEntryTable(
 				(entry.reaction
 					? tr::lng_credits_box_history_entry_message
 					: tr::lng_credits_box_history_entry_media)(),
-				std::move(label),
-				st::giveawayGiftCodeValueMargin);
+				std::move(label));
 		}
 	}
 	using Type = Data::CreditsHistoryEntry::PeerType;
@@ -1799,8 +1897,7 @@ void AddCreditsHistoryEntryTable(
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_id(),
-			std::move(label),
-			st::giveawayGiftCodeValueMargin);
+			std::move(label));
 	}
 	if (entry.floodSkip) {
 		AddTableRow(
@@ -1988,8 +2085,7 @@ void AddChannelEarnTable(
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_id(),
-			std::move(label),
-			st::giveawayGiftCodeValueMargin);
+			std::move(label));
 	}
 }
 
@@ -2004,66 +2100,6 @@ void AddUniqueGiftValueTable(
 			container,
 			st.table ? *st.table : st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
-	const auto raw = std::make_shared<Ui::ImportantTooltip*>(nullptr);
-	const auto showTooltip = [=](
-			not_null<Ui::RpWidget*> widget,
-			rpl::producer<TextWithEntities> text) {
-		if (*raw) {
-			(*raw)->toggleAnimated(false);
-		}
-		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
-			container,
-			Ui::MakeNiceTooltipLabel(
-				container,
-				std::move(text),
-				st::boxWideWidth,
-				st::defaultImportantTooltipLabel),
-			st::defaultImportantTooltip);
-		tooltip->toggleFast(false);
-
-		const auto update = [=] {
-			const auto geometry = Ui::MapFrom(
-				container,
-				widget,
-				widget->rect());
-			const auto countPosition = [=](QSize size) {
-				const auto left = geometry.x()
-					+ (geometry.width() - size.width()) / 2;
-				const auto right = container->width()
-					- st::normalFont->spacew;
-				return QPoint(
-					std::max(std::min(left, right - size.width()), 0),
-					geometry.y() - size.height() - st::normalFont->descent);
-			};
-			tooltip->pointAt(geometry, RectPart::Top, countPosition);
-		};
-		container->widthValue(
-		) | rpl::start_with_next(update, tooltip->lifetime());
-
-		update();
-		tooltip->toggleAnimated(true);
-
-		*raw = tooltip;
-		tooltip->shownValue() | rpl::filter(
-			!rpl::mappers::_1
-		) | rpl::start_with_next([=] {
-			crl::on_main(tooltip, [=] {
-				if (tooltip->isHidden()) {
-					if (*raw == tooltip) {
-						*raw = nullptr;
-					}
-					delete tooltip;
-				}
-			});
-		}, tooltip->lifetime());
-
-		base::timer_once(
-			kRarityTooltipDuration
-		) | rpl::start_with_next([=] {
-			tooltip->toggleAnimated(false);
-		}, tooltip->lifetime());
-	};
-
 	if (value->initialSaleDate) {
 		AddTableRow(
 			table,
@@ -2078,7 +2114,7 @@ void AddUniqueGiftValueTable(
 		tr::lng_gift_value_initial_price(),
 		tr::lng_gift_value_initial_price_value(
 			lt_stars,
-			rpl::single(starIcon.append(
+			rpl::single(starIcon.append(' ').append(
 				Lang::FormatCreditsAmountDecimal(value->initialPriceStars)
 			)),
 			lt_amount,
@@ -2098,21 +2134,22 @@ void AddUniqueGiftValueTable(
 		AddTableRow(
 			table,
 			tr::lng_gift_value_last_price(),
-			rpl::single(
-				FormatValuePrice(value->lastSalePrice, value->currency)));
+			MakePriceWithChangePercentValue(table, value));
 	}
+
+	const auto tooltip = std::make_shared<InfoTooltipData>(InfoTooltipData{
+		.parent = container,
+	});
 	if (value->minimumPrice) {
 		AddTableRow(
 			table,
 			tr::lng_gift_value_minimum_price(),
-			rpl::single(
-				FormatValuePrice(value->minimumPrice, value->currency)));
+			MakeMinimumPriceValue(table, tooltip, entry.uniqueGift));
 	}
 	if (value->averagePrice) {
 		AddTableRow(
 			table,
 			tr::lng_gift_vlaue_average_price(),
-			rpl::single(
-				FormatValuePrice(value->averagePrice, value->currency)));
+			MakeAveragePriceValue(table, tooltip, entry.uniqueGift));
 	}
 }

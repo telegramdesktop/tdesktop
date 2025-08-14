@@ -155,9 +155,12 @@ Ui::Text::PaletteDependentEmoji IconCreditsEmoji(
 		IconDescriptor descriptor) {
 	return { .factory = [=] {
 		return Ui::GenerateStars(
-			descriptor.size ? descriptor.size : st::normalFont->height,
+			(descriptor.size
+				? descriptor.size
+				: st::defaultTableLabel.style.font->height),
 			1);
-	}, .margin = descriptor.margin.value_or(QMargins()) };
+	}, .margin = descriptor.margin.value_or(
+		{ 0, st::giftBoxByStarsSkip, 0, 0 }) };
 }
 
 Ui::Text::PaletteDependentEmoji IconCurrencyEmoji(

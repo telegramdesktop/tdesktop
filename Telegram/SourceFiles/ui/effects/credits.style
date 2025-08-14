@@ -371,3 +371,9 @@ uniqueGiftValueAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 128px;
 	align: align(top);
 }
+uniqueGiftValueAvailableLink: FlatLabel(boxLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+uniqueGiftValueAvailableMargin: margins(0px, 4px, 0px, 4px);

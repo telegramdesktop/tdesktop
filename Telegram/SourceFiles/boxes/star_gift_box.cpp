@@ -1258,7 +1258,7 @@ struct ResaleTabs {
 	object_ptr<RpWidget> widget;
 };
 [[nodiscard]] ResaleTabs MakeResaleTabs(
-		not_null<Window::SessionController*> window,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
 		const ResaleGiftsDescriptor &info,
 		rpl::producer<ResaleFilter> filter) {
@@ -1340,7 +1340,7 @@ struct ResaleTabs {
 			action->setClickedCallback(std::move(callback));
 			menu->addAction(std::move(action));
 		};
-		auto context = Core::TextContext({ .session = &window->session() });
+		auto context = Core::TextContext({ .session = &show->session() });
 		context.customEmojiFactory = [original = context.customEmojiFactory](
 				QStringView data,
 				const Ui::Text::MarkedContext &context) {
@@ -2738,13 +2738,6 @@ void SendGiftBox(
 	};
 }
 
-[[nodiscard]] rpl::lifetime ShowStarGiftResale(
-	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer,
-	uint64 giftId,
-	QString title,
-	Fn<void()> finishRequesting);
-
 [[nodiscard]] object_ptr<RpWidget> MakeGiftsList(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
@@ -3362,7 +3355,7 @@ void GiftResaleBox(
 	}, content->lifetime());
 
 	auto tabs = MakeResaleTabs(
-		window,
+		window->uiShow(),
 		peer,
 		state->data,
 		state->filter.value());
@@ -3446,30 +3439,6 @@ void GiftResaleBox(
 			});
 		}
 	}));
-}
-
-[[nodiscard]] rpl::lifetime ShowStarGiftResale(
-		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer,
-		uint64 giftId,
-		QString title,
-		Fn<void()> finishRequesting) {
-	const auto weak = base::make_weak(controller);
-	const auto session = &controller->session();
-	return ResaleGiftsSlice(
-		session,
-		giftId
-	) | rpl::start_with_next([=](ResaleGiftsDescriptor &&info) {
-		if (const auto onstack = finishRequesting) {
-			onstack();
-		}
-		if (!info.giftId || !info.count) {
-			return;
-		}
-		info.title = title;
-		controller->show(
-			Box(GiftResaleBox, controller, peer, std::move(info)));
-	});
 }
 
 struct CustomList {
@@ -5420,4 +5389,30 @@ void ShowResaleGiftBoughtToast(
 		.duration = kUpgradeDoneToastDuration,
 	});
 }
+
+rpl::lifetime ShowStarGiftResale(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		uint64 giftId,
+		QString title,
+		Fn<void()> finishRequesting) {
+	const auto weak = base::make_weak(controller);
+	const auto session = &controller->session();
+	return ResaleGiftsSlice(
+		session,
+		giftId
+	) | rpl::start_with_next([=](ResaleGiftsDescriptor &&info) {
+		if (const auto onstack = finishRequesting) {
+			onstack();
+		}
+		if (!info.giftId || !info.count) {
+			return;
+		}
+		info.title = title;
+		if (const auto strong = weak.get()) {
+			strong->show(Box(GiftResaleBox, strong, peer, std::move(info)));
+		}
+	});
+}
+
 } // namespace Ui
