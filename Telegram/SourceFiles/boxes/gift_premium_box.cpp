@@ -186,6 +186,49 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 			: st::giveawayGiftCodeValueMultiline));
 }
 
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeValueWithSmallButton(
+		not_null<Ui::TableLayout*> table,
+		not_null<Ui::RpWidget*> value,
+		rpl::producer<QString> buttonText,
+		Fn<void(not_null<Ui::RpWidget*> button)> handler,
+		int topSkip = 0) {
+	auto result = object_ptr<Ui::RpWidget>(table);
+	const auto raw = result.data();
+
+	value->setParent(raw);
+	value->show();
+
+	const auto button = Ui::CreateChild<Ui::RoundButton>(
+		raw,
+		std::move(buttonText),
+		table->st().smallButton);
+	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	button->setClickedCallback([button, handler = std::move(handler)] {
+		handler(button);
+	});
+	rpl::combine(
+		raw->widthValue(),
+		button->widthValue(),
+		value->naturalWidthValue()
+	) | rpl::start_with_next([=](int width, int buttonWidth, int) {
+		const auto buttonSkip = st::normalFont->spacew + buttonWidth;
+		value->resizeToNaturalWidth(width - buttonSkip);
+		value->moveToLeft(0, 0, width);
+		button->moveToLeft(
+			rect::right(value) + st::normalFont->spacew,
+			(topSkip
+				+ (table->st().defaultValue.style.font->ascent
+					- table->st().smallButton.style.font->ascent)),
+			width);
+	}, value->lifetime());
+
+	value->heightValue() | rpl::start_with_next([=](int height) {
+		raw->resize(raw->width(), height);
+	}, raw->lifetime());
+
+	return result;
+}
+
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerTableValue(
 		not_null<Ui::TableLayout*> table,
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -204,38 +247,18 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 		raw,
 		(button && handler) ? peer->shortName() : peer->name(),
 		table->st().defaultValue);
-	const auto send = (button && handler)
-		? Ui::CreateChild<Ui::RoundButton>(
-			raw,
-			std::move(button),
-			table->st().smallButton)
-		: nullptr;
-	if (send) {
-		send->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-		send->setClickedCallback(std::move(handler));
-	}
-	rpl::combine(
-		raw->widthValue(),
-		send ? send->widthValue() : rpl::single(0)
-	) | rpl::start_with_next([=](int width, int sendWidth) {
+
+	raw->widthValue() | rpl::start_with_next([=](int width) {
 		const auto position = st::giveawayGiftCodeNamePosition;
-		const auto sendSkip = sendWidth
-			? (st::normalFont->spacew + sendWidth)
-			: 0;
-		label->resizeToNaturalWidth(width - position.x() - sendSkip);
+		label->resizeToNaturalWidth(width - position.x());
 		label->moveToLeft(position.x(), position.y(), width);
 		const auto top = (raw->height() - userpic->height()) / 2;
 		userpic->moveToLeft(0, top, width);
-		if (send) {
-			send->moveToLeft(
-				position.x() + label->width() + st::normalFont->spacew,
-				(position.y()
-					+ table->st().defaultValue.style.font->ascent
-					- table->st().smallButton.style.font->ascent),
-				width);
-		}
 	}, label->lifetime());
 
+	label->naturalWidthValue() | rpl::start_with_next([=](int width) {
+		raw->setNaturalWidth(st::giveawayGiftCodeNamePosition.x() + width);
+	}, label->lifetime());
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	label->setTextColorOverride(table->st().defaultValue.palette.linkFg->c);
@@ -244,7 +267,15 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 		show->showBox(PrepareShortInfoBox(peer, show));
 	});
 
-	return result;
+	if (!button || !handler) {
+		return result;
+	}
+	return MakeValueWithSmallButton(
+		table,
+		result.release(),
+		std::move(button),
+		[=](not_null<Ui::RpWidget*> button) { handler(); },
+		st::giveawayGiftCodeNamePosition.y());
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerWithStatusValue(
@@ -252,24 +283,21 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 		std::shared_ptr<ChatHelpers::Show> show,
 		PeerId id,
 		Fn<void(not_null<Ui::RpWidget*>, EmojiStatusId)> pushStatusId) {
-	auto result = object_ptr<Ui::AbstractButton>(table);
+	auto result = object_ptr<Ui::RpWidget>(table);
 	const auto raw = result.data();
 
-	const auto &st = st::giveawayGiftCodeUserpic;
-	raw->resize(raw->width(), st.photoSize);
+	const auto peerLabel = MakePeerTableValue(table, show, id).release();
+	peerLabel->setParent(raw);
+	peerLabel->show();
 
-	const auto peer = show->session().data().peer(id);
-	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(raw, peer, st);
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
-		peer->name(),
-		table->st().defaultValue);
+	raw->resize(raw->width(), peerLabel->height());
 
 	using namespace Info::Profile;
 	struct State {
 		rpl::variable<Badge::Content> content;
 	};
-	const auto state = label->lifetime().make_state<State>();
+	const auto peer = show->session().data().peer(id);
+	const auto state = peerLabel->lifetime().make_state<State>();
 	state->content = EmojiStatusIdValue(
 		peer
 	) | rpl::map([=](EmojiStatusId emojiStatusId) {
@@ -282,7 +310,7 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 			.emojiStatusId = emojiStatusId,
 		};
 	});
-	const auto badge = label->lifetime().make_state<Badge>(
+	const auto badge = peerLabel->lifetime().make_state<Badge>(
 		raw,
 		st::infoPeerBadge,
 		&peer->session(),
@@ -300,32 +328,19 @@ constexpr auto kHorizontalBar = QChar(0x2015);
 		raw->widthValue(),
 		rpl::single(rpl::empty) | rpl::then(badge->updated())
 	) | rpl::start_with_next([=](int width, const auto &) {
-		const auto position = st::giveawayGiftCodeNamePosition;
 		const auto badgeWidget = badge->widget();
 		const auto badgeSkip = badgeWidget
 			? (st::normalFont->spacew + badgeWidget->width())
 			: 0;
-		label->resizeToNaturalWidth(width - position.x() - badgeSkip);
-		label->moveToLeft(position.x(), position.y(), width);
-		const auto top = (raw->height() - userpic->height()) / 2;
-		userpic->moveToLeft(0, top, width);
+		peerLabel->resizeToNaturalWidth(width - badgeSkip);
+		peerLabel->moveToLeft(0, 0, width);
 		if (badgeWidget) {
 			badgeWidget->moveToLeft(
-				position.x() + label->width() + st::normalFont->spacew,
-				(position.y()
-					+ table->st().defaultValue.style.font->ascent
-					- table->st().smallButton.style.font->ascent),
+				peerLabel->width() + st::normalFont->spacew,
+				st::giftBoxByStarsStarTop,
 				width);
 		}
-	}, label->lifetime());
-
-	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	label->setTextColorOverride(table->st().defaultValue.palette.linkFg->c);
-
-	raw->setClickedCallback([=] {
-		show->showBox(PrepareShortInfoBox(peer, show));
-	});
+	}, raw->lifetime());
 
 	return result;
 }
@@ -387,51 +402,19 @@ void AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		const Data::UniqueGiftAttribute &attribute,
 		Fn<void(not_null<Ui::RpWidget*>, int)> showTooltip) {
-	auto result = object_ptr<Ui::RpWidget>(table);
-	const auto raw = result.data();
-
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
+		table,
 		attribute.name,
 		table->st().defaultValue);
-	const auto permille = attribute.rarityPermille;
-
-	const auto text = QString::number(permille / 10.) + '%';
-	const auto rarity = Ui::CreateChild<Ui::RoundButton>(
-		raw,
-		rpl::single(text),
-		table->st().smallButton);
-	rarity->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-
-	rpl::combine(
-		raw->widthValue(),
-		rarity->widthValue()
-	) | rpl::start_with_next([=](int width, int convertWidth) {
-		const auto convertSkip = convertWidth
-			? (st::normalFont->spacew + convertWidth)
-			: 0;
-		label->resizeToNaturalWidth(width - convertSkip);
-		label->moveToLeft(0, 0, width);
-		rarity->moveToLeft(
-			label->width() + st::normalFont->spacew,
-			(table->st().defaultValue.style.font->ascent
-				- table->st().smallButton.style.font->ascent),
-			width);
-	}, label->lifetime());
-
-	label->heightValue() | rpl::start_with_next([=](int height) {
-		raw->resize(
-			raw->width(),
-			height + st::giveawayGiftCodeValueMargin.bottom());
-	}, raw->lifetime());
-
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	rarity->setClickedCallback([=] {
-		showTooltip(rarity, permille);
-	});
+	const auto permille = attribute.rarityPermille;
+	auto text = rpl::single(QString::number(permille / 10.) + '%');
 
-	return result;
+	const auto handler = [=](not_null<Ui::RpWidget*> button) {
+		showTooltip(button, permille);
+	};
+	return MakeValueWithSmallButton(table, label, std::move(text), handler);
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
@@ -439,60 +422,33 @@ void AddTableRow(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void()> convertToStars) {
-	auto result = object_ptr<Ui::RpWidget>(table);
-	const auto raw = result.data();
-
-	const auto star = Ui::CreateSingleStarWidget(
-		raw,
-		table->st().defaultValue.style.font->height);
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
-		Lang::FormatCreditsAmountDecimal(entry.credits),
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto price = helper.paletteDependent(Ui::Earn::IconCreditsEmoji({
+		.size = table->st().defaultValue.style.font->height,
+		.margin = QMargins(0, st::giftBoxByStarsSkip, 0, 0),
+	})).append(' ').append(Lang::FormatCreditsAmountDecimal(entry.credits));
+	auto label = object_ptr<Ui::FlatLabel>(
+		table,
+		rpl::single(price),
 		table->st().defaultValue,
-		st::defaultPopupMenu);
-
-	const auto convert = convertToStars
-		? Ui::CreateChild<Ui::RoundButton>(
-			raw,
-			tr::lng_gift_sell_small(
-				lt_count_decimal,
-				rpl::single(entry.starsConverted * 1.)),
-			table->st().smallButton)
-		: nullptr;
-	if (convert) {
-		using namespace Ui;
-		convert->setTextTransform(RoundButton::TextTransform::NoTransform);
-		convert->setClickedCallback(std::move(convertToStars));
-	}
-	rpl::combine(
-		raw->widthValue(),
-		convert ? convert->widthValue() : rpl::single(0)
-	) | rpl::start_with_next([=](int width, int convertWidth) {
-		const auto convertSkip = convertWidth
-			? (st::normalFont->spacew + convertWidth)
-			: 0;
-		const auto labelLeft = rect::right(star) + st::normalFont->spacew;
-		label->resizeToNaturalWidth(width - convertSkip - labelLeft);
-		star->moveToLeft(0, 0, width);
-		label->moveToLeft(labelLeft, 0, width);
-		if (convert) {
-			convert->moveToLeft(
-				rect::right(label) + st::normalFont->spacew,
-				(table->st().defaultValue.style.font->ascent
-					- table->st().smallButton.style.font->ascent),
-				width);
-		}
-	}, label->lifetime());
-
-	label->heightValue() | rpl::start_with_next([=](int height) {
-		raw->resize(
-			raw->width(),
-			height + st::giveawayGiftCodeValueMargin.bottom());
-	}, raw->lifetime());
-
+		st::defaultPopupMenu,
+		helper.context());
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	return result;
+	if (!convertToStars) {
+		return label;
+	}
+	const auto handler = [=](not_null<Ui::RpWidget*> button) {
+		convertToStars();
+	};
+	auto text = tr::lng_gift_sell_small(
+		lt_count_decimal,
+		rpl::single(entry.starsConverted * 1.));
+	return MakeValueWithSmallButton(
+		table,
+		label.release(),
+		std::move(text),
+		handler);
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeUniqueGiftValueValue(
@@ -500,26 +456,19 @@ void AddTableRow(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &entry,
 		Settings::CreditsEntryBoxStyleOverrides st) {
-	auto result = object_ptr<Ui::RpWidget>(table);
-	const auto raw = result.data();
-
 	const auto unique = entry.uniqueGift;
 	const auto value = unique ? unique->value : nullptr;
 	const auto loading = std::make_shared<bool>(false);
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
+		table,
 		rpl::single(
 			FormatValuePrice(value->valuePrice, value->currency, true)),
 		table->st().defaultValue,
 		st::defaultPopupMenu);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto learn = Ui::CreateChild<Ui::RoundButton>(
-		raw,
-		tr::lng_gift_unique_value_learn_more(),
-		table->st().smallButton);
-	learn->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	learn->setClickedCallback([=] {
+	const auto handler = [=](not_null<Ui::RpWidget*> button) {
 		if (value->initialPriceStars) {
 			show->show(Box(Settings::UniqueGiftValueBox, show, entry, st));
 		} else if (*loading) {
@@ -551,30 +500,12 @@ void AddTableRow(
 
 			show->show(Box(Settings::UniqueGiftValueBox, show, entry, st));
 		}).send();
-	});
-	rpl::combine(
-		raw->widthValue(),
-		learn->widthValue()
-	) | rpl::start_with_next([=](int width, int learnWidth) {
-		const auto learnSkip = st::normalFont->spacew + learnWidth;
-		label->resizeToNaturalWidth(width - learnSkip);
-		label->moveToLeft(0, 0, width);
-		learn->moveToLeft(
-			rect::right(label) + st::normalFont->spacew,
-			(table->st().defaultValue.style.font->ascent
-				- table->st().smallButton.style.font->ascent),
-			width);
-	}, label->lifetime());
-
-	label->heightValue() | rpl::start_with_next([=](int height) {
-		raw->resize(
-			raw->width(),
-			height + st::giveawayGiftCodeValueMargin.bottom());
-	}, raw->lifetime());
-
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	return result;
+	};
+	return MakeValueWithSmallButton(
+		table,
+		label,
+		tr::lng_gift_unique_value_learn_more(),
+		handler);
 }
 
 not_null<Ui::FlatLabel*> AddTableRow(
@@ -1500,8 +1431,6 @@ void AddStarGiftTable(
 			tr::lng_gift_link_label_date(),
 			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
 	}
-	const auto marginWithButton = st::giveawayGiftCodeValueMargin
-		- QMargins(0, 0, 0, st::giveawayGiftCodeValueMargin.bottom());
 	if (unique) {
 		const auto showRarity = [=](
 				not_null<Ui::RpWidget*> widget,
@@ -1516,17 +1445,17 @@ void AddStarGiftTable(
 			table,
 			tr::lng_gift_unique_model(),
 			MakeAttributeValue(table, unique->model, showRarity),
-			marginWithButton);
+			st::giveawayGiftCodeValueMargin);
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_backdrop(),
 			MakeAttributeValue(table, unique->backdrop, showRarity),
-			marginWithButton);
+			st::giveawayGiftCodeValueMargin);
 		AddTableRow(
 			table,
 			tr::lng_gift_unique_symbol(),
 			MakeAttributeValue(table, unique->pattern, showRarity),
-			marginWithButton);
+			st::giveawayGiftCodeValueMargin);
 	} else {
 		AddTableRow(
 			table,
@@ -1536,7 +1465,7 @@ void AddStarGiftTable(
 				show,
 				entry,
 				std::move(convertToStars)),
-			marginWithButton);
+			st::giveawayGiftCodeValueMargin);
 	}
 	if (entry.limitedCount > 0 && !entry.giftRefunded) {
 		auto amount = rpl::single(TextWithEntities{
@@ -1576,7 +1505,7 @@ void AddStarGiftTable(
 				table,
 				tr::lng_gift_unique_value(),
 				MakeUniqueGiftValueValue(table, show, entry, st),
-				marginWithButton);
+				st::giveawayGiftCodeValueMargin);
 		}
 		const auto &original = unique->originalDetails;
 		if (original.recipientId) {
