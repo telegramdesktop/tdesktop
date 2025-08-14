@@ -669,6 +669,7 @@ void TopBar::createSelectionControls() {
 	) | rpl::start_to_stream(
 		_selectionActionRequests,
 		_cancelSelection->lifetime());
+
 	_selectionText = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::LabelWithNumbers>>(
 		this,
 		object_ptr<Ui::LabelWithNumbers>(
@@ -679,6 +680,11 @@ void TopBar::createSelectionControls() {
 		st::infoTopBarScale));
 	_selectionText->setDuration(st::infoTopBarDuration);
 	_selectionText->entity()->resize(0, _st.height);
+	_selectionText->naturalWidthValue(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		updateSelectionControlsGeometry(width());
+	}, _selectionText->lifetime());
+
 	_forward = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
 		object_ptr<Ui::IconButton>(this, _st.mediaForward),
