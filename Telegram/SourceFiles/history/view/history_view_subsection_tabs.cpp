@@ -510,6 +510,10 @@ void SubsectionTabs::toggleModes() {
 	_layoutRequests.fire({});
 }
 
+bool SubsectionTabs::dying() const {
+	return !UsedFor(_history);
+}
+
 rpl::producer<> SubsectionTabs::removeRequests() const {
 	if (const auto forum = _history->peer->forum()) {
 		return forum->destroyed();

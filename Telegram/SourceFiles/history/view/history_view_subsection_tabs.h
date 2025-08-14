@@ -49,6 +49,7 @@ public:
 
 	[[nodiscard]] static bool UsedFor(not_null<Data::Thread*> thread);
 
+	[[nodiscard]] bool dying() const;
 	[[nodiscard]] rpl::producer<> removeRequests() const;
 
 	void extractToParent(not_null<Ui::RpWidget*> parent);
