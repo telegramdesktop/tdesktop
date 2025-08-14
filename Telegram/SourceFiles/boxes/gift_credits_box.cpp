@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -78,7 +77,7 @@ void GiftCreditsBox(
 				u"internal:stars_examples"_q);
 		});
 		content->add(
-			Ui::CreateLabelWithCustomEmoji(
+			object_ptr<Ui::FlatLabel>(
 				content,
 				tr::lng_credits_box_history_entry_gift_out_about(
 					lt_user,
@@ -86,7 +85,6 @@ void GiftCreditsBox(
 					lt_link,
 					std::move(link),
 					Ui::Text::RichLangValue),
-				Core::TextContext({ .session = &peer->session() }),
 				st::creditsBoxAbout),
 			st::boxRowPadding,
 			style::al_top);

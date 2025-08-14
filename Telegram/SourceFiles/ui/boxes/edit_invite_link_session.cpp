@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/number_input.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -129,7 +128,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 
 	state->usdRate = peer->session().credits().rateValue(peer);
 
-	auto about = Ui::CreateLabelWithCustomEmoji(
+	auto about = object_ptr<Ui::FlatLabel>(
 		container,
 		tr::lng_group_invite_subscription_about(
 			lt_link,
@@ -143,7 +142,6 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 					tr::lng_group_invite_subscription_about_url(tr::now));
 			}),
 			Ui::Text::RichLangValue),
-		Core::TextContext({ .session = &peer->session() }),
 		st::boxDividerLabel);
 	Ui::AddSkip(wrap->entity());
 	Ui::AddSkip(wrap->entity());

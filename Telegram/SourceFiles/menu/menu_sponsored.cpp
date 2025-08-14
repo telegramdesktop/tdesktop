@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
@@ -96,12 +95,10 @@ void AboutBox(
 			tr::lng_sponsored_menu_revenued_about(),
 			st::boxTitle)));
 	Ui::AddSkip(content);
-	box->addRow(object_ptr<Ui::CenterWrap<>>(
+	box->addRow(object_ptr<Ui::FlatLabel>(
 		content,
-		object_ptr<Ui::FlatLabel>(
-			content,
-			tr::lng_sponsored_revenued_subtitle(),
-			st::channelEarnLearnDescription)));
+		tr::lng_sponsored_revenued_subtitle(),
+		st::channelEarnLearnDescription));
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 	{
@@ -224,7 +221,7 @@ void AboutBox(
 		const auto available = box->width()
 			- rect::m::sum::h(st::boxRowPadding);
 		box->addRow(
-			Ui::CreateLabelWithCustomEmoji(
+			object_ptr<Ui::FlatLabel>(
 				content,
 				(isChannel
 					? tr::lng_sponsored_revenued_footer_description
@@ -240,7 +237,6 @@ void AboutBox(
 							return Ui::Text::Link(std::move(t), kUrl.utf16());
 						}),
 						Ui::Text::RichLangValue),
-				Core::TextContext({ .session = session }),
 				st::channelEarnLearnDescription))->resizeToWidth(available);
 	}
 	Ui::AddSkip(content);

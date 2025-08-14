@@ -86,7 +86,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
@@ -1694,7 +1693,7 @@ void GenericCreditsEntryBox(
 				u"internal:stars_examples"_q);
 		});
 		box->addRow(
-			Ui::CreateLabelWithCustomEmoji(
+			object_ptr<Ui::FlatLabel>(
 				box,
 				(!e.in && peer)
 					? tr::lng_credits_box_history_entry_gift_out_about(
@@ -1707,7 +1706,6 @@ void GenericCreditsEntryBox(
 						lt_link,
 						std::move(link),
 						Ui::Text::RichLangValue),
-				Core::TextContext({ .session = session }),
 				st::creditsBoxAbout),
 			st::boxRowPadding,
 			style::al_top);
@@ -1724,7 +1722,7 @@ void GenericCreditsEntryBox(
 		});
 		const auto percent = 100. - (e.paidMessagesCommission / 10.);
 		box->addRow(
-			Ui::CreateLabelWithCustomEmoji(
+			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_credits_paid_messages_fee_about(
 					lt_percent,
@@ -1733,7 +1731,6 @@ void GenericCreditsEntryBox(
 					lt_link,
 					std::move(link),
 					Ui::Text::RichLangValue),
-				Core::TextContext({ .session = session }),
 				st::creditsBoxAbout),
 			st::boxRowPadding,
 			style::al_top);
@@ -2913,8 +2910,7 @@ void AddWithdrawalWidget(
 	Ui::AddSkip(container);
 	Ui::AddSkip(container);
 
-	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
-	auto about = Ui::CreateLabelWithCustomEmoji(
+	auto about = object_ptr<Ui::FlatLabel>(
 		container,
 		(peer->isSelf()
 			? tr::lng_self_earn_learn_credits_out_about
@@ -2922,7 +2918,7 @@ void AddWithdrawalWidget(
 				lt_link,
 				tr::lng_channel_earn_about_link(
 					lt_emoji,
-					rpl::single(arrow),
+					rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
 					Ui::Text::RichLangValue
 				) | rpl::map([](TextWithEntities text) {
 					return Ui::Text::Link(
@@ -2930,7 +2926,6 @@ void AddWithdrawalWidget(
 						tr::lng_bot_earn_balance_about_url(tr::now));
 				}),
 			Ui::Text::RichLangValue),
-		{},
 		st::boxDividerLabel);
 	Ui::AddSkip(container);
 	container->add(object_ptr<Ui::DividerLabel>(

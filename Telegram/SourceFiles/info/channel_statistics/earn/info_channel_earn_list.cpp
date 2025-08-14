@@ -58,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/peer_bubble.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/slider_natural_width.h"
@@ -414,21 +413,19 @@ void InnerWidget::fill() {
 	const auto session = &_peer->session();
 	const auto withdrawalEnabled = WithdrawalEnabled(session);
 
-	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
-		auto label = Ui::CreateLabelWithCustomEmoji(
+		auto label = object_ptr<Ui::FlatLabel>(
 			container,
 			text(
 				lt_link,
 				tr::lng_channel_earn_about_link(
 					lt_emoji,
-					rpl::single(arrow),
+					rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
 					Ui::Text::RichLangValue
 				) | rpl::map([](TextWithEntities text) {
 					return Ui::Text::Link(std::move(text), 1);
 				}),
 				Ui::Text::RichLangValue),
-			Core::TextContext({ .session = session }),
 			st::boxDividerLabel);
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
@@ -545,7 +542,7 @@ void InnerWidget::fill() {
 					const auto l = box->addRow(
 						object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 							content,
-							Ui::CreateLabelWithCustomEmoji(
+							object_ptr<Ui::FlatLabel>(
 								content,
 								tr::lng_channel_earn_learn_coin_title(
 									lt_emoji,
@@ -553,7 +550,6 @@ void InnerWidget::fill() {
 										Ui::Text::Link(bigCurrencyIcon, 1)),
 									Ui::Text::RichLangValue
 								),
-								emojiHelper.context(),
 								st::boxTitle)))->entity();
 					const auto diamonds = l->lifetime().make_state<int>(0);
 					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {
@@ -570,20 +566,19 @@ void InnerWidget::fill() {
 				Ui::AddSkip(content);
 				{
 					const auto label = box->addRow(
-						Ui::CreateLabelWithCustomEmoji(
+						object_ptr<Ui::FlatLabel>(
 							content,
 							tr::lng_channel_earn_learn_coin_about(
 								lt_link,
 								tr::lng_channel_earn_about_link(
 									lt_emoji,
-									rpl::single(arrow),
+									rpl::single(Ui::Text::IconEmoji(
+										&st::textMoreIconEmoji)),
 									Ui::Text::RichLangValue
 								) | rpl::map([](TextWithEntities text) {
 									return Ui::Text::Link(std::move(text), 1);
 								}),
-								Ui::Text::RichLangValue
-							),
-							Core::TextContext({ .session = session }),
+								Ui::Text::RichLangValue),
 							st::channelEarnLearnDescription));
 					label->resizeToWidth(box->width()
 						- rect::m::sum::h(st::boxRowPadding));

@@ -41,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h" // Ui::RadiobuttonGroup.
 #include "ui/widgets/gradient_round_button.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -524,24 +523,23 @@ void Business::setupContent() {
 
 		const auto session = &_controller->session();
 		{
-			const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 			inner->add(object_ptr<Ui::DividerLabel>(
 				inner,
-				Ui::CreateLabelWithCustomEmoji(
+				object_ptr<Ui::FlatLabel>(
 					inner,
 					tr::lng_business_about_sponsored(
 						lt_link,
 						rpl::combine(
 							tr::lng_business_about_sponsored_link(
 								lt_emoji,
-								rpl::single(arrow),
+								rpl::single(Ui::Text::IconEmoji(
+									&st::textMoreIconEmoji)),
 								Ui::Text::RichLangValue),
 							tr::lng_business_about_sponsored_url()
 						) | rpl::map([](TextWithEntities text, QString url) {
 							return Ui::Text::Link(text, url);
 						}),
 						Ui::Text::RichLangValue),
-					Core::TextContext({ .session = session }),
 					st::boxDividerLabel),
 				st::defaultBoxDividerLabelPadding,
 				RectPart::Top | RectPart::Bottom));

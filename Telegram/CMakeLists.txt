@@ -1627,8 +1627,6 @@ PRIVATE
     ui/text/format_song_document_name.h
     ui/widgets/expandable_peer_list.cpp
     ui/widgets/expandable_peer_list.h
-    ui/widgets/label_with_custom_emoji.cpp
-    ui/widgets/label_with_custom_emoji.h
     ui/widgets/chat_filters_tabs_strip.cpp
     ui/widgets/chat_filters_tabs_strip.h
     ui/widgets/peer_bubble.cpp
