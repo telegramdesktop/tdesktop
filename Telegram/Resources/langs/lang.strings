@@ -377,6 +377,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_intro_fragment_about" = "Get the code for {phone_number} in the Anonymous Numbers section on Fragment.";
 "lng_intro_fragment_button" = "Open Fragment";
 
+"lng_intro_email_setup_title" = "Choose a login email";
+"lng_intro_email_confirm_subtitle" = "Please check your email {email} (don't forget the spam folder) and enter the code we just sent you.";
+
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code\nand enter your phone number.";
 "lng_phone_to_qr" = "Quick log in using QR code";

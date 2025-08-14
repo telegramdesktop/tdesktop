@@ -1123,6 +1123,8 @@ PRIVATE
     inline_bots/inline_results_widget.h
     intro/intro_code.cpp
     intro/intro_code.h
+    intro/intro_email.cpp
+    intro/intro_email.h
     intro/intro_password_check.cpp
     intro/intro_password_check.h
     intro/intro_phone.cpp
