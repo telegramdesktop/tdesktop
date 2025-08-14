@@ -4310,6 +4310,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_remove_from_group" = "Remove from group";
 "lng_context_add_to_group" = "Add to group";
 
+"lng_context_rate_transcription" = "Rate transcription";
+"lng_toast_sent_rate_transcription" = "Thank you for your feedback!";
+
 "lng_context_copy_link" = "Copy Link";
 "lng_context_copy_message_link" = "Copy Message Link";
 "lng_context_copy_post_link" = "Copy Post Link";

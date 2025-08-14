@@ -73,6 +73,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "menu/menu_item_download_files.h"
+#include "menu/menu_item_rate_transcribe.h"
+#include "menu/menu_item_rate_transcribe_session.h"
 #include "menu/menu_sponsored.h"
 #include "core/application.h"
 #include "apiwrap.h"
@@ -2500,6 +2502,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}, &st::menuIconStickers);
 		}
 	};
+	auto rateTranscriptionItem = (HistoryItem*)(nullptr);
 	const auto addDocumentActions = [&](not_null<DocumentData*> document, HistoryItem *item) {
 		if (document->loading()) {
 			_menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
@@ -2558,6 +2561,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					controller,
 					document);
 			}, &st::menuIconStickers);
+		}
+		if (item
+			&& (lnkIsVoice || document->isVideoMessage())
+			&& Menu::HasRateTranscribeItem(item)) {
+			rateTranscriptionItem = item;
 		}
 	};
 
@@ -2972,6 +2980,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 									&st::menuIconGiftPremium);
 							}
 						}
+					} else if (!rateTranscriptionItem && media->document()) {
+						if ((media->document()->isVoiceMessage()
+								|| media->document()->isVideoMessage())
+							&& Menu::HasRateTranscribeItem(item)) {
+							rateTranscriptionItem = item;
+						}
 					}
 				}
 				if (!item->isService() && view && actionText.isEmpty()) {
@@ -3137,6 +3151,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu,
 			leaderOrSelf,
 			_controller);
+	}
+
+	if (!_menu->empty() && rateTranscriptionItem) {
+		_menu->insertAction(0, base::make_unique_q<Menu::RateTranscribe>(
+			_menu,
+			_menu->st().menu,
+			Menu::RateTranscribeCallbackFactory(rateTranscriptionItem)));
 	}
 
 	if (_menu->empty()) {

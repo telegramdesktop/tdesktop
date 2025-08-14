@@ -1280,6 +1280,8 @@ PRIVATE
     menu/menu_antispam_validator.h
     menu/menu_item_download_files.cpp
     menu/menu_item_download_files.h
+    menu/menu_item_rate_transcribe_session.cpp
+    menu/menu_item_rate_transcribe_session.h
     menu/menu_mute.cpp
     menu/menu_mute.h
     menu/menu_send.cpp

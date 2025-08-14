@@ -162,6 +162,9 @@ public:
 		MsgId topicRootId,
 		PeerId monoforumPeerId) const;
 
+	void markTranscriptionAsRated(uint64 transcriptionId);
+	[[nodiscard]] bool isTranscriptionRated(uint64 transcriptionId) const;
+
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
@@ -201,6 +204,8 @@ private:
 	rpl::variable<int> _supportChatsTimeSlice
 		= kDefaultSupportChatsLimitSlice;
 	rpl::variable<bool> _supportAllSearchResults = false;
+
+	base::flat_set<uint64> _ratedTranscriptions;
 
 };
 

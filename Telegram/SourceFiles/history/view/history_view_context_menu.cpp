@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/ui_utility.h"
 #include "menu/menu_item_download_files.h"
+#include "menu/menu_item_rate_transcribe.h"
+#include "menu/menu_item_rate_transcribe_session.h"
 #include "menu/menu_send.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/show_or_premium_box.h"
@@ -337,6 +339,16 @@ void AddDocumentActions(
 	if (item && !list->hasCopyMediaRestriction(item)) {
 		const auto controller = list->controller();
 		AddSaveSoundForNotifications(menu, item, document, controller);
+	}
+	if ((document->isVoiceMessage()
+			|| document->isVideoMessage())
+		&& Menu::HasRateTranscribeItem(item)) {
+		if (!menu->empty()) {
+			menu->insertAction(0, base::make_unique_q<Menu::RateTranscribe>(
+				menu,
+				menu->st().menu,
+				Menu::RateTranscribeCallbackFactory(item)));
+		}
 	}
 	AddSaveDocumentAction(menu, item, document, list);
 	AddCopyFilename(

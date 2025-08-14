@@ -196,6 +196,8 @@ PRIVATE
     menu/gift_resale_filter.h
     menu/menu_check_item.cpp
     menu/menu_check_item.h
+    menu/menu_item_rate_transcribe.cpp
+    menu/menu_item_rate_transcribe.h
     menu/menu_ttl.cpp
     menu/menu_ttl.h
 

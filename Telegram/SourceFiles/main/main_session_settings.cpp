@@ -54,7 +54,9 @@ QByteArray SessionSettings::serialize() const {
 		+ (_ringtoneVolumes.size()
 			* (0
 				+ sizeof(quint64) * 3 // ThreadId
-				+ sizeof(ushort))); // Volume
+				+ sizeof(ushort))) // Volume
+		+ sizeof(qint32) // _ratedTranscriptions size
+		+ (_ratedTranscriptions.size() * sizeof(quint64));
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -121,6 +123,10 @@ QByteArray SessionSettings::serialize() const {
 				<< qint64(key.topicRootId.bare)
 				<< SerializePeerId(key.monoforumPeerId)
 				<< ushort(value);
+		}
+		stream << qint32(_ratedTranscriptions.size());
+		for (const auto &transcriptionId : _ratedTranscriptions) {
+			stream << quint64(transcriptionId);
 		}
 	}
 
@@ -191,6 +197,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 lastNonPremiumLimitUpload = 0;
 	base::flat_map<Data::DefaultNotify, ushort> ringtoneDefaultVolumes;
 	base::flat_map<ThreadId, ushort> ringtoneVolumes;
+	base::flat_set<uint64> ratedTranscriptions;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -419,7 +426,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		stream >> count;
 		if (stream.status() == QDataStream::Ok) {
 			for (auto i = 0; i != count; ++i) {
-				quint64 period;
+				auto period = quint64();
 				stream >> period;
 				mutePeriods.emplace_back(period);
 			}
@@ -561,6 +568,23 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto transcriptionId = quint64();
+				stream >> transcriptionId;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"
+						"with ratedTranscriptions"));
+					return;
+				}
+				ratedTranscriptions.emplace(transcriptionId);
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -610,6 +634,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_verticalSubsectionTabs = std::move(verticalSubsectionTabs);
 	_ringtoneDefaultVolumes = std::move(ringtoneDefaultVolumes);
 	_ringtoneVolumes = std::move(ringtoneVolumes);
+	_ratedTranscriptions = std::move(ratedTranscriptions);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -820,6 +845,14 @@ void SessionSettings::setRingtoneVolume(
 	} else {
 		_ringtoneVolumes.remove(id);
 	}
+}
+
+void SessionSettings::markTranscriptionAsRated(uint64 transcriptionId) {
+	_ratedTranscriptions.emplace(transcriptionId);
+}
+
+bool SessionSettings::isTranscriptionRated(uint64 transcriptionId) const {
+	return _ratedTranscriptions.contains(transcriptionId);
 }
 
 } // namespace Main

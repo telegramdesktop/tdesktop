@@ -17,12 +17,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 
 namespace Api {
 
 Transcribes::Transcribes(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
+}
+
+bool Transcribes::isRated(not_null<HistoryItem*> item) const {
+	const auto fullId = item->fullId();
+	for (const auto &[transcribeId, id] : _ids) {
+		if (id == fullId) {
+			return _session->settings().isTranscriptionRated(transcribeId);
+		}
+	}
+	return false;
+}
+
+void Transcribes::rate(not_null<HistoryItem*> item, bool isGood) {
+	const auto fullId = item->fullId();
+	for (const auto &[transcribeId, id] : _ids) {
+		if (id == fullId) {
+			_api.request(MTPmessages_RateTranscribedAudio(
+				item->history()->peer->input,
+				MTP_int(item->id),
+				MTP_long(transcribeId),
+				MTP_bool(isGood))).send();
+			_session->settings().markTranscriptionAsRated(transcribeId);
+			_session->saveSettings();
+			return;
+		}
+	}
 }
 
 bool Transcribes::freeFor(not_null<HistoryItem*> item) const {
