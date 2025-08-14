@@ -211,14 +211,12 @@ not_null<Ui::FlatLabel*> AddError(
 		not_null<Ui::VerticalLayout*> content,
 		Ui::PasswordInput *input) {
 	const auto error = content->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				// Set any text to resize.
-				tr::lng_language_name(tr::now),
-				st::settingLocalPasscodeError)),
-		st::changePhoneDescriptionPadding)->entity();
+			QString(),
+			st::settingLocalPasscodeError),
+		st::changePhoneDescriptionPadding,
+		style::al_top);
 	error->hide();
 	if (input) {
 		QObject::connect(input, &Ui::MaskedInputField::changed, [=] {
