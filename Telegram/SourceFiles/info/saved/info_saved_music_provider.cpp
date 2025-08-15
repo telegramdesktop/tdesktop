@@ -67,10 +67,10 @@ Type MusicProvider::type() {
 }
 
 bool MusicProvider::hasSelectRestriction() {
-	if (_peer->session().frozen()) {
-		return true;
-	}
-	return !_peer->isSelf();
+	//if (_peer->session().frozen()) {
+	//	return true;
+	//}
+	return true;
 }
 
 rpl::producer<bool> MusicProvider::hasSelectRestrictionChanges() {
@@ -295,21 +295,8 @@ ListItemSelectionData MusicProvider::computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) {
 	auto result = ListItemSelectionData(selection);
-	AssertIsDebug();
-	//const auto id = item->id;
-	//const auto peer = item->history()->peer;
-	//const auto channel = peer->asChannel();
-	//const auto maybeStory = peer->owner().stories().lookup(
-	//	{ peer->id, StoryIdFromMsgId(id) });
-	//if (maybeStory) {
-	//	const auto story = *maybeStory;
-	//	result.canForward = peer->isSelf() && story->canShare();
-	//	result.canDelete = story->canDelete();
-	//	result.canUnpinStory = story->pinnedToTop();
-	//	result.storyInProfile = story->inProfile();
-	//}
-	//result.canToggleStoryPin = peer->isSelf()
-	//	|| (channel && channel->canEditStories());
+	result.canDelete = item->history()->peer->isSelf();
+	result.canForward = true;// item->allowsForward();
 	return result;
 }
 
@@ -343,13 +330,13 @@ void MusicProvider::applyDragSelection(
 bool MusicProvider::allowSaveFileAs(
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) {
-	return false;
+	return true;
 }
 
 QString MusicProvider::showInFolderPath(
 		not_null<const HistoryItem*> item,
 		not_null<DocumentData*> document) {
-	return QString();
+	return document->filepath(true);
 }
 
 int64 MusicProvider::scrollTopStatePosition(not_null<HistoryItem*> item) {

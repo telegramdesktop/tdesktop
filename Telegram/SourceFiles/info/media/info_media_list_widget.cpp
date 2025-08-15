@@ -1308,6 +1308,10 @@ void ListWidget::showContextMenu(
 		}
 	}
 
+	if (_contextMenu->empty()) {
+		_contextMenu = nullptr;
+		return;
+	}
 	_contextMenu->setDestroyedCallback(crl::guard(
 		this,
 		[=] {

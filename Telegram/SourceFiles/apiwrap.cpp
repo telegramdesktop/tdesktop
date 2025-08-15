@@ -3350,8 +3350,8 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 			return;
 		}
 
-		forwardMessages(std::move(toForward), action);
 		history->setForwardDraft(topicRootId, monoforumPeerId, {});
+		forwardMessages(std::move(toForward), action);
 	}
 
 	_session->data().sendHistoryChangeNotifications();
@@ -3371,6 +3371,22 @@ void ApiWrap::forwardMessages(
 	Expects(!draft.items.empty());
 
 	auto &histories = _session->data().histories();
+
+	for (auto i = begin(draft.items); i != end(draft.items);) {
+		const auto item = *i;
+		if (item->isSavedMusicItem()) {
+			SendExistingDocument(MessageToSend(action), item->media()->document());
+			i = draft.items.erase(i);
+		} else {
+			++i;
+		}
+	}
+	if (draft.items.empty()) {
+		if (successCallback) {
+			successCallback();
+		}
+		return;
+	}
 
 	struct SharedCallback {
 		int requestsLeft = 0;

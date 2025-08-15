@@ -463,11 +463,20 @@ bool HasOnlyForcedForwardedInfo(const HistoryItemsList &list) {
 
 bool HasOnlyDroppedForwardedInfo(const HistoryItemsList &list) {
 	for (const auto &item : list) {
-		if (!item->computeDropForwardedInfo()) {
+		if (item->isSavedMusicItem() || !item->computeDropForwardedInfo()) {
 			return false;
 		}
 	}
 	return true;
+}
+
+bool HasDropForwardedInfoSetting(const HistoryItemsList &list) {
+	for (const auto &item : list) {
+		if (!item->computeDropForwardedInfo()) {
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace HistoryView::Controls

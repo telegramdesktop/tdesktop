@@ -224,12 +224,14 @@ void DeleteMessagesBox::prepare() {
 			search->searchMessages({ .from = _moderateFrom });
 		}
 	} else {
-		details.text = (_ids.size() == 1)
+		details.text = hasSavedMusicMessages()
+			? tr::lng_selected_remove_saved_music(tr::now)
+			: (_ids.size() == 1)
 			? tr::lng_selected_delete_sure_this(tr::now)
 			: tr::lng_selected_delete_sure(tr::now, lt_count, _ids.size());
 		if (const auto peer = checkFromSinglePeer()) {
 			auto count = int(_ids.size());
-			if (hasScheduledMessages()) {
+			if (hasScheduledMessages() || hasSavedMusicMessages()) {
 			} else if (auto revoke = revokeText(peer)) {
 				const auto &settings = Core::App().settings();
 				const auto revokeByDefault
@@ -313,34 +315,53 @@ void DeleteMessagesBox::prepare() {
 		addButton(tr::lng_about_done(), [=] { closeBox(); });
 	}
 
-	auto fullHeight = st::boxPadding.top()
-		+ _text->height()
-		+ st::boxPadding.bottom();
-	if (_moderateFrom) {
-		fullHeight += st::boxMediumSkip;
-		if (_banUser) {
-			fullHeight += _banUser->heightNoMargins() + st::boxLittleSkip;
+	const auto &padding = st::boxPadding;
+	rpl::combine(
+		widthValue(),
+		_text->naturalWidthValue()
+	) | rpl::start_with_next([=](int full, int) {
+		_text->resizeToNaturalWidth(full - padding.left() - padding.right());
+
+		auto fullHeight = st::boxPadding.top()
+			+ _text->height()
+			+ st::boxPadding.bottom();
+		if (_moderateFrom) {
+			fullHeight += st::boxMediumSkip;
+			if (_banUser) {
+				fullHeight += _banUser->heightNoMargins() + st::boxLittleSkip;
+			}
+			fullHeight += _reportSpam->heightNoMargins();
+			if (_deleteAll) {
+				fullHeight += st::boxLittleSkip + _deleteAll->heightNoMargins();
+			}
+		} else if (_revoke) {
+			fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
 		}
-		fullHeight += _reportSpam->heightNoMargins();
-		if (_deleteAll) {
-			fullHeight += st::boxLittleSkip + _deleteAll->heightNoMargins();
+		if (_autoDeleteSettings) {
+			fullHeight += st::boxMediumSkip
+				+ _autoDeleteSettings->height()
+				+ st::boxLittleSkip;
 		}
-	} else if (_revoke) {
-		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
-	}
-	if (_autoDeleteSettings) {
-		fullHeight += st::boxMediumSkip
-			+ _autoDeleteSettings->height()
-			+ st::boxLittleSkip;
-	}
-	setDimensions(st::boxWidth, fullHeight);
-	_fullHeight = fullHeight;
+		setDimensions(st::boxWidth, fullHeight);
+		_fullHeight = fullHeight;
+	}, lifetime());
 }
 
 bool DeleteMessagesBox::hasScheduledMessages() const {
 	for (const auto &fullId : _ids) {
 		if (const auto item = _session->data().message(fullId)) {
 			if (item->isScheduled()) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool DeleteMessagesBox::hasSavedMusicMessages() const {
+	for (const auto &fullId : _ids) {
+		if (const auto item = _session->data().message(fullId)) {
+			if (item->isSavedMusicItem()) {
 				return true;
 			}
 		}
