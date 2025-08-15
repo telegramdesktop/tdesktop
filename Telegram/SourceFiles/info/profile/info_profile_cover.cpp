@@ -835,7 +835,9 @@ void Cover::setupSavedMusic() {
 		1
 	) | rpl::map([=](const Data::SavedMusicSlice &data) {
 		return data.size() ? data[0].get() : nullptr;
-	}) | rpl::start_with_next([=](DocumentData *document) {
+	}) | rpl::start_with_next([=](HistoryItem *item) {
+		const auto media = item ? item->media() : nullptr;
+		const auto document = media ? media->document() : nullptr;
 		if (!document) {
 			_musicButton = nullptr;
 			resize(width(), _st.height);
@@ -845,6 +847,7 @@ void Cover::setupSavedMusic() {
 				this,
 				DocumentMusicButtonData(document),
 				[=] { _controller->showSection(MakeMusic(_peer)); });
+			_musicButton->show();
 
 			widthValue(
 			) | rpl::start_with_next([=](int newWidth) {

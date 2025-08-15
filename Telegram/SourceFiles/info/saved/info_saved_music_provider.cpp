@@ -81,31 +81,6 @@ bool MusicProvider::sectionHasFloatingHeader() {
 	return false;
 }
 
-not_null<DocumentData*> MusicProvider::musicIdFromMsgId(MsgId itemId) const {
-	const auto i = _musicIdFromMsgId.find(itemId);
-	Assert(i != end(_musicIdFromMsgId));
-
-	return i->second;
-}
-
-not_null<HistoryItem*> MusicProvider::musicIdToMsg(
-		not_null<DocumentData*> id) const {
-	const auto i = _musicIdToMsg.find(id);
-	if (i != end(_musicIdToMsg)) {
-		return i->second.get();
-	}
-	return _musicIdToMsg.emplace(id, _history->makeMessage({
-		.id = _history->nextNonHistoryEntryId(),
-		.flags = (MessageFlag::FakeHistoryItem | MessageFlag::HasFromId),
-		.from = _peer->id,
-		.date = base::unixtime::now(),
-	}, id, TextWithEntities())).first->second.get();
-}
-
-MsgId MusicProvider::musicIdToMsgId(not_null<DocumentData*> id) const {
-	return musicIdToMsg(id)->id;
-}
-
 QString MusicProvider::sectionTitle(not_null<const BaseLayout*> item) {
 	return QString();
 }
@@ -161,18 +136,18 @@ void MusicProvider::checkPreload(
 		/ minItemHeight;
 	const auto preloadAroundItem = [&](not_null<BaseLayout*> layout) {
 		auto preloadRequired = false;
-		const auto id = musicIdFromMsgId(layout->getItem()->id);
+		const auto item = layout->getItem();
 		if (!preloadRequired) {
 			preloadRequired = (_idsLimit < preloadIdsLimitMin);
 		}
 		if (!preloadRequired) {
-			auto delta = _slice.distance(_aroundId, id);
+			auto delta = _slice.distance(_aroundId, item);
 			Assert(delta != std::nullopt);
 			preloadRequired = (qAbs(*delta) >= minIdDelta);
 		}
 		if (preloadRequired) {
 			_idsLimit = preloadIdsLimit;
-			_aroundId = id;
+			_aroundId = item;
 			refreshViewer();
 		}
 	};
@@ -200,7 +175,7 @@ void MusicProvider::refreshViewer() {
 		}
 		_slice = std::move(slice);
 
-		auto nearestId = (DocumentData*)nullptr;
+		auto nearestId = (HistoryItem*)nullptr;
 		for (auto i = 0; i != _slice.size(); ++i) {
 			if (_slice[i] == aroundId) {
 				nearestId = aroundId;
@@ -227,8 +202,8 @@ std::vector<ListSection> MusicProvider::fillSections(
 	auto section = ListSection(Type::MusicFile, sectionDelegate());
 	auto count = _slice.size();
 	for (auto i = 0; i != count; ++i) {
-		const auto musicId = _slice[i];
-		if (const auto layout = getLayout(musicId, delegate)) {
+		const auto item = _slice[i];
+		if (const auto layout = getLayout(item, delegate)) {
 			if (!section.addItem(layout)) {
 				section.finishSection();
 				result.push_back(std::move(section));
@@ -280,13 +255,13 @@ bool MusicProvider::isAfter(
 }
 
 BaseLayout *MusicProvider::getLayout(
-		not_null<DocumentData*> id,
+		not_null<HistoryItem*> item,
 		not_null<Overview::Layout::Delegate*> delegate) {
-	auto it = _layouts.find(id);
+	auto it = _layouts.find(item);
 	if (it == _layouts.end()) {
-		if (auto layout = createLayout(id, delegate)) {
+		if (auto layout = createLayout(item, delegate)) {
 			layout->initDimensions();
-			it = _layouts.emplace(id, std::move(layout)).first;
+			it = _layouts.emplace(item, std::move(layout)).first;
 		} else {
 			return nullptr;
 		}
@@ -296,36 +271,22 @@ BaseLayout *MusicProvider::getLayout(
 }
 
 std::unique_ptr<BaseLayout> MusicProvider::createLayout(
-		not_null<DocumentData*> id,
+		not_null<HistoryItem*> item,
 		not_null<Overview::Layout::Delegate*> delegate) {
-	const auto item = musicIdToMsg(id);
-	if (!item) {
-		return nullptr;
-	}
-	const auto getPhoto = [&]() -> PhotoData* {
-		if (const auto media = item->media()) {
-			return media->photo();
-		}
-		return nullptr;
-	};
-	const auto getFile = [&]() -> DocumentData* {
-		if (const auto media = item->media()) {
-			return media->document();
-		}
-		return nullptr;
-	};
-
 	const auto peer = item->history()->peer;
 
 	using namespace Overview::Layout;
 	const auto options = MediaOptions{
 	};
-	if (const auto file = getFile()) {
-		return std::make_unique<Document>(
-			delegate,
-			item,
-			DocumentFields{ file },
-			st::overviewFileLayout);
+
+	if (const auto media = item->media()) {
+		if (const auto file = media->document()) {
+			return std::make_unique<Document>(
+				delegate,
+				item,
+				DocumentFields{ file },
+				st::overviewFileLayout);
+		}
 	}
 	return nullptr;
 }
@@ -334,11 +295,8 @@ ListItemSelectionData MusicProvider::computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) {
 	auto result = ListItemSelectionData(selection);
-	const auto id = item->id;
-	if (!_musicIdFromMsgId.contains(id)) {
-		return result;
-	}
 	AssertIsDebug();
+	//const auto id = item->id;
 	//const auto peer = item->history()->peer;
 	//const auto channel = peer->asChannel();
 	//const auto maybeStory = peer->owner().stories().lookup(
@@ -372,8 +330,7 @@ void MusicProvider::applyDragSelection(
 		}
 	}
 	for (auto &layoutItem : _layouts) {
-		const auto musicId = layoutItem.first;
-		const auto item = musicIdToMsg(musicId);
+		const auto item = layoutItem.first;
 		if (item->id <= fromId && item->id > tillId) {
 			ChangeItemSelection(
 				selected,
@@ -400,7 +357,7 @@ int64 MusicProvider::scrollTopStatePosition(not_null<HistoryItem*> item) {
 }
 
 HistoryItem *MusicProvider::scrollTopStateItem(ListScrollTopState state) {
-	if (state.item && _slice.indexOf(musicIdFromMsgId(state.item->id))) {
+	if (state.item && _slice.indexOf(state.item)) {
 		return state.item;
 	//} else if (const auto id = _slice.nearest(state.position)) {
 	//	const auto full = FullMsgId(_peer->id, StoryIdToMsgId(*id));
@@ -409,7 +366,7 @@ HistoryItem *MusicProvider::scrollTopStateItem(ListScrollTopState state) {
 	//	}
 	}
 
-	auto nearestId = (DocumentData*)nullptr; AssertIsDebug();
+	auto nearestId = (HistoryItem*)nullptr; AssertIsDebug();
 	//for (auto i = 0; i != _slice.size(); ++i) {
 	//	if (!nearestId
 	//		|| std::abs(*nearestId - state.position)
@@ -418,7 +375,7 @@ HistoryItem *MusicProvider::scrollTopStateItem(ListScrollTopState state) {
 	//	}
 	//}
 	if (nearestId) {
-		const auto full = FullMsgId(_peer->id, musicIdToMsgId(nearestId));
+		const auto full = nearestId->fullId();
 		if (const auto item = _controller->session().data().message(full)) {
 			return item;
 		}

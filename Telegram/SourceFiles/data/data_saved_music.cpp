@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_hash.h"
 #include "apiwrap.h"
+#include "base/unixtime.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/history.h"
 #include "main/main_session.h"
 #include "ui/ui_utility.h"
 
@@ -21,19 +23,52 @@ namespace {
 
 constexpr auto kPerPage = 50;
 
+[[nodiscard]] not_null<DocumentData*> ItemDocument(
+		not_null<HistoryItem*> item) {
+	return item->media()->document();
+}
+
 } // namespace
 
 SavedMusic::SavedMusic(not_null<Session*> owner)
 : _owner(owner) {
 }
 
+SavedMusic::~SavedMusic() {
+	Expects(_entries.empty());
+}
+
+void SavedMusic::clear() {
+	base::take(_entries);
+}
+
 bool SavedMusic::Supported(PeerId peerId) {
 	return peerId && peerIsUser(peerId);
 }
 
+not_null<HistoryItem*> SavedMusic::musicIdToMsg(
+		PeerId peerId,
+		Entry &entry,
+		not_null<DocumentData*> id) {
+	const auto i = entry.musicIdToMsg.find(id);
+	if (i != end(entry.musicIdToMsg)) {
+		return i->second.get();
+	} else if (!entry.history) {
+		entry.history = _owner->history(peerId);
+	}
+	return entry.musicIdToMsg.emplace(id, entry.history->makeMessage({
+		.id = entry.history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeHistoryItem
+			| MessageFlag::HasFromId
+			| MessageFlag::SavedMusicItem),
+		.from = entry.history->peer->id,
+		.date = base::unixtime::now(),
+	}, id, TextWithEntities())).first->second.get();
+}
+
 bool SavedMusic::has(not_null<DocumentData*> document) const {
 	const auto entry = lookupEntry(_owner->session().userPeerId());
-	return entry && ranges::contains(entry->list, document);
+	return entry && ranges::contains(entry->list, document, ItemDocument);
 }
 
 void SavedMusic::save(not_null<DocumentData*> document) {
@@ -42,10 +77,11 @@ void SavedMusic::save(not_null<DocumentData*> document) {
 	if (entry.list.empty() && !entry.loaded) {
 		loadMore(peerId);
 	}
-	if (ranges::contains(entry.list, document)) {
+	if (ranges::contains(entry.list, document, ItemDocument)) {
 		return;
 	}
-	entry.list.insert(begin(entry.list), document);
+	const auto item = musicIdToMsg(peerId, entry, document);
+	entry.list.insert(begin(entry.list), item);
 	if (entry.total >= 0) {
 		++entry.total;
 	}
@@ -60,13 +96,15 @@ void SavedMusic::save(not_null<DocumentData*> document) {
 void SavedMusic::remove(not_null<DocumentData*> document) {
 	const auto peerId = _owner->session().userPeerId();
 	auto &entry = _entries[peerId];
-	const auto i = ranges::remove(entry.list, document);
-	if (const auto removed = int(end(entry.list) - i)) {
-		entry.list.erase(i, end(entry.list));
-		if (entry.total >= 0) {
-			entry.total = std::max(entry.total - removed, 0);
+	const auto i = ranges::find(entry.list, document, ItemDocument);
+	if (i != end(entry.list)) {
+		entry.musicIdFromMsgId.remove((*i)->id);
+		entry.list.erase(i);
+		if (entry.total > 0) {
+			entry.total = std::max(entry.total - 1, 0);
 		}
 	}
+	entry.musicIdToMsg.remove(document);
 	_owner->session().api().request(MTPaccount_SaveMusic(
 		MTP_flags(MTPaccount_SaveMusic::Flag::f_unsave),
 		document->mtpInput(),
@@ -87,7 +125,7 @@ void SavedMusic::apply(not_null<UserData*> user, const MTPDocument *last) {
 		return;
 	}
 	const auto document = _owner->processDocument(*last);
-	const auto i = ranges::find(entry.list, document);
+	const auto i = ranges::find(entry.list, document, ItemDocument);
 	if (i != end(entry.list)) {
 		if (i == begin(entry.list)) {
 			return;
@@ -97,7 +135,9 @@ void SavedMusic::apply(not_null<UserData*> user, const MTPDocument *last) {
 		loadMore(peerId, true);
 		return;
 	}
-	entry.list.insert(begin(entry.list), document);
+	entry.list.insert(
+		begin(entry.list),
+		musicIdToMsg(peerId, entry, document));
 	_changed.fire_copy(peerId);
 	if (entry.loaded) {
 		loadMore(peerId, true);
@@ -120,9 +160,9 @@ int SavedMusic::count(PeerId peerId) const {
 	return entry ? std::max(entry->total, 0) : 0;
 }
 
-const std::vector<not_null<DocumentData*>> &SavedMusic::list(
+const std::vector<not_null<HistoryItem*>> &SavedMusic::list(
 		PeerId peerId) const {
-	static const auto empty = std::vector<not_null<DocumentData*>>();
+	static const auto empty = std::vector<not_null<HistoryItem*>>();
 	if (!Supported(peerId)) {
 		return empty;
 	}
@@ -171,8 +211,9 @@ void SavedMusic::loadMore(PeerId peerId, bool reload) {
 			}
 			for (const auto &item : list) {
 				const auto document = _owner->processDocument(item);
-				if (!ranges::contains(entry.list, document)) {
-					entry.list.push_back(document);
+				if (!ranges::contains(entry.list, document, ItemDocument)) {
+					entry.list.push_back(
+						musicIdToMsg(peerId, entry, document));
 				}
 			}
 			entry.loaded = list.empty() || (count == entry.list.size());
@@ -189,6 +230,7 @@ void SavedMusic::loadMore(PeerId peerId, bool reload) {
 
 uint64 SavedMusic::firstPageHash(const Entry &entry) const {
 	return Api::CountHash(entry.list
+		| ranges::views::transform(ItemDocument)
 		| ranges::views::transform(&DocumentData::id)
 		| ranges::views::take(kPerPage));
 }
@@ -215,7 +257,7 @@ const SavedMusic::Entry *SavedMusic::lookupEntry(PeerId peerId) const {
 
 rpl::producer<SavedMusicSlice> SavedMusicList(
 		not_null<PeerData*> peer,
-		DocumentData *aroundId,
+		HistoryItem *aroundId,
 		int limit) {
 	if (!peer->isUser()) {
 		return rpl::single(SavedMusicSlice({}, 0, 0, 0));
@@ -253,7 +295,7 @@ rpl::producer<SavedMusicSlice> SavedMusicList(
 			}
 			const auto takeBefore = std::min(hasBefore, limit);
 			const auto takeAfter = std::min(hasAfter, limit);
-			auto ids = std::vector<not_null<DocumentData*>>();
+			auto ids = std::vector<not_null<HistoryItem*>>();
 			ids.reserve(takeBefore + takeAfter);
 			for (auto j = i - takeBefore; j != i + takeAfter; ++j) {
 				ids.push_back(*j);

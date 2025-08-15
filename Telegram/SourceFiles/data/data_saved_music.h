@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_abstract_sparse_ids.h"
 
+#include "history/history_item.h"
+
 class PeerData;
 
 namespace Data {
@@ -18,12 +20,13 @@ class Session;
 class SavedMusic final {
 public:
 	explicit SavedMusic(not_null<Session*> owner);
+	~SavedMusic();
 
 	[[nodiscard]] static bool Supported(PeerId peerId);
 
 	[[nodiscard]] bool countKnown(PeerId peerId) const;
 	[[nodiscard]] int count(PeerId peerId) const;
-	[[nodiscard]] const std::vector<not_null<DocumentData*>> &list(
+	[[nodiscard]] const std::vector<not_null<HistoryItem*>> &list(
 		PeerId peerId) const;
 	void loadMore(PeerId peerId);
 
@@ -35,9 +38,16 @@ public:
 
 	void apply(not_null<UserData*> user, const MTPDocument *last);
 
+	void clear();
+
 private:
+	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
+
 	struct Entry {
-		std::vector<not_null<DocumentData*>> list;
+		base::flat_map<MsgId, not_null<DocumentData*>> musicIdFromMsgId;
+		base::flat_map<not_null<DocumentData*>, OwnedItem> musicIdToMsg;
+		std::vector<not_null<HistoryItem*>> list;
+		History *history = nullptr;
 		mtpRequestId requestId = 0;
 		int total = -1;
 		bool loaded = false;
@@ -48,6 +58,10 @@ private:
 	[[nodiscard]] Entry *lookupEntry(PeerId peerId);
 	[[nodiscard]] const Entry *lookupEntry(PeerId peerId) const;
 	[[nodiscard]] uint64 firstPageHash(const Entry &entry) const;
+	[[nodiscard]] not_null<HistoryItem*> musicIdToMsg(
+		PeerId peerId,
+		Entry &entry,
+		not_null<DocumentData*> id);
 
 	const not_null<Session*> _owner;
 
@@ -57,11 +71,11 @@ private:
 };
 
 using SavedMusicSlice = AbstractSparseIds<
-	std::vector<not_null<DocumentData*>>>;
+	std::vector<not_null<HistoryItem*>>>;
 
 [[nodiscard]] rpl::producer<SavedMusicSlice> SavedMusicList(
 	not_null<PeerData*> peer,
-	DocumentData *aroundId,
+	HistoryItem *aroundId,
 	int limit);
 
 } // namespace Data

@@ -409,6 +409,7 @@ void Session::clear() {
 		channel->setFlags(channel->flags()
 			& ~(ChannelDataFlag::Forum | ChannelDataFlag::MonoforumAdmin));
 	}
+	_savedMusic->clear();
 	_savedMessages->clear();
 
 	_sendActionManager->clear();

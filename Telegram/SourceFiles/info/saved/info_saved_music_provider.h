@@ -90,14 +90,6 @@ public:
 private:
 	static constexpr auto kMinimalIdsLimit = 16;
 
-	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
-
-	[[nodiscard]] not_null<DocumentData*> musicIdFromMsgId(
-		MsgId itemId) const;
-	[[nodiscard]] not_null<HistoryItem*> musicIdToMsg(
-		not_null<DocumentData*> id) const;
-	[[nodiscard]] MsgId musicIdToMsgId(not_null<DocumentData*> id) const;
-
 	bool sectionHasFloatingHeader() override;
 	QString sectionTitle(not_null<const Media::BaseLayout*> item) override;
 	bool sectionItemBelongsHere(
@@ -108,28 +100,24 @@ private:
 	void clearStaleLayouts();
 	void clear();
 
-	[[nodiscard]] HistoryItem *ensureItem(not_null<DocumentData*> id);
 	[[nodiscard]] Media::BaseLayout *getLayout(
-		not_null<DocumentData*> id,
+		not_null<HistoryItem*> item,
 		not_null<Overview::Layout::Delegate*> delegate);
 	[[nodiscard]] std::unique_ptr<Media::BaseLayout> createLayout(
-		not_null<DocumentData*> musicId,
+		not_null<HistoryItem*> item,
 		not_null<Overview::Layout::Delegate*> delegate);
 
 	const not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;
 
-	DocumentData *_aroundId = nullptr;
+	HistoryItem *_aroundId = nullptr;
 	int _idsLimit = kMinimalIdsLimit;
 	Data::SavedMusicSlice _slice;
 
-	std::unordered_map<not_null<DocumentData*>, Media::CachedItem> _layouts;
+	std::unordered_map<not_null<HistoryItem*>, Media::CachedItem> _layouts;
 	rpl::event_stream<not_null<Media::BaseLayout*>> _layoutRemoved;
 	rpl::event_stream<> _refreshed;
-
-	mutable base::flat_map<MsgId, not_null<DocumentData*>> _musicIdFromMsgId;
-	mutable base::flat_map<not_null<DocumentData*>, OwnedItem> _musicIdToMsg;
 
 	bool _started = false;
 

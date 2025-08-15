@@ -323,9 +323,7 @@ void MusicWidget::selectionAction(SelectionAction action) {
 }
 
 rpl::producer<QString> MusicWidget::title() {
-	//const auto peer = controller()->key().musicPeer();
-	AssertIsDebug();
-	return rpl::single(u"muzlo"_q);
+	return tr::lng_media_type_songs();
 }
 
 std::shared_ptr<Info::Memento> MakeMusic(not_null<PeerData*> peer) {

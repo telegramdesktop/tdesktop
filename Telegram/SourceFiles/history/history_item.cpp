@@ -1831,6 +1831,10 @@ bool HistoryItem::isUserpicSuggestion() const {
 	return (_flags & MessageFlag::IsUserpicSuggestion);
 }
 
+bool HistoryItem::isSavedMusicItem() const {
+	return (_flags & MessageFlag::SavedMusicItem);
+}
+
 BusinessShortcutId HistoryItem::shortcutId() const {
 	return _shortcutId;
 }

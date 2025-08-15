@@ -358,6 +358,7 @@ enum class MessageFlag : uint64 {
 	TonPaidSuggested      = (1ULL << 53),
 
 	StoryInProfile        = (1ULL << 54),
+	SavedMusicItem        = (1ULL << 55),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;
