@@ -33,6 +33,8 @@ public:
 	void save(not_null<DocumentData*> document);
 	void remove(not_null<DocumentData*> document);
 
+	void apply(not_null<UserData*> user, const MTPDocument *last);
+
 private:
 	struct Entry {
 		std::vector<not_null<DocumentData*>> list;

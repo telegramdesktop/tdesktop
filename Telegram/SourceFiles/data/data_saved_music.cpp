@@ -75,6 +75,35 @@ void SavedMusic::remove(not_null<DocumentData*> document) {
 	_changed.fire_copy(peerId);
 }
 
+void SavedMusic::apply(not_null<UserData*> user, const MTPDocument *last) {
+	const auto peerId = user->id;
+	auto &entry = _entries[peerId];
+	if (!last) {
+		if (const auto requestId = base::take(entry.requestId)) {
+			_owner->session().api().request(requestId).cancel();
+		}
+		entry = Entry{ .total = 0, .loaded = true };
+		_changed.fire_copy(peerId);
+		return;
+	}
+	const auto document = _owner->processDocument(*last);
+	const auto i = ranges::find(entry.list, document);
+	if (i != end(entry.list)) {
+		if (i == begin(entry.list)) {
+			return;
+		}
+		ranges::rotate(begin(entry.list), i, i + 1);
+		_changed.fire_copy(peerId);
+		loadMore(peerId, true);
+		return;
+	}
+	entry.list.insert(begin(entry.list), document);
+	_changed.fire_copy(peerId);
+	if (entry.loaded) {
+		loadMore(peerId, true);
+	}
+}
+
 bool SavedMusic::countKnown(PeerId peerId) const {
 	if (!Supported(peerId)) {
 		return true;

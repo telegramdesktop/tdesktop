@@ -292,15 +292,6 @@ void InnerWidget::createProfileTop() {
 
 	using namespace Profile;
 	AddCover(_top, _controller, _peer, nullptr, nullptr);
-	if (Data::SavedMusic::Supported(_peer->id)) {
-		object_ptr<Profile::FloatingIcon>(
-			Media::AddMusicButton(
-				_top,
-				_controller,
-				_peer),
-			st::infoIconMediaAudio,
-			st::infoSharedMediaButtonIconPosition);
-	}
 	AddDetails(_top, _controller, _peer, nullptr, nullptr, { v::null });
 
 	auto tracker = Ui::MultiSlideTracker();

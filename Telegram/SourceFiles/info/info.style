@@ -1282,3 +1282,17 @@ collectionEditMenuToggle: IconButton(infoTopBarMenu) {
 
 earnTonIconSize: 16px;
 earnTonIconMargin: margins(0px, 2px, 0px, 0px);
+
+infoMusicButtonRipple: defaultRippleAnimation;
+infoMusicButtonPerformer: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	maxHeight: 20px;
+}
+infoMusicButtonTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: semiboldTextStyle;
+	maxHeight: 20px;
+}
+infoMusicButtonPadding: margins(48px, 6px, 12px, 6px);
+infoMusicButtonBottom: 8px;
+infoMusicButtonLine: 2px;

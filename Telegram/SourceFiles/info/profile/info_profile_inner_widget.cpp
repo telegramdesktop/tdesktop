@@ -81,14 +81,6 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	_cover = AddCover(result, _controller, _peer, _topic, _sublist);
 	if (_topic && _topic->creating()) {
 		return result;
-	} else if (Data::SavedMusic::Supported(_peer->id)) {
-		object_ptr<Profile::FloatingIcon>(
-			Media::AddMusicButton(
-				result,
-				_controller,
-				_peer),
-			st::infoIconMediaAudio,
-			st::infoSharedMediaButtonIconPosition);
 	}
 
 	AddDetails(result, _controller, _peer, _topic, _sublist, origin);

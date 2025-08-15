@@ -77,9 +77,4 @@ using Type = Storage::SharedMediaType;
 	not_null<PeerData*> peer,
 	Ui::MultiSlideTracker &tracker);
 
-[[nodiscard]] not_null<Ui::SettingsButton*> AddMusicButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer);
-
 } // namespace Info::Media

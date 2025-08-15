@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "data/components/recent_shared_media_gifts.h"
 #include "data/data_channel.h"
-#include "data/data_saved_music.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -392,45 +391,6 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 		navigation->showSection(Info::PeerGifts::Make(peer));
 	});
 	return wrap->entity();
-}
-
-not_null<Ui::SettingsButton*> AddMusicButton(
-		Ui::VerticalLayout *parent,
-		not_null<Window::SessionNavigation*> navigation,
-		not_null<PeerData*> peer) {
-	auto count = rpl::single(0) | rpl::then(Data::SavedMusicList(
-		peer,
-		nullptr,
-		0
-	) | rpl::map([](const Data::SavedMusicSlice &slice) {
-		return slice.fullCount().value_or(0);
-	}));
-
-	using namespace ::Settings;
-	auto forked = std::move(count)
-		| start_spawning(parent->lifetime());
-	auto text = rpl::duplicate(
-		forked
-	) | rpl::map([](int count) {
-		AssertIsDebug();
-		return QString::number(count) + u" muzla"_q;
-	});
-	auto button = parent->add(object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-		parent,
-		object_ptr<Ui::SettingsButton>(
-			parent,
-			std::move(text),
-			st::infoSharedMediaButton))
-	)->setDuration(
-		st::infoSlideDuration
-	)->toggleOn(
-		rpl::duplicate(forked) | rpl::map(rpl::mappers::_1 > 0)
-	)->entity();
-
-	button->addClickHandler([=] {
-		navigation->showSection(Info::Saved::MakeMusic(peer));
-	});
-	return button;
 }
 
 } // namespace Info::Media

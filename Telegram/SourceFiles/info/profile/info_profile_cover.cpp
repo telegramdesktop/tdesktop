@@ -18,13 +18,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_changes.h"
+#include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
+#include "info/profile/info_profile_music_button.h"
+#include "info/profile/info_profile_values.h"
+#include "info/saved/info_saved_music_widget.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "boxes/peers/edit_forum_topic_box.h"
 #include "boxes/report_messages_box.h"
 #include "history/view/media/history_view_sticker_player.h"
@@ -62,15 +66,18 @@ constexpr auto kGiftBadgeGlares = 3;
 constexpr auto kGlareDurationStep = crl::time(320);
 constexpr auto kGlareTimeout = crl::time(1000);
 
-auto MembersStatusText(int count) {
+[[nodiscard]] auto MembersStatusText(int count) {
 	return tr::lng_chat_status_members(tr::now, lt_count_decimal, count);
 };
 
-auto OnlineStatusText(int count) {
+[[nodiscard]] auto OnlineStatusText(int count) {
 	return tr::lng_chat_status_online(tr::now, lt_count_decimal, count);
 };
 
-auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
+[[nodiscard]] auto ChatStatusText(
+		int fullCount,
+		int onlineCount,
+		bool isGroup) {
 	if (onlineCount > 1 && onlineCount <= fullCount) {
 		return tr::lng_chat_status_members_online(
 			tr::now,
@@ -115,6 +122,22 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 	const auto left = (size - emoji) / 2;
 	const auto right = size - emoji - left;
 	return { left, left, right, right };
+}
+
+[[nodiscard]] MusicButtonData DocumentMusicButtonData(
+		not_null<DocumentData*> document) {
+	if (const auto song = document->song()) {
+		if (!song->performer.isEmpty() || !song->title.isEmpty()) {
+			return {
+				.performer = song->performer,
+				.title = song->title,
+			};
+		}
+	}
+	const auto name = document->filename();
+	return {
+		.title = !name.isEmpty() ? name : tr::lng_all_music(tr::now),
+	};
 }
 
 } // namespace
@@ -699,6 +722,7 @@ Cover::Cover(
 	initViewers(std::move(title));
 	setupChildGeometry();
 	setupUniqueBadgeTooltip();
+	setupSavedMusic();
 
 	if (_userpic) {
 	} else if (topic->canEdit()) {
@@ -798,6 +822,40 @@ void Cover::setupChildGeometry() {
 		}
 		refreshNameGeometry(newWidth);
 		refreshStatusGeometry(newWidth);
+	}, lifetime());
+}
+
+void Cover::setupSavedMusic() {
+	if (!Data::SavedMusic::Supported(_peer->id)) {
+		return;
+	}
+	Data::SavedMusicList(
+		_peer,
+		nullptr,
+		1
+	) | rpl::map([=](const Data::SavedMusicSlice &data) {
+		return data.size() ? data[0].get() : nullptr;
+	}) | rpl::start_with_next([=](DocumentData *document) {
+		if (!document) {
+			_musicButton = nullptr;
+			resize(width(), _st.height);
+		} else if (!_musicButton) {
+			using namespace Info::Saved;
+			_musicButton = std::make_unique<MusicButton>(
+				this,
+				DocumentMusicButtonData(document),
+				[=] { _controller->showSection(MakeMusic(_peer)); });
+
+			widthValue(
+			) | rpl::start_with_next([=](int newWidth) {
+				_musicButton->resizeToWidth(newWidth);
+				const auto skip = st::infoMusicButtonBottom;
+				_musicButton->moveToLeft(0, _st.height - skip, newWidth);
+				resize(width(), _st.height + _musicButton->height());
+			}, _musicButton->lifetime());
+		} else {
+			_musicButton->updateData(DocumentMusicButtonData(document));
+		}
 	}, lifetime());
 }
 
