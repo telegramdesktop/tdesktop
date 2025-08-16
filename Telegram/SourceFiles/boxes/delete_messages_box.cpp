@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/rect.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -111,16 +112,12 @@ void DeleteMessagesBox::prepare() {
 					Ui::Text::RichLangValue);
 			deleteStyle = &st::attentionBoxButton;
 		} else if (_wipeHistoryJustClear) {
-			const auto isChannel = peer->isBroadcast();
-			const auto isPublicGroup = peer->isMegagroup()
-				&& peer->asChannel()->isPublic();
-			if (isChannel || isPublicGroup) {
-				canDelete = false;
-			}
-			details.text = isChannel
-				? tr::lng_no_clear_history_channel(tr::now)
-				: isPublicGroup
-				? tr::lng_no_clear_history_group(tr::now)
+			_revokeJustClearForChannel = true;
+			details.text = (peer->isChannel() && !peer->isMegagroup())
+				? tr::lng_sure_delete_channel_history(
+					tr::now,
+					lt_channel,
+					peer->name())
 				: peer->isSelf()
 				? tr::lng_sure_delete_saved_messages(tr::now)
 				: peer->isUser()
@@ -156,7 +153,8 @@ void DeleteMessagesBox::prepare() {
 			}
 			deleteStyle = &st::attentionBoxButton;
 		}
-		if (auto revoke = revokeText(peer)) {
+		if (_revokeJustClearForChannel) {
+		} else if (auto revoke = revokeText(peer)) {
 			_revoke.create(
 				this,
 				revoke->checkbox,
@@ -285,6 +283,7 @@ void DeleteMessagesBox::prepare() {
 		}
 	}
 	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
+	_text->resizeToWidth(st::boxWidth - rect::m::sum::h(st::boxPadding));
 
 	if (_wipeHistoryJustClear && _wipeHistoryPeer) {
 		const auto validator = TTLMenu::TTLValidator(
@@ -554,7 +553,9 @@ void DeleteMessagesBox::deleteAndClear() {
 			!_revoke->checked());
 		Core::App().saveSettingsDelayed();
 	}
-	const auto revoke = _revoke ? _revoke->checked() : _revokeForBot;
+	const auto revoke = _revoke
+		? _revoke->checked()
+		: (_revokeForBot || _revokeJustClearForChannel);
 	const auto session = _session;
 	const auto invokeCallbackAndClose = [&] {
 		// deleteMessages can initiate closing of the current section,

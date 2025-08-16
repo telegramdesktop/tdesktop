@@ -2062,6 +2062,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_delete_contact" = "Are you sure you want to delete {contact} from your contact list?";
 "lng_sure_delete_history" = "Are you sure you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
 "lng_sure_delete_group_history" = "Are you sure you want to delete all messages in \"{group}\"?\n\nThis action cannot be undone.";
+"lng_sure_delete_channel_history" = "Are you sure you want to delete all messages in \"{channel}\"?\n\n**This action cannot be undone.**";
 "lng_sure_delete_and_exit" = "Are you sure you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
 "lng_sure_leave_channel" = "Are you sure you want to leave\nthis channel?";
 "lng_sure_delete_channel" = "Are you sure you want to delete this channel? All subscribers will be removed and all messages will be lost.";

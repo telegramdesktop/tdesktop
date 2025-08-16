@@ -75,6 +75,7 @@ private:
 	bool _moderateDeleteAll = false;
 
 	bool _revokeForBot = false;
+	bool _revokeJustClearForChannel = false;
 
 	object_ptr<Ui::FlatLabel> _text = { nullptr };
 	object_ptr<Ui::Checkbox> _revoke = { nullptr };
