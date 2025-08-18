@@ -1245,6 +1245,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_quick_dialog_action_toast_archive_success" = "The chat has been archived.";
 "lng_quick_dialog_action_toast_unarchive_success" = "The chat has been unarchived.";
 
+"lng_archive_hint_title" = "This is your Archive";
+"lng_archive_hint_about" = "Archived chats will remain in the Archive when you receive a new message. {link}";
+"lng_archive_hint_about_unmuted" = "When you receive a new message, muted chats will remain in the Archive, while unmuted chats will be moved to Chats. {link}";
+"lng_archive_hint_about_link" = "Tap to change {emoji}";
+"lng_archive_hint_section_1" = "Archived Chats";
+"lng_archive_hint_section_1_info" = "Move any chat into your Archive and back by swiping on it.";
+"lng_archive_hint_section_2" = "Hiding Archive";
+"lng_archive_hint_section_2_info" = "Hide the Archive from your Main screen by swiping on it.";
+"lng_archive_hint_section_3" = "Stories";
+"lng_archive_hint_section_3_info" = "Archive Stories from your contacts separately from chats with them.";
+"lng_archive_hint_button" = "Got it";
+
 "lng_settings_generic_subscribe" = "Subscribe to {link} to use this setting.";
 "lng_settings_generic_subscribe_link" = "Telegram Premium";
 
@@ -4299,6 +4311,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_archive_to_list" = "Move to chat list";
 "lng_context_archive_to_menu_info" = "Archive moved to the main menu!\nRight click the archive button to return the Archive to your chat list.";
 "lng_context_archive_settings" = "Archive settings";
+"lng_context_archive_how_does_it_work" = "How does it work?";
 
 "lng_context_mute" = "Mute notifications";
 "lng_context_unmute" = "Unmute";

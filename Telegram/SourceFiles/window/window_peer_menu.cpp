@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/call_delayed.h"
 #include "menu/menu_check_item.h"
+#include "boxes/about_box.h"
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/fields/input_field.h"
 #include "api/api_chat_participants.h"
+#include "api/api_global_privacy.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/random.h"
@@ -1646,9 +1648,23 @@ void Filler::fillArchiveActions() {
 	_addAction({ .isSeparator = true });
 
 	Settings::PreloadArchiveSettings(&controller->session());
-	_addAction(tr::lng_context_archive_settings(tr::now), [=] {
+	const auto openSettings = [=] {
 		controller->show(Box(Settings::ArchiveSettingsBox, controller));
-	}, &st::menuIconManage);
+	};
+	_addAction(
+		tr::lng_context_archive_settings(tr::now),
+		openSettings,
+		&st::menuIconManage);
+	_addAction(tr::lng_context_archive_how_does_it_work(tr::now), [=] {
+		const auto unarchiveOnNewMessage = controller->session().api(
+			).globalPrivacy().unarchiveOnNewMessageCurrent();
+		controller->show(
+			Box(
+				ArchiveHintBox,
+				unarchiveOnNewMessage != Api::UnarchiveOnNewMessage::None,
+				openSettings),
+			Ui::LayerOption::CloseOther);
+	}, &st::menuIconFaq);
 }
 
 void Filler::fillSavedSublistActions() {
