@@ -348,9 +348,9 @@ void SendCreditsBox(
 		}, ministarsContainer->lifetime());
 	}
 
-	const auto thumb = box->addRow(object_ptr<Ui::CenterWrap<>>(
-		content,
-		SendCreditsThumbnail(content, session, form.get(), photoSize)));
+	const auto thumb = box->addRow(
+		SendCreditsThumbnail(content, session, form.get(), photoSize),
+		style::al_top);
 	thumb->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (form->invoice.subscriptionPeriod) {
 		const auto badge = SendCreditsBadge(content, form->invoice.amount);
@@ -371,16 +371,14 @@ void SendCreditsBox(
 				? rpl::single(form->title)
 				: tr::lng_credits_box_out_title(),
 			st::settingsPremiumUserTitle),
-		st::boxRowPadding,
 		style::al_top);
 	if (form->invoice.subscriptionPeriod && form->botId && form->photo) {
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 		const auto bot = session->data().user(form->botId);
 		box->addRow(
-			object_ptr<Ui::CenterWrap<>>(
-				box,
-				Ui::CreatePeerBubble(box, bot)));
+			Ui::CreatePeerBubble(box, bot),
+			style::al_top);
 		Ui::AddSkip(content);
 	}
 	Ui::AddSkip(content);
@@ -389,7 +387,6 @@ void SendCreditsBox(
 			box,
 			SendCreditsConfirmText(session, form.get()),
 			st::creditsBoxAbout),
-		st::boxRowPadding,
 		style::al_top);
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);

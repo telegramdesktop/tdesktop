@@ -324,7 +324,7 @@ void UsernamesBox(
 
 	const auto editor = box->addRow(
 		object_ptr<UsernameEditor>(box, peer),
-		{});
+		style::margins());
 	editor->setEnabled(!isBot);
 	box->setFocusCallback([=] { editor->setInnerFocus(); });
 
@@ -366,7 +366,7 @@ void UsernamesBox(
 			!isBot
 				? [=] { box->scrollToY(0); editor->setInnerFocus(); }
 				: Fn<void()>(nullptr)),
-		{});
+		style::margins());
 
 	const auto finish = [=] {
 		list->save(

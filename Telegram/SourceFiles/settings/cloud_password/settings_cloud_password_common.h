@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/box_content_divider.h"
 
 namespace Ui {
-template <typename Widget>
-class CenterWrap;
 class FlatLabel;
 class InputField;
 class LinkButton;
@@ -61,7 +59,7 @@ void SetupHeader(
 	rpl::producer<QString> &&placeholder,
 	const QString &text);
 
-[[nodiscard]] not_null<Ui::CenterWrap<Ui::InputField>*> AddWrappedField(
+[[nodiscard]] not_null<Ui::InputField*> AddWrappedField(
 	not_null<Ui::VerticalLayout*> content,
 	rpl::producer<QString> &&placeholder,
 	const QString &text);
@@ -75,7 +73,7 @@ void SetupHeader(
 	rpl::producer<QString> &&text);
 
 [[nodiscard]] not_null<Ui::LinkButton*> AddLinkButton(
-	not_null<Ui::CenterWrap<Ui::InputField>*> wrap,
+	not_null<Ui::InputField*> input,
 	rpl::producer<QString> &&text);
 
 void AddSkipInsteadOfField(not_null<Ui::VerticalLayout*> content);

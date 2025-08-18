@@ -902,7 +902,7 @@ void PreviewBox(
 
 	const auto outer = box->addRow(
 		ChatBackPreview(box, size.height(), back),
-		{});
+		style::margins());
 
 	struct Hiding {
 		not_null<Ui::RpWidget*> widget;

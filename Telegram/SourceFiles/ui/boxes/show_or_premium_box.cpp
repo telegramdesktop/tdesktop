@@ -57,12 +57,10 @@ constexpr auto kShowOrLineOpacity = 0.3;
 object_ptr<RpWidget> MakeShowOrLabel(
 		not_null<RpWidget*> parent,
 		rpl::producer<QString> text) {
-	auto result = object_ptr<CenterWrap<>>(
+	auto result = object_ptr<FlatLabel>(
 		parent,
-		object_ptr<FlatLabel>(
-			parent,
-			std::move(text),
-			st::showOrLabel));
+		std::move(text),
+		st::showOrLabel);
 	const auto raw = result.data();
 
 	raw->paintRequest(
@@ -71,8 +69,7 @@ object_ptr<RpWidget> MakeShowOrLabel(
 
 		const auto full = st::showOrLineWidth;
 		const auto left = (raw->width() - full) / 2;
-		const auto text = raw->entity()->naturalWidth()
-			+ 2 * st::showOrLabelSkip;
+		const auto text = raw->naturalWidth() + 2 * st::showOrLabelSkip;
 		const auto fill = (full - text) / 2;
 		const auto stroke = st::lineWidth;
 		const auto top = st::showOrLineTop;
@@ -174,7 +171,7 @@ void ShowOrPremiumBox(
 	box->addRow(
 		MakeShowOrLabel(box, std::move(skin.orPremium)),
 		st::showOrLabelPadding + buttonPadding,
-		style::al_top);
+		style::al_justify);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,

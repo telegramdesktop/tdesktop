@@ -513,7 +513,7 @@ void InviteForbiddenController::setComplexCover() {
 			container->add(
 				MakeShowOrLabel(container, tr::lng_invite_upgrade_or()),
 				st::inviteForbiddenOrLabelPadding,
-				style::al_top);
+				style::al_justify);
 		}
 		container->add(
 			object_ptr<Ui::FlatLabel>(

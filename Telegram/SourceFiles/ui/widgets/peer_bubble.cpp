@@ -42,9 +42,9 @@ object_ptr<Ui::RpWidget> CreatePeerBubble(
 	) | rpl::start_with_next([=](
 			const QSize &leftSize,
 			const QSize &rightSize) {
-		peerBubble->resize(
-			leftSize.width() + rightSize.width() + rect::m::sum::h(padding),
-			leftSize.height());
+		peerBubble->setNaturalWidth(
+			leftSize.width() + rightSize.width() + rect::m::sum::h(padding));
+		peerBubble->resize(peerBubble->naturalWidth(), leftSize.height());
 		left->moveToLeft(0, 0);
 		right->moveToRight(padding.right() + st::lineWidth, padding.top());
 		const auto maxRightSize = parent->width()

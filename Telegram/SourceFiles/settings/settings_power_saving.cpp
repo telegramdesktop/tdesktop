@@ -59,7 +59,7 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 		state->forceDisabledMessage.value());
 
 	const auto controlsRaw = checkboxes.data();
-	box->addRow(std::move(checkboxes), {});
+	box->addRow(std::move(checkboxes), style::margins());
 
 	auto automatic = (Ui::SettingsButton*)nullptr;
 	if (batterySaving.has_value()) {

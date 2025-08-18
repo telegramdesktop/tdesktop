@@ -105,12 +105,13 @@ private:
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	void setupNotifyCheckbox(int wasBottomHeight, bool enabled);
-	void setupBottomButton(int wasBottomHeight, rpl::producer<bool> hidden);
+	void setupBottomButton(int wasBottomHeight);
 	void refreshBottom();
 
 	InnerWidget *_inner = nullptr;
 	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
 	rpl::variable<bool> _hasPinnedToBottom;
+	rpl::variable<bool> _emptyCollectionShown;
 	rpl::variable<Descriptor> _descriptor;
 	std::optional<bool> _notifyEnabled;
 	bool _shown = false;

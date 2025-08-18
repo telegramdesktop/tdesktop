@@ -446,13 +446,12 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 			CreateLinkIcon(box, &bot->session(), row.state.users),
 			st::boxRowPadding + st::starrefJoinUserpicsPadding);
 		box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_star_ref_link_title(),
-					st::boxTitle)),
-			st::boxRowPadding + st::starrefJoinTitlePadding);
+				tr::lng_star_ref_link_title(),
+				st::boxTitle),
+			st::boxRowPadding + st::starrefJoinTitlePadding,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
@@ -470,7 +469,6 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 						FormatForProgramDuration(program.durationMonths),
 						Ui::Text::WithEntities),
 				st::starrefCenteredText),
-			st::boxRowPadding,
 			style::al_top);
 
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
@@ -480,7 +478,6 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 				box,
 				tr::lng_star_ref_link_recipient(),
 				st::starrefCenteredText),
-			st::boxRowPadding,
 			style::al_top);
 		Ui::AddSkip(box->verticalLayout());
 		box->addRow(object_ptr<Ui::AbstractButton>::fromRaw(
@@ -579,13 +576,12 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 		}, box->lifetime());
 
 		box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_star_ref_title(),
-					st::boxTitle)),
-			st::boxRowPadding + st::starrefJoinTitlePadding);
+				tr::lng_star_ref_title(),
+				st::boxTitle),
+			st::boxRowPadding + st::starrefJoinTitlePadding,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
@@ -599,7 +595,6 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 					FormatForProgramDuration(program.durationMonths),
 					Ui::Text::WithEntities),
 				st::starrefCenteredText),
-			st::boxRowPadding,
 			style::al_top);
 
 		Ui::AddSkip(box->verticalLayout(), st::defaultVerticalListSkip * 3);
@@ -641,7 +636,6 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 					box,
 					tr::lng_star_ref_link_recipient(),
 					st::starrefCenteredText),
-				st::boxRowPadding,
 				style::al_top);
 			Ui::AddSkip(box->verticalLayout());
 			const auto recipientWrap = box->addRow(

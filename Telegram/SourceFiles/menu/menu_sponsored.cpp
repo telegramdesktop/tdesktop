@@ -56,6 +56,7 @@ void AboutBox(
 	constexpr auto kUrl = "https://promote.telegram.org"_cs;
 
 	box->setWidth(st::boxWideWidth);
+	box->setNoContentMargin(true);
 
 	const auto isChannel = (phrases == SponsoredPhrases::Channel);
 	const auto isSearch = (phrases == SponsoredPhrases::Search);
@@ -73,9 +74,8 @@ void AboutBox(
 		const auto rect = Rect(icon.size() * 1.4);
 		auto owned = object_ptr<Ui::RpWidget>(content);
 		owned->resize(rect.size());
-		const auto widget = box->addRow(object_ptr<Ui::CenterWrap<>>(
-			content,
-			std::move(owned)))->entity();
+		owned->setNaturalWidth(rect.width());
+		const auto widget = box->addRow(std::move(owned), style::al_top);
 		widget->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(widget);
@@ -88,17 +88,19 @@ void AboutBox(
 	}
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
-	box->addRow(object_ptr<Ui::CenterWrap<>>(
-		content,
+	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			content,
 			tr::lng_sponsored_menu_revenued_about(),
-			st::boxTitle)));
+			st::boxTitle),
+		style::al_top);
 	Ui::AddSkip(content);
-	box->addRow(object_ptr<Ui::FlatLabel>(
-		content,
-		tr::lng_sponsored_revenued_subtitle(),
-		st::channelEarnLearnDescription));
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_sponsored_revenued_subtitle(),
+			st::channelEarnLearnDescription),
+		style::al_top);
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 	{
@@ -208,12 +210,11 @@ void AboutBox(
 	Ui::AddSkip(content);
 	{
 		box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_sponsored_revenued_footer_title(),
-					st::boxTitle)));
+				tr::lng_sponsored_revenued_footer_title(),
+				st::boxTitle),
+			style::al_top);
 	}
 	Ui::AddSkip(content);
 	{

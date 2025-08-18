@@ -140,14 +140,12 @@ void AddHeader(
 }
 
 void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
-	const auto wrap = box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+	const auto container = box->addRow(
+		object_ptr<Ui::RoundButton>(
 			box,
-			object_ptr<Ui::RoundButton>(
-				box,
-				rpl::single(QString()),
-				st::channelEarnHistoryRecipientButton)));
-	const auto container = wrap->entity();
+			rpl::single(QString()),
+			st::channelEarnHistoryRecipientButton),
+		style::al_top);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		container,
 		rpl::single(t),
@@ -449,10 +447,10 @@ void InnerWidget::fill() {
 					const auto rect = Rect(icon.size() * 1.4);
 					auto owned = object_ptr<Ui::RpWidget>(content);
 					owned->resize(rect.size());
+					owned->setNaturalWidth(rect.width());
 					const auto widget = box->addRow(
-						object_ptr<Ui::CenterWrap<>>(
-							content,
-							std::move(owned)))->entity();
+						std::move(owned),
+						style::al_top);
 					widget->paintRequest(
 					) | rpl::start_with_next([=] {
 						auto p = Painter(widget);
@@ -465,14 +463,13 @@ void InnerWidget::fill() {
 				}
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
-				box->addRow(object_ptr<Ui::CenterWrap<>>(
+				box->addRow(object_ptr<Ui::FlatLabel>(
 					content,
-					object_ptr<Ui::FlatLabel>(
-						content,
-						bot
-							? tr::lng_channel_earn_bot_learn_title()
-							: tr::lng_channel_earn_learn_title(),
-						st::boxTitle)));
+					bot
+						? tr::lng_channel_earn_bot_learn_title()
+						: tr::lng_channel_earn_learn_title(),
+					st::boxTitle),
+					style::al_top);
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
@@ -540,17 +537,17 @@ void InnerWidget::fill() {
 				Ui::AddSkip(content);
 				{
 					const auto l = box->addRow(
-						object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+						object_ptr<Ui::FlatLabel>(
 							content,
-							object_ptr<Ui::FlatLabel>(
-								content,
-								tr::lng_channel_earn_learn_coin_title(
-									lt_emoji,
-									rpl::single(
-										Ui::Text::Link(bigCurrencyIcon, 1)),
-									Ui::Text::RichLangValue
-								),
-								st::boxTitle)))->entity();
+							tr::lng_channel_earn_learn_coin_title(
+								lt_emoji,
+								rpl::single(
+									Ui::Text::Link(bigCurrencyIcon, 1)),
+								Ui::Text::RichLangValue),
+							st::boxTitle,
+							st::defaultPopupMenu,
+							emojiHelper.context()),
+						style::al_top);
 					const auto diamonds = l->lifetime().make_state<int>(0);
 					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 						const auto count = (*diamonds);
@@ -837,9 +834,8 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 
 		const auto labels = container->add(
-			object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
-				container,
-				object_ptr<Ui::RpWidget>(container)))->entity();
+			object_ptr<Ui::RpWidget>(container),
+			style::al_top);
 
 		const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
@@ -864,6 +860,8 @@ void InnerWidget::fill() {
 			labels->resize(
 				majorSize.width() + minorSize.width(),
 				majorSize.height());
+			labels->setNaturalWidth(
+				majorSize.width() + minorSize.width());
 			majorLabel->moveToLeft(0, 0);
 			minorLabel->moveToRight(
 				0,
@@ -873,12 +871,11 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 		container->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				container,
-				object_ptr<Ui::FlatLabel>(
-					container,
-					ToUsd(value, multiplier, 0),
-					st::channelEarnOverviewSubMinorLabel)));
+				ToUsd(value, multiplier, 0),
+				st::channelEarnOverviewSubMinorLabel),
+			style::al_top);
 
 		Ui::AddSkip(container);
 
@@ -888,7 +885,8 @@ void InnerWidget::fill() {
 				container,
 				rpl::never<QString>(),
 				stButton),
-			st::boxRowPadding);
+			st::boxRowPadding,
+			style::al_justify);
 
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			button,
@@ -1156,9 +1154,8 @@ void InnerWidget::fill() {
 					Ui::AddSkip(box->verticalLayout());
 					Ui::AddSkip(box->verticalLayout());
 					const auto labels = box->addRow(
-						object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
-							box,
-							object_ptr<Ui::RpWidget>(box)))->entity();
+						object_ptr<Ui::RpWidget>(box),
+						style::al_top);
 
 					const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 						labels,
@@ -1187,6 +1184,8 @@ void InnerWidget::fill() {
 						labels->resize(
 							majorSize.width() + minorSize.width(),
 							majorSize.height());
+						labels->setNaturalWidth(
+							majorSize.width() + minorSize.width());
 						majorLabel->moveToLeft(0, 0);
 						minorLabel->moveToRight(
 							0,
@@ -1194,12 +1193,12 @@ void InnerWidget::fill() {
 					}, box->lifetime());
 
 					Ui::AddSkip(box->verticalLayout());
-					box->addRow(object_ptr<Ui::CenterWrap<>>(
-						box,
+					box->addRow(
 						object_ptr<Ui::FlatLabel>(
 							box,
 							dateText,
-							st::channelEarnHistorySubLabel)));
+							st::channelEarnHistorySubLabel),
+						style::al_top);
 					Ui::AddSkip(box->verticalLayout());
 					Ui::AddSkip(box->verticalLayout());
 					AddChannelEarnTable(
@@ -1208,14 +1207,14 @@ void InnerWidget::fill() {
 						entry);
 					Ui::AddSkip(box->verticalLayout());
 					Ui::AddSkip(box->verticalLayout());
-					box->addRow(object_ptr<Ui::CenterWrap<>>(
-						box,
+					box->addRow(
 						object_ptr<Ui::FlatLabel>(
 							box,
 							isIn
 								? tr::lng_channel_earn_history_in_about()
 								: tr::lng_channel_earn_history_out(),
-							st::channelEarnHistoryDescriptionLabel)));
+							st::channelEarnHistoryDescriptionLabel),
+						style::al_top);
 					Ui::AddSkip(box->verticalLayout());
 					if (isIn) {
 						Ui::AddSkip(box->verticalLayout());
@@ -1226,9 +1225,8 @@ void InnerWidget::fill() {
 					}
 					if (isIn) {
 						box->addRow(
-							object_ptr<Ui::CenterWrap<>>(
-								box,
-								Ui::CreatePeerBubble(box, peer)));
+							Ui::CreatePeerBubble(box, peer),
+							style::al_top);
 					}
 					const auto closeBox = [=] { box->closeBox(); };
 					{

@@ -969,9 +969,9 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 
 		const auto photoSize = st::boostReplaceUserpic.photoSize;
 		const auto session = &row->peer()->session();
-		content->add(object_ptr<Ui::CenterWrap<>>(
-			content,
-			Settings::SubscriptionUserpic(content, channel, photoSize)));
+		content->add(
+			Settings::SubscriptionUserpic(content, channel, photoSize),
+			style::al_top);
 
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
@@ -981,7 +981,6 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 				box,
 				tr::lng_credits_box_subscription_title(),
 				st::creditsBoxAboutTitle),
-			st::boxRowPadding,
 			style::al_top);
 
 		Ui::AddSkip(content);
@@ -990,7 +989,6 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 			object_ptr<Ui::FlatLabel>(
 				box,
 				st::creditsTopupPrice),
-			st::boxRowPadding,
 			style::al_top);
 		subtitle1->setMarkedText(
 			tr::lng_credits_subscription_subtitle(
@@ -1002,11 +1000,10 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 				Ui::Text::WithEntities),
 			_emojiHelper.context());
 		const auto subtitle2 = box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					st::creditsTopupPrice)))->entity();
+				st::creditsTopupPrice),
+			style::al_top);
 		session->credits().rateValue(
 			channel
 		) | rpl::start_with_next([=, currency = u"USD"_q](float64 rate) {
@@ -1038,7 +1035,6 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider),
-			st::boxRowPadding,
 			style::al_top);
 
 		const auto button = box->addButton(tr::lng_box_ok(), [=] {

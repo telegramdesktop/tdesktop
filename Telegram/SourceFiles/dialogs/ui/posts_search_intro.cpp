@@ -186,7 +186,6 @@ void PostsSearchIntro::setup() {
 			_content.get(),
 			rpl::single(QString()),
 			st::postsSearchIntroButton),
-		{},
 		style::al_top);
 	_button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_footer = _content->add(

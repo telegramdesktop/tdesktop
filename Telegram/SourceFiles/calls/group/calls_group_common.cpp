@@ -116,13 +116,12 @@ void ConferenceCallJoinConfirm(
 		st::boxRowPadding + st::confcallLinkHeaderIconPadding);
 
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_confcall_join_title(),
-				st::boxTitle)),
-		st::boxRowPadding + st::confcallLinkTitlePadding);
+			tr::lng_confcall_join_title(),
+			st::boxTitle),
+		st::boxRowPadding + st::confcallLinkTitlePadding,
+		style::al_top);
 	const auto wrapName = [&](not_null<PeerData*> peer) {
 		return rpl::single(Ui::Text::Bold(peer->shortName()));
 	};
@@ -323,13 +322,12 @@ void ShowConferenceCallLinkBox(
 			Info::BotStarRef::CreateLinkHeaderIcon(box, &call->session()),
 			st::boxRowPadding + st::confcallLinkHeaderIconPadding);
 		box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_confcall_link_title(),
-					st.box ? st.box->title : st::boxTitle)),
-			st::boxRowPadding + st::confcallLinkTitlePadding);
+				tr::lng_confcall_link_title(),
+				st.box ? st.box->title : st::boxTitle),
+			st::boxRowPadding + st::confcallLinkTitlePadding,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,

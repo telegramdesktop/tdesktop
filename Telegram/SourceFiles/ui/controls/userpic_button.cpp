@@ -221,6 +221,7 @@ UserpicButton::~UserpicButton() = default;
 
 void UserpicButton::prepare() {
 	resize(_st.size);
+	setNaturalWidth(_st.size.width());
 	_notShownYet = _waiting;
 	if (!_waiting) {
 		prepareUserpicPixmap();

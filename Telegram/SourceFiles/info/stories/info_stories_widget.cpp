@@ -65,6 +65,7 @@ Widget::Widget(
 		controller,
 		_albumId.value(),
 		controller->key().storiesAddToAlbumId()));
+	_emptyAlbumShown = _inner->albumEmptyValue();
 	_inner->albumIdChanges() | rpl::start_with_next([=](int id) {
 		controller->showSection(
 			Make(controller->storiesPeer(), id),
@@ -76,7 +77,10 @@ Widget::Widget(
 		scrollTo(request);
 	}, _inner->lifetime());
 
-	_albumId.value() | rpl::start_with_next([=] {
+	rpl::combine(
+		_albumId.value(),
+		_emptyAlbumShown.value()
+	) | rpl::start_with_next([=] {
 		refreshBottom();
 	}, _inner->lifetime());
 }
@@ -133,20 +137,19 @@ void Widget::refreshBottom() {
 	const auto albumId = _albumId.current();
 	const auto withButton = (albumId != Data::kStoriesAlbumIdSaved)
 		&& (albumId != Data::kStoriesAlbumIdArchive)
-		&& controller()->storiesPeer()->canEditStories();
+		&& controller()->storiesPeer()->canEditStories()
+		&& !_emptyAlbumShown.current();
 	const auto wasBottom = _pinnedToBottom ? _pinnedToBottom->height() : 0;
 	delete _pinnedToBottom.data();
 	if (!withButton) {
 		setScrollBottomSkip(0);
 		_hasPinnedToBottom = false;
 	} else {
-		setupBottomButton(wasBottom, _inner->albumEmptyValue());
+		setupBottomButton(wasBottom);
 	}
 }
 
-void Widget::setupBottomButton(
-		int wasBottomHeight,
-		rpl::producer<bool> hidden) {
+void Widget::setupBottomButton(int wasBottomHeight) {
 	_pinnedToBottom = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		this,
 		object_ptr<Ui::RpWidget>(this));
@@ -166,10 +169,7 @@ void Widget::setupBottomButton(
 		return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
 	}));
 	button->show();
-	std::move(hidden) | rpl::start_with_next([=](bool hidden) {
-		button->setVisible(!hidden);
-		_hasPinnedToBottom = !hidden;
-	}, button->lifetime());
+	_hasPinnedToBottom = true;
 
 	button->setClickedCallback([=] {
 		if (const auto id = _albumId.current()) {

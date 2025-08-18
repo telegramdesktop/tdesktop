@@ -112,13 +112,12 @@ void InfoBox(
 	});
 
 	const auto userpic = box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::UserpicButton>>(
+		object_ptr<Ui::UserpicButton>(
 			box,
-			object_ptr<Ui::UserpicButton>(
-				box,
-				data.bot,
-				st::websiteBigUserpic)),
-		st::sessionBigCoverPadding)->entity();
+			data.bot,
+			st::websiteBigUserpic),
+		st::sessionBigCoverPadding,
+		style::al_top);
 	userpic->overrideShape(Ui::PeerUserpicShape::Forum);
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 

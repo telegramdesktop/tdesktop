@@ -1200,7 +1200,7 @@ void EditPeerColorBox(
 			peer,
 			state->index.value(),
 			state->emojiId.value()
-		), {});
+		), style::margins());
 
 		auto indices = peer->session().api().peerColors().suggestedValue();
 		const auto margin = st::settingsColorRadioMargin;

@@ -40,15 +40,13 @@ Blocked::Blocked(
 	{
 		auto padding = st::changePhoneIconPadding;
 		padding.setBottom(padding.top());
-		_loading = base::make_unique_q<Ui::CenterWrap<>>(
+		_loading = base::make_unique_q<Ui::PaddingWrap<>>(
 			this,
-			object_ptr<Ui::PaddingWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				this,
-				object_ptr<Ui::FlatLabel>(
-					this,
-					tr::lng_contacts_loading(),
-					st::changePhoneDescription),
-				std::move(padding)));
+				tr::lng_contacts_loading(),
+				st::changePhoneDescription),
+			std::move(padding));
 		Ui::ResizeFitChild(
 			this,
 			_loading.get(),

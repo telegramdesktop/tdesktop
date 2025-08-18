@@ -106,11 +106,9 @@ void LoginEmailConfirm::setupContent() {
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
-	const auto wrap = content->add(
-		object_ptr<Ui::CenterWrap<Ui::CodeInput>>(
-			content,
-			object_ptr<Ui::CodeInput>(content)));
-	const auto newInput = wrap->entity();
+	const auto newInput = content->add(
+		object_ptr<Ui::CodeInput>(content),
+		style::al_top);
 	newInput->setDigitsCountMax(currentStepDataCodeLength);
 
 	Ui::AddSkip(content);

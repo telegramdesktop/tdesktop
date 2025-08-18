@@ -69,11 +69,10 @@ EmailWidget::EmailWidget(
 		}, lifetime());
 	}
 
-	const auto wrap = Settings::CloudPassword::AddWrappedField(
+	const auto newInput = Settings::CloudPassword::AddWrappedField(
 		content,
 		tr::lng_settings_cloud_login_email_placeholder(),
 		QString());
-	const auto newInput = wrap->entity();
 	Ui::AddSkip(content);
 	const auto error = Settings::CloudPassword::AddError(content, nullptr);
 	newInput->changes() | rpl::start_with_next([=] {

@@ -518,13 +518,13 @@ void PaidReactionsBox(
 			state->shownPeer = state->savedShownPeer = barePeerId;
 		});
 
-	const auto named = box->addRow(object_ptr<CenterWrap<Checkbox>>(
-		box,
+	const auto named = box->addRow(
 		object_ptr<Checkbox>(
 			box,
 			tr::lng_paid_react_show_in_top(tr::now),
-			state->shownPeer.current() != 0)));
-	named->entity()->checkedValue(
+			state->shownPeer.current() != 0),
+		style::al_top);
+	named->checkedValue(
 	) | rpl::start_with_next([=](bool show) {
 		state->shownPeer = show ? state->savedShownPeer : 0;
 	}, named->lifetime());

@@ -990,12 +990,11 @@ void GiveawayInfoBox(
 			label->setTextColorOverride(st::windowActiveTextFg->c);
 		}
 		const auto result = box->addRow(
-			object_ptr<Ui::PaddingWrap<Ui::CenterWrap<Ui::FlatLabel>>>(
+			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 				box.get(),
-				object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
-					box.get(),
-					std::move(label)),
-				QMargins(0, skip, 0, skip)));
+				std::move(label),
+				QMargins(0, skip, 0, skip)),
+			style::al_justify);
 		result->paintRequest() | rpl::start_with_next([=] {
 			auto p = QPainter(result);
 			p.setPen(Qt::NoPen);

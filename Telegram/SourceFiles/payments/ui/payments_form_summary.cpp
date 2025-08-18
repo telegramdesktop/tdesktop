@@ -124,7 +124,6 @@ bool FormSummary::showCriticalError(const TextWithEntities &text) {
 			_layout.get(),
 			rpl::single(text),
 			st::paymentsCriticalError),
-		{},
 		style::al_top);
 	return true;
 }

@@ -72,7 +72,7 @@ private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
-	void setupBottomButton(int wasBottomHeight, rpl::producer<bool> hidden);
+	void setupBottomButton(int wasBottomHeight);
 	void refreshBottom();
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
@@ -81,6 +81,7 @@ private:
 	InnerWidget *_inner = nullptr;
 	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
 	rpl::variable<bool> _hasPinnedToBottom;
+	rpl::variable<bool> _emptyAlbumShown;
 	bool _shown = false;
 
 };

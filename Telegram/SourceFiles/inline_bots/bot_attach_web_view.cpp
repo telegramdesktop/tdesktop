@@ -519,7 +519,6 @@ void ConfirmEmojiStatusAccessBox(
 				rpl::single(name),
 				Ui::Text::RichLangValue),
 			st::botEmojiStatusText),
-		st::boxRowPadding,
 		style::al_top);
 
 	box->addButton(tr::lng_bot_emoji_status_access_allow(), [=] {
@@ -563,7 +562,6 @@ void ConfirmEmojiStatusBox(
 			box,
 			tr::lng_bot_emoji_status_title(),
 			st::botEmojiStatusTitle),
-		st::boxRowPadding,
 		style::al_top);
 	AddSkip(box->verticalLayout());
 
@@ -575,7 +573,6 @@ void ConfirmEmojiStatusBox(
 				rpl::single(Ui::Text::Bold(bot->name())),
 				Ui::Text::RichLangValue),
 			st::botEmojiStatusText),
-		st::boxRowPadding,
 		style::al_top);
 
 	AddSkip(box->verticalLayout(), 2 * st::defaultVerticalListSkip);

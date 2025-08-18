@@ -1075,7 +1075,7 @@ void DraftOptionsBox(
 
 	state->wrap = box->addRow(
 		object_ptr<PreviewWrap>(box, args.history),
-		{});
+		style::margins());
 	state->wrap->draggingScrollDelta(
 	) | rpl::start_with_next([=](int delta) {
 		box->scrollByDraggingDelta(delta);

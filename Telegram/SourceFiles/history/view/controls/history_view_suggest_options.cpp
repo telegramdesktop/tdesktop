@@ -394,7 +394,6 @@ void ChooseSuggestPriceBox(
 				box,
 				std::move(title),
 				st::settingsPremiumUserTitle),
-			st::boxRowPadding,
 			style::al_top);
 	}
 

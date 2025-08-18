@@ -190,14 +190,13 @@ void PanelNoPassword::setupContent() {
 		style::al_top);
 
 	const auto iconWrap = _inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FixedHeightWidget>>(
+		object_ptr<Ui::FixedHeightWidget>(
 			_inner,
-			object_ptr<Ui::FixedHeightWidget>(
-				_inner,
-				st::passportPasswordIconHeight)));
-	iconWrap->entity()->resizeToWidth(st::passportPasswordIcon.width());
+			st::passportPasswordIconHeight),
+		style::al_top);
+	iconWrap->setNaturalWidth(st::passportPasswordIcon.width());
 	Ui::CreateChild<Info::Profile::FloatingIcon>(
-		iconWrap->entity(),
+		iconWrap,
 		st::passportPasswordIcon,
 		QPoint(0, 0));
 
@@ -225,13 +224,12 @@ void PanelNoPassword::refreshBottom() {
 		style::al_top));
 	if (pattern.isEmpty()) {
 		const auto button = _inner->add(
-			object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+			object_ptr<Ui::RoundButton>(
 				_inner,
-				object_ptr<Ui::RoundButton>(
-					_inner,
-					tr::lng_passport_password_create(),
-					st::defaultBoxButton)));
-		button->entity()->addClickHandler([=] {
+				tr::lng_passport_password_create(),
+				st::defaultBoxButton),
+			style::al_top);
+		button->addClickHandler([=] {
 			_controller->setupPassword();
 		});
 	} else {

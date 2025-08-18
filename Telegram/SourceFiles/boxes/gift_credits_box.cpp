@@ -52,9 +52,8 @@ void GiftCreditsBox(
 	Ui::AddSkip(content);
 	const auto &stUser = st::premiumGiftsUserpicButton;
 	const auto userpicWrap = content->add(
-		object_ptr<Ui::CenterWrap<>>(
-			content,
-			object_ptr<Ui::UserpicButton>(content, peer, stUser)));
+		object_ptr<Ui::UserpicButton>(content, peer, stUser),
+		style::al_top);
 	userpicWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);

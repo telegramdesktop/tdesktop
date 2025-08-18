@@ -327,11 +327,8 @@ struct Feature {
 		box->setWidth(st::boxWideWidth);
 		box->setStyle(st::storiesStealthBox);
 		box->addRow(MakeLogo(box));
-		box->addRow(MakeTitle(box), st::boxRowPadding, style::al_top);
-		box->addRow(
-			MakeAbout(box, data->state.value()),
-			st::boxRowPadding,
-			style::al_top);
+		box->addRow(MakeTitle(box), style::al_top);
+		box->addRow(MakeAbout(box, data->state.value()), style::al_top);
 		box->addRow(MakeFeature(box, FeaturePast()));
 		box->addRow(
 			MakeFeature(box, FeatureNext()),

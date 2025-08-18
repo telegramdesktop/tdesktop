@@ -3151,10 +3151,9 @@ void GiftBox(
 		&& uniqueDisallowed;
 
 	content->add(
-		object_ptr<CenterWrap<UserpicButton>>(
-			content,
-			object_ptr<UserpicButton>(content, peer, stUser))
-	)->entity()->setClickedCallback([=] { window->showPeerInfo(peer); });
+		object_ptr<UserpicButton>(content, peer, stUser),
+		style::al_top
+	)->setClickedCallback([=] { window->showPeerInfo(peer); });
 	AddSkip(content);
 	AddSkip(content);
 
@@ -4919,19 +4918,18 @@ void UpgradeBox(
 			object_ptr<PlainShadow>(container),
 			st::boxRowPadding + QMargins(0, skip, 0, skip));
 		const auto checkbox = container->add(
-			object_ptr<CenterWrap<Checkbox>>(
+			object_ptr<Checkbox>(
 				container,
-				object_ptr<Checkbox>(
-					container,
-					(args.canAddComment
-						? tr::lng_gift_upgrade_add_comment(tr::now)
-						: args.canAddSender
-						? tr::lng_gift_upgrade_add_sender(tr::now)
-						: args.canAddMyComment
-						? tr::lng_gift_upgrade_add_my_comment(tr::now)
-						: tr::lng_gift_upgrade_add_my(tr::now)),
-					args.addDetailsDefault)),
-			st::defaultCheckbox.margin)->entity();
+				(args.canAddComment
+					? tr::lng_gift_upgrade_add_comment(tr::now)
+					: args.canAddSender
+					? tr::lng_gift_upgrade_add_sender(tr::now)
+					: args.canAddMyComment
+					? tr::lng_gift_upgrade_add_my_comment(tr::now)
+					: tr::lng_gift_upgrade_add_my(tr::now)),
+				args.addDetailsDefault),
+			st::defaultCheckbox.margin,
+			style::al_top);
 		checkbox->checkedChanges() | rpl::start_with_next([=](bool checked) {
 			state->preserveDetails = checked;
 		}, checkbox->lifetime());

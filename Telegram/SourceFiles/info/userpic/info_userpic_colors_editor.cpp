@@ -245,12 +245,11 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		std::vector<QColor> colors;
 	};
 	const auto preview = container->add(
-		object_ptr<Ui::CenterWrap<EmojiUserpic>>(
+		object_ptr<EmojiUserpic>(
 			container,
-			object_ptr<EmojiUserpic>(
-				container,
-				Size(st::defaultUserpicButton.photoSize),
-				false)))->entity();
+			Size(st::defaultUserpicButton.photoSize),
+			false),
+		style::al_top);
 	preview->setDuration(0);
 	if (document) {
 		preview->setDocument(document);

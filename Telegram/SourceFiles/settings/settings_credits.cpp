@@ -424,13 +424,12 @@ void Credits::setupContent() {
 
 	{
 		const auto button = content->add(
-			object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+			object_ptr<Ui::RoundButton>(
 				content,
-				object_ptr<Ui::RoundButton>(
-					content,
-					nullptr,
-					st::creditsSettingsBigBalanceButton)),
-			st::boxRowPadding)->entity();
+				nullptr,
+				st::creditsSettingsBigBalanceButton),
+			st::boxRowPadding,
+			style::al_top);
 		button->setContext([&]() -> Ui::Text::MarkedContext {
 			auto customEmojiFactory = [=](const auto &...) {
 				const auto &icon = st::settingsIconAdd;
@@ -507,39 +506,37 @@ void Credits::setupContent() {
 		return { .customEmojiFactory = std::move(customEmojiFactory) };
 	}();
 	content->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				tr::lng_credits_balance_me_count(
-					lt_emoji,
-					rpl::single(Ui::MakeCreditsIconEntity()),
-					lt_amount,
-					(isCurrency
-						? _controller->session().credits().tonBalanceValue()
-						: _controller->session().credits().balanceValue()
-					) | rpl::map(
-						Lang::FormatCreditsAmountDecimal
-					) | rpl::map(Ui::Text::Bold),
-					Ui::Text::WithEntities),
-				textSt,
-				st::defaultPopupMenu,
-				std::move(context))));
+			tr::lng_credits_balance_me_count(
+				lt_emoji,
+				rpl::single(Ui::MakeCreditsIconEntity()),
+				lt_amount,
+				(isCurrency
+					? _controller->session().credits().tonBalanceValue()
+					: _controller->session().credits().balanceValue()
+				) | rpl::map(
+					Lang::FormatCreditsAmountDecimal
+				) | rpl::map(Ui::Text::Bold),
+				Ui::Text::WithEntities),
+			textSt,
+			st::defaultPopupMenu,
+			std::move(context)),
+		style::al_top);
 	if (isCurrency) {
 		const auto rate = _controller->session().credits().usdRate();
 		const auto wrap = content->add(
 			object_ptr<Ui::SlideWrap<>>(
 				content,
-				object_ptr<Ui::CenterWrap<>>(
+				object_ptr<Ui::FlatLabel>(
 					content,
-					object_ptr<Ui::FlatLabel>(
-						content,
-						_controller->session().credits().tonBalanceValue(
-						) | rpl::map([=](CreditsAmount value) {
-							using namespace Info::ChannelEarn;
-							return value ? ToUsd(value, rate, 3) : QString();
-						}),
-						st::channelEarnOverviewSubMinorLabel))));
+					_controller->session().credits().tonBalanceValue(
+					) | rpl::map([=](CreditsAmount value) {
+						using namespace Info::ChannelEarn;
+						return value ? ToUsd(value, rate, 3) : QString();
+					}),
+					st::channelEarnOverviewSubMinorLabel)),
+			style::al_top);
 		wrap->toggleOn(_controller->session().credits().tonBalanceValue(
 			) | rpl::map(rpl::mappers::_1 > CreditsAmount(0)));
 		wrap->finishAnimating();
@@ -615,9 +612,8 @@ void Credits::setupContent() {
 			Ui::AddSkip(container);
 
 			const auto labels = container->add(
-				object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
-					container,
-					object_ptr<Ui::RpWidget>(container)))->entity();
+				object_ptr<Ui::RpWidget>(container),
+				style::al_top);
 
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				labels,
@@ -642,6 +638,8 @@ void Credits::setupContent() {
 				labels->resize(
 					majorSize.width() + minorSize.width(),
 					majorSize.height());
+				labels->setNaturalWidth(
+					majorSize.width() + minorSize.width());
 				majorLabel->moveToLeft(0, 0);
 				minorLabel->moveToRight(
 					0,
@@ -651,12 +649,11 @@ void Credits::setupContent() {
 
 			Ui::AddSkip(container);
 			container->add(
-				object_ptr<Ui::CenterWrap<>>(
+				object_ptr<Ui::FlatLabel>(
 					container,
-					object_ptr<Ui::FlatLabel>(
-						container,
-						ToUsd(value, multiplier, 0),
-						st::channelEarnOverviewSubMinorLabel)));
+					ToUsd(value, multiplier, 0),
+					st::channelEarnOverviewSubMinorLabel),
+				style::al_top);
 
 			Ui::AddSkip(container);
 
