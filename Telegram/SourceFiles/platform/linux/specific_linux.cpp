@@ -712,11 +712,10 @@ void start() {
 	GLib::set_prgname(cExeName().toStdString());
 	GLib::set_application_name(AppName.data());
 
-	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
+	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-{}"_q.arg(
 		QDir::tempPath(),
 		HashForSocketPath(),
-		u"TD"_q,//QCoreApplication::applicationName(), - make path smaller.
-		u"%1"_q).toStdString());
+		u"TD"_q).toStdString());
 
 	InstallLauncher();
 }
