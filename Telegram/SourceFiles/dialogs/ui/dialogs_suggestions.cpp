@@ -1886,6 +1886,7 @@ void Suggestions::setupPostsSearch() {
 				nullptr,
 				{ .posts = true, .start = true },
 				state.totalCount);
+			_postsScroll->scrollToY(0);
 			updatePostsSearchVisibleRange();
 		}
 	}, _postsWrap->lifetime());
