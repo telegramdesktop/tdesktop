@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
 #include "styles/style_media_view.h"
+#include "core/shortcuts.h"
 
 namespace Media {
 namespace View {
@@ -131,6 +132,75 @@ PlaybackControls::PlaybackControls(
 		_playbackProgress->setValue(value, false);
 		handleSeekFinished(value);
 	});
+
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::MediaPlay) && request->handle([=] {
+			_delegate->playbackControlsPlay();
+			return true;
+		});
+		request->check(Command::MediaPause) && request->handle([=] {
+			_delegate->playbackControlsPause();
+			return true;
+		});
+		request->check(Command::MediaPlayPause) && request->handle([=] {
+			if (_showPause) {
+				_delegate->playbackControlsPause();
+			} else {
+				_delegate->playbackControlsPlay();
+			}
+			return true;
+		});
+		request->check(Command::MediaStop) && request->handle([=] {
+			_delegate->playbackControlsStop();
+			return true;
+		});
+		request->check(Command::MediaPrevious) && request->handle([=] {
+			_delegate->playbackControlsPrevious();
+			return true;
+		});
+		request->check(Command::MediaNext) && request->handle([=] {
+			_delegate->playbackControlsNext();
+			return true;
+		});
+		request->check(Command::Shuffle) && request->handle([=] {
+			_delegate->playbackControlsShuffle();
+			return true;
+		});
+		request->check(Command::Repeat) && request->handle([=] {
+			_delegate->playbackControlsRepeat();
+			return true;
+		});
+		request->check(Command::VolumeUp) && request->handle([=] {
+			_delegate->playbackControlsVolumeUp();
+			return true;
+		});
+		request->check(Command::VolumeDown) && request->handle([=] {
+			_delegate->playbackControlsVolumeDown();
+			return true;
+		});
+		request->check(Command::PlaybackSpeedUp) && request->handle([=] {
+			_delegate->playbackControlsSpeedUp();
+			return true;
+		});
+		request->check(Command::PlaybackSpeedDown) && request->handle([=] {
+			_delegate->playbackControlsSpeedDown();
+			return true;
+		});
+		request->check(Command::Rewind) && request->handle([=] {
+			_delegate->playbackControlsRewind();
+			return true;
+		});
+		request->check(Command::FastForward) && request->handle([=] {
+			_delegate->playbackControlsFastForward();
+			return true;
+		});
+		request->check(Command::CloseMedia) && request->handle([=] {
+			_delegate->playbackControlsClose();
+			return true;
+		});
+	}, lifetime());
 }
 
 void PlaybackControls::handleSeekProgress(float64 progress) {

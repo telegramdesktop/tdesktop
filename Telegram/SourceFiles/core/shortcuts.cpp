@@ -37,6 +37,12 @@ const auto AutoRepeatCommands = base::flat_set<Command>{
 	Command::ChatNext,
 	Command::ChatFirst,
 	Command::ChatLast,
+	Command::VolumeUp,
+	Command::VolumeDown,
+	Command::PlaybackSpeedUp,
+	Command::PlaybackSpeedDown,
+	Command::Rewind,
+	Command::FastForward,
 };
 
 const auto MediaCommands = base::flat_set<Command>{
@@ -46,6 +52,15 @@ const auto MediaCommands = base::flat_set<Command>{
 	Command::MediaStop,
 	Command::MediaPrevious,
 	Command::MediaNext,
+	Command::Shuffle,
+	Command::Repeat,
+	Command::VolumeUp,
+	Command::VolumeDown,
+	Command::PlaybackSpeedUp,
+	Command::PlaybackSpeedDown,
+	Command::Rewind,
+	Command::FastForward,
+	Command::CloseMedia,
 };
 
 const auto SupportCommands = base::flat_set<Command>{
@@ -119,6 +134,15 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"media_viewer_video_fullscreen"_q , Command::MediaViewerFullscreen },
 	{ u"show_scheduled"_q                , Command::ShowScheduled },
 	{ u"archive_chat"_q                  , Command::ArchiveChat },
+	{ u"shuffle"_q                       , Command::Shuffle },
+	{ u"repeat"_q                        , Command::Repeat },
+	{ u"volume_up"_q                     , Command::VolumeUp },
+	{ u"volume_down"_q                   , Command::VolumeDown },
+	{ u"playback_speed_up"_q             , Command::PlaybackSpeedUp },
+	{ u"playback_speed_down"_q           , Command::PlaybackSpeedDown },
+	{ u"rewind"_q                        , Command::Rewind },
+	{ u"fast_forward"_q                  , Command::FastForward },
+	{ u"close_media"_q                   , Command::CloseMedia },
 	//
 };
 
@@ -140,6 +164,15 @@ const base::flat_map<Command, QString> &CommandNames() {
 	Command::MediaViewerFullscreen,
 	Command::ShowScheduled,
 	Command::ArchiveChat,
+	Command::Shuffle,
+	Command::Repeat,
+	Command::VolumeUp,
+	Command::VolumeDown,
+	Command::PlaybackSpeedUp,
+	Command::PlaybackSpeedDown,
+	Command::Rewind,
+	Command::FastForward,
+	Command::CloseMedia,
 };
 
 class Manager {
@@ -508,6 +541,19 @@ void Manager::fillDefaults() {
 
 	set(u"ctrl+\\"_q, Command::ShowChatMenu);
 	set(u"ctrl+]"_q, Command::ShowChatPreview);
+
+	set(u"mod+n"_q, Command::MediaNext);
+	set(u"mod+p"_q, Command::MediaPrevious);
+	set(u"mod+c"_q, Command::MediaPlayPause);
+	set(u"mod+s"_q, Command::Shuffle);
+	set(u"mod+r"_q, Command::Repeat);
+	set(u"mod+-"_q, Command::VolumeDown);
+	set(u"mod+="_q, Command::VolumeUp);
+	set(u"mod+<"_q, Command::PlaybackSpeedDown);
+	set(u"mod+>"_q, Command::PlaybackSpeedUp);
+	set(u"mod+shift+left"_q, Command::Rewind);
+	set(u"mod+shift+right"_q, Command::FastForward);
+	set(u"mod+x"_q, Command::CloseMedia);
 
 	_defaults = keysCurrents();
 }

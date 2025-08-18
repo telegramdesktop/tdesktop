@@ -253,7 +253,9 @@ void Instance::setHistory(
 		setSession(data, &history->session());
 	} else {
 		data->history = data->migrated = nullptr;
-		setSession(data, sessionFallback);
+		setSession(
+			data,
+			sessionFallback);
 	}
 }
 
@@ -1297,6 +1299,42 @@ void Instance::setupShortcuts() {
 			next();
 			return true;
 		});
+		request->check(Command::Shuffle) && request->handle([=] {
+			toggleShuffle();
+			return true;
+		});
+		request->check(Command::Repeat) && request->handle([=] {
+			toggleRepeat();
+			return true;
+		});
+		request->check(Command::VolumeUp) && request->handle([=] {
+			adjustVolume(0.1);
+			return true;
+		});
+		request->check(Command::VolumeDown) && request->handle([=] {
+			adjustVolume(-0.1);
+			return true;
+		});
+		request->check(Command::PlaybackSpeedUp) && request->handle([=] {
+			adjustPlaybackSpeed(0.1);
+			return true;
+		});
+		request->check(Command::PlaybackSpeedDown) && request->handle([=] {
+			adjustPlaybackSpeed(-0.1);
+			return true;
+		});
+		request->check(Command::Rewind) && request->handle([=] {
+			seekRelative(-10);
+			return true;
+		});
+		request->check(Command::FastForward) && request->handle([=] {
+			seekRelative(10);
+			return true;
+		});
+		request->check(Command::CloseMedia) && request->handle([=] {
+			stopAndClose();
+			return true;
+		});
 	}, _lifetime);
 }
 
@@ -1386,6 +1424,70 @@ void Instance::handleStreamingError(
 	emitUpdate(data->type);
 	if (data->streamed && data->streamed->instance.player().failed()) {
 		clearStreamed(data);
+	}
+}
+
+void Instance::toggleShuffle() {
+	auto &settings = Core::App().settings();
+	settings.setPlayerOrderMode([&] {
+		switch (settings.playerOrderMode()) {
+		case OrderMode::Default: return OrderMode::Shuffle;
+		case OrderMode::Shuffle: return OrderMode::Default;
+		case OrderMode::Reverse: return OrderMode::Default;
+		}
+		Unexpected("Order mode in Settings.");
+	}());
+	Core::App().saveSettingsDelayed();
+}
+
+void Instance::toggleRepeat() {
+	auto &settings = Core::App().settings();
+	settings.setPlayerRepeatMode([&] {
+		switch (settings.playerRepeatMode()) {
+		case RepeatMode::None: return RepeatMode::One;
+		case RepeatMode::One: return RepeatMode::All;
+		case RepeatMode::All: return RepeatMode::None;
+		}
+		Unexpected("Repeat mode in Settings.");
+	}());
+	Core::App().saveSettingsDelayed();
+}
+
+void Instance::adjustVolume(float delta) {
+	auto &settings = Core::App().settings();
+	auto volume = settings.songVolume();
+	volume = std::clamp(volume + delta, 0.0, 1.0);
+	settings.setSongVolume(volume);
+	Core::App().saveSettingsDelayed();
+	mixer()->setSongVolume(volume);
+}
+
+void Instance::adjustPlaybackSpeed(float delta) {
+	auto &settings = Core::App().settings();
+	auto speed = settings.voicePlaybackSpeed();
+	speed = std::clamp(speed + delta, 0.5, 2.0);
+	settings.setVoicePlaybackSpeed(speed);
+	Core::App().saveSettingsDelayed();
+	updateVoicePlaybackSpeed();
+}
+
+void Instance::seekRelative(int seconds) {
+	if (const auto data = getData(getActiveType())) {
+		if (const auto streamed = data->streamed.get()) {
+			const auto &info = streamed->instance.info();
+			const auto duration = info.audio.state.duration;
+			if (duration != kTimeUnknown) {
+				const auto currentPosition = info.audio.state.position;
+				const auto newPosition = std::clamp(
+					currentPosition + seconds * 1000,
+					0LL,
+					duration);
+				streamed->instance.play(streamingOptions(
+					streamed->id,
+					newPosition));
+				emitUpdate(data->type);
+			}
+		}
 	}
 }
 
