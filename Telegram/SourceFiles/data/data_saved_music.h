@@ -32,6 +32,7 @@ public:
 
 	[[nodiscard]] rpl::producer<PeerId> changed() const;
 
+	void loadIds();
 	[[nodiscard]] bool has(not_null<DocumentData*> document) const;
 	void save(not_null<DocumentData*> document);
 	void remove(not_null<DocumentData*> document);
@@ -64,6 +65,10 @@ private:
 		not_null<DocumentData*> id);
 
 	const not_null<Session*> _owner;
+
+	std::vector<DocumentId> _myIds;
+	crl::time _lastReceived = 0;
+	mtpRequestId _loadIdsRequest = 0;
 
 	std::unordered_map<PeerId, Entry> _entries;
 	rpl::event_stream<PeerId> _changed;

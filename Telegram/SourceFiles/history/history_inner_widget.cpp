@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
 #include "history/view/controls/history_view_suggest_options.h"
+#include "history/view/media/history_view_save_audio_action.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions.h"
@@ -2547,24 +2548,26 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				item,
 				document,
 				controller);
-			_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ? tr::lng_context_save_audio_file(tr::now) : tr::lng_context_save_file(tr::now))), base::fn_delayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-				saveDocumentToFile(itemId, document);
-			}), &st::menuIconDownload);
-
-			if (document->isSong()) {
-				if (document->owner().savedMusic().has(document)) {
-					_menu->addAction(u"remove muzlo :("_q, [=] {
-						document->owner().savedMusic().remove(document);
-						_controller->showToast(u"removed from muzlo!"_q);
-					}, &st::menuIconUnfave);
-				} else {
-					_menu->addAction(u"to muzlo!"_q, [=] {
-						document->owner().savedMusic().save(document);
-						_controller->showToast(u"added to muzlo! :)"_q);
-					}, &st::menuIconFave);
-				}
+			if (lnkIsAudio) {
+				HistoryView::AddSaveAudioAction(
+					Ui::Menu::CreateAddActionCallback(_menu),
+					item,
+					document,
+					controller);
+			} else {
+				const auto text = lnkIsVideo
+					? tr::lng_context_save_video(tr::now)
+					: lnkIsVoice
+					? tr::lng_context_save_audio(tr::now)
+					: lnkIsAudio
+					? tr::lng_context_save_audio_file(tr::now)
+					: tr::lng_context_save_file(tr::now);
+				const auto &ripple = st::defaultDropdownMenu.menu.ripple;
+				const auto duration = ripple.hideDuration;
+				_menu->addAction(text, base::fn_delayed(duration, this, [=] {
+					saveDocumentToFile(itemId, document);
+				}), &st::menuIconDownload);
 			}
-
 			HistoryView::AddCopyFilename(
 				_menu,
 				document,

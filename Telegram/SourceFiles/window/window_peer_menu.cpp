@@ -240,32 +240,6 @@ void PeerMenuAddMuteSubmenuAction(
 	}
 }
 
-void ForwardToSelf(
-		std::shared_ptr<Main::SessionShow> show,
-		const Data::ForwardDraft &draft) {
-	const auto session = &show->session();
-	const auto history = session->data().history(session->user());
-	auto resolved = history->resolveForwardDraft(draft);
-	if (!resolved.items.empty()) {
-		const auto count = resolved.items.size();
-		auto action = Api::SendAction(history);
-		action.clearDraft = false;
-		action.generateLocal = false;
-		session->api().forwardMessages(
-			std::move(resolved),
-			action,
-			[=] {
-				auto phrase = rpl::variable<TextWithEntities>(
-					ChatHelpers::ForwardedMessagePhrase({
-					.toCount = 1,
-					.singleMessage = (count == 1),
-					.to1 = session->user(),
-				})).current();
-				show->showToast(std::move(phrase));
-			});
-	}
-}
-
 class Filler {
 public:
 	Filler(
@@ -3892,6 +3866,32 @@ void PeerMenuConfirmToggleFee(
 			*paidAmount = result.data().vstars_amount().v;
 		}).send();
 	}));
+}
+
+void ForwardToSelf(
+		std::shared_ptr<Main::SessionShow> show,
+		const Data::ForwardDraft &draft) {
+	const auto session = &show->session();
+	const auto history = session->data().history(session->user());
+	auto resolved = history->resolveForwardDraft(draft);
+	if (!resolved.items.empty()) {
+		const auto count = resolved.items.size();
+		auto action = Api::SendAction(history);
+		action.clearDraft = false;
+		action.generateLocal = false;
+		session->api().forwardMessages(
+			std::move(resolved),
+			action,
+			[=] {
+				auto phrase = rpl::variable<TextWithEntities>(
+					ChatHelpers::ForwardedMessagePhrase({
+					.toCount = 1,
+					.singleMessage = (count == 1),
+					.to1 = session->user(),
+				})).current();
+				show->showToast(std::move(phrase));
+			});
+	}
 }
 
 } // namespace Window

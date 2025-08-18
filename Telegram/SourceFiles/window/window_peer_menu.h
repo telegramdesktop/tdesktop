@@ -54,6 +54,10 @@ enum class PeerType : uint8;
 using PeerTypes = base::flags<PeerType>;
 } // namespace InlineBots
 
+namespace Main {
+class SessionShow;
+} // namespace Main
+
 namespace Window {
 
 class Controller;
@@ -259,5 +263,9 @@ void PeerMenuConfirmToggleFee(
 	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	bool removeFee);
+
+void ForwardToSelf(
+	std::shared_ptr<Main::SessionShow> show,
+	const Data::ForwardDraft &draft);
 
 } // namespace Window

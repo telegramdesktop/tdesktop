@@ -582,6 +582,9 @@ void DeleteMessagesBox::deleteAndClear() {
 		// deleteMessages can initiate closing of the current section,
 		// which will cause this box to be destroyed.
 		const auto weak = base::make_weak(this);
+		if (hasSavedMusicMessages()) {
+			uiShow()->showToast(tr::lng_saved_music_removed(tr::now));
+		}
 		if (const auto callback = _deleteConfirmedCallback) {
 			callback();
 		}

@@ -182,6 +182,7 @@ public:
 	[[nodiscard]] const VideoData *video() const;
 
 	void forceIsStreamedAnimation();
+	[[nodiscard]] bool isMusicForProfile() const;
 	[[nodiscard]] bool isVoiceMessage() const;
 	[[nodiscard]] bool isVideoMessage() const;
 	[[nodiscard]] bool isSong() const;

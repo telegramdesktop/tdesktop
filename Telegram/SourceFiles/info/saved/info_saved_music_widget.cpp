@@ -161,9 +161,10 @@ void MusicInner::refreshEmpty() {
 	const auto knownEmpty = savedMusic->countKnown(_peer->id);
 	_empty = object_ptr<Ui::FlatLabel>(
 		this,
-		(!knownEmpty AssertIsDebug()
+		(!knownEmpty
 			? tr::lng_contacts_loading(Ui::Text::WithEntities)
-			: rpl::single(TextWithEntities{ u"no muzlo found :("_q })),
+			: rpl::single(
+				tr::lng_media_song_empty(tr::now, Ui::Text::WithEntities))),
 		st::giftListAbout);
 	_empty->show();
 	_emptyLoading = !knownEmpty;
@@ -323,7 +324,9 @@ void MusicWidget::selectionAction(SelectionAction action) {
 }
 
 rpl::producer<QString> MusicWidget::title() {
-	return tr::lng_media_type_songs();
+	return controller()->key().musicPeer()->isSelf()
+		? tr::lng_media_saved_music_your()
+		: tr::lng_media_saved_music_title();
 }
 
 std::shared_ptr<Info::Memento> MakeMusic(not_null<PeerData*> peer) {

@@ -22,6 +22,7 @@ namespace Data {
 namespace {
 
 constexpr auto kPerPage = 50;
+constexpr auto kReloadIdsEvery = 30 * crl::time(1000);
 
 [[nodiscard]] not_null<DocumentData*> ItemDocument(
 		not_null<HistoryItem*> item) {
@@ -66,9 +67,31 @@ not_null<HistoryItem*> SavedMusic::musicIdToMsg(
 	}, id, TextWithEntities())).first->second.get();
 }
 
+void SavedMusic::loadIds() {
+	if (_loadIdsRequest
+		|| (_lastReceived
+			&& (crl::now() - _lastReceived < kReloadIdsEvery))) {
+		return;
+	}
+	_loadIdsRequest = _owner->session().api().request(
+		MTPaccount_GetSavedMusicIds(MTP_long(Api::CountHash(_myIds)))
+	).done([=](const MTPaccount_SavedMusicIds &result) {
+		_loadIdsRequest = 0;
+		_lastReceived = crl::now();
+		result.match([&](const MTPDaccount_savedMusicIds &data) {
+			_myIds = data.vids().v
+				| ranges::views::transform(&MTPlong::v)
+				| ranges::to_vector;
+		}, [](const MTPDaccount_savedMusicIdsNotModified &) {
+		});
+	}).fail([=] {
+		_loadIdsRequest = 0;
+		_lastReceived = crl::now();
+	}).send();
+}
+
 bool SavedMusic::has(not_null<DocumentData*> document) const {
-	const auto entry = lookupEntry(_owner->session().userPeerId());
-	return entry && ranges::contains(entry->list, document, ItemDocument);
+	return ranges::contains(_myIds, document->id);
 }
 
 void SavedMusic::save(not_null<DocumentData*> document) {
@@ -77,7 +100,7 @@ void SavedMusic::save(not_null<DocumentData*> document) {
 	if (entry.list.empty() && !entry.loaded) {
 		loadMore(peerId);
 	}
-	if (ranges::contains(entry.list, document, ItemDocument)) {
+	if (has(document)) {
 		return;
 	}
 	const auto item = musicIdToMsg(peerId, entry, document);
@@ -85,6 +108,7 @@ void SavedMusic::save(not_null<DocumentData*> document) {
 	if (entry.total >= 0) {
 		++entry.total;
 	}
+	_myIds.insert(begin(_myIds), document->id);
 	_owner->session().api().request(MTPaccount_SaveMusic(
 		MTP_flags(0),
 		document->mtpInput(),
@@ -105,6 +129,7 @@ void SavedMusic::remove(not_null<DocumentData*> document) {
 		}
 	}
 	entry.musicIdToMsg.remove(document);
+	_myIds.erase(ranges::remove(_myIds, document->id), end(_myIds));
 	_owner->session().api().request(MTPaccount_SaveMusic(
 		MTP_flags(MTPaccount_SaveMusic::Flag::f_unsave),
 		document->mtpInput(),

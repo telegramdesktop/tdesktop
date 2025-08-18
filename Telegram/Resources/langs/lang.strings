@@ -1659,6 +1659,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_type_audios" = "Voice messages";
 "lng_media_type_links" = "Shared links";
 "lng_media_type_rounds" = "Video messages";
+"lng_media_saved_music_your" = "Your playlist";
+"lng_media_saved_music_title" = "Playlist";
 "lng_profile_common_groups_section" = "Groups in common";
 "lng_info_edit_contact" = "Edit contact";
 "lng_info_delete_contact" = "Delete contact";
@@ -4400,6 +4402,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_pack_info" = "View Sticker Set";
 "lng_context_pack_add" = "Add Stickers";
 "lng_context_save_file" = "Save As...";
+"lng_context_save_music_to" = "Save to...";
+"lng_context_save_music_profile" = "... Profile";
+"lng_context_save_music_saved" = "... Saved Messages";
+"lng_context_save_music_folder" = "... Downloads";
+"lng_context_save_music_about" = "Choose where you want this audio to be saved.";
 "lng_context_copy_text" = "Copy Text";
 "lng_context_open_gif" = "Open GIF";
 "lng_context_save_gif" = "Add to GIFs";
@@ -4815,6 +4822,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_selected_delete_sure#one" = "Do you want to delete {count} message?";
 "lng_selected_delete_sure#other" = "Do you want to delete {count} messages?";
 "lng_selected_remove_saved_music" = "Do you want to remove this file from your profile?";
+"lng_saved_music_added" = "Audio added to your Profile.";
+"lng_saved_music_removed" = "Audio removed from your Profile.";
 "lng_delete_photo_sure" = "Do you want to delete this photo?";
 "lng_delete_for_everyone_hint#one" = "This will delete it for everyone in this chat.";
 "lng_delete_for_everyone_hint#other" = "This will delete them for everyone in this chat.";

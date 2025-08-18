@@ -4391,6 +4391,9 @@ void Session::unregisterPhotoItem(
 void Session::registerDocumentItem(
 		not_null<const DocumentData*> document,
 		not_null<HistoryItem*> item) {
+	if (document->isMusicForProfile()) {
+		document->owner().savedMusic().loadIds();
+	}
 	_documentItems[document].insert(item);
 }
 
