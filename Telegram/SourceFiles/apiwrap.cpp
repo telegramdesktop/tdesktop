@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
 #include "data/data_saved_messages.h"
+#include "data/data_saved_music.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_search_controller.h"
 #include "data/data_session.h"
@@ -2479,6 +2480,17 @@ void ApiWrap::refreshFileReference(
 				request(MTPmessages_GetScheduledMessages(
 					item->history()->peer->input,
 					MTP_vector<MTPint>(1, MTP_int(realId))));
+			} else if (item->isSavedMusicItem()) {
+				const auto user = item->history()->peer->asUser();
+				const auto media = item->media();
+				const auto document = media ? media->document() : nullptr;
+				if (user && document) {
+					request(MTPusers_GetSavedMusicByID(
+						user->inputUser,
+						MTP_vector<MTPInputDocument>(1, document->mtpInput())));
+				} else {
+					fail();
+				}
 			} else if (item->isBusinessShortcut()) {
 				const auto &shortcuts = _session->data().shortcutMessages();
 				const auto realId = shortcuts.lookupId(item);

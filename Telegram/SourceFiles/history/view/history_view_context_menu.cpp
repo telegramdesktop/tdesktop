@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_text.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_save_document_action.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions_list.h"
 #include "info/info_memento.h"
@@ -234,39 +235,6 @@ void ShowInFolder(not_null<DocumentData*> document) {
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
 	}
-}
-
-void AddSaveDocumentAction(
-		not_null<Ui::PopupMenu*> menu,
-		HistoryItem *item,
-		not_null<DocumentData*> document,
-		not_null<ListWidget*> list) {
-	if (list->hasCopyMediaRestriction(item) || ItemHasTtl(item)) {
-		return;
-	}
-	const auto origin = item ? item->fullId() : FullMsgId();
-	const auto save = [=] {
-		DocumentSaveClickHandler::SaveAndTrack(
-			origin,
-			document,
-			DocumentSaveClickHandler::Mode::ToNewFile);
-	};
-
-	menu->addAction(
-		(document->isVideoFile()
-			? tr::lng_context_save_video(tr::now)
-			: (document->isVoiceMessage()
-				? tr::lng_context_save_audio(tr::now)
-				: (document->isAudioFile()
-					? tr::lng_context_save_audio_file(tr::now)
-					: (document->sticker()
-						? tr::lng_context_save_image(tr::now)
-						: tr::lng_context_save_file(tr::now))))),
-		base::fn_delayed(
-			st::defaultDropdownMenu.menu.ripple.hideDuration,
-			&document->session(),
-			save),
-		&st::menuIconDownload);
 }
 
 void AddDocumentActions(

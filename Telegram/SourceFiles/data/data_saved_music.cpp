@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -94,7 +95,9 @@ bool SavedMusic::has(not_null<DocumentData*> document) const {
 	return ranges::contains(_myIds, document->id);
 }
 
-void SavedMusic::save(not_null<DocumentData*> document) {
+void SavedMusic::save(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin) {
 	const auto peerId = _owner->session().userPeerId();
 	auto &entry = _entries[peerId];
 	if (entry.list.empty() && !entry.loaded) {
@@ -109,11 +112,27 @@ void SavedMusic::save(not_null<DocumentData*> document) {
 		++entry.total;
 	}
 	_myIds.insert(begin(_myIds), document->id);
-	_owner->session().api().request(MTPaccount_SaveMusic(
-		MTP_flags(0),
-		document->mtpInput(),
-		MTPInputDocument()
-	)).send();
+
+	const auto send = [=](auto resend) -> void {
+		const auto usedFileReference = document->fileReference();
+		_owner->session().api().request(MTPaccount_SaveMusic(
+			MTP_flags(0),
+			document->mtpInput(),
+			MTPInputDocument()
+		)).fail([=](const MTP::Error &error) {
+			if (error.code() == 400
+				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
+				document->session().api().refreshFileReference(origin, [=](
+						const auto &) {
+					if (document->fileReference() != usedFileReference) {
+						resend(resend);
+					}
+				});
+			}
+		}).send();
+	};
+	send(send);
+
 	_changed.fire_copy(peerId);
 }
 

@@ -16,6 +16,7 @@ class PeerData;
 namespace Data {
 
 class Session;
+struct FileOrigin;
 
 class SavedMusic final {
 public:
@@ -34,7 +35,7 @@ public:
 
 	void loadIds();
 	[[nodiscard]] bool has(not_null<DocumentData*> document) const;
-	void save(not_null<DocumentData*> document);
+	void save(not_null<DocumentData*> document, FileOrigin origin);
 	void remove(not_null<DocumentData*> document);
 
 	void apply(not_null<UserData*> user, const MTPDocument *last);

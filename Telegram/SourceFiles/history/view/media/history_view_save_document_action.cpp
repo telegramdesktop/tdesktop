@@ -5,18 +5,22 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/media/history_view_save_audio_action.h"
+#include "history/view/media/history_view_save_document_action.h"
 
 #include "base/call_delayed.h"
 #include "data/data_document.h"
 #include "data/data_file_click_handler.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_saved_music.h"
 #include "data/data_session.h"
+#include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_peer_menu.h"
@@ -27,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-void AddSaveAudioAction(
+void AddSaveDocumentAction(
 		const Ui::Menu::MenuCallback &addAction,
 		not_null<HistoryItem*> item,
 		not_null<DocumentData*> document,
@@ -46,16 +50,22 @@ void AddSaveAudioAction(
 			DocumentSaveClickHandler::Mode::ToNewFile);
 	});
 	if (!document->isMusicForProfile() || (fromSaved && inProfile)) {
-		addAction(
-			tr::lng_context_save_audio_file(tr::now),
-			saveAs,
-			&st::menuIconDownload);
+		const auto text = document->isVideoFile()
+			? tr::lng_context_save_video(tr::now)
+			: document->isVoiceMessage()
+			? tr::lng_context_save_audio(tr::now)
+			: document->isAudioFile()
+			? tr::lng_context_save_audio_file(tr::now)
+			: document->sticker()
+			? tr::lng_context_save_image(tr::now)
+			: tr::lng_context_save_file(tr::now);
+		addAction(text, saveAs, &st::menuIconDownload);
 		return;
 	}
 	const auto fill = [&](not_null<Ui::PopupMenu*> menu) {
 		if (!inProfile) {
 			const auto saved = [=] {
-				savedMusic->save(document);
+				savedMusic->save(document, contextId);
 				show->showToast(tr::lng_saved_music_added(tr::now));
 			};
 			menu->addAction(
@@ -96,6 +106,21 @@ void AddSaveAudioAction(
 		.fillSubmenu = fill,
 		.submenuSt = &st::popupMenuWithIcons,
 	});
+}
+
+void AddSaveDocumentAction(
+		not_null<Ui::PopupMenu*> menu,
+		HistoryItem *item,
+		not_null<DocumentData*> document,
+		not_null<ListWidget*> list) {
+	if (!item || list->hasCopyMediaRestriction(item) || ItemHasTtl(item)) {
+		return;
+	}
+	AddSaveDocumentAction(
+		Ui::Menu::CreateAddActionCallback(menu),
+		item,
+		document,
+		list->controller());
 }
 
 } // namespace HistoryView

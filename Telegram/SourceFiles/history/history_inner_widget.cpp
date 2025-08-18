@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
 #include "history/view/controls/history_view_suggest_options.h"
-#include "history/view/media/history_view_save_audio_action.h"
+#include "history/view/media/history_view_save_document_action.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions.h"
@@ -2513,9 +2513,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item ? item->fullId() : FullMsgId();
-		const auto lnkIsVideo = document->isVideoFile();
-		const auto lnkIsVoice = document->isVoiceMessage();
-		const auto lnkIsAudio = document->isAudioFile();
 		if (document->isGifv()) {
 			const auto notAutoplayedGif = [&] {
 				return item
@@ -2548,26 +2545,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				item,
 				document,
 				controller);
-			if (lnkIsAudio) {
-				HistoryView::AddSaveAudioAction(
-					Ui::Menu::CreateAddActionCallback(_menu),
-					item,
-					document,
-					controller);
-			} else {
-				const auto text = lnkIsVideo
-					? tr::lng_context_save_video(tr::now)
-					: lnkIsVoice
-					? tr::lng_context_save_audio(tr::now)
-					: lnkIsAudio
-					? tr::lng_context_save_audio_file(tr::now)
-					: tr::lng_context_save_file(tr::now);
-				const auto &ripple = st::defaultDropdownMenu.menu.ripple;
-				const auto duration = ripple.hideDuration;
-				_menu->addAction(text, base::fn_delayed(duration, this, [=] {
-					saveDocumentToFile(itemId, document);
-				}), &st::menuIconDownload);
-			}
+			HistoryView::AddSaveDocumentAction(
+				Ui::Menu::CreateAddActionCallback(_menu),
+				item,
+				document,
+				controller);
 			HistoryView::AddCopyFilename(
 				_menu,
 				document,
@@ -2581,7 +2563,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}, &st::menuIconStickers);
 		}
 		if (item
-			&& (lnkIsVoice || document->isVideoMessage())
+			&& (document->isVoiceMessage() || document->isVideoMessage())
 			&& Menu::HasRateTranscribeItem(item)) {
 			rateTranscriptionItem = item;
 		}
