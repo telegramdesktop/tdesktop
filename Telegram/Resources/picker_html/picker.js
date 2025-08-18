@@ -51,8 +51,8 @@ var LocationPicker = {
 	},
 	init: function (params) {
 		mapboxgl.accessToken = params.token;
-		if (params.protocol) {
-			mapboxgl.config.API_URL = params.protocol + '://domain/api.mapbox.com';
+		if (location.hostname != 'desktop-app-resource') {
+			mapboxgl.config.API_URL = location.protocol + '//' + location.host + '/api.mapbox.com';
 		}
 
 		var options = { container: 'map', config: {
