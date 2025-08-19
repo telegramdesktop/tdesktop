@@ -131,10 +131,6 @@ void SoundedPreview::subscribeToUpdates(Fn<void()> callback) {
 	_repaint = std::move(callback);
 }
 
-[[nodiscard]] auto InactiveColor(const QColor &c) {
-	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
-}
-
 [[nodiscard]] auto Progress(int low, int high) {
 	return std::clamp(float64(low) / high, 0., 1.);
 }
@@ -608,7 +604,8 @@ ListenWrap::ListenWrap(
 , _playPauseSt(st::mediaPlayerButton)
 , _playPauseButton(base::make_unique_q<Ui::AbstractButton>(parent))
 , _activeWaveformBar(st::historyRecordVoiceFgActiveIcon->c)
-, _inactiveWaveformBar(InactiveColor(_activeWaveformBar))
+, _inactiveWaveformBar(
+	anim::with_alpha(_activeWaveformBar, kInactiveWaveformBarAlpha))
 , _playPause(_playPauseSt, [=] { _playPauseButton->update(); }) {
 	init();
 }
@@ -1657,6 +1654,7 @@ void VoiceRecordBar::init() {
 
 		auto callback = [=](float64 value) {
 			_lock->requestPaintLockToStopProgress(value);
+			_level->requestPaintColor(activeAnimationRatio());
 			update();
 			updateTTLGeometry(TTLAnimationType::RightLeft, value);
 		};
@@ -2204,8 +2202,8 @@ void VoiceRecordBar::startRedCircleAnimation() {
 	if (anim::Disabled()) {
 		return;
 	}
-	const auto animation = _recordingLifetime
-		.make_state<Ui::Animations::Basic>();
+	const auto animation
+		= _recordingLifetime.make_state<Ui::Animations::Basic>();
 	animation->init([=](crl::time now) {
 		const auto diffTime = now - animation->started();
 		_redCircleProgress = std::abs(std::sin(diffTime / 400.));
@@ -2357,6 +2355,9 @@ bool VoiceRecordBar::hasDuration() const {
 }
 
 float64 VoiceRecordBar::activeAnimationRatio() const {
+	if (isRecordingLocked()) {
+		return 1.;
+	}
 	return _activeAnimation.value(_inField.current() ? 1. : 0.);
 }
 
