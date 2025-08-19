@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/shortcuts.h"
 #include "core/ui_integration.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
@@ -2604,6 +2605,23 @@ void ComposeControls::initVoiceRecordBar() {
 	) | rpl::start_with_next([=] {
 		updateSendButtonType();
 	}, _wrap->lifetime());
+
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return Ui::AppInFocus();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		const auto isVoice = request->check(Command::RecordVoice, 1);
+		const auto isRound = !isVoice
+			&& request->check(Command::RecordRound, 1);
+		(isVoice || isRound) && request->handle([=] {
+			if (_voiceRecordBar) {
+				_voiceRecordBar->startRecordingAndLock(isRound);
+				return true;
+			}
+			return false;
+		});
+	}, _voiceRecordBar->lifetime());
 }
 
 void ComposeControls::updateWrappingVisibility() {

@@ -66,6 +66,9 @@ enum class Command {
 	SendSilentMessage,
 	ScheduleMessage,
 
+	RecordVoice,
+	RecordRound,
+
 	ReadChat,
 	ArchiveChat,
 

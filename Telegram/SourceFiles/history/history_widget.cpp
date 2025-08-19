@@ -2105,6 +2105,18 @@ void HistoryWidget::setupShortcuts() {
 					std::make_shared<Scheduled>(_history));
 				return true;
 			});
+		if (showRecordButton()) {
+			const auto isVoice = request->check(Command::RecordVoice, 1);
+			const auto isRound = !isVoice
+				&& request->check(Command::RecordRound, 1);
+			(isVoice || isRound) && request->handle([=] {
+				if (_voiceRecordBar) {
+					_voiceRecordBar->startRecordingAndLock(isRound);
+					return true;
+				}
+				return false;
+			});
+		}
 		if (session().supportMode()) {
 			request->check(
 				Command::SupportToggleMuted

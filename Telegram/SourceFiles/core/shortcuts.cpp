@@ -112,6 +112,8 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"show_chat_menu"_q    , Command::ShowChatMenu },
 	{ u"show_chat_preview"_q , Command::ShowChatPreview },
 
+	{ u"record_voice"_q      , Command::RecordVoice },
+
 	// Shortcuts that have no default values.
 	{ u"message"_q                       , Command::JustSendMessage },
 	{ u"message_silently"_q              , Command::SendSilentMessage },
@@ -119,6 +121,7 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"media_viewer_video_fullscreen"_q , Command::MediaViewerFullscreen },
 	{ u"show_scheduled"_q                , Command::ShowScheduled },
 	{ u"archive_chat"_q                  , Command::ArchiveChat },
+	{ u"record_round"_q                  , Command::RecordRound },
 	//
 };
 
@@ -140,6 +143,7 @@ const base::flat_map<Command, QString> &CommandNames() {
 	Command::MediaViewerFullscreen,
 	Command::ShowScheduled,
 	Command::ArchiveChat,
+	Command::RecordRound,
 };
 
 class Manager {
@@ -508,6 +512,8 @@ void Manager::fillDefaults() {
 
 	set(u"ctrl+\\"_q, Command::ShowChatMenu);
 	set(u"ctrl+]"_q, Command::ShowChatPreview);
+
+	set(u"ctrl+r"_q, Command::RecordVoice);
 
 	_defaults = keysCurrents();
 }
