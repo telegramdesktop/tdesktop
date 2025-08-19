@@ -1680,11 +1680,7 @@ void VoiceRecordBar::init() {
 			if (_startRecordingFilter && _startRecordingFilter()) {
 				return;
 			}
-			_recordingTipRequire = crl::now();
-			_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
-			_fullRecord = false;
-			_ttlButton = nullptr;
-			_lock->setRecordingVideo(_recordingVideo);
+			prepareOnSendPress();
 			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			checkTipRequired();
@@ -1712,6 +1708,14 @@ void VoiceRecordBar::init() {
 
 	initLockGeometry();
 	initLevelGeometry();
+}
+
+void VoiceRecordBar::prepareOnSendPress() {
+	_recordingTipRequire = crl::now();
+	_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
+	_fullRecord = false;
+	_ttlButton = nullptr;
+	_lock->setRecordingVideo(_recordingVideo);
 }
 
 void VoiceRecordBar::activeAnimate(bool active) {
@@ -1802,6 +1806,24 @@ void VoiceRecordBar::initLevelGeometry() {
 		const auto center = (send.width() - _level->width()) / 2;
 		_level->moveToLeft(mapped.x() + center, mapped.y() + center);
 	}, lifetime());
+}
+
+void VoiceRecordBar::startRecordingAndLock(bool round) {
+	{
+		auto sendState = _send->state();
+		sendState.type = round
+			? Ui::SendButton::Type::Round
+			: Ui::SendButton::Type::Record;
+		_send->setState(std::move(sendState));
+	}
+	if (_startRecordingFilter && _startRecordingFilter()) {
+		return;
+	}
+	prepareOnSendPress();
+
+	_lock->show();
+	_lock->requestPaintProgress(1.);
+	startRecording();
 }
 
 void VoiceRecordBar::startRecording() {

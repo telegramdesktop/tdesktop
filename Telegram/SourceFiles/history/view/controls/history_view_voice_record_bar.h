@@ -78,7 +78,8 @@ public:
 		Fn<void()> &&callback,
 		anim::type animated = anim::type::instant);
 
-	void startRecording();
+	void startRecordingAndLock(bool round);
+
 	void finishAnimating();
 	void hideAnimated();
 	void hideFast();
@@ -144,6 +145,9 @@ private:
 
 	void startRedCircleAnimation();
 	void installListenStateFilter();
+
+	void startRecording();
+	void prepareOnSendPress();
 
 	[[nodiscard]] bool isTypeRecord() const;
 	[[nodiscard]] bool hasDuration() const;
