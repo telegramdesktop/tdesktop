@@ -1180,6 +1180,17 @@ auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 		_sendCustomRequests.events());
 }
 
+rpl::producer<> ComposeControls::scrollToMaxRequests() const {
+	return _field->submits() | rpl::filter([=]{
+		if (_mode == Mode::Normal
+			&& !_voiceRecordBar->isListenState()
+			&& getTextWithAppliedMarkdown().text.isEmpty()) {
+			return true;
+		}
+		return false;
+	}) | rpl::to_empty;
+}
+
 rpl::producer<Api::SendOptions> ComposeControls::sendRequests() const {
 	return sendContentRequests(SendRequestType::Text);
 }
