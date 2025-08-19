@@ -194,6 +194,8 @@ private:
 	FilterCallback _startRecordingFilter;
 	FilterCallback _hasTTLFilter;
 
+	base::unique_qptr<QObject> _keyFilterInRecordingState;
+
 	bool _warningShown = false;
 	bool _pauseInsteadSend = false;
 

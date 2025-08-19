@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
+#include "ui/widgets/fields/input_field.h" // ShouldSubmit.
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
@@ -1943,6 +1944,40 @@ void VoiceRecordBar::startRecording() {
 			stop(_inField.current());
 		}
 	}, _recordingLifetime);
+
+	_listenChanges.events_starting_with(
+		rpl::empty_value()
+	) | rpl::filter([=] {
+		return _listen == nullptr;
+	}) | rpl::start_with_next([=] {
+		auto keyFilterCallback = [=](not_null<QEvent*> e) {
+			using Result = base::EventFilterResult;
+			if (_send->type() != Ui::SendButton::Type::Record
+				&& _send->type() != Ui::SendButton::Type::Round) {
+				return Result::Continue;
+			}
+			switch(e->type()) {
+			case QEvent::KeyPress: {
+				if (!_warningShown
+					&& isRecordingLocked()
+					&& Ui::ShouldSubmit(
+						static_cast<QKeyEvent*>(e.get()),
+						Core::App().settings().sendSubmitWay())) {
+					stop(true);
+					return Result::Cancel;
+				}
+				return Result::Continue;
+			}
+			default: return Result::Continue;
+			}
+		};
+
+		_keyFilterInRecordingState = base::unique_qptr{
+			base::install_event_filter(
+				QCoreApplication::instance(),
+				std::move(keyFilterCallback)).get()
+		};
+	}, lifetime());
 }
 
 void VoiceRecordBar::checkTipRequired() {
@@ -2016,6 +2051,7 @@ void VoiceRecordBar::hideFast() {
 	_lock->hide();
 	_level->hide();
 	[[maybe_unused]] const auto s = takeTTLState();
+	_keyFilterInRecordingState = nullptr;
 }
 
 void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
@@ -2353,6 +2389,7 @@ void VoiceRecordBar::orderControls() {
 }
 
 void VoiceRecordBar::installListenStateFilter() {
+	_keyFilterInRecordingState = nullptr;
 	auto keyFilterCallback = [=](not_null<QEvent*> e) {
 		using Result = base::EventFilterResult;
 		if (!(_send->type() == Ui::SendButton::Type::Send
