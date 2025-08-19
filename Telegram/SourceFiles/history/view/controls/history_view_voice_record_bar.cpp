@@ -442,6 +442,7 @@ TTLButton::TTLButton(
 					r.top()
 						+ r.height()
 						- size.height()
+						- st::historyRecordTooltipSkip
 						+ st::historyRecordTooltip.padding.top());
 			});
 		}, _tooltip->lifetime());
