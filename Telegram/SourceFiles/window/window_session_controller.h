@@ -126,6 +126,21 @@ private:
 
 };
 
+class ForumThreadClickHandler : public ClickHandler {
+public:
+	explicit ForumThreadClickHandler(not_null<HistoryItem*> item);
+
+	void update(not_null<HistoryItem*> item);
+	void onClick(ClickContext context) const override;
+
+private:
+	[[nodiscard]] base::weak_ptr<Data::Thread> resolveThread(
+		not_null<HistoryItem*> item) const;
+
+	base::weak_ptr<Data::Thread> _thread;
+
+};
+
 struct SectionShow {
 	enum class Way {
 		Forward,

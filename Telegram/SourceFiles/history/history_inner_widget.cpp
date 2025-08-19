@@ -928,8 +928,8 @@ void HistoryInner::enumerateDates(Method method) {
 }
 
 template <typename Method>
-void HistoryInner::enumerateMonoforumSenders(Method method) {
-	if (!_history->amMonoforumAdmin()) {
+void HistoryInner::enumerateForumThreadBars(Method method) {
+	if (!_history->hasForumThreadBars()) {
 		return;
 	}
 
@@ -946,28 +946,28 @@ void HistoryInner::enumerateMonoforumSenders(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneBunchItemBottom = -1;
 
-	auto senderCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
+	auto barCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
 		if (lowestInOneBunchItemBottom < 0 && view->isInOneBunchWithPrevious()) {
 			lowestInOneBunchItemBottom = itembottom - view->marginBottom();
 		}
 
-		// Call method on a sender for all messages that have it and for those who are not showing it
+		// Call method on a bar for all messages that have it and for those who are not showing it
 		// because they are in a one day together with the previous message if they are top-most visible.
-		if (view->displayMonoforumSender() || (!item->isEmpty() && itemtop <= _visibleAreaTop)) {
+		if (view->displayForumThreadBar() || (!item->isEmpty() && itemtop <= _visibleAreaTop)) {
 			if (lowestInOneBunchItemBottom < 0) {
 				lowestInOneBunchItemBottom = itembottom - view->marginBottom();
 			}
-			// Attach sender to the top of the visible area with the same margin as it has in service message.
-			int senderTop = qMax(itemtop + view->displayedDateHeight(), _visibleAreaTop + skip) + st::msgServiceMargin.top();
+			// Attach bar to the top of the visible area with the same margin as it has in service message.
+			int barTop = qMax(itemtop + view->displayedDateHeight(), _visibleAreaTop + skip) + st::msgServiceMargin.top();
 
-			// Do not let the sender go below the single-sender messages pack bottom line.
-			int senderHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
-			senderTop = qMin(senderTop, lowestInOneBunchItemBottom - senderHeight);
+			// Do not let the bar go below the single-bar messages pack bottom line.
+			int barHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			barTop = qMin(barTop, lowestInOneBunchItemBottom - barHeight);
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
-			if (!method(view, itemtop, senderTop)) {
+			if (!method(view, itemtop, barTop)) {
 				return false;
 			}
 		}
@@ -980,7 +980,7 @@ void HistoryInner::enumerateMonoforumSenders(Method method) {
 		return true;
 	};
 
-	enumerateItems<EnumItemsDirection::BottomToTop>(senderCallback);
+	enumerateItems<EnumItemsDirection::BottomToTop>(barCallback);
 }
 
 TextSelection HistoryInner::computeRenderSelection(
@@ -1395,31 +1395,31 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	});
 	p.setOpacity(1.);
 
-	enumerateMonoforumSenders([&](not_null<Element*> view, int itemtop, int senderTop) {
-		// stop the enumeration if the sender is above the painted rect
-		if (senderTop + dateHeight <= clip.top()) {
+	enumerateForumThreadBars([&](not_null<Element*> view, int itemtop, int barTop) {
+		// stop the enumeration if the bar is above the painted rect
+		if (barTop + dateHeight <= clip.top()) {
 			return false;
 		}
 
-		const auto displaySender = view->displayMonoforumSender();
-		auto senderInPlace = displaySender;
-		if (senderInPlace) {
-			const auto correctSenderTop = itemtop + view->displayedDateHeight() + st::msgServiceMargin.top();
-			senderInPlace = (senderTop < correctSenderTop + st::msgServiceMargin.top());
+		const auto displayBar = view->displayForumThreadBar();
+		auto barInPlace = displayBar;
+		if (barInPlace) {
+			const auto correctBarTop = itemtop + view->displayedDateHeight() + st::msgServiceMargin.top();
+			barInPlace = (barTop < correctBarTop + st::msgServiceMargin.top());
 		}
 
-		// paint the sender if it intersects the painted rect
-		if (senderTop < clip.top() + clip.height()) {
-			const auto senderY = senderTop - st::msgServiceMargin.top();
-			if (const auto sender = view->Get<HistoryView::MonoforumSenderBar>()) {
-				sender->paint(p, context.st, senderY, _contentWidth, _isChatWide, !senderInPlace);
+		// paint the bar if it intersects the painted rect
+		if (barTop < clip.top() + clip.height()) {
+			const auto barY = barTop - st::msgServiceMargin.top();
+			if (const auto bar = view->Get<HistoryView::ForumThreadBar>()) {
+				bar->paint(p, context.st, barY, _contentWidth, _isChatWide, !barInPlace);
 			} else {
-				HistoryView::MonoforumSenderBar::PaintFor(
+				_forumThreadBarWidth = HistoryView::ForumThreadBar::PaintForGetWidth(
 					p,
 					context.st,
 					view,
-					_monoforumSenderUserpicView,
-					senderY,
+					_forumThreadBarUserpicView,
+					barY,
 					_contentWidth,
 					_isChatWide);
 			}
@@ -3698,7 +3698,7 @@ void HistoryInner::toggleScrollDateShown() {
 void HistoryInner::repaintScrollDateCallback() {
 	int updateTop = _visibleAreaTop;
 	int updateHeight = st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
-	if (_history->amMonoforumAdmin()) {
+	if (_history->hasForumThreadBars()) {
 		updateHeight *= 2;
 	}
 	update(0, updateTop, width(), updateHeight);
@@ -4261,6 +4261,54 @@ void HistoryInner::mouseActionUpdate() {
 			}
 			return true;
 		});
+		if (!dragState.link) {
+			enumerateForumThreadBars([&](not_null<Element*> view, int itemtop, int barTop) {
+				// stop the enumeration if the bar is above our point
+				if (barTop + dateHeight <= point.y()) {
+					return false;
+				}
+
+				const auto displayBar = view->displayForumThreadBar();
+				auto barInPlace = displayBar;
+				if (barInPlace) {
+					const auto correctBarTop = itemtop + view->displayedDateHeight() + st::msgServiceMargin.top();
+					barInPlace = (barTop < correctBarTop + st::msgServiceMargin.top());
+				}
+
+				// stop enumeration if we've found a bar under the cursor
+				if (barTop <= point.y()) {
+					const auto item = view->data();
+					auto barWidth = 0;
+					if (const auto bar = view->Get<HistoryView::ForumThreadBar>()) {
+						barWidth = bar->width;
+					} else {
+						barWidth = _forumThreadBarWidth;
+					}
+					auto barLeft = st::msgServiceMargin.left();
+					auto maxwidth = _contentWidth;
+					if (_isChatWide) {
+						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+					}
+					auto widthForBar = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+
+					barLeft += (widthForBar - barWidth) / 2;
+
+					if (point.x() >= barLeft && point.x() < barLeft + barWidth) {
+						if (!_forumThreadBarLink) {
+							_forumThreadBarLink = std::make_shared<Window::ForumThreadClickHandler>(item);
+						} else {
+							static_cast<Window::ForumThreadClickHandler*>(_forumThreadBarLink.get())->update(item);
+						}
+						dragState = TextState(
+							nullptr,
+							_forumThreadBarLink);
+						_dragStateItem = session().data().message(dragState.itemId);
+						lnkhost = view;
+					}
+				}
+				return true;
+			});
+		}
 		if (!dragState.link) {
 			StateRequest request;
 			if (_mouseAction == MouseAction::Selecting) {

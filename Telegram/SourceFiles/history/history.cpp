@@ -3464,6 +3464,26 @@ bool History::suggestDraftAllowed() const {
 	return peer->isMonoforum() && !peer->amMonoforumAdmin();
 }
 
+bool History::hasForumThreadBars() const {
+	if (amMonoforumAdmin()) {
+		return true;
+	} else if (const auto channel = peer->asChannel()) {
+		return channel->forum() && channel->useSubsectionTabs();
+	}
+	return false;
+}
+
+void History::forumTabsChanged(bool forumTabs) {
+	for (auto &block : blocks) {
+		for (auto &view : block->messages) {
+			view->setPendingResize();
+			if (forumTabs || view->Has<HistoryView::ForumThreadBar>()) {
+				view->previousInBlocksChanged();
+			}
+		}
+	}
+}
+
 not_null<History*> History::migrateToOrMe() const {
 	if (const auto to = peer->migrateTo()) {
 		return owner().history(to);

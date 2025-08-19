@@ -348,6 +348,33 @@ void DateClickHandler::onClick(ClickContext context) const {
 	}
 }
 
+ForumThreadClickHandler::ForumThreadClickHandler(not_null<HistoryItem*> item)
+: _thread(resolveThread(item)) {
+}
+
+void ForumThreadClickHandler::update(not_null<HistoryItem*> item) {
+	_thread = resolveThread(item);
+}
+
+void ForumThreadClickHandler::onClick(ClickContext context) const {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto window = my.sessionWindow.get()) {
+		if (const auto strong = _thread.get()) {
+			window->showThread(strong, 0, SectionShow::Way::ClearStack);
+		}
+	}
+}
+
+base::weak_ptr<Data::Thread> ForumThreadClickHandler::resolveThread(
+		not_null<HistoryItem*> item) const {
+	if (const auto sublist = item->savedSublist()) {
+		return sublist;
+	} else if (const auto topic = item->topic()) {
+		return topic;
+	}
+	return nullptr;
+}
+
 MessageHighlightId SearchHighlightId(const QString &query) {
 	auto result = MessageHighlightId{ .quote = { query } };
 	if (!result.quote.empty()) {

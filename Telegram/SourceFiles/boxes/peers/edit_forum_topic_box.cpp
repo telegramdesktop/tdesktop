@@ -77,7 +77,9 @@ DefaultIconEmoji::DefaultIconEmoji(
 	std::move(value) | rpl::start_with_next([=](DefaultIcon value) {
 		_icon = value;
 		_image = QImage();
-		repaint();
+		if (repaint) {
+			repaint();
+		}
 	}, _lifetime);
 }
 
