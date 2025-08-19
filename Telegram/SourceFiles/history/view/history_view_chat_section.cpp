@@ -810,6 +810,11 @@ void ChatWidget::setupComposeControls() {
 		send(options);
 	}, lifetime());
 
+	_composeControls->scrollToMaxRequests(
+	) | rpl::start_with_next([=] {
+		listScrollTo(_scroll->scrollTopMax());
+	}, lifetime());
+
 	_composeControls->sendVoiceRequests(
 	) | rpl::start_with_next([=](const ComposeControls::VoiceToSend &data) {
 		sendVoice(data);
