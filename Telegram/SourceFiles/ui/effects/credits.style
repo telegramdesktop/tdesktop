@@ -41,6 +41,10 @@ creditsPremiumCover: PremiumCover(defaultPremiumCover) {
 creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
 	starSize: size(64px, 62px);
 	starTopSkip: 30px;
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: boxTitleFg;
+		minWidth: 200px;
+	}
 }
 creditsLowBalancePremiumCoverHeight: 162px;
 creditsTopupButton: SettingsButton(settingsButton) {
