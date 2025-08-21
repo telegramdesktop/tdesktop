@@ -497,23 +497,6 @@ RUN git clone -b libXcomposite-0.4.6 --depth=1 https://github.com/gitlab-freedes
 	&& cd .. \
 	&& rm -rf libxcomposite
 
-FROM builder AS wayland
-RUN git clone -b 1.19.0 --depth=1 https://github.com/gitlab-freedesktop-mirrors/wayland.git \
-	&& cd wayland \
-	&& sed -i "/subdir('tests')/d" meson.build \
-	&& meson build \
-		--buildtype=plain \
-		--default-library=static \
-		-Ddocumentation=false \
-		-Ddtd_validation=false \
-		-Dicon_directory=/usr/share/icons \
-	&& meson compile -C build src/wayland-scanner \
-	&& mkdir -p "/usr/src/wayland-cache/usr/local/bin" "/usr/src/wayland-cache/usr/local/lib64/pkgconfig" \
-	&& cp build/src/wayland-scanner "/usr/src/wayland-cache/usr/local/bin" \
-	&& sed 's@bindir=${prefix}/bin@bindir=${prefix}/local/bin@;s/1.21.0/1.19.0/' /usr/lib64/pkgconfig/wayland-scanner.pc > "/usr/src/wayland-cache/usr/local/lib64/pkgconfig/wayland-scanner.pc" \
-	&& cd .. \
-	&& rm -rf wayland
-
 FROM builder AS nv-codec-headers
 RUN git clone -b n12.1.14.0 --depth=1 https://github.com/FFmpeg/nv-codec-headers.git \
 	&& DESTDIR=/usr/src/nv-codec-headers-cache make -C nv-codec-headers install \
@@ -744,7 +727,6 @@ COPY --link --from=xcb-image /usr/src/xcb-image-cache /
 COPY --link --from=xcb-keysyms /usr/src/xcb-keysyms-cache /
 COPY --link --from=xcb-render-util /usr/src/xcb-render-util-cache /
 COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
-COPY --link --from=wayland /usr/src/wayland-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
@@ -875,7 +857,6 @@ COPY --link --from=xrandr /usr/src/xrandr-cache /
 COPY --link --from=xrender /usr/src/xrender-cache /
 COPY --link --from=xdamage /usr/src/xdamage-cache /
 COPY --link --from=xcomposite /usr/src/xcomposite-cache /
-COPY --link --from=wayland /usr/src/wayland-cache /
 COPY --link --from=ffmpeg /usr/src/ffmpeg-cache /
 COPY --link --from=openal /usr/src/openal-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
