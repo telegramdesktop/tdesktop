@@ -31,8 +31,7 @@ namespace Ui {
 class SpoilerAnimation;
 } // namespace Ui
 
-namespace Overview {
-namespace Layout {
+namespace Overview::Layout {
 
 class Checkbox;
 class ItemBase;
@@ -512,5 +511,4 @@ private:
 
 };
 
-} // namespace Layout
-} // namespace Overview
+} // namespace Overview::Layout

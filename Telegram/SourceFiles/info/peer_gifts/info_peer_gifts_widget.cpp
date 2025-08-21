@@ -201,6 +201,7 @@ private:
 	const not_null<Window::SessionController*> _window;
 	const not_null<PeerData*> _peer;
 	const int _addingToCollectionId = 0;
+	const GiftButtonMode _mode;
 
 	rpl::variable<Descriptor> _descriptor;
 	Delegate _delegate;
@@ -267,8 +268,11 @@ InnerWidget::InnerWidget(
 , _window(window)
 , _peer(peer)
 , _addingToCollectionId(addingToCollectionId)
+, _mode(_addingToCollectionId
+	? GiftButtonMode::Selection
+	: GiftButtonMode::Minimal)
 , _descriptor(std::move(descriptor))
-, _delegate(&_window->session(), GiftButtonMode::Minimal)
+, _delegate(&_window->session(), _mode)
 , _all(std::move(all))
 , _entries(&_all)
 , _list(&_entries->list)
@@ -750,7 +754,7 @@ void InnerWidget::validateButtons() {
 		view.button->toggleSelected(
 			_addingToCollectionId && _inCollection.contains(manageId),
 			anim::type::instant);
-		view.button->setDescriptor(descriptor, GiftButton::Mode::Minimal);
+		view.button->setDescriptor(descriptor, _mode);
 		view.button->setClickedCallback(callback);
 		return true;
 	};

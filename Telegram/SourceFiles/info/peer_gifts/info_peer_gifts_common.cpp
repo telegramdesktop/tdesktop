@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "main/main_session.h"
+#include "overview/overview_checkbox.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
+#include "styles/style_overview.h"
 #include "styles/style_premium.h"
 
 namespace Info::PeerGifts {
@@ -78,6 +80,18 @@ GiftButton::~GiftButton() {
 	unsubscribe();
 }
 
+void GiftButton::onStateChanged(State was, StateChangeSource source) {
+	if (_check) {
+		const auto diff = state() ^ was;
+		if (diff & State::Enum::Over) {
+			_check->setActive(state() & State::Enum::Over);
+		}
+		if (diff & State::Enum::Down) {
+			_check->setPressed(state() & State::Enum::Down);
+		}
+	}
+}
+
 void GiftButton::unsubscribe() {
 	if (base::take(_subscribed)) {
 		_userpic->subscribeToUpdates(nullptr);
@@ -85,6 +99,16 @@ void GiftButton::unsubscribe() {
 }
 
 void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
+	_mode = mode;
+
+	if (_mode != GiftButtonMode::Selection) {
+		_check = nullptr;
+	} else if (!_check) {
+		_check = std::make_unique<Overview::Layout::Checkbox>(
+			[=] { update(); },
+			st::overviewSmallCheck);
+	}
+
 	const auto unique = v::is<GiftTypeStars>(descriptor)
 		? v::get<GiftTypeStars>(descriptor).info.unique.get()
 		: nullptr;
@@ -106,7 +130,6 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	_descriptor = descriptor;
 	_resalePrice = resalePrice;
 	const auto resale = (_resalePrice > 0);
-	_small = (mode != Mode::Full);
 	v::match(descriptor, [&](const GiftTypePremium &data) {
 		const auto months = data.months;
 		_text = Ui::Text::String(st::giftBoxGiftHeight / 4);
@@ -147,12 +170,12 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		const auto soldOut = data.info.limitedCount
 			&& !data.userpic
 			&& !data.info.limitedLeft;
-		_userpic = !data.userpic
+		_userpic = (!data.userpic || _mode == GiftButtonMode::Selection)
 			? nullptr
 			: data.from
 			? Ui::MakeUserpicThumbnail(data.from)
 			: Ui::MakeHiddenAuthorThumbnail();
-		if (_small && !resale) {
+		if (small() && !resale) {
 			_price = {};
 			_stars.reset();
 			return;
@@ -169,7 +192,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 								? unique->starsForResale
 								: data.info.starsResellMin)
 						).append(data.info.resellCount > 1 ? "+" : ""))
-				: (_small && unique && unique->starsForResale)
+				: (small() && unique && unique->starsForResale)
 				? Data::FormatGiftResaleAsked(*unique)
 				: unique
 				? tr::lng_gift_transfer_button(
@@ -214,7 +237,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	_uniquePatternEmoji = nullptr;
 	_uniquePatternCache.clear();
 
-	if (_small && !resale) {
+	if (small() && !resale) {
 		_button = QRect();
 		return;
 	}
@@ -225,7 +248,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		QSize(buttonw, buttonh)
 	).marginsAdded(st::giftBoxButtonPadding);
 	const auto skipy = _delegate->buttonSize().height()
-		- (_small
+		- (small()
 			? st::giftBoxButtonBottomSmall
 			: _byStars.isEmpty()
 			? st::giftBoxButtonBottom
@@ -295,9 +318,15 @@ void GiftButton::setGeometry(QRect inner, QMargins extend) {
 }
 
 QMargins GiftButton::currentExtend() const {
-	const auto progress = _selectedAnimation.value(_selected ? 1. : 0.);
+	const auto progress = (_mode == Mode::Selection)
+		? 0.
+		: _selectedAnimation.value(_selected ? 1. : 0.);
 	const auto added = anim::interpolate(0, st::giftBoxSelectSkip, progress);
 	return _extend + QMargins(added, added, added, added);
+}
+
+bool GiftButton::small() const {
+	return _mode != GiftButtonMode::Full;
 }
 
 void GiftButton::toggleSelected(bool selected, anim::type animated) {
@@ -310,7 +339,13 @@ void GiftButton::toggleSelected(bool selected, anim::type animated) {
 	const auto duration = st::defaultRoundCheckbox.duration;
 	_selected = selected;
 	if (animated == anim::type::instant) {
+		if (_check) {
+			_check->finishAnimating();
+		}
 		_selectedAnimation.stop();
+		return;
+	} else if (_check) {
+		_check->setChecked(selected, animated);
 		return;
 	}
 	_selectedAnimation.start([=] {
@@ -358,7 +393,9 @@ void GiftButton::paintBackground(QPainter &p, const QImage &background) {
 	}
 
 	auto hq = PainterHighQualityEnabler(p);
-	const auto progress = _selectedAnimation.value(_selected ? 1. : 0.);
+	const auto progress = (_mode == Mode::Selection)
+		? 0.
+		: _selectedAnimation.value(_selected ? 1. : 0.);
 	if (progress < 0.01) {
 		return;
 	}
@@ -446,7 +483,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	const auto unique = v::is<GiftTypeStars>(_descriptor)
 		? v::get<GiftTypeStars>(_descriptor).info.unique.get()
 		: nullptr;
-	const auto onsale = (unique && unique->starsForResale && _small);
+	const auto onsale = unique && unique->starsForResale && small();
 	const auto requirePremium = v::is<GiftTypeStars>(_descriptor)
 		&& !v::get<GiftTypeStars>(_descriptor).userpic
 		&& !v::get<GiftTypeStars>(_descriptor).info.unique
@@ -482,6 +519,14 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		const auto image = _userpic->image(st::giftBoxUserpicSize);
 		const auto skip = st::giftBoxUserpicSkip;
 		p.drawImage(extend.left() + skip, extend.top() + skip, image);
+	} else if (_check) {
+		const auto skip = st::giftBoxUserpicSkip;
+		_check->paint(
+			p,
+			QPoint(extend.left() + skip, extend.top() + skip),
+			width,
+			_selected,
+			true);
 	}
 
 	auto frame = QImage();
@@ -502,7 +547,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		p.drawImage(
 			QRect(
 				(width - size.width()) / 2,
-				(_small
+				(small()
 					? st::giftBoxSmallStickerTop
 					: _text.isEmpty()
 					? st::giftBoxStickerStarTop
@@ -516,7 +561,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	if (hidden) {
 		const auto topleft = QPoint(
 			(width - st::giftBoxStickerSize.width()) / 2,
-			(_small
+			(small()
 				? st::giftBoxSmallStickerTop
 				: _text.isEmpty()
 				? st::giftBoxStickerStarTop
@@ -781,7 +826,7 @@ QSize Delegate::buttonSize() {
 	const auto available = width - padding.left() - padding.right();
 	const auto singlew = (available - 2 * st::giftBoxGiftSkip.x())
 		/ kGiftsPerRow;
-	const auto minimal = (_mode == GiftButtonMode::Minimal);
+	const auto minimal = (_mode != GiftButtonMode::Full);
 	_single = QSize(
 		singlew,
 		minimal ? st::giftBoxGiftSmall : st::giftBoxGiftHeight);

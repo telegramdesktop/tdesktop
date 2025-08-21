@@ -34,6 +34,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Overview::Layout {
+class Checkbox;
+} // namespace Overview::Layout
+
 namespace Ui {
 class DynamicImage;
 } // namespace Ui
@@ -118,9 +122,10 @@ struct GiftBadge {
 		const GiftBadge &) = default;
 };
 
-enum class GiftButtonMode {
+enum class GiftButtonMode : uint8 {
 	Full,
 	Minimal,
+	Selection,
 };
 
 class GiftButtonDelegate {
@@ -173,7 +178,9 @@ private:
 
 	void setDocument(not_null<DocumentData*> document);
 	[[nodiscard]] QMargins currentExtend() const;
+	[[nodiscard]] bool small() const;
 
+	void onStateChanged(State was, StateChangeSource source) override;
 	void unsubscribe();
 
 	const not_null<GiftButtonDelegate*> _delegate;
@@ -190,11 +197,12 @@ private:
 	base::flat_map<float64, QImage> _uniquePatternCache;
 	std::optional<Ui::Premium::ColoredMiniStars> _stars;
 	Ui::Animations::Simple _selectedAnimation;
+	std::unique_ptr<Overview::Layout::Checkbox> _check;
 	int _resalePrice = 0;
+	GiftButtonMode _mode = GiftButtonMode::Full;
 	bool _subscribed = false;
 	bool _patterned = false;
 	bool _selected = false;
-	bool _small = false;
 
 	QRect _button;
 	QMargins _extend;

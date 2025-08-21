@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "overview/overview_layout.h"
 
+#include "overview/overview_checkbox.h"
 #include "overview/overview_layout_delegate.h"
 #include "core/ui_integration.h" // TextContext
 #include "data/data_document.h"
@@ -49,8 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_overview.h"
 
-namespace Overview {
-namespace Layout {
+namespace Overview::Layout {
 namespace {
 
 using TextState = HistoryView::TextState;
@@ -122,62 +122,6 @@ void PaintSensitiveTag(Painter &p, QRect r) {
 }
 
 } // namespace
-
-class Checkbox {
-public:
-	template <typename UpdateCallback>
-	Checkbox(UpdateCallback callback, const style::RoundCheckbox &st)
-	: _updateCallback(callback)
-	, _check(st, _updateCallback) {
-	}
-
-	void paint(Painter &p, QPoint position, int outerWidth, bool selected, bool selecting);
-
-	void setActive(bool active);
-	void setPressed(bool pressed);
-
-	void invalidateCache() {
-		_check.invalidateCache();
-	}
-
-private:
-	void startAnimation();
-
-	Fn<void()> _updateCallback;
-	Ui::RoundCheckbox _check;
-
-	Ui::Animations::Simple _pression;
-	bool _active = false;
-	bool _pressed = false;
-
-};
-
-void Checkbox::paint(Painter &p, QPoint position, int outerWidth, bool selected, bool selecting) {
-	_check.setDisplayInactive(selecting);
-	_check.setChecked(selected);
-	const auto pression = _pression.value((_active && _pressed) ? 1. : 0.);
-	const auto masterScale = 1. - (1. - st::overviewCheckPressedSize) * pression;
-	_check.paint(p, position.x(), position.y(), outerWidth, masterScale);
-}
-
-void Checkbox::setActive(bool active) {
-	_active = active;
-	if (_pressed) {
-		startAnimation();
-	}
-}
-
-void Checkbox::setPressed(bool pressed) {
-	_pressed = pressed;
-	if (_active) {
-		startAnimation();
-	}
-}
-
-void Checkbox::startAnimation() {
-	auto showPressed = (_pressed && _active);
-	_pression.start(_updateCallback, showPressed ? 0. : 1., showPressed ? 1. : 0., st::overviewCheck.duration);
-}
 
 ItemBase::ItemBase(
 	not_null<Delegate*> delegate,
@@ -2501,5 +2445,4 @@ void Gif::updateStatusText() {
 	}
 }
 
-} // namespace Layout
-} // namespace Overview
+} // namespace Overview::Layout
