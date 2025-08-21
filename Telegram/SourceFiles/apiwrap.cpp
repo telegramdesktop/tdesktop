@@ -2458,7 +2458,16 @@ void ApiWrap::refreshFileReference(
 	v::match(origin.data, [&](Data::FileOriginMessage data) {
 		if (const auto item = _session->data().message(data)) {
 			const auto media = item->media();
-			const auto storyId = media ? media->storyId() : FullStoryId();
+			const auto mediaStory = media ? media->storyId() : FullStoryId();
+			const auto storyId = mediaStory
+				? mediaStory
+				: FullStoryId(
+					(IsStoryMsgId(item->id)
+						? item->history()->peer->id
+						: PeerId()),
+					(IsStoryMsgId(item->id)
+						? StoryIdFromMsgId(item->id)
+						: StoryId()));
 			if (storyId) {
 				request(MTPstories_GetStoriesByID(
 					_session->data().peer(storyId.peer)->input,
