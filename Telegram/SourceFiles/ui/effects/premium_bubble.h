@@ -27,7 +27,12 @@ class VerticalLayout;
 
 namespace Ui::Premium {
 
-using TextFactory = Fn<QString(int)>;
+struct BubbleText {
+	QString counter;
+	QString additional;
+};
+
+using TextFactory = Fn<BubbleText(int)>;
 
 [[nodiscard]] TextFactory ProcessTextFactory(
 	std::optional<tr::phrase<lngtag_count>> phrase);
@@ -68,6 +73,7 @@ private:
 
 	const style::icon *_icon;
 	NumbersAnimation _numberAnimation;
+	Text::String _additional;
 	const int _height;
 	const int _textTop;
 	const bool _hasTail;
@@ -163,7 +169,7 @@ void AddBubbleRow(
 	rpl::producer<> showFinishes,
 	rpl::producer<BubbleRowState> state,
 	BubbleType type,
-	Fn<QString(int)> text,
+	TextFactory text,
 	const style::icon *icon,
 	const style::margins &outerPadding);
 

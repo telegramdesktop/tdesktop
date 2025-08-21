@@ -110,13 +110,23 @@ struct Feature {
 	return data;
 }
 
-[[nodiscard]] Fn<QString(int)> BubbleTextFactory(int countForScale) {
+[[nodiscard]] Fn<Ui::Premium::BubbleText(int)> BubbleTextFactory(
+		int countForScale,
+		int nextLevelCounter) {
 	return [=](int count) {
-		return (countForScale < 10'000)
-			? QString::number(count)
-			: (countForScale < 10'000'000)
-			? (QString::number((count / 100) / 10.) + 'K')
-			: (QString::number((count / 100'000) / 10.) + 'M');
+		const auto counter = [&](int count) {
+			return (countForScale < 10'000)
+				? Lang::FormatCountDecimal(count)
+				: (countForScale < 10'000'000)
+				? (Lang::FormatCountDecimal((count / 100) / 10.) + 'K')
+				: (Lang::FormatCountDecimal((count / 100'000) / 10.) + 'M');
+		};
+		return Ui::Premium::BubbleText{
+			.counter = counter(count),
+			.additional = (nextLevelCounter
+				? (u"/"_q + counter(nextLevelCounter))
+				: QString()),
+		};
 	};
 }
 
@@ -127,6 +137,7 @@ void FillRatingLimit(
 		Premium::BubbleType type,
 		style::margins limitLinePadding,
 		int starsForScale,
+		int nextLevelStars,
 		bool hideCount) {
 	const auto addSkip = [&](int skip) {
 		container->add(object_ptr<Ui::FixedHeightWidget>(container, skip));
@@ -186,13 +197,13 @@ void FillRatingLimit(
 	});
 	Premium::AddBubbleRow(
 		container,
-		(hideCount ? st::iconOnlyPremiumBubble : st::boostBubble),
+		(hideCount ? st::iconOnlyPremiumBubble : st::starRatingBubble),
 		std::move(showFinished),
 		rpl::duplicate(bubbleRowState),
 		type,
 		(hideCount
-			? [](int) { return QString(); }
-			: BubbleTextFactory(starsForScale)),
+			? [](int) { return Ui::Premium::BubbleText(); }
+			: BubbleTextFactory(starsForScale, nextLevelStars)),
 		negative ? &st::levelNegativeBubble : &st::infoStarsCrown,
 		limitLinePadding);
 	addSkip(st::premiumLineTextSkip);
@@ -261,6 +272,7 @@ void AboutRatingBox(
 			: Premium::BubbleType::StarRating),
 		st::boxRowPadding,
 		data.stars,
+		data.nextLevelStars,
 		(data.level < 0 && !data.stars));
 
 	box->setMaxHeight(st::boostBoxMaxHeight);

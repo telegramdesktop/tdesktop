@@ -202,8 +202,8 @@ Line::Line(
 : Line(
 	parent,
 	st,
-	max ? textFactory(max) : QString(),
-	min ? textFactory(min) : QString(),
+	max ? textFactory(max).counter : QString(),
+	min ? textFactory(min).counter : QString(),
 	ratio) {
 }
 
@@ -496,8 +496,8 @@ void AddLimitRow(
 	AddLimitRow(
 		parent,
 		st,
-		max ? factory(max) : QString(),
-		min ? factory(min) : QString(),
+		max ? factory(max).counter : QString(),
+		min ? factory(min).counter : QString(),
 		ratio);
 }
 
@@ -785,9 +785,9 @@ void ShowListBox(
 		if (entry.leftNumber || entry.rightNumber) {
 			auto factory = [=, text = ProcessTextFactory({})](int n) {
 				if (entry.customRightText && (n == entry.rightNumber)) {
-					return *entry.customRightText;
+					return Ui::Premium::BubbleText{ *entry.customRightText };
 				} else {
-					return text(n);
+					return Ui::Premium::BubbleText{ text(n) };
 				}
 			};
 			const auto limitRow = content->add(

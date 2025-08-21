@@ -25,6 +25,8 @@ PremiumBubble {
 	textSkip: pixels;
 	tailSize: size;
 	font: font;
+	additionalStyle: TextStyle;
+	additionalSkip: pixels;
 }
 PremiumCover {
 	bg: color;
@@ -249,6 +251,13 @@ boostBubble: PremiumBubble(defaultPremiumBubble) {
 	textSkip: 2px;
 	tailSize: size(14px, 6px);
 	font: font(16px);
+	additionalStyle: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+	additionalSkip: 2px;
+}
+starRatingBubble: PremiumBubble(boostBubble) {
+	font: font(16px semibold);
 }
 iconOnlyPremiumBubble: PremiumBubble(boostBubble) {
 	padding: margins(7px, 0px, 7px, 0px);
