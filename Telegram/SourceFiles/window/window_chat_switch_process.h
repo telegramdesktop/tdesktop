@@ -46,9 +46,8 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-	struct Entry {
-		not_null<Ui::AbstractButton*> button;
-	};
+	struct Entry;
+
 	void setupWidget(not_null<Ui::RpWidget*> geometry);
 	void setupContent(Data::Thread *opened);
 	void setupView();
@@ -65,7 +64,6 @@ private:
 	QRect _outer;
 	QRect _inner;
 	Ui::RoundRect _bg;
-	Ui::RoundRect _over;
 
 	std::vector<not_null<Data::Thread*>> _list;
 	std::vector<Entry> _entries;

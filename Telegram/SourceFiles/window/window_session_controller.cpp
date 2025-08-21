@@ -2067,10 +2067,9 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 					{ anim::type::normal, anim::activation::background });
 			}, _activeHistoryLifetime);
 		}
-
-		if (const auto thread = row.key.thread()) {
-			session().recentPeers().chatOpenPush(thread);
-		}
+	}
+	if (const auto thread = row.key.thread()) {
+		session().recentPeers().chatOpenPush(thread);
 	}
 	if (session().supportMode()) {
 		pushToChatEntryHistory(row);

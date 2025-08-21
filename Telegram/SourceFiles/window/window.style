@@ -333,11 +333,22 @@ maxWidthSharedMediaWindow: 419px;
 
 chatSwitchMargins: margins(16px, 16px, 16px, 16px);
 chatSwitchPadding: margins(12px, 12px, 12px, 12px);
-chatSwitchSize: size(72px, 72px);
+chatSwitchSize: size(72px, 104px);
 chatSwitchUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(56px, 56px);
 	photoSize: 56px;
 }
+chatSwitchUserpicTop: 8px;
+chatSwitchNameLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+	align: align(top);
+	minWidth: 56px;
+	maxHeight: 36px;
+}
+chatSwitchNameSkip: 6px;
+chatSwitchSelectLine: 3px;
 
 // Windows specific
 

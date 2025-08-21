@@ -11,13 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/recent_peers.h"
 #include "data/data_thread.h"
 #include "main/main_session.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 
 namespace Window {
+
+struct ChatSwitchProcess::Entry {
+	not_null<Ui::AbstractButton*> button;
+	Ui::Animations::Simple overAnimation;
+};
 
 ChatSwitchProcess::ChatSwitchProcess(
 	not_null<Ui::RpWidget*> geometry,
@@ -27,8 +34,7 @@ ChatSwitchProcess::ChatSwitchProcess(
 , _widget(std::make_unique<Ui::RpWidget>(
 	geometry->parentWidget() ? geometry->parentWidget() : geometry))
 , _view(Ui::CreateChild<Ui::RpWidget>(_widget.get()))\
-, _bg(st::boxRadius, st::boxBg)
-, _over(st::boxRadius, st::windowBgOver) {
+, _bg(st::boxRadius, st::boxBg) {
 	setupWidget(geometry);
 	setupContent(opened);
 	setupView();
@@ -76,11 +82,19 @@ void ChatSwitchProcess::setSelected(int index) {
 		return;
 	}
 	if (_selected >= 0) {
-		_entries[_selected].button->update();
+		auto &entry = _entries[_selected];
+		const auto raw = entry.button.get();
+		entry.overAnimation.start([=] {
+			raw->update();
+		}, 1., 0., st::slideWrapDuration);
 	}
 	_selected = index;
 	if (_selected >= 0) {
-		_entries[_selected].button->update();
+		auto &entry = _entries[_selected];
+		const auto raw = entry.button.get();
+		entry.overAnimation.start([=] {
+			raw->update();
+		}, 0., 1., st::slideWrapDuration);
 	}
 }
 
@@ -119,9 +133,19 @@ void ChatSwitchProcess::setupContent(Data::Thread *opened) {
 		const auto button = Ui::CreateChild<Ui::AbstractButton>(_view.get());
 		button->resize(st::chatSwitchSize);
 		button->paintRequest() | rpl::start_with_next([=] {
-			if (index == _selected) {
+			const auto selection = _entries[index].overAnimation.value(
+				(index == _selected) ? 1. : 0.);
+			if (selection > 0.) {
 				auto p = QPainter(button);
-				_over.paint(p, button->rect());
+				auto hq = PainterHighQualityEnabler(p);
+				const auto radius = st::boxRadius;
+				const auto line = st::chatSwitchSelectLine;
+				auto pen = st::defaultRoundCheckbox.bgActive->p;
+				pen.setWidthF(line * selection);
+				p.setPen(pen);
+				const auto r = QRectF(button->rect()).marginsRemoved(
+					{ line / 2., line / 2., line / 2., line / 2. });
+				p.drawRoundedRect(r, radius, radius);
 			}
 		}, button->lifetime());
 		button->setClickedCallback([=] {
@@ -141,8 +165,23 @@ void ChatSwitchProcess::setupContent(Data::Thread *opened) {
 		userpic->show();
 		userpic->move(
 			((button->width() - userpic->width()) / 2),
-			((button->height() - userpic->height()) / 2));
+			st::chatSwitchUserpicTop);
 		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+		const auto label = Ui::CreateChild<Ui::FlatLabel>(
+			button,
+			thread->chatListName(),
+			st::chatSwitchNameLabel);
+		label->setBreakEverywhere(true);
+		label->show();
+		label->resizeToNaturalWidth(
+			button->width() - 2 * st::chatSwitchNameSkip);
+		label->move(
+			(button->width() - label->width()) / 2,
+			(button->height()
+				+ userpic->y()
+				+ userpic->height()
+				- label->height()) / 2);
 
 		_entries.push_back({ .button = button });
 
