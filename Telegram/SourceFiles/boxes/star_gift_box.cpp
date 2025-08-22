@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "api/api_global_privacy.h"
 #include "api/api_premium.h"
+#include "api/api_text_entities.h"
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
 #include "base/random.h"
@@ -70,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
 #include "ui/boxes/boost_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/emoji_button.h"
@@ -2365,6 +2367,27 @@ void AddSoldLeftSlider(
 	}, slider->lifetime());
 }
 
+void CheckMaybeGiftLocked(
+		not_null<Window::SessionController*> window,
+		uint64 giftId,
+		Fn<void()> send) {
+	const auto session = &window->session();
+	session->api().request(MTPpayments_CheckCanSendGift(
+		MTP_long(giftId)
+	)).done(crl::guard(window, [=](
+			const MTPpayments_CheckCanSendGiftResult &result) {
+		result.match([&](const MTPDpayments_checkCanSendGiftResultOk &) {
+			send();
+		}, [&](const MTPDpayments_checkCanSendGiftResultFail &data) {
+			window->show(Ui::MakeInformBox({
+				.text = Api::ParseTextWithEntities(session, data.vreason()),
+				.title = tr::lng_gift_locked_title(),
+			}));
+		});
+	})).fail(crl::guard(window, [=] {
+	})).send();
+}
+
 void SendGiftBox(
 		not_null<GenericBox*> box,
 		not_null<Window::SessionController*> window,
@@ -2828,21 +2851,41 @@ void SendGiftBox(
 					raw,
 					&state->delegate);
 			}
+			const auto raw = button.get();
 			if (validated[index]) {
 				return;
 			}
-			button->show();
+			raw->show();
 			validated[index] = true;
 			const auto &descriptor = state->list[state->order[index]];
-			button->setDescriptor(descriptor, GiftButton::Mode::Full);
-			button->setClickedCallback([=] {
+			raw->setDescriptor(descriptor, GiftButton::Mode::Full);
+			raw->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
+				const auto send = crl::guard(raw, [=] {
+					window->show(Box(
+						SendGiftBox,
+						window,
+						peer,
+						state->api,
+						descriptor));
+				});
 				const auto unique = star ? star->info.unique : nullptr;
-				if (star
-					&& star->info.requirePremium
-					&& !peer->session().premium()) {
+				const auto premiumNeeded = star && star->info.requirePremium;
+				if (premiumNeeded && !peer->session().premium()) {
 					Settings::ShowPremiumGiftPremium(window, star->info);
-					return;
+				} else if (star
+					&& star->info.lockedUntilDate
+					&& star->info.lockedUntilDate > base::unixtime::now()) {
+					const auto ready = crl::guard(raw, [=] {
+						if (premiumNeeded && !peer->session().premium()) {
+							Settings::ShowPremiumGiftPremium(
+								window,
+								v::get<GiftTypeStars>(descriptor).info);
+						} else {
+							send();
+						}
+					});
+					CheckMaybeGiftLocked(window, star->info.id, ready);
 				} else if (unique && star->mine && !peer->isSelf()) {
 					if (ShowTransferGiftLater(window->uiShow(), unique)) {
 						return;
@@ -2886,7 +2929,7 @@ void SendGiftBox(
 							Api::InputSavedStarGiftId(savedId, unique),
 							peer->input),
 						formReady);
-				} else if (star && star->info.unique && star->resale) {
+				} else if (unique && star->resale) {
 					window->show(Box(
 						Settings::GlobalStarGiftBox,
 						window->uiShow(),
@@ -2911,15 +2954,10 @@ void SendGiftBox(
 				} else if (star && IsSoldOut(star->info)) {
 					window->show(Box(SoldOutBox, window, *star));
 				} else {
-					window->show(Box(
-						SendGiftBox,
-						window,
-						peer,
-						state->api,
-						descriptor));
+					send();
 				}
 			});
-			button->setGeometry(QRect(QPoint(x, y), single), extend);
+			raw->setGeometry(QRect(QPoint(x, y), single), extend);
 		};
 		y += rowFrom * singleh;
 		for (auto row = rowFrom; row != rowTill; ++row) {

@@ -863,6 +863,7 @@ std::optional<Data::StarGift> FromTL(
 			.perUserRemains = data.vper_user_remains().value_or_empty(),
 			.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
 			.lastSaleDate = data.vlast_sale_date().value_or_empty(),
+			.lockedUntilDate = data.vlocked_until_date().value_or_empty(),
 			.requirePremium = data.is_require_premium(),
 			.upgradable = data.vupgrade_stars().has_value(),
 			.birthday = data.is_birthday(),

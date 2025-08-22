@@ -246,6 +246,8 @@ giftBoxLock: IconEmoji {
 	padding: margins(-2px, 1px, 0px, 0px);
 }
 giftBoxPinIcon: icon {{ "dialogs/dialogs_pinned", premiumButtonFg }};
+giftBoxLockIcon: icon{{ "limits/mini_gift_lock-18x18", attentionButtonFg }};
+giftBoxLockIconPosition: point(4px, 4px);
 
 creditsHistoryEntriesList: PeerList(defaultPeerList) {
 	padding: margins(0px, 7px, 0px, 7px);

@@ -104,6 +104,7 @@ struct StarGift {
 	int perUserRemains = 0;
 	TimeId firstSaleDate = 0;
 	TimeId lastSaleDate = 0;
+	TimeId lockedUntilDate = 0;
 	bool resellTonOnly : 1 = false;
 	bool requirePremium : 1 = false;
 	bool upgradable : 1 = false;

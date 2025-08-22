@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/peer_gifts/info_peer_gifts_common.h"
 
+#include "base/unixtime.h"
 #include "boxes/send_credits_box.h" // SetButtonMarkedLabel
 #include "boxes/star_gift_box.h"
 #include "boxes/sticker_set_box.h"
@@ -73,7 +74,8 @@ GiftButton::GiftButton(
 	QWidget *parent,
 	not_null<GiftButtonDelegate*> delegate)
 : AbstractButton(parent)
-, _delegate(delegate) {
+, _delegate(delegate)
+, _lockedTimer([=] { refreshLocked(); }) {
 }
 
 GiftButton::~GiftButton() {
@@ -166,6 +168,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 			{ 0., anim::with_alpha(st::windowActiveTextFg->c, .3) },
 			{ 1., st::windowActiveTextFg->c },
 		});
+		_lockedUntilDate = 0;
 	}, [&](const GiftTypeStars &data) {
 		const auto soldOut = data.info.limitedCount
 			&& !data.userpic
@@ -219,7 +222,10 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 			_stars->setColorOverride(
 				Ui::Premium::CreditsIconGradientStops());
 		}
+		_lockedUntilDate = data.info.lockedUntilDate;
 	});
+
+	refreshLocked();
 
 	_resolvedDocument = nullptr;
 	_documentLifetime = _delegate->sticker(
@@ -260,6 +266,22 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	if (_stars) {
 		const auto padding = _button.height() / 2;
 		_stars->setCenter(_button - QMargins(padding, 0, padding, 0));
+	}
+}
+
+void GiftButton::refreshLocked() {
+	_lockedTimer.cancel();
+
+	const auto lockedFor = _lockedUntilDate
+		? std::max(_lockedUntilDate - base::unixtime::now(), TimeId())
+		: TimeId();
+	const auto locked = (lockedFor > 0);
+	if (locked) {
+		_lockedTimer.callOnce(std::min(lockedFor, 86'400) * crl::time(1000));
+	}
+	if (_locked != locked) {
+		_locked = locked;
+		update();
 	}
 }
 
@@ -509,6 +531,12 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		const auto extend = currentExtend();
 		const auto radius = st::giftBoxGiftRadius;
 		p.drawRoundedRect(outer.marginsRemoved(extend), radius, radius);
+	}
+	if (_locked) {
+		st::giftBoxLockIcon.paint(
+			p,
+			position + st::giftBoxLockIconPosition,
+			width);
 	}
 
 	if (_userpic) {
