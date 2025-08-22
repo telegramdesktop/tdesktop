@@ -431,6 +431,15 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 	}
 }
 
+void SessionNavigation::fullInfoLoadedHook(not_null<PeerData*> peer) {
+	if (!_waitingDirectChannel || _waitingDirectChannel != peer) {
+		return;
+	}
+	const auto monoforum = peer->broadcastMonoforum();
+	const auto open = monoforum ? monoforum : peer.get();
+	showPeerHistory(open, SectionShow::Way::Forward, ShowAtUnreadMsgId);
+}
+
 void SessionNavigation::resolvePhone(
 		const QString &phone,
 		Fn<void(not_null<PeerData*>)> done) {
@@ -725,6 +734,13 @@ void SessionNavigation::showPeerByLinkResolved(
 		}
 	} else if (resolveType == ResolveType::Boost && peer->isChannel()) {
 		resolveBoostState(peer->asChannel());
+	} else if (resolveType == ResolveType::ChannelDirect
+		&& !peer->isFullLoaded()) {
+		_waitingDirectChannel = peer;
+		peer->updateFull();
+	} else if (const auto monoforum = peer->broadcastMonoforum()
+		; monoforum && resolveType == ResolveType::ChannelDirect) {
+		showPeerHistory(peer, params, ShowAtUnreadMsgId);
 	} else {
 		// Show specific posts only in channels / supergroups.
 		const auto msgId = peer->isChannel()
@@ -1553,6 +1569,9 @@ SessionController::SessionController(
 					widget()->updateTitle();
 				}
 			}
+		}
+		if (update.flags & Data::PeerUpdate::Flag::FullInfo) {
+			fullInfoLoadedHook(update.peer);
 		}
 		return (update.flags & Data::PeerUpdate::Flag::FullInfo)
 			&& (update.peer == _showEditPeer);

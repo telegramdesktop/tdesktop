@@ -646,7 +646,9 @@ bool ResolveUsernameOrPhone(
 	const auto threadId = topicId ? topicId : threadParam.toInt();
 	const auto gameParam = params.value(u"game"_q);
 	const auto videot = params.value(u"t"_q);
-
+	if (params.contains(u"direct"_q)) {
+		resolveType = ResolveType::ChannelDirect;
+	}
 	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
 		resolveType = ResolveType::ShareGame;

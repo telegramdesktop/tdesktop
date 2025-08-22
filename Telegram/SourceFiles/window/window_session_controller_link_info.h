@@ -23,6 +23,7 @@ enum class ResolveType {
 	ShareGame,
 	Mention,
 	Boost,
+	ChannelDirect,
 	Profile,
 };
 

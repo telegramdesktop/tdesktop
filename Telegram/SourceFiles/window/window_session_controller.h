@@ -316,6 +316,9 @@ public:
 
 	[[nodiscard]] virtual std::shared_ptr<ChatHelpers::Show> uiShow();
 
+protected:
+	void fullInfoLoadedHook(not_null<PeerData*> peer);
+
 private:
 	void resolvePhone(
 		const QString &phone,
@@ -362,6 +365,7 @@ private:
 	MTP::Sender _api;
 
 	mtpRequestId _resolveRequestId = 0;
+	PeerData *_waitingDirectChannel = nullptr;
 
 	History *_showingRepliesHistory = nullptr;
 	MsgId _showingRepliesRootId = 0;
