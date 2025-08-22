@@ -1886,7 +1886,7 @@ void GenericCreditsEntryBox(
 				Ui::Text::WithEntities)
 		) | rpl::map([=](QString &&hint, const TextWithEntities &hide) {
 			return TextWithEntities{ std::move(hint) }.append(' ').append(
-				Ui::Text::Link(std::move(hide)));
+				Ui::Text::Link(hide));
 		});
 		auto withHide = rpl::combine(
 			visiblePhrase(),
@@ -1896,7 +1896,7 @@ void GenericCreditsEntryBox(
 				Ui::Text::WithEntities)
 		) | rpl::map([](QString &&hint, const TextWithEntities &hide) {
 			return TextWithEntities{ std::move(hint) }.append(' ').append(
-				Ui::Text::Link(std::move(hide)));
+				Ui::Text::Link(hide));
 		});
 		auto text = (!e.savedToProfile && canToggle && canUpgrade)
 			? std::move(withShow)
