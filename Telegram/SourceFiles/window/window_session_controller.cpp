@@ -1760,6 +1760,12 @@ void SessionController::setupShortcuts() {
 			_chatSwitchProcess->chosen(
 			) | rpl::start_with_next([=](not_null<Data::Thread*> thread) {
 				close();
+
+				const auto id = SeparateId(thread);
+				if (const auto window = Core::App().separateWindowFor(id)) {
+					window->activate();
+					return;
+				}
 				jumpToChatListEntry({ Dialogs::Key(thread), FullMsgId() });
 			}, _chatSwitchProcess->lifetime());
 

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/shortcuts.h"
 #include "data/components/recent_peers.h"
+#include "data/data_forum_topic.h"
+#include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_thread.h"
 #include "info/profile/info_profile_cover.h"
@@ -23,10 +25,160 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 
 namespace Window {
+namespace {
+
+class Button final : public Ui::AbstractButton {
+public:
+	Button(
+		QWidget *parent,
+		not_null<Data::Thread*> thread,
+		base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> &userpics);
+
+	[[nodiscard]] rpl::producer<> selectRequests() const;
+
+	void setSelected(
+		bool selected,
+		anim::type animated = anim::type::normal);
+
+private:
+	void setup(
+		not_null<Data::Thread*> thread,
+		base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> &userpics);
+
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+
+	rpl::event_stream<> _selectRequests;
+	Ui::Animations::Simple _overAnimation;
+	bool _selected = false;
+
+};
+
+Button::Button(
+	QWidget *parent,
+	not_null<Data::Thread*> thread,
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> &userpics)
+: AbstractButton(parent) {
+	setup(thread, userpics);
+}
+
+void Button::setup(
+		not_null<Data::Thread*> thread,
+		base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> &userpics) {
+	resize(st::chatSwitchSize);
+
+	auto userpicSt = &st::chatSwitchUserpic;
+	const auto userpicSize = userpicSt->size;
+	if (const auto topic = thread->asTopic()) {
+		using namespace Info::Profile;
+		const auto userpic = Ui::CreateChild<TopicIconButton>(
+			this,
+			topic,
+			[] { return true; }); // paused
+		userpic->show();
+		userpic->move(
+			((width() - userpic->width()) / 2),
+			st::chatSwitchUserpicTop);
+		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+		userpicSt = &st::chatSwitchUserpicSmall;
+	} else if (const auto sublist = thread->asSublist()) {
+		const auto sublistPeer = sublist->sublistPeer();
+		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+			this,
+			sublistPeer,
+			st::chatSwitchUserpicSublist);
+		userpic->show();
+		userpic->move(
+			((width() - userpicSize.width()) / 2),
+			st::chatSwitchUserpicTop);
+		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+		userpics.emplace(sublistPeer, sublistPeer->createUserpicView());
+
+		userpicSt = &st::chatSwitchUserpicSmall;
+	}
+	const auto peer = thread->peer();
+	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+		this,
+		peer,
+		*userpicSt);
+	userpic->show();
+	userpic->move(
+		(((width() - userpicSize.width()) / 2)
+			+ (userpicSize.width() - userpicSt->size.width())),
+		(st::chatSwitchUserpicTop
+			+ (userpicSize.height() - userpicSt->size.height())));
+	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	userpics.emplace(peer, peer->createUserpicView());
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		thread->chatListName(),
+		st::chatSwitchNameLabel);
+	label->setBreakEverywhere(true);
+	label->show();
+	label->resizeToNaturalWidth(
+		width() - 2 * st::chatSwitchNameSkip);
+	label->move(
+		(width() - label->width()) / 2,
+		(height() + userpic->y() + userpic->height() - label->height()) / 2);
+
+	show();
+}
+
+rpl::producer<> Button::selectRequests() const {
+	return _selectRequests.events();
+}
+
+void Button::setSelected(bool selected, anim::type animated) {
+	if (_selected == selected) {
+		if (animated == anim::type::instant) {
+			_overAnimation.stop();
+		}
+		return;
+	}
+	_selected = selected;
+	if (animated == anim::type::instant) {
+		_overAnimation.stop();
+		update();
+	} else {
+		_overAnimation.start(
+			[=] { update(); },
+			selected ? 0. : 1.,
+			selected ? 1. : 0.,
+			st::slideWrapDuration);
+	}
+}
+
+void Button::paintEvent(QPaintEvent *e) {
+	const auto selected = _selected ? 1. : 0.;
+	const auto selection = _overAnimation.value(selected);
+	if (selection <= 0.) {
+		return;
+	}
+
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = st::boxRadius;
+	const auto line = st::chatSwitchSelectLine;
+	auto pen = st::defaultRoundCheckbox.bgActive->p;
+	pen.setWidthF(line * selection);
+	p.setPen(pen);
+	const auto r = QRectF(rect()).marginsRemoved(
+		{ line / 2., line / 2., line / 2., line / 2. });
+	p.drawRoundedRect(r, radius, radius);
+}
+
+void Button::mouseMoveEvent(QMouseEvent *e) {
+	if (!_selected) {
+		_selectRequests.fire({});
+	}
+}
+
+} // namespace
 
 struct ChatSwitchProcess::Entry {
-	not_null<Ui::AbstractButton*> button;
-	Ui::Animations::Simple overAnimation;
+	std::unique_ptr<Button> button;
 };
 
 ChatSwitchProcess::ChatSwitchProcess(
@@ -43,7 +195,9 @@ ChatSwitchProcess::ChatSwitchProcess(
 	setupView();
 }
 
-ChatSwitchProcess::~ChatSwitchProcess() = default;
+ChatSwitchProcess::~ChatSwitchProcess() {
+	_session->recentPeers().chatOpenKeepUserpics(std::move(_userpics));
+}
 
 rpl::producer<not_null<Data::Thread*>> ChatSwitchProcess::chosen() const {
 	return _chosen.events();
@@ -85,19 +239,11 @@ void ChatSwitchProcess::setSelected(int index) {
 		return;
 	}
 	if (_selected >= 0) {
-		auto &entry = _entries[_selected];
-		const auto raw = entry.button.get();
-		entry.overAnimation.start([=] {
-			raw->update();
-		}, 1., 0., st::slideWrapDuration);
+		_entries[_selected].button->setSelected(false);
 	}
 	_selected = index;
 	if (_selected >= 0) {
-		auto &entry = _entries[_selected];
-		const auto raw = entry.button.get();
-		entry.overAnimation.start([=] {
-			raw->update();
-		}, 0., 1., st::slideWrapDuration);
+		_entries[_selected].button->setSelected(true);
 	}
 }
 
@@ -121,6 +267,7 @@ void ChatSwitchProcess::setupWidget(not_null<Ui::RpWidget*> geometry) {
 
 void ChatSwitchProcess::setupContent(Data::Thread *opened) {
 	_list = _session->recentPeers().collectChatOpenHistory();
+
 	if (opened) {
 		const auto i = ranges::find(_list, not_null(opened));
 		if (i == end(_list)) {
@@ -131,94 +278,51 @@ void ChatSwitchProcess::setupContent(Data::Thread *opened) {
 		_selected = 0;
 	}
 
-	auto index = 0;
+	const auto find = [=](Button *button) {
+		return ranges::find(_entries, button, [](const Entry &entry) {
+			return entry.button.get();
+		});
+	};
 	for (const auto &thread : _list) {
-		const auto button = Ui::CreateChild<Ui::AbstractButton>(_view.get());
-		button->resize(st::chatSwitchSize);
-		button->paintRequest() | rpl::start_with_next([=] {
-			const auto selection = _entries[index].overAnimation.value(
-				(index == _selected) ? 1. : 0.);
-			if (selection > 0.) {
-				auto p = QPainter(button);
-				auto hq = PainterHighQualityEnabler(p);
-				const auto radius = st::boxRadius;
-				const auto line = st::chatSwitchSelectLine;
-				auto pen = st::defaultRoundCheckbox.bgActive->p;
-				pen.setWidthF(line * selection);
-				p.setPen(pen);
-				const auto r = QRectF(button->rect()).marginsRemoved(
-					{ line / 2., line / 2., line / 2., line / 2. });
-				p.drawRoundedRect(r, radius, radius);
-			}
-		}, button->lifetime());
-		button->setClickedCallback([=] {
+		auto button = std::make_unique<Button>(
+			_view.get(),
+			thread,
+			_userpics);
+		const auto raw = button.get();
+
+		raw->selectRequests() | rpl::start_with_next([=] {
+			const auto i = find(raw);
+			setSelected(int(i - begin(_entries)));
+		}, raw->lifetime());
+
+		raw->setClickedCallback([=] {
 			_chosen.fire_copy(thread);
 		});
-		button->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
-			if (e->type() == QEvent::MouseMove) {
-				setSelected(index);
-			}
-		}, button->lifetime());
-		button->show();
 
-		auto userpicSt = &st::chatSwitchUserpic;
-		const auto userpicSize = userpicSt->size;
-		if (const auto topic = thread->asTopic()) {
-			using namespace Info::Profile;
-			const auto userpic = Ui::CreateChild<TopicIconButton>(
-				button,
-				topic,
-				[] { return true; }); // paused
-			userpic->show();
-			userpic->move(
-				((button->width() - userpic->width()) / 2),
-				st::chatSwitchUserpicTop);
-			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_entries.push_back({ .button = std::move(button) });
 
-			userpicSt = &st::chatSwitchUserpicSmall;
-		} else if (const auto sublist = thread->asSublist()) {
-			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-				button,
-				sublist->sublistPeer(),
-				st::chatSwitchUserpicSublist);
-			userpic->show();
-			userpic->move(
-				((button->width() - userpicSize.width()) / 2),
-				st::chatSwitchUserpicTop);
-			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-			userpicSt = &st::chatSwitchUserpicSmall;
+		auto destroyed = thread->asTopic()
+			? thread->asTopic()->destroyed()
+			: thread->asSublist()
+			? thread->asSublist()->destroyed()
+			: nullptr;
+		if (!destroyed) {
+			continue;
 		}
-		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-			button,
-			thread->peer(),
-			*userpicSt);
-		userpic->show();
-		userpic->move(
-			(((button->width() - userpicSize.width()) / 2)
-				+ (userpicSize.width() - userpicSt->size.width())),
-			(st::chatSwitchUserpicTop
-				+ (userpicSize.height() - userpicSt->size.height())));
-		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+		std::move(destroyed) | rpl::start_with_next([=] {
+			_list.erase(ranges::remove(_list, thread), end(_list));
+			if (const auto i = find(raw); i != end(_entries)) {
+				const auto index = int(i - begin(_entries));
+				if (_selected > index) {
+					--_selected;
+				} else if (_selected == index) {
+					_selected = -1;
+				}
 
-		const auto label = Ui::CreateChild<Ui::FlatLabel>(
-			button,
-			thread->chatListName(),
-			st::chatSwitchNameLabel);
-		label->setBreakEverywhere(true);
-		label->show();
-		label->resizeToNaturalWidth(
-			button->width() - 2 * st::chatSwitchNameSkip);
-		label->move(
-			(button->width() - label->width()) / 2,
-			(button->height()
-				+ userpic->y()
-				+ userpic->height()
-				- label->height()) / 2);
-
-		_entries.push_back({ .button = button });
-
-		++index;
+				_entries.erase(i);
+				layout(_widget->size());
+			}
+		}, raw->lifetime());
 	}
 }
 

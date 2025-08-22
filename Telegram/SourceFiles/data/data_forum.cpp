@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_forum.h"
 
+#include "data/components/recent_peers.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
@@ -194,6 +195,7 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		_activeSubsectionTopic = nullptr;
 	}
 	_topicDestroyed.fire(raw);
+	_history->session().recentPeers().chatOpenDestroyed(raw);
 	session().changes().topicUpdated(
 		raw,
 		Data::TopicUpdate::Flag::Destroyed);

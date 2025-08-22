@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/round_rect.h"
+#include "ui/userpic_view.h"
 
 namespace Data {
 class Thread;
@@ -65,6 +66,7 @@ private:
 	QRect _inner;
 	Ui::RoundRect _bg;
 
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpics;
 	std::vector<not_null<Data::Thread*>> _list;
 	std::vector<Entry> _entries;
 

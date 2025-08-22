@@ -164,4 +164,13 @@ void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
 	}
 }
 
+void RecentPeers::chatOpenDestroyed(not_null<Thread*> thread) {
+	_opens.erase(ranges::remove(_opens, thread), end(_opens));
+}
+
+void RecentPeers::chatOpenKeepUserpics(
+		base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> userpics) {
+	_chatOpenUserpicsCache = std::move(userpics);
+}
+
 } // namespace Data
