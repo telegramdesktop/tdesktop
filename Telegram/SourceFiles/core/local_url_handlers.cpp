@@ -657,7 +657,11 @@ bool ResolveUsernameOrPhone(
 			startToken = params.value(u"startapp"_q);
 		}
 	}
-	controller->window().activate();
+	const auto historyInNewWindow =
+		(params.value(u"tdesktop_target"_q) == u"blank"_q);
+	if (!historyInNewWindow) {
+		controller->window().activate();
+	}
 	controller->showPeerByLink(Window::PeerByLinkInfo{
 		.usernameOrId = domain,
 		.phone = phone,
@@ -708,8 +712,7 @@ bool ResolveUsernameOrPhone(
 			: std::nullopt),
 		.clickFromMessageId = myContext.itemId,
 		.clickFromBotWebviewContext = myContext.botWebviewContext,
-		.historyInNewWindow =
-			(params.value(u"tdesktop_target"_q) == u"blank"_q),
+		.historyInNewWindow = historyInNewWindow,
 	});
 	return true;
 }
@@ -1917,6 +1920,8 @@ bool InternalPassportLink(const QString &url) {
 bool StartUrlRequiresActivate(const QString &url) {
 	return Core::App().passcodeLocked()
 		? true
+		: url.contains(u"tdesktop_target"_q)
+		? false
 		: !InternalPassportLink(url);
 }
 
