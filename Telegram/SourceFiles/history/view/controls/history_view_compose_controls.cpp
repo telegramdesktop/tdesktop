@@ -1122,8 +1122,12 @@ const HistoryItemsList &ComposeControls::forwardItems() const {
 }
 
 bool ComposeControls::focus() {
-	if (_wrap->isHidden() || _field->isHidden() || isRecording()) {
+	if (_wrap->isHidden() || _field->isHidden()) {
 		return false;
+	}
+	if (isRecording()) {
+		_wrap->setFocus();
+		return true;
 	}
 	_field->setFocus();
 	return true;
