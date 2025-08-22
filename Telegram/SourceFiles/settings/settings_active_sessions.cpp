@@ -418,48 +418,31 @@ void SessionInfoBox(
 		shown->fire({});
 	});
 
-	const auto userpicWrap = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(box, st::sessionBigUserpicSize),
-		st::sessionBigCoverPadding);
 	const auto big = GenerateUserpicBig(
-		userpicWrap,
+		box,
 		shown->events(),
 		TypeFromEntry(data));
-	userpicWrap->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		big->move((size.width() - big->width()) / 2, 0);
-	}, userpicWrap->lifetime());
+	big->setNaturalWidth(big->width());
+	box->addRow(
+		object_ptr<Ui::RpWidget>::fromRaw(big),
+		st::sessionBigCoverPadding,
+		style::al_top);
 
-	const auto nameWrap = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			st::sessionBigName.maxHeight));
-	const auto name = Ui::CreateChild<Ui::FlatLabel>(
-		nameWrap,
-		rpl::single(data.name),
-		st::sessionBigName);
-	nameWrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		name->resizeToWidth(width);
-		name->move((width - name->width()) / 2, 0);
-	}, name->lifetime());
+			rpl::single(data.name),
+			st::sessionBigName),
+		style::al_top);
 
-	const auto dateWrap = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			st::sessionDateLabel.style.font->height),
-		style::margins(0, 0, 0, st::sessionDateSkip));
-	const auto date = Ui::CreateChild<Ui::FlatLabel>(
-		dateWrap,
-		rpl::single(
-			langDateTimeFull(base::unixtime::parse(data.activeTime))),
-		st::sessionDateLabel);
-	rpl::combine(
-		dateWrap->widthValue(),
-		date->widthValue()
-	) | rpl::start_with_next([=](int outer, int inner) {
-		date->move((outer - inner) / 2, 0);
-	}, date->lifetime());
+			rpl::single(
+				langDateTimeFull(base::unixtime::parse(data.activeTime))),
+			st::sessionDateLabel),
+		style::margins(0, 0, 0, st::sessionDateSkip),
+		style::al_top);
 
 	using namespace Settings;
 	const auto container = box->verticalLayout();

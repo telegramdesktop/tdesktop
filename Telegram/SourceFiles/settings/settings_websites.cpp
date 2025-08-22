@@ -121,35 +121,20 @@ void InfoBox(
 	userpic->overrideShape(Ui::PeerUserpicShape::Forum);
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto nameWrap = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			st::sessionBigName.maxHeight));
-	const auto name = Ui::CreateChild<Ui::FlatLabel>(
-		nameWrap,
-		rpl::single(data.bot->name()),
-		st::sessionBigName);
-	nameWrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		name->resizeToWidth(width);
-		name->move((width - name->width()) / 2, 0);
-	}, name->lifetime());
+			rpl::single(data.bot->name()),
+			st::sessionBigName),
+		style::al_top);
 
-	const auto domainWrap = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			st::sessionDateLabel.style.font->height),
-		style::margins(0, 0, 0, st::sessionDateSkip));
-	const auto domain = Ui::CreateChild<Ui::FlatLabel>(
-		domainWrap,
-		rpl::single(data.domain),
-		st::sessionDateLabel);
-	rpl::combine(
-		domainWrap->widthValue(),
-		domain->widthValue()
-	) | rpl::start_with_next([=](int outer, int inner) {
-		domain->move((outer - inner) / 2, 0);
-	}, domain->lifetime());
+			rpl::single(data.domain),
+			st::sessionDateLabel),
+		style::margins(0, 0, 0, st::sessionDateSkip),
+		style::al_top);
 
 	using namespace Settings;
 	const auto container = box->verticalLayout();
