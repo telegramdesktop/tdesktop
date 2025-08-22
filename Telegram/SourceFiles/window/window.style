@@ -338,6 +338,14 @@ chatSwitchUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(56px, 56px);
 	photoSize: 56px;
 }
+chatSwitchUserpicSublist: UserpicButton(defaultUserpicButton) {
+	size: size(40px, 40px);
+	photoSize: 40px;
+}
+chatSwitchUserpicSmall: UserpicButton(defaultUserpicButton) {
+	size: size(24px, 24px);
+	photoSize: 24px;
+}
 chatSwitchUserpicTop: 8px;
 chatSwitchNameLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {

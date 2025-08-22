@@ -9,13 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/shortcuts.h"
 #include "data/components/recent_peers.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_thread.h"
+#include "info/profile/info_profile_cover.h"
 #include "main/main_session.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 
@@ -158,14 +161,44 @@ void ChatSwitchProcess::setupContent(Data::Thread *opened) {
 		}, button->lifetime());
 		button->show();
 
+		auto userpicSt = &st::chatSwitchUserpic;
+		const auto userpicSize = userpicSt->size;
+		if (const auto topic = thread->asTopic()) {
+			using namespace Info::Profile;
+			const auto userpic = Ui::CreateChild<TopicIconButton>(
+				button,
+				topic,
+				[] { return true; }); // paused
+			userpic->show();
+			userpic->move(
+				((button->width() - userpic->width()) / 2),
+				st::chatSwitchUserpicTop);
+			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+			userpicSt = &st::chatSwitchUserpicSmall;
+		} else if (const auto sublist = thread->asSublist()) {
+			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+				button,
+				sublist->sublistPeer(),
+				st::chatSwitchUserpicSublist);
+			userpic->show();
+			userpic->move(
+				((button->width() - userpicSize.width()) / 2),
+				st::chatSwitchUserpicTop);
+			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+			userpicSt = &st::chatSwitchUserpicSmall;
+		}
 		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 			button,
 			thread->peer(),
-			st::chatSwitchUserpic);
+			*userpicSt);
 		userpic->show();
 		userpic->move(
-			((button->width() - userpic->width()) / 2),
-			st::chatSwitchUserpicTop);
+			(((button->width() - userpicSize.width()) / 2)
+				+ (userpicSize.width() - userpicSt->size.width())),
+			(st::chatSwitchUserpicTop
+				+ (userpicSize.height() - userpicSt->size.height())));
 		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(

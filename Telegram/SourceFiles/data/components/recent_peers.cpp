@@ -19,6 +19,7 @@ namespace Data {
 namespace {
 
 constexpr auto kLimit = 48;
+constexpr auto kMaxRememberedOpenChats = 32;
 
 } // namespace
 
@@ -154,6 +155,9 @@ std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
 void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
 	const auto i = ranges::find(_opens, thread);
 	if (i == end(_opens)) {
+		while (_opens.size() >= kMaxRememberedOpenChats) {
+			_opens.pop_back();
+		}
 		_opens.insert(begin(_opens), thread);
 	} else if (i != begin(_opens)) {
 		ranges::rotate(begin(_opens), i, i + 1);
