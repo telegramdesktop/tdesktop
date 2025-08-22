@@ -1,3 +1,11 @@
+6.0.3 beta (22.08.25)
+
+- Ctrl+Tab / Ctrl+Shift+Tab for last opened chats switching.
+- New topic dividers for groups with topics and tabs.
+- Adjust volume of notification sounds.
+- Show stars required for the next rating level.
+- IV support on Linux (in case WebView works).
+
 6.0.2 (01.08.25)
 
 - Improve design of profile stars rating.
