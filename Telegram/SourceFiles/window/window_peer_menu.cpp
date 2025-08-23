@@ -759,7 +759,7 @@ void Filler::addToggleArchive() {
 }
 
 void Filler::addClearHistory() {
-	if (_topic || _peer->isMonoforum()) {
+	if (_topic || _peer->isMonoforum() || _peer->isRepliesChat()) {
 		return;
 	}
 	const auto channel = _peer->asChannel();
