@@ -910,11 +910,9 @@ void InnerWidget::fill() {
 					anim::interpolateF(.5, 1., value)));
 		};
 		colorText(withdrawalEnabled ? 1. : 0.);
-#ifndef _DEBUG
 		button->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
-			!withdrawalEnabled);
-#endif
+			!withdrawalEnabled && (value.value() > 0.01));
 
 		Api::HandleWithdrawalButton(
 			{ .currencyReceiver = _peer },
