@@ -1089,7 +1089,17 @@ bool ShowCollectibleUsername(
 	}
 	const auto username = match->captured(1);
 	const auto peerId = PeerId(match->captured(2).toULongLong());
-	controller->resolveCollectible(peerId, username);
+	const auto weak = base::make_weak(controller);
+	controller->resolveCollectible(peerId, username, [=](const QString &e) {
+		if (e == u"COLLECTIBLE_NOT_FOUND"_q) {
+			if (const auto strong = weak.get()) {
+				TextUtilities::SetClipboardText({
+					strong->session().createInternalLinkFull(username)
+				});
+				strong->showToast(tr::lng_username_copied(tr::now));
+			}
+		}
+	});
 	return true;
 }
 
