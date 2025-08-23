@@ -1278,9 +1278,10 @@ void InnerWidget::fill() {
 					const auto rightWrapPadding = rect::m::sum::h(padding)
 						+ minorLabel->width()
 						+ majorLabel->width();
-					wrap->setPadding(st::channelEarnHistoryOuter
-						+ QMargins(padding.left(), 0, rightWrapPadding, 0));
-					button->resize(g.size());
+					const auto additional = st::channelEarnHistoryOuter
+						+ QMargins(padding.left(), 0, rightWrapPadding, 0);
+					wrap->setPadding(additional);
+					button->resize((g + additional).size());
 					button->lower();
 				}, wrap->lifetime());
 			};
