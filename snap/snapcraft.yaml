@@ -1,5 +1,6 @@
 name: telegram-desktop
 adopt-info: telegram
+icon: Telegram/Resources/art/icon512@2x.png
 
 base: core24
 grade: stable
