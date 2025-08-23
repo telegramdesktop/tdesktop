@@ -1185,6 +1185,9 @@ void Filler::addViewStatistics() {
 }
 
 bool Filler::skipCreateActions() const {
+	if (_peer && _peer->isRepliesChat()) {
+		return true;
+	}
 	const auto isJoinChannel = [&] {
 		if (_request.section != Section::Replies) {
 			if (const auto c = _peer->asChannel(); c && !c->amIn()) {
