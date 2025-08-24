@@ -68,6 +68,9 @@ void LoadingText::paint(QPainter &p, int width) {
 		rpl::lifetime &lifetime,
 		const style::DialogRow &st) {
 	using namespace style;
+	const auto button = lifetime.make_state<OutlineButton>(OutlineButton{
+		.textBgOver = st::windowBgOver,
+	});
 	const auto item = lifetime.make_state<PeerListItem>(PeerListItem{
 		.height = st.height,
 		.photoPosition = QPoint(st.padding.left(), st.padding.top()),
@@ -75,6 +78,7 @@ void LoadingText::paint(QPainter &p, int width) {
 		.nameStyle = st::semiboldTextStyle,
 		.statusPosition = QPoint(st.textLeft, st.textTop),
 		.photoSize = st.photoSize,
+		.button = { *button },
 	});
 	return *item;
 }
@@ -98,7 +102,7 @@ public:
 			- (style.lineHeight - style.font->height);
 
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgOver);
+		p.setBrush(_st.button.textBgOver);
 
 		p.drawEllipse(
 			_st.photoPosition.x(),
