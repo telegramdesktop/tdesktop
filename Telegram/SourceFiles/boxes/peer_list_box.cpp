@@ -1460,7 +1460,8 @@ void PeerListContent::setSearchMode(PeerListSearchMode mode) {
 					_loadingAnimation = Ui::CreateLoadingPeerListItemWidget(
 						this,
 						_st.item,
-						2);
+						2,
+						_controller->computeListSt().bg->c);
 				}
 			}
 		} else {

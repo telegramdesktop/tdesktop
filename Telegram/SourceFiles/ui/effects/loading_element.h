@@ -29,7 +29,8 @@ object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
 object_ptr<Ui::RpWidget> CreateLoadingPeerListItemWidget(
 	not_null<Ui::RpWidget*> parent,
 	const style::PeerListItem &st,
-	int lines);
+	int lines,
+	std::optional<QColor> bgOverride);
 
 object_ptr<Ui::RpWidget> CreateLoadingDialogRowWidget(
 	not_null<Ui::RpWidget*> parent,
