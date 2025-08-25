@@ -600,15 +600,6 @@ void Credits::setupContent() {
 				CreditsAmount value,
 				float64 multiplier) {
 			Ui::AddSkip(container);
-			{
-				const auto header = container->add(
-					object_ptr<Ui::FlatLabel>(
-						container,
-						tr::lng_channel_earn_balance_title(),
-						st::channelEarnHeaderLabel),
-					st::boxRowPadding);
-				header->resizeToWidth(header->width());
-			}
 			Ui::AddSkip(container);
 
 			const auto labels = container->add(
@@ -620,7 +611,11 @@ void Credits::setupContent() {
 				st::channelEarnBalanceMajorLabel);
 			{
 				const auto &m = st::channelEarnCurrencyCommonMargins;
-				const auto p = QMargins(m.left(), 0, m.right(), m.bottom());
+				const auto p = QMargins(
+					m.left(),
+					-m.top(),
+					m.right(),
+					m.bottom());
 				AddEmojiToMajor(majorLabel, rpl::single(value), {}, p);
 			}
 			majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -657,13 +652,14 @@ void Credits::setupContent() {
 
 			Ui::AddSkip(container);
 
-			const auto &stButton = st::defaultActiveButton;
+			const auto &stButton = st::creditsSettingsBigBalanceButton;
 			const auto button = container->add(
 				object_ptr<Ui::RoundButton>(
 					container,
 					rpl::never<QString>(),
 					stButton),
-				st::boxRowPadding);
+				st::boxRowPadding,
+				style::al_top);
 
 			const auto label = Ui::CreateChild<Ui::FlatLabel>(
 				button,
@@ -698,6 +694,7 @@ void Credits::setupContent() {
 				_controller->uiShow());
 			Ui::ToggleChildrenVisibility(button, true);
 
+			Ui::AddSkip(container);
 			Ui::AddSkip(container);
 			Ui::AddSkip(container);
 			Ui::AddDividerText(
