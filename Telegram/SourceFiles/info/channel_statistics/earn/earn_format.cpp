@@ -51,7 +51,20 @@ QString MinorPart(EarnInt value) {
 }
 
 QString MinorPart(CreditsAmount value) {
-	return QString::number(value.value(), 'f', 2).right(3);
+	static const auto DecimalPoint = QLocale().decimalPoint();
+	static const int DecimalPointLength = DecimalPoint.length();
+
+	const auto fractional = std::abs(int(value.value() * 100)) % 100;
+	auto result = QString(DecimalPointLength + 2, Qt::Uninitialized);
+
+	for (int i = 0; i < DecimalPointLength; ++i) {
+		result[i] = DecimalPoint[i];
+	}
+
+	result[DecimalPointLength] = QChar('0' + fractional / 10);
+	result[DecimalPointLength + 1] = QChar('0' + fractional % 10);
+
+	return result;
 }
 
 QString ToUsd(
