@@ -834,18 +834,16 @@ bool HandlePossibleChatSwitch(not_null<QKeyEvent*> event) {
 			? Qt::MetaModifier
 			: Qt::ControlModifier;
 
-		if (Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Tab)
-			&& Data.handles(QKeySequence(ctrl | Qt::Key_Tab))
-			&& Data.handles(QKeySequence(ctrl | Qt::Key_Backtab))) {
+		if (Data.handles(QKeySequence(ctrl | Qt::Key_Tab))
+			&& (Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Backtab)
+				|| Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Tab)
+				|| Data.handles(QKeySequence(ctrl | Qt::Key_Backtab)))) {
 			return false;
 		} else if (key == Qt::Key_Control || key == Qt::Key_Meta) {
 			ChatSwitchModifier = key;
 		} else if (key == Qt::Key_Tab || key == Qt::Key_Backtab) {
 			const auto modifiers = event->modifiers();
 			if (modifiers & ctrl) {
-				if (Data.handles(modifiers | key)) {
-					return false;
-				}
 				if (ChatSwitchModifier == Qt::Key()) {
 					ChatSwitchModifier = Platform::IsMac()
 						? Qt::Key_Meta
@@ -854,6 +852,18 @@ bool HandlePossibleChatSwitch(not_null<QKeyEvent*> event) {
 				const auto action = (modifiers & Qt::ShiftModifier)
 					? Qt::Key_Backtab
 					: key;
+				if (Data.handles(modifiers | key)) {
+					return false;
+				} else if (action == Qt::Key_Tab
+					&& Data.handles(QKeySequence(ctrl | Qt::Key_Tab))) {
+					return false;
+				} else if (action == Qt::Key_Backtab
+					&& Data.handles(QKeySequence(ctrl | Qt::Key_Backtab))) {
+					return false;
+				} else if (action == Qt::Key_Backtab
+					&& Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Tab)) {
+					return false;
+				}
 				const auto started = !std::exchange(ChatSwitchStarted, true);
 				ChatSwitchStream.fire({
 					.action = action,
