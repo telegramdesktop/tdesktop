@@ -14,7 +14,7 @@ using EarnInt = Data::EarnInt;
 constexpr auto kMinorPartLength = 9;
 constexpr auto kMaxChoppedZero = kMinorPartLength - 2;
 constexpr auto kZero = QChar('0');
-constexpr auto kDot = QChar('.');
+static const auto DecimalPoint = QLocale().decimalPoint();
 
 QString MajorPart(EarnInt value) {
 	const auto string = QString::number(value);
@@ -28,13 +28,13 @@ QString MajorPart(CreditsAmount value) {
 
 QString MinorPart(EarnInt value) {
 	if (!value) {
-		return QString(kDot) + kZero + kZero;
+		return DecimalPoint + kZero + kZero;
 	}
 	const auto string = QString::number(value);
 	const auto diff = int(string.size()) - kMinorPartLength;
 	const auto result = (diff < 0)
-		? kDot + u"%1"_q.arg(0, std::abs(diff), 10, kZero) + string
-		: kDot + string.mid(diff);
+		? DecimalPoint + u"%1"_q.arg(0, std::abs(diff), 10, kZero) + string
+		: DecimalPoint + string.mid(diff);
 	const auto begin = (result.constData());
 	const auto end = (begin + result.size());
 	auto ch = end - 1;
@@ -51,7 +51,6 @@ QString MinorPart(EarnInt value) {
 }
 
 QString MinorPart(CreditsAmount value) {
-	static const auto DecimalPoint = QLocale().decimalPoint();
 	static const int DecimalPointLength = DecimalPoint.length();
 
 	const auto fractional = std::abs(int(value.value() * 100)) % 100;
@@ -82,7 +81,7 @@ QString ToUsd(
 
 	return QString(kApproximately)
 		+ QChar('$')
-		+ QString::number(
+		+ QLocale().toString(
 			value.value() * rate,
 			'f',
 			afterFloat ? afterFloat : 2);

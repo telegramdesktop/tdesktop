@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_tag.h"
 
+#include <QLocale>
+
 namespace Statistic {
 namespace {
 
@@ -25,7 +27,7 @@ constexpr auto kStep = 5.;
 	static constexpr auto kTooMuch = ChartValue(10'000);
 	return (absoluteValue >= kTooMuch)
 		? Lang::FormatCountToShort(absoluteValue).string
-		: QString::number(absoluteValue);
+		: QLocale().toString(absoluteValue);
 }
 
 } // namespace
