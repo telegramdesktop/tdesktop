@@ -874,3 +874,38 @@ postsSearchIcon: icon {{ "box_search", windowFgActive }};
 postsSearchIconPadding: margins(12px, 1px, 6px, 0px);
 postsSearchArrow: icon {{ "dialogs/mini_arrow", windowFgActive }};
 postsSearchArrowPadding: margins(2px, 1px, 8px, 0px);
+
+dialogsUnconfirmedAuthPadding: margins(10px, 0px, 10px, 0px);
+dialogsUnconfirmedAuthTitle: FlatLabel(boxLabel) {
+	minWidth: 70px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+dialogsUnconfirmedAuthAbout: FlatLabel(boxLabel) {
+	minWidth: 70px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+dialogsUnconfirmedAuthButton: RoundButton(defaultBoxButton) {
+	width: -16px;
+	height: 26px;
+	textTop: 5px;
+	radius: 10px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(11px semibold);
+	}
+}
+dialogsUnconfirmedAuthButtonNo: RoundButton(dialogsUnconfirmedAuthButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	textBgOver: attentionButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionButtonBgRipple;
+	}
+}

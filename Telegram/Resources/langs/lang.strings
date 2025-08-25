@@ -4146,6 +4146,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_suggestions_credits_sub_low_title#other" = "{emoji} {count} Stars needed for {channels}";
 "lng_dialogs_suggestions_credits_sub_low_about" = "Insufficient funds to cover your subscription.";
 
+"lng_unconfirmed_auth_title" = "Someone just got access to your messages!";
+"lng_unconfirmed_auth_confirm" = "Yes, it’s me";
+"lng_unconfirmed_auth_deny" = "No, it’s not me!";
+"lng_unconfirmed_auth_single" = "We detected a new login to your account from {from}, {country}. Is it you?";
+"lng_unconfirmed_auth_multiple#one" = "We detected new {count} login to your account. Is it you?";
+"lng_unconfirmed_auth_multiple#other" = "We detected new {count} logins to your account. Is it you?";
+"lng_unconfirmed_auth_multiple_from#one" = "We detected new {count} login to your account from {country}. Is it you?";
+"lng_unconfirmed_auth_multiple_from#other" = "We detected new {count} logins to your account from {country}. Is it you?";
+
 "lng_about_random" = "Send a {emoji} emoji to any chat to try your luck.";
 "lng_about_random_send" = "Send";
 

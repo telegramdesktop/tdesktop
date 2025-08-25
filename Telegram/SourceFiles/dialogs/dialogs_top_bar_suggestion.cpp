@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_top_bar_suggestion.h"
 
+#include "api/api_authorizations.h"
 #include "api/api_credits.h"
 #include "api/api_peer_photo.h"
 #include "api/api_premium.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
+#include "data/components/promo_suggestions.h"
 #include "data/data_birthday.h"
 #include "data/data_changes.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -25,16 +27,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "data/components/promo_suggestions.h"
 #include "main/main_session.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/layers/generic_box.h"
+#include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -42,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_layers.h"
 
 namespace Dialogs {
 namespace {
@@ -62,6 +67,7 @@ constexpr auto kSugPremiumGrace = "PREMIUM_GRACE"_cs;
 constexpr auto kSugSetUserpic = "USERPIC_SETUP"_cs;
 constexpr auto kSugLowCreditsSubs = "STARS_SUBSCRIPTION_LOW_BALANCE"_cs;
 
+
 } // namespace
 
 rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
@@ -79,7 +85,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 
 		struct State {
 			TopBarSuggestionContent *content = nullptr;
-			Ui::SlideWrap<Ui::RpWidget> *wrap = nullptr;
+			Ui::RpWidget *unconfirmedWarning = nullptr;
+			base::unique_qptr<Ui::SlideWrap<Ui::RpWidget>> wrap;
 			rpl::variable<int> leftPadding;
 			rpl::variable<Toggle> desiredWrapToggle;
 			rpl::variable<bool> outerWrapToggle;
@@ -95,7 +102,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 		state->outerWrapToggle = rpl::duplicate(outerWrapToggleValue);
 		state->leftPadding = rpl::variable<int>(
 			rpl::single(st::dialogsTopBarLeftPadding));
-		const auto ensureWrap = [=] {
+		const auto ensureContent = [=] {
 			if (!state->content) {
 				state->content = Ui::CreateChild<TopBarSuggestionContent>(
 					parent);
@@ -106,10 +113,12 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 					state->content->resize(width, height);
 				}, state->content->lifetime());
 			}
+		};
+		const auto ensureWrap = [=](not_null<Ui::RpWidget*> child) {
 			if (!state->wrap) {
-				state->wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
+				state->wrap = base::make_unique_q<Ui::SlideWrap<Ui::RpWidget>>(
 					parent,
-					object_ptr<Ui::RpWidget>::fromRaw(state->content));
+					object_ptr<Ui::RpWidget>::fromRaw(child));
 				state->desiredWrapToggle.force_assign(
 					Toggle{ false, anim::type::instant });
 			}
@@ -131,9 +140,42 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			state->giftsLifetime.destroy();
 			state->creditsLifetime.destroy();
 
-			ensureWrap();
+			if (!session->api().authorizations().unreviewed().empty()) {
+				state->content = nullptr;
+				state->wrap = nullptr;
+				const auto list = session->api().authorizations().unreviewed();
+				const auto hashes = list
+					| ranges::views::transform([](const auto &auth) {
+						return auth.hash;
+					})
+					| ranges::to<std::vector>();
+				const auto content = CreateUnconfirmedAuthContent(
+					parent,
+					list,
+					[=](bool confirmed) {
+						session->api().authorizations().review(hashes, confirmed);
+					});
+				ensureWrap(content);
+				const auto wasUnconfirmedWarning = state->unconfirmedWarning;
+				state->unconfirmedWarning = content;
+				state->desiredWrapToggle.force_assign(Toggle{
+					true,
+					(state->unconfirmedWarning != wasUnconfirmedWarning)
+						? anim::type::instant
+						: anim::type::normal,
+				});
+				return;
+			} else {
+				if (state->unconfirmedWarning) {
+					state->unconfirmedWarning = nullptr;
+					state->wrap = nullptr;
+				}
+			}
+
+			ensureContent();
+			ensureWrap(state->content);
 			const auto content = state->content;
-			const auto wrap = state->wrap;
+			const auto wrap = state->wrap.get();
 			using RightIcon = TopBarSuggestionContent::RightIcon;
 			const auto promo = &session->promoSuggestions();
 			if (const auto custom = promo->custom()) {
@@ -595,9 +637,10 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 
 		rpl::merge(
 			session->promoSuggestions().value(),
+			session->api().authorizations().unreviewedChanges(),
 			Data::AmPremiumValue(session) | rpl::skip(1) | rpl::to_empty
 		) | rpl::start_with_next([=] {
-			const auto was = state->wrap;
+			const auto was = state->wrap.get();
 			processCurrentSuggestion(processCurrentSuggestion);
 			if (was != state->wrap) {
 				consumer.put_next_copy(state->wrap);

@@ -12,13 +12,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class DynamicImage;
 class IconButton;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Ui::Text {
 struct MarkedContext;
 } // namespace Ui::Text
 
+namespace Data {
+struct UnreviewedAuth;
+} // namespace Data
+
 namespace Dialogs {
+
+not_null<Ui::RpWidget*> CreateUnconfirmedAuthContent(
+		not_null<Ui::RpWidget*> parent,
+		const std::vector<Data::UnreviewedAuth> &list,
+		Fn<void(bool)> callback);
 
 class TopBarSuggestionContent : public Ui::RippleButton {
 public:

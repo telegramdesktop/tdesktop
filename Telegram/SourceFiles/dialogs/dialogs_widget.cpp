@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "api/api_authorizations.h"
 #include "api/api_chat_filters.h"
 #include "apiwrap.h"
 #include "chat_helpers/message_field.h"
@@ -1061,6 +1062,10 @@ void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
 	}
 	using namespace rpl::mappers;
 	crl::on_main(&session(), [=, session = &session()] {
+		session->api().authorizations().unreviewedChanges(
+		) | rpl::start_with_next([=] {
+			updateForceDisplayWide();
+		}, lifetime());
 		(session->data().chatsListLoaded(nullptr)
 			? rpl::single<Data::Folder*>(nullptr)
 			: session->data().chatsListLoadedEvents()
@@ -3313,7 +3318,8 @@ void Widget::updateForceDisplayWide() {
 		|| (_subsectionTopBar && _subsectionTopBar->searchHasFocus())
 		|| _searchSuggestionsLocked
 		|| !_searchState.query.isEmpty()
-		|| _searchState.inChat);
+		|| _searchState.inChat
+		|| !session().api().authorizations().unreviewed().empty());
 }
 
 void Widget::showForum(
