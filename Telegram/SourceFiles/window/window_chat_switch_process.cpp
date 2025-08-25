@@ -88,6 +88,7 @@ void Button::setup(
 			this,
 			sublistPeer,
 			st::chatSwitchUserpicSublist);
+		userpic->showMyNotesOnSelf(true);
 		userpic->show();
 		userpic->move(
 			((width() - userpicSize.width()) / 2),
@@ -102,6 +103,7 @@ void Button::setup(
 		this,
 		peer,
 		*userpicSt);
+	userpic->showSavedMessagesOnSelf(true);
 	userpic->show();
 	userpic->move(
 		(((width() - userpicSize.width()) / 2)

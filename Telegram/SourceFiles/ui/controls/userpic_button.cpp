@@ -561,6 +561,20 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			photoPosition.y(),
 			width(),
 			_st.photoSize);
+	} else if (showMyNotes()) {
+		Ui::EmptyUserpic::PaintMyNotes(
+			p,
+			photoPosition.x(),
+			photoPosition.y(),
+			width(),
+			_st.photoSize);
+	} else if (showAuthorHidden()) {
+		Ui::EmptyUserpic::PaintHiddenAuthor(
+			p,
+			photoPosition.x(),
+			photoPosition.y(),
+			width(),
+			_st.photoSize);
 	} else {
 		if (_a_appearance.animating()) {
 			p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
@@ -976,12 +990,27 @@ void UserpicButton::showSavedMessagesOnSelf(bool enabled) {
 	}
 }
 
+void UserpicButton::showMyNotesOnSelf(bool enabled) {
+	if (_showMyNotesOnSelf != enabled) {
+		_showMyNotesOnSelf = enabled;
+		update();
+	}
+}
+
 bool UserpicButton::showSavedMessages() const {
 	return _showSavedMessagesOnSelf && _peer && _peer->isSelf();
 }
 
 bool UserpicButton::showRepliesMessages() const {
 	return _showSavedMessagesOnSelf && _peer && _peer->isRepliesChat();
+}
+
+bool UserpicButton::showMyNotes() const {
+	return _showMyNotesOnSelf && _peer && _peer->isSelf();
+}
+
+bool UserpicButton::showAuthorHidden() const {
+	return _showMyNotesOnSelf && _peer && _peer->isSavedHiddenAuthor();
 }
 
 void UserpicButton::startChangeOverlayAnimation() {
