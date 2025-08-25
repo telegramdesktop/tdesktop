@@ -2014,10 +2014,13 @@ void Panel::hideLayer(anim::type animated) {
 void Panel::showCriticalError(const TextWithEntities &text) {
 	_progress = nullptr;
 	_webviewProgress = false;
-	auto error = base::make_unique_q<PaddingWrap<FlatLabel>>(
-		_widget.get(),
+	auto wrap = base::make_unique_q<RpWidget>(_widget.get());
+	const auto raw = wrap.get();
+
+	const auto error = CreateChild<PaddingWrap<FlatLabel>>(
+		raw,
 		object_ptr<FlatLabel>(
-			_widget.get(),
+			raw,
 			rpl::single(text),
 			st::paymentsCriticalError),
 		st::paymentsCriticalErrorPadding);
@@ -2031,7 +2034,13 @@ void Panel::showCriticalError(const TextWithEntities &text) {
 		File::OpenUrl(entity.data);
 		return false;
 	});
-	_widget->showInner(std::move(error));
+
+	raw->widthValue() | rpl::start_with_next([=](int width) {
+		error->resizeToWidth(width);
+		raw->resize(width, error->height());
+	}, raw->lifetime());
+
+	_widget->showInner(std::move(wrap));
 }
 
 void Panel::updateThemeParams(const Webview::ThemeParams &params) {
