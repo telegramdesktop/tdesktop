@@ -297,9 +297,9 @@ void MessageView::prepare(
 				? 0
 				: minFrom - kLeftShift;
 
-			textToCache = TextWithEntities(
-					minFrom > 0 ? kQEllipsis : QString())
-				.append(Text::Mid(std::move(textToCache), minFrom));
+			textToCache = (TextWithEntities{
+				minFrom > 0 ? kQEllipsis : QString()
+			}).append(Text::Mid(std::move(textToCache), minFrom));
 		}
 	}
 	_hasPlainLinkAtBegin = !textToCache.entities.empty()
