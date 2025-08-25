@@ -3375,13 +3375,10 @@ void GiftResaleBox(
 		state->ton = !state->ton.current();
 		state->updated.fire({});
 	});
-	currency->setText(tr::lng_gift_resale_switch_to(
-		lt_currency,
-		rpl::conditional(
-			state->ton.value(),
-			rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji)),
-			rpl::single(Ui::Text::IconEmoji(&st::tonIconEmoji))),
-		Ui::Text::WithEntities));
+	currency->setText(rpl::conditional(
+		state->ton.value(),
+		tr::lng_gift_resale_switch_to_stars(),
+		tr::lng_gift_resale_switch_to_ton()));
 #endif
 
 	box->heightValue() | rpl::start_with_next([=](int height) {

@@ -3847,7 +3847,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_resale_symbol" = "Symbol";
 "lng_gift_resale_symbols#one" = "{count} Symbol";
 "lng_gift_resale_symbols#other" = "{count} Symbols";
-"lng_gift_resale_switch_to" = "Switch to {currency}";
+"lng_gift_resale_switch_to_ton" = "Switch to Ton";
+"lng_gift_resale_switch_to_stars" = "Switch to Stars";
 "lng_gift_resale_early" = "You will be able to resell this gift in {duration}.";
 "lng_gift_transfer_early" = "You will be able to transfer this gift in {duration}.";
 "lng_gift_resale_transfer_early_title" = "Try Later";
