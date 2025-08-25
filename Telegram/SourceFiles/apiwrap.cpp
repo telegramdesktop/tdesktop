@@ -2461,13 +2461,14 @@ void ApiWrap::refreshFileReference(
 			const auto mediaStory = media ? media->storyId() : FullStoryId();
 			const auto storyId = mediaStory
 				? mediaStory
-				: FullStoryId(
+				: FullStoryId{
 					(IsStoryMsgId(item->id)
 						? item->history()->peer->id
 						: PeerId()),
 					(IsStoryMsgId(item->id)
 						? StoryIdFromMsgId(item->id)
-						: StoryId()));
+						: StoryId())
+				};
 			if (storyId) {
 				request(MTPstories_GetStoriesByID(
 					_session->data().peer(storyId.peer)->input,
