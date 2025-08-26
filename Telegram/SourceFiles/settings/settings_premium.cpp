@@ -669,7 +669,7 @@ TopBarWithSticker::TopBarWithSticker(
 }, std::move(showFinished)) {
 }
 
-TopBarWithSticker::	TopBarWithSticker(
+TopBarWithSticker::TopBarWithSticker(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
 	TopBarWithStickerArgs args,
@@ -731,6 +731,14 @@ TopBarWithSticker::	TopBarWithSticker(
 		resizeEvent(&event);
 		update();
 	}, lifetime());
+
+	_title->naturalWidthValue() | rpl::start_with_next([=] {
+		_title->resizeToNaturalWidth(st::settingsPremiumUserTitle.minWidth);
+	}, _title->lifetime());
+
+	_about->naturalWidthValue() | rpl::start_with_next([=] {
+		_about->resizeToNaturalWidth(st::userPremiumCover.about.minWidth);
+	}, _about->lifetime());
 
 	rpl::combine(
 		_title->sizeValue(),
