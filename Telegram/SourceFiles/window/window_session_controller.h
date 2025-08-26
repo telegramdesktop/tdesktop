@@ -107,7 +107,7 @@ struct SeparateId;
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
 	std::shared_ptr<Ui::ChatTheme> theme;
-	EmojiPtr emoji = nullptr;
+	QString token;
 };
 bool operator==(const PeerThemeOverride &a, const PeerThemeOverride &b);
 bool operator!=(const PeerThemeOverride &a, const PeerThemeOverride &b);
@@ -642,7 +642,7 @@ public:
 	void overridePeerTheme(
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::ChatTheme> theme,
-		EmojiPtr emoji);
+		QString token);
 	void clearPeerThemeOverride(not_null<PeerData*> peer);
 	[[nodiscard]] auto peerThemeOverrideValue() const
 		-> rpl::producer<PeerThemeOverride> {

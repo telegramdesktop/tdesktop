@@ -29,6 +29,7 @@ struct ChatThemeBackground {
 	QImage gradientForFill;
 	std::optional<QColor> colorForFill;
 	std::vector<QColor> colors;
+	std::vector<QRectF> giftSymbols;
 	float64 patternOpacity = 1.;
 	int gradientRotation = 0;
 	bool isPattern = false;
@@ -54,6 +55,7 @@ struct ChatThemeBackgroundData {
 	bool isBlurred = false;
 	bool forDarkMode = false;
 	bool generateGradient = false;
+	bool findGiftSymbols = false;
 	int gradientRotation = 0;
 };
 
@@ -238,10 +240,15 @@ struct ChatBackgroundRects {
 	const QImage &image);
 [[nodiscard]] QImage PrepareImageForTiled(const QImage &prepared);
 
-[[nodiscard]] QImage ReadBackgroundImage(
+struct BackgroundImageFields {
+	QImage image;
+	std::vector<QRectF> giftSymbols;
+};
+[[nodiscard]] BackgroundImageFields ReadBackgroundImage(
 	const QString &path,
 	const QByteArray &content,
-	bool gzipSvg);
+	bool gzipSvg,
+	bool findGiftSymbols = false);
 [[nodiscard]] QImage GenerateBackgroundImage(
 	QSize size,
 	const std::vector<QColor> &bg,

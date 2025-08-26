@@ -507,7 +507,7 @@ auto ChatThemeValueFromPeer(
 			std::shared_ptr<Ui::ChatTheme> &&cloud,
 			PeerThemeOverride &&overriden) {
 		return (overriden.peer == peer.get()
-			&& Ui::Emoji::Find(peer->themeToken()) != overriden.emoji)
+			&& peer->themeToken() != overriden.token)
 			? std::move(overriden.theme)
 			: std::move(cloud);
 	});

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
 #include "data/data_cloud_themes.h"
@@ -146,10 +147,12 @@ const auto kDisableElement = [] { return u"disable"_q; };
 } // namespace
 
 struct ChooseThemeController::Entry {
+	QString token;
 	Ui::ChatThemeKey key;
 	std::shared_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
 	std::shared_ptr<Data::UniqueGift> gift;
+	std::unique_ptr<Ui::Text::CustomEmoji> custom;
 	EmojiPtr emoji = nullptr;
 	QImage preview;
 	QRect geometry;
@@ -341,14 +344,22 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 
 	const auto size = Ui::Emoji::GetSizeLarge();
 	const auto factor = style::DevicePixelRatio();
-	const auto emojiLeft = geometry.x()
-		+ (geometry.width() - (size / factor)) / 2;
+	const auto esize = size / factor;
+	const auto emojiLeft = geometry.x() + (geometry.width() - esize) / 2;
 	const auto emojiTop = geometry.y()
 		+ geometry.height()
-		- (size / factor)
+		- esize
 		- st::chatThemeEmojiBottom;
+	const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
+	const auto customSkip = (esize - customSize) / 2;
+
 	if (const auto emoji = entry.emoji) {
 		Ui::Emoji::Draw(p, emoji, size, emojiLeft, emojiTop);
+	} else if (const auto custom = entry.custom.get()) {
+		custom->paint(p, {
+			.textColor = st::windowFg->c,
+			.position = { emojiLeft + customSkip, emojiTop + customSkip },
+		});
 	}
 
 	if (entry.chosen) {
@@ -395,7 +406,7 @@ void ChooseThemeController::initList() {
 		if (!entry) {
 			return QString();
 		} else if (entry->key) {
-			return entry->emoji->text();
+			return entry->token;
 		} else {
 			return kDisableElement();
 		}
@@ -445,7 +456,7 @@ void ChooseThemeController::initList() {
 					_controller->overridePeerTheme(
 						_peer,
 						entry->theme,
-						entry->emoji);
+						entry->token);
 				}
 				_inner->update();
 			}
@@ -508,7 +519,7 @@ void ChooseThemeController::updateInnerLeft(int now) {
 
 void ChooseThemeController::close() {
 	if (const auto chosen = findChosen()) {
-		if (Ui::Emoji::Find(_peer->themeToken()) != chosen->emoji) {
+		if (_peer->themeToken() != chosen->token) {
 			clearCurrentBackgroundState();
 		}
 	}
@@ -531,7 +542,7 @@ auto ChooseThemeController::findChosen() -> Entry* {
 	for (auto &entry : _entries) {
 		if (!entry.key && chosen == kDisableElement()) {
 			return &entry;
-		} else if (chosen == entry.emoji->text()) {
+		} else if (chosen == entry.token) {
 			return &entry;
 		}
 	}
@@ -547,18 +558,9 @@ void ChooseThemeController::fill(
 	if (themes.empty()) {
 		return;
 	}
-	const auto count = int(themes.size()) + 1;
 	const auto single = st::chatThemePreviewSize;
 	const auto skip = st::chatThemeEntrySkip;
 	const auto &margin = st::chatThemeEntryMargin;
-	const auto full = margin.left()
-		+ single.width() * count
-		+ skip * (count - 1)
-		+ margin.right();
-	_inner->resize(
-		full,
-		margin.top() + single.height() + margin.bottom());
-
 	const auto initial = Ui::Emoji::Find(_peer->themeToken());
 	if (!initial) {
 		_chosen = kDisableElement();
@@ -601,9 +603,11 @@ void ChooseThemeController::fill(
 			if (!emoji || !theme.settings.contains(type)) {
 				continue;
 			}
+			const auto token = emoji->text();
 			const auto key = ChatThemeKey{ theme.id, dark };
-			const auto isChosen = (_chosen.current() == emoji->text());
+			const auto isChosen = (_chosen.current() == token);
 			_entries.push_back({
+				.token = token,
 				.key = key,
 				.emoji = emoji,
 				.geometry = QRect(QPoint(x, skip), single),
@@ -624,13 +628,11 @@ void ChooseThemeController::fill(
 					return;
 				}
 				const auto theme = data.get();
+				const auto token = i->token;
 				i->theme = std::move(data);
 				i->preview = GeneratePreview(theme);
-				if (_chosen.current() == i->emoji->text()) {
-					_controller->overridePeerTheme(
-						_peer,
-						i->theme,
-						i->emoji);
+				if (_chosen.current() == token) {
+					_controller->overridePeerTheme(_peer, i->theme, token);
 				}
 				_inner->update();
 
@@ -661,17 +663,24 @@ void ChooseThemeController::fill(
 			}, _cachingLifetime);
 			x += single.width() + skip;
 		}
+		const auto owner = &_controller->session().data();
+		const auto manager = &owner->customEmojiManager();
 		for (const auto &token : cloudThemes->myGiftThemesTokens()) {
 			const auto found = cloudThemes->themeForToken(token);
-			if (!found || found->settings.contains(type)) {
+			if (!found || !found->settings.contains(type)) {
 				continue;
 			}
 			const auto &theme = *found;
 			const auto key = ChatThemeKey{ theme.id, dark };
 			const auto isChosen = (_chosen.current() == token);
 			_entries.push_back({
+				.token = token,
 				.key = key,
 				.gift = found->unique,
+				.custom = manager->create(
+					found->unique->model.document, 
+					[=] { _inner->update(); }, 
+					Data::CustomEmojiSizeTag::Large),
 				.geometry = QRect(QPoint(x, skip), single),
 				.chosen = isChosen,
 			});
@@ -690,13 +699,11 @@ void ChooseThemeController::fill(
 					return;
 				}
 				const auto theme = data.get();
+				const auto token = i->token;
 				i->theme = std::move(data);
 				i->preview = GeneratePreview(theme);
-				if (_chosen.current() == i->emoji->text()) {
-					_controller->overridePeerTheme(
-						_peer,
-						i->theme,
-						i->emoji);
+				if (_chosen.current() == token) {
+					_controller->overridePeerTheme(_peer, i->theme, token);
 				}
 				_inner->update();
 
@@ -727,6 +734,11 @@ void ChooseThemeController::fill(
 			}, _cachingLifetime);
 			x += single.width() + skip;
 		}
+
+		const auto full = x - skip + margin.right();
+		_inner->resize(
+			full,
+			margin.top() + single.height() + margin.bottom());
 
 		if (!_initialInnerLeftApplied && _content->width() > 0) {
 			applyInitialInnerLeft();

@@ -169,7 +169,7 @@ base::binary_guard ReadBackgroundImageAsync(
 		guard = result.make_guard(),
 		callback = std::move(done)
 	]() mutable {
-		auto image = Ui::ReadBackgroundImage(path, bytes, gzipSvg);
+		auto image = Ui::ReadBackgroundImage(path, bytes, gzipSvg).image;
 		if (postprocess) {
 			image = postprocess(std::move(image));
 		}

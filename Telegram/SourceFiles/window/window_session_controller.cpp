@@ -1506,6 +1506,7 @@ struct SessionController::CachedTheme {
 	std::weak_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
 	Data::WallPaper paper;
+	bool findGiftSymbols = false;
 	bool basedOnDark = false;
 	bool caching = false;
 	rpl::lifetime lifetime;
@@ -3248,11 +3249,11 @@ void SessionController::clearCachedChatThemes() {
 void SessionController::overridePeerTheme(
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::ChatTheme> theme,
-		EmojiPtr emoji) {
+		QString token) {
 	_peerThemeOverride = PeerThemeOverride{
 		peer,
 		theme ? theme : _defaultChatTheme,
-		emoji,
+		token,
 	};
 }
 
@@ -3294,12 +3295,14 @@ void SessionController::cacheChatTheme(
 	const auto &use = !paper.isNull() ? paper : *i->second.paper;
 	const auto document = use.document();
 	const auto media = document ? document->createMediaView() : nullptr;
+	const auto findGiftSymbols = (data.unique != nullptr);
 	use.loadDocument();
 	auto &theme = [&]() -> CachedTheme& {
 		const auto i = _customChatThemes.find(key);
 		if (i != end(_customChatThemes)) {
 			i->second.media = media;
 			i->second.paper = use;
+			i->second.findGiftSymbols = findGiftSymbols;
 			i->second.basedOnDark = dark;
 			i->second.caching = true;
 			return i->second;
@@ -3309,6 +3312,7 @@ void SessionController::cacheChatTheme(
 			CachedTheme{
 				.media = media,
 				.paper = use,
+				.findGiftSymbols = findGiftSymbols,
 				.basedOnDark = dark,
 				.caching = true,
 			}).first->second;
@@ -3428,6 +3432,7 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		.isBlurred = isBlurred,
 		.forDarkMode = theme.basedOnDark,
 		.generateGradient = generateGradient,
+		.findGiftSymbols = theme.findGiftSymbols,
 		.gradientRotation = gradientRotation,
 	};
 }

@@ -1739,7 +1739,8 @@ PeerId PeerData::groupCallDefaultJoinAs() const {
 void PeerData::setThemeToken(const QString &token) {
 	if (_themeToken == token) {
 		return;
-	} else if (Ui::Emoji::Find(_themeToken) == Ui::Emoji::Find(token)) {
+	} else if (!token.startsWith(u"gift:"_q)
+		&& Ui::Emoji::Find(_themeToken) == Ui::Emoji::Find(token)) {
 		_themeToken = token;
 		return;
 	}

@@ -74,7 +74,8 @@ inline bool AreTestingTheme() {
 	return Ui::ReadBackgroundImage(
 		u":/gui/art/background.tgv"_q,
 		QByteArray(),
-		true);
+		true
+	).image;
 }
 
 [[nodiscard]] bool GoodImageFormatAndSize(const QImage &image) {

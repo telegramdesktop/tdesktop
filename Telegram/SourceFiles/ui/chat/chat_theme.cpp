@@ -415,6 +415,7 @@ void ChatTheme::setBackground(ChatThemeBackground &&background) {
 void ChatTheme::updateBackgroundImageFrom(ChatThemeBackground &&background) {
 	_mutableBackground.key = background.key;
 	_mutableBackground.prepared = std::move(background.prepared);
+	_mutableBackground.giftSymbols = std::move(background.giftSymbols);
 	_mutableBackground.preparedForTiled = std::move(
 		background.preparedForTiled);
 	if (!_backgroundState.now.pixmap.isNull()) {
@@ -905,19 +906,83 @@ QImage PrepareImageForTiled(const QImage &prepared) {
 	return result;
 }
 
-[[nodiscard]] QImage ReadBackgroundImage(
+std::vector<QRectF> ParseGiftSymbols(
+		const QByteArray &rects,
+		QSize size,
+		float64 scale) {
+	if (size.isEmpty()) {
+		return {};
+	}
+
+	auto result = std::vector<QRectF>();
+	auto offset = 0;
+	const auto jumpPast = [&](const QByteArray &what) {
+		const auto pos = rects.indexOf(what, offset);
+		if (pos < 0) {
+			return false;
+		}
+		offset = pos + what.size();
+		return true;
+	};
+	const auto takeDouble = [&](float64 &value) {
+		const auto end = rects.indexOf('"', offset);
+		if (end < 0) {
+			return false;
+		}
+		value = rects.mid(offset, end - offset).toDouble();
+		offset = end + 1;
+		return true;
+	};
+	const auto cw = scale / float64(size.width());
+	const auto ch = scale / float64(size.height());
+	while (true) {
+		auto x = float64(), y = float64(), w = float64(), h = float64();
+		if (!jumpPast("<rect "_q)
+			|| !jumpPast("x=\""_q)
+			|| !takeDouble(x)
+			|| !jumpPast("y=\""_q)
+			|| !takeDouble(y)
+			|| !jumpPast("width=\""_q)
+			|| !takeDouble(w)
+			|| !jumpPast("height=\""_q)
+			|| !takeDouble(h)
+			|| !jumpPast("/>"_q)) {
+			break;
+		}
+		result.push_back({
+			x * cw,
+			y * ch,
+			w * cw,
+			h * ch,
+		});
+	}
+	return result;
+}
+
+BackgroundImageFields ReadBackgroundImage(
 		const QString &path,
 		const QByteArray &content,
-		bool gzipSvg) {
-	auto result = Images::Read({
+		bool gzipSvg,
+		bool findGiftSymbols) {
+	auto read = Images::Read({
 		.path = path,
 		.content = content,
+		.svgCutOutId = findGiftSymbols ? "GiftPatterns"_q : QByteArray(),
 		.maxSize = QSize(kMaxSize, kMaxSize),
 		.gzipSvg = gzipSvg,
-	}).image;
-	if (result.isNull()) {
-		result = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
-		result.fill(Qt::black);
+	});
+	if (read.image.isNull()) {
+		read.image = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
+		read.image.fill(Qt::black);
+	}
+	auto result = BackgroundImageFields{
+		.image = std::move(read.image),
+	};
+	if (const auto &rects = read.svgCutOutContent; !rects.isEmpty()) {
+		result.giftSymbols = ParseGiftSymbols(
+			rects, 
+			result.image.size(),
+			read.scale);
 	}
 	return result;
 }
@@ -1022,9 +1087,16 @@ QImage GenerateDitheredGradient(
 
 ChatThemeBackground PrepareBackgroundImage(
 		const ChatThemeBackgroundData &data) {
-	auto prepared = (data.isPattern || data.colors.empty())
-		? PreprocessBackgroundImage(
-			ReadBackgroundImage(data.path, data.bytes, data.gzipSvg))
+	const auto needBackground = (data.isPattern || data.colors.empty());
+	auto read = needBackground
+		? ReadBackgroundImage(
+			data.path,
+			data.bytes,
+			data.gzipSvg,
+			data.findGiftSymbols)
+		: BackgroundImageFields();
+	auto prepared = needBackground
+		? PreprocessBackgroundImage(std::move(read.image))
 		: QImage();
 	if (data.isPattern && !prepared.isNull()) {
 		if (data.colors.size() < 2) {
@@ -1070,6 +1142,7 @@ ChatThemeBackground PrepareBackgroundImage(
 			? std::nullopt
 			: std::make_optional(data.colors.front())),
 		.colors = data.colors,
+		.giftSymbols = std::move(read.giftSymbols),
 		.patternOpacity = data.patternOpacity,
 		.gradientRotation = data.generateGradient ? data.gradientRotation : 0,
 		.isPattern = data.isPattern,
