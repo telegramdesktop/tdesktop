@@ -210,9 +210,8 @@ rpl::producer<> ChatSwitchProcess::closeRequests() const {
 }
 
 void ChatSwitchProcess::process(const Request &request) {
-	Expects(_selected < int(_list.size()));
+	Expects(_selected < _shownCount);
 
-	const auto count = int(_list.size());
 	if (request.action == Qt::Key_Escape) {
 		_closeRequests.fire({});
 	} else if (request.action == Qt::Key_Enter) {
@@ -221,18 +220,28 @@ void ChatSwitchProcess::process(const Request &request) {
 		} else {
 			_closeRequests.fire({});
 		}
-	} else if (request.action == Qt::Key_Tab) {
-		if (_selected < 0 || _selected + 1 >= count) {
+	} else if (request.action == Qt::Key_Tab
+		|| request.action == Qt::Key_Right) {
+		if (_selected < 0 || _selected + 1 >= _shownCount) {
 			setSelected(0);
 		} else {
 			setSelected(_selected + 1);
 		}
-	} else if (request.action == Qt::Key_Backtab) {
+	} else if (request.action == Qt::Key_Backtab
+		|| request.action == Qt::Key_Left) {
 		if (_selected <= 0) {
-			setSelected(count - 1);
+			setSelected(_shownCount - 1);
 		} else {
 			setSelected(_selected - 1);
 		}
+	} else if (request.action == Qt::Key_Up) {
+		const auto now = std::max(_selected, 0) - _shownPerRow;
+		const auto bound = (now < 0) ? (_shownCount + now) : now;
+		setSelected(bound);
+	} else if (request.action == Qt::Key_Down) {
+		const auto now = std::max(_selected, 0) + _shownPerRow;
+		const auto bound = (now >= _shownCount) ? (now - _shownCount) : now;
+		setSelected(bound);
 	}
 }
 
@@ -357,17 +366,38 @@ void ChatSwitchProcess::layout(QSize size) {
 	auto inner = outer.marginsRemoved(st::chatSwitchPadding);
 	const auto available = inner.width();
 	const auto canPerRow = (available / st::chatSwitchSize.width());
+	const auto canRows = (canPerRow > 2 * 7)
+		? 1
+		: (canPerRow > 3 * 4)
+		? 2
+		: 3;
 	if (canPerRow < 1 || _list.empty()) {
 		return;
 	}
 	const auto count = int(_list.size());
-	const auto rows = (count + canPerRow - 1) / canPerRow;
-	const auto minPerRow = count / rows;
-	const auto wideRows = (count - (minPerRow * rows));
-	const auto maxPerRow = wideRows ? (minPerRow + 1) : minPerRow;
-	const auto narrowShift = wideRows ? (st::chatSwitchSize.width() / 2) : 0;
-	const auto width = maxPerRow * st::chatSwitchSize.width();
-	const auto height = rows * st::chatSwitchSize.height();
+	_shownRows = std::min(canRows, (count + canPerRow - 1) / canPerRow);
+	_shownPerRow = std::min(count / _shownRows, canPerRow);
+	if (_shownRows > 2) {
+		if (_shownPerRow * 2 > _shownRows * 4) {
+			_shownRows = 2;
+		} else if (_shownPerRow > 4) {
+			_shownPerRow = 4;
+		}
+	}
+	if (_shownRows > 1) {
+		if (_shownPerRow > _shownRows * 7) {
+			_shownRows = 1;
+		} else if (_shownPerRow > 7) {
+			_shownPerRow = 7;
+		}
+	}
+	_shownCount = _shownPerRow * _shownRows;
+	if (_selected >= _shownCount) {
+		_selected = -1;
+	}
+
+	const auto width = _shownPerRow * st::chatSwitchSize.width();
+	const auto height = _shownRows * st::chatSwitchSize.height();
 
 	size = QSize(width, height);
 	_inner = QRect(
@@ -381,15 +411,18 @@ void ChatSwitchProcess::layout(QSize size) {
 
 	auto index = 0;
 	auto top = padding.top();
-	for (auto row = 0; row != rows; ++row) {
-		const auto columns = (row < wideRows) ? maxPerRow : minPerRow;
-		auto left = padding.left() + ((row < wideRows) ? 0 : narrowShift);
-		for (auto column = 0; column != columns; ++column) {
+	for (auto row = 0; row != _shownRows; ++row) {
+		auto left = padding.left();
+		for (auto column = 0; column != _shownPerRow; ++column) {
 			auto &entry = _entries[index++];
 			entry.button->moveToLeft(left, top, _inner.width());
+			entry.button->show();
 			left += st::chatSwitchSize.width();
 		}
 		top += st::chatSwitchSize.height();
+	}
+	for (auto i = _shownRows * _shownPerRow; i < count; ++i) {
+		_entries[i].button->hide();
 	}
 
 	_shadowed = _outer.marginsAdded(st::boxRoundShadow.extend);

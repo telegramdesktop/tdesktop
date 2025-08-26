@@ -71,6 +71,9 @@ private:
 	std::vector<Entry> _entries;
 
 	int _selected = -1;
+	int _shownRows = 0;
+	int _shownCount = 0;
+	int _shownPerRow = 0;
 
 	rpl::event_stream<not_null<Data::Thread*>> _chosen;
 	rpl::event_stream<> _closeRequests;

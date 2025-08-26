@@ -805,12 +805,22 @@ bool HandleEvent(
 	return Launch(Data.lookup(object));
 }
 
-void CancelChatSwitch(Qt::Key result) {
+bool CancelChatSwitch(Qt::Key result) {
 	ChatSwitchModifier = Qt::Key();
-	if (ChatSwitchStarted) {
-		ChatSwitchStarted = false;
-		ChatSwitchStream.fire({ .action = result });
+	if (!ChatSwitchStarted) {
+		return false;
 	}
+	ChatSwitchStarted = false;
+	ChatSwitchStream.fire({ .action = result });
+	return true;
+}
+
+bool NavigateChatSwitch(Qt::Key result) {
+	if (!ChatSwitchStarted) {
+		return false;
+	}
+	ChatSwitchStream.fire({ .action = result });
+	return true;
 }
 
 rpl::producer<ChatSwitchRequest> ChatSwitchRequests() {
@@ -823,17 +833,9 @@ bool HandlePossibleChatSwitch(not_null<QKeyEvent*> event) {
 		return false;
 	} else if (type == QEvent::ShortcutOverride) {
 		const auto key = Qt::Key(event->key());
-		if (key == Qt::Key_Escape) {
-			CancelChatSwitch(Qt::Key_Escape);
-			return false;
-		} else if (key == Qt::Key_Return || key == Qt::Key_Enter) {
-			CancelChatSwitch(Qt::Key_Enter);
-			return false;
-		}
 		const auto ctrl = Platform::IsMac()
 			? Qt::MetaModifier
 			: Qt::ControlModifier;
-
 		if (Data.handles(QKeySequence(ctrl | Qt::Key_Tab))
 			&& (Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Backtab)
 				|| Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Tab)
@@ -871,6 +873,18 @@ bool HandlePossibleChatSwitch(not_null<QKeyEvent*> event) {
 				});
 				return true;
 			}
+		}
+	} else if (type == QEvent::KeyPress) {
+		const auto key = Qt::Key(event->key());
+		if (key == Qt::Key_Escape) {
+			return CancelChatSwitch(Qt::Key_Escape);
+		} else if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+			return CancelChatSwitch(Qt::Key_Enter);
+		} else if (key == Qt::Key_Left
+			|| key == Qt::Key_Right
+			|| key == Qt::Key_Up
+			|| key == Qt::Key_Down) {
+			return NavigateChatSwitch(key);
 		}
 	} else if (type == QEvent::KeyRelease) {
 		const auto key = Qt::Key(event->key());

@@ -648,6 +648,8 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 		if (base::Platform::GlobalShortcuts::IsToggleFullScreenKey(event)
 			&& toggleActiveWindowFullScreen()) {
 			return true;
+		} else if (Shortcuts::HandlePossibleChatSwitch(event)) {
+			return true;
 		}
 	} break;
 	case QEvent::MouseButtonPress:
