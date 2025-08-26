@@ -88,6 +88,7 @@ PRIVATE
 
     data/raw/raw_countries_bounds.cpp
     data/raw/raw_countries_bounds.h
+    data/data_authorization.h
     data/data_birthday.cpp
     data/data_birthday.h
     data/data_channel_earn.h
