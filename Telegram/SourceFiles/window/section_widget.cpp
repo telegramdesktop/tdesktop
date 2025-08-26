@@ -36,13 +36,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
-[[nodiscard]] rpl::producer<QString> PeerThemeEmojiValue(
+[[nodiscard]] rpl::producer<QString> PeerThemeTokenValue(
 		not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
 		peer,
-		Data::PeerUpdate::Flag::ChatThemeEmoji
+		Data::PeerUpdate::Flag::ChatThemeToken
 	) | rpl::map([=] {
-		return peer->themeEmoji();
+		return peer->themeToken();
 	});
 }
 
@@ -96,11 +96,11 @@ struct ResolvedPaper {
 [[nodiscard]] auto MaybeChatThemeDataValueFromPeer(
 	not_null<PeerData*> peer)
 -> rpl::producer<std::optional<Data::CloudTheme>> {
-	return PeerThemeEmojiValue(
+	return PeerThemeTokenValue(
 		peer
-	) | rpl::map([=](const QString &emoji)
+	) | rpl::map([=](const QString &token)
 	-> rpl::producer<std::optional<Data::CloudTheme>> {
-		return peer->owner().cloudThemes().themeForEmojiValue(emoji);
+		return peer->owner().cloudThemes().themeForTokenValue(token);
 	}) | rpl::flatten_latest();
 }
 
@@ -507,7 +507,7 @@ auto ChatThemeValueFromPeer(
 			std::shared_ptr<Ui::ChatTheme> &&cloud,
 			PeerThemeOverride &&overriden) {
 		return (overriden.peer == peer.get()
-			&& Ui::Emoji::Find(peer->themeEmoji()) != overriden.emoji)
+			&& Ui::Emoji::Find(peer->themeToken()) != overriden.emoji)
 			? std::move(overriden.theme)
 			: std::move(cloud);
 	});

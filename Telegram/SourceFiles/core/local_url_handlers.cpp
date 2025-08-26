@@ -1320,8 +1320,9 @@ bool ResolveTestChatTheme(
 		qthelp::UrlParamNameTransform::ToLower);
 	if (const auto history = controller->activeChatCurrent().history()) {
 		controller->clearCachedChatThemes();
-		const auto theme = history->owner().cloudThemes().updateThemeFromLink(
-			history->peer->themeEmoji(),
+		const auto owner = &history->owner();
+		const auto theme = owner->cloudThemes().updateThemeFromLink(
+			history->peer->themeToken(),
 			params);
 		if (theme) {
 			if (!params["export"].isEmpty()) {

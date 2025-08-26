@@ -66,7 +66,7 @@ struct PeerUpdate {
 		Notifications       = (1ULL << 4),
 		Migration           = (1ULL << 5),
 		UnavailableReason   = (1ULL << 6),
-		ChatThemeEmoji      = (1ULL << 7),
+		ChatThemeToken      = (1ULL << 7),
 		ChatWallPaper       = (1ULL << 8),
 		IsBlocked           = (1ULL << 9),
 		MessagesTTL         = (1ULL << 10),

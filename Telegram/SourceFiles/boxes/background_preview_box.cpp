@@ -161,7 +161,7 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 		return paper;
 	}
 	const auto &themes = session->data().cloudThemes();
-	if (const auto theme = themes.themeForEmoji(paper.emojiId())) {
+	if (const auto theme = themes.themeForToken(paper.emojiId())) {
 		using Type = Data::CloudThemeType;
 		const auto type = dark ? Type::Dark : Type::Light;
 		const auto i = theme->settings.find(type);

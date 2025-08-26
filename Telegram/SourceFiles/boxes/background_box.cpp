@@ -451,12 +451,12 @@ auto BackgroundBox::Inner::resolveResetCustomPaper() const
 		return {};
 	}
 	const auto nonCustom = Window::Theme::Background()->paper();
-	const auto themeEmoji = _forPeer->themeEmoji();
-	if (forChannel() || themeEmoji.isEmpty()) {
+	const auto themeToken = _forPeer->themeToken();
+	if (forChannel() || themeToken.isEmpty()) {
 		return nonCustom;
 	}
 	const auto &themes = _forPeer->owner().cloudThemes();
-	const auto theme = themes.themeForEmoji(themeEmoji);
+	const auto theme = themes.themeForToken(themeToken);
 	if (!theme) {
 		return nonCustom;
 	}

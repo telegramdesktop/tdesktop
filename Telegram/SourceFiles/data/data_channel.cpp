@@ -1406,7 +1406,7 @@ void ApplyChannelUpdate(
 			update.vboosts_applied().value_or_empty(),
 			update.vboosts_unrestrict().value_or_empty());
 	}
-	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	channel->setThemeToken(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->setTranslationDisabled(update.is_translations_disabled());
 
 	const auto reactionsLimit = update.vreactions_limit().value_or_empty();

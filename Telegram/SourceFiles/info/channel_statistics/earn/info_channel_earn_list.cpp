@@ -1312,7 +1312,6 @@ void InnerWidget::fill() {
 					= lifetime().make_state<ShowMoreState>(_peer);
 				state->token = firstSlice.token;
 				state->showed = firstSlice.list.size();
-				const auto max = firstSlice.total;
 				const auto wrap = tabCurrencyList->entity()->add(
 					object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 						tabCurrencyList->entity(),

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/top_peers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_cloud_themes.h"
 #include "data/data_drafts.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
@@ -1303,7 +1304,12 @@ void History::applyServiceChanges(
 			}
 		}
 	}, [&](const MTPDmessageActionSetChatTheme &data) {
-		peer->setThemeEmoji(qs(data.vemoticon()));
+		data.vtheme().match([&](const MTPDchatTheme &data) {
+			peer->setThemeToken(qs(data.vemoticon()));
+		}, [&](const MTPDchatThemeUniqueGift &data) {
+			peer->setThemeToken(
+				owner().cloudThemes().processGiftThemeGetToken(data));
+		});
 	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
 		if (item->out() || data.is_for_both()) {
 			peer->setWallPaper(

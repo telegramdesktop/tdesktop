@@ -5350,38 +5350,63 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareSetChatTheme = [this](const MTPDmessageActionSetChatTheme &action) {
 		auto result = PreparedServiceText();
-		const auto text = qs(action.vemoticon());
-		if (!text.isEmpty()) {
-			if (_from->isSelf()) {
-				result.text = tr::lng_action_you_theme_changed(
-					tr::now,
-					lt_emoji,
-					{ .text = text },
-					Ui::Text::WithEntities);
+		action.vtheme().match([&](const MTPDchatTheme &data) {
+			const auto text = qs(data.vemoticon());
+			if (!text.isEmpty()) {
+				if (_from->isSelf()) {
+					result.text = tr::lng_action_you_theme_changed(
+						tr::now,
+						lt_emoji,
+						{ .text = text },
+						Ui::Text::WithEntities);
+				} else {
+					result.links.push_back(fromLink());
+					result.text = tr::lng_action_theme_changed(
+						tr::now,
+						lt_from,
+						fromLinkText(), // Link 1.
+						lt_emoji,
+						{ .text = text },
+						Ui::Text::WithEntities);
+				}
 			} else {
-				result.links.push_back(fromLink());
-				result.text = tr::lng_action_theme_changed(
-					tr::now,
-					lt_from,
-					fromLinkText(), // Link 1.
-					lt_emoji,
-					{ .text = text },
-					Ui::Text::WithEntities);
+				if (_from->isSelf()) {
+					result.text = tr::lng_action_you_theme_disabled(
+						tr::now,
+						Ui::Text::WithEntities);
+				} else {
+					result.links.push_back(fromLink());
+					result.text = tr::lng_action_theme_disabled(
+						tr::now,
+						lt_from,
+						fromLinkText(), // Link 1.
+						Ui::Text::WithEntities);
+				}
 			}
-		} else {
-			if (_from->isSelf()) {
-				result.text = tr::lng_action_you_theme_disabled(
-					tr::now,
-					Ui::Text::WithEntities);
-			} else {
-				result.links.push_back(fromLink());
-				result.text = tr::lng_action_theme_disabled(
-					tr::now,
-					lt_from,
-					fromLinkText(), // Link 1.
-					Ui::Text::WithEntities);
-			}
-		}
+		}, [&](const MTPDchatThemeUniqueGift &data) {
+			data.vgift().match([&](const MTPDstarGiftUnique &data) {
+				const auto giftName = Ui::Text::Bold(qs(data.vtitle())
+					+ u" #"_q
+					+ QString::number(data.vnum().v));
+				if (_from->isSelf()) {
+					result.text = tr::lng_action_you_gift_theme_changed(
+						tr::now,
+						lt_name,
+						giftName,
+						Ui::Text::WithEntities);
+				} else {
+					result.links.push_back(fromLink());
+					result.text = tr::lng_action_gift_theme_changed(
+						tr::now,
+						lt_from,
+						fromLinkText(),
+						lt_name,
+						giftName,
+						Ui::Text::WithEntities);
+				}
+			}, [](const MTPDstarGift &) {
+			});
+		});
 		return result;
 	};
 

@@ -7,14 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/channel_statistics/earn/earn_format.h"
 
-namespace Info::ChannelEarn {
+#include <QtCore/QLocale>
 
-using EarnInt = Data::EarnInt;
+namespace Info::ChannelEarn {
+namespace {
 
 constexpr auto kMinorPartLength = 9;
 constexpr auto kMaxChoppedZero = kMinorPartLength - 2;
 constexpr auto kZero = QChar('0');
-static const auto DecimalPoint = QLocale().decimalPoint();
+const auto DecimalPoint = QString() + QLocale().decimalPoint();
+
+using EarnInt = Data::EarnInt;
+
+} // namespace
 
 QString MajorPart(EarnInt value) {
 	const auto string = QString::number(value);

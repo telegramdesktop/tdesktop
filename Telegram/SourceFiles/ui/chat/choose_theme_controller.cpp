@@ -149,8 +149,9 @@ struct ChooseThemeController::Entry {
 	Ui::ChatThemeKey key;
 	std::shared_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
-	QImage preview;
+	std::shared_ptr<Data::UniqueGift> gift;
 	EmojiPtr emoji = nullptr;
+	QImage preview;
 	QRect geometry;
 	bool chosen = false;
 };
@@ -178,6 +179,10 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 	using namespace rpl::mappers;
 
 	const auto themes = &_controller->session().data().cloudThemes();
+	if (themes->myGiftThemesTokens().empty()) {
+		themes->myGiftThemesLoadMore();
+	}
+
 	const auto &list = themes->chatThemes();
 	if (!list.empty()) {
 		fill(list);
@@ -269,7 +274,7 @@ void ChooseThemeController::initButtons() {
 			int applyWidth,
 			int chooseWidth,
 			QString chosen) {
-		const auto was = _peer->themeEmoji();
+		const auto was = _peer->themeToken();
 		const auto now = (chosen == kDisableElement()) ? QString() : chosen;
 		const auto changed = (now != was);
 		apply->setVisible(changed);
@@ -283,10 +288,14 @@ void ChooseThemeController::initButtons() {
 
 	apply->setClickedCallback([=] {
 		if (const auto chosen = findChosen()) {
-			const auto was = _peer->themeEmoji();
+			const auto was = _peer->themeToken();
 			const auto now = chosen->key ? _chosen.current() : QString();
 			if (was != now) {
-				_peer->setThemeEmoji(now);
+				const auto giftTheme = now.startsWith(u"gift:"_q)
+					? _peer->owner().cloudThemes().themeForToken(now)
+					: std::optional<Data::CloudTheme>();
+
+				_peer->setThemeToken(now);
 				const auto dropWallPaper = (_peer->wallPaper() != nullptr);
 				if (dropWallPaper) {
 					_peer->setWallPaper({});
@@ -297,6 +306,7 @@ void ChooseThemeController::initButtons() {
 					_controller->pushLastUsedChatTheme(chosen->theme);
 				}
 				const auto api = &_peer->session().api();
+
 				api->request(MTPmessages_SetChatWallPaper(
 					MTP_flags(0),
 					_peer->input,
@@ -306,9 +316,13 @@ void ChooseThemeController::initButtons() {
 				)).afterDelay(10).done([=](const MTPUpdates &result) {
 					api->applyUpdates(result);
 				}).send();
+
 				api->request(MTPmessages_SetChatTheme(
 					_peer->input,
-					MTP_string(now)
+					((giftTheme && giftTheme->unique)
+						? MTP_inputChatThemeUniqueGift(
+							MTP_string(giftTheme->unique->slug))
+						: MTP_inputChatTheme(MTP_string(now)))
 				)).done([=](const MTPUpdates &result) {
 					api->applyUpdates(result);
 				}).send();
@@ -333,7 +347,9 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 		+ geometry.height()
 		- (size / factor)
 		- st::chatThemeEmojiBottom;
-	Ui::Emoji::Draw(p, entry.emoji, size, emojiLeft, emojiTop);
+	if (const auto emoji = entry.emoji) {
+		Ui::Emoji::Draw(p, emoji, size, emojiLeft, emojiTop);
+	}
 
 	if (entry.chosen) {
 		auto hq = PainterHighQualityEnabler(p);
@@ -492,7 +508,7 @@ void ChooseThemeController::updateInnerLeft(int now) {
 
 void ChooseThemeController::close() {
 	if (const auto chosen = findChosen()) {
-		if (Ui::Emoji::Find(_peer->themeEmoji()) != chosen->emoji) {
+		if (Ui::Emoji::Find(_peer->themeToken()) != chosen->emoji) {
 			clearCurrentBackgroundState();
 		}
 	}
@@ -543,13 +559,18 @@ void ChooseThemeController::fill(
 		full,
 		margin.top() + single.height() + margin.bottom());
 
-	const auto initial = Ui::Emoji::Find(_peer->themeEmoji());
+	const auto initial = Ui::Emoji::Find(_peer->themeToken());
 	if (!initial) {
 		_chosen = kDisableElement();
 	}
 
-	_dark.value(
-	) | rpl::start_with_next([=](bool dark) {
+	const auto cloudThemes = &_controller->session().data().cloudThemes();
+	rpl::combine(
+		_dark.value(),
+		rpl::single(
+			rpl::empty
+		) | rpl::then(cloudThemes->myGiftThemesUpdated())
+	) | rpl::start_with_next([=](bool dark, auto) {
 		clearCurrentBackgroundState();
 		if (_chosen.current().isEmpty() && initial) {
 			_chosen = initial->text();
@@ -559,8 +580,8 @@ void ChooseThemeController::fill(
 		const auto old = base::take(_entries);
 		auto x = margin.left();
 		_entries.push_back({
-			.preview = GenerateEmptyPreview(),
 			.emoji = _disabledEmoji,
+			.preview = GenerateEmptyPreview(),
 			.geometry = QRect(QPoint(x, margin.top()), single),
 			.chosen = (_chosen.current() == kDisableElement()),
 		});
@@ -585,6 +606,72 @@ void ChooseThemeController::fill(
 			_entries.push_back({
 				.key = key,
 				.emoji = emoji,
+				.geometry = QRect(QPoint(x, skip), single),
+				.chosen = isChosen,
+			});
+			_controller->cachedChatThemeValue(
+				theme,
+				Data::WallPaper(0),
+				type
+			) | rpl::filter([=](const std::shared_ptr<ChatTheme> &data) {
+				return data && (data->key() == key);
+			}) | rpl::take(
+				1
+			) | rpl::start_with_next([=](std::shared_ptr<ChatTheme> &&data) {
+				const auto key = data->key();
+				const auto i = ranges::find(_entries, key, &Entry::key);
+				if (i == end(_entries)) {
+					return;
+				}
+				const auto theme = data.get();
+				i->theme = std::move(data);
+				i->preview = GeneratePreview(theme);
+				if (_chosen.current() == i->emoji->text()) {
+					_controller->overridePeerTheme(
+						_peer,
+						i->theme,
+						i->emoji);
+				}
+				_inner->update();
+
+				if (!theme->background().isPattern
+					|| !theme->background().prepared.isNull()) {
+					return;
+				}
+				// Subscribe to pattern loading if needed.
+				theme->repaintBackgroundRequests(
+				) | rpl::filter([=] {
+					const auto i = ranges::find(
+						_entries,
+						key,
+						&Entry::key);
+					return (i == end(_entries))
+						|| !i->theme->background().prepared.isNull();
+				}) | rpl::take(1) | rpl::start_with_next([=] {
+					const auto i = ranges::find(
+						_entries,
+						key,
+						&Entry::key);
+					if (i == end(_entries)) {
+						return;
+					}
+					i->preview = GeneratePreview(theme);
+					_inner->update();
+				}, _cachingLifetime);
+			}, _cachingLifetime);
+			x += single.width() + skip;
+		}
+		for (const auto &token : cloudThemes->myGiftThemesTokens()) {
+			const auto found = cloudThemes->themeForToken(token);
+			if (!found || found->settings.contains(type)) {
+				continue;
+			}
+			const auto &theme = *found;
+			const auto key = ChatThemeKey{ theme.id, dark };
+			const auto isChosen = (_chosen.current() == token);
+			_entries.push_back({
+				.key = key,
+				.gift = found->unique,
 				.geometry = QRect(QPoint(x, skip), single),
 				.chosen = isChosen,
 			});
