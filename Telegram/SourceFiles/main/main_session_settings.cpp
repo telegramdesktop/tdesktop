@@ -33,7 +33,7 @@ SessionSettings::SessionSettings()
 
 QByteArray SessionSettings::serialize() const {
 	const auto autoDownload = _autoDownload.serialize();
-	const auto size = sizeof(qint32) * 4
+	auto size = sizeof(qint32) * 4
 		+ _groupStickersSectionHidden.size() * sizeof(quint64)
 		+ sizeof(qint32) * 4
 		+ Serialize::bytearraySize(autoDownload)
@@ -56,7 +56,13 @@ QByteArray SessionSettings::serialize() const {
 				+ sizeof(quint64) * 3 // ThreadId
 				+ sizeof(ushort))) // Volume
 		+ sizeof(qint32) // _ratedTranscriptions size
-		+ (_ratedTranscriptions.size() * sizeof(quint64));
+		+ (_ratedTranscriptions.size() * sizeof(quint64))
+		+ sizeof(qint32); // _unreviewed size
+	for (const auto &auth : _unreviewed) {
+		size += sizeof(quint64) + sizeof(qint32) + sizeof(qint32)
+			+ Serialize::stringSize(auth.device)
+			+ Serialize::stringSize(auth.location);
+	}
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -128,6 +134,15 @@ QByteArray SessionSettings::serialize() const {
 		for (const auto &transcriptionId : _ratedTranscriptions) {
 			stream << quint64(transcriptionId);
 		}
+		stream << qint32(_unreviewed.size());
+		for (const auto &auth : _unreviewed) {
+			stream
+				<< quint64(auth.hash)
+				<< qint32(auth.unconfirmed ? 1 : 0)
+				<< qint32(auth.date)
+				<< auth.device
+				<< auth.location;
+		}
 	}
 
 	Ensures(result.size() == size);
@@ -198,6 +213,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	base::flat_map<Data::DefaultNotify, ushort> ringtoneDefaultVolumes;
 	base::flat_map<ThreadId, ushort> ringtoneVolumes;
 	base::flat_set<uint64> ratedTranscriptions;
+	std::vector<Data::UnreviewedAuth> unreviewed;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -585,6 +601,32 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto hash = quint64();
+				auto unconfirmed = qint32();
+				auto date = qint32();
+				QString device, location;
+				stream >> hash >> unconfirmed >> date >> device >> location;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"
+						"with unreviewed"));
+					return;
+				}
+				unreviewed.emplace_back(Data::UnreviewedAuth{
+					.hash = hash,
+					.unconfirmed = (unconfirmed == 1),
+					.date = TimeId(date),
+					.device = device,
+					.location = location,
+				});
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -635,6 +677,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_ringtoneDefaultVolumes = std::move(ringtoneDefaultVolumes);
 	_ringtoneVolumes = std::move(ringtoneVolumes);
 	_ratedTranscriptions = std::move(ratedTranscriptions);
+	_unreviewed = std::move(unreviewed);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -853,6 +896,14 @@ void SessionSettings::markTranscriptionAsRated(uint64 transcriptionId) {
 
 bool SessionSettings::isTranscriptionRated(uint64 transcriptionId) const {
 	return _ratedTranscriptions.contains(transcriptionId);
+}
+
+void SessionSettings::setUnreviewed(std::vector<Data::UnreviewedAuth> auths) {
+	_unreviewed = std::move(auths);
+}
+
+const std::vector<Data::UnreviewedAuth> &SessionSettings::unreviewed() const {
+	return _unreviewed;
 }
 
 } // namespace Main

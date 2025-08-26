@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_auto_download.h"
 #include "data/notify/data_peer_notify_settings.h"
+#include "data/data_authorization.h"
 #include "ui/rect_part.h"
 
 namespace Support {
@@ -165,6 +166,9 @@ public:
 	void markTranscriptionAsRated(uint64 transcriptionId);
 	[[nodiscard]] bool isTranscriptionRated(uint64 transcriptionId) const;
 
+	void setUnreviewed(std::vector<Data::UnreviewedAuth> auths);
+	[[nodiscard]] const std::vector<Data::UnreviewedAuth> &unreviewed() const;
+
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
@@ -206,6 +210,8 @@ private:
 	rpl::variable<bool> _supportAllSearchResults = false;
 
 	base::flat_set<uint64> _ratedTranscriptions;
+
+	std::vector<Data::UnreviewedAuth> _unreviewed;
 
 };
 
