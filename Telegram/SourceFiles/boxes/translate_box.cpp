@@ -208,7 +208,7 @@ void TranslateBox(
 		box,
 		CreateLoadingTextWidget(
 			box,
-			st::aboutLabel,
+			st::aboutLabel.style,
 			std::min(original->entity()->height() / lineHeight, kMaxLines),
 			state->to.value() | rpl::map([=](LanguageId id) {
 				return id.locale().textDirection() == Qt::RightToLeft;

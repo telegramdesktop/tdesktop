@@ -31,21 +31,21 @@ public:
 
 class LoadingText final : public LoadingElement {
 public:
-	LoadingText(const style::FlatLabel &st);
+	LoadingText(const style::TextStyle &st);
 
 	[[nodiscard]] int height() const override;
 	void paint(QPainter &p, int width) override;
 
 private:
-	const style::FlatLabel &_st;
+	const style::TextStyle &_st;
 
 };
 
-LoadingText::LoadingText(const style::FlatLabel &st) : _st(st) {
+LoadingText::LoadingText(const style::TextStyle &st) : _st(st) {
 }
 
 int LoadingText::height() const {
-	return _st.style.lineHeight;
+	return _st.lineHeight;
 }
 
 void LoadingText::paint(QPainter &p, int width) {
@@ -54,10 +54,10 @@ void LoadingText::paint(QPainter &p, int width) {
 	p.setPen(Qt::NoPen);
 
 	p.setBrush(st::windowBgOver);
-	const auto h = _st.style.font->ascent;
+	const auto h = _st.font->ascent;
 	p.drawRoundedRect(
 		0,
-		height() - h - (height() - _st.style.font->height),
+		height() - h - (height() - _st.font->height),
 		width,
 		h,
 		h / 2,
@@ -224,7 +224,7 @@ object_ptr<Ui::RpWidget> CreateLoadingElementWidget(
 
 object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
 		not_null<Ui::RpWidget*> parent,
-		const style::FlatLabel &st,
+		const style::TextStyle &st,
 		int lines,
 		rpl::producer<bool> rtl) {
 	return CreateLoadingElementWidget<LoadingText>(
