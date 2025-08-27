@@ -108,13 +108,12 @@ parts:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
     source-commit: e15b5d87c565e516aad5bcafdfe40315f84e5459
-    plugin: dump
+    plugin: nil
     override-pull: |
       craftctl default
       cp -r . "$CRAFT_STAGE/patches"
     override-prime: |
       rm -rf patches
-    stage: [-./*]
 
   ada:
     source: https://github.com/ada-url/ada.git
