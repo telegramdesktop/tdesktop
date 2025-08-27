@@ -13,6 +13,11 @@ architectures:
   - build-on: armhf
   - build-on: ppc64el
 
+plugs:
+  shmem:
+    interface: shared-memory
+    private: true
+
 apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
@@ -36,6 +41,7 @@ apps:
       - network-status
       - opengl
       - removable-media
+      - shmem
       - unity7
       - wayland
       - x11
