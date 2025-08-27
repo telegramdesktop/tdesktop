@@ -380,6 +380,8 @@ void Sandbox::singleInstanceChecked() {
 		new NotStartedWindow();
 		return;
 	}
+
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	const auto result = CrashReports::Start();
 	v::match(result, [&](CrashReports::Status status) {
 		if (status == CrashReports::CantOpen) {
@@ -408,6 +410,9 @@ void Sandbox::singleInstanceChecked() {
 			refreshGlobalProxy();
 		}, window->lifetime());
 	});
+#else // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+	launchApplication();
+#endif  // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 void Sandbox::socketDisconnected() {
