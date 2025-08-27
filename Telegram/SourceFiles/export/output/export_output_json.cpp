@@ -158,9 +158,6 @@ QByteArray SerializeText(
 	const auto text = ranges::views::all(
 		data
 	) | ranges::views::transform([&](const Data::TextPart &part) {
-		if ((part.type == Type::Text) && !serializeToObjects) {
-			return SerializeString(part.text);
-		}
 		const auto typeString = [&] {
 			switch (part.type) {
 			case Type::Unknown: return "unknown";
@@ -187,6 +184,10 @@ QByteArray SerializeText(
 			}
 			Unexpected("Type in SerializeText.");
 		}();
+		if (!serializeToObjects) {
+			return SerializeString(part.text);
+		}
+
 		const auto additionalName = (part.type == Type::MentionName)
 			? "user_id"
 			: (part.type == Type::CustomEmoji)
@@ -217,9 +218,14 @@ QByteArray SerializeText(
 	context.nesting.pop_back();
 
 	if (!serializeToObjects) {
-		if (data.size() == 1 && data[0].type == Data::TextPart::Type::Text) {
-			return text[0];
+		auto result = QByteArray();
+		result.append('"');
+		for (const auto &part : text) {
+			result.append(part.mid(1, part.size() - 2));
 		}
+		result.append('"');
+		return result;
+
 	}
 	return SerializeArray(context, text);
 }
