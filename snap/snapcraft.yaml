@@ -27,6 +27,10 @@ apps:
     slots:
       - mpris
 
+layout:
+  /var/tmp:
+    type: tmpfs
+
 parts:
   telegram:
     plugin: cmake
